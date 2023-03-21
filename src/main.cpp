@@ -152,7 +152,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 }
 
 int main() {
-	WIESEL_ENABLE_PROFILER();
+	//WIESEL_ENABLE_PROFILER();
 	WIESEL_PROFILER_START("Main");
 	appWindow.init();
 	initVulkan();
@@ -578,9 +578,7 @@ void createGraphicsPipeline() {
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	if (vkCreateGraphicsPipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create graphics pipeline!");
-	}
+	WIESEL_CHECK_VKRESULT(vkCreateGraphicsPipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline));
 
 	// Cleanup
 	vkDestroyShaderModule(logicalDevice, fragShaderModule, nullptr);
@@ -624,9 +622,7 @@ void createVertexBuffer() {
 	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create vertex buffer!");
-	}
+	WIESEL_CHECK_VKRESULT(vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &vertexBuffer));
 
 	VkMemoryRequirements memRequirements;
 	vkGetBufferMemoryRequirements(logicalDevice, vertexBuffer, &memRequirements);
@@ -635,9 +631,7 @@ void createVertexBuffer() {
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
 	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate vertex buffer memory!");
-	}
+	WIESEL_CHECK_VKRESULT(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &vertexBufferMemory));
 
 	vkBindBufferMemory(logicalDevice, vertexBuffer, vertexBufferMemory, 0);
 	void* data;
@@ -648,7 +642,6 @@ void createVertexBuffer() {
 
 void createCommandBuffers() {
 	commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-
 
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -673,12 +666,9 @@ void createSyncObjects() {
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-			vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-			vkCreateFence(logicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
-
-			throw std::runtime_error("failed to create synchronization objects for a frame!");
-		}
+		WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]));
+		WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]));
+		WIESEL_CHECK_VKRESULT(vkCreateFence(logicalDevice, &fenceInfo, nullptr, &inFlightFences[i]));
 	}
 }
 
@@ -1013,9 +1003,7 @@ VkShaderModule createShaderModule(const std::vector<char>& code) {
 	createInfo.codeSize = code.size();
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create shader module!");
-	}
+	WIESEL_CHECK_VKRESULT(vkCreateShaderModule(logicalDevice, &createInfo, nullptr, &shaderModule));
 	return shaderModule;
 }
 
@@ -1065,7 +1053,15 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-	Wiesel::logWarn("Validation layer: " + std::string(pCallbackData->pMessage));
+	if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+		Wiesel::logDebug("Validation layer: " + std::string(pCallbackData->pMessage));
+	} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+		Wiesel::logWarn("Validation layer: " + std::string(pCallbackData->pMessage));
+	} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+		Wiesel::logError("Validation layer: " + std::string(pCallbackData->pMessage));
+	} else {
+		Wiesel::logInfo("Validation layer: " + std::string(pCallbackData->pMessage));
+	}
 	return VK_FALSE;
 }
 
