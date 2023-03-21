@@ -55,15 +55,18 @@ message("Includes Dir: ${INCLUDE_DIRECTORY}")
 set(SOURCES
         ${SOURCES_DIRECTORY}/main.cpp
 
+        ${SOURCES_DIRECTORY}/Profiler.cpp
         ${SOURCES_DIRECTORY}/Logger.cpp
         ${SOURCES_DIRECTORY}/Utils.cpp
         ${SOURCES_DIRECTORY}/WieselWindow.cpp
         ${SOURCES_DIRECTORY}/WieselEngine.cpp
 
+        ${INCLUDE_DIRECTORY}/Profiler.h
         ${INCLUDE_DIRECTORY}/Logger.h
         ${INCLUDE_DIRECTORY}/Utils.h
         ${INCLUDE_DIRECTORY}/WieselWindow.h
-        ${INCLUDE_DIRECTORY}/WieselEngine.h)
+        ${INCLUDE_DIRECTORY}/WieselEngine.h
+        )
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})

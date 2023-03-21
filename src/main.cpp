@@ -18,7 +18,7 @@
 #include "Logger.h"
 #include "Utils.h"
 #include "WieselWindow.h"
-#include "Data.h"
+#include "Profiler.h"
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
@@ -49,6 +49,7 @@ void createRenderPass();
 void createGraphicsPipeline();
 void createFramebuffers();
 void createCommandPool();
+void createVertexBuffer();
 void createCommandBuffers();
 void createSyncObjects();
 void cleanupSwapChain();
@@ -65,6 +66,7 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 void setupDebugMessenger();
 void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 bool checkValidationLayerSupport();
+uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 std::vector<const char*> getRequiredExtensions();
 QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
@@ -98,6 +100,8 @@ VkPipeline graphicsPipeline;
 std::vector<VkFramebuffer> swapChainFramebuffers;
 VkCommandPool commandPool;
 std::vector<VkCommandBuffer> commandBuffers;
+VkBuffer vertexBuffer;
+VkDeviceMemory vertexBufferMemory;
 
 std::vector<VkSemaphore> imageAvailableSemaphores;
 std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -105,7 +109,16 @@ std::vector<VkFence> inFlightFences;
 
 uint32_t currentFrame = 0;
 
-WieselWindow& appWindow = *new WieselWindow(WIDTH, HEIGHT, "Demo");
+WieselWindow& appWindow = *new WieselWindow(WIDTH, HEIGHT, "Wiesel");
+
+const std::vector<Wiesel::Vertex> vertices = {
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+};
 
 const std::vector<const char*> validationLayers = {
 		"VK_LAYER_KHRONOS_validation"
@@ -138,10 +151,12 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 	}
 }
 
-
 int main() {
+	WIESEL_ENABLE_PROFILER();
+	WIESEL_PROFILER_START("Main");
 	appWindow.init();
 	initVulkan();
+	WIESEL_PROFILER_STOP(std::cout);
 	// mainLoop
 	while (!appWindow.isShouldClose()) {
 		glfwPollEvents();
@@ -154,6 +169,7 @@ int main() {
 }
 
 void initVulkan() {
+	WIESEL_PROFILE_SCOPE("initVulkan");
 	createInstance();
 	setupDebugMessenger();
 	createSurface();
@@ -165,6 +181,7 @@ void initVulkan() {
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
+	createVertexBuffer();
 	createCommandBuffers();
 	createSyncObjects();
 }
@@ -176,7 +193,7 @@ void createInstance() {
 
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "Hello Triangle";
+	appInfo.pApplicationName = "Wiesel";
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.pEngineName = "No Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -441,10 +458,15 @@ void createGraphicsPipeline() {
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+	auto bindingDescription = Wiesel::Vertex::getBindingDescription();
+	auto attributeDescriptions = Wiesel::Vertex::getAttributeDescriptions();
+
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -595,6 +617,35 @@ void createCommandPool() {
 	WIESEL_CHECK_VKRESULT(vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool));
 }
 
+void createVertexBuffer() {
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create vertex buffer!");
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(logicalDevice, vertexBuffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate vertex buffer memory!");
+	}
+
+	vkBindBufferMemory(logicalDevice, vertexBuffer, vertexBufferMemory, 0);
+	void* data;
+	vkMapMemory(logicalDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+	memcpy(data, vertices.data(), (size_t) bufferInfo.size);
+	vkUnmapMemory(logicalDevice, vertexBufferMemory);
+}
+
 void createCommandBuffers() {
 	commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -720,6 +771,9 @@ void draw() {
 void cleanup() {
 	cleanupSwapChain();
 
+	vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
+	vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
+
 	vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
 
@@ -813,7 +867,13 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 	scissor.extent = swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+	VkBuffer vertexBuffers[] = {vertexBuffer};
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
 	WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
 }
@@ -990,6 +1050,18 @@ bool checkValidationLayerSupport() {
 	}
 
 	return true;
+}
+
+uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+			return i;
+		}
+	}
+
+	throw std::runtime_error("failed to find suitable memory type!");
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
