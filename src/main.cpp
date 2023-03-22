@@ -15,10 +15,12 @@
 #include <GLFW/glfw3.h>
 #include <fstream>
 
-#include "Logger.h"
-#include "Utils.h"
-#include "WieselWindow.h"
-#include "Profiler.h"
+#include "w_logger.h"
+#include "w_utils.h"
+#include "w_window.h"
+#include "w_profiler.h"
+#include "w_camera.h"
+#include "w_keymanager.h"
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
@@ -38,9 +40,11 @@ struct SwapChainSupportDetails {
 
 void draw();
 void updateUniformBuffer(uint32_t currentFrame);
+void createCamera();
 
 void cleanup();
 void initVulkan();
+void initEngine();
 void createInstance();
 void createSurface();
 void createImageViews();
@@ -128,10 +132,16 @@ uint32_t currentFrame = 0;
 
 VkDescriptorPool descriptorPool;
 std::vector<VkDescriptorSet> descriptorSets;
+WieselCamera* camera;
+WieselKeyManager keyManager;
 
 WieselWindow& appWindow = *new WieselWindow(WIDTH, HEIGHT, "Wiesel");
+auto startTime = std::chrono::high_resolution_clock::now();
+auto frameTime = std::chrono::high_resolution_clock::now();
+float totalTime = 0.0;
+float deltaTime = 0.0;
 
-const std::vector<Wiesel::Vertex> vertices = {
+const std::vector<wge::Vertex> vertices = {
 		{{-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
 		{{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{0.5f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}},
@@ -178,6 +188,7 @@ int main() {
 	WIESEL_PROFILER_START("Main");
 	appWindow.init();
 	initVulkan();
+	initEngine();
 	WIESEL_PROFILER_STOP(std::cout);
 	// mainLoop
 	while (!appWindow.isShouldClose()) {
@@ -211,6 +222,17 @@ void initVulkan() {
 	createDescriptorPool();
 	createDescriptorSets();
 	createSyncObjects();
+}
+
+void initEngine() {
+	appWindow.setEventKeyPress([](int key, int scancode, int action, int mods) {
+		if (action == WINDOW_KEY_PRESS) {
+			keyManager.set(key, true);
+		} else if (action == WINDOW_KEY_RELEASE){
+			keyManager.set(key, false);
+		}
+	});
+	createCamera();
 }
 
 void createInstance() {
@@ -270,7 +292,7 @@ void createSurface() {
 void pickPhysicalDevice() {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-	Wiesel::logDebug(std::to_string(deviceCount) + " devices found!");
+	wge::logDebug(std::to_string(deviceCount) + " devices found!");
 	if (deviceCount == 0) {
 		throw std::runtime_error("failed to find GPUs with Vulkan support!");
 	}
@@ -503,8 +525,8 @@ void createGraphicsPipeline() {
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-	auto bindingDescription = Wiesel::Vertex::getBindingDescription();
-	auto attributeDescriptions = Wiesel::Vertex::getAttributeDescriptions();
+	auto bindingDescription = wge::Vertex::getBindingDescription();
+	auto attributeDescriptions = wge::Vertex::getAttributeDescriptions();
 
 	vertexInputInfo.vertexBindingDescriptionCount = 1;
 	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
@@ -548,7 +570,8 @@ void createGraphicsPipeline() {
 //	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;
 	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
 	rasterizer.depthBiasEnable = VK_FALSE;
@@ -707,7 +730,7 @@ void createIndexBuffers() {
 }
 
 void createUniformBuffers() {
-	VkDeviceSize bufferSize = sizeof(Wiesel::UniformBufferObject);
+	VkDeviceSize bufferSize = sizeof(wge::UniformBufferObject);
 
 	uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
@@ -750,7 +773,7 @@ void createDescriptorSets() {
 		VkDescriptorBufferInfo bufferInfo{};
 		bufferInfo.buffer = uniformBuffers[i];
 		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(Wiesel::UniformBufferObject);
+		bufferInfo.range = sizeof(wge::UniformBufferObject);
 
 		VkWriteDescriptorSet descriptorWrite{};
 		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -869,7 +892,7 @@ void cleanupSwapChain() {
 }
 
 void recreateSwapChain() {
-	Wiesel::logInfo("Recreating swap chains...");
+	wge::logInfo("Recreating swap chains...");
 	int width = 0, height = 0;
 	glfwGetFramebufferSize(appWindow.handle, &width, &height);
 	while (width == 0 || height == 0) {
@@ -900,6 +923,11 @@ void draw() {
 	// Setup
 	vkResetFences(logicalDevice, 1, &inFlightFences[currentFrame]);
 	vkResetCommandBuffer(commandBuffers[currentFrame],  0);
+
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	totalTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - frameTime).count();
+	frameTime = currentTime;
 
 	// Actual drawing
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -950,17 +978,25 @@ void draw() {
 }
 
 void updateUniformBuffer(uint32_t currentFrame) {
-	static auto startTime = std::chrono::high_resolution_clock::now();
+	if (keyManager.isPressed(GLFW_KEY_W)) {
+		camera->move(0.0f, deltaTime * 2.0f, 0.0f);
+	} else 	if (keyManager.isPressed(GLFW_KEY_S)) {
+		camera->move(0.0f, deltaTime * -2.0f, 0.0f);
+	}
 
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float dt = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-	Wiesel::UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), dt * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
-	ubo.proj[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
+	wge::UniformBufferObject ubo{};
+	ubo.model = glm::rotate(glm::mat4(1.0f), totalTime * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	ubo.view = glm::inverse(camera->getView());
+	ubo.proj = camera->getProjection();
 
 	memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+}
+
+void createCamera() {
+	camera = new WieselCamera(glm::vec3(2.0f, 2.0f, 2.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), swapChainExtent.width / (float) swapChainExtent.height);
+	camera->rotate(PI / 4.0f, 0.0f, 1.0f, 0.0f);
+	camera->rotate(-PI / 6.0f, 1.0f, 0.0f, 0.0f);
 }
 
 void cleanup() {
@@ -1083,7 +1119,6 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
 
 	vkCmdEndRenderPass(commandBuffer);
 	WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
@@ -1275,13 +1310,13 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 	if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-		Wiesel::logDebug("Validation layer: " + std::string(pCallbackData->pMessage));
+		wge::logDebug("Validation layer: " + std::string(pCallbackData->pMessage));
 	} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-		Wiesel::logWarn("Validation layer: " + std::string(pCallbackData->pMessage));
+		wge::logWarn("Validation layer: " + std::string(pCallbackData->pMessage));
 	} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-		Wiesel::logError("Validation layer: " + std::string(pCallbackData->pMessage));
+		wge::logError("Validation layer: " + std::string(pCallbackData->pMessage));
 	} else {
-		Wiesel::logInfo("Validation layer: " + std::string(pCallbackData->pMessage));
+		wge::logInfo("Validation layer: " + std::string(pCallbackData->pMessage));
 	}
 	return VK_FALSE;
 }

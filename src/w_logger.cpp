@@ -2,10 +2,10 @@
 // Created by Metehan Gezer on 20.03.2023.
 //
 
-#include "Logger.h"
+#include "w_logger.h"
 #include <iostream>
 
-namespace Wiesel {
+namespace wge {
 	LogLevel minLogLevel = LOG_LEVEL_DEBUG;
 	void setLogLevel(LogLevel level) {
 		minLogLevel = level;

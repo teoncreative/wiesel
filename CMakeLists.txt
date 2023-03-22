@@ -51,17 +51,23 @@ message("Includes Dir: ${INCLUDE_DIRECTORY}")
 set(SOURCES
         ${SOURCES_DIRECTORY}/main.cpp
 
-        ${SOURCES_DIRECTORY}/Profiler.cpp
-        ${SOURCES_DIRECTORY}/Logger.cpp
-        ${SOURCES_DIRECTORY}/Utils.cpp
-        ${SOURCES_DIRECTORY}/WieselWindow.cpp
-        ${SOURCES_DIRECTORY}/WieselEngine.cpp
+        ${SOURCES_DIRECTORY}/w_profiler.cpp
+        ${SOURCES_DIRECTORY}/w_logger.cpp
+        ${SOURCES_DIRECTORY}/w_utils.cpp
+        ${SOURCES_DIRECTORY}/w_window.cpp
+        ${SOURCES_DIRECTORY}/w_camera.cpp
+        ${SOURCES_DIRECTORY}/w_keymanager.cpp
+        ${SOURCES_DIRECTORY}/w_baseobject.cpp
+        ${SOURCES_DIRECTORY}/w_engine.cpp
 
-        ${INCLUDE_DIRECTORY}/Profiler.h
-        ${INCLUDE_DIRECTORY}/Logger.h
-        ${INCLUDE_DIRECTORY}/Utils.h
-        ${INCLUDE_DIRECTORY}/WieselWindow.h
-        ${INCLUDE_DIRECTORY}/WieselEngine.h
+        ${INCLUDE_DIRECTORY}/w_profiler.h
+        ${INCLUDE_DIRECTORY}/w_logger.h
+        ${INCLUDE_DIRECTORY}/w_utils.h
+        ${INCLUDE_DIRECTORY}/w_window.h
+        ${INCLUDE_DIRECTORY}/w_camera.h
+        ${INCLUDE_DIRECTORY}/w_keymanager.h
+        ${INCLUDE_DIRECTORY}/w_baseobject.h
+        ${INCLUDE_DIRECTORY}/w_engine.h
         )
 add_executable(${PROJECT_NAME} ${SOURCES})
 
