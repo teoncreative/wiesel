@@ -55,6 +55,8 @@ void createCommandPools();
 void createVertexBuffer();
 void createIndexBuffers();
 void createUniformBuffers();
+void createDescriptorPool();
+void createDescriptorSets();
 void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 void createCommandBuffers();
@@ -124,14 +126,16 @@ std::vector<VkSemaphore> renderFinishedSemaphores;
 std::vector<VkFence> inFlightFences;
 uint32_t currentFrame = 0;
 
+VkDescriptorPool descriptorPool;
+std::vector<VkDescriptorSet> descriptorSets;
 
 WieselWindow& appWindow = *new WieselWindow(WIDTH, HEIGHT, "Wiesel");
 
 const std::vector<Wiesel::Vertex> vertices = {
-		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+		{{-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{-0.5f, 0.0f, 0.5f}, {1.0f, 1.0f, 1.0f}}
 };
 
 const std::vector<uint16_t> indices = {
@@ -204,6 +208,8 @@ void initVulkan() {
 	createVertexBuffer();
 	createIndexBuffers();
 	createUniformBuffers();
+	createDescriptorPool();
+	createDescriptorSets();
 	createSyncObjects();
 }
 
@@ -714,6 +720,56 @@ void createUniformBuffers() {
 	}
 }
 
+void createDescriptorPool() {
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+	WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool));
+}
+
+void createDescriptorSets() {
+	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	allocInfo.pSetLayouts = layouts.data();
+
+	descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+	WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(logicalDevice, &allocInfo, descriptorSets.data()));
+
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(Wiesel::UniformBufferObject);
+
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = descriptorSets[i];
+		descriptorWrite.dstBinding = 0;
+		descriptorWrite.dstArrayElement = 0;
+
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+
+		descriptorWrite.pBufferInfo = &bufferInfo;
+		descriptorWrite.pImageInfo = nullptr; // Optional
+		descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+		vkUpdateDescriptorSets(logicalDevice, 1, &descriptorWrite, 0, nullptr);
+	}
+
+}
+
 void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -841,12 +897,17 @@ void draw() {
 	} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
+	// Setup
 	vkResetFences(logicalDevice, 1, &inFlightFences[currentFrame]);
 	vkResetCommandBuffer(commandBuffers[currentFrame],  0);
+
+	// Actual drawing
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
+	// updating uniform buffer (rotating the object)
 	updateUniformBuffer(currentFrame);
 
+	// Presentation
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
@@ -894,10 +955,10 @@ void updateUniformBuffer(uint32_t currentFrame) {
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	float dt = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 	Wiesel::UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), dt * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.model = glm::rotate(glm::mat4(1.0f), dt * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
-	ubo.proj[1][1] *= -1;
+	ubo.proj[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
 
 	memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
 }
@@ -909,6 +970,8 @@ void cleanup() {
 		vkDestroyBuffer(logicalDevice, uniformBuffers[i], nullptr);
 		vkFreeMemory(logicalDevice, uniformBuffersMemory[i], nullptr);
 	}
+
+	vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
 
 	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 
@@ -990,7 +1053,6 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 	renderPassInfo.renderArea.offset = {0, 0};
 	renderPassInfo.renderArea.extent = swapChainExtent;
 
-
 	VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
 	renderPassInfo.clearValueCount = 1;
 	renderPassInfo.pClearValues = &clearColor;
@@ -1019,7 +1081,10 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+
 	vkCmdEndRenderPass(commandBuffer);
 	WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
 }
