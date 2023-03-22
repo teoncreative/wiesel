@@ -2,8 +2,8 @@
 // Created by Metehan Gezer on 20.03.2023.
 //
 
-#ifndef WIESEL_UTILS_H
-#define WIESEL_UTILS_H
+#ifndef WIESEL_W_UTILS_H
+#define WIESEL_W_UTILS_H
 
 #include <string>
 #include <array>
@@ -11,14 +11,16 @@
 #include <vulkan/vulkan_core.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
+#include <glm/gtx/quaternion.hpp>
 
 #include <chrono>
 
-namespace Wiesel {
-	namespace Tools {
-		std::string errorString(VkResult errorCode);
-	}
+
+#define PI 3.14
+
+namespace wge {
+	std::string getNameFromVulkanResult(VkResult errorCode);
 
 	struct Vertex {
 		glm::vec3 pos;
@@ -61,8 +63,8 @@ namespace Wiesel {
 	VkResult res = (f);																					\
 	if (res != VK_SUCCESS)																				\
 	{																									\
-		std::cout << "Fatal : VkResult is \"" << Wiesel::Tools::errorString(res) << "\" in " << __FILE__ << " at line " << __LINE__ << "\n"; \
+		std::cout << "Fatal : VkResult is \"" << wge::getNameFromVulkanResult(res) << "\" in " << __FILE__ << " at line " << __LINE__ << "\n"; \
 		assert(res == VK_SUCCESS);																		\
 	}																									\
 }
-#endif //WIESEL_UTILS_H
+#endif //WIESEL_W_UTILS_H

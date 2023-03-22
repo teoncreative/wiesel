@@ -2,11 +2,11 @@
 // Created by Metehan Gezer on 20.03.2023.
 //
 
-#ifndef WIESEL_LOGGER_H
-#define WIESEL_LOGGER_H
+#ifndef WIESEL_W_LOGGER_H
+#define WIESEL_W_LOGGER_H
 #include "string"
 
-namespace Wiesel {
+namespace wge {
 	typedef enum LogLevel {
 		LOG_LEVEL_DEBUG = 0,
 		LOG_LEVEL_INFO = 1,
@@ -26,4 +26,4 @@ namespace Wiesel {
 	void logWarn(const std::string& s);
 }
 
-#endif //WIESEL_LOGGER_H
+#endif //WIESEL_W_LOGGER_H

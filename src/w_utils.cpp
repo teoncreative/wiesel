@@ -2,9 +2,9 @@
 // Created by Metehan Gezer on 20.03.2023.
 //
 
-#include "Utils.h"
+#include "w_utils.h"
 
-std::string Wiesel::Tools::errorString(VkResult errorCode) {
+std::string wge::getNameFromVulkanResult(VkResult errorCode) {
 	switch (errorCode)
 	{
 #define STR(r) case VK_ ##r: return #r
