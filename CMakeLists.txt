@@ -3,6 +3,11 @@ project(Wiesel)
 
 set(CMAKE_CXX_STANDARD 23)
 
+if(APPLE)
+    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+endif()
+# todo other platforms
+
 if(UNIX)
     EXECUTE_PROCESS( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE )
     message( STATUS "Arch: ${DEVICEARCHITECTURE}" )
@@ -24,15 +29,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
     set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
 endif()
-
-if(APPLE)
-    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-endif()
-
-set(SOURCE_FILES
-        src/main.cpp
-        include/Logger.h
-        src/Logger.cpp)
 
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/Install)
 set(MACOSX_RPATH ON)
@@ -70,7 +66,6 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
-
 
 find_package(Vulkan REQUIRED)
 if (VULKAN_FOUND)
