@@ -37,6 +37,8 @@ struct SwapChainSupportDetails {
 };
 
 void draw();
+void updateUniformBuffer(uint32_t currentFrame);
+
 void cleanup();
 void initVulkan();
 void createInstance();
@@ -46,10 +48,15 @@ void pickPhysicalDevice();
 void createLogicalDevice();
 void createSwapChain();
 void createRenderPass();
+void createDescriptorSetLayout();
 void createGraphicsPipeline();
 void createFramebuffers();
-void createCommandPool();
+void createCommandPools();
 void createVertexBuffer();
+void createIndexBuffers();
+void createUniformBuffers();
+void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 void createCommandBuffers();
 void createSyncObjects();
 void cleanupSwapChain();
@@ -94,30 +101,41 @@ VkExtent2D swapChainExtent;
 std::vector<VkImageView> swapChainImageViews;
 
 VkRenderPass renderPass;
+VkDescriptorSetLayout descriptorSetLayout;
 VkPipelineLayout pipelineLayout;
 
 VkPipeline graphicsPipeline;
 std::vector<VkFramebuffer> swapChainFramebuffers;
 VkCommandPool commandPool;
 std::vector<VkCommandBuffer> commandBuffers;
+VkCommandPool memCopyCommandPool;
+VkCommandBuffer memCopyCommandBuffer;
 VkBuffer vertexBuffer;
 VkDeviceMemory vertexBufferMemory;
+VkBuffer indexBuffer;
+VkDeviceMemory indexBufferMemory;
+
+std::vector<VkBuffer> uniformBuffers;
+std::vector<VkDeviceMemory> uniformBuffersMemory;
+std::vector<void*> uniformBuffersMapped;
 
 std::vector<VkSemaphore> imageAvailableSemaphores;
 std::vector<VkSemaphore> renderFinishedSemaphores;
 std::vector<VkFence> inFlightFences;
-
 uint32_t currentFrame = 0;
+
 
 WieselWindow& appWindow = *new WieselWindow(WIDTH, HEIGHT, "Wiesel");
 
 const std::vector<Wiesel::Vertex> vertices = {
 		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-		{{0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}},
-		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+};
+
+const std::vector<uint16_t> indices = {
+		0, 1, 2, 2, 3, 0
 };
 
 const std::vector<const char*> validationLayers = {
@@ -178,11 +196,14 @@ void initVulkan() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
+	createDescriptorSetLayout();
 	createGraphicsPipeline();
 	createFramebuffers();
-	createCommandPool();
-	createVertexBuffer();
+	createCommandPools();
 	createCommandBuffers();
+	createVertexBuffer();
+	createIndexBuffers();
+	createUniformBuffers();
 	createSyncObjects();
 }
 
@@ -287,6 +308,7 @@ void createLogicalDevice() {
 	}
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
+	//deviceFeatures.fillModeNonSolid = true;
 
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -426,6 +448,22 @@ void createRenderPass() {
 	}
 }
 
+void createDescriptorSetLayout() {
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uboLayoutBinding;
+
+	WIESEL_CHECK_VKRESULT(vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout));
+}
+
 void createGraphicsPipeline() {
 	auto vertShaderCode = readFile("shaders/test.vert.spv");
 	auto fragShaderCode = readFile("shaders/test.frag.spv");
@@ -501,6 +539,7 @@ void createGraphicsPipeline() {
 	 * VK_POLYGON_MODE_LINE: polygon edges are drawn as lines
 	 * VK_POLYGON_MODE_POINT: polygon vertices are drawn as points
 	 */
+//	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
@@ -550,8 +589,8 @@ void createGraphicsPipeline() {
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0; // Optional
-	pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
@@ -605,7 +644,7 @@ void createFramebuffers() {
 	}
 }
 
-void createCommandPool() {
+void createCommandPools() {
 	QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
 	VkCommandPoolCreateInfo poolInfo{};
@@ -613,32 +652,114 @@ void createCommandPool() {
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 	WIESEL_CHECK_VKRESULT(vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool));
+
+	VkCommandPoolCreateInfo poolInfo1{};
+	poolInfo1.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo1.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+	poolInfo1.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+	WIESEL_CHECK_VKRESULT(vkCreateCommandPool(logicalDevice, &poolInfo1, nullptr, &memCopyCommandPool));
 }
 
 void createVertexBuffer() {
+	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices.data(), (size_t) bufferSize);
+	vkUnmapMemory(logicalDevice, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+
+	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
+	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
+}
+
+void createIndexBuffers() {
+	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, indices.data(), (size_t) bufferSize);
+	vkUnmapMemory(logicalDevice, stagingBufferMemory);
+
+	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
+	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
+}
+
+void createUniformBuffers() {
+	VkDeviceSize bufferSize = sizeof(Wiesel::UniformBufferObject);
+
+	uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+	uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+
+		vkMapMemory(logicalDevice, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+	}
+}
+
+void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	WIESEL_CHECK_VKRESULT(vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &vertexBuffer));
+	WIESEL_CHECK_VKRESULT(vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &buffer));
 
 	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(logicalDevice, vertexBuffer, &memRequirements);
+	vkGetBufferMemoryRequirements(logicalDevice, buffer, &memRequirements);
 
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	WIESEL_CHECK_VKRESULT(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &vertexBufferMemory));
+	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
 
-	vkBindBufferMemory(logicalDevice, vertexBuffer, vertexBufferMemory, 0);
-	void* data;
-	vkMapMemory(logicalDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-	memcpy(data, vertices.data(), (size_t) bufferInfo.size);
-	vkUnmapMemory(logicalDevice, vertexBufferMemory);
+	WIESEL_CHECK_VKRESULT(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &bufferMemory));
+
+	vkBindBufferMemory(logicalDevice, buffer, bufferMemory, 0);
 }
+
+void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(memCopyCommandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion{};
+	copyRegion.srcOffset = 0; // Optional
+	copyRegion.dstOffset = 0; // Optional
+	copyRegion.size = size;
+	vkCmdCopyBuffer(memCopyCommandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(memCopyCommandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &memCopyCommandBuffer;
+
+	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(graphicsQueue);
+}
+
 
 void createCommandBuffers() {
 	commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -647,10 +768,17 @@ void createCommandBuffers() {
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.commandPool = commandPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandBufferCount = 1;
 	allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
 	WIESEL_CHECK_VKRESULT(vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers.data()));
+
+	VkCommandBufferAllocateInfo allocInfo1{};
+	allocInfo1.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo1.commandPool = memCopyCommandPool;
+	allocInfo1.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo1.commandBufferCount = 1;
+
+	WIESEL_CHECK_VKRESULT(vkAllocateCommandBuffers(logicalDevice, &allocInfo1, &memCopyCommandBuffer));
 }
 
 void createSyncObjects() {
@@ -717,6 +845,8 @@ void draw() {
 	vkResetCommandBuffer(commandBuffers[currentFrame],  0);
 	recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
+	updateUniformBuffer(currentFrame);
+
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
@@ -758,8 +888,32 @@ void draw() {
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+void updateUniformBuffer(uint32_t currentFrame) {
+	static auto startTime = std::chrono::high_resolution_clock::now();
+
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	float dt = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	Wiesel::UniformBufferObject ubo{};
+	ubo.model = glm::rotate(glm::mat4(1.0f), dt * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+	ubo.proj[1][1] *= -1;
+
+	memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+}
+
 void cleanup() {
 	cleanupSwapChain();
+
+	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		vkDestroyBuffer(logicalDevice, uniformBuffers[i], nullptr);
+		vkFreeMemory(logicalDevice, uniformBuffersMemory[i], nullptr);
+	}
+
+	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
+
+	vkDestroyBuffer(logicalDevice, indexBuffer, nullptr);
+	vkFreeMemory(logicalDevice, indexBufferMemory, nullptr);
 
 	vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
 	vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
@@ -775,6 +929,7 @@ void cleanup() {
 		vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
 	}
 
+	vkDestroyCommandPool(logicalDevice, memCopyCommandPool, nullptr);
 	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
 
 	vkDestroyDevice(logicalDevice, nullptr);
@@ -862,8 +1017,9 @@ void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
 	VkBuffer vertexBuffers[] = {vertexBuffer};
 	VkDeviceSize offsets[] = {0};
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 	vkCmdEndRenderPass(commandBuffer);
 	WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
 }
