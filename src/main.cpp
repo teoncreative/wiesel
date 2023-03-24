@@ -987,7 +987,7 @@ void updateUniformBuffer(uint32_t currentFrame) {
 	wge::UniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), totalTime * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	ubo.view = glm::inverse(camera->getView());
+	ubo.view = glm::inverse(camera->getLocalView());
 	ubo.proj = camera->getProjection();
 
 	memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
