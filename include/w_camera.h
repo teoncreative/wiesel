@@ -12,15 +12,14 @@ public:
 	WieselCamera(const glm::vec3& position, const glm::quat& orientation, float aspectRatio, float fieldOfView = 45, float nearPlane = 0.1f, float farPlane = 1000.0f);
 	~WieselCamera();
 
-	const glm::mat4& getView();
 	const glm::mat4& getProjection();
 
 	float getFieldOfView() const;
 
-	void move(float x, float y, float z);
-	void move(const glm::vec3& move);
+	void move(float x, float y, float z) override;
+	void move(const glm::vec3& move) override;
 
-	void rotate(float radians, float ax, float ay, float az);
+	void rotate(float radians, float ax, float ay, float az) override;
 
 private:
 	void updateProjection();

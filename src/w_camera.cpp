@@ -11,10 +11,6 @@ WieselCamera::~WieselCamera() {
 
 }
 
-const glm::mat4& WieselCamera::getView() {
-	return view;
-}
-
 const glm::mat4& WieselCamera::getProjection() {
 	return projection;
 }
@@ -24,7 +20,8 @@ float WieselCamera::getFieldOfView() const {
 }
 
 void WieselCamera::move(float x, float y, float z) {
-	this->move(glm::vec3(x, y, z));
+	WieselObject::move(x, y, z);
+	updateProjection();
 }
 
 void WieselCamera::move(const glm::vec3& move) {
@@ -40,8 +37,6 @@ void WieselCamera::rotate(float radians, float ax, float ay, float az) {
 void WieselCamera::updateProjection() {
 	projection = glm::perspective(glm::radians(fieldOfView), aspectRatio, nearPlane, farPlane);
 	projection[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
-
-	view = glm::translate(glm::mat4(1.0f), position) * glm::toMat4((const glm::quat&) orientation);
 }
 
 
