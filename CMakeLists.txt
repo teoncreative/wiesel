@@ -19,17 +19,17 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -std=c++23 -DDEBUG -DENABLE_BOO
 if(NOT APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -v -pthread -Wl,--gc-sections")
 endif()
+# todo other platforms
 
+##### SETTINGS #####
+if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
+    set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
+endif()
 set(CMAKE_THREAD_LIBS_INIT "-lpthread")
 set(CMAKE_HAVE_THREADS_LIBRARY 1)
 set(CMAKE_USE_WIN32_THREADS_INIT 0)
 set(CMAKE_USE_PTHREADS_INIT 1)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-
-if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
-    set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
-endif()
-
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/Install)
 set(MACOSX_RPATH ON)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
@@ -40,8 +40,7 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-add_subdirectory(deps/glfw)
-
+##### SOURCES #####
 set(SOURCES_DIRECTORY ${PROJECT_SOURCE_DIR}/src)
 set(INCLUDE_DIRECTORY ${PROJECT_SOURCE_DIR}/include)
 
@@ -73,6 +72,8 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
 
+## LIBRARIES
+
 find_package(Vulkan REQUIRED)
 if (VULKAN_FOUND)
     message(STATUS "Found Vulkan. Including and linking...")
@@ -80,8 +81,11 @@ if (VULKAN_FOUND)
     target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
 endif(VULKAN_FOUND)
 
+add_subdirectory(deps/glfw)
 target_link_libraries(${PROJECT_NAME} glfw)
+include_directories(deps/stb)
 
+##### SHADERS #####
 file(GLOB_RECURSE GLSL_SOURCE_FILES
         "shaders/*.frag"
         "shaders/*.vert"
