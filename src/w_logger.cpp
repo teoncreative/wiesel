@@ -5,7 +5,7 @@
 #include "w_logger.h"
 #include <iostream>
 
-namespace wge {
+namespace wie {
 	LogLevel minLogLevel = LOG_LEVEL_DEBUG;
 	void setLogLevel(LogLevel level) {
 		minLogLevel = level;

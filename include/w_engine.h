@@ -5,7 +5,7 @@
 #ifndef WIESEL_W_ENGINE_H
 #define WIESEL_W_ENGINE_H
 
-namespace wge {
+namespace wie {
 
 }
 

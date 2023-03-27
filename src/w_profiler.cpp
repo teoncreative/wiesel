@@ -6,7 +6,7 @@
 #include <sstream>
 #include "w_profiler.h"
 
-namespace wge {
+namespace wie {
 	bool enabled = false;
 	std::vector<ProfileData> data;
 	std::string currentSection;
@@ -34,7 +34,7 @@ namespace wge {
 		profileData.name = name;
 		profileData.time = elapsedMicroseconds;
 		profileData.renderPass = renderPass;
-		wge::insertProfileData(profileData);
+		wie::insertProfileData(profileData);
 	}
 
 	void beginProfiler(const std::string& sectionName) {
