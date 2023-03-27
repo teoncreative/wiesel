@@ -22,7 +22,7 @@ WieselWindow::~WieselWindow() {
 
 void WieselWindow::init() {
 	glfwInit();
-	wge::logDebug("glfw Vulkan Support: " + std::to_string(glfwVulkanSupported()));
+	wie::logDebug("glfw Vulkan Support: " + std::to_string(glfwVulkanSupported()));
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 //	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 

@@ -6,7 +6,7 @@
 #define WIESEL_W_LOGGER_H
 #include "string"
 
-namespace wge {
+namespace wie {
 	typedef enum LogLevel {
 		LOG_LEVEL_DEBUG = 0,
 		LOG_LEVEL_INFO = 1,

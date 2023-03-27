@@ -11,7 +11,7 @@
 #include <chrono>
 #include <vector>
 
-namespace wge {
+namespace wie {
 	struct ProfileData {
 		std::string name;
 		std::chrono::microseconds time;
@@ -62,17 +62,17 @@ namespace wge {
 	};
 }
 
-#define WIESEL_PROFILE_SCOPE_INTERNAL(name, line) constexpr auto fixedName##line = wge::cleanupString(name, "__cdecl ");\
-		wge::ProfilerInstance timer##line(fixedName##line.Data);
-#define WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, line) constexpr auto fixedName##line = wge::cleanupString(name, "__cdecl ");\
-		wge::ProfilerInstance timer##line(fixedName##line.Data, pass);
+#define WIESEL_PROFILE_SCOPE_INTERNAL(name, line) constexpr auto fixedName##line = wie::cleanupString(name, "__cdecl ");\
+		wie::ProfilerInstance timer##line(fixedName##line.Data);
+#define WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, line) constexpr auto fixedName##line = wie::cleanupString(name, "__cdecl ");\
+		wie::ProfilerInstance timer##line(fixedName##line.Data, pass);
 
-#define WIESEL_ENABLE_PROFILER() wge::setProfilerEnabled(true);
-#define WIESEL_DISABLE_PROFILER() wge::setProfilerEnabled(false);
+#define WIESEL_ENABLE_PROFILER() wie::setProfilerEnabled(true);
+#define WIESEL_DISABLE_PROFILER() wie::setProfilerEnabled(false);
 
 #define WIESEL_PROFILE_SCOPE(name) WIESEL_PROFILE_SCOPE_INTERNAL(name, __LINE__)
 #define WIESEL_PROFILE_SCOPE_DRAW(name, pass) WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, __LINE__)
-#define WIESEL_PROFILER_START(name) wge::beginProfiler(name)
-#define WIESEL_PROFILER_STOP(stream) wge::endProfiler(stream)
+#define WIESEL_PROFILER_START(name) wie::beginProfiler(name)
+#define WIESEL_PROFILER_STOP(stream) wie::endProfiler(stream)
 
 #endif //WIESEL_W_PROFILER_H

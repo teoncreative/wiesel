@@ -4,7 +4,7 @@
 
 #include "w_utils.h"
 
-std::string wge::getNameFromVulkanResult(VkResult errorCode) {
+std::string wie::getNameFromVulkanResult(VkResult errorCode) {
 	switch (errorCode)
 	{
 #define STR(r) case VK_ ##r: return #r

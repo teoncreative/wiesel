@@ -108,3 +108,31 @@ add_custom_target(
 )
 
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_SHADERS)
+
+##### TEXTURES #####
+
+file(GLOB_RECURSE TEXTURE_FILES
+        "textures/*.jpg"
+        "textures/*.png"
+        "textures/*.bmp"
+        "textures/*.jpeg"
+        )
+# todo copy images as some other easier to load format
+
+foreach(TEXTURE ${TEXTURE_FILES})
+    get_filename_component(FILE_NAME ${TEXTURE} NAME)
+    set(OUT_FILE "${PROJECT_BINARY_DIR}/textures/${FILE_NAME}")
+    add_custom_command(
+            OUTPUT ${OUT_FILE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/textures/"
+            COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/textures/${FILE_NAME} ${OUT_FILE}
+            DEPENDS ${TEXTURE})
+    list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
+endforeach(TEXTURE)
+
+add_custom_target(
+        ${PROJECT_NAME}_TEXTURES
+        DEPENDS ${COPIED_TEXTURE_FILES}
+)
+
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_TEXTURES)
