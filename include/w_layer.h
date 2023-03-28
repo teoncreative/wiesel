@@ -1,3 +1,4 @@
+
 //   Copyright 2023 Metehan Gezer
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -9,16 +10,22 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_object.h"
-#include "util/w_utils.h"
+#include "w_renderer.h"
 #include "events/w_events.h"
 
 namespace Wiesel {
-	class Application {
+	class Layer {
 	public:
-		Application();
-		~Application();
+		Layer();
+		virtual ~Layer();
 
-		void Init();
+		virtual void OnAttach() = 0;
+		virtual void OnDetach() = 0;
+		virtual void OnUpdate(double_t deltaTime) = 0;
+		virtual void OnEvent(Event& event) = 0;
+
+	private:
+		uint32_t m_Id;
+		friend class Application;
 	};
 }

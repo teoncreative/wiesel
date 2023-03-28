@@ -21,6 +21,7 @@
 #include "w_camera.h"
 #include "events/w_events.h"
 #include "events/w_mouseevents.h"
+#include "w_application.h"
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
@@ -85,7 +86,7 @@ SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
 void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 VkCommandBuffer BeginSingleTimeCommands();
 void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
-void setupDebugMessenger();
+void SetupDebugMessenger();
 void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 bool checkValidationLayerSupport();
 uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -100,14 +101,14 @@ const int MAX_FRAMES_IN_FLIGHT = 2;
 
 
 VkInstance instance;
-VkDebugUtilsMessengerEXT debugMessenger;
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 VkDevice logicalDevice;
-VkQueue graphicsQueue;
 VkSurfaceKHR surface;
+VkQueue graphicsQueue;
 VkQueue presentQueue;
-
 VkSwapchainKHR swapChain;
+VkDebugUtilsMessengerEXT debugMessenger;
+
 std::vector<VkImage> swapChainImages;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
@@ -212,7 +213,17 @@ void OnEvent(Wiesel::Event& event) {
 }
 
 int main() {
-	//WIESEL_ENABLE_PROFILER();
+	Wiesel::Application& app = *Wiesel::CreateApp();
+	WIESEL_PROFILE_BEGIN_SECTION("Application Init");
+	app.Init();
+	WIESEL_PROFILE_END_SECTION(std::cout);
+	WIESEL_PROFILE_BEGIN_SECTION("Application Run");
+	app.Run();
+	WIESEL_PROFILE_END_SECTION(std::cout);
+	WIESEL_PROFILE_BEGIN_SECTION("Application Cleanup");
+	delete &app;
+	WIESEL_PROFILE_END_SECTION(std::cout);
+	/*
 	WIESEL_PROFILER_START("Main");
 	Wiesel::WindowProperties properties{};
 	appWindow = CreateShared<Wiesel::GlfwAppWindow>(properties);
@@ -228,14 +239,14 @@ int main() {
 	}
 	vkDeviceWaitIdle(logicalDevice);
 	// end mainLoop
-	Cleanup();
+	Cleanup();*/
 	return 0;
 }
 
 void InitVulkan() {
 	WIESEL_PROFILE_FUNCTION();
 	CreateInstance();
-	setupDebugMessenger();
+	SetupDebugMessenger();
 	CreateSurface();
 	PickPhysicalDevice();
 	CreateLogicalDevice();
@@ -303,7 +314,7 @@ void CreateInstance() {
 	WIESEL_CHECK_VKRESULT(vkCreateInstance(&createInfo, nullptr, &instance));
 }
 
-void setupDebugMessenger() {
+void SetupDebugMessenger() {
 	if (!enableValidationLayers) return;
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo;
@@ -691,16 +702,6 @@ void CreateFramebuffers() {
 	}
 }
 
-void CreateCommandPools() {
-	QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice);
-
-	VkCommandPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-	WIESEL_CHECK_VKRESULT(vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool));
-}
-
 void CreateVertexBuffer() {
 	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
@@ -924,6 +925,16 @@ void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayo
 	);
 
 	EndSingleTimeCommands(commandBuffer);
+}
+
+void CreateCommandPools() {
+	QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice);
+
+	VkCommandPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+	WIESEL_CHECK_VKRESULT(vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool));
 }
 
 void CreateCommandBuffers() {

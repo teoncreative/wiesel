@@ -1,3 +1,4 @@
+
 //   Copyright 2023 Metehan Gezer
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -10,7 +11,9 @@
 
 #include "w_pch.h"
 #include "w_object.h"
+#include "w_buffer.h"
 
+// todo
 namespace Wiesel {
 	class Mesh : public Object {
 	public:
@@ -22,5 +25,6 @@ namespace Wiesel {
 	private:
 		std::vector<Vertex> m_Vertices;
 		std::vector<int> m_Indices;
+		SharedPtr<VertexBuffer> m_VertexBuffer;
 	};
 }

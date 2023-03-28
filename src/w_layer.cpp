@@ -7,9 +7,16 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "w_mesh.h"
-#include "w_renderer.h"
+#include "w_layer.h"
 
-void Wiesel::Mesh::Allocate() {
+namespace Wiesel {
+
+	Layer::Layer() {
+
+	}
+
+	Layer::~Layer() {
+
+	}
 
 }

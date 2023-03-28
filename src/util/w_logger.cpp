@@ -10,6 +10,7 @@
 #include <iostream>
 
 namespace Wiesel {
+	// todo use macros and log the caller function
 	LogLevel minLogLevel = Debug;
 
 	void SetMinLogLevel(LogLevel level) {
