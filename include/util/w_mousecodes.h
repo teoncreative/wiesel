@@ -11,21 +11,19 @@
 #include "w_pch.h"
 
 namespace Wiesel {
-	struct KeyData {
-		KeyData();
-		explicit KeyData(bool pressed);
+	using MouseCode = int32_t; // Define MouseCode as int32_t
+	enum : MouseCode {
+		Button0 = 0,
+		Button1 = 1,
+		Button2 = 2,
+		Button3 = 3,
+		Button4 = 4,
+		Button5 = 5,
+		Button6 = 6,
+		Button7 = 7,
 
-		bool Pressed;
-	};
-
-	class KeyManager {
-	public:
-		KeyManager();
-		~KeyManager();
-
-		void Set(int key, bool pressed);
-		bool IsPressed(int key);
-	private:
-		std::map<int, KeyData> m_Keys;
+		LeftButton = Button0,
+		RightButton = Button1,
+		MiddleButton = Button2
 	};
 }

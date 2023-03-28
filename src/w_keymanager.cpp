@@ -1,29 +1,35 @@
+//   Copyright 2023 Metehan Gezer
 //
-// Created by Metehan Gezer on 22.03.2023.
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
+//        http://www.apache.org/licenses/LICENSE-2.0
+
 #include "w_keymanager.h"
 
-KeyData::KeyData() {
-	this->pressed = false;
-}
+namespace Wiesel {
+	KeyData::KeyData() {
+		this->Pressed = false;
+	}
 
-KeyData::KeyData(bool pressed) {
-	this->pressed = pressed;
-}
+	KeyData::KeyData(bool pressed) {
+		this->Pressed = pressed;
+	}
 
+	KeyManager::KeyManager() {
 
-WieselKeyManager::WieselKeyManager() {
+	}
 
-}
+	KeyManager::~KeyManager() {
 
-WieselKeyManager::~WieselKeyManager() {
+	}
 
-}
+	void KeyManager::Set(int key, bool pressed) {
+		m_Keys[key].Pressed = pressed;
+	}
 
-void WieselKeyManager::set(int key, bool pressed) {
-	keys[key].pressed = pressed;
-}
-
-bool WieselKeyManager::isPressed(int key) {
-	return keys[key].pressed;
+	bool KeyManager::IsPressed(int key) {
+		return m_Keys[key].Pressed;
+	}
 }

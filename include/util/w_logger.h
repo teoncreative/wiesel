@@ -11,21 +11,21 @@
 #include "w_pch.h"
 
 namespace Wiesel {
-	struct KeyData {
-		KeyData();
-		explicit KeyData(bool pressed);
+	typedef enum LogLevel {
+		Debug = 0,
+		Info = 1,
+		Warn = 2,
+		Error = 3,
+		None = 4
+	} LogLevel;
 
-		bool Pressed;
-	};
+	void SetMinLogLevel(LogLevel level);
 
-	class KeyManager {
-	public:
-		KeyManager();
-		~KeyManager();
+	void LogDebug(const std::string& s);
 
-		void Set(int key, bool pressed);
-		bool IsPressed(int key);
-	private:
-		std::map<int, KeyData> m_Keys;
-	};
+	void LogInfo(const std::string& s);
+
+	void LogError(const std::string& s);
+
+	void LogWarn(const std::string& s);
 }

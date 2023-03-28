@@ -9,23 +9,18 @@
 #pragma once
 
 #include "w_pch.h"
+#include "w_object.h"
 
 namespace Wiesel {
-	struct KeyData {
-		KeyData();
-		explicit KeyData(bool pressed);
-
-		bool Pressed;
-	};
-
-	class KeyManager {
+	class Mesh : public Object {
 	public:
-		KeyManager();
-		~KeyManager();
 
-		void Set(int key, bool pressed);
-		bool IsPressed(int key);
+		void AddVertex(Vertex vertex);
+		void AddIndex(int index);
+
+		void Allocate();
 	private:
-		std::map<int, KeyData> m_Keys;
+		std::vector<Vertex> m_Vertices;
+		std::vector<int> m_Indices;
 	};
 }
