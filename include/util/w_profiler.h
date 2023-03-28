@@ -10,6 +10,8 @@
 
 #include "w_pch.h"
 
+// todo thread safety
+
 namespace Wiesel {
 	struct ProfileData {
 		std::string Name;
@@ -103,25 +105,22 @@ WIESEL_FUNC_SIG
 #define WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, line) constexpr auto fixedName##line = Wiesel::CleanupOutputString(name, "__cdecl ");\
 		Wiesel::ProfilerInstance timer##line(fixedName##line.Data, pass);
 
-#define WIESEL_ENABLE_PROFILER() Wiesel::Profiler::SetEnabled(true);
-#define WIESEL_DISABLE_PROFILER() Wiesel::Profiler::SetEnabled(false);
-
 #define WIESEL_PROFILE_SCOPE(name) WIESEL_PROFILE_SCOPE_INTERNAL(name, __LINE__)
 #define WIESEL_PROFILE_SCOPE_DRAW(name, pass) WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, __LINE__)
-#define WIESEL_PROFILER_START(name) Wiesel::Profiler::BeginSection(name)
-#define WIESEL_PROFILER_STOP(stream) Wiesel::Profiler::EndSection(stream)
+#define WIESEL_PROFILE_BEGIN_SECTION(name) Wiesel::Profiler::BeginSection(name)
+#define WIESEL_PROFILE_END_SECTION(stream) Wiesel::Profiler::EndSection(stream)
 #define WIESEL_PROFILE_FUNCTION() WIESEL_PROFILE_SCOPE(WIESEL_FUNC_SIG)
 
 #else
 
 #define WIESEL_PROFILE_SCOPE_INTERNAL(name, line)
 #define WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, line)
-#define WIESEL_ENABLE_PROFILER()
-#define WIESEL_DISABLE_PROFILER()
+#define WIESEL_ACTIVATE_PROFILER()
+#define WIESEL_DEACTIVATE_PROFILER()
 #define WIESEL_PROFILE_SCOPE(name)
 #define WIESEL_PROFILE_SCOPE_DRAW(name, pass)
-#define WIESEL_PROFILER_START(name)
-#define WIESEL_PROFILER_STOP(stream)
+#define WIESEL_PROFILE_BEGIN_SECTION(name)
+#define WIESEL_PROFILE_END_SECTION(stream)
 #define WIESEL_PROFILE_FUNCTION()
 
 #endif

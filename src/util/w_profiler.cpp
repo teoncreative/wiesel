@@ -18,18 +18,12 @@ namespace Wiesel {
 	}
 
 	ProfilerInstance::ProfilerInstance(const std::string& name, int renderPass) {
-		if(!Profiler::IsActive()) {
-			return;
-		}
 		this->m_Name = name;
 		this->m_StartTime = std::chrono::steady_clock::now();
 		this->m_RenderPass = renderPass;
 	}
 
 	ProfilerInstance::~ProfilerInstance() {
-		if(!Profiler::IsActive()) {
-			return;
-		}
 		auto now = std::chrono::steady_clock::now();
 		auto elapsed = now - this->m_StartTime;
 		auto elapsedMicroseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed);
@@ -41,12 +35,16 @@ namespace Wiesel {
 	}
 
 	void Profiler::BeginSection(const std::string& section) {
+		if (s_Active) {
+			throw std::runtime_error("Cannot begin section while another one was still active!");
+		}
+		s_Active = true;
 		s_Data.clear();
 		s_CurrentSection = section;
 	}
 
 	void Profiler::EndSection(std::ostream& stream) {
-		if(!s_Active || s_Data.empty()) {
+		if(!s_Active) {
 			return;
 		}
 		long long sum = 0;
@@ -61,6 +59,7 @@ namespace Wiesel {
 			sum += count;
 		}
 		stream << "[profiler] Total Frame Time: " << sum << "us\n";
+		s_Active = false;
 	}
 
 	void Profiler::InsertData(const ProfileData& profileData) {

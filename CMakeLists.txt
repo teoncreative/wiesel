@@ -40,50 +40,26 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
+set(ENGINE_DIR ${CMAKE_SOURCE_DIR})
+message("Engine Directory ${ENGINE_DIR}")
+
 ##### SOURCES #####
-set(SOURCES_DIRECTORY ${PROJECT_SOURCE_DIR}/src)
-set(INCLUDE_DIRECTORY ${PROJECT_SOURCE_DIR}/include)
+set(SOURCES_DIRECTORY ${ENGINE_DIR}/src)
+set(INCLUDE_DIRECTORY ${ENGINE_DIR}/include)
+set(DEMO_DIRECTORY ${ENGINE_DIR}/demo)
 
-message("Sources Dir: ${SOURCES_DIRECTORY}")
-message("Includes Dir: ${INCLUDE_DIRECTORY}")
+message("Engine Src: ${SOURCES_DIRECTORY}")
+message("Engine Incl: ${INCLUDE_DIRECTORY}")
+message("Demo Dir: ${DEMO_DIRECTORY}")
 
-set(SOURCES
-        ${SOURCES_DIRECTORY}/main.cpp
-
-        ${SOURCES_DIRECTORY}/util/w_profiler.cpp
-        ${SOURCES_DIRECTORY}/util/w_logger.cpp
-        ${SOURCES_DIRECTORY}/util/w_utils.cpp
-        ${SOURCES_DIRECTORY}/window/w_window.cpp
-        ${SOURCES_DIRECTORY}/window/w_glfwwindow.cpp
-        ${SOURCES_DIRECTORY}/w_object.cpp
-        ${SOURCES_DIRECTORY}/w_mesh.cpp
-        ${SOURCES_DIRECTORY}/w_camera.cpp
-        ${SOURCES_DIRECTORY}/w_keymanager.cpp
-        ${SOURCES_DIRECTORY}/w_engine.cpp
-
-        ${INCLUDE_DIRECTORY}/util/w_attributes.h
-        ${INCLUDE_DIRECTORY}/util/w_profiler.h
-        ${INCLUDE_DIRECTORY}/util/w_logger.h
-        ${INCLUDE_DIRECTORY}/util/w_utils.h
-        ${INCLUDE_DIRECTORY}/util/w_keycodes.h
-        ${INCLUDE_DIRECTORY}/util/w_mousecodes.h
-        ${INCLUDE_DIRECTORY}/events/w_events.h
-        ${INCLUDE_DIRECTORY}/events/w_mouseevents.h
-        ${INCLUDE_DIRECTORY}/events/w_keyevents.h
-        ${INCLUDE_DIRECTORY}/window/w_window.h
-        ${INCLUDE_DIRECTORY}/window/w_glfwwindow.h
-        ${SOURCES_DIRECTORY}/w_renderer.h
-        ${INCLUDE_DIRECTORY}/w_object.h
-        ${INCLUDE_DIRECTORY}/w_camera.h
-        ${INCLUDE_DIRECTORY}/w_mesh.h
-        ${INCLUDE_DIRECTORY}/w_keymanager.h
-        ${INCLUDE_DIRECTORY}/w_engine.h
-        )
+file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cpp" "${DEMO_DIRECTORY}/*.cpp")
+file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h" "${DEMO_DIRECTORY}/*.h")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRECTORY}/w_pch.h)
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
+target_include_directories(${PROJECT_NAME} PRIVATE ${DEMO_DIRECTORY})
 
 ## LIBRARIES
 
@@ -94,14 +70,14 @@ if (VULKAN_FOUND)
     target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
 endif(VULKAN_FOUND)
 
-add_subdirectory(deps/glfw)
+add_subdirectory(${ENGINE_DIR}/deps/glfw)
 target_link_libraries(${PROJECT_NAME} glfw)
-include_directories(deps/stb)
+include_directories(${ENGINE_DIR}/deps/stb)
 
 ##### SHADERS #####
 file(GLOB_RECURSE GLSL_SOURCE_FILES
-        "shaders/*.frag"
-        "shaders/*.vert"
+        "${ENGINE_DIR}/shaders/*.frag"
+        "${ENGINE_DIR}/shaders/*.vert"
         )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
@@ -125,10 +101,10 @@ add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_SHADERS)
 ##### TEXTURES #####
 
 file(GLOB_RECURSE TEXTURE_FILES
-        "textures/*.jpg"
-        "textures/*.png"
-        "textures/*.bmp"
-        "textures/*.jpeg"
+        "${ENGINE_DIR}/textures/*.jpg"
+        "${ENGINE_DIR}/textures/*.png"
+        "${ENGINE_DIR}/textures/*.bmp"
+        "${ENGINE_DIR}/textures/*.jpeg"
         )
 # todo copy images as some other easier to load format
 
@@ -138,7 +114,7 @@ foreach(TEXTURE ${TEXTURE_FILES})
     add_custom_command(
             OUTPUT ${OUT_FILE}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/textures/"
-            COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/textures/${FILE_NAME} ${OUT_FILE}
+            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/textures/${FILE_NAME} ${OUT_FILE}
             DEPENDS ${TEXTURE})
     list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
 endforeach(TEXTURE)
