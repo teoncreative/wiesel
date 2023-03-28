@@ -1,43 +1,51 @@
+//   Copyright 2023 Metehan Gezer
 //
-// Created by Metehan Gezer on 22.03.2023.
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
+//        http://www.apache.org/licenses/LICENSE-2.0
+
 #include "w_camera.h"
 
-WieselCamera::WieselCamera(const glm::vec3& position, const glm::quat& orientation, float aspectRatio, float fieldOfView, float nearPlane, float farPlane) : WieselObject(position, orientation), aspectRatio(aspectRatio), fieldOfView(fieldOfView), nearPlane(nearPlane), farPlane(farPlane) {
-	updateProjection();
+namespace Wiesel {
+	Camera::Camera(const glm::vec3& position, const glm::quat& orientation, float aspectRatio, float fieldOfView, float nearPlane, float farPlane) : Object(position, orientation), m_AspectRatio(aspectRatio), m_FieldOfView(fieldOfView), m_NearPlane(nearPlane), m_FarPlane(farPlane) {
+		UpdateProjection();
+	}
+
+	Camera::~Camera() {
+
+	}
+
+	const glm::mat4& Camera::GetProjection() {
+		return m_Projection;
+	}
+
+	float Camera::GetFieldOfView() const {
+		return m_FieldOfView;
+	}
+
+	void Camera::Move(float x, float y, float z) {
+		Object::Move(x, y, z);
+		UpdateProjection();
+	}
+
+	void Camera::Move(const glm::vec3& move) {
+		Object::Move(move);
+		UpdateProjection();
+	}
+
+	void Camera::Rotate(float radians, float ax, float ay, float az) {
+		Object::Rotate(radians, ax, ay, az);
+		UpdateProjection();
+	}
+
+	void Camera::UpdateProjection() {
+		m_Projection = glm::perspective(glm::radians(m_FieldOfView), m_AspectRatio, m_NearPlane, m_FarPlane);
+		m_Projection[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
+	}
 }
 
-WieselCamera::~WieselCamera() {
-
-}
-
-const glm::mat4& WieselCamera::getProjection() {
-	return projection;
-}
-
-float WieselCamera::getFieldOfView() const {
-	return fieldOfView;
-}
-
-void WieselCamera::move(float x, float y, float z) {
-	WieselObject::move(x, y, z);
-	updateProjection();
-}
-
-void WieselCamera::move(const glm::vec3& move) {
-	WieselObject::move(move);
-	updateProjection();
-}
-
-void WieselCamera::rotate(float radians, float ax, float ay, float az) {
-	WieselObject::rotate(radians, ax, ay, az);
-	updateProjection();
-}
-
-void WieselCamera::updateProjection() {
-	projection = glm::perspective(glm::radians(fieldOfView), aspectRatio, nearPlane, farPlane);
-	projection[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
-}
 
 
 

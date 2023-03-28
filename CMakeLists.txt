@@ -50,26 +50,39 @@ message("Includes Dir: ${INCLUDE_DIRECTORY}")
 set(SOURCES
         ${SOURCES_DIRECTORY}/main.cpp
 
-        ${SOURCES_DIRECTORY}/w_profiler.cpp
-        ${SOURCES_DIRECTORY}/w_logger.cpp
-        ${SOURCES_DIRECTORY}/w_utils.cpp
-        ${SOURCES_DIRECTORY}/w_window.cpp
+        ${SOURCES_DIRECTORY}/util/w_profiler.cpp
+        ${SOURCES_DIRECTORY}/util/w_logger.cpp
+        ${SOURCES_DIRECTORY}/util/w_utils.cpp
+        ${SOURCES_DIRECTORY}/window/w_window.cpp
+        ${SOURCES_DIRECTORY}/window/w_glfwwindow.cpp
+        ${SOURCES_DIRECTORY}/w_object.cpp
+        ${SOURCES_DIRECTORY}/w_mesh.cpp
         ${SOURCES_DIRECTORY}/w_camera.cpp
         ${SOURCES_DIRECTORY}/w_keymanager.cpp
-        ${SOURCES_DIRECTORY}/w_baseobject.cpp
         ${SOURCES_DIRECTORY}/w_engine.cpp
 
-        ${INCLUDE_DIRECTORY}/w_profiler.h
-        ${INCLUDE_DIRECTORY}/w_logger.h
-        ${INCLUDE_DIRECTORY}/w_utils.h
-        ${INCLUDE_DIRECTORY}/w_window.h
+        ${INCLUDE_DIRECTORY}/util/w_attributes.h
+        ${INCLUDE_DIRECTORY}/util/w_profiler.h
+        ${INCLUDE_DIRECTORY}/util/w_logger.h
+        ${INCLUDE_DIRECTORY}/util/w_utils.h
+        ${INCLUDE_DIRECTORY}/util/w_keycodes.h
+        ${INCLUDE_DIRECTORY}/util/w_mousecodes.h
+        ${INCLUDE_DIRECTORY}/events/w_events.h
+        ${INCLUDE_DIRECTORY}/events/w_mouseevents.h
+        ${INCLUDE_DIRECTORY}/events/w_keyevents.h
+        ${INCLUDE_DIRECTORY}/window/w_window.h
+        ${INCLUDE_DIRECTORY}/window/w_glfwwindow.h
+        ${SOURCES_DIRECTORY}/w_renderer.h
+        ${INCLUDE_DIRECTORY}/w_object.h
         ${INCLUDE_DIRECTORY}/w_camera.h
+        ${INCLUDE_DIRECTORY}/w_mesh.h
         ${INCLUDE_DIRECTORY}/w_keymanager.h
-        ${INCLUDE_DIRECTORY}/w_baseobject.h
         ${INCLUDE_DIRECTORY}/w_engine.h
         )
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+target_precompile_headers(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRECTORY}/w_pch.h)
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
 
 ## LIBRARIES

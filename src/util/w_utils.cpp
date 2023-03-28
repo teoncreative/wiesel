@@ -1,12 +1,15 @@
+//   Copyright 2023 Metehan Gezer
 //
-// Created by Metehan Gezer on 20.03.2023.
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
+//        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "w_utils.h"
+#include "util/w_utils.h"
 
-std::string wie::getNameFromVulkanResult(VkResult errorCode) {
-	switch (errorCode)
-	{
+std::string Wiesel::GetNameFromVulkanResult(VkResult errorCode) {
+	switch(errorCode) {
 #define STR(r) case VK_ ##r: return #r
 		STR(NOT_READY);
 		STR(TIMEOUT);

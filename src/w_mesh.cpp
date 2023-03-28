@@ -5,20 +5,9 @@
 //    You may obtain a copy of the License at
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
+#include "w_mesh.h"
 
-#pragma once
+void Wiesel::Mesh::Allocate()
 
-#include "w_pch.h"
-#include "w_object.h"
-#include "util/w_utils.h"
-#include "events/w_events.h"
-
-namespace Wiesel {
-	class Application {
-	public:
-		Application();
-		~Application();
-
-		void Init();
-	};
 }
+

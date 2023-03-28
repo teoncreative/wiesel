@@ -1,3 +1,4 @@
+
 //   Copyright 2023 Metehan Gezer
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -8,24 +9,9 @@
 
 #pragma once
 
-#include "w_pch.h"
-
 namespace Wiesel {
-	struct KeyData {
-		KeyData();
-		explicit KeyData(bool pressed);
-
-		bool Pressed;
-	};
-
-	class KeyManager {
+	class Renderer {
 	public:
-		KeyManager();
-		~KeyManager();
-
-		void Set(int key, bool pressed);
-		bool IsPressed(int key);
-	private:
-		std::map<int, KeyData> m_Keys;
+		void CreateVertexBuffer
 	};
 }

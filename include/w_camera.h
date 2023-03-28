@@ -1,37 +1,41 @@
+//   Copyright 2023 Metehan Gezer
 //
-// Created by Metehan Gezer on 22.03.2023.
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
+//        http://www.apache.org/licenses/LICENSE-2.0
 
 #ifndef WIESEL_W_CAMERA_H
 #define WIESEL_W_CAMERA_H
 
-#include "w_baseobject.h"
+#include "w_pch.h"
+#include "w_object.h"
 
-class WieselCamera : public WieselObject {
-public:
-	WieselCamera(const glm::vec3& position, const glm::quat& orientation, float aspectRatio, float fieldOfView = 45, float nearPlane = 0.1f, float farPlane = 1000.0f);
-	~WieselCamera();
+namespace Wiesel {
+	class Camera : public Object {
+	public:
+		Camera(const glm::vec3& position, const glm::quat& orientation, float aspectRatio, float fieldOfView = 45, float nearPlane = 0.1f, float farPlane = 1000.0f);
+		~Camera();
 
-	const glm::mat4& getProjection();
+		WIESEL_GETTER_FN const glm::mat4& GetProjection();
 
-	float getFieldOfView() const;
+		WIESEL_GETTER_FN float GetFieldOfView() const;
 
-	void move(float x, float y, float z) override;
-	void move(const glm::vec3& move) override;
+		void Move(float x, float y, float z) override;
+		void Move(const glm::vec3& move) override;
 
-	void rotate(float radians, float ax, float ay, float az) override;
+		void Rotate(float radians, float ax, float ay, float az) override;
 
-private:
-	void updateProjection();
+	private:
+		void UpdateProjection();
 
-	float fieldOfView;
-	float nearPlane;
-	float farPlane;
-	float aspectRatio;
-	glm::mat4 projection;
-	glm::mat4 view;
+		float m_FieldOfView;
+		float m_NearPlane;
+		float m_FarPlane;
+		float m_AspectRatio;
+		glm::mat4 m_Projection;
+	};
 
-
-};
-
+}
 #endif //WIESEL_W_CAMERA_H
