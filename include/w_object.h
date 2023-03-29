@@ -26,9 +26,15 @@ namespace Wiesel {
 		virtual void Move(const glm::vec3& move);
 
 		virtual void Rotate(float radians, float ax, float ay, float az);
+
+		uint64_t GetObjectId();
+
+		void SetObjectId(uint64_t id);
 	protected:
+		static uint64_t s_ObjectCounter;
 		virtual void UpdateView();
 
+		uint64_t m_ObjectId;
 		glm::vec3 m_Position;
 		glm::quat m_Orientation;
 		glm::mat4 m_LocalView;

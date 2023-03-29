@@ -17,6 +17,7 @@ namespace Wiesel {
 // Event system on Hazel is a great fit for what we want to do, i'll be improving it to fit our needs over time
 
 	enum EventType {
+		WindowClose,
 		KeyPressed, KeyReleased, KeyTyped,
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
 	};

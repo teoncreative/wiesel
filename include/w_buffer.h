@@ -9,8 +9,33 @@
 
 #pragma once
 
-namespace Wiesel {
-	class VertexBuffer {
+#include "w_pch.h"
+#include "util/w_utils.h"
 
+namespace Wiesel {
+	enum MemoryType {
+		MemoryTypeVertexBuffer,
+		MemoryTypeIndexBuffer,
+		MemoryTypeUniformBuffer
+	};
+
+	class MemoryBuffer {
+	public:
+		explicit MemoryBuffer(MemoryType type);
+		virtual ~MemoryBuffer();
+
+		MemoryType m_Type;
+		VkBuffer m_Buffer;
+		VkDeviceMemory m_BufferMemory;
+	private:
+
+	};
+
+	class UniformBuffer : public MemoryBuffer {
+	public:
+		UniformBuffer();
+		~UniformBuffer() override;
+
+		void* m_Data;
 	};
 }

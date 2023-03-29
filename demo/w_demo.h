@@ -11,11 +11,20 @@
 
 #include "w_application.h"
 #include "w_demo.h"
+#include "events/w_keyevents.h"
 
 namespace WieselDemo {
+	class DemoApplication : public Wiesel::Application {
+	public:
+		DemoApplication();
+		~DemoApplication() override;
+
+		void Init() override;
+	};
+
 	class DemoLayer : public Wiesel::Layer {
 	public:
-		DemoLayer();
+		explicit DemoLayer(DemoApplication& app);
 		~DemoLayer() override;
 
 		void OnAttach() override;
@@ -23,12 +32,10 @@ namespace WieselDemo {
 
 		void OnUpdate(double_t deltaTime) override;
 		void OnEvent(Wiesel::Event& event) override;
-	};
-	class DemoApplication : public Wiesel::Application {
-	public:
-		DemoApplication();
-		~DemoApplication() override;
 
-		void Init() override;
+		bool OnKeyPress(Wiesel::KeyPressedEvent& event);
+
+	private:
+		DemoApplication& m_App;
 	};
 }

@@ -16,6 +16,24 @@
 namespace Wiesel {
 	std::string GetNameFromVulkanResult(VkResult errorCode);
 
+	struct QueueFamilyIndices {
+		std::optional<uint32_t> graphicsFamily;
+		std::optional<uint32_t> presentFamily;
+
+		bool IsComplete() {
+
+			return graphicsFamily.has_value() && presentFamily.has_value();
+		}
+	};
+
+	struct SwapChainSupportDetails {
+		VkSurfaceCapabilitiesKHR capabilities;
+		std::vector<VkSurfaceFormatKHR> formats;
+		std::vector<VkPresentModeKHR> presentModes;
+	};
+
+
+	using Index = uint16_t;
 
 	struct Vertex {
 		glm::vec3 Pos;
@@ -31,8 +49,8 @@ namespace Wiesel {
 			return bindingDescription;
 		}
 
-		static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions() {
-			std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+		static std::array<VkVertexInputAttributeDescription, 2> GetAttributeDescriptions() {
+			std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
 
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
@@ -44,10 +62,10 @@ namespace Wiesel {
 			attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 			attributeDescriptions[1].offset = offsetof(Vertex, Color);
 
-			attributeDescriptions[2].binding = 0;
-			attributeDescriptions[2].location = 2;
-			attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-			attributeDescriptions[2].offset = offsetof(Vertex, TexCoord);
+//			attributeDescriptions[2].binding = 0;
+//			attributeDescriptions[2].location = 2;
+//			attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+//			attributeDescriptions[2].offset = offsetof(Vertex, TexCoord);
 
 			return attributeDescriptions;
 		}
@@ -60,20 +78,31 @@ namespace Wiesel {
 	};
 
 	template<typename T>
-	using UniquePtr = std::unique_ptr<T>;
+	using Scope = std::unique_ptr<T>;
 	template<typename T, typename ... Args>
-	constexpr UniquePtr<T> CreateUnique(Args&& ... args)
+	constexpr Scope<T> CreateScope(Args&& ... args)
 	{
 		return std::make_unique<T>(std::forward<Args>(args)...);
 	}
 
 	template<typename T>
-	using SharedPtr = std::shared_ptr<T>;
+	using Reference = std::shared_ptr<T>;
 	template<typename T, typename ... Args>
-	constexpr SharedPtr<T> CreateShared(Args&& ... args)
+	constexpr Reference<T> CreateReference(Args&& ... args)
 	{
 		return std::make_shared<T>(std::forward<Args>(args)...);
 	}
+
+	template<typename A, typename B>
+	using Pair = std::pair<A, B>;
+
+
+	class Time {
+	public:
+		static double_t GetTime();
+	};
+
+	std::vector<char> ReadFile(const std::string& filename);
 }
 
 #define WIESEL_BIND_EVENT_FUNCTION(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }

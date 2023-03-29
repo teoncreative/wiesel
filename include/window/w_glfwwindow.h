@@ -19,18 +19,17 @@ static void CallbackKey(GLFWwindow* window, int key, int scancode, int action, i
 namespace Wiesel {
 	class GlfwAppWindow : public AppWindow {
 	public:
-		explicit GlfwAppWindow(WindowProperties& properties);
+		explicit GlfwAppWindow(const WindowProperties& properties);
 		~GlfwAppWindow();
 
-		void Init() override;
 		void OnUpdate() override;
 		bool IsShouldClose() override;
 		void OnFramebufferResize(const WindowSize& size) override;
 		void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
 		void GetWindowFramebufferSize(WindowSize& size) override;
+		const char** GetRequiredInstanceExtensions(uint32_t* extensionsCount) override;
 
-		GLFWwindow* m_Handle{};
 	private:
-
+		GLFWwindow* m_Handle{};
 	};
 }

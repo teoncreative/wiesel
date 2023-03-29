@@ -9,7 +9,7 @@
 #include "window/w_window.h"
 
 namespace Wiesel {
-	AppWindow::AppWindow(WindowProperties& properties) : m_Properties(properties) {
+	AppWindow::AppWindow(const WindowProperties& properties) : m_Properties(properties) {
 
 	}
 
