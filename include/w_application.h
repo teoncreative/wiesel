@@ -10,9 +10,15 @@
 
 #include "w_pch.h"
 #include "w_object.h"
+#ifdef DEBUG
+#define WIESEL_PROFILE 1
+#endif
+#include "util/w_profiler.h"
 #include "util/w_utils.h"
 #include "events/w_events.h"
+#include "events/w_appevents.h"
 #include "w_layer.h"
+#include "w_renderer.h"
 
 namespace Wiesel {
 	class Application {
@@ -23,20 +29,23 @@ namespace Wiesel {
 		virtual void Init() = 0;
 
 		void Run();
+		void Close();
 
 		void OnEvent(Event& event);
 
-		void PushLayer(const SharedPtr<Layer>& layer);
+		void PushLayer(const Reference<Layer>& layer);
+		void RemoveLayer(const Reference<Layer>& layer);
 
-		void RemoveLayer(const SharedPtr<Layer>& layer);
+		bool OnWindowClose(WindowCloseEvent& event);
+
 	private:
 		bool m_IsRunning;
-		std::vector<SharedPtr<Layer>> m_Layers;
+		bool m_IsMinimized;
+		std::vector<Reference<Layer>> m_Layers;
 		uint32_t m_LayerCounter;
-		std::chrono::time_point<std::chrono::steady_clock> startTime = std::chrono::high_resolution_clock::now();
-		std::chrono::time_point<std::chrono::steady_clock> frameTime = std::chrono::high_resolution_clock::now();
-		double_t totalTime = 0.0;
-		double_t deltaTime = 0.0;
+		Reference<AppWindow> m_Window;
+		double_t m_PreviousFrame = 0.0;
+		double_t m_DeltaTime = 0.0;
 	};
 
 	Application* CreateApp();

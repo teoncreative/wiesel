@@ -37,10 +37,8 @@ namespace Wiesel {
 
 	class AppWindow {
 	public:
-		explicit AppWindow(WindowProperties& properties);
+		explicit AppWindow(const WindowProperties& properties);
 		~AppWindow();
-
-		virtual void Init() = 0;
 
 		virtual void OnUpdate() = 0;
 		virtual void OnFramebufferResize(const WindowSize& size) = 0;
@@ -54,9 +52,10 @@ namespace Wiesel {
 
 		virtual void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 		virtual void GetWindowFramebufferSize(WindowSize& size) = 0;
+		virtual const char** GetRequiredInstanceExtensions(uint32_t* extensionsCount) = 0;
 
 	protected:
-		WindowProperties& m_Properties;
+		WindowProperties m_Properties;
 		bool m_FrameBufferResized;
 		WindowEventFn m_EventHandler;
 	};

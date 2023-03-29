@@ -13,18 +13,35 @@
 #include "w_object.h"
 #include "w_buffer.h"
 
-// todo
 namespace Wiesel {
 	class Mesh : public Object {
 	public:
+		Mesh(const glm::vec3& position, const glm::quat& orientation);
+		~Mesh();
 
 		void AddVertex(Vertex vertex);
-		void AddIndex(int index);
+		void AddIndex(Index index);
 
 		void Allocate();
+		void Deallocate();
+
+		WIESEL_GETTER_FN bool IsAllocated() const;
+
+		WIESEL_GETTER_FN Reference<MemoryBuffer> GetVertexBuffer();
+		WIESEL_GETTER_FN Reference<MemoryBuffer> GetIndexBuffer();
+		WIESEL_GETTER_FN std::vector<Reference<UniformBuffer>> GetUniformBuffers();
+
+		std::vector<Vertex> GetVertices();
+		std::vector<Index> GetIndices();
+
+		void UpdateUniformBuffer();
 	private:
 		std::vector<Vertex> m_Vertices;
-		std::vector<int> m_Indices;
-		SharedPtr<VertexBuffer> m_VertexBuffer;
+		std::vector<Index> m_Indices;
+		bool m_Allocated;
+
+		Reference<MemoryBuffer> m_VertexBuffer;
+		Reference<MemoryBuffer> m_IndexBuffer;
+		std::vector<Reference<UniformBuffer>> m_UniformBuffers;
 	};
 }

@@ -9,8 +9,10 @@
 #include "w_object.h"
 
 namespace Wiesel {
+	uint64_t Object::s_ObjectCounter = 0;
 	Object::Object(const glm::vec3& position, const glm::quat& orientation) : m_Position(position), m_Orientation(orientation) {
-
+		m_ObjectId = s_ObjectCounter++;
+		UpdateView();
 	}
 
 	Object::~Object() {
@@ -46,6 +48,14 @@ namespace Wiesel {
 
 	const glm::mat4& Object::GetLocalView() {
 		return m_LocalView;
+	}
+
+	uint64_t Object::GetObjectId() {
+		return m_ObjectId;
+	}
+
+	void Object::SetObjectId(uint64_t id) {
+		m_ObjectId = id;
 	}
 
 }

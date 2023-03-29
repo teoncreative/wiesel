@@ -10,18 +10,10 @@
 #include "window/w_glfwwindow.h"
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
+#include "events/w_appevents.h"
 
 namespace Wiesel {
-	GlfwAppWindow::GlfwAppWindow(WindowProperties& properties) : AppWindow(properties) {
-
-	}
-
-	GlfwAppWindow::~GlfwAppWindow() {
-		glfwDestroyWindow(m_Handle);
-		glfwTerminate();
-	}
-
-	void GlfwAppWindow::Init() {
+	GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties) : AppWindow(properties) {
 		glfwInit();
 		LogDebug("GLFW Vulkan Support: " + std::to_string(glfwVulkanSupported()));
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -40,7 +32,10 @@ namespace Wiesel {
 		});
 
 		glfwSetWindowCloseCallback(m_Handle, [](GLFWwindow* window) {
-			// todo close event
+			GlfwAppWindow& appWindow = *(GlfwAppWindow*) glfwGetWindowUserPointer(window);
+
+			WindowCloseEvent event;
+			appWindow.GetEventHandler()(event);
 		});
 
 		glfwSetKeyCallback(m_Handle, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -104,6 +99,11 @@ namespace Wiesel {
 		});
 	}
 
+	GlfwAppWindow::~GlfwAppWindow() {
+		Wiesel::LogDebug("Destroying GlfwAppWindow");
+		glfwDestroyWindow(m_Handle);
+	}
+
 	void GlfwAppWindow::OnUpdate() {
 		glfwPollEvents();
 	}
@@ -124,4 +124,13 @@ namespace Wiesel {
 		SetFramebufferResized(true);
 	}
 
+	const char** GlfwAppWindow::GetRequiredInstanceExtensions(uint32_t* extensionsCount) {
+		const char** glfwExtensions;
+		glfwExtensions = glfwGetRequiredInstanceExtensions(extensionsCount);
+		return glfwExtensions;
+	}
+
+	double_t Time::GetTime() {
+		return glfwGetTime();
+	}
 }

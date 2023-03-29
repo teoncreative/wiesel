@@ -58,7 +58,7 @@ namespace Wiesel {
 			stream << ": " << count << "us.\n";
 			sum += count;
 		}
-		stream << "[profiler] Total Frame Time: " << sum << "us\n";
+		stream << "[profiler] Total Time: " << sum << "us\n";
 		s_Active = false;
 	}
 

@@ -6,22 +6,14 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "util/w_logger.h"
-#include "util/w_utils.h"
-#include "window/w_glfwwindow.h"
-#ifdef DEBUG
-#define WIESEL_PROFILE 1
-#endif
-#include "util/w_profiler.h"
-#include "w_camera.h"
-#include "events/w_events.h"
-#include "events/w_mouseevents.h"
 #include "w_application.h"
+
+#include "GLFW/glfw3.h"
+#include "w_camera.h"
+#include "window/w_glfwwindow.h"
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphicsFamily;
@@ -43,9 +35,10 @@ void DrawFrame();
 void UpdateUniformBuffer(uint32_t currentFrame);
 void CreateCamera();
 
+void InitEngine();
+
 void Cleanup();
 void InitVulkan();
-void InitEngine();
 void CreateInstance();
 void CreateSurface();
 void CreateImageViews();
@@ -88,14 +81,13 @@ VkCommandBuffer BeginSingleTimeCommands();
 void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 void SetupDebugMessenger();
 void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-bool checkValidationLayerSupport();
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+bool CheckValidationLayerSupport();
+uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 std::vector<const char*> GetRequiredExtensions();
 QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
-static std::vector<char> readFile(const std::string& filename);
+static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -122,14 +114,6 @@ VkPipeline graphicsPipeline;
 std::vector<VkFramebuffer> swapChainFramebuffers;
 VkCommandPool commandPool;
 std::vector<VkCommandBuffer> commandBuffers;
-VkBuffer vertexBuffer;
-VkDeviceMemory vertexBufferMemory;
-VkBuffer indexBuffer;
-VkDeviceMemory indexBufferMemory;
-
-std::vector<VkBuffer> uniformBuffers;
-std::vector<VkDeviceMemory> uniformBuffersMemory;
-std::vector<void*> uniformBuffersMapped;
 
 std::vector<VkSemaphore> imageAvailableSemaphores;
 std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -139,14 +123,23 @@ uint32_t currentFrame = 0;
 VkDescriptorPool descriptorPool;
 std::vector<VkDescriptorSet> descriptorSets;
 
+std::vector<VkBuffer> uniformBuffers;
+std::vector<VkDeviceMemory> uniformBuffersMemory;
+std::vector<void*> uniformBuffersMapped;
+
+VkBuffer vertexBuffer;
+VkDeviceMemory vertexBufferMemory;
+VkBuffer indexBuffer;
+VkDeviceMemory indexBufferMemory;
+
 VkImage textureImage;
 VkDeviceMemory textureImageMemory;
 VkImageView textureImageView;
 VkSampler textureSampler;
 
 // Game Objects
-Wiesel::SharedPtr<Wiesel::Camera> camera;
-Wiesel::SharedPtr<Wiesel::AppWindow> appWindow;
+Wiesel::Reference<Wiesel::Camera> camera;
+Wiesel::Reference<Wiesel::AppWindow> appWindow;
 
 auto startTime = std::chrono::high_resolution_clock::now();
 auto frameTime = std::chrono::high_resolution_clock::now();
@@ -201,37 +194,17 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 	}
 }
 
-bool OnMouseMove(Wiesel::MouseMovedEvent& event) {
-	Wiesel::LogDebug("Event mouse moved!");
-	return true;
-}
-
 void OnEvent(Wiesel::Event& event) {
-	Wiesel::EventDispatcher dispatcher(event);
 
-	dispatcher.Dispatch<Wiesel::MouseMovedEvent>(WIESEL_BIND_GLOBAL_EVENT_FUNCTION(OnMouseMove));
 }
-
+/*
 int main() {
-	Wiesel::Application& app = *Wiesel::CreateApp();
-	WIESEL_PROFILE_BEGIN_SECTION("Application Init");
-	app.Init();
-	WIESEL_PROFILE_END_SECTION(std::cout);
-	WIESEL_PROFILE_BEGIN_SECTION("Application Run");
-	app.Run();
-	WIESEL_PROFILE_END_SECTION(std::cout);
-	WIESEL_PROFILE_BEGIN_SECTION("Application Cleanup");
-	delete &app;
-	WIESEL_PROFILE_END_SECTION(std::cout);
-	/*
-	WIESEL_PROFILER_START("Main");
 	Wiesel::WindowProperties properties{};
-	appWindow = CreateShared<Wiesel::GlfwAppWindow>(properties);
-	appWindow->Init();
+	appWindow = Wiesel::CreateReference<Wiesel::GlfwAppWindow>(properties);
 	appWindow->SetEventHandler(WIESEL_BIND_GLOBAL_EVENT_FUNCTION(OnEvent));
+
 	InitVulkan();
 	InitEngine();
-	WIESEL_PROFILER_STOP(std::cout);
 	// mainLoop
 	while (!appWindow->IsShouldClose()) {
 		appWindow->OnUpdate();
@@ -239,9 +212,9 @@ int main() {
 	}
 	vkDeviceWaitIdle(logicalDevice);
 	// end mainLoop
-	Cleanup();*/
+	Cleanup();
 	return 0;
-}
+}*/
 
 void InitVulkan() {
 	WIESEL_PROFILE_FUNCTION();
@@ -274,7 +247,7 @@ void InitEngine() {
 }
 
 void CreateInstance() {
-	if (enableValidationLayers && !checkValidationLayerSupport()) {
+	if (enableValidationLayers && !CheckValidationLayerSupport()) {
 		throw std::runtime_error("validation layers requested, but not available!");
 	}
 
@@ -524,8 +497,8 @@ void CreateDescriptorSetLayout() {
 }
 
 void CreateGraphicsPipeline() {
-	auto vertShaderCode = readFile("shaders/test.vert.spv");
-	auto fragShaderCode = readFile("shaders/test.frag.spv");
+	auto vertShaderCode = Wiesel::ReadFile("shaders/test.vert.spv");
+	auto fragShaderCode = Wiesel::ReadFile("shaders/test.frag.spv");
 
 	VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 	VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
@@ -593,11 +566,10 @@ void CreateGraphicsPipeline() {
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	/*
-	 * VK_POLYGON_MODE_FILL: fill the area of the polygon with fragments
-	 * VK_POLYGON_MODE_LINE: polygon edges are drawn as lines
-	 * VK_POLYGON_MODE_POINT: polygon vertices are drawn as points
-	 */
+
+//	 * VK_POLYGON_MODE_FILL: fill the area of the polygon with fragments
+//	 * VK_POLYGON_MODE_LINE: polygon edges are drawn as lines
+//	 * VK_POLYGON_MODE_POINT: polygon vertices are drawn as points
 //	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
@@ -628,13 +600,13 @@ void CreateGraphicsPipeline() {
 	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
 	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
 	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
-	/*colorBlendAttachment.blendEnable = VK_TRUE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;*/
+	//colorBlendAttachment.blendEnable = VK_TRUE;
+	//colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	//colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	//colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+	//colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	//colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	//colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo colorBlending{};
 	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -832,7 +804,7 @@ void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyF
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+	allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
 	WIESEL_CHECK_VKRESULT(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &bufferMemory));
 
@@ -990,13 +962,11 @@ void CreateTextureSampler() {
 	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	samplerInfo.magFilter = VK_FILTER_LINEAR;
 	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	/*
-	 * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
-	 * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
-	 * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
-	 * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
-	 * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
-	 */
+	// * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
+	// * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
+	// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
+	// * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
+	// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -1029,15 +999,11 @@ void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling
 	imageInfo.mipLevels = 1;
 	imageInfo.arrayLayers = 1;
 	imageInfo.format = format;
-	/*
-	 * VK_IMAGE_TILING_LINEAR: Texels are laid out in row-major order like our pixels array
-	 * VK_IMAGE_TILING_OPTIMAL: Texels are laid out in an implementation defined order for optimal access
-	 */
+	// * VK_IMAGE_TILING_LINEAR: Texels are laid out in row-major order like our pixels array
+	// * VK_IMAGE_TILING_OPTIMAL: Texels are laid out in an implementation defined order for optimal access
 	imageInfo.tiling = tiling;
-	/*
-	 * VK_IMAGE_LAYOUT_UNDEFINED: Not usable by the GPU and the very first transition will discard the texels.
-	 * VK_IMAGE_LAYOUT_PREINITIALIZED: Not usable by the GPU, but the first transition will preserve the texels.
-	 */
+	// * VK_IMAGE_LAYOUT_UNDEFINED: Not usable by the GPU and the very first transition will discard the texels.
+	// * VK_IMAGE_LAYOUT_PREINITIALIZED: Not usable by the GPU, but the first transition will preserve the texels.
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	imageInfo.usage = usage;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -1051,7 +1017,7 @@ void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+	allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
 	WIESEL_CHECK_VKRESULT(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &imageMemory));
 
@@ -1194,12 +1160,6 @@ void DrawFrame() {
 }
 
 void UpdateUniformBuffer(uint32_t currentFrame) {
-/*	if (keyManager.IsPressed(GLFW_KEY_W)) {
-		camera->Move(0.0f, deltaTime * 2.0f, 0.0f);
-	} else 	if (keyManager.IsPressed(GLFW_KEY_S)) {
-		camera->Move(0.0f, deltaTime * -2.0f, 0.0f);
-	}*/
-
 	Wiesel::UniformBufferObject ubo{};
 	ubo.Model = glm::rotate(glm::mat4(1.0f), totalTime * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -1210,7 +1170,7 @@ void UpdateUniformBuffer(uint32_t currentFrame) {
 }
 
 void CreateCamera() {
-	camera = Wiesel::CreateShared<Wiesel::Camera>(glm::vec3(2.0f, 2.0f, 2.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), swapChainExtent.width / (float) swapChainExtent.height);
+	camera = Wiesel::CreateReference<Wiesel::Camera>(glm::vec3(2.0f, 2.0f, 2.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), swapChainExtent.width / (float) swapChainExtent.height);
 	camera->Rotate(PI / 4.0f, 0.0f, 1.0f, 0.0f);
 	camera->Rotate(-PI / 6.0f, 1.0f, 0.0f, 0.0f);
 }
@@ -1403,12 +1363,10 @@ VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>
 }
 
 VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
-	/*
-	 * VK_PRESENT_MODE_IMMEDIATE_KHR: Images submitted by your application are transferred to the screen right away, which may result in tearing.
-	 * VK_PRESENT_MODE_FIFO_KHR: The swap chain is a queue where the display takes an image from the front of the queue when the display is refreshed and the program inserts rendered images at the back of the queue. If the queue is full then the program has to wait. This is most similar to vertical sync as found in modern games. The moment that the display is refreshed is known as "vertical blank".
-	 * VK_PRESENT_MODE_FIFO_RELAXED_KHR: This mode only differs from the previous one if the application is late and the queue was empty at the last vertical blank. Instead of waiting for the next vertical blank, the image is transferred right away when it finally arrives. This may result in visible tearing.
-	 * VK_PRESENT_MODE_MAILBOX_KHR: This is another variation of the second mode. Instead of blocking the application when the queue is full, the images that are already queued are simply replaced with the newer ones. This mode can be used to render frames as fast as possible while still avoiding tearing, resulting in fewer latency issues than standard vertical sync. This is commonly known as "triple buffering", although the existence of three buffers alone does not necessarily mean that the framerate is unlocked.
-	 */
+	// * VK_PRESENT_MODE_IMMEDIATE_KHR: Images submitted by your application are transferred to the screen right away, which may result in tearing.
+	// * VK_PRESENT_MODE_FIFO_KHR: The swap chain is a queue where the display takes an image from the front of the queue when the display is refreshed and the program inserts rendered images at the back of the queue. If the queue is full then the program has to wait. This is most similar to vertical sync as found in modern games. The moment that the display is refreshed is known as "vertical blank".
+	// * VK_PRESENT_MODE_FIFO_RELAXED_KHR: This mode only differs from the previous one if the application is late and the queue was empty at the last vertical blank. Instead of waiting for the next vertical blank, the image is transferred right away when it finally arrives. This may result in visible tearing.
+	// * VK_PRESENT_MODE_MAILBOX_KHR: This is another variation of the second mode. Instead of blocking the application when the queue is full, the images that are already queued are simply replaced with the newer ones. This mode can be used to render frames as fast as possible while still avoiding tearing, resulting in fewer latency issues than standard vertical sync. This is commonly known as "triple buffering", although the existence of three buffers alone does not necessarily mean that the framerate is unlocked.
 	for (const auto& availablePresentMode : availablePresentModes) {
 		if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
 			return availablePresentMode;
@@ -1524,10 +1482,10 @@ void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& create
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-	createInfo.pfnUserCallback = debugCallback;
+	createInfo.pfnUserCallback = DebugCallback;
 }
 
-bool checkValidationLayerSupport() {
+bool CheckValidationLayerSupport() {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -1552,7 +1510,7 @@ bool checkValidationLayerSupport() {
 	return true;
 }
 
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
@@ -1564,7 +1522,7 @@ uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 	if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
 		Wiesel::LogDebug("Validation layer: " + std::string(pCallbackData->pMessage));
 	} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
@@ -1577,18 +1535,16 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 	return VK_FALSE;
 }
 
-static std::vector<char> readFile(const std::string& filename) {
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open()) {
-		throw std::runtime_error("failed to open file!");
-	}
-	size_t fileSize = (size_t) file.tellg();
-	std::vector<char> buffer(fileSize);
-
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
-	file.close();
-
-	return buffer;
+int main() {
+	Wiesel::Application& app = *Wiesel::CreateApp();
+	WIESEL_PROFILE_BEGIN_SECTION("Application Init");
+	app.Init();
+	WIESEL_PROFILE_END_SECTION(std::cout);
+	WIESEL_PROFILE_BEGIN_SECTION("Application Run");
+	app.Run();
+	WIESEL_PROFILE_END_SECTION(std::cout);
+	WIESEL_PROFILE_BEGIN_SECTION("Application Cleanup");
+	delete &app;
+	WIESEL_PROFILE_END_SECTION(std::cout);
+	Wiesel::LogInfo("Exiting...");
 }
