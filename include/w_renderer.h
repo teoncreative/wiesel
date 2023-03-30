@@ -30,14 +30,6 @@ namespace Wiesel {
 		void AddMesh(Reference<Mesh> mesh);
 		void RemoveMesh(Reference<Mesh> mesh);
 
-		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-		VkImageView CreateImageView(VkImage image, VkFormat format);
-
-
 		Reference<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
 		void DestroyVertexBuffer(MemoryBuffer& buffer);
 
@@ -52,6 +44,9 @@ namespace Wiesel {
 
 		Reference<Texture> CreateTexture(const std::string& path);
 		void DestroyTexture(Texture& texture);
+
+		Reference<Texture> CreateDepthStencil();
+		void DestroyDepthStencil(Texture& texture);
 
 		Reference<DescriptorPool> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Texture> texture);
 		void DestroyDescriptors(DescriptorPool& descriptorPool);
@@ -108,6 +103,7 @@ namespace Wiesel {
 		VkRenderPass m_RenderPass{};
 		VkDescriptorSetLayout m_DescriptorSetLayout{};
 		uint32_t m_ImageIndex;
+		Reference<Texture> m_DepthStencil;
 
 		VkPipelineLayout pipelineLayout{};
 		VkPipeline graphicsPipeline{};
@@ -135,6 +131,7 @@ namespace Wiesel {
 		void CreateRenderPass();
 		void CreateDescriptorSetLayout();
 		void CreateGraphicsPipeline();
+		void CreateDepthResources();
 		void CreateFramebuffers();
 		void CreateCommandPools();
 		void CreateCommandBuffers();
@@ -154,9 +151,17 @@ namespace Wiesel {
 
 		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 		std::vector<const char*> GetRequiredExtensions();
-
-
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+
+		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+		VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+		VkFormat FindDepthFormat();
+		bool HasStencilComponent(VkFormat format);
 #ifdef DEBUG
 		void SetupDebugMessenger();
 		VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);

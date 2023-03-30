@@ -11,7 +11,7 @@
 
 namespace Wiesel {
 
-	Texture::Texture() {
+	Texture::Texture(TextureType textureType) : m_TextureType(textureType)  {
 		m_Width = 0;
 		m_Height = 0;
 		m_Size = 0;
