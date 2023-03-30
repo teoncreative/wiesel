@@ -12,6 +12,8 @@
 #include "w_pch.h"
 #include "w_object.h"
 #include "w_buffer.h"
+#include "w_texture.h"
+#include "w_descriptor.h"
 
 namespace Wiesel {
 	class Mesh : public Object {
@@ -26,11 +28,15 @@ namespace Wiesel {
 		void Allocate();
 		void Deallocate();
 
+		void SetTexture(const std::string& path);
+
 		WIESEL_GETTER_FN bool IsAllocated() const;
 
 		WIESEL_GETTER_FN Reference<MemoryBuffer> GetVertexBuffer();
 		WIESEL_GETTER_FN Reference<MemoryBuffer> GetIndexBuffer();
 		WIESEL_GETTER_FN Reference<UniformBufferSet> GetUniformBufferSet();
+		WIESEL_GETTER_FN Reference<Texture> GetTexture();
+		WIESEL_GETTER_FN Reference<DescriptorPool> GetDescriptors();
 
 		std::vector<Vertex> GetVertices();
 		std::vector<Index> GetIndices();
@@ -40,10 +46,12 @@ namespace Wiesel {
 		std::vector<Vertex> m_Vertices;
 		std::vector<Index> m_Indices;
 		bool m_Allocated;
+		std::string m_TexturePath;
 
 		Reference<MemoryBuffer> m_VertexBuffer;
 		Reference<MemoryBuffer> m_IndexBuffer;
 		Reference<UniformBufferSet> m_UniformBufferSet;
-		// todo texture
+		Reference<Texture> m_Texture;
+		Reference<DescriptorPool> m_Descriptors;
 	};
 }

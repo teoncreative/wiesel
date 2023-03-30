@@ -36,7 +36,6 @@ namespace Wiesel {
 		UniformBuffer();
 		~UniformBuffer() override;
 
-		VkDescriptorSet m_Descriptor;
 		void* m_Data;
 	};
 
@@ -47,6 +46,5 @@ namespace Wiesel {
 
 		std::vector<Reference<UniformBuffer>> m_Buffers;
 		uint32_t m_BufferCount;
-		VkDescriptorPool m_DescriptorPool;
 	};
 }

@@ -35,6 +35,7 @@ namespace WieselDemo {
 		};
 
 		Wiesel::Reference<Wiesel::Mesh> mesh = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(), vertices, indices);
+		mesh->SetTexture("textures/babanne-2.png");
 		mesh->Allocate();
 		Wiesel::Renderer::GetRenderer()->AddMesh(mesh);
 
@@ -46,6 +47,7 @@ namespace WieselDemo {
 		};
 
 		Wiesel::Reference<Wiesel::Mesh> mesh1 = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(), vertices1, indices);
+		mesh1->SetTexture("textures/babanne.png");
 		mesh1->Allocate();
 		mesh1->Move(0.0f, 1.0f, 0.0f);
 		Wiesel::Renderer::GetRenderer()->AddMesh(mesh1);
