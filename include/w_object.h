@@ -27,8 +27,15 @@ namespace Wiesel {
 		virtual void Move(const glm::vec3& move);
 
 		virtual void Rotate(float radians, float ax, float ay, float az);
+		virtual void SetRotation(float pitch, float yaw, float roll);
 
-		uint64_t GetObjectId();
+		// Move these to our own Vector3 implementation
+		glm::vec3 GetForward();
+		glm::vec3 GetBackward();
+		glm::vec3 GetLeft();
+		glm::vec3 GetRight();
+
+		WIESEL_GETTER_FN uint64_t GetObjectId();
 
 		void SetObjectId(uint64_t id);
 

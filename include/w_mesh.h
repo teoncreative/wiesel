@@ -22,31 +22,31 @@ namespace Wiesel {
 		Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices);
 		~Mesh();
 
-		void AddVertex(Vertex vertex);
-		void AddIndex(Index index);
-
-		void Allocate();
-		void Deallocate();
-
-		void SetTexture(const std::string& path);
-
 		WIESEL_GETTER_FN bool IsAllocated() const;
-
 		WIESEL_GETTER_FN Reference<MemoryBuffer> GetVertexBuffer();
 		WIESEL_GETTER_FN Reference<MemoryBuffer> GetIndexBuffer();
 		WIESEL_GETTER_FN Reference<UniformBufferSet> GetUniformBufferSet();
 		WIESEL_GETTER_FN Reference<Texture> GetTexture();
 		WIESEL_GETTER_FN Reference<DescriptorPool> GetDescriptors();
+		WIESEL_GETTER_FN std::vector<Vertex> GetVertices();
+		WIESEL_GETTER_FN std::vector<Index> GetIndices();
 
-		std::vector<Vertex> GetVertices();
-		std::vector<Index> GetIndices();
+		void AddVertex(Vertex vertex);
+		void AddIndex(Index index);
+		void SetTexture(const std::string& path);
+
+		void LoadFromObj(const std::string& modelPath, const std::string& texturePath);
 
 		void UpdateUniformBuffer();
-	private:
+		void Allocate();
+		void Deallocate();
+
+	protected:
 		std::vector<Vertex> m_Vertices;
 		std::vector<Index> m_Indices;
 		bool m_Allocated;
 		std::string m_TexturePath;
+		std::string m_ModelPath;
 
 		Reference<MemoryBuffer> m_VertexBuffer;
 		Reference<MemoryBuffer> m_IndexBuffer;

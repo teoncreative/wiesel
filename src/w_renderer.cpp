@@ -9,6 +9,7 @@
 
 #include "w_renderer.h"
 #include "stb_image.h"
+#include "tiny_obj_loader.h"
 
 namespace Wiesel {
 	Reference<Renderer> Renderer::s_Renderer;
@@ -359,6 +360,10 @@ namespace Wiesel {
 		return m_AspectRatio;
 	}
 
+	WindowSize Renderer::GetWindowSize() const {
+		return m_WindowSize;
+	}
+
 	void Renderer::Cleanup() {
 		Wiesel::LogDebug("Destroying Renderer");
 		vkDeviceWaitIdle(m_LogicalDevice);
@@ -566,6 +571,8 @@ namespace Wiesel {
 		m_SwapChainExtent = extent;
 
 		m_AspectRatio = m_SwapChainExtent.width / (float) m_SwapChainExtent.height;
+		m_WindowSize.Width = m_SwapChainExtent.width;
+		m_WindowSize.Height = m_SwapChainExtent.height;
 	}
 
 	void Renderer::CreateImageViews() {
@@ -660,8 +667,8 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateGraphicsPipeline() {
-		auto vertShaderCode = Wiesel::ReadFile("shaders/test.vert.spv");
-		auto fragShaderCode = Wiesel::ReadFile("shaders/test.frag.spv");
+		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/test.vert.spv");
+		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/test.frag.spv");
 
 		VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 		VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
@@ -1144,6 +1151,10 @@ namespace Wiesel {
 		}
 	}
 
+	Reference<AppWindow> Renderer::GetAppWindow() {
+		return m_Window;
+	}
+
 	void Renderer::BeginFrame() {
 		vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
@@ -1216,7 +1227,7 @@ namespace Wiesel {
 		std::vector<Index> indices = mesh->GetIndices();
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh->GetIndexBuffer()->m_Buffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh->GetIndexBuffer()->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh->GetDescriptors()->m_Descriptors[m_CurrentFrame], 0, nullptr);
 		vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);

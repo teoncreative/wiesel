@@ -27,6 +27,7 @@ namespace Wiesel {
 		void Move(const glm::vec3& move) override;
 
 		void Rotate(float radians, float ax, float ay, float az) override;
+		void SetRotation(float yaw, float pitch, float roll) override;
 
 		void OnEvent(Event& event) override;
 

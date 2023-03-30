@@ -23,4 +23,12 @@ namespace Wiesel {
 	WindowEventFn& AppWindow::GetEventHandler() {
 		return m_EventHandler;
 	}
+
+	void AppWindow::SetCursorMode(CursorMode mouseMode) {
+		m_CursorMode = mouseMode;
+	}
+
+	CursorMode AppWindow::GetMouseMode() {
+		return m_CursorMode;
+	}
 }

@@ -32,6 +32,11 @@ namespace Wiesel {
 		UpdateView();
 	}
 
+	void Object::SetRotation(float pitch, float yaw, float roll) {
+		m_Orientation = glm::quat(glm::vec3(pitch, yaw, roll));
+		UpdateView();
+	}
+
 	void Object::Move(float x, float y, float z) {
 		m_Position += glm::vec3(x, y, z);
 		UpdateView();
@@ -48,6 +53,22 @@ namespace Wiesel {
 
 	const glm::mat4& Object::GetLocalView() {
 		return m_LocalView;
+	}
+
+	glm::vec3 Object::GetForward() {
+		return -glm::vec3(m_LocalView[2]);
+	}
+
+	glm::vec3 Object::GetBackward() {
+		return glm::vec3(m_LocalView[2]);
+	}
+
+	glm::vec3 Object::GetLeft() {
+		return -glm::vec3(m_LocalView[0]);
+	}
+
+	glm::vec3 Object::GetRight() {
+		return glm::vec3(m_LocalView[0]);
 	}
 
 	uint64_t Object::GetObjectId() {

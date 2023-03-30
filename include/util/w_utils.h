@@ -33,7 +33,7 @@ namespace Wiesel {
 	};
 
 
-	using Index = uint16_t;
+	using Index = uint32_t;
 
 	struct Vertex {
 		glm::vec3 Pos;
@@ -99,7 +99,7 @@ namespace Wiesel {
 
 	class Time {
 	public:
-		static double_t GetTime();
+		static float_t GetTime();
 	};
 
 	std::vector<char> ReadFile(const std::string& filename);

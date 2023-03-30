@@ -66,7 +66,7 @@ namespace Wiesel {
 		m_PreviousFrame = Time::GetTime();
 
 		while (m_IsRunning) {
-			double_t time = Time::GetTime();
+			float time = Time::GetTime();
 			m_DeltaTime = time - m_PreviousFrame;
 			m_PreviousFrame = time;
 
