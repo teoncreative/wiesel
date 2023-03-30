@@ -21,30 +21,34 @@ namespace WieselDemo {
 	void DemoLayer::OnAttach() {
 		Wiesel::LogDebug("Layer: OnAttach");
 
-		Wiesel::Reference<Wiesel::Mesh> mesh = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(1.0f), glm::quat());
-		mesh->AddVertex({{-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
-		mesh->AddVertex({{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
-		mesh->AddVertex({{0.5f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
-		mesh->AddVertex({{-0.5f, 0.0f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}});
-		mesh->AddVertex({{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}});
-		mesh->AddVertex({{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}});
-		mesh->AddVertex({{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}});
-		mesh->AddVertex({{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 1.0f}, {1.0f, 1.0f}});
 
-		mesh->AddIndex(0);
-		mesh->AddIndex(1);
-		mesh->AddIndex(2);
-		mesh->AddIndex(2);
-		mesh->AddIndex(3);
-		mesh->AddIndex(0);
-		mesh->AddIndex(4);
-		mesh->AddIndex(5);
-		mesh->AddIndex(6);
-		mesh->AddIndex(6);
-		mesh->AddIndex(7);
-		mesh->AddIndex(4);
+
+		const std::vector<Wiesel::Vertex> vertices = {
+				{{-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+				{{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+				{{0.5f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+				{{-0.5f, 0.0f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
+		};
+
+		const std::vector<Wiesel::Index> indices = {
+				0, 1, 2, 2, 3, 0
+		};
+
+		Wiesel::Reference<Wiesel::Mesh> mesh = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(), vertices, indices);
 		mesh->Allocate();
 		Wiesel::Renderer::GetRenderer()->AddMesh(mesh);
+
+		const std::vector<Wiesel::Vertex> vertices1 = {
+				{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+				{{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+				{{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+				{{-0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}}
+		};
+
+		Wiesel::Reference<Wiesel::Mesh> mesh1 = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(), vertices1, indices);
+		mesh1->Allocate();
+		mesh1->Move(0.0f, 1.0f, 0.0f);
+		Wiesel::Renderer::GetRenderer()->AddMesh(mesh1);
 
 		Wiesel::Reference<Wiesel::Camera> camera = Wiesel::CreateReference<Wiesel::Camera>(glm::vec3(3.0f, 2.5f, 3.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), Wiesel::Renderer::GetRenderer()->GetAspectRatio());
 		camera->Rotate(PI / 4.0f, 0.0f, 1.0f, 0.0f);

@@ -42,8 +42,11 @@ namespace Wiesel {
 		Reference<MemoryBuffer> CreateIndexBuffer(std::vector<Index> indices);
 		void DestroyIndexBuffer(MemoryBuffer& buffer);
 
-		Reference<UniformBuffer> CreateUniformBuffer(uint32_t frame);
+		Reference<UniformBuffer> CreateUniformBuffer(VkDescriptorPool pool);
 		void DestroyUniformBuffer(UniformBuffer& buffer);
+
+		Reference<UniformBufferSet> CreateUniformBufferSet(uint32_t frames);
+		void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
 
 		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
 		void AddCamera(Reference<Camera> camera);
@@ -53,6 +56,7 @@ namespace Wiesel {
 
 		void BeginFrame();
 		void DrawMeshes();
+		void DrawMesh(Reference<Mesh> mesh);
 		void EndFrame();
 
 		WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
@@ -104,10 +108,6 @@ namespace Wiesel {
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
 		std::vector<VkFence> inFlightFences;
-		VkDescriptorPool descriptorPool{};
-
-
-		std::vector<VkDescriptorSet> descriptorSets;
 
 		uint32_t m_CurrentFrame = 0;
 		std::vector<Reference<Mesh>> m_Meshes;
@@ -127,8 +127,6 @@ namespace Wiesel {
 		void CreateGraphicsPipeline();
 		void CreateFramebuffers();
 		void CreateCommandPools();
-		void CreateDescriptorPool();
-		void CreateDescriptorSets();
 		void CreateCommandBuffers();
 		void CreateSyncObjects();
 		void CleanupSwapChain();

@@ -17,6 +17,7 @@ namespace Wiesel {
 	class Mesh : public Object {
 	public:
 		Mesh(const glm::vec3& position, const glm::quat& orientation);
+		Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices);
 		~Mesh();
 
 		void AddVertex(Vertex vertex);
@@ -29,7 +30,7 @@ namespace Wiesel {
 
 		WIESEL_GETTER_FN Reference<MemoryBuffer> GetVertexBuffer();
 		WIESEL_GETTER_FN Reference<MemoryBuffer> GetIndexBuffer();
-		WIESEL_GETTER_FN std::vector<Reference<UniformBuffer>> GetUniformBuffers();
+		WIESEL_GETTER_FN Reference<UniformBufferSet> GetUniformBufferSet();
 
 		std::vector<Vertex> GetVertices();
 		std::vector<Index> GetIndices();
@@ -42,6 +43,7 @@ namespace Wiesel {
 
 		Reference<MemoryBuffer> m_VertexBuffer;
 		Reference<MemoryBuffer> m_IndexBuffer;
-		std::vector<Reference<UniformBuffer>> m_UniformBuffers;
+		Reference<UniformBufferSet> m_UniformBufferSet;
+		// todo texture
 	};
 }

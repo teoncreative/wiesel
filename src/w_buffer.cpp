@@ -30,4 +30,13 @@ namespace Wiesel {
 	UniformBuffer::~UniformBuffer() {
 		Renderer::GetRenderer()->DestroyUniformBuffer(*this);
 	}
+
+	UniformBufferSet::UniformBufferSet(uint32_t buffers) {
+		m_Buffers.reserve(buffers);
+		m_BufferCount = buffers;
+	}
+
+	UniformBufferSet::~UniformBufferSet() {
+		Renderer::GetRenderer()->DestroyUniformBufferSet(*this);
+	}
 }
