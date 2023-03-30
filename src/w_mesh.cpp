@@ -15,6 +15,11 @@ namespace Wiesel {
 
 	}
 
+	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation) {
+		m_Vertices = vertices;
+		m_Indices = indices;
+	}
+
 	Mesh::~Mesh() {
 		Deallocate();
 		Wiesel::LogDebug("Destroying mesh");
@@ -34,9 +39,7 @@ namespace Wiesel {
 		}
 		m_VertexBuffer = Renderer::GetRenderer()->CreateVertexBuffer(m_Vertices);
 		m_IndexBuffer = Renderer::GetRenderer()->CreateIndexBuffer(m_Indices);
-		for (int frame = 0; frame < Renderer::k_MaxFramesInFlight; ++frame) {
-			m_UniformBuffers.push_back(Renderer::GetRenderer()->CreateUniformBuffer(frame));
-		}
+		m_UniformBufferSet = Renderer::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight);
 		m_Allocated = true;
 	}
 
@@ -44,7 +47,7 @@ namespace Wiesel {
 		if (!m_Allocated) {
 			return;
 		}
-		m_UniformBuffers.clear();
+		m_UniformBufferSet = nullptr;
 		m_VertexBuffer = nullptr;
 		m_IndexBuffer = nullptr;
 		m_Allocated = false;
@@ -62,8 +65,8 @@ namespace Wiesel {
 		return m_IndexBuffer;
 	}
 
-	std::vector<Reference<UniformBuffer>> Mesh::GetUniformBuffers() {
-		return m_UniformBuffers;
+	Reference<UniformBufferSet> Mesh::GetUniformBufferSet() {
+		return m_UniformBufferSet;
 	}
 
 	void Mesh::UpdateUniformBuffer() {
@@ -78,7 +81,7 @@ namespace Wiesel {
 		ubo.Proj = camera->GetProjection();
 
 		uint32_t currentFrame = Renderer::GetRenderer()->GetCurrentFrame();
-		memcpy(m_UniformBuffers[currentFrame]->m_Data, &ubo, sizeof(ubo));
+		memcpy(m_UniformBufferSet->m_Buffers[currentFrame]->m_Data, &ubo, sizeof(ubo));
 	}
 
 	std::vector<Vertex> Mesh::GetVertices() {

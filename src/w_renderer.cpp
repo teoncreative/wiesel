@@ -30,8 +30,6 @@ namespace Wiesel {
 		CreateFramebuffers();
 		CreateCommandPools();
 		CreateCommandBuffers();
-		CreateDescriptorPool();
-		CreateDescriptorSets();
 		CreateSyncObjects();
 
 		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(1.0f), glm::quat(), m_AspectRatio);
@@ -111,7 +109,7 @@ namespace Wiesel {
 		return memoryBuffer;
 	}
 
-	Reference<UniformBuffer> Renderer::CreateUniformBuffer(uint32_t frame) {
+	Reference<UniformBuffer> Renderer::CreateUniformBuffer(VkDescriptorPool pool) {
 		VkDeviceSize bufferSize = sizeof(Wiesel::UniformBufferObject);
 
 		Reference<UniformBuffer> uniformBuffer = CreateReference<UniformBuffer>();
@@ -120,6 +118,15 @@ namespace Wiesel {
 
 		WIESEL_CHECK_VKRESULT(vkMapMemory(m_LogicalDevice, uniformBuffer->m_BufferMemory, 0, bufferSize, 0, &uniformBuffer->m_Data));
 
+		std::vector<VkDescriptorSetLayout> layouts(1, m_DescriptorSetLayout);
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = pool;
+		allocInfo.descriptorSetCount = static_cast<uint32_t>(1);
+		allocInfo.pSetLayouts = layouts.data();
+
+		WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(m_LogicalDevice, &allocInfo, &uniformBuffer->m_Descriptor));
+
 		VkDescriptorBufferInfo bufferInfo{};
 		bufferInfo.buffer = uniformBuffer->m_Buffer;
 		bufferInfo.offset = 0;
@@ -127,7 +134,7 @@ namespace Wiesel {
 
 		VkWriteDescriptorSet descriptorWrite{};
 		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrite.dstSet = descriptorSets[frame];
+		descriptorWrite.dstSet = uniformBuffer->m_Descriptor;
 		descriptorWrite.dstBinding = 0;
 		descriptorWrite.dstArrayElement = 0;
 
@@ -142,7 +149,7 @@ namespace Wiesel {
 
 		std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptorSets[frame];
+		descriptorWrites[0].dstSet = uniformBuffer->m_Descriptor;
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -167,6 +174,30 @@ namespace Wiesel {
 		return uniformBuffer;
 	}
 
+	Reference<UniformBufferSet> Renderer::CreateUniformBufferSet(uint32_t frames) {
+		Reference<UniformBufferSet> bufferSet = CreateReference<UniformBufferSet>(frames);
+
+		std::array<VkDescriptorPoolSize, 2> poolSizes{};
+		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		poolSizes[0].descriptorCount = static_cast<uint32_t>(frames);
+		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		poolSizes[1].descriptorCount = static_cast<uint32_t>(frames);
+
+		VkDescriptorPoolCreateInfo poolInfo{};
+		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+		poolInfo.pPoolSizes = poolSizes.data();
+		poolInfo.maxSets = static_cast<uint32_t>(frames);
+
+		WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(m_LogicalDevice, &poolInfo, nullptr, &bufferSet->m_DescriptorPool));
+
+		for (int frame = 0; frame < frames; ++frame) {
+			bufferSet->m_Buffers.emplace_back(CreateUniformBuffer(bufferSet->m_DescriptorPool));
+		}
+
+		return bufferSet;
+	}
+
 	void Renderer::DestroyIndexBuffer(MemoryBuffer& buffer) {
 		vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, buffer.m_BufferMemory, nullptr);
@@ -175,6 +206,12 @@ namespace Wiesel {
 	void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
 		vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, buffer.m_BufferMemory, nullptr);
+	}
+
+	void Renderer::DestroyUniformBufferSet(UniformBufferSet& bufferSet) {
+		// reuse pools
+		bufferSet.m_Buffers.clear();
+		vkDestroyDescriptorPool(m_LogicalDevice, bufferSet.m_DescriptorPool, nullptr);
 	}
 
 	void Renderer::AddMesh(Reference<Mesh> mesh) {
@@ -211,13 +248,7 @@ namespace Wiesel {
 		Wiesel::LogDebug("Destroying Renderer");
 		vkDeviceWaitIdle(m_LogicalDevice);
 		CleanupSwapChain();
-/*
-		vkDestroySampler(logicalDevice, textureSampler, nullptr);
-		vkDestroyImageView(logicalDevice, textureImageView, nullptr);
 
-		vkDestroyImage(logicalDevice, textureImage, nullptr);
-		vkFreeMemory(logicalDevice, textureImageMemory, nullptr);
-*/
 		m_Cameras.clear();
 
 		for (const auto& item : m_Meshes) {
@@ -225,7 +256,6 @@ namespace Wiesel {
 		}
 		m_Meshes.clear();
 
-		vkDestroyDescriptorPool(m_LogicalDevice, descriptorPool, nullptr);
 		vkDestroyDescriptorSetLayout(m_LogicalDevice, m_DescriptorSetLayout, nullptr);
 		vkDestroyPipeline(m_LogicalDevice, graphicsPipeline, nullptr);
 		vkDestroyPipelineLayout(m_LogicalDevice, pipelineLayout, nullptr);
@@ -674,66 +704,6 @@ namespace Wiesel {
 		}
 	}
 
-	void Renderer::CreateDescriptorPool() {
-		std::array<VkDescriptorPoolSize, 2> poolSizes{};
-		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSizes[0].descriptorCount = static_cast<uint32_t>(k_MaxFramesInFlight);
-		poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		poolSizes[1].descriptorCount = static_cast<uint32_t>(k_MaxFramesInFlight);
-
-		VkDescriptorPoolCreateInfo poolInfo{};
-		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-		poolInfo.pPoolSizes = poolSizes.data();
-		poolInfo.maxSets = static_cast<uint32_t>(k_MaxFramesInFlight);
-
-		WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(m_LogicalDevice, &poolInfo, nullptr, &descriptorPool));
-	}
-
-	void Renderer::CreateDescriptorSets() {
-		std::vector<VkDescriptorSetLayout> layouts(k_MaxFramesInFlight, m_DescriptorSetLayout);
-		VkDescriptorSetAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		allocInfo.descriptorPool = descriptorPool;
-		allocInfo.descriptorSetCount = static_cast<uint32_t>(k_MaxFramesInFlight);
-		allocInfo.pSetLayouts = layouts.data();
-
-		descriptorSets.resize(k_MaxFramesInFlight);
-		WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(m_LogicalDevice, &allocInfo, descriptorSets.data()));
-
-/*		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
-			VkDescriptorBufferInfo bufferInfo{};
-			bufferInfo.buffer = uniformBuffers[i];
-			bufferInfo.offset = 0;
-			bufferInfo.range = sizeof(Wiesel::UniformBufferObject);
-
-			VkDescriptorImageInfo imageInfo{};
-			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = textureImageView;
-			imageInfo.sampler = textureSampler;
-
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[0].dstSet = descriptorSets[i];
-			descriptorWrites[0].dstBinding = 0;
-			descriptorWrites[0].dstArrayElement = 0;
-			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			descriptorWrites[0].descriptorCount = 1;
-			descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[1].dstSet = descriptorSets[i];
-			descriptorWrites[1].dstBinding = 1;
-			descriptorWrites[1].dstArrayElement = 0;
-			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrites[1].descriptorCount = 1;
-			descriptorWrites[1].pImageInfo = &imageInfo;
-
-			vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-		}*/
-
-	}
-
 	void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1026,17 +996,24 @@ namespace Wiesel {
 
 	void Renderer::DrawMeshes() {
 		for (const auto& mesh : m_Meshes) {
-			mesh->UpdateUniformBuffer();
-
-			VkBuffer vertexBuffers[] = {mesh->GetVertexBuffer()->m_Buffer};
-			std::vector<Index> indices = mesh->GetIndices();
-			VkDeviceSize offsets[] = {0};
-			vkCmdBindVertexBuffers(commandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
-			vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh->GetIndexBuffer()->m_Buffer, 0, VK_INDEX_TYPE_UINT16);
-
-			vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[m_CurrentFrame], 0, nullptr);
-			vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+			DrawMesh(mesh);
 		}
+	}
+
+	void Renderer::DrawMesh(Reference<Mesh> mesh) {
+		if (!mesh->IsAllocated()) {
+			mesh->Allocate();
+		}
+		mesh->UpdateUniformBuffer();
+
+		VkBuffer vertexBuffers[] = {mesh->GetVertexBuffer()->m_Buffer};
+		std::vector<Index> indices = mesh->GetIndices();
+		VkDeviceSize offsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh->GetIndexBuffer()->m_Buffer, 0, VK_INDEX_TYPE_UINT16);
+
+		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh->GetUniformBufferSet()->m_Buffers[m_CurrentFrame]->m_Descriptor, 0, nullptr);
+		vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 	}
 
 	void Renderer::EndFrame() {
