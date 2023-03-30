@@ -78,3 +78,5 @@ cmake-build-release
 todo
 
 .idea
+/cmake-build-relwithdebinfo/
+/cmake-build-release/
