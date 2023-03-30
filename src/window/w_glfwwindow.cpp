@@ -26,9 +26,9 @@ namespace Wiesel {
 
 		glfwSetWindowSizeCallback(m_Handle, [](GLFWwindow* window, int width, int height) {
 			GlfwAppWindow& appWindow = *(GlfwAppWindow*) glfwGetWindowUserPointer(window);
-			WindowSize size{width, height};
-			appWindow.OnFramebufferResize(size);
-			// todo resize event
+
+			WindowResizeEvent event({width, height});
+			appWindow.GetEventHandler()(event);
 		});
 
 		glfwSetWindowCloseCallback(m_Handle, [](GLFWwindow* window) {
@@ -118,10 +118,6 @@ namespace Wiesel {
 
 	void GlfwAppWindow::GetWindowFramebufferSize(WindowSize& size) {
 		glfwGetFramebufferSize(m_Handle, &size.Width, &size.Height);
-	}
-
-	void GlfwAppWindow::OnFramebufferResize(const WindowSize& size) {
-		SetFramebufferResized(true);
 	}
 
 	const char** GlfwAppWindow::GetRequiredInstanceExtensions(uint32_t* extensionsCount) {

@@ -58,4 +58,8 @@ namespace Wiesel {
 		m_ObjectId = id;
 	}
 
+	void Object::OnEvent(Event& event) {
+
+	}
+
 }

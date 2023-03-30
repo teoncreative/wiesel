@@ -11,6 +11,7 @@
 #include "w_pch.h"
 #include "util/w_utils.h"
 #include "util/w_logger.h"
+#include "events/w_events.h"
 
 namespace Wiesel {
 	class Object {
@@ -30,6 +31,8 @@ namespace Wiesel {
 		uint64_t GetObjectId();
 
 		void SetObjectId(uint64_t id);
+
+		virtual void OnEvent(Event& event);
 	protected:
 		static uint64_t s_ObjectCounter;
 		virtual void UpdateView();

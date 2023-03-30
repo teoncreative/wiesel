@@ -24,6 +24,7 @@ namespace Wiesel {
 		~Renderer();
 
 		static void Create(Reference<AppWindow> window);
+		static void Destroy();
 		WIESEL_GETTER_FN static Reference<Renderer> GetRenderer();
 
 		void AddMesh(Reference<Mesh> mesh);
@@ -36,7 +37,6 @@ namespace Wiesel {
 		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 		VkImageView CreateImageView(VkImage image, VkFormat format);
 
-		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 
 		Reference<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
 		void DestroyVertexBuffer(MemoryBuffer& buffer);
@@ -60,16 +60,18 @@ namespace Wiesel {
 		void AddCamera(Reference<Camera> camera);
 		void SetActiveCamera(uint64_t id);
 
+		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 		WIESEL_GETTER_FN float GetAspectRatio() const;
+		WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
 
 		void BeginFrame();
 		void DrawMeshes();
 		void DrawMesh(Reference<Mesh> mesh);
 		void EndFrame();
 
-		WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
+		void RecreateSwapChain();
 
-		static void Destroy();
+		void PublishEvent(Event& event);
 
 	private:
 		friend class Mesh;
@@ -138,7 +140,6 @@ namespace Wiesel {
 		void CreateCommandBuffers();
 		void CreateSyncObjects();
 		void CleanupSwapChain();
-		void RecreateSwapChain();
 		VkShaderModule CreateShaderModule(const std::vector<char>& code);
 		int32_t RateDeviceSuitability(VkPhysicalDevice device);
 		bool IsDeviceSuitable(VkPhysicalDevice device);

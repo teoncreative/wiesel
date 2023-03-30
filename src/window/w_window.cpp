@@ -16,14 +16,6 @@ namespace Wiesel {
 	AppWindow::~AppWindow() {
 	}
 
-	bool AppWindow::IsFramebufferResized() {
-		return m_FrameBufferResized;
-	}
-
-	void AppWindow::SetFramebufferResized(bool value) {
-		this->m_FrameBufferResized = value;
-	}
-
 	void AppWindow::SetEventHandler(const WindowEventFn& eventHandler) {
 		m_EventHandler = eventHandler;
 	}

@@ -1149,8 +1149,7 @@ void DrawFrame() {
 	presentInfo.pResults = nullptr; // Optional
 
 	result = vkQueuePresentKHR(presentQueue, &presentInfo);
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || appWindow->IsFramebufferResized()) {
-		appWindow->SetFramebufferResized(false);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
 		RecreateSwapChain();
 	} else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
