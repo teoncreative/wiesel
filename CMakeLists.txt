@@ -72,56 +72,86 @@ endif(VULKAN_FOUND)
 
 add_subdirectory(${ENGINE_DIR}/deps/glfw)
 target_link_libraries(${PROJECT_NAME} glfw)
+
 include_directories(${ENGINE_DIR}/deps/stb)
+include_directories(${ENGINE_DIR}/deps/tinyobjloader)
 
 ##### SHADERS #####
 file(GLOB_RECURSE GLSL_SOURCE_FILES
-        "${ENGINE_DIR}/shaders/*.frag"
-        "${ENGINE_DIR}/shaders/*.vert"
+        "${ENGINE_DIR}/assets/shaders/*.frag"
+        "${ENGINE_DIR}/assets/shaders/*.vert"
         )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
     get_filename_component(FILE_NAME ${GLSL} NAME)
-    set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${FILE_NAME}.spv")
+    set(SPIRV "${PROJECT_BINARY_DIR}/assets/shaders/${FILE_NAME}.spv")
     add_custom_command(
             OUTPUT ${SPIRV}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/shaders/"
             COMMAND glslc ${GLSL} -o ${SPIRV}
-            DEPENDS ${GLSL})
+            DEPENDS ${GLSL}
+    )
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
 
 add_custom_target(
-        ${PROJECT_NAME}_SHADERS
+        ${PROJECT_NAME}_Shaders
         DEPENDS ${SPIRV_BINARY_FILES}
 )
 
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_SHADERS)
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Shaders)
 
 ##### TEXTURES #####
 
 file(GLOB_RECURSE TEXTURE_FILES
-        "${ENGINE_DIR}/textures/*.jpg"
-        "${ENGINE_DIR}/textures/*.png"
-        "${ENGINE_DIR}/textures/*.bmp"
-        "${ENGINE_DIR}/textures/*.jpeg"
+        "${ENGINE_DIR}/assets/textures/*.jpg"
+        "${ENGINE_DIR}/assets/textures/*.png"
+        "${ENGINE_DIR}/assets/textures/*.bmp"
+        "${ENGINE_DIR}/assets/textures/*.jpeg"
         )
 # todo copy images as some other easier to load format
 
 foreach(TEXTURE ${TEXTURE_FILES})
     get_filename_component(FILE_NAME ${TEXTURE} NAME)
-    set(OUT_FILE "${PROJECT_BINARY_DIR}/textures/${FILE_NAME}")
+    set(OUT_FILE "${PROJECT_BINARY_DIR}/assets/textures/${FILE_NAME}")
     add_custom_command(
             OUTPUT ${OUT_FILE}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/textures/"
-            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/textures/${FILE_NAME} ${OUT_FILE}
-            DEPENDS ${TEXTURE})
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/textures/"
+            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/assets/textures/${FILE_NAME} ${OUT_FILE}
+            DEPENDS ${TEXTURE}
+    )
     list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
 endforeach(TEXTURE)
 
 add_custom_target(
-        ${PROJECT_NAME}_TEXTURES
+        ${PROJECT_NAME}_Textures
         DEPENDS ${COPIED_TEXTURE_FILES}
 )
 
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_TEXTURES)
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Textures)
+
+##### MODELS #####
+
+file(GLOB_RECURSE MODEL_FILES
+        "${ENGINE_DIR}/assets/models/*.obj"
+        )
+# todo copy models as some other easier to load format
+
+foreach(MODEL ${MODEL_FILES})
+    get_filename_component(FILE_NAME ${MODEL} NAME)
+    set(OUT_FILE "${PROJECT_BINARY_DIR}/assets/models/${FILE_NAME}")
+    add_custom_command(
+            OUTPUT ${OUT_FILE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/models/"
+            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/assets/models/${FILE_NAME} ${OUT_FILE}
+            DEPENDS ${MODEL}
+    )
+    list(APPEND COPIED_MODEL_FILES ${OUT_FILE})
+endforeach(MODEL)
+
+add_custom_target(
+        ${PROJECT_NAME}_Models
+        DEPENDS ${COPIED_MODEL_FILES}
+)
+
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Models)

@@ -58,6 +58,7 @@ namespace Wiesel {
 		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 		WIESEL_GETTER_FN float GetAspectRatio() const;
 		WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
+		WIESEL_GETTER_FN WindowSize GetWindowSize() const;
 
 		void BeginFrame();
 		void DrawMeshes();
@@ -68,6 +69,8 @@ namespace Wiesel {
 
 		void PublishEvent(Event& event);
 
+		// move this and window creation to application class
+		Reference<AppWindow> GetAppWindow();
 	private:
 		friend class Mesh;
 
@@ -120,6 +123,7 @@ namespace Wiesel {
 		std::vector<Reference<Camera>> m_Cameras;
 		uint64_t m_ActiveCameraId;
 		float_t m_AspectRatio;
+		WindowSize m_WindowSize;
 
 		void Cleanup();
 		void CreateVulkanInstance();

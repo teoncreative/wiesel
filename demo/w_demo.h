@@ -12,6 +12,8 @@
 #include "w_application.h"
 #include "w_demo.h"
 #include "events/w_keyevents.h"
+#include "events/w_mouseevents.h"
+#include "w_keymanager.h"
 
 namespace WieselDemo {
 	class DemoApplication : public Wiesel::Application {
@@ -30,12 +32,20 @@ namespace WieselDemo {
 		void OnAttach() override;
 		void OnDetach() override;
 
-		void OnUpdate(double_t deltaTime) override;
+		void OnUpdate(float_t deltaTime) override;
 		void OnEvent(Wiesel::Event& event) override;
 
 		bool OnKeyPress(Wiesel::KeyPressedEvent& event);
+		bool OnKeyReleased(Wiesel::KeyReleasedEvent& event);
+		bool OnMouseMoved(Wiesel::MouseMovedEvent& event);
 
 	private:
 		DemoApplication& m_App;
+		Wiesel::KeyManager m_KeyManager;
+
+		float_t m_InputX;
+		float_t m_InputY;
+		float_t m_MouseSpeed;
+		float_t m_LookXLimit;
 	};
 }

@@ -1,3 +1,4 @@
+
 //   Copyright 2023 Metehan Gezer
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -8,25 +9,9 @@
 
 #pragma once
 
-#include "w_pch.h"
-#include "util/w_keycodes.h"
-
 namespace Wiesel {
-	struct KeyData {
-		KeyData();
-		explicit KeyData(bool pressed);
+	// todo
+	class Vector3 {
 
-		bool Pressed;
-	};
-
-	class KeyManager {
-	public:
-		KeyManager();
-		~KeyManager();
-
-		void Set(KeyCode key, bool pressed);
-		bool IsPressed(KeyCode key);
-	private:
-		std::map<KeyCode, KeyData> m_Keys;
 	};
 }

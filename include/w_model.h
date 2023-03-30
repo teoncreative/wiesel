@@ -10,22 +10,16 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_renderer.h"
-#include "events/w_events.h"
+#include "w_mesh.h"
 
 namespace Wiesel {
-	class Layer {
+class Model : public Object {
 	public:
-		Layer();
-		virtual ~Layer();
-
-		virtual void OnAttach() = 0;
-		virtual void OnDetach() = 0;
-		virtual void OnUpdate(float_t deltaTime) = 0;
-		virtual void OnEvent(Event& event) = 0;
+		Model(const glm::vec3& position, const glm::quat& orientation);
+		~Model();
 
 	private:
-		uint32_t m_Id;
-		friend class Application;
+
 	};
+
 }

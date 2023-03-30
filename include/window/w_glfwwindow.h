@@ -28,7 +28,12 @@ namespace Wiesel {
 		void GetWindowFramebufferSize(WindowSize& size) override;
 		const char** GetRequiredInstanceExtensions(uint32_t* extensionsCount) override;
 
+		void SetCursorMode(CursorMode cursorMode) override;
 	private:
+		WindowSize m_WindowSize;
+		WindowSize m_FramebufferSize;
+		WindowSize m_Scale;
+
 		GLFWwindow* m_Handle{};
 	};
 }

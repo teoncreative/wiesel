@@ -47,8 +47,8 @@ namespace Wiesel {
 		std::vector<Reference<Layer>> m_Layers;
 		uint32_t m_LayerCounter;
 		Reference<AppWindow> m_Window;
-		double_t m_PreviousFrame = 0.0;
-		double_t m_DeltaTime = 0.0;
+		float_t m_PreviousFrame = 0.0;
+		float_t m_DeltaTime = 0.0;
 	};
 
 	Application* CreateApp();

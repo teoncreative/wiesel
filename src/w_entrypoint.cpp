@@ -497,8 +497,8 @@ void CreateDescriptorSetLayout() {
 }
 
 void CreateGraphicsPipeline() {
-	auto vertShaderCode = Wiesel::ReadFile("shaders/test.vert.spv");
-	auto fragShaderCode = Wiesel::ReadFile("shaders/test.frag.spv");
+	auto vertShaderCode = Wiesel::ReadFile("assets/shaders/test.vert.spv");
+	auto fragShaderCode = Wiesel::ReadFile("assets/shaders/test.frag.spv");
 
 	VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 	VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);

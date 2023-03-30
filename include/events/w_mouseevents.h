@@ -16,11 +16,11 @@ namespace Wiesel {
 	class MouseMovedEvent : public Event
 	{
 	public:
-		MouseMovedEvent(const float x, const float y)
+		MouseMovedEvent(const float_t x, const float_t y)
 				: m_MouseX(x), m_MouseY(y) {}
 
-		float GetX() const { return m_MouseX; }
-		float GetY() const { return m_MouseY; }
+		WIESEL_GETTER_FN float_t GetX() const { return m_MouseX; }
+		WIESEL_GETTER_FN float_t GetY() const { return m_MouseY; }
 
 		EVENT_CLASS_TYPE(MouseMoved)
 		EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
@@ -31,11 +31,11 @@ namespace Wiesel {
 	class MouseScrolledEvent : public Event
 	{
 	public:
-		MouseScrolledEvent(const float xOffset, const float yOffset)
+		MouseScrolledEvent(const float_t xOffset, const float_t yOffset)
 				: m_XOffset(xOffset), m_YOffset(yOffset) {}
 
-		float GetXOffset() const { return m_XOffset; }
-		float GetYOffset() const { return m_YOffset; }
+		WIESEL_GETTER_FN float_t GetXOffset() const { return m_XOffset; }
+		WIESEL_GETTER_FN float_t GetYOffset() const { return m_YOffset; }
 
 
 		EVENT_CLASS_TYPE(MouseScrolled)

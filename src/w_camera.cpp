@@ -41,6 +41,11 @@ namespace Wiesel {
 		UpdateProjection();
 	}
 
+	void Camera::SetRotation(float yaw, float pitch, float roll) {
+		Object::SetRotation(yaw, pitch, roll);
+		UpdateProjection();
+	}
+
 	void Camera::UpdateProjection() {
 		m_Projection = glm::perspective(glm::radians(m_FieldOfView), m_AspectRatio, m_NearPlane, m_FarPlane);
 		m_Projection[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
