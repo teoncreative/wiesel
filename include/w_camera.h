@@ -11,6 +11,7 @@
 
 #include "w_pch.h"
 #include "w_object.h"
+#include "events/w_appevents.h"
 
 namespace Wiesel {
 	class Camera : public Object {
@@ -27,6 +28,9 @@ namespace Wiesel {
 
 		void Rotate(float radians, float ax, float ay, float az) override;
 
+		void OnEvent(Event& event) override;
+
+		bool OnRecreateSwapChains(AppRecreateSwapChainsEvent& event);
 	private:
 		void UpdateProjection();
 

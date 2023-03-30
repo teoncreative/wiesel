@@ -18,6 +18,8 @@ namespace Wiesel {
 	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation) {
 		m_Vertices = vertices;
 		m_Indices = indices;
+		m_TexturePath = "";
+		m_Texture = nullptr;
 	}
 
 	Mesh::~Mesh() {

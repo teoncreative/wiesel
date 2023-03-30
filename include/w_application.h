@@ -37,10 +37,13 @@ namespace Wiesel {
 		void RemoveLayer(const Reference<Layer>& layer);
 
 		bool OnWindowClose(WindowCloseEvent& event);
+		bool OnWindowResize(WindowResizeEvent& event);
 
 	private:
 		bool m_IsRunning;
 		bool m_IsMinimized;
+		bool m_WindowResized;
+		WindowSize m_WindowSize;
 		std::vector<Reference<Layer>> m_Layers;
 		uint32_t m_LayerCounter;
 		Reference<AppWindow> m_Window;

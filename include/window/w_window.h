@@ -41,14 +41,10 @@ namespace Wiesel {
 		~AppWindow();
 
 		virtual void OnUpdate() = 0;
-		virtual void OnFramebufferResize(const WindowSize& size) = 0;
 		virtual bool IsShouldClose() = 0;
 
 		void SetEventHandler(const WindowEventFn& callback);
 		WIESEL_GETTER_FN WindowEventFn& GetEventHandler();
-
-		WIESEL_GETTER_FN bool IsFramebufferResized();
-		void SetFramebufferResized(bool value);
 
 		virtual void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 		virtual void GetWindowFramebufferSize(WindowSize& size) = 0;
@@ -56,7 +52,6 @@ namespace Wiesel {
 
 	protected:
 		WindowProperties m_Properties;
-		bool m_FrameBufferResized;
 		WindowEventFn m_EventHandler;
 	};
 }

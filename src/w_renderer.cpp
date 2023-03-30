@@ -1030,10 +1030,6 @@ namespace Wiesel {
 		Wiesel::LogInfo("Recreating swap chains...");
 		Wiesel::WindowSize size{};
 		m_Window->GetWindowFramebufferSize(size);
-		while (size.Width == 0 || size.Height == 0) {
-			m_Window->GetWindowFramebufferSize(size);
-			m_Window->OnUpdate();
-		}
 
 		vkDeviceWaitIdle(m_LogicalDevice);
 
@@ -1042,6 +1038,18 @@ namespace Wiesel {
 		CreateSwapChain();
 		CreateImageViews();
 		CreateFramebuffers();
+
+		AppRecreateSwapChainsEvent event(size, m_AspectRatio);
+		PublishEvent(event);
+	}
+
+	void Renderer::PublishEvent(Event& event) {
+		for (const auto& camera : m_Cameras) {
+			if (event.m_Handled) {
+				return;
+			}
+			camera->OnEvent(event);
+		}
 	}
 
 	void Renderer::BeginFrame() {
@@ -1156,8 +1164,7 @@ namespace Wiesel {
 		presentInfo.pResults = nullptr; // Optional
 
 		VkResult result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_Window->IsFramebufferResized()) {
-			m_Window->SetFramebufferResized(false);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
 			RecreateSwapChain();
 		} else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");

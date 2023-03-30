@@ -21,25 +21,29 @@ namespace WieselDemo {
 	void DemoLayer::OnAttach() {
 		Wiesel::LogDebug("Layer: OnAttach");
 
-
-
 		const std::vector<Wiesel::Vertex> vertices = {
-				{{-0.5f, 0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-				{{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-				{{0.5f, 0.0f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-				{{-0.5f, 0.0f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
+				{{-0.5f, 0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+				{{0.5f, 0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+				{{0.5f, 0.0f, 0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+				{{-0.5f, 0.0f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+
+				{{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+				{{0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+				{{0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+				{{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 		};
 
 		const std::vector<Wiesel::Index> indices = {
-				0, 1, 2, 2, 3, 0
+				0, 1, 2, 2, 3, 0,
+				4, 5, 6, 6, 7, 4
 		};
 
 		Wiesel::Reference<Wiesel::Mesh> mesh = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(), vertices, indices);
-		mesh->SetTexture("textures/babanne-2.png");
+		mesh->SetTexture("textures/texture.jpg");
 		mesh->Allocate();
 		Wiesel::Renderer::GetRenderer()->AddMesh(mesh);
 
-		const std::vector<Wiesel::Vertex> vertices1 = {
+		/*const std::vector<Wiesel::Vertex> vertices1 = {
 				{{-0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
 				{{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
 				{{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
@@ -47,12 +51,12 @@ namespace WieselDemo {
 		};
 
 		Wiesel::Reference<Wiesel::Mesh> mesh1 = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat(), vertices1, indices);
-		mesh1->SetTexture("textures/babanne.png");
+		mesh1->SetTexture("textures/texture.jpg");
 		mesh1->Allocate();
 		mesh1->Move(0.0f, 1.0f, 0.0f);
-		Wiesel::Renderer::GetRenderer()->AddMesh(mesh1);
+		Wiesel::Renderer::GetRenderer()->AddMesh(mesh1);*/
 
-		Wiesel::Reference<Wiesel::Camera> camera = Wiesel::CreateReference<Wiesel::Camera>(glm::vec3(3.0f, 2.5f, 3.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), Wiesel::Renderer::GetRenderer()->GetAspectRatio());
+		Wiesel::Reference<Wiesel::Camera> camera = Wiesel::CreateReference<Wiesel::Camera>(glm::vec3(2.0f, 1.5f, 2.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), Wiesel::Renderer::GetRenderer()->GetAspectRatio(), 60);
 		camera->Rotate(PI / 4.0f, 0.0f, 1.0f, 0.0f);
 		camera->Rotate(-PI / 6.0f, 1.0f, 0.0f, 0.0f);
 		Wiesel::Renderer::GetRenderer()->AddCamera(camera);
@@ -69,8 +73,8 @@ namespace WieselDemo {
 
 	void DemoLayer::OnEvent(Wiesel::Event& event) {
 	//	Wiesel::LogInfo("Layer: OnEvent" + std::string(event.GetEventName()));
-	Wiesel::EventDispatcher dispatcher(event);
-	dispatcher.Dispatch<Wiesel::KeyPressedEvent>(WIESEL_BIND_EVENT_FUNCTION(OnKeyPress));
+		Wiesel::EventDispatcher dispatcher(event);
+		dispatcher.Dispatch<Wiesel::KeyPressedEvent>(WIESEL_BIND_EVENT_FUNCTION(OnKeyPress));
 	}
 
 	bool DemoLayer::OnKeyPress(Wiesel::KeyPressedEvent& event) {
@@ -95,6 +99,7 @@ namespace WieselDemo {
 
 }
 
+// Called from entrypoint
 Wiesel::Application* Wiesel::CreateApp() {
 	return new WieselDemo::DemoApplication();
 }

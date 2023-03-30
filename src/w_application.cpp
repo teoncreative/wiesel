@@ -21,6 +21,11 @@ namespace Wiesel {
 		m_Window->SetEventHandler(WIESEL_BIND_EVENT_FUNCTION(Application::OnEvent));
 
 		Renderer::Create(m_Window);
+
+		m_Window->GetWindowFramebufferSize(m_WindowSize);
+		if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
+			m_IsMinimized = true;
+		}
 	}
 
 	Application::~Application() {
@@ -36,6 +41,7 @@ namespace Wiesel {
 		EventDispatcher dispatcher(event);
 
 		dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowClose));
+		dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowResize));
 
 		for (const auto& layer : m_Layers) {
 			if (event.m_Handled) {
@@ -69,11 +75,24 @@ namespace Wiesel {
 					layer->OnUpdate(m_DeltaTime);
 				}
 			}
-			m_Window->OnUpdate();
 
 			Renderer::GetRenderer()->BeginFrame();
 			Renderer::GetRenderer()->DrawMeshes();
 			Renderer::GetRenderer()->EndFrame();
+
+			m_Window->OnUpdate();
+
+			if (m_WindowResized) {
+				m_Window->GetWindowFramebufferSize(m_WindowSize);
+				Renderer::GetRenderer()->RecreateSwapChain();
+
+				if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
+					m_IsMinimized = true;
+				} else {
+					m_IsMinimized = false;
+				}
+				m_WindowResized = false;
+			}
 		}
 	}
 
@@ -83,6 +102,11 @@ namespace Wiesel {
 
 	bool Application::OnWindowClose(WindowCloseEvent& event) {
 		Close();
+		return true;
+	}
+
+	bool Application::OnWindowResize(WindowResizeEvent& event) {
+		m_WindowResized = true;
 		return true;
 	}
 }
