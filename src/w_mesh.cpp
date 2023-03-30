@@ -40,6 +40,10 @@ namespace Wiesel {
 		m_VertexBuffer = Renderer::GetRenderer()->CreateVertexBuffer(m_Vertices);
 		m_IndexBuffer = Renderer::GetRenderer()->CreateIndexBuffer(m_Indices);
 		m_UniformBufferSet = Renderer::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight);
+		if (!m_TexturePath.empty()) {
+			m_Texture = Renderer::GetRenderer()->CreateTexture(m_TexturePath);
+		}
+		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
 		m_Allocated = true;
 	}
 
@@ -47,10 +51,25 @@ namespace Wiesel {
 		if (!m_Allocated) {
 			return;
 		}
+		m_Texture = nullptr;
 		m_UniformBufferSet = nullptr;
+		m_Descriptors = nullptr;
 		m_VertexBuffer = nullptr;
 		m_IndexBuffer = nullptr;
 		m_Allocated = false;
+	}
+
+	void Mesh::SetTexture(const std::string& path) {
+		m_TexturePath = path;
+		if (!m_Allocated) {
+			return;
+		}
+		if (!path.empty()) {
+			m_Texture = Renderer::GetRenderer()->CreateTexture(path);
+		} else {
+			m_Texture = nullptr;
+		}
+		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
 	}
 
 	bool Mesh::IsAllocated() const {
@@ -67,6 +86,14 @@ namespace Wiesel {
 
 	Reference<UniformBufferSet> Mesh::GetUniformBufferSet() {
 		return m_UniformBufferSet;
+	}
+
+	Reference<Texture> Mesh::GetTexture() {
+		return m_Texture;
+	}
+
+	Reference<DescriptorPool> Mesh::GetDescriptors() {
+		return m_Descriptors;
 	}
 
 	void Mesh::UpdateUniformBuffer() {

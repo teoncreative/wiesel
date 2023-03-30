@@ -14,6 +14,8 @@
 #include "w_mesh.h"
 #include "window/w_window.h"
 #include "w_camera.h"
+#include "w_texture.h"
+#include "w_descriptor.h"
 
 namespace Wiesel {
 	class Renderer {
@@ -42,11 +44,17 @@ namespace Wiesel {
 		Reference<MemoryBuffer> CreateIndexBuffer(std::vector<Index> indices);
 		void DestroyIndexBuffer(MemoryBuffer& buffer);
 
-		Reference<UniformBuffer> CreateUniformBuffer(VkDescriptorPool pool);
+		Reference<UniformBuffer> CreateUniformBuffer();
 		void DestroyUniformBuffer(UniformBuffer& buffer);
 
 		Reference<UniformBufferSet> CreateUniformBufferSet(uint32_t frames);
 		void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
+
+		Reference<Texture> CreateTexture(const std::string& path);
+		void DestroyTexture(Texture& texture);
+
+		Reference<DescriptorPool> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Texture> texture);
+		void DestroyDescriptors(DescriptorPool& descriptorPool);
 
 		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
 		void AddCamera(Reference<Camera> camera);
