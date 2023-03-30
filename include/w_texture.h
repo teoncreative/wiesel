@@ -13,11 +13,16 @@
 #include "util/w_utils.h"
 
 namespace Wiesel {
+	enum TextureType {
+		TextureTypeTexture,
+		TextureTypeDepthMap
+	};
 	class Texture {
 	public:
-		Texture();
+		Texture(TextureType textureType);
 		~Texture();
 
+		TextureType m_TextureType;
 		VkImage m_Image;
 		VkDeviceMemory m_DeviceMemory;
 		VkImageView m_ImageView;
