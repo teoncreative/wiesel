@@ -22,13 +22,13 @@ namespace Wiesel {
 		Model();
 		Model(const glm::vec3& position, const glm::quat& orientation);
 		Model(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale);
-		~Model();
+		~Model() override;
 
 		void LoadModel(const std::string& path);
 
 		const std::vector<Reference<Mesh>>& GetMeshes();
 
-		void UpdateView();
+		void UpdateView() override;
 
 		void Allocate();
 		void Deallocate();

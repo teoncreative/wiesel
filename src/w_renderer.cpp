@@ -13,6 +13,13 @@ namespace Wiesel {
 	Reference<Renderer> Renderer::s_Renderer;
 
 	Renderer::Renderer(Reference<AppWindow> window) : m_Window(window) {
+#ifdef DEBUG
+        validationLayers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
+        deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+#ifdef __APPLE__
+        deviceExtensions.push_back("VK_KHR_portability_subset");
+#endif
 		m_ImageIndex = 0;
 		m_CurrentFrame = 0;
 		CreateVulkanInstance();
@@ -218,7 +225,7 @@ namespace Wiesel {
 	}
 
 	Reference<Texture> Renderer::CreateDepthStencil() {
-		Reference<Texture> texture = CreateReference<Texture>(TextureTypeDepthMap, "");
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeDepthStencil, "");
 
 		VkFormat depthFormat = FindDepthFormat();
 
@@ -231,9 +238,12 @@ namespace Wiesel {
 	}
 
 	void Renderer::DestroyTexture(Texture& texture) {
+        if (!texture.m_Allocated) {
+            return;
+        }
+
 		vkDestroySampler(m_LogicalDevice, texture.m_Sampler, nullptr);
 		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
-
 		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
 		vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
 
@@ -241,9 +251,11 @@ namespace Wiesel {
 	}
 
 	void Renderer::DestroyDepthStencil(Texture& texture) {
-		vkDestroySampler(m_LogicalDevice, texture.m_Sampler, nullptr);
-		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
+        if (!texture.m_Allocated) {
+            return;
+        }
 
+		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
 		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
 		vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
 
@@ -367,45 +379,53 @@ namespace Wiesel {
 	}
 
 	void Renderer::Cleanup() {
-		Wiesel::LogDebug("Destroying Renderer");
 		vkDeviceWaitIdle(m_LogicalDevice);
+        LogDebug("Destroying Renderer");
 		CleanupSwapChain();
 
+        LogDebug("Destroying cameras");
 		m_Cameras.clear();
 
-		for (const auto& item : m_Models) {
-			item->Deallocate();
-		}
+        LogDebug("Destroying models");
+		m_Models.clear();
+
+        LogDebug("Destroying meshes");
 		m_Meshes.clear();
 
-		for (const auto& item : m_Meshes) {
-			item->Deallocate();
-		}
-		m_Meshes.clear();
-
+        LogDebug("Destroying descriptor set layout");
 		vkDestroyDescriptorSetLayout(m_LogicalDevice, m_DescriptorSetLayout, nullptr);
+        LogDebug("Destroying graphics pipeline");
 		vkDestroyPipeline(m_LogicalDevice, graphicsPipeline, nullptr);
+        LogDebug("Destroying pipeline layout");
 		vkDestroyPipelineLayout(m_LogicalDevice, pipelineLayout, nullptr);
 
+        LogDebug("Destroying render pass");
 		vkDestroyRenderPass(m_LogicalDevice, m_RenderPass, nullptr);
 
+        LogDebug("Destroying semaphores and fences");
 		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
 			vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
 			vkDestroySemaphore(m_LogicalDevice, imageAvailableSemaphores[i], nullptr);
 			vkDestroyFence(m_LogicalDevice, inFlightFences[i], nullptr);
 		}
 
+        LogDebug("Destroying command pool");
 		vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
 
+        LogDebug("Destroying device");
 		vkDestroyDevice(m_LogicalDevice, nullptr);
 
 #ifdef DEBUG
+        LogDebug("Destroying debug messanger");
 		DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 #endif
 
+        LogDebug("Destroying surface khr");
 		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+        LogDebug("Destroying vulkan instance");
 		vkDestroyInstance(m_Instance, nullptr);
-		Wiesel::LogDebug("Destroyed renderer");
+
+		LogDebug("Renderer destroyed");
 	}
 
 	void Renderer::CreateVulkanInstance() {
@@ -428,9 +448,11 @@ namespace Wiesel {
 		createInfo.pApplicationInfo = &appInfo;
 
 		auto extensions = GetRequiredExtensions();
-		extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-		extensions.emplace_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        extensions.emplace_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+#ifdef __APPLE__
+        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 		createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 		createInfo.ppEnabledExtensionNames = extensions.data();
@@ -846,6 +868,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateDepthResources() {
+        LogDebug("Creating depth stencil");
 		m_DepthStencil = CreateDepthStencil();
 	}
 
@@ -1118,16 +1141,20 @@ namespace Wiesel {
 	}
 
 	void Renderer::CleanupSwapChain() {
+        LogDebug("Cleanup swap chain");
 		m_DepthStencil = nullptr;
 
+        LogDebug("Destroying swap chain framebuffers");
 		for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
 			vkDestroyFramebuffer(m_LogicalDevice, swapChainFramebuffers[i], nullptr);
 		}
 
+        LogDebug("Destroying swap chain imageviews");
 		for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
 			vkDestroyImageView(m_LogicalDevice, m_SwapChainImageViews[i], nullptr);
 		}
 
+        LogDebug("Destroying swap chain");
 		vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
 	}
 
@@ -1135,6 +1162,10 @@ namespace Wiesel {
 		Wiesel::LogInfo("Recreating swap chains...");
 		Wiesel::WindowSize size{};
 		m_Window->GetWindowFramebufferSize(size);
+        while(size.Width == 0 || size.Height == 0) {
+            m_Window->GetWindowFramebufferSize(size);
+            m_Window->OnUpdate();
+        }
 
 		vkDeviceWaitIdle(m_LogicalDevice);
 

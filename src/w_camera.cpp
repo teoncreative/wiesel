@@ -15,7 +15,6 @@ namespace Wiesel {
 	}
 
 	Camera::~Camera() {
-		Wiesel::LogDebug("Destroying camera");
 	}
 
 	const glm::mat4& Camera::GetProjection() {
