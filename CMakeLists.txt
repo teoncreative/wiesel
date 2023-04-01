@@ -3,9 +3,6 @@ project(Wiesel)
 
 set(CMAKE_CXX_STANDARD 23)
 
-if(APPLE)
-    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-endif()
 # todo other platforms
 
 if(UNIX)
@@ -22,9 +19,6 @@ endif()
 # todo other platforms
 
 ##### SETTINGS #####
-if(NOT DEFINED CMAKE_SUPPRESS_DEVELOPER_WARNINGS)
-    set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "No dev warnings")
-endif()
 set(CMAKE_THREAD_LIBS_INIT "-lpthread")
 set(CMAKE_HAVE_THREADS_LIBRARY 1)
 set(CMAKE_USE_WIN32_THREADS_INIT 0)
@@ -36,9 +30,8 @@ set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH "@loader_path/../lib/")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF)
+set(INJECT_DEBUG_POSTFIX OFF)
 
 set(ENGINE_DIR ${CMAKE_SOURCE_DIR})
 message("Engine Directory ${ENGINE_DIR}")
@@ -70,11 +63,25 @@ if (VULKAN_FOUND)
     target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
 endif(VULKAN_FOUND)
 
+include_directories(${ENGINE_DIR}/deps/stb)
+include_directories(${ENGINE_DIR}/deps/tinyobjloader)
+
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(${ENGINE_DIR}/deps/glfw)
 target_link_libraries(${PROJECT_NAME} glfw)
 
-include_directories(${ENGINE_DIR}/deps/stb)
-include_directories(${ENGINE_DIR}/deps/tinyobjloader)
+set(ASSIMP_BUILD_NO_EXPORT ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INJECT_DEBUG_POSTFIX OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(${ENGINE_DIR}/deps/assimp)
+target_link_libraries(${PROJECT_NAME} assimp)
+
+if(APPLE)
+    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+endif()
 
 ##### SHADERS #####
 file(GLOB_RECURSE GLSL_SOURCE_FILES
@@ -132,26 +139,4 @@ add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Textures)
 
 ##### MODELS #####
 
-file(GLOB_RECURSE MODEL_FILES
-        "${ENGINE_DIR}/assets/models/*.obj"
-        )
-# todo copy models as some other easier to load format
-
-foreach(MODEL ${MODEL_FILES})
-    get_filename_component(FILE_NAME ${MODEL} NAME)
-    set(OUT_FILE "${PROJECT_BINARY_DIR}/assets/models/${FILE_NAME}")
-    add_custom_command(
-            OUTPUT ${OUT_FILE}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/models/"
-            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/assets/models/${FILE_NAME} ${OUT_FILE}
-            DEPENDS ${MODEL}
-    )
-    list(APPEND COPIED_MODEL_FILES ${OUT_FILE})
-endforeach(MODEL)
-
-add_custom_target(
-        ${PROJECT_NAME}_Models
-        DEPENDS ${COPIED_MODEL_FILES}
-)
-
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Models)
+file(COPY ${ENGINE_DIR}/assets/models/ DESTINATION ${PROJECT_BINARY_DIR}/assets/models/)

@@ -10,7 +10,18 @@
 
 namespace Wiesel {
 	uint64_t Object::s_ObjectCounter = 0;
+
+	Object::Object() : Object(glm::vec3(0.0f, 0.0f, 0.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f))) {
+	}
+
 	Object::Object(const glm::vec3& position, const glm::quat& orientation) : m_Position(position), m_Orientation(orientation) {
+		m_Scale = glm::vec3(1.0f, 1.0f, 1.0f);
+		m_ObjectId = s_ObjectCounter++;
+		UpdateView();
+	}
+
+	Object::Object(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale) : m_Position(position), m_Orientation(orientation), m_Scale(scale) {
+		m_Scale = glm::vec3(1.0f, 1.0f, 1.0f);
 		m_ObjectId = s_ObjectCounter++;
 		UpdateView();
 	}
@@ -37,6 +48,19 @@ namespace Wiesel {
 		UpdateView();
 	}
 
+	void Object::SetOrientation(glm::quat orientation) {
+		m_Orientation = orientation;
+	}
+
+	void Object::SetLocalView(glm::mat4 localView) {
+		m_LocalView = localView;
+	}
+
+	void Object::SetScale(float x, float y, float z) {
+		m_Scale = glm::vec3(x, y, z);
+		UpdateView();
+	}
+
 	void Object::Move(float x, float y, float z) {
 		m_Position += glm::vec3(x, y, z);
 		UpdateView();
@@ -49,6 +73,7 @@ namespace Wiesel {
 
 	void Object::UpdateView() {
 		m_LocalView = glm::translate(glm::mat4(1.0f), m_Position) * glm::toMat4((const glm::quat&) m_Orientation);
+		m_LocalView = glm::scale(m_LocalView, m_Scale);
 	}
 
 	const glm::mat4& Object::GetLocalView() {
@@ -56,19 +81,27 @@ namespace Wiesel {
 	}
 
 	glm::vec3 Object::GetForward() {
-		return -glm::vec3(m_LocalView[2]);
+		return -m_LocalView[2];
 	}
 
 	glm::vec3 Object::GetBackward() {
-		return glm::vec3(m_LocalView[2]);
+		return m_LocalView[2];
 	}
 
 	glm::vec3 Object::GetLeft() {
-		return -glm::vec3(m_LocalView[0]);
+		return -m_LocalView[0];
 	}
 
 	glm::vec3 Object::GetRight() {
-		return glm::vec3(m_LocalView[0]);
+		return m_LocalView[0];
+	}
+
+	glm::vec3 Object::GetUp() {
+		return m_LocalView[1];
+	}
+
+	glm::vec3 Object::GetDown() {
+		return -m_LocalView[1];
 	}
 
 	uint64_t Object::GetObjectId() {

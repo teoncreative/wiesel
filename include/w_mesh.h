@@ -18,8 +18,15 @@
 namespace Wiesel {
 	class Mesh : public Object {
 	public:
+		Mesh();
+
 		Mesh(const glm::vec3& position, const glm::quat& orientation);
 		Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices);
+
+		Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale);
+		Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale, std::vector<Vertex> vertices, std::vector<Index> indices);
+
+		Mesh(std::vector<Vertex> vertices, std::vector<Index> indices);
 		~Mesh();
 
 		WIESEL_GETTER_FN bool IsAllocated() const;
@@ -34,6 +41,7 @@ namespace Wiesel {
 		void AddVertex(Vertex vertex);
 		void AddIndex(Index index);
 		void SetTexture(const std::string& path);
+		void SetTexture(Reference<Texture> texture);
 
 		void LoadFromObj(const std::string& modelPath, const std::string& texturePath);
 

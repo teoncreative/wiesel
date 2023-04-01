@@ -20,14 +20,9 @@ namespace Wiesel {
 		~Camera();
 
 		WIESEL_GETTER_FN const glm::mat4& GetProjection();
-
 		WIESEL_GETTER_FN float GetFieldOfView() const;
 
-		void Move(float x, float y, float z) override;
-		void Move(const glm::vec3& move) override;
-
-		void Rotate(float radians, float ax, float ay, float az) override;
-		void SetRotation(float yaw, float pitch, float roll) override;
+		// todo set functions for field of view and near/far planes
 
 		void OnEvent(Event& event) override;
 

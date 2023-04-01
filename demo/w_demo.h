@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "w_pch.h"
 #include "w_application.h"
 #include "w_demo.h"
 #include "events/w_keyevents.h"

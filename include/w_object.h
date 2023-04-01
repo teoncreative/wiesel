@@ -16,7 +16,9 @@
 namespace Wiesel {
 	class Object {
 	public:
+		Object();
 		Object(const glm::vec3& position, const glm::quat& orientation);
+		Object(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale);
 		virtual ~Object();
 
 		WIESEL_GETTER_FN const glm::vec3& GetPosition();
@@ -28,12 +30,18 @@ namespace Wiesel {
 
 		virtual void Rotate(float radians, float ax, float ay, float az);
 		virtual void SetRotation(float pitch, float yaw, float roll);
+		virtual void SetOrientation(glm::quat orientation);
+		virtual void SetLocalView(glm::mat4 localView);
+
+		virtual void SetScale(float x, float y, float z);
 
 		// Move these to our own Vector3 implementation
 		glm::vec3 GetForward();
 		glm::vec3 GetBackward();
 		glm::vec3 GetLeft();
 		glm::vec3 GetRight();
+		glm::vec3 GetUp();
+		glm::vec3 GetDown();
 
 		WIESEL_GETTER_FN uint64_t GetObjectId();
 
@@ -47,6 +55,7 @@ namespace Wiesel {
 		uint64_t m_ObjectId;
 		glm::vec3 m_Position;
 		glm::quat m_Orientation;
+		glm::vec3 m_Scale;
 		glm::mat4 m_LocalView;
 	};
 }

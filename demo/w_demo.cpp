@@ -7,8 +7,7 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 
 #include "w_demo.h"
-#include "w_application.h"
-#include "w_model.h"
+#include "util/w_keycodes.h"
 
 namespace WieselDemo {
 
@@ -61,13 +60,17 @@ namespace WieselDemo {
 		mesh1->Move(0.0f, 1.0f, 0.0f);
 		Wiesel::Renderer::GetRenderer()->AddMesh(mesh1);*/
 
-		Wiesel::Reference<Wiesel::Mesh> mesh = Wiesel::CreateReference<Wiesel::Mesh>(glm::vec3(0.0f, 0.0f, 0.0f), glm::quat());
-		mesh->LoadFromObj("assets/models/viking_room.obj", "assets/textures/viking_room.png");
-		Wiesel::Renderer::GetRenderer()->AddMesh(mesh);
+		//Wiesel::Reference<Wiesel::Mesh> mesh = Wiesel::CreateReference<Wiesel::Mesh>();
+		//mesh->LoadFromObj("assets/models/viking_room.obj", "assets/textures/viking_room.png");
+		//mesh->Rotate(-PI / 2.0f, 1.0f, 0.0f, 0.0f); // model was design to be Z up, so we are rotating it.
+		//Wiesel::Renderer::GetRenderer()->AddMesh(mesh);
+
+		Wiesel::Reference<Wiesel::Model> model = Wiesel::CreateReference<Wiesel::Model>();
+		model->LoadModel("assets/models/city/gmae.obj");
+//		model->SetScale(0.2f, 0.2f, 0.2f);
+		Wiesel::Renderer::GetRenderer()->AddModel(model);
 
 		Wiesel::Reference<Wiesel::Camera> camera = Wiesel::CreateReference<Wiesel::Camera>(glm::vec3(2.0f, 1.5f, 2.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), Wiesel::Renderer::GetRenderer()->GetAspectRatio(), 60);
-		//camera->Rotate(PI / 4.0f, 0.0f, 1.0f, 0.0f);
-		//camera->Rotate(-PI / 6.0f, 1.0f, 0.0f, 0.0f);
 		Wiesel::Renderer::GetRenderer()->AddCamera(camera);
 		Wiesel::Renderer::GetRenderer()->SetActiveCamera(camera->GetObjectId());
 	}
@@ -92,7 +95,8 @@ namespace WieselDemo {
 			camera->Move(camera->GetRight() * deltaTime * 2.0f);
 		}
 
-		camera->SetRotation(std::clamp(m_InputY, -m_LookXLimit, m_LookXLimit), m_InputX, 0.0f);
+		m_InputY = std::clamp(m_InputY, -m_LookXLimit, m_LookXLimit);
+		camera->SetRotation(m_InputY, m_InputX, 0.0f);
 	}
 
 	void DemoLayer::OnEvent(Wiesel::Event& event) {
@@ -104,8 +108,15 @@ namespace WieselDemo {
 	}
 
 	bool DemoLayer::OnKeyPress(Wiesel::KeyPressedEvent& event) {
-		if (event.GetKeyCode() == ' ') {
+		if (event.GetKeyCode() == Wiesel::Space) {
 			m_App.Close();
+			return true;
+		} else if (event.GetKeyCode() == Wiesel::Escape) {
+			if (m_App.GetWindow()->GetCursorMode() == Wiesel::CursorModeRelative) {
+				m_App.GetWindow()->SetCursorMode(Wiesel::CursorModeNormal);
+			} else {
+				m_App.GetWindow()->SetCursorMode(Wiesel::CursorModeRelative);
+			}
 			return true;
 		}
 		m_KeyManager.Set(event.GetKeyCode(), true);
@@ -123,17 +134,18 @@ namespace WieselDemo {
 	}
 
 	bool DemoLayer::OnMouseMoved(Wiesel::MouseMovedEvent& event) {
-		const Wiesel::WindowSize& windowSize = Wiesel::Renderer::GetRenderer()->GetWindowSize();
+		if (m_App.GetWindow()->GetCursorMode() != Wiesel::CursorModeRelative) {
+			return true;
+		}
 
-		m_InputX += m_MouseSpeed * ((windowSize.Width / 2.0f) - event.GetX());
-		m_InputY += m_MouseSpeed * ((windowSize.Height / 2.0f) - event.GetY());
+		m_InputX += m_MouseSpeed * ((m_App.GetWindowSize().Width / 2.0f) - event.GetX());
+		m_InputY += m_MouseSpeed * ((m_App.GetWindowSize().Height / 2.0f) - event.GetY());
 		return true;
 	}
 
 	void DemoApplication::Init() {
 		Wiesel::LogDebug("Init");
 		PushLayer(Wiesel::CreateReference<DemoLayer>(*this));
-		Wiesel::Renderer::GetRenderer()->GetAppWindow()->SetCursorMode(Wiesel::CursorModeRelative);
 	}
 
 	DemoApplication::DemoApplication() {

@@ -12,6 +12,7 @@
 
 #include "w_pch.h"
 #include "w_attributes.h"
+#include <glm/gtx/hash.hpp>
 
 namespace Wiesel {
 	std::string GetNameFromVulkanResult(VkResult errorCode);
@@ -68,6 +69,19 @@ namespace Wiesel {
 			attributeDescriptions[2].offset = offsetof(Vertex, TexCoord);
 
 			return attributeDescriptions;
+		}
+
+		bool operator==(const Vertex& other) const {
+			return Pos == other.Pos && Color == other.Color && TexCoord == other.TexCoord;
+		}
+	};
+
+	struct vertex_hash {
+		std::size_t operator () (const Wiesel::Vertex& vertex) const {
+			auto posHash = std::hash<glm::vec3>{}(vertex.Pos);
+			auto colorHash = std::hash<glm::vec3>{}(vertex.Color);
+			auto texHash = std::hash<glm::vec2>{}(vertex.TexCoord);
+			return ((posHash ^ (colorHash << 1)) >> 1) ^ (texHash << 1);
 		}
 	};
 

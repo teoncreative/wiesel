@@ -11,7 +11,7 @@
 
 namespace Wiesel {
 
-	Texture::Texture(TextureType textureType) : m_TextureType(textureType)  {
+	Texture::Texture(TextureType textureType, const std::string& path) : m_TextureType(textureType), m_Path(path)  {
 		m_Width = 0;
 		m_Height = 0;
 		m_Size = 0;
