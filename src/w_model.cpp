@@ -25,6 +25,7 @@ namespace Wiesel {
 	}
 
 	Model::~Model() {
+	    Deallocate();
 		m_Meshes.clear();
 	}
 

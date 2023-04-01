@@ -17,11 +17,13 @@ namespace Wiesel {
 	Mesh::Mesh() : Object() {
 		m_TexturePath = "";
 		m_Texture = nullptr;
+        m_Allocated = false;
 	}
 
 	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation) : Object(position, orientation) {
 		m_TexturePath = "";
 		m_Texture = nullptr;
+        m_Allocated = false;
 	}
 
 	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation) {
@@ -29,11 +31,13 @@ namespace Wiesel {
 		m_Indices = indices;
 		m_TexturePath = "";
 		m_Texture = nullptr;
+        m_Allocated = false;
 	}
 
 	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale) : Object(position, orientation, scale) {
 		m_TexturePath = "";
 		m_Texture = nullptr;
+        m_Allocated = false;
 	}
 
 	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation, scale) {
@@ -41,6 +45,7 @@ namespace Wiesel {
 		m_Indices = indices;
 		m_TexturePath = "";
 		m_Texture = nullptr;
+        m_Allocated = false;
 	}
 
 	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Index> indices): Object() {
@@ -48,11 +53,11 @@ namespace Wiesel {
 		m_Indices = indices;
 		m_TexturePath = "";
 		m_Texture = nullptr;
+        m_Allocated = false;
 	}
 
 	Mesh::~Mesh() {
 		Deallocate();
-		Wiesel::LogDebug("Destroying mesh");
 	}
 
 	bool Mesh::IsAllocated() const {
