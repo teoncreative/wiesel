@@ -73,23 +73,22 @@ namespace Wiesel {
 				for (const auto& layer : m_Layers) {
 					layer->OnUpdate(m_DeltaTime);
 				}
-			}
 
-			Renderer::GetRenderer()->BeginFrame();
-			Renderer::GetRenderer()->DrawMeshes();
-			Renderer::GetRenderer()->DrawModels();
-			Renderer::GetRenderer()->EndFrame();
+                Renderer::GetRenderer()->BeginFrame();
+                Renderer::GetRenderer()->DrawMeshes();
+                Renderer::GetRenderer()->DrawModels();
+                Renderer::GetRenderer()->EndFrame();
+            }
 
 			m_Window->OnUpdate();
 
 			if (m_WindowResized) {
 				m_Window->GetWindowFramebufferSize(m_WindowSize);
-				Renderer::GetRenderer()->RecreateSwapChain();
-
 				if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
 					m_IsMinimized = true;
 				} else {
 					m_IsMinimized = false;
+                    Renderer::GetRenderer()->RecreateSwapChain();
 				}
 				m_WindowResized = false;
 			}

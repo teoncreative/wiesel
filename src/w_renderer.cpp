@@ -1162,6 +1162,10 @@ namespace Wiesel {
 		Wiesel::LogInfo("Recreating swap chains...");
 		Wiesel::WindowSize size{};
 		m_Window->GetWindowFramebufferSize(size);
+        while(size.Width == 0 || size.Height == 0) {
+            m_Window->GetWindowFramebufferSize(size);
+            m_Window->OnUpdate();
+        }
 
 		vkDeviceWaitIdle(m_LogicalDevice);
 
