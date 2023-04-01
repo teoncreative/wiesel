@@ -67,6 +67,7 @@ namespace WieselDemo {
 
 		Wiesel::Reference<Wiesel::Model> model = Wiesel::CreateReference<Wiesel::Model>();
 		model->LoadModel("assets/models/sponza/sponza.obj");
+//		model->LoadModel("assets/models/city/gmae.obj");
 //		model->SetScale(0.2f, 0.2f, 0.2f);
 		Wiesel::Renderer::GetRenderer()->AddModel(model);
 
@@ -84,9 +85,9 @@ namespace WieselDemo {
 		const Wiesel::Reference<Wiesel::Renderer>& renderer = Wiesel::Renderer::GetRenderer();
 		const Wiesel::Reference<Wiesel::Camera>& camera = renderer->GetActiveCamera();
 		if (m_KeyManager.IsPressed(Wiesel::W)) {
-			camera->Move(camera->GetForward() * deltaTime * 2.0f);
+			camera->Move(camera->GetForward() * deltaTime * 8.0f);
 		} else if (m_KeyManager.IsPressed(Wiesel::S)) {
-			camera->Move(camera->GetBackward() * deltaTime * 2.0f);
+			camera->Move(camera->GetBackward() * deltaTime * 8.0f);
 		}
 
 		if (m_KeyManager.IsPressed(Wiesel::A)) {

@@ -14,7 +14,8 @@
 namespace Wiesel {
 	enum TextureType {
 		TextureTypeTexture,
-		TextureTypeDepthStencil
+		TextureTypeDepthStencil,
+		TextureTypeColorImage
 	};
 
 	class Texture {
@@ -27,6 +28,7 @@ namespace Wiesel {
 		VkDeviceMemory m_DeviceMemory;
 		VkImageView m_ImageView;
 		VkSampler m_Sampler;
+		uint32_t m_MipLevels;
 
 		int32_t m_Width;
 		int32_t m_Height;
