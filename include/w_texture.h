@@ -14,7 +14,7 @@
 namespace Wiesel {
 	enum TextureType {
 		TextureTypeTexture,
-		TextureTypeDepthMap
+		TextureTypeDepthStencil
 	};
 
 	class Texture {

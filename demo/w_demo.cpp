@@ -66,7 +66,7 @@ namespace WieselDemo {
 		//Wiesel::Renderer::GetRenderer()->AddMesh(mesh);
 
 		Wiesel::Reference<Wiesel::Model> model = Wiesel::CreateReference<Wiesel::Model>();
-		model->LoadModel("assets/models/city/gmae.obj");
+		model->LoadModel("assets/models/sponza/sponza.obj");
 //		model->SetScale(0.2f, 0.2f, 0.2f);
 		Wiesel::Renderer::GetRenderer()->AddModel(model);
 

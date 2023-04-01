@@ -19,6 +19,15 @@ namespace Wiesel {
 	}
 
 	Texture::~Texture() {
-		Renderer::GetRenderer()->DestroyTexture(*this);
+        switch (m_TextureType) {
+            case TextureTypeDepthStencil: {
+                Renderer::GetRenderer()->DestroyDepthStencil(*this);
+                break;
+            }
+            case TextureTypeTexture: {
+                Renderer::GetRenderer()->DestroyTexture(*this);
+                break;
+            }
+        }
 	}
 }
