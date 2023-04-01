@@ -9,9 +9,16 @@
 
 #pragma once
 
+#include "w_pch.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_STATIC
+#include <stb_image.h>
+
 #include "util/w_utils.h"
 #include "w_buffer.h"
 #include "w_mesh.h"
+#include "w_model.h"
 #include "window/w_window.h"
 #include "w_camera.h"
 #include "w_texture.h"
@@ -29,6 +36,8 @@ namespace Wiesel {
 
 		void AddMesh(Reference<Mesh> mesh);
 		void RemoveMesh(Reference<Mesh> mesh);
+
+		void AddModel(Reference<Model> mesh);
 
 		Reference<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
 		void DestroyVertexBuffer(MemoryBuffer& buffer);
@@ -62,15 +71,16 @@ namespace Wiesel {
 
 		void BeginFrame();
 		void DrawMeshes();
+		void DrawModels();
+
 		void DrawMesh(Reference<Mesh> mesh);
+		void DrawModel(Reference<Model> model);
 		void EndFrame();
 
 		void RecreateSwapChain();
 
 		void PublishEvent(Event& event);
 
-		// move this and window creation to application class
-		Reference<AppWindow> GetAppWindow();
 	private:
 		friend class Mesh;
 
@@ -120,6 +130,7 @@ namespace Wiesel {
 
 		uint32_t m_CurrentFrame = 0;
 		std::vector<Reference<Mesh>> m_Meshes;
+		std::vector<Reference<Model>> m_Models;
 		std::vector<Reference<Camera>> m_Cameras;
 		uint64_t m_ActiveCameraId;
 		float_t m_AspectRatio;

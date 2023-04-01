@@ -52,7 +52,7 @@ namespace Wiesel {
 		WIESEL_GETTER_FN WindowEventFn& GetEventHandler();
 
 		virtual void SetCursorMode(CursorMode mouseMode);
-		WIESEL_GETTER_FN virtual CursorMode GetMouseMode();
+		WIESEL_GETTER_FN virtual CursorMode GetCursorMode();
 
 		virtual void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 		virtual void GetWindowFramebufferSize(WindowSize& size) = 0;

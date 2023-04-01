@@ -8,8 +8,6 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 
 #include "w_renderer.h"
-#include "stb_image.h"
-#include "tiny_obj_loader.h"
 
 namespace Wiesel {
 	Reference<Renderer> Renderer::s_Renderer;
@@ -150,13 +148,13 @@ namespace Wiesel {
 	}
 
 	Reference<Texture> Renderer::CreateTexture(const std::string& path) {
-		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture);
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture, path);
 
 		stbi_uc* pixels = stbi_load(path.c_str(), &texture->m_Width, &texture->m_Height, &texture->m_Channels, STBI_rgb_alpha);
 		texture->m_Size = texture->m_Width * texture->m_Height * STBI_rgb_alpha;
 
 		if (!pixels) {
-			throw std::runtime_error("failed to load texture image!");
+			throw std::runtime_error("failed to load texture image: " + path);
 		}
 
 		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
@@ -220,7 +218,7 @@ namespace Wiesel {
 	}
 
 	Reference<Texture> Renderer::CreateDepthStencil() {
-		Reference<Texture> texture = CreateReference<Texture>(TextureTypeDepthMap);
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeDepthMap, "");
 
 		VkFormat depthFormat = FindDepthFormat();
 
@@ -339,6 +337,10 @@ namespace Wiesel {
 		m_Meshes.erase(value, m_Meshes.end());
 	}
 
+	void Renderer::AddModel(Reference<Model> mesh) {
+		m_Models.emplace_back(std::move(mesh));
+	}
+
 	uint32_t Renderer::GetCurrentFrame() const {
 		return m_CurrentFrame;
 	}
@@ -370,6 +372,11 @@ namespace Wiesel {
 		CleanupSwapChain();
 
 		m_Cameras.clear();
+
+		for (const auto& item : m_Models) {
+			item->Deallocate();
+		}
+		m_Meshes.clear();
 
 		for (const auto& item : m_Meshes) {
 			item->Deallocate();
@@ -744,8 +751,8 @@ namespace Wiesel {
 		//rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
 		rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterizer.lineWidth = 1.0f;
-		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-		//rasterizer.cullMode = VK_CULL_MODE_NONE;
+		//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterizer.cullMode = VK_CULL_MODE_NONE;
 		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
 		rasterizer.depthBiasEnable = VK_FALSE;
@@ -1151,10 +1158,6 @@ namespace Wiesel {
 		}
 	}
 
-	Reference<AppWindow> Renderer::GetAppWindow() {
-		return m_Window;
-	}
-
 	void Renderer::BeginFrame() {
 		vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
@@ -1217,10 +1220,17 @@ namespace Wiesel {
 		}
 	}
 
+	void Renderer::DrawModels() {
+		for (const auto& model : m_Models) {
+			DrawModel(model);
+		}
+	}
+
 	void Renderer::DrawMesh(Reference<Mesh> mesh) {
 		if (!mesh->IsAllocated()) {
-			mesh->Allocate();
+			return;
 		}
+
 		mesh->UpdateUniformBuffer();
 
 		VkBuffer vertexBuffers[] = {mesh->GetVertexBuffer()->m_Buffer};
@@ -1231,6 +1241,12 @@ namespace Wiesel {
 
 		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh->GetDescriptors()->m_Descriptors[m_CurrentFrame], 0, nullptr);
 		vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+	}
+
+	void Renderer::DrawModel(Reference<Model> model) {
+		for (const auto& mesh : model->GetMeshes()) {
+			DrawMesh(mesh);
+		}
 	}
 
 	void Renderer::EndFrame() {

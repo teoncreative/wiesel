@@ -28,7 +28,7 @@ namespace Wiesel {
 		m_CursorMode = mouseMode;
 	}
 
-	CursorMode AppWindow::GetMouseMode() {
+	CursorMode AppWindow::GetCursorMode() {
 		return m_CursorMode;
 	}
 }

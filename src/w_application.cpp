@@ -6,7 +6,6 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "w_pch.h"
 #include "w_application.h"
 #include "window/w_glfwwindow.h"
 
@@ -78,6 +77,7 @@ namespace Wiesel {
 
 			Renderer::GetRenderer()->BeginFrame();
 			Renderer::GetRenderer()->DrawMeshes();
+			Renderer::GetRenderer()->DrawModels();
 			Renderer::GetRenderer()->EndFrame();
 
 			m_Window->OnUpdate();
@@ -108,5 +108,13 @@ namespace Wiesel {
 	bool Application::OnWindowResize(WindowResizeEvent& event) {
 		m_WindowResized = true;
 		return true;
+	}
+
+	Reference<AppWindow> Application::GetWindow() {
+		return m_Window;
+	}
+
+	const WindowSize& Application::GetWindowSize() {
+		return m_WindowSize;
 	}
 }

@@ -10,16 +10,16 @@
 #pragma once
 
 #include "w_pch.h"
-#include "util/w_utils.h"
 
 namespace Wiesel {
 	enum TextureType {
 		TextureTypeTexture,
 		TextureTypeDepthMap
 	};
+
 	class Texture {
 	public:
-		Texture(TextureType textureType);
+		Texture(TextureType textureType, const std::string& path);
 		~Texture();
 
 		TextureType m_TextureType;
@@ -34,5 +34,6 @@ namespace Wiesel {
 		VkDeviceSize m_Size;
 
 		bool m_Allocated;
+		std::string m_Path;
 	};
 }
