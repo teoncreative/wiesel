@@ -40,6 +40,7 @@ namespace Wiesel {
 		CreateGraphicsPipeline();
 		CreateCommandPools();
 		CreateCommandBuffers();
+		CreatePermanentResources();
 		CreateColorResources();
 		CreateDepthResources();
 		CreateFramebuffers();
@@ -157,6 +158,75 @@ namespace Wiesel {
 	void Renderer::DestroyUniformBufferSet(UniformBufferSet& bufferSet) {
 		// todo reuse pools
 		bufferSet.m_Buffers.clear();
+	}
+
+	Reference<Texture> Renderer::CreateBlankTexture() {
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture, "");
+
+		stbi_uc pixels[] = {0, 0, 0, 0};
+		texture->m_Width = 1;
+		texture->m_Height = 1;
+		texture->m_Size = texture->m_Width * texture->m_Height * STBI_rgb_alpha;
+		texture->m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture->m_Width, texture->m_Height)))) + 1;
+
+		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+		CreateBuffer(texture->m_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, texture->m_Size, 0, &data);
+		memcpy(data, pixels, static_cast<size_t>(texture->m_Size));
+		vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+
+		CreateImage(texture->m_Width, texture->m_Height, texture->m_MipLevels, VK_SAMPLE_COUNT_1_BIT, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+
+		TransitionImageLayout(texture->m_Image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->m_MipLevels);
+		CopyBufferToImage(stagingBuffer, texture->m_Image, static_cast<uint32_t>(texture->m_Width), static_cast<uint32_t>(texture->m_Height));
+
+		vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
+		vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+
+		// todo loading pregenerated mipmaps
+		GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width, texture->m_Height, texture->m_MipLevels);
+
+		// todo move this to a function
+		// Sampler
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		// todo add options for filters
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		// * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
+		// * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
+		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
+		// * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
+		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
+
+		samplerInfo.anisotropyEnable = VK_TRUE;
+		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.minLod = 0.0f; // Optional
+		samplerInfo.maxLod = static_cast<float>(texture->m_MipLevels);
+		samplerInfo.mipLodBias = 0.0f; // Optional
+
+		WIESEL_CHECK_VKRESULT(vkCreateSampler(m_LogicalDevice, &samplerInfo, nullptr, &texture->m_Sampler));
+
+		texture->m_ImageView = CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
+
+		texture->m_Allocated = true;
+		return texture;
 	}
 
 	Reference<Texture> Renderer::CreateTexture(const std::string& path) {
@@ -342,11 +412,16 @@ namespace Wiesel {
 				writes.push_back(set);
 			}
 
-			if (texture != nullptr) {
+			{
 				VkDescriptorImageInfo imageInfo{};
 				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = texture->m_ImageView;
-				imageInfo.sampler = texture->m_Sampler;
+				if (texture == nullptr) {
+					imageInfo.imageView = m_BlankTexture->m_ImageView;
+					imageInfo.sampler = m_BlankTexture->m_Sampler;
+				} else {
+					imageInfo.imageView = texture->m_ImageView;
+					imageInfo.sampler = texture->m_Sampler;
+				}
 
 				VkWriteDescriptorSet set;
 				set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -414,6 +489,8 @@ namespace Wiesel {
 		vkDeviceWaitIdle(m_LogicalDevice);
         LogDebug("Destroying Renderer");
 		CleanupSwapChain();
+
+		m_BlankTexture = nullptr;
 
         LogDebug("Destroying cameras");
 		m_Cameras.clear();
@@ -783,7 +860,6 @@ namespace Wiesel {
 		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -1089,6 +1165,10 @@ namespace Wiesel {
 		allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
 		WIESEL_CHECK_VKRESULT(vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, commandBuffers.data()));
+	}
+
+	void Renderer::CreatePermanentResources() {
+		m_BlankTexture = CreateBlankTexture();
 	}
 
 	void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {

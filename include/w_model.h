@@ -38,7 +38,7 @@ namespace Wiesel {
 		std::string m_TexturesPath;
 		std::map<std::string, Reference<Texture>> m_Textures;
 
-		void LoadTexture(Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type);
+		bool LoadTexture(Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type);
 		Reference<Mesh> ProcessMesh(aiMesh *aiMesh, const aiScene& aiScene, aiMatrix4x4 aiMatrix);
 		void ProcessNode(aiNode *node, const aiScene& scene, std::vector<Reference<Mesh>>& meshes);
 

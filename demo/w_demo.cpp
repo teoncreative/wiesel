@@ -15,6 +15,7 @@ namespace WieselDemo {
 		m_InputX = 0.0f;
 		m_InputY = 0.0f;
 		m_MouseSpeed = 0.001f;
+		m_CameraMoveSpeed = 8.0f;
 		m_LookXLimit = PI / 2.0f - (PI / 16.0f);
 	}
 
@@ -85,15 +86,15 @@ namespace WieselDemo {
 		const Wiesel::Reference<Wiesel::Renderer>& renderer = Wiesel::Renderer::GetRenderer();
 		const Wiesel::Reference<Wiesel::Camera>& camera = renderer->GetActiveCamera();
 		if (m_KeyManager.IsPressed(Wiesel::W)) {
-			camera->Move(camera->GetForward() * deltaTime * 8.0f);
+			camera->Move(camera->GetForward() * deltaTime * m_CameraMoveSpeed);
 		} else if (m_KeyManager.IsPressed(Wiesel::S)) {
-			camera->Move(camera->GetBackward() * deltaTime * 8.0f);
+			camera->Move(camera->GetBackward() * deltaTime * m_CameraMoveSpeed);
 		}
 
 		if (m_KeyManager.IsPressed(Wiesel::A)) {
-			camera->Move(camera->GetLeft() * deltaTime * 2.0f);
+			camera->Move(camera->GetLeft() * deltaTime * m_CameraMoveSpeed);
 		} else if (m_KeyManager.IsPressed(Wiesel::D)) {
-			camera->Move(camera->GetRight() * deltaTime * 2.0f);
+			camera->Move(camera->GetRight() * deltaTime * m_CameraMoveSpeed);
 		}
 
 		m_InputY = std::clamp(m_InputY, -m_LookXLimit, m_LookXLimit);

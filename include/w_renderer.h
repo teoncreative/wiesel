@@ -51,6 +51,7 @@ namespace Wiesel {
 		Reference<UniformBufferSet> CreateUniformBufferSet(uint32_t frames);
 		void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
 
+		Reference<Texture> CreateBlankTexture();
 		Reference<Texture> CreateTexture(const std::string& path);
 		void DestroyTexture(Texture& texture);
 
@@ -115,6 +116,7 @@ namespace Wiesel {
 		uint32_t m_ImageIndex;
 		Reference<Texture> m_DepthStencil;
 		Reference<Texture> m_ColorImage;
+		Reference<Texture> m_BlankTexture;
 
 		VkPipelineLayout pipelineLayout{};
 		VkPipeline graphicsPipeline{};
@@ -150,6 +152,7 @@ namespace Wiesel {
 		void CreateFramebuffers();
 		void CreateCommandPools();
 		void CreateCommandBuffers();
+		void CreatePermanentResources();
 		void CreateSyncObjects();
 		void CleanupSwapChain();
 		VkShaderModule CreateShaderModule(const std::vector<char>& code);
