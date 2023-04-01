@@ -16,6 +16,7 @@ namespace Wiesel {
 		m_Height = 0;
 		m_Size = 0;
 		m_Allocated = false;
+		m_MipLevels = 1;
 	}
 
 	Texture::~Texture() {
@@ -28,6 +29,13 @@ namespace Wiesel {
                 Renderer::GetRenderer()->DestroyTexture(*this);
                 break;
             }
+			case TextureTypeColorImage: {
+				Renderer::GetRenderer()->DestroyColorImage(*this);
+				break;
+			}
+			default: {
+				throw std::runtime_error("texture type is not implemented!");
+			}
         }
 	}
 }

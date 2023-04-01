@@ -16,12 +16,16 @@ namespace Wiesel {
 #ifdef DEBUG
         validationLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
+
         deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 #ifdef __APPLE__
         deviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
+
 		m_ImageIndex = 0;
 		m_CurrentFrame = 0;
+		msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+
 		CreateVulkanInstance();
 #ifdef DEBUG
 		SetupDebugMessenger();
@@ -36,6 +40,8 @@ namespace Wiesel {
 		CreateGraphicsPipeline();
 		CreateCommandPools();
 		CreateCommandBuffers();
+		CreatePermanentResources();
+		CreateColorResources();
 		CreateDepthResources();
 		CreateFramebuffers();
 		CreateSyncObjects();
@@ -154,15 +160,14 @@ namespace Wiesel {
 		bufferSet.m_Buffers.clear();
 	}
 
-	Reference<Texture> Renderer::CreateTexture(const std::string& path) {
-		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture, path);
+	Reference<Texture> Renderer::CreateBlankTexture() {
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture, "");
 
-		stbi_uc* pixels = stbi_load(path.c_str(), &texture->m_Width, &texture->m_Height, &texture->m_Channels, STBI_rgb_alpha);
+		stbi_uc pixels[] = {0, 0, 0, 0};
+		texture->m_Width = 1;
+		texture->m_Height = 1;
 		texture->m_Size = texture->m_Width * texture->m_Height * STBI_rgb_alpha;
-
-		if (!pixels) {
-			throw std::runtime_error("failed to load texture image: " + path);
-		}
+		texture->m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture->m_Width, texture->m_Height)))) + 1;
 
 		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
 		VkBuffer stagingBuffer;
@@ -174,22 +179,22 @@ namespace Wiesel {
 		memcpy(data, pixels, static_cast<size_t>(texture->m_Size));
 		vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
 
-		stbi_image_free(pixels);
+		CreateImage(texture->m_Width, texture->m_Height, texture->m_MipLevels, VK_SAMPLE_COUNT_1_BIT, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
 
-		CreateImage(texture->m_Width, texture->m_Height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
-
-		TransitionImageLayout(texture->m_Image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		TransitionImageLayout(texture->m_Image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->m_MipLevels);
 		CopyBufferToImage(stagingBuffer, texture->m_Image, static_cast<uint32_t>(texture->m_Width), static_cast<uint32_t>(texture->m_Height));
-
-		TransitionImageLayout(texture->m_Image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+
+		// todo loading pregenerated mipmaps
+		GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width, texture->m_Height, texture->m_MipLevels);
 
 		// todo move this to a function
 		// Sampler
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		// todo add options for filters
 		samplerInfo.magFilter = VK_FILTER_LINEAR;
 		samplerInfo.minFilter = VK_FILTER_LINEAR;
 		// * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
@@ -212,13 +217,86 @@ namespace Wiesel {
 		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 
 		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		samplerInfo.mipLodBias = 0.0f;
-		samplerInfo.minLod = 0.0f;
-		samplerInfo.maxLod = 0.0f;
+		samplerInfo.minLod = 0.0f; // Optional
+		samplerInfo.maxLod = static_cast<float>(texture->m_MipLevels);
+		samplerInfo.mipLodBias = 0.0f; // Optional
 
 		WIESEL_CHECK_VKRESULT(vkCreateSampler(m_LogicalDevice, &samplerInfo, nullptr, &texture->m_Sampler));
 
-		texture->m_ImageView = CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT);
+		texture->m_ImageView = CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
+
+		texture->m_Allocated = true;
+		return texture;
+	}
+
+	Reference<Texture> Renderer::CreateTexture(const std::string& path) {
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture, path);
+
+		stbi_uc* pixels = stbi_load(path.c_str(), &texture->m_Width, &texture->m_Height, &texture->m_Channels, STBI_rgb_alpha);
+
+		if (!pixels) {
+			throw std::runtime_error("failed to load texture image: " + path);
+		}
+		texture->m_Size = texture->m_Width * texture->m_Height * STBI_rgb_alpha;
+		texture->m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture->m_Width, texture->m_Height)))) + 1;
+
+		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+		CreateBuffer(texture->m_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+		void* data;
+		vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, texture->m_Size, 0, &data);
+		memcpy(data, pixels, static_cast<size_t>(texture->m_Size));
+		vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+
+		stbi_image_free(pixels);
+
+		CreateImage(texture->m_Width, texture->m_Height, texture->m_MipLevels, VK_SAMPLE_COUNT_1_BIT, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+
+		TransitionImageLayout(texture->m_Image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->m_MipLevels);
+		CopyBufferToImage(stagingBuffer, texture->m_Image, static_cast<uint32_t>(texture->m_Width), static_cast<uint32_t>(texture->m_Height));
+
+		vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
+		vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+
+		// todo loading pregenerated mipmaps
+		GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width, texture->m_Height, texture->m_MipLevels);
+
+		// todo move this to a function
+		// Sampler
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		// todo add options for filters
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		// * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
+		// * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
+		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
+		// * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
+		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
+
+		samplerInfo.anisotropyEnable = VK_TRUE;
+		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.minLod = 0.0f; // Optional
+		samplerInfo.maxLod = static_cast<float>(texture->m_MipLevels);
+		samplerInfo.mipLodBias = 0.0f; // Optional
+
+		WIESEL_CHECK_VKRESULT(vkCreateSampler(m_LogicalDevice, &samplerInfo, nullptr, &texture->m_Sampler));
+
+		texture->m_ImageView = CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
 
 		texture->m_Allocated = true;
 		return texture;
@@ -229,9 +307,21 @@ namespace Wiesel {
 
 		VkFormat depthFormat = FindDepthFormat();
 
-		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
-		texture->m_ImageView = CreateImageView(texture->m_Image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-		TransitionImageLayout(texture->m_Image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+		texture->m_ImageView = CreateImageView(texture->m_Image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+		TransitionImageLayout(texture->m_Image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
+
+		texture->m_Allocated = true;
+		return texture;
+	}
+
+	Reference<Texture> Renderer::CreateColorImage() {
+		Reference<Texture> texture = CreateReference<Texture>(TextureTypeColorImage, "");
+
+		VkFormat colorFormat = m_SwapChainImageFormat;
+
+		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+		texture->m_ImageView = CreateImageView(texture->m_Image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
 		texture->m_Allocated = true;
 		return texture;
@@ -254,6 +344,18 @@ namespace Wiesel {
         if (!texture.m_Allocated) {
             return;
         }
+
+		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
+		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
+		vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
+
+		texture.m_Allocated = false;
+	}
+
+	void Renderer::DestroyColorImage(Wiesel::Texture& texture) {
+		if (!texture.m_Allocated) {
+			return;
+		}
 
 		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
 		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
@@ -310,11 +412,16 @@ namespace Wiesel {
 				writes.push_back(set);
 			}
 
-			if (texture != nullptr) {
+			{
 				VkDescriptorImageInfo imageInfo{};
 				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = texture->m_ImageView;
-				imageInfo.sampler = texture->m_Sampler;
+				if (texture == nullptr) {
+					imageInfo.imageView = m_BlankTexture->m_ImageView;
+					imageInfo.sampler = m_BlankTexture->m_Sampler;
+				} else {
+					imageInfo.imageView = texture->m_ImageView;
+					imageInfo.sampler = texture->m_Sampler;
+				}
 
 				VkWriteDescriptorSet set;
 				set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -382,6 +489,8 @@ namespace Wiesel {
 		vkDeviceWaitIdle(m_LogicalDevice);
         LogDebug("Destroying Renderer");
 		CleanupSwapChain();
+
+		m_BlankTexture = nullptr;
 
         LogDebug("Destroying cameras");
 		m_Cameras.clear();
@@ -501,6 +610,7 @@ namespace Wiesel {
 		// Check if the best candidate is suitable at all
 		if (candidates.rbegin()->first > 0) {
 			m_PhysicalDevice = candidates.rbegin()->second;
+			msaaSamples = GetMaxUsableSampleCount();
 		} else {
 			throw std::runtime_error("failed to find a suitable GPU!");
 		}
@@ -608,7 +718,7 @@ namespace Wiesel {
 		m_SwapChainImageViews.resize(m_SwapChainImages.size());
 
 		for (uint32_t i = 0; i < m_SwapChainImages.size(); i++) {
-			m_SwapChainImageViews[i] = CreateImageView(m_SwapChainImages[i], m_SwapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+			m_SwapChainImageViews[i] = CreateImageView(m_SwapChainImages[i], m_SwapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 		}
 	}
 
@@ -616,13 +726,13 @@ namespace Wiesel {
 		LogDebug("Creating render pass");
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = m_SwapChainImageFormat;
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		colorAttachment.samples = msaaSamples;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentReference colorAttachmentRef{};
 		colorAttachmentRef.attachment = 0;
@@ -630,7 +740,7 @@ namespace Wiesel {
 
 		VkAttachmentDescription depthAttachment{};
 		depthAttachment.format = FindDepthFormat();
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		depthAttachment.samples = msaaSamples;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -642,12 +752,26 @@ namespace Wiesel {
 		depthAttachmentRef.attachment = 1;
 		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+		VkAttachmentDescription colorAttachmentResolve{};
+		colorAttachmentResolve.format = m_SwapChainImageFormat;
+		colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+		colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		VkAttachmentReference colorAttachmentResolveRef{};
+		colorAttachmentResolveRef.attachment = 2;
+		colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		subpass.colorAttachmentCount = 1;
 		subpass.pColorAttachments = &colorAttachmentRef;
 		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+		subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
 		VkSubpassDependency dependency{};
 		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -656,7 +780,7 @@ namespace Wiesel {
 		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-		std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+		std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
 		VkRenderPassCreateInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -736,7 +860,6 @@ namespace Wiesel {
 		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -785,7 +908,7 @@ namespace Wiesel {
 		VkPipelineMultisampleStateCreateInfo multisampling{};
 		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		multisampling.sampleShadingEnable = VK_FALSE;
-		multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		multisampling.rasterizationSamples = msaaSamples;
 		multisampling.minSampleShading = 1.0f; // Optional
 		multisampling.pSampleMask = nullptr; // Optional
 		multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
@@ -872,12 +995,18 @@ namespace Wiesel {
 		m_DepthStencil = CreateDepthStencil();
 	}
 
+	void Renderer::CreateColorResources() {
+		LogDebug("Creating color image");
+		m_ColorImage = CreateColorImage();
+	}
+
 	void Renderer::CreateFramebuffers() {
 		swapChainFramebuffers.resize(m_SwapChainImageViews.size());
 		for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
-			std::array<VkImageView, 2> attachments = {
+			std::array<VkImageView, 3> attachments = {
+					m_ColorImage->m_ImageView,
+					m_DepthStencil->m_ImageView,
 					m_SwapChainImageViews[i],
-					m_DepthStencil->m_ImageView
 			};
 
 			VkFramebufferCreateInfo framebufferInfo{};
@@ -955,7 +1084,7 @@ namespace Wiesel {
 		EndSingleTimeCommands(commandBuffer);
 	}
 
-	void Renderer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+	void Renderer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) {
 		VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
 
 		VkImageMemoryBarrier barrier{};
@@ -975,7 +1104,7 @@ namespace Wiesel {
 			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		}
 		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.levelCount = mipLevels;
 		barrier.subresourceRange.baseArrayLayer = 0;
 		barrier.subresourceRange.layerCount = 1;
 
@@ -1038,14 +1167,18 @@ namespace Wiesel {
 		WIESEL_CHECK_VKRESULT(vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, commandBuffers.data()));
 	}
 
-	void Renderer::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+	void Renderer::CreatePermanentResources() {
+		m_BlankTexture = CreateBlankTexture();
+	}
+
+	void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
 		VkImageCreateInfo imageInfo{};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		imageInfo.imageType = VK_IMAGE_TYPE_2D;
 		imageInfo.extent.width = static_cast<uint32_t>(width);
 		imageInfo.extent.height = static_cast<uint32_t>(height);
 		imageInfo.extent.depth = 1;
-		imageInfo.mipLevels = 1;
+		imageInfo.mipLevels = mipLevels;
 		imageInfo.arrayLayers = 1;
 		imageInfo.format = format;
 		/*
@@ -1060,7 +1193,7 @@ namespace Wiesel {
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		imageInfo.usage = usage;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.samples = numSamples;
 		imageInfo.flags = 0; // Optional
 		WIESEL_CHECK_VKRESULT(vkCreateImage(m_LogicalDevice, &imageInfo, nullptr, &image));
 
@@ -1077,7 +1210,7 @@ namespace Wiesel {
 		vkBindImageMemory(m_LogicalDevice, image, imageMemory, 0);
 	}
 
-	VkImageView Renderer::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+	VkImageView Renderer::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
 		VkImageViewCreateInfo viewInfo{};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = image;
@@ -1085,7 +1218,7 @@ namespace Wiesel {
 		viewInfo.format = format;
 		viewInfo.subresourceRange.aspectMask = aspectFlags;
 		viewInfo.subresourceRange.baseMipLevel = 0;
-		viewInfo.subresourceRange.levelCount = 1;
+		viewInfo.subresourceRange.levelCount = mipLevels;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
 		viewInfo.subresourceRange.layerCount = 1;
 
@@ -1121,6 +1254,118 @@ namespace Wiesel {
 		return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 
+	void Renderer::GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
+		VkFormatProperties formatProperties;
+		vkGetPhysicalDeviceFormatProperties(m_PhysicalDevice, imageFormat, &formatProperties);
+		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+			// todo generate mipmaps with stbimage
+			throw std::runtime_error("texture image format does not support linear blitting!");
+		}
+
+		VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+
+		VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.image = image;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.levelCount = 1;
+
+		int32_t mipWidth = texWidth;
+		int32_t mipHeight = texHeight;
+
+		for (uint32_t i = 1; i < mipLevels; i++) {
+			barrier.subresourceRange.baseMipLevel = i - 1;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+			vkCmdPipelineBarrier(commandBuffer,
+								 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+								 0, nullptr,
+								 0, nullptr,
+								 1, &barrier);
+
+			VkImageBlit blit{};
+			blit.srcOffsets[0] = { 0, 0, 0 };
+			blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+			blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			blit.srcSubresource.mipLevel = i - 1;
+			blit.srcSubresource.baseArrayLayer = 0;
+			blit.srcSubresource.layerCount = 1;
+			blit.dstOffsets[0] = { 0, 0, 0 };
+			blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+			blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			blit.dstSubresource.mipLevel = i;
+			blit.dstSubresource.baseArrayLayer = 0;
+			blit.dstSubresource.layerCount = 1;
+
+			vkCmdBlitImage(commandBuffer,
+						   image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+						   image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+						   1, &blit,
+						   VK_FILTER_LINEAR);
+
+			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			vkCmdPipelineBarrier(commandBuffer,
+								 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+								 0, nullptr,
+								 0, nullptr,
+								 1, &barrier);
+
+			if (mipWidth > 1) mipWidth /= 2;
+			if (mipHeight > 1) mipHeight /= 2;
+		}
+
+		barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		vkCmdPipelineBarrier(commandBuffer,
+							 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+							 0, nullptr,
+							 0, nullptr,
+							 1, &barrier);
+
+		EndSingleTimeCommands(commandBuffer);
+	}
+
+	VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
+		VkPhysicalDeviceProperties physicalDeviceProperties;
+		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &physicalDeviceProperties);
+
+		VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+		if (counts & VK_SAMPLE_COUNT_64_BIT) {
+			return VK_SAMPLE_COUNT_64_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_32_BIT) {
+			return VK_SAMPLE_COUNT_32_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_16_BIT) {
+			return VK_SAMPLE_COUNT_16_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_8_BIT) {
+			return VK_SAMPLE_COUNT_8_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_4_BIT) {
+			return VK_SAMPLE_COUNT_4_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_2_BIT) {
+			return VK_SAMPLE_COUNT_2_BIT;
+		}
+		return VK_SAMPLE_COUNT_1_BIT;
+	}
+
 	void Renderer::CreateSyncObjects() {
 		imageAvailableSemaphores.resize(k_MaxFramesInFlight);
 		renderFinishedSemaphores.resize(k_MaxFramesInFlight);
@@ -1143,6 +1388,7 @@ namespace Wiesel {
 	void Renderer::CleanupSwapChain() {
         LogDebug("Cleanup swap chain");
 		m_DepthStencil = nullptr;
+		m_ColorImage = nullptr;
 
         LogDebug("Destroying swap chain framebuffers");
 		for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
@@ -1173,6 +1419,7 @@ namespace Wiesel {
 
 		CreateSwapChain();
 		CreateImageViews();
+		CreateColorResources();
 		CreateDepthResources();
 		CreateFramebuffers();
 

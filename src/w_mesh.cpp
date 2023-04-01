@@ -92,7 +92,6 @@ namespace Wiesel {
 		return m_Indices;
 	}
 
-
 	void Mesh::AddVertex(Vertex vertex) {
 		m_Vertices.push_back(vertex);
 	}
@@ -128,11 +127,15 @@ namespace Wiesel {
 		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str())) {
 			throw std::runtime_error(warn + err);
 		}
+		Deallocate();
+
+		m_TexturePath = texturePath;
 		m_ModelPath = modelPath;
 
 		m_Vertices.clear();
 		m_Indices.clear();
 
+		bool hasTexture = !m_TexturePath.empty();
 		std::unordered_map<Vertex, Index, vertex_hash> uniqueVertices{};
 		for (const auto& shape : shapes) {
 			for (const auto& index : shape.mesh.indices) {
@@ -147,7 +150,7 @@ namespace Wiesel {
 						attrib.texcoords[2 * index.texcoord_index + 0],
 						1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 				};
-
+				vertex.HasTexture = hasTexture;
 				vertex.Color = {1.0f, 1.0f, 1.0f};
 
 				if (uniqueVertices.count(vertex) == 0) {
@@ -159,7 +162,6 @@ namespace Wiesel {
 			}
 		}
 
-		SetTexture(texturePath);
 		Allocate();
 	}
 
@@ -179,13 +181,10 @@ namespace Wiesel {
 	}
 
 	void Mesh::Allocate() {
-		if (m_TexturePath.empty()) {
-			return; // temporary until we have an option to render objects without texture
-		}
-
 		if (m_Allocated) {
 			Deallocate();
 		}
+
 		m_VertexBuffer = Renderer::GetRenderer()->CreateVertexBuffer(m_Vertices);
 		m_IndexBuffer = Renderer::GetRenderer()->CreateIndexBuffer(m_Indices);
 		m_UniformBufferSet = Renderer::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight);
@@ -200,6 +199,7 @@ namespace Wiesel {
 		if (!m_Allocated) {
 			return;
 		}
+
 		m_Texture = nullptr;
 		m_UniformBufferSet = nullptr;
 		m_Descriptors = nullptr;

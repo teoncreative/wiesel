@@ -78,12 +78,12 @@ namespace Wiesel {
 		}
 	}
 
-	void Model::LoadTexture(Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type) {
+	bool Model::LoadTexture(Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type) {
 		aiString str;
 		mat->GetTexture(type, 0, &str);
 		std::string s = std::string(str.C_Str());
 		if (s.empty()) {
-			return;
+			return false;
 		}
 		std::string textureFullPath = m_TexturesPath + "/" + s;
 		if (m_Textures.contains(textureFullPath)) {
@@ -93,12 +93,19 @@ namespace Wiesel {
 			m_Textures.insert(std::pair(textureFullPath, texture));
 			mesh->SetTexture(texture);
 		}
+		return true;
 	}
 
 	Reference<Mesh> Model::ProcessMesh(aiMesh *aiMesh, const aiScene& aiScene, aiMatrix4x4 aiMatrix) {
 		std::vector<Vertex> vertices;
 		std::vector<Index> indices;
 		glm::mat4 mat = ConvertMatrix(aiMatrix);
+
+		aiMaterial* material = aiScene.mMaterials[aiMesh->mMaterialIndex];
+
+		Reference<Mesh> mesh = CreateReference<Mesh>();
+		// todo handle materials properly within another class
+		bool hasTexture = LoadTexture(mesh, material, aiTextureType_DIFFUSE);
 
 		for(unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
 			Vertex vertex{};
@@ -123,6 +130,7 @@ namespace Wiesel {
 			} else {
 				vertex.TexCoord = glm::vec2(0.0f, 0.0f);
 			}
+			vertex.HasTexture = hasTexture;
 
 			vertex.Color = {1.0f, 1.0f, 1.0f};
 
@@ -137,7 +145,8 @@ namespace Wiesel {
 			//vector.y = mesh->mBitangents[i].y;
 			//vector.z = mesh->mBitangents[i].z;
 			//vertex.BiTangent = vector;
-			vertices.push_back(vertex);
+
+			mesh->AddVertex(vertex);
 		}
 
 		// now walk through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
@@ -146,15 +155,10 @@ namespace Wiesel {
 
 			// retrieve all indices of the face and store them in the indices vector
 			for(unsigned int j = 0; j < face.mNumIndices; j++) {
-				indices.push_back(face.mIndices[j]);
+				mesh->AddIndex(face.mIndices[j]);
 			}
 		}
 
-		aiMaterial* material = aiScene.mMaterials[aiMesh->mMaterialIndex];
-
-		Reference<Mesh> mesh = CreateReference<Mesh>(vertices, indices);
-		// todo handle materials properly within another class
-		LoadTexture(mesh, material, aiTextureType_DIFFUSE);
 		return mesh;
 	}
 
