@@ -47,6 +47,7 @@ namespace WieselDemo {
 		float_t m_InputX;
 		float_t m_InputY;
 		float_t m_MouseSpeed;
+		float_t m_CameraMoveSpeed;
 		float_t m_LookXLimit;
 	};
 }

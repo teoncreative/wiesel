@@ -51,11 +51,15 @@ namespace Wiesel {
 		Reference<UniformBufferSet> CreateUniformBufferSet(uint32_t frames);
 		void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
 
+		Reference<Texture> CreateBlankTexture();
 		Reference<Texture> CreateTexture(const std::string& path);
 		void DestroyTexture(Texture& texture);
 
 		Reference<Texture> CreateDepthStencil();
 		void DestroyDepthStencil(Texture& texture);
+
+		Reference<Texture> CreateColorImage();
+		void DestroyColorImage(Texture& texture);
 
 		Reference<DescriptorPool> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Texture> texture);
 		void DestroyDescriptors(DescriptorPool& descriptorPool);
@@ -111,6 +115,8 @@ namespace Wiesel {
 		VkDescriptorSetLayout m_DescriptorSetLayout{};
 		uint32_t m_ImageIndex;
 		Reference<Texture> m_DepthStencil;
+		Reference<Texture> m_ColorImage;
+		Reference<Texture> m_BlankTexture;
 
 		VkPipelineLayout pipelineLayout{};
 		VkPipeline graphicsPipeline{};
@@ -129,6 +135,7 @@ namespace Wiesel {
 		uint64_t m_ActiveCameraId;
 		float_t m_AspectRatio;
 		WindowSize m_WindowSize;
+		VkSampleCountFlagBits msaaSamples;
 
 		void Cleanup();
 		void CreateVulkanInstance();
@@ -141,9 +148,11 @@ namespace Wiesel {
 		void CreateDescriptorSetLayout();
 		void CreateGraphicsPipeline();
 		void CreateDepthResources();
+		void CreateColorResources();
 		void CreateFramebuffers();
 		void CreateCommandPools();
 		void CreateCommandBuffers();
+		void CreatePermanentResources();
 		void CreateSyncObjects();
 		void CleanupSwapChain();
 		VkShaderModule CreateShaderModule(const std::vector<char>& code);
@@ -165,12 +174,15 @@ namespace Wiesel {
 		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-		VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
+		void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+		VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
 		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 		VkFormat FindDepthFormat();
 		bool HasStencilComponent(VkFormat format);
+		void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+		VkSampleCountFlagBits GetMaxUsableSampleCount();
+
 #ifdef DEBUG
 		void SetupDebugMessenger();
 		VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
