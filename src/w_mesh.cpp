@@ -9,15 +9,41 @@
 
 #include "w_mesh.h"
 #include "w_renderer.h"
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 namespace Wiesel {
-	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation) : Object(position, orientation) {
+	Mesh::Mesh() : Object() {
+		m_TexturePath = "";
+		m_Texture = nullptr;
+	}
 
+	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation) : Object(position, orientation) {
+		m_TexturePath = "";
+		m_Texture = nullptr;
 	}
 
 	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation) {
+		m_Vertices = vertices;
+		m_Indices = indices;
+		m_TexturePath = "";
+		m_Texture = nullptr;
+	}
+
+	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale) : Object(position, orientation, scale) {
+		m_TexturePath = "";
+		m_Texture = nullptr;
+	}
+
+	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation, scale) {
+		m_Vertices = vertices;
+		m_Indices = indices;
+		m_TexturePath = "";
+		m_Texture = nullptr;
+	}
+
+	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Index> indices): Object() {
 		m_Vertices = vertices;
 		m_Indices = indices;
 		m_TexturePath = "";
@@ -83,6 +109,11 @@ namespace Wiesel {
 		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
 	}
 
+	void Mesh::SetTexture(Reference<Wiesel::Texture> texture) {
+		m_TexturePath = texture->m_Path;
+		m_Texture = texture;
+	}
+
 	void Mesh::LoadFromObj(const std::string& modelPath, const std::string& texturePath) {
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
@@ -97,13 +128,14 @@ namespace Wiesel {
 		m_Vertices.clear();
 		m_Indices.clear();
 
+		std::unordered_map<Vertex, Index, vertex_hash> uniqueVertices{};
 		for (const auto& shape : shapes) {
 			for (const auto& index : shape.mesh.indices) {
 				Vertex vertex{};
 				vertex.Pos = {
 						attrib.vertices[3 * index.vertex_index + 0],
-						attrib.vertices[3 * index.vertex_index + 2],
 						attrib.vertices[3 * index.vertex_index + 1],
+						attrib.vertices[3 * index.vertex_index + 2],
 				};
 
 				vertex.TexCoord = {
@@ -113,8 +145,12 @@ namespace Wiesel {
 
 				vertex.Color = {1.0f, 1.0f, 1.0f};
 
-				AddVertex(vertex);
-				AddIndex(m_Indices.size());
+				if (uniqueVertices.count(vertex) == 0) {
+					uniqueVertices[vertex] = static_cast<uint32_t>(m_Vertices.size());
+					AddVertex(vertex);
+				}
+
+				AddIndex(uniqueVertices[vertex]);
 			}
 		}
 
@@ -138,6 +174,10 @@ namespace Wiesel {
 	}
 
 	void Mesh::Allocate() {
+		if (m_TexturePath.empty()) {
+			return; // temporary until we have an option to render objects without texture
+		}
+
 		if (m_Allocated) {
 			Deallocate();
 		}

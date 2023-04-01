@@ -26,26 +26,6 @@ namespace Wiesel {
 		return m_FieldOfView;
 	}
 
-	void Camera::Move(float x, float y, float z) {
-		Object::Move(x, y, z);
-		UpdateProjection();
-	}
-
-	void Camera::Move(const glm::vec3& move) {
-		Object::Move(move);
-		UpdateProjection();
-	}
-
-	void Camera::Rotate(float radians, float ax, float ay, float az) {
-		Object::Rotate(radians, ax, ay, az);
-		UpdateProjection();
-	}
-
-	void Camera::SetRotation(float yaw, float pitch, float roll) {
-		Object::SetRotation(yaw, pitch, roll);
-		UpdateProjection();
-	}
-
 	void Camera::UpdateProjection() {
 		m_Projection = glm::perspective(glm::radians(m_FieldOfView), m_AspectRatio, m_NearPlane, m_FarPlane);
 		m_Projection[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped

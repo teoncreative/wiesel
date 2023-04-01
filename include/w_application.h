@@ -39,7 +39,10 @@ namespace Wiesel {
 		bool OnWindowClose(WindowCloseEvent& event);
 		bool OnWindowResize(WindowResizeEvent& event);
 
-	private:
+		WIESEL_GETTER_FN Reference<AppWindow> GetWindow();
+		WIESEL_GETTER_FN const WindowSize& GetWindowSize();
+
+	protected:
 		bool m_IsRunning;
 		bool m_IsMinimized;
 		bool m_WindowResized;
