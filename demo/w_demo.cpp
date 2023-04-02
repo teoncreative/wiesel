@@ -75,6 +75,8 @@ namespace WieselDemo {
 		Wiesel::Reference<Wiesel::Camera> camera = Wiesel::CreateReference<Wiesel::Camera>(glm::vec3(2.0f, 1.5f, 2.0f), glm::angleAxis(0.0f, glm::vec3(0.0f, 0.0f, 0.0f)), Wiesel::Renderer::GetRenderer()->GetAspectRatio(), 60);
 		Wiesel::Renderer::GetRenderer()->AddCamera(camera);
 		Wiesel::Renderer::GetRenderer()->SetActiveCamera(camera->GetObjectId());
+
+		Wiesel::Renderer::GetRenderer()->SetClearColor(0.02f, 0.02f, 0.04f);
 	}
 
 	void DemoLayer::OnDetach() {
@@ -85,15 +87,15 @@ namespace WieselDemo {
 	//	Wiesel::LogInfo("Layer: OnUpdate " + std::to_string(deltaTime));
 		const Wiesel::Reference<Wiesel::Renderer>& renderer = Wiesel::Renderer::GetRenderer();
 		const Wiesel::Reference<Wiesel::Camera>& camera = renderer->GetActiveCamera();
-		if (m_KeyManager.IsPressed(Wiesel::W)) {
+		if (m_KeyManager.IsPressed(Wiesel::KeyW)) {
 			camera->Move(camera->GetForward() * deltaTime * m_CameraMoveSpeed);
-		} else if (m_KeyManager.IsPressed(Wiesel::S)) {
+		} else if (m_KeyManager.IsPressed(Wiesel::KeyS)) {
 			camera->Move(camera->GetBackward() * deltaTime * m_CameraMoveSpeed);
 		}
 
-		if (m_KeyManager.IsPressed(Wiesel::A)) {
+		if (m_KeyManager.IsPressed(Wiesel::KeyA)) {
 			camera->Move(camera->GetLeft() * deltaTime * m_CameraMoveSpeed);
-		} else if (m_KeyManager.IsPressed(Wiesel::D)) {
+		} else if (m_KeyManager.IsPressed(Wiesel::KeyD)) {
 			camera->Move(camera->GetRight() * deltaTime * m_CameraMoveSpeed);
 		}
 
@@ -110,10 +112,10 @@ namespace WieselDemo {
 	}
 
 	bool DemoLayer::OnKeyPress(Wiesel::KeyPressedEvent& event) {
-		if (event.GetKeyCode() == Wiesel::Space) {
+		if (event.GetKeyCode() == Wiesel::KeySpace) {
 			m_App.Close();
 			return true;
-		} else if (event.GetKeyCode() == Wiesel::Escape) {
+		} else if (event.GetKeyCode() == Wiesel::KeyEscape) {
 			if (m_App.GetWindow()->GetCursorMode() == Wiesel::CursorModeRelative) {
 				m_App.GetWindow()->SetCursorMode(Wiesel::CursorModeNormal);
 			} else {
