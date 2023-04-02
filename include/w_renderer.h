@@ -23,6 +23,7 @@
 #include "w_camera.h"
 #include "w_texture.h"
 #include "w_descriptor.h"
+#include "util/w_color.h"
 
 namespace Wiesel {
 	class Renderer {
@@ -67,6 +68,10 @@ namespace Wiesel {
 		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
 		void AddCamera(Reference<Camera> camera);
 		void SetActiveCamera(uint64_t id);
+
+		void SetClearColor(float r, float g, float b, float a);
+		void SetClearColor(const Color<float>& color);
+		WIESEL_GETTER_FN Color<float>& GetClearColor();
 
 		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 		WIESEL_GETTER_FN float GetAspectRatio() const;
@@ -136,6 +141,7 @@ namespace Wiesel {
 		float_t m_AspectRatio;
 		WindowSize m_WindowSize;
 		VkSampleCountFlagBits msaaSamples;
+		Color<float> m_ClearColor;
 
 		void Cleanup();
 		void CreateVulkanInstance();

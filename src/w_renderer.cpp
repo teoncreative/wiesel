@@ -25,6 +25,7 @@ namespace Wiesel {
 		m_ImageIndex = 0;
 		m_CurrentFrame = 0;
 		msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+		m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 
 		CreateVulkanInstance();
 #ifdef DEBUG
@@ -475,6 +476,21 @@ namespace Wiesel {
 
 	void Renderer::SetActiveCamera(uint64_t id) {
 		m_ActiveCameraId = id;
+	}
+
+	void Renderer::SetClearColor(float r, float g, float b, float a) {
+		m_ClearColor.Red = r;
+		m_ClearColor.Green = g;
+		m_ClearColor.Blue = b;
+		m_ClearColor.Alpha = a;
+	}
+
+	void Renderer::SetClearColor(const Color<float>& color) {
+		m_ClearColor = color;
+	}
+
+	Color<float>& Renderer::GetClearColor() {
+		return m_ClearColor;
 	}
 
 	float Renderer::GetAspectRatio() const {
@@ -1466,7 +1482,7 @@ namespace Wiesel {
 		renderPassInfo.renderArea.extent = m_SwapChainExtent;
 
 		std::array<VkClearValue, 2> clearValues{};
-		clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+		clearValues[0].color = {{m_ClearColor.Red, m_ClearColor.Green, m_ClearColor.Blue, m_ClearColor.Alpha}};
 		clearValues[1].depthStencil = {1.0f, 0};
 
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
