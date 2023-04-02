@@ -107,7 +107,7 @@ namespace Wiesel {
 		// todo handle materials properly within another class
 		bool hasTexture = LoadTexture(mesh, material, aiTextureType_DIFFUSE);
 
-		for(unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
+		for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
 			Vertex vertex{};
 			glm::vec3 vector;
 			// positions
@@ -150,11 +150,11 @@ namespace Wiesel {
 		}
 
 		// now walk through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
-		for(unsigned int i = 0; i < aiMesh->mNumFaces; i++) {
+		for (unsigned int i = 0; i < aiMesh->mNumFaces; i++) {
 			aiFace face = aiMesh->mFaces[i];
 
 			// retrieve all indices of the face and store them in the indices vector
-			for(unsigned int j = 0; j < face.mNumIndices; j++) {
+			for (int j = face.mNumIndices - 1; j >= 0; j--) {
 				mesh->AddIndex(face.mIndices[j]);
 			}
 		}
