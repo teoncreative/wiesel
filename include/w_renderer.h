@@ -53,7 +53,7 @@ namespace Wiesel {
 		void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
 
 		Reference<Texture> CreateBlankTexture();
-		Reference<Texture> CreateTexture(const std::string& path);
+		Reference<Texture> CreateTexture(const std::string& path, TextureProps props);
 		void DestroyTexture(Texture& texture);
 
 		Reference<Texture> CreateDepthStencil();
@@ -69,9 +69,12 @@ namespace Wiesel {
 		void AddCamera(Reference<Camera> camera);
 		void SetActiveCamera(uint64_t id);
 
-		void SetClearColor(float r, float g, float b, float a);
+		void SetClearColor(float r, float g, float b, float a = 1.0f);
 		void SetClearColor(const Color<float>& color);
 		WIESEL_GETTER_FN Color<float>& GetClearColor();
+
+		void SetMsaaSamples(VkSampleCountFlagBits samples);
+		WIESEL_GETTER_FN VkSampleCountFlagBits GetMsaaSamples();
 
 		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 		WIESEL_GETTER_FN float GetAspectRatio() const;
@@ -140,7 +143,8 @@ namespace Wiesel {
 		uint64_t m_ActiveCameraId;
 		float_t m_AspectRatio;
 		WindowSize m_WindowSize;
-		VkSampleCountFlagBits msaaSamples;
+		VkSampleCountFlagBits m_MsaaSamples;
+		VkSampleCountFlagBits m_PreviousMsaaSamples;
 		Color<float> m_ClearColor;
 
 		void Cleanup();
@@ -171,13 +175,12 @@ namespace Wiesel {
 		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
 		VkCommandBuffer BeginSingleTimeCommands();
 		void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
-		bool CheckValidationLayerSupport();
-
 		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
 		std::vector<const char*> GetRequiredExtensions();
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
-
 		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
@@ -188,8 +191,8 @@ namespace Wiesel {
 		bool HasStencilComponent(VkFormat format);
 		void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 		VkSampleCountFlagBits GetMaxUsableSampleCount();
-
 #ifdef DEBUG
+		bool CheckValidationLayerSupport();
 		void SetupDebugMessenger();
 		VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
 		void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);

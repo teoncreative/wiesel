@@ -38,4 +38,15 @@ namespace Wiesel {
 		bool m_Allocated;
 		std::string m_Path;
 	};
+
+	struct TextureProps {
+		TextureProps() : GenerateMipmaps(true), ImageFormat(VK_FORMAT_R8G8B8A8_SRGB), MagFilter(VK_FILTER_LINEAR), MinFilter(VK_FILTER_LINEAR) {}
+		TextureProps(bool generateMipmaps, VkFormat imageFormat, VkFilter magFilter, VkFilter minFilter) : GenerateMipmaps(generateMipmaps), ImageFormat(imageFormat), MagFilter(magFilter), MinFilter(minFilter) {}
+
+		bool GenerateMipmaps;
+		VkFormat ImageFormat;
+		VkFilter MagFilter;
+		VkFilter MinFilter;
+		float MaxAnistropy;
+	};
 }

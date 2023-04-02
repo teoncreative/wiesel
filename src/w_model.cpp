@@ -89,7 +89,7 @@ namespace Wiesel {
 		if (m_Textures.contains(textureFullPath)) {
 			mesh->SetTexture(m_Textures[textureFullPath]);
 		} else {
-			Reference<Texture> texture = Renderer::GetRenderer()->CreateTexture(textureFullPath);
+			Reference<Texture> texture = Renderer::GetRenderer()->CreateTexture(textureFullPath, {});
 			m_Textures.insert(std::pair(textureFullPath, texture));
 			mesh->SetTexture(texture);
 		}

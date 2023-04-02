@@ -24,7 +24,8 @@ namespace Wiesel {
 
 		m_ImageIndex = 0;
 		m_CurrentFrame = 0;
-		msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+		m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
+		m_PreviousMsaaSamples = VK_SAMPLE_COUNT_1_BIT;
 		m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 
 		CreateVulkanInstance();
@@ -230,7 +231,7 @@ namespace Wiesel {
 		return texture;
 	}
 
-	Reference<Texture> Renderer::CreateTexture(const std::string& path) {
+	Reference<Texture> Renderer::CreateTexture(const std::string& path, TextureProps props) {
 		Reference<Texture> texture = CreateReference<Texture>(TextureTypeTexture, path);
 
 		stbi_uc* pixels = stbi_load(path.c_str(), &texture->m_Width, &texture->m_Height, &texture->m_Channels, STBI_rgb_alpha);
@@ -239,9 +240,12 @@ namespace Wiesel {
 			throw std::runtime_error("failed to load texture image: " + path);
 		}
 		texture->m_Size = texture->m_Width * texture->m_Height * STBI_rgb_alpha;
-		texture->m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture->m_Width, texture->m_Height)))) + 1;
+		if (props.GenerateMipmaps) {
+			texture->m_MipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texture->m_Width, texture->m_Height)))) + 1;
+		} else {
+			texture->m_MipLevels = 1;
+		}
 
-		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
 		CreateBuffer(texture->m_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
@@ -253,24 +257,25 @@ namespace Wiesel {
 
 		stbi_image_free(pixels);
 
-		CreateImage(texture->m_Width, texture->m_Height, texture->m_MipLevels, VK_SAMPLE_COUNT_1_BIT, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+		CreateImage(texture->m_Width, texture->m_Height, texture->m_MipLevels, VK_SAMPLE_COUNT_1_BIT, props.ImageFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
 
-		TransitionImageLayout(texture->m_Image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->m_MipLevels);
+		TransitionImageLayout(texture->m_Image, props.ImageFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->m_MipLevels);
 		CopyBufferToImage(stagingBuffer, texture->m_Image, static_cast<uint32_t>(texture->m_Width), static_cast<uint32_t>(texture->m_Height));
 
 		vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
 
 		// todo loading pregenerated mipmaps
-		GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width, texture->m_Height, texture->m_MipLevels);
+		if (texture->m_MipLevels > 1) {
+			GenerateMipmaps(texture->m_Image, props.ImageFormat, texture->m_Width, texture->m_Height, texture->m_MipLevels);
+		}
 
 		// todo move this to a function
 		// Sampler
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-		// todo add options for filters
-		samplerInfo.magFilter = VK_FILTER_LINEAR;
-		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.magFilter = props.MagFilter;
+		samplerInfo.minFilter = props.MinFilter;
 		// * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
 		// * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
 		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
@@ -283,8 +288,12 @@ namespace Wiesel {
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
 
-		samplerInfo.anisotropyEnable = VK_TRUE;
-		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		if (props.MaxAnistropy > 0 && properties.limits.maxSamplerAnisotropy > 0) {
+			samplerInfo.anisotropyEnable = VK_TRUE;
+			samplerInfo.maxAnisotropy = std::min(properties.limits.maxSamplerAnisotropy, props.MaxAnistropy);
+		} else {
+			samplerInfo.anisotropyEnable = VK_FALSE;
+		}
 		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		samplerInfo.unnormalizedCoordinates = VK_FALSE;
 		samplerInfo.compareEnable = VK_FALSE;
@@ -297,7 +306,7 @@ namespace Wiesel {
 
 		WIESEL_CHECK_VKRESULT(vkCreateSampler(m_LogicalDevice, &samplerInfo, nullptr, &texture->m_Sampler));
 
-		texture->m_ImageView = CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
+		texture->m_ImageView = CreateImageView(texture->m_Image, props.ImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
 
 		texture->m_Allocated = true;
 		return texture;
@@ -308,7 +317,7 @@ namespace Wiesel {
 
 		VkFormat depthFormat = FindDepthFormat();
 
-		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, m_MsaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
 		texture->m_ImageView = CreateImageView(texture->m_Image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 		TransitionImageLayout(texture->m_Image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 
@@ -321,7 +330,7 @@ namespace Wiesel {
 
 		VkFormat colorFormat = m_SwapChainImageFormat;
 
-		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
+		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, m_MsaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
 		texture->m_ImageView = CreateImageView(texture->m_Image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
 		texture->m_Allocated = true;
@@ -493,6 +502,14 @@ namespace Wiesel {
 		return m_ClearColor;
 	}
 
+	void Renderer::SetMsaaSamples(VkSampleCountFlagBits samples) {
+		m_MsaaSamples = samples;
+	}
+
+	VkSampleCountFlagBits Renderer::GetMsaaSamples() {
+		return m_MsaaSamples;
+	}
+
 	float Renderer::GetAspectRatio() const {
 		return m_AspectRatio;
 	}
@@ -626,7 +643,8 @@ namespace Wiesel {
 		// Check if the best candidate is suitable at all
 		if (candidates.rbegin()->first > 0) {
 			m_PhysicalDevice = candidates.rbegin()->second;
-			msaaSamples = GetMaxUsableSampleCount();
+			m_MsaaSamples = GetMaxUsableSampleCount();
+			m_PreviousMsaaSamples = GetMaxUsableSampleCount();
 		} else {
 			throw std::runtime_error("failed to find a suitable GPU!");
 		}
@@ -742,7 +760,7 @@ namespace Wiesel {
 		LogDebug("Creating render pass");
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = m_SwapChainImageFormat;
-		colorAttachment.samples = msaaSamples;
+		colorAttachment.samples = m_MsaaSamples;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -756,7 +774,7 @@ namespace Wiesel {
 
 		VkAttachmentDescription depthAttachment{};
 		depthAttachment.format = FindDepthFormat();
-		depthAttachment.samples = msaaSamples;
+		depthAttachment.samples = m_MsaaSamples;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -924,7 +942,7 @@ namespace Wiesel {
 		VkPipelineMultisampleStateCreateInfo multisampling{};
 		multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		multisampling.sampleShadingEnable = VK_FALSE;
-		multisampling.rasterizationSamples = msaaSamples;
+		multisampling.rasterizationSamples = m_MsaaSamples;
 		multisampling.minSampleShading = 1.0f; // Optional
 		multisampling.pSampleMask = nullptr; // Optional
 		multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
@@ -1465,6 +1483,13 @@ namespace Wiesel {
 		// Setup
 		vkResetFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame]);
 		vkResetCommandBuffer(commandBuffers[m_CurrentFrame], 0);
+
+		if (m_PreviousMsaaSamples != m_MsaaSamples) {
+			vkDeviceWaitIdle(m_LogicalDevice);
+			LogInfo("Msaa samples changed to " + std::to_string(m_MsaaSamples) + " from " + std::to_string(m_PreviousMsaaSamples) + ", recreating pipeline!");
+			// todo recreate graphics pipline
+			m_PreviousMsaaSamples = m_MsaaSamples;
+		}
 
 		// Actual drawing
 		VkCommandBufferBeginInfo beginInfo{};

@@ -106,10 +106,11 @@ namespace Wiesel {
 			return;
 		}
 		if (!path.empty()) {
-			m_Texture = Renderer::GetRenderer()->CreateTexture(path);
+			m_Texture = Renderer::GetRenderer()->CreateTexture(path, {});
 		} else {
 			m_Texture = nullptr;
 		}
+		// Recreate descriptors
 		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
 	}
 
@@ -189,7 +190,7 @@ namespace Wiesel {
 		m_IndexBuffer = Renderer::GetRenderer()->CreateIndexBuffer(m_Indices);
 		m_UniformBufferSet = Renderer::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight);
 		if (!m_TexturePath.empty()) {
-			m_Texture = Renderer::GetRenderer()->CreateTexture(m_TexturePath);
+			m_Texture = Renderer::GetRenderer()->CreateTexture(m_TexturePath, {});
 		}
 		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
 		m_Allocated = true;
