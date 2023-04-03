@@ -50,6 +50,7 @@ namespace Wiesel {
 
 	void Object::SetOrientation(glm::quat orientation) {
 		m_Orientation = orientation;
+		UpdateView();
 	}
 
 	void Object::SetLocalView(glm::mat4 localView) {
@@ -74,6 +75,7 @@ namespace Wiesel {
 	void Object::UpdateView() {
 		m_LocalView = glm::translate(glm::mat4(1.0f), m_Position) * glm::toMat4((const glm::quat&) m_Orientation);
 		m_LocalView = glm::scale(m_LocalView, m_Scale);
+		m_NormalMatrix = glm::inverseTranspose(glm::mat3(m_LocalView));
 	}
 
 	const glm::mat4& Object::GetLocalView() {

@@ -40,7 +40,7 @@ namespace Wiesel {
 	};
 
 	struct TextureProps {
-		TextureProps() : GenerateMipmaps(true), ImageFormat(VK_FORMAT_R8G8B8A8_SRGB), MagFilter(VK_FILTER_LINEAR), MinFilter(VK_FILTER_LINEAR) {}
+		TextureProps() : GenerateMipmaps(true), ImageFormat(VK_FORMAT_R8G8B8A8_SRGB), MagFilter(VK_FILTER_LINEAR), MinFilter(VK_FILTER_LINEAR), MaxAnistropy(-1.0f) {}
 		TextureProps(bool generateMipmaps, VkFormat imageFormat, VkFilter magFilter, VkFilter minFilter) : GenerateMipmaps(generateMipmaps), ImageFormat(imageFormat), MagFilter(magFilter), MinFilter(minFilter) {}
 
 		bool GenerateMipmaps;

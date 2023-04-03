@@ -115,20 +115,21 @@ namespace Wiesel {
 			vector.y = aiMesh->mVertices[i].y;
 			vector.z = aiMesh->mVertices[i].z;
 			vertex.Pos = vector;
+
 			// normals
-			//vector.x = mesh->mNormals[i].x;
-			//vector.y = mesh->mNormals[i].y;
-			//vector.z = mesh->mNormals[i].z;
-			//vertex.Normal = vector;
+			vector.x = aiMesh->mNormals[i].x;
+			vector.y = aiMesh->mNormals[i].y;
+			vector.z = aiMesh->mNormals[i].z;
+			vertex.Normal = vector;
 
 			// texture coordinates
 			if(aiMesh->mTextureCoords[0]) {
 				glm::vec2 vec;
 				vec.x = aiMesh->mTextureCoords[0][i].x;
 				vec.y = aiMesh->mTextureCoords[0][i].y;
-				vertex.TexCoord = vec;
+				vertex.UV = vec;
 			} else {
-				vertex.TexCoord = glm::vec2(0.0f, 0.0f);
+				vertex.UV = glm::vec2(0.0f, 0.0f);
 			}
 			vertex.HasTexture = hasTexture;
 

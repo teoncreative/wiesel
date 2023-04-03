@@ -70,8 +70,8 @@ namespace Wiesel {
 		void SetActiveCamera(uint64_t id);
 
 		void SetClearColor(float r, float g, float b, float a = 1.0f);
-		void SetClearColor(const Color<float>& color);
-		WIESEL_GETTER_FN Color<float>& GetClearColor();
+		void SetClearColor(const Colorf& color);
+		WIESEL_GETTER_FN Colorf& GetClearColor();
 
 		void SetMsaaSamples(VkSampleCountFlagBits samples);
 		WIESEL_GETTER_FN VkSampleCountFlagBits GetMsaaSamples();
@@ -145,7 +145,7 @@ namespace Wiesel {
 		WindowSize m_WindowSize;
 		VkSampleCountFlagBits m_MsaaSamples;
 		VkSampleCountFlagBits m_PreviousMsaaSamples;
-		Color<float> m_ClearColor;
+		Colorf m_ClearColor;
 
 		void Cleanup();
 		void CreateVulkanInstance();

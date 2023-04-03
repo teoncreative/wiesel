@@ -147,12 +147,19 @@ namespace Wiesel {
 						attrib.vertices[3 * index.vertex_index + 2],
 				};
 
-				vertex.TexCoord = {
+				vertex.UV = {
 						attrib.texcoords[2 * index.texcoord_index + 0],
 						1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 				};
 				vertex.HasTexture = hasTexture;
+
 				vertex.Color = {1.0f, 1.0f, 1.0f};
+
+				vertex.Normal = {
+						attrib.normals[3 * index.normal_index + 0],
+						attrib.normals[3 * index.normal_index + 1],
+						attrib.normals[3 * index.normal_index + 2],
+				};
 
 				if (uniqueVertices.count(vertex) == 0) {
 					uniqueVertices[vertex] = static_cast<uint32_t>(m_Vertices.size());
@@ -176,6 +183,7 @@ namespace Wiesel {
 		ubo.Model = m_LocalView;
 		ubo.View = glm::inverse(camera->GetLocalView());
 		ubo.Proj = camera->GetProjection();
+		ubo.NormalMatrix = m_NormalMatrix;
 
 		uint32_t currentFrame = Renderer::GetRenderer()->GetCurrentFrame();
 		memcpy(m_UniformBufferSet->m_Buffers[currentFrame]->m_Data, &ubo, sizeof(ubo));

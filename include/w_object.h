@@ -57,5 +57,6 @@ namespace Wiesel {
 		glm::quat m_Orientation;
 		glm::vec3 m_Scale;
 		glm::mat4 m_LocalView;
+		glm::mat3 m_NormalMatrix;
 	};
 }

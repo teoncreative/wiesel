@@ -189,39 +189,24 @@ namespace Wiesel {
 		vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
 
-		// todo loading pregenerated mipmaps
-		GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width, texture->m_Height, texture->m_MipLevels);
-
 		// todo move this to a function
 		// Sampler
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-		// todo add options for filters
 		samplerInfo.magFilter = VK_FILTER_LINEAR;
 		samplerInfo.minFilter = VK_FILTER_LINEAR;
-		// * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
-		// * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
-		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
-		// * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
-		// * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
 		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-		VkPhysicalDeviceProperties properties{};
-		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
-
-		samplerInfo.anisotropyEnable = VK_TRUE;
-		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+		samplerInfo.anisotropyEnable = VK_FALSE;
 		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		samplerInfo.unnormalizedCoordinates = VK_FALSE;
 		samplerInfo.compareEnable = VK_FALSE;
 		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 
 		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		samplerInfo.minLod = 0.0f; // Optional
-		samplerInfo.maxLod = static_cast<float>(texture->m_MipLevels);
-		samplerInfo.mipLodBias = 0.0f; // Optional
+		samplerInfo.maxLod = 1.0f;
 
 		WIESEL_CHECK_VKRESULT(vkCreateSampler(m_LogicalDevice, &samplerInfo, nullptr, &texture->m_Sampler));
 
@@ -288,12 +273,17 @@ namespace Wiesel {
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
 
-		if (props.MaxAnistropy > 0 && properties.limits.maxSamplerAnisotropy > 0) {
+		if (props.MaxAnistropy != 0.0f && properties.limits.maxSamplerAnisotropy > 0) {
 			samplerInfo.anisotropyEnable = VK_TRUE;
-			samplerInfo.maxAnisotropy = std::min(properties.limits.maxSamplerAnisotropy, props.MaxAnistropy);
+			if (props.MaxAnistropy < 0) {
+				samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+			} else {
+				samplerInfo.maxAnisotropy = std::min(properties.limits.maxSamplerAnisotropy, props.MaxAnistropy);
+			}
 		} else {
 			samplerInfo.anisotropyEnable = VK_FALSE;
 		}
+
 		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		samplerInfo.unnormalizedCoordinates = VK_FALSE;
 		samplerInfo.compareEnable = VK_FALSE;
@@ -494,11 +484,11 @@ namespace Wiesel {
 		m_ClearColor.Alpha = a;
 	}
 
-	void Renderer::SetClearColor(const Color<float>& color) {
+	void Renderer::SetClearColor(const Colorf& color) {
 		m_ClearColor = color;
 	}
 
-	Color<float>& Renderer::GetClearColor() {
+	Colorf& Renderer::GetClearColor() {
 		return m_ClearColor;
 	}
 
@@ -854,8 +844,8 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateGraphicsPipeline() {
-		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/test.vert.spv");
-		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/test.frag.spv");
+		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/mesh_shader.vert.spv");
+		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/mesh_shader.frag.spv");
 
 		VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 		VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
