@@ -54,4 +54,19 @@ namespace WieselDemo {
 		float_t m_CameraMoveSpeed;
 		float_t m_LookXLimit;
 	};
+
+	class DemoOverlay : public Wiesel::Layer {
+	public:
+		explicit DemoOverlay(DemoApplication& app);
+		~DemoOverlay() override;
+
+		void OnAttach() override;
+		void OnDetach() override;
+
+		void OnUpdate(float_t deltaTime) override;
+		void OnEvent(Wiesel::Event& event) override;
+	private:
+		DemoApplication& m_App;
+
+	};
 }

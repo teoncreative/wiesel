@@ -24,6 +24,10 @@ namespace Wiesel {
 
 		void OnUpdate() override;
 		bool IsShouldClose() override;
+
+		void ImGuiInit() override;
+		void ImGuiNewFrame() override;
+
 		void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
 		void GetWindowFramebufferSize(WindowSize& size) override;
 		const char** GetRequiredInstanceExtensions(uint32_t* extensionsCount) override;

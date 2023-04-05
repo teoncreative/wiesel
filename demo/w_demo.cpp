@@ -30,7 +30,7 @@ namespace WieselDemo {
 	static entt::entity sponzaEntityHandle;
 
 	void DemoLayer::OnAttach() {
-		LOG_DEBUG("Layer: OnAttach");
+		LOG_DEBUG("OnAttach");
 
 		{
 			const std::vector<Vertex> vertices = {
@@ -84,14 +84,15 @@ namespace WieselDemo {
 		m_Renderer->AddCamera(camera);
 		m_Renderer->SetActiveCamera(camera->GetId());
 		m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);
+
 	}
 
 	void DemoLayer::OnDetach() {
-		LOG_DEBUG("Layer: OnDetach");
+		LOG_DEBUG("OnDetach");
 	}
 
 	void DemoLayer::OnUpdate(float_t deltaTime) {
-	//	LogInfo("Layer: OnUpdate " + std::to_string(deltaTime));
+	//	LogInfo("OnUpdate " + std::to_string(deltaTime));
 		const Reference<Camera>& camera = m_Renderer->GetActiveCamera();
 		if (m_KeyManager.IsPressed(KeyW)) {
 			camera->Move(camera->GetForward() * deltaTime * m_CameraMoveSpeed);
@@ -160,9 +161,39 @@ namespace WieselDemo {
 		return true;
 	}
 
+	DemoOverlay::DemoOverlay(DemoApplication& app) : m_App(app), Layer("Demo Layer") {
+	}
+
+	DemoOverlay::~DemoOverlay() = default;
+
+	void DemoOverlay::OnAttach() {
+		LOG_DEBUG("OnAttach");
+
+	}
+
+	void DemoOverlay::OnDetach() {
+		LOG_DEBUG("OnDetach");
+	}
+
+	void DemoOverlay::OnUpdate(float_t deltaTime) {
+		static bool open = true;
+		if (!ImGui::Begin("Demo Overlay", &open, 0)) {
+			ImGui::End();
+			return;
+		}
+
+		ImGui::End();
+	}
+
+
+	void DemoOverlay::OnEvent(Event& event) {
+	}
+
+
 	void DemoApplication::Init() {
 		LOG_DEBUG("Init");
 		PushLayer(CreateReference<DemoLayer>(*this));
+		PushOverlay(CreateReference<DemoOverlay>(*this));
 	}
 
 	DemoApplication::DemoApplication() {

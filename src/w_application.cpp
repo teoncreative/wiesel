@@ -67,6 +67,16 @@ namespace Wiesel {
 		// todo
 	}
 
+	void Application::PushOverlay(const Reference<Layer>& layer) {
+		m_Overlays.push_back(layer);
+		layer->OnAttach();
+		layer->m_Id = m_LayerCounter++;
+	}
+
+	void Application::RemoveOverlay(const Reference<Layer>& layer) {
+		// todo
+	}
+
 	void Application::Run() {
 		m_PreviousFrame = Time::GetTime();
 
@@ -77,6 +87,13 @@ namespace Wiesel {
 
 			if (!m_IsMinimized) {
 				for (const auto& layer : m_Layers) {
+					layer->OnUpdate(m_DeltaTime);
+				}
+
+				ImGui_ImplVulkan_NewFrame();
+				m_Window->ImGuiNewFrame();
+				ImGui::NewFrame();
+				for (const auto& layer : m_Overlays) {
 					layer->OnUpdate(m_DeltaTime);
 				}
 

@@ -31,4 +31,12 @@ namespace Wiesel {
 	CursorMode AppWindow::GetCursorMode() {
 		return m_CursorMode;
 	}
+
+	void AppWindow::ImGuiInit() {
+
+	}
+
+	void AppWindow::ImGuiNewFrame() {
+
+	}
 }

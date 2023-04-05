@@ -47,6 +47,7 @@ namespace Wiesel {
 		CreateDepthResources();
 		CreateFramebuffers();
 		CreateSyncObjects();
+		CreateImGui();
 
 		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_AspectRatio);
 		AddCamera(camera);
@@ -509,6 +510,8 @@ namespace Wiesel {
 
         LOG_DEBUG("Destroying cameras");
 		m_Cameras.clear();
+
+		CleanupImGui();
 
         LOG_DEBUG("Destroying descriptor set layout");
 		vkDestroyDescriptorSetLayout(m_LogicalDevice, m_DescriptorSetLayout, nullptr);
@@ -1414,6 +1417,70 @@ namespace Wiesel {
 		vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
 	}
 
+	void Renderer::CreateImGui() {
+		LOG_DEBUG("Creating imgui");
+		//1: create descriptor pool for IMGUI
+		// the size of the pool is very oversize, but it's copied from imgui demo itself.
+		VkDescriptorPoolSize pool_sizes[] =
+				{
+						{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+						{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+						{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+						{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+						{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+						{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+						{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+						{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+						{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+						{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+						{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+				};
+
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		pool_info.maxSets = 1000;
+		pool_info.poolSizeCount = std::size(pool_sizes);
+		pool_info.pPoolSizes = pool_sizes;
+
+		WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(m_LogicalDevice, &pool_info, nullptr, &m_ImGuiPool));
+
+
+		// 2: initialize imgui library
+
+		//this initializes the core structures of imgui
+		ImGui::CreateContext();
+
+		m_Window->ImGuiInit();
+
+		//this initializes imgui for Vulkan
+		ImGui_ImplVulkan_InitInfo init_info = {};
+		init_info.Instance = m_Instance;
+		init_info.PhysicalDevice = m_PhysicalDevice;
+		init_info.Device = m_LogicalDevice;
+		init_info.Queue = m_GraphicsQueue;
+		init_info.DescriptorPool = m_ImGuiPool;
+		init_info.MinImageCount = 3;
+		init_info.ImageCount = 3;
+		init_info.MSAASamples = m_MsaaSamples;
+
+		ImGui_ImplVulkan_Init(&init_info, m_RenderPass);
+
+		//execute a gpu command to upload imgui font textures
+		auto cmd = BeginSingleTimeCommands();
+		ImGui_ImplVulkan_CreateFontsTexture(cmd);
+		EndSingleTimeCommands(cmd);
+
+		//clear font textures from cpu data
+		ImGui_ImplVulkan_DestroyFontUploadObjects();
+	}
+
+	void Renderer::CleanupImGui() {
+		LOG_DEBUG("Destroying imgui pool");
+		vkDestroyDescriptorPool(m_LogicalDevice, m_ImGuiPool, nullptr);
+		ImGui_ImplVulkan_Shutdown();
+	}
+
 	void Renderer::RecreateSwapChain() {
 		LOG_INFO("Recreating swap chains...");
 		WindowSize size{};
@@ -1447,6 +1514,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::BeginFrame() {
+
 		vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
 		VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX, imageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
@@ -1489,6 +1557,7 @@ namespace Wiesel {
 		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 		renderPassInfo.pClearValues = clearValues.data();
 		vkCmdBeginRenderPass(commandBuffers[m_CurrentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		ImGui::Render();
 
 		vkCmdBindPipeline(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
@@ -1537,6 +1606,9 @@ namespace Wiesel {
 
 	void Renderer::EndFrame() {
 		// Finish command buffer
+		if (ImGui::GetDrawData()) {
+			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[m_CurrentFrame]);
+		}
 		vkCmdEndRenderPass(commandBuffers[m_CurrentFrame]);
 		WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffers[m_CurrentFrame]));
 
@@ -1857,13 +1929,13 @@ namespace Wiesel {
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 		if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-			LOG_DEBUG("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_DEBUG(std::string(pCallbackData->pMessage));
 		} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-			LOG_WARN("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_WARN(std::string(pCallbackData->pMessage));
 		} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-			LOG_ERROR("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_ERROR(std::string(pCallbackData->pMessage));
 		} else {
-			LOG_INFO("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_INFO(std::string(pCallbackData->pMessage));
 		}
 		return VK_FALSE;
 	}

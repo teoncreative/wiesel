@@ -48,6 +48,9 @@ namespace Wiesel {
 		virtual void OnUpdate() = 0;
 		virtual bool IsShouldClose() = 0;
 
+		virtual void ImGuiInit();
+		virtual void ImGuiNewFrame();
+
 		void SetEventHandler(const WindowEventFn& callback);
 		WIESEL_GETTER_FN WindowEventFn& GetEventHandler();
 
