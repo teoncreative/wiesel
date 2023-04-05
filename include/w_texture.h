@@ -23,7 +23,7 @@ namespace Wiesel {
 		Texture(TextureType textureType, const std::string& path);
 		~Texture();
 
-		TextureType m_TextureType;
+		TextureType m_Type;
 		VkImage m_Image;
 		VkDeviceMemory m_DeviceMemory;
 		VkImageView m_ImageView;
@@ -35,7 +35,7 @@ namespace Wiesel {
 		int32_t m_Channels;
 		VkDeviceSize m_Size;
 
-		bool m_Allocated;
+		bool m_IsAllocated;
 		std::string m_Path;
 	};
 

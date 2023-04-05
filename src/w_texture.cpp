@@ -8,29 +8,30 @@
 
 #include "w_texture.h"
 #include "w_renderer.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 
-	Texture::Texture(TextureType textureType, const std::string& path) : m_TextureType(textureType), m_Path(path)  {
+	Texture::Texture(TextureType textureType, const std::string& path) : m_Type(textureType), m_Path(path)  {
 		m_Width = 0;
 		m_Height = 0;
 		m_Size = 0;
-		m_Allocated = false;
+		m_IsAllocated = false;
 		m_MipLevels = 1;
 	}
 
 	Texture::~Texture() {
-        switch (m_TextureType) {
+        switch (m_Type) {
             case TextureTypeDepthStencil: {
-                Renderer::GetRenderer()->DestroyDepthStencil(*this);
+                Engine::GetRenderer()->DestroyDepthStencil(*this);
                 break;
             }
             case TextureTypeTexture: {
-                Renderer::GetRenderer()->DestroyTexture(*this);
+                Engine::GetRenderer()->DestroyTexture(*this);
                 break;
             }
 			case TextureTypeColorImage: {
-				Renderer::GetRenderer()->DestroyColorImage(*this);
+				Engine::GetRenderer()->DestroyColorImage(*this);
 				break;
 			}
 			default: {

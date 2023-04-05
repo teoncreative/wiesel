@@ -12,7 +12,6 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_object.h"
 #include "util/w_color.h"
 
 namespace Wiesel {
@@ -20,7 +19,8 @@ namespace Wiesel {
 		LightTypeDirect,
 		LightTypePoint
 	};
-
+/*
+	// todo make these components
 	class Light : public Object {
 	public:
 		Light(LightType type, float intensity, Colorf color);
@@ -59,6 +59,6 @@ namespace Wiesel {
 		float m_LightQuadratic;
 
 	};
-
+*/
 
 }

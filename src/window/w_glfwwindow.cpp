@@ -15,7 +15,7 @@
 namespace Wiesel {
 	GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties) : AppWindow(properties) {
 		glfwInit();
-		LogDebug("GLFW Vulkan Support: " + std::to_string(glfwVulkanSupported()));
+		LOG_DEBUG("GLFW Vulkan Support: " + std::to_string(glfwVulkanSupported()));
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		if (m_Properties.Resizable) {
 			glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -117,7 +117,7 @@ namespace Wiesel {
 	}
 
 	GlfwAppWindow::~GlfwAppWindow() {
-		Wiesel::LogDebug("Destroying GlfwAppWindow");
+		LOG_DEBUG("Destroying GlfwAppWindow");
 		glfwDestroyWindow(m_Handle);
 	}
 

@@ -104,7 +104,6 @@ namespace Wiesel {
 	template<typename A, typename B>
 	using Pair = std::pair<A, B>;
 
-
 	class Time {
 	public:
 		static float_t GetTime();

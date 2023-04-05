@@ -19,15 +19,15 @@ layout(location = 2) out uint outHasTexture;
 layout(location = 3) out vec3 outEyePos;
 layout(location = 4) out vec3 outNormal;
 
-const vec3 DIRECTION_TO_LIGHT = normalize(vec3(1.0, 10.0, 1.0));
+const vec3 DIRECTION_TO_LIGHT = normalize(vec3(1.0, 6.0, 0.0));
 const float AMBIENT = 0.05f;
-const float DENSITY = 10.0f;
+const float DENSITY = 1.0f;
 
 void main() {
     vec3 normalWorldSpace = normalize(ubo.normalMatrix * inNormal);
     float light = AMBIENT + max(dot(normalWorldSpace, DIRECTION_TO_LIGHT * DENSITY), 0.0);
 
-    mat4 modelView = ubo.model * ubo.view;
+    mat4 modelView = ubo.view * ubo.model;
     gl_Position = ubo.proj * modelView * vec4(inPosition, 1.0);
     outEyePos = vec3(-modelView);
     outColor = inColor * light;
