@@ -36,6 +36,9 @@ namespace Wiesel {
 		void PushLayer(const Reference<Layer>& layer);
 		void RemoveLayer(const Reference<Layer>& layer);
 
+		void PushOverlay(const Reference<Layer>& layer);
+		void RemoveOverlay(const Reference<Layer>& layer);
+
 		bool OnWindowClose(WindowCloseEvent& event);
 		bool OnWindowResize(WindowResizeEvent& event);
 
@@ -49,6 +52,7 @@ namespace Wiesel {
 		bool m_WindowResized;
 		WindowSize m_WindowSize;
 		std::vector<Reference<Layer>> m_Layers;
+		std::vector<Reference<Layer>> m_Overlays;
 		uint32_t m_LayerCounter;
 		Reference<AppWindow> m_Window;
 		float_t m_PreviousFrame = 0.0;

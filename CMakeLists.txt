@@ -45,7 +45,21 @@ message("Demo Dir: ${DEMO_DIRECTORY}")
 file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cpp" "${DEMO_DIRECTORY}/*.cpp")
 file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h" "${DEMO_DIRECTORY}/*.h")
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+# move imgui sources to somewhere else
+include_directories(${ENGINE_DIR}/deps/imgui)
+file(
+        GLOB LibImGui
+        "${ENGINE_DIR}/deps/imgui/imgui.cpp"
+        "${ENGINE_DIR}/deps/imgui/imgui_draw.cpp"
+        "${ENGINE_DIR}/deps/imgui/imgui_widgets.cpp"
+        "${ENGINE_DIR}/deps/imgui/imgui_tables.cpp"
+        "${ENGINE_DIR}/deps/imgui/imgui_demo.cpp" # remove
+        "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_metal.cpp"
+        "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_vulkan.cpp"
+        "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_glfw.cpp"
+        "${ENGINE_DIR}/deps/imgui/*.h"
+)
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${LibImGui})
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRECTORY}/w_pch.h)
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
@@ -61,7 +75,6 @@ if (VULKAN_FOUND)
 endif(VULKAN_FOUND)
 
 include_directories(${ENGINE_DIR}/deps/stb)
-include_directories(${ENGINE_DIR}/deps/tinyobjloader)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
