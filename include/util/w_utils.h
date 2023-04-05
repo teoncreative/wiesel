@@ -39,7 +39,8 @@ namespace Wiesel {
 	struct Vertex {
 		glm::vec3 Pos;
 		glm::vec3 Color;
-		glm::vec2 TexCoord;
+		glm::vec2 UV;
+		glm::vec3 Normal;
 		bool HasTexture;
 
 		static VkVertexInputBindingDescription GetBindingDescription() {
@@ -51,34 +52,20 @@ namespace Wiesel {
 			return bindingDescription;
 		}
 
-		static std::array<VkVertexInputAttributeDescription, 4> GetAttributeDescriptions() {
-			std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+		static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() {
+			std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
-			attributeDescriptions[0].binding = 0;
-			attributeDescriptions[0].location = 0;
-			attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-			attributeDescriptions[0].offset = offsetof(Vertex, Pos);
-
-			attributeDescriptions[1].binding = 0;
-			attributeDescriptions[1].location = 1;
-			attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-			attributeDescriptions[1].offset = offsetof(Vertex, Color);
-
-			attributeDescriptions[2].binding = 0;
-			attributeDescriptions[2].location = 2;
-			attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-			attributeDescriptions[2].offset = offsetof(Vertex, TexCoord);
-
-			attributeDescriptions[3].binding = 0;
-			attributeDescriptions[3].location = 3;
-			attributeDescriptions[3].format = VK_FORMAT_R8_UINT;
-			attributeDescriptions[3].offset = offsetof(Vertex, HasTexture);
+			attributeDescriptions.push_back({0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Pos)});
+			attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Color)});
+			attributeDescriptions.push_back({2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, UV)});
+			attributeDescriptions.push_back({3, 0, VK_FORMAT_R8_UINT, offsetof(Vertex, HasTexture)});
+			attributeDescriptions.push_back({4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Normal)});
 
 			return attributeDescriptions;
 		}
 
 		bool operator==(const Vertex& other) const {
-			return Pos == other.Pos && Color == other.Color && TexCoord == other.TexCoord;
+			return Pos == other.Pos && Color == other.Color && UV == other.UV;
 		}
 	};
 
@@ -86,7 +73,7 @@ namespace Wiesel {
 		std::size_t operator () (const Wiesel::Vertex& vertex) const {
 			auto posHash = std::hash<glm::vec3>{}(vertex.Pos);
 			auto colorHash = std::hash<glm::vec3>{}(vertex.Color);
-			auto texHash = std::hash<glm::vec2>{}(vertex.TexCoord);
+			auto texHash = std::hash<glm::vec2>{}(vertex.UV);
 			return ((posHash ^ (colorHash << 1)) >> 1) ^ (texHash << 1);
 		}
 	};
@@ -95,6 +82,7 @@ namespace Wiesel {
 		glm::mat4 Model;
 		glm::mat4 View;
 		glm::mat4 Proj;
+		glm::mat3 NormalMatrix;
 	};
 
 	template<typename T>
@@ -115,7 +103,6 @@ namespace Wiesel {
 
 	template<typename A, typename B>
 	using Pair = std::pair<A, B>;
-
 
 	class Time {
 	public:

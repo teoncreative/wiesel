@@ -11,7 +11,7 @@
 
 namespace Wiesel {
 
-	Layer::Layer() {
+	Layer::Layer(const std::string& layerName) : m_LayerName(layerName) {
 
 	}
 

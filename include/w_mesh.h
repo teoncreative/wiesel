@@ -10,56 +10,55 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_object.h"
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <assimp/cimport.h>
+
 #include "w_buffer.h"
 #include "w_texture.h"
 #include "w_descriptor.h"
+#include "scene/w_components.h"
 
 namespace Wiesel {
-	class Mesh : public Object {
-	public:
+	struct Mesh {
 		Mesh();
-
-		Mesh(const glm::vec3& position, const glm::quat& orientation);
-		Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices);
-
-		Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale);
-		Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale, std::vector<Vertex> vertices, std::vector<Index> indices);
-
 		Mesh(std::vector<Vertex> vertices, std::vector<Index> indices);
 		~Mesh();
 
-		WIESEL_GETTER_FN bool IsAllocated() const;
-		WIESEL_GETTER_FN Reference<MemoryBuffer> GetVertexBuffer();
-		WIESEL_GETTER_FN Reference<MemoryBuffer> GetIndexBuffer();
-		WIESEL_GETTER_FN Reference<UniformBufferSet> GetUniformBufferSet();
-		WIESEL_GETTER_FN Reference<Texture> GetTexture();
-		WIESEL_GETTER_FN Reference<DescriptorPool> GetDescriptors();
-		WIESEL_GETTER_FN std::vector<Vertex> GetVertices();
-		WIESEL_GETTER_FN std::vector<Index> GetIndices();
-
-		void AddVertex(Vertex vertex);
-		void AddIndex(Index index);
-		void SetTexture(const std::string& path);
-		void SetTexture(Reference<Texture> texture);
-
-		void LoadFromObj(const std::string& modelPath, const std::string& texturePath);
-
-		void UpdateUniformBuffer();
+		void UpdateUniformBuffer(TransformComponent& transform) const;
 		void Allocate();
 		void Deallocate();
 
-	protected:
-		std::vector<Vertex> m_Vertices;
-		std::vector<Index> m_Indices;
-		bool m_Allocated;
-		std::string m_TexturePath;
-		std::string m_ModelPath;
+		std::vector<Vertex> Vertices;
+		std::vector<Index> Indices;
+		std::string TexturePath;
+		std::string ModelPath;
 
-		Reference<MemoryBuffer> m_VertexBuffer;
-		Reference<MemoryBuffer> m_IndexBuffer;
-		Reference<UniformBufferSet> m_UniformBufferSet;
-		Reference<Texture> m_Texture;
-		Reference<DescriptorPool> m_Descriptors;
+		bool IsAllocated;
+		// Render Data
+		Reference<MemoryBuffer> VertexBuffer;
+		Reference<MemoryBuffer> IndexBuffer;
+		Reference<UniformBufferSet> UniformBufferSet;
+		Reference<Texture> Texture;
+
+		Reference<DescriptorPool> Descriptors;
+	};
+
+	struct Model {
+		Model() = default;
+		~Model() = default;
+
+		std::vector<Reference<Mesh>> Meshes;
+		std::string ModelPath;
+		std::string TexturesPath;
+		std::map<std::string, Reference<Texture>> Textures;
+	};
+
+	struct ModelComponent {
+		ModelComponent() = default;
+		ModelComponent(const ModelComponent&) = default;
+
+		Model Data;
 	};
 }

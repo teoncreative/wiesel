@@ -23,7 +23,7 @@ namespace Wiesel {
 		Texture(TextureType textureType, const std::string& path);
 		~Texture();
 
-		TextureType m_TextureType;
+		TextureType m_Type;
 		VkImage m_Image;
 		VkDeviceMemory m_DeviceMemory;
 		VkImageView m_ImageView;
@@ -35,12 +35,12 @@ namespace Wiesel {
 		int32_t m_Channels;
 		VkDeviceSize m_Size;
 
-		bool m_Allocated;
+		bool m_IsAllocated;
 		std::string m_Path;
 	};
 
 	struct TextureProps {
-		TextureProps() : GenerateMipmaps(true), ImageFormat(VK_FORMAT_R8G8B8A8_SRGB), MagFilter(VK_FILTER_LINEAR), MinFilter(VK_FILTER_LINEAR) {}
+		TextureProps() : GenerateMipmaps(true), ImageFormat(VK_FORMAT_R8G8B8A8_SRGB), MagFilter(VK_FILTER_LINEAR), MinFilter(VK_FILTER_LINEAR), MaxAnistropy(-1.0f) {}
 		TextureProps(bool generateMipmaps, VkFormat imageFormat, VkFilter magFilter, VkFilter minFilter) : GenerateMipmaps(generateMipmaps), ImageFormat(imageFormat), MagFilter(magFilter), MinFilter(minFilter) {}
 
 		bool GenerateMipmaps;

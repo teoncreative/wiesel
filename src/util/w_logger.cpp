@@ -17,27 +17,44 @@ namespace Wiesel {
 		minLogLevel = level;
 	}
 
-	void LogDebug(const std::string& s) {
+/*
++---------+------------+------------+
+|  color  | foreground | background |
+|         |    code    |    code    |
++---------+------------+------------+
+| black   |     30     |     40     |
+| red     |     31     |     41     |
+| green   |     32     |     42     |
+| yellow  |     33     |     43     |
+| blue    |     34     |     44     |
+| magenta |     35     |     45     |
+| cyan    |     36     |     46     |
+| white   |     37     |     47     |
++---------+------------+------------+
+reset \x1b[0m
+ */
+
+	void LogDebug(const std::string& fn, const std::string& s) {
 		if(minLogLevel > Debug)
 			return;
-		std::cout << "[debug]: " << s << std::endl;
+		std::cout << "\x1b[44m[debug]\x1b[0m \x1b[35m" << fn << ": \x1b[0m" << s << "\x1b[0m" <<std::endl;
 	}
 
-	void LogInfo(const std::string& s) {
+	void LogInfo(const std::string& fn, const std::string& s) {
 		if(minLogLevel > Info)
 			return;
-		std::cout << "[info ]: " << s << std::endl;
+		std::cout << "\x1b[42m[info ]\x1b[0m \x1b[35m" << fn << ": \x1b[0m" << s << "\x1b[0m" <<std::endl;
 	}
 
-	void LogWarn(const std::string& s) {
+	void LogWarn(const std::string& fn, const std::string& s) {
 		if(minLogLevel > Warn)
 			return;
-		std::cerr << "[warn ]: " << s << std::endl;
+		std::cout << "\x1b[41m[warn ]\x1b[0m \x1b[35m" << fn << ": \x1b[31m" << s << "\x1b[0m" <<std::endl;
 	}
 
-	void LogError(const std::string& s) {
+	void LogError(const std::string& fn, const std::string& s) {
 		if(minLogLevel > Error)
 			return;
-		std::cerr << "[error]: " << s << std::endl;
+		std::cout << "\x1b[41m[error]\x1b[0m \x1b[35m" << fn << ": \x1b[31m" << s << "\x1b[0m" <<std::endl;
 	}
 }

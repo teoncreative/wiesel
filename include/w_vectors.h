@@ -17,6 +17,7 @@ namespace Wiesel {
 	// todo
 	class Vector3 {
 	public:
+		Vector3();
 		Vector3(Reference<glm::vec3> backingVector);
 		~Vector3();
 
@@ -58,6 +59,14 @@ namespace Wiesel {
 
 		Vector3 operator*(const Vector3& rhs) const {
 			return {CreateReference<glm::vec3>((*m_BackingVector) * (*rhs.m_BackingVector))};
+		}
+
+		operator const glm::vec3&() { // NOLINT(google-explicit-constructor)
+			return *m_BackingVector;
+		}
+
+		operator Reference<glm::vec3>() { // NOLINT(google-explicit-constructor)
+			return m_BackingVector;
 		}
 	private:
 		Reference<glm::vec3> m_BackingVector;

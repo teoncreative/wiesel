@@ -9,16 +9,16 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_object.h"
-#ifdef DEBUG
-#define WIESEL_PROFILE 1
-#endif
+//#ifdef DEBUG
+//#define WIESEL_PROFILE 1
+//#endif
 #include "util/w_profiler.h"
 #include "util/w_utils.h"
 #include "events/w_events.h"
 #include "events/w_appevents.h"
 #include "w_layer.h"
 #include "w_renderer.h"
+#include "scene/w_scene.h"
 
 namespace Wiesel {
 	class Application {
@@ -41,6 +41,7 @@ namespace Wiesel {
 
 		WIESEL_GETTER_FN Reference<AppWindow> GetWindow();
 		WIESEL_GETTER_FN const WindowSize& GetWindowSize();
+		WIESEL_GETTER_FN Reference<Scene> GetScene();
 
 	protected:
 		bool m_IsRunning;
@@ -52,7 +53,7 @@ namespace Wiesel {
 		Reference<AppWindow> m_Window;
 		float_t m_PreviousFrame = 0.0;
 		float_t m_DeltaTime = 0.0;
+		Reference<Scene> m_Scene;
 	};
 
-	Application* CreateApp();
 }

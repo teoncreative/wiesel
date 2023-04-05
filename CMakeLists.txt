@@ -80,6 +80,9 @@ set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
 add_subdirectory(${ENGINE_DIR}/deps/assimp)
 target_link_libraries(${PROJECT_NAME} assimp)
 
+add_subdirectory(${ENGINE_DIR}/deps/entt)
+target_link_libraries(${PROJECT_NAME} EnTT)
+
 if(APPLE)
     message("Platform: Apple")
     set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
