@@ -24,6 +24,9 @@
 #include "w_descriptor.h"
 #include "util/w_color.h"
 #include "scene/w_components.h"
+#include <imgui.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <backends/imgui_impl_glfw.h>
 
 namespace Wiesel {
 	class Renderer {
@@ -133,6 +136,8 @@ namespace Wiesel {
 		VkSampleCountFlagBits m_MsaaSamples;
 		VkSampleCountFlagBits m_PreviousMsaaSamples;
 		Colorf m_ClearColor;
+		VkDescriptorPool m_ImGuiPool;
+
 
 		void CreateVulkanInstance();
 		void CreateSurface();
@@ -151,6 +156,8 @@ namespace Wiesel {
 		void CreatePermanentResources();
 		void CreateSyncObjects();
 		void CleanupSwapChain();
+		void CreateImGui();
+		void CleanupImGui();
 		VkShaderModule CreateShaderModule(const std::vector<char>& code);
 		int32_t RateDeviceSuitability(VkPhysicalDevice device);
 		bool IsDeviceSuitable(VkPhysicalDevice device);

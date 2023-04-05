@@ -11,6 +11,7 @@
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
 #include "events/w_appevents.h"
+#include "backends/imgui_impl_glfw.h"
 
 namespace Wiesel {
 	GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties) : AppWindow(properties) {
@@ -156,6 +157,14 @@ namespace Wiesel {
 		const char** glfwExtensions;
 		glfwExtensions = glfwGetRequiredInstanceExtensions(extensionsCount);
 		return glfwExtensions;
+	}
+
+	void GlfwAppWindow::ImGuiInit() {
+		ImGui_ImplGlfw_InitForVulkan(m_Handle, true);
+	}
+
+	void GlfwAppWindow::ImGuiNewFrame() {
+		ImGui_ImplGlfw_NewFrame();
 	}
 
 	float_t Time::GetTime() {
