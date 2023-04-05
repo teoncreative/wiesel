@@ -7,7 +7,7 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 
 #include "w_descriptor.h"
-#include "w_renderer.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 
@@ -17,6 +17,6 @@ namespace Wiesel {
 	}
 
 	DescriptorPool::~DescriptorPool() {
-		Renderer::GetRenderer()->DestroyDescriptors(*this);
+		Engine::GetRenderer()->DestroyDescriptors(*this);
 	}
 }

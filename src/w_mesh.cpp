@@ -9,204 +9,70 @@
 
 #include "w_mesh.h"
 #include "w_renderer.h"
-
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+#include "w_engine.h"
 
 namespace Wiesel {
-	Mesh::Mesh() : Object() {
-		m_TexturePath = "";
-		m_Texture = nullptr;
-        m_Allocated = false;
+
+	Mesh::Mesh() {
+		TexturePath = "";
+		Texture = nullptr;
+		IsAllocated = false;
 	}
 
-	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation) : Object(position, orientation) {
-		m_TexturePath = "";
-		m_Texture = nullptr;
-        m_Allocated = false;
-	}
-
-	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation) {
-		m_Vertices = vertices;
-		m_Indices = indices;
-		m_TexturePath = "";
-		m_Texture = nullptr;
-        m_Allocated = false;
-	}
-
-	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale) : Object(position, orientation, scale) {
-		m_TexturePath = "";
-		m_Texture = nullptr;
-        m_Allocated = false;
-	}
-
-	Mesh::Mesh(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale, std::vector<Vertex> vertices, std::vector<Index> indices): Mesh(position, orientation, scale) {
-		m_Vertices = vertices;
-		m_Indices = indices;
-		m_TexturePath = "";
-		m_Texture = nullptr;
-        m_Allocated = false;
-	}
-
-	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Index> indices): Object() {
-		m_Vertices = vertices;
-		m_Indices = indices;
-		m_TexturePath = "";
-		m_Texture = nullptr;
-        m_Allocated = false;
+	Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Index> indices) {
+		Vertices = vertices;
+		Indices = indices;
+		TexturePath = "";
+		Texture = nullptr;
+		IsAllocated = false;
 	}
 
 	Mesh::~Mesh() {
 		Deallocate();
 	}
 
-	bool Mesh::IsAllocated() const {
-		return m_Allocated;
-	}
-
-	Reference<MemoryBuffer> Mesh::GetVertexBuffer() {
-		return m_VertexBuffer;
-	}
-
-	Reference<MemoryBuffer> Mesh::GetIndexBuffer() {
-		return m_IndexBuffer;
-	}
-
-	Reference<UniformBufferSet> Mesh::GetUniformBufferSet() {
-		return m_UniformBufferSet;
-	}
-
-	Reference<Texture> Mesh::GetTexture() {
-		return m_Texture;
-	}
-
-	Reference<DescriptorPool> Mesh::GetDescriptors() {
-		return m_Descriptors;
-	}
-
-	std::vector<Vertex> Mesh::GetVertices() {
-		return m_Vertices;
-	}
-
-	std::vector<Index> Mesh::GetIndices() {
-		return m_Indices;
-	}
-
-	void Mesh::AddVertex(Vertex vertex) {
-		m_Vertices.push_back(vertex);
-	}
-
-	void Mesh::AddIndex(Index index) {
-		m_Indices.push_back(index);
-	}
-
-	void Mesh::SetTexture(const std::string& path) {
-		m_TexturePath = path;
-		if (!m_Allocated) {
-			return;
-		}
-		if (!path.empty()) {
-			m_Texture = Renderer::GetRenderer()->CreateTexture(path, {});
-		} else {
-			m_Texture = nullptr;
-		}
-		// Recreate descriptors
-		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
-	}
-
-	void Mesh::SetTexture(Reference<Wiesel::Texture> texture) {
-		m_TexturePath = texture->m_Path;
-		m_Texture = texture;
-	}
-
-	void Mesh::LoadFromObj(const std::string& modelPath, const std::string& texturePath) {
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
-		std::string warn, err;
-
-		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelPath.c_str())) {
-			throw std::runtime_error(warn + err);
-		}
-		Deallocate();
-
-		m_TexturePath = texturePath;
-		m_ModelPath = modelPath;
-
-		m_Vertices.clear();
-		m_Indices.clear();
-
-		bool hasTexture = !m_TexturePath.empty();
-		std::unordered_map<Vertex, Index, vertex_hash> uniqueVertices{};
-		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex{};
-				vertex.Pos = {
-						attrib.vertices[3 * index.vertex_index + 0],
-						attrib.vertices[3 * index.vertex_index + 1],
-						attrib.vertices[3 * index.vertex_index + 2],
-				};
-
-				vertex.TexCoord = {
-						attrib.texcoords[2 * index.texcoord_index + 0],
-						1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
-				vertex.HasTexture = hasTexture;
-				vertex.Color = {1.0f, 1.0f, 1.0f};
-
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(m_Vertices.size());
-					AddVertex(vertex);
-				}
-
-				AddIndex(uniqueVertices[vertex]);
-			}
-		}
-
-		Allocate();
-	}
-
-	void Mesh::UpdateUniformBuffer() {
-		if (!m_Allocated) {
+	void Mesh::UpdateUniformBuffer(TransformComponent& transform) const {
+		if (!IsAllocated) {
 			return;
 		}
 
-		Reference<Camera> camera = Renderer::GetRenderer()->GetActiveCamera();
+		Reference<Camera> camera = Engine::GetRenderer()->GetActiveCamera();
 		Wiesel::UniformBufferObject ubo{};
-		ubo.Model = m_LocalView;
-		ubo.View = glm::inverse(camera->GetLocalView());
+		ubo.Model = transform.LocalView;
+		ubo.View = glm::inverse(camera->GetView());
 		ubo.Proj = camera->GetProjection();
+		ubo.NormalMatrix = transform.NormalMatrix;
 
-		uint32_t currentFrame = Renderer::GetRenderer()->GetCurrentFrame();
-		memcpy(m_UniformBufferSet->m_Buffers[currentFrame]->m_Data, &ubo, sizeof(ubo));
+		uint32_t currentFrame = Engine::GetRenderer()->GetCurrentFrame();
+		memcpy(UniformBufferSet->m_Buffers[currentFrame]->m_Data, &ubo, sizeof(ubo));
 	}
 
 	void Mesh::Allocate() {
-		if (m_Allocated) {
+		if (IsAllocated) {
 			Deallocate();
 		}
 
-		m_VertexBuffer = Renderer::GetRenderer()->CreateVertexBuffer(m_Vertices);
-		m_IndexBuffer = Renderer::GetRenderer()->CreateIndexBuffer(m_Indices);
-		m_UniformBufferSet = Renderer::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight);
-		if (!m_TexturePath.empty()) {
-			m_Texture = Renderer::GetRenderer()->CreateTexture(m_TexturePath, {});
+		VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(Vertices);
+		IndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(Indices);
+		UniformBufferSet = Engine::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight);
+		if (!TexturePath.empty()) {
+			Texture = Engine::GetRenderer()->CreateTexture(TexturePath, {});
 		}
-		m_Descriptors = Renderer::GetRenderer()->CreateDescriptors(m_UniformBufferSet, m_Texture);
-		m_Allocated = true;
+		Descriptors = Engine::GetRenderer()->CreateDescriptors(UniformBufferSet, Texture);
+		IsAllocated = true;
 	}
 
 	void Mesh::Deallocate() {
-		if (!m_Allocated) {
+		if (!IsAllocated) {
 			return;
 		}
 
-		m_Texture = nullptr;
-		m_UniformBufferSet = nullptr;
-		m_Descriptors = nullptr;
-		m_VertexBuffer = nullptr;
-		m_IndexBuffer = nullptr;
-		m_Allocated = false;
+		Texture = nullptr;
+		UniformBufferSet = nullptr;
+		Descriptors = nullptr;
+		VertexBuffer = nullptr;
+		IndexBuffer = nullptr;
+		IsAllocated = false;
 	}
 
 }

@@ -1,4 +1,4 @@
 # Wiesel
-Wiesel is a cross platform (wannabe) C++ game engine made using Vulkan.
+Wiesel is a cross-platform C++ game engine made using Vulkan.
 
 TODO

@@ -15,6 +15,8 @@
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
 #include "w_keymanager.h"
+#include "scene/w_scene.h"
+#include "scene/w_entity.h"
 
 namespace WieselDemo {
 	class DemoApplication : public Wiesel::Application {
@@ -42,7 +44,9 @@ namespace WieselDemo {
 
 	private:
 		DemoApplication& m_App;
-		Wiesel::KeyManager m_KeyManager;
+		Wiesel::KeyManager m_KeyManager; // move this to the engine or base app class
+		Wiesel::Reference<Wiesel::Scene> m_Scene;
+		Wiesel::Reference<Wiesel::Renderer> m_Renderer;
 
 		float_t m_InputX;
 		float_t m_InputY;

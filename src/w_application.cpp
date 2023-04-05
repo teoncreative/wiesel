@@ -8,6 +8,7 @@
 
 #include "w_application.h"
 #include "window/w_glfwwindow.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 	Application::Application() {
@@ -16,24 +17,29 @@ namespace Wiesel {
 		m_IsRunning = true;
 		m_IsMinimized = false;
 
-		m_Window = CreateReference<GlfwAppWindow>(WindowProperties());
+		Engine::InitWindow(WindowProperties());
+		m_Window = Engine::GetWindow();
 		m_Window->SetEventHandler(WIESEL_BIND_EVENT_FUNCTION(Application::OnEvent));
-
-		Renderer::Create(m_Window);
 
 		m_Window->GetWindowFramebufferSize(m_WindowSize);
 		if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
 			m_IsMinimized = true;
 		}
+
+		Engine::InitRenderer();
+		m_Scene = CreateReference<Scene>();
 	}
 
 	Application::~Application() {
-		Wiesel::LogDebug("Destroying Application");
+		LOG_DEBUG("Destroying Application");
 		for (const auto& item : m_Layers) {
 			item->OnDetach();
 		}
 		m_Layers.clear();
-		Renderer::Destroy();
+		m_Scene = nullptr;
+		m_Window = nullptr;
+		Engine::CleanupRenderer();
+		Engine::CleanupWindow();
 	}
 
 	void Application::OnEvent(Event& event) {
@@ -74,10 +80,9 @@ namespace Wiesel {
 					layer->OnUpdate(m_DeltaTime);
 				}
 
-                Renderer::GetRenderer()->BeginFrame();
-                Renderer::GetRenderer()->DrawMeshes();
-                Renderer::GetRenderer()->DrawModels();
-                Renderer::GetRenderer()->EndFrame();
+                Engine::GetRenderer()->BeginFrame();
+				m_Scene->Render();
+                Engine::GetRenderer()->EndFrame();
             }
 
 			m_Window->OnUpdate();
@@ -88,7 +93,7 @@ namespace Wiesel {
 					m_IsMinimized = true;
 				} else {
 					m_IsMinimized = false;
-                    Renderer::GetRenderer()->RecreateSwapChain();
+                    Engine::GetRenderer()->RecreateSwapChain();
 				}
 				m_WindowResized = false;
 			}
@@ -115,5 +120,9 @@ namespace Wiesel {
 
 	const WindowSize& Application::GetWindowSize() {
 		return m_WindowSize;
+	}
+
+	Reference<Scene> Application::GetScene() {
+		return m_Scene;
 	}
 }

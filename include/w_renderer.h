@@ -18,27 +18,18 @@
 #include "util/w_utils.h"
 #include "w_buffer.h"
 #include "w_mesh.h"
-#include "w_model.h"
 #include "window/w_window.h"
 #include "w_camera.h"
 #include "w_texture.h"
 #include "w_descriptor.h"
 #include "util/w_color.h"
+#include "scene/w_components.h"
 
 namespace Wiesel {
 	class Renderer {
 	public:
 		explicit Renderer(Reference<AppWindow> window);
 		~Renderer();
-
-		static void Create(Reference<AppWindow> window);
-		static void Destroy();
-		WIESEL_GETTER_FN static Reference<Renderer> GetRenderer();
-
-		void AddMesh(Reference<Mesh> mesh);
-		void RemoveMesh(Reference<Mesh> mesh);
-
-		void AddModel(Reference<Model> mesh);
 
 		Reference<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
 		void DestroyVertexBuffer(MemoryBuffer& buffer);
@@ -67,11 +58,11 @@ namespace Wiesel {
 
 		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
 		void AddCamera(Reference<Camera> camera);
-		void SetActiveCamera(uint64_t id);
+		void SetActiveCamera(uint32_t id);
 
 		void SetClearColor(float r, float g, float b, float a = 1.0f);
-		void SetClearColor(const Color<float>& color);
-		WIESEL_GETTER_FN Color<float>& GetClearColor();
+		void SetClearColor(const Colorf& color);
+		WIESEL_GETTER_FN Colorf& GetClearColor();
 
 		void SetMsaaSamples(VkSampleCountFlagBits samples);
 		WIESEL_GETTER_FN VkSampleCountFlagBits GetMsaaSamples();
@@ -82,17 +73,15 @@ namespace Wiesel {
 		WIESEL_GETTER_FN WindowSize GetWindowSize() const;
 
 		void BeginFrame();
-		void DrawMeshes();
-		void DrawModels();
-
-		void DrawMesh(Reference<Mesh> mesh);
-		void DrawModel(Reference<Model> model);
+		void DrawModel(ModelComponent& model, TransformComponent& transform);
+		void DrawMesh(Mesh& mesh, TransformComponent& transform);
 		void EndFrame();
 
 		void RecreateSwapChain();
 
 		void PublishEvent(Event& event);
 
+		void Cleanup();
 	private:
 		friend class Mesh;
 
@@ -137,17 +126,14 @@ namespace Wiesel {
 		std::vector<VkFence> inFlightFences;
 
 		uint32_t m_CurrentFrame = 0;
-		std::vector<Reference<Mesh>> m_Meshes;
-		std::vector<Reference<Model>> m_Models;
 		std::vector<Reference<Camera>> m_Cameras;
-		uint64_t m_ActiveCameraId;
+		uint32_t m_ActiveCameraId;
 		float_t m_AspectRatio;
 		WindowSize m_WindowSize;
 		VkSampleCountFlagBits m_MsaaSamples;
 		VkSampleCountFlagBits m_PreviousMsaaSamples;
-		Color<float> m_ClearColor;
+		Colorf m_ClearColor;
 
-		void Cleanup();
 		void CreateVulkanInstance();
 		void CreateSurface();
 		void CreateImageViews();

@@ -8,9 +8,9 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 
 #include "w_renderer.h"
+#include "w_vectors.h"
 
 namespace Wiesel {
-	Reference<Renderer> Renderer::s_Renderer;
 
 	Renderer::Renderer(Reference<AppWindow> window) : m_Window(window) {
 #ifdef DEBUG
@@ -48,27 +48,12 @@ namespace Wiesel {
 		CreateFramebuffers();
 		CreateSyncObjects();
 
-		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(1.0f), glm::quat(), m_AspectRatio);
+		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_AspectRatio);
 		AddCamera(camera);
-		SetActiveCamera(camera->GetObjectId());
+		SetActiveCamera(camera->GetId());
 	}
 
-	Renderer::~Renderer() {
-
-	}
-
-	void Renderer::Create(Reference<AppWindow> window) {
-		s_Renderer = CreateReference<Renderer>(window);
-	}
-
-	void Renderer::Destroy() {
-		s_Renderer->Cleanup();
-		s_Renderer = nullptr;
-	}
-
-	Reference<Renderer> Renderer::GetRenderer() {
-		return s_Renderer;
-	}
+	Renderer::~Renderer() = default;
 
 	VkDevice Renderer::GetLogicalDevice() {
 		return m_LogicalDevice;
@@ -80,7 +65,7 @@ namespace Wiesel {
 		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 		VkBuffer stagingBuffer;
 		VkDeviceMemory stagingBufferMemory;
-		Renderer::GetRenderer()->CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+		CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
 		void* data;
 		vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
@@ -148,16 +133,19 @@ namespace Wiesel {
 	}
 
 	void Renderer::DestroyIndexBuffer(MemoryBuffer& buffer) {
+		vkDeviceWaitIdle(m_LogicalDevice);
 		vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, buffer.m_BufferMemory, nullptr);
 	}
 
 	void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
+		vkDeviceWaitIdle(m_LogicalDevice);
 		vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
 		vkFreeMemory(m_LogicalDevice, buffer.m_BufferMemory, nullptr);
 	}
 
 	void Renderer::DestroyUniformBufferSet(UniformBufferSet& bufferSet) {
+		vkDeviceWaitIdle(m_LogicalDevice);
 		// todo reuse pools
 		bufferSet.m_Buffers.clear();
 	}
@@ -227,7 +215,7 @@ namespace Wiesel {
 
 		texture->m_ImageView = CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
 
-		texture->m_Allocated = true;
+		texture->m_IsAllocated = true;
 		return texture;
 	}
 
@@ -288,12 +276,17 @@ namespace Wiesel {
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
 
-		if (props.MaxAnistropy > 0 && properties.limits.maxSamplerAnisotropy > 0) {
+		if (props.MaxAnistropy != 0.0f && properties.limits.maxSamplerAnisotropy > 0) {
 			samplerInfo.anisotropyEnable = VK_TRUE;
-			samplerInfo.maxAnisotropy = std::min(properties.limits.maxSamplerAnisotropy, props.MaxAnistropy);
+			if (props.MaxAnistropy < 0) {
+				samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+			} else {
+				samplerInfo.maxAnisotropy = std::min(properties.limits.maxSamplerAnisotropy, props.MaxAnistropy);
+			}
 		} else {
 			samplerInfo.anisotropyEnable = VK_FALSE;
 		}
+
 		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		samplerInfo.unnormalizedCoordinates = VK_FALSE;
 		samplerInfo.compareEnable = VK_FALSE;
@@ -308,7 +301,7 @@ namespace Wiesel {
 
 		texture->m_ImageView = CreateImageView(texture->m_Image, props.ImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, texture->m_MipLevels);
 
-		texture->m_Allocated = true;
+		texture->m_IsAllocated = true;
 		return texture;
 	}
 
@@ -321,7 +314,7 @@ namespace Wiesel {
 		texture->m_ImageView = CreateImageView(texture->m_Image, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 		TransitionImageLayout(texture->m_Image, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 
-		texture->m_Allocated = true;
+		texture->m_IsAllocated = true;
 		return texture;
 	}
 
@@ -333,45 +326,47 @@ namespace Wiesel {
 		CreateImage(m_SwapChainExtent.width, m_SwapChainExtent.height, 1, m_MsaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image, texture->m_DeviceMemory);
 		texture->m_ImageView = CreateImageView(texture->m_Image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-		texture->m_Allocated = true;
+		texture->m_IsAllocated = true;
 		return texture;
 	}
 
 	void Renderer::DestroyTexture(Texture& texture) {
-        if (!texture.m_Allocated) {
+        if (!texture.m_IsAllocated) {
             return;
         }
 
+		vkDeviceWaitIdle(m_LogicalDevice);
 		vkDestroySampler(m_LogicalDevice, texture.m_Sampler, nullptr);
 		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
 		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
 		vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
 
-		texture.m_Allocated = false;
+		texture.m_IsAllocated = false;
 	}
 
 	void Renderer::DestroyDepthStencil(Texture& texture) {
-        if (!texture.m_Allocated) {
+        if (!texture.m_IsAllocated) {
             return;
         }
-
+		vkDeviceWaitIdle(m_LogicalDevice);
 		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
 		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
 		vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
 
-		texture.m_Allocated = false;
+		texture.m_IsAllocated = false;
 	}
 
 	void Renderer::DestroyColorImage(Wiesel::Texture& texture) {
-		if (!texture.m_Allocated) {
+		if (!texture.m_IsAllocated) {
 			return;
 		}
 
+		vkDeviceWaitIdle(m_LogicalDevice);
 		vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
 		vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
 		vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
 
-		texture.m_Allocated = false;
+		texture.m_IsAllocated = false;
 	}
 
 	Reference<DescriptorPool> Renderer::CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Texture> texture) {
@@ -457,19 +452,6 @@ namespace Wiesel {
 		vkDestroyDescriptorPool(m_LogicalDevice, descriptorPool.m_DescriptorPool, nullptr);
 	}
 
-	void Renderer::AddMesh(Reference<Mesh> mesh) {
-		m_Meshes.emplace_back(std::move(mesh));
-	}
-
-	void Renderer::RemoveMesh(Reference<Mesh> mesh) {
-		auto value = std::remove(m_Meshes.begin(), m_Meshes.end(), mesh);
-		m_Meshes.erase(value, m_Meshes.end());
-	}
-
-	void Renderer::AddModel(Reference<Model> mesh) {
-		m_Models.emplace_back(std::move(mesh));
-	}
-
 	uint32_t Renderer::GetCurrentFrame() const {
 		return m_CurrentFrame;
 	}
@@ -479,11 +461,11 @@ namespace Wiesel {
 	}
 
 	void Renderer::AddCamera(Reference<Camera> camera) {
-		camera->SetObjectId(m_Cameras.size());
+		camera->SetId(m_Cameras.size());
 		m_Cameras.emplace_back(std::move(camera));
 	}
 
-	void Renderer::SetActiveCamera(uint64_t id) {
+	void Renderer::SetActiveCamera(uint32_t id) {
 		m_ActiveCameraId = id;
 	}
 
@@ -494,11 +476,11 @@ namespace Wiesel {
 		m_ClearColor.Alpha = a;
 	}
 
-	void Renderer::SetClearColor(const Color<float>& color) {
+	void Renderer::SetClearColor(const Colorf& color) {
 		m_ClearColor = color;
 	}
 
-	Color<float>& Renderer::GetClearColor() {
+	Colorf& Renderer::GetClearColor() {
 		return m_ClearColor;
 	}
 
@@ -520,54 +502,48 @@ namespace Wiesel {
 
 	void Renderer::Cleanup() {
 		vkDeviceWaitIdle(m_LogicalDevice);
-        LogDebug("Destroying Renderer");
+        LOG_DEBUG("Destroying Renderer");
 		CleanupSwapChain();
 
 		m_BlankTexture = nullptr;
 
-        LogDebug("Destroying cameras");
+        LOG_DEBUG("Destroying cameras");
 		m_Cameras.clear();
 
-        LogDebug("Destroying models");
-		m_Models.clear();
-
-        LogDebug("Destroying meshes");
-		m_Meshes.clear();
-
-        LogDebug("Destroying descriptor set layout");
+        LOG_DEBUG("Destroying descriptor set layout");
 		vkDestroyDescriptorSetLayout(m_LogicalDevice, m_DescriptorSetLayout, nullptr);
-        LogDebug("Destroying graphics pipeline");
+        LOG_DEBUG("Destroying graphics pipeline");
 		vkDestroyPipeline(m_LogicalDevice, graphicsPipeline, nullptr);
-        LogDebug("Destroying pipeline layout");
+        LOG_DEBUG("Destroying pipeline layout");
 		vkDestroyPipelineLayout(m_LogicalDevice, pipelineLayout, nullptr);
 
-        LogDebug("Destroying render pass");
+        LOG_DEBUG("Destroying render pass");
 		vkDestroyRenderPass(m_LogicalDevice, m_RenderPass, nullptr);
 
-        LogDebug("Destroying semaphores and fences");
+        LOG_DEBUG("Destroying semaphores and fences");
 		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
 			vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
 			vkDestroySemaphore(m_LogicalDevice, imageAvailableSemaphores[i], nullptr);
 			vkDestroyFence(m_LogicalDevice, inFlightFences[i], nullptr);
 		}
 
-        LogDebug("Destroying command pool");
+        LOG_DEBUG("Destroying command pool");
 		vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
 
-        LogDebug("Destroying device");
+        LOG_DEBUG("Destroying device");
 		vkDestroyDevice(m_LogicalDevice, nullptr);
 
 #ifdef DEBUG
-        LogDebug("Destroying debug messanger");
+        LOG_DEBUG("Destroying debug messanger");
 		DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 #endif
 
-        LogDebug("Destroying surface khr");
+        LOG_DEBUG("Destroying surface khr");
 		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
-        LogDebug("Destroying vulkan instance");
+        LOG_DEBUG("Destroying vulkan instance");
 		vkDestroyInstance(m_Instance, nullptr);
 
-		LogDebug("Renderer destroyed");
+		LOG_DEBUG("Renderer destroyed");
 	}
 
 	void Renderer::CreateVulkanInstance() {
@@ -621,7 +597,7 @@ namespace Wiesel {
 	void Renderer::PickPhysicalDevice() {
 		uint32_t deviceCount = 0;
 		vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-		Wiesel::LogDebug(std::to_string(deviceCount) + " devices found!");
+		LOG_DEBUG(std::to_string(deviceCount) + " devices found!");
 		if (deviceCount == 0) {
 			throw std::runtime_error("failed to find GPUs with Vulkan support!");
 		}
@@ -651,7 +627,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateLogicalDevice() {
-		LogDebug("Creating logical device");
+		LOG_DEBUG("Creating logical device");
 		QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice);
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -689,7 +665,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateSwapChain() {
-		LogDebug("Creating swap chain");
+		LOG_DEBUG("Creating swap chain");
 		SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(m_PhysicalDevice);
 
 		VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -757,7 +733,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateRenderPass() {
-		LogDebug("Creating render pass");
+		LOG_DEBUG("Creating render pass");
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = m_SwapChainImageFormat;
 		colorAttachment.samples = m_MsaaSamples;
@@ -854,8 +830,8 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateGraphicsPipeline() {
-		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/test.vert.spv");
-		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/test.frag.spv");
+		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/mesh_shader.vert.spv");
+		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/mesh_shader.frag.spv");
 
 		VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 		VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
@@ -1025,12 +1001,12 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateDepthResources() {
-        LogDebug("Creating depth stencil");
+        LOG_DEBUG("Creating depth stencil");
 		m_DepthStencil = CreateDepthStencil();
 	}
 
 	void Renderer::CreateColorResources() {
-		LogDebug("Creating color image");
+		LOG_DEBUG("Creating color image");
 		m_ColorImage = CreateColorImage();
 	}
 
@@ -1420,27 +1396,27 @@ namespace Wiesel {
 	}
 
 	void Renderer::CleanupSwapChain() {
-        LogDebug("Cleanup swap chain");
+        LOG_DEBUG("Cleanup swap chain");
 		m_DepthStencil = nullptr;
 		m_ColorImage = nullptr;
 
-        LogDebug("Destroying swap chain framebuffers");
+        LOG_DEBUG("Destroying swap chain framebuffers");
 		for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
 			vkDestroyFramebuffer(m_LogicalDevice, swapChainFramebuffers[i], nullptr);
 		}
 
-        LogDebug("Destroying swap chain imageviews");
+        LOG_DEBUG("Destroying swap chain imageviews");
 		for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
 			vkDestroyImageView(m_LogicalDevice, m_SwapChainImageViews[i], nullptr);
 		}
 
-        LogDebug("Destroying swap chain");
+        LOG_DEBUG("Destroying swap chain");
 		vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
 	}
 
 	void Renderer::RecreateSwapChain() {
-		Wiesel::LogInfo("Recreating swap chains...");
-		Wiesel::WindowSize size{};
+		LOG_INFO("Recreating swap chains...");
+		WindowSize size{};
 		m_Window->GetWindowFramebufferSize(size);
         while(size.Width == 0 || size.Height == 0) {
             m_Window->GetWindowFramebufferSize(size);
@@ -1486,7 +1462,7 @@ namespace Wiesel {
 
 		if (m_PreviousMsaaSamples != m_MsaaSamples) {
 			vkDeviceWaitIdle(m_LogicalDevice);
-			LogInfo("Msaa samples changed to " + std::to_string(m_MsaaSamples) + " from " + std::to_string(m_PreviousMsaaSamples) + ", recreating pipeline!");
+			LOG_INFO("Msaa samples changed to " + std::to_string(m_MsaaSamples) + " from " + std::to_string(m_PreviousMsaaSamples) + ", recreating pipeline!");
 			// todo recreate graphics pipline
 			m_PreviousMsaaSamples = m_MsaaSamples;
 		}
@@ -1533,39 +1509,30 @@ namespace Wiesel {
 		vkCmdBindPipeline(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 	}
 
-	void Renderer::DrawMeshes() {
-		for (const auto& mesh : m_Meshes) {
-			DrawMesh(mesh);
+	void Renderer::DrawModel(ModelComponent& model, TransformComponent& transform) {
+		for (const auto& mesh : model.Data.Meshes) {
+			DrawMesh(*mesh, transform);
 		}
 	}
 
-	void Renderer::DrawModels() {
-		for (const auto& model : m_Models) {
-			DrawModel(model);
-		}
-	}
-
-	void Renderer::DrawMesh(Reference<Mesh> mesh) {
-		if (!mesh->IsAllocated()) {
+	void Renderer::DrawMesh(Mesh& mesh, TransformComponent& transform) {
+		if (!mesh.IsAllocated) {
 			return;
 		}
 
-		mesh->UpdateUniformBuffer();
+		if (transform.IsChanged) {
+			transform.UpdateRenderData();
+		}
+		mesh.UpdateUniformBuffer(transform);
 
-		VkBuffer vertexBuffers[] = {mesh->GetVertexBuffer()->m_Buffer};
-		std::vector<Index> indices = mesh->GetIndices();
+		VkBuffer vertexBuffers[] = {mesh.VertexBuffer->m_Buffer};
+		std::vector<Index> indices = mesh.Indices;
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh->GetIndexBuffer()->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh.IndexBuffer->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh->GetDescriptors()->m_Descriptors[m_CurrentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh.Descriptors->m_Descriptors[m_CurrentFrame], 0, nullptr);
 		vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-	}
-
-	void Renderer::DrawModel(Reference<Model> model) {
-		for (const auto& mesh : model->GetMeshes()) {
-			DrawMesh(mesh);
-		}
 	}
 
 	void Renderer::EndFrame() {
@@ -1890,13 +1857,13 @@ namespace Wiesel {
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 		if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-			Wiesel::LogDebug("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_DEBUG("Validation layer: " + std::string(pCallbackData->pMessage));
 		} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-			Wiesel::LogWarn("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_WARN("Validation layer: " + std::string(pCallbackData->pMessage));
 		} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-			Wiesel::LogError("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_ERROR("Validation layer: " + std::string(pCallbackData->pMessage));
 		} else {
-			Wiesel::LogInfo("Validation layer: " + std::string(pCallbackData->pMessage));
+			LOG_INFO("Validation layer: " + std::string(pCallbackData->pMessage));
 		}
 		return VK_FALSE;
 	}

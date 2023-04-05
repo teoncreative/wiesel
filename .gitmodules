@@ -4,9 +4,9 @@
 [submodule "deps/stb"]
 	path = deps/stb
 	url = https://github.com/nothings/stb.git
-[submodule "deps/tinyobjloader"]
-	path = deps/tinyobjloader
-	url = https://github.com/tinyobjloader/tinyobjloader.git
 [submodule "deps/assimp"]
 	path = deps/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "deps/entt"]
+	path = deps/entt
+	url = https://github.com/skypjack/entt.git

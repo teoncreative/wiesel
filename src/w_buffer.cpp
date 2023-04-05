@@ -2,6 +2,7 @@
 
 #include "w_buffer.h"
 #include "w_renderer.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 
@@ -12,10 +13,10 @@ namespace Wiesel {
 	MemoryBuffer::~MemoryBuffer() {
 		switch (m_Type) {
 			case MemoryTypeVertexBuffer:
-				Renderer::GetRenderer()->DestroyVertexBuffer(*this);
+				Engine::GetRenderer()->DestroyVertexBuffer(*this);
 				break;
 			case MemoryTypeIndexBuffer:
-				Renderer::GetRenderer()->DestroyIndexBuffer(*this);
+				Engine::GetRenderer()->DestroyIndexBuffer(*this);
 				break;
 			case MemoryTypeUniformBuffer:
 				// this is handled by the object
@@ -28,7 +29,7 @@ namespace Wiesel {
 	}
 
 	UniformBuffer::~UniformBuffer() {
-		Renderer::GetRenderer()->DestroyUniformBuffer(*this);
+		Engine::GetRenderer()->DestroyUniformBuffer(*this);
 	}
 
 	UniformBufferSet::UniformBufferSet(uint32_t buffers) {
@@ -37,6 +38,6 @@ namespace Wiesel {
 	}
 
 	UniformBufferSet::~UniformBufferSet() {
-		Renderer::GetRenderer()->DestroyUniformBufferSet(*this);
+		Engine::GetRenderer()->DestroyUniformBufferSet(*this);
 	}
 }
