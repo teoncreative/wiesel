@@ -27,8 +27,6 @@ namespace WieselDemo {
 
 	DemoLayer::~DemoLayer() = default;
 
-	static entt::entity sponzaEntityHandle;
-
 	void DemoLayer::OnAttach() {
 		LOG_DEBUG("OnAttach");
 
@@ -73,7 +71,6 @@ namespace WieselDemo {
 		// Loading a model to the scene
 		{
 			Entity entity = m_Scene->CreateEntity("Sponza");
-			sponzaEntityHandle = (entt::entity) entity;
 			auto& model = entity.AddComponent<ModelComponent>();
 			auto& transform = entity.GetComponent<TransformComponent>();
 			Engine::LoadModel(transform, model, "assets/models/city/gmae.obj");
@@ -84,7 +81,7 @@ namespace WieselDemo {
 		m_Renderer->AddCamera(camera);
 		m_Renderer->SetActiveCamera(camera->GetId());
 		m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);
-
+		m_Renderer->SetVsync(false);
 	}
 
 	void DemoLayer::OnDetach() {
@@ -108,13 +105,6 @@ namespace WieselDemo {
 
 		m_InputY = std::clamp(m_InputY, -m_LookXLimit, m_LookXLimit);
 		camera->SetRotation(m_InputY, m_InputX, 0.0f);
-
-
-		Entity entity = {sponzaEntityHandle, &*m_Scene};
-		auto& transform = entity.GetComponent<TransformComponent>();
-		// add proper functions for rotation
-		transform.Rotation.x += PI / 400.0f;
-		transform.IsChanged = true;
 	}
 
 	void DemoLayer::OnEvent(Event& event) {
@@ -161,7 +151,7 @@ namespace WieselDemo {
 		return true;
 	}
 
-	DemoOverlay::DemoOverlay(DemoApplication& app) : m_App(app), Layer("Demo Layer") {
+	DemoOverlay::DemoOverlay(DemoApplication& app) : m_App(app), Layer("Demo Overlay") {
 	}
 
 	DemoOverlay::~DemoOverlay() = default;

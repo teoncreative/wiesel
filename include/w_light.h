@@ -19,28 +19,23 @@ namespace Wiesel {
 		LightTypeDirect,
 		LightTypePoint
 	};
-/*
-	// todo make these components
-	class Light : public Object {
+
+	struct LightsPushConstant {
+
+	};
+	/*
+	struct LightDirect {
 	public:
 		Light(LightType type, float intensity, Colorf color);
 		~Light();
 
-		WIESEL_GETTER_FN LightType GetLightType();
-		WIESEL_GETTER_FN Colorf& GetLightColor();
-		WIESEL_GETTER_FN float GetLightIntensity();
-
-		void SetLightIntensity(float intensity);
-		void SetLightColor(const Colorf& color);
-
-	private:
-		LightType m_LightType;
-		float m_LightIntensity;
-		Colorf m_LightColor;
+		LightType LightType;
+		float LightIntensity;
+		Colorf LightColor;
 
 	};
 
-	class PointLight : public Light {
+	class LightPoint {
 	public:
 		PointLight(LightType type, float intensity, Colorf color, float constant, float linear, float quadratic);
 		~PointLight();
@@ -60,5 +55,4 @@ namespace Wiesel {
 
 	};
 */
-
 }

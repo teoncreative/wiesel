@@ -74,11 +74,14 @@ namespace Wiesel {
 		}
 
 		ProcessNode(model, scene->mRootNode, *scene, model.Meshes);
+		uint64_t vertices = 0;
 		for (const auto& item : model.Meshes) {
 			item->Allocate();
+			vertices += item->Vertices.size();
 		}
 		LOG_INFO("Loaded " + std::to_string(model.Meshes.size()) + " meshes!");
 		LOG_INFO("Loaded " + std::to_string(model.Textures.size()) + " textures!");
+		LOG_INFO("Loaded " + std::to_string(vertices) + " vertices!");
 	}
 
 	bool Engine::LoadTexture(Model& model, Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type) {

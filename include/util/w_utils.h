@@ -79,10 +79,10 @@ namespace Wiesel {
 	};
 
 	struct UniformBufferObject {
-		glm::mat4 Model;
-		glm::mat4 View;
-		glm::mat4 Proj;
-		glm::mat3 NormalMatrix;
+		alignas(16) glm::mat4 Model;
+		alignas(16) glm::mat4 View;
+		alignas(16) glm::mat4 Proj;
+		alignas(16) glm::mat3 NormalMatrix;
 	};
 
 	template<typename T>

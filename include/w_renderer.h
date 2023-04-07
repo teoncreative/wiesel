@@ -24,9 +24,14 @@
 #include "w_descriptor.h"
 #include "util/w_color.h"
 #include "scene/w_components.h"
+#include "w_light.h"
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_glfw.h>
+
+#ifdef DEBUG
+#define VULKAN_VALIDATION
+#endif
 
 namespace Wiesel {
 	class Renderer {
@@ -56,7 +61,7 @@ namespace Wiesel {
 		Reference<Texture> CreateColorImage();
 		void DestroyColorImage(Texture& texture);
 
-		Reference<DescriptorPool> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Texture> texture);
+		Reference<DescriptorPool> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Texture> texture) __attribute__ ((optnone)); // optimization for this function is disabled because compiler does something weird
 		void DestroyDescriptors(DescriptorPool& descriptorPool);
 
 		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
@@ -70,6 +75,9 @@ namespace Wiesel {
 		void SetMsaaSamples(VkSampleCountFlagBits samples);
 		WIESEL_GETTER_FN VkSampleCountFlagBits GetMsaaSamples();
 
+		void SetVsync(bool vsync);
+		WIESEL_GETTER_FN bool IsVsync();
+
 		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 		WIESEL_GETTER_FN float GetAspectRatio() const;
 		WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
@@ -77,7 +85,7 @@ namespace Wiesel {
 
 		void BeginFrame();
 		void DrawModel(ModelComponent& model, TransformComponent& transform);
-		void DrawMesh(Mesh& mesh, TransformComponent& transform);
+		void DrawMesh(Reference<Mesh> mesh, TransformComponent& transform);
 		void EndFrame();
 
 		void RecreateSwapChain();
@@ -91,7 +99,7 @@ namespace Wiesel {
 		static const int k_MaxFramesInFlight = 2;
 		static Reference<Renderer> s_Renderer;
 
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
         std::vector<const char*> validationLayers;
 #endif
 		std::vector<const char*> deviceExtensions;
@@ -137,7 +145,8 @@ namespace Wiesel {
 		VkSampleCountFlagBits m_PreviousMsaaSamples;
 		Colorf m_ClearColor;
 		VkDescriptorPool m_ImGuiPool;
-
+		bool m_Vsync;
+		bool m_RecreateSwapChain;
 
 		void CreateVulkanInstance();
 		void CreateSurface();
@@ -184,7 +193,7 @@ namespace Wiesel {
 		bool HasStencilComponent(VkFormat format);
 		void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 		VkSampleCountFlagBits GetMaxUsableSampleCount();
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
 		bool CheckValidationLayerSupport();
 		void SetupDebugMessenger();
 		VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);

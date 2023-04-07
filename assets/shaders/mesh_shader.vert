@@ -19,7 +19,7 @@ layout(location = 2) out uint outHasTexture;
 layout(location = 3) out vec3 outEyePos;
 layout(location = 4) out vec3 outNormal;
 
-const vec3 DIRECTION_TO_LIGHT = normalize(vec3(1.0, 6.0, 0.0));
+const vec3 DIRECTION_TO_LIGHT = normalize(vec3(1.0, 3.0, 0.0));
 const float AMBIENT = 0.05f;
 const float DENSITY = 1.0f;
 

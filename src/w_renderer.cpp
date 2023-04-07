@@ -13,7 +13,7 @@
 namespace Wiesel {
 
 	Renderer::Renderer(Reference<AppWindow> window) : m_Window(window) {
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
         validationLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
 
@@ -29,7 +29,7 @@ namespace Wiesel {
 		m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 
 		CreateVulkanInstance();
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
 		SetupDebugMessenger();
 #endif
 		CreateSurface();
@@ -405,7 +405,7 @@ namespace Wiesel {
 				bufferInfo.offset = 0;
 				bufferInfo.range = sizeof(Wiesel::UniformBufferObject);
 
-				VkWriteDescriptorSet set;
+				VkWriteDescriptorSet set{};
 				set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				set.dstSet = object->m_Descriptors[i];
 				set.dstBinding = 0;
@@ -429,7 +429,7 @@ namespace Wiesel {
 					imageInfo.sampler = texture->m_Sampler;
 				}
 
-				VkWriteDescriptorSet set;
+				VkWriteDescriptorSet set{};
 				set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				set.dstSet = object->m_Descriptors[i];
 				set.dstBinding = writes.size();
@@ -493,6 +493,19 @@ namespace Wiesel {
 		return m_MsaaSamples;
 	}
 
+	void Renderer::SetVsync(bool vsync) {
+		if (vsync == m_Vsync) {
+			return;
+		}
+
+ 		m_Vsync = vsync;
+		m_RecreateSwapChain = true;
+	}
+
+	WIESEL_GETTER_FN bool Renderer::IsVsync() {
+		return m_Vsync;
+	}
+
 	float Renderer::GetAspectRatio() const {
 		return m_AspectRatio;
 	}
@@ -536,7 +549,7 @@ namespace Wiesel {
         LOG_DEBUG("Destroying device");
 		vkDestroyDevice(m_LogicalDevice, nullptr);
 
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
         LOG_DEBUG("Destroying debug messanger");
 		DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 #endif
@@ -550,7 +563,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateVulkanInstance() {
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
 		if (!CheckValidationLayerSupport()) {
 			throw std::runtime_error("validation layers requested, but not available!");
 		}
@@ -578,7 +591,7 @@ namespace Wiesel {
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 		createInfo.ppEnabledExtensionNames = extensions.data();
 
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
 		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 		createInfo.ppEnabledLayerNames = validationLayers.data();
@@ -725,6 +738,7 @@ namespace Wiesel {
 		m_AspectRatio = m_SwapChainExtent.width / (float) m_SwapChainExtent.height;
 		m_WindowSize.Width = m_SwapChainExtent.width;
 		m_WindowSize.Height = m_SwapChainExtent.height;
+		m_RecreateSwapChain = false;
 	}
 
 	void Renderer::CreateImageViews() {
@@ -955,12 +969,17 @@ namespace Wiesel {
 		colorBlending.blendConstants[2] = 0.0f; // Optional
 		colorBlending.blendConstants[3] = 0.0f; // Optional
 
+	/*	VkPushConstantRange pushConstantRange{};
+		pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+		pushConstantRange.offset = 0;
+		pushConstantRange.size = sizeof(LightsPushConstant);*/
+
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutInfo.setLayoutCount = 1;
 		pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
-		pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-		pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+/*		pipelineLayoutInfo.pushConstantRangeCount = 1;
+		pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;*/
 
 		WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout));
 
@@ -1518,7 +1537,7 @@ namespace Wiesel {
 		vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
 		VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX, imageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
-		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || m_RecreateSwapChain) {
 			RecreateSwapChain();
 			return;
 		} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -1579,29 +1598,29 @@ namespace Wiesel {
 	}
 
 	void Renderer::DrawModel(ModelComponent& model, TransformComponent& transform) {
-		for (const auto& mesh : model.Data.Meshes) {
-			DrawMesh(*mesh, transform);
+		for (int i = 0; i < model.Data.Meshes.size(); i++) {
+			const auto& mesh = model.Data.Meshes[i];
+			DrawMesh(mesh, transform);
 		}
 	}
 
-	void Renderer::DrawMesh(Mesh& mesh, TransformComponent& transform) {
-		if (!mesh.IsAllocated) {
+	void Renderer::DrawMesh(Reference<Mesh> mesh, TransformComponent& transform) {
+		if (!mesh->IsAllocated) {
 			return;
 		}
 
 		if (transform.IsChanged) {
 			transform.UpdateRenderData();
 		}
-		mesh.UpdateUniformBuffer(transform);
+		mesh->UpdateUniformBuffer(transform);
 
-		VkBuffer vertexBuffers[] = {mesh.VertexBuffer->m_Buffer};
-		std::vector<Index> indices = mesh.Indices;
+		VkBuffer vertexBuffers[] = {mesh->VertexBuffer->m_Buffer};
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
-		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh.IndexBuffer->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffers[m_CurrentFrame], mesh->IndexBuffer->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh.Descriptors->m_Descriptors[m_CurrentFrame], 0, nullptr);
-		vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+		vkCmdBindDescriptorSets(commandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh->Descriptors->m_Descriptors[m_CurrentFrame], 0, nullptr);
+		vkCmdDrawIndexed(commandBuffers[m_CurrentFrame], static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
 	}
 
 	void Renderer::EndFrame() {
@@ -1659,7 +1678,7 @@ namespace Wiesel {
 		windowExtensions = m_Window->GetRequiredInstanceExtensions(&extensionsCount);
 
 		std::vector<const char*> extensions(windowExtensions, windowExtensions + extensionsCount);
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
 		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
 		return extensions;
@@ -1748,6 +1767,9 @@ namespace Wiesel {
 		 * VK_PRESENT_MODE_FIFO_RELAXED_KHR: This mode only differs from the previous one if the application is late and the queue was empty at the last vertical blank. Instead of waiting for the next vertical blank, the image is transferred right away when it finally arrives. This may result in visible tearing.
 		 * VK_PRESENT_MODE_MAILBOX_KHR: This is another variation of the second mode. Instead of blocking the application when the queue is full, the images that are already queued are simply replaced with the newer ones. This mode can be used to render frames as fast as possible while still avoiding tearing, resulting in fewer latency issues than standard vertical sync. This is commonly known as "triple buffering", although the existence of three buffers alone does not necessarily mean that the framerate is unlocked.
 		 */
+		if (!m_Vsync) {
+			return VK_PRESENT_MODE_IMMEDIATE_KHR;
+		}
 		for (const auto& availablePresentMode : availablePresentModes) {
 			if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
 				return availablePresentMode;
@@ -1870,7 +1892,7 @@ namespace Wiesel {
 		throw std::runtime_error("failed to find suitable memory type!");
 	}
 
-#ifdef DEBUG
+#ifdef VULKAN_VALIDATION
 	void Renderer::SetupDebugMessenger() {
 		VkDebugUtilsMessengerCreateInfoEXT createInfo;
 		PopulateDebugMessengerCreateInfo(createInfo);
