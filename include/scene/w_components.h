@@ -13,10 +13,10 @@
 
 #include "w_pch.h"
 #include "util/w_utils.h"
-#include "w_texture.h"
-#include "w_buffer.h"
-#include "w_descriptor.h"
 #include "util/w_uuid.h"
+#include "rendering/w_texture.h"
+#include "rendering/w_buffer.h"
+#include "rendering/w_descriptor.h"
 
 namespace Wiesel {
 	struct IdComponent {
@@ -51,7 +51,7 @@ namespace Wiesel {
 		glm::vec3 Scale    = {1.0f, 1.0f, 1.0f};
 
 		bool IsChanged = true;
-		glm::mat4 LocalView = {};
+		glm::mat4 TransformMatrix = {};
 		glm::mat3 NormalMatrix = {};
 	};
 

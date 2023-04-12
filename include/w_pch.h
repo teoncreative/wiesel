@@ -9,6 +9,7 @@
 #pragma once
 
 #include <vulkan/vulkan_core.h>
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -33,3 +34,5 @@
 #include <thread>
 #include <unordered_map>
 #include <filesystem>
+
+#include "util/w_attributes.h"
