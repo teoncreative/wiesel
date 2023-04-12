@@ -12,8 +12,8 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_components.h"
-#include "w_scene.h"
+#include "scene/w_components.h"
+#include "scene/w_scene.h"
 
 namespace Wiesel {
 	class Entity {

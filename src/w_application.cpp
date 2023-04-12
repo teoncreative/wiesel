@@ -28,10 +28,16 @@ namespace Wiesel {
 
 		Engine::InitRenderer();
 		m_Scene = CreateReference<Scene>();
+		m_ImGuiLayer = CreateReference<ImGuiLayer>();
+		PushOverlay(m_ImGuiLayer);
 	}
 
 	Application::~Application() {
 		LOG_DEBUG("Destroying Application");
+		for (const auto& item : m_Overlays) {
+			item->OnDetach();
+		}
+		m_Overlays.clear();
 		for (const auto& item : m_Layers) {
 			item->OnDetach();
 		}
@@ -89,16 +95,19 @@ namespace Wiesel {
 				for (const auto& layer : m_Layers) {
 					layer->OnUpdate(m_DeltaTime);
 				}
-
-				ImGui_ImplVulkan_NewFrame();
-				m_Window->ImGuiNewFrame();
-				ImGui::NewFrame();
 				for (const auto& layer : m_Overlays) {
 					layer->OnUpdate(m_DeltaTime);
 				}
-
-                Engine::GetRenderer()->BeginFrame();
+				m_Scene->OnUpdate(m_DeltaTime);
+				if (!Engine::GetRenderer()->BeginFrame()) {
+					continue;
+				}
+				m_ImGuiLayer->OnBeginFrame();
+				for (const auto& layer : m_Overlays) {
+					layer->OnImGuiRender();
+				}
 				m_Scene->Render();
+				m_ImGuiLayer->OnEndFrame();
                 Engine::GetRenderer()->EndFrame();
             }
 

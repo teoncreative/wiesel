@@ -12,9 +12,9 @@
 #pragma once
 
 #include "w_pch.h"
-#include "scene/w_components.h"
 #include <entt/entt.hpp>
 
+#include "scene/w_components.h"
 
 namespace Wiesel {
 	class Entity;
@@ -39,6 +39,11 @@ namespace Wiesel {
 		auto GetAllEntitiesWith() {
 			return m_Registry.view<Components...>();
 		}
+
+		entt::registry& GetRegistry() {
+			return m_Registry;
+		}
+
 	private:
 		friend class Entity;
 		friend class Application;

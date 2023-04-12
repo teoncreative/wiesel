@@ -12,7 +12,7 @@
 #pragma once
 
 #include "w_application.h"
-#include "w_renderer.h"
+#include "rendering/w_renderer.h"
 
 namespace Wiesel {
 	class Engine {

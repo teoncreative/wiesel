@@ -10,13 +10,37 @@
 
 #include "scene/w_scene.h"
 #include "scene/w_entity.h"
-#include "w_renderer.h"
+#include "rendering/w_renderer.h"
 #include "w_engine.h"
 
 namespace Wiesel {
 
 	Scene::Scene() {
-
+		{
+			auto entity = CreateEntity("Direct Light");
+			auto& transform = entity.GetComponent<TransformComponent>();
+			transform.Position = glm::vec3(1.0f, 1.0f, 1.0f);
+			auto& light = entity.AddComponent<LightDirectComponent>();
+			light.LightData.Base.Color = {1.0f, 1.0f, 1.0f};
+			light.LightData.Base.Ambient = 0.05f;
+			light.LightData.Base.Diffuse = 0.5f;
+			light.LightData.Base.Specular = 1.0f;
+			light.LightData.Base.Density = 1.0f;
+		}
+		{
+			auto entity = CreateEntity("Point Light");
+			auto& transform = entity.GetComponent<TransformComponent>();
+			transform.Position = glm::vec3{0.0f, 1.0f, 0.0f};
+			auto& light = entity.AddComponent<LightPointComponent>();
+			light.LightData.Base.Color = {1.0f, 1.0f, 1.0f};
+			light.LightData.Base.Ambient = 0.05f;
+			light.LightData.Base.Diffuse = 0.5f;
+			light.LightData.Base.Specular = 1.0f;
+			light.LightData.Base.Density = 1.0f;
+			light.LightData.Constant = 1.0f;
+			light.LightData.Linear = 0.09f;
+			light.LightData.Exp = 0.032f;
+		}
 	}
 
 	Scene::~Scene() {
@@ -44,7 +68,17 @@ namespace Wiesel {
 	}
 
 	void Scene::OnUpdate(float_t deltaTime) {
-
+		auto& lights = Engine::GetRenderer()->GetLightsBufferObject();
+		lights.DirectLightCount = 0;
+		lights.PointLightCount = 0;
+		for (const auto& entity : m_Registry.view<LightDirectComponent>()) {
+			auto& light = m_Registry.get<LightDirectComponent>(entity);
+			UpdateLight(lights, light.LightData, {entity, this});
+		}
+		for (const auto& entity : m_Registry.view<LightPointComponent>()) {
+			auto& light = m_Registry.get<LightPointComponent>(entity);
+			UpdateLight(lights, light.LightData, {entity, this});
+		}
 	}
 
 	void Scene::Render() {

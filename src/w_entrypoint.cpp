@@ -7,6 +7,9 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 
 #include "w_engine.h"
+#include "rendering/w_texture.h"
+
+using namespace Wiesel;
 
 int main() {
 	Wiesel::Engine::InitEngine();
