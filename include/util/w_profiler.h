@@ -9,7 +9,7 @@
 #pragma once
 
 #include "w_pch.h"
-#include "w_logger.h"
+#include "util/w_logger.h"
 
 // todo thread safety
 

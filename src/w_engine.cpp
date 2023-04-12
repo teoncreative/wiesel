@@ -65,7 +65,7 @@ namespace Wiesel {
 		Assimp::Importer importer;
 		importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
 		importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
-		importer.ReadFile(model.ModelPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcessPreset_TargetRealtime_Fast);
+		importer.ReadFile(model.ModelPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcessPreset_TargetRealtime_Fast);
 		aiScene* scene = importer.GetOrphanedScene();
 
 		if(!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !scene->mRootNode) {
@@ -85,21 +85,24 @@ namespace Wiesel {
 	}
 
 	bool Engine::LoadTexture(Model& model, Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type) {
-		aiString str;
-		mat->GetTexture(type, 0, &str);
-		std::string s = std::string(str.C_Str());
-		if (s.empty()) {
-			return false;
+		for(unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
+			aiString str;
+			mat->GetTexture(type, i, &str);
+			std::string s = std::string(str.C_Str());
+			if (s.empty()) {
+				continue;
+			}
+			std::string textureFullPath = model.TexturesPath + "/" + s;
+			if (model.Textures.contains(textureFullPath)) {
+				Material::Set(mesh->Mat, model.Textures[textureFullPath], static_cast<TextureType>(type));
+			} else {
+				Reference<Texture> texture = Engine::GetRenderer()->CreateTexture(textureFullPath, {static_cast<TextureType>(type)}, {});
+				Material::Set(mesh->Mat, texture, static_cast<TextureType>(type));
+				model.Textures.insert(std::pair(textureFullPath, texture));
+			}
+			return true;
 		}
-		std::string textureFullPath = model.TexturesPath + "/" + s;
-		if (model.Textures.contains(textureFullPath)) {
-			mesh->Texture = model.Textures[textureFullPath];
-		} else {
-			Reference<Texture> texture = Engine::GetRenderer()->CreateTexture(textureFullPath, {});
-			mesh->Texture = texture;
-			model.Textures.insert(std::pair(textureFullPath, texture));
-		}
-		return true;
+		return false;
 	}
 
 	Reference<Mesh> Engine::ProcessMesh(Model& model, aiMesh *aiMesh, const aiScene& aiScene, aiMatrix4x4 aiMatrix) {
@@ -111,7 +114,13 @@ namespace Wiesel {
 
 		Reference<Mesh> mesh = CreateReference<Mesh>();
 		// todo handle materials properly within another class
-		bool hasTexture = LoadTexture(model, mesh, material, aiTextureType_DIFFUSE);
+		uint32_t flags = 0;
+		flags |= VertexFlagHasTexture * LoadTexture(model, mesh, material, aiTextureType_DIFFUSE);
+		flags |= VertexFlagHasNormalMap * LoadTexture(model, mesh, material, aiTextureType_NORMALS);
+		flags |= VertexFlagHasSpecularMap * LoadTexture(model, mesh, material, aiTextureType_SPECULAR);
+		flags |= VertexFlagHasAlbedoMap * LoadTexture(model, mesh, material, aiTextureType_BASE_COLOR);
+		flags |= VertexFlagHasRoughnessMap * LoadTexture(model, mesh, material, aiTextureType_DIFFUSE_ROUGHNESS);
+		flags |= VertexFlagHasMetallicMap * LoadTexture(model, mesh, material, aiTextureType_METALNESS);
 
 		for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
 			Vertex vertex{};
@@ -137,21 +146,21 @@ namespace Wiesel {
 			} else {
 				vertex.UV = glm::vec2(0.0f, 0.0f);
 			}
-			vertex.HasTexture = hasTexture;
+			vertex.Flags = flags;
 
 			vertex.Color = {1.0f, 1.0f, 1.0f};
 
 			// tangent
-			//vector.x = mesh->mTangents[i].x;
-			//vector.y = mesh->mTangents[i].y;
-			//vector.z = mesh->mTangents[i].z;
-			//vertex.Tangent = vector;
+			vector.x = aiMesh->mTangents[i].x;
+			vector.y = aiMesh->mTangents[i].y;
+			vector.z = aiMesh->mTangents[i].z;
+			vertex.Tangent = vector;
 
 			// bitangent
-			//vector.x = mesh->mBitangents[i].x;
-			//vector.y = mesh->mBitangents[i].y;
-			//vector.z = mesh->mBitangents[i].z;
-			//vertex.BiTangent = vector;
+			vector.x = aiMesh->mBitangents[i].x;
+			vector.y = aiMesh->mBitangents[i].y;
+			vector.z = aiMesh->mBitangents[i].z;
+			vertex.BiTangent = vector;
 
 			mesh->Vertices.push_back(vertex);
 		}

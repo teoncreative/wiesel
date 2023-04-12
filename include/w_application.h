@@ -16,8 +16,9 @@
 #include "util/w_utils.h"
 #include "events/w_events.h"
 #include "events/w_appevents.h"
-#include "w_layer.h"
-#include "w_renderer.h"
+#include "layer/w_layer.h"
+#include "layer/w_layerimgui.h"
+#include "rendering/w_renderer.h"
 #include "scene/w_scene.h"
 
 namespace Wiesel {
@@ -52,7 +53,8 @@ namespace Wiesel {
 		bool m_WindowResized;
 		WindowSize m_WindowSize;
 		std::vector<Reference<Layer>> m_Layers;
-		std::vector<Reference<Layer>> m_Overlays;
+		std::vector<Reference<Layer>> m_Overlays; // maybe have another class extending from Layer like OverlayLayer
+		Reference<ImGuiLayer> m_ImGuiLayer;
 		uint32_t m_LayerCounter;
 		Reference<AppWindow> m_Window;
 		float_t m_PreviousFrame = 0.0;

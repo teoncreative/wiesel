@@ -9,6 +9,8 @@
 #include "w_demo.h"
 #include "util/w_keycodes.h"
 #include "w_engine.h"
+#include "scene/w_componentutil.h"
+#include "layer/w_layerimgui.h"
 
 using namespace Wiesel;
 
@@ -30,54 +32,17 @@ namespace WieselDemo {
 	void DemoLayer::OnAttach() {
 		LOG_DEBUG("OnAttach");
 
-		{
-			const std::vector<Vertex> vertices = {
-					{{-0.5f, 0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-					{{0.5f, 0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-					{{0.5f, 0.0f, 0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-					{{-0.5f, 0.0f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-			};
-
-			const std::vector<Index> indices = {
-					0, 1, 2, 2, 3, 0
-			};
-
-
-			{
-				Reference<Mesh> mesh = CreateReference<Mesh>(vertices, indices);
-				mesh->Texture = m_Renderer->CreateTexture("assets/textures/texture.jpg", {});
-				mesh->Allocate();
-
-				Entity entity = m_Scene->CreateEntity("Custom Mesh");
-				auto& model = entity.AddComponent<ModelComponent>();
-				auto& transform = entity.GetComponent<TransformComponent>();
-				//transform.Scale = {100, 100, 100};
-				model.Data.Meshes.push_back(mesh);
-			}
-			{
-				Reference<Mesh> mesh = CreateReference<Mesh>(vertices, indices);
-				mesh->Texture = m_Renderer->CreateTexture("assets/textures/texture.jpg", {});
-				mesh->Allocate();
-
-				Entity entity = m_Scene->CreateEntity("Custom Mesh 2");
-				auto& model = entity.AddComponent<ModelComponent>();
-				auto& transform = entity.GetComponent<TransformComponent>();
-				transform.Rotation = {PI, 0.0f, 0.0f};
-				//transform.Scale = {100, 100, 100};
-				model.Data.Meshes.push_back(mesh);
-			}
-		}
-
 		// Loading a model to the scene
 		{
 			Entity entity = m_Scene->CreateEntity("Sponza");
 			auto& model = entity.AddComponent<ModelComponent>();
 			auto& transform = entity.GetComponent<TransformComponent>();
-			Engine::LoadModel(transform, model, "assets/models/city/gmae.obj");
+			transform.Scale = {0.01f, 0.01f, 0.01f};
+			Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
 		}
 
 		// Custom camera
-		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(2.0f, 1.5f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_Renderer->GetAspectRatio(), 60);
+		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(0.0f, 1.5f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_Renderer->GetAspectRatio(), 60, 0.1f, 10000.0f);
 		m_Renderer->AddCamera(camera);
 		m_Renderer->SetActiveCamera(camera->GetId());
 		m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);
@@ -151,7 +116,7 @@ namespace WieselDemo {
 		return true;
 	}
 
-	DemoOverlay::DemoOverlay(DemoApplication& app) : m_App(app), Layer("Demo Overlay") {
+	DemoOverlay::DemoOverlay(DemoApplication& app, Reference<DemoLayer> demoLayer) : m_App(app), m_DemoLayer(demoLayer), Layer("Demo Overlay") {
 	}
 
 	DemoOverlay::~DemoOverlay() = default;
@@ -166,24 +131,71 @@ namespace WieselDemo {
 	}
 
 	void DemoOverlay::OnUpdate(float_t deltaTime) {
-		static bool open = true;
-		if (!ImGui::Begin("Demo Overlay", &open, 0)) {
-			ImGui::End();
-			return;
-		}
 
+	}
+
+	void DemoOverlay::OnEvent(Wiesel::Event& event) {
+
+	}
+
+	void DemoOverlay::OnImGuiRender() {
+		static bool scenePropertiesOpen = true;
+		//ImGui::ShowDemoWindow(&scenePropertiesOpen);
+		if (ImGui::Begin("Scene Properties", &scenePropertiesOpen, 0)) {
+			auto& pos = Engine::GetRenderer()->GetActiveCamera()->GetPosition();
+			ImGui::Text("Camera Pos");
+			ImGui::LabelText("X", "%f", pos.x);
+			ImGui::LabelText("Y", "%f", pos.y);
+			ImGui::LabelText("Z", "%f", pos.z);
+
+			bool changed = false;
+
+			ImGui::SeparatorText("Controls");
+			ImGui::InputFloat("Camera Speed", &m_DemoLayer->m_CameraMoveSpeed);
+			if (ImGui::Checkbox("Wireframe Mode", Engine::GetRenderer()->IsWireframeModePtr())) {
+				Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
+			}
+			if (ImGui::Button("Recreate Pipeline")) {
+				Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
+			}
+		}
+		ImGui::End();
+		static bool sceneOpen = true;
+
+		static entt::entity selectedEntity;
+		if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
+			for (const auto& item : m_App.GetScene()->GetAllEntitiesWith<TagComponent>()) {
+				Entity entity = {item, &*m_App.GetScene()};
+				auto& tagComponent = entity.GetComponent<TagComponent>();
+				if (ImGui::Selectable(tagComponent.Tag.c_str(), selectedEntity == item, ImGuiSelectableFlags_None, ImVec2(0, 0))) {
+					selectedEntity = item;
+				}
+			}
+		}
+		ImGui::End();
+
+		static bool propertiesOpen = true;
+		if (ImGui::Begin("Components", &propertiesOpen)) {
+			Entity entity = {selectedEntity, &*m_App.GetScene()};
+			// todo use some kind of registry
+			if (entity.HasComponent<TransformComponent>()) {
+				RenderComponent<TransformComponent>(entity.GetComponent<TransformComponent>(), entity);
+			}
+			if (entity.HasComponent<LightDirectComponent>()) {
+				RenderComponent<LightDirectComponent>(entity.GetComponent<LightDirectComponent>(), entity);
+			}
+			if (entity.HasComponent<LightPointComponent>()) {
+				RenderComponent<LightPointComponent>(entity.GetComponent<LightPointComponent>(), entity);
+			}
+		}
 		ImGui::End();
 	}
 
-
-	void DemoOverlay::OnEvent(Event& event) {
-	}
-
-
 	void DemoApplication::Init() {
 		LOG_DEBUG("Init");
-		PushLayer(CreateReference<DemoLayer>(*this));
-		PushOverlay(CreateReference<DemoOverlay>(*this));
+		Reference<DemoLayer> demoLayer = CreateReference<DemoLayer>(*this);
+		PushLayer(demoLayer);
+		PushOverlay(CreateReference<DemoOverlay>(*this, demoLayer));
 	}
 
 	DemoApplication::DemoApplication() {

@@ -11,10 +11,9 @@
 
 #include "w_pch.h"
 #include "w_application.h"
-#include "w_demo.h"
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
-#include "w_keymanager.h"
+#include "input/w_keymanager.h"
 #include "scene/w_scene.h"
 #include "scene/w_entity.h"
 
@@ -34,7 +33,6 @@ namespace WieselDemo {
 
 		void OnAttach() override;
 		void OnDetach() override;
-
 		void OnUpdate(float_t deltaTime) override;
 		void OnEvent(Wiesel::Event& event) override;
 
@@ -43,6 +41,8 @@ namespace WieselDemo {
 		bool OnMouseMoved(Wiesel::MouseMovedEvent& event);
 
 	private:
+		friend class DemoOverlay;
+
 		DemoApplication& m_App;
 		Wiesel::KeyManager m_KeyManager; // move this to the engine or base app class
 		Wiesel::Reference<Wiesel::Scene> m_Scene;
@@ -57,16 +57,18 @@ namespace WieselDemo {
 
 	class DemoOverlay : public Wiesel::Layer {
 	public:
-		explicit DemoOverlay(DemoApplication& app);
+		explicit DemoOverlay(DemoApplication& app, Wiesel::Reference<DemoLayer> demoLayer);
 		~DemoOverlay() override;
 
 		void OnAttach() override;
 		void OnDetach() override;
-
 		void OnUpdate(float_t deltaTime) override;
 		void OnEvent(Wiesel::Event& event) override;
+
+		void OnImGuiRender() override;
 	private:
 		DemoApplication& m_App;
+		Wiesel::Reference<DemoLayer> m_DemoLayer;
 
 	};
 }

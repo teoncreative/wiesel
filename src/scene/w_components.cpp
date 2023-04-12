@@ -12,27 +12,27 @@
 
 namespace Wiesel {
 	glm::vec3 TransformComponent::GetForward() {
-		return -LocalView[2];
+		return -TransformMatrix[2];
 	}
 
 	glm::vec3 TransformComponent::GetBackward() {
-		return LocalView[2];
+		return TransformMatrix[2];
 	}
 
 	glm::vec3 TransformComponent::GetLeft() {
-		return -LocalView[0];
+		return -TransformMatrix[0];
 	}
 
 	glm::vec3 TransformComponent::GetRight() {
-		return LocalView[0];
+		return TransformMatrix[0];
 	}
 
 	glm::vec3 TransformComponent::GetUp() {
-		return LocalView[1];
+		return TransformMatrix[1];
 	}
 
 	glm::vec3 TransformComponent::GetDown() {
-		return -LocalView[1];
+		return -TransformMatrix[1];
 	}
 
 	void TransformComponent::UpdateRenderData() {
@@ -40,11 +40,11 @@ namespace Wiesel {
 			return;
 		}
 		glm::mat4 rotation = glm::toMat4(glm::quat(Rotation));
-		LocalView = glm::translate(glm::mat4(1.0f), Position)
-			   * rotation
-			   * glm::scale(glm::mat4(1.0f), Scale);
+		TransformMatrix = glm::translate(glm::mat4(1.0f), Position)
+						  * rotation
+						  * glm::scale(glm::mat4(1.0f), Scale);
 
-		NormalMatrix = glm::inverseTranspose(glm::mat3(LocalView));
+		NormalMatrix = glm::inverseTranspose(glm::mat3(TransformMatrix));
 		IsChanged = false;
 	}
 }

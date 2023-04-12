@@ -9,9 +9,11 @@
 #pragma once
 
 #include "w_pch.h"
-#include "window/w_window.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <backends/imgui_impl_glfw.h>
+
+#include "window/w_window.h"
 
 static void CallbackFramebufferResize(GLFWwindow* window, int width, int height);
 static void CallbackKey(GLFWwindow* window, int key, int scancode, int action, int mods);

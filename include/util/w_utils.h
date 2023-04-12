@@ -11,7 +11,6 @@
 #define PI 3.14
 
 #include "w_pch.h"
-#include "w_attributes.h"
 #include <glm/gtx/hash.hpp>
 
 namespace Wiesel {
@@ -36,12 +35,25 @@ namespace Wiesel {
 
 	using Index = uint32_t;
 
+
+	enum VertexFlag {
+		VertexFlagHasTexture = 1 << 0,
+		VertexFlagHasNormalMap = 1 << 1,
+		VertexFlagHasSpecularMap = 1 << 2,
+		VertexFlagHasHeightMap = 1 << 3,
+		VertexFlagHasAlbedoMap = 1 << 4,
+		VertexFlagHasRoughnessMap = 1 << 5,
+		VertexFlagHasMetallicMap = 1 << 6,
+	};
+
 	struct Vertex {
 		glm::vec3 Pos;
 		glm::vec3 Color;
 		glm::vec2 UV;
+		uint32_t Flags;
 		glm::vec3 Normal;
-		bool HasTexture;
+		glm::vec3 Tangent;
+		glm::vec3 BiTangent;
 
 		static VkVertexInputBindingDescription GetBindingDescription() {
 			VkVertexInputBindingDescription bindingDescription{};
@@ -58,8 +70,10 @@ namespace Wiesel {
 			attributeDescriptions.push_back({0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Pos)});
 			attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Color)});
 			attributeDescriptions.push_back({2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, UV)});
-			attributeDescriptions.push_back({3, 0, VK_FORMAT_R8_UINT, offsetof(Vertex, HasTexture)});
-			attributeDescriptions.push_back({4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Normal)});
+			attributeDescriptions.push_back({3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Normal)});
+			attributeDescriptions.push_back({4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Tangent)});
+			attributeDescriptions.push_back({5, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, BiTangent)});
+			attributeDescriptions.push_back({6, 0, VK_FORMAT_R32_UINT, offsetof(Vertex, Flags)});
 
 			return attributeDescriptions;
 		}
@@ -79,10 +93,12 @@ namespace Wiesel {
 	};
 
 	struct UniformBufferObject {
-		alignas(16) glm::mat4 Model;
-		alignas(16) glm::mat4 View;
-		alignas(16) glm::mat4 Proj;
+		alignas(16) glm::mat4 ModelMatrix;
+		alignas(16) glm::vec3 Scale;
 		alignas(16) glm::mat3 NormalMatrix;
+		alignas(16) glm::mat4 CameraViewMatrix;
+		alignas(16) glm::mat4 CameraProjection;
+		alignas(16) glm::vec3 CameraPosition;
 	};
 
 	template<typename T>
