@@ -17,29 +17,16 @@ namespace Wiesel {
 
 	Scene::Scene() {
 		{
-			auto entity = CreateEntity("Direct Light");
+			auto entity = CreateEntity("Directional Light");
 			auto& transform = entity.GetComponent<TransformComponent>();
 			transform.Position = glm::vec3(1.0f, 1.0f, 1.0f);
-			auto& light = entity.AddComponent<LightDirectComponent>();
-			light.LightData.Base.Color = {1.0f, 1.0f, 1.0f};
-			light.LightData.Base.Ambient = 0.05f;
-			light.LightData.Base.Diffuse = 0.5f;
-			light.LightData.Base.Specular = 1.0f;
-			light.LightData.Base.Density = 1.0f;
+			entity.AddComponent<LightDirectComponent>();
 		}
 		{
 			auto entity = CreateEntity("Point Light");
 			auto& transform = entity.GetComponent<TransformComponent>();
 			transform.Position = glm::vec3{0.0f, 1.0f, 0.0f};
-			auto& light = entity.AddComponent<LightPointComponent>();
-			light.LightData.Base.Color = {1.0f, 1.0f, 1.0f};
-			light.LightData.Base.Ambient = 0.05f;
-			light.LightData.Base.Diffuse = 0.5f;
-			light.LightData.Base.Specular = 1.0f;
-			light.LightData.Base.Density = 1.0f;
-			light.LightData.Constant = 1.0f;
-			light.LightData.Linear = 0.09f;
-			light.LightData.Exp = 0.032f;
+			entity.AddComponent<LightPointComponent>();
 		}
 	}
 

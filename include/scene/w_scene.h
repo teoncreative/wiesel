@@ -13,7 +13,6 @@
 
 #include "w_pch.h"
 #include <entt/entt.hpp>
-
 #include "scene/w_components.h"
 
 namespace Wiesel {

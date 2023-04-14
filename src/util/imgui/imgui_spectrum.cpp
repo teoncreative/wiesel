@@ -8,7 +8,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "util/imgui_spectrum.h"
+#include "util/imgui/imgui_spectrum.h"
 #include "imgui.h"
 
 namespace ImGui {
@@ -27,7 +27,7 @@ namespace ImGui {
 			ImGuiStyle* style = &ImGui::GetStyle();
 			style->GrabRounding = 4.0f;
 			style->WindowRounding = 8.0f;
-			style->FramePadding = {5.0f, 5.0f};
+			style->FramePadding = {2.0f, 2.0f};
 			style->WindowPadding = {5.0f, 5.0f};
 
 			ImVec4* colors = style->Colors;

@@ -9,23 +9,21 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "layer/w_layer.h"
+#pragma once
 
 namespace Wiesel {
+	struct RenderPassProperties {
+		VkFormat m_SwapChainImageFormat;
+		VkSampleCountFlagBits m_MsaaSamples;
+		VkFormat m_DepthFormat;
+	};
 
-	Layer::Layer(const std::string& layerName) : m_LayerName(layerName) {
+	struct RenderPass {
+		explicit RenderPass(RenderPassProperties properties);
+		~RenderPass();
 
-	}
+		RenderPassProperties m_Properties;
+		VkRenderPass m_Pass{};
 
-	Layer::~Layer() {
-
-	}
-
-	void Layer::OnImGuiRender() {
-
-	}
-
-	void Layer::PostRender() {
-
-	}
+	};
 }

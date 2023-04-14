@@ -11,8 +11,12 @@
 #include "w_engine.h"
 
 namespace Wiesel {
+	Application* Application::s_Application;
+
 	Application::Application() {
 		WIESEL_PROFILE_FUNCTION();
+		s_Application = this;
+
 		m_LayerCounter = 0;
 		m_IsRunning = true;
 		m_IsMinimized = false;
@@ -91,6 +95,8 @@ namespace Wiesel {
 			m_DeltaTime = time - m_PreviousFrame;
 			m_PreviousFrame = time;
 
+			ExecuteQueue();
+
 			if (!m_IsMinimized) {
 				for (const auto& layer : m_Layers) {
 					layer->OnUpdate(m_DeltaTime);
@@ -107,6 +113,9 @@ namespace Wiesel {
 					layer->OnImGuiRender();
 				}
 				m_Scene->Render();
+				for (const auto& layer : m_Overlays) {
+					layer->PostRender();
+				}
 				m_ImGuiLayer->OnEndFrame();
                 Engine::GetRenderer()->EndFrame();
             }
@@ -150,5 +159,23 @@ namespace Wiesel {
 
 	Reference<Scene> Application::GetScene() {
 		return m_Scene;
+	}
+
+	void Application::SubmitToMainThread(std::function<void()> fn) {
+		std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
+		m_MainThreadQueue.emplace_back(fn);
+	}
+
+	void Application::ExecuteQueue() {
+		// this has to be inside its own scope or it might have problems
+		std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
+		for (auto& func : m_MainThreadQueue) {
+			func();
+		}
+		m_MainThreadQueue.clear();
+	}
+
+	Application* Application::Get() {
+		return s_Application;
 	}
 }

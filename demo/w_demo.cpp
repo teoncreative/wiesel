@@ -8,9 +8,10 @@
 
 #include "w_demo.h"
 #include "util/w_keycodes.h"
-#include "w_engine.h"
+#include "util/w_math.h"
 #include "scene/w_componentutil.h"
 #include "layer/w_layerimgui.h"
+#include "w_engine.h"
 
 using namespace Wiesel;
 
@@ -81,7 +82,7 @@ namespace WieselDemo {
 	}
 
 	bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
-		if (event.GetKeyCode() == KeySpace) {
+		if (event.GetKeyCode() == KeyF1) {
 			m_App.Close();
 			return true;
 		} else if (event.GetKeyCode() == KeyEscape) {
@@ -97,11 +98,6 @@ namespace WieselDemo {
 	}
 
 	bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
-		if (event.GetKeyCode() == ' ') {
-			m_App.Close();
-			return true;
-		}
-
 		m_KeyManager.Set(event.GetKeyCode(), false);
 		return true;
 	}
@@ -135,13 +131,14 @@ namespace WieselDemo {
 	}
 
 	void DemoOverlay::OnEvent(Wiesel::Event& event) {
-
 	}
 
+	static entt::entity selectedEntity;
+	static bool hasSelectedEntity = false;
 	void DemoOverlay::OnImGuiRender() {
 		static bool scenePropertiesOpen = true;
 		//ImGui::ShowDemoWindow(&scenePropertiesOpen);
-		if (ImGui::Begin("Scene Properties", &scenePropertiesOpen, 0)) {
+		if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
 			auto& pos = Engine::GetRenderer()->GetActiveCamera()->GetPosition();
 			ImGui::Text("Camera Pos");
 			ImGui::LabelText("X", "%f", pos.x);
@@ -152,7 +149,7 @@ namespace WieselDemo {
 
 			ImGui::SeparatorText("Controls");
 			ImGui::InputFloat("Camera Speed", &m_DemoLayer->m_CameraMoveSpeed);
-			if (ImGui::Checkbox("Wireframe Mode", Engine::GetRenderer()->IsWireframeModePtr())) {
+			if (ImGui::Checkbox("Wireframe Mode", Engine::GetRenderer()->IsWireframeEnabledPtr())) {
 				Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
 			}
 			if (ImGui::Button("Recreate Pipeline")) {
@@ -160,35 +157,128 @@ namespace WieselDemo {
 			}
 		}
 		ImGui::End();
-		static bool sceneOpen = true;
 
-		static entt::entity selectedEntity;
+		static bool sceneOpen = true;
 		if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
+			bool ignoreMenu = false;
+
+			if (ImGui::IsMouseClicked(1, false))
+				ImGui::OpenPopup("right_click_hierarcy");
+			if (ImGui::BeginPopup("right_click_hierarcy")) {
+				ignoreMenu = true;
+				if (ImGui::BeginMenu("Add")) {
+					if (ImGui::MenuItem("Empty Object")) {
+						m_App.GetScene()->CreateEntity();
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::EndMenu();
+				}
+				ImGui::EndPopup();
+			}
+
 			for (const auto& item : m_App.GetScene()->GetAllEntitiesWith<TagComponent>()) {
 				Entity entity = {item, &*m_App.GetScene()};
 				auto& tagComponent = entity.GetComponent<TagComponent>();
-				if (ImGui::Selectable(tagComponent.Tag.c_str(), selectedEntity == item, ImGuiSelectableFlags_None, ImVec2(0, 0))) {
+				if (ImGui::Selectable(tagComponent.Tag.c_str(), hasSelectedEntity && selectedEntity == item, ImGuiSelectableFlags_None, ImVec2(0, 0))) {
 					selectedEntity = item;
+					hasSelectedEntity = true;
+				}
+				if (!ignoreMenu && ImGui::BeginPopupContextItem()) {
+					selectedEntity = item;
+					if (ImGui::Button("Remove Entity")) {
+						m_App.GetScene()->DestroyEntity(entity);
+						hasSelectedEntity = false;
+					}
+					ImGui::EndPopup();
 				}
 			}
 		}
 		ImGui::End();
 
-		static bool propertiesOpen = true;
-		if (ImGui::Begin("Components", &propertiesOpen)) {
+		static bool componentsOpen = true;
+		if (ImGui::Begin("Components", &componentsOpen) && hasSelectedEntity) {
 			Entity entity = {selectedEntity, &*m_App.GetScene()};
-			// todo use some kind of registry
-			if (entity.HasComponent<TransformComponent>()) {
-				RenderComponent<TransformComponent>(entity.GetComponent<TransformComponent>(), entity);
+			TagComponent& tag = entity.GetComponent<TagComponent>();
+			if (ImGui::InputText("##", &tag.Tag, ImGuiInputTextFlags_AutoSelectAll)) {
+				bool hasSpace = false;
+				for (int i = 0; i < tag.Tag.size(); i++) {
+					const char& c = tag.Tag[i];
+					if (c == ' ') {
+						hasSpace = true;
+					}
+					break;
+				}
+				if (hasSpace) {
+					TrimLeft(tag.Tag);
+				}
+
+				if (tag.Tag.empty()) {
+					tag.Tag = "Entity";
+				}
 			}
-			if (entity.HasComponent<LightDirectComponent>()) {
-				RenderComponent<LightDirectComponent>(entity.GetComponent<LightDirectComponent>(), entity);
+			ImGui::SameLine();
+			if (ImGui::Button("Add Component"))
+				ImGui::OpenPopup("add_component_popup");
+			if (ImGui::BeginPopup("add_component_popup")) {
+				GENERATE_COMPONENT_ADDERS(entity);
+				/*if (ImGui::BeginMenu("Sub-menu")) {
+					ImGui::MenuItem("Click me");
+					ImGui::EndMenu();
+				}*/
+				//	ImGui::Separator();
+				ImGui::EndPopup();
 			}
-			if (entity.HasComponent<LightPointComponent>()) {
-				RenderComponent<LightPointComponent>(entity.GetComponent<LightPointComponent>(), entity);
-			}
+
+			GENERATE_COMPONENT_EDITORS(entity);
 		}
 		ImGui::End();
+		/*static int m_GizmoType = -1;
+		m_GizmoType = ImGuizmo::OPERATION::ROTATE;
+		if (hasSelectedEntity) {
+			// Gizmos
+			if (m_GizmoType != -1) {
+				Entity entity = {selectedEntity, &*m_App.GetScene()};
+				auto camera = Engine::GetRenderer()->GetActiveCamera();
+				auto& size = Engine::GetRenderer()->GetWindowSize();
+
+				// Editor camera
+				glm::mat4 cameraProjection = camera->GetProjection();
+				cameraProjection[1][1] *= -1;
+				glm::mat4 cameraView = camera->GetViewMatrix();
+
+				// Entity transform
+				auto& tc = entity.GetComponent<TransformComponent>();
+				glm::mat4 transform = tc.TransformMatrix;
+
+				// Snapping
+				bool snap = m_DemoLayer->m_KeyManager.IsPressed(KeyLeftControl);
+				float snapValue = 0.5f; // Snap to 0.5m for translation/scale
+				// Snap to 45 degrees for rotation
+				if (m_GizmoType == ImGuizmo::OPERATION::ROTATE)
+					snapValue = 45.0f;
+
+				float snapValues[3] = { snapValue, snapValue, snapValue };
+
+				ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
+				ImGuizmo::Enable(true);
+				ImGuizmo::DrawGrid(&cameraView[0][0], &cameraProjection[0][0], &transform[0][0], 200.0f);
+				//ImGuizmo::SetRect(0, 0, size.Width, size.Height);
+				ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
+									 (ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL, glm::value_ptr(transform),
+									 nullptr, snap ? snapValues : nullptr);
+
+				if (ImGuizmo::IsUsing()) {
+					glm::vec3 translation, rotation, scale;
+					Math::DecomposeTransform(transform, translation, rotation, scale);
+
+					glm::vec3 deltaRotation = rotation - tc.Rotation;
+					tc.Position = translation;
+					tc.Rotation += deltaRotation;
+					tc.Scale = scale;
+					tc.IsChanged = true;
+				}
+			}
+		}*/
 	}
 
 	void DemoApplication::Init() {

@@ -13,6 +13,7 @@
 
 #include "w_pch.h"
 #include "layer/w_layer.h"
+#include "util/imgui/w_imguiutil.h"
 
 namespace Wiesel {
 	class ImGuiLayer : public Layer {

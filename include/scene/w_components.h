@@ -55,5 +55,6 @@ namespace Wiesel {
 		glm::mat3 NormalMatrix = {};
 	};
 
+#define ALL_COMPONENT_TYPES IdComponent, TagComponent, TransformComponent, ModelComponent, LightDirectComponent, LightPointComponent
 
 }

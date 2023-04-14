@@ -12,7 +12,6 @@
 #pragma once
 
 #include "w_pch.h"
-#include "scene/w_components.h"
 #include "scene/w_scene.h"
 
 namespace Wiesel {
@@ -62,8 +61,16 @@ namespace Wiesel {
 			return !(*this == other);
 		}
 
+		entt::entity GetHandle() {
+			return m_EntityHandle;
+		}
+
+		Scene* GetScene() {
+			return m_Scene;
+		}
 	private:
 		entt::entity m_EntityHandle;
 		Scene* m_Scene;
 	};
+
 }
