@@ -126,6 +126,12 @@ namespace Wiesel {
 	};
 
 	std::vector<char> ReadFile(const std::string& filename);
+
+	inline void TrimLeft(std::string &s) {
+		s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+			return !std::isspace(ch);
+		}));
+	}
 }
 
 #define WIESEL_BIND_EVENT_FUNCTION(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }

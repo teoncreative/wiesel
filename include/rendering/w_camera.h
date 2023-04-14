@@ -25,7 +25,7 @@ namespace Wiesel {
 		WIESEL_GETTER_FN float GetFieldOfView() const;
 		WIESEL_GETTER_FN const glm::vec3& GetPosition();
 		WIESEL_GETTER_FN const glm::vec3& GetRotation();
-		WIESEL_GETTER_FN const glm::mat4& GetView();
+		WIESEL_GETTER_FN const glm::mat4& GetViewMatrix();
 		WIESEL_GETTER_FN const glm::mat4& GetProjection();
 
 		void Move(float x, float y, float z);
@@ -60,7 +60,7 @@ namespace Wiesel {
 		float m_AspectRatio;
 		glm::vec3 m_Position;
 		glm::vec3 m_Rotation;
-		glm::mat4 m_View;
+		glm::mat4 m_ViewMatrix;
 		glm::mat4 m_Projection;
 	};
 

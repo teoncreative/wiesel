@@ -69,6 +69,5 @@ namespace WieselDemo {
 	private:
 		DemoApplication& m_App;
 		Wiesel::Reference<DemoLayer> m_DemoLayer;
-
 	};
 }

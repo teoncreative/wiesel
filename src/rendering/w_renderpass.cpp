@@ -9,11 +9,15 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#pragma once
-
-#include "w_pch.h"
-#include <imgui.h>
+#include "rendering/w_renderpass.h"
 
 namespace Wiesel {
-	std::string PrefixLabel(const char* label);
+
+	RenderPass::RenderPass(RenderPassProperties properties) : m_Properties(properties) {
+
+	}
+
+	RenderPass::~RenderPass() {
+
+	}
 }

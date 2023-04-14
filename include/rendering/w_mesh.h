@@ -55,6 +55,7 @@ namespace Wiesel {
 		std::string ModelPath;
 		std::string TexturesPath;
 		std::map<std::string, Reference<Texture>> Textures;
+		bool ReceiveShadows = true; // todo shadows
 	};
 
 	struct ModelComponent {

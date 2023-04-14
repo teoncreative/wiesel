@@ -27,6 +27,7 @@ namespace Wiesel {
 		virtual void OnEvent(Event& event) = 0;
 
 		virtual void OnImGuiRender();
+		virtual void PostRender();
 	protected:
 		friend class Application;
 

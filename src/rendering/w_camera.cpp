@@ -11,6 +11,7 @@
 #include "rendering/w_camera.h"
 
 namespace Wiesel {
+	// todo make this a component
 	Camera::Camera(const glm::vec3& position, const glm::vec3& rotation, float aspectRatio, float fieldOfView, float nearPlane, float farPlane) : m_Position(position), m_Rotation(rotation), m_AspectRatio(aspectRatio), m_FieldOfView(fieldOfView), m_NearPlane(nearPlane), m_FarPlane(farPlane) {
 		UpdateView();
 		UpdateProjection();
@@ -31,8 +32,8 @@ namespace Wiesel {
 		return m_Rotation;
 	}
 
-	const glm::mat4& Camera::GetView() {
-		return m_View;
+	const glm::mat4& Camera::GetViewMatrix() {
+		return m_ViewMatrix;
 	}
 
 	const glm::mat4& Camera::GetProjection() {
@@ -62,27 +63,27 @@ namespace Wiesel {
 	}
 
 	glm::vec3 Camera::GetForward() {
-		return -m_View[2];
+		return -m_ViewMatrix[2];
 	}
 
 	glm::vec3 Camera::GetBackward() {
-		return m_View[2];
+		return m_ViewMatrix[2];
 	}
 
 	glm::vec3 Camera::GetLeft() {
-		return -m_View[0];
+		return -m_ViewMatrix[0];
 	}
 
 	glm::vec3 Camera::GetRight() {
-		return m_View[0];
+		return m_ViewMatrix[0];
 	}
 
 	glm::vec3 Camera::GetUp() {
-		return m_View[1];
+		return m_ViewMatrix[1];
 	}
 
 	glm::vec3 Camera::GetDown() {
-		return -m_View[1];
+		return -m_ViewMatrix[1];
 	}
 
 	void Camera::OnEvent(Event& event) {
@@ -107,7 +108,7 @@ namespace Wiesel {
 
 	void Camera::UpdateView() {
 		glm::mat4 rotation = glm::toMat4(glm::quat(m_Rotation));
-		m_View = glm::translate(glm::mat4(1.0f), m_Position) * rotation;
+		m_ViewMatrix = glm::translate(glm::mat4(1.0f), m_Position) * rotation;
 	}
 
 	void Camera::UpdateProjection() {
