@@ -78,7 +78,8 @@ vec3 getSurfaceNormal() {
    } else {
       normal = normalize(inNormal);
    }*/
-   return normalize(inVertexNormal);
+   vec3 normal = inVertexNormal;
+   return normal;
 }
 void main() {
    vec4 baseColor;

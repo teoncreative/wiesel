@@ -36,14 +36,14 @@ namespace Wiesel {
 			return;
 		}
 
-		Reference<Camera> camera = Engine::GetRenderer()->GetActiveCamera();
+		Reference<CameraData> camera = Engine::GetRenderer()->GetCameraData();
 		Wiesel::UniformBufferObject ubo{};
 		ubo.ModelMatrix = transform.TransformMatrix;
 		ubo.Scale = transform.Scale;
 		ubo.NormalMatrix = transform.NormalMatrix;
-		ubo.CameraViewMatrix = glm::inverse(camera->GetViewMatrix());
-		ubo.CameraProjection = camera->GetProjection();
-		ubo.CameraPosition = camera->GetPosition();
+		ubo.CameraViewMatrix = glm::inverse(camera->ViewMatrix);
+		ubo.CameraProjection = camera->Projection;
+		ubo.CameraPosition = camera->Position;
 
 		uint32_t currentFrame = Engine::GetRenderer()->GetCurrentFrame();
 		memcpy(UniformBufferSet->m_Buffers[currentFrame]->m_Data, &ubo, sizeof(ubo));
