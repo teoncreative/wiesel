@@ -43,9 +43,6 @@ namespace WieselDemo {
 		}
 
 		// Custom camera
-		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(0.0f, 1.5f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_Renderer->GetAspectRatio(), 60, 0.1f, 10000.0f);
-		m_Renderer->AddCamera(camera);
-		m_Renderer->SetActiveCamera(camera->GetId());
 		m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);
 		m_Renderer->SetVsync(false);
 	}
@@ -56,21 +53,29 @@ namespace WieselDemo {
 
 	void DemoLayer::OnUpdate(float_t deltaTime) {
 	//	LogInfo("OnUpdate " + std::to_string(deltaTime));
-		const Reference<Camera>& camera = m_Renderer->GetActiveCamera();
+		if (!m_Scene->GetPrimaryCamera()) {
+			return;
+		}
+		Entity cameraEntity = m_Scene->GetPrimaryCameraEntity();
+		CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
+		Camera& camera = cameraComponent.m_Camera;
+		TransformComponent& transform = cameraEntity.GetComponent<TransformComponent>();
 		if (m_KeyManager.IsPressed(KeyW)) {
-			camera->Move(camera->GetForward() * deltaTime * m_CameraMoveSpeed);
+			transform.Position += transform.GetForward() * deltaTime * m_CameraMoveSpeed;
 		} else if (m_KeyManager.IsPressed(KeyS)) {
-			camera->Move(camera->GetBackward() * deltaTime * m_CameraMoveSpeed);
+			transform.Position += transform.GetBackward() * deltaTime * m_CameraMoveSpeed;
 		}
 
 		if (m_KeyManager.IsPressed(KeyA)) {
-			camera->Move(camera->GetLeft() * deltaTime * m_CameraMoveSpeed);
+			transform.Position += transform.GetLeft() * deltaTime * m_CameraMoveSpeed;
 		} else if (m_KeyManager.IsPressed(KeyD)) {
-			camera->Move(camera->GetRight() * deltaTime * m_CameraMoveSpeed);
+			transform.Position += transform.GetRight() * deltaTime * m_CameraMoveSpeed;
 		}
 
 		m_InputY = std::clamp(m_InputY, -m_LookXLimit, m_LookXLimit);
-		camera->SetRotation(m_InputY, m_InputX, 0.0f);
+		transform.Rotation = {m_InputY, m_InputX, 0.0f};
+		transform.IsChanged = true;
+		camera.m_IsChanged = true;
 	}
 
 	void DemoLayer::OnEvent(Event& event) {
@@ -139,14 +144,6 @@ namespace WieselDemo {
 		static bool scenePropertiesOpen = true;
 		//ImGui::ShowDemoWindow(&scenePropertiesOpen);
 		if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
-			auto& pos = Engine::GetRenderer()->GetActiveCamera()->GetPosition();
-			ImGui::Text("Camera Pos");
-			ImGui::LabelText("X", "%f", pos.x);
-			ImGui::LabelText("Y", "%f", pos.y);
-			ImGui::LabelText("Z", "%f", pos.z);
-
-			bool changed = false;
-
 			ImGui::SeparatorText("Controls");
 			ImGui::InputFloat("Camera Speed", &m_DemoLayer->m_CameraMoveSpeed);
 			if (ImGui::Checkbox("Wireframe Mode", Engine::GetRenderer()->IsWireframeEnabledPtr())) {
@@ -162,10 +159,26 @@ namespace WieselDemo {
 		if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
 			bool ignoreMenu = false;
 
-			if (ImGui::IsMouseClicked(1, false))
+			for (const auto& item : m_App.GetScene()->GetAllEntitiesWith<TagComponent>()) {
+				Entity entity = {item, &*m_App.GetScene()};
+				auto& tagComponent = entity.GetComponent<TagComponent>();
+				if (ImGui::Selectable(tagComponent.Tag.c_str(), hasSelectedEntity && selectedEntity == item, ImGuiSelectableFlags_None, ImVec2(0, 0))) {
+					selectedEntity = item;
+					hasSelectedEntity = true;
+				}
+				if (ImGui::BeginPopupContextItem()) {
+					selectedEntity = item;
+					if (ImGui::Button("Remove Entity")) {
+						m_App.GetScene()->DestroyEntity(entity);
+						hasSelectedEntity = false;
+					}
+					ImGui::EndPopup();
+					ignoreMenu = true;
+				}
+			}
+			if (!ignoreMenu && ImGui::IsMouseClicked(1, false))
 				ImGui::OpenPopup("right_click_hierarcy");
 			if (ImGui::BeginPopup("right_click_hierarcy")) {
-				ignoreMenu = true;
 				if (ImGui::BeginMenu("Add")) {
 					if (ImGui::MenuItem("Empty Object")) {
 						m_App.GetScene()->CreateEntity();
@@ -174,23 +187,6 @@ namespace WieselDemo {
 					ImGui::EndMenu();
 				}
 				ImGui::EndPopup();
-			}
-
-			for (const auto& item : m_App.GetScene()->GetAllEntitiesWith<TagComponent>()) {
-				Entity entity = {item, &*m_App.GetScene()};
-				auto& tagComponent = entity.GetComponent<TagComponent>();
-				if (ImGui::Selectable(tagComponent.Tag.c_str(), hasSelectedEntity && selectedEntity == item, ImGuiSelectableFlags_None, ImVec2(0, 0))) {
-					selectedEntity = item;
-					hasSelectedEntity = true;
-				}
-				if (!ignoreMenu && ImGui::BeginPopupContextItem()) {
-					selectedEntity = item;
-					if (ImGui::Button("Remove Entity")) {
-						m_App.GetScene()->DestroyEntity(entity);
-						hasSelectedEntity = false;
-					}
-					ImGui::EndPopup();
-				}
 			}
 		}
 		ImGui::End();

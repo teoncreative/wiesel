@@ -76,9 +76,7 @@ namespace Wiesel {
 		void DestroyRenderPass(RenderPass& renderPass);
 		void RecreateRenderPass(Reference<RenderPass> renderPass);
 
-		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
-		void AddCamera(Reference<Camera> camera);
-		void SetActiveCamera(uint32_t id);
+		WIESEL_GETTER_FN Reference<CameraData> GetCameraData();
 
 		void SetClearColor(float r, float g, float b, float a = 1.0f);
 		void SetClearColor(const Colorf& color);
@@ -103,14 +101,13 @@ namespace Wiesel {
 		WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
 		WIESEL_GETTER_FN LightsUniformBufferObject& GetLightsBufferObject();
 
-		bool BeginFrame();
+		bool BeginFrame(Reference<CameraData> data);
 		void DrawModel(ModelComponent& model, TransformComponent& transform);
 		void DrawMesh(Reference<Mesh> mesh, TransformComponent& transform);
 		void EndFrame();
 
 		void RecreateSwapChain();
 
-		void PublishEvent(Event& event);
 		void Cleanup();
 	private:
 		friend class Mesh;
@@ -155,8 +152,6 @@ namespace Wiesel {
 		std::vector<VkFence> M_InFlightFences;
 
 		uint32_t m_CurrentFrame = 0;
-		std::vector<Reference<Camera>> m_Cameras;
-		uint32_t m_ActiveCameraId;
 		float_t m_AspectRatio;
 		WindowSize m_WindowSize;
 		VkSampleCountFlagBits m_MsaaSamples;
@@ -170,6 +165,7 @@ namespace Wiesel {
 		bool m_RecreateGraphicsPipeline;
 		Reference<GraphicsPipeline> m_DefaultGraphicsPipeline;
 		Reference<RenderPass> m_DefaultRenderPass;
+		Reference<CameraData> m_CameraData;
 
 		void CreateVulkanInstance();
 		void CreateSurface();

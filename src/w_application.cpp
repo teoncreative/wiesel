@@ -58,6 +58,12 @@ namespace Wiesel {
 		dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowClose));
 		dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowResize));
 
+		if (event.m_Handled) {
+			return;
+		}
+
+		m_Scene->OnEvent(event);
+
 		for (const auto& layer : m_Layers) {
 			if (event.m_Handled) {
 				break;
@@ -105,14 +111,17 @@ namespace Wiesel {
 					layer->OnUpdate(m_DeltaTime);
 				}
 				m_Scene->OnUpdate(m_DeltaTime);
-				if (!Engine::GetRenderer()->BeginFrame()) {
+
+				if (!Engine::GetRenderer()->BeginFrame(m_Scene->GetPrimaryCamera())) {
 					continue;
 				}
 				m_ImGuiLayer->OnBeginFrame();
 				for (const auto& layer : m_Overlays) {
 					layer->OnImGuiRender();
 				}
-				m_Scene->Render();
+				if (m_Scene->GetPrimaryCamera()) {
+					m_Scene->Render();
+				}
 				for (const auto& layer : m_Overlays) {
 					layer->PostRender();
 				}

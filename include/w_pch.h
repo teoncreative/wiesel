@@ -37,3 +37,4 @@
 #include <filesystem>
 
 #include "util/w_attributes.h"
+#include "util/w_platformdetection.h"

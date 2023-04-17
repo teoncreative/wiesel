@@ -57,10 +57,6 @@ namespace Wiesel {
 		CreateDepthResources();
 		CreateFramebuffers();
 		CreateSyncObjects();
-
-		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_AspectRatio);
-		AddCamera(camera);
-		SetActiveCamera(camera->GetId());
 	}
 
 	Renderer::~Renderer() = default;
@@ -277,6 +273,7 @@ namespace Wiesel {
 		texture.m_IsAllocated = false;
 	}
 
+	// todo reuse samplers
 	VkSampler Renderer::CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps) {
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -587,17 +584,11 @@ namespace Wiesel {
 		return m_CurrentFrame;
 	}
 
-	Reference<Camera> Renderer::GetActiveCamera() {
-		return m_Cameras[m_ActiveCameraId];
-	}
-
-	void Renderer::AddCamera(Reference<Camera> camera) {
-		camera->SetId(m_Cameras.size());
-		m_Cameras.emplace_back(std::move(camera));
-	}
-
-	void Renderer::SetActiveCamera(uint32_t id) {
-		m_ActiveCameraId = id;
+	Reference<CameraData> Renderer::GetCameraData() {
+		if (!m_CameraData) {
+			throw std::runtime_error("Camera is not initialized, forgot to call BeginFrame?");
+		}
+		return m_CameraData;
 	}
 
 	void Renderer::SetClearColor(float r, float g, float b, float a) {
@@ -677,9 +668,6 @@ namespace Wiesel {
 
 		CleanupGlobalUniformBuffers();
 		m_BlankTexture = nullptr;
-
-		LOG_DEBUG("Destroying cameras");
-		m_Cameras.clear();
 
 		CleanupSwapChain();
 
@@ -1692,21 +1680,10 @@ namespace Wiesel {
 		CreateColorResources();
 		CreateDepthResources();
 		CreateFramebuffers();
-
-		AppRecreateSwapChainsEvent event(size, m_AspectRatio);
-		PublishEvent(event);
 	}
 
-	void Renderer::PublishEvent(Event& event) {
-		for (const auto& camera : m_Cameras) {
-			if (event.m_Handled) {
-				return;
-			}
-			camera->OnEvent(event);
-		}
-	}
-
-	bool Renderer::BeginFrame() {
+	bool Renderer::BeginFrame(Reference<CameraData> data) {
+		m_CameraData = data;
 		vkWaitForFences(m_LogicalDevice, 1, &M_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
 		VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
@@ -1789,10 +1766,6 @@ namespace Wiesel {
 	void Renderer::DrawMesh(Reference<Mesh> mesh, TransformComponent& transform) {
 		if (!mesh->IsAllocated) {
 			return;
-		}
-
-		if (transform.IsChanged) {
-			transform.UpdateRenderData();
 		}
 		mesh->UpdateUniformBuffer(transform);
 

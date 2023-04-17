@@ -113,6 +113,34 @@ namespace Wiesel {
 	}
 
 	template<>
+	void RenderComponentImGui(CameraComponent& component, Entity entity) {
+		static bool visible = true;
+		if (ImGui::ClosableTreeNode("Camera", &visible)) {
+			bool changed = false;
+			changed |= ImGui::InputFloat("FOV", &component.m_Camera.m_FieldOfView);
+			changed |= ImGui::InputFloat("Near Plane", &component.m_Camera.m_NearPlane);
+			changed |= ImGui::InputFloat("Far Plane", &component.m_Camera.m_FarPlane);
+			if (changed) {
+				component.m_Camera.m_IsChanged = true;
+			}
+			if (ImGui::Checkbox("Is Primary", &component.m_Camera.m_IsPrimary)) {
+				if (component.m_Camera.m_IsPrimary) {
+					if (entity.GetScene()->GetPrimaryCamera()) {
+						auto cameraEntity = entity.GetScene()->GetPrimaryCameraEntity();
+						auto& camera = cameraEntity.GetComponent<CameraComponent>();
+						camera.m_Camera.m_IsPrimary = false;
+					}
+				}
+			}
+
+			ImGui::TreePop();
+		}
+		if (!visible) {
+			entity.RemoveComponent<CameraComponent>();
+			visible = true;
+		}
+	}
+	template<>
 	void RenderAddComponentImGui<ModelComponent>(Entity entity) {
 		if (ImGui::MenuItem("Model")) {
 			entity.AddComponent<ModelComponent>();
@@ -130,6 +158,14 @@ namespace Wiesel {
 	void RenderAddComponentImGui<LightDirectComponent>(Entity entity) {
 		if (ImGui::MenuItem("Directional Light")) {
 			entity.AddComponent<LightDirectComponent>();
+		}
+	}
+
+	template<>
+	void RenderAddComponentImGui<CameraComponent>(Entity entity) {
+		if (ImGui::MenuItem("Camera")) {
+			auto& component = entity.AddComponent<CameraComponent>();
+			component.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
 		}
 	}
 }
