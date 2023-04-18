@@ -57,9 +57,25 @@ file(
         "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_metal.cpp"
         "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_vulkan.cpp"
         "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_glfw.cpp"
+        "${ENGINE_DIR}/deps/imgui/misc/cpp/imgui_stdlib.cpp"
         "${ENGINE_DIR}/deps/imgui/*.h"
 )
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${LibImGui})
+include_directories(${ENGINE_DIR}/deps/imguizmo)
+file(
+        GLOB LibImGuizmo
+        "${ENGINE_DIR}/deps/imguizmo/GraphEditor.cpp"
+        "${ENGINE_DIR}/deps/imguizmo/GraphEditor.h"
+        "${ENGINE_DIR}/deps/imguizmo/ImCurveEdit.cpp"
+        "${ENGINE_DIR}/deps/imguizmo/ImCurveEdit.h"
+        "${ENGINE_DIR}/deps/imguizmo/ImGradient.cpp"
+        "${ENGINE_DIR}/deps/imguizmo/ImGradient.h"
+        "${ENGINE_DIR}/deps/imguizmo/ImGuizmo.cpp"
+        "${ENGINE_DIR}/deps/imguizmo/ImGuizmo.h"
+        "${ENGINE_DIR}/deps/imguizmo/ImSequencer.cpp"
+        "${ENGINE_DIR}/deps/imguizmo/ImSequencer.h"
+        "${ENGINE_DIR}/deps/imguizmo/ImZoomSlider.h"
+)
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo})
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRECTORY}/w_pch.h)
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
@@ -95,6 +111,9 @@ target_link_libraries(${PROJECT_NAME} assimp)
 
 add_subdirectory(${ENGINE_DIR}/deps/entt)
 target_link_libraries(${PROJECT_NAME} EnTT)
+
+add_subdirectory(${ENGINE_DIR}/deps/filedialog)
+target_link_libraries(${PROJECT_NAME} nfd)
 
 if(APPLE)
     message("Platform: Apple")

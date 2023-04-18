@@ -11,8 +11,12 @@
 #include "w_engine.h"
 
 namespace Wiesel {
+	Application* Application::s_Application;
+
 	Application::Application() {
 		WIESEL_PROFILE_FUNCTION();
+		s_Application = this;
+
 		m_LayerCounter = 0;
 		m_IsRunning = true;
 		m_IsMinimized = false;
@@ -54,6 +58,12 @@ namespace Wiesel {
 		dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowClose));
 		dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowResize));
 
+		if (event.m_Handled) {
+			return;
+		}
+
+		m_Scene->OnEvent(event);
+
 		for (const auto& layer : m_Layers) {
 			if (event.m_Handled) {
 				break;
@@ -91,6 +101,8 @@ namespace Wiesel {
 			m_DeltaTime = time - m_PreviousFrame;
 			m_PreviousFrame = time;
 
+			ExecuteQueue();
+
 			if (!m_IsMinimized) {
 				for (const auto& layer : m_Layers) {
 					layer->OnUpdate(m_DeltaTime);
@@ -99,14 +111,20 @@ namespace Wiesel {
 					layer->OnUpdate(m_DeltaTime);
 				}
 				m_Scene->OnUpdate(m_DeltaTime);
-				if (!Engine::GetRenderer()->BeginFrame()) {
+
+				if (!Engine::GetRenderer()->BeginFrame(m_Scene->GetPrimaryCamera())) {
 					continue;
 				}
 				m_ImGuiLayer->OnBeginFrame();
 				for (const auto& layer : m_Overlays) {
 					layer->OnImGuiRender();
 				}
-				m_Scene->Render();
+				if (m_Scene->GetPrimaryCamera()) {
+					m_Scene->Render();
+				}
+				for (const auto& layer : m_Overlays) {
+					layer->PostRender();
+				}
 				m_ImGuiLayer->OnEndFrame();
                 Engine::GetRenderer()->EndFrame();
             }
@@ -150,5 +168,23 @@ namespace Wiesel {
 
 	Reference<Scene> Application::GetScene() {
 		return m_Scene;
+	}
+
+	void Application::SubmitToMainThread(std::function<void()> fn) {
+		std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
+		m_MainThreadQueue.emplace_back(fn);
+	}
+
+	void Application::ExecuteQueue() {
+		// this has to be inside its own scope or it might have problems
+		std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
+		for (auto& func : m_MainThreadQueue) {
+			func();
+		}
+		m_MainThreadQueue.clear();
+	}
+
+	Application* Application::Get() {
+		return s_Application;
 	}
 }

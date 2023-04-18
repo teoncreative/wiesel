@@ -10,6 +10,7 @@
 
 #include "w_engine.h"
 #include "window/w_glfwwindow.h"
+#include "util/w_dialogs.h"
 
 namespace Wiesel {
 	Reference<Renderer> Engine::s_Renderer;
@@ -21,6 +22,7 @@ namespace Wiesel {
 
 	void Engine::InitWindow(WindowProperties props) {
 		s_Window = CreateReference<GlfwAppWindow>(props);
+		Dialogs::Init();
 	}
 
 	void Engine::InitRenderer() {
@@ -38,6 +40,7 @@ namespace Wiesel {
 
 	void Engine::CleanupWindow() {
 		s_Window = nullptr;
+		Dialogs::Destroy();
 	}
 
 	void Engine::CleanupEngine() {
@@ -55,7 +58,7 @@ namespace Wiesel {
 		return s_Window;
 	}
 
-	void Engine::LoadModel(TransformComponent& transform, ModelComponent& modelComponent, const std::string& path) {
+	aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent, const std::string& path) {
 		auto& model = modelComponent.Data;
 		auto fsPath = std::filesystem::canonical(path);
 		model.ModelPath = fsPath.generic_string();
@@ -65,22 +68,33 @@ namespace Wiesel {
 		Assimp::Importer importer;
 		importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
 		importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
-		importer.ReadFile(model.ModelPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcessPreset_TargetRealtime_Fast);
+		importer.ReadFile(model.ModelPath, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast);
 		aiScene* scene = importer.GetOrphanedScene();
 
 		if(!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !scene->mRootNode) {
 			LOG_ERROR("Failed to load model " + path + ": " + importer.GetErrorString());
-			return;
+			return nullptr;
 		}
 
-		ProcessNode(model, scene->mRootNode, *scene, model.Meshes);
+		return scene;
+	}
+
+	void Engine::LoadModel(TransformComponent& transform, ModelComponent& modelComponent, const std::string& path) {
+		aiScene* scene = LoadAssimpModel(modelComponent, path);
+		LoadModel(scene, transform, modelComponent, path);
+	}
+
+	void Engine::LoadModel(aiScene* scene, Wiesel::TransformComponent& transform, Wiesel::ModelComponent& modelComponent, const std::string& path) {
+		modelComponent.Data.Meshes.clear();
+		modelComponent.Data.Textures.clear();
+		ProcessNode(modelComponent.Data, scene->mRootNode, *scene, modelComponent.Data.Meshes);
 		uint64_t vertices = 0;
-		for (const auto& item : model.Meshes) {
+		for (const auto& item : modelComponent.Data.Meshes) {
 			item->Allocate();
 			vertices += item->Vertices.size();
 		}
-		LOG_INFO("Loaded " + std::to_string(model.Meshes.size()) + " meshes!");
-		LOG_INFO("Loaded " + std::to_string(model.Textures.size()) + " textures!");
+		LOG_INFO("Loaded " + std::to_string(modelComponent.Data.Meshes.size()) + " meshes!");
+		LOG_INFO("Loaded " + std::to_string(modelComponent.Data.Textures.size()) + " textures!");
 		LOG_INFO("Loaded " + std::to_string(vertices) + " vertices!");
 	}
 

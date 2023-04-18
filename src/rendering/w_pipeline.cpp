@@ -1,4 +1,3 @@
-
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -9,23 +8,16 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "layer/w_layer.h"
+#include "rendering/w_pipeline.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 
-	Layer::Layer(const std::string& layerName) : m_LayerName(layerName) {
-
+	GraphicsPipeline::GraphicsPipeline(PipelineProperties properties) : m_Properties(properties) {
+		m_IsAllocated = false;
 	}
 
-	Layer::~Layer() {
-
-	}
-
-	void Layer::OnImGuiRender() {
-
-	}
-
-	void Layer::PostRender() {
-
+	GraphicsPipeline::~GraphicsPipeline() {
+		Engine::GetRenderer()->DestroyGraphicsPipeline(*this);
 	}
 }

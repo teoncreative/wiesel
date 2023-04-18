@@ -34,6 +34,7 @@ layout(binding = 0) uniform UniformBufferObject {
    mat4 modelMatrix;
    vec3 scale;
    mat3 normalMatrix;
+   mat4 rotationMatrix;
    mat4 cameraViewMatrix;
    mat4 cameraProjection;
    vec3 cameraPosition;
@@ -63,6 +64,7 @@ layout(location = 4) in vec3 inTangent;
 layout(location = 5) in vec3 inBiTangent;
 layout(location = 6) in flat uint inFlags;
 layout(location = 7) in vec3 inViewDir;
+layout(location = 8) in mat3 inTBN;
 
 layout(location = 0) out vec4 outColor;
 
@@ -72,13 +74,15 @@ float saturate(float x) {
 
 vec3 getSurfaceNormal() {
    // todo use normals from normal map
-/*   vec3 normal;
+   vec3 normal;
    if ((inFlags & VertexFlagHasNormalMap) > 0) {
-      normal = normalize(texture(normalMap, inUV).rgb * 2.0 - 1.0);
+      vec3 localNormal = 2.0 * texture(normalMap, inUV).rgb - 1.0;
+      normal = normalize(inTBN * localNormal);
    } else {
-      normal = normalize(inNormal);
-   }*/
-   return normalize(inVertexNormal);
+      normal = inVertexNormal;
+   }
+//   vec3 normal = inVertexNormal;
+   return normal;
 }
 void main() {
    vec4 baseColor;
@@ -101,7 +105,8 @@ void main() {
       LightDirect light = lights.directLights[i];
       float lightAmbient = light.base.ambient;
 
-      float lightDiffuse = light.base.diffuse * max(dot(normal, light.direction), 0.0);
+      vec4 lightDir = vec4(light.direction, 1.0f) * ubo.rotationMatrix;
+      float lightDiffuse = light.base.diffuse * max(dot(normal, lightDir.xyz), 0.0);
       float lightSpecular = 0.0;
      // if (lightDiffuse > 0) {
       // Calculate halfway vector for specular reflection

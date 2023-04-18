@@ -12,12 +12,46 @@
 #pragma once
 
 #include "w_pch.h"
-#include "util/w_imguiutil.h"
-#include "scene/w_entity.h"
 #include "scene/w_components.h"
+#include "scene/w_entity.h"
 
 namespace Wiesel {
+	// Editor
 	template<class T>
-	void RenderComponent(T& component, Entity entity);
+	void RenderComponentImGui(T& component, Entity entity) {
+	}
 
+	template<class T>
+	void CallRenderComponentImGui(Entity entity) {
+		if (entity.HasComponent<T>()) {
+			RenderComponentImGui<T>(entity.GetComponent<T>(), entity);
+		}
+	}
+
+	template<typename... ComponentTypes>
+	void CallRenderComponentImGuiAll(Entity entity) {
+		(CallRenderComponentImGui<ComponentTypes>(entity), ...);
+	}
+
+	// Adder
+	template<class T>
+	void RenderAddComponentImGui(Entity entity) {
+
+
+	}
+
+	template<class T>
+	void CallRenderAddComponentImGui(Entity entity) {
+		if (!entity.HasComponent<T>()) {
+			RenderAddComponentImGui<T>(entity);
+		}
+	}
+
+	template<typename... ComponentTypes>
+	void CallRenderAddComponentImGuiAll(Entity entity) {
+		(CallRenderAddComponentImGui<ComponentTypes>(entity), ...);
+	}
+
+#define GENERATE_COMPONENT_EDITORS(entity) CallRenderComponentImGuiAll<ALL_COMPONENT_TYPES>(entity);
+#define GENERATE_COMPONENT_ADDERS(entity) CallRenderAddComponentImGuiAll<ALL_COMPONENT_TYPES>(entity);
 }

@@ -9,9 +9,10 @@
 //
 
 #include "layer/w_layerimgui.h"
-#include "util/imgui_spectrum.h"
+#include "util/imgui/imgui_spectrum.h"
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
+#include "GLFW/glfw3.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -65,6 +66,12 @@ namespace Wiesel {
 		auto& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			auto& style = ImGui::GetStyle();
+			style.WindowRounding = 0.0f;
+			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+		}
 
 		Engine::GetRenderer()->m_Window->ImGuiInit();
 
@@ -79,7 +86,7 @@ namespace Wiesel {
 		init_info.ImageCount = 3;
 		init_info.MSAASamples = Engine::GetRenderer()->m_MsaaSamples;
 
-		ImGui_ImplVulkan_Init(&init_info, Engine::GetRenderer()->m_RenderPass);
+		ImGui_ImplVulkan_Init(&init_info, Engine::GetRenderer()->m_DefaultRenderPass->m_Pass);
 
 		//execute a gpu command to upload imgui font textures
 		auto cmd = Engine::GetRenderer()->BeginSingleTimeCommands();
@@ -109,11 +116,18 @@ namespace Wiesel {
 		ImGui_ImplVulkan_NewFrame();
 		Engine::GetRenderer()->m_Window->ImGuiNewFrame();
 		ImGui::NewFrame();
+		ImGuizmo::BeginFrame();
 	}
 
 	void ImGuiLayer::OnEndFrame() {
 		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), Engine::GetRenderer()->m_CommandBuffers[Engine::GetRenderer()->m_CurrentFrame]);
 		ImGui::EndFrame();
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			// move this to window handle!!
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
 	}
 }

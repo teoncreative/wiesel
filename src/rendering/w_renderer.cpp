@@ -11,7 +11,7 @@
 
 #include "rendering/w_renderer.h"
 #include "util/w_vectors.h"
-#include "util/imgui_spectrum.h"
+#include "util/imgui/imgui_spectrum.h"
 
 namespace Wiesel {
 	const uint32_t Renderer::k_MaxFramesInFlight = 2;
@@ -21,12 +21,13 @@ namespace Wiesel {
         validationLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
 
-        deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        m_DeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 #ifdef __APPLE__
-        deviceExtensions.push_back("VK_KHR_portability_subset");
+        m_DeviceExtensions.push_back("VK_KHR_portability_subset");
 #endif
 
-		m_WireframeMode = false;
+		m_RecreateGraphicsPipeline = false;
+		m_EnableWireframe = false;
 		m_RecreateSwapChain = false;
 		m_SwapChainCreated = false;
 		m_Vsync = true;
@@ -46,9 +47,9 @@ namespace Wiesel {
 		CreateGlobalUniformBuffers();
 		CreateSwapChain();
 		CreateImageViews();
-		CreateRenderPass();
+		CreateDefaultRenderPass();
 		CreateDescriptorSetLayout();
-		CreateGraphicsPipeline();
+		CreateDefaultGraphicsPipeline();
 		CreateCommandPools();
 		CreateCommandBuffers();
 		CreatePermanentResources();
@@ -56,10 +57,6 @@ namespace Wiesel {
 		CreateDepthResources();
 		CreateFramebuffers();
 		CreateSyncObjects();
-
-		Reference<Camera> camera = CreateReference<Camera>(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), m_AspectRatio);
-		AddCamera(camera);
-		SetActiveCamera(camera->GetId());
 	}
 
 	Renderer::~Renderer() = default;
@@ -276,6 +273,7 @@ namespace Wiesel {
 		texture.m_IsAllocated = false;
 	}
 
+	// todo reuse samplers
 	VkSampler Renderer::CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps) {
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -586,17 +584,11 @@ namespace Wiesel {
 		return m_CurrentFrame;
 	}
 
-	Reference<Camera> Renderer::GetActiveCamera() {
-		return m_Cameras[m_ActiveCameraId];
-	}
-
-	void Renderer::AddCamera(Reference<Camera> camera) {
-		camera->SetId(m_Cameras.size());
-		m_Cameras.emplace_back(std::move(camera));
-	}
-
-	void Renderer::SetActiveCamera(uint32_t id) {
-		m_ActiveCameraId = id;
+	Reference<CameraData> Renderer::GetCameraData() {
+		if (!m_CameraData) {
+			throw std::runtime_error("Camera is not initialized, forgot to call BeginFrame?");
+		}
+		return m_CameraData;
 	}
 
 	void Renderer::SetClearColor(float r, float g, float b, float a) {
@@ -637,17 +629,17 @@ namespace Wiesel {
 		return m_Vsync;
 	}
 
-	void Renderer::SetWireframeMode(bool mode) {
-		m_WireframeMode = mode;
+	void Renderer::SetWireframeEnabled(bool value) {
+		m_EnableWireframe = value;
 		m_RecreateGraphicsPipeline = true;
 	}
 
-	bool Renderer::IsWireframeMode() {
-		return m_WireframeMode;
+	bool Renderer::IsWireframeEnabled() {
+		return m_EnableWireframe;
 	}
 
-	bool* Renderer::IsWireframeModePtr() {
-		return &m_WireframeMode;
+	bool* Renderer::IsWireframeEnabledPtr() {
+		return &m_EnableWireframe;
 	}
 
 	void Renderer::SetRecreateGraphicsPipeline(bool value) {
@@ -662,7 +654,7 @@ namespace Wiesel {
 		return m_AspectRatio;
 	}
 
-	WindowSize Renderer::GetWindowSize() const {
+	const WindowSize& Renderer::GetWindowSize() const {
 		return m_WindowSize;
 	}
 
@@ -677,29 +669,26 @@ namespace Wiesel {
 		CleanupGlobalUniformBuffers();
 		m_BlankTexture = nullptr;
 
-		LOG_DEBUG("Destroying cameras");
-		m_Cameras.clear();
-
-
 		CleanupSwapChain();
 
         LOG_DEBUG("Destroying descriptor set layout");
 		vkDestroyDescriptorSetLayout(m_LogicalDevice, m_DescriptorSetLayout, nullptr);
 
-		CleanupGraphicsPipeline();
+		LOG_DEBUG("Destroying default graphics pipeline");
+		CleanupDefaultGraphicsPipeline();
 
-        LOG_DEBUG("Destroying render pass");
-		vkDestroyRenderPass(m_LogicalDevice, m_RenderPass, nullptr);
+        LOG_DEBUG("Destroying default render pass");
+		CleanupDefaultRenderPass();
 
         LOG_DEBUG("Destroying semaphores and fences");
 		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
 			vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
-			vkDestroySemaphore(m_LogicalDevice, imageAvailableSemaphores[i], nullptr);
-			vkDestroyFence(m_LogicalDevice, inFlightFences[i], nullptr);
+			vkDestroySemaphore(m_LogicalDevice, m_ImageAvailableSemaphores[i], nullptr);
+			vkDestroyFence(m_LogicalDevice, m_InFlightFences[i], nullptr);
 		}
 
         LOG_DEBUG("Destroying command pool");
-		vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
+		vkDestroyCommandPool(m_LogicalDevice, m_CommandPool, nullptr);
 
         LOG_DEBUG("Destroying device");
 		vkDestroyDevice(m_LogicalDevice, nullptr);
@@ -823,8 +812,8 @@ namespace Wiesel {
 		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
 		createInfo.pEnabledFeatures = &deviceFeatures;
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-		createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+		createInfo.enabledExtensionCount = static_cast<uint32_t>(m_DeviceExtensions.size());
+		createInfo.ppEnabledExtensionNames = m_DeviceExtensions.data();
 		createInfo.enabledLayerCount = 0;
 
 		if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS) {
@@ -905,77 +894,9 @@ namespace Wiesel {
 		}
 	}
 
-	void Renderer::CreateRenderPass() {
-		LOG_DEBUG("Creating render pass");
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = m_SwapChainImageFormat;
-		colorAttachment.samples = m_MsaaSamples;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference colorAttachmentRef{};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentDescription depthAttachment{};
-		depthAttachment.format = FindDepthFormat();
-		depthAttachment.samples = m_MsaaSamples;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depthAttachmentRef{};
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentDescription colorAttachmentResolve{};
-		colorAttachmentResolve.format = m_SwapChainImageFormat;
-		colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		VkAttachmentReference colorAttachmentResolveRef{};
-		colorAttachmentResolveRef.attachment = 2;
-		colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkSubpassDescription subpass{};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-		subpass.pDepthStencilAttachment = &depthAttachmentRef;
-		subpass.pResolveAttachments = &colorAttachmentResolveRef;
-
-		VkSubpassDependency dependency{};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
-		VkRenderPassCreateInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		renderPassInfo.pAttachments = attachments.data();
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 1;
-		renderPassInfo.pDependencies = &dependency;
-
-		if (vkCreateRenderPass(m_LogicalDevice, &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create render pass!");
-		}
+	void Renderer::CreateDefaultRenderPass() {
+		LOG_DEBUG("Creating default render pass");
+		m_DefaultRenderPass = CreateRenderPass({m_SwapChainImageFormat, m_MsaaSamples, FindDepthFormat()});
 	}
 
 	void Renderer::CreateDescriptorSetLayout() {
@@ -1016,24 +937,39 @@ namespace Wiesel {
 		WIESEL_CHECK_VKRESULT(vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &m_DescriptorSetLayout));
 	}
 
-	void Renderer::CreateGraphicsPipeline() {
+	void Renderer::CreateDefaultGraphicsPipeline() {
+		LOG_DEBUG("Creating default graphics pipeline");
 		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/standard_shader.vert.spv");
 		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/standard_shader.frag.spv");
+		m_DefaultGraphicsPipeline = CreateGraphicsPipeline({CullModeBack, m_EnableWireframe, vertShaderCode, fragShaderCode, m_DefaultRenderPass});
+	}
 
-		VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
-		VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+	void Renderer::CleanupDefaultGraphicsPipeline() {
+		LOG_DEBUG("Destroying default graphics pipeline");
+		m_DefaultGraphicsPipeline = nullptr;
+	}
+
+	Reference<GraphicsPipeline> Renderer::CreateGraphicsPipeline(PipelineProperties properties) {
+		Reference<GraphicsPipeline> pipeline = CreateReference<GraphicsPipeline>(properties);
+		AllocateGraphicsPipeline(properties, pipeline);
+		return pipeline;
+	}
+
+	void Renderer::AllocateGraphicsPipeline(PipelineProperties properties, Reference<GraphicsPipeline> pipeline) {
+		VkShaderModule vertShaderModule = CreateShaderModule(properties.m_VertexCode);
+		VkShaderModule fragShaderModule = CreateShaderModule(properties.m_FragmentCode);
 
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = "main";
+		vertShaderStageInfo.pName = properties.m_VertexMain.c_str();
 
 		VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
 		fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = "main";
+		fragShaderStageInfo.pName = properties.m_FragmentMain.c_str();
 		VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
 		std::vector<VkDynamicState> dynamicStates = {
@@ -1090,14 +1026,26 @@ namespace Wiesel {
 		 * VK_POLYGON_MODE_LINE: polygon edges are drawn as lines
 		 * VK_POLYGON_MODE_POINT: polygon vertices are drawn as points
 		 */
-		if (m_WireframeMode) {
+		if (properties.m_EnableWireframe) {
 			rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
 		} else {
 			rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 		}
 		rasterizer.lineWidth = 1.0f;
-		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-		//rasterizer.cullMode = VK_CULL_MODE_NONE;
+		switch (properties.m_CullFace) {
+			case CullModeNone:
+				rasterizer.cullMode = VK_CULL_MODE_NONE;
+				break;
+			case CullModeFront:
+				rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+				break;
+			case CullModeBack:
+				rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+				break;
+			case CullModeBoth:
+				rasterizer.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
+				break;
+		}
 		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
 		rasterizer.depthBiasEnable = VK_FALSE;
@@ -1148,7 +1096,7 @@ namespace Wiesel {
 		pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-		WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout));
+		WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipeline->m_Layout));
 
 
 		VkPipelineDepthStencilStateCreateInfo depthStencil{};
@@ -1176,25 +1124,118 @@ namespace Wiesel {
 		pipelineInfo.pDepthStencilState = &depthStencil;
 		pipelineInfo.pColorBlendState = &colorBlending;
 		pipelineInfo.pDynamicState = &dynamicState;
-		pipelineInfo.layout = pipelineLayout;
-		pipelineInfo.renderPass = m_RenderPass;
+		pipelineInfo.layout = pipeline->m_Layout;
+		pipelineInfo.renderPass = properties.m_RenderPass->m_Pass;
 		pipelineInfo.subpass = 0;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 		pipelineInfo.basePipelineIndex = -1; // Optional
 
-		WIESEL_CHECK_VKRESULT(vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline));
+		WIESEL_CHECK_VKRESULT(vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->m_Pipeline));
 
 		// Cleanup
 		vkDestroyShaderModule(m_LogicalDevice, fragShaderModule, nullptr);
 		vkDestroyShaderModule(m_LogicalDevice, vertShaderModule, nullptr);
+		pipeline->m_IsAllocated = true;
 	}
 
-	void Renderer::CleanupGraphicsPipeline() {
-		LOG_DEBUG("Destroying graphics pipeline");
-		vkDestroyPipeline(m_LogicalDevice, graphicsPipeline, nullptr);
+	void Renderer::DestroyGraphicsPipeline(GraphicsPipeline& pipeline) {
+		vkDestroyPipeline(m_LogicalDevice, pipeline.m_Pipeline, nullptr);
+		vkDestroyPipelineLayout(m_LogicalDevice, pipeline.m_Layout, nullptr);
+		pipeline.m_IsAllocated = true;
+	}
 
-		LOG_DEBUG("Destroying pipeline layout");
-		vkDestroyPipelineLayout(m_LogicalDevice, pipelineLayout, nullptr);
+	void Renderer::RecreateGraphicsPipeline(Reference<Wiesel::GraphicsPipeline> pipeline) {
+		DestroyGraphicsPipeline(*pipeline);
+		AllocateGraphicsPipeline(pipeline->m_Properties, pipeline);
+	}
+
+	Reference<RenderPass> Renderer::CreateRenderPass(RenderPassProperties properties) {
+		Reference<RenderPass> renderPass = CreateReference<RenderPass>(properties);
+		AllocateRenderPass(renderPass);
+		return renderPass;
+	}
+
+	void Renderer::AllocateRenderPass(Reference<RenderPass> renderPass) {
+		VkAttachmentDescription colorAttachment{};
+		colorAttachment.format = renderPass->m_Properties.m_SwapChainImageFormat; //m_SwapChainImageFormat
+		colorAttachment.samples = renderPass->m_Properties.m_MsaaSamples;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference colorAttachmentRef{};
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentDescription depthAttachment{};
+		depthAttachment.format = renderPass->m_Properties.m_DepthFormat;//FindDepthFormat();
+		depthAttachment.samples = renderPass->m_Properties.m_MsaaSamples;
+		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef{};
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentDescription colorAttachmentResolve{};
+		colorAttachmentResolve.format = renderPass->m_Properties.m_SwapChainImageFormat;
+		colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+		colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		VkAttachmentReference colorAttachmentResolveRef{};
+		colorAttachmentResolveRef.attachment = 2;
+		colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpass{};
+		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+		subpass.pResolveAttachments = &colorAttachmentResolveRef;
+
+		std::vector<VkSubpassDependency> dependencies{};
+		VkSubpassDependency dependency{};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		dependencies.push_back(dependency);
+
+		std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
+		VkRenderPassCreateInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		renderPassInfo.pAttachments = attachments.data();
+		renderPassInfo.subpassCount = 1;
+		renderPassInfo.pSubpasses = &subpass;
+		renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+		renderPassInfo.pDependencies = dependencies.data();
+
+		if (vkCreateRenderPass(m_LogicalDevice, &renderPassInfo, nullptr, &renderPass->m_Pass) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create render pass!");
+		}
+	}
+
+	void Renderer::DestroyRenderPass(RenderPass& renderPass) {
+		vkDestroyRenderPass(m_LogicalDevice, renderPass.m_Pass, nullptr);
+	}
+
+	void Renderer::RecreateRenderPass(Reference<RenderPass> renderPass) {
+		DestroyRenderPass(*renderPass);
+		AllocateRenderPass(renderPass);
 	}
 
 	void Renderer::CreateDepthResources() {
@@ -1208,7 +1249,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateFramebuffers() {
-		swapChainFramebuffers.resize(m_SwapChainImageViews.size());
+		m_SwapChainFramebuffers.resize(m_SwapChainImageViews.size());
 		for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
 			std::array<VkImageView, 3> attachments = {
 					m_ColorImage->m_ImageView,
@@ -1218,14 +1259,14 @@ namespace Wiesel {
 
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = m_RenderPass;
+			framebufferInfo.renderPass = m_DefaultRenderPass->m_Pass;
 			framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
 			framebufferInfo.pAttachments = attachments.data();
 			framebufferInfo.width = m_SwapChainExtent.width;
 			framebufferInfo.height = m_SwapChainExtent.height;
 			framebufferInfo.layers = 1;
 
-			WIESEL_CHECK_VKRESULT(vkCreateFramebuffer(m_LogicalDevice, &framebufferInfo, nullptr, &swapChainFramebuffers[i]));
+			WIESEL_CHECK_VKRESULT(vkCreateFramebuffer(m_LogicalDevice, &framebufferInfo, nullptr, &m_SwapChainFramebuffers[i]));
 		}
 	}
 
@@ -1359,7 +1400,7 @@ namespace Wiesel {
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-		WIESEL_CHECK_VKRESULT(vkCreateCommandPool(m_LogicalDevice, &poolInfo, nullptr, &commandPool));
+		WIESEL_CHECK_VKRESULT(vkCreateCommandPool(m_LogicalDevice, &poolInfo, nullptr, &m_CommandPool));
 	}
 
 	void Renderer::CreateCommandBuffers() {
@@ -1367,7 +1408,7 @@ namespace Wiesel {
 
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = commandPool;
+		allocInfo.commandPool = m_CommandPool;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		allocInfo.commandBufferCount = (uint32_t) m_CommandBuffers.size();
 
@@ -1574,9 +1615,9 @@ namespace Wiesel {
 	}
 
 	void Renderer::CreateSyncObjects() {
-		imageAvailableSemaphores.resize(k_MaxFramesInFlight);
+		m_ImageAvailableSemaphores.resize(k_MaxFramesInFlight);
 		renderFinishedSemaphores.resize(k_MaxFramesInFlight);
-		inFlightFences.resize(k_MaxFramesInFlight);
+		m_InFlightFences.resize(k_MaxFramesInFlight);
 
 		VkSemaphoreCreateInfo semaphoreInfo{};
 		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1586,9 +1627,9 @@ namespace Wiesel {
 		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
-			WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]));
+			WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]));
 			WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]));
-			WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]));
+			WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr, &m_InFlightFences[i]));
 		}
 	}
 
@@ -1598,8 +1639,8 @@ namespace Wiesel {
 		m_ColorImage = nullptr;
 
         LOG_DEBUG("Destroying swap chain framebuffers");
-		for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
-			vkDestroyFramebuffer(m_LogicalDevice, swapChainFramebuffers[i], nullptr);
+		for (size_t i = 0; i < m_SwapChainFramebuffers.size(); i++) {
+			vkDestroyFramebuffer(m_LogicalDevice, m_SwapChainFramebuffers[i], nullptr);
 		}
 
         LOG_DEBUG("Destroying swap chain imageviews");
@@ -1609,6 +1650,10 @@ namespace Wiesel {
 
         LOG_DEBUG("Destroying swap chain");
 		vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
+	}
+
+	void Renderer::CleanupDefaultRenderPass() {
+		m_DefaultRenderPass = nullptr;
 	}
 
 	void Renderer::CreateGlobalUniformBuffers() {
@@ -1637,24 +1682,13 @@ namespace Wiesel {
 		CreateColorResources();
 		CreateDepthResources();
 		CreateFramebuffers();
-
-		AppRecreateSwapChainsEvent event(size, m_AspectRatio);
-		PublishEvent(event);
 	}
 
-	void Renderer::PublishEvent(Event& event) {
-		for (const auto& camera : m_Cameras) {
-			if (event.m_Handled) {
-				return;
-			}
-			camera->OnEvent(event);
-		}
-	}
+	bool Renderer::BeginFrame(Reference<CameraData> data) {
+		m_CameraData = data;
+		vkWaitForFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
-	bool Renderer::BeginFrame() {
-		vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
-
-		VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX, imageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
+		VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || m_RecreateSwapChain) {
 			RecreateSwapChain();
 			return false;
@@ -1662,7 +1696,7 @@ namespace Wiesel {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 		// Setup
-		vkResetFences(m_LogicalDevice, 1, &inFlightFences[m_CurrentFrame]);
+		vkResetFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame]);
 		vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], 0);
 		if (m_PreviousMsaaSamples != m_MsaaSamples) {
 			LOG_INFO("Msaa samples changed to " + std::to_string(m_MsaaSamples) + " from " + std::to_string(m_PreviousMsaaSamples) + "!");
@@ -1672,8 +1706,8 @@ namespace Wiesel {
 		if (m_RecreateGraphicsPipeline) {
 			vkDeviceWaitIdle(m_LogicalDevice);
 			LOG_INFO("Recreating graphics pipeline!");
-			CleanupGraphicsPipeline();
-			CreateGraphicsPipeline();
+			m_DefaultGraphicsPipeline->m_Properties.m_EnableWireframe = m_EnableWireframe; // Update wireframe mode
+			RecreateGraphicsPipeline(m_DefaultGraphicsPipeline);
 			m_RecreateGraphicsPipeline = false;
 		}
 
@@ -1687,8 +1721,8 @@ namespace Wiesel {
 
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = m_RenderPass;
-		renderPassInfo.framebuffer = swapChainFramebuffers[m_ImageIndex];
+		renderPassInfo.renderPass = m_DefaultRenderPass->m_Pass;
+		renderPassInfo.framebuffer = m_SwapChainFramebuffers[m_ImageIndex];
 		renderPassInfo.renderArea.offset = {0, 0};
 		renderPassInfo.renderArea.extent = m_SwapChainExtent;
 
@@ -1700,7 +1734,7 @@ namespace Wiesel {
 		renderPassInfo.pClearValues = clearValues.data();
 		vkCmdBeginRenderPass(m_CommandBuffers[m_CurrentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_DefaultGraphicsPipeline->m_Pipeline);
 
 		VkViewport viewport{};
 		viewport.x = 0.0f;
@@ -1716,7 +1750,7 @@ namespace Wiesel {
 		scissor.extent = m_SwapChainExtent;
 		vkCmdSetScissor(m_CommandBuffers[m_CurrentFrame], 0, 1, &scissor);
 
-		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_DefaultGraphicsPipeline->m_Pipeline);
 
 		auto& lights = GetLightsBufferObject();
 		memcpy(m_LightsGlobalUboSet->m_Buffers[m_CurrentFrame]->m_Data, &lights, sizeof(lights));
@@ -1735,10 +1769,6 @@ namespace Wiesel {
 		if (!mesh->IsAllocated) {
 			return;
 		}
-
-		if (transform.IsChanged) {
-			transform.UpdateRenderData();
-		}
 		mesh->UpdateUniformBuffer(transform);
 
 		VkBuffer vertexBuffers[] = {mesh->VertexBuffer->m_Buffer};
@@ -1746,7 +1776,7 @@ namespace Wiesel {
 		vkCmdBindVertexBuffers(m_CommandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(m_CommandBuffers[m_CurrentFrame], mesh->IndexBuffer->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &mesh->Descriptors->m_DescriptorSets[m_CurrentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_DefaultGraphicsPipeline->m_Layout, 0, 1, &mesh->Descriptors->m_DescriptorSets[m_CurrentFrame], 0, nullptr);
 		vkCmdDrawIndexed(m_CommandBuffers[m_CurrentFrame], static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
 	}
 
@@ -1761,7 +1791,7 @@ namespace Wiesel {
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &m_CommandBuffers[m_CurrentFrame];
 
-		VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[m_CurrentFrame]};
+		VkSemaphore waitSemaphores[] = {m_ImageAvailableSemaphores[m_CurrentFrame]};
 		VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
@@ -1771,7 +1801,7 @@ namespace Wiesel {
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		WIESEL_CHECK_VKRESULT(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, inFlightFences[m_CurrentFrame]));
+		WIESEL_CHECK_VKRESULT(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]));
 
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1829,7 +1859,7 @@ namespace Wiesel {
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandPool = commandPool;
+		allocInfo.commandPool = m_CommandPool;
 		allocInfo.commandBufferCount = 1;
 
 		VkCommandBuffer commandBuffer;
@@ -1855,7 +1885,7 @@ namespace Wiesel {
 		vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 		vkQueueWaitIdle(m_GraphicsQueue);
 
-		vkFreeCommandBuffers(m_LogicalDevice, commandPool, 1, &commandBuffer);
+		vkFreeCommandBuffers(m_LogicalDevice, m_CommandPool, 1, &commandBuffer);
 	}
 
 	bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
@@ -1931,7 +1961,7 @@ namespace Wiesel {
 		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
 		vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-		std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+		std::set<std::string> requiredExtensions(m_DeviceExtensions.begin(), m_DeviceExtensions.end());
 
 		for (const auto& extension : availableExtensions) {
 			requiredExtensions.erase(extension.extensionName);

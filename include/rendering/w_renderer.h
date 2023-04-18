@@ -27,6 +27,8 @@
 #include "rendering/w_descriptor.h"
 #include "scene/w_lights.h"
 #include "scene/w_components.h"
+#include "w_pipeline.h"
+#include "w_renderpass.h"
 
 #ifdef DEBUG
 #define VULKAN_VALIDATION
@@ -64,9 +66,17 @@ namespace Wiesel {
 		Reference<DescriptorData> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Material> material) __attribute__ ((optnone)); // optimization for this function is disabled because compiler does something weird
 		void DestroyDescriptors(DescriptorData& descriptorPool);
 
-		WIESEL_GETTER_FN Reference<Camera> GetActiveCamera();
-		void AddCamera(Reference<Camera> camera);
-		void SetActiveCamera(uint32_t id);
+		Reference<GraphicsPipeline> CreateGraphicsPipeline(PipelineProperties properties);
+		void AllocateGraphicsPipeline(PipelineProperties properties, Reference<GraphicsPipeline> pipeline);
+		void DestroyGraphicsPipeline(GraphicsPipeline& pipeline);
+		void RecreateGraphicsPipeline(Reference<GraphicsPipeline> pipeline);
+
+		Reference<RenderPass> CreateRenderPass(RenderPassProperties properties);
+		void AllocateRenderPass(Reference<RenderPass> renderPass);
+		void DestroyRenderPass(RenderPass& renderPass);
+		void RecreateRenderPass(Reference<RenderPass> renderPass);
+
+		WIESEL_GETTER_FN Reference<CameraData> GetCameraData();
 
 		void SetClearColor(float r, float g, float b, float a = 1.0f);
 		void SetClearColor(const Colorf& color);
@@ -78,9 +88,9 @@ namespace Wiesel {
 		void SetVsync(bool vsync);
 		WIESEL_GETTER_FN bool IsVsync();
 
-		void SetWireframeMode(bool value);
-		WIESEL_GETTER_FN bool IsWireframeMode();
-		WIESEL_GETTER_FN bool* IsWireframeModePtr();
+		void SetWireframeEnabled(bool value);
+		WIESEL_GETTER_FN bool IsWireframeEnabled();
+		WIESEL_GETTER_FN bool* IsWireframeEnabledPtr();
 
 		void SetRecreateGraphicsPipeline(bool value);
 		WIESEL_GETTER_FN bool IsRecreateGraphicsPipeline();
@@ -88,17 +98,15 @@ namespace Wiesel {
 		WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 		WIESEL_GETTER_FN float GetAspectRatio() const;
 		WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
-		WIESEL_GETTER_FN WindowSize GetWindowSize() const;
+		WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
 		WIESEL_GETTER_FN LightsUniformBufferObject& GetLightsBufferObject();
 
-		bool BeginFrame();
+		bool BeginFrame(Reference<CameraData> data);
 		void DrawModel(ModelComponent& model, TransformComponent& transform);
 		void DrawMesh(Reference<Mesh> mesh, TransformComponent& transform);
 		void EndFrame();
 
 		void RecreateSwapChain();
-
-		void PublishEvent(Event& event);
 		void Cleanup();
 	private:
 		friend class Mesh;
@@ -109,8 +117,9 @@ namespace Wiesel {
 
 #ifdef VULKAN_VALIDATION
         std::vector<const char*> validationLayers;
+		VkDebugUtilsMessengerEXT m_DebugMessenger{};
 #endif
-		std::vector<const char*> deviceExtensions;
+		std::vector<const char*> m_DeviceExtensions;
 
 		Reference<AppWindow> m_Window;
 		VkInstance m_Instance{};
@@ -122,32 +131,27 @@ namespace Wiesel {
 		VkSwapchainKHR m_SwapChain{};
 		bool m_SwapChainCreated;
 
-		VkDebugUtilsMessengerEXT m_DebugMessenger{};
-		std::vector<VkImage> m_SwapChainImages;
-		VkFormat m_SwapChainImageFormat;
-		VkExtent2D m_SwapChainExtent{};
-
-		std::vector<VkImageView> m_SwapChainImageViews;
-		VkRenderPass m_RenderPass{};
-		VkDescriptorSetLayout m_DescriptorSetLayout{};
 		uint32_t m_ImageIndex;
+		// make this Wiesel Texture
+		std::vector<VkImage> m_SwapChainImages;
+		std::vector<VkImageView> m_SwapChainImageViews;
+		VkFormat m_SwapChainImageFormat;
+
+		VkExtent2D m_SwapChainExtent{};
+		VkDescriptorSetLayout m_DescriptorSetLayout{};
 		Reference<DepthStencil> m_DepthStencil;
 		Reference<ColorImage> m_ColorImage;
 		Reference<Texture> m_BlankTexture;
 
-		VkPipelineLayout pipelineLayout{};
-		VkPipeline graphicsPipeline{};
-		std::vector<VkFramebuffer> swapChainFramebuffers;
-		VkCommandPool commandPool{};
+		std::vector<VkFramebuffer> m_SwapChainFramebuffers;
+		VkCommandPool m_CommandPool{};
 
 		std::vector<VkCommandBuffer> m_CommandBuffers;
-		std::vector<VkSemaphore> imageAvailableSemaphores;
+		std::vector<VkSemaphore> m_ImageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
-		std::vector<VkFence> inFlightFences;
+		std::vector<VkFence> m_InFlightFences;
 
 		uint32_t m_CurrentFrame = 0;
-		std::vector<Reference<Camera>> m_Cameras;
-		uint32_t m_ActiveCameraId;
 		float_t m_AspectRatio;
 		WindowSize m_WindowSize;
 		VkSampleCountFlagBits m_MsaaSamples;
@@ -157,8 +161,11 @@ namespace Wiesel {
 		bool m_RecreateSwapChain;
 		Reference<UniformBufferSet> m_LightsGlobalUboSet;
 		LightsUniformBufferObject m_LightsGlobalUbo;
-		bool m_WireframeMode;
+		bool m_EnableWireframe;
 		bool m_RecreateGraphicsPipeline;
+		Reference<GraphicsPipeline> m_DefaultGraphicsPipeline;
+		Reference<RenderPass> m_DefaultRenderPass;
+		Reference<CameraData> m_CameraData;
 
 		void CreateVulkanInstance();
 		void CreateSurface();
@@ -166,10 +173,9 @@ namespace Wiesel {
 		void PickPhysicalDevice();
 		void CreateLogicalDevice();
 		void CreateSwapChain();
-		void CreateRenderPass();
+		void CreateDefaultRenderPass();
 		void CreateDescriptorSetLayout();
-		void CreateGraphicsPipeline();
-		void CleanupGraphicsPipeline();
+		void CreateDefaultGraphicsPipeline();
 		void CreateDepthResources();
 		void CreateColorResources();
 		void CreateFramebuffers();
@@ -177,8 +183,10 @@ namespace Wiesel {
 		void CreateCommandBuffers();
 		void CreatePermanentResources();
 		void CreateSyncObjects();
-		void CleanupSwapChain();
 		void CreateGlobalUniformBuffers();
+		void CleanupSwapChain();
+		void CleanupDefaultRenderPass();
+		void CleanupDefaultGraphicsPipeline();
 		void CleanupGlobalUniformBuffers();
 		VkShaderModule CreateShaderModule(const std::vector<char>& code);
 		int32_t RateDeviceSuitability(VkPhysicalDevice device);

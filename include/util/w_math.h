@@ -9,23 +9,12 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "layer/w_layer.h"
+#pragma once
+
+#include "w_pch.h"
 
 namespace Wiesel {
-
-	Layer::Layer(const std::string& layerName) : m_LayerName(layerName) {
-
-	}
-
-	Layer::~Layer() {
-
-	}
-
-	void Layer::OnImGuiRender() {
-
-	}
-
-	void Layer::PostRender() {
-
+	namespace Math {
+		bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::vec3& rotation, glm::vec3& scale);
 	}
 }
