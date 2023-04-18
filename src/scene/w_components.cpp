@@ -36,9 +36,9 @@ namespace Wiesel {
 	}
 
 	void TransformComponent::UpdateMatrices() {
-		glm::mat4 rotation = glm::toMat4(glm::quat(Rotation));
+		RotationMatrix = glm::toMat4(glm::quat(Rotation));
 		TransformMatrix = glm::translate(glm::mat4(1.0f), Position)
-						  * rotation
+						  * RotationMatrix
 						  * glm::scale(glm::mat4(1.0f), Scale);
 
 		NormalMatrix = glm::inverseTranspose(glm::mat3(TransformMatrix));

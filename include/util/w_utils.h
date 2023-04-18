@@ -97,6 +97,7 @@ namespace Wiesel {
 		alignas(16) glm::mat4 ModelMatrix;
 		alignas(16) glm::vec3 Scale;
 		alignas(16) glm::mat3 NormalMatrix;
+		alignas(16) glm::mat4 RotationMatrix;
 		alignas(16) glm::mat4 CameraViewMatrix;
 		alignas(16) glm::mat4 CameraProjection;
 		alignas(16) glm::vec3 CameraPosition;

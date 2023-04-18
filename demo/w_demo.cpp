@@ -12,6 +12,7 @@
 #include "scene/w_componentutil.h"
 #include "layer/w_layerimgui.h"
 #include "w_engine.h"
+#include "backends/imgui_impl_vulkan.h"
 
 using namespace Wiesel;
 
@@ -228,19 +229,21 @@ namespace WieselDemo {
 			GENERATE_COMPONENT_EDITORS(entity);
 		}
 		ImGui::End();
-		/*static int m_GizmoType = -1;
+		/*
+		ImGui::Begin("Test");
+		static int m_GizmoType = -1;
 		m_GizmoType = ImGuizmo::OPERATION::ROTATE;
 		if (hasSelectedEntity) {
 			// Gizmos
 			if (m_GizmoType != -1) {
 				Entity entity = {selectedEntity, &*m_App.GetScene()};
-				auto camera = Engine::GetRenderer()->GetActiveCamera();
+				auto camera = Engine::GetRenderer()->GetCameraData();
 				auto& size = Engine::GetRenderer()->GetWindowSize();
 
 				// Editor camera
-				glm::mat4 cameraProjection = camera->GetProjection();
+				glm::mat4 cameraProjection = camera->Projection;
 				cameraProjection[1][1] *= -1;
-				glm::mat4 cameraView = camera->GetViewMatrix();
+				glm::mat4 cameraView = camera->ViewMatrix;
 
 				// Entity transform
 				auto& tc = entity.GetComponent<TransformComponent>();
@@ -274,7 +277,25 @@ namespace WieselDemo {
 					tc.IsChanged = true;
 				}
 			}
-		}*/
+		}
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		auto m_Dset = ImGui_ImplVulkan_AddTexture(m_DemoLayer->m_Renderer->GetCurrentSwapchainImageSampler(), m_DemoLayer->m_Renderer->GetCurrentSwapchainImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		ImGui::Image(m_Dset, {viewportPanelSize.x, viewportPanelSize.y});
+		ImGui::End();
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImVec2(m_App.GetWindowSize().Width, m_App.GetWindowSize().Height));
+		ImGui::Begin("DockSpace", NULL,
+					 ImGuiWindowFlags_NoTitleBar |
+					 ImGuiWindowFlags_NoResize |
+					 ImGuiWindowFlags_NoMove |
+					 ImGuiWindowFlags_NoScrollbar |
+					 ImGuiWindowFlags_NoScrollWithMouse
+		);
+		// Declare Central dockspace
+		auto dockspaceID = ImGui::GetID("HUB_DockSpace");
+		ImGui::DockSpace(dockspaceID, ImVec2(100.0f, 100.0f), ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode);
+		ImGui::End();
+*/
 	}
 
 	void DemoApplication::Init() {

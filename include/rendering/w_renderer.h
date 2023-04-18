@@ -72,7 +72,7 @@ namespace Wiesel {
 		void RecreateGraphicsPipeline(Reference<GraphicsPipeline> pipeline);
 
 		Reference<RenderPass> CreateRenderPass(RenderPassProperties properties);
-		void AllocateRenderPass(RenderPassProperties properties, Reference<RenderPass> renderPass);
+		void AllocateRenderPass(Reference<RenderPass> renderPass);
 		void DestroyRenderPass(RenderPass& renderPass);
 		void RecreateRenderPass(Reference<RenderPass> renderPass);
 
@@ -107,7 +107,6 @@ namespace Wiesel {
 		void EndFrame();
 
 		void RecreateSwapChain();
-
 		void Cleanup();
 	private:
 		friend class Mesh;
@@ -118,6 +117,7 @@ namespace Wiesel {
 
 #ifdef VULKAN_VALIDATION
         std::vector<const char*> validationLayers;
+		VkDebugUtilsMessengerEXT m_DebugMessenger{};
 #endif
 		std::vector<const char*> m_DeviceExtensions;
 
@@ -131,14 +131,14 @@ namespace Wiesel {
 		VkSwapchainKHR m_SwapChain{};
 		bool m_SwapChainCreated;
 
-		VkDebugUtilsMessengerEXT m_DebugMessenger{};
-		std::vector<VkImage> m_SwapChainImages;
-		VkFormat m_SwapChainImageFormat;
-		VkExtent2D m_SwapChainExtent{};
-
-		std::vector<VkImageView> m_SwapChainImageViews;
-		VkDescriptorSetLayout m_DescriptorSetLayout{};
 		uint32_t m_ImageIndex;
+		// make this Wiesel Texture
+		std::vector<VkImage> m_SwapChainImages;
+		std::vector<VkImageView> m_SwapChainImageViews;
+		VkFormat m_SwapChainImageFormat;
+
+		VkExtent2D m_SwapChainExtent{};
+		VkDescriptorSetLayout m_DescriptorSetLayout{};
 		Reference<DepthStencil> m_DepthStencil;
 		Reference<ColorImage> m_ColorImage;
 		Reference<Texture> m_BlankTexture;
@@ -149,7 +149,7 @@ namespace Wiesel {
 		std::vector<VkCommandBuffer> m_CommandBuffers;
 		std::vector<VkSemaphore> m_ImageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
-		std::vector<VkFence> M_InFlightFences;
+		std::vector<VkFence> m_InFlightFences;
 
 		uint32_t m_CurrentFrame = 0;
 		float_t m_AspectRatio;

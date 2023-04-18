@@ -41,6 +41,7 @@ namespace Wiesel {
 		ubo.ModelMatrix = transform.TransformMatrix;
 		ubo.Scale = transform.Scale;
 		ubo.NormalMatrix = transform.NormalMatrix;
+		ubo.RotationMatrix = transform.RotationMatrix;
 		ubo.CameraViewMatrix = glm::inverse(camera->ViewMatrix);
 		ubo.CameraProjection = camera->Projection;
 		ubo.CameraPosition = camera->Position;
