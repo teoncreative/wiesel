@@ -44,7 +44,7 @@ namespace Wiesel {
 		glm::vec3 GetRight();
 		glm::vec3 GetUp();
 		glm::vec3 GetDown();
-		void UpdateRenderData();
+		void UpdateMatrices();
 
 		glm::vec3 Position = {0.0f, 0.0f, 0.0f};
 		glm::vec3 Rotation = {0.0f, 0.0f, 0.0f};
@@ -53,7 +53,9 @@ namespace Wiesel {
 		bool IsChanged = true;
 		glm::mat4 TransformMatrix = {};
 		glm::mat3 NormalMatrix = {};
+		glm::mat4 RotationMatrix = {};
 	};
 
+#define ALL_COMPONENT_TYPES IdComponent, TagComponent, TransformComponent, ModelComponent, LightDirectComponent, LightPointComponent, CameraComponent
 
 }

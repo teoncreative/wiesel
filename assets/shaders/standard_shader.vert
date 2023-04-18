@@ -4,6 +4,7 @@ layout(binding = 0) uniform UniformBufferObject {
     mat4 modelMatrix;
     vec3 scale;
     mat3 normalMatrix;
+    mat4 rotationMatrix;
     mat4 cameraViewMatrix;
     mat4 cameraProjection;
     vec3 cameraPosition;
@@ -25,17 +26,21 @@ layout(location = 4) out vec3 outTangent;
 layout(location = 5) out vec3 outBiTangent;
 layout(location = 6) out uint outFlags;
 layout(location = 7) out vec3 outViewDir;
+layout(location = 8) out mat3 outTBN;
 
 void main() {
     outColor = inColor;
     outUV = inUV;
     outFlags = inFlags;
-    outTangent = inTangent;
-    outBiTangent = inBiTangent;
     mat4 modelView = ubo.cameraViewMatrix * ubo.modelMatrix;
     gl_Position = ubo.cameraProjection * modelView * vec4(inVertexPosition, 1.0f);
-    outVertexNormal = normalize(inVertexNormal);
     vec4 worldPosition = ubo.modelMatrix * vec4(inVertexPosition, 1.0);
     outFragPosition = worldPosition.xyz;
     outViewDir = normalize(ubo.cameraPosition - outFragPosition);
+
+    mat3 m3_model = mat3(ubo.modelMatrix);
+    outVertexNormal = normalize(m3_model * inVertexNormal);
+    outTangent = normalize(m3_model * inTangent);
+    outBiTangent = normalize(m3_model * inTangent);
+    outTBN = mat3(outTangent, -outBiTangent, outVertexNormal);
 }

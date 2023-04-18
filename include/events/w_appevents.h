@@ -30,11 +30,13 @@ namespace Wiesel {
 		WindowResizeEvent(WindowSize windowSize) : m_WindowSize(windowSize) { }
 
 		WIESEL_GETTER_FN const WindowSize& GetWindowSize() { return m_WindowSize; }
+		WIESEL_GETTER_FN float GetAspectRatio() const { return m_AspectRatio; }
 
 		EVENT_CLASS_TYPE(WindowResize)
 		EVENT_CLASS_CATEGORY(EventCategory::App)
 	private:
 		WindowSize m_WindowSize;
+		float_t m_AspectRatio;
 
 	};
 

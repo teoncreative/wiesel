@@ -12,7 +12,6 @@
 #pragma once
 
 #include "w_pch.h"
-#include "scene/w_components.h"
 #include "scene/w_scene.h"
 
 namespace Wiesel {
@@ -27,7 +26,9 @@ namespace Wiesel {
 			if (HasComponent<T>()) {
 				throw std::runtime_error("Entity already has component!");
 			}
-			return m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
+			auto& component = m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
+			m_Scene->OnAddComponent(m_EntityHandle, component);
+			return component;
 		}
 
 		template<typename T>
@@ -43,6 +44,7 @@ namespace Wiesel {
 		template<typename T>
 		void RemoveComponent() {
 			m_Scene->m_Registry.remove<T>(m_EntityHandle);
+			m_Scene->OnRemoveComponent<T>(m_EntityHandle);
 		}
 
 		operator bool() const { return m_EntityHandle != entt::null; }
@@ -62,8 +64,16 @@ namespace Wiesel {
 			return !(*this == other);
 		}
 
+		entt::entity GetHandle() {
+			return m_EntityHandle;
+		}
+
+		Scene* GetScene() {
+			return m_Scene;
+		}
 	private:
 		entt::entity m_EntityHandle;
 		Scene* m_Scene;
 	};
+
 }

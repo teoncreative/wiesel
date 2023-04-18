@@ -47,7 +47,15 @@ namespace Wiesel {
 		WIESEL_GETTER_FN const WindowSize& GetWindowSize();
 		WIESEL_GETTER_FN Reference<Scene> GetScene();
 
+		void SubmitToMainThread(std::function<void()> fn);
+
+		WIESEL_GETTER_FN static Application* Get();
 	protected:
+		static Application* s_Application;
+
+		std::vector<std::function<void()>> m_MainThreadQueue;
+		std::mutex m_MainThreadQueueMutex;
+
 		bool m_IsRunning;
 		bool m_IsMinimized;
 		bool m_WindowResized;
@@ -60,6 +68,8 @@ namespace Wiesel {
 		float_t m_PreviousFrame = 0.0;
 		float_t m_DeltaTime = 0.0;
 		Reference<Scene> m_Scene;
+	private:
+		void ExecuteQueue();
 	};
 
 }

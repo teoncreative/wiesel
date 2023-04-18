@@ -27,7 +27,9 @@ namespace Wiesel {
 		WIESEL_GETTER_FN static Reference<Renderer> GetRenderer();
 		WIESEL_GETTER_FN static Reference<AppWindow> GetWindow();
 
+		static aiScene* LoadAssimpModel(ModelComponent& modelComponent, const std::string& path);
 		static void LoadModel(TransformComponent& transform, ModelComponent& modelComponent, const std::string& path);
+		static void LoadModel(aiScene* scene, TransformComponent& transform, ModelComponent& modelComponent, const std::string& path);
 
 	private:
 		static Reference<Renderer> s_Renderer;

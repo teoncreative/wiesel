@@ -9,6 +9,7 @@
 #pragma once
 
 #define PI 3.14
+#define BIT(x) (1 << x)
 
 #include "w_pch.h"
 #include <glm/gtx/hash.hpp>
@@ -37,13 +38,13 @@ namespace Wiesel {
 
 
 	enum VertexFlag {
-		VertexFlagHasTexture = 1 << 0,
-		VertexFlagHasNormalMap = 1 << 1,
-		VertexFlagHasSpecularMap = 1 << 2,
-		VertexFlagHasHeightMap = 1 << 3,
-		VertexFlagHasAlbedoMap = 1 << 4,
-		VertexFlagHasRoughnessMap = 1 << 5,
-		VertexFlagHasMetallicMap = 1 << 6,
+		VertexFlagHasTexture = BIT(0),
+		VertexFlagHasNormalMap = BIT(1),
+		VertexFlagHasSpecularMap = BIT(2),
+		VertexFlagHasHeightMap = BIT(3),
+		VertexFlagHasAlbedoMap = BIT(4),
+		VertexFlagHasRoughnessMap = BIT(5),
+		VertexFlagHasMetallicMap = BIT(6),
 	};
 
 	struct Vertex {
@@ -96,10 +97,14 @@ namespace Wiesel {
 		alignas(16) glm::mat4 ModelMatrix;
 		alignas(16) glm::vec3 Scale;
 		alignas(16) glm::mat3 NormalMatrix;
+		alignas(16) glm::mat4 RotationMatrix;
 		alignas(16) glm::mat4 CameraViewMatrix;
 		alignas(16) glm::mat4 CameraProjection;
 		alignas(16) glm::vec3 CameraPosition;
 	};
+
+	template<typename T>
+	using Weak = std::weak_ptr<T>;
 
 	template<typename T>
 	using Scope = std::unique_ptr<T>;
@@ -126,13 +131,16 @@ namespace Wiesel {
 	};
 
 	std::vector<char> ReadFile(const std::string& filename);
+
+	inline void TrimLeft(std::string &s) {
+		s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+			return !std::isspace(ch);
+		}));
+	}
 }
 
-#define WIESEL_BIND_EVENT_FUNCTION(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
-#define WIESEL_BIND_GLOBAL_EVENT_FUNCTION(fn) [](auto&&... args) -> decltype(auto) { return fn(std::forward<decltype(args)>(args)...); }
-
 #define WIESEL_CHECK_VKRESULT(f)																		\
-{																										\
+{                                                 \
 	VkResult res = (f);																					\
 	if (res != VK_SUCCESS)																				\
 	{																									\
@@ -141,4 +149,7 @@ namespace Wiesel {
 	}																									\
 }
 
-#define BIT(x) (1 << x)
+
+// https://github.com/TheCherno/Hazel
+#define WIESEL_BIND_EVENT_FUNCTION(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
+#define WIESEL_BIND_GLOBAL_EVENT_FUNCTION(fn) [](auto&&... args) -> decltype(auto) { return fn(std::forward<decltype(args)>(args)...); }

@@ -9,23 +9,17 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "layer/w_layer.h"
+#pragma once
+
+#include "w_pch.h"
+#include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
+#include <ImGuizmo.h>
 
 namespace Wiesel {
+	std::string PrefixLabel(const char* label);
+}
 
-	Layer::Layer(const std::string& layerName) : m_LayerName(layerName) {
-
-	}
-
-	Layer::~Layer() {
-
-	}
-
-	void Layer::OnImGuiRender() {
-
-	}
-
-	void Layer::PostRender() {
-
-	}
+namespace ImGui {
+	bool ClosableTreeNode(const char* label, bool* visible);
 }

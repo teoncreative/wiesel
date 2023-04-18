@@ -18,7 +18,7 @@
 namespace Wiesel {
 
 	struct alignas(16) LightBase {
-		LightBase() : Color({1.0f, 1.0f, 1.0f}), Density(1.0f), Ambient(0.05f) {}
+		LightBase() : Color({1.0f, 1.0f, 1.0f}), Ambient(0.05f), Diffuse(1.0f), Specular(1.0f), Density(1.0f) {}
 		LightBase(glm::vec3 color, float density, float ambient) : Color(color), Density(density), Ambient(ambient) {}
 		~LightBase() = default;
 
@@ -30,7 +30,7 @@ namespace Wiesel {
 	};
 
 	struct alignas(16) LightDirect {
-		LightDirect() : Direction({0.0f, 1.0f, 0.0f}) {}
+		LightDirect() : Direction({1.0f, 1.0f, 1.0f}) {}
 		LightDirect(glm::vec3 direction, LightBase base) : Direction(direction), Base(base) {}
 		~LightDirect() = default;
 
@@ -39,7 +39,7 @@ namespace Wiesel {
 	};
 
 	struct alignas(16) LightPoint {
-		LightPoint() : Position({0.0f, 0.0f, 0.0f}), Constant(0.0f),  Linear(0.0f), Exp(0.0f) { }
+		LightPoint() : Position({0.0f, 1.0f, 0.0f}), Constant(1.0f),  Linear(0.09f), Exp(0.032f) { }
 		LightPoint(glm::vec3 position, LightBase base, float constant, float linear, float quadratic) : Position(position), Base(base), Constant(constant),  Linear(linear), Exp(quadratic) { }
 		~LightPoint() = default;
 
@@ -62,15 +62,21 @@ namespace Wiesel {
 		LightPoint PointLights[MAX_LIGHTS];
 	};
 
+	template<class T>
+	void UpdateLight(LightsUniformBufferObject& lights, T lightData, Entity entity) __attribute__ ((optnone)) {
+	}
+
 	struct LightDirectComponent {
+		LightDirectComponent() = default;
+		LightDirectComponent(const LightDirectComponent&) = default;
+
 		LightDirect LightData;
 	};
 
 	struct LightPointComponent {
+		LightPointComponent() = default;
+		LightPointComponent(const LightPointComponent&) = default;
+
 		LightPoint LightData;
 	};
-
-	template<class T>
-	void UpdateLight(LightsUniformBufferObject& lights, T lightData, Entity entity) __attribute__ ((optnone)) {
-	}
 }
