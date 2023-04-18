@@ -12,6 +12,7 @@
 #include "util/imgui/imgui_spectrum.h"
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
+#include "GLFW/glfw3.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -65,7 +66,7 @@ namespace Wiesel {
 		auto& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-//		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 			auto& style = ImGui::GetStyle();
 			style.WindowRounding = 0.0f;
@@ -124,7 +125,9 @@ namespace Wiesel {
 		ImGui::EndFrame();
 		ImGuiIO& io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			// move this to window handle!!
 			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
 		}
 	}
 }

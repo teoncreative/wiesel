@@ -53,6 +53,7 @@ namespace Wiesel {
 		bool IsChanged = true;
 		glm::mat4 TransformMatrix = {};
 		glm::mat3 NormalMatrix = {};
+		glm::mat4 RotationMatrix = {};
 	};
 
 #define ALL_COMPONENT_TYPES IdComponent, TagComponent, TransformComponent, ModelComponent, LightDirectComponent, LightPointComponent, CameraComponent

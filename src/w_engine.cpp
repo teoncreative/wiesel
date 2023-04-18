@@ -68,7 +68,7 @@ namespace Wiesel {
 		Assimp::Importer importer;
 		importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_LINE | aiPrimitiveType_POINT);
 		importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
-		importer.ReadFile(model.ModelPath, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcessPreset_TargetRealtime_Fast);
+		importer.ReadFile(model.ModelPath, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_ConvertToLeftHanded | aiProcessPreset_TargetRealtime_Fast);
 		aiScene* scene = importer.GetOrphanedScene();
 
 		if(!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !scene->mRootNode) {

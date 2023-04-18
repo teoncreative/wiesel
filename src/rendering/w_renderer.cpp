@@ -684,7 +684,7 @@ namespace Wiesel {
 		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
 			vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
 			vkDestroySemaphore(m_LogicalDevice, m_ImageAvailableSemaphores[i], nullptr);
-			vkDestroyFence(m_LogicalDevice, M_InFlightFences[i], nullptr);
+			vkDestroyFence(m_LogicalDevice, m_InFlightFences[i], nullptr);
 		}
 
         LOG_DEBUG("Destroying command pool");
@@ -1151,14 +1151,14 @@ namespace Wiesel {
 
 	Reference<RenderPass> Renderer::CreateRenderPass(RenderPassProperties properties) {
 		Reference<RenderPass> renderPass = CreateReference<RenderPass>(properties);
-		AllocateRenderPass(properties, renderPass);
+		AllocateRenderPass(renderPass);
 		return renderPass;
 	}
 
-	void Renderer::AllocateRenderPass(RenderPassProperties properties, Reference<RenderPass> renderPass) {
+	void Renderer::AllocateRenderPass(Reference<RenderPass> renderPass) {
 		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = properties.m_SwapChainImageFormat; //m_SwapChainImageFormat
-		colorAttachment.samples = properties.m_MsaaSamples;
+		colorAttachment.format = renderPass->m_Properties.m_SwapChainImageFormat; //m_SwapChainImageFormat
+		colorAttachment.samples = renderPass->m_Properties.m_MsaaSamples;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1171,8 +1171,8 @@ namespace Wiesel {
 		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentDescription depthAttachment{};
-		depthAttachment.format = properties.m_DepthFormat;//FindDepthFormat();
-		depthAttachment.samples = properties.m_MsaaSamples;
+		depthAttachment.format = renderPass->m_Properties.m_DepthFormat;//FindDepthFormat();
+		depthAttachment.samples = renderPass->m_Properties.m_MsaaSamples;
 		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1185,7 +1185,7 @@ namespace Wiesel {
 		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentDescription colorAttachmentResolve{};
-		colorAttachmentResolve.format = properties.m_SwapChainImageFormat;
+		colorAttachmentResolve.format = renderPass->m_Properties.m_SwapChainImageFormat;
 		colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
 		colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1205,12 +1205,14 @@ namespace Wiesel {
 		subpass.pDepthStencilAttachment = &depthAttachmentRef;
 		subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
+		std::vector<VkSubpassDependency> dependencies{};
 		VkSubpassDependency dependency{};
 		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 		dependency.dstSubpass = 0;
 		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		dependencies.push_back(dependency);
 
 		std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
 		VkRenderPassCreateInfo renderPassInfo{};
@@ -1219,8 +1221,8 @@ namespace Wiesel {
 		renderPassInfo.pAttachments = attachments.data();
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 1;
-		renderPassInfo.pDependencies = &dependency;
+		renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+		renderPassInfo.pDependencies = dependencies.data();
 
 		if (vkCreateRenderPass(m_LogicalDevice, &renderPassInfo, nullptr, &renderPass->m_Pass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
@@ -1233,7 +1235,7 @@ namespace Wiesel {
 
 	void Renderer::RecreateRenderPass(Reference<RenderPass> renderPass) {
 		DestroyRenderPass(*renderPass);
-		AllocateRenderPass(renderPass->m_Properties, renderPass);
+		AllocateRenderPass(renderPass);
 	}
 
 	void Renderer::CreateDepthResources() {
@@ -1615,7 +1617,7 @@ namespace Wiesel {
 	void Renderer::CreateSyncObjects() {
 		m_ImageAvailableSemaphores.resize(k_MaxFramesInFlight);
 		renderFinishedSemaphores.resize(k_MaxFramesInFlight);
-		M_InFlightFences.resize(k_MaxFramesInFlight);
+		m_InFlightFences.resize(k_MaxFramesInFlight);
 
 		VkSemaphoreCreateInfo semaphoreInfo{};
 		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1627,7 +1629,7 @@ namespace Wiesel {
 		for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
 			WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphores[i]));
 			WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]));
-			WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr, &M_InFlightFences[i]));
+			WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr, &m_InFlightFences[i]));
 		}
 	}
 
@@ -1684,7 +1686,7 @@ namespace Wiesel {
 
 	bool Renderer::BeginFrame(Reference<CameraData> data) {
 		m_CameraData = data;
-		vkWaitForFences(m_LogicalDevice, 1, &M_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+		vkWaitForFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
 
 		VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || m_RecreateSwapChain) {
@@ -1694,7 +1696,7 @@ namespace Wiesel {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 		// Setup
-		vkResetFences(m_LogicalDevice, 1, &M_InFlightFences[m_CurrentFrame]);
+		vkResetFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame]);
 		vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], 0);
 		if (m_PreviousMsaaSamples != m_MsaaSamples) {
 			LOG_INFO("Msaa samples changed to " + std::to_string(m_MsaaSamples) + " from " + std::to_string(m_PreviousMsaaSamples) + "!");
@@ -1799,7 +1801,7 @@ namespace Wiesel {
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		WIESEL_CHECK_VKRESULT(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, M_InFlightFences[m_CurrentFrame]));
+		WIESEL_CHECK_VKRESULT(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]));
 
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
