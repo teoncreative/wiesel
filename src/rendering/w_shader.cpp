@@ -9,8 +9,17 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_shader.h"
+#include "rendering/w_shader.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
+
+	Shader::Shader(ShaderProperties properties) : Properties(properties) {
+
+	}
+
+	Shader::~Shader() {
+		Engine::GetRenderer()->DestroyShader(*this);
+	}
 
 }

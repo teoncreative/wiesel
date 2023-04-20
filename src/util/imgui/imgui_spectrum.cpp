@@ -8,8 +8,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "util/imgui/imgui_spectrum.h"
-#include "imgui.h"
+#include "util/imgui/imgui_spectrum.hpp"
+#include <imgui.h>
 
 namespace ImGui {
 	namespace Spectrum {

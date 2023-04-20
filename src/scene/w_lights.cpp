@@ -8,7 +8,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "scene/w_lights.h"
+#include "scene/w_lights.hpp"
 
 namespace Wiesel {
 	template<>

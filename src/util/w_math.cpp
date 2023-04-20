@@ -8,7 +8,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "util/w_math.h"
+#include "util/w_math.hpp"
 #include <glm/glm.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>

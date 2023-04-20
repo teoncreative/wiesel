@@ -6,7 +6,7 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "util/w_profiler.h"
+#include "util/w_profiler.hpp"
 #include <sstream>
 
 namespace Wiesel {

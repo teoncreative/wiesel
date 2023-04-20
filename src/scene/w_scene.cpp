@@ -8,10 +8,11 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "scene/w_scene.h"
-#include "scene/w_entity.h"
-#include "rendering/w_renderer.h"
-#include "w_engine.h"
+#include "scene/w_scene.hpp"
+#include "scene/w_entity.hpp"
+#include "rendering/w_renderer.hpp"
+#include "w_engine.hpp"
+#include "behavior/w_behavior.hpp"
 
 namespace Wiesel {
 
@@ -67,6 +68,13 @@ namespace Wiesel {
 	}
 
 	void Scene::OnUpdate(float_t deltaTime) {
+		for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
+			auto& component = m_Registry.get<BehaviorsComponent>(entity);
+			for (const auto& entry : component.m_Behaviors) {
+				entry.second->OnUpdate(deltaTime);
+			}
+		}
+
 		for (const auto& entity : m_Registry.view<TransformComponent>()) {
 			auto& transform = m_Registry.get<TransformComponent>(entity);
 			if (transform.IsChanged) {
@@ -114,6 +122,13 @@ namespace Wiesel {
 	void Scene::OnEvent(Event& event) {
 		EventDispatcher dispatcher{event};
 		dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowResizeEvent));
+
+		for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
+			auto& component = m_Registry.get<BehaviorsComponent>(entity);
+			for (const auto& entry : component.m_Behaviors) {
+				entry.second->OnEvent(event);
+			}
+		}
 	}
 
 	bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {

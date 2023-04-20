@@ -8,7 +8,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "util/w_dialogs.h"
+#include "util/w_dialogs.hpp"
 #include <nfd.h>
 #include <thread>
 

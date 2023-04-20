@@ -7,15 +7,15 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "window/w_glfwwindow.h"
-#include "events/w_keyevents.h"
-#include "events/w_mouseevents.h"
-#include "events/w_appevents.h"
+#include "window/w_glfwwindow.hpp"
+#include "events/w_keyevents.hpp"
+#include "events/w_mouseevents.hpp"
+#include "events/w_appevents.hpp"
 
 namespace Wiesel {
 	GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties) : AppWindow(properties) {
 		glfwInit();
-		LOG_DEBUG("GLFW Vulkan Support: " + std::to_string(glfwVulkanSupported()));
+		LOG_DEBUG("GLFW Vulkan Support: {}", glfwVulkanSupported());
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		if (m_Properties.Resizable) {
 			glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -108,7 +108,7 @@ namespace Wiesel {
 				return;
 			}
 
-			MouseMovedEvent event((float) xPos * appWindow.m_Scale.Width, (float) yPos * appWindow.m_Scale.Height);
+			MouseMovedEvent event((float) xPos * appWindow.m_Scale.Width, (float) yPos * appWindow.m_Scale.Height, appWindow.m_CursorMode);
 			appWindow.GetEventHandler()(event);
 			if (appWindow.m_CursorMode == CursorModeRelative) {
 				glfwSetCursorPos(window, appWindow.m_WindowSize.Width / 2.0f, appWindow.m_WindowSize.Height / 2.0f);

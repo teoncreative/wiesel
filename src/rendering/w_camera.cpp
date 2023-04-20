@@ -8,7 +8,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_camera.h"
+#include "rendering/w_camera.hpp"
 
 namespace Wiesel {
 	void Camera::UpdateProjection() {

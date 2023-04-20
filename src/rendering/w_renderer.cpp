@@ -9,14 +9,16 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_renderer.h"
-#include "util/w_vectors.h"
-#include "util/imgui/imgui_spectrum.h"
+#include "rendering/w_renderer.hpp"
+#include "util/w_vectors.hpp"
+#include "util/imgui/imgui_spectrum.hpp"
+#include "util/w_spirv.hpp"
 
 namespace Wiesel {
 	const uint32_t Renderer::k_MaxFramesInFlight = 2;
 
 	Renderer::Renderer(Reference<AppWindow> window) : m_Window(window) {
+		Spirv::Init();
 #ifdef VULKAN_VALIDATION
         validationLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
@@ -27,6 +29,7 @@ namespace Wiesel {
 #endif
 
 		m_RecreateGraphicsPipeline = false;
+		m_RecreateShaders = false;
 		m_EnableWireframe = false;
 		m_RecreateSwapChain = false;
 		m_SwapChainCreated = false;
@@ -650,6 +653,14 @@ namespace Wiesel {
 		return m_RecreateGraphicsPipeline;
 	}
 
+	void Renderer::SetRecreateShaders(bool value) {
+		m_RecreateShaders = value;
+	}
+
+	bool Renderer::IsRecreateShaders() {
+		return m_RecreateGraphicsPipeline;
+	}
+
 	float Renderer::GetAspectRatio() const {
 		return m_AspectRatio;
 	}
@@ -704,6 +715,7 @@ namespace Wiesel {
 		vkDestroyInstance(m_Instance, nullptr);
 
 		LOG_DEBUG("Renderer destroyed");
+		Spirv::Cleanup();
 	}
 
 	void Renderer::CreateVulkanInstance() {
@@ -757,7 +769,7 @@ namespace Wiesel {
 	void Renderer::PickPhysicalDevice() {
 		uint32_t deviceCount = 0;
 		vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-		LOG_DEBUG(std::to_string(deviceCount) + " devices found!");
+		LOG_DEBUG("{} devices found!", deviceCount);
 		if (deviceCount == 0) {
 			throw std::runtime_error("failed to find GPUs with Vulkan support!");
 		}
@@ -939,9 +951,11 @@ namespace Wiesel {
 
 	void Renderer::CreateDefaultGraphicsPipeline() {
 		LOG_DEBUG("Creating default graphics pipeline");
-		auto vertShaderCode = Wiesel::ReadFile("assets/shaders/standard_shader.vert.spv");
-		auto fragShaderCode = Wiesel::ReadFile("assets/shaders/standard_shader.frag.spv");
-		m_DefaultGraphicsPipeline = CreateGraphicsPipeline({CullModeBack, m_EnableWireframe, vertShaderCode, fragShaderCode, m_DefaultRenderPass});
+//		auto vertexShader = CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource, "assets/shaders/standard_shader.vert"});
+//		auto fragmentShader = CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource, "assets/shaders/standard_shader.frag"});
+		auto vertexShader = CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourcePrecompiled, "assets/shaders/standard_shader.vert.spv"});
+		auto fragmentShader = CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourcePrecompiled, "assets/shaders/standard_shader.frag.spv"});
+		m_DefaultGraphicsPipeline = CreateGraphicsPipeline({CullModeBack, m_EnableWireframe, m_DefaultRenderPass, vertexShader, fragmentShader});
 	}
 
 	void Renderer::CleanupDefaultGraphicsPipeline() {
@@ -956,20 +970,17 @@ namespace Wiesel {
 	}
 
 	void Renderer::AllocateGraphicsPipeline(PipelineProperties properties, Reference<GraphicsPipeline> pipeline) {
-		VkShaderModule vertShaderModule = CreateShaderModule(properties.m_VertexCode);
-		VkShaderModule fragShaderModule = CreateShaderModule(properties.m_FragmentCode);
-
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		vertShaderStageInfo.module = vertShaderModule;
-		vertShaderStageInfo.pName = properties.m_VertexMain.c_str();
+		vertShaderStageInfo.module = properties.m_VertexShader->ShaderModule;
+		vertShaderStageInfo.pName = properties.m_VertexShader->Properties.Main.c_str();
 
 		VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
 		fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		fragShaderStageInfo.module = fragShaderModule;
-		fragShaderStageInfo.pName = properties.m_FragmentMain.c_str();
+		fragShaderStageInfo.module = properties.m_FragmentShader->ShaderModule;
+		fragShaderStageInfo.pName = properties.m_FragmentShader->Properties.Main.c_str();
 		VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
 		std::vector<VkDynamicState> dynamicStates = {
@@ -1132,9 +1143,6 @@ namespace Wiesel {
 
 		WIESEL_CHECK_VKRESULT(vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline->m_Pipeline));
 
-		// Cleanup
-		vkDestroyShaderModule(m_LogicalDevice, fragShaderModule, nullptr);
-		vkDestroyShaderModule(m_LogicalDevice, vertShaderModule, nullptr);
 		pipeline->m_IsAllocated = true;
 	}
 
@@ -1147,6 +1155,23 @@ namespace Wiesel {
 	void Renderer::RecreateGraphicsPipeline(Reference<Wiesel::GraphicsPipeline> pipeline) {
 		DestroyGraphicsPipeline(*pipeline);
 		AllocateGraphicsPipeline(pipeline->m_Properties, pipeline);
+	}
+
+	void Renderer::RecreateShader(Reference<Shader> shader) {
+		if (shader->Properties.Source == ShaderSourceSource) {
+			DestroyShader(*shader);
+			auto file = ReadFile(shader->Properties.Path);
+			std::vector<uint32_t> code{};
+			if (!Spirv::ShaderToSPV(shader->Properties.Type, file, code)) {
+				throw std::runtime_error("Failed to compile shader!");
+			}
+
+			VkShaderModuleCreateInfo createInfo{};
+			createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+			createInfo.codeSize = code.size() * 4;
+			createInfo.pCode = code.data();
+			WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo, nullptr, &shader->ShaderModule));
+		}
 	}
 
 	Reference<RenderPass> Renderer::CreateRenderPass(RenderPassProperties properties) {
@@ -1236,6 +1261,36 @@ namespace Wiesel {
 	void Renderer::RecreateRenderPass(Reference<RenderPass> renderPass) {
 		DestroyRenderPass(*renderPass);
 		AllocateRenderPass(renderPass);
+	}
+
+	Reference<Shader> Renderer::CreateShader(ShaderProperties properties) {
+		if (properties.Source == ShaderSourceSource) {
+			auto file = ReadFile(properties.Path);
+			std::vector<uint32_t> code{};
+			if (!Spirv::ShaderToSPV(properties.Type, file, code)) {
+				throw std::runtime_error("Failed to compile shader!");
+			}
+			return CreateShader(code, properties);
+		} else if (properties.Source == ShaderSourcePrecompiled) {
+			auto code = ReadFileUint32(properties.Path);
+			return CreateShader(code, properties);
+		} else {
+			throw std::runtime_error("Shader source not implemented!");
+		}
+	}
+
+	Reference<Shader> Renderer::CreateShader(const std::vector<uint32_t>& code, ShaderProperties properties) {
+		Reference<Shader> shader = CreateReference<Shader>(properties);
+		VkShaderModuleCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = code.size() * 4;
+		createInfo.pCode = code.data();
+		WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo, nullptr, &shader->ShaderModule));
+		return shader;
+	}
+
+	void Renderer::DestroyShader(Shader& shader) {
+		vkDestroyShaderModule(m_LogicalDevice, shader.ShaderModule, nullptr);
 	}
 
 	void Renderer::CreateDepthResources() {
@@ -1699,8 +1754,15 @@ namespace Wiesel {
 		vkResetFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame]);
 		vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], 0);
 		if (m_PreviousMsaaSamples != m_MsaaSamples) {
-			LOG_INFO("Msaa samples changed to " + std::to_string(m_MsaaSamples) + " from " + std::to_string(m_PreviousMsaaSamples) + "!");
+			LOG_INFO("Msaa samples changed to {} from {}!", std::to_string(m_MsaaSamples), std::to_string(m_PreviousMsaaSamples));
 			m_PreviousMsaaSamples = m_MsaaSamples;
+		}
+
+		if (m_RecreateShaders) {
+			RecreateShader(m_DefaultGraphicsPipeline->m_Properties.m_VertexShader);
+			RecreateShader(m_DefaultGraphicsPipeline->m_Properties.m_FragmentShader);
+			m_RecreateShaders = false;
+			m_RecreateGraphicsPipeline = true;
 		}
 
 		if (m_RecreateGraphicsPipeline) {
@@ -2025,16 +2087,6 @@ namespace Wiesel {
 		return details;
 	}
 
-	VkShaderModule Renderer::CreateShaderModule(const std::vector<char>& code) {
-		VkShaderModuleCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = code.size();
-		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-		VkShaderModule shaderModule;
-		WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo, nullptr, &shaderModule));
-		return shaderModule;
-	}
-
 	uint32_t Renderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 		VkPhysicalDeviceMemoryProperties memProperties;
 		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
@@ -2106,13 +2158,13 @@ namespace Wiesel {
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
 		if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-			LOG_DEBUG(std::string(pCallbackData->pMessage));
+			LOG_DEBUG("{}", std::string(pCallbackData->pMessage));
 		} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-			LOG_WARN(std::string(pCallbackData->pMessage));
+			LOG_WARN("{}", std::string(pCallbackData->pMessage));
 		} else if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-			LOG_ERROR(std::string(pCallbackData->pMessage));
+			LOG_ERROR("{}", std::string(pCallbackData->pMessage));
 		} else {
-			LOG_INFO(std::string(pCallbackData->pMessage));
+			LOG_INFO("{}", std::string(pCallbackData->pMessage));
 		}
 		return VK_FALSE;
 	}
