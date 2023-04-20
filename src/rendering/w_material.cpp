@@ -8,7 +8,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_material.h"
+#include "rendering/w_material.hpp"
 
 namespace Wiesel {
 	Material::Material() {

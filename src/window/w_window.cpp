@@ -6,7 +6,7 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "window/w_window.h"
+#include "window/w_window.hpp"
 
 namespace Wiesel {
 	AppWindow::AppWindow(const WindowProperties& properties) : m_Properties(properties) {

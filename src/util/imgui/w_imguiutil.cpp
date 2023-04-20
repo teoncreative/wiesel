@@ -8,8 +8,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "util/imgui/w_imguiutil.h"
-#include "imgui_internal.h"
+#include "util/imgui/w_imguiutil.hpp"
+#include <imgui_internal.h>
 
 namespace Wiesel {
 	std::string PrefixLabel(const char* label) {

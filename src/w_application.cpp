@@ -6,9 +6,10 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "w_application.h"
-#include "window/w_glfwwindow.h"
-#include "w_engine.h"
+#include "w_application.hpp"
+#include "window/w_glfwwindow.hpp"
+#include "w_engine.hpp"
+#include "input/w_input.hpp"
 
 namespace Wiesel {
 	Application* Application::s_Application;
@@ -57,6 +58,9 @@ namespace Wiesel {
 
 		dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowClose));
 		dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_EVENT_FUNCTION(OnWindowResize));
+		dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_EVENT_FUNCTION(OnKeyPressed));
+		dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_EVENT_FUNCTION(OnKeyReleased));
+		dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_EVENT_FUNCTION(OnMouseMoved));
 
 		if (event.m_Handled) {
 			return;
@@ -156,6 +160,53 @@ namespace Wiesel {
 	bool Application::OnWindowResize(WindowResizeEvent& event) {
 		m_WindowResized = true;
 		return true;
+	}
+
+	void Application::UpdateKeyboardAxis() {
+		bool right = InputManager::GetKey("Right");
+		bool left = InputManager::GetKey("Left");
+		bool up = InputManager::GetKey("Up");
+		bool down = InputManager::GetKey("Down");
+
+		if (right && !left) {
+			InputManager::m_Axis["Horizontal"] = 1;
+		} else if (!right && left) {
+			InputManager::m_Axis["Horizontal"] = -1;
+		} else {
+			InputManager::m_Axis["Horizontal"] = 0;
+		}
+
+		if (up && !down) {
+			InputManager::m_Axis["Vertical"] = 1;
+		} else if (!up && down) {
+			InputManager::m_Axis["Vertical"] = -1;
+		} else {
+			InputManager::m_Axis["Vertical"] = 0;
+		}
+	}
+
+	bool Application::OnKeyPressed(Wiesel::KeyPressedEvent& event) {
+		InputManager::m_InputMode = InputModeKeyboardAndMouse;
+		InputManager::m_Keys[event.GetKeyCode()].Pressed = true;
+		UpdateKeyboardAxis();
+		return false;
+	}
+
+	bool Application::OnKeyReleased(Wiesel::KeyReleasedEvent& event) {
+		InputManager::m_Keys[event.GetKeyCode()].Pressed = false;
+		UpdateKeyboardAxis();
+		return false;
+	}
+
+	bool Application::OnMouseMoved(Wiesel::MouseMovedEvent& event) {
+		InputManager::m_InputMode = InputModeKeyboardAndMouse;
+		InputManager::m_MouseX = event.GetX();
+		InputManager::m_MouseY = event.GetY();
+		if (event.GetCursorMode() == CursorModeRelative) {
+			InputManager::m_Axis["Mouse X"] += InputManager::m_MouseAxisSensX * (((m_WindowSize.Width / 2.0f) - event.GetX()) / m_WindowSize.Width);
+			InputManager::m_Axis["Mouse Y"] += InputManager::m_MouseAxisSensY * (((m_WindowSize.Height / 2.0f) - event.GetY()) / m_WindowSize.Width);
+		}
+		return false;
 	}
 
 	Reference<AppWindow> Application::GetWindow() {

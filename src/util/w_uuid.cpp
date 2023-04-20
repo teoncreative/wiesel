@@ -1,6 +1,6 @@
 
-#include "w_pch.h"
-#include "util/w_uuid.h"
+#include "w_pch.hpp"
+#include "util/w_uuid.hpp"
 #include <random>
 #include <unordered_map>
 

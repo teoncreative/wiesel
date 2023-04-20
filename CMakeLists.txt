@@ -1,5 +1,9 @@
+##organize this messy cmake file!
+
 cmake_minimum_required(VERSION 3.24)
-project(Wiesel)
+project(Wiesel C CXX)
+
+include(ExternalProject)
 
 set(CMAKE_CXX_STANDARD 23)
 
@@ -43,7 +47,7 @@ message("Engine Incl: ${INCLUDE_DIRECTORY}")
 message("Demo Dir: ${DEMO_DIRECTORY}")
 
 file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cpp" "${DEMO_DIRECTORY}/*.cpp")
-file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h" "${DEMO_DIRECTORY}/*.h")
+file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.hpp" "${DEMO_DIRECTORY}/*.hpp")
 
 # move imgui sources to somewhere else
 include_directories(${ENGINE_DIR}/deps/imgui)
@@ -75,9 +79,22 @@ file(
         "${ENGINE_DIR}/deps/imguizmo/ImSequencer.h"
         "${ENGINE_DIR}/deps/imguizmo/ImZoomSlider.h"
 )
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo})
+file(
+        GLOB LibGlslang
+        "${ENGINE_DIR}/deps/glslang/glslang/CInterface/*.cpp"
+        "${ENGINE_DIR}/deps/glslang/SPIRV/CInterface/*.cpp"
+        "${ENGINE_DIR}/deps/glslang/SPIRV/*.cpp"
+)
+file(
+        GLOB LibLua
+        "${ENGINE_DIR}/deps/lua/*.c"
+)
+list(REMOVE_ITEM LibLua "${ENGINE_DIR}/deps/lua/onelua.c")
+list(REMOVE_ITEM LibLua "${ENGINE_DIR}/deps/lua/lua.c")
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRECTORY}/w_pch.h)
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo} ${LibGlslang} ${LibLua})
+
+target_precompile_headers(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRECTORY}/w_pch.hpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
 target_include_directories(${PROJECT_NAME} PRIVATE ${DEMO_DIRECTORY})
 
@@ -114,6 +131,20 @@ target_link_libraries(${PROJECT_NAME} EnTT)
 
 add_subdirectory(${ENGINE_DIR}/deps/filedialog)
 target_link_libraries(${PROJECT_NAME} nfd)
+
+add_subdirectory(${ENGINE_DIR}/deps/fmt)
+target_link_libraries(${PROJECT_NAME} fmt)
+
+set(ENABLE_HLSL ON CACHE BOOL "" FORCE)
+set(ENABLE_GLSLANG_INSTALL ON CACHE BOOL "" FORCE)
+add_subdirectory(${ENGINE_DIR}/deps/glslang)
+target_link_libraries(${PROJECT_NAME} glslang)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_DIR}/deps/lua)
+
+add_subdirectory(${ENGINE_DIR}/deps/luabridge)
+target_link_libraries(${PROJECT_NAME} LuaBridge)
+
 
 if(APPLE)
     message("Platform: Apple")
@@ -180,3 +211,32 @@ add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Textures)
 ##### MODELS #####
 
 file(COPY ${ENGINE_DIR}/assets/models/ DESTINATION ${PROJECT_BINARY_DIR}/assets/models/)
+
+##### SHADERS COPY #####
+
+file(COPY ${ENGINE_DIR}/assets/shaders/ DESTINATION ${PROJECT_BINARY_DIR}/assets/shaders/)
+
+##### SCRIPTS COPY #####
+
+file(GLOB_RECURSE SCRIPT_FILES
+        "${ENGINE_DIR}/assets/scripts/*.lua"
+        )
+
+foreach(SCRIPT ${SCRIPT_FILES})
+    get_filename_component(FILE_NAME ${SCRIPT} NAME)
+    set(OUT_FILE "${PROJECT_BINARY_DIR}/assets/scripts/${FILE_NAME}")
+    add_custom_command(
+            OUTPUT ${OUT_FILE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/scripts/"
+            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/assets/scripts/${FILE_NAME} ${OUT_FILE}
+            DEPENDS ${GLSL}
+    )
+    list(APPEND COPIED_SCRIPT_FILES ${OUT_FILE})
+endforeach(SCRIPT)
+
+add_custom_target(
+        ${PROJECT_NAME}_Scripts
+        DEPENDS ${COPIED_SCRIPT_FILES}
+)
+
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Scripts)

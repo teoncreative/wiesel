@@ -6,7 +6,7 @@
 //
 //        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "util/w_utils.h"
+#include "util/w_utils.hpp"
 
 namespace Wiesel {
 
@@ -53,6 +53,28 @@ namespace Wiesel {
 
 		file.seekg(0);
 		file.read(buffer.data(), fileSize);
+		file.close();
+
+		return buffer;
+	}
+
+	std::vector<uint32_t> ReadFileUint32(const std::string& filename) {
+		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open()) {
+			throw std::runtime_error("failed to open file: " + filename);
+		}
+		size_t fileSize = (size_t) file.tellg();
+		std::vector<uint32_t> buffer(fileSize);
+
+		file.seekg(0);
+		uint32_t v;
+		buffer.resize(fileSize / sizeof(v));
+		int i = 0;
+		while (!file.eof()) {
+			file.read(reinterpret_cast<char*>(&v), sizeof(v));
+			buffer[i++] = v;
+		}
 		file.close();
 
 		return buffer;
