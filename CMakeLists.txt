@@ -142,7 +142,7 @@ target_link_libraries(${PROJECT_NAME} glslang)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_DIR}/deps/lua)
 
-add_subdirectory(${ENGINE_DIR}/deps/luabridge)
+add_subdirectory(${ENGINE_DIR}/deps/luabridge3)
 target_link_libraries(${PROJECT_NAME} LuaBridge)
 
 
