@@ -3,8 +3,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(Wiesel C CXX)
 
-include(ExternalProject)
-
 set(CMAKE_CXX_STANDARD 23)
 
 # todo other platforms

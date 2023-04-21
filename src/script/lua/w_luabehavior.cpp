@@ -20,8 +20,8 @@ namespace Wiesel {
 
 		luaL_openlibs(luaState);
 
-		std::function<void(const char*)> require = +[](const char* msg) {
-			LOG_DEBUG("Require called from script but not implemented yet!");
+		std::function<void(const char*, lua_State*)> require = +[](const char* name, lua_State* state) {
+			ScriptGlue::RegisterModule(name, state);
 		};
 		std::function<luabridge::LuaRef(const char*, lua_State*)> getComponent = [this](const char* name, lua_State* state) -> luabridge::LuaRef {
 			return ScriptGlue::GetComponentGetter(name)(this->GetEntity(), state);
@@ -46,14 +46,12 @@ namespace Wiesel {
 		m_FnUpdate = CreateScope<luabridge::LuaRef>(luabridge::getGlobal(luaState, "Update"));
 
 		luabridge::getGlobalNamespace(luaState)
-				.addFunction("print", log)
+				.addFunction("print", log);
+
+		luabridge::getGlobalNamespace(luaState)
 				.addFunction("LogInfo", log)
-				.addFunction("GetComponent", getComponent)
-				.beginNamespace("input")
-					.addFunction("GetKey", &InputManager::GetKey)
-					.addFunction("GetAxis", &InputManager::GetAxis)
-					.addFunction("IsPressed", &InputManager::IsPressed)
-				.endNamespace();
+				.addFunction("GetComponent", getComponent);
+
 		ScriptGlue::ScriptVec3::Link(luaState);
 		ScriptGlue::ScriptTransformComponent::Link(luaState);
 

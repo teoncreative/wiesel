@@ -14,6 +14,7 @@
 #include "util/w_utils.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
+#include "input/w_input.hpp"
 
 namespace Wiesel::ScriptGlue {
 
@@ -48,16 +49,17 @@ namespace Wiesel::ScriptGlue {
 					.addProperty("position", &ScriptTransformComponent::GetPosition)
 					.addProperty("rotation", &ScriptTransformComponent::GetRotation)
 					.addProperty("scale", &ScriptTransformComponent::GetScale)
-					.addFunction("Move", &ScriptTransformComponent::Move)
-					.addFunction("SetPosition", &ScriptTransformComponent::SetPosition)
-					.addFunction("Rotate", &ScriptTransformComponent::Rotate)
-					.addFunction("SetRotation", &ScriptTransformComponent::SetRotation)
-					.addFunction("Resize", &ScriptTransformComponent::Resize)
-					.addFunction("SetScale", &ScriptTransformComponent::SetScale)
+					.addFunction("Move", &ScriptTransformComponent::Move, &ScriptTransformComponent::Move2)
+					.addFunction("SetPosition", &ScriptTransformComponent::SetPosition, &ScriptTransformComponent::SetPosition2)
+					.addFunction("Rotate", &ScriptTransformComponent::Rotate, &ScriptTransformComponent::Rotate2)
+					.addFunction("SetRotation", &ScriptTransformComponent::SetRotation, &ScriptTransformComponent::SetRotation2)
+					.addFunction("Resize", &ScriptTransformComponent::Resize, &ScriptTransformComponent::Resize2)
+					.addFunction("SetScale", &ScriptTransformComponent::SetScale, &ScriptTransformComponent::SetScale2)
 				.endClass();
 	}
 
 	std::map<std::string, LuaComponentGetFn> s_GetterFn = {};
+	std::map<std::string, LuaModuleLoaderFn> s_ModuleLoader = {};
 
 	template<class ScriptWrapper, class Component>
 	void AddGetter(const std::string& name) {
@@ -76,8 +78,33 @@ namespace Wiesel::ScriptGlue {
 		AddGetter<ScriptTransformComponent, TransformComponent>("TransformComponent");
 	}
 
+	void RegisterModuleLoader(const std::string& name, LuaModuleLoaderFn fn) {
+		s_ModuleLoader[name] = fn;
+	}
+
+	void GenerateModules() {
+		RegisterModuleLoader("wiesel.def.lua", [](lua_State* state) {
+
+		});
+		RegisterModuleLoader("input.def.lua", [](lua_State* state) {
+			luabridge::getGlobalNamespace(state)
+					.beginNamespace("input")
+						.addFunction("GetKey", &InputManager::GetKey)
+						.addFunction("GetAxis", &InputManager::GetAxis)
+						.addFunction("IsPressed", &InputManager::IsPressed)
+					.endNamespace();
+		});
+	}
+
 	luabridge::LuaRef StaticGetComponent(const std::string& str, lua_State* state, LuaBehavior* behavior) {
 		return s_GetterFn[str](behavior->GetEntity(), state);
+	}
+
+	void RegisterModule(const char* name, lua_State* state) {
+		if (!s_ModuleLoader.contains(name)) {
+			throw std::runtime_error("Module with name do not exists " + std::string(name));
+		}
+		s_ModuleLoader[name](state);
 	}
 
 }
