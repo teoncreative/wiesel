@@ -79,10 +79,17 @@ namespace Wiesel::ScriptGlue {
 	void ReportErrors(lua_State *luaState, int status);
 
 	using LuaComponentGetFn = std::function<luabridge::LuaRef(Entity, lua_State*)>;
+	using LuaModuleLoaderFn = std::function<void(lua_State*)>;
+
 	LuaComponentGetFn GetComponentGetter(const char* name);
 
 	template<class T, class B>
 	void AddGetter(const std::string& name);
 
 	void GenerateComponents();
+
+	void GenerateModules();
+
+	void RegisterModule(const char* name, lua_State* state);
+
 }

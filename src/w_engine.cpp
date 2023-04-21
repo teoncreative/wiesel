@@ -21,6 +21,7 @@ namespace Wiesel {
 
 	void Engine::InitEngine() {
 		ScriptGlue::GenerateComponents();
+		ScriptGlue::GenerateModules();
 		InputManager::Init();
 	}
 
