@@ -26,13 +26,14 @@ namespace Wiesel {
 	class LuaBehavior : public IBehavior {
 	public:
 		LuaBehavior(Entity entity, const std::string& luaFile);
-		virtual ~LuaBehavior() { }
+		~LuaBehavior() override;
 
-		void OnUpdate(float_t deltaTime);
-		void OnEvent(Event& event);
+		void OnUpdate(float_t deltaTime) override;
+		void OnEvent(Event& event) override;
 
 	private:
 		std::string m_LuaFile;
+		lua_State* m_LuaState;
 		Scope<luabridge::LuaRef> m_FnStart;
 		Scope<luabridge::LuaRef> m_FnUpdate;
 	};

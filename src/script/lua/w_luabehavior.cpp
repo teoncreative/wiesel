@@ -17,6 +17,7 @@ namespace Wiesel {
 
 	LuaBehavior::LuaBehavior(Wiesel::Entity entity, const std::string& luaFile) : IBehavior("Lua Script (" + luaFile + ")", entity), m_LuaFile(luaFile) {
 		lua_State* luaState = luaL_newstate();
+		m_LuaState = luaState;
 
 		luaL_openlibs(luaState);
 
@@ -56,6 +57,12 @@ namespace Wiesel {
 		ScriptGlue::ScriptTransformComponent::Link(luaState);
 
 		(*m_FnStart)(); // todo move this call to scene
+	}
+
+	LuaBehavior::~LuaBehavior() {
+		m_FnStart = nullptr;
+		m_FnUpdate = nullptr;
+		lua_close(m_LuaState);
 	}
 
 	void LuaBehavior::OnUpdate(float_t deltaTime) {
