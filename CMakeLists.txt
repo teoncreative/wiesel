@@ -62,6 +62,8 @@ file(
         "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_vulkan.cpp"
         "${ENGINE_DIR}/deps/imgui/backends/imgui_impl_glfw.cpp"
         "${ENGINE_DIR}/deps/imgui/misc/cpp/imgui_stdlib.cpp"
+        "${ENGINE_DIR}/deps/imgui/backends/*.h"
+        "${ENGINE_DIR}/deps/imgui/misc/cpp/*.h"
         "${ENGINE_DIR}/deps/imgui/*.h"
 )
 include_directories(${ENGINE_DIR}/deps/imguizmo)

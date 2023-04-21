@@ -13,6 +13,7 @@
 #include "events/w_keyevents.hpp"
 #include "events/w_mouseevents.hpp"
 #include "events/w_appevents.hpp"
+#include <backends/imgui_impl_glfw.h>
 
 namespace Wiesel {
 	GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties) : AppWindow(properties) {
