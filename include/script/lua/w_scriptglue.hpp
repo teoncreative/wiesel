@@ -76,11 +76,10 @@ namespace Wiesel::ScriptGlue {
 		static void Link(lua_State* state);
 	};
 
-	luabridge::LuaRef StaticGetComponent(const std::string& str, lua_State* state);
-	void StaticLogInfo(const char* msg, lua_State* state);
-	void StaticRequire(const std::string& package, lua_State* state);
-
 	void ReportErrors(lua_State *luaState, int status);
+
+	using LuaComponentGetFn = std::function<luabridge::LuaRef(Entity, lua_State*)>;
+	LuaComponentGetFn GetComponentGetter(const char* name);
 
 	template<class T, class B>
 	void AddGetter(const std::string& name);

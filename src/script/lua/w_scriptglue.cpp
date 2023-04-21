@@ -57,35 +57,27 @@ namespace Wiesel::ScriptGlue {
 				.endClass();
 	}
 
-	std::map<std::string, std::function<luabridge::LuaRef(Entity, lua_State*)>> s_GetterFn = {};
+	std::map<std::string, LuaComponentGetFn> s_GetterFn = {};
 
 	template<class ScriptWrapper, class Component>
 	void AddGetter(const std::string& name) {
 		s_GetterFn[name] = [](Entity entity, lua_State* state) -> decltype(auto) {
 			auto& transform = entity.GetComponent<Component>();
-			luabridge::setGlobal(state, luabridge::RefCountedPtr<ScriptWrapper>(new ScriptWrapper(transform)), "__currentcomponent");
+			luabridge::setGlobal(state, CreateReference<ScriptWrapper>(transform), "__currentcomponent");
 			return luabridge::getGlobal(state, "__currentcomponent");
 		};
+	}
+
+	LuaComponentGetFn GetComponentGetter(const char* name) {
+		return s_GetterFn[std::string(name)];
 	}
 
 	void GenerateComponents() {
 		AddGetter<ScriptTransformComponent, TransformComponent>("TransformComponent");
 	}
 
-	luabridge::LuaRef StaticGetComponent(const std::string& str, lua_State* state) {
-		LuaBehavior* pThis = luabridge::getMemberPtr<LuaBehavior>(state);
-		return s_GetterFn[str](pThis->GetEntity(), state);
-	}
-
-	void StaticLogInfo(const char* msg, lua_State* state) {
-		LuaBehavior* pThis = luabridge::getMemberPtr<LuaBehavior>(state);
-
-		LOG_INFO("Script {}: {}", pThis->GetComponent<TagComponent>().Tag, msg);
-	}
-
-	void StaticRequire(const std::string& package, lua_State* state) {
-		LOG_DEBUG("StaticRequire called from script but not implemented yet!");
-		// todo
+	luabridge::LuaRef StaticGetComponent(const std::string& str, lua_State* state, LuaBehavior* behavior) {
+		return s_GetterFn[str](behavior->GetEntity(), state);
 	}
 
 }

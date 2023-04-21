@@ -18,7 +18,7 @@ extern "C" {
 #include <lualib.h>
 }
 #include <LuaBridge/LuaBridge.h>
-#include <LuaBridge/RefCountedPtr.h>
+
 #include "behavior/w_behavior.hpp"
 
 namespace Wiesel {

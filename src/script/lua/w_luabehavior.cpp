@@ -20,8 +20,19 @@ namespace Wiesel {
 
 		luaL_openlibs(luaState);
 
+		std::function<void(const char*)> require = +[](const char* msg) {
+			LOG_DEBUG("Require called from script but not implemented yet!");
+		};
+		std::function<luabridge::LuaRef(const char*, lua_State*)> getComponent = [this](const char* name, lua_State* state) -> luabridge::LuaRef {
+			return ScriptGlue::GetComponentGetter(name)(this->GetEntity(), state);
+		};
+		std::function<void(const char*)> log = [this](const char* msg) {
+			LOG_INFO("Script {}: {}", this->GetComponent<TagComponent>().Tag, msg);
+		};
+
 		luabridge::getGlobalNamespace(luaState)
-				.addFunctionWithPtr("require", this, &ScriptGlue::StaticRequire);
+				.addFunction("require", require);
+
 		int scriptLoadStatus = luaL_dofile(luaState, m_LuaFile.c_str());
 
 		// define error reporter for any Lua error
@@ -35,9 +46,9 @@ namespace Wiesel {
 		m_FnUpdate = CreateScope<luabridge::LuaRef>(luabridge::getGlobal(luaState, "Update"));
 
 		luabridge::getGlobalNamespace(luaState)
-				.addFunctionWithPtr("print", this, &ScriptGlue::StaticLogInfo)
-				.addFunctionWithPtr("LogInfo", this, &ScriptGlue::StaticLogInfo)
-				.addFunctionWithPtr("GetComponent", this, &ScriptGlue::StaticGetComponent)
+				.addFunction("print", log)
+				.addFunction("LogInfo", log)
+				.addFunction("GetComponent", getComponent)
 				.beginNamespace("input")
 					.addFunction("GetKey", &InputManager::GetKey)
 					.addFunction("GetAxis", &InputManager::GetAxis)
