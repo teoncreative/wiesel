@@ -27,7 +27,7 @@
 	url = https://github.com/KhronosGroup/glslang.git
 [submodule "deps/lua"]
 	path = deps/lua
-	url = https://github.com/lua/lua
+	url = https://github.com/irrld/lua.git
 [submodule "deps/luabridge3"]
 	path = deps/luabridge3
 	url = https://github.com/kunitoki/LuaBridge3.git

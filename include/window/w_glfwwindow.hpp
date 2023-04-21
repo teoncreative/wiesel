@@ -14,7 +14,6 @@
 #include "w_pch.hpp"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <backends/imgui_impl_glfw.h>
 
 #include "window/w_window.hpp"
 
