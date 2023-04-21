@@ -52,6 +52,7 @@ namespace Wiesel {
 		Entity m_Entity;
 	};
 
+	// todo maybe use custom entity component system with support for having multiple instances of the same component type?
 	class BehaviorsComponent {
 	public:
 		BehaviorsComponent() { }

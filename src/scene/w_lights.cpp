@@ -11,6 +11,7 @@
 #include "scene/w_lights.hpp"
 
 namespace Wiesel {
+
 	template<>
 	void UpdateLight(LightsUniformBufferObject& lights, LightDirect light, Entity entity) {
 		auto& transform = entity.GetComponent<TransformComponent>();
@@ -37,4 +38,5 @@ namespace Wiesel {
 		lights.PointLights[lights.PointLightCount].Exp = light.Exp;
 		lights.PointLightCount++;
 	}
+
 }

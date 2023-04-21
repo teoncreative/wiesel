@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -12,6 +13,7 @@
 #include <imgui_internal.h>
 
 namespace Wiesel {
+
 	std::string PrefixLabel(const char* label) {
 		float width = ImGui::CalcItemWidth();
 
@@ -26,9 +28,11 @@ namespace Wiesel {
 
 		return labelID;
 	}
+
 }
 
 namespace ImGui {
+
 	bool ClosableTreeNode(const char* label, bool* p_visible) {
 		unsigned int id = ImGui::GetID(label);
 		ImGuiTreeNodeFlags flags = 0;
@@ -53,4 +57,5 @@ namespace ImGui {
 		}
 		return open;
 	}
+
 }

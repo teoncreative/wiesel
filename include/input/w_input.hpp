@@ -40,7 +40,7 @@ namespace Wiesel {
 	private:
 		friend class Application;
 
-		// todo optimize
+		// todo optimize?
 		static std::map<std::string, std::vector<KeyCode>> m_KeyboardMapping;
 		static std::map<KeyCode, KeyData> m_Keys;
 		static std::map<MouseCode, KeyData> m_MouseButtons;

@@ -22,18 +22,9 @@
 [submodule "deps/fmt"]
 	path = deps/fmt
 	url = https://github.com/fmtlib/fmt.git
-[submodule "deps/glsllang"]
-	path = deps/glsllang
-	url = https://github.com/KhronosGroup/glslang.git
 [submodule "deps/glslang"]
 	path = deps/glslang
 	url = https://github.com/KhronosGroup/glslang.git
-[submodule "deps/mono"]
-	path = deps/mono
-	url = https://github.com/mono/mono.git
-[submodule "deps/luacpp"]
-	path = deps/luacpp
-	url = https://github.com/irrld/luacpp
 [submodule "deps/lua"]
 	path = deps/lua
 	url = https://github.com/lua/lua

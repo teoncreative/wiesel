@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -38,11 +39,10 @@ namespace Wiesel {
 				.addFunctionWithPtr("LogInfo", this, &ScriptGlue::StaticLogInfo)
 				.addFunctionWithPtr("GetComponent", this, &ScriptGlue::StaticGetComponent)
 				.beginNamespace("input")
-				.addFunction("GetKey", &InputManager::GetKey)
-				.addFunction("GetAxis", &InputManager::GetAxis)
-				.addFunction("IsPressed", &InputManager::IsPressed)
-				.endNamespace()
-				;
+					.addFunction("GetKey", &InputManager::GetKey)
+					.addFunction("GetAxis", &InputManager::GetAxis)
+					.addFunction("IsPressed", &InputManager::IsPressed)
+				.endNamespace();
 		ScriptGlue::ScriptVec3::Link(luaState);
 		ScriptGlue::ScriptTransformComponent::Link(luaState);
 
@@ -55,4 +55,5 @@ namespace Wiesel {
 
 	void LuaBehavior::OnEvent(Event& event) {
 	}
+
 }

@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -11,6 +12,7 @@
 #include "scene/w_components.hpp"
 
 namespace Wiesel {
+
 	glm::vec3 TransformComponent::GetForward() {
 		return -TransformMatrix[2];
 	}
@@ -73,4 +75,5 @@ namespace Wiesel {
 
 		NormalMatrix = glm::inverseTranspose(glm::mat3(TransformMatrix));
 	}
+
 }

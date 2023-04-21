@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -15,6 +16,7 @@
 #include "scene/w_lights.hpp"
 
 namespace Wiesel::ScriptGlue {
+
 	void ReportErrors(lua_State *luaState, int status) {
 		if (status == 0) {
 			return;
@@ -27,14 +29,14 @@ namespace Wiesel::ScriptGlue {
 	void ScriptVec3::Link(lua_State* L) {
 		luabridge::getGlobalNamespace(L)
 				.beginClass<glm::vec3>("RVec3") // read only vec3
-				.addProperty("x", &glm::vec3::x, false)
-				.addProperty("y", &glm::vec3::y, false)
-				.addProperty("z", &glm::vec3::z, false)
+					.addProperty("x", &glm::vec3::x, false)
+					.addProperty("y", &glm::vec3::y, false)
+					.addProperty("z", &glm::vec3::z, false)
 				.endClass()
 				.beginClass<ScriptVec3>("Vec3") // modifiable vec3
-				.addProperty("x", &ScriptVec3::GetX, &ScriptVec3::SetX)
-				.addProperty("y", &ScriptVec3::GetY, &ScriptVec3::SetY)
-				.addProperty("z", &ScriptVec3::GetZ, &ScriptVec3::SetZ)
+					.addProperty("x", &ScriptVec3::GetX, &ScriptVec3::SetX)
+					.addProperty("y", &ScriptVec3::GetY, &ScriptVec3::SetY)
+					.addProperty("z", &ScriptVec3::GetZ, &ScriptVec3::SetZ)
 				.endClass();
 	}
 
@@ -43,15 +45,15 @@ namespace Wiesel::ScriptGlue {
 		// todo entity class
 		luabridge::getGlobalNamespace(L)
 				.beginClass<ScriptTransformComponent>("TransformComponent")
-				.addProperty("position", &ScriptTransformComponent::GetPosition)
-				.addProperty("rotation", &ScriptTransformComponent::GetRotation)
-				.addProperty("scale", &ScriptTransformComponent::GetScale)
-				.addFunction("Move", &ScriptTransformComponent::Move)
-				.addFunction("SetPosition", &ScriptTransformComponent::SetPosition)
-				.addFunction("Rotate", &ScriptTransformComponent::Rotate)
-				.addFunction("SetRotation", &ScriptTransformComponent::SetRotation)
-				.addFunction("Resize", &ScriptTransformComponent::Resize)
-				.addFunction("SetScale", &ScriptTransformComponent::SetScale)
+					.addProperty("position", &ScriptTransformComponent::GetPosition)
+					.addProperty("rotation", &ScriptTransformComponent::GetRotation)
+					.addProperty("scale", &ScriptTransformComponent::GetScale)
+					.addFunction("Move", &ScriptTransformComponent::Move)
+					.addFunction("SetPosition", &ScriptTransformComponent::SetPosition)
+					.addFunction("Rotate", &ScriptTransformComponent::Rotate)
+					.addFunction("SetRotation", &ScriptTransformComponent::SetRotation)
+					.addFunction("Resize", &ScriptTransformComponent::Resize)
+					.addFunction("SetScale", &ScriptTransformComponent::SetScale)
 				.endClass();
 	}
 
@@ -76,14 +78,14 @@ namespace Wiesel::ScriptGlue {
 	}
 
 	void StaticLogInfo(const char* msg, lua_State* state) {
-		//assert(lua_isuserdata(state, lua_upvalueindex(0)));
 		LuaBehavior* pThis = luabridge::getMemberPtr<LuaBehavior>(state);
 
 		LOG_INFO("Script {}: {}", pThis->GetComponent<TagComponent>().Tag, msg);
 	}
 
 	void StaticRequire(const std::string& package, lua_State* state) {
+		LOG_DEBUG("StaticRequire called from script but not implemented yet!");
 		// todo
-		LOG_DEBUG("StaticRequire called from script but its not implemented yet!");
 	}
+
 }

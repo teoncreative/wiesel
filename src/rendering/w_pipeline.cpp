@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -20,4 +21,5 @@ namespace Wiesel {
 	GraphicsPipeline::~GraphicsPipeline() {
 		Engine::GetRenderer()->DestroyGraphicsPipeline(*this);
 	}
+
 }

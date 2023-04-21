@@ -64,6 +64,7 @@ namespace Wiesel {
 
 	template<class T>
 	void UpdateLight(LightsUniformBufferObject& lights, T lightData, Entity entity) __attribute__ ((optnone)) {
+
 	}
 
 	struct LightDirectComponent {
