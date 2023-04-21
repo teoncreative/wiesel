@@ -1,15 +1,19 @@
-//   Copyright 2023 Metehan Gezer
+
 //
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
+//    Copyright 2023 Metehan Gezer
 //
-//        http://www.apache.org/licenses/LICENSE-2.0
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License.
+//     You may obtain a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
 
 #include "util/w_profiler.hpp"
 #include <sstream>
 
 namespace Wiesel {
+
 	bool Profiler::s_Active = false;
 	std::vector<ProfileData> Profiler::s_Data;
 	std::string Profiler::s_CurrentSection;

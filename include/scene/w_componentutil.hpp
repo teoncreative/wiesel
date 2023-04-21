@@ -37,7 +37,6 @@ namespace Wiesel {
 	template<class T>
 	void RenderAddComponentImGui(Entity entity) {
 
-
 	}
 
 	template<class T>

@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -13,55 +14,55 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
 
-namespace Wiesel {
-	namespace Math {
-		bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::vec3& rotation, glm::vec3& scale) {
-			// From glm::decompose in matrix_decompose.inl
+namespace Wiesel::Math {
 
-			using namespace glm;
-			using T = float;
+	bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::vec3& rotation, glm::vec3& scale) {
+		// From glm::decompose in matrix_decompose.inl
 
-			mat4 LocalMatrix(transform);
+		using namespace glm;
+		using T = float;
 
-			// Normalize the matrix.
-			if (epsilonEqual(LocalMatrix[3][3], static_cast<float>(0), epsilon<T>()))
-				return false;
+		mat4 LocalMatrix(transform);
 
-			// First, isolate perspective.  This is the messiest.
-			if (
-					epsilonNotEqual(LocalMatrix[0][3], static_cast<T>(0), epsilon<T>()) ||
-					epsilonNotEqual(LocalMatrix[1][3], static_cast<T>(0), epsilon<T>()) ||
-					epsilonNotEqual(LocalMatrix[2][3], static_cast<T>(0), epsilon<T>()))
-			{
-				// Clear the perspective partition
-				LocalMatrix[0][3] = LocalMatrix[1][3] = LocalMatrix[2][3] = static_cast<T>(0);
-				LocalMatrix[3][3] = static_cast<T>(1);
-			}
+		// Normalize the matrix.
+		if (epsilonEqual(LocalMatrix[3][3], static_cast<float>(0), epsilon<T>()))
+			return false;
 
-			// Next take care of translation (easy).
-			translation = vec3(LocalMatrix[3]);
-			LocalMatrix[3] = vec4(0, 0, 0, LocalMatrix[3].w);
+		// First, isolate perspective.  This is the messiest.
+		if (
+				epsilonNotEqual(LocalMatrix[0][3], static_cast<T>(0), epsilon<T>()) ||
+				epsilonNotEqual(LocalMatrix[1][3], static_cast<T>(0), epsilon<T>()) ||
+				epsilonNotEqual(LocalMatrix[2][3], static_cast<T>(0), epsilon<T>()))
+		{
+			// Clear the perspective partition
+			LocalMatrix[0][3] = LocalMatrix[1][3] = LocalMatrix[2][3] = static_cast<T>(0);
+			LocalMatrix[3][3] = static_cast<T>(1);
+		}
 
-			vec3 Row[3], Pdum3;
+		// Next take care of translation (easy).
+		translation = vec3(LocalMatrix[3]);
+		LocalMatrix[3] = vec4(0, 0, 0, LocalMatrix[3].w);
 
-			// Now get scale and shear.
-			for (length_t i = 0; i < 3; ++i)
-				for (length_t j = 0; j < 3; ++j)
-					Row[i][j] = LocalMatrix[i][j];
+		vec3 Row[3], Pdum3;
 
-			// Compute X scale factor and normalize first row.
-			scale.x = length(Row[0]);
-			Row[0] = detail::scale(Row[0], static_cast<T>(1));
-			scale.y = length(Row[1]);
-			Row[1] = detail::scale(Row[1], static_cast<T>(1));
-			scale.z = length(Row[2]);
-			Row[2] = detail::scale(Row[2], static_cast<T>(1));
+		// Now get scale and shear.
+		for (length_t i = 0; i < 3; ++i)
+			for (length_t j = 0; j < 3; ++j)
+				Row[i][j] = LocalMatrix[i][j];
 
-			// At this point, the matrix (in rows[]) is orthonormal.
-			// Check for a coordinate system flip.  If the determinant
-			// is -1, then negate the matrix and the scaling factors.
+		// Compute X scale factor and normalize first row.
+		scale.x = length(Row[0]);
+		Row[0] = detail::scale(Row[0], static_cast<T>(1));
+		scale.y = length(Row[1]);
+		Row[1] = detail::scale(Row[1], static_cast<T>(1));
+		scale.z = length(Row[2]);
+		Row[2] = detail::scale(Row[2], static_cast<T>(1));
+
+		// At this point, the matrix (in rows[]) is orthonormal.
+		// Check for a coordinate system flip.  If the determinant
+		// is -1, then negate the matrix and the scaling factors.
 #if 0
-			Pdum3 = cross(Row[1], Row[2]); // v3Cross(row[1], row[2], Pdum3);
+		Pdum3 = cross(Row[1], Row[2]); // v3Cross(row[1], row[2], Pdum3);
 		if (dot(Row[0], Pdum3) < 0)
 		{
 			for (length_t i = 0; i < 3; i++)
@@ -72,18 +73,18 @@ namespace Wiesel {
 		}
 #endif
 
-			rotation.y = asin(-Row[0][2]);
-			if (cos(rotation.y) != 0) {
-				rotation.x = atan2(Row[1][2], Row[2][2]);
-				rotation.z = atan2(Row[0][1], Row[0][0]);
-			}
-			else {
-				rotation.x = atan2(-Row[2][0], Row[1][1]);
-				rotation.z = 0;
-			}
-
-
-			return true;
+		rotation.y = asin(-Row[0][2]);
+		if (cos(rotation.y) != 0) {
+			rotation.x = atan2(Row[1][2], Row[2][2]);
+			rotation.z = atan2(Row[0][1], Row[0][0]);
 		}
+		else {
+			rotation.x = atan2(-Row[2][0], Row[1][1]);
+			rotation.z = 0;
+		}
+
+
+		return true;
 	}
+
 }

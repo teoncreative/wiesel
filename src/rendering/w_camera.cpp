@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -11,6 +12,7 @@
 #include "rendering/w_camera.hpp"
 
 namespace Wiesel {
+
 	void Camera::UpdateProjection() {
 		m_Projection = glm::perspective(glm::radians(m_FieldOfView), m_AspectRatio, m_NearPlane, m_FarPlane);
 		m_Projection[1][1] *= -1; // glm is originally designed for OpenGL, which Y coords where flipped
@@ -20,6 +22,7 @@ namespace Wiesel {
 		glm::mat4 rotationMatrix = glm::toMat4(glm::quat(rotation));
 		m_ViewMatrix = glm::translate(glm::mat4(1.0f), position) * rotationMatrix;
 	}
+
 }
 
 

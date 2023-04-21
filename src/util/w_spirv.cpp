@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -12,6 +13,7 @@
 #include "util/w_logger.hpp"
 
 namespace Wiesel::Spirv {
+
 	void Init() {
 		LOG_INFO("Initializing glslang");
 		glslang::InitializeProcess();
@@ -180,4 +182,5 @@ namespace Wiesel::Spirv {
 		glslang::GlslangToSpv(*program.getIntermediate(stage), output, &opt);
 		return true;
 	}
+
 }

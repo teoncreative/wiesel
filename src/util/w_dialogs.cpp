@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -12,84 +13,87 @@
 #include <nfd.h>
 #include <thread>
 
-namespace Wiesel {
-	namespace Dialogs {
+namespace Wiesel::Dialogs {
+
 #ifdef __APPLE__
-		void Init() {
-			NFD_Init();
-		}
+	// todo workaround for this main-thread requirement on Apple platform
+	// maybe move render things to another thread?
+	void Init() {
+		NFD_Init();
+	}
 
-		void OpenFileDialog(std::vector<FilterEntry> filters, std::function<void(const std::string&)> fn) {
-			nfdchar_t *outPath;
-			nfdnfilteritem_t* filterList = new nfdnfilteritem_t[filters.size()];
-			nfdfiltersize_t filterCount = filters.size();
-			for (int i = 0; i < filterCount; i++) {
-				filterList[i] = {filters[i].name, filters[i].spec};
-			}
-			nfdresult_t result = NFD_OpenDialog(&outPath, filterList, filterCount, NULL);
-			if (result == NFD_OKAY) {
-				fn(outPath);
-				NFD_FreePath(outPath);
-			} else {
-				fn("");
-			}
+	void OpenFileDialog(std::vector<FilterEntry> filters, std::function<void(const std::string&)> fn) {
+		nfdchar_t *outPath;
+		nfdnfilteritem_t* filterList = new nfdnfilteritem_t[filters.size()];
+		nfdfiltersize_t filterCount = filters.size();
+		for (int i = 0; i < filterCount; i++) {
+			filterList[i] = {filters[i].name, filters[i].spec};
 		}
-
-		void Destroy() {
-			NFD_Quit();
+		nfdresult_t result = NFD_OpenDialog(&outPath, filterList, filterCount, NULL);
+		if (result == NFD_OKAY) {
+			fn(outPath);
+			NFD_FreePath(outPath);
+		} else {
+			fn("");
 		}
 	}
+
+	void Destroy() {
+		NFD_Quit();
+	}
+
 #else
-		std::vector<std::function<void()>> m_DispatchThreadQueue;
-		std::mutex m_DispatchThreadQueueMutex;
-		bool s_DispatcherRunning = true;
-		std::thread s_DispatcherThread{
-				[]() {
-					while (s_DispatcherRunning) {
-						std::scoped_lock<std::mutex> lock(m_DispatchThreadQueueMutex);
+	using FileDialogCallbackFn = std::function<void(const std::string&)>;
 
-						for (auto& func : m_DispatchThreadQueue)
-							func();
+	std::vector<std::function<void()>> m_DispatchThreadQueue;
+	std::mutex m_DispatchThreadQueueMutex;
+	bool s_DispatcherRunning = true;
+	std::thread s_DispatcherThread{
+			[]() {
+				while (s_DispatcherRunning) {
+					std::scoped_lock<std::mutex> lock(m_DispatchThreadQueueMutex);
 
-						m_DispatchThreadQueue.clear();
-					}
+					for (auto& func : m_DispatchThreadQueue)
+						func();
+
+					m_DispatchThreadQueue.clear();
 				}
-		};
-
-		void SubmitToDispatcher(const std::function<void()>& function) {
-			std::scoped_lock<std::mutex> lock(m_DispatchThreadQueueMutex);
-
-			m_DispatchThreadQueue.emplace_back(function);
-		}
-
-		void Init() {
-			NFD_Init();
-		}
-
-
-		void OpenFileDialogInternal(FileDialogCallbackFn fn) {
-			nfdchar_t *outPath;
-			nfdfilteritem_t filterItem[2] = { { "Source code", "c,cpp,cc" }, { "Headers", "h,hpp" } };
-			nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 2, NULL);
-			if (result == NFD_OKAY) {
-				fn(outPath);
-				NFD_FreePath(outPath);
-			} else {
-				fn("");
 			}
-		}
+	};
 
-		void OpenFileDialog(FileDialogCallbackFn fn) {
-			SubmitToDispatcher([fn]() {
-				OpenFileDialogInternal(fn);
-			});
-		}
+	void SubmitToDispatcher(const std::function<void()>& function) {
+		std::scoped_lock<std::mutex> lock(m_DispatchThreadQueueMutex);
 
-		void Destroy() {
-			s_DispatcherRunning = false;
-			s_DispatcherThread.join();
-			NFD_Quit();
+		m_DispatchThreadQueue.emplace_back(function);
+	}
+
+	void Init() {
+		NFD_Init();
+	}
+
+
+	void OpenFileDialogInternal(FileDialogCallbackFn fn) {
+		nfdchar_t *outPath;
+		nfdfilteritem_t filterItem[2] = { { "Source code", "c,cpp,cc" }, { "Headers", "h,hpp" } };
+		nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 2, NULL);
+		if (result == NFD_OKAY) {
+			fn(outPath);
+			NFD_FreePath(outPath);
+		} else {
+			fn("");
 		}
+	}
+
+	void OpenFileDialog(FileDialogCallbackFn fn) {
+		SubmitToDispatcher([fn]() {
+			OpenFileDialogInternal(fn);
+		});
+	}
+
+	void Destroy() {
+		s_DispatcherRunning = false;
+		s_DispatcherThread.join();
+		NFD_Quit();
 	}
 #endif
 }

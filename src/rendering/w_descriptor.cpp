@@ -22,4 +22,5 @@ namespace Wiesel {
 	DescriptorData::~DescriptorData() {
 		Engine::GetRenderer()->DestroyDescriptors(*this);
 	}
+
 }
