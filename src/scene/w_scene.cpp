@@ -71,6 +71,9 @@ namespace Wiesel {
 		for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
 			auto& component = m_Registry.get<BehaviorsComponent>(entity);
 			for (const auto& entry : component.m_Behaviors) {
+				if (!entry.second->IsEnabled()) {
+					continue;
+				}
 				entry.second->OnUpdate(deltaTime);
 			}
 		}
@@ -126,6 +129,9 @@ namespace Wiesel {
 		for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
 			auto& component = m_Registry.get<BehaviorsComponent>(entity);
 			for (const auto& entry : component.m_Behaviors) {
+				if (!entry.second->IsEnabled()) {
+					continue;
+				}
 				entry.second->OnEvent(event);
 			}
 		}

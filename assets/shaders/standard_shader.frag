@@ -108,7 +108,7 @@ void main() {
       vec4 lightDir = vec4(light.direction, 1.0f) * ubo.rotationMatrix;
       float lightDiffuse = light.base.diffuse * max(dot(normal, lightDir.xyz), 0.0);
       float lightSpecular = 0.0;
-     // if (lightDiffuse > 0) {
+      // if (lightDiffuse > 0) {
       // Calculate halfway vector for specular reflection
       //         vec3 viewDir = normalize(-inFragPosition);
       vec3 halfwayDir = normalize(light.direction + inViewDir);

@@ -21,6 +21,11 @@ namespace Wiesel {
 	void RenderComponentImGui(T& component, Entity entity) {
 	}
 
+	template<class T, class B>
+	bool RenderBehaviorComponentImGui(T& component, Reference<B> behavior, Entity entity) {
+		return false;
+	}
+
 	template<class T>
 	void CallRenderComponentImGui(Entity entity) {
 		if (entity.HasComponent<T>()) {

@@ -18,6 +18,7 @@
 #include "w_engine.hpp"
 #include "w_application.hpp"
 #include "behavior/w_behavior.hpp"
+#include "script/lua/w_luabehavior.hpp"
 
 namespace Wiesel {
 	template<>
@@ -139,17 +140,68 @@ namespace Wiesel {
 	}
 
 	template<>
+	bool RenderBehaviorComponentImGui(BehaviorsComponent& component, Reference<IBehavior> behavior, Entity entity) {
+		static bool visible = true;
+		if (ImGui::ClosableTreeNode(behavior->GetName().c_str(), &visible)) {
+			bool enabled = behavior->IsEnabled();
+			if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
+				behavior->SetEnabled(enabled);
+			}
+			ImGui::InputText("##", behavior->GetFilePtr(), ImGuiInputTextFlags_ReadOnly);
+			ImGui::SameLine();
+			if (!behavior->IsInternalBehavior()) {
+				if (ImGui::Button("...")) {
+					std::string name = behavior->GetName();
+					Dialogs::OpenFileDialog({{"Lua Script", "lua"}},[&entity, &name](const std::string& file) {
+						Scene* engineScene = entity.GetScene();
+						entt::entity entityHandle = entity.GetHandle();
+						Application::Get()->SubmitToMainThread([engineScene, entityHandle, name, file]() {
+							Entity entity{entityHandle, engineScene};
+							if (entity.HasComponent<BehaviorsComponent>()) {
+								auto& component = entity.GetComponent<BehaviorsComponent>();
+								component.m_Behaviors.erase(name);
+								auto newBehavior = CreateReference<LuaBehavior>(entity, file);
+								component.m_Behaviors[newBehavior->GetName()] = newBehavior;
+							}
+						});
+					});
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Reload")) {
+					std::string name = behavior->GetName();
+					std::string file = behavior->GetFile();
+					bool wasEnabled = behavior->IsEnabled();
+					component.m_Behaviors.erase(name);
+					auto newBehavior = CreateReference<LuaBehavior>(entity, file);
+					newBehavior->SetEnabled(wasEnabled);
+					component.m_Behaviors[name] = newBehavior;
+
+					ImGui::TreePop();
+					return true;
+				}
+
+				LuaBehavior* luaBehavior = static_cast<LuaBehavior*>(&*behavior);
+				for (const auto& ref : luaBehavior->GetExposedDoubles()) {
+					if (ImGui::DragScalar(PrefixLabel(ref->Name.c_str()).c_str(), ImGuiDataType_Double, ref->GetPtr())) {
+						ref->Push(luaBehavior->GetState());
+					}
+				}
+			}
+			ImGui::TreePop();
+		}
+		if (!visible) {
+			component.m_Behaviors.erase(behavior->GetName());
+			visible = true;
+			return true;
+		}
+		return false;
+	}
+
+	template<>
 	void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
 		for (const auto& entry : component.m_Behaviors) {
-			static bool visible = true;
-			if (ImGui::ClosableTreeNode(entry.first.c_str(), &visible)) {
-				// todo
-				ImGui::TreePop();
-			}
-			if (!visible) {
-				component.m_Behaviors.erase(entry.first);
-				visible = true;
- 				break;
+			if (RenderBehaviorComponentImGui(component, entry.second, entity)) {
+				break;
 			}
 		}
 	}
@@ -181,5 +233,21 @@ namespace Wiesel {
 			auto& component = entity.AddComponent<CameraComponent>();
 			component.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
 		}
+	}
+
+	template<>
+	void RenderAddComponentImGui<BehaviorsComponent>(Entity entity) {
+		if (ImGui::MenuItem("Lua Script")) {
+			if (!entity.HasComponent<BehaviorsComponent>()) {
+				entity.AddComponent<BehaviorsComponent>();
+			}
+			BehaviorsComponent& component = entity.GetComponent<BehaviorsComponent>();
+			component.AddBehavior<LuaBehavior>(entity, "");
+		}
+	}
+
+	template<>
+	void CallRenderAddComponentImGui<BehaviorsComponent>(Entity entity) {
+		RenderAddComponentImGui<BehaviorsComponent>(entity);
 	}
 }

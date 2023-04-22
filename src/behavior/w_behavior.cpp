@@ -12,12 +12,18 @@
 #include "behavior/w_behavior.hpp"
 
 namespace Wiesel {
+
 	void IBehavior::OnUpdate(float_t deltaTime) {
 
 	}
 
 	void IBehavior::OnEvent(Event& event) {
 
+	}
+
+	void IBehavior::SetEnabled(bool enabled) {
+		if (m_Unset) return;
+		m_Enabled = enabled;
 	}
 
 }
