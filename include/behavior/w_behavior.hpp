@@ -18,7 +18,8 @@
 namespace Wiesel {
 	class IBehavior {
 	public:
-		IBehavior(std::string name, Entity entity) : m_Name(name), m_Entity(entity) { }
+		IBehavior(const std::string& name, Entity entity, const std::string& file) : m_Name(name), m_Entity(entity), m_File(file), m_InternalBehavior(false), m_Enabled(true), m_Unset(false) { }
+		IBehavior(const std::string& name, Entity entity) : m_Name(name), m_Entity(entity), m_File("Internal"), m_InternalBehavior(true), m_Enabled(true), m_Unset(false) { }
 		virtual ~IBehavior() { }
 
 		virtual void OnUpdate(float_t deltaTime);
@@ -47,9 +48,30 @@ namespace Wiesel {
 			m_Entity.RemoveComponent<T>();
 		}
 
+		WIESEL_GETTER_FN bool IsInternalBehavior() const {
+			return m_InternalBehavior;
+		}
+
+		WIESEL_GETTER_FN const std::string& GetFile() const {
+			return m_File;
+		}
+
+		std::string* GetFilePtr() {
+			return &m_File;
+		}
+
+		WIESEL_GETTER_FN bool IsEnabled() const {
+			return m_Enabled;
+		}
+
+		virtual void SetEnabled(bool enabled);
 	protected:
 		std::string m_Name;
 		Entity m_Entity;
+		std::string m_File;
+		bool m_InternalBehavior;
+		bool m_Enabled;
+		bool m_Unset;
 	};
 
 	// todo maybe use custom entity component system with support for having multiple instances of the same component type?

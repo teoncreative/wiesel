@@ -70,8 +70,8 @@ namespace Wiesel {
 		}
 
 		m_Scene->OnEvent(event);
-
-		for (const auto& layer : m_Layers) {
+		for(auto it = m_Layers.rbegin(); it != m_Layers.rend(); ++it) {
+			const auto& layer = *it;
 			if (event.m_Handled) {
 				break;
 			}
@@ -165,6 +165,7 @@ namespace Wiesel {
 		return true;
 	}
 
+	// handle input logic in InputManager
 	void Application::UpdateKeyboardAxis() {
 		bool right = InputManager::GetKey("Right");
 		bool left = InputManager::GetKey("Left");

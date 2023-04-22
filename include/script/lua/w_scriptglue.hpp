@@ -14,10 +14,6 @@
 #include "w_luabehavior.hpp"
 
 namespace Wiesel::ScriptGlue {
-	class ScriptInput {
-	public:
-
-	};
 	class ScriptVec3 {
 	public:
 		ScriptVec3(glm::vec3& backingVec3, bool* changedPtr) : m_BackingVec3(backingVec3), m_ChangedPtr(changedPtr) {}

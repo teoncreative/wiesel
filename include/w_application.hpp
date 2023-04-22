@@ -67,6 +67,7 @@ namespace Wiesel {
 		bool m_IsMinimized;
 		bool m_WindowResized;
 		WindowSize m_WindowSize;
+		// proper layer stack
 		std::vector<Reference<Layer>> m_Layers;
 		std::vector<Reference<Layer>> m_Overlays; // maybe have another class extending from Layer like OverlayLayer
 		Reference<ImGuiLayer> m_ImGuiLayer;
@@ -74,7 +75,7 @@ namespace Wiesel {
 		Reference<AppWindow> m_Window;
 		float_t m_PreviousFrame = 0.0;
 		float_t m_DeltaTime = 0.0;
-		Reference<Scene> m_Scene;
+		Reference<Scene> m_Scene; // move this to somewhere else
 	private:
 		void ExecuteQueue();
 		void UpdateKeyboardAxis();

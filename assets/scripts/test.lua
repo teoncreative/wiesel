@@ -4,15 +4,15 @@ require("input.def.lua")
 ---@type TransformComponent
 local transform
 
-function Start()
-    print('Start')
+--- You can define variables inside vars to view them inside the editor
+vars = {
+}
+
+function OnLoad()
+    print('OnLoad')
     transform = GetComponent('TransformComponent')
+    transform:SetPosition(0,0,0)
 end
 
 function Update(deltaTime)
----    print(transform.position.x);
-    transform:Move(0, -10 * deltaTime, 0)
-    if input.GetKey('Up') then
-        print('Up key pressed')
-    end
 end

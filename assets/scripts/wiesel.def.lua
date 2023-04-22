@@ -17,12 +17,47 @@ TransformComponent = {
     rotation = {},
     scale = {}
 }
+
+---@param dx number
+---@param dy number
+---@param dz number
+---@overload fun(delta: Vec3)
+function TransformComponent:Move(dx, dy, dz) end
+
 ---@param x number
 ---@param y number
 ---@param z number
-function TransformComponent:Move(x, y, z) end
+---@overload fun(pos: Vec3)
+function TransformComponent:SetPosition(x, y, z) end
+
+---@param dx number
+---@param dy number
+---@param dz number
+---@overload fun(delta: Vec3)
+function TransformComponent:Rotate(dx, dy, dz) end
+
+---@param x number
+---@param y number
+---@param z number
+---@overload fun(rot: Vec3)
+function TransformComponent:SetRotation(x, y, z) end
+
+
+---@param dx number
+---@param dy number
+---@param dz number
+---@overload fun(delta: Vec3)
+function TransformComponent:Resize(dx, dy, dz) end
+
+---@param x number
+---@param y number
+---@param z number
+---@overload fun(scale: Vec3)
+function TransformComponent:SetScale(x, y, z) end
+
+-- todo other transform functions
 
 ---@generic Component
----@param class `Component`
+---@param name string
 ---@return Component
 function GetComponent(name) end

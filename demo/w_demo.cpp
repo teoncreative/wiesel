@@ -135,8 +135,8 @@ namespace WieselDemo {
 		//ImGui::ShowDemoWindow(&scenePropertiesOpen);
 		if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
 			ImGui::SeparatorText("Controls");
-			ImGui::InputFloat("Camera Speed", &m_DemoLayer->m_CameraMoveSpeed);
-			if (ImGui::Checkbox("Wireframe Mode", Engine::GetRenderer()->IsWireframeEnabledPtr())) {
+			ImGui::InputFloat(PrefixLabel("Camera Speed").c_str(), &m_DemoLayer->m_CameraMoveSpeed);
+			if (ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(), Engine::GetRenderer()->IsWireframeEnabledPtr())) {
 				Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
 			}
 			if (ImGui::Button("Recreate Pipeline")) {

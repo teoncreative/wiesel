@@ -1,7 +1,7 @@
 ##organize this messy cmake file!
 
 cmake_minimum_required(VERSION 3.24)
-project(Wiesel C CXX)
+project(Wiesel)
 
 set(CMAKE_CXX_STANDARD 23)
 
@@ -166,6 +166,7 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
     add_custom_command(
             OUTPUT ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/shaders/"
+            COMMAND ${CMAKE_COMMAND} -E copy "${ENGINE_DIR}/assets/shaders/${FILE_NAME}" "${PROJECT_BINARY_DIR}/assets/shaders/${FILE_NAME}"
             COMMAND glslc ${GLSL} -o ${SPIRV}
             DEPENDS ${GLSL}
     )
@@ -195,7 +196,7 @@ foreach(TEXTURE ${TEXTURE_FILES})
     add_custom_command(
             OUTPUT ${OUT_FILE}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/assets/textures/"
-            COMMAND ${CMAKE_COMMAND} -E copy ${ENGINE_DIR}/assets/textures/${FILE_NAME} ${OUT_FILE}
+            COMMAND ${CMAKE_COMMAND} -E copy "${ENGINE_DIR}/assets/textures/${FILE_NAME}" ${OUT_FILE}
             DEPENDS ${TEXTURE}
     )
     list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
@@ -211,10 +212,6 @@ add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_Textures)
 ##### MODELS #####
 
 file(COPY ${ENGINE_DIR}/assets/models/ DESTINATION ${PROJECT_BINARY_DIR}/assets/models/)
-
-##### SHADERS COPY #####
-
-file(COPY ${ENGINE_DIR}/assets/shaders/ DESTINATION ${PROJECT_BINARY_DIR}/assets/shaders/)
 
 ##### SCRIPTS COPY #####
 
