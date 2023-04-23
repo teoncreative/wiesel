@@ -17,6 +17,7 @@ extern "C" {
 #include <lauxlib.h>
 #include <lualib.h>
 }
+// im considering switching to sol3
 #include <LuaBridge/LuaBridge.h>
 #include <LuaBridge/detail/LuaHelpers.h>
 #include <LuaBridge/detail/FuncTraits.h>

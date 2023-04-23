@@ -12,6 +12,7 @@
 #include "script/lua/w_luabehavior.hpp"
 #include "script/lua/w_scriptglue.hpp"
 #include "input/w_input.hpp"
+#include "w_application.hpp"
 
 namespace Wiesel {
 
@@ -38,6 +39,10 @@ namespace Wiesel {
 			LOG_INFO("Script {}: {}", this->GetComponent<TagComponent>().Tag, msg);
 		};
 
+		std::function<void(luabridge::LuaRef)> executeAsync = [this](luabridge::LuaRef fn) {
+			LOG_DEBUG("Execute async functionality is not implemented yet!");
+		};
+
 		luabridge::getGlobalNamespace(luaState)
 				.addFunction("require", require);
 		try {
@@ -60,6 +65,7 @@ namespace Wiesel {
 					.addFunction("print", log);
 
 			luabridge::getGlobalNamespace(luaState)
+					.addFunction("ExecuteAsync", executeAsync)
 					.addFunction("LogInfo", log)
 					.addFunction("GetComponent", getComponent);
 
@@ -84,9 +90,8 @@ namespace Wiesel {
 
 				if (lua_isnumber(luaState, -1)) {
 					variables.push_back(key);
-				} else {
-					std::cout << std::endl;
 				}
+
 				// pop the value, but leave the key on the stack for the next iteration
 				lua_pop(luaState, 1);
 			}

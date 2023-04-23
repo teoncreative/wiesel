@@ -18,6 +18,7 @@
 #include "script/lua/w_scriptglue.hpp"
 #include "script/lua/w_luabehavior.hpp"
 #include "input/w_input.hpp"
+#include "w_entrypoint.hpp"
 
 using namespace Wiesel;
 

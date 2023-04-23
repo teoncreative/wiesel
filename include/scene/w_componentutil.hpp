@@ -18,11 +18,12 @@
 namespace Wiesel {
 	// Editor
 	template<class T>
-	void RenderComponentImGui(T& component, Entity entity) {
+	__attribute__((noinline)) void RenderComponentImGui(T& component, Entity entity) {
+
 	}
 
 	template<class T, class B>
-	bool RenderBehaviorComponentImGui(T& component, Reference<B> behavior, Entity entity) {
+	__attribute__((noinline)) bool RenderBehaviorComponentImGui(T& component, Reference<B> behavior, Entity entity) {
 		return false;
 	}
 
@@ -40,12 +41,12 @@ namespace Wiesel {
 
 	// Adder
 	template<class T>
-	void RenderAddComponentImGui(Entity entity) {
+	__attribute__((noinline)) void RenderAddComponentImGui(Entity entity) {
 
 	}
 
 	template<class T>
-	void CallRenderAddComponentImGui(Entity entity) {
+	__attribute__((noinline)) void CallRenderAddComponentImGui(Entity entity) {
 		if (!entity.HasComponent<T>()) {
 			RenderAddComponentImGui<T>(entity);
 		}
