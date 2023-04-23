@@ -61,3 +61,19 @@ function TransformComponent:SetScale(x, y, z) end
 ---@param name string
 ---@return Component
 function GetComponent(name) end
+
+--- Log something to the console with debug tag.
+---@param msg string
+function LogDebug(msg) end
+
+--- Log something to the console with info tag.
+---@param msg string
+function LogInfo(msg) end
+
+--- Log something to the console with warn tag.
+---@param msg string
+function LogWarn(msg) end
+
+--- Log something to the console with error tag.
+---@param msg string
+function LogError(msg) end
