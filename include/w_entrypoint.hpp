@@ -12,13 +12,13 @@
 #include "w_engine.hpp"
 #include "rendering/w_texture.hpp"
 
-using namespace Wiesel;
-
 int main() {
-	Wiesel::Engine::InitEngine();
-	Wiesel::Application& app = *Wiesel::CreateApp();
+	using namespace Wiesel;
+
+	Engine::InitEngine();
+	Application& app = *CreateApp();
 	app.Init();
 	app.Run();
 	delete &app;
-	LOG_INFO("Exiting...");
+	LOG_INFO("Done!");
 }
