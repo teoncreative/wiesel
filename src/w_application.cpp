@@ -152,6 +152,7 @@ namespace Wiesel {
 	}
 
 	void Application::Close() {
+		LOG_INFO("Closing the application!");
 		m_IsRunning = false;
 	}
 
@@ -162,7 +163,7 @@ namespace Wiesel {
 
 	bool Application::OnWindowResize(WindowResizeEvent& event) {
 		m_WindowResized = true;
-		return true;
+		return false;
 	}
 
 	// handle input logic in InputManager
