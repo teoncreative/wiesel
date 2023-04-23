@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -8,16 +9,20 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "w_engine.h"
-#include "window/w_glfwwindow.h"
-#include "util/w_dialogs.h"
+#include "w_engine.hpp"
+#include "window/w_glfwwindow.hpp"
+#include "util/w_dialogs.hpp"
+#include "script/lua/w_scriptglue.hpp"
+#include "input/w_input.hpp"
 
 namespace Wiesel {
 	Reference<Renderer> Engine::s_Renderer;
 	Reference<AppWindow> Engine::s_Window;
 
 	void Engine::InitEngine() {
-
+		ScriptGlue::GenerateComponents();
+		ScriptGlue::GenerateModules();
+		InputManager::Init();
 	}
 
 	void Engine::InitWindow(WindowProperties props) {
@@ -62,7 +67,7 @@ namespace Wiesel {
 		auto& model = modelComponent.Data;
 		auto fsPath = std::filesystem::canonical(path);
 		model.ModelPath = fsPath.generic_string();
-		LOG_INFO("Loading model: " + path);
+		LOG_INFO("Loading model: {}", path);
 		model.TexturesPath = fsPath.parent_path().generic_string();
 
 		Assimp::Importer importer;
@@ -72,7 +77,7 @@ namespace Wiesel {
 		aiScene* scene = importer.GetOrphanedScene();
 
 		if(!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !scene->mRootNode) {
-			LOG_ERROR("Failed to load model " + path + ": " + importer.GetErrorString());
+			LOG_ERROR("Failed to load model {}: {}", path, importer.GetErrorString());
 			return nullptr;
 		}
 
@@ -93,9 +98,9 @@ namespace Wiesel {
 			item->Allocate();
 			vertices += item->Vertices.size();
 		}
-		LOG_INFO("Loaded " + std::to_string(modelComponent.Data.Meshes.size()) + " meshes!");
-		LOG_INFO("Loaded " + std::to_string(modelComponent.Data.Textures.size()) + " textures!");
-		LOG_INFO("Loaded " + std::to_string(vertices) + " vertices!");
+		LOG_INFO("Loaded {} meshes!", modelComponent.Data.Meshes.size());
+		LOG_INFO("Loaded {} textures!", modelComponent.Data.Textures.size());
+		LOG_INFO("Loaded {} vertices!", vertices);
 	}
 
 	bool Engine::LoadTexture(Model& model, Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type) {
@@ -212,4 +217,5 @@ namespace Wiesel {
 				aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4
 		};
 	}
+
 }

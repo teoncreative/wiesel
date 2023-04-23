@@ -9,7 +9,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "layer/w_layer.h"
+#include "layer/w_layer.hpp"
 
 namespace Wiesel {
 

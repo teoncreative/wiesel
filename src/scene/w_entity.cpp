@@ -8,7 +8,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "scene/w_entity.h"
+#include "scene/w_entity.hpp"
+#include "behavior/w_behavior.hpp"
 
 namespace Wiesel {
 
@@ -19,4 +20,5 @@ namespace Wiesel {
 	Entity::~Entity() {
 
 	}
+
 }

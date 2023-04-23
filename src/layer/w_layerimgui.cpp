@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -8,12 +9,12 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "layer/w_layerimgui.h"
-#include "util/imgui/imgui_spectrum.h"
-#include "rendering/w_renderer.h"
-#include "w_engine.h"
-#include "GLFW/glfw3.h"
+#include "layer/w_layerimgui.hpp"
+#include "util/imgui/imgui_spectrum.hpp"
+#include "rendering/w_renderer.hpp"
+#include "w_engine.hpp"
 
+#include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
 
