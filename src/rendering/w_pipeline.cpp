@@ -19,6 +19,10 @@ namespace Wiesel {
 	}
 
 	GraphicsPipeline::~GraphicsPipeline() {
+		m_Properties.m_RenderPass = nullptr;
+		m_Properties.m_DescriptorLayout = nullptr;
+		m_Properties.m_VertexShader = nullptr;
+		m_Properties.m_FragmentShader = nullptr;
 		Engine::GetRenderer()->DestroyGraphicsPipeline(*this);
 	}
 
