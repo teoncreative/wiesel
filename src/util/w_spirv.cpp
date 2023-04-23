@@ -15,12 +15,12 @@
 namespace Wiesel::Spirv {
 
 	void Init() {
-		LOG_INFO("Initializing glslang");
+		LOG_DEBUG("Initializing glslang");
 		glslang::InitializeProcess();
 	}
 
 	void Cleanup() {
-		LOG_INFO("Cleaning up glslang");
+		LOG_DEBUG("Cleaning up glslang");
 		glslang::FinalizeProcess();
 	}
 

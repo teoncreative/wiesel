@@ -1291,7 +1291,7 @@ namespace Wiesel {
 	}
 
 	Reference<Shader> Renderer::CreateShader(const std::vector<uint32_t>& code, ShaderProperties properties) {
-		LOG_DEBUG("Creating shader");
+		LOG_DEBUG("Creating shader with lang: {}, type: {}, source: {} {}, main: {}", std::to_string(properties.Lang), std::to_string(properties.Type), std::to_string(properties.Source), properties.Path, properties.Main);
 		Reference<Shader> shader = CreateReference<Shader>(properties);
 		VkShaderModuleCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1780,7 +1780,7 @@ namespace Wiesel {
 
 		if (m_RecreateGraphicsPipeline) {
 			vkDeviceWaitIdle(m_LogicalDevice);
-			LOG_INFO("Recreating graphics pipeline!");
+			LOG_INFO("Recreating graphics pipeline...");
 			m_DefaultGraphicsPipeline->m_Properties.m_EnableWireframe = m_EnableWireframe; // Update wireframe mode
 			RecreateGraphicsPipeline(m_DefaultGraphicsPipeline);
 			m_RecreateGraphicsPipeline = false;
