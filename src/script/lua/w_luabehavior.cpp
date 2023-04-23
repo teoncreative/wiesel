@@ -35,8 +35,17 @@ namespace Wiesel {
 		std::function<luabridge::LuaRef(const char*, lua_State*)> getComponent = [this](const char* name, lua_State* state) -> luabridge::LuaRef {
 			return ScriptGlue::GetComponentGetter(name)(this->GetEntity(), state);
 		};
-		std::function<void(const char*)> log = [this](const char* msg) {
-			LOG_INFO("Script {}: {}", this->GetComponent<TagComponent>().Tag, msg);
+		std::function<void(const char*)> logDebug = [this](const char* msg) {
+			LOG_DEBUG("From script {}: {}", this->GetName(), msg);
+		};
+		std::function<void(const char*)> logInfo = [this](const char* msg) {
+			LOG_INFO("From script {}: {}", this->GetName(), msg);
+		};
+		std::function<void(const char*)> logWarn = [this](const char* msg) {
+			LOG_WARN("From script {}: {}", this->GetName(), msg);
+		};
+		std::function<void(const char*)> logError = [this](const char* msg) {
+			LOG_ERROR("From script {}: {}", this->GetName(), msg);
 		};
 
 		std::function<void(luabridge::LuaRef)> executeAsync = [this](luabridge::LuaRef fn) {
@@ -62,17 +71,18 @@ namespace Wiesel {
 			m_FnUpdate = CreateScope<luabridge::LuaRef>(luabridge::getGlobal(luaState, "Update"));
 
 			luabridge::getGlobalNamespace(luaState)
-					.addFunction("print", log);
+					.addFunction("print", logInfo);
 
 			luabridge::getGlobalNamespace(luaState)
 					.addFunction("ExecuteAsync", executeAsync)
-					.addFunction("LogInfo", log)
+					.addFunction("LogDebug", logDebug)
+					.addFunction("LogInfo", logInfo)
+					.addFunction("LogWarn", logWarn)
+					.addFunction("LogError", logError)
 					.addFunction("GetComponent", getComponent);
 
 			ScriptGlue::ScriptVec3::Link(luaState);
 			ScriptGlue::ScriptTransformComponent::Link(luaState);
-
-			LOG_DEBUG("Script {} loaded!", m_Name);
 
 			// todo cleanup this mess
 			std::vector<std::string> variables{};
@@ -122,6 +132,7 @@ namespace Wiesel {
 			}
 			varsNamespace.endNamespace();
 			if (m_FnOnLoad && m_FnOnLoad->isValid()) (*m_FnOnLoad)();
+			LOG_INFO("{} loaded and bound!", m_Name);
 		} catch (std::exception e) {
 			LOG_ERROR("Failed to load script {}, what: {}", m_Name, e.what());
 			return;
