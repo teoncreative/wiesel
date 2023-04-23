@@ -9,9 +9,9 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_mesh.h"
-#include "rendering/w_renderer.h"
-#include "w_engine.h"
+#include "rendering/w_mesh.hpp"
+#include "rendering/w_renderer.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 

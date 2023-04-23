@@ -9,7 +9,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_renderpass.h"
+#include "rendering/w_renderpass.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -18,6 +19,6 @@ namespace Wiesel {
 	}
 
 	RenderPass::~RenderPass() {
-
+		Engine::GetRenderer()->DestroyRenderPass(*this);
 	}
 }

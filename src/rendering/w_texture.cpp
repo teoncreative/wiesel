@@ -1,3 +1,4 @@
+
 //
 //    Copyright 2023 Metehan Gezer
 //
@@ -8,8 +9,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_texture.h"
-#include "w_engine.h"
+#include "rendering/w_texture.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 

@@ -9,8 +9,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_descriptor.h"
-#include "w_engine.h"
+#include "rendering/w_descriptor.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -22,4 +22,5 @@ namespace Wiesel {
 	DescriptorData::~DescriptorData() {
 		Engine::GetRenderer()->DestroyDescriptors(*this);
 	}
+
 }

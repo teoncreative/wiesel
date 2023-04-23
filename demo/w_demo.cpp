@@ -1,18 +1,23 @@
-//   Copyright 2023 Metehan Gezer
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
 
-#include "w_demo.h"
-#include "util/w_keycodes.h"
-#include "util/w_math.h"
-#include "scene/w_componentutil.h"
-#include "layer/w_layerimgui.h"
-#include "w_engine.h"
-#include "backends/imgui_impl_vulkan.h"
+//
+//    Copyright 2023 Metehan Gezer
+//
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License.
+//     You may obtain a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+
+#include "w_demo.hpp"
+#include "w_engine.hpp"
+#include "util/w_keycodes.hpp"
+#include "util/w_math.hpp"
+#include "scene/w_componentutil.hpp"
+#include "layer/w_layerimgui.hpp"
+#include "script/lua/w_scriptglue.hpp"
+#include "script/lua/w_luabehavior.hpp"
+#include "input/w_input.hpp"
 
 using namespace Wiesel;
 
@@ -22,9 +27,6 @@ namespace WieselDemo {
 		m_Scene = app.GetScene();
 		m_Renderer = Engine::GetRenderer();
 
-		m_InputX = 0.0f;
-		m_InputY = 0.0f;
-		m_MouseSpeed = 0.001f;
 		m_CameraMoveSpeed = 8.0f;
 		m_LookXLimit = PI / 2.0f - (PI / 16.0f);
 	}
@@ -41,6 +43,8 @@ namespace WieselDemo {
 			auto& transform = entity.GetComponent<TransformComponent>();
 			transform.Scale = {0.01f, 0.01f, 0.01f};
 			Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
+			auto& behaviors = entity.AddComponent<BehaviorsComponent>();
+			behaviors.AddBehavior<LuaBehavior>(entity, "assets/scripts/test.lua");
 		}
 
 		// Custom camera
@@ -53,7 +57,7 @@ namespace WieselDemo {
 	}
 
 	void DemoLayer::OnUpdate(float_t deltaTime) {
-	//	LogInfo("OnUpdate " + std::to_string(deltaTime));
+		//LOG_INFO("OnUpdate {}", deltaTime);
 		if (!m_Scene->GetPrimaryCamera()) {
 			return;
 		}
@@ -61,21 +65,14 @@ namespace WieselDemo {
 		CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
 		Camera& camera = cameraComponent.m_Camera;
 		TransformComponent& transform = cameraEntity.GetComponent<TransformComponent>();
-		if (m_KeyManager.IsPressed(KeyW)) {
-			transform.Position += transform.GetForward() * deltaTime * m_CameraMoveSpeed;
-		} else if (m_KeyManager.IsPressed(KeyS)) {
-			transform.Position += transform.GetBackward() * deltaTime * m_CameraMoveSpeed;
-		}
+		float axisX = InputManager::GetAxis("Horizontal");
+		float axisY = InputManager::GetAxis("Vertical");
+		transform.Move(transform.GetForward() * deltaTime * m_CameraMoveSpeed * axisY);
+		transform.Move(transform.GetRight() * deltaTime * m_CameraMoveSpeed * axisX);
 
-		if (m_KeyManager.IsPressed(KeyA)) {
-			transform.Position += transform.GetLeft() * deltaTime * m_CameraMoveSpeed;
-		} else if (m_KeyManager.IsPressed(KeyD)) {
-			transform.Position += transform.GetRight() * deltaTime * m_CameraMoveSpeed;
-		}
-
-		m_InputY = std::clamp(m_InputY, -m_LookXLimit, m_LookXLimit);
-		transform.Rotation = {m_InputY, m_InputX, 0.0f};
-		transform.IsChanged = true;
+		float inputX = InputManager::GetAxis("Mouse X");
+		float inputY = std::clamp(InputManager::GetAxis("Mouse Y"), -m_LookXLimit, m_LookXLimit);
+		transform.SetRotation(inputY, inputX, 0.0f);
 		camera.m_IsChanged = true;
 	}
 
@@ -97,25 +94,17 @@ namespace WieselDemo {
 			} else {
 				m_App.GetWindow()->SetCursorMode(CursorModeRelative);
 			}
-			return true;
+			return false;
 		}
-		m_KeyManager.Set(event.GetKeyCode(), true);
-		return true;
+		return false;
 	}
 
 	bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
-		m_KeyManager.Set(event.GetKeyCode(), false);
-		return true;
+		return false;
 	}
 
 	bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
-		if (m_App.GetWindow()->GetCursorMode() != CursorModeRelative) {
-			return true;
-		}
-
-		m_InputX += m_MouseSpeed * ((m_App.GetWindowSize().Width / 2.0f) - event.GetX());
-		m_InputY += m_MouseSpeed * ((m_App.GetWindowSize().Height / 2.0f) - event.GetY());
-		return true;
+		return false;
 	}
 
 	DemoOverlay::DemoOverlay(DemoApplication& app, Reference<DemoLayer> demoLayer) : m_App(app), m_DemoLayer(demoLayer), Layer("Demo Overlay") {
@@ -146,12 +135,15 @@ namespace WieselDemo {
 		//ImGui::ShowDemoWindow(&scenePropertiesOpen);
 		if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
 			ImGui::SeparatorText("Controls");
-			ImGui::InputFloat("Camera Speed", &m_DemoLayer->m_CameraMoveSpeed);
-			if (ImGui::Checkbox("Wireframe Mode", Engine::GetRenderer()->IsWireframeEnabledPtr())) {
+			ImGui::InputFloat(PrefixLabel("Camera Speed").c_str(), &m_DemoLayer->m_CameraMoveSpeed);
+			if (ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(), Engine::GetRenderer()->IsWireframeEnabledPtr())) {
 				Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
 			}
 			if (ImGui::Button("Recreate Pipeline")) {
 				Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
+			}
+			if (ImGui::Button("Recreate Shaders")) {
+				Engine::GetRenderer()->SetRecreateShaders(true);
 			}
 		}
 		ImGui::End();

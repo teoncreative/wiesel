@@ -19,3 +19,15 @@
 [submodule "deps/imguizmo"]
 	path = deps/imguizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "deps/fmt"]
+	path = deps/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "deps/glslang"]
+	path = deps/glslang
+	url = https://github.com/KhronosGroup/glslang.git
+[submodule "deps/lua"]
+	path = deps/lua
+	url = https://github.com/irrld/lua.git
+[submodule "deps/luabridge3"]
+	path = deps/luabridge3
+	url = https://github.com/kunitoki/LuaBridge3.git
