@@ -20,7 +20,7 @@ namespace Wiesel {
 
 	void Camera::UpdateView(glm::vec3& position, glm::vec3& rotation) {
 		glm::mat4 rotationMatrix = glm::toMat4(glm::quat(rotation));
-		m_ViewMatrix = glm::translate(glm::mat4(1.0f), position) * rotationMatrix;
+		m_ViewMatrix = glm::inverse(glm::translate(glm::mat4(1.0f), position) * rotationMatrix);
 	}
 
 }
