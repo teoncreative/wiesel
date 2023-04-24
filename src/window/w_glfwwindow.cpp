@@ -40,7 +40,7 @@ namespace Wiesel {
 			appWindow.m_Scale.Width = appWindow.m_FramebufferSize.Width / (float) appWindow.m_WindowSize.Width;
 			appWindow.m_Scale.Height = appWindow.m_FramebufferSize.Height / (float) appWindow.m_WindowSize.Height;
 
-			WindowResizeEvent event({width, height});
+			WindowResizeEvent event({width, height}, width / (float) height);
 			appWindow.GetEventHandler()(event);
 		});
 

@@ -15,6 +15,7 @@
 #include "rendering/w_renderpass.hpp"
 #include "util/w_utils.hpp"
 #include "w_shader.hpp"
+#include "w_descriptorlayout.hpp"
 
 namespace Wiesel {
 	enum CullMode {
@@ -27,11 +28,11 @@ namespace Wiesel {
 	struct PipelineProperties {
 		CullMode m_CullFace;
 		bool m_EnableWireframe;
-
 		Reference<RenderPass> m_RenderPass;
-
+		Reference<DescriptorLayout> m_DescriptorLayout;
 		Reference<Shader> m_VertexShader;
 		Reference<Shader> m_FragmentShader;
+		bool m_EnableAlphaBlending;
 	};
 
 	struct GraphicsPipeline {

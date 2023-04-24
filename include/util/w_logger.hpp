@@ -61,16 +61,16 @@ namespace Wiesel {
 #define LOG_INFO(msg, args...)
 #endif
 
-#if LOG_LEVEL <= LOG_LEVEL_ERROR
-#define LOG_ERROR(msg, args...) PRINTFN("\x1b[41m[error]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", WIESEL_FUNC_SIG, msg, ## args)
-#else
-#define LOG_ERROR(msg, args...)
-#endif
-
 #if LOG_LEVEL <= LOG_LEVEL_WARN
 #define LOG_WARN(msg, args...) PRINTFN("\x1b[41m[warn ]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", WIESEL_FUNC_SIG, msg, ## args)
 #else
 #define LOG_WARN(msg, args...)
+#endif
+
+#if LOG_LEVEL <= LOG_LEVEL_ERROR
+#define LOG_ERROR(msg, args...) PRINTFN("\x1b[41m[error]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", WIESEL_FUNC_SIG, msg, ## args)
+#else
+#define LOG_ERROR(msg, args...)
 #endif
 
 }

@@ -151,5 +151,5 @@ void main() {
 
    // Use the transformed normal as the final surface normal
    //outColor = vec4(normal, 1.0);
-   outColor = vec4(inColor, 1.0f) * vec4(result, 1.0f);
+   outColor = vec4(inColor, 1.0f) * vec4(result, baseColor.a);
 }

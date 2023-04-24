@@ -30,7 +30,7 @@ namespace Wiesel {
 	class WindowResizeEvent : public Event
 	{
 	public:
-		WindowResizeEvent(WindowSize windowSize) : m_WindowSize(windowSize) { }
+		WindowResizeEvent(WindowSize windowSize, float_t aspectRatio) : m_WindowSize(windowSize), m_AspectRatio(aspectRatio) { }
 
 		WIESEL_GETTER_FN const WindowSize& GetWindowSize() { return m_WindowSize; }
 		WIESEL_GETTER_FN float GetAspectRatio() const { return m_AspectRatio; }

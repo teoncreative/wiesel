@@ -67,6 +67,10 @@ namespace Wiesel {
 		Reference<DescriptorData> CreateDescriptors(Reference<UniformBufferSet> uniformBufferSet, Reference<Material> material) __attribute__ ((optnone)); // optimization for this function is disabled because compiler does something weird
 		void DestroyDescriptors(DescriptorData& descriptorPool);
 
+		// todo properties
+		Reference<DescriptorLayout> CreateDescriptorLayout();
+		void DestroyDescriptorLayout(DescriptorLayout& layout);
+
 		Reference<GraphicsPipeline> CreateGraphicsPipeline(PipelineProperties properties);
 		void AllocateGraphicsPipeline(PipelineProperties properties, Reference<GraphicsPipeline> pipeline);
 		void DestroyGraphicsPipeline(GraphicsPipeline& pipeline);
@@ -147,7 +151,7 @@ namespace Wiesel {
 		VkFormat m_SwapChainImageFormat;
 
 		VkExtent2D m_SwapChainExtent{};
-		VkDescriptorSetLayout m_DescriptorSetLayout{};
+		Reference<DescriptorLayout> m_DefaultDescriptorLayout{};
 		Reference<DepthStencil> m_DepthStencil;
 		Reference<ColorImage> m_ColorImage;
 		Reference<Texture> m_BlankTexture;
@@ -174,6 +178,7 @@ namespace Wiesel {
 		bool m_RecreateGraphicsPipeline;
 		bool m_RecreateShaders;
 		Reference<GraphicsPipeline> m_DefaultGraphicsPipeline;
+		Reference<GraphicsPipeline> m_CurrentGraphicsPipeline;
 		Reference<RenderPass> m_DefaultRenderPass;
 		Reference<CameraData> m_CameraData;
 
@@ -184,7 +189,7 @@ namespace Wiesel {
 		void CreateLogicalDevice();
 		void CreateSwapChain();
 		void CreateDefaultRenderPass();
-		void CreateDescriptorSetLayout();
+		void CreateDefaultDescriptorSetLayout();
 		void CreateDefaultGraphicsPipeline();
 		void CreateDepthResources();
 		void CreateColorResources();
@@ -196,7 +201,6 @@ namespace Wiesel {
 		void CreateGlobalUniformBuffers();
 		void CleanupSwapChain();
 		void CleanupDefaultRenderPass();
-		void CleanupDefaultGraphicsPipeline();
 		void CleanupGlobalUniformBuffers();
 		int32_t RateDeviceSuitability(VkPhysicalDevice device);
 		bool IsDeviceSuitable(VkPhysicalDevice device);
