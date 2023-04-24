@@ -52,7 +52,7 @@ namespace Wiesel {
 		CreateSwapChain();
 		CreateImageViews();
 		CreateDefaultRenderPass();
-		CreateDescriptorSetLayout();
+		CreateDefaultDescriptorSetLayout();
 		CreateDefaultGraphicsPipeline();
 		CreateCommandPools();
 		CreateCommandBuffers();
@@ -357,7 +357,7 @@ namespace Wiesel {
 		// Allocate pool
 		WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(m_LogicalDevice, &poolInfo, nullptr, &object->m_DescriptorPool));
 
-		std::vector<VkDescriptorSetLayout> layouts(k_MaxFramesInFlight, m_DescriptorSetLayout);
+		std::vector<VkDescriptorSetLayout> layouts(k_MaxFramesInFlight, m_DefaultDescriptorLayout->m_Layout);
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocInfo.descriptorPool = object->m_DescriptorPool;
@@ -584,6 +584,59 @@ namespace Wiesel {
 		vkDestroyDescriptorPool(m_LogicalDevice, descriptorPool.m_DescriptorPool, nullptr);
 	}
 
+	Reference<DescriptorLayout> Renderer::CreateDescriptorLayout() {
+		auto layout = CreateReference<DescriptorLayout>();
+		std::vector<VkDescriptorSetLayoutBinding> bindings{};
+		bindings.reserve(2 + k_MaterialTextureCount);
+
+		VkDescriptorSetLayoutBinding uboLayoutBinding{
+				.binding = 0,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = 1,
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+				.pImmutableSamplers = nullptr
+		};
+		bindings.push_back(uboLayoutBinding);
+
+		VkDescriptorSetLayoutBinding lightGlobalUboLayoutBinding{
+				.binding = static_cast<uint32_t>(bindings.size()),
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = 1,
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+				.pImmutableSamplers = nullptr
+		};
+		bindings.push_back(lightGlobalUboLayoutBinding);
+
+		for (int i = 0; i < k_MaterialTextureCount; i++) {
+			VkDescriptorSetLayoutBinding samplerLayoutBinding{
+					.binding = static_cast<uint32_t>(bindings.size()),
+					.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+					.descriptorCount = 1,
+					.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+					.pImmutableSamplers = nullptr
+			};
+			bindings.push_back(samplerLayoutBinding);
+		}
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+				.bindingCount = static_cast<uint32_t>(bindings.size()),
+				.pBindings = bindings.data()
+		};
+
+		WIESEL_CHECK_VKRESULT(vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &layout->m_Layout));
+		layout->m_Allocated = true;
+		return layout;
+	}
+
+	void Renderer::DestroyDescriptorLayout(DescriptorLayout& layout) {
+		if (!layout.m_Allocated) {
+			return;
+		}
+		layout.m_Allocated = false;
+		vkDestroyDescriptorSetLayout(m_LogicalDevice, layout.m_Layout, nullptr);
+	}
+
 	uint32_t Renderer::GetCurrentFrame() const {
 		return m_CurrentFrame;
 	}
@@ -684,10 +737,10 @@ namespace Wiesel {
 		CleanupSwapChain();
 
         LOG_DEBUG("Destroying descriptor set layout");
-		vkDestroyDescriptorSetLayout(m_LogicalDevice, m_DescriptorSetLayout, nullptr);
+		m_DefaultDescriptorLayout = nullptr;
 
 		LOG_DEBUG("Destroying default graphics pipeline");
-		CleanupDefaultGraphicsPipeline();
+		m_DefaultGraphicsPipeline = nullptr;
 
         LOG_DEBUG("Destroying default render pass");
 		CleanupDefaultRenderPass();
@@ -912,42 +965,8 @@ namespace Wiesel {
 		m_DefaultRenderPass = CreateRenderPass({m_SwapChainImageFormat, m_MsaaSamples, FindDepthFormat()});
 	}
 
-	void Renderer::CreateDescriptorSetLayout() {
-		std::vector<VkDescriptorSetLayoutBinding> bindings{};
-		bindings.reserve(2 + k_MaterialTextureCount);
-
-		VkDescriptorSetLayoutBinding uboLayoutBinding{};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-		uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-		bindings.push_back(uboLayoutBinding);
-
-		VkDescriptorSetLayoutBinding lightGlobalUboLayoutBinding{};
-		lightGlobalUboLayoutBinding.binding = bindings.size();
-		lightGlobalUboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		lightGlobalUboLayoutBinding.descriptorCount = 1;
-		lightGlobalUboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-		lightGlobalUboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-		bindings.push_back(lightGlobalUboLayoutBinding);
-
-		for (int i = 0; i < k_MaterialTextureCount; i++) {
-			VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-			samplerLayoutBinding.binding = bindings.size();
-			samplerLayoutBinding.descriptorCount = 1;
-			samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-			samplerLayoutBinding.pImmutableSamplers = nullptr;
-			bindings.push_back(samplerLayoutBinding);
-		}
-
-		VkDescriptorSetLayoutCreateInfo layoutInfo{};
-		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		layoutInfo.pBindings = bindings.data();
-
-		WIESEL_CHECK_VKRESULT(vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &m_DescriptorSetLayout));
+	void Renderer::CreateDefaultDescriptorSetLayout() {
+		m_DefaultDescriptorLayout = CreateDescriptorLayout();
 	}
 
 	void Renderer::CreateDefaultGraphicsPipeline() {
@@ -956,12 +975,7 @@ namespace Wiesel {
 //		auto fragmentShader = CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource, "assets/shaders/standard_shader.frag"});
 		auto vertexShader = CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourcePrecompiled, "assets/shaders/standard_shader.vert.spv"});
 		auto fragmentShader = CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourcePrecompiled, "assets/shaders/standard_shader.frag.spv"});
-		m_DefaultGraphicsPipeline = CreateGraphicsPipeline({CullModeBack, m_EnableWireframe, m_DefaultRenderPass, vertexShader, fragmentShader});
-	}
-
-	void Renderer::CleanupDefaultGraphicsPipeline() {
-		LOG_DEBUG("Destroying default graphics pipeline");
-		m_DefaultGraphicsPipeline = nullptr;
+		m_DefaultGraphicsPipeline = CreateGraphicsPipeline({CullModeBack, m_EnableWireframe, m_DefaultRenderPass, m_DefaultDescriptorLayout, vertexShader, fragmentShader, false});
 	}
 
 	Reference<GraphicsPipeline> Renderer::CreateGraphicsPipeline(PipelineProperties properties) {
@@ -971,6 +985,14 @@ namespace Wiesel {
 	}
 
 	void Renderer::AllocateGraphicsPipeline(PipelineProperties properties, Reference<GraphicsPipeline> pipeline) {
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipelineLayoutInfo.setLayoutCount = 1;
+		pipelineLayoutInfo.pSetLayouts = &properties.m_DescriptorLayout->m_Layout;
+		pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+		WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipeline->m_Layout));
+
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -1076,20 +1098,17 @@ namespace Wiesel {
 
 		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-		colorBlendAttachment.blendEnable = VK_FALSE;
-		colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-		colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
-		colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-		colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-		colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
-		/*colorBlendAttachment.blendEnable = VK_TRUE;
-		colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-		colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-		colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-		colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;*/
+		if (properties.m_EnableAlphaBlending) {
+			colorBlendAttachment.blendEnable = VK_TRUE;
+			colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+			colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+			colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+			colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+			colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+			colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+		} else {
+			colorBlendAttachment.blendEnable = VK_FALSE;
+		}
 
 		VkPipelineColorBlendStateCreateInfo colorBlending{};
 		colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -1101,15 +1120,6 @@ namespace Wiesel {
 		colorBlending.blendConstants[1] = 0.0f; // Optional
 		colorBlending.blendConstants[2] = 0.0f; // Optional
 		colorBlending.blendConstants[3] = 0.0f; // Optional
-
-		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutInfo.setLayoutCount = 1;
-		pipelineLayoutInfo.pSetLayouts = &m_DescriptorSetLayout;
-		pipelineLayoutInfo.pushConstantRangeCount = 0;
-
-		WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipeline->m_Layout));
-
 
 		VkPipelineDepthStencilStateCreateInfo depthStencil{};
 		depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -1281,6 +1291,7 @@ namespace Wiesel {
 	}
 
 	Reference<Shader> Renderer::CreateShader(const std::vector<uint32_t>& code, ShaderProperties properties) {
+		LOG_DEBUG("Creating shader with lang: {}, type: {}, source: {} {}, main: {}", std::to_string(properties.Lang), std::to_string(properties.Type), std::to_string(properties.Source), properties.Path, properties.Main);
 		Reference<Shader> shader = CreateReference<Shader>(properties);
 		VkShaderModuleCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1291,6 +1302,7 @@ namespace Wiesel {
 	}
 
 	void Renderer::DestroyShader(Shader& shader) {
+		LOG_DEBUG("Destroying shader");
 		vkDestroyShaderModule(m_LogicalDevice, shader.ShaderModule, nullptr);
 	}
 
@@ -1768,11 +1780,13 @@ namespace Wiesel {
 
 		if (m_RecreateGraphicsPipeline) {
 			vkDeviceWaitIdle(m_LogicalDevice);
-			LOG_INFO("Recreating graphics pipeline!");
+			LOG_INFO("Recreating graphics pipeline...");
 			m_DefaultGraphicsPipeline->m_Properties.m_EnableWireframe = m_EnableWireframe; // Update wireframe mode
 			RecreateGraphicsPipeline(m_DefaultGraphicsPipeline);
 			m_RecreateGraphicsPipeline = false;
 		}
+
+		m_CurrentGraphicsPipeline = m_DefaultGraphicsPipeline;
 
 		// Actual drawing
 		VkCommandBufferBeginInfo beginInfo{};
@@ -1797,7 +1811,7 @@ namespace Wiesel {
 		renderPassInfo.pClearValues = clearValues.data();
 		vkCmdBeginRenderPass(m_CommandBuffers[m_CurrentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_DefaultGraphicsPipeline->m_Pipeline);
+		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_CurrentGraphicsPipeline->m_Pipeline);
 
 		VkViewport viewport{};
 		viewport.x = 0.0f;
@@ -1812,8 +1826,6 @@ namespace Wiesel {
 		scissor.offset = {0, 0};
 		scissor.extent = m_SwapChainExtent;
 		vkCmdSetScissor(m_CommandBuffers[m_CurrentFrame], 0, 1, &scissor);
-
-		vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_DefaultGraphicsPipeline->m_Pipeline);
 
 		auto& lights = GetLightsBufferObject();
 		memcpy(m_LightsGlobalUboSet->m_Buffers[m_CurrentFrame]->m_Data, &lights, sizeof(lights));
@@ -1839,7 +1851,7 @@ namespace Wiesel {
 		vkCmdBindVertexBuffers(m_CommandBuffers[m_CurrentFrame], 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(m_CommandBuffers[m_CurrentFrame], mesh->IndexBuffer->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vkCmdBindDescriptorSets(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_DefaultGraphicsPipeline->m_Layout, 0, 1, &mesh->Descriptors->m_DescriptorSets[m_CurrentFrame], 0, nullptr);
+		vkCmdBindDescriptorSets(m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, m_CurrentGraphicsPipeline->m_Layout, 0, 1, &mesh->Descriptors->m_DescriptorSets[m_CurrentFrame], 0, nullptr);
 		vkCmdDrawIndexed(m_CommandBuffers[m_CurrentFrame], static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
 	}
 
@@ -1887,6 +1899,7 @@ namespace Wiesel {
 		}
 
 		m_CurrentFrame = (m_CurrentFrame + 1) % k_MaxFramesInFlight;
+		m_CurrentGraphicsPipeline = nullptr;
 	}
 
 	std::vector<const char*> Renderer::GetRequiredExtensions() {

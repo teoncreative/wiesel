@@ -99,6 +99,7 @@ namespace Wiesel {
 	}
 	void ImGuiLayer::OnDetach() {
 		LOG_DEBUG("Destroying imgui pool");
+		vkDeviceWaitIdle(Engine::GetRenderer()->m_LogicalDevice);
 		vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
 	}

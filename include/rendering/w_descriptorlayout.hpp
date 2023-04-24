@@ -9,16 +9,18 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "w_engine.hpp"
-#include "rendering/w_texture.hpp"
+#pragma once
 
-using namespace Wiesel;
+#include "w_pch.hpp"
+#include "util/w_utils.hpp"
 
-int main() {
-	Wiesel::Engine::InitEngine();
-	Wiesel::Application& app = *Wiesel::CreateApp();
-	app.Init();
-	app.Run();
-	delete &app;
-	LOG_INFO("Exiting...");
+namespace Wiesel {
+	class DescriptorLayout {
+	public:
+		explicit DescriptorLayout();
+		~DescriptorLayout();
+
+		bool m_Allocated;
+		VkDescriptorSetLayout m_Layout;
+	};
 }

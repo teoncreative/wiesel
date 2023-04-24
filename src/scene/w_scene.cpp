@@ -141,6 +141,7 @@ namespace Wiesel {
 		for (const auto& entity : m_Registry.view<CameraComponent>()) {
 			auto& component = m_Registry.get<CameraComponent>(entity);
 			component.m_Camera.m_AspectRatio = event.GetAspectRatio();
+			component.m_Camera.m_IsChanged = true;
 		}
 		return false;
 	}

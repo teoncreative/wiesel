@@ -12,6 +12,7 @@
 #include "script/lua/w_luabehavior.hpp"
 #include "script/lua/w_scriptglue.hpp"
 #include "input/w_input.hpp"
+#include "w_application.hpp"
 
 namespace Wiesel {
 
@@ -34,8 +35,21 @@ namespace Wiesel {
 		std::function<luabridge::LuaRef(const char*, lua_State*)> getComponent = [this](const char* name, lua_State* state) -> luabridge::LuaRef {
 			return ScriptGlue::GetComponentGetter(name)(this->GetEntity(), state);
 		};
-		std::function<void(const char*)> log = [this](const char* msg) {
-			LOG_INFO("Script {}: {}", this->GetComponent<TagComponent>().Tag, msg);
+		std::function<void(const char*)> logDebug = [this](const char* msg) {
+			LOG_DEBUG("From script {}: {}", this->GetName(), msg);
+		};
+		std::function<void(const char*)> logInfo = [this](const char* msg) {
+			LOG_INFO("From script {}: {}", this->GetName(), msg);
+		};
+		std::function<void(const char*)> logWarn = [this](const char* msg) {
+			LOG_WARN("From script {}: {}", this->GetName(), msg);
+		};
+		std::function<void(const char*)> logError = [this](const char* msg) {
+			LOG_ERROR("From script {}: {}", this->GetName(), msg);
+		};
+
+		std::function<void(luabridge::LuaRef)> executeAsync = [this](luabridge::LuaRef fn) {
+			LOG_DEBUG("Execute async functionality is not implemented yet!");
 		};
 
 		luabridge::getGlobalNamespace(luaState)
@@ -57,16 +71,18 @@ namespace Wiesel {
 			m_FnUpdate = CreateScope<luabridge::LuaRef>(luabridge::getGlobal(luaState, "Update"));
 
 			luabridge::getGlobalNamespace(luaState)
-					.addFunction("print", log);
+					.addFunction("print", logInfo);
 
 			luabridge::getGlobalNamespace(luaState)
-					.addFunction("LogInfo", log)
+					.addFunction("ExecuteAsync", executeAsync)
+					.addFunction("LogDebug", logDebug)
+					.addFunction("LogInfo", logInfo)
+					.addFunction("LogWarn", logWarn)
+					.addFunction("LogError", logError)
 					.addFunction("GetComponent", getComponent);
 
 			ScriptGlue::ScriptVec3::Link(luaState);
 			ScriptGlue::ScriptTransformComponent::Link(luaState);
-
-			LOG_DEBUG("Script {} loaded!", m_Name);
 
 			// todo cleanup this mess
 			std::vector<std::string> variables{};
@@ -84,9 +100,8 @@ namespace Wiesel {
 
 				if (lua_isnumber(luaState, -1)) {
 					variables.push_back(key);
-				} else {
-					std::cout << std::endl;
 				}
+
 				// pop the value, but leave the key on the stack for the next iteration
 				lua_pop(luaState, 1);
 			}
@@ -117,6 +132,7 @@ namespace Wiesel {
 			}
 			varsNamespace.endNamespace();
 			if (m_FnOnLoad && m_FnOnLoad->isValid()) (*m_FnOnLoad)();
+			LOG_INFO("{} loaded and bound!", m_Name);
 		} catch (std::exception e) {
 			LOG_ERROR("Failed to load script {}, what: {}", m_Name, e.what());
 			return;
