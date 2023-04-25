@@ -15,8 +15,7 @@
 #include "w_events.hpp"
 
 namespace Wiesel {
-	class KeyEvent : public Event
-	{
+	class KeyEvent : public Event {
 	public:
 		WIESEL_GETTER_FN KeyCode GetKeyCode() const { return m_KeyCode; }
 
@@ -28,8 +27,7 @@ namespace Wiesel {
 		KeyCode m_KeyCode;
 	};
 
-	class KeyPressedEvent : public KeyEvent
-	{
+	class KeyPressedEvent : public KeyEvent {
 	public:
 		KeyPressedEvent(const KeyCode keycode, bool isRepeat = false)
 				: KeyEvent(keycode), m_IsRepeat(isRepeat) {}
@@ -41,8 +39,7 @@ namespace Wiesel {
 		bool m_IsRepeat;
 	};
 
-	class KeyReleasedEvent : public KeyEvent
-	{
+	class KeyReleasedEvent : public KeyEvent {
 	public:
 		KeyReleasedEvent(const KeyCode keycode)
 				: KeyEvent(keycode) {}
@@ -50,8 +47,7 @@ namespace Wiesel {
 		EVENT_CLASS_TYPE(KeyReleased)
 	};
 
-	class KeyTypedEvent : public KeyEvent
-	{
+	class KeyTypedEvent : public KeyEvent {
 	public:
 		KeyTypedEvent(const KeyCode keycode)
 				: KeyEvent(keycode) {}

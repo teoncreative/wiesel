@@ -12,7 +12,9 @@
 #include "rendering/w_material.hpp"
 
 namespace Wiesel {
+
 	Material::Material() {
+
 	}
 
 	Material::~Material() {

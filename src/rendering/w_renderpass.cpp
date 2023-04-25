@@ -21,4 +21,5 @@ namespace Wiesel {
 	RenderPass::~RenderPass() {
 		Engine::GetRenderer()->DestroyRenderPass(*this);
 	}
+
 }

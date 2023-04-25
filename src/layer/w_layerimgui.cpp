@@ -112,6 +112,7 @@ namespace Wiesel {
 	}
 
 	void ImGuiLayer::OnImGuiRender() {
+
 	}
 
 	void ImGuiLayer::OnBeginFrame() {

@@ -15,6 +15,7 @@
 #include "input/w_input.hpp"
 
 namespace Wiesel {
+
 	Application* Application::s_Application;
 
 	Application::Application() {
@@ -166,7 +167,7 @@ namespace Wiesel {
 		return false;
 	}
 
-	// handle input logic in InputManager
+	// todo handle input logic in InputManager
 	void Application::UpdateKeyboardAxis() {
 		bool right = InputManager::GetKey("Right");
 		bool left = InputManager::GetKey("Left");
@@ -243,4 +244,5 @@ namespace Wiesel {
 	Application* Application::Get() {
 		return s_Application;
 	}
+
 }
