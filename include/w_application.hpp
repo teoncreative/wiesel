@@ -28,7 +28,7 @@
 namespace Wiesel {
 	class Application {
 	public:
-		Application();
+		Application(WindowProperties props);
 		virtual ~Application();
 
 		virtual void Init() = 0;

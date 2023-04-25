@@ -18,7 +18,7 @@ namespace Wiesel {
 
 	Application* Application::s_Application;
 
-	Application::Application() {
+	Application::Application(WindowProperties props) {
 		WIESEL_PROFILE_FUNCTION();
 		s_Application = this;
 
@@ -26,7 +26,7 @@ namespace Wiesel {
 		m_IsRunning = true;
 		m_IsMinimized = false;
 
-		Engine::InitWindow(WindowProperties());
+		Engine::InitWindow(props);
 		m_Window = Engine::GetWindow();
 		m_Window->SetEventHandler(WIESEL_BIND_EVENT_FUNCTION(Application::OnEvent));
 

@@ -298,7 +298,7 @@ namespace WieselDemo {
 		PushOverlay(CreateReference<DemoOverlay>(*this, demoLayer));
 	}
 
-	DemoApplication::DemoApplication() {
+	DemoApplication::DemoApplication() : Application({"Wiesel Demo"}) {
 		LOG_DEBUG("DemoApp constructor");
 	}
 
