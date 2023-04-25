@@ -36,7 +36,7 @@ namespace Wiesel {
 		WindowSize Size;
 		bool Resizable;
 
-		explicit WindowProperties(std::string title = "Wiesel",
+		WindowProperties(std::string title = "Wiesel",
 								  const WindowSize& size = {1600, 900},
 								  bool resizable = false)
 				: Title(std::move(title)), Size(size), Resizable(resizable) {
