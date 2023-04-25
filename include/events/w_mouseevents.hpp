@@ -16,8 +16,7 @@
 #include "util/w_mousecodes.hpp"
 
 namespace Wiesel {
-	class MouseMovedEvent : public Event
-	{
+	class MouseMovedEvent : public Event {
 	public:
 		MouseMovedEvent(const float_t x, const float_t y, CursorMode cursorMode)
 				: m_MouseX(x), m_MouseY(y), m_CursorMode(cursorMode) {}
@@ -33,8 +32,7 @@ namespace Wiesel {
 		CursorMode m_CursorMode;
 	};
 
-	class MouseScrolledEvent : public Event
-	{
+	class MouseScrolledEvent : public Event {
 	public:
 		MouseScrolledEvent(const float_t xOffset, const float_t yOffset)
 				: m_XOffset(xOffset), m_YOffset(yOffset) {}
@@ -49,8 +47,7 @@ namespace Wiesel {
 		float m_XOffset, m_YOffset;
 	};
 
-	class MouseButtonEvent : public Event
-	{
+	class MouseButtonEvent : public Event {
 	public:
 		WIESEL_GETTER_FN MouseCode GetMouseButton() const { return m_Button; }
 
@@ -62,8 +59,7 @@ namespace Wiesel {
 		MouseCode m_Button;
 	};
 
-	class MouseButtonPressedEvent : public MouseButtonEvent
-	{
+	class MouseButtonPressedEvent : public MouseButtonEvent {
 	public:
 		MouseButtonPressedEvent(const MouseCode button)
 				: MouseButtonEvent(button) {}
@@ -71,8 +67,7 @@ namespace Wiesel {
 		EVENT_CLASS_TYPE(MouseButtonPressed)
 	};
 
-	class MouseButtonReleasedEvent : public MouseButtonEvent
-	{
+	class MouseButtonReleasedEvent : public MouseButtonEvent {
 	public:
 		MouseButtonReleasedEvent(const MouseCode button)
 				: MouseButtonEvent(button) {}

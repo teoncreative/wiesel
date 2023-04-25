@@ -55,11 +55,12 @@ namespace Wiesel {
 		}
 
 	private:
-		friend class Entity;
-		friend class Application;
-
 		bool OnWindowResizeEvent(WindowResizeEvent& event);
 		void Render();
+
+	private:
+		friend class Entity;
+		friend class Application;
 
 		std::unordered_map<UUID, entt::entity> m_Entities;
 		entt::registry m_Registry;

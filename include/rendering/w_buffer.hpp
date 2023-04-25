@@ -29,8 +29,6 @@ namespace Wiesel {
 		MemoryType m_Type;
 		VkBuffer m_Buffer;
 		VkDeviceMemory m_BufferMemory;
-	private:
-
 	};
 
 	class UniformBuffer : public MemoryBuffer {

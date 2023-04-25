@@ -24,19 +24,18 @@ namespace Wiesel {
 
 	enum InputMode {
 		InputModeKeyboardAndMouse,
-		InputModeGamepad,
-
+		InputModeGamepad
 	};
 
 	class InputManager {
 	public:
-		static void Init();
-
 		static bool GetKey(const std::string& key);
 		static bool IsPressed(KeyCode keyCode);
 		static float GetAxis(const std::string& axisName);
 		static int GetMouseX() { return m_MouseX; }
 		static int GetMouseY() { return m_MouseY; }
+
+		static void Init();
 	private:
 		friend class Application;
 

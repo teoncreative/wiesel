@@ -17,8 +17,7 @@
 #include "window/w_window.hpp"
 
 namespace Wiesel {
-	class WindowCloseEvent : public Event
-	{
+	class WindowCloseEvent : public Event {
 	public:
 		WindowCloseEvent() { }
 
@@ -27,8 +26,7 @@ namespace Wiesel {
 	private:
 	};
 
-	class WindowResizeEvent : public Event
-	{
+	class WindowResizeEvent : public Event {
 	public:
 		WindowResizeEvent(WindowSize windowSize, float_t aspectRatio) : m_WindowSize(windowSize), m_AspectRatio(aspectRatio) { }
 
@@ -43,8 +41,7 @@ namespace Wiesel {
 
 	};
 
-	class AppRecreateSwapChainsEvent : public Event
-	{
+	class AppRecreateSwapChainsEvent : public Event {
 	public:
 		AppRecreateSwapChainsEvent(WindowSize windowSize, float_t aspectRatio) : m_WindowSize(windowSize), m_AspectRatio(aspectRatio) { }
 

@@ -16,6 +16,7 @@
 #include <backends/imgui_impl_glfw.h>
 
 namespace Wiesel {
+
 	GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties) : AppWindow(properties) {
 		glfwInit();
 		LOG_DEBUG("GLFW Vulkan Support: {}", glfwVulkanSupported());
@@ -172,4 +173,5 @@ namespace Wiesel {
 	float_t Time::GetTime() {
 		return glfwGetTime();
 	}
+
 }

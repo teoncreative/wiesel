@@ -121,6 +121,61 @@ namespace Wiesel {
 
 		void RecreateSwapChain();
 		void Cleanup();
+
+	private:
+		void CreateVulkanInstance();
+		void CreateSurface();
+		void CreateImageViews();
+		void PickPhysicalDevice();
+		void CreateLogicalDevice();
+		void CreateSwapChain();
+		void CreateDefaultRenderPass();
+		void CreateDefaultDescriptorSetLayout();
+		void CreateDefaultGraphicsPipeline();
+		void CreateDepthResources();
+		void CreateColorResources();
+		void CreateFramebuffers();
+		void CreateCommandPools();
+		void CreateCommandBuffers();
+		void CreatePermanentResources();
+		void CreateSyncObjects();
+		void CreateGlobalUniformBuffers();
+		void CleanupSwapChain();
+		void CleanupDefaultRenderPass();
+		void CleanupGlobalUniformBuffers();
+		int32_t RateDeviceSuitability(VkPhysicalDevice device);
+		bool IsDeviceSuitable(VkPhysicalDevice device);
+		VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+		VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+		VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+		bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
+		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
+		VkCommandBuffer BeginSingleTimeCommands();
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+		std::vector<const char*> GetRequiredExtensions();
+		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
+		void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+		VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+		VkFormat FindDepthFormat();
+		bool HasStencilComponent(VkFormat format);
+		void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+		VkSampleCountFlagBits GetMaxUsableSampleCount();
+#ifdef VULKAN_VALIDATION
+		bool CheckValidationLayerSupport();
+		void SetupDebugMessenger();
+		VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+		void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+		void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+#endif
+
 	private:
 		friend class Mesh;
 		friend class ImGuiLayer;
@@ -181,61 +236,8 @@ namespace Wiesel {
 		Reference<GraphicsPipeline> m_CurrentGraphicsPipeline;
 		Reference<RenderPass> m_DefaultRenderPass;
 		Reference<CameraData> m_CameraData;
-
-		void CreateVulkanInstance();
-		void CreateSurface();
-		void CreateImageViews();
-		void PickPhysicalDevice();
-		void CreateLogicalDevice();
-		void CreateSwapChain();
-		void CreateDefaultRenderPass();
-		void CreateDefaultDescriptorSetLayout();
-		void CreateDefaultGraphicsPipeline();
-		void CreateDepthResources();
-		void CreateColorResources();
-		void CreateFramebuffers();
-		void CreateCommandPools();
-		void CreateCommandBuffers();
-		void CreatePermanentResources();
-		void CreateSyncObjects();
-		void CreateGlobalUniformBuffers();
-		void CleanupSwapChain();
-		void CleanupDefaultRenderPass();
-		void CleanupGlobalUniformBuffers();
-		int32_t RateDeviceSuitability(VkPhysicalDevice device);
-		bool IsDeviceSuitable(VkPhysicalDevice device);
-		VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-		VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-		VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
-		bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
-		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
-		VkCommandBuffer BeginSingleTimeCommands();
-		void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
-		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-
-		std::vector<const char*> GetRequiredExtensions();
-		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
-		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
-		void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-		VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
-		VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-		VkFormat FindDepthFormat();
-		bool HasStencilComponent(VkFormat format);
-		void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
-		VkSampleCountFlagBits GetMaxUsableSampleCount();
-#ifdef VULKAN_VALIDATION
-		bool CheckValidationLayerSupport();
-		void SetupDebugMessenger();
-		VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
-		void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-		void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
-#endif
-
 	};
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+
 }

@@ -57,6 +57,10 @@ namespace Wiesel {
 		void SubmitToMainThread(std::function<void()> fn);
 
 		WIESEL_GETTER_FN static Application* Get();
+	private:
+		void ExecuteQueue();
+		void UpdateKeyboardAxis();
+
 	protected:
 		static Application* s_Application;
 
@@ -76,9 +80,6 @@ namespace Wiesel {
 		float_t m_PreviousFrame = 0.0;
 		float_t m_DeltaTime = 0.0;
 		Reference<Scene> m_Scene; // move this to somewhere else
-	private:
-		void ExecuteQueue();
-		void UpdateKeyboardAxis();
 	};
 
 }

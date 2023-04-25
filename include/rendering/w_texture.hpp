@@ -177,7 +177,7 @@ namespace Wiesel {
 		VkImage m_Image;
 		VkDeviceMemory m_DeviceMemory;
 		VkImageView m_ImageView;
-		VkSampler m_Sampler; // todo specular and normal samplers
+		VkSampler m_Sampler;
 		uint32_t m_MipLevels;
 
 		int32_t m_Width;
