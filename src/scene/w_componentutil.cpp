@@ -180,11 +180,8 @@ namespace Wiesel {
 					return true;
 				}
 
-				LuaBehavior* luaBehavior = static_cast<LuaBehavior*>(&*behavior);
-				for (const auto& ref : luaBehavior->GetExposedDoubles()) {
-					if (ImGui::DragScalar(PrefixLabel(ref->Name.c_str()).c_str(), ImGuiDataType_Double, ref->GetPtr())) {
-						ref->Push(luaBehavior->GetState());
-					}
+				for (const auto& ref : behavior->GetExposedDoubles()) {
+					ref->RenderImGui();
 				}
 			}
 			ImGui::TreePop();

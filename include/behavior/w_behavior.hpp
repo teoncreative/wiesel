@@ -16,6 +16,25 @@
 #include "scene/w_entity.hpp"
 
 namespace Wiesel {
+
+	template<typename T>
+	struct ExposedVariable {
+		ExposedVariable(T value, const std::string& name) : Value(value), Name(name) { }
+		~ExposedVariable() = default;
+
+		T Value;
+		std::string Name;
+
+		void Set(T v) { Value = v; }
+		WIESEL_GETTER_FN const T& Get() const { return Value; }
+		T* GetPtr() { return &Value; }
+
+		virtual void RenderImGui() { }
+	};
+
+	template<typename T>
+	using ExposedVariablesList = std::vector<Reference<ExposedVariable<T>>>;
+
 	class IBehavior {
 	public:
 		IBehavior(const std::string& name, Entity entity, const std::string& file) : m_Name(name), m_Entity(entity), m_File(file), m_InternalBehavior(false), m_Enabled(true), m_Unset(false) { }
@@ -25,46 +44,25 @@ namespace Wiesel {
 		virtual void OnUpdate(float_t deltaTime);
 		virtual void OnEvent(Event& event);
 
-		Entity GetEntity() { return m_Entity; }
-		WIESEL_GETTER_FN const std::string& GetName() { return m_Name; }
-
 		template<typename T, typename... Args>
-		T& AddComponent(Args&& ...args) {
-			return m_Entity.AddComponent<T>(args...);
-		}
-
+		T& AddComponent(Args&& ...args) { return m_Entity.AddComponent<T>(args...); }
 		template<typename T>
-		T& GetComponent() {
-			return m_Entity.GetComponent<T>();
-		}
-
+		WIESEL_GETTER_FN T& GetComponent() { return m_Entity.GetComponent<T>(); }
 		template<typename T>
-		bool HasComponent() {
-			return m_Entity.HasComponent<T>();
-		}
-
+		bool HasComponent() { return m_Entity.HasComponent<T>(); }
 		template<typename T>
-		void RemoveComponent() {
-			m_Entity.RemoveComponent<T>();
-		}
+		void RemoveComponent() { m_Entity.RemoveComponent<T>(); }
 
-		WIESEL_GETTER_FN bool IsInternalBehavior() const {
-			return m_InternalBehavior;
-		}
-
-		WIESEL_GETTER_FN const std::string& GetFile() const {
-			return m_File;
-		}
-
-		std::string* GetFilePtr() {
-			return &m_File;
-		}
-
-		WIESEL_GETTER_FN bool IsEnabled() const {
-			return m_Enabled;
-		}
-
+		WIESEL_GETTER_FN const std::string& GetName() { return m_Name; }
+		WIESEL_GETTER_FN const ExposedVariablesList<double>& GetExposedDoubles() const { return m_ExposedDoubles; }
+		WIESEL_GETTER_FN bool IsInternalBehavior() const { return m_InternalBehavior; }
+		WIESEL_GETTER_FN const std::string& GetFile() const { return m_File; }
+		WIESEL_GETTER_FN bool IsEnabled() const { return m_Enabled; }
 		virtual void SetEnabled(bool enabled);
+
+		WIESEL_GETTER_FN Entity GetEntity() { return m_Entity; }
+		WIESEL_GETTER_FN std::string* GetFilePtr() { return &m_File; }
+		WIESEL_GETTER_FN virtual void* GetStatePtr() const { return nullptr; }
 	protected:
 		std::string m_Name;
 		Entity m_Entity;
@@ -72,6 +70,8 @@ namespace Wiesel {
 		bool m_InternalBehavior;
 		bool m_Enabled;
 		bool m_Unset;
+		// todo other types like vec3!
+		ExposedVariablesList<double> m_ExposedDoubles;
 	};
 
 	// todo maybe use custom entity component system with support for having multiple instances of the same component type?

@@ -208,9 +208,11 @@ namespace Wiesel {
 		InputManager::m_InputMode = InputModeKeyboardAndMouse;
 		InputManager::m_MouseX = event.GetX();
 		InputManager::m_MouseY = event.GetY();
+		// todo mouse delta raw
 		if (event.GetCursorMode() == CursorModeRelative) {
 			InputManager::m_Axis["Mouse X"] += InputManager::m_MouseAxisSensX * (((m_WindowSize.Width / 2.0f) - event.GetX()) / m_WindowSize.Width);
 			InputManager::m_Axis["Mouse Y"] += InputManager::m_MouseAxisSensY * (((m_WindowSize.Height / 2.0f) - event.GetY()) / m_WindowSize.Width);
+			InputManager::m_Axis["Mouse Y"] = std::clamp(InputManager::m_Axis["Mouse Y"], -InputManager::m_MouseAxisLimitY, InputManager::m_MouseAxisLimitY);
 		}
 		return false;
 	}
