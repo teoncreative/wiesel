@@ -50,7 +50,6 @@ namespace WieselDemo {
 		Wiesel::Reference<Wiesel::Renderer> m_Renderer;
 
 		float_t m_CameraMoveSpeed;
-		float_t m_LookXLimit;
 	};
 
 	class DemoOverlay : public Wiesel::Layer {

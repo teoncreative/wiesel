@@ -39,7 +39,7 @@ namespace Wiesel {
 	private:
 		friend class Application;
 
-		// todo optimize?
+		// todo maybe can be improved?
 		static std::map<std::string, std::vector<KeyCode>> m_KeyboardMapping;
 		static std::map<KeyCode, KeyData> m_Keys;
 		static std::map<MouseCode, KeyData> m_MouseButtons;
@@ -49,6 +49,7 @@ namespace Wiesel {
 		static float m_MouseAxisSensX;
 		static float m_MouseAxisSensY;
 		static InputMode m_InputMode;
+		static float m_MouseAxisLimitY;
 
 	};
 

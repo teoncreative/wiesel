@@ -14,8 +14,9 @@
 #include "input/w_input.hpp"
 #include "w_application.hpp"
 
-namespace Wiesel {
+#define HANDLE_FUNCTION_CALL(result) if (!result) { LOG_ERROR("{} {}", result.errorCode().message(), result.errorMessage()); }
 
+namespace Wiesel {
 	LuaBehavior::LuaBehavior(Wiesel::Entity entity, const std::string& file) : IBehavior("Script" + (!file.empty() ? " (" + file + ")" : ""), entity, file) {
 		if (file.empty()) {
 			m_Unset = true;
@@ -36,16 +37,16 @@ namespace Wiesel {
 			return ScriptGlue::GetComponentGetter(name)(this->GetEntity(), state);
 		};
 		std::function<void(const char*)> logDebug = [this](const char* msg) {
-			LOG_DEBUG("From script {}: {}", this->GetName(), msg);
+			LOG_DEBUG("{}: {}", this->GetName(), msg);
 		};
 		std::function<void(const char*)> logInfo = [this](const char* msg) {
-			LOG_INFO("From script {}: {}", this->GetName(), msg);
+			LOG_INFO("{}: {}", this->GetName(), msg);
 		};
 		std::function<void(const char*)> logWarn = [this](const char* msg) {
-			LOG_WARN("From script {}: {}", this->GetName(), msg);
+			LOG_WARN("{}: {}", this->GetName(), msg);
 		};
 		std::function<void(const char*)> logError = [this](const char* msg) {
-			LOG_ERROR("From script {}: {}", this->GetName(), msg);
+			LOG_ERROR("{}: {}", this->GetName(), msg);
 		};
 
 		std::function<void(luabridge::LuaRef)> executeAsync = [this](luabridge::LuaRef fn) {
@@ -93,13 +94,25 @@ namespace Wiesel {
 				// get the key (which is now at index -2)
 				const char* key = lua_tostring(luaState, -2);
 
-				if (lua_istable(luaState, -1) || lua_isfunction(luaState, -1) || std::string(key).starts_with("_")) {
+				if (lua_isfunction(luaState, -1) || std::string(key).starts_with("_")) {
 					lua_pop(luaState, 1);
 					continue;
 				}
 
 				if (lua_isnumber(luaState, -1)) {
 					variables.push_back(key);
+				} else if (lua_istable(luaState, -1)) {
+					lua_gettable(luaState, -1);
+					lua_pushnil(luaState); //does not work with or without this line
+					while (lua_next(luaState, -2) != 0) {
+						const std::string& vkey = lua_tostring(luaState, -2);
+						if (vkey == "type" && lua_isstring(luaState, -1)) {
+							const std::string& type = lua_tostring(luaState, -1);
+
+							//
+						}
+						lua_pop(luaState, 1);
+					}
 				}
 
 				// pop the value, but leave the key on the stack for the next iteration
@@ -107,12 +120,14 @@ namespace Wiesel {
 			}
 			lua_pop(luaState, 1); // pop the namespace from the stack
 
-			luabridge::LuaRef vars = luabridge::getGlobal(luaState, "vars");
-			for (const auto& key : variables) {
-				auto var = vars[key.c_str()];
-				auto value = var.isNumber() ? vars[key.c_str()].cast<double>().value() : 0;
-				Reference<ExposedVariable<double>> ref = CreateReference<ExposedVariable<double>>(value, key);
-				m_ExposedDoubles.push_back(ref);
+			{
+				luabridge::LuaRef vars = luabridge::getGlobal(luaState, "vars");
+				for (const auto& key : variables) {
+					auto var = vars[key.c_str()];
+					auto value = var.isNumber() ? vars[key.c_str()].cast<double>().value() : 0;
+					Reference<ExposedVariable<double>> ref = CreateReference<LuaExposedVariable<double>>(value, key, this);
+					m_ExposedDoubles.push_back(ref);
+				}
 			}
 
 			// reset user defined namespace
@@ -131,7 +146,8 @@ namespace Wiesel {
 				varsNamespace.addProperty(ref->Name.c_str(), get, set);
 			}
 			varsNamespace.endNamespace();
-			if (m_FnOnLoad && m_FnOnLoad->isValid()) (*m_FnOnLoad)();
+
+			if (m_FnOnLoad && m_FnOnLoad->isValid()) {  HANDLE_FUNCTION_CALL((*m_FnOnLoad)()); }
 			LOG_INFO("{} loaded and bound!", m_Name);
 		} catch (std::exception e) {
 			LOG_ERROR("Failed to load script {}, what: {}", m_Name, e.what());
@@ -152,11 +168,17 @@ namespace Wiesel {
 	}
 
 	void LuaBehavior::OnUpdate(float_t deltaTime) {
-		if (m_FnUpdate && m_FnUpdate->isValid()) (*m_FnUpdate)(deltaTime);
+		if (m_FnUpdate && m_FnUpdate->isValid()) {
+			HANDLE_FUNCTION_CALL((*m_FnUpdate)(deltaTime));
+		}
 	}
 
 	void LuaBehavior::OnEvent(Event& event) {
 		// todo start event
+	}
+
+	void* LuaBehavior::GetStatePtr() const {
+		return m_LuaState;
 	}
 
 	void LuaBehavior::SetEnabled(bool enabled) {
@@ -164,9 +186,16 @@ namespace Wiesel {
 		m_Enabled = enabled;
 
 		if (m_Enabled && m_FnOnEnable && m_FnOnEnable->isValid()) {
-			(*m_FnOnEnable)();
+			HANDLE_FUNCTION_CALL((*m_FnOnEnable)());
 		} else if (!m_Enabled && m_FnOnDisable && m_FnOnDisable->isValid()) {
-			(*m_FnOnDisable)();
+			HANDLE_FUNCTION_CALL((*m_FnOnDisable)());
+		}
+	}
+
+	template<typename T>
+	void LuaExposedVariable<T>::RenderImGui() {
+		if (ImGui::DragScalar(PrefixLabel(this->Name.c_str()).c_str(), ImGuiDataType_Double, this->GetPtr())) {
+			luabridge::setGlobal(m_Behavior->GetState(), this->GetPtr(), this->Name.c_str());
 		}
 	}
 
