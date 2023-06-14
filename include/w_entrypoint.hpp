@@ -9,16 +9,16 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "w_engine.hpp"
 #include "rendering/w_texture.hpp"
+#include "w_engine.hpp"
 
 int main() {
-	using namespace Wiesel;
+  using namespace Wiesel;
 
-	Engine::InitEngine();
-	Application& app = *CreateApp();
-	app.Init();
-	app.Run();
-	delete &app;
-	LOG_INFO("Done!");
+  Engine::InitEngine();
+  Application& app = *CreateApp();
+  app.Init();
+  app.Run();
+  delete &app;
+  LOG_INFO("Done!");
 }

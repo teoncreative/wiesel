@@ -11,16 +11,16 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "util/w_utils.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
-	class DescriptorLayout {
-	public:
-		explicit DescriptorLayout();
-		~DescriptorLayout();
+  class DescriptorLayout {
+  public:
+    explicit DescriptorLayout();
+    ~DescriptorLayout();
 
-		bool m_Allocated;
-		VkDescriptorSetLayout m_Layout;
-	};
+    bool m_Allocated;
+    VkDescriptorSetLayout m_Layout;
+  };
 }

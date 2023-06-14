@@ -11,37 +11,36 @@
 
 #pragma once
 
-#include "w_application.hpp"
 #include "rendering/w_renderer.hpp"
+#include "w_application.hpp"
 
 namespace Wiesel {
-	class Engine {
-	public:
-		static void InitEngine();
-		static void InitWindow(WindowProperties props);
-		static void InitRenderer();
+  class Engine {
+  public:
+    static void InitEngine();
+    static void InitWindow(WindowProperties props);
+    static void InitRenderer();
 
-		static void CleanupRenderer();
-		static void CleanupWindow();
-		static void CleanupEngine();
-		WIESEL_GETTER_FN static Reference<Renderer> GetRenderer();
-		WIESEL_GETTER_FN static Reference<AppWindow> GetWindow();
+    static void CleanupRenderer();
+    static void CleanupWindow();
+    static void CleanupEngine();
+    WIESEL_GETTER_FN static Reference<Renderer> GetRenderer();
+    WIESEL_GETTER_FN static Reference<AppWindow> GetWindow();
 
-		static aiScene* LoadAssimpModel(ModelComponent& modelComponent, const std::string& path);
-		static void LoadModel(TransformComponent& transform, ModelComponent& modelComponent, const std::string& path);
-		static void LoadModel(aiScene* scene, TransformComponent& transform, ModelComponent& modelComponent, const std::string& path);
+    static aiScene* LoadAssimpModel(ModelComponent& modelComponent, const std::string& path);
+    static void LoadModel(TransformComponent& transform, ModelComponent& modelComponent, const std::string& path);
+    static void LoadModel(aiScene* scene, TransformComponent& transform, ModelComponent& modelComponent, const std::string& path);
 
-	private:
-		static glm::mat4 ConvertMatrix(const aiMatrix4x4 &aiMat);
-		static bool LoadTexture(Model& model, Reference<Mesh> mesh, aiMaterial *mat, aiTextureType type);
-		static Reference<Mesh> ProcessMesh(Model& model, aiMesh *aiMesh, const aiScene& aiScene, aiMatrix4x4 aiMatrix);
-		static void ProcessNode(Model& model, aiNode *node, const aiScene& scene, std::vector<Reference<Mesh>>& meshes);
+  private:
+    static glm::mat4 ConvertMatrix(const aiMatrix4x4& aiMat);
+    static bool LoadTexture(Model& model, Reference<Mesh> mesh, aiMaterial* mat, aiTextureType type);
+    static Reference<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh, const aiScene& aiScene, aiMatrix4x4 aiMatrix);
+    static void ProcessNode(Model& model, aiNode* node, const aiScene& scene, std::vector<Reference<Mesh>>& meshes);
 
-	private:
-		static Reference<Renderer> s_Renderer;
-		static Reference<AppWindow> s_Window;
+  private:
+    static Reference<Renderer> s_Renderer;
+    static Reference<AppWindow> s_Window;
+  };
 
-	};
-
-	Application* CreateApp();
+  Application* CreateApp();
 }

@@ -10,17 +10,18 @@
 //
 
 #include "rendering/w_descriptor.hpp"
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-	DescriptorData::DescriptorData(uint32_t max) {
-		m_MaxDescriptorCount = max;
-		m_DescriptorSets.reserve(max);
-	}
+  DescriptorData::DescriptorData(uint32_t max) {
+    m_MaxDescriptorCount = max;
+    m_DescriptorSets.reserve(max);
+  }
 
-	DescriptorData::~DescriptorData() {
-		Engine::GetRenderer()->DestroyDescriptors(*this);
-	}
+  DescriptorData::~DescriptorData() {
+    Engine::GetRenderer()->DestroyDescriptors(*this);
+  }
 
-}
+}// namespace Wiesel

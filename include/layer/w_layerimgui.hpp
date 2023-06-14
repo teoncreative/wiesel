@@ -11,26 +11,26 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "layer/w_layer.hpp"
 #include "util/imgui/w_imguiutil.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
-	class ImGuiLayer : public Layer {
-	public:
-		ImGuiLayer();
-		~ImGuiLayer() override;
+  class ImGuiLayer : public Layer {
+  public:
+    ImGuiLayer();
+    ~ImGuiLayer() override;
 
-		void OnAttach() override;
-		void OnDetach() override;
-		void OnUpdate(float_t deltaTime) override;
-		void OnEvent(Event& event) override;
+    void OnAttach() override;
+    void OnDetach() override;
+    void OnUpdate(float_t deltaTime) override;
+    void OnEvent(Event& event) override;
 
-		void OnImGuiRender() override;
-		void OnBeginFrame();
-		void OnEndFrame();
+    void OnImGuiRender() override;
+    void OnBeginFrame();
+    void OnEndFrame();
 
-	private:
-		VkDescriptorPool m_ImGuiPool;
-	};
+  private:
+    VkDescriptorPool m_ImGuiPool;
+  };
 }

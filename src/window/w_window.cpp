@@ -13,35 +13,32 @@
 
 namespace Wiesel {
 
-	AppWindow::AppWindow(const WindowProperties& properties) : m_Properties(properties) {
+  AppWindow::AppWindow(const WindowProperties& properties) : m_Properties(properties) {
+  }
 
-	}
+  AppWindow::~AppWindow() {
+  }
 
-	AppWindow::~AppWindow() {
-	}
+  void AppWindow::SetEventHandler(const WindowEventFn& eventHandler) {
+    m_EventHandler = eventHandler;
+  }
 
-	void AppWindow::SetEventHandler(const WindowEventFn& eventHandler) {
-		m_EventHandler = eventHandler;
-	}
+  WindowEventFn& AppWindow::GetEventHandler() {
+    return m_EventHandler;
+  }
 
-	WindowEventFn& AppWindow::GetEventHandler() {
-		return m_EventHandler;
-	}
+  void AppWindow::SetCursorMode(CursorMode mouseMode) {
+    m_CursorMode = mouseMode;
+  }
 
-	void AppWindow::SetCursorMode(CursorMode mouseMode) {
-		m_CursorMode = mouseMode;
-	}
+  CursorMode AppWindow::GetCursorMode() {
+    return m_CursorMode;
+  }
 
-	CursorMode AppWindow::GetCursorMode() {
-		return m_CursorMode;
-	}
+  void AppWindow::ImGuiInit() {
+  }
 
-	void AppWindow::ImGuiInit() {
+  void AppWindow::ImGuiNewFrame() {
+  }
 
-	}
-
-	void AppWindow::ImGuiNewFrame() {
-
-	}
-
-}
+}// namespace Wiesel

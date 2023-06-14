@@ -12,11 +12,11 @@
 #pragma once
 
 namespace Wiesel {
-	template<typename V>
-	struct Color {
-		V Red, Green, Blue, Alpha;
-	};
+  template<typename V>
+  struct Color {
+    V Red, Green, Blue, Alpha;
+  };
 
-	using Colorf = Color<float>;
+  using Colorf = Color<float>;
 
 }

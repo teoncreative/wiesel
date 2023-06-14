@@ -11,17 +11,17 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "util/w_utils.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
-	class DescriptorData {
-	public:
-		explicit DescriptorData(uint32_t max);
-		~DescriptorData();
+  class DescriptorData {
+  public:
+    explicit DescriptorData(uint32_t max);
+    ~DescriptorData();
 
-		uint32_t m_MaxDescriptorCount;
-		VkDescriptorPool m_DescriptorPool;
-		std::vector<VkDescriptorSet> m_DescriptorSets;
-	};
+    uint32_t m_MaxDescriptorCount;
+    VkDescriptorPool m_DescriptorPool;
+    std::vector<VkDescriptorSet> m_DescriptorSets;
+  };
 }

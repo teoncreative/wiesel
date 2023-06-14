@@ -159,10 +159,10 @@ namespace WieselDemo {
 // Loading a model to the scene
 		{
 			Entity entity = m_Scene->CreateEntity("Sponza");
-			auto& model = entity.AddComponent<ModelComponent>();
 			auto& transform = entity.GetComponent<TransformComponent>();
-			transform.Scale = {0.01f, 0.01f, 0.01f};
-			Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
+      transform.Scale = {0.01f, 0.01f, 0.01f};
+      auto& model = entity.AddComponent<ModelComponent>();
+      Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
 			auto& behaviors = entity.AddComponent<BehaviorsComponent>();
 			behaviors.AddBehavior<LuaBehavior>(entity, "assets/scripts/test.lua");
 		}

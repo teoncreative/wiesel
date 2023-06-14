@@ -15,25 +15,26 @@
 
 namespace Wiesel {
 
-	// todo use proper implementation
-	class UUID {
-	public:
-		UUID();
-		explicit UUID(uint64_t uuid);
-		UUID(const UUID&) = default;
+  // todo use proper implementation
+  class UUID {
+  public:
+    UUID();
+    explicit UUID(uint64_t uuid);
+    UUID(const UUID&) = default;
 
-		explicit operator uint64_t() const { return m_UUID; }
-		bool operator==(const UUID &other) const { return other.m_UUID == m_UUID; }
-	private:
-		uint64_t m_UUID;
-	};
+    explicit operator uint64_t() const { return m_UUID; }
+    bool operator==(const UUID& other) const { return other.m_UUID == m_UUID; }
+
+  private:
+    uint64_t m_UUID;
+  };
 
 }
 namespace std {
-	template <>
-	struct hash<Wiesel::UUID> {
-		std::size_t operator()(const Wiesel::UUID& k) const {
-			return (uint64_t)k;
-		}
-	};
-}
+  template<>
+  struct hash<Wiesel::UUID> {
+    std::size_t operator()(const Wiesel::UUID& k) const {
+      return (uint64_t) k;
+    }
+  };
+}// namespace std

@@ -12,7 +12,6 @@
 #pragma once
 
 namespace Wiesel {
-	class RendererAPI {
-
-	};
+  class RendererAPI {
+  };
 }

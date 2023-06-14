@@ -12,18 +12,17 @@
 #pragma once
 
 namespace Wiesel {
-	struct RenderPassProperties {
-		VkFormat m_SwapChainImageFormat;
-		VkSampleCountFlagBits m_MsaaSamples;
-		VkFormat m_DepthFormat;
-	};
+  struct RenderPassProperties {
+    VkFormat m_SwapChainImageFormat;
+    VkSampleCountFlagBits m_MsaaSamples;
+    VkFormat m_DepthFormat;
+  };
 
-	struct RenderPass {
-		explicit RenderPass(RenderPassProperties properties);
-		~RenderPass();
+  struct RenderPass {
+    explicit RenderPass(RenderPassProperties properties);
+    ~RenderPass();
 
-		RenderPassProperties m_Properties;
-		VkRenderPass m_Pass{};
-
-	};
+    RenderPassProperties m_Properties;
+    VkRenderPass m_Pass{};
+  };
 }

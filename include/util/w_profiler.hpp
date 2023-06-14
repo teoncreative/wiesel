@@ -11,79 +11,78 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "util/w_logger.hpp"
+#include "w_pch.hpp"
 
 // todo thread safety
 
 namespace Wiesel {
-	struct ProfileData {
-		std::string Name;
-		std::chrono::microseconds Time;
-		int RenderPass;
-	};
+  struct ProfileData {
+    std::string Name;
+    std::chrono::microseconds Time;
+    int RenderPass;
+  };
 
-	class ProfilerInstance {
-	public:
-		explicit ProfilerInstance(const std::string& name);
-		ProfilerInstance(const std::string& name, int renderPass);
-		virtual ~ProfilerInstance();
+  class ProfilerInstance {
+  public:
+    explicit ProfilerInstance(const std::string& name);
+    ProfilerInstance(const std::string& name, int renderPass);
+    virtual ~ProfilerInstance();
 
-	private:
-		std::chrono::time_point<std::chrono::steady_clock> m_StartTime;
-		std::string m_Name;
-		int m_RenderPass;
-	};
+  private:
+    std::chrono::time_point<std::chrono::steady_clock> m_StartTime;
+    std::string m_Name;
+    int m_RenderPass;
+  };
 
-	class Profiler {
-	public:
-		static void BeginSection(const std::string& section);
-		static void EndSection(std::ostream& stream);
-		static void InsertData(const ProfileData& profileData);
-		static void SetActive(bool value);
-		static bool IsActive();
+  class Profiler {
+  public:
+    static void BeginSection(const std::string& section);
+    static void EndSection(std::ostream& stream);
+    static void InsertData(const ProfileData& profileData);
+    static void SetActive(bool value);
+    static bool IsActive();
 
-	private:
-		static bool s_Active;
-		static std::vector<ProfileData> s_Data;
-		static std::string s_CurrentSection;
-	};
+  private:
+    static bool s_Active;
+    static std::vector<ProfileData> s_Data;
+    static std::string s_CurrentSection;
+  };
 
 
-	template <size_t N>
-	struct ChangeResult
-	{
-		char Data[N];
-	};
+  template<size_t N>
+  struct ChangeResult {
+    char Data[N];
+  };
 
-	template <size_t N, size_t K>
-	constexpr auto CleanupOutputString(const char(&expr)[N], const char(&remove)[K])
-	{
-		ChangeResult<N> result = {};
+  template<size_t N, size_t K>
+  constexpr auto CleanupOutputString(const char (&expr)[N], const char (&remove)[K]) {
+    ChangeResult<N> result = {};
 
-		size_t srcIndex = 0;
-		size_t dstIndex = 0;
-		while (srcIndex < N)
-		{
-			size_t matchIndex = 0;
-			while (matchIndex < K - 1 && srcIndex + matchIndex < N - 1 && expr[srcIndex + matchIndex] == remove[matchIndex])
-				matchIndex++;
-			if (matchIndex == K - 1)
-				srcIndex += matchIndex;
-			result.Data[dstIndex++] = expr[srcIndex] == '"' ? '\'' : expr[srcIndex];
-			srcIndex++;
-		}
-		return result;
-	}
+    size_t srcIndex = 0;
+    size_t dstIndex = 0;
+    while (srcIndex < N) {
+      size_t matchIndex = 0;
+      while (matchIndex < K - 1 && srcIndex + matchIndex < N - 1 && expr[srcIndex + matchIndex] == remove[matchIndex])
+        matchIndex++;
+      if (matchIndex == K - 1)
+        srcIndex += matchIndex;
+      result.Data[dstIndex++] = expr[srcIndex] == '"' ? '\'' : expr[srcIndex];
+      srcIndex++;
+    }
+    return result;
+  }
 }
 
 
 #if WIESEL_PROFILE
 
-#define WIESEL_PROFILE_SCOPE_INTERNAL(name, line) constexpr auto fixedName##line = Wiesel::CleanupOutputString(name, "__cdecl ");\
-		Wiesel::ProfilerInstance timer##line(fixedName##line.Data);
-#define WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, line) constexpr auto fixedName##line = Wiesel::CleanupOutputString(name, "__cdecl ");\
-		Wiesel::ProfilerInstance timer##line(fixedName##line.Data, pass);
+#define WIESEL_PROFILE_SCOPE_INTERNAL(name, line)                                 \
+  constexpr auto fixedName##line = Wiesel::CleanupOutputString(name, "__cdecl "); \
+  Wiesel::ProfilerInstance timer##line(fixedName##line.Data);
+#define WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, line)                          \
+  constexpr auto fixedName##line = Wiesel::CleanupOutputString(name, "__cdecl "); \
+  Wiesel::ProfilerInstance timer##line(fixedName##line.Data, pass);
 
 #define WIESEL_PROFILE_SCOPE(name) WIESEL_PROFILE_SCOPE_INTERNAL(name, __LINE__)
 #define WIESEL_PROFILE_SCOPE_DRAW(name, pass) WIESEL_PROFILE_SCOPE_INTERNAL2(name, pass, __LINE__)
