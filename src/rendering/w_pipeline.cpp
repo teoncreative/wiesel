@@ -10,20 +10,21 @@
 //
 
 #include "rendering/w_pipeline.hpp"
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-	GraphicsPipeline::GraphicsPipeline(PipelineProperties properties) : m_Properties(properties) {
-		m_IsAllocated = false;
-	}
+  GraphicsPipeline::GraphicsPipeline(PipelineProperties properties) : m_Properties(properties) {
+    m_IsAllocated = false;
+  }
 
-	GraphicsPipeline::~GraphicsPipeline() {
-		m_Properties.m_RenderPass = nullptr;
-		m_Properties.m_DescriptorLayout = nullptr;
-		m_Properties.m_VertexShader = nullptr;
-		m_Properties.m_FragmentShader = nullptr;
-		Engine::GetRenderer()->DestroyGraphicsPipeline(*this);
-	}
+  GraphicsPipeline::~GraphicsPipeline() {
+    m_Properties.m_RenderPass = nullptr;
+    m_Properties.m_DescriptorLayout = nullptr;
+    m_Properties.m_VertexShader = nullptr;
+    m_Properties.m_FragmentShader = nullptr;
+    Engine::GetRenderer()->DestroyGraphicsPipeline(*this);
+  }
 
-}
+}// namespace Wiesel

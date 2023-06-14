@@ -9,16 +9,16 @@
 //
 
 #include "scene/w_entity.hpp"
+
 #include "behavior/w_behavior.hpp"
 
 namespace Wiesel {
 
-	Entity::Entity(entt::entity handle, Scene* scene) : m_EntityHandle(handle), m_Scene(scene) {
+  Entity::Entity(entt::entity handle, Scene* scene) : m_EntityHandle(handle),
+                                                      m_Scene(scene) {
+  }
 
-	}
+  Entity::~Entity() {
+  }
 
-	Entity::~Entity() {
-
-	}
-
-}
+}// namespace Wiesel

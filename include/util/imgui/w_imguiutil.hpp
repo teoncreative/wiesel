@@ -17,9 +17,9 @@
 #include <ImGuizmo.h>
 
 namespace Wiesel {
-	std::string PrefixLabel(const char* label);
+  std::string PrefixLabel(const char* label);
 }
 
 namespace ImGui {
-	bool ClosableTreeNode(const char* label, bool* visible);
+  bool ClosableTreeNode(const char* label, bool* visible);
 }

@@ -11,67 +11,68 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "scene/w_scene.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
-	class Entity {
-	public:
-		Entity(entt::entity handle, Scene* scene);
-		~Entity();
+  class Entity {
+  public:
+    Entity(entt::entity handle, Scene* scene);
+    ~Entity();
 
-		template<typename T, typename... Args>
-		T& AddComponent(Args&& ...args) {
-			if (HasComponent<T>()) {
-				// make this a macro
-				throw std::runtime_error("Entity already has component!");
-			}
-			auto& component = m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
-			m_Scene->OnAddComponent(m_EntityHandle, component);
-			return component;
-		}
+    template<typename T, typename... Args>
+    T& AddComponent(Args&&... args) {
+      if (HasComponent<T>()) {
+        // make this a macro
+        throw std::runtime_error("Entity already has component!");
+      }
+      auto& component = m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
+      m_Scene->OnAddComponent(m_EntityHandle, component);
+      return component;
+    }
 
-		template<typename T>
-		T& GetComponent() {
-			return m_Scene->m_Registry.get<T>(m_EntityHandle);
-		}
+    template<typename T>
+    T& GetComponent() {
+      return m_Scene->m_Registry.get<T>(m_EntityHandle);
+    }
 
-		template<typename T>
-		bool HasComponent() {
-			return m_Scene->m_Registry.any_of<T>(m_EntityHandle);
-		}
+    template<typename T>
+    bool HasComponent() {
+      return m_Scene->m_Registry.any_of<T>(m_EntityHandle);
+    }
 
-		template<typename T>
-		void RemoveComponent() {
-			m_Scene->m_Registry.remove<T>(m_EntityHandle);
-			m_Scene->OnRemoveComponent<T>(m_EntityHandle);
-		}
+    template<typename T>
+    void RemoveComponent() {
+      m_Scene->m_Registry.remove<T>(m_EntityHandle);
+      m_Scene->OnRemoveComponent<T>(m_EntityHandle);
+    }
 
-		operator bool() const { return m_EntityHandle != entt::null; }
-		operator entt::entity() const { return m_EntityHandle; }
-		operator uint32_t() const { return (uint32_t)m_EntityHandle; }
+    operator bool() const { return m_EntityHandle != entt::null; }
+    operator entt::entity() const { return m_EntityHandle; }
+    operator uint32_t() const { return (uint32_t) m_EntityHandle; }
 
-		UUID GetUUID() { return GetComponent<IdComponent>().Id; }
-		const std::string& GetName() { return GetComponent<TagComponent>().Tag; }
+    UUID GetUUID() { return GetComponent<IdComponent>().Id; }
+    const std::string& GetName() { return GetComponent<TagComponent>().Tag; }
 
-		bool operator==(const Entity& other) const {
-			return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
-		}
+    bool operator==(const Entity& other) const {
+      return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
+    }
 
-		bool operator!=(const Entity& other) const {
-			return !(*this == other);
-		}
+    bool operator!=(const Entity& other) const {
+      return !(*this == other);
+    }
 
-		entt::entity GetHandle() {
-			return m_EntityHandle;
-		}
+    entt::entity GetHandle() {
+      return m_EntityHandle;
+    }
 
-		Scene* GetScene() {
-			return m_Scene;
-		}
-	private:
-		entt::entity m_EntityHandle;
-		Scene* m_Scene;
-	};
+    Scene* GetScene() {
+      return m_Scene;
+    }
+
+  private:
+    entt::entity m_EntityHandle;
+    Scene* m_Scene;
+  };
 
 }

@@ -10,16 +10,16 @@
 //
 
 #include "rendering/w_shader.hpp"
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-	Shader::Shader(ShaderProperties properties) : Properties(properties) {
+  Shader::Shader(ShaderProperties properties) : Properties(properties) {
+  }
 
-	}
+  Shader::~Shader() {
+    Engine::GetRenderer()->DestroyShader(*this);
+  }
 
-	Shader::~Shader() {
-		Engine::GetRenderer()->DestroyShader(*this);
-	}
-
-}
+}// namespace Wiesel

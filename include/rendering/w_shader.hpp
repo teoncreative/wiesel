@@ -12,35 +12,35 @@
 #pragma once
 
 namespace Wiesel {
-	// todo
-	enum ShaderType {
-		ShaderTypeVertex,
-		ShaderTypeFragment
-	};
-	enum ShaderSource {
-		ShaderSourcePrecompiled,
-		ShaderSourceSource
-	};
+  // todo
+  enum ShaderType {
+    ShaderTypeVertex,
+    ShaderTypeFragment
+  };
+  enum ShaderSource {
+    ShaderSourcePrecompiled,
+    ShaderSourceSource
+  };
 
-	enum ShaderLang {
-		ShaderLangGLSL,
-		ShaderLangHLSL
-	};
+  enum ShaderLang {
+    ShaderLangGLSL,
+    ShaderLangHLSL
+  };
 
-	struct ShaderProperties {
-		ShaderType Type;
-		ShaderLang Lang;
-		std::string Main;
-		ShaderSource Source;
-		std::string Path;
-	};
+  struct ShaderProperties {
+    ShaderType Type;
+    ShaderLang Lang;
+    std::string Main;
+    ShaderSource Source;
+    std::string Path;
+  };
 
-	struct Shader {
-		Shader(ShaderProperties properties);
-		~Shader();
+  struct Shader {
+    Shader(ShaderProperties properties);
+    ~Shader();
 
-		VkShaderModule ShaderModule;
-		ShaderProperties Properties;
-	};
+    VkShaderModule ShaderModule;
+    ShaderProperties Properties;
+  };
 
 }

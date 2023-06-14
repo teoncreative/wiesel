@@ -10,27 +10,29 @@
 //
 
 #include "rendering/w_texture.hpp"
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-	Texture::Texture(TextureType textureType, const std::string& path) : m_Type(textureType), m_Path(path)  {
-		m_Width = 0;
-		m_Height = 0;
-		m_Size = 0;
-		m_IsAllocated = false;
-		m_MipLevels = 1;
-	}
+  Texture::Texture(TextureType textureType, const std::string& path) : m_Type(textureType),
+                                                                       m_Path(path) {
+    m_Width = 0;
+    m_Height = 0;
+    m_Size = 0;
+    m_IsAllocated = false;
+    m_MipLevels = 1;
+  }
 
-	Texture::~Texture() {
-		Engine::GetRenderer()->DestroyTexture(*this);
-	}
+  Texture::~Texture() {
+    Engine::GetRenderer()->DestroyTexture(*this);
+  }
 
-	ColorImage::~ColorImage() {
-		Engine::GetRenderer()->DestroyColorImage(*this);
-	}
+  ColorImage::~ColorImage() {
+    Engine::GetRenderer()->DestroyColorImage(*this);
+  }
 
-	DepthStencil::~DepthStencil() {
-		Engine::GetRenderer()->DestroyDepthStencil(*this);
-	}
-}
+  DepthStencil::~DepthStencil() {
+    Engine::GetRenderer()->DestroyDepthStencil(*this);
+  }
+}// namespace Wiesel

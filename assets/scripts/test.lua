@@ -6,13 +6,10 @@ keyCodes = keyCodes or {
     KeyO = 79
 }
 
----@type TransformComponent
-local transform
-
 --- You can define variables inside vars to view them inside the editor
 vars = {
     ---@type TransformComponent
-    cameraTransform = {
+    transform = {
         type = "TransformComponent"
     },
     testnumber = 0
@@ -20,14 +17,17 @@ vars = {
 
 function OnLoad()
     print('OnLoad')
-    transform = GetComponent('TransformComponent')
-    transform:SetPosition(0,0,0)
+    vars.transform = GetComponent('TransformComponent')
+    vars.transform:SetPosition(0,0,0)
 end
 
 function Update(deltaTime)
+    print('Update')
+    vars.transform:SetPosition(0, vars.testnumber, 0)
+    --- todo
     if input.IsPressed(keyCodes.KeyO) then
-        if vars.cameraTransform then
-            vars.cameraTransform:Move(0, 10, 0);
+        if vars.transform then
+            vars.transform:Move(0, 10, 0);
         else
             LogInfo("Camera transform not set!")
         end

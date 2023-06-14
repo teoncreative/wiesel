@@ -11,20 +11,19 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "nfd.hpp"
+#include "w_pch.hpp"
 
-namespace Wiesel {
-	namespace Dialogs {
-		typedef struct {
-			const nfdnchar_t* name;
-			const nfdnchar_t* spec;
-		} FilterEntry;
+namespace Wiesel::Dialogs {
+  typedef struct {
+    const nfdnchar_t* name;
+    const nfdnchar_t* spec;
+  } FilterEntry;
 
-		void Init();
+  void Init();
 
-		void OpenFileDialog(std::vector<FilterEntry> filters, std::function<void(const std::string&)> fn);
+  void OpenFileDialog(std::vector<FilterEntry> filters, std::function<void(const std::string&)> fn);
 
-		void Destroy();
-	}
+  void Destroy();
+
 }

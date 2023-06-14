@@ -9,16 +9,16 @@
 //
 
 #include "rendering/w_descriptorlayout.hpp"
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-	DescriptorLayout::DescriptorLayout() {
+  DescriptorLayout::DescriptorLayout() {
+  }
 
-	}
+  DescriptorLayout::~DescriptorLayout() {
+    Engine::GetRenderer()->DestroyDescriptorLayout(*this);
+  }
 
-	DescriptorLayout::~DescriptorLayout() {
-		Engine::GetRenderer()->DestroyDescriptorLayout(*this);
-	}
-
-}
+}// namespace Wiesel

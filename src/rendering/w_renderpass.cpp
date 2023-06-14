@@ -10,16 +10,16 @@
 //
 
 #include "rendering/w_renderpass.hpp"
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-	RenderPass::RenderPass(RenderPassProperties properties) : m_Properties(properties) {
+  RenderPass::RenderPass(RenderPassProperties properties) : m_Properties(properties) {
+  }
 
-	}
+  RenderPass::~RenderPass() {
+    Engine::GetRenderer()->DestroyRenderPass(*this);
+  }
 
-	RenderPass::~RenderPass() {
-		Engine::GetRenderer()->DestroyRenderPass(*this);
-	}
-
-}
+}// namespace Wiesel
