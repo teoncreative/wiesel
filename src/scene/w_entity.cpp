@@ -11,11 +11,19 @@
 #include "scene/w_entity.hpp"
 
 #include "behavior/w_behavior.hpp"
+#include "scene/w_components.hpp"
 
 namespace Wiesel {
 
   Entity::Entity(entt::entity handle, Scene* scene) : m_EntityHandle(handle),
                                                       m_Scene(scene) {
+    m_Parent = entt::null;
+    if (*this) { // Is valid?
+      if (HasComponent<ParentComponent>()) {
+        ParentComponent& component = GetComponent<ParentComponent>();
+        m_Parent = component.Parent;
+      }
+    }
   }
 
   Entity::~Entity() {

@@ -127,6 +127,9 @@ set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
 add_subdirectory(${ENGINE_DIR}/deps/assimp)
 target_link_libraries(${PROJECT_NAME} assimp)
 
+add_subdirectory(${ENGINE_DIR}/deps/freetype)
+target_link_libraries(${PROJECT_NAME} freetype)
+
 add_subdirectory(${ENGINE_DIR}/deps/entt)
 target_link_libraries(${PROJECT_NAME} EnTT)
 

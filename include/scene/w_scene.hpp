@@ -17,10 +17,12 @@
 #include "events/w_events.hpp"
 #include "rendering/w_camera.hpp"
 #include "scene/w_components.hpp"
+#include "systems/w_canvas_system.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
   class Entity;
+  class CanvasSystem;
 
   class Scene {
   public:
@@ -67,6 +69,7 @@ namespace Wiesel {
     entt::registry m_Registry;
     Reference<CameraData> m_Camera;
     entt::entity m_CameraEntity;
+    Scope<CanvasSystem> m_CanvasSystem;
     bool m_HasCamera = false;
     bool m_IsRunning = false;
     bool m_IsPaused = false;

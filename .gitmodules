@@ -31,3 +31,6 @@
 [submodule "deps/luabridge3"]
 	path = deps/luabridge3
 	url = https://github.com/kunitoki/LuaBridge3.git
+[submodule "deps/freetype"]
+	path = deps/freetype
+	url = https://github.com/freetype/freetype.git

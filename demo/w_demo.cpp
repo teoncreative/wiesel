@@ -166,6 +166,11 @@ namespace WieselDemo {
 			auto& behaviors = entity.AddComponent<BehaviorsComponent>();
 			behaviors.AddBehavior<LuaBehavior>(entity, "assets/scripts/test.lua");
 		}
+    {
+      Entity entity = m_Scene->CreateEntity("Canvas");
+      auto& ui = entity.AddComponent<CanvasComponent>();
+      ui.
+    }
 
 		// Custom camera
 		m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);

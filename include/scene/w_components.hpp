@@ -17,14 +17,28 @@
 #include "util/w_utils.hpp"
 #include "util/w_uuid.hpp"
 #include "w_pch.hpp"
+#include "events/w_events.hpp"
+#include <entt/entt.hpp>
 
 namespace Wiesel {
+  struct EventHandlerComponent {
+    virtual void OnEvent(Event&);
+  };
+
   struct IdComponent {
     IdComponent(UUID id) : Id(id) {}
     IdComponent() = default;
     IdComponent(const IdComponent&) = default;
 
     UUID Id;
+  };
+
+  struct ParentComponent {
+    ParentComponent(entt::entity parent) : Parent(parent) {}
+    ParentComponent() = default;
+    ParentComponent(const ParentComponent&) = default;
+
+    entt::entity Parent;
   };
 
   struct TagComponent {
@@ -70,6 +84,18 @@ namespace Wiesel {
     glm::mat4 TransformMatrix = {};
     glm::mat3 NormalMatrix = {};
     glm::mat4 RotationMatrix = {};
+  };
+
+  struct RectangleTransformComponent {
+
+    glm::vec2 Position = {0.0f, 0.0f};
+    glm::vec2 Rotation = {0.0f, 0.0f};
+    glm::vec2 Size = {0.0f, 0.0f};
+    glm::vec2 Scale = {1.0f, 1.0f};
+
+    bool IsChanged = true;
+    bool IsDriven = true;
+
   };
 
 #define ALL_COMPONENT_TYPES IdComponent, TagComponent, TransformComponent, ModelComponent, LightDirectComponent, LightPointComponent, CameraComponent, BehaviorsComponent
