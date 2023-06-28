@@ -39,6 +39,7 @@ namespace Wiesel {
       camera.m_Camera.m_IsPrimary = true;
       camera.m_Camera.m_IsChanged = true;
     }
+    m_CanvasSystem = CreateScope<CanvasSystem>();
   }
 
   Scene::~Scene() {
@@ -109,6 +110,7 @@ namespace Wiesel {
     }
     m_HasCamera = cameraFound;
 
+    // todo light system
     auto& lights = Engine::GetRenderer()->GetLightsBufferObject();
     lights.DirectLightCount = 0;
     lights.PointLightCount = 0;
@@ -120,6 +122,8 @@ namespace Wiesel {
       auto& light = m_Registry.get<LightPointComponent>(entity);
       UpdateLight(lights, light.LightData, {entity, this});
     }
+
+    m_CanvasSystem->Update(this);
   }
 
   void Scene::OnEvent(Event& event) {
@@ -128,12 +132,7 @@ namespace Wiesel {
 
     for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
       auto& component = m_Registry.get<BehaviorsComponent>(entity);
-      for (const auto& entry : component.m_Behaviors) {
-        if (!entry.second->IsEnabled()) {
-          continue;
-        }
-        entry.second->OnEvent(event);
-      }
+      component.OnEvent(event);
     }
   }
 
@@ -168,6 +167,7 @@ namespace Wiesel {
       auto& transform = m_Registry.get<TransformComponent>(entity);
       Engine::GetRenderer()->DrawModel(model, transform);
     }
+    m_CanvasSystem->Render(&this);
   }
 
 }// namespace Wiesel

@@ -17,8 +17,6 @@
 
 namespace Wiesel {
 
-  const uint32_t Renderer::k_MaxFramesInFlight = 2;
-
   Renderer::Renderer(Reference<AppWindow> window) : m_Window(window) {
     Spirv::Init();
 #ifdef VULKAN_VALIDATION

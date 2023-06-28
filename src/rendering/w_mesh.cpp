@@ -58,7 +58,7 @@ namespace Wiesel {
 
     VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(Vertices);
     IndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(Indices);
-    UniformBufferSet = Engine::GetRenderer()->CreateUniformBufferSet(Renderer::k_MaxFramesInFlight, sizeof(UniformBufferObject));
+    UniformBufferSet = Engine::GetRenderer()->CreateUniformBufferSet(k_MaxFramesInFlight, sizeof(UniformBufferObject));
     Descriptors = Engine::GetRenderer()->CreateDescriptors(UniformBufferSet, Mat);
     IsAllocated = true;
   }

@@ -32,12 +32,12 @@ namespace Wiesel {
     }
 
     template<typename T>
-    T& GetComponent() {
+    T& GetComponent() { // This function is intentionally not marked as const!
       return m_Scene->m_Registry.get<T>(m_EntityHandle);
     }
 
     template<typename T>
-    bool HasComponent() {
+    bool HasComponent() const {
       return m_Scene->m_Registry.any_of<T>(m_EntityHandle);
     }
 
@@ -54,6 +54,10 @@ namespace Wiesel {
     UUID GetUUID() { return GetComponent<IdComponent>().Id; }
     const std::string& GetName() { return GetComponent<TagComponent>().Tag; }
 
+    Entity GetParent() const {
+      return {m_Parent, m_Scene};
+    }
+
     bool operator==(const Entity& other) const {
       return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
     }
@@ -62,17 +66,18 @@ namespace Wiesel {
       return !(*this == other);
     }
 
-    entt::entity GetHandle() {
+    entt::entity GetHandle() const {
       return m_EntityHandle;
     }
 
-    Scene* GetScene() {
+    Scene* GetScene() const {
       return m_Scene;
     }
 
   private:
     entt::entity m_EntityHandle;
     Scene* m_Scene;
+    entt::entity m_Parent;
   };
 
 }

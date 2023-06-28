@@ -92,6 +92,8 @@ namespace Wiesel {
     BehaviorsComponent() {}
     virtual ~BehaviorsComponent() {}
 
+    void OnEvent(Event&);
+
     template<typename T, typename... Args>
     Reference<T> AddBehavior(Args&&... args) {
       auto reference = CreateReference<T>(std::forward<Args>(args)...);
@@ -101,4 +103,5 @@ namespace Wiesel {
 
     std::map<std::string, Reference<IBehavior>> m_Behaviors;
   };
+
 }

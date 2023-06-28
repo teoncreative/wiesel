@@ -36,8 +36,11 @@
 #endif
 
 namespace Wiesel {
+  const uint32_t k_MaxFramesInFlight = 2;
+
   class Renderer {
   public:
+
     explicit Renderer(Reference<AppWindow> window);
     ~Renderer();
 
@@ -177,10 +180,8 @@ namespace Wiesel {
 #endif
 
   private:
-    friend class Mesh;
     friend class ImGuiLayer;
 
-    static const uint32_t k_MaxFramesInFlight;
     static Reference<Renderer> s_Renderer;
 
 #ifdef VULKAN_VALIDATION

@@ -24,4 +24,13 @@ namespace Wiesel {
     m_Enabled = enabled;
   }
 
+  void BehaviorsComponent::OnEvent(Wiesel::Event& event) {
+    for (const auto& entry : m_Behaviors) {
+      if (!entry.second->IsEnabled()) {
+        continue;
+      }
+      entry.second->OnEvent(event);
+    }
+  }
+
 }// namespace Wiesel
