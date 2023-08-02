@@ -25,44 +25,44 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-  struct Mesh {
-    Mesh();
-    Mesh(std::vector<Vertex> vertices, std::vector<Index> indices);
-    ~Mesh();
+struct Mesh {
+  Mesh();
+  Mesh(std::vector<Vertex> vertices, std::vector<Index> indices);
+  ~Mesh();
 
-    void UpdateUniformBuffer(TransformComponent& transform) const;
-    void Allocate();
-    void Deallocate();
+  void UpdateUniformBuffer(TransformComponent& transform) const;
+  void Allocate();
+  void Deallocate();
 
-    std::vector<Vertex> Vertices;
-    std::vector<Index> Indices;
-    std::string ModelPath;
+  std::vector<Vertex> Vertices;
+  std::vector<Index> Indices;
+  std::string ModelPath;
 
-    bool IsAllocated;
-    // Render Data
-    Reference<MemoryBuffer> VertexBuffer;
-    Reference<MemoryBuffer> IndexBuffer;
-    Reference<UniformBufferSet> UniformBufferSet;
-    Reference<Material> Mat;
+  bool IsAllocated;
+  // Render Data
+  Ref<MemoryBuffer> VertexBuffer;
+  Ref<MemoryBuffer> IndexBuffer;
+  Ref<UniformBufferSet> UniformBufferSet;
+  Ref<Material> Mat;
 
-    Reference<DescriptorData> Descriptors;
-  };
+  Ref<DescriptorData> Descriptors;
+};
 
-  struct Model {
-    Model() = default;
-    ~Model() = default;
+struct Model {
+  Model() = default;
+  ~Model() = default;
 
-    std::vector<Reference<Mesh>> Meshes;
-    std::string ModelPath;
-    std::string TexturesPath;
-    std::map<std::string, Reference<Texture>> Textures;
-    bool ReceiveShadows = true;// todo shadows
-  };
+  std::vector<Ref<Mesh>> Meshes;
+  std::string ModelPath;
+  std::string TexturesPath;
+  std::map<std::string, Ref<Texture>> Textures;
+  bool ReceiveShadows = true;  // todo shadows
+};
 
-  struct ModelComponent {
-    ModelComponent() = default;
-    ModelComponent(const ModelComponent&) = default;
+struct ModelComponent {
+  ModelComponent() = default;
+  ModelComponent(const ModelComponent&) = default;
 
-    Model Data;
-  };
-}
+  Model Data;
+};
+}  // namespace Wiesel

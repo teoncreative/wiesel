@@ -12,15 +12,14 @@
 #pragma once
 
 #include <entt/entt.hpp>
-#include "ui/w_canvas.hpp"
 #include "scene/w_scene.hpp"
+#include "ui/w_canvas.hpp"
 
 namespace Wiesel {
-  class CanvasSystem {
-  public:
-    void Update(Scene& scene);
-    void Render(Scene& scene);
-    void OnEvent(Event& event);
-
-  };
-}
+class CanvasSystem {
+ public:
+  void Update(Scene& scene);
+  void Render(Scene& scene);
+  void OnEvent(Event& event);
+};
+}  // namespace Wiesel

@@ -14,11 +14,10 @@
 
 namespace Wiesel {
 
-  DescriptorLayout::DescriptorLayout() {
-  }
+DescriptorLayout::DescriptorLayout() {}
 
-  DescriptorLayout::~DescriptorLayout() {
-    Engine::GetRenderer()->DestroyDescriptorLayout(*this);
-  }
+DescriptorLayout::~DescriptorLayout() {
+  Engine::GetRenderer()->DestroyDescriptorLayout(*this);
+}
 
-}// namespace Wiesel
+}  // namespace Wiesel

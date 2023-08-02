@@ -17,25 +17,26 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-  static const int k_MaterialTextureCount = 7;
+static const int k_MaterialTextureCount = 7;
 
-  struct Material {
-    Material();
-    ~Material();
+struct Material {
+  Material();
+  ~Material();
 
-    Colorf BaseColor = {1.0f, 1.0f, 1.0f};
-    Colorf DiffuseColor = {1.0f, 1.0f, 1.0f};
-    Colorf SpecularColor = {1.0f, 1.0f, 1.0f};
-    float Shininess = 0.5f;
+  Colorf BaseColor = {1.0f, 1.0f, 1.0f};
+  Colorf DiffuseColor = {1.0f, 1.0f, 1.0f};
+  Colorf SpecularColor = {1.0f, 1.0f, 1.0f};
+  float Shininess = 0.5f;
 
-    Reference<Texture> BaseTexture;
-    Reference<Texture> NormalMap;
-    Reference<Texture> SpecularMap;
-    Reference<Texture> HeightMap;
-    Reference<Texture> AlbedoMap;
-    Reference<Texture> RoughnessMap;
-    Reference<Texture> MetallicMap;
+  Ref<Texture> BaseTexture;
+  Ref<Texture> NormalMap;
+  Ref<Texture> SpecularMap;
+  Ref<Texture> HeightMap;
+  Ref<Texture> AlbedoMap;
+  Ref<Texture> RoughnessMap;
+  Ref<Texture> MetallicMap;
 
-    static void Set(Reference<Material> material, Reference<Texture> texture, TextureType type);
-  };
-}
+  static void Set(Ref<Material> material, Ref<Texture> texture,
+                  TextureType type);
+};
+}  // namespace Wiesel

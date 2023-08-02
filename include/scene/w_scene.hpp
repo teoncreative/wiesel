@@ -17,61 +17,63 @@
 #include "events/w_events.hpp"
 #include "rendering/w_camera.hpp"
 #include "scene/w_components.hpp"
-#include "systems/w_canvas_system.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
-  class Entity;
-  class CanvasSystem;
+class Entity;
+class CanvasSystem;
 
-  class Scene {
-  public:
-    Scene();
-    ~Scene();
+class Scene {
+ public:
+  Scene();
+  ~Scene();
 
-    Entity CreateEntity(const std::string& name = std::string());
-    Entity CreateEntityWithUUID(UUID uuid, const std::string& name = std::string());
-    void DestroyEntity(Entity entity);
+  Entity CreateEntity(const std::string& name = std::string());
+  Entity CreateEntityWithUUID(UUID uuid,
+                              const std::string& name = std::string());
+  void DestroyEntity(Entity entity);
 
-    void OnUpdate(float_t deltaTime);
-    void OnEvent(Event& event);
+  void OnUpdate(float_t deltaTime);
+  void OnEvent(Event& event);
 
-    template<typename T>
-    void OnRemoveComponent(entt::entity entity) {}
-    template<typename T>
-    void OnAddComponent(entt::entity entity, T& component) {}
+  template <typename T>
+  void OnRemoveComponent(entt::entity entity) {}
 
-    WIESEL_GETTER_FN Reference<CameraData> GetPrimaryCamera();
-    WIESEL_GETTER_FN Entity GetPrimaryCameraEntity();
-    WIESEL_GETTER_FN bool IsRunning() const { return m_IsRunning; }
-    WIESEL_GETTER_FN bool IsPaused() const { return m_IsPaused; }
+  template <typename T>
+  void OnAddComponent(entt::entity entity, T& component) {}
 
-    void SetPaused(bool paused) { m_IsPaused = paused; }
+  WIESEL_GETTER_FN Ref<CameraData> GetPrimaryCamera();
+  WIESEL_GETTER_FN Entity GetPrimaryCameraEntity();
 
-    template<typename... Components>
-    auto GetAllEntitiesWith() {
-      return m_Registry.view<Components...>();
-    }
+  WIESEL_GETTER_FN bool IsRunning() const { return m_IsRunning; }
 
-    entt::registry& GetRegistry() {
-      return m_Registry;
-    }
+  WIESEL_GETTER_FN bool IsPaused() const { return m_IsPaused; }
 
-  private:
-    bool OnWindowResizeEvent(WindowResizeEvent& event);
-    void Render();
+  void SetPaused(bool paused) { m_IsPaused = paused; }
 
-  private:
-    friend class Entity;
-    friend class Application;
+  template <typename... Components>
+  auto GetAllEntitiesWith() {
+    return m_Registry.view<Components...>();
+  }
 
-    std::unordered_map<UUID, entt::entity> m_Entities;
-    entt::registry m_Registry;
-    Reference<CameraData> m_Camera;
-    entt::entity m_CameraEntity;
-    Scope<CanvasSystem> m_CanvasSystem;
-    bool m_HasCamera = false;
-    bool m_IsRunning = false;
-    bool m_IsPaused = false;
-  };
-}
+  entt::registry& GetRegistry() { return m_Registry; }
+
+ private:
+  bool OnWindowResizeEvent(WindowResizeEvent& event);
+  void Render();
+
+ private:
+  friend class
+      Entity;  // This isn't really necessary. It could use GetRegistry.
+  friend class Application;
+
+  std::unordered_map<UUID, entt::entity> m_Entities;
+  entt::registry m_Registry;
+  Ref<CameraData> m_Camera;
+  entt::entity m_CameraEntity;
+  Scope<CanvasSystem> m_CanvasSystem;
+  bool m_HasCamera = false;
+  bool m_IsRunning = false;
+  bool m_IsPaused = false;
+};
+}  // namespace Wiesel

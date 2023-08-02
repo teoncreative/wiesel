@@ -11,19 +11,18 @@
 
 #pragma once
 
-#include "w_pch.hpp"
-#include "util/w_utils.hpp"
 #include "events/w_events.hpp"
+#include "util/w_utils.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
-  struct TextComponent {
-    std::string Text;
-  };
+struct TextComponent {
+  std::string Text;
+};
 
-  enum CanvasType {
-    CanvasTypeScreenSpace
-  };
-  struct CanvasComponent {
-    CanvasType Type;
-  };
-}
+enum CanvasType { CanvasTypeScreenSpace };
+
+struct CanvasComponent {
+  CanvasType Type;
+};
+}  // namespace Wiesel

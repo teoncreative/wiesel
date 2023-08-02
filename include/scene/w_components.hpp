@@ -11,93 +11,106 @@
 
 #pragma once
 
+#include <entt/entt.hpp>
+#include "events/w_events.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_texture.hpp"
 #include "util/w_utils.hpp"
 #include "util/w_uuid.hpp"
 #include "w_pch.hpp"
-#include "events/w_events.hpp"
-#include <entt/entt.hpp>
 
 namespace Wiesel {
-  struct EventHandlerComponent {
-    virtual void OnEvent(Event&);
-  };
+struct EventHandlerComponent {
+  virtual void OnEvent(Event&);
+};
 
-  struct IdComponent {
-    IdComponent(UUID id) : Id(id) {}
-    IdComponent() = default;
-    IdComponent(const IdComponent&) = default;
+struct IdComponent {
+  IdComponent(UUID id) : Id(id) {}
 
-    UUID Id;
-  };
+  IdComponent() = default;
+  IdComponent(const IdComponent&) = default;
 
-  struct ParentComponent {
-    ParentComponent(entt::entity parent) : Parent(parent) {}
-    ParentComponent() = default;
-    ParentComponent(const ParentComponent&) = default;
+  UUID Id;
+};
 
-    entt::entity Parent;
-  };
+struct ParentComponent {
+  ParentComponent(entt::entity parent) : Parent(parent) {}
 
-  struct TagComponent {
-    TagComponent() = default;
-    TagComponent(const TagComponent&) = default;
+  ParentComponent() = default;
+  ParentComponent(const ParentComponent&) = default;
 
-    std::string Tag;
-  };
+  entt::entity Parent;
+};
 
-  struct TransformComponent {
-    TransformComponent() = default;
-    TransformComponent(const TransformComponent&) = default;
+struct TagComponent {
+  TagComponent() = default;
+  TagComponent(const TagComponent&) = default;
 
-    glm::vec3 GetForward();
-    glm::vec3 GetBackward();
-    glm::vec3 GetLeft();
-    glm::vec3 GetRight();
-    glm::vec3 GetUp();
-    glm::vec3 GetDown();
+  std::string Tag;
+};
 
-    void Move(float dx, float dy, float dz);
-    void Move(const glm::vec3& delta) { Move(delta.x, delta.y, delta.z); }
-    void SetPosition(float x, float y, float z);
-    void SetPosition(glm::vec3& pos) { SetPosition(pos.x, pos.y, pos.z); }
+struct TransformComponent {
+  TransformComponent() = default;
+  TransformComponent(const TransformComponent&) = default;
 
-    void Rotate(float dx, float dy, float dz);
-    void Rotate(const glm::vec3& delta) { Rotate(delta.x, delta.y, delta.z); }
-    void SetRotation(float x, float y, float z);
-    void SetRotation(glm::vec3& rot) { SetRotation(rot.x, rot.y, rot.z); }
+  glm::vec3 GetForward();
+  glm::vec3 GetBackward();
+  glm::vec3 GetLeft();
+  glm::vec3 GetRight();
+  glm::vec3 GetUp();
+  glm::vec3 GetDown();
 
-    void Resize(float dx, float dy, float dz);
-    void Resize(const glm::vec3& delta) { Resize(delta.x, delta.y, delta.z); }
-    void SetScale(float x, float y, float z);
-    void SetScale(const glm::vec3& scale) { SetScale(scale.x, scale.y, scale.z); }
+  void Move(float dx, float dy, float dz);
 
-    void UpdateMatrices();
+  void Move(const glm::vec3& delta) { Move(delta.x, delta.y, delta.z); }
 
-    glm::vec3 Position = {0.0f, 0.0f, 0.0f};
-    glm::vec3 Rotation = {0.0f, 0.0f, 0.0f};
-    glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
+  void SetPosition(float x, float y, float z);
 
-    bool IsChanged = true;
-    glm::mat4 TransformMatrix = {};
-    glm::mat3 NormalMatrix = {};
-    glm::mat4 RotationMatrix = {};
-  };
+  void SetPosition(glm::vec3& pos) { SetPosition(pos.x, pos.y, pos.z); }
 
-  struct RectangleTransformComponent {
+  void Rotate(float dx, float dy, float dz);
 
-    glm::vec2 Position = {0.0f, 0.0f};
-    glm::vec2 Rotation = {0.0f, 0.0f};
-    glm::vec2 Size = {0.0f, 0.0f};
-    glm::vec2 Scale = {1.0f, 1.0f};
+  void Rotate(const glm::vec3& delta) { Rotate(delta.x, delta.y, delta.z); }
 
-    bool IsChanged = true;
-    bool IsDriven = true;
+  void SetRotation(float x, float y, float z);
 
-  };
+  void SetRotation(glm::vec3& rot) { SetRotation(rot.x, rot.y, rot.z); }
 
-#define ALL_COMPONENT_TYPES IdComponent, TagComponent, TransformComponent, ModelComponent, LightDirectComponent, LightPointComponent, CameraComponent, BehaviorsComponent
+  void Resize(float dx, float dy, float dz);
 
-}
+  void Resize(const glm::vec3& delta) { Resize(delta.x, delta.y, delta.z); }
+
+  void SetScale(float x, float y, float z);
+
+  void SetScale(const glm::vec3& scale) { SetScale(scale.x, scale.y, scale.z); }
+
+  void UpdateMatrices();
+
+  glm::vec3 Position = {0.0f, 0.0f, 0.0f};
+  glm::vec3 Rotation = {0.0f, 0.0f, 0.0f};
+  glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
+
+  bool IsChanged = true;
+  glm::mat4 TransformMatrix = {};
+  glm::mat3 NormalMatrix = {};
+  glm::mat4 RotationMatrix = {};
+};
+
+struct RectangleTransformComponent {
+
+  glm::vec2 Position = {0.0f, 0.0f};
+  glm::vec2 Rotation = {0.0f, 0.0f};
+  glm::vec2 Size = {0.0f, 0.0f};
+  glm::vec2 Scale = {1.0f, 1.0f};
+
+  bool IsChanged = true;
+  bool IsDriven = true;
+};
+
+#define ALL_COMPONENT_TYPES                                       \
+  IdComponent, TagComponent, TransformComponent, ModelComponent,  \
+      LightDirectComponent, LightPointComponent, CameraComponent, \
+      BehaviorsComponent
+
+}  // namespace Wiesel

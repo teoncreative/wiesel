@@ -15,9 +15,10 @@
 #include "rendering/w_shader.hpp"
 
 namespace Wiesel::Spirv {
-  void Init();
-  void Cleanup();
-  void InitResources(TBuiltInResource& resources);
-  EShLanguage FindLanguage(ShaderType type);
-  bool ShaderToSPV(ShaderType type, const std::vector<char>& input, std::vector<uint32_t>& output);
-}
+void Init();
+void Cleanup();
+void InitResources(TBuiltInResource& resources);
+EShLanguage FindLanguage(ShaderType type);
+bool ShaderToSPV(ShaderType type, const std::vector<char>& input,
+                 std::vector<uint32_t>& output);
+}  // namespace Wiesel::Spirv

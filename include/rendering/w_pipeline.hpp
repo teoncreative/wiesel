@@ -18,30 +18,25 @@
 #include "w_shader.hpp"
 
 namespace Wiesel {
-  enum CullMode {
-    CullModeNone,
-    CullModeBack,
-    CullModeFront,
-    CullModeBoth
-  };
+enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
 
-  struct PipelineProperties {
-    CullMode m_CullFace;
-    bool m_EnableWireframe;
-    Reference<RenderPass> m_RenderPass;
-    Reference<DescriptorLayout> m_DescriptorLayout;
-    Reference<Shader> m_VertexShader;
-    Reference<Shader> m_FragmentShader;
-    bool m_EnableAlphaBlending;
-  };
+struct PipelineProperties {
+  CullMode m_CullFace;
+  bool m_EnableWireframe;
+  Ref<RenderPass> m_RenderPass;
+  Ref<DescriptorLayout> m_DescriptorLayout;
+  Ref<Shader> m_VertexShader;
+  Ref<Shader> m_FragmentShader;
+  bool m_EnableAlphaBlending;
+};
 
-  struct GraphicsPipeline {
-    explicit GraphicsPipeline(PipelineProperties properties);
-    ~GraphicsPipeline();
+struct GraphicsPipeline {
+  explicit GraphicsPipeline(PipelineProperties properties);
+  ~GraphicsPipeline();
 
-    PipelineProperties m_Properties;
-    VkPipelineLayout m_Layout{};
-    VkPipeline m_Pipeline{};
-    bool m_IsAllocated;
-  };
-}
+  PipelineProperties m_Properties;
+  VkPipelineLayout m_Layout{};
+  VkPipeline m_Pipeline{};
+  bool m_IsAllocated;
+};
+}  // namespace Wiesel

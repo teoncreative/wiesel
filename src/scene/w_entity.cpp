@@ -15,18 +15,17 @@
 
 namespace Wiesel {
 
-  Entity::Entity(entt::entity handle, Scene* scene) : m_EntityHandle(handle),
-                                                      m_Scene(scene) {
-    m_Parent = entt::null;
-    if (*this) { // Is valid?
-      if (HasComponent<ParentComponent>()) {
-        ParentComponent& component = GetComponent<ParentComponent>();
-        m_Parent = component.Parent;
-      }
+Entity::Entity(entt::entity handle, Scene* scene)
+    : m_EntityHandle(handle), m_Scene(scene) {
+  m_Parent = entt::null;
+  if (*this) {  // Is valid?
+    if (HasComponent<ParentComponent>()) {
+      ParentComponent& component = GetComponent<ParentComponent>();
+      m_Parent = component.Parent;
     }
   }
+}
 
-  Entity::~Entity() {
-  }
+Entity::~Entity() {}
 
-}// namespace Wiesel
+}  // namespace Wiesel

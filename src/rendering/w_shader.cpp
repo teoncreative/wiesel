@@ -15,11 +15,10 @@
 
 namespace Wiesel {
 
-  Shader::Shader(ShaderProperties properties) : Properties(properties) {
-  }
+Shader::Shader(ShaderProperties properties) : Properties(properties) {}
 
-  Shader::~Shader() {
-    Engine::GetRenderer()->DestroyShader(*this);
-  }
+Shader::~Shader() {
+  Engine::GetRenderer()->DestroyShader(*this);
+}
 
-}// namespace Wiesel
+}  // namespace Wiesel

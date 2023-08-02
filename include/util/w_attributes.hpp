@@ -21,4 +21,5 @@
 #endif
 #undef USE_NODISCARD
 
-#define WIESEL_GETTER_FN WIESEL_NODISCARD_R("Getter functions should not be discarded")
+#define WIESEL_GETTER_FN \
+  WIESEL_NODISCARD_R("Getter functions should not be discarded")

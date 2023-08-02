@@ -19,31 +19,32 @@
 
 namespace Wiesel::Dialogs {
 
-  // todo workaround for this main-thread requirement on Apple platform
-  // maybe move render things to another thread?
-  void Init() {
-    NFD_Init();
-  }
+// todo workaround for this main-thread requirement on Apple platform
+// maybe move render things to another thread?
+void Init() {
+  NFD_Init();
+}
 
-  void OpenFileDialog(std::vector<FilterEntry> filters, std::function<void(const std::string&)> fn) {
-    nfdchar_t* outPath;
-    nfdnfilteritem_t* filterList = new nfdnfilteritem_t[filters.size()];
-    nfdfiltersize_t filterCount = filters.size();
-    for (int i = 0; i < filterCount; i++) {
-      filterList[i] = {filters[i].name, filters[i].spec};
-    }
-    nfdresult_t result = NFD_OpenDialog(&outPath, filterList, filterCount, NULL);
-    if (result == NFD_OKAY) {
-      auto relative = std::filesystem::relative(outPath);
-      fn(relative.string());
-      NFD_FreePath(outPath);
-    } else {
-      fn("");
-    }
+void OpenFileDialog(std::vector<FilterEntry> filters,
+                    std::function<void(const std::string&)> fn) {
+  nfdchar_t* outPath;
+  nfdnfilteritem_t* filterList = new nfdnfilteritem_t[filters.size()];
+  nfdfiltersize_t filterCount = filters.size();
+  for (int i = 0; i < filterCount; i++) {
+    filterList[i] = {filters[i].name, filters[i].spec};
   }
-
-  void Destroy() {
-    NFD_Quit();
+  nfdresult_t result = NFD_OpenDialog(&outPath, filterList, filterCount, NULL);
+  if (result == NFD_OKAY) {
+    auto relative = std::filesystem::relative(outPath);
+    fn(relative.string());
+    NFD_FreePath(outPath);
+  } else {
+    fn("");
   }
+}
 
-}// namespace Wiesel::Dialogs
+void Destroy() {
+  NFD_Quit();
+}
+
+}  // namespace Wiesel::Dialogs

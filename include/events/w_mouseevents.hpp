@@ -16,66 +16,63 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-  class MouseMovedEvent : public Event {
-  public:
-    MouseMovedEvent(const float_t x, const float_t y, CursorMode cursorMode)
-        : m_MouseX(x),
-          m_MouseY(y),
-          m_CursorMode(cursorMode) {}
+class MouseMovedEvent : public Event {
+ public:
+  MouseMovedEvent(const float_t x, const float_t y, CursorMode cursorMode)
+      : m_MouseX(x), m_MouseY(y), m_CursorMode(cursorMode) {}
 
-    WIESEL_GETTER_FN float_t GetX() const { return m_MouseX; }
-    WIESEL_GETTER_FN float_t GetY() const { return m_MouseY; }
-    WIESEL_GETTER_FN CursorMode GetCursorMode() const { return m_CursorMode; }
+  WIESEL_GETTER_FN float_t GetX() const { return m_MouseX; }
 
-    EVENT_CLASS_TYPE(MouseMoved)
-    EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
-  private:
-    float m_MouseX, m_MouseY;
-    CursorMode m_CursorMode;
-  };
+  WIESEL_GETTER_FN float_t GetY() const { return m_MouseY; }
 
-  class MouseScrolledEvent : public Event {
-  public:
-    MouseScrolledEvent(const float_t xOffset, const float_t yOffset)
-        : m_XOffset(xOffset),
-          m_YOffset(yOffset) {}
+  WIESEL_GETTER_FN CursorMode GetCursorMode() const { return m_CursorMode; }
 
-    WIESEL_GETTER_FN float_t GetXOffset() const { return m_XOffset; }
-    WIESEL_GETTER_FN float_t GetYOffset() const { return m_YOffset; }
+  EVENT_CLASS_TYPE(MouseMoved)
+  EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
+ private:
+  float m_MouseX, m_MouseY;
+  CursorMode m_CursorMode;
+};
 
+class MouseScrolledEvent : public Event {
+ public:
+  MouseScrolledEvent(const float_t xOffset, const float_t yOffset)
+      : m_XOffset(xOffset), m_YOffset(yOffset) {}
 
-    EVENT_CLASS_TYPE(MouseScrolled)
-    EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
-  private:
-    float m_XOffset, m_YOffset;
-  };
+  WIESEL_GETTER_FN float_t GetXOffset() const { return m_XOffset; }
 
-  class MouseButtonEvent : public Event {
-  public:
-    WIESEL_GETTER_FN MouseCode GetMouseButton() const { return m_Button; }
+  WIESEL_GETTER_FN float_t GetYOffset() const { return m_YOffset; }
 
-    EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseButton)
-  protected:
-    MouseButtonEvent(const MouseCode button)
-        : m_Button(button) {}
+  EVENT_CLASS_TYPE(MouseScrolled)
+  EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
+ private:
+  float m_XOffset, m_YOffset;
+};
 
-    MouseCode m_Button;
-  };
+class MouseButtonEvent : public Event {
+ public:
+  WIESEL_GETTER_FN MouseCode GetMouseButton() const { return m_Button; }
 
-  class MouseButtonPressedEvent : public MouseButtonEvent {
-  public:
-    MouseButtonPressedEvent(const MouseCode button)
-        : MouseButtonEvent(button) {}
+  EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input |
+                       EventCategory::MouseButton)
+ protected:
+  MouseButtonEvent(const MouseCode button) : m_Button(button) {}
 
-    EVENT_CLASS_TYPE(MouseButtonPressed)
-  };
+  MouseCode m_Button;
+};
 
-  class MouseButtonReleasedEvent : public MouseButtonEvent {
-  public:
-    MouseButtonReleasedEvent(const MouseCode button)
-        : MouseButtonEvent(button) {}
+class MouseButtonPressedEvent : public MouseButtonEvent {
+ public:
+  MouseButtonPressedEvent(const MouseCode button) : MouseButtonEvent(button) {}
 
-    EVENT_CLASS_TYPE(MouseButtonReleased)
-  };
+  EVENT_CLASS_TYPE(MouseButtonPressed)
+};
 
-}
+class MouseButtonReleasedEvent : public MouseButtonEvent {
+ public:
+  MouseButtonReleasedEvent(const MouseCode button) : MouseButtonEvent(button) {}
+
+  EVENT_CLASS_TYPE(MouseButtonReleased)
+};
+
+}  // namespace Wiesel

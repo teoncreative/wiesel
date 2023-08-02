@@ -17,32 +17,35 @@
 
 #include "window/w_window.hpp"
 
-static void CallbackFramebufferResize(GLFWwindow* window, int width, int height);
-static void CallbackKey(GLFWwindow* window, int key, int scancode, int action, int mods);
+static void CallbackFramebufferResize(GLFWwindow* window, int width,
+                                      int height);
+static void CallbackKey(GLFWwindow* window, int key, int scancode, int action,
+                        int mods);
 
 namespace Wiesel {
-  class GlfwAppWindow : public AppWindow {
-  public:
-    explicit GlfwAppWindow(const WindowProperties& properties);
-    ~GlfwAppWindow();
+class GlfwAppWindow : public AppWindow {
+ public:
+  explicit GlfwAppWindow(const WindowProperties& properties);
+  ~GlfwAppWindow();
 
-    void OnUpdate() override;
-    bool IsShouldClose() override;
+  void OnUpdate() override;
+  bool IsShouldClose() override;
 
-    void ImGuiInit() override;
-    void ImGuiNewFrame() override;
+  void ImGuiInit() override;
+  void ImGuiNewFrame() override;
 
-    void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
-    void GetWindowFramebufferSize(WindowSize& size) override;
-    const char** GetRequiredInstanceExtensions(uint32_t* extensionsCount) override;
+  void CreateWindowSurface(VkInstance instance, VkSurfaceKHR* surface) override;
+  void GetWindowFramebufferSize(WindowSize& size) override;
+  const char** GetRequiredInstanceExtensions(
+      uint32_t* extensionsCount) override;
 
-    void SetCursorMode(CursorMode cursorMode) override;
+  void SetCursorMode(CursorMode cursorMode) override;
 
-  private:
-    WindowSize m_WindowSize;
-    WindowSize m_FramebufferSize;
-    WindowSize m_Scale;
+ private:
+  WindowSize m_WindowSize;
+  WindowSize m_FramebufferSize;
+  WindowSize m_Scale;
 
-    GLFWwindow* m_Handle{};
-  };
-}
+  GLFWwindow* m_Handle{};
+};
+}  // namespace Wiesel

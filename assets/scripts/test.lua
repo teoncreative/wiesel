@@ -9,21 +9,21 @@ keyCodes = keyCodes or {
 --- You can define variables inside vars to view them inside the editor
 vars = {
     ---@type TransformComponent
-    transform = {
-        type = "TransformComponent"
-    },
+    transform = {},
     testnumber = 0
 }
 
 function OnLoad()
     print('OnLoad')
+    local a = GetComponent('TransformComponent')
+    print(type(a))
     vars.transform = GetComponent('TransformComponent')
-    vars.transform:SetPosition(0,0,0)
+    vars.transform:SetPosition(0, 0, 0)
 end
 
 function Update(deltaTime)
-    print('Update')
-    vars.transform:SetPosition(0, vars.testnumber, 0)
+    -- print('Update')
+    -- vars.transform:SetPosition(0, vars.testnumber, 0)
     --- todo
     if input.IsPressed(keyCodes.KeyO) then
         if vars.transform then
