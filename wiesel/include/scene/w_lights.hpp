@@ -84,9 +84,12 @@ struct alignas(16) LightsUniformBufferObject {
   LightPoint PointLights[MAX_LIGHTS];
 };
 
-template <class T>
-void UpdateLight(LightsUniformBufferObject& lights, T lightData, Entity entity)
-    __attribute__((optnone)) {}
+
+void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
+                 Entity entity);
+
+void UpdateLight(LightsUniformBufferObject& lights, LightPoint light,
+                 Entity entity);
 
 struct LightDirectComponent {
   LightDirectComponent() = default;
@@ -101,4 +104,5 @@ struct LightPointComponent {
 
   LightPoint LightData;
 };
+
 }  // namespace Wiesel
