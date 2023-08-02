@@ -12,7 +12,6 @@
 
 namespace Wiesel {
 
-template <>
 void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
                  Entity entity) {
   auto& transform = entity.GetComponent<TransformComponent>();
@@ -30,7 +29,6 @@ void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
   lights.DirectLightCount++;
 }
 
-template <>
 void UpdateLight(LightsUniformBufferObject& lights, LightPoint light,
                  Entity entity) {
   auto& transform = entity.GetComponent<TransformComponent>();

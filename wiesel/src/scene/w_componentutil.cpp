@@ -22,6 +22,10 @@
 #include "w_engine.hpp"
 
 namespace Wiesel {
+void InitializeComponents() {
+
+}
+
 template <>
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Transform", nullptr)) {

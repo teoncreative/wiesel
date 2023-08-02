@@ -12,6 +12,8 @@
 #include "w_engine.hpp"
 
 #include "input/w_input.hpp"
+#include "scene/w_componentutil.hpp"
+#include "scene/w_lights.hpp"
 #include "script/lua/w_scriptglue.hpp"
 #include "util/w_dialogs.hpp"
 #include "window/w_glfwwindow.hpp"
@@ -21,6 +23,7 @@ Ref<Renderer> Engine::s_Renderer;
 Ref<AppWindow> Engine::s_Window;
 
 void Engine::InitEngine() {
+  InitializeComponents();
   ScriptGlue::GenerateComponents();
   ScriptGlue::GenerateModules();
   InputManager::Init();

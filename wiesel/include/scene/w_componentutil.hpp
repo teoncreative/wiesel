@@ -16,6 +16,9 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
+
+void InitializeComponents();
+
 // Editor
 template <class T>
 __attribute__((noinline)) void RenderComponentImGui(T& component,
@@ -23,8 +26,7 @@ __attribute__((noinline)) void RenderComponentImGui(T& component,
 
 template <class T, class B>
 __attribute__((noinline)) bool RenderBehaviorComponentImGui(
-    T& component,
-                                                            Ref<B> behavior, Entity entity) {
+    T& component, Ref<B> behavior, Entity entity) {
   return false;
 }
 
