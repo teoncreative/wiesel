@@ -26,38 +26,38 @@ extern "C" {
 #include "behavior/w_behavior.hpp"
 
 namespace Wiesel {
-  class LuaBehavior : public IBehavior {
-  public:
-    LuaBehavior(Entity entity, const std::string& file);
-    ~LuaBehavior() override;
+class LuaBehavior : public IBehavior {
+ public:
+  LuaBehavior(Entity entity, const std::string& file);
+  ~LuaBehavior() override;
 
-    void OnUpdate(float_t deltaTime) override;
-    void OnEvent(Event& event) override;
+  void OnUpdate(float_t deltaTime) override;
+  void OnEvent(Event& event) override;
 
-    WIESEL_GETTER_FN void* GetStatePtr() const override;
-    WIESEL_GETTER_FN lua_State* GetState() {
-      return m_LuaState;
-    }
+  WIESEL_GETTER_FN void* GetStatePtr() const override;
 
-    void SetEnabled(bool enabled) override;
+  WIESEL_GETTER_FN lua_State* GetState() { return m_LuaState; }
 
-  private:
-    lua_State* m_LuaState;
-    Scope<luabridge::LuaRef> m_FnOnLoad;
-    Scope<luabridge::LuaRef> m_FnOnEnable;
-    Scope<luabridge::LuaRef> m_FnOnDisable;
-    Scope<luabridge::LuaRef> m_FnUpdate;
-    Scope<luabridge::LuaRef> m_FnStart;
-  };
+  void SetEnabled(bool enabled) override;
 
-  template<typename T>
-  struct LuaExposedVariable : public ExposedVariable<T> {
-    LuaExposedVariable(T value, const std::string& name, LuaBehavior* behavior) : ExposedVariable<T>(value, name),
-                                                                                  m_Behavior(behavior) {}
-    ~LuaExposedVariable() = default;
+ private:
+  lua_State* m_LuaState;
+  Scope<luabridge::LuaRef> m_FnOnLoad;
+  Scope<luabridge::LuaRef> m_FnOnEnable;
+  Scope<luabridge::LuaRef> m_FnOnDisable;
+  Scope<luabridge::LuaRef> m_FnUpdate;
+  Scope<luabridge::LuaRef> m_FnStart;
+};
 
-    void RenderImGui() override;
+template <typename T>
+struct LuaExposedVariable : public ExposedVariable<T> {
+  LuaExposedVariable(T value, const std::string& name, LuaBehavior* behavior)
+      : ExposedVariable<T>(value, name), m_Behavior(behavior) {}
 
-    LuaBehavior* m_Behavior;
-  };
-}
+  ~LuaExposedVariable() = default;
+
+  void RenderImGui() override;
+
+  LuaBehavior* m_Behavior;
+};
+}  // namespace Wiesel

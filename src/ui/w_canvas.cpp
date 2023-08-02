@@ -10,7 +10,4 @@
 
 #include "ui/w_canvas.hpp"
 
-namespace Wiesel {
-
-
-}
+namespace Wiesel {}

@@ -11,7 +11,6 @@
 
 #pragma once
 
-
 // https://github.com/TheCherno/Hazel
 // Platform detection using predefined macros
 #ifdef _WIN32
@@ -51,4 +50,4 @@
 #else
 /* Unknown compiler/platform */
 #error "Unknown platform!"
-#endif// End of platform detection
+#endif  // End of platform detection

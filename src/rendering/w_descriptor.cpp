@@ -15,13 +15,13 @@
 
 namespace Wiesel {
 
-  DescriptorData::DescriptorData(uint32_t max) {
-    m_MaxDescriptorCount = max;
-    m_DescriptorSets.reserve(max);
-  }
+DescriptorData::DescriptorData(uint32_t max) {
+  m_MaxDescriptorCount = max;
+  m_DescriptorSets.reserve(max);
+}
 
-  DescriptorData::~DescriptorData() {
-    Engine::GetRenderer()->DestroyDescriptors(*this);
-  }
+DescriptorData::~DescriptorData() {
+  Engine::GetRenderer()->DestroyDescriptors(*this);
+}
 
-}// namespace Wiesel
+}  // namespace Wiesel

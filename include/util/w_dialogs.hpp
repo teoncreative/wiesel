@@ -15,15 +15,16 @@
 #include "w_pch.hpp"
 
 namespace Wiesel::Dialogs {
-  typedef struct {
-    const nfdnchar_t* name;
-    const nfdnchar_t* spec;
-  } FilterEntry;
+typedef struct {
+  const nfdnchar_t* name;
+  const nfdnchar_t* spec;
+} FilterEntry;
 
-  void Init();
+void Init();
 
-  void OpenFileDialog(std::vector<FilterEntry> filters, std::function<void(const std::string&)> fn);
+void OpenFileDialog(std::vector<FilterEntry> filters,
+                    std::function<void(const std::string&)> fn);
 
-  void Destroy();
+void Destroy();
 
-}
+}  // namespace Wiesel::Dialogs

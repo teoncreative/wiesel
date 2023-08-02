@@ -13,24 +13,23 @@
 
 namespace Wiesel {
 
-  void IBehavior::OnUpdate(float_t deltaTime) {
-  }
+void IBehavior::OnUpdate(float_t deltaTime) {}
 
-  void IBehavior::OnEvent(Event& event) {
-  }
+void IBehavior::OnEvent(Event& event) {}
 
-  void IBehavior::SetEnabled(bool enabled) {
-    if (m_Unset) return;
-    m_Enabled = enabled;
-  }
+void IBehavior::SetEnabled(bool enabled) {
+  if (m_Unset)
+    return;
+  m_Enabled = enabled;
+}
 
-  void BehaviorsComponent::OnEvent(Wiesel::Event& event) {
-    for (const auto& entry : m_Behaviors) {
-      if (!entry.second->IsEnabled()) {
-        continue;
-      }
-      entry.second->OnEvent(event);
+void BehaviorsComponent::OnEvent(Wiesel::Event& event) {
+  for (const auto& entry : m_Behaviors) {
+    if (!entry.second->IsEnabled()) {
+      continue;
     }
+    entry.second->OnEvent(event);
   }
+}
 
-}// namespace Wiesel
+}  // namespace Wiesel

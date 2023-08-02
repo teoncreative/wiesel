@@ -17,42 +17,44 @@
 #include "window/w_window.hpp"
 
 namespace Wiesel {
-  class WindowCloseEvent : public Event {
-  public:
-    WindowCloseEvent() {}
+class WindowCloseEvent : public Event {
+ public:
+  WindowCloseEvent() {}
 
-    EVENT_CLASS_TYPE(WindowClose)
-    EVENT_CLASS_CATEGORY(EventCategory::App)
-  private:
-  };
+  EVENT_CLASS_TYPE(WindowClose)
+  EVENT_CLASS_CATEGORY(EventCategory::App)
+ private:
+};
 
-  class WindowResizeEvent : public Event {
-  public:
-    WindowResizeEvent(WindowSize windowSize, float_t aspectRatio) : m_WindowSize(windowSize),
-                                                                    m_AspectRatio(aspectRatio) {}
+class WindowResizeEvent : public Event {
+ public:
+  WindowResizeEvent(WindowSize windowSize, float_t aspectRatio)
+      : m_WindowSize(windowSize), m_AspectRatio(aspectRatio) {}
 
-    WIESEL_GETTER_FN const WindowSize& GetWindowSize() { return m_WindowSize; }
-    WIESEL_GETTER_FN float GetAspectRatio() const { return m_AspectRatio; }
+  WIESEL_GETTER_FN const WindowSize& GetWindowSize() { return m_WindowSize; }
 
-    EVENT_CLASS_TYPE(WindowResize)
-    EVENT_CLASS_CATEGORY(EventCategory::App)
-  private:
-    WindowSize m_WindowSize;
-    float_t m_AspectRatio;
-  };
+  WIESEL_GETTER_FN float GetAspectRatio() const { return m_AspectRatio; }
 
-  class AppRecreateSwapChainsEvent : public Event {
-  public:
-    AppRecreateSwapChainsEvent(WindowSize windowSize, float_t aspectRatio) : m_WindowSize(windowSize),
-                                                                             m_AspectRatio(aspectRatio) {}
+  EVENT_CLASS_TYPE(WindowResize)
+  EVENT_CLASS_CATEGORY(EventCategory::App)
+ private:
+  WindowSize m_WindowSize;
+  float_t m_AspectRatio;
+};
 
-    WIESEL_GETTER_FN const WindowSize& GetWindowSize() { return m_WindowSize; }
-    WIESEL_GETTER_FN float GetAspectRatio() const { return m_AspectRatio; }
+class AppRecreateSwapChainsEvent : public Event {
+ public:
+  AppRecreateSwapChainsEvent(WindowSize windowSize, float_t aspectRatio)
+      : m_WindowSize(windowSize), m_AspectRatio(aspectRatio) {}
 
-    EVENT_CLASS_TYPE(AppRecreateSwapChains)
-    EVENT_CLASS_CATEGORY(EventCategory::App)
-  private:
-    WindowSize m_WindowSize;
-    float_t m_AspectRatio;
-  };
-}
+  WIESEL_GETTER_FN const WindowSize& GetWindowSize() { return m_WindowSize; }
+
+  WIESEL_GETTER_FN float GetAspectRatio() const { return m_AspectRatio; }
+
+  EVENT_CLASS_TYPE(AppRecreateSwapChains)
+  EVENT_CLASS_CATEGORY(EventCategory::App)
+ private:
+  WindowSize m_WindowSize;
+  float_t m_AspectRatio;
+};
+}  // namespace Wiesel

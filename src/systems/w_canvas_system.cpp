@@ -12,41 +12,37 @@
 #include "scene/w_entity.hpp"
 
 namespace Wiesel {
-  void CanvasSystem::Update(Scene& scene) {
-  }
+void CanvasSystem::Update(Scene& scene) {}
 
-  void CanvasSystem::Render(Scene& scene) {
-    for (const auto& _entity : scene.GetAllEntitiesWith<TextComponent>()) {
-      Entity entity{_entity, &scene};
-      Entity parent = entity.GetParent();
-      CanvasComponent* canvas;
-      // Loop through parents
-      while (true) {
-        if (parent.HasComponent<CanvasComponent>()) {
-          canvas = &parent.GetComponent<CanvasComponent>();
-        }
-        Entity parentParent = parent.GetParent();
-        if (parentParent) {
-          parent = parentParent;
-        } else {
-          break;
-        }
+void CanvasSystem::Render(Scene& scene) {
+  for (const auto& _entity : scene.GetAllEntitiesWith<TextComponent>()) {
+    Entity entity{_entity, &scene};
+    Entity parent = entity.GetParent();
+    CanvasComponent* canvas;
+    // Loop through parents
+    while (true) {
+      if (parent.HasComponent<CanvasComponent>()) {
+        canvas = &parent.GetComponent<CanvasComponent>();
       }
-      if (!canvas) {
-        continue; // No rendering for this component :(
+      Entity parentParent = parent.GetParent();
+      if (parentParent) {
+        parent = parentParent;
+      } else {
+        break;
       }
-      // Unline entity transforms, canvas objects should have BoxTransformComponent and objects are offseted by their parent locations.
-      if (!entity.HasComponent<RectangleTransformComponent>()) {
-        continue;
-      }
-      RectangleTransformComponent transform = entity.GetComponent<RectangleTransformComponent>();
-      // todo
-
     }
-
-  }
-
-  void CanvasSystem::OnEvent(Wiesel::Event& event) {
-
+    if (!canvas) {
+      continue;  // No rendering for this component :(
+    }
+    // Unline entity transforms, canvas objects should have BoxTransformComponent and objects are offseted by their parent locations.
+    if (!entity.HasComponent<RectangleTransformComponent>()) {
+      continue;
+    }
+    RectangleTransformComponent transform =
+        entity.GetComponent<RectangleTransformComponent>();
+    // todo
   }
 }
+
+void CanvasSystem::OnEvent(Wiesel::Event& event) {}
+}  // namespace Wiesel

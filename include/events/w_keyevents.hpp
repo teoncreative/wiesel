@@ -15,44 +15,40 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-  class KeyEvent : public Event {
-  public:
-    WIESEL_GETTER_FN KeyCode GetKeyCode() const { return m_KeyCode; }
+class KeyEvent : public Event {
+ public:
+  WIESEL_GETTER_FN KeyCode GetKeyCode() const { return m_KeyCode; }
 
-    EVENT_CLASS_CATEGORY(EventCategory::Keyboard | EventCategory::Input)
-  protected:
-    KeyEvent(const KeyCode keycode)
-        : m_KeyCode(keycode) {}
+  EVENT_CLASS_CATEGORY(EventCategory::Keyboard | EventCategory::Input)
+ protected:
+  KeyEvent(const KeyCode keycode) : m_KeyCode(keycode) {}
 
-    KeyCode m_KeyCode;
-  };
+  KeyCode m_KeyCode;
+};
 
-  class KeyPressedEvent : public KeyEvent {
-  public:
-    KeyPressedEvent(const KeyCode keycode, bool isRepeat = false)
-        : KeyEvent(keycode),
-          m_IsRepeat(isRepeat) {}
+class KeyPressedEvent : public KeyEvent {
+ public:
+  KeyPressedEvent(const KeyCode keycode, bool isRepeat = false)
+      : KeyEvent(keycode), m_IsRepeat(isRepeat) {}
 
-    WIESEL_GETTER_FN bool IsRepeat() const { return m_IsRepeat; }
+  WIESEL_GETTER_FN bool IsRepeat() const { return m_IsRepeat; }
 
-    EVENT_CLASS_TYPE(KeyPressed)
-  private:
-    bool m_IsRepeat;
-  };
+  EVENT_CLASS_TYPE(KeyPressed)
+ private:
+  bool m_IsRepeat;
+};
 
-  class KeyReleasedEvent : public KeyEvent {
-  public:
-    KeyReleasedEvent(const KeyCode keycode)
-        : KeyEvent(keycode) {}
+class KeyReleasedEvent : public KeyEvent {
+ public:
+  KeyReleasedEvent(const KeyCode keycode) : KeyEvent(keycode) {}
 
-    EVENT_CLASS_TYPE(KeyReleased)
-  };
+  EVENT_CLASS_TYPE(KeyReleased)
+};
 
-  class KeyTypedEvent : public KeyEvent {
-  public:
-    KeyTypedEvent(const KeyCode keycode)
-        : KeyEvent(keycode) {}
+class KeyTypedEvent : public KeyEvent {
+ public:
+  KeyTypedEvent(const KeyCode keycode) : KeyEvent(keycode) {}
 
-    EVENT_CLASS_TYPE(KeyTyped)
-  };
-}
+  EVENT_CLASS_TYPE(KeyTyped)
+};
+}  // namespace Wiesel

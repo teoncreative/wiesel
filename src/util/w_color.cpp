@@ -11,6 +11,4 @@
 
 #include "util/w_color.hpp"
 
-namespace Wiesel {
-
-}
+namespace Wiesel {}

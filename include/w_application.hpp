@@ -26,61 +26,62 @@
 #include "util/w_utils.hpp"
 
 namespace Wiesel {
-  class Application {
-  public:
-    Application(WindowProperties props);
-    virtual ~Application();
+class Application {
+ public:
+  Application(WindowProperties props);
+  virtual ~Application();
 
-    virtual void Init() = 0;
+  virtual void Init() = 0;
 
-    void Run();
-    void Close();
+  void Run();
+  void Close();
 
-    void OnEvent(Event& event);
+  void OnEvent(Event& event);
 
-    void PushLayer(const Reference<Layer>& layer);
-    void RemoveLayer(const Reference<Layer>& layer);
+  void PushLayer(const Ref<Layer>& layer);
+  void RemoveLayer(const Ref<Layer>& layer);
 
-    void PushOverlay(const Reference<Layer>& layer);
-    void RemoveOverlay(const Reference<Layer>& layer);
+  void PushOverlay(const Ref<Layer>& layer);
+  void RemoveOverlay(const Ref<Layer>& layer);
 
-    bool OnWindowClose(WindowCloseEvent& event);
-    bool OnWindowResize(WindowResizeEvent& event);
-    bool OnKeyPressed(KeyPressedEvent& event);
-    bool OnKeyReleased(KeyReleasedEvent& event);
-    bool OnMouseMoved(MouseMovedEvent& event);
+  bool OnWindowClose(WindowCloseEvent& event);
+  bool OnWindowResize(WindowResizeEvent& event);
+  bool OnKeyPressed(KeyPressedEvent& event);
+  bool OnKeyReleased(KeyReleasedEvent& event);
+  bool OnMouseMoved(MouseMovedEvent& event);
 
-    WIESEL_GETTER_FN Reference<AppWindow> GetWindow();
-    WIESEL_GETTER_FN const WindowSize& GetWindowSize();
-    WIESEL_GETTER_FN Reference<Scene> GetScene();
+  WIESEL_GETTER_FN Ref<AppWindow> GetWindow();
+  WIESEL_GETTER_FN const WindowSize& GetWindowSize();
+  WIESEL_GETTER_FN Ref<Scene> GetScene();
 
-    void SubmitToMainThread(std::function<void()> fn);
+  void SubmitToMainThread(std::function<void()> fn);
 
-    WIESEL_GETTER_FN static Application* Get();
+  WIESEL_GETTER_FN static Application* Get();
 
-  private:
-    void ExecuteQueue();
-    void UpdateKeyboardAxis();
+ private:
+  void ExecuteQueue();
+  void UpdateKeyboardAxis();
 
-  protected:
-    static Application* s_Application;
+ protected:
+  static Application* s_Application;
 
-    std::vector<std::function<void()>> m_MainThreadQueue;
-    std::mutex m_MainThreadQueueMutex;
+  std::vector<std::function<void()>> m_MainThreadQueue;
+  std::mutex m_MainThreadQueueMutex;
 
-    bool m_IsRunning;
-    bool m_IsMinimized;
-    bool m_WindowResized;
-    WindowSize m_WindowSize;
-    // proper layer stack
-    std::vector<Reference<Layer>> m_Layers;
-    std::vector<Reference<Layer>> m_Overlays;// maybe have another class extending from Layer like OverlayLayer
-    Reference<ImGuiLayer> m_ImGuiLayer;
-    uint32_t m_LayerCounter;
-    Reference<AppWindow> m_Window;
-    float_t m_PreviousFrame = 0.0;
-    float_t m_DeltaTime = 0.0;
-    Reference<Scene> m_Scene;// move this to somewhere else
-  };
+  bool m_IsRunning;
+  bool m_IsMinimized;
+  bool m_WindowResized;
+  WindowSize m_WindowSize;
+  // proper layer stack
+  std::vector<Ref<Layer>> m_Layers;
+  std::vector<Ref<Layer>>
+      m_Overlays;  // maybe have another class extending from Layer like OverlayLayer
+  Ref<ImGuiLayer> m_ImGuiLayer;
+  uint32_t m_LayerCounter;
+  Ref<AppWindow> m_Window;
+  float_t m_PreviousFrame = 0.0;
+  float_t m_DeltaTime = 0.0;
+  Ref<Scene> m_Scene;  // move this to somewhere else
+};
 
-}
+}  // namespace Wiesel

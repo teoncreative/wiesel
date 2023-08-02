@@ -11,15 +11,15 @@
 
 #pragma once
 
-#include "w_pch.hpp"
+#include <ImGuizmo.h>
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
-#include <ImGuizmo.h>
+#include "w_pch.hpp"
 
 namespace Wiesel {
-  std::string PrefixLabel(const char* label);
+std::string PrefixLabel(const char* label);
 }
 
 namespace ImGui {
-  bool ClosableTreeNode(const char* label, bool* visible);
+bool ClosableTreeNode(const char* label, bool* visible);
 }

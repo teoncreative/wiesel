@@ -7,18 +7,18 @@ set(CMAKE_CXX_STANDARD 23)
 
 # todo other platforms
 
-if(UNIX)
-    EXECUTE_PROCESS( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE )
-    message( STATUS "Arch: ${DEVICEARCHITECTURE}" )
-endif()
+if (UNIX)
+    EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
+    message(STATUS "Arch: ${DEVICEARCHITECTURE}")
+endif ()
 
 message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -Wuninitialized -Wmultichar -ffunction-sections -fdata-sections -fexceptions -frtti -fpermissive -fPIC")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DEIGEN_NO_CUDA -DNDEBUG -O2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -DDEBUG -O0")
-if(NOT APPLE)
+if (NOT APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -v -pthread -Wl,--gc-sections")
-endif()
+endif ()
 
 ##### SETTINGS #####
 add_definitions(-D_ITERATOR_DEBUG_LEVEL=0)
@@ -106,7 +106,7 @@ if (VULKAN_FOUND)
     message(STATUS "Found Vulkan. Including and linking...")
     include_directories(${GLFW_INCLUDE_DIRS})
     target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
-endif(VULKAN_FOUND)
+endif (VULKAN_FOUND)
 
 include_directories(${ENGINE_DIR}/deps/stb)
 
@@ -150,21 +150,21 @@ add_subdirectory(${ENGINE_DIR}/deps/luabridge3)
 target_link_libraries(${PROJECT_NAME} LuaBridge)
 
 
-if(APPLE)
+if (APPLE)
     message("Platform: Apple")
     set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-elseif(WIN32)
+elseif (WIN32)
     message("Platform: Win32")
     set(CMAKE_CXX_COMPILER "clang++")
-endif()
+endif ()
 
 ##### SHADERS #####
 file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${ENGINE_DIR}/assets/shaders/*.frag"
         "${ENGINE_DIR}/assets/shaders/*.vert"
-        )
+)
 
-foreach(GLSL ${GLSL_SOURCE_FILES})
+foreach (GLSL ${GLSL_SOURCE_FILES})
     get_filename_component(FILE_NAME ${GLSL} NAME)
     set(SPIRV "${PROJECT_BINARY_DIR}/assets/shaders/${FILE_NAME}.spv")
     add_custom_command(
@@ -175,7 +175,7 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
             DEPENDS ${GLSL}
     )
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-endforeach(GLSL)
+endforeach (GLSL)
 
 add_custom_target(
         ${PROJECT_NAME}_Shaders
@@ -191,10 +191,10 @@ file(GLOB_RECURSE TEXTURE_FILES
         "${ENGINE_DIR}/assets/textures/*.png"
         "${ENGINE_DIR}/assets/textures/*.bmp"
         "${ENGINE_DIR}/assets/textures/*.jpeg"
-        )
+)
 # todo copy images as some other easier to load format
 
-foreach(TEXTURE ${TEXTURE_FILES})
+foreach (TEXTURE ${TEXTURE_FILES})
     get_filename_component(FILE_NAME ${TEXTURE} NAME)
     set(OUT_FILE "${PROJECT_BINARY_DIR}/assets/textures/${FILE_NAME}")
     add_custom_command(
@@ -204,7 +204,7 @@ foreach(TEXTURE ${TEXTURE_FILES})
             DEPENDS ${TEXTURE}
     )
     list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
-endforeach(TEXTURE)
+endforeach (TEXTURE)
 
 add_custom_target(
         ${PROJECT_NAME}_Textures
@@ -221,9 +221,9 @@ file(COPY ${ENGINE_DIR}/assets/models/ DESTINATION ${PROJECT_BINARY_DIR}/assets/
 
 file(GLOB_RECURSE SCRIPT_FILES
         "${ENGINE_DIR}/assets/scripts/*.lua"
-        )
+)
 
-foreach(SCRIPT ${SCRIPT_FILES})
+foreach (SCRIPT ${SCRIPT_FILES})
     get_filename_component(FILE_NAME ${SCRIPT} NAME)
     set(OUT_FILE "${PROJECT_BINARY_DIR}/assets/scripts/${FILE_NAME}")
     add_custom_command(
@@ -233,7 +233,7 @@ foreach(SCRIPT ${SCRIPT_FILES})
             DEPENDS ${GLSL}
     )
     list(APPEND COPIED_SCRIPT_FILES ${OUT_FILE})
-endforeach(SCRIPT)
+endforeach (SCRIPT)
 
 add_custom_target(
         ${PROJECT_NAME}_Scripts

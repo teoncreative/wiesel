@@ -8,11 +8,11 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "font/w_font.hpp"
-
+//#include "font/w_font.hpp"
+/*
 namespace Wiesel {
   Font::Font(const std::string& fileName) {
-    /*FT_Library  library;
+    FT_Library  library;
     FT_Face     face;
 
 
@@ -32,6 +32,6 @@ namespace Wiesel {
     {
       ... another error code means that the font file could not
           ... be opened or read, or that it is broken...
-    }*/
+    }
   }
-}
+}*/

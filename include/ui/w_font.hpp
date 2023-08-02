@@ -11,20 +11,19 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include <ft2build.h>
+#include "w_pch.hpp"
 #include FT_FREETYPE_H
 #include <string>
 
 namespace Wiesel {
-  class Font {
-  public:
-    Font(const std::string& fileName);
-    ~Font();
+class Font {
+ public:
+  Font(const std::string& fileName);
+  ~Font();
 
-    bool IsLoaded();
+  bool IsLoaded();
 
-  private:
-
-  };
-}
+ private:
+};
+}  // namespace Wiesel

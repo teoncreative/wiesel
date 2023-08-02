@@ -14,11 +14,11 @@
 #include <vulkan/vulkan.h>
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <algorithm>// Necessary for std::clamp
+#include <algorithm>  // Necessary for std::clamp
 #include <any>
 #include <array>
 #include <chrono>
-#include <cstdint>// Necessary for uint32_t
+#include <cstdint>  // Necessary for uint32_t
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -28,7 +28,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <iostream>
-#include <limits>// Necessary for std::numeric_limits
+#include <limits>  // Necessary for std::numeric_limits
 #include <map>
 #include <optional>
 #include <set>
