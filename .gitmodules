@@ -1,33 +1,36 @@
-[submodule "deps/glfw"]
-	path = deps/glfw
+[submodule "vendor/glfw"]
+	path = vendor/glfw
 	url = https://github.com/glfw/glfw.git
-[submodule "deps/stb"]
-	path = deps/stb
+[submodule "vendor/stb"]
+	path = vendor/stb
 	url = https://github.com/nothings/stb.git
-[submodule "deps/assimp"]
-	path = deps/assimp
+[submodule "vendor/assimp"]
+	path = vendor/assimp
 	url = https://github.com/assimp/assimp.git
-[submodule "deps/entt"]
-	path = deps/entt
+[submodule "vendor/entt"]
+	path = vendor/entt
 	url = https://github.com/skypjack/entt.git
-[submodule "deps/imgui"]
-	path = deps/imgui
+[submodule "vendor/imgui"]
+	path = vendor/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "deps/filedialog"]
-	path = deps/filedialog
+[submodule "vendor/filedialog"]
+	path = vendor/filedialog
 	url = https://github.com/btzy/nativefiledialog-extended.git
-[submodule "deps/imguizmo"]
-	path = deps/imguizmo
+[submodule "vendor/imguizmo"]
+	path = vendor/imguizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
-[submodule "deps/fmt"]
-	path = deps/fmt
+[submodule "vendor/fmt"]
+	path = vendor/fmt
 	url = https://github.com/fmtlib/fmt.git
-[submodule "deps/glslang"]
-	path = deps/glslang
+[submodule "vendor/glslang"]
+	path = vendor/glslang
 	url = https://github.com/KhronosGroup/glslang.git
-[submodule "deps/lua"]
-	path = deps/lua
+[submodule "vendor/lua"]
+	path = vendor/lua
 	url = https://github.com/irrld/lua.git
-[submodule "deps/luabridge3"]
-	path = deps/luabridge3
+[submodule "vendor/luabridge3"]
+	path = vendor/luabridge3
 	url = https://github.com/kunitoki/LuaBridge3.git
+[submodule "vendor/freetype"]
+	path = vendor/freetype
+	url = https://github.com/freetype/freetype.git
