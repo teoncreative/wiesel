@@ -257,7 +257,7 @@ static entt::entity selectedEntity;
 static bool hasSelectedEntity = false;
 
 void DemoOverlay::OnImGuiRender() {
-  static bool scenePropertiesOpen = true;
+/*  static bool scenePropertiesOpen = true;
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
     ImGui::SeparatorText("Controls");
@@ -300,6 +300,7 @@ void DemoOverlay::OnImGuiRender() {
         ignoreMenu = true;
       }
     }
+
     if (!ignoreMenu && ImGui::IsMouseClicked(1, false))
       ImGui::OpenPopup("right_click_hierarcy");
     if (ImGui::BeginPopup("right_click_hierarcy")) {
@@ -314,8 +315,8 @@ void DemoOverlay::OnImGuiRender() {
     }
   }
   ImGui::End();
-
-  static bool componentsOpen = true;
+*/
+/*  static bool componentsOpen = true;
   if (ImGui::Begin("Components", &componentsOpen) && hasSelectedEntity) {
     Entity entity = {selectedEntity, &*m_App.GetScene()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
@@ -340,18 +341,19 @@ void DemoOverlay::OnImGuiRender() {
     if (ImGui::Button("Add Component"))
       ImGui::OpenPopup("add_component_popup");
     if (ImGui::BeginPopup("add_component_popup")) {
-      GENERATE_COMPONENT_ADDERS(entity);
+      GENERATE_COMPONENT_ADDERS(entity);*/
       /*if (ImGui::BeginMenu("Sub-menu")) {
 					ImGui::MenuItem("Click me");
 					ImGui::EndMenu();
 				}*/
       //	ImGui::Separator();
+  /*
       ImGui::EndPopup();
     }
 
     GENERATE_COMPONENT_EDITORS(entity);
   }
-  ImGui::End();
+  ImGui::End();*/
   /*
 		ImGui::Begin("Test");
 		static int m_GizmoType = -1;
@@ -419,6 +421,37 @@ void DemoOverlay::OnImGuiRender() {
 		ImGui::DockSpace(dockspaceID, ImVec2(100.0f, 100.0f), ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode);
 		ImGui::End();
 */
+ /* ImGuiViewport* viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->WorkPos);
+  ImGui::SetNextWindowSize(viewport->WorkSize);
+  ImGui::SetNextWindowViewport(viewport->ID);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+  ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
+  ImGui::PopStyleVar(1);
+  ImGui::Begin("Viewport");
+
+  ImGui::End();
+  ImGui::Begin("Chat");
+  static std::string chat;
+  // Get remaining vertical space available in the current window
+  ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+
+  // Set the cursor position to the bottom of the available space
+  float inputTextHeight = ImGui::GetTextLineHeightWithSpacing();
+  ImGui::SetCursorPosY(ImGui::GetCursorPosY() + contentRegionAvail.y - inputTextHeight);
+  float inputTextWidth = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x - ImGui::CalcTextSize("Send").x - ImGui::GetStyle().WindowPadding.x;
+
+  ImGui::PushItemWidth(inputTextWidth);
+  if (ImGui::InputText("##", &chat, ImGuiInputTextFlags_None)) {
+
+  }
+  ImGui::PopItemWidth();
+  ImGui::SameLine();
+  if (ImGui::Button("Send")) {
+
+  }
+  ImGui::End();
+  ImGui::End();*/
 }
 
 void DemoApplication::Init() {
