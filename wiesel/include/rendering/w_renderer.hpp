@@ -69,10 +69,11 @@ class Renderer {
   Ref<ColorImage> CreateColorImage();
   void DestroyColorImage(ColorImage& texture);
 
-  Ref<DescriptorData> CreateDescriptors(Ref<UniformBufferSet> uniformBufferSet,
-                                        Ref<Material> material)
-      __attribute__((
-          optnone));  // optimization for this function is disabled because compiler does something weird
+  // optimization for this function is disabled because compiler does something weird
+  Ref<DescriptorData> CreateDescriptors(
+      Ref<UniformBufferSet> uniformBufferSet,
+      Ref<Material> material) __attribute__((optnone));
+
   void DestroyDescriptors(DescriptorData& descriptorPool);
 
   // todo properties
