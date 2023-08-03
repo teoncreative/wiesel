@@ -5,3 +5,5 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_executable(demo w_demo.cpp)
 target_link_libraries(demo PRIVATE wiesel)
+
+target_include_assets(demo ${CMAKE_CURRENT_SOURCE_DIR}/assets)
