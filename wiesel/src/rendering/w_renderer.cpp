@@ -833,7 +833,7 @@ void Renderer::Cleanup() {
 
   LOG_DEBUG("Destroying semaphores and fences");
   for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
-    vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
+    vkDestroySemaphore(m_LogicalDevice, m_RenderFinishedSemaphores[i], nullptr);
     vkDestroySemaphore(m_LogicalDevice, m_ImageAvailableSemaphores[i], nullptr);
     vkDestroyFence(m_LogicalDevice, m_InFlightFences[i], nullptr);
   }
@@ -1461,8 +1461,8 @@ void Renderer::CreateColorResources() {
 }
 
 void Renderer::CreateFramebuffers() {
-  m_SwapChainFramebuffers.resize(m_SwapChainImageViews.size());
-  for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
+  m_SwapChainFramebuffers.resize(m_SwapChainImages.size());
+  for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
     std::array<VkImageView, 3> attachments = {
         m_ColorImage->m_ImageView,
         m_DepthStencil->m_ImageView,
@@ -1847,7 +1847,7 @@ VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
 
 void Renderer::CreateSyncObjects() {
   m_ImageAvailableSemaphores.resize(k_MaxFramesInFlight);
-  renderFinishedSemaphores.resize(k_MaxFramesInFlight);
+  m_RenderFinishedSemaphores.resize(k_MaxFramesInFlight);
   m_InFlightFences.resize(k_MaxFramesInFlight);
 
   VkSemaphoreCreateInfo semaphoreInfo{};
@@ -1863,7 +1863,7 @@ void Renderer::CreateSyncObjects() {
                                             &m_ImageAvailableSemaphores[i]));
     WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo,
                                             nullptr,
-                                            &renderFinishedSemaphores[i]));
+                                            &m_RenderFinishedSemaphores[i]));
     WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr,
                                         &m_InFlightFences[i]));
   }
@@ -1879,10 +1879,8 @@ void Renderer::CleanupSwapChain() {
     vkDestroyFramebuffer(m_LogicalDevice, m_SwapChainFramebuffers[i], nullptr);
   }
 
-  LOG_DEBUG("Destroying swap chain imageviews");
-  for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
-    vkDestroyImageView(m_LogicalDevice, m_SwapChainImageViews[i], nullptr);
-  }
+  LOG_DEBUG("Destroying swap chain images");
+  m_SwapChainImages.clear();
 
   LOG_DEBUG("Destroying swap chain");
   vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
@@ -2061,7 +2059,7 @@ void Renderer::EndFrame() {
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
 
-  VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[m_CurrentFrame]};
+  VkSemaphore signalSemaphores[] = {m_RenderFinishedSemaphores[m_CurrentFrame]};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 

@@ -249,7 +249,7 @@ class Renderer {
 
   std::vector<VkCommandBuffer> m_CommandBuffers;
   std::vector<VkSemaphore> m_ImageAvailableSemaphores;
-  std::vector<VkSemaphore> renderFinishedSemaphores;
+  std::vector<VkSemaphore> m_RenderFinishedSemaphores;
   std::vector<VkFence> m_InFlightFences;
 
   uint32_t m_CurrentFrame = 0;
