@@ -116,87 +116,96 @@ elseif (WIN32)
     set(CMAKE_CXX_COMPILER "clang++")
 endif ()
 
-##### SHADERS #####
-file(GLOB_RECURSE GLSL_SOURCE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/*.frag"
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/*.vert"
-)
-
-foreach (GLSL ${GLSL_SOURCE_FILES})
-    get_filename_component(FILE_NAME ${GLSL} NAME)
-    set(SPIRV "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}.spv")
-    message("Compiling shader ${FILE_NAME}")
-    add_custom_command(
-            OUTPUT ${SPIRV}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/shaders/"
-            COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/${FILE_NAME}" "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}"
-            COMMAND glslc ${GLSL} -o ${SPIRV}
-            DEPENDS ${GLSL}
+function(target_include_assets target_project assets_directory)
+    set(TARGET_PROJECT ${target_project})
+    set(ASSETS_DIRECTORY ${assets_directory})
+    ##### SHADERS #####
+    file(GLOB_RECURSE GLSL_SOURCE_FILES
+            "${ASSETS_DIRECTORY}/shaders/*.frag"
+            "${ASSETS_DIRECTORY}/shaders/*.vert"
     )
-    list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-endforeach (GLSL)
 
-add_custom_target(
-        wiesel_shaders
-        DEPENDS ${SPIRV_BINARY_FILES}
-)
+    foreach (GLSL ${GLSL_SOURCE_FILES})
+        get_filename_component(FILE_NAME ${GLSL} NAME)
+        set(SPIRV "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}.spv")
+        message("Compiling shader ${FILE_NAME}")
+        add_custom_command(
+                OUTPUT ${SPIRV}
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/shaders/"
+                COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/shaders/${FILE_NAME}" "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}"
+                COMMAND glslc ${GLSL} -o ${SPIRV}
+                DEPENDS ${GLSL}
+        )
+        list(APPEND SPIRV_BINARY_FILES ${SPIRV})
+    endforeach (GLSL)
 
-add_dependencies(wiesel wiesel_shaders)
-
-##### TEXTURES #####
-
-file(GLOB_RECURSE TEXTURE_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures/*.jpg"
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures/*.png"
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures/*.bmp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures/*.jpeg"
-)
-# todo copy images as some other easier to load format
-
-foreach (TEXTURE ${TEXTURE_FILES})
-    get_filename_component(FILE_NAME ${TEXTURE} NAME)
-    set(OUT_FILE "${PARENT_BINARY_DIR}/assets/textures/${FILE_NAME}")
-    add_custom_command(
-            OUTPUT ${OUT_FILE}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/textures/"
-            COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/assets/textures/${FILE_NAME}" ${OUT_FILE}
-            DEPENDS ${TEXTURE}
+    add_custom_target(
+            ${TARGET_PROJECT}_shaders
+            DEPENDS ${SPIRV_BINARY_FILES}
     )
-    list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
-endforeach (TEXTURE)
 
-add_custom_target(
-        wiesel_textures
-        DEPENDS ${COPIED_TEXTURE_FILES}
-)
+    add_dependencies(${TARGET_PROJECT} ${TARGET_PROJECT}_shaders)
 
-add_dependencies(wiesel wiesel_textures)
+    ##### TEXTURES #####
 
-##### MODELS #####
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets/models/ DESTINATION ${PARENT_BINARY_DIR}/assets/models/)
-
-##### SCRIPTS COPY #####
-
-file(GLOB_RECURSE SCRIPT_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/assets/scripts/*.lua"
-)
-
-foreach (SCRIPT ${SCRIPT_FILES})
-    get_filename_component(FILE_NAME ${SCRIPT} NAME)
-    set(OUT_FILE "${PARENT_BINARY_DIR}/assets/scripts/${FILE_NAME}")
-    add_custom_command(
-            OUTPUT ${OUT_FILE}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/scripts/"
-            COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/assets/scripts/${FILE_NAME}" ${OUT_FILE}
-            DEPENDS ${GLSL}
+    file(GLOB_RECURSE TEXTURE_FILES
+            "${ASSETS_DIRECTORY}/textures/*.jpg"
+            "${ASSETS_DIRECTORY}/textures/*.png"
+            "${ASSETS_DIRECTORY}/textures/*.bmp"
+            "${ASSETS_DIRECTORY}/textures/*.jpeg"
     )
-    list(APPEND COPIED_SCRIPT_FILES ${OUT_FILE})
-endforeach (SCRIPT)
+    # todo copy images as some other easier to load format
 
-add_custom_target(
-        wiesel_scripts
-        DEPENDS ${COPIED_SCRIPT_FILES}
-)
+    foreach (TEXTURE ${TEXTURE_FILES})
+        get_filename_component(FILE_NAME ${TEXTURE} NAME)
+        set(OUT_FILE "${PARENT_BINARY_DIR}/assets/textures/${FILE_NAME}")
+        add_custom_command(
+                OUTPUT ${OUT_FILE}
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/textures/"
+                COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/textures/${FILE_NAME}" ${OUT_FILE}
+                DEPENDS ${TEXTURE}
+        )
+        list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
+    endforeach (TEXTURE)
 
-add_dependencies(wiesel wiesel_scripts)
+    add_custom_target(
+            ${TARGET_PROJECT}_textures
+            DEPENDS ${COPIED_TEXTURE_FILES}
+    )
+
+    add_dependencies(${TARGET_PROJECT} ${TARGET_PROJECT}_textures)
+
+    ##### MODELS #####
+
+    if (IS_DIRECTORY ${ASSETS_DIRECTORY}/models)
+        file(COPY ${ASSETS_DIRECTORY}/models/ DESTINATION ${PARENT_BINARY_DIR}/assets/models/)
+    endif ()
+
+    ##### SCRIPTS COPY #####
+
+    file(GLOB_RECURSE SCRIPT_FILES
+            "${ASSETS_DIRECTORY}/scripts/*.lua"
+    )
+
+    foreach (SCRIPT ${SCRIPT_FILES})
+        get_filename_component(FILE_NAME ${SCRIPT} NAME)
+        set(OUT_FILE "${PARENT_BINARY_DIR}/assets/scripts/${FILE_NAME}")
+        add_custom_command(
+                OUTPUT ${OUT_FILE}
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/scripts/"
+                COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/scripts/${FILE_NAME}" ${OUT_FILE}
+                DEPENDS ${GLSL}
+        )
+        list(APPEND COPIED_SCRIPT_FILES ${OUT_FILE})
+    endforeach (SCRIPT)
+
+    add_custom_target(
+            ${TARGET_PROJECT}_scripts
+            DEPENDS ${COPIED_SCRIPT_FILES}
+    )
+
+    add_dependencies(${TARGET_PROJECT} ${TARGET_PROJECT}_scripts)
+endfunction()
+
+
+target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets)
