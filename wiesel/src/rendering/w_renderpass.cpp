@@ -15,10 +15,10 @@
 
 namespace Wiesel {
 
-RenderPass::RenderPass(RenderPassProperties properties)
+GraphicsRenderPass::GraphicsRenderPass(GraphicsRenderPassProps properties)
     : m_Properties(properties) {}
 
-RenderPass::~RenderPass() {
+GraphicsRenderPass::~GraphicsRenderPass() {
   Engine::GetRenderer()->DestroyRenderPass(*this);
 }
 

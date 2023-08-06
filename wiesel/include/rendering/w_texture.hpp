@@ -206,22 +206,10 @@ class Texture {
   std::string m_Path;
 };
 
-class ColorImage {
+class AttachmentTexture {
  public:
-  ColorImage() = default;
-  ~ColorImage();
-
-  VkImage m_Image;
-  VkDeviceMemory m_DeviceMemory;
-  VkImageView m_ImageView;
-
-  bool m_IsAllocated;
-};
-
-class DepthStencil {
- public:
-  DepthStencil() = default;
-  ~DepthStencil();
+  AttachmentTexture() = default;
+  ~AttachmentTexture();
 
   VkImage m_Image;
   VkDeviceMemory m_DeviceMemory;

@@ -28,11 +28,8 @@ Texture::~Texture() {
   Engine::GetRenderer()->DestroyTexture(*this);
 }
 
-ColorImage::~ColorImage() {
-  Engine::GetRenderer()->DestroyColorImage(*this);
+AttachmentTexture::~AttachmentTexture() {
+  Engine::GetRenderer()->DestroyAttachmentTexture(*this);
 }
 
-DepthStencil::~DepthStencil() {
-  Engine::GetRenderer()->DestroyDepthStencil(*this);
-}
 }  // namespace Wiesel
