@@ -28,12 +28,12 @@ void Init() {
 void OpenFileDialog(std::vector<FilterEntry> filters,
                     std::function<void(const std::string&)> fn) {
   nfdchar_t* outPath;
-  nfdnfilteritem_t* filterList = new nfdnfilteritem_t[filters.size()];
+  nfdnfilteritem_t filterList[filters.size()];
   nfdfiltersize_t filterCount = filters.size();
   for (int i = 0; i < filterCount; i++) {
     filterList[i] = {filters[i].name, filters[i].spec};
   }
-  nfdresult_t result = NFD_OpenDialog(&outPath, filterList, filterCount, NULL);
+  nfdresult_t result = NFD_OpenDialog(&outPath, reinterpret_cast<const nfdfilteritem_t*>(filterList), filterCount, NULL);
   if (result == NFD_OKAY) {
     auto relative = std::filesystem::relative(outPath);
     fn(relative.string());
