@@ -257,7 +257,7 @@ static entt::entity selectedEntity;
 static bool hasSelectedEntity = false;
 
 void DemoOverlay::OnImGuiRender() {
-/*  static bool scenePropertiesOpen = true;
+  static bool scenePropertiesOpen = true;
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
     ImGui::SeparatorText("Controls");
@@ -315,8 +315,8 @@ void DemoOverlay::OnImGuiRender() {
     }
   }
   ImGui::End();
-*/
-/*  static bool componentsOpen = true;
+
+  static bool componentsOpen = true;
   if (ImGui::Begin("Components", &componentsOpen) && hasSelectedEntity) {
     Entity entity = {selectedEntity, &*m_App.GetScene()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
@@ -341,117 +341,19 @@ void DemoOverlay::OnImGuiRender() {
     if (ImGui::Button("Add Component"))
       ImGui::OpenPopup("add_component_popup");
     if (ImGui::BeginPopup("add_component_popup")) {
-      GENERATE_COMPONENT_ADDERS(entity);*/
+      GENERATE_COMPONENT_ADDERS(entity);
       /*if (ImGui::BeginMenu("Sub-menu")) {
 					ImGui::MenuItem("Click me");
 					ImGui::EndMenu();
 				}*/
       //	ImGui::Separator();
-  /*
+
       ImGui::EndPopup();
     }
 
     GENERATE_COMPONENT_EDITORS(entity);
   }
-  ImGui::End();*/
-  /*
-		ImGui::Begin("Test");
-		static int m_GizmoType = -1;
-		m_GizmoType = ImGuizmo::OPERATION::ROTATE;
-		if (hasSelectedEntity) {
-			// Gizmos
-			if (m_GizmoType != -1) {
-				Entity entity = {selectedEntity, &*m_App.GetScene()};
-				auto camera = Engine::GetRenderer()->GetCameraData();
-				auto& size = Engine::GetRenderer()->GetWindowSize();
-
-				// Editor camera
-				glm::mat4 cameraProjection = camera->Projection;
-				cameraProjection[1][1] *= -1;
-				glm::mat4 cameraView = camera->ViewMatrix;
-
-				// Entity transform
-				auto& tc = entity.GetComponent<TransformComponent>();
-				glm::mat4 transform = tc.TransformMatrix;
-
-				// Snapping
-				bool snap = m_DemoLayer->m_KeyManager.IsPressed(KeyLeftControl);
-				float snapValue = 0.5f; // Snap to 0.5m for translation/scale
-				// Snap to 45 degrees for rotation
-				if (m_GizmoType == ImGuizmo::OPERATION::ROTATE)
-					snapValue = 45.0f;
-
-				float snapValues[3] = { snapValue, snapValue, snapValue };
-
-				ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
-				ImGuizmo::Enable(true);
-				ImGuizmo::DrawGrid(&cameraView[0][0], &cameraProjection[0][0], &transform[0][0], 200.0f);
-				//ImGuizmo::SetRect(0, 0, size.Width, size.Height);
-				ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
-									 (ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL, glm::value_ptr(transform),
-									 nullptr, snap ? snapValues : nullptr);
-
-				if (ImGuizmo::IsUsing()) {
-					glm::vec3 translation, rotation, scale;
-					Math::DecomposeTransform(transform, translation, rotation, scale);
-
-					glm::vec3 deltaRotation = rotation - tc.Rotation;
-					tc.Position = translation;
-					tc.Rotation += deltaRotation;
-					tc.Scale = scale;
-					tc.IsChanged = true;
-				}
-			}
-		}
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		auto m_Dset = ImGui_ImplVulkan_AddTexture(m_DemoLayer->m_Renderer->GetCurrentSwapchainImageSampler(), m_DemoLayer->m_Renderer->GetCurrentSwapchainImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		ImGui::Image(m_Dset, {viewportPanelSize.x, viewportPanelSize.y});
-		ImGui::End();
-		ImGui::SetNextWindowPos(ImVec2(0, 0));
-		ImGui::SetNextWindowSize(ImVec2(m_App.GetWindowSize().Width, m_App.GetWindowSize().Height));
-		ImGui::Begin("DockSpace", NULL,
-					 ImGuiWindowFlags_NoTitleBar |
-					 ImGuiWindowFlags_NoResize |
-					 ImGuiWindowFlags_NoMove |
-					 ImGuiWindowFlags_NoScrollbar |
-					 ImGuiWindowFlags_NoScrollWithMouse
-		);
-		// Declare Central dockspace
-		auto dockspaceID = ImGui::GetID("HUB_DockSpace");
-		ImGui::DockSpace(dockspaceID, ImVec2(100.0f, 100.0f), ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode);
-		ImGui::End();
-*/
- /* ImGuiViewport* viewport = ImGui::GetMainViewport();
-  ImGui::SetNextWindowPos(viewport->WorkPos);
-  ImGui::SetNextWindowSize(viewport->WorkSize);
-  ImGui::SetNextWindowViewport(viewport->ID);
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-  ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize);
-  ImGui::PopStyleVar(1);
-  ImGui::Begin("Viewport");
-
   ImGui::End();
-  ImGui::Begin("Chat");
-  static std::string chat;
-  // Get remaining vertical space available in the current window
-  ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
-
-  // Set the cursor position to the bottom of the available space
-  float inputTextHeight = ImGui::GetTextLineHeightWithSpacing();
-  ImGui::SetCursorPosY(ImGui::GetCursorPosY() + contentRegionAvail.y - inputTextHeight);
-  float inputTextWidth = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x - ImGui::CalcTextSize("Send").x - ImGui::GetStyle().WindowPadding.x;
-
-  ImGui::PushItemWidth(inputTextWidth);
-  if (ImGui::InputText("##", &chat, ImGuiInputTextFlags_None)) {
-
-  }
-  ImGui::PopItemWidth();
-  ImGui::SameLine();
-  if (ImGui::Button("Send")) {
-
-  }
-  ImGui::End();
-  ImGui::End();*/
 }
 
 void DemoApplication::Init() {

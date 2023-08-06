@@ -57,12 +57,12 @@ struct alignas(16) LightPoint {
         Exp(0.032f) {}
 
   LightPoint(glm::vec3 position, LightBase base, float constant, float linear,
-             float quadratic)
+             float exp)
       : Position(position),
         Base(base),
         Constant(constant),
         Linear(linear),
-        Exp(quadratic) {}
+        Exp(exp) {}
 
   ~LightPoint() = default;
 

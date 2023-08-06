@@ -123,7 +123,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
                        &component.LightData.Constant, 0.1f);
       ImGui::DragFloat(PrefixLabel("Linear").c_str(),
                        &component.LightData.Linear, 0.1f);
-      ImGui::DragFloat(PrefixLabel("Quadratic").c_str(),
+      ImGui::DragFloat(PrefixLabel("Exp").c_str(),
                        &component.LightData.Exp, 0.1f);
       ImGui::TreePop();
     }

@@ -20,7 +20,7 @@ namespace Wiesel {
 struct ProfileData {
   std::string Name;
   std::chrono::microseconds Time;
-  int RenderPass;
+  int PassNo;
 };
 
 class ProfilerInstance {
