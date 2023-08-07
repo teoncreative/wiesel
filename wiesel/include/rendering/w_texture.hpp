@@ -167,12 +167,12 @@ struct TextureProps {
   TextureProps()
       : Type(TextureTypeDiffuse),
         GenerateMipmaps(true),
-        ImageFormat(VK_FORMAT_R8G8B8A8_SRGB) {}
+        ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
 
   TextureProps(TextureType type)
       : Type(type),
         GenerateMipmaps(true),
-        ImageFormat(VK_FORMAT_R8G8B8A8_SRGB) {}
+        ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
 
   TextureProps(TextureType type, bool generateMipmaps, VkFormat imageFormat,
                VkFilter magFilter, VkFilter minFilter)

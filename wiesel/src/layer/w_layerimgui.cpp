@@ -58,7 +58,7 @@ void ImGuiLayer::OnAttach() {
   //this initializes the core structures of imgui
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  //		ImGui::StyleColorsDark(&ImGui::GetStyle());
+  //ImGui::StyleColorsDark(&ImGui::GetStyle());
   ImGui::Spectrum::StyleColorsSpectrum();
   ImGui::Spectrum::LoadFont();
 

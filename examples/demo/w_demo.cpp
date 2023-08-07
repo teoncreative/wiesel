@@ -174,7 +174,7 @@ void DemoLayer::OnAttach() {
   }
 
   // Custom camera
-  m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);
+  m_Renderer->SetClearColor(0.1f, 0.1f, 0.2f);
   m_Renderer->SetVsync(false);
 }
 

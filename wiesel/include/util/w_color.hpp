@@ -18,5 +18,6 @@ struct Color {
 };
 
 using Colorf = Color<float>;
+using Colori = Color<uint8_t>;
 
 }  // namespace Wiesel
