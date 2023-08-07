@@ -147,7 +147,7 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
 }
 
 template <>
-void Scene::OnRemoveComponent<CameraComponent>(entt::entity entity) {
+void Scene::OnRemoveComponent(entt::entity entity, CameraComponent& component) {
   if (m_CameraEntity == entity) {
     m_HasCamera = false;
   }

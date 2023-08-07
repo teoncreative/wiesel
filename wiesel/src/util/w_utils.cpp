@@ -70,12 +70,12 @@ std::vector<uint32_t> ReadFileUint32(const std::string& filename) {
     throw std::runtime_error("failed to open file: " + filename);
   }
   size_t fileSize = (size_t)file.tellg();
-  std::vector<uint32_t> buffer(fileSize);
-
   file.seekg(0);
-  uint32_t v;
-  buffer.resize(fileSize / sizeof(v));
+
+  std::vector<uint32_t> buffer{};
+  buffer.resize(fileSize / sizeof(uint32_t) + 1);
   int i = 0;
+  uint32_t v = 0;
   while (!file.eof()) {
     file.read(reinterpret_cast<char*>(&v), sizeof(v));
     buffer[i++] = v;
