@@ -195,7 +195,7 @@ Ref<Texture> Renderer::CreateBlankTexture() {
                              std::max(texture->m_Width, texture->m_Height)))) +
                          1;
 
-  VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+  VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   CreateBuffer(texture->m_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -227,7 +227,7 @@ Ref<Texture> Renderer::CreateBlankTexture() {
   vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
 
   // todo loading pregenerated mipmaps
-  GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width,
+  GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_UNORM, texture->m_Width,
                   texture->m_Height, texture->m_MipLevels);
 
   texture->m_Sampler = CreateTextureSampler(texture->m_MipLevels, {});
@@ -2172,7 +2172,7 @@ bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
 VkSurfaceFormatKHR Renderer::ChooseSwapSurfaceFormat(
     const std::vector<VkSurfaceFormatKHR>& availableFormats) {
   for (const auto& availableFormat : availableFormats) {
-    if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+    if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM &&
         availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       return availableFormat;
     }
