@@ -24,9 +24,9 @@ namespace ImGui {
           0};
 
       ImGuiIO& io = ImGui::GetIO();
-      // A little hack to increase font quality on high DPI screens.
-      io.FontGlobalScale = 0.5f;
       ImFont* font = io.Fonts->AddFontFromMemoryCompressedTTF(SourceSansProRegular_compressed_data, SourceSansProRegular_compressed_size, size * 2.0f, nullptr, ranges);
+      // A little hack to increase font quality on high DPI screens.
+      font->Scale = 0.5f;
       assert(font != nullptr);
       io.FontDefault = font;
     }
