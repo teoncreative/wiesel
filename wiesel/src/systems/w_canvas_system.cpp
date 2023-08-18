@@ -34,7 +34,7 @@ void CanvasSystem::Render(Scene& scene) {
     if (!canvas) {
       continue;  // No rendering for this component :(
     }
-    // Unline entity transforms, canvas objects should have BoxTransformComponent and objects are offseted by their parent locations.
+    // Unlike entity transforms, canvas objects should have BoxTransformComponent and objects are offseted by their parent locations.
     if (!entity.HasComponent<RectangleTransformComponent>()) {
       continue;
     }
