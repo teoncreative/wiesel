@@ -74,14 +74,8 @@ file(
         "${VENDOR_DIR}/glslang/SPIRV/CInterface/*.cpp"
         "${VENDOR_DIR}/glslang/SPIRV/*.cpp"
 )
-file(
-        GLOB LibLua
-        "${VENDOR_DIR}/lua/*.c"
-)
-list(REMOVE_ITEM LibLua "${VENDOR_DIR}/lua/onelua.c")
-list(REMOVE_ITEM LibLua "${VENDOR_DIR}/lua/lua.c")
 
-add_library(wiesel ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo} ${LibGlslang} ${LibLua})
+add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo} ${LibGlslang})
 
 target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.hpp)
 target_include_directories(wiesel PUBLIC ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
@@ -97,7 +91,6 @@ endif (VULKAN_FOUND)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
-target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/lua)
 target_link_libraries(wiesel glfw)
 target_link_libraries(wiesel assimp)
 target_link_libraries(wiesel freetype)
@@ -105,7 +98,7 @@ target_link_libraries(wiesel EnTT)
 target_link_libraries(wiesel nfd)
 target_link_libraries(wiesel fmt)
 target_link_libraries(wiesel glslang)
-target_link_libraries(wiesel LuaBridge)
+target_link_libraries(wiesel monolib)
 
 
 if (APPLE)
@@ -129,22 +122,18 @@ function(target_include_assets target_project assets_directory)
         get_filename_component(FILE_NAME ${GLSL} NAME)
         set(SPIRV "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}.spv")
         message("Compiling shader ${FILE_NAME}")
-        add_custom_command(
-                OUTPUT ${SPIRV}
+        add_custom_command(TARGET ${TARGET_PROJECT} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/shaders/"
                 COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/shaders/${FILE_NAME}" "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}"
                 COMMAND glslc ${GLSL} -o ${SPIRV}
                 DEPENDS ${GLSL}
         )
-        list(APPEND SPIRV_BINARY_FILES ${SPIRV})
     endforeach (GLSL)
 
     add_custom_target(
             ${TARGET_PROJECT}_shaders
             DEPENDS ${SPIRV_BINARY_FILES}
     )
-
-    add_dependencies(${TARGET_PROJECT} ${TARGET_PROJECT}_shaders)
 
     ##### TEXTURES #####
 
@@ -159,21 +148,12 @@ function(target_include_assets target_project assets_directory)
     foreach (TEXTURE ${TEXTURE_FILES})
         get_filename_component(FILE_NAME ${TEXTURE} NAME)
         set(OUT_FILE "${PARENT_BINARY_DIR}/assets/textures/${FILE_NAME}")
-        add_custom_command(
-                OUTPUT ${OUT_FILE}
+        add_custom_command(TARGET ${TARGET_PROJECT} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/textures/"
                 COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/textures/${FILE_NAME}" ${OUT_FILE}
                 DEPENDS ${TEXTURE}
         )
-        list(APPEND COPIED_TEXTURE_FILES ${OUT_FILE})
     endforeach (TEXTURE)
-
-    add_custom_target(
-            ${TARGET_PROJECT}_textures
-            DEPENDS ${COPIED_TEXTURE_FILES}
-    )
-
-    add_dependencies(${TARGET_PROJECT} ${TARGET_PROJECT}_textures)
 
     ##### MODELS #####
 
@@ -184,28 +164,18 @@ function(target_include_assets target_project assets_directory)
     ##### SCRIPTS COPY #####
 
     file(GLOB_RECURSE SCRIPT_FILES
-            "${ASSETS_DIRECTORY}/scripts/*.lua"
+            "${ASSETS_DIRECTORY}/scripts/*.cs"
     )
 
     foreach (SCRIPT ${SCRIPT_FILES})
         get_filename_component(FILE_NAME ${SCRIPT} NAME)
         set(OUT_FILE "${PARENT_BINARY_DIR}/assets/scripts/${FILE_NAME}")
-        add_custom_command(
-                OUTPUT ${OUT_FILE}
+        add_custom_command(TARGET ${TARGET_PROJECT} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/scripts/"
                 COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/scripts/${FILE_NAME}" ${OUT_FILE}
                 DEPENDS ${GLSL}
         )
-        list(APPEND COPIED_SCRIPT_FILES ${OUT_FILE})
     endforeach (SCRIPT)
-
-    add_custom_target(
-            ${TARGET_PROJECT}_scripts
-            DEPENDS ${COPIED_SCRIPT_FILES}
-    )
-
-    add_dependencies(${TARGET_PROJECT} ${TARGET_PROJECT}_scripts)
 endfunction()
-
 
 target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets)
