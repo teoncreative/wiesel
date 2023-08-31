@@ -14,7 +14,6 @@
 #include "input/w_input.hpp"
 #include "scene/w_componentutil.hpp"
 #include "scene/w_lights.hpp"
-#include "script/lua/w_scriptglue.hpp"
 #include "util/w_dialogs.hpp"
 #include "window/w_glfwwindow.hpp"
 
@@ -24,9 +23,8 @@ Ref<AppWindow> Engine::s_Window;
 
 void Engine::InitEngine() {
   InitializeComponents();
-  ScriptGlue::GenerateComponents();
-  ScriptGlue::GenerateModules();
   InputManager::Init();
+  ScriptManager::Init();
 }
 
 void Engine::InitWindow(WindowProperties props) {
@@ -52,7 +50,11 @@ void Engine::CleanupWindow() {
   Dialogs::Destroy();
 }
 
-void Engine::CleanupEngine() {}
+void Engine::CleanupEngine() {
+  ScriptManager::Destroy();
+  //InputManager::Destroy();
+  //CleanupComponents();
+}
 
 Ref<Renderer> Engine::GetRenderer() {
   if (s_Renderer == nullptr) {

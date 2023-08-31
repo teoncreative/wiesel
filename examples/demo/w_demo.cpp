@@ -13,8 +13,7 @@
 #include "input/w_input.hpp"
 #include "layer/w_layerimgui.hpp"
 #include "scene/w_componentutil.hpp"
-#include "script/lua/w_luabehavior.hpp"
-#include "script/lua/w_scriptglue.hpp"
+#include "script/mono/w_monobehavior.hpp"
 #include "systems/w_canvas_system.hpp"
 #include "util/w_keycodes.hpp"
 #include "util/w_math.hpp"
@@ -166,7 +165,7 @@ void DemoLayer::OnAttach() {
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    behaviors.AddBehavior<LuaBehavior>(entity, "assets/scripts/test.lua");
+    behaviors.AddBehavior<MonoBehavior>(entity, "assets/scripts/TestBehavior.cs");
   }
   {
     Entity entity = m_Scene->CreateEntity("Canvas");

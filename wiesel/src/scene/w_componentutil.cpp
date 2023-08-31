@@ -14,7 +14,6 @@
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
-#include "script/lua/w_luabehavior.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_logger.hpp"
@@ -184,7 +183,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                      ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
     if (!behavior->IsInternalBehavior()) {
-      if (ImGui::Button("...")) {
+      /*if (ImGui::Button("...")) {
         std::string name = behavior->GetName();
         Dialogs::OpenFileDialog(
             {{"Lua Script", "lua"}}, [&entity, &name](const std::string& file) {
@@ -214,7 +213,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
 
         ImGui::TreePop();
         return true;
-      }
+      }*/
 
       for (const auto& ref : behavior->GetExposedDoubles()) {
         ref->RenderImGui();
@@ -270,12 +269,12 @@ void RenderAddComponentImGui<CameraComponent>(Entity entity) {
 
 template <>
 void RenderAddComponentImGui<BehaviorsComponent>(Entity entity) {
-  if (ImGui::MenuItem("Lua Script")) {
+  if (ImGui::MenuItem("C# Script")) {
     if (!entity.HasComponent<BehaviorsComponent>()) {
       entity.AddComponent<BehaviorsComponent>();
     }
     BehaviorsComponent& component = entity.GetComponent<BehaviorsComponent>();
-    component.AddBehavior<LuaBehavior>(entity, "");
+    //component.AddBehavior<CSharpBehavior>(entity, "");
   }
 }
 

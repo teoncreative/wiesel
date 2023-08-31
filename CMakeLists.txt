@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(wiesel-parent)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 
 if (NOT DEFINED PARENT_DIR)
     set(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -14,6 +14,7 @@ if (NOT DEFINED VENDOR_DIR)
 endif ()
 
 include(${VENDOR_DIR}/CMakeLists.txt)
+add_subdirectory(monolib)
 add_subdirectory(wiesel)
 
 # examples
