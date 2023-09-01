@@ -7,8 +7,26 @@ namespace ImGui {
     extern const unsigned int SourceSansProRegular_compressed_data[]; // defined later in the file
 
     void LoadFont(float size) {
+      static const ImWchar ranges[] = {
+          0x0020, 0x00FF, // Basic Latin + Latin Supplement
+          0x00c7, 0x00c7, // Ç
+          0x00e7, 0x00e7, // ç
+          0x011e, 0x011e, // Ğ
+          0x011f, 0x011f, // ğ
+          0x0130, 0x0130,// İ
+          0x0131, 0x0131, // ı
+          0x00d6, 0x00d6, // Ö
+          0x00f6, 0x00f6, // ö
+          0x015e, 0x015e, // Ş
+          0x015f, 0x015f, // ş
+          0x00dc, 0x00dc, // Ü
+          0x00fc, 0x00fc, // ü
+          0};
+
       ImGuiIO& io = ImGui::GetIO();
-      ImFont* font = io.Fonts->AddFontFromMemoryCompressedTTF(SourceSansProRegular_compressed_data, SourceSansProRegular_compressed_size, size);
+      ImFont* font = io.Fonts->AddFontFromMemoryCompressedTTF(SourceSansProRegular_compressed_data, SourceSansProRegular_compressed_size, size * 2.0f, nullptr, ranges);
+      // A little hack to increase font quality on high DPI screens.
+      font->Scale = 0.5f;
       assert(font != nullptr);
       io.FontDefault = font;
     }

@@ -13,6 +13,7 @@
 
 #include "rendering/w_renderer.hpp"
 #include "w_application.hpp"
+#include "script/w_scriptmanager.hpp"
 
 namespace Wiesel {
 class Engine {

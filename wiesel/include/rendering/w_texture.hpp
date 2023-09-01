@@ -167,12 +167,12 @@ struct TextureProps {
   TextureProps()
       : Type(TextureTypeDiffuse),
         GenerateMipmaps(true),
-        ImageFormat(VK_FORMAT_R8G8B8A8_SRGB) {}
+        ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
 
   TextureProps(TextureType type)
       : Type(type),
         GenerateMipmaps(true),
-        ImageFormat(VK_FORMAT_R8G8B8A8_SRGB) {}
+        ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
 
   TextureProps(TextureType type, bool generateMipmaps, VkFormat imageFormat,
                VkFilter magFilter, VkFilter minFilter)
@@ -206,22 +206,10 @@ class Texture {
   std::string m_Path;
 };
 
-class ColorImage {
+class AttachmentTexture {
  public:
-  ColorImage() = default;
-  ~ColorImage();
-
-  VkImage m_Image;
-  VkDeviceMemory m_DeviceMemory;
-  VkImageView m_ImageView;
-
-  bool m_IsAllocated;
-};
-
-class DepthStencil {
- public:
-  DepthStencil() = default;
-  ~DepthStencil();
+  AttachmentTexture() = default;
+  ~AttachmentTexture();
 
   VkImage m_Image;
   VkDeviceMemory m_DeviceMemory;

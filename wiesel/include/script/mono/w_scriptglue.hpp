@@ -10,14 +10,3 @@
 //
 
 #pragma once
-
-namespace Wiesel {
-template <typename V>
-struct Color {
-  V Red, Green, Blue, Alpha;
-};
-
-using Colorf = Color<float>;
-using Colori = Color<uint8_t>;
-
-}  // namespace Wiesel

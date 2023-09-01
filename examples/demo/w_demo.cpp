@@ -13,8 +13,7 @@
 #include "input/w_input.hpp"
 #include "layer/w_layerimgui.hpp"
 #include "scene/w_componentutil.hpp"
-#include "script/lua/w_luabehavior.hpp"
-#include "script/lua/w_scriptglue.hpp"
+#include "script/mono/w_monobehavior.hpp"
 #include "systems/w_canvas_system.hpp"
 #include "util/w_keycodes.hpp"
 #include "util/w_math.hpp"
@@ -166,7 +165,7 @@ void DemoLayer::OnAttach() {
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    behaviors.AddBehavior<LuaBehavior>(entity, "assets/scripts/test.lua");
+    behaviors.AddBehavior<MonoBehavior>(entity, "assets/scripts/TestBehavior.cs");
   }
   {
     Entity entity = m_Scene->CreateEntity("Canvas");
@@ -174,7 +173,7 @@ void DemoLayer::OnAttach() {
   }
 
   // Custom camera
-  m_Renderer->SetClearColor(0.02f, 0.02f, 0.04f);
+  m_Renderer->SetClearColor(0.1f, 0.1f, 0.2f);
   m_Renderer->SetVsync(false);
 }
 
@@ -300,6 +299,7 @@ void DemoOverlay::OnImGuiRender() {
         ignoreMenu = true;
       }
     }
+
     if (!ignoreMenu && ImGui::IsMouseClicked(1, false))
       ImGui::OpenPopup("right_click_hierarcy");
     if (ImGui::BeginPopup("right_click_hierarcy")) {
@@ -346,79 +346,13 @@ void DemoOverlay::OnImGuiRender() {
 					ImGui::EndMenu();
 				}*/
       //	ImGui::Separator();
+
       ImGui::EndPopup();
     }
 
     GENERATE_COMPONENT_EDITORS(entity);
   }
   ImGui::End();
-  /*
-		ImGui::Begin("Test");
-		static int m_GizmoType = -1;
-		m_GizmoType = ImGuizmo::OPERATION::ROTATE;
-		if (hasSelectedEntity) {
-			// Gizmos
-			if (m_GizmoType != -1) {
-				Entity entity = {selectedEntity, &*m_App.GetScene()};
-				auto camera = Engine::GetRenderer()->GetCameraData();
-				auto& size = Engine::GetRenderer()->GetWindowSize();
-
-				// Editor camera
-				glm::mat4 cameraProjection = camera->Projection;
-				cameraProjection[1][1] *= -1;
-				glm::mat4 cameraView = camera->ViewMatrix;
-
-				// Entity transform
-				auto& tc = entity.GetComponent<TransformComponent>();
-				glm::mat4 transform = tc.TransformMatrix;
-
-				// Snapping
-				bool snap = m_DemoLayer->m_KeyManager.IsPressed(KeyLeftControl);
-				float snapValue = 0.5f; // Snap to 0.5m for translation/scale
-				// Snap to 45 degrees for rotation
-				if (m_GizmoType == ImGuizmo::OPERATION::ROTATE)
-					snapValue = 45.0f;
-
-				float snapValues[3] = { snapValue, snapValue, snapValue };
-
-				ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
-				ImGuizmo::Enable(true);
-				ImGuizmo::DrawGrid(&cameraView[0][0], &cameraProjection[0][0], &transform[0][0], 200.0f);
-				//ImGuizmo::SetRect(0, 0, size.Width, size.Height);
-				ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
-									 (ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL, glm::value_ptr(transform),
-									 nullptr, snap ? snapValues : nullptr);
-
-				if (ImGuizmo::IsUsing()) {
-					glm::vec3 translation, rotation, scale;
-					Math::DecomposeTransform(transform, translation, rotation, scale);
-
-					glm::vec3 deltaRotation = rotation - tc.Rotation;
-					tc.Position = translation;
-					tc.Rotation += deltaRotation;
-					tc.Scale = scale;
-					tc.IsChanged = true;
-				}
-			}
-		}
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		auto m_Dset = ImGui_ImplVulkan_AddTexture(m_DemoLayer->m_Renderer->GetCurrentSwapchainImageSampler(), m_DemoLayer->m_Renderer->GetCurrentSwapchainImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		ImGui::Image(m_Dset, {viewportPanelSize.x, viewportPanelSize.y});
-		ImGui::End();
-		ImGui::SetNextWindowPos(ImVec2(0, 0));
-		ImGui::SetNextWindowSize(ImVec2(m_App.GetWindowSize().Width, m_App.GetWindowSize().Height));
-		ImGui::Begin("DockSpace", NULL,
-					 ImGuiWindowFlags_NoTitleBar |
-					 ImGuiWindowFlags_NoResize |
-					 ImGuiWindowFlags_NoMove |
-					 ImGuiWindowFlags_NoScrollbar |
-					 ImGuiWindowFlags_NoScrollWithMouse
-		);
-		// Declare Central dockspace
-		auto dockspaceID = ImGui::GetID("HUB_DockSpace");
-		ImGui::DockSpace(dockspaceID, ImVec2(100.0f, 100.0f), ImGuiDockNodeFlags_None | ImGuiDockNodeFlags_PassthruCentralNode);
-		ImGui::End();
-*/
 }
 
 void DemoApplication::Init() {

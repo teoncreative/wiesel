@@ -9,7 +9,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderpipeline.hpp"
 
 #include "w_engine.hpp"
 

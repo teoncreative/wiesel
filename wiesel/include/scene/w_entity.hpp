@@ -44,8 +44,12 @@ class Entity {
 
   template <typename T>
   void RemoveComponent() {
+    if (!HasComponent<T>()) {
+      return;
+    }
+    auto& component = GetComponent<T>();
+    m_Scene->OnRemoveComponent<T>(m_EntityHandle, component);
     m_Scene->m_Registry.remove<T>(m_EntityHandle);
-    m_Scene->OnRemoveComponent<T>(m_EntityHandle);
   }
 
   operator bool() const { return m_EntityHandle != entt::null; }

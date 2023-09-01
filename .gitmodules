@@ -25,12 +25,6 @@
 [submodule "vendor/glslang"]
 	path = vendor/glslang
 	url = https://github.com/KhronosGroup/glslang.git
-[submodule "vendor/lua"]
-	path = vendor/lua
-	url = https://github.com/irrld/lua.git
-[submodule "vendor/luabridge3"]
-	path = vendor/luabridge3
-	url = https://github.com/kunitoki/LuaBridge3.git
 [submodule "vendor/freetype"]
 	path = vendor/freetype
 	url = https://github.com/freetype/freetype.git
