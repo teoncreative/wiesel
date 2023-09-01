@@ -12,13 +12,9 @@
 
 #include "mono_util.h"
 #include "script/w_scriptmanager.hpp"
+#include "input/w_input.hpp"
 
 namespace Wiesel {
-void LogInfo(MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
-  LOG_INFO("{}", cstr);
-  mono_free((void*) cstr);
-}
 
 MonoBehavior::MonoBehavior(Entity entity, const std::string& sourceFile) :
       IBehavior(GetBehaviorNameFromPath(sourceFile), entity) {
@@ -40,7 +36,6 @@ MonoBehavior::MonoBehavior(Entity entity, const std::string& sourceFile) :
 
   MonoImage* image = mono_assembly_get_image(m_Assembly);
 
-  mono_add_internal_call("WieselEngine.Log::Info", reinterpret_cast<void*>(LogInfo));
 
   const MonoTableInfo* table_info = mono_image_get_table_info(image, MONO_TABLE_TYPEDEF);
   int rows = mono_table_info_get_rows(table_info);
@@ -68,8 +63,19 @@ MonoBehavior::MonoBehavior(Entity entity, const std::string& sourceFile) :
 
   m_MethodStart = mono_class_get_method_from_name(m_BehaviorClass, "Start", 0);
   m_MethodUpdate = mono_class_get_method_from_name(m_BehaviorClass, "Update", 0);
+
   m_BehaviorObject = mono_object_new(m_Domain, m_BehaviorClass);
   mono_runtime_object_init(m_BehaviorObject);
+
+  void* args[2];
+  /* Note we put the address of the value type in the args array */
+  uint32_t entityId = (uint32_t) entity;
+  args[0] = &entityId;
+  uint64_t ptr = (uint64_t) entity.GetScene();
+  args[1] = &ptr;
+
+  MonoMethod* method = mono_class_get_method_from_name(ScriptManager::Get()->GetMonoBehaviorClass(), "SetHandle", 2);
+  mono_runtime_invoke(method, m_BehaviorObject, args, nullptr);
 
   mono_runtime_invoke(m_MethodStart, m_BehaviorObject, nullptr, nullptr);
   m_CanEnable = true;

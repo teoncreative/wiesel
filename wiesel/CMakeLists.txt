@@ -127,6 +127,7 @@ function(target_include_assets target_project assets_directory)
                 COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/shaders/${FILE_NAME}" "${PARENT_BINARY_DIR}/assets/shaders/${FILE_NAME}"
                 COMMAND glslc ${GLSL} -o ${SPIRV}
                 DEPENDS ${GLSL}
+                COMMENT "Compiling shader ${FILE_NAME}"
         )
     endforeach (GLSL)
 
@@ -152,6 +153,7 @@ function(target_include_assets target_project assets_directory)
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/textures/"
                 COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/textures/${FILE_NAME}" ${OUT_FILE}
                 DEPENDS ${TEXTURE}
+                COMMENT "Copying texture ${FILE_NAME}"
         )
     endforeach (TEXTURE)
 
@@ -163,19 +165,11 @@ function(target_include_assets target_project assets_directory)
 
     ##### SCRIPTS COPY #####
 
-    file(GLOB_RECURSE SCRIPT_FILES
-            "${ASSETS_DIRECTORY}/scripts/*.cs"
+    add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/scripts
+            DEPENDS ${ASSETS_DIRECTORY}/scripts
+            COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/scripts"
     )
-
-    foreach (SCRIPT ${SCRIPT_FILES})
-        get_filename_component(FILE_NAME ${SCRIPT} NAME)
-        set(OUT_FILE "${PARENT_BINARY_DIR}/assets/scripts/${FILE_NAME}")
-        add_custom_command(TARGET ${TARGET_PROJECT} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E make_directory "${PARENT_BINARY_DIR}/assets/scripts/"
-                COMMAND ${CMAKE_COMMAND} -E copy "${ASSETS_DIRECTORY}/scripts/${FILE_NAME}" ${OUT_FILE}
-                DEPENDS ${GLSL}
-        )
-    endforeach (SCRIPT)
 endfunction()
 
 target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets)
