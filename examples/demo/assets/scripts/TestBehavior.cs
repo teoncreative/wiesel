@@ -1,19 +1,23 @@
 using WieselEngine;
 
-public class TestBehavior
+public class TestBehavior : MonoBehavior
 {
+
+    private TransformComponent transform;
 
     public TestBehavior() {
     }
 
-    void Start()
+    public void Start()
     {
-        Log.Info("Start!");
+        EngineInternal.LogInfo("Start!");
+        transform = GetComponent<TransformComponent>();
     }
 
-    void Update()
+    public void Update()
     {
-        Log.Info("Update!");
+        EngineInternal.LogInfo($"{transform.Position.X}");
+        transform.Position.X += 0.1f;
     }
 
 }

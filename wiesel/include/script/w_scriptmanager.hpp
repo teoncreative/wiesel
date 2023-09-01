@@ -13,6 +13,7 @@
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
 #include <mono/metadata/class.h>
+#include "scene/w_scene.hpp"
 
 namespace Wiesel {
 
@@ -28,6 +29,8 @@ class ScriptManager {
   MonoDomain* GetRootDomain() const { return m_RootDomain; }
   MonoDomain* GetEngineDomain() const { return m_EngineDomain; }
 
+  MonoObject* GetComponentByName(Entity& entity, const std::string& name);
+
   static void Init();
   static void Destroy();
 
@@ -35,12 +38,15 @@ class ScriptManager {
 
 
  private:
+  using ComponentGetter = std::function<MonoObject*(Entity& entity)>;
   static ScriptManager* m_ScriptManager;
 
   MonoDomain* m_RootDomain;
   MonoDomain* m_EngineDomain;
   MonoImage* m_EngineImage;
   MonoClass* m_MonoBehaviorClass;
+  MonoClass* m_MonoTransformComponentClass;
+  std::map<std::string, ComponentGetter> m_ComponentGetters;
 };
 
 }

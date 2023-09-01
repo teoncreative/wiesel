@@ -37,10 +37,11 @@ class ScopedMonoStringWrapper {
  private:
   MonoStringWrapper string_;
 };
+
 class MonoObjectWrapper {
  public:
   MonoObjectWrapper(MonoObject* object) : object_(object) {}
-  ~MonoObjectWrapper() {}
+  ~MonoObjectWrapper() { }
 
   operator bool() { return object_ != nullptr; }
 
@@ -60,3 +61,12 @@ class MonoObjectWrapper {
   MonoObject* object_;
 
 };
+#include <iostream>
+
+template<typename T>
+T GetObjectFieldValue(MonoObject* object, MonoClass* klass, const char* fieldName) {
+  MonoClassField* field = mono_class_get_field_from_name(klass, fieldName);
+  T result;
+  mono_field_get_value(object, field, &result);
+  return result;
+}

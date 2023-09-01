@@ -1,8 +1,8 @@
 #include "mono_util.h"
-#include <numeric>
-#include <vector>
 #include <filesystem>
 #include <iostream>
+#include <numeric>
+#include <vector>
 
 #ifdef WIN32
 #error "Runtime compilation is added for Windows yet!"
@@ -53,10 +53,10 @@ bool CompileToDLL(const std::string& output_file,
                                          return a.empty() ? b : a + " " + b;
                                        });
   std::string command = command_prefix + references + (!libDir.empty() ? " -lib:" + libDir : "") + " -target:library -out:" + output_file + " " + source;
-
   std::pair result = ExecuteCommandAndGetOutput(command.c_str());
   if (result.first != 0) {
-    std::cout << "Failed to compile C# sources to DLL (error code:" << result.first << ")" << std::endl << result.second << std::endl;
+    std::cout << "Failed to compile C# sources to DLL (error code:" << result.first << ")" << std::endl << result.second;
+    std::cout << "Compile command: " << command << std::endl;
     return false;
   }
 
