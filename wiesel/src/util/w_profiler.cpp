@@ -36,7 +36,7 @@ ProfilerInstance::~ProfilerInstance() {
   ProfileData profileData;
   profileData.Name = m_Name;
   profileData.Time = elapsedMicroseconds;
-  profileData.RenderPass = m_RenderPass;
+  profileData.PassNo = m_RenderPass;
   Profiler::InsertData(profileData);
 }
 
@@ -58,8 +58,8 @@ void Profiler::EndSection(std::ostream& stream) {
   stream << "[profiler] Section: " << s_CurrentSection << "\n";
   for (auto& v : s_Data) {
     stream << "[profiler] " << v.Name;
-    if (v.RenderPass >= 0) {
-      stream << "(pass " << v.RenderPass << ")";
+    if (v.PassNo >= 0) {
+      stream << "(pass " << v.PassNo << ")";
     }
     long long count = v.Time.count();
     stream << ": " << count << "us.\n";

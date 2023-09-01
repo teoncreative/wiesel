@@ -37,7 +37,10 @@ class Scene {
   void OnEvent(Event& event);
 
   template <typename T>
-  void OnRemoveComponent(entt::entity entity) {}
+  void OnRemoveComponent(entt::entity entity, T& component) {}
+
+  template <>
+  void OnRemoveComponent(entt::entity entity, CameraComponent& component);
 
   template <typename T>
   void OnAddComponent(entt::entity entity, T& component) {}

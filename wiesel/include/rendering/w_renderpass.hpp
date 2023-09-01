@@ -11,18 +11,38 @@
 
 #pragma once
 
+#include "w_shader.hpp"
+
 namespace Wiesel {
-struct RenderPassProperties {
+struct GraphicsRenderPassProps {
   VkFormat m_SwapChainImageFormat;
   VkSampleCountFlagBits m_MsaaSamples;
   VkFormat m_DepthFormat;
 };
 
-struct RenderPass {
-  explicit RenderPass(RenderPassProperties properties);
-  ~RenderPass();
+struct GraphicsRenderPass {
+  explicit GraphicsRenderPass(GraphicsRenderPassProps properties);
+  ~GraphicsRenderPass();
 
-  RenderPassProperties m_Properties;
+  GraphicsRenderPassProps m_Properties;
   VkRenderPass m_Pass{};
 };
+
+// todo
+enum class PassType {
+  kPassTypeGeometry,
+  kPassTypePostProcess
+};
+/*
+class RenderPass {
+ public:
+  RenderPass(Ref<Shader> vertexShader, Ref<Shader> fragmentShader);
+
+  void Bake();
+
+  void BeginFrame();
+  void EndFrame();
+};
+*/
+
 }  // namespace Wiesel

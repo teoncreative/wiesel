@@ -17,6 +17,9 @@
 
 namespace Wiesel {
 
+std::string GetBehaviorNameFromPath(const std::string& path);
+std::string GetFileNameFromPath(const std::string& path);
+
 template <typename T>
 struct ExposedVariable {
   ExposedVariable(T value, const std::string& name)
@@ -116,7 +119,8 @@ class IBehavior {
   ExposedVariablesList<double> m_ExposedDoubles;
 };
 
-// todo maybe use custom entity component system with support for having multiple instances of the same component type?
+// todo maybe use custom entity component system with
+// support for having multiple instances of the same component type?
 class BehaviorsComponent {
  public:
   BehaviorsComponent() {}

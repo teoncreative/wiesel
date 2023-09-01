@@ -26,8 +26,8 @@
 #include "scene/w_lights.hpp"
 #include "util/w_color.hpp"
 #include "util/w_utils.hpp"
-#include "w_pipeline.hpp"
 #include "w_renderpass.hpp"
+#include "w_renderpipeline.hpp"
 #include "w_shader.hpp"
 #include "window/w_window.hpp"
 
@@ -63,16 +63,16 @@ class Renderer {
   void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps);
 
-  Ref<DepthStencil> CreateDepthStencil();
-  void DestroyDepthStencil(DepthStencil& texture);
+  Ref<AttachmentTexture> CreateDepthStencil();
+  Ref<AttachmentTexture> CreateColorImage();
 
-  Ref<ColorImage> CreateColorImage();
-  void DestroyColorImage(ColorImage& texture);
+  void DestroyAttachmentTexture(AttachmentTexture& texture);
 
-  Ref<DescriptorData> CreateDescriptors(Ref<UniformBufferSet> uniformBufferSet,
-                                        Ref<Material> material)
-      __attribute__((
-          optnone));  // optimization for this function is disabled because compiler does something weird
+  // optimization for this function is disabled because compiler does something weird
+  Ref<DescriptorData> CreateDescriptors(
+      Ref<UniformBufferSet> uniformBufferSet,
+      Ref<Material> material) __attribute__((optnone));
+
   void DestroyDescriptors(DescriptorData& descriptorPool);
 
   // todo properties
@@ -87,10 +87,10 @@ class Renderer {
   void RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline);
   void RecreateShader(Ref<Shader> shader);
 
-  Ref<RenderPass> CreateRenderPass(RenderPassProperties properties);
-  void AllocateRenderPass(Ref<RenderPass> renderPass);
-  void DestroyRenderPass(RenderPass& renderPass);
-  void RecreateRenderPass(Ref<RenderPass> renderPass);
+  Ref<GraphicsRenderPass> CreateRenderPass(GraphicsRenderPassProps properties);
+  void AllocateRenderPass(Ref<GraphicsRenderPass> renderPass);
+  void DestroyRenderPass(GraphicsRenderPass& renderPass);
+  void RecreateRenderPass(Ref<GraphicsRenderPass> renderPass);
 
   Ref<Shader> CreateShader(ShaderProperties properties);
   Ref<Shader> CreateShader(const std::vector<uint32_t>& code,
@@ -222,6 +222,7 @@ class Renderer {
 #endif
   std::vector<const char*> m_DeviceExtensions;
 
+  bool m_Initialized;
   Ref<AppWindow> m_Window;
   VkInstance m_Instance{};
   VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
@@ -240,16 +241,16 @@ class Renderer {
 
   VkExtent2D m_SwapChainExtent{};
   Ref<DescriptorLayout> m_DefaultDescriptorLayout{};
-  Ref<DepthStencil> m_DepthStencil;
-  Ref<ColorImage> m_ColorImage;
+  Ref<AttachmentTexture> m_DepthStencil;
+  Ref<AttachmentTexture> m_ColorImage;
   Ref<Texture> m_BlankTexture;
 
-  std::vector<VkFramebuffer> m_SwapChainFramebuffers;
+  std::vector<VkFramebuffer> m_Framebuffers;
   VkCommandPool m_CommandPool{};
 
   std::vector<VkCommandBuffer> m_CommandBuffers;
   std::vector<VkSemaphore> m_ImageAvailableSemaphores;
-  std::vector<VkSemaphore> renderFinishedSemaphores;
+  std::vector<VkSemaphore> m_RenderFinishedSemaphores;
   std::vector<VkFence> m_InFlightFences;
 
   uint32_t m_CurrentFrame = 0;
@@ -267,13 +268,15 @@ class Renderer {
   bool m_RecreateShaders;
   Ref<GraphicsPipeline> m_DefaultGraphicsPipeline;
   Ref<GraphicsPipeline> m_CurrentGraphicsPipeline;
-  Ref<RenderPass> m_DefaultRenderPass;
+  Ref<GraphicsRenderPass> m_DefaultRenderPass;
   Ref<CameraData> m_CameraData;
 };
 
+#ifdef VULKAN_VALIDATION
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+#endif
 
 }  // namespace Wiesel

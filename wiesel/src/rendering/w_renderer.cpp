@@ -60,16 +60,18 @@ Renderer::Renderer(Ref<AppWindow> window) : m_Window(window) {
   CreateDepthResources();
   CreateFramebuffers();
   CreateSyncObjects();
+  m_Initialized = true;
 }
 
-Renderer::~Renderer() = default;
+Renderer::~Renderer() {
+    Cleanup();
+};
 
 VkDevice Renderer::GetLogicalDevice() {
   return m_LogicalDevice;
 }
 
-Ref<MemoryBuffer> Renderer::CreateVertexBuffer(
-    std::vector<Vertex> vertices) {
+Ref<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<Vertex> vertices) {
   Ref<MemoryBuffer> memoryBuffer =
       CreateReference<MemoryBuffer>(MemoryTypeVertexBuffer);
 
@@ -193,7 +195,7 @@ Ref<Texture> Renderer::CreateBlankTexture() {
                              std::max(texture->m_Width, texture->m_Height)))) +
                          1;
 
-  VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
+  VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   CreateBuffer(texture->m_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -225,7 +227,7 @@ Ref<Texture> Renderer::CreateBlankTexture() {
   vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
 
   // todo loading pregenerated mipmaps
-  GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_SRGB, texture->m_Width,
+  GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_UNORM, texture->m_Width,
                   texture->m_Height, texture->m_MipLevels);
 
   texture->m_Sampler = CreateTextureSampler(texture->m_MipLevels, {});
@@ -304,8 +306,8 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
   return texture;
 }
 
-Ref<DepthStencil> Renderer::CreateDepthStencil() {
-  Ref<DepthStencil> texture = CreateReference<DepthStencil>();
+Ref<AttachmentTexture> Renderer::CreateDepthStencil() {
+  Ref<AttachmentTexture> texture = CreateReference<AttachmentTexture>();
 
   VkFormat depthFormat = FindDepthFormat();
 
@@ -314,8 +316,10 @@ Ref<DepthStencil> Renderer::CreateDepthStencil() {
               VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image,
               texture->m_DeviceMemory);
+
   texture->m_ImageView = CreateImageView(texture->m_Image, depthFormat,
                                          VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+
   TransitionImageLayout(texture->m_Image, depthFormat,
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
@@ -324,8 +328,8 @@ Ref<DepthStencil> Renderer::CreateDepthStencil() {
   return texture;
 }
 
-Ref<ColorImage> Renderer::CreateColorImage() {
-  Ref<ColorImage> texture = CreateReference<ColorImage>();
+Ref<AttachmentTexture> Renderer::CreateColorImage() {
+  Ref<AttachmentTexture> texture = CreateReference<AttachmentTexture>();
 
   VkFormat colorFormat = m_SwapChainImageFormat;
 
@@ -335,6 +339,7 @@ Ref<ColorImage> Renderer::CreateColorImage() {
                   VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->m_Image,
               texture->m_DeviceMemory);
+
   texture->m_ImageView = CreateImageView(texture->m_Image, colorFormat,
                                          VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
@@ -398,23 +403,10 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mipLevels,
   return sampler;
 }
 
-void Renderer::DestroyDepthStencil(DepthStencil& texture) {
+void Renderer::DestroyAttachmentTexture(AttachmentTexture& texture) {
   if (!texture.m_IsAllocated) {
     return;
   }
-  vkDeviceWaitIdle(m_LogicalDevice);
-  vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
-  vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
-  vkFreeMemory(m_LogicalDevice, texture.m_DeviceMemory, nullptr);
-
-  texture.m_IsAllocated = false;
-}
-
-void Renderer::DestroyColorImage(ColorImage& texture) {
-  if (!texture.m_IsAllocated) {
-    return;
-  }
-
   vkDeviceWaitIdle(m_LogicalDevice);
   vkDestroyImageView(m_LogicalDevice, texture.m_ImageView, nullptr);
   vkDestroyImage(m_LogicalDevice, texture.m_Image, nullptr);
@@ -442,8 +434,8 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
       m_LogicalDevice, &poolInfo, nullptr, &object->m_DescriptorPool));
 
-  std::vector<VkDescriptorSetLayout> layouts(
-      k_MaxFramesInFlight, m_DefaultDescriptorLayout->m_Layout);
+  std::vector<VkDescriptorSetLayout> layouts{
+      k_MaxFramesInFlight, m_DefaultDescriptorLayout->m_Layout};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->m_DescriptorPool;
@@ -814,6 +806,10 @@ LightsUniformBufferObject& Renderer::GetLightsBufferObject() {
 }
 
 void Renderer::Cleanup() {
+  if (!m_Initialized) {
+    return;
+  }
+
   vkDeviceWaitIdle(m_LogicalDevice);
   LOG_DEBUG("Destroying Renderer");
 
@@ -833,7 +829,7 @@ void Renderer::Cleanup() {
 
   LOG_DEBUG("Destroying semaphores and fences");
   for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
-    vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
+    vkDestroySemaphore(m_LogicalDevice, m_RenderFinishedSemaphores[i], nullptr);
     vkDestroySemaphore(m_LogicalDevice, m_ImageAvailableSemaphores[i], nullptr);
     vkDestroyFence(m_LogicalDevice, m_InFlightFences[i], nullptr);
   }
@@ -856,6 +852,7 @@ void Renderer::Cleanup() {
 
   LOG_DEBUG("Renderer destroyed");
   Spirv::Cleanup();
+  m_Initialized = false;
 }
 
 void Renderer::CreateVulkanInstance() {
@@ -1290,8 +1287,7 @@ void Renderer::DestroyGraphicsPipeline(GraphicsPipeline& pipeline) {
   pipeline.m_IsAllocated = true;
 }
 
-void Renderer::RecreateGraphicsPipeline(
-    Ref<Wiesel::GraphicsPipeline> pipeline) {
+void Renderer::RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline) {
   DestroyGraphicsPipeline(*pipeline);
   AllocateGraphicsPipeline(pipeline->m_Properties, pipeline);
 }
@@ -1314,14 +1310,14 @@ void Renderer::RecreateShader(Ref<Shader> shader) {
   }
 }
 
-Ref<RenderPass> Renderer::CreateRenderPass(
-    RenderPassProperties properties) {
-  Ref<RenderPass> renderPass = CreateReference<RenderPass>(properties);
+Ref<GraphicsRenderPass> Renderer::CreateRenderPass(
+    GraphicsRenderPassProps properties) {
+  Ref<GraphicsRenderPass> renderPass = CreateReference<GraphicsRenderPass>(properties);
   AllocateRenderPass(renderPass);
   return renderPass;
 }
 
-void Renderer::AllocateRenderPass(Ref<RenderPass> renderPass) {
+void Renderer::AllocateRenderPass(Ref<GraphicsRenderPass> renderPass) {
   VkAttachmentDescription colorAttachment{};
   colorAttachment.format =
       renderPass->m_Properties.m_SwapChainImageFormat;  //m_SwapChainImageFormat
@@ -1404,11 +1400,11 @@ void Renderer::AllocateRenderPass(Ref<RenderPass> renderPass) {
   }
 }
 
-void Renderer::DestroyRenderPass(RenderPass& renderPass) {
+void Renderer::DestroyRenderPass(GraphicsRenderPass& renderPass) {
   vkDestroyRenderPass(m_LogicalDevice, renderPass.m_Pass, nullptr);
 }
 
-void Renderer::RecreateRenderPass(Ref<RenderPass> renderPass) {
+void Renderer::RecreateRenderPass(Ref<GraphicsRenderPass> renderPass) {
   DestroyRenderPass(*renderPass);
   AllocateRenderPass(renderPass);
 }
@@ -1461,8 +1457,8 @@ void Renderer::CreateColorResources() {
 }
 
 void Renderer::CreateFramebuffers() {
-  m_SwapChainFramebuffers.resize(m_SwapChainImageViews.size());
-  for (size_t i = 0; i < m_SwapChainImageViews.size(); i++) {
+  m_Framebuffers.resize(m_SwapChainImages.size());
+  for (size_t i = 0; i < m_SwapChainImages.size(); i++) {
     std::array<VkImageView, 3> attachments = {
         m_ColorImage->m_ImageView,
         m_DepthStencil->m_ImageView,
@@ -1480,7 +1476,7 @@ void Renderer::CreateFramebuffers() {
 
     WIESEL_CHECK_VKRESULT(vkCreateFramebuffer(m_LogicalDevice, &framebufferInfo,
                                               nullptr,
-                                              &m_SwapChainFramebuffers[i]));
+                                              &m_Framebuffers[i]));
   }
 }
 
@@ -1847,7 +1843,7 @@ VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
 
 void Renderer::CreateSyncObjects() {
   m_ImageAvailableSemaphores.resize(k_MaxFramesInFlight);
-  renderFinishedSemaphores.resize(k_MaxFramesInFlight);
+  m_RenderFinishedSemaphores.resize(k_MaxFramesInFlight);
   m_InFlightFences.resize(k_MaxFramesInFlight);
 
   VkSemaphoreCreateInfo semaphoreInfo{};
@@ -1863,7 +1859,7 @@ void Renderer::CreateSyncObjects() {
                                             &m_ImageAvailableSemaphores[i]));
     WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo,
                                             nullptr,
-                                            &renderFinishedSemaphores[i]));
+                                            &m_RenderFinishedSemaphores[i]));
     WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr,
                                         &m_InFlightFences[i]));
   }
@@ -1875,8 +1871,8 @@ void Renderer::CleanupSwapChain() {
   m_ColorImage = nullptr;
 
   LOG_DEBUG("Destroying swap chain framebuffers");
-  for (size_t i = 0; i < m_SwapChainFramebuffers.size(); i++) {
-    vkDestroyFramebuffer(m_LogicalDevice, m_SwapChainFramebuffers[i], nullptr);
+  for (size_t i = 0; i < m_Framebuffers.size(); i++) {
+    vkDestroyFramebuffer(m_LogicalDevice, m_Framebuffers[i], nullptr);
   }
 
   LOG_DEBUG("Destroying swap chain imageviews");
@@ -1976,7 +1972,7 @@ bool Renderer::BeginFrame(Ref<CameraData> data) {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = m_DefaultRenderPass->m_Pass;
-  renderPassInfo.framebuffer = m_SwapChainFramebuffers[m_ImageIndex];
+  renderPassInfo.framebuffer = m_Framebuffers[m_ImageIndex];
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = m_SwapChainExtent;
 
@@ -2061,7 +2057,7 @@ void Renderer::EndFrame() {
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
 
-  VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[m_CurrentFrame]};
+  VkSemaphore signalSemaphores[] = {m_RenderFinishedSemaphores[m_CurrentFrame]};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -2176,7 +2172,7 @@ bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
 VkSurfaceFormatKHR Renderer::ChooseSwapSurfaceFormat(
     const std::vector<VkSurfaceFormatKHR>& availableFormats) {
   for (const auto& availableFormat : availableFormats) {
-    if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+    if (availableFormat.format == VK_FORMAT_R8G8B8A8_UNORM &&
         availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       return availableFormat;
     }
