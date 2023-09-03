@@ -12,6 +12,7 @@
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/mono-debug.h>
+#include <mono/metadata/object.h>
 #include "input/w_input.hpp"
 #include "mono_util.h"
 #include "scene/w_entity.hpp"
@@ -214,6 +215,8 @@ void ScriptManager::LoadCore() {
 }
 
 void ScriptManager::LoadApp() {
+  // todo search files
+  // todo load files from project file when project system is added
   std::vector<std::string> sourceFiles = {
       "assets/scripts/TestBehavior.cs"
   };
@@ -247,9 +250,22 @@ void ScriptManager::LoadApp() {
       LOG_ERROR("Class {} in namespace {} not found!", className, classNamespace);
       continue;
     }
+    std::unordered_map<std::string, FieldData> fields;
+    MonoClassField *field;
+    void* iter = nullptr;
+    while ((field = mono_class_get_fields(klass, &iter))) {
+      std::string fieldName = mono_field_get_name(field);
+      uint32_t fieldFlags = mono_field_get_flags(field);
+      // fieldFlags & FIELD_ATTRIBUTE_FIELD_ACCESS_MASK == FIELD_ATTRIBUTE_PUBLIC
+      if ((fieldFlags & 0x0007) != 0x0006) {
+        continue;
+      }
+      LOG_INFO("Public field: {}, flags {}\n", fieldName, fieldFlags);
+      fields.insert(std::pair(fieldName, FieldData(field, fieldName, fieldFlags)));
+    }
     MonoMethod* onStartMethod = mono_class_get_method_from_name(klass, "OnStart", 0);
     MonoMethod* onUpdateMethod = mono_class_get_method_from_name(klass, "OnUpdate", 1);
-    m_ScriptData.insert(std::pair(className, new ScriptData(klass, onStartMethod, onUpdateMethod, m_SetHandleMethod)));
+    m_ScriptData.insert(std::pair(className, new ScriptData(klass, onStartMethod, onUpdateMethod, m_SetHandleMethod, fields)));
   }
 
 }

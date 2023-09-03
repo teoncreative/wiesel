@@ -14,12 +14,13 @@
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
- #include "script/mono/w_monobehavior.hpp"
+#include "script/mono/w_monobehavior.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_logger.hpp"
 #include "w_application.hpp"
 #include "w_engine.hpp"
+#include "mono_util.h"
 
 namespace Wiesel {
 void InitializeComponents() {
@@ -216,6 +217,38 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
         return true;
       }
     }*/
+    if (auto mono = dynamic_cast<MonoBehavior*>(&behavior)) {
+      auto* instance = mono->GetScriptInstance();
+      auto* data = instance->GetScriptData();
+      for (auto& [key, value] : data->GetFields()) {
+        if (value.GetFieldType() == FieldType::Float) {
+          float_t val = value.Get<float_t>(instance->GetInstance());
+          if (ImGui::DragFloat(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 0.1f)) {
+            value.Set(instance->GetInstance(), &val);
+          }
+        } else if (value.GetFieldType() == FieldType::Integer) {
+          int32_t val = value.Get<int32_t>(instance->GetInstance());
+          if (ImGui::DragInt(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 1)) {
+            value.Set(instance->GetInstance(), &val);
+          }
+        } else if (value.GetFieldType() == FieldType::Boolean) {
+          bool val = value.Get<bool>(instance->GetInstance());
+          if (ImGui::Checkbox(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val)) {
+            value.Set(instance->GetInstance(), &val);
+          }
+        } else if (value.GetFieldType() == FieldType::String) {
+          MonoObject* val = value.Get<MonoObject*>(instance->GetInstance());
+          MonoObjectWrapper wrapper{val};
+          std::string str = wrapper.AsString();
+          if (ImGui::InputText(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
+            MonoString* newVal = mono_string_new(ScriptManager::GetAppDomain(), str.c_str());
+            value.Set(instance->GetInstance(), newVal);
+          }
+        }
+        // todo objects, long and unsigned numbers
+      }
+    }
+
     ImGui::TreePop();
   }
   if (!visible) {
