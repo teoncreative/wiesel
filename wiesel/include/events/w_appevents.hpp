@@ -57,4 +57,13 @@ class AppRecreateSwapChainsEvent : public Event {
   WindowSize m_WindowSize;
   float_t m_AspectRatio;
 };
+
+class ScriptsReloadedEvent : public Event {
+ public:
+  ScriptsReloadedEvent() { }
+
+  EVENT_CLASS_TYPE(ScriptsReloaded)
+  EVENT_CLASS_CATEGORY(EventCategory::App)
+ private:
+};
 }  // namespace Wiesel

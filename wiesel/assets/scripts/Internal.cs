@@ -14,7 +14,7 @@ namespace WieselEngine
         public extern static bool GetKey(string key);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern static object GetComponent(MonoBehavior behavior, string name);
+        public extern static object GetComponent(ulong behaviorPtr, string name);
 
     }
 }

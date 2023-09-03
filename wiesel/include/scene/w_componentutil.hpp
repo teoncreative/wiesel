@@ -26,7 +26,7 @@ __attribute__((noinline)) void RenderComponentImGui(T& component,
 
 template <class T, class B>
 __attribute__((noinline)) bool RenderBehaviorComponentImGui(
-    T& component, Ref<B> behavior, Entity entity) {
+    T& component, B& behavior, Entity entity) {
   return false;
 }
 

@@ -14,6 +14,7 @@
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
+ #include "script/mono/w_monobehavior.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_logger.hpp"
@@ -171,19 +172,19 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
 
 template <>
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
-                                  Ref<IBehavior> behavior,
+                                  IBehavior& behavior,
                                   Entity entity) {
   static bool visible = true;
-  if (ImGui::ClosableTreeNode(behavior->GetName().c_str(), &visible)) {
-    bool enabled = behavior->IsEnabled();
+  if (ImGui::ClosableTreeNode(behavior.GetName().c_str(), &visible)) {
+    bool enabled = behavior.IsEnabled();
     if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
-      behavior->SetEnabled(enabled);
+      behavior.SetEnabled(enabled);
     }
-    ImGui::InputText("##", behavior->GetFilePtr(),
+    /*ImGui::InputText("##", behavior.GetFilePtr(),
                      ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
-    if (!behavior->IsInternalBehavior()) {
-      /*if (ImGui::Button("...")) {
+    if (!behavior.IsInternalBehavior()) {
+      if (ImGui::Button("...")) {
         std::string name = behavior->GetName();
         Dialogs::OpenFileDialog(
             {{"Lua Script", "lua"}}, [&entity, &name](const std::string& file) {
@@ -203,26 +204,23 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
       }
       ImGui::SameLine();
       if (ImGui::Button("Reload")) {
-        std::string name = behavior->GetName();
-        std::string file = behavior->GetFile();
-        bool wasEnabled = behavior->IsEnabled();
-        component.m_Behaviors.erase(name);
-        auto newBehavior = CreateReference<LuaBehavior>(entity, file);
+        std::string name = behavior.GetName();
+        std::string file = behavior.GetFile();
+        bool wasEnabled = behavior.IsEnabled();
+        delete component.m_Behaviors[name];
+        auto* newBehavior = new MonoBehavior(entity, file);
         newBehavior->SetEnabled(wasEnabled);
         component.m_Behaviors[name] = newBehavior;
 
         ImGui::TreePop();
         return true;
-      }*/
-
-      for (const auto& ref : behavior->GetExposedDoubles()) {
-        ref->RenderImGui();
       }
-    }
+    }*/
     ImGui::TreePop();
   }
   if (!visible) {
-    component.m_Behaviors.erase(behavior->GetName());
+    component.m_Behaviors.erase(behavior.GetName());
+    delete &behavior;
     visible = true;
     return true;
   }
@@ -232,7 +230,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
 template <>
 void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
   for (const auto& entry : component.m_Behaviors) {
-    if (RenderBehaviorComponentImGui(component, entry.second, entity)) {
+    if (RenderBehaviorComponentImGui(component, *entry.second, entity)) {
       break;
     }
   }
