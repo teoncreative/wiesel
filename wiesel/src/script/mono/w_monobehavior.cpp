@@ -16,93 +16,42 @@
 
 namespace Wiesel {
 
-MonoBehavior::MonoBehavior(Entity entity, const std::string& sourceFile) :
-      IBehavior(GetBehaviorNameFromPath(sourceFile), entity) {
-  mono_domain_set(ScriptManager::Get()->GetRootDomain(), false);
-  std::string name = GetBehaviorNameFromPath(sourceFile);
-  std::string dllPath = "obj/" + name + ".dll";
-  ScriptManager::Get()->Compile(dllPath, {sourceFile});
-  m_Domain = mono_domain_create_appdomain(&name[0], nullptr);
-  mono_domain_set(m_Domain, false);
-  mono_jit_thread_attach(m_Domain);
-  mono_domain_assembly_open(m_Domain, "obj/engine/WieselMono.dll");
-
-  m_Assembly = mono_domain_assembly_open(m_Domain, &dllPath[0]);
-  if (!m_Assembly) {
-    std::cout << "Assembly not found!" << std::endl;
-    m_IsEnabled = false;
-    return;
-  }
-
-  MonoImage* image = mono_assembly_get_image(m_Assembly);
-
-
-  const MonoTableInfo* table_info = mono_image_get_table_info(image, MONO_TABLE_TYPEDEF);
-  int rows = mono_table_info_get_rows(table_info);
-
-  std::string className = "";
-  std::string classNamespace = "";
-  for (int i = 0; i < rows; i++) {
-    uint32_t cols[MONO_TYPEDEF_SIZE];
-    mono_metadata_decode_row(table_info, i, cols, MONO_TYPEDEF_SIZE);
-    className = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAME]);
-    if (className == "<Module>") {
-      className = "";
-      continue;
-    }
-    classNamespace = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAMESPACE]);
-    mono_class_from_name(image, classNamespace.c_str(), className.c_str());
-    break;
-  }
-
-  m_BehaviorClass = mono_class_from_name(image, classNamespace.c_str(), className.c_str());
-  if (!m_BehaviorClass) {
-    std::cout << "Class not found!" << std::endl;
-    return;
-  }
-
-  m_MethodStart = mono_class_get_method_from_name(m_BehaviorClass, "Start", 0);
-  m_MethodUpdate = mono_class_get_method_from_name(m_BehaviorClass, "Update", 0);
-
-  m_BehaviorObject = mono_object_new(m_Domain, m_BehaviorClass);
-  mono_runtime_object_init(m_BehaviorObject);
-
-  void* args[2];
-  /* Note we put the address of the value type in the args array */
-  uint32_t entityId = (uint32_t) entity;
-  args[0] = &entityId;
-  uint64_t ptr = (uint64_t) entity.GetScene();
-  args[1] = &ptr;
-
-  MonoMethod* method = mono_class_get_method_from_name(ScriptManager::Get()->GetMonoBehaviorClass(), "SetHandle", 2);
-  mono_runtime_invoke(method, m_BehaviorObject, args, nullptr);
-
-  mono_runtime_invoke(m_MethodStart, m_BehaviorObject, nullptr, nullptr);
-  m_CanEnable = true;
+MonoBehavior::MonoBehavior(Entity entity, const std::string& scriptName) :
+      IBehavior(scriptName, entity) {
+  m_Unset = true;
+  m_Enabled = false;
+  m_InternalBehavior = false;
+  m_Unset = false;
+  m_Enabled = true;
+  InstantiateScript();
 }
 
 MonoBehavior::~MonoBehavior() {
-  // switch back to the root domain
-  mono_domain_set(ScriptManager::Get()->GetRootDomain(), false);
-  // unload our appdomain
-  mono_domain_unload(m_Domain);
 }
 
 void MonoBehavior::OnUpdate(float_t deltaTime) {
-  if (!m_CanEnable || !m_IsEnabled) {
+  if (m_Unset || !m_Enabled) {
     return;
   }
-  mono_runtime_invoke(m_MethodUpdate, m_BehaviorObject, nullptr, nullptr);
+  m_ScriptInstance->OnUpdate(deltaTime);
 }
 
 void MonoBehavior::OnEvent(Event& event) {
+  EventDispatcher dispatcher{event};
 
+  dispatcher.Dispatch<ScriptsReloadedEvent>(WIESEL_BIND_FN(OnReloadScripts));
 }
 
-void MonoBehavior::SetEnabled(bool enabled) {
-  if (!m_CanEnable && enabled) {
-    return;
-  }
-  m_IsEnabled = enabled;
+void MonoBehavior::InstantiateScript() {
+  m_ScriptInstance = ScriptManager::CreateScriptInstance(this);
+  m_ScriptInstance->OnStart();
 }
+
+bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {
+  delete m_ScriptInstance;
+  m_ScriptInstance = nullptr;
+  InstantiateScript();
+  return false;
+}
+
 }

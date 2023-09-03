@@ -29,7 +29,8 @@ enum EventType {
   MouseButtonPressed,
   MouseButtonReleased,
   MouseMoved,
-  MouseScrolled
+  MouseScrolled,
+  ScriptsReloaded
 };
 
 enum EventCategory {

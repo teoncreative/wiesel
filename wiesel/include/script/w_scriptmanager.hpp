@@ -17,36 +17,81 @@
 
 namespace Wiesel {
 
+class MonoBehavior;
+
+class ScriptData {
+ public:
+  ScriptData(MonoClass* klass, MonoMethod* onStartMethod,
+             MonoMethod* onUpdateMethod,
+             MonoMethod* setHandleMethod) : m_Klass(klass),
+        m_OnUpdateMethod(onUpdateMethod),
+        m_OnStartMethod(onStartMethod),
+        m_SetHandleMethod(setHandleMethod) {}
+
+  MonoClass* GetKlass() const { return m_Klass; }
+  MonoMethod* GetOnUpdateMethod() const { return m_OnUpdateMethod; }
+  MonoMethod* GetOnStartMethod() const { return m_OnStartMethod; }
+  MonoMethod* GetSetHandleMethod() const { return m_SetHandleMethod; }
+
+ private:
+  MonoClass* m_Klass;
+  MonoMethod* m_OnUpdateMethod;
+  MonoMethod* m_OnStartMethod;
+  MonoMethod* m_SetHandleMethod;
+};
+
+
+class ScriptInstance {
+ public:
+  ScriptInstance(ScriptData* data, MonoBehavior* behavior);
+  ~ScriptInstance();
+
+  MonoObject* GetInstance() const { return m_Instance; }
+  MonoBehavior* GetBehavior() const { return m_Behavior; }
+  ScriptData* GetScriptData() const { return m_ScriptData; }
+
+  void OnStart();
+  void OnUpdate(float_t deltaTime);
+ private:
+  MonoObject* m_Instance;
+  MonoBehavior* m_Behavior;
+  ScriptData* m_ScriptData;
+};
+
 class ScriptManager {
  public:
-  ScriptManager();
-  ~ScriptManager();
-
-  void Compile(const std::string& outputFile,
-               const std::vector<std::string>& inputFiles);
-
-  MonoClass* GetMonoBehaviorClass() const { return m_MonoBehaviorClass; }
-  MonoDomain* GetRootDomain() const { return m_RootDomain; }
-  MonoDomain* GetEngineDomain() const { return m_EngineDomain; }
-
-  MonoObject* GetComponentByName(Entity& entity, const std::string& name);
+  using ComponentGetter = std::function<MonoObject*(MonoBehavior*)>;
 
   static void Init();
   static void Destroy();
+  static void Reload();
 
-  static ScriptManager* Get() { return m_ScriptManager; }
+  static void LoadCore();
+  static void LoadApp();
+  static void RegisterInternals();
+  static void RegisterComponents();
 
+  static MonoDomain* GetRootDomain() { return m_RootDomain; }
+  static MonoDomain* GetAppDomain() { return m_AppDomain; }
 
+  static MonoObject* GetComponentByName(MonoBehavior* entity, const std::string& name);
+  static ScriptInstance* CreateScriptInstance(MonoBehavior* behavior);
  private:
-  using ComponentGetter = std::function<MonoObject*(Entity& entity)>;
-  static ScriptManager* m_ScriptManager;
+  static void Compile(const std::string& outputFile,
+               const std::vector<std::string>& inputFiles);
 
-  MonoDomain* m_RootDomain;
-  MonoDomain* m_EngineDomain;
-  MonoImage* m_EngineImage;
-  MonoClass* m_MonoBehaviorClass;
-  MonoClass* m_MonoTransformComponentClass;
-  std::map<std::string, ComponentGetter> m_ComponentGetters;
+  static MonoDomain* m_RootDomain;
+  static MonoAssembly* m_CoreAssembly;
+  static MonoImage* m_CoreAssemblyImage;
+  static MonoDomain* m_AppDomain;
+  static MonoAssembly* m_AppAssembly;
+  static MonoImage* m_AppAssemblyImage;
+
+  static MonoClass* m_MonoBehaviorClass;
+  static MonoClass* m_MonoTransformComponentClass;
+  static MonoMethod* m_SetHandleMethod;
+  static std::map<std::string, ComponentGetter> m_ComponentGetters;
+  static std::map<std::string, ScriptData*> m_ScriptData;
 };
 
 }

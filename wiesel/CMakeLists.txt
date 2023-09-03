@@ -109,9 +109,10 @@ elseif (WIN32)
     set(CMAKE_CXX_COMPILER "clang++")
 endif ()
 
-function(target_include_assets target_project assets_directory)
+function(target_include_assets target_project assets_directory internal)
     set(TARGET_PROJECT ${target_project})
     set(ASSETS_DIRECTORY ${assets_directory})
+    set(IS_INTERNAL ${internal})
     ##### SHADERS #####
     file(GLOB_RECURSE GLSL_SOURCE_FILES
             "${ASSETS_DIRECTORY}/shaders/*.frag"
@@ -165,11 +166,19 @@ function(target_include_assets target_project assets_directory)
 
     ##### SCRIPTS COPY #####
 
-    add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/scripts
-            DEPENDS ${ASSETS_DIRECTORY}/scripts
-            COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/scripts"
-    )
+    if (IS_INTERNAL)
+        add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/internal_scripts
+                DEPENDS ${ASSETS_DIRECTORY}/scripts
+                COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/internal_scripts"
+        )
+    else()
+        add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/scripts
+                DEPENDS ${ASSETS_DIRECTORY}/scripts
+                COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/scripts"
+        )
+    endif ()
 endfunction()
 
-target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets ON)

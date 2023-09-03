@@ -165,7 +165,7 @@ void DemoLayer::OnAttach() {
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    behaviors.AddBehavior<MonoBehavior>(entity, "assets/scripts/TestBehavior.cs");
+    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
     Entity entity = m_Scene->CreateEntity("Canvas");
@@ -271,6 +271,9 @@ void DemoOverlay::OnImGuiRender() {
     }
     if (ImGui::Button("Recreate Shaders")) {
       Engine::GetRenderer()->SetRecreateShaders(true);
+    }
+    if (ImGui::Button("Reload Scripts")) {
+      ScriptManager::Reload();
     }
   }
   ImGui::End();
