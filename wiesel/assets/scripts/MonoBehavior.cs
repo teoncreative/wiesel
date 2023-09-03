@@ -5,16 +5,13 @@ namespace WieselEngine
     public class MonoBehavior
     {
         private ulong behaviorPtr;
-        protected ulong b;
 
         public void OnStart()
         {
-            EngineInternal.LogInfo("Start OG!");
         }
 
         public void OnUpdate(float deltaTime)
         {
-            EngineInternal.LogInfo("Update OG!");
         }
 
         public T GetComponent<T>()

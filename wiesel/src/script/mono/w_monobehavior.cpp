@@ -27,6 +27,7 @@ MonoBehavior::MonoBehavior(Entity entity, const std::string& scriptName) :
 }
 
 MonoBehavior::~MonoBehavior() {
+  delete m_ScriptInstance;
 }
 
 void MonoBehavior::OnUpdate(float_t deltaTime) {

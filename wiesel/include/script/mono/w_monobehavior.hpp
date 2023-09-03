@@ -28,6 +28,7 @@ class MonoBehavior : public IBehavior {
   void OnUpdate(float_t deltaTime) override;
   void OnEvent(Event& event) override;
 
+  ScriptInstance* GetScriptInstance() const { return m_ScriptInstance; }
  private:
   void InstantiateScript();
   bool OnReloadScripts(ScriptsReloadedEvent& event);

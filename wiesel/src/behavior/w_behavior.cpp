@@ -15,27 +15,6 @@
 
 namespace Wiesel {
 
-std::string GetBehaviorNameFromPath(const std::string& path) {
-  std::filesystem::path p(path);
-  std::string stem = p.stem();
-  char* data = new char[stem.size()];
-  for (size_t i = 0; i < stem.size(); i++) {
-    if (stem[i] == '_') {
-        data[i] = ' ';
-        data[i + 1] = std::toupper(stem[i + 1]);
-        i++;
-        continue;
-    }
-    data[i] = stem[i];
-  }
-  return {data, stem.size()};
-}
-
-std::string GetFileNameFromPath(const std::string& path) {
-  std::filesystem::path p(path);
-  return p.stem();
-}
-
 void IBehavior::OnUpdate(float_t deltaTime) {}
 
 void IBehavior::OnEvent(Event& event) {}
