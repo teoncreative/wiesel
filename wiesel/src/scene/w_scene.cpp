@@ -19,27 +19,6 @@
 namespace Wiesel {
 
 Scene::Scene() {
-  {
-    auto entity = CreateEntity("Directional Light");
-    auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Position = glm::vec3(1.0f, 1.0f, 1.0f);
-    entity.AddComponent<LightDirectComponent>();
-  }
-  {
-    auto entity = CreateEntity("Point Light");
-    auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Position = glm::vec3{0.0f, 1.0f, 0.0f};
-    entity.AddComponent<LightPointComponent>();
-  }
-  {
-    auto entity = CreateEntity("Camera");
-    auto& camera = entity.AddComponent<CameraComponent>();
-    auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
-    camera.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
-    camera.m_Camera.m_IsPrimary = true;
-    camera.m_Camera.m_IsChanged = true;
-  }
   m_CanvasSystem = CreateScope<CanvasSystem>();
 }
 
@@ -69,21 +48,17 @@ void Scene::DestroyEntity(Entity entity) {
 }
 
 void Scene::OnUpdate(float_t deltaTime) {
-  for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
-    auto& component = m_Registry.get<BehaviorsComponent>(entity);
-    for (const auto& entry : component.m_Behaviors) {
-      if (!entry.second->IsEnabled()) {
-        continue;
-      }
-      entry.second->OnUpdate(deltaTime);
-    }
-  }
-
   for (const auto& entity : m_Registry.view<TransformComponent>()) {
     auto& transform = m_Registry.get<TransformComponent>(entity);
     if (transform.IsChanged) {
       transform.UpdateMatrices();
       transform.IsChanged = false;
+      // todo this is a bit hacky
+      // set the camera as changed if transform has changed
+      if (m_Registry.any_of<CameraComponent>(entity)) {
+        auto& camera = m_Registry.get<CameraComponent>(entity);
+        camera.m_Camera.m_IsChanged = true;
+      }
     }
   }
 
@@ -124,6 +99,13 @@ void Scene::OnUpdate(float_t deltaTime) {
     UpdateLight(lights, light.LightData, {entity, this});
   }
 
+  for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
+    auto& component = m_Registry.get<BehaviorsComponent>(entity);
+    for (const auto& entry : component.m_Behaviors) {
+      entry.second->OnUpdate(deltaTime);
+    }
+  }
+
   m_CanvasSystem->Update(*this);
 }
 
@@ -150,6 +132,14 @@ template <>
 void Scene::OnRemoveComponent(entt::entity entity, CameraComponent& component) {
   if (m_CameraEntity == entity) {
     m_HasCamera = false;
+  }
+}
+
+template <>
+void Scene::OnAddComponent(entt::entity entity, CameraComponent& component) {
+  if (component.m_Camera.m_IsPrimary) {
+    m_CameraEntity = entity;
+    m_HasCamera = true;
   }
 }
 

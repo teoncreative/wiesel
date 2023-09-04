@@ -27,9 +27,6 @@ void IBehavior::SetEnabled(bool enabled) {
 
 void BehaviorsComponent::OnEvent(Wiesel::Event& event) {
   for (const auto& entry : m_Behaviors) {
-    if (!entry.second->IsEnabled()) {
-      continue;
-    }
     entry.second->OnEvent(event);
   }
 }
