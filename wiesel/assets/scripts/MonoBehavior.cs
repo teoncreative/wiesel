@@ -6,17 +6,22 @@ namespace WieselEngine
     {
         private ulong behaviorPtr;
 
-        public void OnStart()
+        public virtual void OnStart()
         {
         }
 
-        public void OnUpdate(float deltaTime)
+        public virtual void OnUpdate(float deltaTime)
         {
         }
 
         public T GetComponent<T>()
         {
-            return (T)EngineInternal.GetComponent(behaviorPtr, typeof(T).Name);
+            return (T)Internals.Behavior_GetComponent(behaviorPtr, typeof(T).Name);
+        }
+
+        public bool HasComponent<T>()
+        {
+            return Internals.Behavior_HasComponent(behaviorPtr, typeof(T).Name);
         }
 
         public void SetHandle(ulong behaviorPtr)

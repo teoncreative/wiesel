@@ -48,8 +48,6 @@ class DemoLayer : public Wiesel::Layer {
   DemoApplication& m_App;
   Wiesel::Ref<Wiesel::Scene> m_Scene;
   Wiesel::Ref<Wiesel::Renderer> m_Renderer;
-
-  float_t m_CameraMoveSpeed;
 };
 
 class DemoOverlay : public Wiesel::Layer {

@@ -126,11 +126,13 @@ class ScriptInstance {
   MonoObject* m_Instance;
   MonoBehavior* m_Behavior;
   ScriptData* m_ScriptData;
+  uint32_t m_GCHandle;
 };
 
 class ScriptManager {
  public:
   using ComponentGetter = std::function<MonoObject*(MonoBehavior*)>;
+  using ComponentChecker = std::function<bool(MonoBehavior*)>;
 
   static void Init();
   static void Destroy();
@@ -143,13 +145,12 @@ class ScriptManager {
 
   static MonoDomain* GetRootDomain() { return m_RootDomain; }
   static MonoDomain* GetAppDomain() { return m_AppDomain; }
+  static MonoClass* GetVector3fClass() { return m_MonoVector3fClass; }
 
-  static MonoObject* GetComponentByName(MonoBehavior* entity, const std::string& name);
+  static MonoObject* GetComponentByName(MonoBehavior* behavior, const std::string& name);
+  static bool HasComponentByName(MonoBehavior* behavior, const std::string& name);
   static ScriptInstance* CreateScriptInstance(MonoBehavior* behavior);
  private:
-  static void Compile(const std::string& outputFile,
-               const std::vector<std::string>& inputFiles);
-
   static MonoDomain* m_RootDomain;
   static MonoAssembly* m_CoreAssembly;
   static MonoImage* m_CoreAssemblyImage;
@@ -159,8 +160,10 @@ class ScriptManager {
 
   static MonoClass* m_MonoBehaviorClass;
   static MonoClass* m_MonoTransformComponentClass;
+  static MonoClass* m_MonoVector3fClass;
   static MonoMethod* m_SetHandleMethod;
   static std::map<std::string, ComponentGetter> m_ComponentGetters;
+  static std::map<std::string, ComponentChecker> m_ComponentCheckers;
   static std::map<std::string, ScriptData*> m_ScriptData;
 };
 

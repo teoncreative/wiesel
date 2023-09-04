@@ -45,6 +45,9 @@ class Scene {
   template <typename T>
   void OnAddComponent(entt::entity entity, T& component) {}
 
+  template <>
+  void OnAddComponent(entt::entity entity, CameraComponent& component);
+
   WIESEL_GETTER_FN Ref<CameraData> GetPrimaryCamera();
   WIESEL_GETTER_FN Entity GetPrimaryCameraEntity();
 

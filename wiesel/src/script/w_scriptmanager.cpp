@@ -23,77 +23,200 @@
 
 namespace Wiesel {
 
+#define WIESEL_ADD_INTERNAL_CALL(name) \
+    mono_add_internal_call("WieselEngine.Internals::"#name, reinterpret_cast<void*>(Internals_##name));
+
 // todo move these bindings to script glue
-void Internal_LogInfo(MonoString* str) {
+void Internals_Log_Info(MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
   LOG_INFO("{}", cstr);
   mono_free((void*) cstr);
 }
 
-float Internal_GetAxis(MonoString* str) {
+float Internals_Input_GetAxis(MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
   float value = InputManager::GetAxis(cstr);
   mono_free((void*) cstr);
   return value;
 }
 
-MonoObject* Internal_GetComponent(MonoBehavior* behavior, MonoString* str) {
+MonoObject* Internals_Behavior_GetComponent(MonoBehavior* behavior, MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
   MonoObject* component = ScriptManager::GetComponentByName(behavior, cstr);
   mono_free((void*) cstr);
   return component;
 }
 
-#define GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(component, getname, setname, type, field) \
-float getname(MonoBehavior* behavior) { \
-    return behavior->GetComponent<component>().field; \
-} \
-void setname(MonoBehavior* behavior, type value) {                            \
-  auto& c = behavior->GetComponent<component>();\
-  c.field = value;\
-  c.IsChanged = true;\
+bool Internals_Behavior_HasComponent(MonoBehavior* behavior, MonoString* str) {
+  const char* cstr = mono_string_to_utf8(str);
+  bool hasComponent = ScriptManager::HasComponentByName(behavior, cstr);
+  mono_free((void*) cstr);
+  return hasComponent;
 }
 
-// I know these macros can be pretty triggering for some people but
-// trust me this is way cleaner this way, it becomes a mess otherwise
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetPositionX,
-                                         Internal_TransformComponent_SetPositionX,
-                                         float, Position.x);
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetPositionY,
-                                         Internal_TransformComponent_SetPositionY,
-                                         float, Position.y);
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetPositionZ,
-                                         Internal_TransformComponent_SetPositionZ,
-                                         float, Position.z);
+float Internals_TransformComponent_GetPositionX(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Position.x;
+}
 
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetRotationX,
-                                         Internal_TransformComponent_SetRotationX,
-                                         float, Rotation.x);
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetRotationY,
-                                         Internal_TransformComponent_SetRotationY,
-                                         float, Rotation.y);
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetRotationZ,
-                                         Internal_TransformComponent_SetRotationZ,
-                                         float, Rotation.z);
+void Internals_TransformComponent_SetPositionX(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Position.x == value) {
+    return;
+  }
+  c.Position.x = value;
+  c.IsChanged = true;
+}
 
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetScaleX,
-                                         Internal_TransformComponent_SetScaleX,
-                                         float, Scale.x);
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetScaleY,
-                                         Internal_TransformComponent_SetScaleY,
-                                         float, Scale.y);
-GENERATE_INTERNALS_FOR_TRACKED_COMPONENT(TransformComponent,
-                                         Internal_TransformComponent_GetScaleZ,
-                                         Internal_TransformComponent_SetScaleZ,
-                                         float, Scale.z);
+float Internals_TransformComponent_GetPositionY(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Position.y;
+}
+
+void Internals_TransformComponent_SetPositionY(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Position.y == value) {
+    return;
+  }
+  c.Position.y = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetPositionZ(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Position.z;
+}
+
+void Internals_TransformComponent_SetPositionZ(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Position.z == value) {
+    return;
+  }
+  c.Position.z = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetRotationX(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Rotation.x;
+}
+
+void Internals_TransformComponent_SetRotationX(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Rotation.x == value) {
+    return;
+  }
+  c.Rotation.x = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetRotationY(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Rotation.y;
+}
+
+void Internals_TransformComponent_SetRotationY(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Rotation.y == value) {
+    return;
+  }
+  c.Rotation.y = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetRotationZ(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Rotation.z;
+}
+
+void Internals_TransformComponent_SetRotationZ(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Rotation.z == value) {
+    return;
+  }
+  c.Rotation.z = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetScaleX(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Scale.x;
+}
+
+void Internals_TransformComponent_SetScaleX(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Scale.x == value) {
+    return;
+  }
+  c.Scale.x = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetScaleY(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Scale.y;
+}
+
+void Internals_TransformComponent_SetScaleY(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Scale.y == value) {
+    return;
+  }
+  c.Scale.y = value;
+  c.IsChanged = true;
+}
+
+float Internals_TransformComponent_GetScaleZ(MonoBehavior* behavior) {
+  return behavior->GetComponent<TransformComponent>().Scale.z;
+}
+
+void Internals_TransformComponent_SetScaleZ(MonoBehavior* behavior, float value) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  if (c.Scale.z == value) {
+    return;
+  }
+  c.Scale.z = value;
+  c.IsChanged = true;
+}
+
+MonoObject* CreateVector3fWithValues(float x, float y, float z) {
+  MonoObject* obj = mono_object_new(ScriptManager::GetAppDomain(), ScriptManager::GetVector3fClass());
+  void* args[3];
+  args[0] = &x;
+  args[1] = &y;
+  args[2] = &z;
+  MonoMethod* method = mono_class_get_method_from_name(ScriptManager::GetVector3fClass(), ".ctor", 3);
+  mono_runtime_invoke(method, obj, args, nullptr);
+  return obj;
+}
+
+MonoObject* Internals_TransformComponent_GetForward(MonoBehavior* behavior) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  glm::vec3 val = c.GetForward();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_GetBackward(MonoBehavior* behavior) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  glm::vec3 val = c.GetBackward();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_GetLeft(MonoBehavior* behavior) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  glm::vec3 val = c.GetLeft();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_GetRight(MonoBehavior* behavior) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  glm::vec3 val = c.GetRight();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_GetUp(MonoBehavior* behavior) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  glm::vec3 val = c.GetUp();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_GetDown(MonoBehavior* behavior) {
+  auto& c = behavior->GetComponent<TransformComponent>();
+  glm::vec3 val = c.GetDown();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
 
 ScriptInstance::ScriptInstance(ScriptData* data, MonoBehavior* behavior) {
   m_Behavior = behavior;
@@ -106,10 +229,11 @@ ScriptInstance::ScriptInstance(ScriptData* data, MonoBehavior* behavior) {
   args[0] = &behaviorPtr;
 
   mono_runtime_invoke(data->GetSetHandleMethod(), m_Instance, args, nullptr);
+  m_GCHandle = mono_gchandle_new(m_Instance, true);
 }
 
 ScriptInstance::~ScriptInstance() {
-  mono_gchandle_free(mono_gchandle_new(m_Instance, false));
+  mono_gchandle_free(m_GCHandle);
 }
 
 void ScriptInstance::OnStart() {
@@ -117,6 +241,7 @@ void ScriptInstance::OnStart() {
 }
 
 void ScriptInstance::OnUpdate(float_t deltaTime) {
+  mono_domain_set(ScriptManager::GetAppDomain(), true);
   void* args[1];
   args[0] = &deltaTime;
   mono_runtime_invoke(m_ScriptData->GetOnUpdateMethod(), m_Instance, args, nullptr);
@@ -130,13 +255,28 @@ MonoAssembly* ScriptManager::m_AppAssembly = nullptr;
 MonoImage* ScriptManager::m_AppAssemblyImage = nullptr;
 MonoClass* ScriptManager::m_MonoBehaviorClass = nullptr;
 MonoClass* ScriptManager::m_MonoTransformComponentClass = nullptr;
+MonoClass* ScriptManager::m_MonoVector3fClass = nullptr;
 MonoMethod* ScriptManager::m_SetHandleMethod = nullptr;
 
 std::map<std::string, ScriptManager::ComponentGetter> ScriptManager::m_ComponentGetters;
+std::map<std::string, ScriptManager::ComponentChecker> ScriptManager::m_ComponentCheckers;
 std::map<std::string, ScriptData*> ScriptManager::m_ScriptData;
 
 MonoObject* ScriptManager::GetComponentByName(MonoBehavior* behavior, const std::string& name) {
-  return m_ComponentGetters[name](behavior);
+  auto& fn = m_ComponentGetters[name];
+  if (fn == nullptr) {
+    return nullptr;
+  }
+  return fn(behavior);
+}
+
+
+bool ScriptManager::HasComponentByName(MonoBehavior* behavior, const std::string& name) {
+  auto& fn = m_ComponentCheckers[name];
+  if (fn == nullptr) {
+    return false;
+  }
+  return fn(behavior);
 }
 
 void ScriptManager::Init() {
@@ -195,7 +335,7 @@ void ScriptManager::Reload() {
 void ScriptManager::LoadCore() {
   LOG_INFO("Compiling core scripts...");
   std::vector<std::string> files = {
-      "assets/internal_scripts/Internal.cs",
+      "assets/internal_scripts/Internals.cs",
       "assets/internal_scripts/MonoBehavior.cs",
       "assets/internal_scripts/Input.cs",
       "assets/internal_scripts/math/Vector3.cs",
@@ -212,13 +352,15 @@ void ScriptManager::LoadCore() {
 
   // Component classes
   m_MonoTransformComponentClass = mono_class_from_name(m_CoreAssemblyImage, "WieselEngine", "TransformComponent");
+  m_MonoVector3fClass = mono_class_from_name(m_CoreAssemblyImage, "WieselEngine", "Vector3f");
 }
 
 void ScriptManager::LoadApp() {
   // todo search files
   // todo load files from project file when project system is added
   std::vector<std::string> sourceFiles = {
-      "assets/scripts/TestBehavior.cs"
+      "assets/scripts/TestBehavior.cs",
+      "assets/scripts/CameraScript.cs"
   };
   CompileToDLL("obj/App.dll", sourceFiles, "obj", {"Core.dll"});
 
@@ -260,7 +402,7 @@ void ScriptManager::LoadApp() {
       if ((fieldFlags & 0x0007) != 0x0006) {
         continue;
       }
-      LOG_INFO("Public field: {}, flags {}\n", fieldName, fieldFlags);
+      //LOG_INFO("Public field: {}, flags {}", fieldName, fieldFlags);
       fields.insert(std::pair(fieldName, FieldData(field, fieldName, fieldFlags)));
     }
     MonoMethod* onStartMethod = mono_class_get_method_from_name(klass, "OnStart", 0);
@@ -271,32 +413,41 @@ void ScriptManager::LoadApp() {
 }
 
 void ScriptManager::RegisterInternals() {
-  mono_add_internal_call("WieselEngine.EngineInternal::LogInfo", reinterpret_cast<void*>(Internal_LogInfo));
-  mono_add_internal_call("WieselEngine.EngineInternal::GetAxis", reinterpret_cast<void*>(Internal_GetAxis));
-  mono_add_internal_call("WieselEngine.EngineInternal::GetComponent", reinterpret_cast<void*>(Internal_GetComponent));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetPositionX", reinterpret_cast<void*>(Internal_TransformComponent_GetPositionX));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetPositionY", reinterpret_cast<void*>(Internal_TransformComponent_GetPositionY));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetPositionZ", reinterpret_cast<void*>(Internal_TransformComponent_GetPositionZ));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetPositionX", reinterpret_cast<void*>(Internal_TransformComponent_SetPositionX));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetPositionY", reinterpret_cast<void*>(Internal_TransformComponent_SetPositionY));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetPositionZ", reinterpret_cast<void*>(Internal_TransformComponent_SetPositionZ));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetRotationX", reinterpret_cast<void*>(Internal_TransformComponent_GetRotationX));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetRotationY", reinterpret_cast<void*>(Internal_TransformComponent_GetRotationY));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetRotationZ", reinterpret_cast<void*>(Internal_TransformComponent_GetRotationZ));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetRotationX", reinterpret_cast<void*>(Internal_TransformComponent_SetRotationX));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetRotationY", reinterpret_cast<void*>(Internal_TransformComponent_SetRotationY));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetRotationZ", reinterpret_cast<void*>(Internal_TransformComponent_SetRotationZ));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetScaleX", reinterpret_cast<void*>(Internal_TransformComponent_GetScaleX));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetScaleY", reinterpret_cast<void*>(Internal_TransformComponent_GetScaleY));
-  mono_add_internal_call("WieselEngine.TransformComponent::GetScaleZ", reinterpret_cast<void*>(Internal_TransformComponent_GetScaleZ));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetScaleX", reinterpret_cast<void*>(Internal_TransformComponent_SetScaleX));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetScaleY", reinterpret_cast<void*>(Internal_TransformComponent_SetScaleY));
-  mono_add_internal_call("WieselEngine.TransformComponent::SetScaleZ", reinterpret_cast<void*>(Internal_TransformComponent_SetScaleZ));
+  WIESEL_ADD_INTERNAL_CALL(Log_Info);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetAxis);
+  WIESEL_ADD_INTERNAL_CALL(Behavior_GetComponent);
+  WIESEL_ADD_INTERNAL_CALL(Behavior_HasComponent);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetPositionX);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetPositionY);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetPositionZ);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetPositionX);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetPositionY);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetPositionZ);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetRotationX);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetRotationY);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetRotationZ);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetRotationX);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetRotationY);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetRotationZ);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetScaleX);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetScaleY);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetScaleZ);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetScaleX);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetScaleY);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_SetScaleZ);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetForward);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetBackward);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetLeft);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetRight);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetUp);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetDown);
 }
 
 void ScriptManager::RegisterComponents() {
   m_ComponentGetters.clear();
+  m_ComponentCheckers.clear();
 
+  // Getters
   m_ComponentGetters.insert(
       std::pair("TransformComponent",
                 [](MonoBehavior* behavior) -> MonoObject* {
@@ -310,6 +461,15 @@ void ScriptManager::RegisterComponents() {
                   mono_runtime_invoke(method, obj, args, nullptr);
                   return obj;
                 }));
+
+  // Checkers
+  m_ComponentCheckers.insert(
+      std::pair("TransformComponent",
+                [](MonoBehavior* behavior) -> bool {
+                  return behavior->HasComponent<TransformComponent>();
+                }));
+
+  // Removers
 }
 
 ScriptInstance* ScriptManager::CreateScriptInstance(MonoBehavior* behavior) {

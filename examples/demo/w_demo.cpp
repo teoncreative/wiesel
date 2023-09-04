@@ -29,8 +29,6 @@ namespace WieselDemo {
 DemoLayer::DemoLayer(DemoApplication& app) : m_App(app), Layer("Demo Layer") {
   m_Scene = app.GetScene();
   m_Renderer = Engine::GetRenderer();
-
-  m_CameraMoveSpeed = 8.0f;
 }
 
 DemoLayer::~DemoLayer() = default;
@@ -49,114 +47,6 @@ uint32_t Lehmer32() {
 
 void DemoLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
-
-  /*int dd = 1;
-		glm::ivec3 dims{128,128,128};
-		std::vector<std::vector<std::vector<int>>> voxels;
-		voxels.resize(dims.x);
-		for (int x = 0; x < dims.x; x++) {
-			voxels[x].resize(dims.z);
-			for (int z = 0; z < dims.z; z++) {
-				voxels[x][z].resize(dims.y);
-			}
-		}
-
-		for (int x = 0; x < dims.x; x++) {
-			for (int z = 0; z < dims.z; z++) {
-				nLehmer = x << 16 | z;
-				int maxY = 1 + Lehmer32() % dims.y / 8;
-				for (int y = 0; y < dims.y; y++) {
-					if (y < maxY) {
-						voxels[x][z][y] = 1;
-					} else {
-						voxels[x][z][y] = 0;
-					}
-				}
-				dd++;
-			}
-		}
-
-		auto mesh = CreateReference<Mesh>();
-		for (int x = 0; x < dims.x; x++) {
-			for (int z = 0; z < dims.z; z++) {
-				for (int y = 0; y < dims.y; y++) {
-					int block = voxels[x][z][y];
-					if (block != 1) {
-						continue;
-					}
-
-					glm::vec3 vertexPos[8]{
-							{-1, 1,  -1},
-							{-1, 1,  1},
-							{1,  1,  1},
-							{1,  1,  -1},
-							{-1, -1, -1},
-							{-1, -1, 1},
-							{1,  -1, 1},
-							{1,  -1, -1},
-					};
-
-					int faces[6][9]{
-							{0, 1, 2, 3, 0,  1,  0,  0, 0},     //top
-							{7, 6, 5, 4, 0,  -1, 0,  1, 0},   //bottom
-							{2, 1, 5, 6, 0,  0,  1,  1, 1},     //right
-							{0, 3, 7, 4, 0,  0,  -1, 1, 1},   //left
-							{3, 2, 6, 7, 1,  0,  0,  1, 1},    //front
-							{1, 0, 4, 5, -1, 0,  0,  1, 1}    //back
-					};
-
-					for (int facenum = 0; facenum < 6; facenum++) {
-						int nextX = x + faces[facenum][4];
-						int nextY = y + faces[facenum][5];
-						int nextZ = z + faces[facenum][6];
-						if (nextX < dims.x && nextX >= 0
-								&& nextY < dims.y && nextY >= 0
-								&& nextZ < dims.z && nextZ >= 0) {
-							if (voxels[nextX][nextZ][nextY] != 0) {
-								continue;
-							}
-						}
-
-						int v = mesh->Vertices.size();
-						for (int i = 0; i < 4; i++) {
-							Vertex vertex;
-							vertex.Pos = {x, y, z};
-							vertex.Pos /= 32.0f;
-							vertex.Pos += vertexPos[faces[facenum][i]] / 64.0f;
-							vertex.Color = {1.0f, 1.0f, 1.0f};
-							mesh->Vertices.push_back(vertex);
-						}
-
-						glm::vec3 v1 = mesh->Vertices[v].Pos - mesh->Vertices[v + 3].Pos;
-						glm::vec3 v2 = mesh->Vertices[v + 2].Pos - mesh->Vertices[v + 3].Pos;
-						glm::vec3 v3 = glm::cross(v1, v2);
-						glm::vec3 normal = glm::normalize(v3);
-						for (int i = 0; i < 4; i++) {
-							mesh->Vertices[v + i].Normal = normal;
-						}
-
-						mesh->Indices.push_back(v);
-						mesh->Indices.push_back(v + 3);
-						mesh->Indices.push_back(v + 2);
-						mesh->Indices.push_back(v + 1);
-						mesh->Indices.push_back(v);
-						mesh->Indices.push_back(v + 2);
-
-						// Add uvs
-						//	glm::vec3 bottomLeft{faces[facenum, 7], faces[facenum, 8]};
-						//	bottomLeft /= 2.0f;
-						//	uv.AddRange(new List<Vector2>() { bottomleft + new Vector2(0, 0.5f), bottomleft + new Vector2(0.5f, 0.5f), bottomleft + new Vector2(0.5f, 0), bottomleft });
-					}
-				}
-			}
-		}
-		mesh->Allocate();
-
-		Entity entity = m_Scene->CreateEntity("Voxel Mesh");
-		auto& model = entity.AddComponent<ModelComponent>();
-		auto& transform = entity.GetComponent<TransformComponent>();
-//		transform.Scale = {0.01f, 0.01f, 0.01f};
-		model.Data.Meshes.push_back(mesh);*/
   // Loading a model to the scene
   {
     Entity entity = m_Scene->CreateEntity("Sponza");
@@ -168,12 +58,31 @@ void DemoLayer::OnAttach() {
     behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
+    auto entity = m_Scene->CreateEntity("Directional Light");
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.Position = glm::vec3(1.0f, 1.0f, 1.0f);
+    entity.AddComponent<LightDirectComponent>();
+  }
+  {
+    auto entity = m_Scene->CreateEntity("Point Light");
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.Position = glm::vec3{0.0f, 1.0f, 0.0f};
+    entity.AddComponent<LightPointComponent>();
+  }
+  {
+    auto entity = m_Scene->CreateEntity("Camera");
+    auto& camera = entity.AddComponent<CameraComponent>();
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
+    camera.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
+    camera.m_Camera.m_IsPrimary = true;
+    camera.m_Camera.m_IsChanged = true;
+  }
+  /*{
     Entity entity = m_Scene->CreateEntity("Canvas");
     auto& ui = entity.AddComponent<CanvasComponent>();
-  }
+  }*/
 
-  // Custom camera
-  m_Renderer->SetClearColor(0.1f, 0.1f, 0.2f);
   m_Renderer->SetVsync(false);
 }
 
@@ -186,22 +95,6 @@ void DemoLayer::OnUpdate(float_t deltaTime) {
   if (!m_Scene->GetPrimaryCamera()) {
     return;
   }
-  Entity cameraEntity = m_Scene->GetPrimaryCameraEntity();
-  CameraComponent& cameraComponent =
-      cameraEntity.GetComponent<CameraComponent>();
-  Camera& camera = cameraComponent.m_Camera;
-  TransformComponent& transform =
-      cameraEntity.GetComponent<TransformComponent>();
-  float axisX = InputManager::GetAxis("Horizontal");
-  float axisY = InputManager::GetAxis("Vertical");
-  transform.Move(transform.GetForward() * deltaTime * m_CameraMoveSpeed *
-                 axisY);
-  transform.Move(transform.GetRight() * deltaTime * m_CameraMoveSpeed * axisX);
-
-  float inputX = InputManager::GetAxis("Mouse X");
-  float inputY = InputManager::GetAxis("Mouse Y");
-  transform.SetRotation(inputY, inputX, 0.0f);
-  camera.m_IsChanged = true;
 }
 
 void DemoLayer::OnEvent(Event& event) {
@@ -260,8 +153,6 @@ void DemoOverlay::OnImGuiRender() {
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
     ImGui::SeparatorText("Controls");
-    ImGui::InputFloat(PrefixLabel("Camera Speed").c_str(),
-                      &m_DemoLayer->m_CameraMoveSpeed);
     if (ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
                         Engine::GetRenderer()->IsWireframeEnabledPtr())) {
       Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
