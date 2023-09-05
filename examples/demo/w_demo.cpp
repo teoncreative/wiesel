@@ -290,29 +290,7 @@ void DemoOverlay::OnImGuiRender() {
       RenderEntity(entity, entityId, 0, ignoreMenu);
     }
 
-    if (HierarchyData.MoveFrom != entt::null && HierarchyData.MoveTo != entt::null) {
-      Entity fromEntity = {HierarchyData.MoveFrom, &*m_App.GetScene()};
-      Entity toEntity = {HierarchyData.MoveTo, &*m_App.GetScene()};
-      auto& hierarcry = m_App.GetScene()->GetSceneHierarchy();
-      if (HierarchyData.BottomPart) {
-        // todo move hierarcy order on childs
-        if (fromEntity.GetParentHandle() != entt::null) {
-          m_App.GetScene()->UnlinkEntities(fromEntity.GetParentHandle(), HierarchyData.MoveFrom);
-        }
-        hierarcry.erase(
-            std::remove(hierarcry.begin(), hierarcry.end(), HierarchyData.MoveFrom),
-            hierarcry.end());
-        auto insertPos = std::find(hierarcry.begin(), hierarcry.end(), HierarchyData.MoveTo) + 1;
-        if (hierarcry.end() < insertPos) {
-          hierarcry.push_back(HierarchyData.MoveFrom);
-        } else {
-          hierarcry.insert(insertPos, HierarchyData.MoveFrom);
-        }
-      } else {
-        m_App.GetScene()->LinkEntities(HierarchyData.MoveTo, HierarchyData.MoveFrom);
-      }
-    }
-
+    UpdateHierarchyOrder();
 
     if (!ignoreMenu && ImGui::IsMouseClicked(1, false))
       ImGui::OpenPopup("right_click_hierarcy");
@@ -353,6 +331,32 @@ void DemoOverlay::OnImGuiRender() {
     GENERATE_COMPONENT_EDITORS(entity);
   }
   ImGui::End();
+}
+
+void DemoOverlay::UpdateHierarchyOrder() {
+  if (HierarchyData.MoveFrom == entt::null || HierarchyData.MoveTo == entt::null) {
+    return;
+  }
+  Entity fromEntity = {HierarchyData.MoveFrom, &*m_App.GetScene()};
+  Entity toEntity = {HierarchyData.MoveTo, &*m_App.GetScene()};
+  auto& hierarcry = m_App.GetScene()->GetSceneHierarchy();
+  if (HierarchyData.BottomPart) {
+    // todo move hierarchy order on childs
+    if (fromEntity.GetParentHandle() != entt::null) {
+      m_App.GetScene()->UnlinkEntities(fromEntity.GetParentHandle(), HierarchyData.MoveFrom);
+    }
+    hierarcry.erase(
+        std::remove(hierarcry.begin(), hierarcry.end(), HierarchyData.MoveFrom),
+        hierarcry.end());
+    auto insertPos = std::find(hierarcry.begin(), hierarcry.end(), HierarchyData.MoveTo) + 1;
+    if (hierarcry.end() < insertPos) {
+      hierarcry.push_back(HierarchyData.MoveFrom);
+    } else {
+      hierarcry.insert(insertPos, HierarchyData.MoveFrom);
+    }
+  } else {
+    m_App.GetScene()->LinkEntities(HierarchyData.MoveTo, HierarchyData.MoveFrom);
+  }
 }
 
 void DemoApplication::Init() {

@@ -63,6 +63,7 @@ class DemoOverlay : public Wiesel::Layer {
 
   void RenderEntity(Wiesel::Entity& entity, entt::entity entityId, int depth, bool& ignoreMenu);
   void OnImGuiRender() override;
+  void UpdateHierarchyOrder();
 
  private:
   DemoApplication& m_App;
