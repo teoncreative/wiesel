@@ -63,6 +63,8 @@ class Entity {
   const std::string& GetName() { return GetComponent<TagComponent>().Tag; }
 
   Entity GetParent() const { return {m_Parent, m_Scene}; }
+  entt::entity GetParentHandle() const { return m_Parent; }
+  const std::vector<entt::entity>* GetChildHandles() const { return m_Childs; }
 
   bool operator==(const Entity& other) const {
     return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
@@ -74,10 +76,12 @@ class Entity {
 
   Scene* GetScene() const { return m_Scene; }
 
+
  private:
   entt::entity m_EntityHandle;
   Scene* m_Scene;
   entt::entity m_Parent;
+  std::vector<entt::entity>* m_Childs;
 };
 
 }  // namespace Wiesel
