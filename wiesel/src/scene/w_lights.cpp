@@ -13,8 +13,7 @@
 namespace Wiesel {
 
 void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
-                 Entity entity) {
-  auto& transform = entity.GetComponent<TransformComponent>();
+                 TransformComponent& transform) {
   lights.DirectLights[lights.DirectLightCount].Direction =
       glm::normalize(transform.Position);
   lights.DirectLights[lights.DirectLightCount].Base.Color = light.Base.Color;
@@ -30,8 +29,7 @@ void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
 }
 
 void UpdateLight(LightsUniformBufferObject& lights, LightPoint light,
-                 Entity entity) {
-  auto& transform = entity.GetComponent<TransformComponent>();
+                 TransformComponent& transform) {
   lights.PointLights[lights.PointLightCount].Position = transform.Position;
   lights.PointLights[lights.PointLightCount].Base.Color = light.Base.Color;
   lights.PointLights[lights.PointLightCount].Base.Ambient = light.Base.Ambient;

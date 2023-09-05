@@ -61,6 +61,7 @@ class DemoOverlay : public Wiesel::Layer {
   void OnUpdate(float_t deltaTime) override;
   void OnEvent(Wiesel::Event& event) override;
 
+  void RenderEntity(Wiesel::Entity& entity, entt::entity entityId, int depth, bool& ignoreMenu);
   void OnImGuiRender() override;
 
  private:

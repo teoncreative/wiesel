@@ -34,16 +34,16 @@ struct IdComponent {
   UUID Id;
 };
 
-struct ParentComponent {
-  ParentComponent(entt::entity parent) : Parent(parent) {}
+struct TreeComponent {
+  TreeComponent() = default;
+  TreeComponent(const TreeComponent&) = default;
 
-  ParentComponent() = default;
-  ParentComponent(const ParentComponent&) = default;
-
-  entt::entity Parent;
+  entt::entity Parent = entt::null;
+  std::vector<entt::entity> Childs;
 };
 
 struct TagComponent {
+  TagComponent(const std::string& tag) : Tag(tag) {}
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
 
