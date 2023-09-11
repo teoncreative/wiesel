@@ -12,10 +12,10 @@ endif ()
 
 message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Wmultichar -frtti")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DEIGEN_NO_CUDA -DNDEBUG -O2")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -DDEBUG -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -DEIGEN_NO_CUDA -DNDEBUG -O2")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -DDEBUG -O0")
 if (NOT APPLE)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -v -pthread -Wl,--gc-sections")
+    set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -v -pthread -Wl,--gc-sections")
 endif ()
 
 ##### SETTINGS #####
@@ -109,9 +109,10 @@ elseif (WIN32)
     set(CMAKE_CXX_COMPILER "clang++")
 endif ()
 
-function(target_include_assets target_project assets_directory)
+function(target_include_assets target_project assets_directory internal)
     set(TARGET_PROJECT ${target_project})
     set(ASSETS_DIRECTORY ${assets_directory})
+    set(IS_INTERNAL ${internal})
     ##### SHADERS #####
     file(GLOB_RECURSE GLSL_SOURCE_FILES
             "${ASSETS_DIRECTORY}/shaders/*.frag"
@@ -165,11 +166,19 @@ function(target_include_assets target_project assets_directory)
 
     ##### SCRIPTS COPY #####
 
-    add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/scripts
-            DEPENDS ${ASSETS_DIRECTORY}/scripts
-            COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/scripts"
-    )
+    if (IS_INTERNAL)
+        add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/internal_scripts
+                DEPENDS ${ASSETS_DIRECTORY}/scripts
+                COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/internal_scripts"
+        )
+    else()
+        add_custom_command(TARGET ${TARGET_PROJECT} PRE_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIRECTORY}/scripts ${PARENT_BINARY_DIR}/assets/scripts
+                DEPENDS ${ASSETS_DIRECTORY}/scripts
+                COMMENT "Copying scripts to ${PARENT_BINARY_DIR}/assets/scripts"
+        )
+    endif ()
 endfunction()
 
-target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+target_include_assets(wiesel ${CMAKE_CURRENT_SOURCE_DIR}/assets ON)

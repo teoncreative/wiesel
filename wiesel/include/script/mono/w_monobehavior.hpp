@@ -12,33 +12,28 @@
 #pragma once
 
 #include "behavior/w_behavior.hpp"
+#include "script/w_scriptmanager.hpp"
 
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
-#include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/class.h>
+#include <mono/metadata/debug-helpers.h>
 
 namespace Wiesel {
 class MonoBehavior : public IBehavior {
  public:
-  MonoBehavior(Entity entity, const std::string& sourceFile);
+  MonoBehavior(Entity entity, const std::string& scriptName);
   ~MonoBehavior() override;
 
   void OnUpdate(float_t deltaTime) override;
   void OnEvent(Event& event) override;
 
-  void SetEnabled(bool enabled) override;
-
+  ScriptInstance* GetScriptInstance() const { return m_ScriptInstance; }
  private:
-  MonoDomain* m_Domain;
-  MonoClass* m_BehaviorClass;
-  MonoAssembly* m_Assembly;
-  MonoImage* m_Image;
-  MonoMethod* m_MethodStart;
-  MonoMethod* m_MethodUpdate;
-  MonoObject * m_BehaviorObject;
-  bool m_CanEnable = false;
-  bool m_IsEnabled = true;
+  void InstantiateScript();
+  bool OnReloadScripts(ScriptsReloadedEvent& event);
+
+  ScriptInstance* m_ScriptInstance;
 };
 
 }  // namespace Wiesel

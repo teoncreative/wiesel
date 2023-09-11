@@ -84,4 +84,19 @@ std::vector<uint32_t> ReadFileUint32(const std::string& filename) {
 
   return buffer;
 }
+
+std::string FormatVariableName(const std::string& name) {
+  char* data = new char[name.size() + 1];
+  for (size_t i = 0; i < name.size(); i++) {
+    if (name[i] == '_') {
+      data[i] = ' ';
+      data[i + 1] = std::toupper(name[i + 1]);
+      i++;
+      continue;
+    }
+    data[i] = name[i];
+  }
+  data[name.size()] = '\0';
+  return {data, name.size()};
+}
 }  // namespace Wiesel

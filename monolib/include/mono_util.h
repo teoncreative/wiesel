@@ -10,7 +10,7 @@ bool CompileToDLL(const std::string& output_file,
 
 class MonoStringWrapper {
  public:
-  MonoStringWrapper(const char* string) : string_(string) {}
+  MonoStringWrapper(const char* string, int length) : string_(string), length_(length) {}
   ~MonoStringWrapper() {}
 
   void Release() {
@@ -19,13 +19,15 @@ class MonoStringWrapper {
 
   operator const char*() { return string_; }
 
+  int length() const { return length_; }
+
  private:
   const char* string_;
+  int length_;
 };
 
 class ScopedMonoStringWrapper {
  public:
-  ScopedMonoStringWrapper(const char* string) : string_(string) {}
   ScopedMonoStringWrapper(MonoStringWrapper string) : string_(string) {}
 
   ~ScopedMonoStringWrapper() {
@@ -33,6 +35,8 @@ class ScopedMonoStringWrapper {
   }
 
   operator const char*() { return string_; }
+
+  int length() const { return string_.length(); }
 
  private:
   MonoStringWrapper string_;
@@ -54,19 +58,10 @@ class MonoObjectWrapper {
 
   MonoStringWrapper AsWrappedString() {
     MonoString* resultString = mono_object_to_string(object_, nullptr);
-    return {mono_string_to_utf8(resultString)};
+    return {mono_string_to_utf8(resultString), mono_string_length(resultString)};
   }
 
  private:
   MonoObject* object_;
 
 };
-#include <iostream>
-
-template<typename T>
-T GetObjectFieldValue(MonoObject* object, MonoClass* klass, const char* fieldName) {
-  MonoClassField* field = mono_class_get_field_from_name(klass, fieldName);
-  T result;
-  mono_field_get_value(object, field, &result);
-  return result;
-}

@@ -38,7 +38,7 @@ Renderer::Renderer(Ref<AppWindow> window) : m_Window(window) {
   m_CurrentFrame = 0;
   m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
   m_PreviousMsaaSamples = VK_SAMPLE_COUNT_1_BIT;
-  m_ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+  m_ClearColor = {0.1f, 0.1f, 0.2f, 1.0f};
 
   CreateVulkanInstance();
 #ifdef VULKAN_VALIDATION

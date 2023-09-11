@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.26)
 project(monolib)
 
 set(COMPILE_DLL_RUNTIME ON)
+message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 if(WIN32)
     # Use the MONO_ROOT environment variable to locate Mono
@@ -25,9 +26,12 @@ endif()
 
 add_library(monolib STATIC src/mono_util.cpp)
 
+message("MONO_LDFLAGS: ${MONO_LDFLAGS}")
+message("MONO_INCLUDE_DIRS: ${MONO_INCLUDE_DIRS}")
+
 target_include_directories(monolib PUBLIC ${MONO_INCLUDE_DIRS} include)
 target_link_directories(monolib PUBLIC ${MONO_LIBRARY_DIRS})
-target_link_libraries(monolib PUBLIC ${MONO_LIBRARIES})
+target_link_libraries(monolib PUBLIC ${MONO_LIBRARIES} ${MONO_LDFLAGS})
 
 # copy mcs to the build directory
 if(WIN32)

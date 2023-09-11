@@ -48,8 +48,6 @@ class DemoLayer : public Wiesel::Layer {
   DemoApplication& m_App;
   Wiesel::Ref<Wiesel::Scene> m_Scene;
   Wiesel::Ref<Wiesel::Renderer> m_Renderer;
-
-  float_t m_CameraMoveSpeed;
 };
 
 class DemoOverlay : public Wiesel::Layer {
@@ -63,7 +61,9 @@ class DemoOverlay : public Wiesel::Layer {
   void OnUpdate(float_t deltaTime) override;
   void OnEvent(Wiesel::Event& event) override;
 
+  void RenderEntity(Wiesel::Entity& entity, entt::entity entityId, int depth, bool& ignoreMenu);
   void OnImGuiRender() override;
+  void UpdateHierarchyOrder();
 
  private:
   DemoApplication& m_App;

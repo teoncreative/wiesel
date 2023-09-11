@@ -4,11 +4,11 @@ namespace WieselEngine
     {
         public static float GetAxis(string axis)
         {
-            return EngineInternal.GetAxis(axis);
+            return Internals.Input_GetAxis(axis);
         }
         public static bool GetKey(string keyName)
         {
-            return EngineInternal.GetKey(keyName);
+            return Internals.Input_GetKey(keyName);
         }
     }
 }

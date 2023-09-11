@@ -24,8 +24,8 @@ struct Camera {
 
   glm::mat4 m_ViewMatrix;
   glm::mat4 m_Projection;
-  bool m_IsPrimary;
-  bool m_IsChanged;
+  bool m_IsPrimary = true;
+  bool m_IsChanged = true;
 
   void UpdateProjection();
   void UpdateView(glm::vec3& position, glm::vec3& rotation);
