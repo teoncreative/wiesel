@@ -1,23 +1,24 @@
 using WieselEngine;
+using System;
 
 public class TestBehavior : MonoBehavior
 {
 
     private TransformComponent transform;
+    public float Speed = 0.001f;
 
     public TestBehavior() {
     }
 
-    public void Start()
+    public override void OnStart()
     {
-        EngineInternal.LogInfo("Start!");
         transform = GetComponent<TransformComponent>();
     }
 
-    public void Update()
+    public override void OnUpdate(float deltaTime)
     {
-        EngineInternal.LogInfo($"{transform.Position.X}");
-        transform.Position.X += 0.1f;
+        transform.Rotation.X += Speed;
+        transform.Rotation.Y += Speed;
     }
 
 }

@@ -45,6 +45,9 @@ class Scene {
   template <typename T>
   void OnAddComponent(entt::entity entity, T& component) {}
 
+  template <>
+  void OnAddComponent(entt::entity entity, CameraComponent& component);
+
   WIESEL_GETTER_FN Ref<CameraData> GetPrimaryCamera();
   WIESEL_GETTER_FN Entity GetPrimaryCameraEntity();
 
@@ -59,16 +62,24 @@ class Scene {
     return m_Registry.view<Components...>();
   }
 
-  entt::registry& GetRegistry() { return m_Registry; }
+  /*
+   * Returns the scene hierarchy. This is used by the editor.
+   */
+  std::vector<entt::entity>& GetSceneHierarchy() { return m_SceneHierarchy; }
+
+  void LinkEntities(entt::entity parent, entt::entity child);
+  void UnlinkEntities(entt::entity parent, entt::entity child);
 
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
+  void ApplyTransform(entt::entity parent, TransformComponent& childTransform);
+  TransformComponent ApplyTransform(entt::entity entity);
   void Render();
 
  private:
-  friend class
-      Entity;  // This isn't really necessary. It could use GetRegistry.
+  // This isn't really necessary. It could use GetRegistry.
   friend class Application;
+  friend class Entity;
 
   std::unordered_map<UUID, entt::entity> m_Entities;
   entt::registry m_Registry;
@@ -78,5 +89,6 @@ class Scene {
   bool m_HasCamera = false;
   bool m_IsRunning = false;
   bool m_IsPaused = false;
+  std::vector<entt::entity> m_SceneHierarchy;
 };
 }  // namespace Wiesel

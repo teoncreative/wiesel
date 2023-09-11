@@ -14,11 +14,13 @@
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
+#include "script/mono/w_monobehavior.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_logger.hpp"
 #include "w_application.hpp"
 #include "w_engine.hpp"
+#include "mono_util.h"
 
 namespace Wiesel {
 void InitializeComponents() {
@@ -171,19 +173,19 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
 
 template <>
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
-                                  Ref<IBehavior> behavior,
+                                  IBehavior& behavior,
                                   Entity entity) {
   static bool visible = true;
-  if (ImGui::ClosableTreeNode(behavior->GetName().c_str(), &visible)) {
-    bool enabled = behavior->IsEnabled();
+  if (ImGui::ClosableTreeNode(behavior.GetName().c_str(), &visible)) {
+    bool enabled = behavior.IsEnabled();
     if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
-      behavior->SetEnabled(enabled);
+      behavior.SetEnabled(enabled);
     }
-    ImGui::InputText("##", behavior->GetFilePtr(),
+    /*ImGui::InputText("##", behavior.GetFilePtr(),
                      ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
-    if (!behavior->IsInternalBehavior()) {
-      /*if (ImGui::Button("...")) {
+    if (!behavior.IsInternalBehavior()) {
+      if (ImGui::Button("...")) {
         std::string name = behavior->GetName();
         Dialogs::OpenFileDialog(
             {{"Lua Script", "lua"}}, [&entity, &name](const std::string& file) {
@@ -203,26 +205,55 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
       }
       ImGui::SameLine();
       if (ImGui::Button("Reload")) {
-        std::string name = behavior->GetName();
-        std::string file = behavior->GetFile();
-        bool wasEnabled = behavior->IsEnabled();
-        component.m_Behaviors.erase(name);
-        auto newBehavior = CreateReference<LuaBehavior>(entity, file);
+        std::string name = behavior.GetName();
+        std::string file = behavior.GetFile();
+        bool wasEnabled = behavior.IsEnabled();
+        delete component.m_Behaviors[name];
+        auto* newBehavior = new MonoBehavior(entity, file);
         newBehavior->SetEnabled(wasEnabled);
         component.m_Behaviors[name] = newBehavior;
 
         ImGui::TreePop();
         return true;
-      }*/
-
-      for (const auto& ref : behavior->GetExposedDoubles()) {
-        ref->RenderImGui();
+      }
+    }*/
+    if (auto mono = dynamic_cast<MonoBehavior*>(&behavior)) {
+      auto* instance = mono->GetScriptInstance();
+      auto* data = instance->GetScriptData();
+      for (auto& [key, value] : data->GetFields()) {
+        if (value.GetFieldType() == FieldType::Float) {
+          float_t val = value.Get<float_t>(instance->GetInstance());
+          if (ImGui::DragFloat(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 0.1f)) {
+            value.Set(instance->GetInstance(), &val);
+          }
+        } else if (value.GetFieldType() == FieldType::Integer) {
+          int32_t val = value.Get<int32_t>(instance->GetInstance());
+          if (ImGui::DragInt(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 1)) {
+            value.Set(instance->GetInstance(), &val);
+          }
+        } else if (value.GetFieldType() == FieldType::Boolean) {
+          bool val = value.Get<bool>(instance->GetInstance());
+          if (ImGui::Checkbox(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val)) {
+            value.Set(instance->GetInstance(), &val);
+          }
+        } else if (value.GetFieldType() == FieldType::String) {
+          MonoObject* val = value.Get<MonoObject*>(instance->GetInstance());
+          MonoObjectWrapper wrapper{val};
+          std::string str = wrapper.AsString();
+          if (ImGui::InputText(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
+            MonoString* newVal = mono_string_new(ScriptManager::GetAppDomain(), str.c_str());
+            value.Set(instance->GetInstance(), newVal);
+          }
+        }
+        // todo objects, long and unsigned numbers
       }
     }
+
     ImGui::TreePop();
   }
   if (!visible) {
-    component.m_Behaviors.erase(behavior->GetName());
+    component.m_Behaviors.erase(behavior.GetName());
+    delete &behavior;
     visible = true;
     return true;
   }
@@ -232,7 +263,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
 template <>
 void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
   for (const auto& entry : component.m_Behaviors) {
-    if (RenderBehaviorComponentImGui(component, entry.second, entity)) {
+    if (RenderBehaviorComponentImGui(component, *entry.second, entity)) {
       break;
     }
   }

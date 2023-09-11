@@ -4,27 +4,29 @@ namespace WieselEngine
 {
     public class MonoBehavior
     {
-        private uint entityId;
-        private ulong scenePtr;
+        private ulong behaviorPtr;
 
-        public void Start()
+        public virtual void OnStart()
         {
         }
 
-        public void Update()
+        public virtual void OnUpdate(float deltaTime)
         {
         }
 
         public T GetComponent<T>()
         {
-            return (T)EngineInternal.GetComponent(this, typeof(T).Name);
+            return (T)Internals.Behavior_GetComponent(behaviorPtr, typeof(T).Name);
         }
 
-        public void SetHandle(uint entityId, ulong scenePtr)
+        public bool HasComponent<T>()
         {
-            this.entityId = entityId;
-            this.scenePtr = scenePtr;
-            EngineInternal.LogInfo($"MonoBehavior {entityId} {scenePtr}");
+            return Internals.Behavior_HasComponent(behaviorPtr, typeof(T).Name);
+        }
+
+        public void SetHandle(ulong behaviorPtr)
+        {
+            this.behaviorPtr = behaviorPtr;
         }
     }
 }

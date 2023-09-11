@@ -40,7 +40,7 @@ namespace WieselEngine
             {
                 if (getY != null)
                 {
-                    return getX();
+                    return getY();
                 }
 
                 return y;
@@ -76,6 +76,69 @@ namespace WieselEngine
                 }
                 z = value;
             }
+        }
+
+        public Vector3f(float x, float y, float z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public Vector3f(float x, float y) {
+            this.x = x;
+            this.y = y;
+            this.z = 0.0f;
+        }
+
+        public Vector3f(float x) {
+            this.x = x;
+            this.y = 0.0f;
+            this.z = 0.0f;
+        }
+
+        public Vector3f() {
+            this.x = 0.0f;
+            this.y = 0.0f;
+            this.z = 0.0f;
+        }
+
+        public static Vector3f operator*(Vector3f lhs, Vector3f rhs) {
+            return new Vector3f(lhs.X * rhs.X, lhs.Y * rhs.Y, lhs.Z * rhs.Z);
+        }
+
+        public static Vector3f operator*(Vector3f lhs, float rhs) {
+            return new Vector3f(lhs.X * rhs, lhs.Y * rhs, lhs.Z * rhs);
+        }
+
+        public static Vector3f operator+(Vector3f lhs, Vector3f rhs) {
+            return new Vector3f(lhs.X + rhs.X, lhs.Y + rhs.Y, lhs.Z + rhs.Z);
+        }
+
+        public static Vector3f operator+(Vector3f lhs, float rhs) {
+            return new Vector3f(lhs.X + rhs, lhs.Y + rhs, lhs.Z + rhs);
+        }
+
+        public static Vector3f operator/(Vector3f lhs, Vector3f rhs) {
+            // todo divide by zero check??
+            return new Vector3f(lhs.X / rhs.X, lhs.Y / rhs.Y, lhs.Z / rhs.Z);
+        }
+
+        public static Vector3f operator/(Vector3f lhs, float rhs) {
+            // todo divide by zero check??
+            return new Vector3f(lhs.X / rhs, lhs.Y / rhs, lhs.Z / rhs);
+        }
+
+        public static Vector3f operator-(Vector3f lhs, Vector3f rhs) {
+            return new Vector3f(lhs.X - rhs.X, lhs.Y - rhs.Y, lhs.Z - rhs.Z);
+        }
+
+        public static Vector3f operator-(Vector3f lhs, float rhs) {
+            return new Vector3f(lhs.X - rhs, lhs.Y - rhs, lhs.Z - rhs);
+        }
+
+        public override string ToString()
+        {
+          return base.ToString() + ": x:" + X + ", y:" + Y + ", z:" + Z;
         }
     }
 

@@ -52,6 +52,9 @@ bool CompileToDLL(const std::string& output_file,
                                        [](std::string a, std::string b) {
                                          return a.empty() ? b : a + " " + b;
                                        });
+#ifdef DEBUG
+  command_prefix += " -g";
+#endif
   std::string command = command_prefix + references + (!libDir.empty() ? " -lib:" + libDir : "") + " -target:library -out:" + output_file + " " + source;
   std::pair result = ExecuteCommandAndGetOutput(command.c_str());
   if (result.first != 0) {

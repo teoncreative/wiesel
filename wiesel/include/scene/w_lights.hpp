@@ -86,10 +86,10 @@ struct alignas(16) LightsUniformBufferObject {
 
 
 void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
-                 Entity entity);
+                 TransformComponent& transform);
 
 void UpdateLight(LightsUniformBufferObject& lights, LightPoint light,
-                 Entity entity);
+                 TransformComponent& transform);
 
 struct LightDirectComponent {
   LightDirectComponent() = default;

@@ -143,6 +143,8 @@ class Time {
 std::vector<char> ReadFile(const std::string& filename);
 std::vector<uint32_t> ReadFileUint32(const std::string& filename);
 
+std::string FormatVariableName(const std::string& name);
+
 inline void TrimLeft(std::string& s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
             return !std::isspace(ch);
