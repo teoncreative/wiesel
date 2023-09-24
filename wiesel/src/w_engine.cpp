@@ -38,6 +38,7 @@ void Engine::InitRenderer() {
     abort();
   }
   s_Renderer = CreateReference<Renderer>(s_Window);
+  s_Renderer->Initialize();
 }
 
 void Engine::CleanupRenderer() {

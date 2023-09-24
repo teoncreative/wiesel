@@ -17,8 +17,8 @@ public class TestBehavior : MonoBehavior
 
     public override void OnUpdate(float deltaTime)
     {
-        transform.Rotation.X += Speed;
-        transform.Rotation.Y += Speed;
+//        transform.Rotation.X += Speed * deltaTime * 150.0f;
+        transform.Rotation.Y += Speed * deltaTime * 150.0f;
     }
 
 }

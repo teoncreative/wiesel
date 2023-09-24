@@ -20,9 +20,9 @@ namespace Wiesel {
 struct alignas(16) LightBase {
   LightBase()
       : Color({1.0f, 1.0f, 1.0f}),
-        Ambient(0.05f),
+        Ambient(0.20f),
         Diffuse(1.0f),
-        Specular(1.0f),
+        Specular(0.85f),
         Density(1.0f) {}
 
   LightBase(glm::vec3 color, float density, float ambient)

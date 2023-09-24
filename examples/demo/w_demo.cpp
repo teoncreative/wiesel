@@ -60,7 +60,40 @@ void DemoLayer::OnAttach() {
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
+//    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
+  }
+  {
+    Entity entity = m_Scene->CreateEntity("Sponza 2");
+    sponzaEntity = entity.GetHandle();
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.Scale = {0.01f, 0.01f, 0.01f};
+    transform.Position = {5.0f, 10.0f, 0.0f};
+    auto& model = entity.AddComponent<ModelComponent>();
+    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
+    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
+    //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
+  }
+  {
+    Entity entity = m_Scene->CreateEntity("Sponza 3");
+    sponzaEntity = entity.GetHandle();
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.Scale = {0.01f, 0.01f, 0.01f};
+    transform.Position = {5.0f, 20.0f, 0.0f};
+    auto& model = entity.AddComponent<ModelComponent>();
+    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
+    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
+    //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
+  }
+  {
+    Entity entity = m_Scene->CreateEntity("Sponza 4");
+    sponzaEntity = entity.GetHandle();
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.Scale = {0.01f, 0.01f, 0.01f};
+    transform.Position = {5.0f, 30.0f, 0.0f};
+    auto& model = entity.AddComponent<ModelComponent>();
+    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
+    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
+    //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
     auto entity = m_Scene->CreateEntity("Directional Light");
