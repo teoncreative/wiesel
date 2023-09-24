@@ -43,6 +43,8 @@ class Renderer {
   explicit Renderer(Ref<AppWindow> window);
   ~Renderer();
 
+  void Initialize();
+
   Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
   void DestroyVertexBuffer(MemoryBuffer& buffer);
 
@@ -57,6 +59,8 @@ class Renderer {
   void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
 
   Ref<Texture> CreateBlankTexture();
+  Ref<Texture> CreateBlankTexture(int width, int height, TextureProps textureProps,
+                                  SamplerProps samplerProps);
   Ref<Texture> CreateTexture(const std::string& path,
                                    TextureProps textureProps,
                                    SamplerProps samplerProps);
@@ -86,11 +90,6 @@ class Renderer {
   void DestroyGraphicsPipeline(GraphicsPipeline& pipeline);
   void RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline);
   void RecreateShader(Ref<Shader> shader);
-
-  Ref<GraphicsRenderPass> CreateRenderPass(GraphicsRenderPassProps properties);
-  void AllocateRenderPass(Ref<GraphicsRenderPass> renderPass);
-  void DestroyRenderPass(GraphicsRenderPass& renderPass);
-  void RecreateRenderPass(Ref<GraphicsRenderPass> renderPass);
 
   Ref<Shader> CreateShader(ShaderProperties properties);
   Ref<Shader> CreateShader(const std::vector<uint32_t>& code,
@@ -124,6 +123,8 @@ class Renderer {
   WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
   WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
   WIESEL_GETTER_FN LightsUniformBufferObject& GetLightsBufferObject();
+  WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return m_Extent; };
+
 
   bool BeginFrame(Ref<CameraData> data);
   void DrawModel(ModelComponent& model, TransformComponent& transform);
@@ -213,6 +214,7 @@ class Renderer {
 
  private:
   friend class ImGuiLayer;
+  friend class RenderPass;
 
   static Ref<Renderer> s_Renderer;
 
@@ -239,10 +241,10 @@ class Renderer {
   std::vector<VkImageView> m_SwapChainImageViews;
   VkFormat m_SwapChainImageFormat;
 
-  VkExtent2D m_SwapChainExtent{};
+  VkExtent2D m_Extent{};
   Ref<DescriptorLayout> m_DefaultDescriptorLayout{};
-  Ref<AttachmentTexture> m_DepthStencil;
-  Ref<AttachmentTexture> m_ColorImage;
+  std::vector<Ref<AttachmentTexture>> m_DepthStencils;
+  std::vector<Ref<AttachmentTexture>> m_ColorImages;
   Ref<Texture> m_BlankTexture;
 
   std::vector<VkFramebuffer> m_Framebuffers;
@@ -268,7 +270,7 @@ class Renderer {
   bool m_RecreateShaders;
   Ref<GraphicsPipeline> m_DefaultGraphicsPipeline;
   Ref<GraphicsPipeline> m_CurrentGraphicsPipeline;
-  Ref<GraphicsRenderPass> m_DefaultRenderPass;
+  Ref<RenderPass> m_RenderPass;
   Ref<CameraData> m_CameraData;
 };
 

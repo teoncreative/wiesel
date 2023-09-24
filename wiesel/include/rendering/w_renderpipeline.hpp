@@ -23,11 +23,13 @@ enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
 struct PipelineProperties {
   CullMode m_CullFace;
   bool m_EnableWireframe;
-  Ref<GraphicsRenderPass> m_RenderPass;
+  Ref<RenderPass> m_RenderPass;
   Ref<DescriptorLayout> m_DescriptorLayout;
   Ref<Shader> m_VertexShader;
   Ref<Shader> m_FragmentShader;
   bool m_EnableAlphaBlending;
+  uint32_t m_ViewportWidth;
+  uint32_t m_ViewportHeight;
 };
 
 struct GraphicsPipeline {
@@ -39,6 +41,5 @@ struct GraphicsPipeline {
   VkPipeline m_Pipeline{};
   bool m_IsAllocated;
 };
-
 
 }  // namespace Wiesel

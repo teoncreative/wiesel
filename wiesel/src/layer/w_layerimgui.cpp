@@ -86,7 +86,7 @@ void ImGuiLayer::OnAttach() {
   init_info.MSAASamples = Engine::GetRenderer()->m_MsaaSamples;
 
   ImGui_ImplVulkan_Init(&init_info,
-                        Engine::GetRenderer()->m_DefaultRenderPass->m_Pass);
+                        Engine::GetRenderer()->m_RenderPass->GetVulkanHandle());
 
   //execute a gpu command to upload imgui font textures
   auto cmd = Engine::GetRenderer()->BeginSingleTimeCommands();
