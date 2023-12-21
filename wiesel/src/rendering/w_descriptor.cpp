@@ -15,9 +15,7 @@
 
 namespace Wiesel {
 
-DescriptorData::DescriptorData(uint32_t max) {
-  m_MaxDescriptorCount = max;
-  m_DescriptorSets.reserve(max);
+DescriptorData::DescriptorData() {
 }
 
 DescriptorData::~DescriptorData() {

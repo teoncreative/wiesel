@@ -152,16 +152,6 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
     if (changed) {
       component.m_Camera.m_IsChanged = true;
     }
-    if (ImGui::Checkbox(PrefixLabel("Is Primary").c_str(),
-                        &component.m_Camera.m_IsPrimary)) {
-      if (component.m_Camera.m_IsPrimary) {
-        if (entity.GetScene()->GetPrimaryCamera()) {
-          auto cameraEntity = entity.GetScene()->GetPrimaryCameraEntity();
-          auto& camera = cameraEntity.GetComponent<CameraComponent>();
-          camera.m_Camera.m_IsPrimary = false;
-        }
-      }
-    }
 
     ImGui::TreePop();
   }

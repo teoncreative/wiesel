@@ -36,13 +36,4 @@ UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {}
 UniformBuffer::~UniformBuffer() {
   Engine::GetRenderer()->DestroyUniformBuffer(*this);
 }
-
-UniformBufferSet::UniformBufferSet(uint32_t buffers) {
-  m_Buffers.reserve(buffers);
-  m_BufferCount = buffers;
-}
-
-UniformBufferSet::~UniformBufferSet() {
-  Engine::GetRenderer()->DestroyUniformBufferSet(*this);
-}
 }  // namespace Wiesel

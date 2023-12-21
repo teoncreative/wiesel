@@ -37,7 +37,10 @@ void Mesh::UpdateUniformBuffer(TransformComponent& transform) const {
     return;
   }
 
-  Ref<CameraData> camera = Engine::GetRenderer()->GetCameraData();
+  Ref<CameraData> camera = Engine::GetRenderer()->m_CameraData;
+  if (!camera) { [[unlikely]]
+    return;
+  }
   Wiesel::UniformBufferObject ubo{};
   ubo.ModelMatrix = transform.TransformMatrix;
   ubo.Scale = transform.Scale;
@@ -47,8 +50,7 @@ void Mesh::UpdateUniformBuffer(TransformComponent& transform) const {
   ubo.CameraProjection = camera->Projection;
   ubo.CameraPosition = camera->Position;
 
-  uint32_t currentFrame = Engine::GetRenderer()->GetCurrentFrame();
-  memcpy(UniformBufferSet->m_Buffers[currentFrame]->m_Data, &ubo, sizeof(ubo));
+  memcpy(UniformBuffer->m_Buffer, &ubo, sizeof(ubo));
 }
 
 void Mesh::Allocate() {
@@ -58,9 +60,9 @@ void Mesh::Allocate() {
 
   VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(Vertices);
   IndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(Indices);
-  UniformBufferSet = Engine::GetRenderer()->CreateUniformBufferSet(
-      k_MaxFramesInFlight, sizeof(UniformBufferObject));
-  Descriptors = Engine::GetRenderer()->CreateDescriptors(UniformBufferSet, Mat);
+  UniformBuffer = Engine::GetRenderer()->CreateUniformBuffer(
+      sizeof(UniformBufferObject));
+  Descriptors = Engine::GetRenderer()->CreateDescriptors(UniformBuffer, Mat);
   IsAllocated = true;
 }
 
@@ -70,7 +72,7 @@ void Mesh::Deallocate() {
   }
 
   Mat = nullptr;
-  UniformBufferSet = nullptr;
+  UniformBuffer = nullptr;
   Descriptors = nullptr;
   VertexBuffer = nullptr;
   IndexBuffer = nullptr;

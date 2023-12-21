@@ -17,11 +17,10 @@
 namespace Wiesel {
 class DescriptorData {
  public:
-  explicit DescriptorData(uint32_t max);
+  DescriptorData();
   ~DescriptorData();
 
-  uint32_t m_MaxDescriptorCount;
   VkDescriptorPool m_DescriptorPool;
-  std::vector<VkDescriptorSet> m_DescriptorSets;
+  VkDescriptorSet m_DescriptorSet;
 };
 }  // namespace Wiesel

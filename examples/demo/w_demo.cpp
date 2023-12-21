@@ -63,39 +63,6 @@ void DemoLayer::OnAttach() {
 //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
-    Entity entity = m_Scene->CreateEntity("Sponza 2");
-    sponzaEntity = entity.GetHandle();
-    auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Scale = {0.01f, 0.01f, 0.01f};
-    transform.Position = {5.0f, 10.0f, 0.0f};
-    auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
-    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
-  }
-  {
-    Entity entity = m_Scene->CreateEntity("Sponza 3");
-    sponzaEntity = entity.GetHandle();
-    auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Scale = {0.01f, 0.01f, 0.01f};
-    transform.Position = {5.0f, 20.0f, 0.0f};
-    auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
-    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
-  }
-  {
-    Entity entity = m_Scene->CreateEntity("Sponza 4");
-    sponzaEntity = entity.GetHandle();
-    auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Scale = {0.01f, 0.01f, 0.01f};
-    transform.Position = {5.0f, 30.0f, 0.0f};
-    auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
-    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    //    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
-  }
-  {
     auto entity = m_Scene->CreateEntity("Directional Light");
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.Position = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -114,7 +81,6 @@ void DemoLayer::OnAttach() {
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
     camera.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
-    camera.m_Camera.m_IsPrimary = true;
     camera.m_Camera.m_IsChanged = true;
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
@@ -134,9 +100,6 @@ void DemoLayer::OnDetach() {
 
 void DemoLayer::OnUpdate(float_t deltaTime) {
   //LOG_INFO("OnUpdate {}", deltaTime);
-  if (!m_Scene->GetPrimaryCamera()) {
-    return;
-  }
 }
 
 void DemoLayer::OnEvent(Event& event) {
