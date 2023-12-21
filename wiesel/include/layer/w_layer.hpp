@@ -27,7 +27,7 @@ class Layer {
   virtual void OnEvent(Event& event) = 0;
 
   virtual void OnImGuiRender();
-  virtual void PostRender();
+  virtual void OnPostRender();
 
  protected:
   friend class Application;

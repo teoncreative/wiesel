@@ -122,8 +122,7 @@ void ImGuiLayer::OnEndFrame() {
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(
       ImGui::GetDrawData(),
-      Engine::GetRenderer()
-          ->m_CommandBuffers[Engine::GetRenderer()->m_CurrentFrame]);
+      Engine::GetRenderer()->m_CommandBuffer);
   ImGui::EndFrame();
   ImGuiIO& io = ImGui::GetIO();
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {

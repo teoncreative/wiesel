@@ -42,15 +42,21 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
 void Scene::DestroyEntity(Entity entity) {
   m_Entities.erase(entity.GetUUID());
   m_Registry.destroy(entity);
-  if (m_HasCamera && m_CameraEntity == entity) {
-    m_HasCamera = false;
-  }
   std::remove_if(m_SceneHierarchy.begin(), m_SceneHierarchy.end(), [&](auto& e) {
     return e == entity;
   });
 }
 
 void Scene::OnUpdate(float_t deltaTime) {
+  if (!m_FirstUpdate) { [[likely]]
+    for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
+      auto& component = m_Registry.get<BehaviorsComponent>(entity);
+      for (const auto& entry : component.m_Behaviors) {
+        entry.second->OnUpdate(deltaTime);
+      }
+    }
+  }
+
   for (const auto& entity : m_Registry.view<TransformComponent>()) {
     auto& transform = m_Registry.get<TransformComponent>(entity);
     if (transform.IsChanged) {
@@ -65,7 +71,7 @@ void Scene::OnUpdate(float_t deltaTime) {
     }
   }
 
-  m_HasCamera = false;
+  m_HasViewportCamera = false;
   for (const auto& entity :
        m_Registry.view<CameraComponent, TransformComponent>()) {
     auto& camera = m_Registry.get<CameraComponent>(entity);
@@ -77,25 +83,25 @@ void Scene::OnUpdate(float_t deltaTime) {
       }
       camera.m_Camera.m_IsChanged = true;
     }
-    if (camera.m_Camera.m_IsPrimary) {
-      if (camera.m_Camera.m_IsChanged) {
-        camera.m_Camera.UpdateProjection();
-        camera.m_Camera.UpdateView(transform.Position, transform.Rotation);
-        camera.m_Camera.m_IsChanged = false;
-      }
-      m_CameraEntity = entity;
-      if (!m_Camera) {
-        m_Camera = CreateReference<CameraData>();
-      }
-      m_Camera->Position = transform.Position;
-      m_Camera->ViewMatrix = camera.m_Camera.m_ViewMatrix;
-      m_Camera->Projection = camera.m_Camera.m_Projection;
-      m_HasCamera = true;
-      break;
+    if (!camera.m_Camera.m_IsEnabled) {
+      continue;
     }
+    if (camera.m_Camera.m_IsChanged) {
+      camera.m_Camera.UpdateProjection();
+      camera.m_Camera.UpdateView(transform.Position, transform.Rotation);
+      camera.m_Camera.m_IsChanged = false;
+    }
+    if (camera.m_Camera.m_TargetTexture || m_HasViewportCamera) {
+      continue;
+    }
+    if (!m_ViewportCamera) {
+      m_ViewportCamera = CreateReference<CameraData>();
+    }
+    m_ViewportCamera->Position = transform.Position;
+    m_ViewportCamera->ViewMatrix = camera.m_Camera.m_ViewMatrix;
+    m_ViewportCamera->Projection = camera.m_Camera.m_Projection;
   }
 
-  // todo light system
   auto& lights = Engine::GetRenderer()->GetLightsBufferObject();
   lights.DirectLightCount = 0;
   lights.PointLightCount = 0;
@@ -109,14 +115,6 @@ void Scene::OnUpdate(float_t deltaTime) {
     auto transform = ApplyTransform(entity);
     UpdateLight(lights, light.LightData, transform);
   }
-
-  for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
-    auto& component = m_Registry.get<BehaviorsComponent>(entity);
-    for (const auto& entry : component.m_Behaviors) {
-      entry.second->OnUpdate(deltaTime);
-    }
-  }
-
   m_CanvasSystem->Update(*this);
 }
 
@@ -188,27 +186,12 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   return false;
 }
 
-template <>
-void Scene::OnRemoveComponent(entt::entity entity, CameraComponent& component) {
-  if (m_CameraEntity == entity) {
-    m_HasCamera = false;
-  }
+Ref<CameraData> Scene::GetViewportCamera() {
+  return m_ViewportCamera;
 }
 
-template <>
-void Scene::OnAddComponent(entt::entity entity, CameraComponent& component) {
-  if (component.m_Camera.m_IsPrimary) {
-    m_CameraEntity = entity;
-    m_HasCamera = true;
-  }
-}
-
-Ref<CameraData> Scene::GetPrimaryCamera() {
-  return m_HasCamera ? m_Camera : nullptr;
-}
-
-Entity Scene::GetPrimaryCameraEntity() {
-  return Entity{m_CameraEntity, this};
+Ref<CameraData> Scene::GetCurrentCamera() {
+  return m_CurrentCamera;
 }
 
 void Scene::ApplyTransform(entt::entity parent, TransformComponent& childTransform) {
@@ -239,11 +222,13 @@ TransformComponent Scene::ApplyTransform(entt::entity entity) {
 
 void Scene::Render() {
   // Render models
-  for (const auto& entity :
-       GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-    auto& model = m_Registry.get<ModelComponent>(entity);
-    auto transform = ApplyTransform(entity);
-    Engine::GetRenderer()->DrawModel(model, transform);
+  for (const auto& entity : GetAllEntitiesWith<CameraComponent>()) {
+    for (const auto& entity :
+         GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
+      auto& model = m_Registry.get<ModelComponent>(entity);
+      auto transform = ApplyTransform(entity);
+      Engine::GetRenderer()->DrawModel(model, transform);
+    }
   }
   m_CanvasSystem->Render(*this);
 }

@@ -14,6 +14,7 @@
 #include "events/w_appevents.hpp"
 #include "util/w_uuid.hpp"
 #include "w_pch.hpp"
+#include "w_texture.hpp"
 
 namespace Wiesel {
 struct Camera {
@@ -24,8 +25,9 @@ struct Camera {
 
   glm::mat4 m_ViewMatrix;
   glm::mat4 m_Projection;
-  bool m_IsPrimary = true;
   bool m_IsChanged = true;
+  bool m_IsEnabled = true;
+  Ref<Texture> m_TargetTexture;
 
   void UpdateProjection();
   void UpdateView(glm::vec3& position, glm::vec3& rotation);

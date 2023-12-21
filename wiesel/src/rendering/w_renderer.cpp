@@ -36,7 +36,6 @@ Renderer::Renderer(Ref<AppWindow> window) : m_Window(window) {
   m_SwapChainCreated = false;
   m_Vsync = true;
   m_ImageIndex = 0;
-  m_CurrentFrame = 0;
   m_MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
   m_PreviousMsaaSamples = VK_SAMPLE_COUNT_1_BIT;
   m_ClearColor = {0.1f, 0.1f, 0.2f, 1.0f};
@@ -55,6 +54,7 @@ void Renderer::Initialize() {
     PickPhysicalDevice();
     CreateLogicalDevice();
     CreateGlobalUniformBuffers();
+    // ---
     CreateSwapChain();
     CreateImageViews();
     CreateDefaultRenderPass();
@@ -157,18 +157,6 @@ Ref<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
   return uniformBuffer;
 }
 
-Ref<UniformBufferSet> Renderer::CreateUniformBufferSet(
-    uint32_t frames, VkDeviceSize size) {
-  Ref<UniformBufferSet> bufferSet =
-      CreateReference<UniformBufferSet>(frames);
-
-  for (int frame = 0; frame < frames; ++frame) {
-    bufferSet->m_Buffers.emplace_back(CreateUniformBuffer(size));
-  }
-
-  return bufferSet;
-}
-
 void Renderer::DestroyIndexBuffer(MemoryBuffer& buffer) {
   vkDeviceWaitIdle(m_LogicalDevice);
   vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
@@ -179,12 +167,6 @@ void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
   vkDeviceWaitIdle(m_LogicalDevice);
   vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
   vkFreeMemory(m_LogicalDevice, buffer.m_BufferMemory, nullptr);
-}
-
-void Renderer::DestroyUniformBufferSet(UniformBufferSet& bufferSet) {
-  vkDeviceWaitIdle(m_LogicalDevice);
-  // todo reuse pools
-  bufferSet.m_Buffers.clear();
 }
 
 Ref<Texture> Renderer::CreateBlankTexture() {
@@ -476,45 +458,43 @@ void Renderer::DestroyAttachmentTexture(AttachmentTexture& texture) {
 }
 
 Ref<DescriptorData> Renderer::CreateDescriptors(
-    Ref<UniformBufferSet> uniformBufferSet, Ref<Material> material) {
-  Ref<DescriptorData> object =
-      CreateReference<DescriptorData>(k_MaxFramesInFlight);
+    Ref<UniformBuffer> uniformBuffer, Ref<Material> material) {
+  Ref<DescriptorData> object = CreateReference<DescriptorData>();
 
   VkDescriptorPoolSize poolSizes[] = {
-      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, k_MaxFramesInFlight * 2},
+      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-       k_MaxFramesInFlight * k_MaterialTextureCount}};
+       k_MaterialTextureCount}};
 
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   poolInfo.poolSizeCount = std::size(poolSizes);
   poolInfo.pPoolSizes = poolSizes;
-  poolInfo.maxSets = k_MaxFramesInFlight;
+  poolInfo.maxSets = 1;
   // Allocate pool
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
       m_LogicalDevice, &poolInfo, nullptr, &object->m_DescriptorPool));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      k_MaxFramesInFlight, m_DefaultDescriptorLayout->m_Layout};
+      1, m_DefaultDescriptorLayout->m_Layout};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->m_DescriptorPool;
-  allocInfo.descriptorSetCount = k_MaxFramesInFlight;
+  allocInfo.descriptorSetCount = 1;
   allocInfo.pSetLayouts = layouts.data();
-  WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(
-      m_LogicalDevice, &allocInfo, object->m_DescriptorSets.data()));
+  WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(m_LogicalDevice,
+      &allocInfo,&object->m_DescriptorSet));
 
   std::vector<VkWriteDescriptorSet> writes{};
-  for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
     {
       VkDescriptorBufferInfo bufferInfo{};
-      bufferInfo.buffer = uniformBufferSet->m_Buffers[i]->m_Buffer;
+      bufferInfo.buffer = uniformBuffer->m_Buffer;
       bufferInfo.offset = 0;
       bufferInfo.range = sizeof(UniformBufferObject);
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 0;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -527,13 +507,13 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
     {  // move this to another set
       VkDescriptorBufferInfo bufferInfo{};
-      bufferInfo.buffer = m_LightsGlobalUboSet->m_Buffers[i]->m_Buffer;
+      bufferInfo.buffer = m_LightsGlobalUbo->m_Buffer;
       bufferInfo.offset = 0;
       bufferInfo.range = sizeof(UniformBufferObject);
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 1;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -557,7 +537,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 2;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -581,7 +561,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 3;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -605,7 +585,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 4;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -629,7 +609,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 5;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -653,7 +633,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 6;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -677,7 +657,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 7;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -701,7 +681,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       VkWriteDescriptorSet set{};
       set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      set.dstSet = object->m_DescriptorSets[i];
+      set.dstSet = object->m_DescriptorSet;
       set.dstBinding = 8;
       set.dstArrayElement = 0;
       set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -711,7 +691,6 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
 
       writes.push_back(set);
     }
-  }
   vkUpdateDescriptorSets(m_LogicalDevice, static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
@@ -772,18 +751,6 @@ void Renderer::DestroyDescriptorLayout(DescriptorLayout& layout) {
   }
   layout.m_Allocated = false;
   vkDestroyDescriptorSetLayout(m_LogicalDevice, layout.m_Layout, nullptr);
-}
-
-uint32_t Renderer::GetCurrentFrame() const {
-  return m_CurrentFrame;
-}
-
-Ref<CameraData> Renderer::GetCameraData() {
-  if (!m_CameraData) {
-    throw std::runtime_error(
-        "Camera is not initialized, forgot to call BeginFrame?");
-  }
-  return m_CameraData;
 }
 
 void Renderer::SetClearColor(float r, float g, float b, float a) {
@@ -862,7 +829,7 @@ const WindowSize& Renderer::GetWindowSize() const {
 }
 
 LightsUniformBufferObject& Renderer::GetLightsBufferObject() {
-  return m_LightsGlobalUbo;
+  return m_LightsBufferObject;
 }
 
 void Renderer::Cleanup() {
@@ -888,11 +855,9 @@ void Renderer::Cleanup() {
   CleanupDefaultRenderPass();
 
   LOG_DEBUG("Destroying semaphores and fences");
-  for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
-    vkDestroySemaphore(m_LogicalDevice, m_RenderFinishedSemaphores[i], nullptr);
-    vkDestroySemaphore(m_LogicalDevice, m_ImageAvailableSemaphores[i], nullptr);
-    vkDestroyFence(m_LogicalDevice, m_InFlightFences[i], nullptr);
-  }
+  vkDestroySemaphore(m_LogicalDevice, m_RenderFinishedSemaphore, nullptr);
+  vkDestroySemaphore(m_LogicalDevice, m_ImageAvailableSemaphore, nullptr);
+  vkDestroyFence(m_LogicalDevice, m_Fence, nullptr);
 
   LOG_DEBUG("Destroying command pool");
   vkDestroyCommandPool(m_LogicalDevice, m_CommandPool, nullptr);
@@ -1361,7 +1326,7 @@ void Renderer::RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline) {
 void Renderer::RecreateShader(Ref<Shader> shader) {
   if (shader->Properties.Source == ShaderSourceSource) {
     DestroyShader(*shader);
-    auto file = ReadFile(shader->Properties.Path);
+    std::vector<char> file = ReadFile(shader->Properties.Path);
     std::vector<uint32_t> code{};
     if (!Spirv::ShaderToSPV(shader->Properties.Type, file, code)) {
       throw std::runtime_error("Failed to compile shader!");
@@ -1373,6 +1338,18 @@ void Renderer::RecreateShader(Ref<Shader> shader) {
     createInfo.pCode = code.data();
     WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo,
                                                nullptr, &shader->ShaderModule));
+  } else if (shader->Properties.Source == ShaderSourcePrecompiled) {
+    DestroyShader(*shader);
+    std::vector<uint32_t> code = ReadFileUint32(shader->Properties.Path);
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size() * 4;
+    createInfo.pCode = code.data();
+    WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo,
+                                               nullptr, &shader->ShaderModule));
+
+  } else {
+    throw std::runtime_error("Shader source not implemented!");
   }
 }
 
@@ -1588,16 +1565,14 @@ void Renderer::CreateCommandPools() {
 }
 
 void Renderer::CreateCommandBuffers() {
-  m_CommandBuffers.resize(k_MaxFramesInFlight);
-
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = m_CommandPool;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = (uint32_t)m_CommandBuffers.size();
+  allocInfo.commandBufferCount = 1;
 
   WIESEL_CHECK_VKRESULT(vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo,
-                                                 m_CommandBuffers.data()));
+                                                 &m_CommandBuffer));
 }
 
 void Renderer::CreatePermanentResources() {
@@ -1816,10 +1791,6 @@ VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
 }
 
 void Renderer::CreateSyncObjects() {
-  m_ImageAvailableSemaphores.resize(k_MaxFramesInFlight);
-  m_RenderFinishedSemaphores.resize(k_MaxFramesInFlight);
-  m_InFlightFences.resize(k_MaxFramesInFlight);
-
   VkSemaphoreCreateInfo semaphoreInfo{};
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -1827,16 +1798,14 @@ void Renderer::CreateSyncObjects() {
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-  for (size_t i = 0; i < k_MaxFramesInFlight; i++) {
-    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo,
-                                            nullptr,
-                                            &m_ImageAvailableSemaphores[i]));
-    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo,
-                                            nullptr,
-                                            &m_RenderFinishedSemaphores[i]));
-    WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr,
-                                        &m_InFlightFences[i]));
-  }
+  WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo,
+                                          nullptr,
+                                          &m_ImageAvailableSemaphore));
+  WIESEL_CHECK_VKRESULT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo,
+                                          nullptr,
+                                          &m_RenderFinishedSemaphore));
+  WIESEL_CHECK_VKRESULT(vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr,
+                                      &m_Fence));
 }
 
 void Renderer::CleanupSwapChain() {
@@ -1863,12 +1832,11 @@ void Renderer::CleanupDefaultRenderPass() {
 }
 
 void Renderer::CreateGlobalUniformBuffers() {
-  m_LightsGlobalUboSet = CreateUniformBufferSet(
-      k_MaxFramesInFlight, sizeof(LightsUniformBufferObject) + 16);
+  m_LightsGlobalUbo = CreateUniformBuffer(sizeof(LightsUniformBufferObject) + 16);
 }
 
 void Renderer::CleanupGlobalUniformBuffers() {
-  m_LightsGlobalUboSet = nullptr;
+  m_LightsGlobalUbo = nullptr;
 }
 
 void Renderer::RecreateSwapChain() {
@@ -1891,11 +1859,10 @@ void Renderer::RecreateSwapChain() {
   CreateFramebuffers();
 }
 
-bool Renderer::BeginFrame(Ref<CameraData> data) {
-  m_CameraData = data;
+bool Renderer::BeginFrame() {
   VkResult result =
       vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain, UINT64_MAX,
-                            m_ImageAvailableSemaphores[m_CurrentFrame],
+                            m_ImageAvailableSemaphore,
                             VK_NULL_HANDLE, &m_ImageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR || m_RecreateSwapChain) {
     RecreateSwapChain();
@@ -1904,8 +1871,8 @@ bool Renderer::BeginFrame(Ref<CameraData> data) {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
   // Setup
-  vkResetFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame]);
-  vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], 0);
+  vkResetFences(m_LogicalDevice, 1, &m_Fence);
+  vkResetCommandBuffer(m_CommandBuffer, 0);
   if (m_PreviousMsaaSamples != m_MsaaSamples) {
     LOG_INFO("Msaa samples changed to {} from {}!",
              std::to_string(m_MsaaSamples),
@@ -1939,9 +1906,9 @@ bool Renderer::BeginFrame(Ref<CameraData> data) {
   beginInfo.pInheritanceInfo = nullptr;  // Optional
 
   WIESEL_CHECK_VKRESULT(
-      vkBeginCommandBuffer(m_CommandBuffers[m_CurrentFrame], &beginInfo));
+      vkBeginCommandBuffer(m_CommandBuffer, &beginInfo));
 
-  vkCmdBindPipeline(m_CommandBuffers[m_CurrentFrame],
+  vkCmdBindPipeline(m_CommandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                     m_CurrentGraphicsPipeline->m_Pipeline);
 
@@ -1954,15 +1921,15 @@ bool Renderer::BeginFrame(Ref<CameraData> data) {
   viewport.height = static_cast<float>(m_Extent.height);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(m_CommandBuffers[m_CurrentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(m_CommandBuffer, 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = m_Extent;
-  vkCmdSetScissor(m_CommandBuffers[m_CurrentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(m_CommandBuffer, 0, 1, &scissor);
 
   auto& lights = GetLightsBufferObject();
-  memcpy(m_LightsGlobalUboSet->m_Buffers[m_CurrentFrame]->m_Data, &lights,
+  memcpy(m_LightsGlobalUbo->m_Buffer, &lights,
          sizeof(lights));
 
   return true;
@@ -1983,43 +1950,43 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, TransformComponent& transform) {
 
   VkBuffer vertexBuffers[] = {mesh->VertexBuffer->m_Buffer};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(m_CommandBuffers[m_CurrentFrame], 0, 1, vertexBuffers,
+  vkCmdBindVertexBuffers(m_CommandBuffer, 0, 1, vertexBuffers,
                          offsets);
-  vkCmdBindIndexBuffer(m_CommandBuffers[m_CurrentFrame],
+  vkCmdBindIndexBuffer(m_CommandBuffer,
                        mesh->IndexBuffer->m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 
   vkCmdBindDescriptorSets(
-      m_CommandBuffers[m_CurrentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
       m_CurrentGraphicsPipeline->m_Layout, 0, 1,
-      &mesh->Descriptors->m_DescriptorSets[m_CurrentFrame], 0, nullptr);
-  vkCmdDrawIndexed(m_CommandBuffers[m_CurrentFrame],
+      &mesh->Descriptors->m_DescriptorSet, 0, nullptr);
+  vkCmdDrawIndexed(m_CommandBuffer,
                    static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
 }
 
 void Renderer::EndFrame() {
   // Finish command buffer
-  vkCmdEndRenderPass(m_CommandBuffers[m_CurrentFrame]);
-  WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(m_CommandBuffers[m_CurrentFrame]));
+  vkCmdEndRenderPass(m_CommandBuffer);
+  WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(m_CommandBuffer));
 
   // Presentation
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &m_CommandBuffers[m_CurrentFrame];
+  submitInfo.pCommandBuffers = &m_CommandBuffer;
 
-  VkSemaphore waitSemaphores[] = {m_ImageAvailableSemaphores[m_CurrentFrame]};
+  VkSemaphore waitSemaphores[] = {m_ImageAvailableSemaphore};
   VkPipelineStageFlags waitStages[] = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
   submitInfo.waitSemaphoreCount = 1;
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
 
-  VkSemaphore signalSemaphores[] = {m_RenderFinishedSemaphores[m_CurrentFrame]};
+  VkSemaphore signalSemaphores[] = {m_RenderFinishedSemaphore};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
   WIESEL_CHECK_VKRESULT(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo,
-                                      m_InFlightFences[m_CurrentFrame]));
+                                      m_Fence));
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -2041,11 +2008,14 @@ void Renderer::EndFrame() {
     throw std::runtime_error("failed to present swap chain image!");
   }
 
-  m_CurrentFrame = (m_CurrentFrame + 1) % k_MaxFramesInFlight;
   m_CurrentGraphicsPipeline = nullptr;
 
-  vkWaitForFences(m_LogicalDevice, 1, &m_InFlightFences[m_CurrentFrame],
+  vkWaitForFences(m_LogicalDevice, 1, &m_Fence,
                   VK_TRUE, UINT64_MAX);
+}
+
+void Renderer::SetCameraData(Ref<CameraData> cameraData) {
+  m_CameraData = cameraData;
 }
 
 std::vector<const char*> Renderer::GetRequiredExtensions() {

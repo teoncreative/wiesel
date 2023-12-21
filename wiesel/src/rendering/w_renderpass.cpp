@@ -125,7 +125,7 @@ void RenderPass::Bind() {
 
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
-  vkCmdBeginRenderPass(Engine::GetRenderer()->m_CommandBuffers[Engine::GetRenderer()->m_CurrentFrame], &renderPassInfo,
+  vkCmdBeginRenderPass(Engine::GetRenderer()->m_CommandBuffer, &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 }
 
