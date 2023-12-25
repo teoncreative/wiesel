@@ -32,25 +32,18 @@ Mesh::~Mesh() {
   Deallocate();
 }
 
-void Mesh::UpdateUniformBuffer(TransformComponent& transform) const {
-  if (!IsAllocated) {
+void Mesh::UpdateTransform(TransformComponent& transform) const {
+  if (!IsAllocated) { [[unlikely]]
     return;
   }
 
-  Ref<CameraData> camera = Engine::GetRenderer()->m_CameraData;
-  if (!camera) { [[unlikely]]
-    return;
-  }
-  Wiesel::UniformBufferObject ubo{};
-  ubo.ModelMatrix = transform.TransformMatrix;
-  ubo.Scale = transform.Scale;
-  ubo.NormalMatrix = transform.NormalMatrix;
-  ubo.RotationMatrix = transform.RotationMatrix;
-  ubo.CameraViewMatrix = camera->ViewMatrix;
-  ubo.CameraProjection = camera->Projection;
-  ubo.CameraPosition = camera->Position;
+  MatriciesUniformData matricies{};
+  matricies.ModelMatrix = transform.TransformMatrix;
+  matricies.Scale = transform.Scale;
+  matricies.NormalMatrix = transform.NormalMatrix;
+  matricies.RotationMatrix = transform.RotationMatrix;
 
-  memcpy(UniformBuffer->m_Buffer, &ubo, sizeof(ubo));
+  memcpy(UniformBuffer->m_Data, &matricies, sizeof(MatriciesUniformData));
 }
 
 void Mesh::Allocate() {
@@ -61,7 +54,7 @@ void Mesh::Allocate() {
   VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(Vertices);
   IndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(Indices);
   UniformBuffer = Engine::GetRenderer()->CreateUniformBuffer(
-      sizeof(UniformBufferObject));
+      sizeof(MatriciesUniformData));
   Descriptors = Engine::GetRenderer()->CreateDescriptors(UniformBuffer, Mat);
   IsAllocated = true;
 }

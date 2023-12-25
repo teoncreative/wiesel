@@ -39,17 +39,10 @@ class Scene {
   template <typename T>
   void OnRemoveComponent(entt::entity entity, T& component) {}
 
-  template <>
-  void OnRemoveComponent(entt::entity entity, CameraComponent& component);
-
   template <typename T>
   void OnAddComponent(entt::entity entity, T& component) {}
 
-  template <>
-  void OnAddComponent(entt::entity entity, CameraComponent& component);
-
   WIESEL_GETTER_FN Ref<CameraData> GetCurrentCamera();
-  WIESEL_GETTER_FN Ref<CameraData> GetViewportCamera();
 
   WIESEL_GETTER_FN bool IsRunning() const { return m_IsRunning; }
 
@@ -83,17 +76,11 @@ class Scene {
 
   std::unordered_map<UUID, entt::entity> m_Entities;
   entt::registry m_Registry;
-  Scope<CanvasSystem> m_CanvasSystem;
   bool m_IsRunning = false;
   bool m_IsPaused = false;
   bool m_FirstUpdate = true;
   std::vector<entt::entity> m_SceneHierarchy;
-  // this camera is used to render the scene to the viewport
-  bool m_HasViewportCamera = false;
-  Ref<CameraData> m_ViewportCamera;
   // this camera is used to render the scene to the current camera
-  // this camera can have a custom render texture
-  bool m_HasCurrentCamera = false;
   Ref<CameraData> m_CurrentCamera;
 };
 }  // namespace Wiesel

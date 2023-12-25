@@ -60,7 +60,7 @@ void DemoLayer::OnAttach() {
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-//    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
+    behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
     auto entity = m_Scene->CreateEntity("Directional Light");
@@ -80,8 +80,8 @@ void DemoLayer::OnAttach() {
     auto& camera = entity.AddComponent<CameraComponent>();
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
-    camera.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
-    camera.m_Camera.m_IsChanged = true;
+    camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
+    camera.m_IsChanged = true;
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
@@ -191,8 +191,8 @@ void DemoOverlay::RenderEntity(Entity& entity, entt::entity entityId, int depth,
 
   if (ImGui::BeginDragDropTarget()) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
-      entt::entity newData = *(entt::entity*)payload->Data;
-      HierarchyData.MoveFrom = newData;
+      entt::entity* newData = static_cast<entt::entity*>(payload->Data);
+      HierarchyData.MoveFrom = *newData;
       HierarchyData.MoveTo = entityId;
       HierarchyData.BottomPart = false;
     }
