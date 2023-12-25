@@ -144,13 +144,13 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Camera", &visible)) {
     bool changed = false;
     changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
-                                &component.m_Camera.m_FieldOfView, 1.0f);
+                                &component.m_FieldOfView, 1.0f);
     changed |= ImGui::DragFloat(PrefixLabel("Near Plane").c_str(),
-                                &component.m_Camera.m_NearPlane, 0.1f);
+                                &component.m_NearPlane, 0.1f);
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
-                                &component.m_Camera.m_FarPlane, 0.1f);
+                                &component.m_FarPlane, 0.1f);
     if (changed) {
-      component.m_Camera.m_IsChanged = true;
+      component.m_IsChanged = true;
     }
 
     ImGui::TreePop();
@@ -284,7 +284,7 @@ template <>
 void RenderAddComponentImGui<CameraComponent>(Entity entity) {
   if (ImGui::MenuItem("Camera")) {
     auto& component = entity.AddComponent<CameraComponent>();
-    component.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
+    component.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
   }
 }
 

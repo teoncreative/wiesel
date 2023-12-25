@@ -174,8 +174,7 @@ struct TextureProps {
         GenerateMipmaps(true),
         ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
 
-  TextureProps(TextureType type, bool generateMipmaps, VkFormat imageFormat,
-               VkFilter magFilter, VkFilter minFilter)
+  TextureProps(TextureType type, bool generateMipmaps, VkFormat imageFormat)
       : Type(type),
         GenerateMipmaps(generateMipmaps),
         ImageFormat(imageFormat) {}
@@ -183,6 +182,8 @@ struct TextureProps {
   TextureType Type;
   bool GenerateMipmaps;
   VkFormat ImageFormat;
+  uint32_t Width;
+  uint32_t Height;
 };
 
 class Texture {
@@ -197,8 +198,8 @@ class Texture {
   VkSampler m_Sampler;
   uint32_t m_MipLevels;
 
-  int32_t m_Width;
-  int32_t m_Height;
+  uint32_t m_Width;
+  uint32_t m_Height;
   int32_t m_Channels;
   VkDeviceSize m_Size;
 
@@ -206,6 +207,23 @@ class Texture {
   std::string m_Path;
 };
 
+enum class AttachmentTextureType {
+  Color,
+  DepthStencil
+};
+
+struct AttachmentTextureProps {
+  AttachmentTextureProps(uint32_t width, uint32_t height, AttachmentTextureType type, VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM,
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT)
+        : Width(width), Height(height), ImageFormat(imageFormat), Type(type), MsaaSamples(msaaSamples) {}
+
+  uint32_t Width;
+  uint32_t Height;
+  VkFormat ImageFormat;
+  AttachmentTextureType Type;
+  VkSampleCountFlagBits MsaaSamples;
+
+};
 class AttachmentTexture {
  public:
   AttachmentTexture() = default;
@@ -214,6 +232,8 @@ class AttachmentTexture {
   VkImage m_Image;
   VkDeviceMemory m_DeviceMemory;
   VkImageView m_ImageView;
+  uint32_t m_Width;
+  uint32_t m_Height;
 
   bool m_IsAllocated;
 };

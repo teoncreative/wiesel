@@ -16,6 +16,7 @@ public class CameraScript : MonoBehavior
 
     public override void OnUpdate(float deltaTime)
     {
+        Internals.Log_Info("Test");
         float axisX = Input.GetAxis("Horizontal");
         float axisY = Input.GetAxis("Vertical");
         transform.Position += transform.GetForward() * deltaTime * CameraMoveSpeed * axisY;

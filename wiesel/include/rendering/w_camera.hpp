@@ -17,28 +17,25 @@
 #include "w_texture.hpp"
 
 namespace Wiesel {
-struct Camera {
-  float m_FieldOfView = 60;
-  float m_NearPlane = 0.1f;
-  float m_FarPlane = 1000.0f;
-  float m_AspectRatio = 1.0;
-
-  glm::mat4 m_ViewMatrix;
-  glm::mat4 m_Projection;
-  bool m_IsChanged = true;
-  bool m_IsEnabled = true;
-  Ref<Texture> m_TargetTexture;
-
-  void UpdateProjection();
-  void UpdateView(glm::vec3& position, glm::vec3& rotation);
-};
 
 struct CameraComponent {
   CameraComponent() = default;
   CameraComponent(const CameraComponent&) = default;
   ~CameraComponent() = default;
 
-  Camera m_Camera;
+  float m_FieldOfView = 60;
+  float m_NearPlane = 0.1f;
+  float m_FarPlane = 1000.0f;
+  float m_AspectRatio = 1.0;
+  Ref<AttachmentTexture> m_TargetTexture;
+
+  glm::mat4 m_ViewMatrix;
+  glm::mat4 m_Projection;
+  bool m_IsChanged = true;
+  bool m_IsEnabled = true;
+
+  void UpdateProjection();
+  void UpdateView(glm::vec3& position, glm::vec3& rotation);
 };
 
 struct CameraData {
@@ -51,6 +48,8 @@ struct CameraData {
   glm::vec3 Position;
   glm::mat4 ViewMatrix;
   glm::mat4 Projection;
+  Ref<AttachmentTexture> TargetTexture;
+  bool Available;
 };
 
 }  // namespace Wiesel

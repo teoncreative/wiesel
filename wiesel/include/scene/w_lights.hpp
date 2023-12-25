@@ -75,8 +75,8 @@ struct alignas(16) LightPoint {
 
 static const int MAX_LIGHTS = 16;
 
-struct alignas(16) LightsUniformBufferObject {
-  LightsUniformBufferObject() : DirectLightCount(0), PointLightCount(0){};
+struct alignas(16) LightsUniformData {
+  LightsUniformData() : DirectLightCount(0), PointLightCount(0){};
 
   uint32_t DirectLightCount;
   uint32_t PointLightCount;
@@ -85,10 +85,10 @@ struct alignas(16) LightsUniformBufferObject {
 };
 
 
-void UpdateLight(LightsUniformBufferObject& lights, LightDirect light,
+void UpdateLight(LightsUniformData& lights, LightDirect light,
                  TransformComponent& transform);
 
-void UpdateLight(LightsUniformBufferObject& lights, LightPoint light,
+void UpdateLight(LightsUniformData& lights, LightPoint light,
                  TransformComponent& transform);
 
 struct LightDirectComponent {

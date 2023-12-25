@@ -121,10 +121,9 @@ void Application::Run() {
       }
       m_Scene->OnUpdate(m_DeltaTime);
 
-      //
       m_Scene->Render();
 
-      // set render target to the main camera
+/*      // set render target to the main camera
       m_ImGuiLayer->OnBeginFrame();
       for (const auto& layer : m_Overlays) {
         layer->OnImGuiRender();
@@ -132,7 +131,7 @@ void Application::Run() {
       m_ImGuiLayer->OnEndFrame();
       for (const auto& layer : m_Overlays) {
         layer->OnPostRender();
-      }
+      }*/
     }
 
     m_Window->OnUpdate();

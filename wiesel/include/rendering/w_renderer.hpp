@@ -54,16 +54,15 @@ class Renderer {
   void DestroyUniformBuffer(UniformBuffer& buffer);
 
   Ref<Texture> CreateBlankTexture();
-  Ref<Texture> CreateBlankTexture(int width, int height, TextureProps textureProps,
-                                  SamplerProps samplerProps);
+  Ref<Texture> CreateBlankTexture(const TextureProps& textureProps,
+                                  const SamplerProps& samplerProps);
   Ref<Texture> CreateTexture(const std::string& path,
-                                   TextureProps textureProps,
-                                   SamplerProps samplerProps);
+                                   const TextureProps& textureProps,
+                                   const SamplerProps& samplerProps);
   void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps);
 
-  Ref<AttachmentTexture> CreateDepthStencil();
-  Ref<AttachmentTexture> CreateColorImage();
+  Ref<AttachmentTexture> CreateAttachmentTexture(const AttachmentTextureProps& props);
 
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
@@ -114,13 +113,15 @@ class Renderer {
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const;
   WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
-  WIESEL_GETTER_FN LightsUniformBufferObject& GetLightsBufferObject();
   WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return m_Extent; };
 
 
-  bool BeginFrame();
+  bool BeginRender();
   void DrawModel(ModelComponent& model, TransformComponent& transform);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform);
+  bool EndRender();
+
+  bool BeginFrame();
   void EndFrame();
 
   void SetCameraData(Ref<CameraData> camera);
@@ -138,8 +139,6 @@ class Renderer {
   void CreateDefaultRenderPass();
   void CreateDefaultDescriptorSetLayout();
   void CreateDefaultGraphicsPipeline();
-  void CreateDepthResources();
-  void CreateColorResources();
   void CreateFramebuffers();
   void CreateCommandPools();
   void CreateCommandBuffers();
@@ -210,6 +209,7 @@ class Renderer {
   friend class ImGuiLayer;
   friend class RenderPass;
   friend class Mesh;
+  friend class Scene;
 
   static Ref<Renderer> s_Renderer;
 
@@ -258,8 +258,10 @@ class Renderer {
   Colorf m_ClearColor;
   bool m_Vsync;
   bool m_RecreateSwapChain;
-  Ref<UniformBuffer> m_LightsGlobalUbo;
-  LightsUniformBufferObject m_LightsBufferObject;
+  Ref<UniformBuffer> m_LightsUniformBuffer;
+  LightsUniformData m_LightsUniformData;
+  Ref<UniformBuffer> m_CameraUniformBuffer;
+  CameraUniformData m_CameraUniformData;
   bool m_EnableWireframe;
   bool m_RecreateGraphicsPipeline;
   bool m_RecreateShaders;
