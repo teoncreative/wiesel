@@ -30,15 +30,12 @@ struct LightPoint {
    float exp;
 };
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform Matricies {
    mat4 modelMatrix;
    vec3 scale;
    mat3 normalMatrix;
    mat4 rotationMatrix;
-   mat4 cameraViewMatrix;
-   mat4 cameraProjection;
-   vec3 cameraPosition;
-} ubo;
+};
 
 const int MAX_LIGHTS = 16;
 layout(binding = 1) uniform LightsBufferObject {
@@ -48,13 +45,13 @@ layout(binding = 1) uniform LightsBufferObject {
    LightPoint pointLights[MAX_LIGHTS];
 } lights;
 
-layout(binding = 2) uniform sampler2D baseTexture; // diffuse
-layout(binding = 3) uniform sampler2D normalMap;
-layout(binding = 4) uniform sampler2D specularMap;
-layout(binding = 5) uniform sampler2D heightMap;
-layout(binding = 6) uniform sampler2D albedoMap;
-layout(binding = 7) uniform sampler2D roughnessMap;
-layout(binding = 8) uniform sampler2D metalicMap;
+layout(binding = 3) uniform sampler2D baseTexture; // diffuse
+layout(binding = 4) uniform sampler2D normalMap;
+layout(binding = 5) uniform sampler2D specularMap;
+layout(binding = 6) uniform sampler2D heightMap;
+layout(binding = 7) uniform sampler2D albedoMap;
+layout(binding = 8) uniform sampler2D roughnessMap;
+layout(binding = 9) uniform sampler2D metalicMap;
 
 layout(location = 0) in vec3 inFragPosition;
 layout(location = 1) in vec3 inColor;
@@ -105,7 +102,7 @@ void main() {
       LightDirect light = lights.directLights[i];
       float lightAmbient = light.base.ambient;
 
-      vec4 lightDir = vec4(light.direction, 1.0f) * ubo.rotationMatrix;
+      vec4 lightDir = vec4(light.direction, 1.0f) * rotationMatrix;
       float lightDiffuse = light.base.diffuse * max(dot(normal, lightDir.xyz), 0.0);
       float lightSpecular = 0.0;
       // if (lightDiffuse > 0) {

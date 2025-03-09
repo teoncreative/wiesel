@@ -19,7 +19,6 @@ namespace Wiesel {
 MonoBehavior::MonoBehavior(Entity entity, const std::string& scriptName) :
       IBehavior(scriptName, entity) {
   m_Unset = true;
-  m_Enabled = false;
   m_InternalBehavior = false;
   m_Unset = false;
   m_Enabled = true;

@@ -19,5 +19,5 @@ Layer::~Layer() {}
 
 void Layer::OnImGuiRender() {}
 
-void Layer::PostRender() {}
+void Layer::OnPostRender() {}
 }  // namespace Wiesel

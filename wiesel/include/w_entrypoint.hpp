@@ -9,7 +9,8 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_texture.hpp"
+#pragma once
+
 #include "w_engine.hpp"
 
 int main() {

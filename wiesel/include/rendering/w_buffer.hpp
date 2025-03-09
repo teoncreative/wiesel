@@ -39,12 +39,4 @@ class UniformBuffer : public MemoryBuffer {
   void* m_Data;
 };
 
-class UniformBufferSet {
- public:
-  explicit UniformBufferSet(uint32_t buffers);
-  ~UniformBufferSet();
-
-  std::vector<Ref<UniformBuffer>> m_Buffers;
-  uint32_t m_BufferCount;
-};
 }  // namespace Wiesel

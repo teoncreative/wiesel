@@ -12,6 +12,7 @@
 
 #ifdef __cplusplus
 #include <vulkan/vulkan.h>
+#define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <algorithm>  // Necessary for std::clamp
@@ -37,6 +38,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 #include "util/w_attributes.hpp"
 #include "util/w_platformdetection.hpp"

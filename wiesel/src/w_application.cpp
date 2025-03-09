@@ -121,21 +121,17 @@ void Application::Run() {
       }
       m_Scene->OnUpdate(m_DeltaTime);
 
-      if (!Engine::GetRenderer()->BeginFrame(m_Scene->GetPrimaryCamera())) {
-        continue;
-      }
-      m_ImGuiLayer->OnBeginFrame();
+      m_Scene->Render();
+
+      // set render target to the main camera
+      /*m_ImGuiLayer->OnBeginFrame();
       for (const auto& layer : m_Overlays) {
         layer->OnImGuiRender();
       }
-      if (m_Scene->GetPrimaryCamera()) {
-        m_Scene->Render();
-      }
-      for (const auto& layer : m_Overlays) {
-        layer->PostRender();
-      }
       m_ImGuiLayer->OnEndFrame();
-      Engine::GetRenderer()->EndFrame();
+      for (const auto& layer : m_Overlays) {
+        layer->OnPostRender();
+      }*/
     }
 
     m_Window->OnUpdate();
