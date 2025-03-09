@@ -30,7 +30,7 @@ struct Mesh {
   Mesh(std::vector<Vertex> vertices, std::vector<Index> indices);
   ~Mesh();
 
-  void UpdateUniformBuffer(TransformComponent& transform) const;
+  void UpdateTransform(TransformComponent& transform) const;
   void Allocate();
   void Deallocate();
 
@@ -42,7 +42,7 @@ struct Mesh {
   // Render Data
   Ref<MemoryBuffer> VertexBuffer;
   Ref<MemoryBuffer> IndexBuffer;
-  Ref<UniformBufferSet> UniformBufferSet;
+  Ref<UniformBuffer> UniformBuffer;
   Ref<Material> Mat;
 
   Ref<DescriptorData> Descriptors;

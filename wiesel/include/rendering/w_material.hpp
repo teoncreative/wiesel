@@ -17,7 +17,7 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-static const int k_MaterialTextureCount = 7;
+static constexpr int kMaterialTextureCount = 7;
 
 struct Material {
   Material();

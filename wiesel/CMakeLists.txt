@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(Wiesel)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 
 # todo other platforms
 
@@ -12,11 +12,8 @@ endif ()
 
 message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Wmultichar -frtti")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -DEIGEN_NO_CUDA -DNDEBUG -O2")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -DDEBUG -O0")
-if (NOT APPLE)
-    set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -v -pthread -Wl,--gc-sections")
-endif ()
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O2")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
 
 ##### SETTINGS #####
 #add_definitions(-D_ITERATOR_DEBUG_LEVEL=0)
@@ -30,6 +27,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH "@loader_path/../lib/")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 set(INJECT_DEBUG_POSTFIX OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ##### SOURCES #####
 set(SOURCES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -78,7 +76,11 @@ file(
 add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo} ${LibGlslang})
 
 target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.hpp)
+target_compile_options(wiesel PRIVATE -include ${INCLUDE_DIRECTORY}/w_pch.hpp)
 target_include_directories(wiesel PUBLIC ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
+if (NOT APPLE)
+    target_link_options(wiesel PRIVATE -pthread -Wl,--gc-sections)
+endif ()
 
 ## LIBRARIES
 

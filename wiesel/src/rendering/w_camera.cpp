@@ -13,14 +13,14 @@
 
 namespace Wiesel {
 
-void Camera::UpdateProjection() {
+void CameraComponent::UpdateProjection() {
   m_Projection = glm::perspective(glm::radians(m_FieldOfView), m_AspectRatio,
                                   m_NearPlane, m_FarPlane);
   m_Projection[1][1] *=
       -1;  // glm is originally designed for OpenGL, which Y coords where flipped
 }
 
-void Camera::UpdateView(glm::vec3& position, glm::vec3& rotation) {
+void CameraComponent::UpdateView(glm::vec3& position, glm::vec3& rotation) {
   glm::mat4 rotationMatrix = glm::toMat4(glm::quat(rotation));
   m_ViewMatrix =
       glm::inverse(glm::translate(glm::mat4(1.0f), position) * rotationMatrix);

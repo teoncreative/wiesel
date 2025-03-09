@@ -36,12 +36,13 @@
 #endif
 
 namespace Wiesel {
-const uint32_t k_MaxFramesInFlight = 2;
 
 class Renderer {
  public:
   explicit Renderer(Ref<AppWindow> window);
   ~Renderer();
+
+  void Initialize();
 
   Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
   void DestroyVertexBuffer(MemoryBuffer& buffer);
@@ -52,25 +53,22 @@ class Renderer {
   Ref<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
   void DestroyUniformBuffer(UniformBuffer& buffer);
 
-  Ref<UniformBufferSet> CreateUniformBufferSet(uint32_t frames,
-                                                     VkDeviceSize size);
-  void DestroyUniformBufferSet(UniformBufferSet& bufferSet);
-
   Ref<Texture> CreateBlankTexture();
+  Ref<Texture> CreateBlankTexture(const TextureProps& textureProps,
+                                  const SamplerProps& samplerProps);
   Ref<Texture> CreateTexture(const std::string& path,
-                                   TextureProps textureProps,
-                                   SamplerProps samplerProps);
+                                   const TextureProps& textureProps,
+                                   const SamplerProps& samplerProps);
   void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps);
 
-  Ref<AttachmentTexture> CreateDepthStencil();
-  Ref<AttachmentTexture> CreateColorImage();
+  Ref<AttachmentTexture> CreateAttachmentTexture(const AttachmentTextureProps& props);
 
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
   // optimization for this function is disabled because compiler does something weird
   Ref<DescriptorData> CreateDescriptors(
-      Ref<UniformBufferSet> uniformBufferSet,
+      Ref<UniformBuffer> uniformBuffer,
       Ref<Material> material) __attribute__((optnone));
 
   void DestroyDescriptors(DescriptorData& descriptorPool);
@@ -87,17 +85,10 @@ class Renderer {
   void RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline);
   void RecreateShader(Ref<Shader> shader);
 
-  Ref<GraphicsRenderPass> CreateRenderPass(GraphicsRenderPassProps properties);
-  void AllocateRenderPass(Ref<GraphicsRenderPass> renderPass);
-  void DestroyRenderPass(GraphicsRenderPass& renderPass);
-  void RecreateRenderPass(Ref<GraphicsRenderPass> renderPass);
-
   Ref<Shader> CreateShader(ShaderProperties properties);
   Ref<Shader> CreateShader(const std::vector<uint32_t>& code,
                                  ShaderProperties properties);
   void DestroyShader(Shader& shader);
-
-  WIESEL_GETTER_FN Ref<CameraData> GetCameraData();
 
   void SetClearColor(float r, float g, float b, float a = 1.0f);
   void SetClearColor(const Colorf& color);
@@ -121,14 +112,19 @@ class Renderer {
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const;
-  WIESEL_GETTER_FN uint32_t GetCurrentFrame() const;
   WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
-  WIESEL_GETTER_FN LightsUniformBufferObject& GetLightsBufferObject();
+  WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return m_Extent; };
 
-  bool BeginFrame(Ref<CameraData> data);
+
+  bool BeginRender();
   void DrawModel(ModelComponent& model, TransformComponent& transform);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform);
+  bool EndRender();
+
+  bool BeginFrame();
   void EndFrame();
+
+  void SetCameraData(Ref<CameraData> camera);
 
   void RecreateSwapChain();
   void Cleanup();
@@ -143,8 +139,6 @@ class Renderer {
   void CreateDefaultRenderPass();
   void CreateDefaultDescriptorSetLayout();
   void CreateDefaultGraphicsPipeline();
-  void CreateDepthResources();
-  void CreateColorResources();
   void CreateFramebuffers();
   void CreateCommandPools();
   void CreateCommandBuffers();
@@ -213,6 +207,9 @@ class Renderer {
 
  private:
   friend class ImGuiLayer;
+  friend class RenderPass;
+  friend class Mesh;
+  friend class Scene;
 
   static Ref<Renderer> s_Renderer;
 
@@ -235,25 +232,25 @@ class Renderer {
 
   uint32_t m_ImageIndex;
   // make this Wiesel Texture
+  std::vector<Ref<Texture>> m_SwapChainTextures;
   std::vector<VkImage> m_SwapChainImages;
   std::vector<VkImageView> m_SwapChainImageViews;
   VkFormat m_SwapChainImageFormat;
 
-  VkExtent2D m_SwapChainExtent{};
+  VkExtent2D m_Extent{};
   Ref<DescriptorLayout> m_DefaultDescriptorLayout{};
-  Ref<AttachmentTexture> m_DepthStencil;
-  Ref<AttachmentTexture> m_ColorImage;
+  std::vector<Ref<AttachmentTexture>> m_DepthStencils;
+  std::vector<Ref<AttachmentTexture>> m_ColorImages;
   Ref<Texture> m_BlankTexture;
 
   std::vector<VkFramebuffer> m_Framebuffers;
   VkCommandPool m_CommandPool{};
 
-  std::vector<VkCommandBuffer> m_CommandBuffers;
-  std::vector<VkSemaphore> m_ImageAvailableSemaphores;
-  std::vector<VkSemaphore> m_RenderFinishedSemaphores;
-  std::vector<VkFence> m_InFlightFences;
+  VkCommandBuffer m_CommandBuffer;
+  VkSemaphore m_ImageAvailableSemaphore;
+  VkSemaphore m_RenderFinishedSemaphore;
+  VkFence m_Fence;
 
-  uint32_t m_CurrentFrame = 0;
   float_t m_AspectRatio;
   WindowSize m_WindowSize;
   VkSampleCountFlagBits m_MsaaSamples;
@@ -261,14 +258,16 @@ class Renderer {
   Colorf m_ClearColor;
   bool m_Vsync;
   bool m_RecreateSwapChain;
-  Ref<UniformBufferSet> m_LightsGlobalUboSet;
-  LightsUniformBufferObject m_LightsGlobalUbo;
+  Ref<UniformBuffer> m_LightsUniformBuffer;
+  LightsUniformData m_LightsUniformData;
+  Ref<UniformBuffer> m_CameraUniformBuffer;
+  CameraUniformData m_CameraUniformData;
   bool m_EnableWireframe;
   bool m_RecreateGraphicsPipeline;
   bool m_RecreateShaders;
   Ref<GraphicsPipeline> m_DefaultGraphicsPipeline;
   Ref<GraphicsPipeline> m_CurrentGraphicsPipeline;
-  Ref<GraphicsRenderPass> m_DefaultRenderPass;
+  Ref<RenderPass> m_RenderPass;
   Ref<CameraData> m_CameraData;
 };
 

@@ -80,9 +80,8 @@ void DemoLayer::OnAttach() {
     auto& camera = entity.AddComponent<CameraComponent>();
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
-    camera.m_Camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
-    camera.m_Camera.m_IsPrimary = true;
-    camera.m_Camera.m_IsChanged = true;
+    camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
+    camera.m_IsChanged = true;
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
@@ -101,9 +100,6 @@ void DemoLayer::OnDetach() {
 
 void DemoLayer::OnUpdate(float_t deltaTime) {
   //LOG_INFO("OnUpdate {}", deltaTime);
-  if (!m_Scene->GetPrimaryCamera()) {
-    return;
-  }
 }
 
 void DemoLayer::OnEvent(Event& event) {
@@ -195,8 +191,8 @@ void DemoOverlay::RenderEntity(Entity& entity, entt::entity entityId, int depth,
 
   if (ImGui::BeginDragDropTarget()) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
-      entt::entity newData = *(entt::entity*)payload->Data;
-      HierarchyData.MoveFrom = newData;
+      entt::entity* newData = static_cast<entt::entity*>(payload->Data);
+      HierarchyData.MoveFrom = *newData;
       HierarchyData.MoveTo = entityId;
       HierarchyData.BottomPart = false;
     }
@@ -321,14 +317,16 @@ void DemoOverlay::OnImGuiRender() {
       }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Add Component"))
+    // Ah yeah, great. Does not work on Windows.
+    // I hated this solution anyway.
+    /*if (ImGui::Button("Add Component"))
       ImGui::OpenPopup("add_component_popup");
     if (ImGui::BeginPopup("add_component_popup")) {
       GENERATE_COMPONENT_ADDERS(entity);
       ImGui::EndPopup();
     }
 
-    GENERATE_COMPONENT_EDITORS(entity);
+    GENERATE_COMPONENT_EDITORS(entity);*/
   }
   ImGui::End();
 }
