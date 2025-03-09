@@ -11,7 +11,8 @@
 
 #pragma once
 #include <SPIRV/GlslangToSpv.h>
-
+#include "glslang/Include/ResourceLimits.h"
+#include "glslang/Public/ShaderLang.h"
 #include "rendering/w_shader.hpp"
 
 namespace Wiesel::Spirv {

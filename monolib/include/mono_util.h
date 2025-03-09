@@ -1,7 +1,8 @@
 #pragma once
+
+#include <vector>
 #include <mono/jit/jit.h>
 #include <string>
-#include <span>
 
 bool CompileToDLL(const std::string& output_file,
                   const std::vector<std::string>& source_files,

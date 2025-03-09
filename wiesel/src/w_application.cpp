@@ -123,8 +123,8 @@ void Application::Run() {
 
       m_Scene->Render();
 
-/*      // set render target to the main camera
-      m_ImGuiLayer->OnBeginFrame();
+      // set render target to the main camera
+      /*m_ImGuiLayer->OnBeginFrame();
       for (const auto& layer : m_Overlays) {
         layer->OnImGuiRender();
       }

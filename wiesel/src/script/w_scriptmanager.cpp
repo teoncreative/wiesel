@@ -9,6 +9,8 @@
 //
 
 #include "script/w_scriptmanager.hpp"
+
+#include <direct.h>
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/mono-debug.h>
