@@ -317,14 +317,16 @@ void DemoOverlay::OnImGuiRender() {
       }
     }
     ImGui::SameLine();
-    if (ImGui::Button("Add Component"))
+    // Ah yeah, great. Does not work on Windows.
+    // I hated this solution anyway.
+    /*if (ImGui::Button("Add Component"))
       ImGui::OpenPopup("add_component_popup");
     if (ImGui::BeginPopup("add_component_popup")) {
       GENERATE_COMPONENT_ADDERS(entity);
       ImGui::EndPopup();
     }
 
-    GENERATE_COMPONENT_EDITORS(entity);
+    GENERATE_COMPONENT_EDITORS(entity);*/
   }
   ImGui::End();
 }

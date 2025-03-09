@@ -2041,7 +2041,6 @@ bool Renderer::BeginFrame() {
   vkCmdSetScissor(m_CommandBuffer, 0, 1, &scissor);
 
   memcpy(m_LightsUniformBuffer->m_Data, &m_LightsUniformData, sizeof(m_LightsUniformData));
-
   memcpy(m_CameraUniformBuffer->m_Data, &m_CameraUniformData, sizeof(m_CameraUniformData));
 
   return true;

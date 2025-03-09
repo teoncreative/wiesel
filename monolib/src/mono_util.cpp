@@ -4,9 +4,6 @@
 #include <numeric>
 #include <vector>
 
-#ifdef WIN32
-#error "Runtime compilation is added for Windows yet!"
-#endif
 std::pair<int, std::string> ExecuteCommandAndGetOutput(const char* command) {
   // Create a temporary file
   const char* temp_file_name = "temp_output.txt";
@@ -41,7 +38,12 @@ bool CompileToDLL(const std::string& output_file,
     std::cout << "Failed to create output directory: " << output_dir << std::endl;
     return false;
   }
+  // I hate this, words cannot describe the disgust I have for myself for writing this code
+#ifdef WIN32
+  std::string command_prefix = ".\\mono\\bin\\mcs.bat";
+#else
   std::string command_prefix = "mono/bin/mcs";
+#endif
   std::string references;
   for (const auto& lib : linkLibs) {
     references += " -reference:" + lib;

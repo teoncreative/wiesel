@@ -14,9 +14,6 @@ message(STATUS "CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Wmultichar -frtti")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} -O2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
-if (NOT APPLE)
-    set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -v -pthread -Wl,--gc-sections")
-endif ()
 
 ##### SETTINGS #####
 #add_definitions(-D_ITERATOR_DEBUG_LEVEL=0)
@@ -79,7 +76,11 @@ file(
 add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${LibImGui} ${LibImGuizmo} ${LibGlslang})
 
 target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.hpp)
+target_compile_options(wiesel PRIVATE -include ${INCLUDE_DIRECTORY}/w_pch.hpp)
 target_include_directories(wiesel PUBLIC ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
+if (NOT APPLE)
+    target_link_options(wiesel PRIVATE -pthread -Wl,--gc-sections)
+endif ()
 
 ## LIBRARIES
 

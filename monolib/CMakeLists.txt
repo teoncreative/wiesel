@@ -12,17 +12,18 @@ if(WIN32)
         message(FATAL_ERROR "Environment variable MONO_ROOT is not set. Please set it to the path of your Mono installation.")
     endif()
 
+    message("Mono Root: ${MONO_ROOT}")
     set(MONO_INCLUDE_DIRS ${MONO_ROOT}/include/mono-2.0)
     set(MONO_LIBRARY_DIRS ${MONO_ROOT}/lib)
-    set(MONO_LIBRARIES ${MONO_ROOT}/lib/mono-2.0.lib)
+    set(MONO_LIBRARIES ${MONO_ROOT}/lib/libmono-static-sgen.lib)
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(MONO REQUIRED mono-2)
 endif()
 
-#message("include dirs: ${MONO_INCLUDE_DIRS}")
-#message("lib dirs: ${MONO_LIBRARY_DIRS}")
-#message("libs: ${MONO_LIBRARIES}")
+message("Include dirs: ${MONO_INCLUDE_DIRS}")
+message("Lib dirs: ${MONO_LIBRARY_DIRS}")
+message("Libs: ${MONO_LIBRARIES}")
 
 add_library(monolib STATIC src/mono_util.cpp)
 
@@ -35,7 +36,20 @@ target_link_libraries(monolib PUBLIC ${MONO_LIBRARIES} ${MONO_LDFLAGS})
 
 # copy mcs to the build directory
 if(WIN32)
+    target_link_libraries(monolib PUBLIC winmm Ws2_32 Version bcrypt)
     # todo
+    add_custom_command(TARGET monolib PRE_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${MONO_ROOT}/bin ${CMAKE_BINARY_DIR}/mono/bin
+            COMMENT "Copying mono bin to the build directory"
+    )
+    add_custom_command(TARGET monolib PRE_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${MONO_ROOT}/etc ${CMAKE_BINARY_DIR}/mono/etc
+            COMMENT "Copying mono etc to the build directory"
+    )
+    add_custom_command(TARGET monolib PRE_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${MONO_ROOT}/lib ${CMAKE_BINARY_DIR}/mono/lib
+            COMMENT "Copying mono lib to the build directory"
+    )
 else()
     add_custom_command(TARGET monolib PRE_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory /opt/homebrew/opt/mono/bin ${CMAKE_BINARY_DIR}/mono/bin
