@@ -1226,6 +1226,8 @@ void Renderer::CreateRenderPass() {
     m_GeometryColorResolveImage = CreateAttachmentTexture(
         {m_Extent.width, m_Extent.height, AttachmentTextureType::Resolve, 1,
          m_SwapChainImageFormat, VK_SAMPLE_COUNT_1_BIT, true});
+  } else {
+    m_GeometryColorResolveImage = m_GeometryColorImage;
   }
   m_GeometryRenderPass = CreateReference<RenderPass>(PassType::Geometry);
   m_GeometryRenderPass->Attach(m_GeometryColorImage);
@@ -1236,12 +1238,14 @@ void Renderer::CreateRenderPass() {
   m_GeometryRenderPass->Bake();
 
   m_GeometryFramebuffer = m_GeometryRenderPass->CreateFramebuffer(0, m_Extent);
+
   std::vector<Vertex2D> vertices = {
       {{-1.0f, -1.0f}, {1, 1, 1, 1}, {0.0f, 0.0f}},
       {{1.0f, -1.0f}, {1, 1, 1, 1}, {1.0f, 0.0f}},
       {{1.0f, 1.0f}, {1, 1, 1, 1}, {1.0f, 1.0f}},
       {{-1.0f, 1.0f}, {1, 1, 1, 1}, {0.0f, 1.0f}},
   };
+
   std::vector<Index> indices = {0, 1, 2, 2, 3, 0};
   m_PresentVertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(vertices);
   m_PresentIndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(indices);
@@ -2028,7 +2032,9 @@ void Renderer::RecreateSwapChain() {
   vkDeviceWaitIdle(m_LogicalDevice);
 
   CleanupSwapChain();
+  CleanupRenderPass();
   CreateSwapChain();
+  CreateRenderPass();
 }
 
 void Renderer::SetViewport(VkExtent2D extent) {
@@ -2045,6 +2051,35 @@ void Renderer::SetViewport(VkExtent2D extent) {
   scissor.offset = {0, 0};
   scissor.extent = extent;
   vkCmdSetScissor(m_CommandBuffer->m_Handle, 0, 1, &scissor);
+}
+
+void Renderer::BeginRender() {
+  vkResetFences(m_LogicalDevice, 1, &m_Fence);
+  m_CommandBuffer->Reset();
+  m_CommandBuffer->Begin();
+  if (m_PreviousMsaaSamples != m_MsaaSamples) {
+    LOG_INFO("Msaa samples changed to {} from {}!",
+             std::to_string(m_MsaaSamples),
+             std::to_string(m_PreviousMsaaSamples));
+    m_PreviousMsaaSamples = m_MsaaSamples;
+  }
+
+  // Reloading stuff
+  if (m_RecreateShaders) {
+    RecreateShader(m_GeometryGraphicsPipeline->m_Properties.m_VertexShader);
+    RecreateShader(m_GeometryGraphicsPipeline->m_Properties.m_FragmentShader);
+    m_RecreateShaders = false;
+    m_RecreateGraphicsPipeline = true;
+  }
+
+  if (m_RecreateGraphicsPipeline) {
+    vkDeviceWaitIdle(m_LogicalDevice);
+    LOG_INFO("Recreating graphics pipeline...");
+    m_GeometryGraphicsPipeline->m_Properties.m_EnableWireframe =
+        m_EnableWireframe;  // Update wireframe mode
+    RecreateGraphicsPipeline(m_GeometryGraphicsPipeline);
+    m_RecreateGraphicsPipeline = false;
+  }
 }
 
 void Renderer::BeginPresent() {
@@ -2082,8 +2117,7 @@ void Renderer::BeginPresent() {
                         m_CommandBuffer->m_Handle);
 
   m_PresentGraphicsPipeline->Bind(PipelineBindPointGraphics);
-  m_PresentRenderPass->Begin(m_PresentFramebuffers[m_ImageIndex],
-                             {0.2, 0, 0, 1});
+  m_PresentRenderPass->Begin(m_PresentFramebuffers[m_ImageIndex],m_ClearColor);
   SetViewport(m_Extent);
 
   DrawImageToSwapChain(m_GeometryColorResolveImage);
@@ -2150,33 +2184,6 @@ void Renderer::EndPresent() {
 }
 
 bool Renderer::BeginFrame() {
-  vkResetFences(m_LogicalDevice, 1, &m_Fence);
-  m_CommandBuffer->Reset();
-  /*if (m_PreviousMsaaSamples != m_MsaaSamples) {
-    LOG_INFO("Msaa samples changed to {} from {}!",
-             std::to_string(m_MsaaSamples),
-             std::to_string(m_PreviousMsaaSamples));
-    m_PreviousMsaaSamples = m_MsaaSamples;
-  }
-
-  // Reloading stuff
-  if (m_RecreateShaders) {
-    RecreateShader(m_GeometryGraphicsPipeline->m_Properties.m_VertexShader);
-    RecreateShader(m_GeometryGraphicsPipeline->m_Properties.m_FragmentShader);
-    m_RecreateShaders = false;
-    m_RecreateGraphicsPipeline = true;
-  }
-
-  if (m_RecreateGraphicsPipeline) {
-    vkDeviceWaitIdle(m_LogicalDevice);
-    LOG_INFO("Recreating graphics pipeline...");
-    m_GeometryGraphicsPipeline->m_Properties.m_EnableWireframe =
-        m_EnableWireframe;  // Update wireframe mode
-    RecreateGraphicsPipeline(m_GeometryGraphicsPipeline);
-    m_RecreateGraphicsPipeline = false;
-  }*/
-
-  m_CommandBuffer->Begin();
   m_GeometryGraphicsPipeline->Bind(PipelineBindPointGraphics);
   m_GeometryRenderPass->Begin(m_GeometryFramebuffer, m_ClearColor);
   SetViewport(m_Extent);

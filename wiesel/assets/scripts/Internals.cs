@@ -14,6 +14,12 @@ namespace WieselEngine
         public extern static bool Input_GetKey(string key);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern static void Input_SetCursorMode(ushort cursorMode);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern static ushort Input_GetCursorMode();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern static object Behavior_GetComponent(ulong behaviorPtr, string name);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

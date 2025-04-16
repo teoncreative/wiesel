@@ -133,12 +133,17 @@ class Renderer {
     return m_SwapChainImageFormat;
   }
 
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage() const {
+    return m_GeometryColorResolveImage;
+  }
+
   void SetViewport(VkExtent2D extent);
 
   void DrawModel(ModelComponent& model, TransformComponent& transform);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform);
   void BlitImageToSwapChain(Ref<AttachmentTexture> texture);
   void DrawImageToSwapChain(Ref<AttachmentTexture> texture);
+  void BeginRender();
   void BeginPresent();
   void EndPresent();
 

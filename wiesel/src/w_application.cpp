@@ -105,6 +105,7 @@ void Application::RemoveOverlay(const Ref<Layer>& layer) {
 void Application::Run() {
   m_PreviousFrame = Time::GetTime();
 
+  Ref<Renderer> renderer = Engine::GetRenderer();
   while (m_IsRunning) {
     float time = Time::GetTime();
     m_DeltaTime = time - m_PreviousFrame;
@@ -121,15 +122,16 @@ void Application::Run() {
       }
       m_Scene->OnUpdate(m_DeltaTime);
 
+      renderer->BeginRender();
       m_Scene->Render();
-
-      Engine::GetRenderer()->BeginPresent();
+      renderer->BeginPresent();
+      renderer->DrawImageToSwapChain(renderer->GetGeometryColorResolveImage());
       m_ImGuiLayer->OnBeginFrame();
       for (const auto& layer : m_Overlays) {
         layer->OnImGuiRender();
       }
       m_ImGuiLayer->OnEndFrame();
-      Engine::GetRenderer()->EndPresent();
+      renderer->EndPresent();
       for (const auto& layer : m_Overlays) {
         layer->OnPostRender();
       }
@@ -143,7 +145,7 @@ void Application::Run() {
         m_IsMinimized = true;
       } else {
         m_IsMinimized = false;
-        Engine::GetRenderer()->RecreateSwapChain();
+        renderer->RecreateSwapChain();
       }
       m_WindowResized = false;
     }

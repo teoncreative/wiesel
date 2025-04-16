@@ -32,6 +32,9 @@ class MonoBehavior : public IBehavior {
  private:
   void InstantiateScript();
   bool OnReloadScripts(ScriptsReloadedEvent& event);
+  bool OnKeyPressed(KeyPressedEvent& event);
+  bool OnKeyReleased(KeyReleasedEvent& event);
+  bool OnMouseMoved(MouseMovedEvent& event);
 
   ScriptInstance* m_ScriptInstance;
 };

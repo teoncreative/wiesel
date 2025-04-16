@@ -207,7 +207,8 @@ TransformComponent Scene::ApplyTransform(entt::entity entity) {
   return transform;
 }
 
-void Scene::Render() {
+bool Scene::Render() {
+  bool hasCamera = false;
   // Render models
   for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
     auto& camera = m_Registry.get<CameraComponent>(cameraEntity);
@@ -219,12 +220,11 @@ void Scene::Render() {
     m_CurrentCamera->Position = cameraTransform.Position;
     m_CurrentCamera->ViewMatrix = camera.m_ViewMatrix;
     m_CurrentCamera->Projection = camera.m_Projection;
-    m_CurrentCamera->TargetTexture = camera.m_TargetTexture;
     Engine::GetRenderer()->SetCameraData(m_CurrentCamera);
     if (!Engine::GetRenderer()->BeginFrame()) {
-      return;
+      return false;
     }
-    LOG_INFO("Pos {}, {}, {}", m_CurrentCamera->Position.x, m_CurrentCamera->Position.y, m_CurrentCamera->Position.z);
+    //LOG_INFO("Pos {}, {}, {}", m_CurrentCamera->Position.x, m_CurrentCamera->Position.y, m_CurrentCamera->Position.z);
 
     for (const auto& entity :
          GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
@@ -234,7 +234,9 @@ void Scene::Render() {
     }
     Engine::GetRenderer()->EndFrame();
     m_CurrentCamera->Available = false;
+    hasCamera = true;
   }
+  return hasCamera;
 }
 
 }  // namespace Wiesel

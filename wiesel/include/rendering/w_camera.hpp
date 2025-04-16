@@ -27,7 +27,6 @@ struct CameraComponent {
   float m_NearPlane = 0.1f;
   float m_FarPlane = 1000.0f;
   float m_AspectRatio = 1.0;
-  Ref<AttachmentTexture> m_TargetTexture;
 
   glm::mat4 m_ViewMatrix;
   glm::mat4 m_Projection;
@@ -48,8 +47,8 @@ struct CameraData {
   glm::vec3 Position;
   glm::mat4 ViewMatrix;
   glm::mat4 Projection;
-  Ref<AttachmentTexture> TargetTexture;
   bool Available;
 };
+
 
 }  // namespace Wiesel

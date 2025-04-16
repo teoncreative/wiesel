@@ -21,13 +21,10 @@
 #include "w_application.hpp"
 #include "w_engine.hpp"
 #include "mono_util.h"
+#include <typeindex>
 
 namespace Wiesel {
-void InitializeComponents() {
 
-}
-
-template <>
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Transform", nullptr)) {
     bool changed = false;
@@ -47,7 +44,6 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
   }
 }
 
-template <>
 void RenderComponentImGui(ModelComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Model", &visible)) {
@@ -84,7 +80,6 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
   }
 }
 
-template <>
 void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Directional Light", &visible)) {
@@ -107,7 +102,6 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
   }
 }
 
-template <>
 void RenderComponentImGui(LightPointComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Point Light", &visible)) {
@@ -138,7 +132,6 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
   }
 }
 
-template <>
 void RenderComponentImGui(CameraComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Camera", &visible)) {
@@ -161,7 +154,6 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
   }
 }
 
-template <>
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                                   IBehavior& behavior,
                                   Entity entity) {
@@ -250,7 +242,6 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
   return false;
 }
 
-template <>
 void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
   for (const auto& entry : component.m_Behaviors) {
     if (RenderBehaviorComponentImGui(component, *entry.second, entity)) {
@@ -259,37 +250,32 @@ void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
   }
 }
 
-template <>
-void RenderAddComponentImGui<ModelComponent>(Entity entity) {
+void RenderAddComponentImGui_ModelComponent(Entity entity) {
   if (ImGui::MenuItem("Model")) {
     entity.AddComponent<ModelComponent>();
   }
 }
 
-template <>
-void RenderAddComponentImGui<LightPointComponent>(Entity entity) {
+void RenderAddComponentImGui_LightPointComponent(Entity entity) {
   if (ImGui::MenuItem("Point Light")) {
     entity.AddComponent<LightPointComponent>();
   }
 }
 
-template <>
-void RenderAddComponentImGui<LightDirectComponent>(Entity entity) {
+void RenderAddComponentImGui_LightDirectComponent(Entity entity) {
   if (ImGui::MenuItem("Directional Light")) {
     entity.AddComponent<LightDirectComponent>();
   }
 }
 
-template <>
-void RenderAddComponentImGui<CameraComponent>(Entity entity) {
+void RenderAddComponentImGui_CameraComponent(Entity entity) {
   if (ImGui::MenuItem("Camera")) {
     auto& component = entity.AddComponent<CameraComponent>();
     component.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
   }
 }
 
-template <>
-void RenderAddComponentImGui<BehaviorsComponent>(Entity entity) {
+void RenderAddComponentImGui_BehaviorsComponent(Entity entity) {
   if (ImGui::MenuItem("C# Script")) {
     if (!entity.HasComponent<BehaviorsComponent>()) {
       entity.AddComponent<BehaviorsComponent>();
@@ -299,8 +285,57 @@ void RenderAddComponentImGui<BehaviorsComponent>(Entity entity) {
   }
 }
 
-template <>
-void CallRenderAddComponentImGui<BehaviorsComponent>(Entity entity) {
-  RenderAddComponentImGui<BehaviorsComponent>(entity);
+struct ComponentDesc {
+  std::function<void(Entity)> RenderSelf;
+  std::function<void(Entity)> RenderAdd;
+  std::function<bool(Entity)> HasComponent;
+};
+
+std::unordered_map<std::type_index, ComponentDesc> kRegistry;
+
+template<typename T>
+void RegisterComponentType(
+    void (*renderSelf)(T&, Entity),
+    void (*renderAdd)(Entity)
+) {
+  auto ti = std::type_index(typeid(T));
+  kRegistry[ti] = ComponentDesc{
+      [renderSelf](Entity e) {
+        if (renderSelf) {
+          renderSelf(e.GetComponent<T>(), e);
+        }
+      },
+      [renderAdd](Entity e) {
+        if (renderAdd) {
+          renderAdd(e);
+        }
+      },
+      [](Entity entity) {
+        return entity.HasComponent<T>();
+      }
+  };
+}
+
+void InitializeComponents() {
+  RegisterComponentType<IdComponent>(nullptr, nullptr);
+  RegisterComponentType<TagComponent>(nullptr, nullptr);
+  RegisterComponentType<TransformComponent>(RenderComponentImGui, nullptr);
+  RegisterComponentType<ModelComponent>(RenderComponentImGui, RenderAddComponentImGui_ModelComponent);
+  RegisterComponentType<LightDirectComponent>(RenderComponentImGui, RenderAddComponentImGui_LightDirectComponent);
+  RegisterComponentType<CameraComponent>(RenderComponentImGui, RenderAddComponentImGui_CameraComponent);
+  RegisterComponentType<BehaviorsComponent>(RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent);
+}
+
+void RenderExistingComponents(Entity entity) {
+  for (const auto& item : kRegistry) {
+    if (item.second.HasComponent(entity)) {
+      item.second.RenderSelf(entity);
+    }
+  }
+}
+void RenderAddPopup(Entity entity) {
+  for (const auto& item : kRegistry) {
+    item.second.RenderAdd(entity);
+  }
 }
 }  // namespace Wiesel
