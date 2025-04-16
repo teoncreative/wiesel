@@ -36,4 +36,5 @@ UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {}
 UniformBuffer::~UniformBuffer() {
   Engine::GetRenderer()->DestroyUniformBuffer(*this);
 }
+
 }  // namespace Wiesel

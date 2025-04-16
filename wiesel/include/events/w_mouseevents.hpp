@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "window/w_window.hpp"
 #include "events/w_events.hpp"
 #include "util/w_mousecodes.hpp"
 #include "w_pch.hpp"

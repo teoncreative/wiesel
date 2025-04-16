@@ -40,6 +40,9 @@ void MonoBehavior::OnEvent(Event& event) {
   EventDispatcher dispatcher{event};
 
   dispatcher.Dispatch<ScriptsReloadedEvent>(WIESEL_BIND_FN(OnReloadScripts));
+  dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPressed));
+  dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
+  dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
 }
 
 void MonoBehavior::InstantiateScript() {
@@ -54,4 +57,24 @@ bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {
   return false;
 }
 
+bool MonoBehavior::OnKeyPressed(KeyPressedEvent& event) {
+  if (m_Unset || !m_Enabled) {
+    return false;
+  }
+  return m_ScriptInstance->OnKeyPressed(event);
+}
+
+bool MonoBehavior::OnKeyReleased(KeyReleasedEvent& event) {
+  if (m_Unset || !m_Enabled) {
+    return false;
+  }
+  return m_ScriptInstance->OnKeyReleased(event);
+}
+
+bool MonoBehavior::OnMouseMoved(MouseMovedEvent& event) {
+  if (m_Unset || !m_Enabled) {
+    return false;
+  }
+  return m_ScriptInstance->OnMouseMoved(event);
+}
 }

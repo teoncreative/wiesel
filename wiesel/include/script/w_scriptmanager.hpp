@@ -14,6 +14,8 @@
 #include <mono/metadata/assembly.h>
 #include <mono/metadata/class.h>
 #include "scene/w_scene.hpp"
+#include "events/w_keyevents.hpp"
+#include "events/w_mouseevents.hpp"
 
 namespace Wiesel {
 
@@ -90,16 +92,26 @@ class ScriptData {
  public:
   ScriptData(MonoClass* klass, MonoMethod* onStartMethod,
              MonoMethod* onUpdateMethod,
-             MonoMethod* setHandleMethod, std::unordered_map<std::string, FieldData> fields) : m_Klass(klass),
+             MonoMethod* setHandleMethod,
+             MonoMethod* keyPressedMethod,
+             MonoMethod* keyReleasedMethod,
+             MonoMethod* mouseMovedMethod,
+             std::unordered_map<std::string, FieldData> fields) : m_Klass(klass),
         m_OnUpdateMethod(onUpdateMethod),
         m_OnStartMethod(onStartMethod),
         m_SetHandleMethod(setHandleMethod),
+        m_OnKeyPressedMethod(keyPressedMethod),
+        m_OnKeyReleasedMethod(keyReleasedMethod),
+        m_OnMouseMovedMethod(mouseMovedMethod),
         m_Fields(fields) {}
 
   MonoClass* GetKlass() const { return m_Klass; }
   MonoMethod* GetOnUpdateMethod() const { return m_OnUpdateMethod; }
   MonoMethod* GetOnStartMethod() const { return m_OnStartMethod; }
   MonoMethod* GetSetHandleMethod() const { return m_SetHandleMethod; }
+  MonoMethod* GetOnKeyPressedMethod() const { return m_OnKeyPressedMethod; }
+  MonoMethod* GetOnKeyReleasedMethod() const { return m_OnKeyReleasedMethod; }
+  MonoMethod* GetOnMouseMovedMethod() const { return m_OnMouseMovedMethod; }
   std::unordered_map<std::string, FieldData>& GetFields() { return m_Fields; }
 
  private:
@@ -107,6 +119,10 @@ class ScriptData {
   MonoMethod* m_OnUpdateMethod;
   MonoMethod* m_OnStartMethod;
   MonoMethod* m_SetHandleMethod;
+  MonoMethod* m_OnKeyPressedMethod;
+  MonoMethod* m_OnKeyReleasedMethod;
+  MonoMethod* m_OnMouseMovedMethod;
+
   std::unordered_map<std::string, FieldData> m_Fields;
 };
 
@@ -122,6 +138,10 @@ class ScriptInstance {
 
   void OnStart();
   void OnUpdate(float_t deltaTime);
+
+  bool OnKeyPressed(KeyPressedEvent& event);
+  bool OnKeyReleased(KeyReleasedEvent& event);
+  bool OnMouseMoved(MouseMovedEvent& event);
  private:
   MonoObject* m_Instance;
   MonoBehavior* m_Behavior;

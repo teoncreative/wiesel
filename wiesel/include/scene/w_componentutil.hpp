@@ -19,47 +19,6 @@ namespace Wiesel {
 
 void InitializeComponents();
 
-// Editor
-template <class T>
-__attribute__((noinline)) void RenderComponentImGui(T& component,
-                                                    Entity entity) {}
-
-template <class T, class B>
-__attribute__((noinline)) bool RenderBehaviorComponentImGui(
-    T& component, B& behavior, Entity entity) {
-  return false;
-}
-
-template <class T>
-void CallRenderComponentImGui(Entity entity) {
-  if (entity.HasComponent<T>()) {
-    RenderComponentImGui<T>(entity.GetComponent<T>(), entity);
-  }
-}
-
-template <typename... ComponentTypes>
-void CallRenderComponentImGuiAll(Entity entity) {
-  (CallRenderComponentImGui<ComponentTypes>(entity), ...);
-}
-
-// Adder
-template <class T>
-__attribute__((noinline)) void RenderAddComponentImGui(Entity entity) {}
-
-template <class T>
-__attribute__((noinline)) void CallRenderAddComponentImGui(Entity entity) {
-  if (!entity.HasComponent<T>()) {
-    RenderAddComponentImGui<T>(entity);
-  }
-}
-
-template <typename... ComponentTypes>
-void CallRenderAddComponentImGuiAll(Entity entity) {
-  (CallRenderAddComponentImGui<ComponentTypes>(entity), ...);
-}
-
-#define GENERATE_COMPONENT_EDITORS(entity) \
-  CallRenderComponentImGuiAll<ALL_COMPONENT_TYPES>(entity);
-#define GENERATE_COMPONENT_ADDERS(entity) \
-  CallRenderAddComponentImGuiAll<ALL_COMPONENT_TYPES>(entity);
+void RenderExistingComponents(Entity entity);
+void RenderAddPopup(Entity entity);
 }  // namespace Wiesel

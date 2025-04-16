@@ -59,7 +59,7 @@ struct Model {
   bool ReceiveShadows = true;  // todo shadows
 };
 
-struct ModelComponent {
+struct ModelComponent : public IComponent {
   ModelComponent() = default;
   ModelComponent(const ModelComponent&) = default;
 

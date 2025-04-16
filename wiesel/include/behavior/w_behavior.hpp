@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <events/w_keyevents.hpp>
+#include <events/w_mouseevents.hpp>
 #include "events/w_events.hpp"
 #include "scene/w_entity.hpp"
 #include "w_pch.hpp"
@@ -76,7 +78,7 @@ class IBehavior {
 
 // todo maybe use custom entity component system with
 // support for having multiple instances of the same component type?
-class BehaviorsComponent {
+class BehaviorsComponent : public IComponent {
  public:
   BehaviorsComponent() {}
 
