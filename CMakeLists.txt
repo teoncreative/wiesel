@@ -13,6 +13,10 @@ if (NOT DEFINED VENDOR_DIR)
     set(VENDOR_DIR ${PARENT_DIR}/vendor)
 endif ()
 
+if(WIN32)
+    add_compile_definitions(WIN32=1)
+endif()
+
 include(${VENDOR_DIR}/CMakeLists.txt)
 add_subdirectory(monolib)
 add_subdirectory(wiesel)

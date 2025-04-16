@@ -28,4 +28,9 @@ GraphicsPipeline::~GraphicsPipeline() {
   Engine::GetRenderer()->DestroyGraphicsPipeline(*this);
 }
 
+void GraphicsPipeline::Bind(PipelineBindPoint bindPoint) {
+  vkCmdBindPipeline(Engine::GetRenderer()->GetCommandBuffer().m_Handle, ToVkPipelineBindPoint(bindPoint),
+                    m_Pipeline);
+}
+
 }  // namespace Wiesel

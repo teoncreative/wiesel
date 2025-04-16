@@ -22,6 +22,8 @@
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_mesh.hpp"
 #include "rendering/w_texture.hpp"
+#include "rendering/w_command.hpp"
+#include "rendering/w_framebuffer.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_lights.hpp"
 #include "util/w_color.hpp"
@@ -31,8 +33,8 @@
 #include "w_shader.hpp"
 #include "window/w_window.hpp"
 
-#ifdef DEBUG
 #define VULKAN_VALIDATION
+#ifdef DEBUG
 #endif
 
 namespace Wiesel {
@@ -44,7 +46,8 @@ class Renderer {
 
   void Initialize();
 
-  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex> vertices);
+  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex3D> vertices);
+  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex2D> vertices);
   void DestroyVertexBuffer(MemoryBuffer& buffer);
 
   Ref<MemoryBuffer> CreateIndexBuffer(std::vector<Index> indices);
@@ -71,10 +74,10 @@ class Renderer {
       Ref<UniformBuffer> uniformBuffer,
       Ref<Material> material) __attribute__((optnone));
 
+  Ref<DescriptorData> CreateDescriptors(Ref<AttachmentTexture> texture);
+
   void DestroyDescriptors(DescriptorData& descriptorPool);
 
-  // todo properties
-  Ref<DescriptorLayout> CreateDescriptorLayout();
   void DestroyDescriptorLayout(DescriptorLayout& layout);
 
   Ref<GraphicsPipeline> CreateGraphicsPipeline(
@@ -115,11 +118,34 @@ class Renderer {
   WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
   WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return m_Extent; };
 
+  WIESEL_GETTER_FN const uint32_t GetGraphicsQueueFamilyIndex() const {
+    return m_QueueFamilyIndices.graphicsFamily.value();
+  }
 
-  bool BeginRender();
+  WIESEL_GETTER_FN const uint32_t GetPresentQueueFamilyIndex() const {
+    return m_QueueFamilyIndices.presentFamily.value();
+  }
+  WIESEL_GETTER_FN const CommandBuffer& GetCommandBuffer() const {
+    return *m_CommandBuffer;
+  }
+
+  WIESEL_GETTER_FN const VkFormat GetSwapChainImageFormat() const {
+    return m_SwapChainImageFormat;
+  }
+
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage() const {
+    return m_GeometryColorResolveImage;
+  }
+
+  void SetViewport(VkExtent2D extent);
+
   void DrawModel(ModelComponent& model, TransformComponent& transform);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform);
-  bool EndRender();
+  void BlitImageToSwapChain(Ref<AttachmentTexture> texture);
+  void DrawImageToSwapChain(Ref<AttachmentTexture> texture);
+  void BeginRender();
+  void BeginPresent();
+  void EndPresent();
 
   bool BeginFrame();
   void EndFrame();
@@ -132,21 +158,18 @@ class Renderer {
  private:
   void CreateVulkanInstance();
   void CreateSurface();
-  void CreateImageViews();
   void PickPhysicalDevice();
   void CreateLogicalDevice();
   void CreateSwapChain();
-  void CreateDefaultRenderPass();
-  void CreateDefaultDescriptorSetLayout();
+  void CreateRenderPass();
   void CreateDefaultGraphicsPipeline();
-  void CreateFramebuffers();
   void CreateCommandPools();
   void CreateCommandBuffers();
   void CreatePermanentResources();
   void CreateSyncObjects();
   void CreateGlobalUniformBuffers();
   void CleanupSwapChain();
-  void CleanupDefaultRenderPass();
+  void CleanupRenderPass();
   void CleanupGlobalUniformBuffers();
   int32_t RateDeviceSuitability(VkPhysicalDevice device);
   bool IsDeviceSuitable(VkPhysicalDevice device);
@@ -171,9 +194,13 @@ class Renderer {
   void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                          uint32_t height);
+
   void TransitionImageLayout(VkImage image, VkFormat format,
                              VkImageLayout oldLayout, VkImageLayout newLayout,
                              uint32_t mipLevels);
+  void TransitionImageLayout(VkImage image, VkFormat format,
+                             VkImageLayout oldLayout, VkImageLayout newLayout,
+                             uint32_t mipLevels, VkCommandBuffer commandBuffer);
   void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
                    VkSampleCountFlagBits numSamples, VkFormat format,
                    VkImageTiling tiling, VkImageUsageFlags usage,
@@ -231,22 +258,22 @@ class Renderer {
   bool m_SwapChainCreated;
 
   uint32_t m_ImageIndex;
-  // make this Wiesel Texture
-  std::vector<Ref<Texture>> m_SwapChainTextures;
-  std::vector<VkImage> m_SwapChainImages;
-  std::vector<VkImageView> m_SwapChainImageViews;
   VkFormat m_SwapChainImageFormat;
+  Ref<AttachmentTexture> m_SwapChainTexture;
 
   VkExtent2D m_Extent{};
-  Ref<DescriptorLayout> m_DefaultDescriptorLayout{};
-  std::vector<Ref<AttachmentTexture>> m_DepthStencils;
-  std::vector<Ref<AttachmentTexture>> m_ColorImages;
+  Ref<DescriptorLayout> m_GeometryDescriptorLayout;
+  Ref<DescriptorLayout> m_PresentDescriptorLayout;
+  Ref<AttachmentTexture> m_GeometryDepthStencil;
+  Ref<AttachmentTexture> m_GeometryColorImage;
+  Ref<AttachmentTexture> m_GeometryColorResolveImage;
+  Ref<AttachmentTexture> m_PresentColorImage;
+  Ref<AttachmentTexture> m_PresentDepthStencil;
   Ref<Texture> m_BlankTexture;
 
-  std::vector<VkFramebuffer> m_Framebuffers;
-  VkCommandPool m_CommandPool{};
+  Ref<CommandPool> m_CommandPool;
+  Ref<CommandBuffer> m_CommandBuffer;
 
-  VkCommandBuffer m_CommandBuffer;
   VkSemaphore m_ImageAvailableSemaphore;
   VkSemaphore m_RenderFinishedSemaphore;
   VkFence m_Fence;
@@ -265,10 +292,18 @@ class Renderer {
   bool m_EnableWireframe;
   bool m_RecreateGraphicsPipeline;
   bool m_RecreateShaders;
-  Ref<GraphicsPipeline> m_DefaultGraphicsPipeline;
-  Ref<GraphicsPipeline> m_CurrentGraphicsPipeline;
-  Ref<RenderPass> m_RenderPass;
+  Ref<GraphicsPipeline> m_GeometryGraphicsPipeline;
+  Ref<GraphicsPipeline> m_PresentGraphicsPipeline;
+  Ref<RenderPass> m_GeometryRenderPass;
+  Ref<RenderPass> m_PresentRenderPass;
+  std::vector<Ref<Framebuffer>> m_PresentFramebuffers;
+  Ref<Framebuffer> m_GeometryFramebuffer;
+  Ref<MemoryBuffer> m_PresentVertexBuffer;
+  Ref<MemoryBuffer> m_PresentIndexBuffer;
   Ref<CameraData> m_CameraData;
+
+  QueueFamilyIndices m_QueueFamilyIndices;
+  SwapChainSupportDetails m_SwapChainDetails;
 };
 
 #ifdef VULKAN_VALIDATION

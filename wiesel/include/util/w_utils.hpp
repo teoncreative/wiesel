@@ -26,7 +26,6 @@ struct QueueFamilyIndices {
   std::optional<uint32_t> presentFamily;
 
   bool IsComplete() {
-
     return graphicsFamily.has_value() && presentFamily.has_value();
   }
 };
@@ -39,7 +38,7 @@ struct SwapChainSupportDetails {
 
 using Index = uint32_t;
 
-enum VertexFlag {
+enum Vertex3DFlag {
   VertexFlagHasTexture = BIT(0),
   VertexFlagHasNormalMap = BIT(1),
   VertexFlagHasSpecularMap = BIT(2),
@@ -49,7 +48,7 @@ enum VertexFlag {
   VertexFlagHasMetallicMap = BIT(6),
 };
 
-struct Vertex {
+struct Vertex3D {
   glm::vec3 Pos;
   glm::vec3 Color;
   glm::vec2 UV;
@@ -61,7 +60,7 @@ struct Vertex {
   static VkVertexInputBindingDescription GetBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex);
+    bindingDescription.stride = sizeof(Vertex3D);
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     return bindingDescription;
@@ -72,30 +71,65 @@ struct Vertex {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Pos)});
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Pos)});
     attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Color)});
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Color)});
     attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, UV)});
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, UV)});
     attributeDescriptions.push_back(
-        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Normal)});
+        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Normal)});
     attributeDescriptions.push_back(
-        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Tangent)});
+        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Tangent)});
     attributeDescriptions.push_back(
-        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, BiTangent)});
+        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, BiTangent)});
     attributeDescriptions.push_back(
-        {6, 0, VK_FORMAT_R32_UINT, offsetof(Vertex, Flags)});
+        {6, 0, VK_FORMAT_R32_UINT, offsetof(Vertex3D, Flags)});
 
     return attributeDescriptions;
   }
 
-  bool operator==(const Vertex& other) const {
+  bool operator==(const Vertex3D& other) const {
     return Pos == other.Pos && Color == other.Color && UV == other.UV;
   }
 };
 
+
+struct Vertex2D {
+  glm::vec2 Pos;
+  glm::vec4 Color;
+  glm::vec2 UV;
+
+  static VkVertexInputBindingDescription GetBindingDescription() {
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Vertex2D);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+  }
+
+  static std::vector<VkVertexInputAttributeDescription>
+  GetAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+
+    attributeDescriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, Pos)});
+    attributeDescriptions.push_back(
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, Color)});
+    attributeDescriptions.push_back(
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, UV)});
+
+    return attributeDescriptions;
+  }
+
+  bool operator==(const Vertex2D& other) const {
+    return Pos == other.Pos && Color == other.Color && UV == other.UV;
+  }
+};
+
+
 struct vertex_hash {
-  std::size_t operator()(const Wiesel::Vertex& vertex) const {
+  std::size_t operator()(const Wiesel::Vertex3D& vertex) const {
     auto posHash = std::hash<glm::vec3>{}(vertex.Pos);
     auto colorHash = std::hash<glm::vec3>{}(vertex.Color);
     auto texHash = std::hash<glm::vec2>{}(vertex.UV);
@@ -155,16 +189,23 @@ inline void TrimLeft(std::string& s) {
 }
 }  // namespace Wiesel
 
-#define WIESEL_CHECK_VKRESULT(f)                                    \
-  {                                                                 \
-    VkResult res = (f);                                             \
-    if (res != VK_SUCCESS) {                                        \
-      std::cout << "Fatal : VkResult is \""                         \
-                << Wiesel::GetNameFromVulkanResult(res) << "\" in " \
-                << __FILE__ << " at line " << __LINE__ << "\n";     \
-      assert(res == VK_SUCCESS);                                    \
-    }                                                               \
-  }
+#define WIESEL_CONCAT_IMPL(x, y) x##y
+#define WIESEL_CONCAT(x, y) WIESEL_CONCAT_IMPL(x, y)
+
+#define WIESEL_UNIQUE_NAME(base) WIESEL_CONCAT(base, __LINE__)
+
+#define WIESEL_CHECK_VKRESULT_NAMED(f, name)                           \
+    do {                                                               \
+        VkResult name = (f);                                           \
+        if (name != VK_SUCCESS) {                                      \
+            std::cout << "Fatal : VkResult is \""                      \
+                      << Wiesel::GetNameFromVulkanResult(name) << "\" in " \
+                      << __FILE__ << " at line " << __LINE__ << "\n";  \
+            assert(name == VK_SUCCESS);                                \
+        }                                                              \
+    } while (0)                                                         \
+
+#define WIESEL_CHECK_VKRESULT(f) WIESEL_CHECK_VKRESULT_NAMED(f, WIESEL_UNIQUE_NAME(res))
 
 // https://github.com/TheCherno/Hazel
 #define WIESEL_BIND_FN(fn)                      \

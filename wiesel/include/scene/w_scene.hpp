@@ -67,7 +67,7 @@ class Scene {
   bool OnWindowResizeEvent(WindowResizeEvent& event);
   void ApplyTransform(entt::entity parent, TransformComponent& childTransform);
   TransformComponent ApplyTransform(entt::entity entity);
-  void Render();
+  bool Render();
 
  private:
   // This isn't really necessary. It could use GetRegistry.

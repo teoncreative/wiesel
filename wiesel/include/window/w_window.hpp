@@ -26,7 +26,7 @@ struct WindowSize {
   int32_t Height;
 };
 
-enum CursorMode { CursorModeNormal, CursorModeRelative };
+enum CursorMode : uint8_t { CursorModeNormal, CursorModeRelative };
 
 struct WindowProperties {
   std::string Title;
