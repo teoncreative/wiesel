@@ -16,7 +16,6 @@ public class CameraScript : MonoBehavior
 
     public override void OnUpdate(float deltaTime)
     {
-        Internals.Log_Info("Test");
         float axisX = Input.GetAxis("Horizontal");
         float axisY = Input.GetAxis("Vertical");
         transform.Position += transform.GetForward() * deltaTime * CameraMoveSpeed * axisY;
@@ -25,5 +24,19 @@ public class CameraScript : MonoBehavior
         float inputY = Input.GetAxis("Mouse Y");
         transform.Rotation = new Vector3f(inputY, inputX, 0.0f);
     }
+
+    public override bool OnKeyPressed(KeyCode keyCode, bool repeat)
+    {
+        if (keyCode == KeyCode.Escape)
+        {
+            if (Input.GetCursorMode() == CursorMode.Relative) {
+                Input.SetCursorMode(CursorMode.Normal);
+            } else {
+                Input.SetCursorMode(CursorMode.Relative);
+            }
+        }
+        return false;
+    }
+
 
 }

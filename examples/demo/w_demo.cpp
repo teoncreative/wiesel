@@ -114,14 +114,6 @@ bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
   if (event.GetKeyCode() == KeyF1) {
     m_App.Close();
     return true;
-  } else if (event.GetKeyCode() == KeyEscape) {
-    // todo add Input::GetCursorMode to C# api
-    if (m_App.GetWindow()->GetCursorMode() == CursorModeRelative) {
-      m_App.GetWindow()->SetCursorMode(CursorModeNormal);
-    } else {
-      m_App.GetWindow()->SetCursorMode(CursorModeRelative);
-    }
-    return false;
   }
   return false;
 }
@@ -319,14 +311,14 @@ void DemoOverlay::OnImGuiRender() {
     ImGui::SameLine();
     // Ah yeah, great. Does not work on Windows.
     // I hated this solution anyway.
-    /*if (ImGui::Button("Add Component"))
+    if (ImGui::Button("Add Component"))
       ImGui::OpenPopup("add_component_popup");
     if (ImGui::BeginPopup("add_component_popup")) {
-      GENERATE_COMPONENT_ADDERS(entity);
+      RenderAddPopup(entity);
       ImGui::EndPopup();
     }
 
-    GENERATE_COMPONENT_EDITORS(entity);*/
+    RenderExistingComponents(entity);
   }
   ImGui::End();
 }

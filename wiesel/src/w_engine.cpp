@@ -147,7 +147,7 @@ bool Engine::LoadTexture(Model& model, Ref<Mesh> mesh, aiMaterial* mat,
 Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
                                     const aiScene& aiScene,
                                     aiMatrix4x4 aiMatrix) {
-  std::vector<Vertex> vertices;
+  std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
   glm::mat4 mat = ConvertMatrix(aiMatrix);
 
@@ -170,7 +170,7 @@ Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
            LoadTexture(model, mesh, material, aiTextureType_METALNESS);
 
   for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
-    Vertex vertex{};
+    Vertex3D vertex{};
     glm::vec3 vector;
     // positions
     vector.x = aiMesh->mVertices[i].x;

@@ -39,6 +39,7 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <list>
 
 #include "util/w_attributes.hpp"
 #include "util/w_platformdetection.hpp"

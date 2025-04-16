@@ -29,6 +29,7 @@ class MemoryBuffer {
   MemoryType m_Type;
   VkBuffer m_Buffer;
   VkDeviceMemory m_BufferMemory;
+  uint32_t m_Size;
 };
 
 class UniformBuffer : public MemoryBuffer {

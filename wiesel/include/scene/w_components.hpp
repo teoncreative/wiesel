@@ -25,7 +25,11 @@ struct EventHandlerComponent {
   virtual void OnEvent(Event&);
 };
 
-struct IdComponent {
+struct IComponent {
+  virtual ~IComponent() = default;
+};
+
+struct IdComponent : public IComponent {
   IdComponent(UUID id) : Id(id) {}
 
   IdComponent() = default;
@@ -34,7 +38,7 @@ struct IdComponent {
   UUID Id;
 };
 
-struct TreeComponent {
+struct TreeComponent : public IComponent {
   TreeComponent() = default;
   TreeComponent(const TreeComponent&) = default;
 
@@ -42,7 +46,7 @@ struct TreeComponent {
   std::vector<entt::entity> Childs;
 };
 
-struct TagComponent {
+struct TagComponent : public IComponent {
   TagComponent(const std::string& tag) : Tag(tag) {}
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
@@ -50,7 +54,7 @@ struct TagComponent {
   std::string Tag;
 };
 
-struct TransformComponent {
+struct TransformComponent : public IComponent {
   TransformComponent() = default;
   TransformComponent(const TransformComponent&) = default;
 
@@ -97,7 +101,7 @@ struct TransformComponent {
   glm::mat4 RotationMatrix = {};
 };
 
-struct RectangleTransformComponent {
+struct RectangleTransformComponent  : public IComponent{
 
   glm::vec2 Position = {0.0f, 0.0f};
   glm::vec2 Rotation = {0.0f, 0.0f};
@@ -107,10 +111,5 @@ struct RectangleTransformComponent {
   bool IsChanged = true;
   bool IsDriven = true;
 };
-
-#define ALL_COMPONENT_TYPES                                       \
-  IdComponent, TagComponent, TransformComponent, ModelComponent,  \
-      LightDirectComponent, LightPointComponent, CameraComponent, \
-      BehaviorsComponent
 
 }  // namespace Wiesel

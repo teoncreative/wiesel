@@ -26,7 +26,7 @@
 namespace Wiesel {
 
 #define WIESEL_ADD_INTERNAL_CALL(name) \
-    mono_add_internal_call("WieselEngine.Internals::"#name, reinterpret_cast<void*>(Internals_##name));
+    mono_add_internal_call("WieselEngine.Internals::"#name, reinterpret_cast<void*>(Internals_##name))
 
 // todo move these bindings to script glue
 void Internals_Log_Info(MonoString* str) {
@@ -40,6 +40,22 @@ float Internals_Input_GetAxis(MonoString* str) {
   float value = InputManager::GetAxis(cstr);
   mono_free((void*) cstr);
   return value;
+}
+
+bool Internals_Input_GetKey(MonoString* str) {
+  const char* cstr = mono_string_to_utf8(str);
+  bool value = InputManager::GetKey(cstr);
+  mono_free((void*) cstr);
+  return value;
+}
+
+void Internals_Input_SetCursorMode(uint16_t mode) {
+  Engine::GetWindow()->SetCursorMode((CursorMode) mode);
+}
+
+uint16_t Internals_Input_GetCursorMode() {
+  uint16_t cursorMode = Engine::GetWindow()->GetCursorMode();
+  return cursorMode;
 }
 
 MonoObject* Internals_Behavior_GetComponent(MonoBehavior* behavior, MonoString* str) {
@@ -249,6 +265,51 @@ void ScriptInstance::OnUpdate(float_t deltaTime) {
   mono_runtime_invoke(m_ScriptData->GetOnUpdateMethod(), m_Instance, args, nullptr);
 }
 
+bool ScriptInstance::OnKeyPressed(KeyPressedEvent& event) {
+  if (!m_ScriptData->GetOnKeyPressedMethod()) {
+    return false;
+  }
+  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  void* args[2];
+  int32_t keyCode = event.GetKeyCode();
+  bool repeat = event.IsRepeat();
+  args[0] = &keyCode;
+  args[1] = &repeat;
+  MonoObject* data = mono_runtime_invoke(m_ScriptData->GetOnKeyPressedMethod(), m_Instance, args, nullptr);
+  bool value = *(bool*)mono_object_unbox(data);
+  return value;
+}
+
+bool ScriptInstance::OnKeyReleased(KeyReleasedEvent& event) {
+  if (!m_ScriptData->GetOnKeyReleasedMethod()) {
+    return false;
+  }
+  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  void* args[1];
+  int32_t keyCode = event.GetKeyCode();
+  args[0] = &keyCode;
+  MonoObject* data = mono_runtime_invoke(m_ScriptData->GetOnKeyReleasedMethod(), m_Instance, args, nullptr);
+  bool value = *(bool*)mono_object_unbox(data);
+  return value;
+}
+
+bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
+  if (!m_ScriptData->GetOnMouseMovedMethod()) {
+    return false;
+  }
+  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  void* args[3];
+  float x = event.GetX();
+  float y = event.GetY();
+  int32_t cursorMode = event.GetCursorMode();
+  args[0] = &x;
+  args[1] = &y;
+  args[2] = &cursorMode;
+  MonoObject* data = mono_runtime_invoke(m_ScriptData->GetOnMouseMovedMethod(), m_Instance, args, nullptr);
+  bool value = *(bool*)mono_object_unbox(data);
+  return value;
+}
+
 MonoDomain* ScriptManager::m_RootDomain = nullptr;
 MonoAssembly* ScriptManager::m_CoreAssembly = nullptr;
 MonoImage* ScriptManager::m_CoreAssemblyImage = nullptr;
@@ -340,6 +401,7 @@ void ScriptManager::LoadCore() {
       "assets/internal_scripts/Internals.cs",
       "assets/internal_scripts/MonoBehavior.cs",
       "assets/internal_scripts/Input.cs",
+      "assets/internal_scripts/Debug.cs",
       "assets/internal_scripts/math/Vector3.cs",
       "assets/internal_scripts/components/TransformComponent.cs"
   };
@@ -409,7 +471,10 @@ void ScriptManager::LoadApp() {
     }
     MonoMethod* onStartMethod = mono_class_get_method_from_name(klass, "OnStart", 0);
     MonoMethod* onUpdateMethod = mono_class_get_method_from_name(klass, "OnUpdate", 1);
-    m_ScriptData.insert(std::pair(className, new ScriptData(klass, onStartMethod, onUpdateMethod, m_SetHandleMethod, fields)));
+    MonoMethod* onKeyPressedMethod = mono_class_get_method_from_name(klass, "OnKeyPressed", 2); // KeyCode, bool isRepeat
+    MonoMethod* onKeyReleasedMethod = mono_class_get_method_from_name(klass, "OnKeyReleased", 1); // KeyCode
+    MonoMethod* onMouseMovedMethod = mono_class_get_method_from_name(klass, "OnMouseMoved", 3); // x, y, cursorMode
+    m_ScriptData.insert(std::pair(className, new ScriptData(klass, onStartMethod, onUpdateMethod, m_SetHandleMethod, onKeyPressedMethod, onKeyReleasedMethod, onMouseMovedMethod, fields)));
   }
 
 }
@@ -417,6 +482,9 @@ void ScriptManager::LoadApp() {
 void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Log_Info);
   WIESEL_ADD_INTERNAL_CALL(Input_GetAxis);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetKey);
+  WIESEL_ADD_INTERNAL_CALL(Input_SetCursorMode);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetCursorMode);
   WIESEL_ADD_INTERNAL_CALL(Behavior_GetComponent);
   WIESEL_ADD_INTERNAL_CALL(Behavior_HasComponent);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetPositionX);
