@@ -27,14 +27,14 @@
 namespace Wiesel {
 struct Mesh {
   Mesh();
-  Mesh(std::vector<Vertex> vertices, std::vector<Index> indices);
+  Mesh(std::vector<Vertex3D> vertices, std::vector<Index> indices);
   ~Mesh();
 
   void UpdateTransform(TransformComponent& transform) const;
   void Allocate();
   void Deallocate();
 
-  std::vector<Vertex> Vertices;
+  std::vector<Vertex3D> Vertices;
   std::vector<Index> Indices;
   std::string ModelPath;
 

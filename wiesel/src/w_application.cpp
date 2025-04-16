@@ -123,15 +123,16 @@ void Application::Run() {
 
       m_Scene->Render();
 
-      // set render target to the main camera
-      /*m_ImGuiLayer->OnBeginFrame();
+      Engine::GetRenderer()->BeginPresent();
+      m_ImGuiLayer->OnBeginFrame();
       for (const auto& layer : m_Overlays) {
         layer->OnImGuiRender();
       }
       m_ImGuiLayer->OnEndFrame();
+      Engine::GetRenderer()->EndPresent();
       for (const auto& layer : m_Overlays) {
         layer->OnPostRender();
-      }*/
+      }
     }
 
     m_Window->OnUpdate();

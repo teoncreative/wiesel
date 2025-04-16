@@ -11,38 +11,53 @@
 
 #pragma once
 
-#include "w_shader.hpp"
-#include "util/w_utils.hpp"
 #include "util/w_color.hpp"
+#include "util/w_utils.hpp"
+#include "w_shader.hpp"
 
 namespace Wiesel {
+// I hate forward declarations but in this case it's required
+class Framebuffer;
+class AttachmentTexture;
+
 enum class PassType {
   Geometry,
-  PostProcess
+  PostProcess,
+  Present
 };
 
-struct RenderPassSpecification {
-  PassType m_PassType;
-  VkFormat m_DepthFormat;
-  VkFormat m_SwapChainImageFormat;
-  VkSampleCountFlagBits m_MsaaSamples;
-
+enum PipelineBindPoint {
+  PipelineBindPointGraphics,
+  PipelineBindPointCompute,
+#ifdef VK_ENABLE_BETA_EXTENSIONS
+  PipelineBindPointExecGraphAMDX,
+#endif
+  PipelineBindPointRayTracingKHR,
+  PipelineBindPointSubpassShadingHuawei
 };
+
+VkPipelineBindPoint ToVkPipelineBindPoint(PipelineBindPoint point);
 
 class RenderPass {
  public:
-  RenderPass(RenderPassSpecification specification);
+  RenderPass(PassType passType);
   ~RenderPass();
+
+  void Attach(Ref<AttachmentTexture> attachment);
 
   void Bake();
   bool Validate();
 
-  void Bind();
+  void Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor);
+  void End();
+
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, VkExtent2D extent);
 
   const VkRenderPass& GetVulkanHandle() const { return m_RenderPass; }
  private:
-  RenderPassSpecification m_Specification;
+  PassType m_PassType;
   VkRenderPass m_RenderPass;
+  std::list<Ref<AttachmentTexture>> m_Attachments;
 
 };
 

@@ -15,12 +15,22 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
+
 class DescriptorLayout {
  public:
   explicit DescriptorLayout();
   ~DescriptorLayout();
 
+  void AddBinding(VkDescriptorType type, VkShaderStageFlags flags);
+  void Bake();
+
   bool m_Allocated;
   VkDescriptorSetLayout m_Layout;
+  struct Binding {
+    uint32_t Index;
+    VkDescriptorType Type;
+    VkShaderStageFlags Flags;
+  };
+  std::vector<Binding> m_Bindings;
 };
 }  // namespace Wiesel
