@@ -12,15 +12,17 @@
 #pragma once
 
 #include "w_pch.hpp"
+#include "util/w_utils.hpp"
 
 namespace Wiesel {
+
 // taken from assimp
 enum TextureType {
   /** Dummy value.
 		   *
 		   *  No texture, but the value to be used as 'texture semantic'
 		   *  (#aiMaterialProperty::mSemantic) for all material properties
-		   *  *not* related to textures.
+		   *  *not* related to textures.o
 		   */
   TextureTypeNone = 0,
 
@@ -193,6 +195,7 @@ class Texture {
 
   TextureType m_Type;
   VkImage m_Image;
+  VkFormat m_Format;
   VkDeviceMemory m_DeviceMemory;
   VkImageView m_ImageView;
   VkSampler m_Sampler;
@@ -209,31 +212,44 @@ class Texture {
 
 enum class AttachmentTextureType {
   Color,
-  DepthStencil
+  DepthStencil,
+  SwapChain,
+  Offscreen,
+  Resolve
 };
 
 struct AttachmentTextureProps {
-  AttachmentTextureProps(uint32_t width, uint32_t height, AttachmentTextureType type, VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM,
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT)
-        : Width(width), Height(height), ImageFormat(imageFormat), Type(type), MsaaSamples(msaaSamples) {}
+  AttachmentTextureProps(uint32_t width, uint32_t height, AttachmentTextureType type, uint32_t count = 1, VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM,
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, bool sampled = false)
+        : Width(width), Height(height), ImageCount(count), ImageFormat(imageFormat), Type(type), MsaaSamples(msaaSamples), Sampled(sampled) {}
 
   uint32_t Width;
   uint32_t Height;
   VkFormat ImageFormat;
   AttachmentTextureType Type;
   VkSampleCountFlagBits MsaaSamples;
+  uint32_t ImageCount;
+  bool Sampled;
 
 };
+
+class DescriptorData;
+
 class AttachmentTexture {
  public:
   AttachmentTexture() = default;
   ~AttachmentTexture();
 
-  VkImage m_Image;
-  VkDeviceMemory m_DeviceMemory;
-  VkImageView m_ImageView;
+  AttachmentTextureType m_Type;
+  std::vector<VkImage> m_Images;
+  std::vector<VkImageView> m_ImageViews;
+  std::vector<VkSampler> m_Samplers;
+  std::vector<VkDeviceMemory> m_DeviceMemories;
+  VkFormat m_Format;
   uint32_t m_Width;
   uint32_t m_Height;
+  VkSampleCountFlagBits m_MsaaSamples;
+  Ref<DescriptorData> m_Descriptors;
 
   bool m_IsAllocated;
 };

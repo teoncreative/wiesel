@@ -12,10 +12,27 @@
 #include "rendering/w_renderpass.hpp"
 
 #include "w_engine.hpp"
+#include "rendering/w_framebuffer.hpp"
+#include "rendering/w_texture.hpp"
 
 namespace Wiesel {
 
-RenderPass::RenderPass(RenderPassSpecification specification) : m_Specification(specification) {
+VkPipelineBindPoint ToVkPipelineBindPoint(PipelineBindPoint point) {
+  switch(point) {
+    case PipelineBindPointGraphics:
+      return VK_PIPELINE_BIND_POINT_GRAPHICS;
+    case PipelineBindPointCompute:
+      return VK_PIPELINE_BIND_POINT_COMPUTE;
+    case PipelineBindPointRayTracingKHR:
+      return VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
+    case PipelineBindPointSubpassShadingHuawei:
+      return VK_PIPELINE_BIND_POINT_SUBPASS_SHADING_HUAWEI;
+    default:
+      return VK_PIPELINE_BIND_POINT_MAX_ENUM;
+  }
+}
+
+RenderPass::RenderPass(PassType passType) : m_PassType(passType) {
 
 }
 
@@ -24,76 +41,140 @@ RenderPass::~RenderPass() {
   //Engine::GetRenderer()->DestroyRenderPass(*this);
 }
 
+void RenderPass::Attach(Ref<AttachmentTexture> attachment) {
+  m_Attachments.push_back(attachment);
+}
+
 void RenderPass::Bake() {
-  VkAttachmentDescription colorAttachment{};
-  colorAttachment.format = m_Specification.m_SwapChainImageFormat;  //m_SwapChainImageFormat
-  colorAttachment.samples = m_Specification.m_MsaaSamples;
-  colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  std::vector<VkAttachmentDescription> descriptions;
+  std::vector<VkAttachmentReference> colorAttachmentRefs;
+  std::vector<VkAttachmentReference> resolveAttachmentRefs;
+  std::vector<VkAttachmentReference> depthAttachmentRefs; // can only be one
 
-  VkAttachmentReference colorAttachmentRef{};
-  colorAttachmentRef.attachment = 0;
-  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-  VkAttachmentDescription depthAttachment{};
-  depthAttachment.format = m_Specification.m_DepthFormat;
-  depthAttachment.samples = m_Specification.m_MsaaSamples;
-  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  depthAttachment.finalLayout =
-      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-  VkAttachmentReference depthAttachmentRef{};
-  depthAttachmentRef.attachment = 1;
-  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-  VkAttachmentDescription colorAttachmentResolve{};
-  colorAttachmentResolve.format = m_Specification.m_SwapChainImageFormat;
-  colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-  colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-  VkAttachmentReference colorAttachmentResolveRef{};
-  colorAttachmentResolveRef.attachment = 2;
-  colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  uint32_t index = 0;
+  for (const auto& item : m_Attachments) {
+    if (item->m_Type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
+      descriptions.push_back({
+          .format = item->m_Format,
+          .samples = item->m_MsaaSamples,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = m_PassType == PassType::Geometry ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+          .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      });
+      depthAttachmentRefs.push_back({
+          .attachment = index,
+          .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      });
+      index++;
+    } else if (item->m_Type == AttachmentTextureType::Color || item->m_Type == AttachmentTextureType::Offscreen) {
+      descriptions.push_back({
+          .format = item->m_Format,
+          .samples = item->m_MsaaSamples,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      });
+      colorAttachmentRefs.push_back({
+          .attachment = index,
+          .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+      });
+      index++;
+    } else if (item->m_Type == AttachmentTextureType::Resolve || item->m_Type == AttachmentTextureType::SwapChain) {
+      descriptions.push_back({
+          .format = item->m_Format,
+          .samples = VK_SAMPLE_COUNT_1_BIT,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+          .finalLayout = m_PassType == PassType::Present ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      });
+      resolveAttachmentRefs.push_back({
+          .attachment = index,
+          .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+      });
+      index++;
+    }
+  }
 
   VkSubpassDescription subpass{};
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = 1;
-  subpass.pColorAttachments = &colorAttachmentRef;
-  subpass.pDepthStencilAttachment = &depthAttachmentRef;
-  subpass.pResolveAttachments = &colorAttachmentResolveRef;
+  subpass.colorAttachmentCount = colorAttachmentRefs.size();
+  subpass.pColorAttachments = colorAttachmentRefs.data();
+  if (!resolveAttachmentRefs.empty()) {
+    subpass.pResolveAttachments = resolveAttachmentRefs.data();
+  } else {
+    subpass.pResolveAttachments = nullptr;
+  }
+  if (!depthAttachmentRefs.empty()) {
+    subpass.pDepthStencilAttachment = depthAttachmentRefs.data();
+  } else {
+    subpass.pDepthStencilAttachment = nullptr;
+  }
 
   std::vector<VkSubpassDependency> dependencies{};
-  VkSubpassDependency dependency{};
-  dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-  dependency.dstSubpass = 0;
-  dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-  dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-  dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                             VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-  ;
-  dependencies.push_back(dependency);
-
-  std::array<VkAttachmentDescription, 3> attachments = {
-      colorAttachment, depthAttachment, colorAttachmentResolve};
+  /*if (m_PassType == PassType::Geometry || m_PassType == PassType::PostProcess) {
+    dependencies.push_back({
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        .srcAccessMask = VK_ACCESS_NONE_KHR,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
+    });
+    dependencies.push_back({
+        .srcSubpass = 0,
+        .dstSubpass = VK_SUBPASS_EXTERNAL,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
+    });
+  } else {
+    dependencies.push_back({
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    });
+  }*/
+  dependencies.push_back({
+      .srcSubpass = VK_SUBPASS_EXTERNAL,
+      .dstSubpass = 0,
+      .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+      .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+  });
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-  renderPassInfo.pAttachments = attachments.data();
+  renderPassInfo.attachmentCount = static_cast<uint32_t>(descriptions.size());
+  renderPassInfo.pAttachments = descriptions.data();
   renderPassInfo.subpassCount = 1;
   renderPassInfo.pSubpasses = &subpass;
   renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
@@ -109,25 +190,41 @@ bool RenderPass::Validate() {
   return false;
 }
 
-void RenderPass::Bind() {
+void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = m_RenderPass;
-  // todo change this to a class and get the framebuffer from there
-  renderPassInfo.framebuffer = Engine::GetRenderer()->m_Framebuffers[Engine::GetRenderer()->m_ImageIndex];
+  renderPassInfo.framebuffer = framebuffer->m_Handle;
   renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent = Engine::GetRenderer()->GetExtent();
+  renderPassInfo.renderArea.extent = framebuffer->m_Extent;
 
   std::array<VkClearValue, 2> clearValues{};
-  auto& clearColor = Engine::GetRenderer()->GetClearColor();
   clearValues[0].color = {{clearColor.Red, clearColor.Green,
                            clearColor.Blue, clearColor.Alpha}};
   clearValues[1].depthStencil = {1.0f, 0};
 
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
-  vkCmdBeginRenderPass(Engine::GetRenderer()->m_CommandBuffer, &renderPassInfo,
+  vkCmdBeginRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle, &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 }
 
+void RenderPass::End() {
+  vkCmdEndRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle);
+}
+
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, VkExtent2D extent) {
+  bool hasDepth = false;
+  std::vector<VkImageView> attachments;
+  for (const auto& item : m_Attachments) {
+    if (item->m_Type == AttachmentTextureType::DepthStencil && !hasDepth) {
+      attachments.push_back(item->m_ImageViews[index]);
+      hasDepth = true;
+    } else if (item->m_Type == AttachmentTextureType::Color || item->m_Type == AttachmentTextureType::Offscreen || item->m_Type == AttachmentTextureType::SwapChain ||
+               item->m_Type == AttachmentTextureType::Resolve) {
+      attachments.push_back(item->m_ImageViews[index]);
+    }
+  }
+  return CreateReference<Framebuffer>(attachments, extent, *this);
+}
 }  // namespace Wiesel

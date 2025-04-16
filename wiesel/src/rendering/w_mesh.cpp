@@ -21,7 +21,7 @@ Mesh::Mesh() {
   IsAllocated = false;
 }
 
-Mesh::Mesh(std::vector<Vertex> vertices, std::vector<Index> indices) {
+Mesh::Mesh(std::vector<Vertex3D> vertices, std::vector<Index> indices) {
   Mat = CreateReference<Material>();
   Vertices = vertices;
   Indices = indices;
