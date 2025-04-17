@@ -19,7 +19,6 @@ namespace Wiesel {
 
 Scene::Scene() {
   m_CurrentCamera = CreateReference<CameraData>();
-  m_CurrentCamera->Available = false;
 }
 
 Scene::~Scene() {}
@@ -42,9 +41,9 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
 void Scene::DestroyEntity(Entity entity) {
   m_Entities.erase(entity.GetUUID());
   m_Registry.destroy(entity);
-  std::remove_if(m_SceneHierarchy.begin(), m_SceneHierarchy.end(), [&](auto& e) {
+  m_SceneHierarchy.erase(std::remove_if(m_SceneHierarchy.begin(), m_SceneHierarchy.end(), [&](auto& e) {
     return e == entity;
-  });
+  }));
 }
 
 void Scene::OnUpdate(float_t deltaTime) {
@@ -172,13 +171,11 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   for (const auto& entity : m_Registry.view<CameraComponent>()) {
     auto& component = m_Registry.get<CameraComponent>(entity);
     component.m_AspectRatio = event.GetAspectRatio();
+    component.m_ViewportSize.x = event.GetWindowSize().Width;
+    component.m_ViewportSize.y = event.GetWindowSize().Height;
     component.m_IsChanged = true;
   }
   return false;
-}
-
-Ref<CameraData> Scene::GetCurrentCamera() {
-  return m_CurrentCamera;
 }
 
 void Scene::ApplyTransform(entt::entity parent, TransformComponent& childTransform) {
@@ -216,10 +213,16 @@ bool Scene::Render() {
     if (!camera.m_IsEnabled) {
       continue;
     }
-    m_CurrentCamera->Available = true;
+    // Perhaps we could do this differently?
+    // At first, we had 3 variables to update, but now we have 7
     m_CurrentCamera->Position = cameraTransform.Position;
     m_CurrentCamera->ViewMatrix = camera.m_ViewMatrix;
     m_CurrentCamera->Projection = camera.m_Projection;
+    m_CurrentCamera->ViewportSize = camera.m_ViewportSize;
+    m_CurrentCamera->Framebuffer = camera.m_Framebuffer;
+    m_CurrentCamera->TargetColorImage = camera.m_TargetColorImage;
+    m_CurrentCamera->TargetDepthStencil = camera.m_TargetDepthStencil;
+    m_CurrentCamera->TargetColorResolveImage = camera.m_TargetColorResolveImage;
     Engine::GetRenderer()->SetCameraData(m_CurrentCamera);
     if (!Engine::GetRenderer()->BeginFrame()) {
       return false;
@@ -233,7 +236,6 @@ bool Scene::Render() {
       Engine::GetRenderer()->DrawModel(model, transform);
     }
     Engine::GetRenderer()->EndFrame();
-    m_CurrentCamera->Available = false;
     hasCamera = true;
   }
   return hasCamera;

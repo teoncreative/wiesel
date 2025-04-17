@@ -235,10 +235,18 @@ struct AttachmentTextureProps {
 
 class DescriptorData;
 
+struct AttachmentTextureInfo {
+  AttachmentTextureType Type;
+  VkFormat Format;
+  VkSampleCountFlagBits MsaaSamples;
+};
+
 class AttachmentTexture {
  public:
   AttachmentTexture() = default;
   ~AttachmentTexture();
+
+  void Resize(uint32_t width, uint32_t height);
 
   AttachmentTextureType m_Type;
   std::vector<VkImage> m_Images;

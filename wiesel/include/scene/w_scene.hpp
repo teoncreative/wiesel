@@ -42,8 +42,6 @@ class Scene {
   template <typename T>
   void OnAddComponent(entt::entity entity, T& component) {}
 
-  WIESEL_GETTER_FN Ref<CameraData> GetCurrentCamera();
-
   WIESEL_GETTER_FN bool IsRunning() const { return m_IsRunning; }
 
   WIESEL_GETTER_FN bool IsPaused() const { return m_IsPaused; }

@@ -80,8 +80,7 @@ void DemoLayer::OnAttach() {
     auto& camera = entity.AddComponent<CameraComponent>();
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
-    camera.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
-    camera.m_IsChanged = true;
+    Engine::GetRenderer()->SetupCameraComponent(camera);
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
@@ -245,6 +244,8 @@ void DemoOverlay::RenderEntity(Entity& entity, entt::entity entityId, int depth,
 }
 
 void DemoOverlay::OnImGuiRender() {
+  ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+
   static bool scenePropertiesOpen = true;
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
@@ -255,9 +256,6 @@ void DemoOverlay::OnImGuiRender() {
     }
     if (ImGui::Button("Recreate Pipeline")) {
       Engine::GetRenderer()->SetRecreateGraphicsPipeline(true);
-    }
-    if (ImGui::Button("Recreate Shaders")) {
-      Engine::GetRenderer()->SetRecreateShaders(true);
     }
     if (ImGui::Button("Reload Scripts")) {
       ScriptManager::Reload();
@@ -319,6 +317,31 @@ void DemoOverlay::OnImGuiRender() {
     }
 
     RenderExistingComponents(entity);
+  }
+  ImGui::End();
+  static bool viewportOpen = true;
+  Ref<AttachmentTexture> texture = Engine::GetRenderer()->GetTargetColorResolveImage();
+  if (ImGui::Begin("Viewport", &viewportOpen)) {
+    if (!texture->m_Descriptors) {
+      texture->m_Descriptors = Engine::GetRenderer()->CreateDescriptors(texture);
+    }
+    ImTextureID desc = texture->m_Descriptors->m_DescriptorSet;
+
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    float imageAspect = (float)texture->m_Width / (float)texture->m_Height;
+    float availAspect = avail.x / avail.y;
+
+    ImVec2 drawSize;
+    if (availAspect > imageAspect) {
+      drawSize.y = avail.y;
+      drawSize.x = drawSize.y * imageAspect;
+    } else {
+      drawSize.x = avail.x;
+      drawSize.y = drawSize.x / imageAspect;
+    }
+
+    ImGui::Image(desc, drawSize);
+    //ImGui::Image(desc, ImVec2(texture->m_Width, texture->m_Height));
   }
   ImGui::End();
 }

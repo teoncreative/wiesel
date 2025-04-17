@@ -40,6 +40,7 @@
 #include <vector>
 #include <mutex>
 #include <list>
+#include <span>
 
 #include "util/w_attributes.hpp"
 #include "util/w_platformdetection.hpp"
