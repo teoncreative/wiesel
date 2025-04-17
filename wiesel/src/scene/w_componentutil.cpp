@@ -271,7 +271,7 @@ void RenderAddComponentImGui_LightDirectComponent(Entity entity) {
 void RenderAddComponentImGui_CameraComponent(Entity entity) {
   if (ImGui::MenuItem("Camera")) {
     auto& component = entity.AddComponent<CameraComponent>();
-    component.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
+    Engine::GetRenderer()->SetupCameraComponent(component);
   }
 }
 

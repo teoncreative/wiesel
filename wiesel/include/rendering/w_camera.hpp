@@ -13,6 +13,7 @@
 
 #include "events/w_appevents.hpp"
 #include "util/w_uuid.hpp"
+#include "w_framebuffer.hpp"
 #include "w_pch.hpp"
 #include "w_texture.hpp"
 
@@ -30,6 +31,11 @@ struct CameraComponent {
 
   glm::mat4 m_ViewMatrix;
   glm::mat4 m_Projection;
+  glm::vec2 m_ViewportSize;
+  Ref<AttachmentTexture> m_TargetColorImage;
+  Ref<AttachmentTexture> m_TargetDepthStencil;
+  Ref<AttachmentTexture> m_TargetColorResolveImage;
+  Ref<Framebuffer> m_Framebuffer;
   bool m_IsChanged = true;
   bool m_IsEnabled = true;
 
@@ -47,7 +53,11 @@ struct CameraData {
   glm::vec3 Position;
   glm::mat4 ViewMatrix;
   glm::mat4 Projection;
-  bool Available;
+  glm::vec2 ViewportSize;
+  Ref<AttachmentTexture> TargetColorImage;
+  Ref<AttachmentTexture> TargetDepthStencil;
+  Ref<AttachmentTexture> TargetColorResolveImage;
+  Ref<Framebuffer> Framebuffer;
 };
 
 

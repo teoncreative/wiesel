@@ -36,6 +36,9 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes;
 };
 
+enum BakeResult { SUCCESS };
+
+
 using Index = uint32_t;
 
 enum Vertex3DFlag {
@@ -52,10 +55,10 @@ struct Vertex3D {
   glm::vec3 Pos;
   glm::vec3 Color;
   glm::vec2 UV;
-  uint32_t Flags;
   glm::vec3 Normal;
   glm::vec3 Tangent;
   glm::vec3 BiTangent;
+  uint32_t Flags;
 
   static VkVertexInputBindingDescription GetBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
@@ -126,7 +129,6 @@ struct Vertex2D {
     return Pos == other.Pos && Color == other.Color && UV == other.UV;
   }
 };
-
 
 struct vertex_hash {
   std::size_t operator()(const Wiesel::Vertex3D& vertex) const {

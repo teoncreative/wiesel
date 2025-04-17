@@ -124,14 +124,15 @@ void Application::Run() {
 
       renderer->BeginRender();
       m_Scene->Render();
-      renderer->BeginPresent();
-      renderer->DrawImageToSwapChain(renderer->GetGeometryColorResolveImage());
-      m_ImGuiLayer->OnBeginFrame();
-      for (const auto& layer : m_Overlays) {
-        layer->OnImGuiRender();
+      if (renderer->BeginPresent()) {
+        //renderer->PresentImage(renderer->GetTargetColorResolveImage());
+        m_ImGuiLayer->OnBeginFrame();
+        for (const auto& layer : m_Overlays) {
+          layer->OnImGuiRender();
+        }
+        m_ImGuiLayer->OnEndFrame();
+        renderer->EndPresent();
       }
-      m_ImGuiLayer->OnEndFrame();
-      renderer->EndPresent();
       for (const auto& layer : m_Overlays) {
         layer->OnPostRender();
       }

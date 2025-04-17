@@ -21,28 +21,36 @@ namespace Wiesel {
 enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
 
 struct PipelineProperties {
+  VkSampleCountFlagBits m_MsaaSamples;
   CullMode m_CullMode;
   bool m_EnableWireframe;
-  Ref<RenderPass> m_RenderPass;
-  Ref<DescriptorLayout> m_DescriptorLayout;
-  Ref<Shader> m_VertexShader;
-  Ref<Shader> m_FragmentShader;
   bool m_EnableAlphaBlending;
-  uint32_t m_ViewportWidth;
-  uint32_t m_ViewportHeight;
-  bool m_Is2D;
 };
 
 struct GraphicsPipeline {
   explicit GraphicsPipeline(PipelineProperties properties);
   ~GraphicsPipeline();
 
+  void SetRenderPass(Ref<RenderPass> pass);
+  void SetDescriptorLayout(Ref<DescriptorLayout> layout);
+  void AddDynamicState(VkDynamicState state);
+  void AddShader(Ref<Shader> shader);
+  void SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+  void Bake();
+
   void Bind(PipelineBindPoint bindPoint);
 
   PipelineProperties m_Properties;
+  std::vector<Ref<Shader>> m_Shaders;
+  std::vector<VkDynamicState> m_DynamicStates;
+  Ref<RenderPass> m_RenderPass;
+  Ref<DescriptorLayout> m_DescriptorLayout;
   VkPipelineLayout m_Layout{};
   VkPipeline m_Pipeline{};
-  bool m_IsAllocated;
+  VkVertexInputBindingDescription m_VertexInputBindingDescription;
+  std::vector<VkVertexInputAttributeDescription> m_VertexAttributeDescriptions;
+
+  bool m_IsAllocated = false;
 };
 
 }  // namespace Wiesel

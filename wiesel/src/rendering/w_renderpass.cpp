@@ -42,9 +42,16 @@ RenderPass::~RenderPass() {
 }
 
 void RenderPass::Attach(Ref<AttachmentTexture> attachment) {
-  m_Attachments.push_back(attachment);
+  m_Attachments.push_back({
+      .Type = attachment->m_Type,
+      .Format = attachment->m_Format,
+      .MsaaSamples = attachment->m_MsaaSamples
+  });
 }
 
+void RenderPass::Attach(AttachmentTextureInfo&& info) {
+  m_Attachments.push_back(info);
+}
 void RenderPass::Bake() {
   std::vector<VkAttachmentDescription> descriptions;
   std::vector<VkAttachmentReference> colorAttachmentRefs;
@@ -53,10 +60,10 @@ void RenderPass::Bake() {
 
   uint32_t index = 0;
   for (const auto& item : m_Attachments) {
-    if (item->m_Type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
+    if (item.Type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
       descriptions.push_back({
-          .format = item->m_Format,
-          .samples = item->m_MsaaSamples,
+          .format = item.Format,
+          .samples = item.MsaaSamples,
           .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
           .storeOp = m_PassType == PassType::Geometry ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -69,10 +76,10 @@ void RenderPass::Bake() {
           .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
       });
       index++;
-    } else if (item->m_Type == AttachmentTextureType::Color || item->m_Type == AttachmentTextureType::Offscreen) {
+    } else if (item.Type == AttachmentTextureType::Color || item.Type == AttachmentTextureType::Offscreen) {
       descriptions.push_back({
-          .format = item->m_Format,
-          .samples = item->m_MsaaSamples,
+          .format = item.Format,
+          .samples = item.MsaaSamples,
           .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
           .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -85,9 +92,9 @@ void RenderPass::Bake() {
           .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
       });
       index++;
-    } else if (item->m_Type == AttachmentTextureType::Resolve || item->m_Type == AttachmentTextureType::SwapChain) {
+    } else if (item.Type == AttachmentTextureType::Resolve || item.Type == AttachmentTextureType::SwapChain) {
       descriptions.push_back({
-          .format = item->m_Format,
+          .format = item.Format,
           .samples = VK_SAMPLE_COUNT_1_BIT,
           .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
           .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -196,7 +203,8 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
   renderPassInfo.renderPass = m_RenderPass;
   renderPassInfo.framebuffer = framebuffer->m_Handle;
   renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent = framebuffer->m_Extent;
+  renderPassInfo.renderArea.extent.width = framebuffer->m_Extent.x;
+  renderPassInfo.renderArea.extent.height = framebuffer->m_Extent.y;
 
   std::array<VkClearValue, 2> clearValues{};
   clearValues[0].color = {{clearColor.Red, clearColor.Green,
@@ -213,18 +221,20 @@ void RenderPass::End() {
   vkCmdEndRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, VkExtent2D extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent) {
   bool hasDepth = false;
-  std::vector<VkImageView> attachments;
-  for (const auto& item : m_Attachments) {
+  std::vector<VkImageView> views;
+  for (const auto& item : attachments) {
     if (item->m_Type == AttachmentTextureType::DepthStencil && !hasDepth) {
-      attachments.push_back(item->m_ImageViews[index]);
+      views.push_back(item->m_ImageViews[index]);
       hasDepth = true;
     } else if (item->m_Type == AttachmentTextureType::Color || item->m_Type == AttachmentTextureType::Offscreen || item->m_Type == AttachmentTextureType::SwapChain ||
                item->m_Type == AttachmentTextureType::Resolve) {
-      attachments.push_back(item->m_ImageViews[index]);
+      views.push_back(item->m_ImageViews[index]);
     }
   }
-  return CreateReference<Framebuffer>(attachments, extent, *this);
+  // TODO check if views match the expected framebuffer attachment size
+  return CreateReference<Framebuffer>(views, extent, *this);
 }
+
 }  // namespace Wiesel

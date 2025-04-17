@@ -39,12 +39,16 @@
 
 namespace Wiesel {
 
+struct RendererProperties {
+
+};
+
 class Renderer {
  public:
   explicit Renderer(Ref<AppWindow> window);
   ~Renderer();
 
-  void Initialize();
+  void Initialize(const RendererProperties&& props);
 
   Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex3D> vertices);
   Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex2D> vertices);
@@ -55,6 +59,8 @@ class Renderer {
 
   Ref<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
   void DestroyUniformBuffer(UniformBuffer& buffer);
+
+  void SetupCameraComponent(CameraComponent& component);
 
   Ref<Texture> CreateBlankTexture();
   Ref<Texture> CreateBlankTexture(const TextureProps& textureProps,
@@ -80,18 +86,9 @@ class Renderer {
 
   void DestroyDescriptorLayout(DescriptorLayout& layout);
 
-  Ref<GraphicsPipeline> CreateGraphicsPipeline(
-      PipelineProperties properties);
-  void AllocateGraphicsPipeline(PipelineProperties properties,
-                                Ref<GraphicsPipeline> pipeline);
-  void DestroyGraphicsPipeline(GraphicsPipeline& pipeline);
   void RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline);
-  void RecreateShader(Ref<Shader> shader);
 
   Ref<Shader> CreateShader(ShaderProperties properties);
-  Ref<Shader> CreateShader(const std::vector<uint32_t>& code,
-                                 ShaderProperties properties);
-  void DestroyShader(Shader& shader);
 
   void SetClearColor(float r, float g, float b, float a = 1.0f);
   void SetClearColor(const Colorf& color);
@@ -109,9 +106,6 @@ class Renderer {
 
   void SetRecreateGraphicsPipeline(bool value);
   WIESEL_GETTER_FN bool IsRecreateGraphicsPipeline();
-
-  void SetRecreateShaders(bool value);
-  WIESEL_GETTER_FN bool IsRecreateShaders();
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const;
@@ -133,18 +127,19 @@ class Renderer {
     return m_SwapChainImageFormat;
   }
 
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage() const {
-    return m_GeometryColorResolveImage;
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetTargetColorResolveImage() const {
+    return m_TargetColorResolveImage;
   }
 
   void SetViewport(VkExtent2D extent);
+  void SetViewport(glm::vec2 extent);
 
   void DrawModel(ModelComponent& model, TransformComponent& transform);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform);
   void BlitImageToSwapChain(Ref<AttachmentTexture> texture);
-  void DrawImageToSwapChain(Ref<AttachmentTexture> texture);
+  void PresentImage(Ref<AttachmentTexture> texture);
   void BeginRender();
-  void BeginPresent();
+  bool BeginPresent();
   void EndPresent();
 
   bool BeginFrame();
@@ -160,16 +155,19 @@ class Renderer {
   void CreateSurface();
   void PickPhysicalDevice();
   void CreateLogicalDevice();
+  void CreateDescriptorLayouts();
   void CreateSwapChain();
-  void CreateRenderPass();
-  void CreateDefaultGraphicsPipeline();
+  void CreateGeometryRenderPass();
+  void CreateGeometryGraphicsPipelines();
+  void CreatePresentGraphicsPipelines();
   void CreateCommandPools();
   void CreateCommandBuffers();
   void CreatePermanentResources();
   void CreateSyncObjects();
   void CreateGlobalUniformBuffers();
-  void CleanupSwapChain();
-  void CleanupRenderPass();
+  void CleanupGeometryGraphics();
+  void CleanupPresentGraphics();
+  void CleanupDescriptorLayouts();
   void CleanupGlobalUniformBuffers();
   int32_t RateDeviceSuitability(VkPhysicalDevice device);
   bool IsDeviceSuitable(VkPhysicalDevice device);
@@ -264,9 +262,6 @@ class Renderer {
   VkExtent2D m_Extent{};
   Ref<DescriptorLayout> m_GeometryDescriptorLayout;
   Ref<DescriptorLayout> m_PresentDescriptorLayout;
-  Ref<AttachmentTexture> m_GeometryDepthStencil;
-  Ref<AttachmentTexture> m_GeometryColorImage;
-  Ref<AttachmentTexture> m_GeometryColorResolveImage;
   Ref<AttachmentTexture> m_PresentColorImage;
   Ref<AttachmentTexture> m_PresentDepthStencil;
   Ref<Texture> m_BlankTexture;
@@ -284,23 +279,27 @@ class Renderer {
   VkSampleCountFlagBits m_PreviousMsaaSamples;
   Colorf m_ClearColor;
   bool m_Vsync;
-  bool m_RecreateSwapChain;
   Ref<UniformBuffer> m_LightsUniformBuffer;
   LightsUniformData m_LightsUniformData;
   Ref<UniformBuffer> m_CameraUniformBuffer;
   CameraUniformData m_CameraUniformData;
   bool m_EnableWireframe;
   bool m_RecreateGraphicsPipeline;
-  bool m_RecreateShaders;
+  bool m_RecreateSwapChain;
   Ref<GraphicsPipeline> m_GeometryGraphicsPipeline;
   Ref<GraphicsPipeline> m_PresentGraphicsPipeline;
   Ref<RenderPass> m_GeometryRenderPass;
   Ref<RenderPass> m_PresentRenderPass;
   std::vector<Ref<Framebuffer>> m_PresentFramebuffers;
-  Ref<Framebuffer> m_GeometryFramebuffer;
   Ref<MemoryBuffer> m_PresentVertexBuffer;
   Ref<MemoryBuffer> m_PresentIndexBuffer;
   Ref<CameraData> m_CameraData;
+  glm::vec2 m_ViewportSize;
+
+  Ref<Framebuffer> m_TargetFramebuffer;
+  Ref<AttachmentTexture> m_TargetColorImage;
+  Ref<AttachmentTexture> m_TargetDepthStencil;
+  Ref<AttachmentTexture> m_TargetColorResolveImage;
 
   QueueFamilyIndices m_QueueFamilyIndices;
   SwapChainSupportDetails m_SwapChainDetails;

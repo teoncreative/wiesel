@@ -30,7 +30,6 @@ Renderer::Renderer(Ref<AppWindow> window) : m_Window(window) {
 #endif
 
   m_RecreateGraphicsPipeline = false;
-  m_RecreateShaders = false;
   m_EnableWireframe = false;
   m_RecreateSwapChain = false;
   m_SwapChainCreated = false;
@@ -45,7 +44,7 @@ Renderer::~Renderer() {
   Cleanup();
 };
 
-void Renderer::Initialize() {
+void Renderer::Initialize(const RendererProperties&& properties) {
   CreateVulkanInstance();
 #ifdef VULKAN_VALIDATION
   SetupDebugMessenger();
@@ -56,9 +55,11 @@ void Renderer::Initialize() {
   CreateGlobalUniformBuffers();
   // ---
   CreateCommandPools();
+  CreateDescriptorLayouts();
   CreateSwapChain();
-  CreateRenderPass();
-  CreateDefaultGraphicsPipeline();
+  CreateGeometryRenderPass();
+  CreateGeometryGraphicsPipelines();
+  CreatePresentGraphicsPipelines();
   CreateCommandBuffers();
   CreatePermanentResources();
   CreateSyncObjects();
@@ -196,6 +197,40 @@ void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
   vkDeviceWaitIdle(m_LogicalDevice);
   vkDestroyBuffer(m_LogicalDevice, buffer.m_Buffer, nullptr);
   vkFreeMemory(m_LogicalDevice, buffer.m_BufferMemory, nullptr);
+}
+
+void Renderer::SetupCameraComponent(CameraComponent& component) {
+  component.m_AspectRatio = Engine::GetRenderer()->GetAspectRatio();
+  component.m_ViewportSize.x = Engine::GetRenderer()->GetExtent().width;
+  component.m_ViewportSize.y = Engine::GetRenderer()->GetExtent().height;
+  component.m_TargetColorImage = CreateAttachmentTexture(
+      {m_Extent.width, m_Extent.height, AttachmentTextureType::Offscreen, 1,
+       m_SwapChainImageFormat, m_MsaaSamples, true});
+
+  component.m_TargetDepthStencil = CreateAttachmentTexture(
+      {m_Extent.width, m_Extent.height, AttachmentTextureType::DepthStencil, 1,
+       FindDepthFormat(), m_MsaaSamples, true});
+
+
+  if (m_MsaaSamples > VK_SAMPLE_COUNT_1_BIT) {
+    component.m_TargetColorResolveImage = CreateAttachmentTexture(
+        {m_Extent.width, m_Extent.height, AttachmentTextureType::Resolve, 1,
+         m_SwapChainImageFormat, VK_SAMPLE_COUNT_1_BIT, true});
+    std::array<AttachmentTexture*, 3> textures = {
+        component.m_TargetColorImage.get(),
+        component.m_TargetDepthStencil.get(),
+        component.m_TargetColorResolveImage.get(),
+    };
+    component.m_Framebuffer = m_GeometryRenderPass->CreateFramebuffer(0, textures, component.m_ViewportSize);
+  } else {
+    component.m_TargetColorResolveImage = component.m_TargetColorImage;
+    std::array<AttachmentTexture*, 2> textures = {
+        component.m_TargetColorImage.get(),
+        component.m_TargetDepthStencil.get()
+    };
+    component.m_Framebuffer = m_GeometryRenderPass->CreateFramebuffer(0, textures, component.m_ViewportSize);
+  }
+  component.m_IsChanged = true;
 }
 
 Ref<Texture> Renderer::CreateBlankTexture() {
@@ -907,14 +942,6 @@ bool Renderer::IsRecreateGraphicsPipeline() {
   return m_RecreateGraphicsPipeline;
 }
 
-void Renderer::SetRecreateShaders(bool value) {
-  m_RecreateShaders = value;
-}
-
-bool Renderer::IsRecreateShaders() {
-  return m_RecreateGraphicsPipeline;
-}
-
 float Renderer::GetAspectRatio() const {
   return m_AspectRatio;
 }
@@ -934,18 +961,12 @@ void Renderer::Cleanup() {
   CleanupGlobalUniformBuffers();
   m_BlankTexture = nullptr;
 
-  CleanupSwapChain();
+  LOG_DEBUG("Destroying graphics");
+  CleanupGeometryGraphics();
+  CleanupPresentGraphics();
 
   LOG_DEBUG("Destroying descriptor set layout");
-  m_GeometryDescriptorLayout = nullptr;
-  m_PresentDescriptorLayout = nullptr;
-
-  LOG_DEBUG("Destroying default graphics pipeline");
-  m_GeometryGraphicsPipeline = nullptr;
-  m_PresentGraphicsPipeline = nullptr;
-
-  LOG_DEBUG("Destroying default render pass");
-  CleanupRenderPass();
+  CleanupDescriptorLayouts();
 
   LOG_DEBUG("Destroying semaphores and fences");
   vkDestroySemaphore(m_LogicalDevice, m_RenderFinishedSemaphore, nullptr);
@@ -1049,7 +1070,7 @@ void Renderer::PickPhysicalDevice() {
   if (candidates.rbegin()->first > 0) {
     m_PhysicalDevice = candidates.rbegin()->second;
     m_MsaaSamples = GetMaxUsableSampleCount();
-    m_PreviousMsaaSamples = GetMaxUsableSampleCount();
+    m_PreviousMsaaSamples = m_MsaaSamples;
   } else {
     throw std::runtime_error("failed to find a suitable GPU!");
   }
@@ -1074,7 +1095,7 @@ void Renderer::CreateLogicalDevice() {
   }
 
   VkPhysicalDeviceFeatures deviceFeatures{};
-  //deviceFeatures.fillModeNonSolid = true;
+  deviceFeatures.fillModeNonSolid = true;
   deviceFeatures.samplerAnisotropy = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};
@@ -1097,6 +1118,31 @@ void Renderer::CreateLogicalDevice() {
                    &m_PresentQueue);
   vkGetDeviceQueue(m_LogicalDevice, GetGraphicsQueueFamilyIndex(), 0,
                    &m_GraphicsQueue);
+}
+
+void Renderer::CreateDescriptorLayouts() {
+  m_GeometryDescriptorLayout = CreateReference<DescriptorLayout>();
+  m_GeometryDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+  m_GeometryDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+  m_GeometryDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+
+  for (int i = 0; i < kMaterialTextureCount; i++) {
+    m_GeometryDescriptorLayout->AddBinding(
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_SHADER_STAGE_FRAGMENT_BIT);
+  }
+  m_GeometryDescriptorLayout->Bake();
+
+  m_PresentDescriptorLayout = CreateReference<DescriptorLayout>();
+  m_PresentDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+  m_PresentDescriptorLayout->Bake();
 }
 
 void Renderer::CreateSwapChain() {
@@ -1206,362 +1252,84 @@ void Renderer::CreateSwapChain() {
   m_PresentRenderPass->Attach(m_SwapChainTexture);
   m_PresentRenderPass->Bake();
   m_PresentFramebuffers.resize(swapChainImages.size());
+  std::array<AttachmentTexture*, 3> textures{
+      m_PresentColorImage.get(),
+      m_PresentDepthStencil.get(),
+      m_SwapChainTexture.get()
+  };
   for (uint32_t i = 0; i < swapChainImages.size(); i++) {
     m_PresentFramebuffers[i] =
-        m_PresentRenderPass->CreateFramebuffer(i, m_Extent);
+        m_PresentRenderPass->CreateFramebuffer(i, textures, {m_Extent.width, m_Extent.height});
   }
 }
 
-void Renderer::CreateRenderPass() {
+void Renderer::CreateGeometryRenderPass() {
   LOG_DEBUG("Creating render pass");
-  m_GeometryDepthStencil = CreateAttachmentTexture(
-      {m_Extent.width, m_Extent.height, AttachmentTextureType::DepthStencil, 1,
-       FindDepthFormat(), m_MsaaSamples, true});
-
-  m_GeometryColorImage = CreateAttachmentTexture(
-      {m_Extent.width, m_Extent.height, AttachmentTextureType::Offscreen, 1,
-       m_SwapChainImageFormat, m_MsaaSamples, true});
-
-  if (m_MsaaSamples > VK_SAMPLE_COUNT_1_BIT) {
-    m_GeometryColorResolveImage = CreateAttachmentTexture(
-        {m_Extent.width, m_Extent.height, AttachmentTextureType::Resolve, 1,
-         m_SwapChainImageFormat, VK_SAMPLE_COUNT_1_BIT, true});
-  } else {
-    m_GeometryColorResolveImage = m_GeometryColorImage;
-  }
   m_GeometryRenderPass = CreateReference<RenderPass>(PassType::Geometry);
-  m_GeometryRenderPass->Attach(m_GeometryColorImage);
-  m_GeometryRenderPass->Attach(m_GeometryDepthStencil);
+  m_GeometryRenderPass->Attach({
+      .Type = AttachmentTextureType::Offscreen,
+      .Format = m_SwapChainImageFormat,
+      .MsaaSamples = m_MsaaSamples
+  });
+  m_GeometryRenderPass->Attach({
+      .Type = AttachmentTextureType::DepthStencil,
+      .Format = FindDepthFormat(),
+      .MsaaSamples = m_MsaaSamples
+  });
   if (m_MsaaSamples > VK_SAMPLE_COUNT_1_BIT) {
-    m_GeometryRenderPass->Attach(m_GeometryColorResolveImage);
+    m_GeometryRenderPass->Attach({
+        .Type = AttachmentTextureType::Resolve,
+        .Format = m_SwapChainImageFormat,
+        .MsaaSamples = VK_SAMPLE_COUNT_1_BIT
+    });
   }
   m_GeometryRenderPass->Bake();
-
-  m_GeometryFramebuffer = m_GeometryRenderPass->CreateFramebuffer(0, m_Extent);
-
-  std::vector<Vertex2D> vertices = {
-      {{-1.0f, -1.0f}, {1, 1, 1, 1}, {0.0f, 0.0f}},
-      {{1.0f, -1.0f}, {1, 1, 1, 1}, {1.0f, 0.0f}},
-      {{1.0f, 1.0f}, {1, 1, 1, 1}, {1.0f, 1.0f}},
-      {{-1.0f, 1.0f}, {1, 1, 1, 1}, {0.0f, 1.0f}},
-  };
-
-  std::vector<Index> indices = {0, 1, 2, 2, 3, 0};
-  m_PresentVertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(vertices);
-  m_PresentIndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(indices);
+  //m_GeometryFramebuffer = m_GeometryRenderPass->CreateFramebuffer(0, m_Extent);
 }
 
-void Renderer::CreateDefaultGraphicsPipeline() {
-  LOG_DEBUG("Creating default graphics pipeline");
-  m_GeometryDescriptorLayout = CreateReference<DescriptorLayout>();
-  m_GeometryDescriptorLayout->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  m_GeometryDescriptorLayout->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  m_GeometryDescriptorLayout->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-  for (int i = 0; i < kMaterialTextureCount; i++) {
-    m_GeometryDescriptorLayout->AddBinding(
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_SHADER_STAGE_FRAGMENT_BIT);
-  }
-  m_GeometryDescriptorLayout->Bake();
-
-  m_PresentDescriptorLayout = CreateReference<DescriptorLayout>();
-  m_PresentDescriptorLayout->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  m_PresentDescriptorLayout->Bake();
-
+void Renderer::CreateGeometryGraphicsPipelines() {
+  LOG_DEBUG("Creating graphics pipeline");
   auto geometryVertexShader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourcePrecompiled,
        "assets/shaders/geometry_shader.vert.spv"});
   auto geometryFragmentShader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourcePrecompiled,
        "assets/shaders/geometry_shader.frag.spv"});
-  m_GeometryGraphicsPipeline = CreateGraphicsPipeline(
-      {CullModeBack, m_EnableWireframe, m_GeometryRenderPass,
-       m_GeometryDescriptorLayout, geometryVertexShader, geometryFragmentShader,
-       false, m_Extent.width, m_Extent.height, false});
+  m_GeometryGraphicsPipeline = CreateReference<GraphicsPipeline>(
+      PipelineProperties{m_MsaaSamples, CullModeBack, m_EnableWireframe, false}
+  );
+  m_GeometryGraphicsPipeline->SetVertexData(Vertex3D::GetBindingDescription(), Vertex3D::GetAttributeDescriptions());
+  m_GeometryGraphicsPipeline->SetRenderPass(m_GeometryRenderPass);
+  m_GeometryGraphicsPipeline->SetDescriptorLayout(m_GeometryDescriptorLayout);
+  m_GeometryGraphicsPipeline->AddShader(geometryVertexShader);
+  m_GeometryGraphicsPipeline->AddShader(geometryFragmentShader);
+  m_GeometryGraphicsPipeline->Bake();
+}
 
+void Renderer::CreatePresentGraphicsPipelines() {
   auto presentVertexShader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourcePrecompiled,
        "assets/shaders/quad_shader.vert.spv"});
   auto presentFragmentShader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourcePrecompiled,
        "assets/shaders/quad_shader.frag.spv"});
-  m_PresentGraphicsPipeline = CreateGraphicsPipeline(
-      {CullModeBack, false, m_PresentRenderPass, m_PresentDescriptorLayout,
-       presentVertexShader, presentFragmentShader, true, m_Extent.width,
-       m_Extent.height, true});
-}
-
-Ref<GraphicsPipeline> Renderer::CreateGraphicsPipeline(
-    PipelineProperties properties) {
-  Ref<GraphicsPipeline> pipeline =
-      CreateReference<GraphicsPipeline>(properties);
-  AllocateGraphicsPipeline(properties, pipeline);
-  return pipeline;
-}
-
-void Renderer::AllocateGraphicsPipeline(PipelineProperties properties,
-                                        Ref<GraphicsPipeline> pipeline) {
-  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &properties.m_DescriptorLayout->m_Layout;
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
-
-  WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(
-      m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipeline->m_Layout));
-
-  VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-  vertShaderStageInfo.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-  vertShaderStageInfo.module = properties.m_VertexShader->ShaderModule;
-  vertShaderStageInfo.pName =
-      properties.m_VertexShader->Properties.Main.c_str();
-
-  VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-  fragShaderStageInfo.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  fragShaderStageInfo.module = properties.m_FragmentShader->ShaderModule;
-  fragShaderStageInfo.pName =
-      properties.m_FragmentShader->Properties.Main.c_str();
-  VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo,
-                                                    fragShaderStageInfo};
-
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT,
-                                               VK_DYNAMIC_STATE_SCISSOR};
-
-  VkPipelineDynamicStateCreateInfo dynamicState{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
-  VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-  vertexInputInfo.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-  vertexInputInfo.vertexBindingDescriptionCount = 1;
-  std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
-  VkVertexInputBindingDescription bindingDescription;
-  if (properties.m_Is2D) {
-    bindingDescription = Wiesel::Vertex2D::GetBindingDescription();
-    attributeDescriptions = Wiesel::Vertex2D::GetAttributeDescriptions();
-  } else {
-    bindingDescription = Wiesel::Vertex3D::GetBindingDescription();
-    attributeDescriptions = Wiesel::Vertex3D::GetAttributeDescriptions();
-  }
-
-  vertexInputInfo.vertexAttributeDescriptionCount =
-      static_cast<uint32_t>(attributeDescriptions.size());
-  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-  vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-
-  VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-  inputAssembly.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-  inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-  inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  viewport.width = (float)properties.m_ViewportWidth;
-  viewport.height = (float)properties.m_ViewportHeight;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent.width = properties.m_ViewportWidth;
-  scissor.extent.height = properties.m_ViewportHeight;
-
-  VkPipelineViewportStateCreateInfo viewportState{};
-  viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-  viewportState.viewportCount = 1;
-  viewportState.pViewports = &viewport;
-  viewportState.scissorCount = 1;
-  viewportState.pScissors = &scissor;
-
-  VkPipelineRasterizationStateCreateInfo rasterizer{};
-  rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-  rasterizer.depthClampEnable = VK_FALSE;
-  rasterizer.rasterizerDiscardEnable = VK_FALSE;
-  /*
-     * VK_POLYGON_MODE_FILL: fill the area of the polygon with fragments
-     * VK_POLYGON_MODE_LINE: polygon edges are drawn as lines
-     * VK_POLYGON_MODE_POINT: polygon vertices are drawn as points
-     */
-  if (properties.m_EnableWireframe) {
-    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
-  } else {
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-  }
-  rasterizer.lineWidth = 1.0f;
-  switch (properties.m_CullMode) {
-    case CullModeNone:
-      rasterizer.cullMode = VK_CULL_MODE_NONE;
-      break;
-    case CullModeFront:
-      rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
-      break;
-    case CullModeBack:
-      rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-      break;
-    case CullModeBoth:
-      rasterizer.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
-      break;
-  }
-  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-
-  rasterizer.depthBiasEnable = VK_FALSE;
-
-  VkPipelineMultisampleStateCreateInfo multisampling{};
-  multisampling.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-  multisampling.sampleShadingEnable = VK_FALSE;
-  multisampling.rasterizationSamples = m_MsaaSamples;
-
-  VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-  colorBlendAttachment.colorWriteMask =
-      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-  if (properties.m_EnableAlphaBlending) {
-    colorBlendAttachment.blendEnable = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor =
-        VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-  } else {
-    colorBlendAttachment.blendEnable = VK_FALSE;
-  }
-
-  VkPipelineColorBlendStateCreateInfo colorBlending{};
-  colorBlending.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-  colorBlending.logicOpEnable = VK_FALSE;
-  colorBlending.logicOp = VK_LOGIC_OP_COPY;
-  colorBlending.attachmentCount = 1;
-  colorBlending.pAttachments = &colorBlendAttachment;
-
-  VkPipelineDepthStencilStateCreateInfo depthStencil{};
-  depthStencil.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depthStencil.depthTestEnable = VK_TRUE;
-  depthStencil.depthWriteEnable = VK_TRUE;
-  depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-  depthStencil.depthBoundsTestEnable = VK_FALSE;
-
-  VkGraphicsPipelineCreateInfo pipelineInfo{};
-  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 2;
-  pipelineInfo.pStages = shaderStages;
-
-  pipelineInfo.pVertexInputState = &vertexInputInfo;
-  pipelineInfo.pInputAssemblyState = &inputAssembly;
-  pipelineInfo.pViewportState = &viewportState;
-  pipelineInfo.pRasterizationState = &rasterizer;
-  pipelineInfo.pMultisampleState = &multisampling;
-  pipelineInfo.pDepthStencilState = &depthStencil;
-  pipelineInfo.pColorBlendState = &colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
-  pipelineInfo.layout = pipeline->m_Layout;
-  pipelineInfo.renderPass = properties.m_RenderPass->GetVulkanHandle();
-  pipelineInfo.subpass = 0;
-
-  WIESEL_CHECK_VKRESULT(
-      vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1,
-                                &pipelineInfo, nullptr, &pipeline->m_Pipeline));
-
-  pipeline->m_IsAllocated = true;
-}
-
-void Renderer::DestroyGraphicsPipeline(GraphicsPipeline& pipeline) {
-  vkDestroyPipeline(m_LogicalDevice, pipeline.m_Pipeline, nullptr);
-  vkDestroyPipelineLayout(m_LogicalDevice, pipeline.m_Layout, nullptr);
-  pipeline.m_IsAllocated = true;
+  m_PresentGraphicsPipeline = CreateReference<GraphicsPipeline>(
+      PipelineProperties{m_MsaaSamples, CullModeBack, false, true}
+  );
+  m_PresentGraphicsPipeline->SetVertexData(Vertex2D::GetBindingDescription(), Vertex2D::GetAttributeDescriptions());
+  m_PresentGraphicsPipeline->SetRenderPass(m_PresentRenderPass);
+  m_PresentGraphicsPipeline->SetDescriptorLayout(m_PresentDescriptorLayout);
+  m_PresentGraphicsPipeline->AddShader(presentVertexShader);
+  m_PresentGraphicsPipeline->AddShader(presentFragmentShader);
+  m_PresentGraphicsPipeline->Bake();
 }
 
 void Renderer::RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline) {
-  DestroyGraphicsPipeline(*pipeline);
-  AllocateGraphicsPipeline(pipeline->m_Properties, pipeline);
-}
-
-void Renderer::RecreateShader(Ref<Shader> shader) {
-  if (shader->Properties.Source == ShaderSourceSource) {
-    DestroyShader(*shader);
-    std::vector<char> file = ReadFile(shader->Properties.Path);
-    std::vector<uint32_t> code{};
-    if (!Spirv::ShaderToSPV(shader->Properties.Type, file, code)) {
-      throw std::runtime_error("Failed to compile shader!");
-    }
-
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size() * 4;
-    createInfo.pCode = code.data();
-    WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo,
-                                               nullptr, &shader->ShaderModule));
-  } else if (shader->Properties.Source == ShaderSourcePrecompiled) {
-    DestroyShader(*shader);
-    std::vector<uint32_t> code = ReadFileUint32(shader->Properties.Path);
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size() * 4;
-    createInfo.pCode = code.data();
-    WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo,
-                                               nullptr, &shader->ShaderModule));
-
-  } else {
-    throw std::runtime_error("Shader source not implemented!");
-  }
+  pipeline->Bake();
 }
 
 Ref<Shader> Renderer::CreateShader(ShaderProperties properties) {
-  if (properties.Source == ShaderSourceSource) {
-    auto file = ReadFile(properties.Path);
-    std::vector<uint32_t> code{};
-    if (!Spirv::ShaderToSPV(properties.Type, file, code)) {
-      throw std::runtime_error("Failed to compile shader!");
-    }
-    return CreateShader(code, properties);
-  } else if (properties.Source == ShaderSourcePrecompiled) {
-    auto code = ReadFileUint32(properties.Path);
-    return CreateShader(code, properties);
-  } else {
-    throw std::runtime_error("Shader source not implemented!");
-  }
-}
-
-Ref<Shader> Renderer::CreateShader(const std::vector<uint32_t>& code,
-                                   ShaderProperties properties) {
-  LOG_DEBUG("Creating shader with lang: {}, type: {}, source: {} {}, main: {}",
-            std::to_string(properties.Lang), std::to_string(properties.Type),
-            std::to_string(properties.Source), properties.Path,
-            properties.Main);
-  Ref<Shader> shader = CreateReference<Shader>(properties);
-  VkShaderModuleCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  createInfo.codeSize = code.size() * 4;
-  createInfo.pCode = code.data();
-  WIESEL_CHECK_VKRESULT(vkCreateShaderModule(m_LogicalDevice, &createInfo,
-                                             nullptr, &shader->ShaderModule));
-  return shader;
-}
-
-void Renderer::DestroyShader(Shader& shader) {
-  LOG_DEBUG("Destroying shader");
-  vkDestroyShaderModule(m_LogicalDevice, shader.ShaderModule, nullptr);
+  return CreateReference<Shader>(properties);
 }
 
 void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -1760,6 +1528,17 @@ void Renderer::CreateCommandBuffers() {
 
 void Renderer::CreatePermanentResources() {
   m_BlankTexture = CreateBlankTexture();
+
+  std::vector<Vertex2D> vertices = {
+      {{-1.0f, -1.0f}, {1, 1, 1, 1}, {0.0f, 0.0f}},
+      {{1.0f, -1.0f}, {1, 1, 1, 1}, {1.0f, 0.0f}},
+      {{1.0f, 1.0f}, {1, 1, 1, 1}, {1.0f, 1.0f}},
+      {{-1.0f, 1.0f}, {1, 1, 1, 1}, {0.0f, 1.0f}},
+  };
+
+  std::vector<Index> indices = {0, 1, 2, 2, 3, 0};
+  m_PresentVertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(vertices);
+  m_PresentIndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(indices);
 }
 
 void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
@@ -1988,26 +1767,25 @@ void Renderer::CreateSyncObjects() {
       vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr, &m_Fence));
 }
 
-void Renderer::CleanupSwapChain() {
-  LOG_DEBUG("Cleanup swap chain");
-  m_PresentColorImage = nullptr;
+void Renderer::CleanupDescriptorLayouts() {
+  m_GeometryDescriptorLayout = nullptr;
+  m_PresentDescriptorLayout = nullptr;
 
-  LOG_DEBUG("Destroying swap chain framebuffers");
-  m_PresentFramebuffers.clear();
-
-  LOG_DEBUG("Destroying swap chain texture");
-  m_SwapChainTexture = nullptr;
-
-  LOG_DEBUG("Destroying swap chain");
-  vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
+}
+void Renderer::CleanupGeometryGraphics() {
+  m_GeometryGraphicsPipeline = nullptr;
+  m_GeometryRenderPass = nullptr;
 }
 
-void Renderer::CleanupRenderPass() {
-  m_GeometryColorImage = nullptr;
-  m_GeometryDepthStencil = nullptr;
-  m_GeometryFramebuffer = nullptr;
-  m_GeometryRenderPass = nullptr;
+void Renderer::CleanupPresentGraphics() {
+  m_PresentGraphicsPipeline = nullptr;
+  m_PresentColorImage = nullptr;
+  m_PresentDepthStencil = nullptr;
+  m_SwapChainTexture = nullptr;
   m_PresentRenderPass = nullptr;
+  m_PresentFramebuffers.clear();
+  m_PresentFramebuffers.clear();
+  vkDestroySwapchainKHR(m_LogicalDevice, m_SwapChain, nullptr);
 }
 
 void Renderer::CreateGlobalUniformBuffers() {
@@ -2031,10 +1809,12 @@ void Renderer::RecreateSwapChain() {
 
   vkDeviceWaitIdle(m_LogicalDevice);
 
-  CleanupSwapChain();
-  CleanupRenderPass();
+  CleanupPresentGraphics();
+  CleanupGeometryGraphics();
   CreateSwapChain();
-  CreateRenderPass();
+  CreatePresentGraphicsPipelines();
+  CreateGeometryRenderPass();
+  CreateGeometryGraphicsPipelines();
 }
 
 void Renderer::SetViewport(VkExtent2D extent) {
@@ -2053,6 +1833,23 @@ void Renderer::SetViewport(VkExtent2D extent) {
   vkCmdSetScissor(m_CommandBuffer->m_Handle, 0, 1, &scissor);
 }
 
+void Renderer::SetViewport(glm::vec2 extent) {
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = extent.x;
+  viewport.height = extent.y;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(m_CommandBuffer->m_Handle, 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent.width = extent.x;
+  scissor.extent.height = extent.y;
+  vkCmdSetScissor(m_CommandBuffer->m_Handle, 0, 1, &scissor);
+}
+
 void Renderer::BeginRender() {
   vkResetFences(m_LogicalDevice, 1, &m_Fence);
   m_CommandBuffer->Reset();
@@ -2065,13 +1862,11 @@ void Renderer::BeginRender() {
   }
 
   // Reloading stuff
-  if (m_RecreateShaders) {
-    RecreateShader(m_GeometryGraphicsPipeline->m_Properties.m_VertexShader);
-    RecreateShader(m_GeometryGraphicsPipeline->m_Properties.m_FragmentShader);
-    m_RecreateShaders = false;
-    m_RecreateGraphicsPipeline = true;
+  if (m_RecreateSwapChain) {
+    RecreateSwapChain();
+    m_RecreateSwapChain = false;
+    m_RecreateGraphicsPipeline = false;
   }
-
   if (m_RecreateGraphicsPipeline) {
     vkDeviceWaitIdle(m_LogicalDevice);
     LOG_INFO("Recreating graphics pipeline...");
@@ -2082,16 +1877,13 @@ void Renderer::BeginRender() {
   }
 }
 
-void Renderer::BeginPresent() {
-  if (m_RecreateSwapChain) {
-    RecreateSwapChain();
-  }
+bool Renderer::BeginPresent() {
   VkResult result = vkAcquireNextImageKHR(m_LogicalDevice, m_SwapChain,
                                           UINT64_MAX, m_ImageAvailableSemaphore,
                                           VK_NULL_HANDLE, &m_ImageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    RecreateSwapChain();
-    return;
+    m_RecreateSwapChain = true;
+    return false;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
@@ -2110,8 +1902,8 @@ void Renderer::BeginPresent() {
                           m_CommandBuffer->m_Handle);
   }*/
 
-  TransitionImageLayout(m_GeometryColorResolveImage->m_Images[0],
-                        m_GeometryColorResolveImage->m_Format,
+  TransitionImageLayout(m_TargetColorResolveImage->m_Images[0],
+                        m_TargetColorResolveImage->m_Format,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle);
@@ -2119,14 +1911,13 @@ void Renderer::BeginPresent() {
   m_PresentGraphicsPipeline->Bind(PipelineBindPointGraphics);
   m_PresentRenderPass->Begin(m_PresentFramebuffers[m_ImageIndex],m_ClearColor);
   SetViewport(m_Extent);
-
-  DrawImageToSwapChain(m_GeometryColorResolveImage);
+  return true;
 }
 
 void Renderer::EndPresent() {
   m_PresentRenderPass->End();
-  TransitionImageLayout(m_GeometryColorResolveImage->m_Images[0],
-                        m_GeometryColorResolveImage->m_Format,
+  TransitionImageLayout(m_TargetColorResolveImage->m_Images[0],
+                        m_TargetColorResolveImage->m_Format,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle);
@@ -2185,8 +1976,8 @@ void Renderer::EndPresent() {
 
 bool Renderer::BeginFrame() {
   m_GeometryGraphicsPipeline->Bind(PipelineBindPointGraphics);
-  m_GeometryRenderPass->Begin(m_GeometryFramebuffer, m_ClearColor);
-  SetViewport(m_Extent);
+  m_GeometryRenderPass->Begin(m_TargetFramebuffer, m_ClearColor);
+  SetViewport(m_ViewportSize);
 
   memcpy(m_LightsUniformBuffer->m_Data, &m_LightsUniformData,
          sizeof(m_LightsUniformData));
@@ -2266,7 +2057,7 @@ void Renderer::BlitImageToSwapChain(Ref<AttachmentTexture> texture) {
                         m_CommandBuffer->m_Handle);
 }
 
-void Renderer::DrawImageToSwapChain(Ref<AttachmentTexture> texture) {
+void Renderer::PresentImage(Ref<AttachmentTexture> texture) {
   if (!texture->m_Descriptors) {
     texture->m_Descriptors = CreateDescriptors(texture);
   }
@@ -2293,9 +2084,14 @@ void Renderer::EndFrame() {
 
 void Renderer::SetCameraData(Ref<CameraData> cameraData) {
   m_CameraData = cameraData;
+  m_ViewportSize = cameraData->ViewportSize;
   m_CameraUniformData.Position = cameraData->Position;
   m_CameraUniformData.ViewMatrix = cameraData->ViewMatrix;
   m_CameraUniformData.Projection = cameraData->Projection;
+  m_TargetFramebuffer = cameraData->Framebuffer;
+  m_TargetColorImage = cameraData->TargetColorImage;
+  m_TargetDepthStencil = cameraData->TargetDepthStencil;
+  m_TargetColorResolveImage = cameraData->TargetColorResolveImage;
 }
 
 std::vector<const char*> Renderer::GetRequiredExtensions() {
