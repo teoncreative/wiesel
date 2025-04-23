@@ -21,10 +21,10 @@ std::map<MouseCode, KeyData> InputManager::m_MouseButtons;
 std::map<std::string, float> InputManager::m_Axis;
 int InputManager::m_MouseX = 0;
 int InputManager::m_MouseY = 0;
-float InputManager::m_MouseAxisSensX = 2.0f;
-float InputManager::m_MouseAxisSensY = 2.0f;
+float InputManager::m_MouseAxisSensX = 80.0f;
+float InputManager::m_MouseAxisSensY = 80.0f;
 InputMode InputManager::m_InputMode = InputModeKeyboardAndMouse;
-float InputManager::m_MouseAxisLimitY = PI / 2.0f - (PI / 16.0f);
+float InputManager::m_MouseAxisLimitY = 75.0f;
 
 void InputManager::Init() {
   m_KeyboardMapping["Up"] = {KeyArrowUp, KeyW};

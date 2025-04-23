@@ -13,14 +13,14 @@
 
 #include "rendering/w_renderer.hpp"
 #include "w_application.hpp"
-#include "script/w_scriptmanager.hpp"
 
 namespace Wiesel {
+
 class Engine {
  public:
   static void InitEngine();
-  static void InitWindow(WindowProperties props);
-  static void InitRenderer();
+  static void InitWindow(const WindowProperties&& props);
+  static void InitRenderer(const RendererProperties&& props);
 
   static void CleanupRenderer();
   static void CleanupWindow();
@@ -29,10 +29,13 @@ class Engine {
   WIESEL_GETTER_FN static Ref<AppWindow> GetWindow();
 
   static aiScene* LoadAssimpModel(ModelComponent& modelComponent,
-                                  const std::string& path);
+                                  const std::string& path,
+                                  bool convertToLeftHanded = true);
   static void LoadModel(TransformComponent& transform,
                         ModelComponent& modelComponent,
-                        const std::string& path);
+                        const std::string& path,
+                        bool convertToLeftHanded = true);
+
   static void LoadModel(aiScene* scene, TransformComponent& transform,
                         ModelComponent& modelComponent,
                         const std::string& path);

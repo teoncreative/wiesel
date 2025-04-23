@@ -84,55 +84,20 @@ void ImGuiLayer::OnAttach() {
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
   init_info.MSAASamples = Engine::GetRenderer()->m_MsaaSamples;
+  init_info.RenderPass = Engine::GetRenderer()->m_GeometryRenderPass->GetVulkanHandle();
 
-  ImGui_ImplVulkan_Init(&init_info,
-                        Engine::GetRenderer()->m_GeometryRenderPass->GetVulkanHandle());
+  ImGui_ImplVulkan_Init(&init_info);
 
   //execute a gpu command to upload imgui font textures
-  auto cmd = Engine::GetRenderer()->BeginSingleTimeCommands();
-  ImGui_ImplVulkan_CreateFontsTexture(cmd);
-  Engine::GetRenderer()->EndSingleTimeCommands(cmd);
-
-  //clear font textures from cpu data
-  ImGui_ImplVulkan_DestroyFontUploadObjects();
-
-  m_ImGuiColorImage = Engine::GetRenderer()->CreateAttachmentTexture({Engine::GetRenderer()->GetExtent().width, Engine::GetRenderer()->GetExtent().height,
-                                                                      AttachmentTextureType::Color,
-                                                                      1, Engine::GetRenderer()->GetSwapChainImageFormat(), Engine::GetRenderer()->GetMsaaSamples(),
-                                                                      true});
-
-  m_ImGuiRenderPass = CreateReference<RenderPass>(PassType::Present);
-  m_ImGuiRenderPass->Attach(m_ImGuiColorImage);
-  m_ImGuiRenderPass->Bake();
-  m_ImGuiFramebuffer = m_ImGuiRenderPass->CreateFramebuffer(0, Engine::GetRenderer()->GetExtent());
-
-  m_DescriptorLayout = CreateReference<DescriptorLayout>();
-  m_DescriptorLayout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-  m_DescriptorLayout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  m_DescriptorLayout->Bake();
-
-  auto vertexShader = Engine::GetRenderer()->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                                    ShaderSourcePrecompiled,
-                                    "assets/shaders/imgui_shader.vert.spv"});
-  auto fragmentShader = Engine::GetRenderer()->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourcePrecompiled,
-       "assets/shaders/imgui_shader.frag.spv"});
-  m_ImGuiPipeline = Engine::GetRenderer()->CreateGraphicsPipeline(
-      {CullModeBack, false, m_ImGuiRenderPass, m_DescriptorLayout,
-       vertexShader, fragmentShader, false, Engine::GetRenderer()->GetExtent().width, Engine::GetRenderer()->GetExtent().height,
-      true});
+  ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 void ImGuiLayer::OnDetach() {
   LOG_DEBUG("Destroying imgui pool");
   vkDeviceWaitIdle(Engine::GetRenderer()->m_LogicalDevice);
-  vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool,
-                          nullptr);
+  // Vulkan does this
+  /*vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool, nullptr);*/
   ImGui_ImplVulkan_Shutdown();
-  m_ImGuiPipeline = nullptr;
-  m_ImGuiFramebuffer = nullptr;
-  m_ImGuiRenderPass = nullptr;
-  m_ImGuiColorImage = nullptr;
 }
 
 void ImGuiLayer::OnUpdate(float_t deltaTime) {}

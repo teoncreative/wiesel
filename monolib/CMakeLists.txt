@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 project(monolib)
 
-set(COMPILE_DLL_RUNTIME ON)
+#set(COMPILE_DLL_RUNTIME ON)
 message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 if(WIN32)
@@ -18,7 +18,7 @@ if(WIN32)
     set(MONO_LIBRARIES ${MONO_ROOT}/lib/libmono-static-sgen.lib)
 else()
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(MONO REQUIRED mono-2)
+    pkg_check_modules(MONO REQUIRED mono-2.0-sgen)
 endif()
 
 message("Include dirs: ${MONO_INCLUDE_DIRS}")

@@ -32,4 +32,8 @@ AttachmentTexture::~AttachmentTexture() {
   Engine::GetRenderer()->DestroyAttachmentTexture(*this);
 }
 
+ImageView::~ImageView() {
+  vkDestroyImageView(Engine::GetRenderer()->GetLogicalDevice(), m_Handle, nullptr);
+}
+
 }  // namespace Wiesel

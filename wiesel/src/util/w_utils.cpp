@@ -72,14 +72,8 @@ std::vector<uint32_t> ReadFileUint32(const std::string& filename) {
   size_t fileSize = (size_t)file.tellg();
   file.seekg(0);
 
-  std::vector<uint32_t> buffer{};
-  buffer.resize(fileSize / sizeof(uint32_t) + 1);
-  int i = 0;
-  uint32_t v = 0;
-  while (!file.eof()) {
-    file.read(reinterpret_cast<char*>(&v), sizeof(v));
-    buffer[i++] = v;
-  }
+  std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+  file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
   file.close();
 
   return buffer;
