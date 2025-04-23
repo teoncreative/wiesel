@@ -72,8 +72,8 @@ Temporary Items
 shaders_runtime
 *.spv
 
-cmake-build-debug
-cmake-build-release
+cmake-build-debug*
+cmake-build-release*
 todo
 
 .idea
