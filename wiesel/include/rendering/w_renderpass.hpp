@@ -11,9 +11,11 @@
 
 #pragma once
 
+#include "w_pch.hpp"
 #include "util/w_color.hpp"
 #include "util/w_utils.hpp"
 #include "w_shader.hpp"
+#include "w_texture.hpp"
 
 namespace Wiesel {
 // I hate forward declarations but in this case it's required
@@ -23,6 +25,8 @@ class AttachmentTexture;
 enum class PassType {
   Geometry,
   PostProcess,
+  Lighting,
+  Shadow,
   Present
 };
 
@@ -43,21 +47,22 @@ class RenderPass {
   RenderPass(PassType passType);
   ~RenderPass();
 
-  void Attach(Ref<AttachmentTexture> attachment);
+  void Attach(Ref<AttachmentTexture> ref);
+  void Attach(AttachmentTextureInfo&& info);
 
   void Bake();
-  bool Validate();
 
   void Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor);
   void End();
 
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, VkExtent2D extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<ImageView*> views, glm::vec2 extent);
 
   const VkRenderPass& GetVulkanHandle() const { return m_RenderPass; }
  private:
   PassType m_PassType;
   VkRenderPass m_RenderPass;
-  std::list<Ref<AttachmentTexture>> m_Attachments;
+  std::vector<AttachmentTextureInfo> m_Attachments;
 
 };
 

@@ -4,6 +4,13 @@ namespace WieselEngine
 {
     public class Vector3f
     {
+        public static readonly Vector3f Up = new Vector3f(0, 1, 0);
+        public static readonly Vector3f Down = new Vector3f(0, -1, 0);
+        public static readonly Vector3f Left = new Vector3f(-1, 0, 0);
+        public static readonly Vector3f Right = new Vector3f(1, 0, 0);
+        public static readonly Vector3f Forward = new Vector3f(0, 0, 1);
+        public static readonly Vector3f Back = new Vector3f(0, 0, -1);
+
         protected Func<float> getX;
         protected Func<float> getY;
         protected Func<float> getZ;
@@ -134,6 +141,28 @@ namespace WieselEngine
 
         public static Vector3f operator-(Vector3f lhs, float rhs) {
             return new Vector3f(lhs.X - rhs, lhs.Y - rhs, lhs.Z - rhs);
+        }
+
+        public static Vector3f operator-(Vector3f lhs) {
+            return new Vector3f(-lhs.X, -lhs.Y, -lhs.Z);
+        }
+
+        public static Vector3f operator +(Vector3f v)
+        {
+            return new Vector3f(+v.X, +v.Y, +v.Z);
+        }
+
+        public float Length()
+        {
+            return (float)Math.Sqrt(X * X + Y * Y + Z * Z);
+        }
+
+        public Vector3f Normalized()
+        {
+            float length = Length();
+            if (length == 0f)
+                return new Vector3f(0, 0, 0);
+            return this / length;
         }
 
         public override string ToString()

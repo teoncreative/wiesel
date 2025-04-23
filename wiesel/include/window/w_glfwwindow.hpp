@@ -25,7 +25,7 @@ static void CallbackKey(GLFWwindow* window, int key, int scancode, int action,
 namespace Wiesel {
 class GlfwAppWindow : public AppWindow {
  public:
-  explicit GlfwAppWindow(const WindowProperties& properties);
+  explicit GlfwAppWindow(const WindowProperties&& properties);
   ~GlfwAppWindow();
 
   void OnUpdate() override;

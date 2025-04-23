@@ -29,11 +29,12 @@ std::pair<int, std::string> ExecuteCommandAndGetOutput(const char* command) {
   return {result, ""};
 }
 
-bool CompileToDLL(const std::string& output_file,
-                  const std::vector<std::string>& source_files,
+bool CompileToDLL(const std::string& outputFile,
+                  const std::vector<std::string>& sourceFiles,
                   const std::string& libDir,
-                  const std::vector<std::string>& linkLibs) {
-  std::filesystem::path output_dir = std::filesystem::path(output_file).parent_path();
+                  const std::vector<std::string>& linkLibs,
+                  bool debug) {
+  std::filesystem::path output_dir = std::filesystem::path(outputFile).parent_path();
   if (!std::filesystem::exists(output_dir) && !std::filesystem::create_directories(output_dir)) {
     std::cout << "Failed to create output directory: " << output_dir << std::endl;
     return false;
@@ -44,20 +45,27 @@ bool CompileToDLL(const std::string& output_file,
 #else
   std::string command_prefix = "mono/bin/mcs";
 #endif
-  std::string references;
-  for (const auto& lib : linkLibs) {
-    references += " -reference:" + lib;
-  }
-
-  std::string source = "";
-  source = std::accumulate(source_files.begin(), source_files.end(), source,
-                                       [](std::string a, std::string b) {
+  std::string source = std::accumulate(sourceFiles.begin(), sourceFiles.end(), std::string(),
+                                       [](const std::string& a, const std::string& b) {
                                          return a.empty() ? b : a + " " + b;
                                        });
-#ifdef DEBUG
-  command_prefix += " -g";
-#endif
-  std::string command = command_prefix + references + (!libDir.empty() ? " -lib:" + libDir : "") + " -target:library -out:" + output_file + " " + source;
+  std::string args;
+  for (const auto& lib : linkLibs) {
+    args += " -reference:" + lib;
+  }
+  if (debug) {
+    //args += " -debug:portable";
+    args += " -debug";
+  }
+  args += " -target:library";
+  //args += " /nologo";
+  if (!libDir.empty()) {
+    args += " -lib:" + libDir;
+  }
+  args += " -out:" + outputFile;
+  args += " " + source;
+
+  std::string command = command_prefix + args;
   std::pair result = ExecuteCommandAndGetOutput(command.c_str());
   if (result.first != 0) {
     std::cout << "Failed to compile C# sources to DLL (error code:" << result.first << ")" << std::endl << result.second;

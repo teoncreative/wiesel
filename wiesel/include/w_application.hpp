@@ -28,7 +28,7 @@
 namespace Wiesel {
 class Application {
  public:
-  Application(WindowProperties props);
+  Application(const WindowProperties&& windowProps, const RendererProperties&& rendererProps);
   virtual ~Application();
 
   virtual void Init() = 0;
@@ -51,6 +51,8 @@ class Application {
   bool OnMouseMoved(MouseMovedEvent& event);
 
   WIESEL_GETTER_FN Ref<AppWindow> GetWindow();
+  WIESEL_GETTER_FN float_t GetFPS() const { return m_FPS; }
+  WIESEL_GETTER_FN float_t GetDeltaTime() const { return m_DeltaTime; }
   WIESEL_GETTER_FN const WindowSize& GetWindowSize();
   WIESEL_GETTER_FN Ref<Scene> GetScene();
 
@@ -81,6 +83,11 @@ class Application {
   Ref<AppWindow> m_Window;
   float_t m_PreviousFrame = 0.0;
   float_t m_DeltaTime = 0.0;
+
+  float_t m_FPSTimer = 0.0f;
+  uint32_t m_FrameCount = 0;
+  float_t m_FPS = 0.0f;
+
   Ref<Scene> m_Scene;  // move this to somewhere else
 
 };

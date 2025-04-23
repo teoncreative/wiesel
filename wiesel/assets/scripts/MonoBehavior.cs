@@ -5,6 +5,8 @@ namespace WieselEngine
     public class MonoBehavior
     {
         private ulong behaviorPtr;
+        private ulong scenePtr;
+        private ulong entityId;
 
         public virtual void OnStart()
         {
@@ -31,17 +33,13 @@ namespace WieselEngine
 
         public T GetComponent<T>()
         {
-            return (T)Internals.Behavior_GetComponent(behaviorPtr, typeof(T).Name);
+            return (T)Internals.Behavior_GetComponent(scenePtr, entityId, typeof(T).Name);
         }
 
         public bool HasComponent<T>()
         {
-            return Internals.Behavior_HasComponent(behaviorPtr, typeof(T).Name);
+            return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
         }
 
-        public void SetHandle(ulong behaviorPtr)
-        {
-            this.behaviorPtr = behaviorPtr;
-        }
     }
 }

@@ -19,6 +19,10 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
+
+#define WIESEL_SHADOW_CASCADE_COUNT 4
+#define WIESEL_SHADOWMAP_DIM 4096
+
 std::string GetNameFromVulkanResult(VkResult errorCode);
 
 struct QueueFamilyIndices {
@@ -36,6 +40,9 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes;
 };
 
+enum BakeResult { SUCCESS };
+
+
 using Index = uint32_t;
 
 enum Vertex3DFlag {
@@ -52,10 +59,10 @@ struct Vertex3D {
   glm::vec3 Pos;
   glm::vec3 Color;
   glm::vec2 UV;
-  uint32_t Flags;
   glm::vec3 Normal;
   glm::vec3 Tangent;
   glm::vec3 BiTangent;
+  uint32_t Flags;
 
   static VkVertexInputBindingDescription GetBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
@@ -93,7 +100,6 @@ struct Vertex3D {
   }
 };
 
-
 struct Vertex2D {
   glm::vec2 Pos;
   glm::vec4 Color;
@@ -127,6 +133,63 @@ struct Vertex2D {
   }
 };
 
+struct Vertex2DNoColor {
+  glm::vec2 Pos;
+  glm::vec2 UV;
+
+  static VkVertexInputBindingDescription GetBindingDescription() {
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Vertex2DNoColor);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+  }
+
+  static std::vector<VkVertexInputAttributeDescription>
+  GetAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+
+    attributeDescriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2DNoColor, Pos)});
+    attributeDescriptions.push_back(
+        {1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2DNoColor, UV)});
+
+    return attributeDescriptions;
+  }
+
+  bool operator==(const Vertex2DNoColor& other) const {
+    return Pos == other.Pos && UV == other.UV;
+  }
+};
+
+
+struct Vertex3DShadow {
+  glm::vec3 Pos;
+
+  static VkVertexInputBindingDescription GetBindingDescription() {
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Vertex2DNoColor);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+  }
+
+  static std::vector<VkVertexInputAttributeDescription>
+  GetAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+
+    attributeDescriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3DShadow, Pos)});
+
+    return attributeDescriptions;
+  }
+
+  bool operator==(const Vertex3DShadow& other) const {
+    return Pos == other.Pos;
+  }
+};
 
 struct vertex_hash {
   std::size_t operator()(const Wiesel::Vertex3D& vertex) const {
@@ -137,7 +200,7 @@ struct vertex_hash {
   }
 };
 
-struct alignas(16) MatriciesUniformData {
+struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat4 ModelMatrix;
   alignas(16) glm::vec3 Scale;
   alignas(16) glm::mat3 NormalMatrix;
@@ -147,7 +210,17 @@ struct alignas(16) MatriciesUniformData {
 struct alignas(16) CameraUniformData {
   alignas(16) glm::mat4 ViewMatrix;
   alignas(16) glm::mat4 Projection;
+  alignas(16) glm::mat4 InvProjection;
   alignas(16) glm::vec3 Position;
+  float NearPlane;
+  float FarPlane;
+  float _pad1[2];
+  glm::vec4 CascadeSplits;
+};
+
+struct alignas(16) ShadowCameraUniformData {
+  alignas(16) glm::mat4 ViewProjMat[WIESEL_SHADOW_CASCADE_COUNT];
+  bool EnableShadows;
 };
 
 template <typename T>
@@ -162,6 +235,7 @@ constexpr Scope<T> CreateScope(Args&&... args) {
 }
 
 template <typename T>
+
 using Ref = std::shared_ptr<T>;
 
 template <typename T, typename... Args>

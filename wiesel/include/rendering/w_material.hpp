@@ -23,10 +23,10 @@ struct Material {
   Material();
   ~Material();
 
-  Colorf BaseColor = {1.0f, 1.0f, 1.0f};
+  /*Colorf BaseColor = {1.0f, 1.0f, 1.0f};
   Colorf DiffuseColor = {1.0f, 1.0f, 1.0f};
   Colorf SpecularColor = {1.0f, 1.0f, 1.0f};
-  float Shininess = 0.5f;
+  float Shininess = 0.5f;*/
 
   Ref<Texture> BaseTexture;
   Ref<Texture> NormalMap;

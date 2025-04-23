@@ -37,13 +37,13 @@ void Mesh::UpdateTransform(TransformComponent& transform) const {
     return;
   }
 
-  MatriciesUniformData matricies{};
-  matricies.ModelMatrix = transform.TransformMatrix;
-  matricies.Scale = transform.Scale;
-  matricies.NormalMatrix = transform.NormalMatrix;
-  matricies.RotationMatrix = transform.RotationMatrix;
+  MatricesUniformData matrices{};
+  matrices.ModelMatrix = transform.TransformMatrix;
+  matrices.Scale = transform.Scale;
+  matrices.NormalMatrix = transform.NormalMatrix;
+  matrices.RotationMatrix = transform.RotationMatrix;
 
-  memcpy(UniformBuffer->m_Data, &matricies, sizeof(MatriciesUniformData));
+  memcpy(UniformBuffer->m_Data, &matrices, sizeof(MatricesUniformData));
 }
 
 void Mesh::Allocate() {
@@ -54,8 +54,11 @@ void Mesh::Allocate() {
   VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(Vertices);
   IndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(Indices);
   UniformBuffer = Engine::GetRenderer()->CreateUniformBuffer(
-      sizeof(MatriciesUniformData));
-  Descriptors = Engine::GetRenderer()->CreateDescriptors(UniformBuffer, Mat);
+      sizeof(MatricesUniformData));
+  GeometryDescriptors =
+      Engine::GetRenderer()->CreateMeshDescriptors(UniformBuffer, Mat);
+  ShadowDescriptors =
+      Engine::GetRenderer()->CreateShadowMeshDescriptors(UniformBuffer, Mat);
   IsAllocated = true;
 }
 
@@ -66,7 +69,8 @@ void Mesh::Deallocate() {
 
   Mat = nullptr;
   UniformBuffer = nullptr;
-  Descriptors = nullptr;
+  GeometryDescriptors = nullptr;
+  ShadowDescriptors = nullptr;
   VertexBuffer = nullptr;
   IndexBuffer = nullptr;
   IsAllocated = false;

@@ -16,6 +16,8 @@
 #include "scene/w_scene.hpp"
 #include "events/w_keyevents.hpp"
 #include "events/w_mouseevents.hpp"
+#include "scene/w_entity.hpp"
+#include <typeindex>
 
 namespace Wiesel {
 
@@ -96,7 +98,7 @@ class ScriptData {
              MonoMethod* keyPressedMethod,
              MonoMethod* keyReleasedMethod,
              MonoMethod* mouseMovedMethod,
-             std::unordered_map<std::string, FieldData> fields) : m_Klass(klass),
+             std::unordered_map<std::string, FieldData> fields) : m_Class(klass),
         m_OnUpdateMethod(onUpdateMethod),
         m_OnStartMethod(onStartMethod),
         m_SetHandleMethod(setHandleMethod),
@@ -105,7 +107,7 @@ class ScriptData {
         m_OnMouseMovedMethod(mouseMovedMethod),
         m_Fields(fields) {}
 
-  MonoClass* GetKlass() const { return m_Klass; }
+  MonoClass* GetClass() const { return m_Class; }
   MonoMethod* GetOnUpdateMethod() const { return m_OnUpdateMethod; }
   MonoMethod* GetOnStartMethod() const { return m_OnStartMethod; }
   MonoMethod* GetSetHandleMethod() const { return m_SetHandleMethod; }
@@ -115,7 +117,7 @@ class ScriptData {
   std::unordered_map<std::string, FieldData>& GetFields() { return m_Fields; }
 
  private:
-  MonoClass* m_Klass;
+  MonoClass* m_Class;
   MonoMethod* m_OnUpdateMethod;
   MonoMethod* m_OnStartMethod;
   MonoMethod* m_SetHandleMethod;
@@ -142,19 +144,33 @@ class ScriptInstance {
   bool OnKeyPressed(KeyPressedEvent& event);
   bool OnKeyReleased(KeyReleasedEvent& event);
   bool OnMouseMoved(MouseMovedEvent& event);
+
+  template<class T>
+  void AttachExternComponent(std::string variable, entt::entity entity);
+
+  void UpdateAttachments();
+
  private:
+  friend class MonoBehavior;
+
+  bool m_StartRan = false;
   MonoObject* m_Instance;
   MonoBehavior* m_Behavior;
   ScriptData* m_ScriptData;
   uint32_t m_GCHandle;
+  std::map<std::string, std::function<MonoObject*()>> m_AttachedVariables;
+};
+
+struct ScriptManagerProperties {
+  bool EnableDebugger;
 };
 
 class ScriptManager {
  public:
-  using ComponentGetter = std::function<MonoObject*(MonoBehavior*)>;
-  using ComponentChecker = std::function<bool(MonoBehavior*)>;
+  using ComponentGetter = std::function<MonoObject*(Scene*, entt::entity)>;
+  using ComponentChecker = std::function<bool(Scene*, entt::entity)>;
 
-  static void Init();
+  static void Init(const ScriptManagerProperties&& properties);
   static void Destroy();
   static void Reload();
 
@@ -166,10 +182,17 @@ class ScriptManager {
   static MonoDomain* GetRootDomain() { return m_RootDomain; }
   static MonoDomain* GetAppDomain() { return m_AppDomain; }
   static MonoClass* GetVector3fClass() { return m_MonoVector3fClass; }
+  static MonoClass* GetMonoBehaviorClass() { return m_MonoBehaviorClass; }
+  static const std::vector<std::string> GetScriptNames() { return m_ScriptNames; }
 
-  static MonoObject* GetComponentByName(MonoBehavior* behavior, const std::string& name);
-  static bool HasComponentByName(MonoBehavior* behavior, const std::string& name);
+  static MonoObject* GetComponentByName(Scene* scene, entt::entity entity, const std::string& name);
+  template<class T>
+  static MonoObject* GetComponent(Scene* scene, entt::entity entity);
+  static bool HasComponentByName(Scene* scene, entt::entity entity, const std::string& name);
   static ScriptInstance* CreateScriptInstance(MonoBehavior* behavior);
+
+  template<class T>
+  static void RegisterComponent(std::string name, ComponentGetter getter, ComponentChecker checker);
  private:
   static MonoDomain* m_RootDomain;
   static MonoAssembly* m_CoreAssembly;
@@ -183,8 +206,11 @@ class ScriptManager {
   static MonoClass* m_MonoVector3fClass;
   static MonoMethod* m_SetHandleMethod;
   static std::map<std::string, ComponentGetter> m_ComponentGetters;
+  static std::map<std::type_index, ComponentGetter> m_ComponentGettersByType;
   static std::map<std::string, ComponentChecker> m_ComponentCheckers;
   static std::map<std::string, ScriptData*> m_ScriptData;
+  static std::vector<std::string> m_ScriptNames;
+  static bool m_EnableDebugger;
 };
 
 }

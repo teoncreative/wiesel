@@ -16,10 +16,14 @@
 int main() {
   using namespace Wiesel;
 
+  std::cout << "Initializing engine...\n";
   Engine::InitEngine();
   Application& app = *CreateApp();
+  LOG_INFO("Initializing app...");
   app.Init();
+  LOG_INFO("Running...");
   app.Run();
+  LOG_INFO("Cleaning up...");
   delete &app;
   LOG_INFO("Done!");
 }

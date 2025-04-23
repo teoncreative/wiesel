@@ -30,18 +30,9 @@ class ImGuiLayer : public Layer {
   void OnBeginFrame();
   void OnEndFrame();
 
-  Ref<AttachmentTexture> GetImage() {
-    return m_ImGuiColorImage;
-  }
-
  private:
   VkDescriptorPool m_ImGuiPool;
 
-  Ref<AttachmentTexture> m_ImGuiColorImage;
-  Ref<RenderPass> m_ImGuiRenderPass;
-  Ref<Framebuffer> m_ImGuiFramebuffer;
-  Ref<GraphicsPipeline> m_ImGuiPipeline;
-  Ref<DescriptorLayout> m_DescriptorLayout;
 
 };
 }  // namespace Wiesel
