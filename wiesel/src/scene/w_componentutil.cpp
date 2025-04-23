@@ -137,13 +137,13 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Camera", &visible)) {
     bool changed = false;
     changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
-                                &component.m_FieldOfView, 1.0f);
+                                &component.FieldOfView, 1.0f);
     changed |= ImGui::DragFloat(PrefixLabel("Near Plane").c_str(),
-                                &component.m_NearPlane, 0.1f);
+                                &component.NearPlane, 0.1f);
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
-                                &component.m_FarPlane, 0.1f);
+                                &component.FarPlane, 0.1f);
     if (changed) {
-      component.m_IsChanged = true;
+      component.IsViewChanged = true;
     }
 
     ImGui::TreePop();
@@ -274,20 +274,67 @@ void RenderAddComponentImGui_CameraComponent(Entity entity) {
     Engine::GetRenderer()->SetupCameraComponent(component);
   }
 }
+static entt::entity addMonoScriptEntityId = entt::null;
+static bool shouldOpenMonoScriptPopup = false;
 
 void RenderAddComponentImGui_BehaviorsComponent(Entity entity) {
   if (ImGui::MenuItem("C# Script")) {
-    if (!entity.HasComponent<BehaviorsComponent>()) {
-      entity.AddComponent<BehaviorsComponent>();
-    }
-    BehaviorsComponent& component = entity.GetComponent<BehaviorsComponent>();
-    //component.AddBehavior<CSharpBehavior>(entity, "");
+    addMonoScriptEntityId = entity.GetHandle();
+    shouldOpenMonoScriptPopup = true;
   }
 }
+
+void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
+  if (entity.GetHandle() != addMonoScriptEntityId)
+    return;
+
+  if (shouldOpenMonoScriptPopup) {
+    ImGui::OpenPopup("Add C# Script");
+    shouldOpenMonoScriptPopup = false;
+  }
+
+  static int currentScriptIndex = 0;
+  bool open = true;
+  if (ImGui::BeginPopupModal("Add C# Script", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
+    const std::vector<std::string> scriptNames = ScriptManager::GetScriptNames();
+    if (!scriptNames.empty()) {
+      ImGui::Combo("Script Name", &currentScriptIndex,
+                   [](void* data, int idx, const char** out_text) {
+                     const auto& names = *static_cast<const std::vector<std::string>*>(data);
+                     if (idx < 0 || idx >= static_cast<int>(names.size())) return false;
+                     *out_text = names[idx].c_str();
+                     return true;
+                   }, (void*)&scriptNames, scriptNames.size());
+    } else {
+      ImGui::TextDisabled("No scripts found.");
+    }
+
+    if (ImGui::Button("Add") && !scriptNames.empty()) {
+      if (!entity.HasComponent<BehaviorsComponent>())
+        entity.AddComponent<BehaviorsComponent>();
+
+      entity.GetComponent<BehaviorsComponent>().AddBehavior<MonoBehavior>(entity, scriptNames[currentScriptIndex]);
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+
+  if (!open) {
+    addMonoScriptEntityId = entt::null;
+  }
+}
+
 
 struct ComponentDesc {
   std::function<void(Entity)> RenderSelf;
   std::function<void(Entity)> RenderAdd;
+  std::function<void(Entity)> RenderModal;
   std::function<bool(Entity)> HasComponent;
 };
 
@@ -296,7 +343,8 @@ std::unordered_map<std::type_index, ComponentDesc> kRegistry;
 template<typename T>
 void RegisterComponentType(
     void (*renderSelf)(T&, Entity),
-    void (*renderAdd)(Entity)
+    void (*renderAdd)(Entity),
+    void (*renderModal)(Entity)
 ) {
   auto ti = std::type_index(typeid(T));
   kRegistry[ti] = ComponentDesc{
@@ -310,6 +358,11 @@ void RegisterComponentType(
           renderAdd(e);
         }
       },
+      [renderModal](Entity e) {
+        if (renderModal) {
+          renderModal(e);
+        }
+      },
       [](Entity entity) {
         return entity.HasComponent<T>();
       }
@@ -317,13 +370,14 @@ void RegisterComponentType(
 }
 
 void InitializeComponents() {
-  RegisterComponentType<IdComponent>(nullptr, nullptr);
-  RegisterComponentType<TagComponent>(nullptr, nullptr);
-  RegisterComponentType<TransformComponent>(RenderComponentImGui, nullptr);
-  RegisterComponentType<ModelComponent>(RenderComponentImGui, RenderAddComponentImGui_ModelComponent);
-  RegisterComponentType<LightDirectComponent>(RenderComponentImGui, RenderAddComponentImGui_LightDirectComponent);
-  RegisterComponentType<CameraComponent>(RenderComponentImGui, RenderAddComponentImGui_CameraComponent);
-  RegisterComponentType<BehaviorsComponent>(RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent);
+  RegisterComponentType<IdComponent>(nullptr, nullptr, nullptr);
+  RegisterComponentType<TagComponent>(nullptr, nullptr, nullptr);
+  RegisterComponentType<TransformComponent>(RenderComponentImGui, nullptr, nullptr);
+  RegisterComponentType<ModelComponent>(RenderComponentImGui, RenderAddComponentImGui_ModelComponent, nullptr);
+  RegisterComponentType<LightDirectComponent>(RenderComponentImGui, RenderAddComponentImGui_LightDirectComponent, nullptr);
+  RegisterComponentType<LightPointComponent>(RenderComponentImGui, RenderAddComponentImGui_LightPointComponent, nullptr);
+  RegisterComponentType<CameraComponent>(RenderComponentImGui, RenderAddComponentImGui_CameraComponent, nullptr);
+  RegisterComponentType<BehaviorsComponent>(RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
 }
 
 void RenderExistingComponents(Entity entity) {
@@ -333,6 +387,13 @@ void RenderExistingComponents(Entity entity) {
     }
   }
 }
+
+void RenderModals(Entity entity) {
+  for (const auto& item : kRegistry) {
+    item.second.RenderModal(entity);
+  }
+}
+
 void RenderAddPopup(Entity entity) {
   for (const auto& item : kRegistry) {
     item.second.RenderAdd(entity);

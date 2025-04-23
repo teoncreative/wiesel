@@ -19,7 +19,7 @@
 
 namespace Wiesel {
 
-GlfwAppWindow::GlfwAppWindow(const WindowProperties& properties)
+GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
     : AppWindow(properties) {
   glfwInit();
   LOG_DEBUG("GLFW Vulkan Support: {}", glfwVulkanSupported());

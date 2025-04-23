@@ -25,6 +25,8 @@ class AttachmentTexture;
 enum class PassType {
   Geometry,
   PostProcess,
+  Lighting,
+  Shadow,
   Present
 };
 
@@ -49,12 +51,12 @@ class RenderPass {
   void Attach(AttachmentTextureInfo&& info);
 
   void Bake();
-  bool Validate();
 
   void Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor);
   void End();
 
   Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<ImageView*> views, glm::vec2 extent);
 
   const VkRenderPass& GetVulkanHandle() const { return m_RenderPass; }
  private:

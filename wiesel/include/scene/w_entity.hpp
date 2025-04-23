@@ -22,34 +22,22 @@ class Entity {
 
   template <typename T, typename... Args>
   T& AddComponent(Args&&... args) {
-    if (HasComponent<T>()) {
-      // make this a macro
-      throw std::runtime_error("Entity already has component!");
-    }
-    auto& component = m_Scene->m_Registry.emplace<T>(
-        m_EntityHandle, std::forward<Args>(args)...);
-    m_Scene->OnAddComponent(m_EntityHandle, component);
-    return component;
+    return m_Scene->AddComponent<T>(m_EntityHandle, std::forward<Args>(args)...);
   }
 
   template <typename T>
   T& GetComponent() {  // This function is intentionally not marked as const!
-    return m_Scene->m_Registry.get<T>(m_EntityHandle);
+    return m_Scene->GetComponent<T>(m_EntityHandle);
   }
 
   template <typename T>
   bool HasComponent() const {
-    return m_Scene->m_Registry.any_of<T>(m_EntityHandle);
+    return m_Scene->HasComponent<T>(m_EntityHandle);
   }
 
   template <typename T>
   void RemoveComponent() {
-    if (!HasComponent<T>()) {
-      return;
-    }
-    auto& component = GetComponent<T>();
-    m_Scene->OnRemoveComponent<T>(m_EntityHandle, component);
-    m_Scene->m_Registry.remove<T>(m_EntityHandle);
+    m_Scene->RemoveComponent<T>(m_EntityHandle);
   }
 
   operator bool() const { return m_EntityHandle != entt::null; }

@@ -19,15 +19,14 @@ namespace Wiesel {
 
 Application* Application::s_Application;
 
-Application::Application(WindowProperties props) {
-  WIESEL_PROFILE_FUNCTION();
+Application::Application(const WindowProperties&& windowProps, const RendererProperties&& rendererProps) {
   s_Application = this;
 
   m_LayerCounter = 0;
   m_IsRunning = true;
   m_IsMinimized = false;
 
-  Engine::InitWindow(props);
+  Engine::InitWindow(std::move(windowProps));
   m_Window = Engine::GetWindow();
   m_Window->SetEventHandler(WIESEL_BIND_FN(Application::OnEvent));
 
@@ -36,7 +35,7 @@ Application::Application(WindowProperties props) {
     m_IsMinimized = true;
   }
 
-  Engine::InitRenderer();
+  Engine::InitRenderer(std::move(rendererProps));
   m_Scene = CreateReference<Scene>();
   m_ImGuiLayer = CreateReference<ImGuiLayer>();
   PushOverlay(m_ImGuiLayer);
@@ -110,6 +109,15 @@ void Application::Run() {
     float time = Time::GetTime();
     m_DeltaTime = time - m_PreviousFrame;
     m_PreviousFrame = time;
+
+    m_FPSTimer += m_DeltaTime;
+    m_FrameCount++;
+
+    if (m_FPSTimer >= 1.0f) {
+      m_FPS = static_cast<float>(m_FrameCount) / m_FPSTimer;
+      m_FrameCount = 0;
+      m_FPSTimer = 0.0f;
+    }
 
     ExecuteQueue();
 

@@ -30,18 +30,19 @@ struct alignas(16) LightBase {
 
   ~LightBase() = default;
 
+  alignas(16) glm::vec3 Position;
   alignas(16) glm::vec3 Color;
-  alignas(4) float Ambient;
-  alignas(4) float Diffuse;
-  alignas(4) float Specular;
-  alignas(4) float Density;
+  float Ambient;
+  float Diffuse;
+  float Specular;
+  float Density;
 };
 
 struct alignas(16) LightDirect {
-  LightDirect() : Direction({1.0f, 1.0f, 1.0f}) {}
+  LightDirect() : Base({}) {}
 
-  LightDirect(glm::vec3 direction, LightBase base)
-      : Direction(direction), Base(base) {}
+  LightDirect(LightBase base)
+      : Base(base) {}
 
   ~LightDirect() = default;
 
@@ -51,26 +52,24 @@ struct alignas(16) LightDirect {
 
 struct alignas(16) LightPoint {
   LightPoint()
-      : Position({0.0f, 1.0f, 0.0f}),
+      : Base({}),
         Constant(1.0f),
         Linear(0.09f),
         Exp(0.032f) {}
 
   LightPoint(glm::vec3 position, LightBase base, float constant, float linear,
              float exp)
-      : Position(position),
-        Base(base),
+      : Base(base),
         Constant(constant),
         Linear(linear),
         Exp(exp) {}
 
   ~LightPoint() = default;
 
-  alignas(16) glm::vec3 Position;
   LightBase Base;
-  alignas(4) float Constant;
-  alignas(4) float Linear;
-  alignas(4) float Exp;
+  float Constant;
+  float Linear;
+  float Exp;
 };
 
 static const int MAX_LIGHTS = 16;
@@ -85,10 +84,10 @@ struct alignas(16) LightsUniformData {
 };
 
 
-void UpdateLight(LightsUniformData& lights, LightDirect light,
+void UpdateLight(LightsUniformData& lights, LightDirect& light,
                  TransformComponent& transform);
 
-void UpdateLight(LightsUniformData& lights, LightPoint light,
+void UpdateLight(LightsUniformData& lights, LightPoint& light,
                  TransformComponent& transform);
 
 struct LightDirectComponent {

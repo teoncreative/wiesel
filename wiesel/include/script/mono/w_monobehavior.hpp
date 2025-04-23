@@ -28,6 +28,14 @@ class MonoBehavior : public IBehavior {
   void OnUpdate(float_t deltaTime) override;
   void OnEvent(Event& event) override;
 
+  template<class T>
+  void AttachExternComponent(std::string variable, entt::entity entity) {
+    if (m_Unset || !m_Enabled) {
+      return;
+    }
+    m_ScriptInstance->AttachExternComponent<T>(variable, entity);
+  }
+
   ScriptInstance* GetScriptInstance() const { return m_ScriptInstance; }
  private:
   void InstantiateScript();

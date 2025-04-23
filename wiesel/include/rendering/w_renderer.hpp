@@ -19,25 +19,26 @@
 
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_camera.hpp"
+#include "rendering/w_command.hpp"
 #include "rendering/w_descriptor.hpp"
+#include "rendering/w_framebuffer.hpp"
 #include "rendering/w_mesh.hpp"
 #include "rendering/w_texture.hpp"
-#include "rendering/w_command.hpp"
-#include "rendering/w_framebuffer.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_lights.hpp"
 #include "util/w_color.hpp"
 #include "util/w_utils.hpp"
+#include "w_pipeline.hpp"
 #include "w_renderpass.hpp"
-#include "w_renderpipeline.hpp"
 #include "w_shader.hpp"
+#include "w_skybox.hpp"
 #include "window/w_window.hpp"
 
-#define VULKAN_VALIDATION
-#ifdef DEBUG
-#endif
-
 namespace Wiesel {
+
+struct ShadowPipelinePushConstant {
+  int CascadeIndex;
+};
 
 struct RendererProperties {
 
@@ -51,7 +52,7 @@ class Renderer {
   void Initialize(const RendererProperties&& props);
 
   Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex3D> vertices);
-  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex2D> vertices);
+  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex2DNoColor> vertices);
   void DestroyVertexBuffer(MemoryBuffer& buffer);
 
   Ref<MemoryBuffer> CreateIndexBuffer(std::vector<Index> indices);
@@ -68,25 +69,37 @@ class Renderer {
   Ref<Texture> CreateTexture(const std::string& path,
                                    const TextureProps& textureProps,
                                    const SamplerProps& samplerProps);
+  Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
+                             const TextureProps& textureProps,
+                             const SamplerProps& samplerProps);
   void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps);
+  VkSampler CreateDepthSampler();
 
   Ref<AttachmentTexture> CreateAttachmentTexture(const AttachmentTextureProps& props);
 
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
-  // optimization for this function is disabled because compiler does something weird
-  Ref<DescriptorData> CreateDescriptors(
+
+  Ref<DescriptorData> CreateMeshDescriptors(
       Ref<UniformBuffer> uniformBuffer,
-      Ref<Material> material) __attribute__((optnone));
+      Ref<Material> material);
+
+  Ref<DescriptorData> CreateShadowMeshDescriptors(
+      Ref<UniformBuffer> uniformBuffer,
+      Ref<Material> material);
+
+  Ref<DescriptorData> CreateGlobalDescriptors(CameraComponent& camera);
+  Ref<DescriptorData> CreateShadowGlobalDescriptors(CameraComponent& camera);
 
   Ref<DescriptorData> CreateDescriptors(Ref<AttachmentTexture> texture);
+  Ref<DescriptorData> CreateSkyboxDescriptors(Ref<Texture> texture);
 
   void DestroyDescriptors(DescriptorData& descriptorPool);
 
   void DestroyDescriptorLayout(DescriptorLayout& layout);
 
-  void RecreateGraphicsPipeline(Ref<GraphicsPipeline> pipeline);
+  void RecreatePipeline(Ref<Pipeline> pipeline);
 
   Ref<Shader> CreateShader(ShaderProperties properties);
 
@@ -104,8 +117,8 @@ class Renderer {
   WIESEL_GETTER_FN bool IsWireframeEnabled();
   WIESEL_GETTER_FN bool* IsWireframeEnabledPtr();
 
-  void SetRecreateGraphicsPipeline(bool value);
-  WIESEL_GETTER_FN bool IsRecreateGraphicsPipeline();
+  void SetRecreatePipeline(bool value);
+  WIESEL_GETTER_FN bool IsRecreatePipeline();
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const;
@@ -127,23 +140,49 @@ class Renderer {
     return m_SwapChainImageFormat;
   }
 
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetTargetColorResolveImage() const {
-    return m_TargetColorResolveImage;
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage() const {
+    return m_Camera->GeometryColorResolveImage;
   }
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetLightingColorResolveImage() const {
+    return m_Camera->LightingColorResolveImage;
+  }
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetCompositeColorResolveImage() const {
+    return m_Camera->CompositeColorResolveImage;
+  }
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSkyboxPipeline() const {
+    return m_SkyboxPipeline;
+  }
+  WIESEL_GETTER_FN const Ref<Pipeline> GetLightingPipeline() const {
+    return m_LightingPipeline;
+  }
+  WIESEL_GETTER_FN const Ref<Pipeline> GetCompositePipeline() const {
+    return m_LightingPipeline;
+  }
+
 
   void SetViewport(VkExtent2D extent);
   void SetViewport(glm::vec2 extent);
 
-  void DrawModel(ModelComponent& model, TransformComponent& transform);
-  void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform);
-  void BlitImageToSwapChain(Ref<AttachmentTexture> texture);
-  void PresentImage(Ref<AttachmentTexture> texture);
+  void DrawModel(ModelComponent& model, TransformComponent& transform, bool shadowPass);
+  void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform, bool shadowPass);
+  void DrawSkybox(Ref<Skybox> skybox);
+  void DrawQuad(Ref<AttachmentTexture> texture,
+                Ref<Pipeline> pipeline);
+
   void BeginRender();
+  void BeginFrame();
+  void BeginShadowPass(uint32_t cascade);
+  void EndShadowPass();
+  void BeginGeometryPass();
+  void EndGeometryPass();
+  void BeginLightingPass();
+  void EndLightingPass();
+  void BeginCompositePass();
+  void EndCompositePass();
+  void EndFrame();
+
   bool BeginPresent();
   void EndPresent();
-
-  bool BeginFrame();
-  void EndFrame();
 
   void SetCameraData(Ref<CameraData> camera);
 
@@ -191,22 +230,42 @@ class Renderer {
 
   void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-                         uint32_t height);
+                         uint32_t height,
+                         VkDeviceSize baseOffset = 0,
+                         uint32_t layer = 0);
 
   void TransitionImageLayout(VkImage image, VkFormat format,
                              VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels);
+                             uint32_t mipLevels,
+                             uint32_t baseLayer = 0,
+                             uint32_t layerCount = 1);
+
   void TransitionImageLayout(VkImage image, VkFormat format,
                              VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels, VkCommandBuffer commandBuffer);
+                             uint32_t mipLevels, VkCommandBuffer commandBuffer,
+                             uint32_t baseLayer,
+                             uint32_t layerCount);
+
   void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
                    VkSampleCountFlagBits numSamples, VkFormat format,
                    VkImageTiling tiling, VkImageUsageFlags usage,
                    VkMemoryPropertyFlags properties, VkImage& image,
-                   VkDeviceMemory& imageMemory);
-  VkImageView CreateImageView(VkImage image, VkFormat format,
+                   VkDeviceMemory& imageMemory,
+                   VkImageCreateFlags flags = 0,
+                   uint32_t arrayLayers = 1);
+
+  Ref<ImageView> CreateImageView(VkImage image, VkFormat format,
                               VkImageAspectFlags aspectFlags,
-                              uint32_t mipLevels);
+                              uint32_t mipLevels,
+                              VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
+                              uint32_t layer = 0,
+                              uint32_t layerCount = 1);
+
+  Ref<ImageView> CreateImageView(Ref<AttachmentTexture> image,
+                                 VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
+                                 uint32_t layer = 0,
+                                 uint32_t layerCount = 1);
+
   VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates,
                                VkImageTiling tiling,
                                VkFormatFeatureFlags features);
@@ -260,11 +319,6 @@ class Renderer {
   Ref<AttachmentTexture> m_SwapChainTexture;
 
   VkExtent2D m_Extent{};
-  Ref<DescriptorLayout> m_GeometryDescriptorLayout;
-  Ref<DescriptorLayout> m_PresentDescriptorLayout;
-  Ref<AttachmentTexture> m_PresentColorImage;
-  Ref<AttachmentTexture> m_PresentDepthStencil;
-  Ref<Texture> m_BlankTexture;
 
   Ref<CommandPool> m_CommandPool;
   Ref<CommandBuffer> m_CommandBuffer;
@@ -282,24 +336,48 @@ class Renderer {
   Ref<UniformBuffer> m_LightsUniformBuffer;
   LightsUniformData m_LightsUniformData;
   Ref<UniformBuffer> m_CameraUniformBuffer;
+  Ref<UniformBuffer> m_ShadowCameraUniformBuffer;
   CameraUniformData m_CameraUniformData;
+  ShadowCameraUniformData m_ShadowCameraUniformData;
   bool m_EnableWireframe;
-  bool m_RecreateGraphicsPipeline;
+  bool m_RecreatePipeline;
   bool m_RecreateSwapChain;
-  Ref<GraphicsPipeline> m_GeometryGraphicsPipeline;
-  Ref<GraphicsPipeline> m_PresentGraphicsPipeline;
-  Ref<RenderPass> m_GeometryRenderPass;
-  Ref<RenderPass> m_PresentRenderPass;
-  std::vector<Ref<Framebuffer>> m_PresentFramebuffers;
-  Ref<MemoryBuffer> m_PresentVertexBuffer;
-  Ref<MemoryBuffer> m_PresentIndexBuffer;
-  Ref<CameraData> m_CameraData;
+
+  Ref<CameraData> m_Camera;
   glm::vec2 m_ViewportSize;
 
-  Ref<Framebuffer> m_TargetFramebuffer;
-  Ref<AttachmentTexture> m_TargetColorImage;
-  Ref<AttachmentTexture> m_TargetDepthStencil;
-  Ref<AttachmentTexture> m_TargetColorResolveImage;
+  Ref<DescriptorLayout> m_GeometryMeshDescriptorLayout;
+  Ref<DescriptorLayout> m_ShadowMeshDescriptorLayout;
+  Ref<DescriptorLayout> m_GlobalDescriptorLayout;
+  Ref<DescriptorLayout> m_GlobalShadowDescriptorLayout;
+
+  Ref<RenderPass> m_GeometryRenderPass;
+  Ref<Pipeline> m_GeometryPipeline;
+
+  Ref<RenderPass> m_ShadowRenderPass;
+  Ref<Pipeline> m_ShadowPipeline;
+  Ref<ShadowPipelinePushConstant> m_ShadowPipelinePushConstant;
+
+  Ref<RenderPass> m_LightingRenderPass;
+  Ref<DescriptorLayout> m_SkyboxDescriptorLayout;
+  Ref<Pipeline> m_SkyboxPipeline;
+  Ref<Pipeline> m_LightingPipeline;
+
+  Ref<RenderPass> m_CompositeRenderPass;
+  Ref<Pipeline> m_CompositePipeline;
+
+  Ref<RenderPass> m_PresentRenderPass;
+  Ref<DescriptorLayout> m_PresentDescriptorLayout;
+  Ref<Pipeline> m_PresentPipeline;
+  Ref<AttachmentTexture> m_PresentColorImage;
+  Ref<AttachmentTexture> m_PresentDepthStencil;
+  std::vector<Ref<Framebuffer>> m_PresentFramebuffers;
+
+  VkSampler m_DefaultLinearSampler;
+  VkSampler m_DepthSampler;
+  Ref<Texture> m_BlankTexture;
+  Ref<MemoryBuffer> m_FullscreenQuadVertexBuffer;
+  Ref<MemoryBuffer> m_FullscreenQuadIndexBuffer;
 
   QueueFamilyIndices m_QueueFamilyIndices;
   SwapChainSupportDetails m_SwapChainDetails;

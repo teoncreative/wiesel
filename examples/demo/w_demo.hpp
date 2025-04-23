@@ -43,30 +43,9 @@ class DemoLayer : public Wiesel::Layer {
   bool OnMouseMoved(Wiesel::MouseMovedEvent& event);
 
  private:
-  friend class DemoOverlay;
-
   DemoApplication& m_App;
   Wiesel::Ref<Wiesel::Scene> m_Scene;
   Wiesel::Ref<Wiesel::Renderer> m_Renderer;
 };
 
-class DemoOverlay : public Wiesel::Layer {
- public:
-  explicit DemoOverlay(DemoApplication& app,
-                       Wiesel::Ref<DemoLayer> demoLayer);
-  ~DemoOverlay() override;
-
-  void OnAttach() override;
-  void OnDetach() override;
-  void OnUpdate(float_t deltaTime) override;
-  void OnEvent(Wiesel::Event& event) override;
-
-  void RenderEntity(Wiesel::Entity& entity, entt::entity entityId, int depth, bool& ignoreMenu);
-  void OnImGuiRender() override;
-  void UpdateHierarchyOrder();
-
- private:
-  DemoApplication& m_App;
-  Wiesel::Ref<DemoLayer> m_DemoLayer;
-};
 }  // namespace WieselDemo

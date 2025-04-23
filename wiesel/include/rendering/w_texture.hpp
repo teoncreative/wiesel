@@ -15,6 +15,7 @@
 #include "util/w_utils.hpp"
 
 namespace Wiesel {
+class ImageView;
 
 // taken from assimp
 enum TextureType {
@@ -197,7 +198,7 @@ class Texture {
   VkImage m_Image;
   VkFormat m_Format;
   VkDeviceMemory m_DeviceMemory;
-  VkImageView m_ImageView;
+  Ref<ImageView> m_ImageView;
   VkSampler m_Sampler;
   uint32_t m_MipLevels;
 
@@ -220,8 +221,8 @@ enum class AttachmentTextureType {
 
 struct AttachmentTextureProps {
   AttachmentTextureProps(uint32_t width, uint32_t height, AttachmentTextureType type, uint32_t count = 1, VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM,
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, bool sampled = false)
-        : Width(width), Height(height), ImageCount(count), ImageFormat(imageFormat), Type(type), MsaaSamples(msaaSamples), Sampled(sampled) {}
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, bool sampled = false, uint32_t layerCount = 1)
+        : Width(width), Height(height), ImageCount(count), ImageFormat(imageFormat), Type(type), MsaaSamples(msaaSamples), Sampled(sampled), LayerCount(layerCount) {}
 
   uint32_t Width;
   uint32_t Height;
@@ -229,6 +230,7 @@ struct AttachmentTextureProps {
   AttachmentTextureType Type;
   VkSampleCountFlagBits MsaaSamples;
   uint32_t ImageCount;
+  uint32_t LayerCount;
   bool Sampled;
 
 };
@@ -239,18 +241,21 @@ struct AttachmentTextureInfo {
   AttachmentTextureType Type;
   VkFormat Format;
   VkSampleCountFlagBits MsaaSamples;
+  /*VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+  VkAttachmentLoadOp StencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  VkAttachmentStoreOp StencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;*/
 };
+
 
 class AttachmentTexture {
  public:
   AttachmentTexture() = default;
   ~AttachmentTexture();
 
-  void Resize(uint32_t width, uint32_t height);
-
   AttachmentTextureType m_Type;
   std::vector<VkImage> m_Images;
-  std::vector<VkImageView> m_ImageViews;
+  std::vector<Ref<ImageView>> m_ImageViews;
   std::vector<VkSampler> m_Samplers;
   std::vector<VkDeviceMemory> m_DeviceMemories;
   VkFormat m_Format;
@@ -258,8 +263,21 @@ class AttachmentTexture {
   uint32_t m_Height;
   VkSampleCountFlagBits m_MsaaSamples;
   Ref<DescriptorData> m_Descriptors;
+  VkImageAspectFlags m_AspectFlags;
+  uint32_t m_MipLevels;
 
   bool m_IsAllocated;
+
+};
+
+class ImageView {
+ public:
+  ImageView() = default;
+  ~ImageView();
+
+  VkImageView m_Handle;
+  uint32_t m_Layer;
+  uint32_t m_LayerCount;
 };
 
 }  // namespace Wiesel

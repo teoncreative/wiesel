@@ -41,11 +41,13 @@ struct Mesh {
   bool IsAllocated;
   // Render Data
   Ref<MemoryBuffer> VertexBuffer;
+  Ref<MemoryBuffer> ShadowVertexBuffer;
   Ref<MemoryBuffer> IndexBuffer;
   Ref<UniformBuffer> UniformBuffer;
   Ref<Material> Mat;
 
-  Ref<DescriptorData> Descriptors;
+  Ref<DescriptorData> GeometryDescriptors;
+  Ref<DescriptorData> ShadowDescriptors;
 };
 
 struct Model {

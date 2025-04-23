@@ -22,6 +22,7 @@ MonoBehavior::MonoBehavior(Entity entity, const std::string& scriptName) :
   m_InternalBehavior = false;
   m_Unset = false;
   m_Enabled = true;
+  m_ScriptInstance = nullptr;
   InstantiateScript();
 }
 
@@ -46,14 +47,18 @@ void MonoBehavior::OnEvent(Event& event) {
 }
 
 void MonoBehavior::InstantiateScript() {
+  if (m_Name.empty()) {
+    return;
+  }
   m_ScriptInstance = ScriptManager::CreateScriptInstance(this);
-  m_ScriptInstance->OnStart();
 }
 
 bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {
+  std::map<std::string, std::function<MonoObject*()>> copy = m_ScriptInstance->m_AttachedVariables;
   delete m_ScriptInstance;
   m_ScriptInstance = nullptr;
   InstantiateScript();
+  m_ScriptInstance->m_AttachedVariables = copy;
   return false;
 }
 

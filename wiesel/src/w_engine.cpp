@@ -16,29 +16,47 @@
 #include "scene/w_lights.hpp"
 #include "util/w_dialogs.hpp"
 #include "window/w_glfwwindow.hpp"
+#include "script/w_scriptmanager.hpp"
+
+#ifdef WIN32
+#include <windows.h>
+
+void EnableAnsiColors() {
+  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD dwMode = 0;
+  GetConsoleMode(hOut, &dwMode);
+  dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  SetConsoleMode(hOut, dwMode);
+}
+#endif
 
 namespace Wiesel {
 Ref<Renderer> Engine::s_Renderer;
 Ref<AppWindow> Engine::s_Window;
 
 void Engine::InitEngine() {
+#ifdef WIN32
+  EnableAnsiColors();
+#endif
   InitializeComponents();
   InputManager::Init();
-  ScriptManager::Init();
+  ScriptManager::Init({
+      .EnableDebugger = true
+  });
 }
 
-void Engine::InitWindow(WindowProperties props) {
-  s_Window = CreateReference<GlfwAppWindow>(props);
+void Engine::InitWindow(const WindowProperties&& props) {
+  s_Window = CreateReference<GlfwAppWindow>(std::move(props));
   Dialogs::Init();
 }
 
-void Engine::InitRenderer() {
+void Engine::InitRenderer(const RendererProperties&& props) {
   if (s_Window == nullptr) {
     LOG_ERROR("Window should be initialized before renderer!");
     abort();
   }
   s_Renderer = CreateReference<Renderer>(s_Window);
-  s_Renderer->Initialize({});
+  s_Renderer->Initialize(std::move(props));
 }
 
 void Engine::CleanupRenderer() {
@@ -69,7 +87,8 @@ Ref<AppWindow> Engine::GetWindow() {
 }
 
 aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
-                                 const std::string& path) {
+                                 const std::string& path,
+                                 bool convertToLeftHanded) {
   auto& model = modelComponent.Data;
   model.ModelPath = path;
   auto fsPath = std::filesystem::relative(path);
@@ -80,11 +99,15 @@ aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
   importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
                               aiPrimitiveType_LINE | aiPrimitiveType_POINT);
   importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
-  importer.ReadFile(model.ModelPath, aiProcess_Triangulate |
-                                         aiProcess_CalcTangentSpace |
-                                         aiProcess_JoinIdenticalVertices |
-                                         aiProcess_ConvertToLeftHanded |
-                                         aiProcessPreset_TargetRealtime_Fast);
+  uint32_t flags = aiProcess_Triangulate |
+                   aiProcess_CalcTangentSpace |
+                   aiProcess_FlipUVs |
+                   aiProcess_JoinIdenticalVertices |
+                   aiProcessPreset_TargetRealtime_Fast;
+  if (convertToLeftHanded) {
+    flags |= aiProcess_ConvertToLeftHanded;
+  }
+  importer.ReadFile(model.ModelPath, flags);
   aiScene* scene = importer.GetOrphanedScene();
 
   if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
@@ -98,8 +121,9 @@ aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
 
 void Engine::LoadModel(TransformComponent& transform,
                        ModelComponent& modelComponent,
-                       const std::string& path) {
-  aiScene* scene = LoadAssimpModel(modelComponent, path);
+                       const std::string& path,
+                       bool convertToLeftHanded) {
+  aiScene* scene = LoadAssimpModel(modelComponent, path, convertToLeftHanded);
   LoadModel(scene, transform, modelComponent, path);
 }
 
@@ -209,6 +233,11 @@ Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     vector.z = aiMesh->mBitangents[i].z;
     vertex.BiTangent = vector;
 
+    float handedness = glm::dot(glm::cross(vertex.Normal, vertex.Tangent), vertex.BiTangent) < 0.0f ? -1.0f : 1.0f;
+    if (handedness < 0.0f) {
+      vertex.Tangent *= -1.0f;
+    }
+
     mesh->Vertices.push_back(vertex);
   }
 
@@ -217,7 +246,7 @@ Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     aiFace face = aiMesh->mFaces[i];
 
     // retrieve all indices of the face and store them in the indices vector
-    for (int j = face.mNumIndices - 1; j >= 0; j--) {
+    for (int j = 0; j < face.mNumIndices; j++) {
       mesh->Indices.push_back(face.mIndices[j]);
     }
   }

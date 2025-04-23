@@ -20,5 +20,6 @@ namespace Wiesel {
 void InitializeComponents();
 
 void RenderExistingComponents(Entity entity);
+void RenderModals(Entity entity);
 void RenderAddPopup(Entity entity);
 }  // namespace Wiesel
