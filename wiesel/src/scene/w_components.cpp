@@ -68,7 +68,9 @@ void TransformComponent::SetScale(float x, float y, float z) {
 }
 
 void TransformComponent::UpdateMatrices() {
-  RotationMatrix = glm::toMat4(glm::quat(Rotation));
+  glm::vec3 rotationDegrees = glm::radians(Rotation); // Convert degrees to radians
+
+  RotationMatrix = glm::toMat4(glm::quat(rotationDegrees));
   TransformMatrix = glm::translate(glm::mat4(1.0f), Position) * RotationMatrix *
                     glm::scale(glm::mat4(1.0f), Scale);
 

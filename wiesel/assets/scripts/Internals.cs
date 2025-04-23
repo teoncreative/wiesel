@@ -20,65 +20,65 @@ namespace WieselEngine
         public extern static ushort Input_GetCursorMode();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern static object Behavior_GetComponent(ulong behaviorPtr, string name);
+        public extern static object Behavior_GetComponent(ulong scenePtr, ulong entityId, string name);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern static bool Behavior_HasComponent(ulong behaviorPtr, string name);
+        public extern static bool Behavior_HasComponent(ulong scenePtr, ulong entityId, string name);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetPositionX(ulong behaviorPtr, float x);
+        public static extern void TransformComponent_SetPositionX(ulong scenePtr, ulong entityId, float x);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetPositionY(ulong behaviorPtr, float y);
+        public static extern void TransformComponent_SetPositionY(ulong scenePtr, ulong entityId, float y);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetPositionZ(ulong behaviorPtr, float z);
+        public static extern void TransformComponent_SetPositionZ(ulong scenePtr, ulong entityId, float z);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetPositionX(ulong behaviorPtr);
+        public static extern float TransformComponent_GetPositionX(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetPositionY(ulong behaviorPtr);
+        public static extern float TransformComponent_GetPositionY(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetPositionZ(ulong behaviorPtr);
+        public static extern float TransformComponent_GetPositionZ(ulong scenePtr, ulong entityId);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetRotationX(ulong behaviorPtr, float x);
+        public static extern void TransformComponent_SetRotationX(ulong scenePtr, ulong entityId, float x);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetRotationY(ulong behaviorPtr, float y);
+        public static extern void TransformComponent_SetRotationY(ulong scenePtr, ulong entityId, float y);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetRotationZ(ulong behaviorPtr, float z);
+        public static extern void TransformComponent_SetRotationZ(ulong scenePtr, ulong entityId, float z);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetRotationX(ulong behaviorPtr);
+        public static extern float TransformComponent_GetRotationX(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetRotationY(ulong behaviorPtr);
+        public static extern float TransformComponent_GetRotationY(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetRotationZ(ulong behaviorPtr);
+        public static extern float TransformComponent_GetRotationZ(ulong scenePtr, ulong entityId);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetScaleX(ulong behaviorPtr, float x);
+        public static extern void TransformComponent_SetScaleX(ulong scenePtr, ulong entityId, float x);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetScaleY(ulong behaviorPtr, float y);
+        public static extern void TransformComponent_SetScaleY(ulong scenePtr, ulong entityId, float y);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void TransformComponent_SetScaleZ(ulong behaviorPtr, float z);
+        public static extern void TransformComponent_SetScaleZ(ulong scenePtr, ulong entityId, float z);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetScaleX(ulong behaviorPtr);
+        public static extern float TransformComponent_GetScaleX(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetScaleY(ulong behaviorPtr);
+        public static extern float TransformComponent_GetScaleY(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float TransformComponent_GetScaleZ(ulong behaviorPtr);
+        public static extern float TransformComponent_GetScaleZ(ulong scenePtr, ulong entityId);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern Vector3f TransformComponent_GetForward(ulong behaviorPtr);
+        public static extern Vector3f TransformComponent_GetForward(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern Vector3f TransformComponent_GetBackward(ulong behaviorPtr);
+        public static extern Vector3f TransformComponent_GetBackward(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern Vector3f TransformComponent_GetLeft(ulong behaviorPtr);
+        public static extern Vector3f TransformComponent_GetLeft(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern Vector3f TransformComponent_GetRight(ulong behaviorPtr);
+        public static extern Vector3f TransformComponent_GetRight(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern Vector3f TransformComponent_GetUp(ulong behaviorPtr);
+        public static extern Vector3f TransformComponent_GetUp(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern Vector3f TransformComponent_GetDown(ulong behaviorPtr);
+        public static extern Vector3f TransformComponent_GetDown(ulong scenePtr, ulong entityId);
 
     }
 }

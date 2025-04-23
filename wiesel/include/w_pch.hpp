@@ -41,6 +41,7 @@
 #include <mutex>
 #include <list>
 #include <span>
+#include <format>
 
 #include "util/w_attributes.hpp"
 #include "util/w_platformdetection.hpp"

@@ -64,8 +64,8 @@ void RenderPass::Bake() {
       descriptions.push_back({
           .format = item.Format,
           .samples = item.MsaaSamples,
-          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-          .storeOp = m_PassType == PassType::Geometry ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .loadOp = m_PassType == PassType::Lighting ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = m_PassType == PassType::Geometry || m_PassType == PassType::Shadow ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
           .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -168,16 +168,37 @@ void RenderPass::Bake() {
                          VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     });
   }*/
-  dependencies.push_back({
+  if (m_PassType == PassType::Shadow) {
+    dependencies.push_back({
       .srcSubpass = VK_SUBPASS_EXTERNAL,
       .dstSubpass = 0,
-      .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-      .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-  });
+      .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+      .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+      .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+      .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+    });
+    dependencies.push_back({
+        .srcSubpass = 0,
+        .dstSubpass = VK_SUBPASS_EXTERNAL,
+        .srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
+    });
+  } else {
+    dependencies.push_back({
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    });
+  }
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   renderPassInfo.attachmentCount = static_cast<uint32_t>(descriptions.size());
@@ -193,10 +214,6 @@ void RenderPass::Bake() {
   }
 }
 
-bool RenderPass::Validate() {
-  return false;
-}
-
 void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -206,11 +223,16 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
   renderPassInfo.renderArea.extent.width = framebuffer->m_Extent.x;
   renderPassInfo.renderArea.extent.height = framebuffer->m_Extent.y;
 
-  std::array<VkClearValue, 2> clearValues{};
-  clearValues[0].color = {{clearColor.Red, clearColor.Green,
-                           clearColor.Blue, clearColor.Alpha}};
-  clearValues[1].depthStencil = {1.0f, 0};
-
+  std::vector<VkClearValue> clearValues{};
+  if (m_PassType == PassType::Shadow) {
+    clearValues.resize(1);
+    clearValues[0].depthStencil = {1.0f, 0};
+  } else {
+    clearValues.resize(2);
+    clearValues[0].color = {{clearColor.Red, clearColor.Green,
+                             clearColor.Blue, clearColor.Alpha}};
+    clearValues[1].depthStencil = {1.0f, 0};
+  }
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
   vkCmdBeginRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle, &renderPassInfo,
@@ -226,12 +248,21 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<Attachm
   std::vector<VkImageView> views;
   for (const auto& item : attachments) {
     if (item->m_Type == AttachmentTextureType::DepthStencil && !hasDepth) {
-      views.push_back(item->m_ImageViews[index]);
+      views.push_back(item->m_ImageViews[index]->m_Handle);
       hasDepth = true;
     } else if (item->m_Type == AttachmentTextureType::Color || item->m_Type == AttachmentTextureType::Offscreen || item->m_Type == AttachmentTextureType::SwapChain ||
                item->m_Type == AttachmentTextureType::Resolve) {
-      views.push_back(item->m_ImageViews[index]);
+      views.push_back(item->m_ImageViews[index]->m_Handle);
     }
+  }
+  // TODO check if views match the expected framebuffer attachment size
+  return CreateReference<Framebuffer>(views, extent, *this);
+}
+
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> imageViews, glm::vec2 extent) {
+  std::vector<VkImageView> views;
+  for (const auto& item : imageViews) {
+    views.push_back(item->m_Handle);
   }
   // TODO check if views match the expected framebuffer attachment size
   return CreateReference<Framebuffer>(views, extent, *this);

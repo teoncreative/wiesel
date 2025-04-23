@@ -27,6 +27,7 @@ class IBehavior {
   IBehavior(const std::string& name, Entity entity)
       : m_Name(name),
         m_Entity(entity),
+        m_Scene(entity.GetScene()),
         m_InternalBehavior(true),
         m_Enabled(true),
         m_Unset(false) {}
@@ -67,10 +68,13 @@ class IBehavior {
   virtual void SetEnabled(bool enabled);
 
   WIESEL_GETTER_FN Entity GetEntity() { return m_Entity; }
+  WIESEL_GETTER_FN Scene* GetScene() { return m_Scene; }
+  WIESEL_GETTER_FN entt::entity GetEntityHandle() { return m_Entity.GetHandle(); }
 
  protected:
   std::string m_Name;
   Entity m_Entity;
+  Scene* m_Scene;
   bool m_InternalBehavior;
   bool m_Enabled;
   bool m_Unset;
@@ -87,9 +91,10 @@ class BehaviorsComponent : public IComponent {
   void OnEvent(Event&);
 
   template <typename T, typename... Args>
-  void AddBehavior(Args&&... args) {
-    auto* behavior = new T(std::forward<Args>(args)...);
+  T& AddBehavior(Args&&... args) {
+    T* behavior = new T(std::forward<Args>(args)...);
     m_Behaviors.insert(std::pair(behavior->GetName(), behavior));
+    return *behavior;
   }
 
   std::unordered_map<std::string, IBehavior*> m_Behaviors;

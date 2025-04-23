@@ -9,54 +9,69 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_renderpipeline.hpp"
+#include "rendering/w_pipeline.hpp"
 
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-GraphicsPipeline::GraphicsPipeline(PipelineProperties properties)
+Pipeline::Pipeline(PipelineProperties properties)
     : m_Properties(properties) {
 }
 
-GraphicsPipeline::~GraphicsPipeline() {
+Pipeline::~Pipeline() {
   vkDestroyPipeline(Engine::GetRenderer()->GetLogicalDevice(), m_Pipeline, nullptr);
   vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), m_Layout, nullptr);
   m_IsAllocated = false;
 }
 
-void GraphicsPipeline::SetRenderPass(Ref<RenderPass> pass) {
+void Pipeline::SetRenderPass(Ref<RenderPass> pass) {
   m_RenderPass = pass;
 }
 
-void GraphicsPipeline::SetDescriptorLayout(Ref<DescriptorLayout> layout) {
-  m_DescriptorLayout = layout;
+void Pipeline::AddDescriptorLayout(Ref<DescriptorLayout> layout) {
+  m_DescriptorLayouts.push_back(layout);
 }
 
-void GraphicsPipeline::AddDynamicState(VkDynamicState state) {
+void Pipeline::AddDynamicState(VkDynamicState state) {
   m_DynamicStates.push_back(state);
 }
 
-void GraphicsPipeline::AddShader(Ref<Shader> shader) {
+void Pipeline::AddShader(Ref<Shader> shader) {
   m_Shaders.push_back(shader);
 }
 
-void GraphicsPipeline::SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
+void Pipeline::SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
    m_VertexInputBindingDescription = inputBindingDescription;
    m_VertexAttributeDescriptions = attributeDescriptions;
+   m_HasVertexBinding = true;
 }
 
-void GraphicsPipeline::Bake() {
+void Pipeline::Bake() {
   if (m_IsAllocated) {
     vkDestroyPipeline(Engine::GetRenderer()->GetLogicalDevice(), m_Pipeline, nullptr);
     vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), m_Layout, nullptr);
     m_IsAllocated = false;
   }
+  std::vector<VkDescriptorSetLayout> layouts;
+  for (const auto& item : m_DescriptorLayouts) {
+    layouts.push_back(item->m_Layout);
+  }
+
+  std::vector<VkPushConstantRange> pushConstants;
+  for (const auto& item : m_PushConstants) {
+    pushConstants.push_back({
+        .stageFlags = item.Flags,
+        .offset = item.Offset,
+        .size = item.Size
+    });
+  }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &m_DescriptorLayout->m_Layout;
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.setLayoutCount = layouts.size();
+  pipelineLayoutInfo.pSetLayouts = layouts.data();
+  pipelineLayoutInfo.pushConstantRangeCount = pushConstants.size();
+  pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
 
   WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(
       Engine::GetRenderer()->GetLogicalDevice(), &pipelineLayoutInfo, nullptr, &m_Layout));
@@ -88,11 +103,16 @@ void GraphicsPipeline::Bake() {
   vertexInputInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-  vertexInputInfo.vertexBindingDescriptionCount = 1;
-  vertexInputInfo.vertexAttributeDescriptionCount =
-      static_cast<uint32_t>(m_VertexAttributeDescriptions.size());
-  vertexInputInfo.pVertexBindingDescriptions = &m_VertexInputBindingDescription;
-  vertexInputInfo.pVertexAttributeDescriptions = m_VertexAttributeDescriptions.data();
+  if (m_HasVertexBinding) {
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &m_VertexInputBindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount =
+        static_cast<uint32_t>(m_VertexAttributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = m_VertexAttributeDescriptions.data();
+  } else {
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+  }
 
   VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
   inputAssembly.sType =
@@ -100,27 +120,12 @@ void GraphicsPipeline::Bake() {
   inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
   inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-  // Viewport height and width is hardcoded but not really required anyway because viewport and scissor
-  // are dynamic states and will be updated before each frame.
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  viewport.width = (float)1600;
-  viewport.height = (float)900;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent.width = 1600;
-  scissor.extent.height = 900;
-
   VkPipelineViewportStateCreateInfo viewportState{};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
   viewportState.viewportCount = 1;
-  viewportState.pViewports = &viewport;
+  viewportState.pViewports = nullptr;
   viewportState.scissorCount = 1;
-  viewportState.pScissors = &scissor;
+  viewportState.pScissors = nullptr;
 
   VkPipelineRasterizationStateCreateInfo rasterizer{};
   rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -151,7 +156,7 @@ void GraphicsPipeline::Bake() {
       rasterizer.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
       break;
   }
-  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+  rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
   rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -167,12 +172,11 @@ void GraphicsPipeline::Bake() {
       VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
   if (m_Properties.m_EnableAlphaBlending) {
     colorBlendAttachment.blendEnable = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    colorBlendAttachment.dstColorBlendFactor =
-        VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
   } else {
     colorBlendAttachment.blendEnable = VK_FALSE;
@@ -189,10 +193,20 @@ void GraphicsPipeline::Bake() {
   VkPipelineDepthStencilStateCreateInfo depthStencil{};
   depthStencil.sType =
       VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depthStencil.depthTestEnable = VK_TRUE;
-  depthStencil.depthWriteEnable = VK_TRUE;
+  if (m_Properties.m_EnableDepthTest) {
+    depthStencil.depthTestEnable = VK_TRUE;
+  } else {
+    depthStencil.depthTestEnable = VK_FALSE;
+  }
+  if (m_Properties.m_EnableDepthWrite) {
+    depthStencil.depthWriteEnable = VK_TRUE;
+  } else {
+    depthStencil.depthWriteEnable = VK_FALSE;
+  }
   depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
   depthStencil.depthBoundsTestEnable = VK_FALSE;
+  depthStencil.minDepthBounds = 0.0f;
+  depthStencil.maxDepthBounds = 1.0f;
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -218,9 +232,13 @@ void GraphicsPipeline::Bake() {
   m_IsAllocated = true;
 }
 
-void GraphicsPipeline::Bind(PipelineBindPoint bindPoint) {
+void Pipeline::Bind(PipelineBindPoint bindPoint) {
   vkCmdBindPipeline(Engine::GetRenderer()->GetCommandBuffer().m_Handle, ToVkPipelineBindPoint(bindPoint),
                     m_Pipeline);
+  for (const auto& item : m_PushConstants) {
+    vkCmdPushConstants(Engine::GetRenderer()->GetCommandBuffer().m_Handle, m_Layout,
+                       item.Flags, 0, item.Size, item.Ref.get());
+  }
 }
 
 }  // namespace Wiesel

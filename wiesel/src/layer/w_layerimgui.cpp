@@ -84,24 +84,19 @@ void ImGuiLayer::OnAttach() {
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
   init_info.MSAASamples = Engine::GetRenderer()->m_MsaaSamples;
+  init_info.RenderPass = Engine::GetRenderer()->m_GeometryRenderPass->GetVulkanHandle();
 
-  ImGui_ImplVulkan_Init(&init_info,
-                        Engine::GetRenderer()->m_GeometryRenderPass->GetVulkanHandle());
+  ImGui_ImplVulkan_Init(&init_info);
 
   //execute a gpu command to upload imgui font textures
-  auto cmd = Engine::GetRenderer()->BeginSingleTimeCommands();
-  ImGui_ImplVulkan_CreateFontsTexture(cmd);
-  Engine::GetRenderer()->EndSingleTimeCommands(cmd);
-
-  //clear font textures from cpu data
-  ImGui_ImplVulkan_DestroyFontUploadObjects();
+  ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 void ImGuiLayer::OnDetach() {
   LOG_DEBUG("Destroying imgui pool");
   vkDeviceWaitIdle(Engine::GetRenderer()->m_LogicalDevice);
-  vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool,
-                          nullptr);
+  // Vulkan does this
+  /*vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool, nullptr);*/
   ImGui_ImplVulkan_Shutdown();
 }
 

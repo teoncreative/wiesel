@@ -12,10 +12,18 @@
 
 namespace Wiesel {
 
-void UpdateLight(LightsUniformData& lights, LightDirect light,
+glm::vec3 EulerToDirection(glm::vec3 euler) {
+  float pitch = glm::radians(euler.x);
+  float yaw = glm::radians(euler.y);
+
+  return glm::normalize(
+      glm::vec3(cos(pitch) * sin(yaw), sin(pitch), cos(pitch) * cos(yaw)));
+}
+
+void UpdateLight(LightsUniformData& lights, LightDirect& light,
                  TransformComponent& transform) {
-  lights.DirectLights[lights.DirectLightCount].Direction =
-      glm::normalize(transform.Position);
+  lights.DirectLights[lights.DirectLightCount].Direction = EulerToDirection(transform.Rotation);
+  lights.DirectLights[lights.PointLightCount].Base.Position = transform.Position;
   lights.DirectLights[lights.DirectLightCount].Base.Color = light.Base.Color;
   lights.DirectLights[lights.DirectLightCount].Base.Ambient =
       light.Base.Ambient;
@@ -28,9 +36,9 @@ void UpdateLight(LightsUniformData& lights, LightDirect light,
   lights.DirectLightCount++;
 }
 
-void UpdateLight(LightsUniformData& lights, LightPoint light,
+void UpdateLight(LightsUniformData& lights, LightPoint& light,
                  TransformComponent& transform) {
-  lights.PointLights[lights.PointLightCount].Position = transform.Position;
+  lights.PointLights[lights.PointLightCount].Base.Position = transform.Position;
   lights.PointLights[lights.PointLightCount].Base.Color = light.Base.Color;
   lights.PointLights[lights.PointLightCount].Base.Ambient = light.Base.Ambient;
   lights.PointLights[lights.PointLightCount].Base.Diffuse = light.Base.Diffuse;

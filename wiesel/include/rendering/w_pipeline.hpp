@@ -25,17 +25,37 @@ struct PipelineProperties {
   CullMode m_CullMode;
   bool m_EnableWireframe;
   bool m_EnableAlphaBlending;
+  bool m_EnableDepthTest = true;
+  bool m_EnableDepthWrite = true;
 };
 
-struct GraphicsPipeline {
-  explicit GraphicsPipeline(PipelineProperties properties);
-  ~GraphicsPipeline();
+struct PushConstant {
+  VkShaderStageFlags Flags;
+  uint32_t Size;
+  uint32_t Offset;
+  Ref<void> Ref;
+};
+
+struct Pipeline {
+  explicit Pipeline(PipelineProperties properties);
+  ~Pipeline();
 
   void SetRenderPass(Ref<RenderPass> pass);
-  void SetDescriptorLayout(Ref<DescriptorLayout> layout);
+  void AddDescriptorLayout(Ref<DescriptorLayout> layout);
   void AddDynamicState(VkDynamicState state);
   void AddShader(Ref<Shader> shader);
   void SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+
+  template<typename T>
+  void AddPushConstant(Ref<T> ref, VkShaderStageFlags flags) {
+    m_PushConstants.push_back(PushConstant{
+        .Flags = flags,
+        .Size = sizeof(T),
+        .Offset = static_cast<uint32_t>(m_PushConstants.size()),
+        .Ref = std::static_pointer_cast<void>(ref)
+    });
+  }
+
   void Bake();
 
   void Bind(PipelineBindPoint bindPoint);
@@ -44,12 +64,13 @@ struct GraphicsPipeline {
   std::vector<Ref<Shader>> m_Shaders;
   std::vector<VkDynamicState> m_DynamicStates;
   Ref<RenderPass> m_RenderPass;
-  Ref<DescriptorLayout> m_DescriptorLayout;
+  std::vector<Ref<DescriptorLayout>> m_DescriptorLayouts;
   VkPipelineLayout m_Layout{};
   VkPipeline m_Pipeline{};
+  bool m_HasVertexBinding = false;
   VkVertexInputBindingDescription m_VertexInputBindingDescription;
   std::vector<VkVertexInputAttributeDescription> m_VertexAttributeDescriptions;
-
+  std::vector<PushConstant> m_PushConstants;
   bool m_IsAllocated = false;
 };
 
