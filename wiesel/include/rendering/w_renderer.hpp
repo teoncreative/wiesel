@@ -30,6 +30,7 @@
 #include "util/w_utils.hpp"
 #include "w_pipeline.hpp"
 #include "w_renderpass.hpp"
+#include "w_sampler.hpp"
 #include "w_shader.hpp"
 #include "w_skybox.hpp"
 #include "window/w_window.hpp"
@@ -40,9 +41,7 @@ struct ShadowPipelinePushConstant {
   int CascadeIndex;
 };
 
-struct RendererProperties {
-
-};
+struct RendererProperties {};
 
 class Renderer {
  public:
@@ -67,27 +66,24 @@ class Renderer {
   Ref<Texture> CreateBlankTexture(const TextureProps& textureProps,
                                   const SamplerProps& samplerProps);
   Ref<Texture> CreateTexture(const std::string& path,
-                                   const TextureProps& textureProps,
-                                   const SamplerProps& samplerProps);
-  Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
                              const TextureProps& textureProps,
                              const SamplerProps& samplerProps);
+  Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
+                                    const TextureProps& textureProps,
+                                    const SamplerProps& samplerProps);
   void DestroyTexture(Texture& texture);
-  VkSampler CreateTextureSampler(uint32_t mipLevels, SamplerProps samplerProps);
-  VkSampler CreateDepthSampler();
+  VkSampler CreateTextureSampler(uint32_t mipLevels, const SamplerProps& props);
 
-  Ref<AttachmentTexture> CreateAttachmentTexture(const AttachmentTextureProps& props);
+  Ref<AttachmentTexture> CreateAttachmentTexture(
+      const AttachmentTextureProps& props);
 
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
-
-  Ref<DescriptorData> CreateMeshDescriptors(
-      Ref<UniformBuffer> uniformBuffer,
-      Ref<Material> material);
+  Ref<DescriptorData> CreateMeshDescriptors(Ref<UniformBuffer> uniformBuffer,
+                                            Ref<Material> material);
 
   Ref<DescriptorData> CreateShadowMeshDescriptors(
-      Ref<UniformBuffer> uniformBuffer,
-      Ref<Material> material);
+      Ref<UniformBuffer> uniformBuffer, Ref<Material> material);
 
   Ref<DescriptorData> CreateGlobalDescriptors(CameraComponent& camera);
   Ref<DescriptorData> CreateShadowGlobalDescriptors(CameraComponent& camera);
@@ -123,6 +119,7 @@ class Renderer {
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const;
   WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
+
   WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return m_Extent; };
 
   WIESEL_GETTER_FN const uint32_t GetGraphicsQueueFamilyIndex() const {
@@ -132,6 +129,7 @@ class Renderer {
   WIESEL_GETTER_FN const uint32_t GetPresentQueueFamilyIndex() const {
     return m_QueueFamilyIndices.presentFamily.value();
   }
+
   WIESEL_GETTER_FN const CommandBuffer& GetCommandBuffer() const {
     return *m_CommandBuffer;
   }
@@ -140,34 +138,57 @@ class Renderer {
     return m_SwapChainImageFormat;
   }
 
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage() const {
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage()
+      const {
     return m_Camera->GeometryColorResolveImage;
   }
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetLightingColorResolveImage() const {
+
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetLightingColorResolveImage()
+      const {
     return m_Camera->LightingColorResolveImage;
   }
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetCompositeColorResolveImage() const {
+
+  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetCompositeColorResolveImage()
+      const {
     return m_Camera->CompositeColorResolveImage;
   }
+
+  WIESEL_GETTER_FN const VkPhysicalDeviceProperties GetPhysicalDeviceProperties() const {
+    return m_PhysicalDeviceProperties;
+  }
+
+  WIESEL_GETTER_FN const VkPhysicalDeviceFeatures GetPhysicalDeviceFeatures() const {
+    return m_PhysicalDeviceFeatures;
+  }
+
   WIESEL_GETTER_FN const Ref<Pipeline> GetSkyboxPipeline() const {
     return m_SkyboxPipeline;
   }
+
   WIESEL_GETTER_FN const Ref<Pipeline> GetLightingPipeline() const {
     return m_LightingPipeline;
   }
+
   WIESEL_GETTER_FN const Ref<Pipeline> GetCompositePipeline() const {
     return m_LightingPipeline;
   }
 
+  WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
+    return m_DefaultLinearSampler;
+  }
+
+  WIESEL_GETTER_FN const Ref<Sampler> GetDefaultNearestSampler() const {
+    return m_DefaultNearestSampler;
+  }
 
   void SetViewport(VkExtent2D extent);
   void SetViewport(glm::vec2 extent);
 
-  void DrawModel(ModelComponent& model, TransformComponent& transform, bool shadowPass);
+  void DrawModel(ModelComponent& model, TransformComponent& transform,
+                 bool shadowPass);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform, bool shadowPass);
   void DrawSkybox(Ref<Skybox> skybox);
-  void DrawQuad(Ref<AttachmentTexture> texture,
-                Ref<Pipeline> pipeline);
+  void DrawQuad(Ref<AttachmentTexture> texture, Ref<Pipeline> pipeline);
 
   void BeginRender();
   void BeginFrame();
@@ -188,6 +209,42 @@ class Renderer {
 
   void RecreateSwapChain();
   void Cleanup();
+
+  void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                    VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                    VkDeviceMemory& bufferMemory);
+
+  void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+  void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
+                         uint32_t height, VkDeviceSize baseOffset = 0,
+                         uint32_t layer = 0);
+
+  void TransitionImageLayout(VkImage image, VkFormat format,
+                             VkImageLayout oldLayout, VkImageLayout newLayout,
+                             uint32_t mipLevels, uint32_t baseLayer = 0,
+                             uint32_t layerCount = 1);
+
+  void TransitionImageLayout(VkImage image, VkFormat format,
+                             VkImageLayout oldLayout, VkImageLayout newLayout,
+                             uint32_t mipLevels, VkCommandBuffer commandBuffer,
+                             uint32_t baseLayer, uint32_t layerCount);
+
+  void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
+                   VkSampleCountFlagBits numSamples, VkFormat format,
+                   VkImageTiling tiling, VkImageUsageFlags usage,
+                   VkMemoryPropertyFlags properties, VkImage& image,
+                   VkDeviceMemory& imageMemory, VkImageCreateFlags flags = 0,
+                   uint32_t arrayLayers = 1);
+
+  Ref<ImageView> CreateImageView(
+      VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+      uint32_t mipLevels, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
+      uint32_t layer = 0, uint32_t layerCount = 1);
+
+  Ref<ImageView> CreateImageView(
+      Ref<AttachmentTexture> image,
+      VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
+      uint32_t layerCount = 1);
 
  private:
   void CreateVulkanInstance();
@@ -224,47 +281,6 @@ class Renderer {
 
   std::vector<const char*> GetRequiredExtensions();
   QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
-  void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                    VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                    VkDeviceMemory& bufferMemory);
-
-  void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-  void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-                         uint32_t height,
-                         VkDeviceSize baseOffset = 0,
-                         uint32_t layer = 0);
-
-  void TransitionImageLayout(VkImage image, VkFormat format,
-                             VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels,
-                             uint32_t baseLayer = 0,
-                             uint32_t layerCount = 1);
-
-  void TransitionImageLayout(VkImage image, VkFormat format,
-                             VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels, VkCommandBuffer commandBuffer,
-                             uint32_t baseLayer,
-                             uint32_t layerCount);
-
-  void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
-                   VkSampleCountFlagBits numSamples, VkFormat format,
-                   VkImageTiling tiling, VkImageUsageFlags usage,
-                   VkMemoryPropertyFlags properties, VkImage& image,
-                   VkDeviceMemory& imageMemory,
-                   VkImageCreateFlags flags = 0,
-                   uint32_t arrayLayers = 1);
-
-  Ref<ImageView> CreateImageView(VkImage image, VkFormat format,
-                              VkImageAspectFlags aspectFlags,
-                              uint32_t mipLevels,
-                              VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
-                              uint32_t layer = 0,
-                              uint32_t layerCount = 1);
-
-  Ref<ImageView> CreateImageView(Ref<AttachmentTexture> image,
-                                 VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
-                                 uint32_t layer = 0,
-                                 uint32_t layerCount = 1);
 
   VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates,
                                VkImageTiling tiling,
@@ -373,7 +389,8 @@ class Renderer {
   Ref<AttachmentTexture> m_PresentDepthStencil;
   std::vector<Ref<Framebuffer>> m_PresentFramebuffers;
 
-  VkSampler m_DefaultLinearSampler;
+  Ref<Sampler> m_DefaultLinearSampler;
+  Ref<Sampler> m_DefaultNearestSampler;
   VkSampler m_DepthSampler;
   Ref<Texture> m_BlankTexture;
   Ref<MemoryBuffer> m_FullscreenQuadVertexBuffer;
@@ -381,6 +398,8 @@ class Renderer {
 
   QueueFamilyIndices m_QueueFamilyIndices;
   SwapChainSupportDetails m_SwapChainDetails;
+  VkPhysicalDeviceProperties m_PhysicalDeviceProperties;
+  VkPhysicalDeviceFeatures m_PhysicalDeviceFeatures;
 };
 
 #ifdef VULKAN_VALIDATION

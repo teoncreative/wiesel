@@ -112,9 +112,4 @@ struct RectangleTransformComponent  : public IComponent{
   bool IsDriven = true;
 };
 
-struct Texture2DComponent : public IComponent {
- public:
-
-};
-
 }  // namespace Wiesel

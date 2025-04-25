@@ -10,6 +10,7 @@
 //
 
 #include "rendering/w_renderer.hpp"
+#include <rendering/w_sampler.hpp>
 
 #include "util/imgui/imgui_spectrum.hpp"
 #include "util/w_spirv.hpp"
@@ -404,7 +405,7 @@ Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& textureProps,
   GenerateMipmaps(texture->m_Image, VK_FORMAT_R8G8B8A8_UNORM, texture->m_Width,
                   texture->m_Height, texture->m_MipLevels);
 
-  texture->m_Sampler = CreateTextureSampler(texture->m_MipLevels, samplerProps);
+  texture->m_Sampler = CreateTextureSampler(1, samplerProps);
   texture->m_ImageView =
       CreateImageView(texture->m_Image, format, VK_IMAGE_ASPECT_COLOR_BIT,
                       texture->m_MipLevels);
@@ -649,69 +650,32 @@ void Renderer::DestroyTexture(Texture& texture) {
   texture.m_IsAllocated = false;
 }
 
-// todo reuse samplers
-VkSampler Renderer::CreateTextureSampler(uint32_t mipLevels,
-                                         SamplerProps samplerProps) {
+VkSampler Renderer::CreateTextureSampler(uint32_t mipLevels, const SamplerProps& props) {
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = samplerProps.MagFilter;
-  samplerInfo.minFilter = samplerProps.MinFilter;
-  // * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
-  // * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
-  // * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: Take the color of the edge closest to the coordinate beyond the image dimensions.
-  // * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
-  // * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
-  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  samplerInfo.magFilter = props.MagFilter;
+  samplerInfo.minFilter = props.MinFilter;
+  samplerInfo.addressModeU = props.AddressMode;
+  samplerInfo.addressModeV = props.AddressMode;
+  samplerInfo.addressModeW = props.AddressMode;
 
-  VkPhysicalDeviceProperties properties{};
-  vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
-
-  if (samplerProps.MaxAnisotropy <= 0) {
+  if (props.MaxAnisotropy <= 0) {
     samplerInfo.anisotropyEnable = VK_FALSE;
   } else {
     samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = std::min(
-        samplerProps.MaxAnisotropy, properties.limits.maxSamplerAnisotropy);
+    samplerInfo.maxAnisotropy = std::min(props.MaxAnisotropy, m_PhysicalDeviceProperties.limits.maxSamplerAnisotropy);
   }
-  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  samplerInfo.borderColor = props.BorderColor;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
   samplerInfo.compareEnable = VK_FALSE;
   samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  samplerInfo.minLod = 0.0f;  // Optional
   samplerInfo.maxLod = static_cast<float>(mipLevels);
-  samplerInfo.mipLodBias = 0.0f;  // Optional
 
   VkSampler sampler;
   WIESEL_CHECK_VKRESULT(
       vkCreateSampler(m_LogicalDevice, &samplerInfo, nullptr, &sampler));
-  return sampler;
-}
-
-VkSampler Renderer::CreateDepthSampler() {
-  VkSamplerCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  createInfo.maxAnisotropy = 1.0f;
-  createInfo.magFilter = VK_FILTER_LINEAR;
-  createInfo.minFilter = VK_FILTER_LINEAR;
-  createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-  createInfo.addressModeV = createInfo.addressModeU;
-  createInfo.addressModeW = createInfo.addressModeU;
-  createInfo.mipLodBias = 0.0f;
-  createInfo.maxAnisotropy = 1.0f;
-  createInfo.minLod = 0.0f;
-  createInfo.maxLod = 1.0f;
-  createInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-  //createInfo.compareEnable = VK_TRUE;
-  //createInfo.compareOp     = VK_COMPARE_OP_LESS_OR_EQUAL;
-
-  VkSampler sampler;
-  WIESEL_CHECK_VKRESULT(
-      vkCreateSampler(m_LogicalDevice, &createInfo, nullptr, &sampler));
   return sampler;
 }
 
@@ -1142,7 +1106,7 @@ Ref<DescriptorData> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
       imageInfo.sampler = m_BlankTexture->m_Sampler;
     } else {
       imageInfo.imageView = camera.ShadowDepthViewArray->m_Handle;
-      imageInfo.sampler = m_DefaultLinearSampler;
+      imageInfo.sampler = m_DefaultLinearSampler->m_Sampler;
     }
     imageInfos.emplace_back(imageInfo);
 
@@ -1252,7 +1216,7 @@ Ref<DescriptorData> Renderer::CreateDescriptors(
   VkDescriptorImageInfo imageInfo;
   imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   imageInfo.imageView = texture->m_ImageViews[0]->m_Handle;
-  imageInfo.sampler = texture->m_Samplers.empty() ? m_DefaultLinearSampler
+  imageInfo.sampler = texture->m_Samplers.empty() ? m_DefaultLinearSampler->m_Sampler
                                                   : texture->m_Samplers[0];
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1304,7 +1268,7 @@ Ref<DescriptorData> Renderer::CreateSkyboxDescriptors(Ref<Texture> texture) {
   imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   imageInfo.imageView = texture->m_ImageView->m_Handle;
   imageInfo.sampler =
-      texture->m_Sampler ? texture->m_Sampler : m_DefaultLinearSampler;
+      texture->m_Sampler ? texture->m_Sampler : m_DefaultLinearSampler->m_Sampler;
 
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1528,6 +1492,8 @@ void Renderer::PickPhysicalDevice() {
   // Check if the best candidate is suitable at all
   if (candidates.rbegin()->first > 0) {
     m_PhysicalDevice = candidates.rbegin()->second;
+    vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_PhysicalDeviceProperties);
+    vkGetPhysicalDeviceFeatures(m_PhysicalDevice, &m_PhysicalDeviceFeatures);
     m_MsaaSamples = GetMaxUsableSampleCount();
     m_PreviousMsaaSamples = m_MsaaSamples;
   } else {
@@ -2117,8 +2083,20 @@ void Renderer::CreatePermanentResources() {
   m_FullscreenQuadIndexBuffer =
       Engine::GetRenderer()->CreateIndexBuffer(indices);
 
-  m_DefaultLinearSampler = CreateTextureSampler(1, {});
-  m_DepthSampler = CreateDepthSampler();
+  m_DefaultLinearSampler = CreateReference<Sampler>(1, SamplerProps{});
+  m_DefaultNearestSampler = CreateReference<Sampler>(1, SamplerProps{
+                                                        VK_FILTER_NEAREST,
+                                                        VK_FILTER_NEAREST,
+                                                        -1.0f
+                                                    });
+
+  m_DepthSampler = CreateTextureSampler(1, {
+                                               VK_FILTER_LINEAR,
+                                               VK_FILTER_LINEAR,
+                                               1.0f,
+                                               VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                               VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+                                           });
 }
 
 void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
@@ -2321,12 +2299,9 @@ void Renderer::GenerateMipmaps(VkImage image, VkFormat imageFormat,
 }
 
 VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
-  VkPhysicalDeviceProperties physicalDeviceProperties;
-  vkGetPhysicalDeviceProperties(m_PhysicalDevice, &physicalDeviceProperties);
-
   VkSampleCountFlags counts =
-      physicalDeviceProperties.limits.framebufferColorSampleCounts &
-      physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+      m_PhysicalDeviceProperties.limits.framebufferColorSampleCounts &
+      m_PhysicalDeviceProperties.limits.framebufferDepthSampleCounts;
   if (counts & VK_SAMPLE_COUNT_64_BIT) {
     return VK_SAMPLE_COUNT_64_BIT;
   }
