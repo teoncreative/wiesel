@@ -58,7 +58,7 @@ class SpriteAsset {
   SpriteType m_Type;
   glm::vec2 m_AtlasSize;
   Ref<SpriteTexture> m_Texture;
-  Ref<DescriptorData> m_Descriptors;
+  Ref<DescriptorSet> m_Descriptors;
   std::vector<Frame> m_Frames;
 };
 

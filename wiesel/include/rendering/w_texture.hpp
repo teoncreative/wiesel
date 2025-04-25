@@ -11,8 +11,9 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "util/w_utils.hpp"
+#include "w_pch.hpp"
+#include "w_sampler.hpp"
 
 namespace Wiesel {
 class ImageView;
@@ -154,24 +155,9 @@ enum TextureType {
 
 
 struct TextureProps {
-  TextureProps()
-      : Type(TextureTypeDiffuse),
-        GenerateMipmaps(true),
-        ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
-
-  TextureProps(TextureType type)
-      : Type(type),
-        GenerateMipmaps(true),
-        ImageFormat(VK_FORMAT_R8G8B8A8_UNORM) {}
-
-  TextureProps(TextureType type, bool generateMipmaps, VkFormat imageFormat)
-      : Type(type),
-        GenerateMipmaps(generateMipmaps),
-        ImageFormat(imageFormat) {}
-
-  TextureType Type;
-  bool GenerateMipmaps;
-  VkFormat ImageFormat;
+  TextureType Type = TextureTypeDiffuse;
+  bool GenerateMipmaps = true;
+  VkFormat ImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
   uint32_t Width;
   uint32_t Height;
 };
@@ -207,22 +193,18 @@ enum class AttachmentTextureType {
 };
 
 struct AttachmentTextureProps {
-  AttachmentTextureProps(uint32_t width, uint32_t height, AttachmentTextureType type, uint32_t count = 1, VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM,
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, bool sampled = false, uint32_t layerCount = 1)
-        : Width(width), Height(height), ImageCount(count), ImageFormat(imageFormat), Type(type), MsaaSamples(msaaSamples), Sampled(sampled), LayerCount(layerCount) {}
-
-  uint32_t Width;
-  uint32_t Height;
-  VkFormat ImageFormat;
-  AttachmentTextureType Type;
-  VkSampleCountFlagBits MsaaSamples;
-  uint32_t ImageCount;
-  uint32_t LayerCount;
-  bool Sampled;
-
+  uint32_t Width = 0;
+  uint32_t Height = 0;
+  AttachmentTextureType Type = AttachmentTextureType::Color;
+  uint32_t ImageCount = 1;
+  VkFormat ImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+  VkSampleCountFlagBits MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
+  bool Sampled = false;
+  uint32_t LayerCount = 1;
+  bool TransferDest = false;
 };
 
-class DescriptorData;
+class DescriptorSet;
 
 struct AttachmentTextureInfo {
   AttachmentTextureType Type;
@@ -234,7 +216,6 @@ struct AttachmentTextureInfo {
   VkAttachmentStoreOp StencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;*/
 };
 
-
 class AttachmentTexture {
  public:
   AttachmentTexture() = default;
@@ -243,13 +224,13 @@ class AttachmentTexture {
   AttachmentTextureType m_Type;
   std::vector<VkImage> m_Images;
   std::vector<Ref<ImageView>> m_ImageViews;
-  std::vector<VkSampler> m_Samplers;
+  std::vector<Ref<Sampler>> m_Samplers;
   std::vector<VkDeviceMemory> m_DeviceMemories;
   VkFormat m_Format;
   uint32_t m_Width;
   uint32_t m_Height;
   VkSampleCountFlagBits m_MsaaSamples;
-  Ref<DescriptorData> m_Descriptors;
+  Ref<DescriptorSet> m_Descriptors; // Deprecated, I'll move this
   VkImageAspectFlags m_AspectFlags;
   uint32_t m_MipLevels;
 

@@ -97,6 +97,7 @@ void DemoLayer::OnEvent(Event& event) {
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPress));
   dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
+  dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResize));
 }
 
 bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
@@ -112,6 +113,16 @@ bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
 }
 
 bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
+  return false;
+}
+
+bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
+  m_App.SubmitToMainThread([this]() {
+    for (const auto& entity : m_Scene->GetAllEntitiesWith<CameraComponent>()) {
+      CameraComponent& component = m_Scene->GetComponent<CameraComponent>(entity);
+      Engine::GetRenderer()->SetupCameraComponent(component);
+    }
+  });
   return false;
 }
 

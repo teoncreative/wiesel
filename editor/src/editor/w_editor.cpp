@@ -135,6 +135,10 @@ void EditorOverlay::OnImGuiRender() {
                         Engine::GetRenderer()->IsWireframeEnabledPtr())) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
+    if (ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
+                        Engine::GetRenderer()->IsSSAOEnabledPtr())) {
+      Engine::GetRenderer()->SetRecreatePipeline(true);
+    }
     if (ImGui::Button("Recreate Pipeline")) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
@@ -200,16 +204,12 @@ void EditorOverlay::OnImGuiRender() {
   }
   ImGui::End();
   static bool viewportOpen = true;
-  Ref<AttachmentTexture> texture = Engine::GetRenderer()->GetCompositeColorResolveImage();
   if (ImGui::Begin("Viewport", &viewportOpen)) {
-    if (!texture->m_Descriptors) {
-      texture->m_Descriptors = Engine::GetRenderer()->CreateDescriptors(texture);
-    }
     ImTextureID desc =
-        reinterpret_cast<ImTextureID>(texture->m_Descriptors->m_DescriptorSet);
+        reinterpret_cast<ImTextureID>(Engine::GetRenderer()->GetCameraData()->CompositeOutputDescriptor->m_DescriptorSet);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float imageAspect = (float)texture->m_Width / (float)texture->m_Height;
+    float imageAspect = (float)Engine::GetRenderer()->GetCameraData()->CompositeColorImage->m_Width / (float)Engine::GetRenderer()->GetCameraData()->CompositeColorImage->m_Height;
     float availAspect = avail.x / avail.y;
 
     ImVec2 drawSize;

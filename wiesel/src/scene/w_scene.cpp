@@ -225,34 +225,7 @@ bool Scene::Render() {
     if (!camera.IsEnabled) {
       continue;
     }
-    // Perhaps we could do this differently?
-    // At first, we had 3 variables to update, but now we have 18...
-    m_CurrentCamera->Position = cameraTransform.Position;
-    m_CurrentCamera->ViewMatrix = camera.ViewMatrix;
-    m_CurrentCamera->Projection = camera.Projection;
-    m_CurrentCamera->InvProjection = camera.InvProjection;
-    m_CurrentCamera->ViewportSize = camera.ViewportSize;
-    m_CurrentCamera->GeometryColorImage = camera.GeometryColorImage;
-    m_CurrentCamera->GeometryDepthStencil = camera.GeometryDepthStencil;
-    m_CurrentCamera->GeometryColorResolveImage = camera.GeometryColorResolveImage;
-    m_CurrentCamera->CompositeColorImage = camera.CompositeColorImage;
-    m_CurrentCamera->CompositeColorResolveImage = camera.CompositeColorResolveImage;
-    m_CurrentCamera->LightingColorImage = camera.LightingColorImage;
-    m_CurrentCamera->LightingColorResolveImage = camera.LightingColorResolveImage;
-    m_CurrentCamera->GeometryFramebuffer = camera.GeometryFramebuffer;
-    m_CurrentCamera->LightingFramebuffer = camera.LightingFramebuffer;
-    m_CurrentCamera->CompositeFramebuffer = camera.CompositeFramebuffer;
-    m_CurrentCamera->Descriptors = camera.Descriptors;
-    m_CurrentCamera->ShadowDescriptors = camera.ShadowDescriptors;
-    m_CurrentCamera->Planes = camera.Planes;
-    m_CurrentCamera->DoesShadowPass = camera.DoesShadowPass;
-    m_CurrentCamera->ShadowMapCascades = camera.ShadowMapCascades;
-    m_CurrentCamera->ShadowDepthViews = camera.ShadowDepthViews;
-    m_CurrentCamera->ShadowDepthStencil = camera.ShadowDepthStencil;
-    m_CurrentCamera->ShadowFramebuffers = camera.ShadowFramebuffers;
-    m_CurrentCamera->ShadowDepthViewArray = camera.ShadowDepthViewArray;
-    m_CurrentCamera->NearPlane = camera.NearPlane;
-    m_CurrentCamera->FarPlane = camera.FarPlane;
+    m_CurrentCamera->TransferFrom(camera, cameraTransform);
     renderer->SetCameraData(m_CurrentCamera);
     renderer->BeginFrame();
     if (camera.DoesShadowPass) {
@@ -283,23 +256,35 @@ bool Scene::Render() {
       renderer->DrawModel(model, transform, false);
     }
     renderer->EndGeometryPass();
+    if (renderer->IsSSAOEnabled()) {
+      renderer->BeginSSAOGenPass();
+      renderer->GetSSAOGenPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(renderer->GetSSAOGenPipeline(), {renderer->GetCameraData()->SSAOGenDescriptor,
+                                                                renderer->GetCameraData()->GlobalDescriptor});
+      renderer->EndSSAOGenPass();
+      renderer->BeginSSAOBlurPass();
+      renderer->GetSSAOBlurPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(renderer->GetSSAOBlurPipeline(), {renderer->GetCameraData()->SSAOOutputDescriptor});
+      renderer->EndSSAOBlurPass();
+    }
     renderer->BeginLightingPass();
     renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
     if (m_Skybox) {
       renderer->DrawSkybox(m_Skybox);
     }
     renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
-    renderer->DrawQuad(renderer->GetGeometryColorResolveImage(),
-                       renderer->GetLightingPipeline());
+    renderer->DrawFullscreen(renderer->GetLightingPipeline(), {renderer->GetCameraData()->GeometryOutputDescriptor,
+                                                               renderer->GetCameraData()->SSAOBlurOutputDescriptor,
+                                                              renderer->GetCameraData()->GlobalDescriptor});
     renderer->EndLightingPass();
     renderer->BeginCompositePass();
-    renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
-    renderer->DrawQuad(renderer->GetLightingColorResolveImage(),
-                       renderer->GetCompositePipeline());
+    renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
+    renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->LightingOutputDescriptor});
     renderer->EndCompositePass();
     renderer->EndFrame();
     hasCamera = true;
   }
+
   return hasCamera;
 }
 

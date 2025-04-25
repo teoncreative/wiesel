@@ -68,6 +68,10 @@ class Renderer {
   Ref<Texture> CreateTexture(const std::string& path,
                              const TextureProps& textureProps,
                              const SamplerProps& samplerProps);
+  Ref<Texture> CreateTexture(void* buffer,
+                             size_t sizePerPixel,
+                             const TextureProps& textureProps,
+                             const SamplerProps& samplerProps);
   Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
                                     const TextureProps& textureProps,
                                     const SamplerProps& samplerProps);
@@ -77,23 +81,24 @@ class Renderer {
   Ref<AttachmentTexture> CreateAttachmentTexture(
       const AttachmentTextureProps& props);
 
+  void SetAttachmentTextureBuffer(Ref<AttachmentTexture> texture, void* buffer,
+                                  size_t sizePerPixel);
+
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
-  Ref<DescriptorData> CreateMeshDescriptors(Ref<UniformBuffer> uniformBuffer,
+  Ref<DescriptorSet> CreateMeshDescriptors(Ref<UniformBuffer> uniformBuffer,
                                             Ref<Material> material);
 
-  Ref<DescriptorData> CreateShadowMeshDescriptors(
+  Ref<DescriptorSet> CreateShadowMeshDescriptors(
       Ref<UniformBuffer> uniformBuffer, Ref<Material> material);
 
-  Ref<DescriptorData> CreateGlobalDescriptors(CameraComponent& camera);
-  Ref<DescriptorData> CreateShadowGlobalDescriptors(CameraComponent& camera);
+  Ref<DescriptorSet> CreateGlobalDescriptors(CameraComponent& camera);
+  Ref<DescriptorSet> CreateShadowGlobalDescriptors(CameraComponent& camera);
 
-  Ref<DescriptorData> CreateDescriptors(Ref<AttachmentTexture> texture);
-  Ref<DescriptorData> CreateSkyboxDescriptors(Ref<Texture> texture);
+  Ref<DescriptorSet> CreateDescriptors(Ref<AttachmentTexture> texture);
+  Ref<DescriptorSet> CreateSkyboxDescriptors(Ref<Texture> texture);
 
-  void DestroyDescriptors(DescriptorData& descriptorPool);
-
-  void DestroyDescriptorLayout(DescriptorLayout& layout);
+  void DestroyDescriptorLayout(DescriptorSetLayout& layout);
 
   void RecreatePipeline(Ref<Pipeline> pipeline);
 
@@ -112,6 +117,10 @@ class Renderer {
   void SetWireframeEnabled(bool value);
   WIESEL_GETTER_FN bool IsWireframeEnabled();
   WIESEL_GETTER_FN bool* IsWireframeEnabledPtr();
+
+  void SetSSAOEnabled(bool value);
+  WIESEL_GETTER_FN bool IsSSAOEnabled();
+  WIESEL_GETTER_FN bool* IsSSAOEnabledPtr();
 
   void SetRecreatePipeline(bool value);
   WIESEL_GETTER_FN bool IsRecreatePipeline();
@@ -138,19 +147,9 @@ class Renderer {
     return m_SwapChainImageFormat;
   }
 
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetGeometryColorResolveImage()
+  WIESEL_GETTER_FN const Ref<CameraData> GetCameraData()
       const {
-    return m_Camera->GeometryColorResolveImage;
-  }
-
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetLightingColorResolveImage()
-      const {
-    return m_Camera->LightingColorResolveImage;
-  }
-
-  WIESEL_GETTER_FN const Ref<AttachmentTexture> GetCompositeColorResolveImage()
-      const {
-    return m_Camera->CompositeColorResolveImage;
+    return m_Camera;
   }
 
   WIESEL_GETTER_FN const VkPhysicalDeviceProperties GetPhysicalDeviceProperties() const {
@@ -165,12 +164,20 @@ class Renderer {
     return m_SkyboxPipeline;
   }
 
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOGenPipeline() const {
+    return m_SSAOGenPipeline;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurPipeline() const {
+    return m_SSAOBlurPipeline;
+  }
+
   WIESEL_GETTER_FN const Ref<Pipeline> GetLightingPipeline() const {
     return m_LightingPipeline;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetCompositePipeline() const {
-    return m_LightingPipeline;
+    return m_CompositePipeline;
   }
 
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
@@ -188,7 +195,7 @@ class Renderer {
                  bool shadowPass);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform, bool shadowPass);
   void DrawSkybox(Ref<Skybox> skybox);
-  void DrawQuad(Ref<AttachmentTexture> texture, Ref<Pipeline> pipeline);
+  void DrawFullscreen(Ref<Pipeline> pipeline, std::initializer_list<Ref<DescriptorSet>> descriptors);
 
   void BeginRender();
   void BeginFrame();
@@ -196,6 +203,10 @@ class Renderer {
   void EndShadowPass();
   void BeginGeometryPass();
   void EndGeometryPass();
+  void BeginSSAOGenPass();
+  void EndSSAOGenPass();
+  void BeginSSAOBlurPass();
+  void EndSSAOBlurPass();
   void BeginLightingPass();
   void EndLightingPass();
   void BeginCompositePass();
@@ -353,19 +364,26 @@ class Renderer {
   LightsUniformData m_LightsUniformData;
   Ref<UniformBuffer> m_CameraUniformBuffer;
   Ref<UniformBuffer> m_ShadowCameraUniformBuffer;
+  Ref<UniformBuffer> m_SSAOKernelUniformBuffer;
   CameraUniformData m_CameraUniformData;
-  ShadowCameraUniformData m_ShadowCameraUniformData;
+  ShadowMapMatricesUniformData m_ShadowCameraUniformData;
+  SSAOKernelUniformData m_SSAOKernelUniformData;
   bool m_EnableWireframe;
+  bool m_EnableSSAO;
   bool m_RecreatePipeline;
   bool m_RecreateSwapChain;
 
   Ref<CameraData> m_Camera;
   glm::vec2 m_ViewportSize;
 
-  Ref<DescriptorLayout> m_GeometryMeshDescriptorLayout;
-  Ref<DescriptorLayout> m_ShadowMeshDescriptorLayout;
-  Ref<DescriptorLayout> m_GlobalDescriptorLayout;
-  Ref<DescriptorLayout> m_GlobalShadowDescriptorLayout;
+  Ref<DescriptorSetLayout> m_GeometryMeshDescriptorLayout;
+  Ref<DescriptorSetLayout> m_ShadowMeshDescriptorLayout;
+  Ref<DescriptorSetLayout> m_GlobalDescriptorLayout;
+  Ref<DescriptorSetLayout> m_GlobalShadowDescriptorLayout;
+  Ref<DescriptorSetLayout> m_SSAOGenDescriptorLayout;
+  Ref<DescriptorSetLayout> m_SSAOBlurDescriptorLayout;
+  Ref<DescriptorSetLayout> m_SSAOOutputDescriptorLayout;
+  Ref<DescriptorSetLayout> m_GeometryOutputDescriptorLayout;
 
   Ref<RenderPass> m_GeometryRenderPass;
   Ref<Pipeline> m_GeometryPipeline;
@@ -375,15 +393,21 @@ class Renderer {
   Ref<ShadowPipelinePushConstant> m_ShadowPipelinePushConstant;
 
   Ref<RenderPass> m_LightingRenderPass;
-  Ref<DescriptorLayout> m_SkyboxDescriptorLayout;
+  Ref<DescriptorSetLayout> m_SkyboxDescriptorLayout;
   Ref<Pipeline> m_SkyboxPipeline;
   Ref<Pipeline> m_LightingPipeline;
+
+  Ref<RenderPass> m_SSAOGenRenderPass;
+  Ref<Pipeline> m_SSAOGenPipeline;
+
+  Ref<RenderPass> m_SSAOBlurRenderPass;
+  Ref<Pipeline> m_SSAOBlurPipeline;
 
   Ref<RenderPass> m_CompositeRenderPass;
   Ref<Pipeline> m_CompositePipeline;
 
   Ref<RenderPass> m_PresentRenderPass;
-  Ref<DescriptorLayout> m_PresentDescriptorLayout;
+  Ref<DescriptorSetLayout> m_PresentDescriptorLayout;
   Ref<Pipeline> m_PresentPipeline;
   Ref<AttachmentTexture> m_PresentColorImage;
   Ref<AttachmentTexture> m_PresentDepthStencil;
@@ -395,6 +419,7 @@ class Renderer {
   Ref<Texture> m_BlankTexture;
   Ref<MemoryBuffer> m_FullscreenQuadVertexBuffer;
   Ref<MemoryBuffer> m_FullscreenQuadIndexBuffer;
+  Ref<AttachmentTexture> m_SSAONoise;
 
   QueueFamilyIndices m_QueueFamilyIndices;
   SwapChainSupportDetails m_SwapChainDetails;

@@ -17,7 +17,7 @@ class Skybox {
   ~Skybox();
 
   Ref<Texture> m_Texture;
-  Ref<DescriptorData> m_Descriptors;
+  Ref<DescriptorSet> m_Descriptors;
 };
 
 }
