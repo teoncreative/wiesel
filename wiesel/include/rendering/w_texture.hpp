@@ -152,19 +152,6 @@ enum TextureType {
   TextureTypeTransmission = 21
 };
 
-struct SamplerProps {
-  SamplerProps()
-      : MagFilter(VK_FILTER_LINEAR),
-        MinFilter(VK_FILTER_LINEAR),
-        MaxAnisotropy(-1.0f) {}
-
-  SamplerProps(VkFilter magFilter, VkFilter minFilter, float anisotropy)
-      : MagFilter(magFilter), MinFilter(minFilter), MaxAnisotropy(anisotropy) {}
-
-  VkFilter MagFilter;
-  VkFilter MinFilter;
-  float MaxAnisotropy;
-};
 
 struct TextureProps {
   TextureProps()
