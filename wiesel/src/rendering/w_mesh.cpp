@@ -66,7 +66,6 @@ void Mesh::Deallocate() {
   if (!IsAllocated) {
     return;
   }
-
   Mat = nullptr;
   UniformBuffer = nullptr;
   GeometryDescriptors = nullptr;

@@ -16,10 +16,10 @@
 
 namespace Wiesel {
 
-class DescriptorLayout {
+class DescriptorSetLayout {
  public:
-  explicit DescriptorLayout();
-  ~DescriptorLayout();
+  explicit DescriptorSetLayout();
+  ~DescriptorSetLayout();
 
   void AddBinding(VkDescriptorType type, VkShaderStageFlags flags);
   void Bake();

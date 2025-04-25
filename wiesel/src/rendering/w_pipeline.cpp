@@ -29,7 +29,7 @@ void Pipeline::SetRenderPass(Ref<RenderPass> pass) {
   m_RenderPass = pass;
 }
 
-void Pipeline::AddDescriptorLayout(Ref<DescriptorLayout> layout) {
+void Pipeline::AddInputLayout(Ref<DescriptorSetLayout> layout) {
   m_DescriptorLayouts.push_back(layout);
 }
 
@@ -38,7 +38,9 @@ void Pipeline::AddDynamicState(VkDynamicState state) {
 }
 
 void Pipeline::AddShader(Ref<Shader> shader) {
-  m_Shaders.push_back(shader);
+  m_Shaders.push_back({
+      .Shader = shader
+  });
 }
 
 void Pipeline::SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
@@ -77,13 +79,26 @@ void Pipeline::Bake() {
       Engine::GetRenderer()->GetLogicalDevice(), &pipelineLayoutInfo, nullptr, &m_Layout));
 
   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-  for (const auto& shader : m_Shaders) {
+  std::vector<VkSpecializationInfo> specializationInfos;
+  specializationInfos.reserve(m_Shaders.size());
+  uint32_t specializationIndex = 0;
+  for (const auto& info : m_Shaders) {
     VkPipelineShaderStageCreateInfo stageInfo{};
     stageInfo.sType =
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stageInfo.stage = GetShaderFlagBitsByType(shader->m_Properties.Type);
-    stageInfo.module = shader->m_ShaderModule;
-    stageInfo.pName = shader->m_Properties.Main.c_str();
+    stageInfo.stage = GetShaderFlagBitsByType(info.Shader->m_Properties.Type);
+    stageInfo.module = info.Shader->m_ShaderModule;
+    stageInfo.pName = info.Shader->m_Properties.Main.c_str();
+    if (info.Specialization.Data != nullptr) {
+      specializationInfos[specializationIndex] = VkSpecializationInfo{
+          .mapEntryCount = static_cast<uint32_t>(info.Specialization.MapEntries.size()),
+          .pMapEntries = info.Specialization.MapEntries.data(),
+          .dataSize = sizeof(info.Specialization.DataSize),
+          .pData = info.Specialization.Data
+      };
+      stageInfo.pSpecializationInfo = &specializationInfos[specializationIndex];
+      specializationIndex++;
+    }
     shaderStages.push_back(stageInfo);
   }
 
@@ -166,29 +181,35 @@ void Pipeline::Bake() {
   multisampling.sampleShadingEnable = VK_FALSE;
   multisampling.rasterizationSamples = m_Properties.m_MsaaSamples;
 
-  VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-  colorBlendAttachment.colorWriteMask =
-      VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-  if (m_Properties.m_EnableAlphaBlending) {
-    colorBlendAttachment.blendEnable = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-  } else {
-    colorBlendAttachment.blendEnable = VK_FALSE;
+  std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
+  for (const auto& item : m_RenderPass->m_Attachments) {
+    if (item.Type != AttachmentTextureType::Color && item.Type != AttachmentTextureType::Offscreen) {
+      continue;
+    }
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    if (m_Properties.m_EnableAlphaBlending) {
+      colorBlendAttachment.blendEnable = VK_TRUE;
+      colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+      colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+      colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    } else {
+      colorBlendAttachment.blendEnable = VK_FALSE;
+    }
+    colorBlendAttachments.push_back(colorBlendAttachment);
   }
-
   VkPipelineColorBlendStateCreateInfo colorBlending{};
   colorBlending.sType =
       VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
   colorBlending.logicOpEnable = VK_FALSE;
   colorBlending.logicOp = VK_LOGIC_OP_COPY;
-  colorBlending.attachmentCount = 1;
-  colorBlending.pAttachments = &colorBlendAttachment;
+  colorBlending.attachmentCount = colorBlendAttachments.size();
+  colorBlending.pAttachments = colorBlendAttachments.data();
 
   VkPipelineDepthStencilStateCreateInfo depthStencil{};
   depthStencil.sType =

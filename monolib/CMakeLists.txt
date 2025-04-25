@@ -18,7 +18,7 @@ if(WIN32)
     set(MONO_LIBRARIES ${MONO_ROOT}/lib/libmono-static-sgen.lib)
 else()
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(MONO REQUIRED mono-2.0-sgen)
+    pkg_check_modules(MONO REQUIRED mono-2)
 endif()
 
 message("Include dirs: ${MONO_INCLUDE_DIRS}")

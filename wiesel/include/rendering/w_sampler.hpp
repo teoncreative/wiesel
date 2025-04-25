@@ -5,6 +5,8 @@
 #ifndef WIESEL_SAMPLER_H
 #define WIESEL_SAMPLER_H
 
+#include "w_pch.hpp"
+
 namespace Wiesel {
 
 // * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
@@ -13,44 +15,11 @@ namespace Wiesel {
 // * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
 // * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
 struct SamplerProps {
-  SamplerProps()
-      :
-        MagFilter(VK_FILTER_LINEAR),
-        MinFilter(VK_FILTER_LINEAR),
-        MaxAnisotropy(-1.0f),
-        AddressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT),
-        BorderColor(VK_BORDER_COLOR_INT_OPAQUE_BLACK) {}
-
-  SamplerProps(VkFilter magFilter, VkFilter minFilter, float maxAnisotropy)
-      : MagFilter(magFilter),
-        MinFilter(minFilter),
-        MaxAnisotropy(maxAnisotropy),
-        AddressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT),
-        BorderColor(VK_BORDER_COLOR_INT_OPAQUE_BLACK) {}
-
-  SamplerProps(VkFilter magFilter, VkFilter minFilter, float maxAnisotropy,
-               VkSamplerAddressMode addressMode)
-      : MagFilter(magFilter),
-        MinFilter(minFilter),
-        MaxAnisotropy(maxAnisotropy),
-        AddressMode(addressMode),
-        BorderColor(VK_BORDER_COLOR_INT_OPAQUE_BLACK) {}
-
-  SamplerProps(VkFilter magFilter, VkFilter minFilter, float maxAnisotropy,
-               VkSamplerAddressMode addressMode,
-               VkBorderColor borderColor)
-      : MagFilter(magFilter),
-        MinFilter(minFilter),
-        MaxAnisotropy(maxAnisotropy),
-        AddressMode(addressMode),
-        BorderColor(borderColor) {}
-
-  uint32_t MipLevels;
-  VkFilter MagFilter;
-  VkFilter MinFilter;
-  float MaxAnisotropy;
-  VkSamplerAddressMode AddressMode;
-  VkBorderColor BorderColor;
+  VkFilter MagFilter = VK_FILTER_LINEAR;
+  VkFilter MinFilter = VK_FILTER_LINEAR;
+  float MaxAnisotropy = -1.0f;
+  VkSamplerAddressMode AddressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  VkBorderColor BorderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 };
 
 class Sampler {
@@ -60,6 +29,8 @@ class Sampler {
 
  private:
   friend class Renderer;
+  friend class DescriptorSet;
+
   VkSampler m_Sampler;
   uint32_t m_MipLevels;
   VkFilter m_MagFilter;

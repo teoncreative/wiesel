@@ -10,9 +10,10 @@ layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 rotationMatrix;
 } obj;
 
-layout(set = 1, binding = 0, std140) uniform CVPM {
-    mat4 lightViewProj[SHADOW_MAP_CASCADE_COUNT];
-} cvpm;
+layout(set = 1, binding = 0, std140) uniform ShadowMapMatrices {
+    mat4 viewProjectionMatrix[SHADOW_MAP_CASCADE_COUNT];
+    int enableShadows;
+} shadowMatrices;
 
 layout(push_constant) uniform Push {
     int cascadeIndex;
@@ -35,5 +36,5 @@ void main() {
 	outFlags = inFlags;
     vec4 worldPos4 = obj.modelMatrix * vec4(inVertexPosition, 1.0);
     // lightViewProj is projection * viewMatrix of the light
-    gl_Position = cvpm.lightViewProj[cascadeIndex] * worldPos4;
+    gl_Position = shadowMatrices.viewProjectionMatrix[cascadeIndex] * worldPos4;
 }

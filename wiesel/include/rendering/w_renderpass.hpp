@@ -47,8 +47,8 @@ class RenderPass {
   RenderPass(PassType passType);
   ~RenderPass();
 
-  void Attach(Ref<AttachmentTexture> ref);
-  void Attach(AttachmentTextureInfo&& info);
+  void AttachOutput(Ref<AttachmentTexture> ref);
+  void AttachOutput(AttachmentTextureInfo&& info);
 
   void Bake();
 
@@ -57,9 +57,11 @@ class RenderPass {
 
   Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent);
   Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<ImageView*> views, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> views, glm::vec2 extent);
 
   const VkRenderPass& GetVulkanHandle() const { return m_RenderPass; }
  private:
+  friend class Pipeline;
   PassType m_PassType;
   VkRenderPass m_RenderPass;
   std::vector<AttachmentTextureInfo> m_Attachments;

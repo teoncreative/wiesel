@@ -34,7 +34,7 @@ layout(location = 4) out vec3 outTangent;
 layout(location = 5) out vec3 outBiTangent;
 layout(location = 6) out uint outFlags;
 layout(location = 7) out vec3 outViewDir;
-layout(location = 8) out vec3 outViewPos;
+layout(location = 8) out vec3 outViewPos; // view-space pos
 layout(location = 9) out mat3 outTBN;
 
 void main() {

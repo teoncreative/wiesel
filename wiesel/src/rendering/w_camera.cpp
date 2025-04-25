@@ -119,10 +119,8 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     );
     lightOrthoMatrix[1][1] *= -1;
     // Store split distance and matrix in cascade
-    ShadowMapCascades[i].SplitDepth =
-        (NearPlane + splitDist * clipRange) * -1.0f;
+    ShadowMapCascades[i].SplitDepth = (NearPlane + splitDist * clipRange) * -1.0f;
     ShadowMapCascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
-
     lastSplitDist = cascadeSplits[i];
   }
 

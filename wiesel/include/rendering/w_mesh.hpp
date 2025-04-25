@@ -46,8 +46,8 @@ struct Mesh {
   Ref<UniformBuffer> UniformBuffer;
   Ref<Material> Mat;
 
-  Ref<DescriptorData> GeometryDescriptors;
-  Ref<DescriptorData> ShadowDescriptors;
+  Ref<DescriptorSet> GeometryDescriptors;
+  Ref<DescriptorSet> ShadowDescriptors;
 };
 
 struct Model {

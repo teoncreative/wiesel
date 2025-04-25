@@ -32,7 +32,7 @@ Sampler::Sampler(uint32_t mipLevels, const Wiesel::SamplerProps& props) {
   samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
 
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  samplerInfo.maxLod = static_cast<float>(props.MipLevels);
+  samplerInfo.maxLod = static_cast<float>(mipLevels);
 
   WIESEL_CHECK_VKRESULT(
       vkCreateSampler(Engine::GetRenderer()->GetLogicalDevice(), &samplerInfo, nullptr, &m_Sampler));
