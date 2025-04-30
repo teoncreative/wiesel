@@ -55,9 +55,9 @@ class RenderPass {
   void Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor);
   void End();
 
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent);
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<ImageView*> views, glm::vec2 extent);
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> views, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> outputAttachments, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<ImageView*> outputViews, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> outputViews, glm::vec2 extent);
 
   const VkRenderPass& GetVulkanHandle() const { return m_RenderPass; }
  private:

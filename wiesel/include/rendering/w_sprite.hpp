@@ -5,21 +5,20 @@
 #ifndef WIESEL_SPRITE_H
 #define WIESEL_SPRITE_H
 
-#include <w_engine.hpp>
-#include "rendering/w_descriptor.hpp"
-#include "util/w_utils.hpp"
 #include "w_pch.hpp"
+#include "rendering/w_descriptor.hpp"
+#include "rendering/w_buffer.hpp"
+#include "util/w_utils.hpp"
 #include "w_sampler.hpp"
 #include "w_texture.hpp"
+#include "scene/w_components.hpp"
 
 namespace Wiesel {
 
 struct SpriteTexture {
   VkImage Image;
-  Ref<ImageView> View;
   VkDeviceMemory DeviceMemory;
   VkFormat Format;
-  Ref<Sampler> Sampler;
   glm::ivec2 Size;
   uint32_t DataLength;
   VkImageAspectFlags AspectFlags;
@@ -27,7 +26,7 @@ struct SpriteTexture {
   ~SpriteTexture();
 };
 
-Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths, Ref<Sampler> sampler);
+Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths);
 
 enum SpriteType {
   SpriteTypeAtlas,
@@ -39,27 +38,30 @@ class SpriteAsset {
   SpriteAsset() = default;
   ~SpriteAsset();
 
+  void UpdateTransform(TransformComponent& transform);
+
  private:
   friend class Renderer;
-  friend class SpriteBuilderAtlas;
-  friend class SpriteBuilderArray;
+  friend class SpriteBuilder;
 
   struct Frame {
-    union {
-      uint32_t LayerIndex;    // for SpriteTypeArray
-      glm::vec4 UVRect;       // for SpriteTypeAtlas
-    };
+    glm::vec4 UVRect;
+    uint32_t InstanceId;
     float_t Duration;
+    Ref<ImageView> View;
+    Ref<DescriptorSet> Descriptor;
+    Ref<MemoryBuffer> VertexBuffer;
+    Ref<UniformBuffer> UniformBuffer;
 
-    Frame(uint32_t idx, float_t d = 0.0f) : LayerIndex(idx), Duration(d) {}
     Frame(const glm::vec4 &uv, float_t d = 0.0f) : UVRect(uv), Duration(d) {}
   };
 
   SpriteType m_Type;
   glm::vec2 m_AtlasSize;
   Ref<SpriteTexture> m_Texture;
-  Ref<DescriptorSet> m_Descriptors;
+  Ref<Sampler> m_Sampler;
   std::vector<Frame> m_Frames;
+  bool m_IsAllocated = false;
 };
 
 enum class AddFrameResult {
@@ -67,9 +69,9 @@ enum class AddFrameResult {
   UVSizeShouldBeLargerThanZero
 };
 
-class SpriteBuilderAtlas {
+class SpriteBuilder {
  public:
-  SpriteBuilderAtlas(const std::string& atlasPath, glm::vec2 atlasSize) : m_AtlasPath(atlasPath), m_AtlasSize(atlasSize) {
+  SpriteBuilder(const std::string& atlasPath, glm::vec2 atlasSize) : m_AtlasPath(atlasPath), m_AtlasSize(atlasSize) {
 
   }
 
@@ -78,39 +80,15 @@ class SpriteBuilderAtlas {
     m_FixedSize = true;
   }
 
-  AddFrameResult AddFrame(float_t durationSeconds, glm::vec2 uvPos, glm::vec2 uvSize = {0, 0}) {
-    if (m_FixedSize) {
-      uvSize = m_FixedUVSize;
-    }
-    if (uvSize.x <= 0 || uvSize.y <= 0) {
-      return AddFrameResult::UVSizeShouldBeLargerThanZero;
-    }
-    m_Frames.emplace_back(
-        glm::vec4{
-            uvPos,
-            uvSize
-        },
-        durationSeconds
-    );
-    return AddFrameResult::Success;
-  }
+  AddFrameResult AddFrame(float_t durationSeconds, glm::vec2 uvPos, glm::vec2 uvSize = {0, 0});
 
   void SetSampler(Ref<Sampler> sampler) {
       m_Sampler = sampler;
   }
 
-  Ref<SpriteAsset> Build() {
-    Ref<SpriteAsset> asset = CreateReference<SpriteAsset>();
-    asset->m_Type = SpriteTypeAtlas;
-    asset->m_Frames = m_Frames;
-    asset->m_AtlasSize = m_AtlasSize;
-    asset->m_Texture = LoadSpriteTexture({m_AtlasPath},
-                                         m_Sampler ? m_Sampler : Engine::GetRenderer()->GetDefaultLinearSampler());
-    // Todo descriptors
-    return asset;
-  }
+  Ref<SpriteAsset> Build();
  private:
-  bool m_FixedSize;
+  bool m_FixedSize = false;
   std::string m_AtlasPath;
   glm::vec2 m_AtlasSize;
   glm::vec2 m_FixedUVSize;
@@ -118,24 +96,17 @@ class SpriteBuilderAtlas {
   std::vector<SpriteAsset::Frame> m_Frames;
 };
 
-class SpriteBuilderArray {
- public:
-
-
- private:
-};
-
 class SpriteComponent {
  public:
-
- private:
+  friend class Renderer;
   Ref<SpriteAsset> m_AssetHandle;
-  uint32_t m_CurrentFrame;
-  float_t m_FrameTimer;
+  // TODO
   glm::vec2 m_Pivot;
   glm::vec4 m_Tint;
-  bool m_FlipX, m_FlipY;
-  uint8_t m_SortLayer;
+  uint32_t m_CurrentFrame = 0;
+  float_t m_FrameTimer = 0.0f;
+  bool m_FlipX = false, m_FlipY = false;
+  uint8_t m_SortLayer = 0;
 
 };
 

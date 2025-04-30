@@ -52,6 +52,7 @@ void RenderPass::AttachOutput(Ref<AttachmentTexture> attachment) {
 void RenderPass::AttachOutput(AttachmentTextureInfo&& info) {
   m_Attachments.push_back(info);
 }
+
 void RenderPass::Bake() {
   std::vector<VkAttachmentDescription> descriptions;
   std::vector<VkAttachmentReference> colorAttachmentRefs;
@@ -247,10 +248,10 @@ void RenderPass::End() {
 }
 
 // Change these to take span of Ref<ImageView> instead.
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> outputAttachments, glm::vec2 extent) {
   bool hasDepth = false;
   std::vector<VkImageView> views;
-  for (const auto& item : attachments) {
+  for (const auto& item : outputAttachments) {
     if (item->m_Type == AttachmentTextureType::DepthStencil && !hasDepth) {
       views.push_back(item->m_ImageViews[index]->m_Handle);
       hasDepth = true;
@@ -263,9 +264,9 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<Attachm
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> imageViews, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> outputViews, glm::vec2 extent) {
   std::vector<VkImageView> views;
-  for (const auto& item : imageViews) {
+  for (const auto& item : outputViews) {
     views.push_back(item->m_Handle);
   }
   // TODO check if views match the expected framebuffer attachment size
@@ -273,9 +274,9 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageVi
 }
 
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> imageViews, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> outputViews, glm::vec2 extent) {
   std::vector<VkImageView> views;
-  for (const auto& item : imageViews) {
+  for (const auto& item : outputViews) {
     views.push_back(item->m_Handle);
   }
   // TODO check if views match the expected framebuffer attachment size

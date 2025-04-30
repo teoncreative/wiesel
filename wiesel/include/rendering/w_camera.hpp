@@ -64,6 +64,8 @@ struct CameraComponent {
   Ref<AttachmentTexture> LightingColorImage;
   Ref<AttachmentTexture> LightingColorResolveImage;
 
+  Ref<AttachmentTexture> SpriteColorImage;
+
   Ref<AttachmentTexture> CompositeColorImage;
   Ref<AttachmentTexture> CompositeColorResolveImage;
 
@@ -71,6 +73,7 @@ struct CameraComponent {
   Ref<Framebuffer> SSAOGenFramebuffer;
   Ref<Framebuffer> SSAOBlurFramebuffer;
   Ref<Framebuffer> LightingFramebuffer;
+  Ref<Framebuffer> SpriteFramebuffer;
   Ref<Framebuffer> CompositeFramebuffer;
   Ref<DescriptorSet> GlobalDescriptor;
   Ref<DescriptorSet> ShadowDescriptor;
@@ -78,6 +81,7 @@ struct CameraComponent {
   Ref<DescriptorSet> SSAOOutputDescriptor;
   Ref<DescriptorSet> SSAOBlurOutputDescriptor;
   Ref<DescriptorSet> LightingOutputDescriptor;
+  Ref<DescriptorSet> SpriteOutputDescriptor;
   Ref<DescriptorSet> CompositeOutputDescriptor;
   Ref<DescriptorSet> SSAOGenDescriptor;
   FrustumPlanes Planes;
@@ -141,6 +145,8 @@ struct CameraData {
   Ref<AttachmentTexture> LightingColorImage;
   Ref<AttachmentTexture> LightingColorResolveImage;
 
+  Ref<AttachmentTexture> SpriteColorImage;
+
   Ref<AttachmentTexture> CompositeColorImage;
   Ref<AttachmentTexture> CompositeColorResolveImage;
 
@@ -148,6 +154,7 @@ struct CameraData {
   Ref<Framebuffer> SSAOGenFramebuffer;
   Ref<Framebuffer> SSAOBlurFramebuffer;
   Ref<Framebuffer> LightingFramebuffer;
+  Ref<Framebuffer> SpriteFramebuffer;
   Ref<Framebuffer> CompositeFramebuffer;
   Ref<DescriptorSet> GlobalDescriptor; // to draw geometry
   Ref<DescriptorSet> ShadowDescriptor; // to draw geometry to shadow pass
@@ -155,6 +162,7 @@ struct CameraData {
   Ref<DescriptorSet> SSAOOutputDescriptor; // to draw ssao pass output
   Ref<DescriptorSet> SSAOBlurOutputDescriptor; // to draw ssao blur pass output
   Ref<DescriptorSet> LightingOutputDescriptor; // to draw lighting pass output
+  Ref<DescriptorSet> SpriteOutputDescriptor; // to draw sprite pass output
   Ref<DescriptorSet> CompositeOutputDescriptor; // to draw composite pass output
   Ref<DescriptorSet>
       SSAOGenDescriptor; // used to render geometry pass output to ssao pass
@@ -198,6 +206,8 @@ struct CameraData {
     LightingColorImage = camera.LightingColorImage;
     LightingColorResolveImage = camera.LightingColorResolveImage;
 
+    SpriteColorImage = camera.SpriteColorImage;
+
     CompositeColorImage = camera.CompositeColorImage;
     CompositeColorResolveImage = camera.CompositeColorResolveImage;
 
@@ -205,6 +215,7 @@ struct CameraData {
     SSAOGenFramebuffer = camera.SSAOGenFramebuffer;
     SSAOBlurFramebuffer = camera.SSAOBlurFramebuffer;
     LightingFramebuffer = camera.LightingFramebuffer;
+    SpriteFramebuffer = camera.SpriteFramebuffer;
     CompositeFramebuffer = camera.CompositeFramebuffer;
     GlobalDescriptor = camera.GlobalDescriptor;
     ShadowDescriptor = camera.ShadowDescriptor;
@@ -212,6 +223,7 @@ struct CameraData {
     SSAOOutputDescriptor = camera.SSAOOutputDescriptor;
     SSAOBlurOutputDescriptor = camera.SSAOBlurOutputDescriptor;
     LightingOutputDescriptor = camera.LightingOutputDescriptor;
+    SpriteOutputDescriptor = camera.SpriteOutputDescriptor;
     CompositeOutputDescriptor = camera.CompositeOutputDescriptor;
     SSAOGenDescriptor = camera.SSAOGenDescriptor;
     Planes = camera.Planes;

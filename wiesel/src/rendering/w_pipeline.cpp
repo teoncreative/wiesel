@@ -44,7 +44,13 @@ void Pipeline::AddShader(Ref<Shader> shader) {
 }
 
 void Pipeline::SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
-   m_VertexInputBindingDescription = inputBindingDescription;
+  m_VertexInputBindingDescriptions = {inputBindingDescription};
+  m_VertexAttributeDescriptions = attributeDescriptions;
+  m_HasVertexBinding = true;
+}
+
+void Pipeline::SetVertexData(std::vector<VkVertexInputBindingDescription> inputBindingDescriptions, std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
+   m_VertexInputBindingDescriptions = inputBindingDescriptions;
    m_VertexAttributeDescriptions = attributeDescriptions;
    m_HasVertexBinding = true;
 }
@@ -55,12 +61,15 @@ void Pipeline::Bake() {
     vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), m_Layout, nullptr);
     m_IsAllocated = false;
   }
+
   std::vector<VkDescriptorSetLayout> layouts;
+  layouts.reserve(m_DescriptorLayouts.size());
   for (const auto& item : m_DescriptorLayouts) {
     layouts.push_back(item->m_Layout);
   }
 
   std::vector<VkPushConstantRange> pushConstants;
+  pushConstants.reserve(m_PushConstants.size());
   for (const auto& item : m_PushConstants) {
     pushConstants.push_back({
         .stageFlags = item.Flags,
@@ -119,8 +128,9 @@ void Pipeline::Bake() {
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
   if (m_HasVertexBinding) {
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &m_VertexInputBindingDescription;
+    vertexInputInfo.vertexBindingDescriptionCount =
+        static_cast<uint32_t>(m_VertexInputBindingDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = m_VertexInputBindingDescriptions.data();
     vertexInputInfo.vertexAttributeDescriptionCount =
         static_cast<uint32_t>(m_VertexAttributeDescriptions.size());
     vertexInputInfo.pVertexAttributeDescriptions = m_VertexAttributeDescriptions.data();

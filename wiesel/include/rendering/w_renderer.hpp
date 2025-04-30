@@ -24,6 +24,7 @@
 #include "rendering/w_framebuffer.hpp"
 #include "rendering/w_mesh.hpp"
 #include "rendering/w_texture.hpp"
+#include "rendering/w_sprite.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_lights.hpp"
 #include "util/w_color.hpp"
@@ -50,11 +51,12 @@ class Renderer {
 
   void Initialize(const RendererProperties&& props);
 
-  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex3D> vertices);
-  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<Vertex2DNoColor> vertices);
+  template<typename T>
+  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<T> vertices);
+
   void DestroyVertexBuffer(MemoryBuffer& buffer);
 
-  Ref<MemoryBuffer> CreateIndexBuffer(std::vector<Index> indices);
+  Ref<IndexBuffer> CreateIndexBuffer(std::vector<Index> indices);
   void DestroyIndexBuffer(MemoryBuffer& buffer);
 
   Ref<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
@@ -176,6 +178,10 @@ class Renderer {
     return m_LightingPipeline;
   }
 
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSpritePipeline() const {
+    return m_SpritePipeline;
+  }
+
   WIESEL_GETTER_FN const Ref<Pipeline> GetCompositePipeline() const {
     return m_CompositePipeline;
   }
@@ -188,12 +194,24 @@ class Renderer {
     return m_DefaultNearestSampler;
   }
 
+  WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadIndexBuffer() const {
+    return m_QuadIndexBuffer;
+  }
+  WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadVertexBuffer() const {
+    return m_QuadVertexBuffer;
+  }
+
+  WIESEL_GETTER_FN const Ref<DescriptorSetLayout> GetSpriteDrawDescriptorLayout() const {
+    return m_SpriteDrawDescriptorLayout;
+  }
+
   void SetViewport(VkExtent2D extent);
   void SetViewport(glm::vec2 extent);
 
   void DrawModel(ModelComponent& model, TransformComponent& transform,
                  bool shadowPass);
   void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform, bool shadowPass);
+  void DrawSprite(SpriteComponent& sprite, TransformComponent& transform);
   void DrawSkybox(Ref<Skybox> skybox);
   void DrawFullscreen(Ref<Pipeline> pipeline, std::initializer_list<Ref<DescriptorSet>> descriptors);
 
@@ -209,6 +227,8 @@ class Renderer {
   void EndSSAOBlurPass();
   void BeginLightingPass();
   void EndLightingPass();
+  void BeginSpritePass();
+  void EndSpritePass();
   void BeginCompositePass();
   void EndCompositePass();
   void EndFrame();
@@ -384,6 +404,7 @@ class Renderer {
   Ref<DescriptorSetLayout> m_SSAOBlurDescriptorLayout;
   Ref<DescriptorSetLayout> m_SSAOOutputDescriptorLayout;
   Ref<DescriptorSetLayout> m_GeometryOutputDescriptorLayout;
+  Ref<DescriptorSetLayout> m_SpriteDrawDescriptorLayout;
 
   Ref<RenderPass> m_GeometryRenderPass;
   Ref<Pipeline> m_GeometryPipeline;
@@ -403,6 +424,9 @@ class Renderer {
   Ref<RenderPass> m_SSAOBlurRenderPass;
   Ref<Pipeline> m_SSAOBlurPipeline;
 
+  Ref<RenderPass> m_SpriteRenderPass;
+  Ref<Pipeline> m_SpritePipeline;
+
   Ref<RenderPass> m_CompositeRenderPass;
   Ref<Pipeline> m_CompositePipeline;
 
@@ -415,10 +439,9 @@ class Renderer {
 
   Ref<Sampler> m_DefaultLinearSampler;
   Ref<Sampler> m_DefaultNearestSampler;
-  VkSampler m_DepthSampler;
   Ref<Texture> m_BlankTexture;
-  Ref<MemoryBuffer> m_FullscreenQuadVertexBuffer;
-  Ref<MemoryBuffer> m_FullscreenQuadIndexBuffer;
+  Ref<MemoryBuffer> m_QuadVertexBuffer;
+  Ref<IndexBuffer> m_QuadIndexBuffer;
   Ref<AttachmentTexture> m_SSAONoise;
 
   QueueFamilyIndices m_QueueFamilyIndices;

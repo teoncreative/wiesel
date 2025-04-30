@@ -9,12 +9,12 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-class Image {
+/*class Image {
  public:
   Image();
   ~Image();
 
   VkImage m_Image;
-};
+};*/
 }
 #endif  //WIESEL_IMAGE_H
