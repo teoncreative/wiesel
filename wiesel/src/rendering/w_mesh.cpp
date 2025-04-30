@@ -32,16 +32,14 @@ Mesh::~Mesh() {
   Deallocate();
 }
 
-void Mesh::UpdateTransform(TransformComponent& transform) const {
+void Mesh::UpdateTransform(glm::mat4 transformMatrix, glm::mat3 normalMatrix) const {
   if (!IsAllocated) { [[unlikely]]
     return;
   }
 
   MatricesUniformData matrices{};
-  matrices.ModelMatrix = transform.TransformMatrix;
-  matrices.Scale = transform.Scale;
-  matrices.NormalMatrix = transform.NormalMatrix;
-  matrices.RotationMatrix = transform.RotationMatrix;
+  matrices.ModelMatrix = transformMatrix;
+  matrices.NormalMatrix = normalMatrix;
 
   memcpy(UniformBuffer->m_Data, &matrices, sizeof(MatricesUniformData));
 }
@@ -66,7 +64,6 @@ void Mesh::Deallocate() {
   if (!IsAllocated) {
     return;
   }
-
   Mat = nullptr;
   UniformBuffer = nullptr;
   GeometryDescriptors = nullptr;

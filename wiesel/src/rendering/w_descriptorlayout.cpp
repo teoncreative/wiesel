@@ -14,15 +14,15 @@
 
 namespace Wiesel {
 
-DescriptorLayout::DescriptorLayout() {
+DescriptorSetLayout::DescriptorSetLayout() {
   m_Allocated = false;
 }
 
-DescriptorLayout::~DescriptorLayout() {
+DescriptorSetLayout::~DescriptorSetLayout() {
   Engine::GetRenderer()->DestroyDescriptorLayout(*this);
 }
 
-void DescriptorLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags flags) {
+void DescriptorSetLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags flags) {
   m_Bindings.push_back({
       .Index = static_cast<uint32_t>(m_Bindings.size()),
       .Type = type,
@@ -30,7 +30,7 @@ void DescriptorLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags flag
   });
 }
 
-void DescriptorLayout::Bake() {
+void DescriptorSetLayout::Bake() {
   if (m_Allocated) {
     return; // todo error or destroy
   }

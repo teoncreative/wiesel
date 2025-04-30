@@ -21,6 +21,9 @@
 namespace Wiesel {
 
 #define WIESEL_SHADOW_CASCADE_COUNT 4
+#define WIESEL_SSAO_KERNEL_SIZE 24
+#define WIESEL_SSAO_RADIUS 0.5
+#define WIESEL_SSAO_NOISE_DIM 8
 #define WIESEL_SHADOWMAP_DIM 4096
 
 std::string GetNameFromVulkanResult(VkResult errorCode);
@@ -42,8 +45,9 @@ struct SwapChainSupportDetails {
 
 enum BakeResult { SUCCESS };
 
-
 using Index = uint32_t;
+
+
 
 enum Vertex3DFlag {
   VertexFlagHasTexture = BIT(0),
@@ -78,57 +82,24 @@ struct Vertex3D {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Pos)});
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Pos)});
     attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Color)});
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Color)});
     attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, UV)});
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex3D, UV)});
     attributeDescriptions.push_back(
-        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Normal)});
+        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Normal)});
     attributeDescriptions.push_back(
-        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Tangent)});
+        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Tangent)});
     attributeDescriptions.push_back(
-        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, BiTangent)});
+        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, BiTangent)});
     attributeDescriptions.push_back(
-        {6, 0, VK_FORMAT_R32_UINT, offsetof(Vertex3D, Flags)});
+        {6, 0, VK_FORMAT_R32_UINT, (uint32_t) offsetof(Vertex3D, Flags)});
 
     return attributeDescriptions;
   }
 
   bool operator==(const Vertex3D& other) const {
-    return Pos == other.Pos && Color == other.Color && UV == other.UV;
-  }
-};
-
-struct Vertex2D {
-  glm::vec2 Pos;
-  glm::vec4 Color;
-  glm::vec2 UV;
-
-  static VkVertexInputBindingDescription GetBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex2D);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-  }
-
-  static std::vector<VkVertexInputAttributeDescription>
-  GetAttributeDescriptions() {
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-
-    attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, Pos)});
-    attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, Color)});
-    attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, UV)});
-
-    return attributeDescriptions;
-  }
-
-  bool operator==(const Vertex2D& other) const {
     return Pos == other.Pos && Color == other.Color && UV == other.UV;
   }
 };
@@ -151,9 +122,9 @@ struct Vertex2DNoColor {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2DNoColor, Pos)});
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex2DNoColor, Pos)});
     attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2DNoColor, UV)});
+        {1, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex2DNoColor, UV)});
 
     return attributeDescriptions;
   }
@@ -163,48 +134,39 @@ struct Vertex2DNoColor {
   }
 };
 
+struct VertexSprite {
+  glm::vec2 UV;
 
-struct Vertex3DShadow {
-  glm::vec3 Pos;
+  static std::vector<VkVertexInputBindingDescription> GetBindingDescriptions() {
+    std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
 
-  static VkVertexInputBindingDescription GetBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex2DNoColor);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    bindingDescriptions.push_back(
+        {0, sizeof(VertexSprite), VK_VERTEX_INPUT_RATE_VERTEX});
 
-    return bindingDescription;
+    return bindingDescriptions;
   }
 
-  static std::vector<VkVertexInputAttributeDescription>
-  GetAttributeDescriptions() {
+  static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3DShadow, Pos)});
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(VertexSprite, UV)});
 
     return attributeDescriptions;
   }
 
-  bool operator==(const Vertex3DShadow& other) const {
-    return Pos == other.Pos;
-  }
-};
-
-struct vertex_hash {
-  std::size_t operator()(const Wiesel::Vertex3D& vertex) const {
-    auto posHash = std::hash<glm::vec3>{}(vertex.Pos);
-    auto colorHash = std::hash<glm::vec3>{}(vertex.Color);
-    auto texHash = std::hash<glm::vec2>{}(vertex.UV);
-    return ((posHash ^ (colorHash << 1)) >> 1) ^ (texHash << 1);
+  bool operator==(const VertexSprite& other) const {
+    return UV == other.UV;
   }
 };
 
 struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat4 ModelMatrix;
-  alignas(16) glm::vec3 Scale;
   alignas(16) glm::mat3 NormalMatrix;
-  alignas(16) glm::mat4 RotationMatrix;
+};
+
+struct alignas(16) SpriteUniformData {
+  alignas(16) glm::mat4 ModelMatrix;
 };
 
 struct alignas(16) CameraUniformData {
@@ -216,11 +178,34 @@ struct alignas(16) CameraUniformData {
   float FarPlane;
   float _pad1[2];
   glm::vec4 CascadeSplits;
+  uint32_t EnableSSAO;
 };
 
-struct alignas(16) ShadowCameraUniformData {
-  alignas(16) glm::mat4 ViewProjMat[WIESEL_SHADOW_CASCADE_COUNT];
-  bool EnableShadows;
+struct alignas(16) ShadowMapMatricesUniformData {
+  alignas(16) glm::mat4 ViewProjectionMatrix[WIESEL_SHADOW_CASCADE_COUNT];
+  alignas(16) int32_t EnableShadows;
+};
+
+struct alignas(16) SSAOKernelUniformData {
+  alignas(16) glm::vec4 Samples[WIESEL_SSAO_KERNEL_SIZE];
+};
+
+struct SSAOSpecializationData {
+  uint32_t kernelSize = WIESEL_SSAO_KERNEL_SIZE;
+  float radius = WIESEL_SSAO_RADIUS;
+
+  std::vector<VkSpecializationMapEntry> GetSpecializationMapEntries() {
+    std::vector<VkSpecializationMapEntry> entries;
+    entries.push_back(VkSpecializationMapEntry{
+        .constantID = 0,
+        .offset = (uint32_t)offsetof(SSAOSpecializationData, kernelSize),
+        .size = sizeof(SSAOSpecializationData::kernelSize)});
+    entries.push_back(VkSpecializationMapEntry{
+        .constantID = 1,
+        .offset = (uint32_t)offsetof(SSAOSpecializationData, radius),
+        .size = sizeof(SSAOSpecializationData::radius)});
+    return entries;
+  }
 };
 
 template <typename T>
@@ -268,26 +253,27 @@ inline void TrimLeft(std::string& s) {
 
 #define WIESEL_UNIQUE_NAME(base) WIESEL_CONCAT(base, __LINE__)
 
-#define WIESEL_CHECK_VKRESULT_NAMED(f, name)                           \
-    do {                                                               \
-        VkResult name = (f);                                           \
-        if (name != VK_SUCCESS) {                                      \
-            std::cout << "Fatal : VkResult is \""                      \
-                      << Wiesel::GetNameFromVulkanResult(name) << "\" in " \
-                      << __FILE__ << " at line " << __LINE__ << "\n";  \
-            assert(name == VK_SUCCESS);                                \
-        }                                                              \
-    } while (0)                                                         \
+#define WIESEL_CHECK_VKRESULT_NAMED(f, name)                         \
+  do {                                                               \
+    VkResult name = (f);                                             \
+    if (name != VK_SUCCESS) {                                        \
+      std::cout << "Fatal : VkResult is \""                          \
+                << Wiesel::GetNameFromVulkanResult(name) << "\" in " \
+                << __FILE__ << " at line " << __LINE__ << "\n";      \
+      assert(name == VK_SUCCESS);                                    \
+    }                                                                \
+  } while (0)
 
-#define WIESEL_CHECK_VKRESULT(f) WIESEL_CHECK_VKRESULT_NAMED(f, WIESEL_UNIQUE_NAME(res))
+#define WIESEL_CHECK_VKRESULT(f) \
+  WIESEL_CHECK_VKRESULT_NAMED(f, WIESEL_UNIQUE_NAME(res))
 
 // https://github.com/TheCherno/Hazel
-#define WIESEL_BIND_FN(fn)                      \
+#define WIESEL_BIND_FN(fn)                                  \
   [this](auto&&... args) -> decltype(auto) {                \
     return this->fn(std::forward<decltype(args)>(args)...); \
   }
 
-#define WIESEL_BIND_GLOBAL_FN(fn)         \
+#define WIESEL_BIND_GLOBAL_FN(fn)                     \
   [](auto&&... args) -> decltype(auto) {              \
     return fn(std::forward<decltype(args)>(args)...); \
   }

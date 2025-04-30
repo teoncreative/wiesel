@@ -159,7 +159,7 @@ bool Engine::LoadTexture(Model& model, Ref<Mesh> mesh, aiMaterial* mat,
                     static_cast<TextureType>(type));
     } else {
       Ref<Texture> texture = Engine::GetRenderer()->CreateTexture(
-          textureFullPath, {static_cast<TextureType>(type)}, {});
+          textureFullPath, {static_cast<TextureType>(type)},{});
       Material::Set(mesh->Mat, texture, static_cast<TextureType>(type));
       model.Textures.insert(std::pair(textureFullPath, texture));
     }
