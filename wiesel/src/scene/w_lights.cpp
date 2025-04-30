@@ -20,35 +20,38 @@ glm::vec3 EulerToDirection(glm::vec3 euler) {
       glm::vec3(cos(pitch) * sin(yaw), sin(pitch), cos(pitch) * cos(yaw)));
 }
 
-void UpdateLight(LightsUniformData& lights, LightDirect& light,
-                 TransformComponent& transform) {
-  lights.DirectLights[lights.DirectLightCount].Direction = EulerToDirection(transform.Rotation);
-  lights.DirectLights[lights.PointLightCount].Base.Position = transform.Position;
-  lights.DirectLights[lights.DirectLightCount].Base.Color = light.Base.Color;
-  lights.DirectLights[lights.DirectLightCount].Base.Ambient =
-      light.Base.Ambient;
-  lights.DirectLights[lights.DirectLightCount].Base.Diffuse =
-      light.Base.Diffuse;
-  lights.DirectLights[lights.DirectLightCount].Base.Specular =
-      light.Base.Specular;
-  lights.DirectLights[lights.DirectLightCount].Base.Density =
-      light.Base.Density;
-  lights.DirectLightCount++;
+void UpdateLight(LightsUniformData& lights, const LightDirect& light,
+                 const TransformComponent& transform) {
+  // world position is the 4th column
+  glm::vec3 worldPos = glm::vec3(transform.TransformMatrix[3]);
+
+  glm::vec3 worldDir = glm::normalize(
+      glm::vec3(transform.TransformMatrix * glm::vec4(0,0,-1,0)));
+
+  LightDirect& dst = lights.DirectLights[lights.DirectLightCount++];
+  dst.Direction                    = worldDir;
+  dst.Base.Position                = worldPos;
+  dst.Base.Color                   = light.Base.Color;
+  dst.Base.Ambient                 = light.Base.Ambient;
+  dst.Base.Diffuse                 = light.Base.Diffuse;
+  dst.Base.Specular                = light.Base.Specular;
+  dst.Base.Density                 = light.Base.Density;
 }
 
-void UpdateLight(LightsUniformData& lights, LightPoint& light,
-                 TransformComponent& transform) {
-  lights.PointLights[lights.PointLightCount].Base.Position = transform.Position;
-  lights.PointLights[lights.PointLightCount].Base.Color = light.Base.Color;
-  lights.PointLights[lights.PointLightCount].Base.Ambient = light.Base.Ambient;
-  lights.PointLights[lights.PointLightCount].Base.Diffuse = light.Base.Diffuse;
-  lights.PointLights[lights.PointLightCount].Base.Specular =
-      light.Base.Specular;
-  lights.PointLights[lights.PointLightCount].Base.Density = light.Base.Density;
-  lights.PointLights[lights.PointLightCount].Constant = light.Constant;
-  lights.PointLights[lights.PointLightCount].Linear = light.Linear;
-  lights.PointLights[lights.PointLightCount].Exp = light.Exp;
-  lights.PointLightCount++;
+void UpdateLight(LightsUniformData& lights, const LightPoint& light,
+                 const TransformComponent& transform) {
+  glm::vec3 worldPos = glm::vec3(transform.TransformMatrix[3]);
+
+  LightPoint& dst = lights.PointLights[lights.PointLightCount++];
+  dst.Base.Position = worldPos;
+  dst.Base.Color    = light.Base.Color;
+  dst.Base.Ambient  = light.Base.Ambient;
+  dst.Base.Diffuse  = light.Base.Diffuse;
+  dst.Base.Specular = light.Base.Specular;
+  dst.Base.Density  = light.Base.Density;
+  dst.Constant      = light.Constant;
+  dst.Linear        = light.Linear;
+  dst.Exp           = light.Exp;
 }
 
 }  // namespace Wiesel

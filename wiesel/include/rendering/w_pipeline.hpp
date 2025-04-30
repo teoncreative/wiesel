@@ -41,10 +41,23 @@ struct Pipeline {
   ~Pipeline();
 
   void SetRenderPass(Ref<RenderPass> pass);
-  void AddDescriptorLayout(Ref<DescriptorLayout> layout);
+  void AddInputLayout(Ref<DescriptorSetLayout> layout);
   void AddDynamicState(VkDynamicState state);
   void AddShader(Ref<Shader> shader);
+  template<typename T>
+  void AddShader(Ref<Shader> shader, T* data, std::vector<VkSpecializationMapEntry> mapEntries) {
+    m_Shaders.push_back({
+        .Shader = shader,
+        .Specialization = {
+            .Data = data,
+            .DataSize = sizeof(*data),
+            .MapEntries = mapEntries
+        }
+    });
+  }
+
   void SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+  void SetVertexData(std::vector<VkVertexInputBindingDescription> inputBindingDescriptions, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   template<typename T>
   void AddPushConstant(Ref<T> ref, VkShaderStageFlags flags) {
@@ -59,16 +72,24 @@ struct Pipeline {
   void Bake();
 
   void Bind(PipelineBindPoint bindPoint);
-
+  struct SpecializationData {
+    std::vector<VkSpecializationMapEntry> MapEntries;
+    size_t DataSize;
+    void* Data;
+  };
+  struct ShaderInfo {
+    Ref<Shader> Shader;
+    SpecializationData Specialization;
+  };
   PipelineProperties m_Properties;
-  std::vector<Ref<Shader>> m_Shaders;
+  std::vector<ShaderInfo> m_Shaders;
   std::vector<VkDynamicState> m_DynamicStates;
   Ref<RenderPass> m_RenderPass;
-  std::vector<Ref<DescriptorLayout>> m_DescriptorLayouts;
+  std::vector<Ref<DescriptorSetLayout>> m_DescriptorLayouts;
   VkPipelineLayout m_Layout{};
   VkPipeline m_Pipeline{};
   bool m_HasVertexBinding = false;
-  VkVertexInputBindingDescription m_VertexInputBindingDescription;
+  std::vector<VkVertexInputBindingDescription> m_VertexInputBindingDescriptions;
   std::vector<VkVertexInputAttributeDescription> m_VertexAttributeDescriptions;
   std::vector<PushConstant> m_PushConstants;
   bool m_IsAllocated = false;

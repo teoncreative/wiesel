@@ -67,14 +67,4 @@ void TransformComponent::SetScale(float x, float y, float z) {
   IsChanged = true;
 }
 
-void TransformComponent::UpdateMatrices() {
-  glm::vec3 rotationDegrees = glm::radians(Rotation); // Convert degrees to radians
-
-  RotationMatrix = glm::toMat4(glm::quat(rotationDegrees));
-  TransformMatrix = glm::translate(glm::mat4(1.0f), Position) * RotationMatrix *
-                    glm::scale(glm::mat4(1.0f), Scale);
-
-  NormalMatrix = glm::inverseTranspose(glm::mat3(TransformMatrix));
-}
-
 }  // namespace Wiesel

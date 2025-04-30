@@ -98,8 +98,9 @@ class Scene {
 
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
-  void ApplyTransform(entt::entity parent, TransformComponent& childTransform);
-  TransformComponent ApplyTransform(entt::entity entity);
+  glm::mat4 MakeLocal(const TransformComponent& transform);
+  glm::mat4 GetWorldMatrix(entt::entity entity);
+  void UpdateMatrices(entt::entity entity);
   bool Render();
 
  private:

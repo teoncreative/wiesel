@@ -3,6 +3,7 @@ project(Wiesel)
 
 option(ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
 option(ENABLE_VULKAN_VALIDATION "Enables Vulkan validation layer" OFF)
+option(ENABLE_ID_BUFFER_PASS "Enables id buffer pass, specifically used for the editor" ON)
 
 if (UNIX)
     EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
@@ -96,6 +97,9 @@ endif()
 
 if (ENABLE_VULKAN_VALIDATION)
     target_compile_options(wiesel PUBLIC -DVULKAN_VALIDATION=1)
+endif()
+if (ENABLE_ID_BUFFER_PASS)
+    target_compile_options(wiesel PUBLIC -DID_BUFFER_PASS=1)
 endif()
 
 target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.hpp)

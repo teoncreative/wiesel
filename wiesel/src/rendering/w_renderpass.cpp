@@ -41,7 +41,7 @@ RenderPass::~RenderPass() {
   //Engine::GetRenderer()->DestroyRenderPass(*this);
 }
 
-void RenderPass::Attach(Ref<AttachmentTexture> attachment) {
+void RenderPass::AttachOutput(Ref<AttachmentTexture> attachment) {
   m_Attachments.push_back({
       .Type = attachment->m_Type,
       .Format = attachment->m_Format,
@@ -49,9 +49,10 @@ void RenderPass::Attach(Ref<AttachmentTexture> attachment) {
   });
 }
 
-void RenderPass::Attach(AttachmentTextureInfo&& info) {
+void RenderPass::AttachOutput(AttachmentTextureInfo&& info) {
   m_Attachments.push_back(info);
 }
+
 void RenderPass::Bake() {
   std::vector<VkAttachmentDescription> descriptions;
   std::vector<VkAttachmentReference> colorAttachmentRefs;
@@ -224,14 +225,17 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
   renderPassInfo.renderArea.extent.height = framebuffer->m_Extent.y;
 
   std::vector<VkClearValue> clearValues{};
-  if (m_PassType == PassType::Shadow) {
-    clearValues.resize(1);
-    clearValues[0].depthStencil = {1.0f, 0};
-  } else {
-    clearValues.resize(2);
-    clearValues[0].color = {{clearColor.Red, clearColor.Green,
-                             clearColor.Blue, clearColor.Alpha}};
-    clearValues[1].depthStencil = {1.0f, 0};
+  for (const auto& item : m_Attachments) {
+    if (item.Type == AttachmentTextureType::Offscreen || item.Type == AttachmentTextureType::Color) {
+      clearValues.push_back({
+          .color = {clearColor.Red, clearColor.Green,
+                    clearColor.Blue, clearColor.Alpha}
+      });
+    } else if (item.Type == AttachmentTextureType::DepthStencil) {
+      clearValues.push_back({
+          .depthStencil = {1.0f, 0}
+      });
+    }
   }
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
@@ -243,10 +247,11 @@ void RenderPass::End() {
   vkCmdEndRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> attachments, glm::vec2 extent) {
+// Change these to take span of Ref<ImageView> instead.
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> outputAttachments, glm::vec2 extent) {
   bool hasDepth = false;
   std::vector<VkImageView> views;
-  for (const auto& item : attachments) {
+  for (const auto& item : outputAttachments) {
     if (item->m_Type == AttachmentTextureType::DepthStencil && !hasDepth) {
       views.push_back(item->m_ImageViews[index]->m_Handle);
       hasDepth = true;
@@ -259,13 +264,22 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<Attachm
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> imageViews, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> outputViews, glm::vec2 extent) {
   std::vector<VkImageView> views;
-  for (const auto& item : imageViews) {
+  for (const auto& item : outputViews) {
     views.push_back(item->m_Handle);
   }
   // TODO check if views match the expected framebuffer attachment size
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
+
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> outputViews, glm::vec2 extent) {
+  std::vector<VkImageView> views;
+  for (const auto& item : outputViews) {
+    views.push_back(item->m_Handle);
+  }
+  // TODO check if views match the expected framebuffer attachment size
+  return CreateReference<Framebuffer>(views, extent, *this);
+}
 }  // namespace Wiesel

@@ -22,13 +22,10 @@ void CameraComponent::UpdateProjection() {
   IsAnyChanged = true;
 }
 
-void CameraComponent::UpdateView(glm::vec3& position, glm::vec3& rotation) {
-  glm::vec3 rotationDegrees =
-      glm::radians(rotation);  // Convert degrees to radians
-  glm::mat4 rotationMatrix = glm::toMat4(glm::quat(rotationDegrees));
-  InvViewMatrix = glm::translate(glm::mat4(1.0f), position) * rotationMatrix;
-  ViewMatrix = glm::inverse(InvViewMatrix);
-  IsAnyChanged = true;
+void CameraComponent::UpdateView(const glm::mat4& worldTransform) {
+  InvViewMatrix = worldTransform;
+  ViewMatrix    = glm::inverse(worldTransform);
+  IsAnyChanged  = true;
 }
 
 void CameraComponent::UpdateAll() {
@@ -119,10 +116,8 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     );
     lightOrthoMatrix[1][1] *= -1;
     // Store split distance and matrix in cascade
-    ShadowMapCascades[i].SplitDepth =
-        (NearPlane + splitDist * clipRange) * -1.0f;
+    ShadowMapCascades[i].SplitDepth = (NearPlane + splitDist * clipRange) * -1.0f;
     ShadowMapCascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
-
     lastSplitDist = cascadeSplits[i];
   }
 

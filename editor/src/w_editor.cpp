@@ -2,10 +2,10 @@
 // Created by Metehan Gezer on 18/04/2025.
 //
 
-#include "editor/w_editor.hpp"
-#include "script/w_scriptmanager.hpp"
+#include "w_editor.hpp"
 #include "imgui_internal.h"
 #include "scene/w_componentutil.hpp"
+#include "script/w_scriptmanager.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel::Editor {
@@ -29,6 +29,7 @@ void EditorOverlay::OnEvent(Wiesel::Event& event) {}
 
 static entt::entity SelectedEntity;
 static bool HasSelectedEntity = false;
+static ImGuizmo::OPERATION currentOp = ImGuizmo::TRANSLATE;
 static struct SceneHierarchyData {
   entt::entity MoveFrom = entt::null;
   entt::entity MoveTo = entt::null;
@@ -135,12 +136,25 @@ void EditorOverlay::OnImGuiRender() {
                         Engine::GetRenderer()->IsWireframeEnabledPtr())) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
+    if (ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
+                        Engine::GetRenderer()->IsSSAOEnabledPtr())) {
+      Engine::GetRenderer()->SetRecreatePipeline(true);
+    }
     if (ImGui::Button("Recreate Pipeline")) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
     if (ImGui::Button("Reload Scripts")) {
       ScriptManager::Reload();
     }
+  }
+  ImGui::End();
+
+  if (ImGui::Begin("Gizmo Tools")) {
+    if (ImGui::RadioButton("Translate", currentOp==ImGuizmo::TRANSLATE)) currentOp = ImGuizmo::TRANSLATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Rotate",    currentOp==ImGuizmo::ROTATE))    currentOp = ImGuizmo::ROTATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Scale",     currentOp==ImGuizmo::SCALE))     currentOp = ImGuizmo::SCALE;
   }
   ImGui::End();
 
@@ -200,16 +214,12 @@ void EditorOverlay::OnImGuiRender() {
   }
   ImGui::End();
   static bool viewportOpen = true;
-  Ref<AttachmentTexture> texture = Engine::GetRenderer()->GetCompositeColorResolveImage();
   if (ImGui::Begin("Viewport", &viewportOpen)) {
-    if (!texture->m_Descriptors) {
-      texture->m_Descriptors = Engine::GetRenderer()->CreateDescriptors(texture);
-    }
     ImTextureID desc =
-        reinterpret_cast<ImTextureID>(texture->m_Descriptors->m_DescriptorSet);
+        reinterpret_cast<ImTextureID>(Engine::GetRenderer()->GetCameraData()->CompositeOutputDescriptor->m_DescriptorSet);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float imageAspect = (float)texture->m_Width / (float)texture->m_Height;
+    float imageAspect = (float)Engine::GetRenderer()->GetCameraData()->CompositeColorImage->m_Width / (float)Engine::GetRenderer()->GetCameraData()->CompositeColorImage->m_Height;
     float availAspect = avail.x / avail.y;
 
     ImVec2 drawSize;
@@ -230,6 +240,36 @@ void EditorOverlay::OnImGuiRender() {
     std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(m_App.GetFPS()));
 
     ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+
+    ImGuizmo::SetRect(6, 6, drawSize.x, drawSize.y);
+
+    if (HasSelectedEntity) {
+      Ref<CameraData> cam = Engine::GetRenderer()->GetCameraData();
+      glm::mat4 view = cam->ViewMatrix;
+      glm::mat4 proj = cam->Projection;
+      proj[1][1] *= -1;
+      TransformComponent& transform = m_Scene->GetComponent<TransformComponent>(SelectedEntity);
+      glm::mat4& model = transform.TransformMatrix;
+      ImGuizmo::SetOrthographic(false);
+      ImGuizmo::SetDrawlist();
+      if (ImGuizmo::Manipulate(
+              glm::value_ptr(view),
+              glm::value_ptr(proj),
+              currentOp,
+              ImGuizmo::WORLD,
+              glm::value_ptr(model))) {
+        glm::vec3 translation, rotation, scale;
+        ImGuizmo::DecomposeMatrixToComponents(
+            glm::value_ptr(model),
+            glm::value_ptr(translation),
+            glm::value_ptr(rotation),
+            glm::value_ptr(scale));
+
+        transform.Position = translation;
+        transform.Rotation = rotation;
+        transform.Scale = scale;
+      }
+    }
   }
   ImGui::End();
 }

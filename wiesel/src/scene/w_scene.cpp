@@ -9,6 +9,7 @@
 //
 
 #include "scene/w_scene.hpp"
+#include <rendering/w_sprite.hpp>
 
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_renderer.hpp"
@@ -61,7 +62,7 @@ void Scene::OnUpdate(float_t deltaTime) {
   for (const auto& entity : m_Registry.view<TransformComponent>()) {
     auto& transform = m_Registry.get<TransformComponent>(entity);
     if (transform.IsChanged) {
-      transform.UpdateMatrices();
+      UpdateMatrices(entity);
       transform.IsChanged = false;
       // todo this is a bit hacky
       // set the camera as changed if transform has changed
@@ -76,26 +77,19 @@ void Scene::OnUpdate(float_t deltaTime) {
   lights.PointLightCount = 0;
   for (const auto& entity : m_Registry.view<LightDirectComponent>()) {
     auto& light = m_Registry.get<LightDirectComponent>(entity);
-    auto transform = ApplyTransform(entity);
+    auto& transform = m_Registry.get<TransformComponent>(entity);
     UpdateLight(lights, light.LightData, transform);
   }
   for (const auto& entity : m_Registry.view<LightPointComponent>()) {
     auto& light = m_Registry.get<LightPointComponent>(entity);
-    auto transform = ApplyTransform(entity);
+    auto& transform = m_Registry.get<TransformComponent>(entity);
     UpdateLight(lights, light.LightData, transform);
   }
 
   for (const auto& entity :
        m_Registry.view<CameraComponent, TransformComponent>()) {
     auto& camera = m_Registry.get<CameraComponent>(entity);
-    auto transform = m_Registry.get<TransformComponent>(entity);
-    if (m_Registry.any_of<TreeComponent>(entity)) {
-      auto& tree = m_Registry.get<TreeComponent>(entity);
-      if (tree.Parent != entt::null) {
-        ApplyTransform(tree.Parent, transform);
-      }
-      camera.IsPosChanged = true;
-    }
+    auto& transform = m_Registry.get<TransformComponent>(entity);
     if (!camera.IsEnabled) {
       continue;
     }
@@ -104,7 +98,7 @@ void Scene::OnUpdate(float_t deltaTime) {
       camera.IsViewChanged = false;
     }
     if (camera.IsPosChanged) {
-      camera.UpdateView(transform.Position, transform.Rotation);
+      camera.UpdateView(transform.TransformMatrix);
       camera.IsPosChanged = false;
     }
     if (camera.IsAnyChanged) {
@@ -189,30 +183,33 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   return false;
 }
 
-void Scene::ApplyTransform(entt::entity parent, TransformComponent& childTransform) {
-  auto& parentTransform = m_Registry.get<TransformComponent>(parent);
-  childTransform.Position += parentTransform.Position;
-  childTransform.Rotation += parentTransform.Rotation;
-  childTransform.Scale *= parentTransform.Scale;
-  childTransform.IsChanged = true;
+glm::mat4 Scene::MakeLocal(const Wiesel::TransformComponent& t) {
+  glm::vec3 rotRad = glm::radians(t.Rotation);
+  glm::mat4 R      = glm::toMat4(glm::quat(rotRad));
+  glm::mat4 T      = glm::translate(glm::mat4(1.0f), t.Position);
+  glm::mat4 Tp     = glm::translate(glm::mat4(1.0f), t.Pivot);
+  glm::mat4 Tn     = glm::translate(glm::mat4(1.0f), -t.Pivot);
+  glm::mat4 S      = glm::scale(glm::mat4(1.0f), t.Scale);
 
-  if (m_Registry.any_of<TreeComponent>(parent)) {
-    auto& tree = m_Registry.get<TreeComponent>(parent);
-    if (tree.Parent != entt::null) {
-      ApplyTransform(tree.Parent, childTransform);
-    }
-  }
+  // move to Position, shift to Pivot, rotate+scale, shift back
+  return T * Tp * R * S * Tn;
 }
 
-TransformComponent Scene::ApplyTransform(entt::entity entity) {
-  auto transform = m_Registry.get<TransformComponent>(entity);
-  if (m_Registry.any_of<TreeComponent>(entity)) {
-    auto& tree = m_Registry.get<TreeComponent>(entity);
-    if (tree.Parent != entt::null) {
-      ApplyTransform(tree.Parent, transform);
-    }
+glm::mat4 Scene::GetWorldMatrix(entt::entity entity) {
+  auto& transform = m_Registry.get<TransformComponent>(entity);
+  glm::mat4 local = MakeLocal(transform);
+
+  if (auto* tree = m_Registry.try_get<TreeComponent>(entity);
+      tree && tree->Parent != entt::null) {
+    return GetWorldMatrix(tree->Parent) * local;
   }
-  return transform;
+  return local;
+}
+
+void Scene::UpdateMatrices(entt::entity entity) {
+  auto& tc = m_Registry.get<TransformComponent>(entity);
+  tc.TransformMatrix = GetWorldMatrix(entity);
+  tc.NormalMatrix    = glm::inverseTranspose(glm::mat3(tc.TransformMatrix));
 }
 
 bool Scene::Render() {
@@ -225,34 +222,7 @@ bool Scene::Render() {
     if (!camera.IsEnabled) {
       continue;
     }
-    // Perhaps we could do this differently?
-    // At first, we had 3 variables to update, but now we have 18...
-    m_CurrentCamera->Position = cameraTransform.Position;
-    m_CurrentCamera->ViewMatrix = camera.ViewMatrix;
-    m_CurrentCamera->Projection = camera.Projection;
-    m_CurrentCamera->InvProjection = camera.InvProjection;
-    m_CurrentCamera->ViewportSize = camera.ViewportSize;
-    m_CurrentCamera->GeometryColorImage = camera.GeometryColorImage;
-    m_CurrentCamera->GeometryDepthStencil = camera.GeometryDepthStencil;
-    m_CurrentCamera->GeometryColorResolveImage = camera.GeometryColorResolveImage;
-    m_CurrentCamera->CompositeColorImage = camera.CompositeColorImage;
-    m_CurrentCamera->CompositeColorResolveImage = camera.CompositeColorResolveImage;
-    m_CurrentCamera->LightingColorImage = camera.LightingColorImage;
-    m_CurrentCamera->LightingColorResolveImage = camera.LightingColorResolveImage;
-    m_CurrentCamera->GeometryFramebuffer = camera.GeometryFramebuffer;
-    m_CurrentCamera->LightingFramebuffer = camera.LightingFramebuffer;
-    m_CurrentCamera->CompositeFramebuffer = camera.CompositeFramebuffer;
-    m_CurrentCamera->Descriptors = camera.Descriptors;
-    m_CurrentCamera->ShadowDescriptors = camera.ShadowDescriptors;
-    m_CurrentCamera->Planes = camera.Planes;
-    m_CurrentCamera->DoesShadowPass = camera.DoesShadowPass;
-    m_CurrentCamera->ShadowMapCascades = camera.ShadowMapCascades;
-    m_CurrentCamera->ShadowDepthViews = camera.ShadowDepthViews;
-    m_CurrentCamera->ShadowDepthStencil = camera.ShadowDepthStencil;
-    m_CurrentCamera->ShadowFramebuffers = camera.ShadowFramebuffers;
-    m_CurrentCamera->ShadowDepthViewArray = camera.ShadowDepthViewArray;
-    m_CurrentCamera->NearPlane = camera.NearPlane;
-    m_CurrentCamera->FarPlane = camera.FarPlane;
+    m_CurrentCamera->TransferFrom(camera, cameraTransform);
     renderer->SetCameraData(m_CurrentCamera);
     renderer->BeginFrame();
     if (camera.DoesShadowPass) {
@@ -261,41 +231,58 @@ bool Scene::Render() {
         for (const auto& entity :
              GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = m_Registry.get<ModelComponent>(entity);
+          auto& transform = m_Registry.get<TransformComponent>(entity);
           if (!model.Data.ReceiveShadows) {
             continue;
           }
-          // We do the transfer twice, one here and one under the geometry pass
-          // Maybe if we can find a way to do this more efficiently, that would be better
-          auto transform = ApplyTransform(entity);
           renderer->DrawModel(model, transform, true);
         }
         renderer->EndShadowPass();
       }
-    } else {
-      // we might want to clear the shadow stuff or somehow disable it for later on
     }
 
     renderer->BeginGeometryPass();
     for (const auto& entity :
          GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
       auto& model = m_Registry.get<ModelComponent>(entity);
-      auto transform = ApplyTransform(entity);
+      auto& transform = m_Registry.get<TransformComponent>(entity);
       renderer->DrawModel(model, transform, false);
     }
     renderer->EndGeometryPass();
+    if (renderer->IsSSAOEnabled()) {
+      renderer->BeginSSAOGenPass();
+      renderer->GetSSAOGenPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(renderer->GetSSAOGenPipeline(), {renderer->GetCameraData()->SSAOGenDescriptor,
+                                                                renderer->GetCameraData()->GlobalDescriptor});
+      renderer->EndSSAOGenPass();
+      renderer->BeginSSAOBlurPass();
+      renderer->GetSSAOBlurPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(renderer->GetSSAOBlurPipeline(), {renderer->GetCameraData()->SSAOOutputDescriptor});
+      renderer->EndSSAOBlurPass();
+    }
     renderer->BeginLightingPass();
     renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
     if (m_Skybox) {
       renderer->DrawSkybox(m_Skybox);
     }
     renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
-    renderer->DrawQuad(renderer->GetGeometryColorResolveImage(),
-                       renderer->GetLightingPipeline());
+    renderer->DrawFullscreen(renderer->GetLightingPipeline(), {renderer->GetCameraData()->GeometryOutputDescriptor,
+                                                               renderer->GetCameraData()->SSAOBlurOutputDescriptor,
+                                                              renderer->GetCameraData()->GlobalDescriptor});
     renderer->EndLightingPass();
+    renderer->BeginSpritePass();
+    renderer->GetSpritePipeline()->Bind(PipelineBindPointGraphics);
+    for (const auto& entity :
+         GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
+      auto& sprite = m_Registry.get<SpriteComponent>(entity);
+      auto& transform = m_Registry.get<TransformComponent>(entity);
+      renderer->DrawSprite(sprite, transform);
+    }
+    renderer->EndSpritePass();
     renderer->BeginCompositePass();
-    renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
-    renderer->DrawQuad(renderer->GetLightingColorResolveImage(),
-                       renderer->GetCompositePipeline());
+    renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
+    renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->LightingOutputDescriptor});
+    renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->SpriteOutputDescriptor});
     renderer->EndCompositePass();
     renderer->EndFrame();
     hasCamera = true;

@@ -89,16 +89,14 @@ struct TransformComponent : public IComponent {
 
   void SetScale(const glm::vec3& scale) { SetScale(scale.x, scale.y, scale.z); }
 
-  void UpdateMatrices();
-
   glm::vec3 Position = {0.0f, 0.0f, 0.0f};
   glm::vec3 Rotation = {0.0f, 0.0f, 0.0f};
   glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
+  glm::vec3 Pivot = {0.0f, 0.0f, 0.0f};
 
   bool IsChanged = true;
   glm::mat4 TransformMatrix = {};
   glm::mat3 NormalMatrix = {};
-  glm::mat4 RotationMatrix = {};
 };
 
 struct RectangleTransformComponent  : public IComponent{
@@ -110,11 +108,6 @@ struct RectangleTransformComponent  : public IComponent{
 
   bool IsChanged = true;
   bool IsDriven = true;
-};
-
-struct Texture2DComponent : public IComponent {
- public:
-
 };
 
 }  // namespace Wiesel
