@@ -1,10 +1,10 @@
 #version 450
 
-layout (binding = 0) uniform sampler2D samplerSSAO;
+layout(set = 0, binding = 0) uniform sampler2D samplerSSAO;
 
-layout (location = 0) in vec2 inUV;
+layout(location = 0) in vec2 inUV;
 
-layout (location = 0) out float outFragColor;
+layout(location = 0) out float outFragColor;
 
 void main() {
     const int blurRange = 2;

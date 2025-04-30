@@ -47,6 +47,8 @@ enum BakeResult { SUCCESS };
 
 using Index = uint32_t;
 
+
+
 enum Vertex3DFlag {
   VertexFlagHasTexture = BIT(0),
   VertexFlagHasNormalMap = BIT(1),
@@ -80,19 +82,19 @@ struct Vertex3D {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Pos)});
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Pos)});
     attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Color)});
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Color)});
     attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, UV)});
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex3D, UV)});
     attributeDescriptions.push_back(
-        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Normal)});
+        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Normal)});
     attributeDescriptions.push_back(
-        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, Tangent)});
+        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Tangent)});
     attributeDescriptions.push_back(
-        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, BiTangent)});
+        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, BiTangent)});
     attributeDescriptions.push_back(
-        {6, 0, VK_FORMAT_R32_UINT, offsetof(Vertex3D, Flags)});
+        {6, 0, VK_FORMAT_R32_UINT, (uint32_t) offsetof(Vertex3D, Flags)});
 
     return attributeDescriptions;
   }
@@ -120,9 +122,9 @@ struct Vertex2DNoColor {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2DNoColor, Pos)});
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex2DNoColor, Pos)});
     attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2DNoColor, UV)});
+        {1, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex2DNoColor, UV)});
 
     return attributeDescriptions;
   }
@@ -132,11 +134,41 @@ struct Vertex2DNoColor {
   }
 };
 
+struct VertexSprite {
+  glm::vec2 UV;
+
+  static std::vector<VkVertexInputBindingDescription> GetBindingDescriptions() {
+    std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+
+    bindingDescriptions.push_back(
+        {0, sizeof(VertexSprite), VK_VERTEX_INPUT_RATE_VERTEX});
+
+    return bindingDescriptions;
+  }
+
+  static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+
+    attributeDescriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(VertexSprite, UV)});
+
+    return attributeDescriptions;
+  }
+
+  bool operator==(const VertexSprite& other) const {
+    return UV == other.UV;
+  }
+};
+
 struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat4 ModelMatrix;
   alignas(16) glm::vec3 Scale;
   alignas(16) glm::mat3 NormalMatrix;
   alignas(16) glm::mat4 RotationMatrix;
+};
+
+struct alignas(16) SpriteUniformData {
+  alignas(16) glm::mat4 ModelMatrix;
 };
 
 struct alignas(16) CameraUniformData {

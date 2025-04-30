@@ -55,7 +55,9 @@ struct Pipeline {
         }
     });
   }
+
   void SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+  void SetVertexData(std::vector<VkVertexInputBindingDescription> inputBindingDescriptions, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   template<typename T>
   void AddPushConstant(Ref<T> ref, VkShaderStageFlags flags) {
@@ -87,7 +89,7 @@ struct Pipeline {
   VkPipelineLayout m_Layout{};
   VkPipeline m_Pipeline{};
   bool m_HasVertexBinding = false;
-  VkVertexInputBindingDescription m_VertexInputBindingDescription;
+  std::vector<VkVertexInputBindingDescription> m_VertexInputBindingDescriptions;
   std::vector<VkVertexInputAttributeDescription> m_VertexAttributeDescriptions;
   std::vector<PushConstant> m_PushConstants;
   bool m_IsAllocated = false;

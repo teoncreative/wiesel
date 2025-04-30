@@ -32,6 +32,14 @@ class MemoryBuffer {
   uint32_t m_Size;
 };
 
+class IndexBuffer : public MemoryBuffer {
+ public:
+  IndexBuffer() : MemoryBuffer(MemoryTypeIndexBuffer) {}
+  ~IndexBuffer() override {}
+
+  VkIndexType m_IndexType;
+};
+
 class UniformBuffer : public MemoryBuffer {
  public:
   UniformBuffer();

@@ -42,7 +42,7 @@ struct Mesh {
   // Render Data
   Ref<MemoryBuffer> VertexBuffer;
   Ref<MemoryBuffer> ShadowVertexBuffer;
-  Ref<MemoryBuffer> IndexBuffer;
+  Ref<IndexBuffer> IndexBuffer;
   Ref<UniformBuffer> UniformBuffer;
   Ref<Material> Mat;
 

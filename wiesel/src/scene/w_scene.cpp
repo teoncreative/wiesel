@@ -9,6 +9,7 @@
 //
 
 #include "scene/w_scene.hpp"
+#include <rendering/w_sprite.hpp>
 
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_renderer.hpp"
@@ -277,14 +278,23 @@ bool Scene::Render() {
                                                                renderer->GetCameraData()->SSAOBlurOutputDescriptor,
                                                               renderer->GetCameraData()->GlobalDescriptor});
     renderer->EndLightingPass();
+    renderer->BeginSpritePass();
+    renderer->GetSpritePipeline()->Bind(PipelineBindPointGraphics);
+    for (const auto& entity :
+         GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
+      auto& sprite = m_Registry.get<SpriteComponent>(entity);
+      auto transform = ApplyTransform(entity);
+      renderer->DrawSprite(sprite, transform);
+    }
+    renderer->EndSpritePass();
     renderer->BeginCompositePass();
     renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
     renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->LightingOutputDescriptor});
+    renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->SpriteOutputDescriptor});
     renderer->EndCompositePass();
     renderer->EndFrame();
-    hasCamera = true;
+    hasCamera = true;s
   }
-
   return hasCamera;
 }
 
