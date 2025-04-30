@@ -2,10 +2,10 @@
 // Created by Metehan Gezer on 18/04/2025.
 //
 
-#include "editor/w_editor.hpp"
-#include "script/w_scriptmanager.hpp"
+#include "w_editor.hpp"
 #include "imgui_internal.h"
 #include "scene/w_componentutil.hpp"
+#include "script/w_scriptmanager.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel::Editor {
@@ -29,6 +29,7 @@ void EditorOverlay::OnEvent(Wiesel::Event& event) {}
 
 static entt::entity SelectedEntity;
 static bool HasSelectedEntity = false;
+static ImGuizmo::OPERATION currentOp = ImGuizmo::TRANSLATE;
 static struct SceneHierarchyData {
   entt::entity MoveFrom = entt::null;
   entt::entity MoveTo = entt::null;
@@ -148,6 +149,15 @@ void EditorOverlay::OnImGuiRender() {
   }
   ImGui::End();
 
+  if (ImGui::Begin("Gizmo Tools")) {
+    if (ImGui::RadioButton("Translate", currentOp==ImGuizmo::TRANSLATE)) currentOp = ImGuizmo::TRANSLATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Rotate",    currentOp==ImGuizmo::ROTATE))    currentOp = ImGuizmo::ROTATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Scale",     currentOp==ImGuizmo::SCALE))     currentOp = ImGuizmo::SCALE;
+  }
+  ImGui::End();
+
   static bool sceneOpen = true;
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
     bool ignoreMenu = false;
@@ -230,6 +240,36 @@ void EditorOverlay::OnImGuiRender() {
     std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(m_App.GetFPS()));
 
     ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+
+    ImGuizmo::SetRect(6, 6, drawSize.x, drawSize.y);
+
+    if (HasSelectedEntity) {
+      Ref<CameraData> cam = Engine::GetRenderer()->GetCameraData();
+      glm::mat4 view = cam->ViewMatrix;
+      glm::mat4 proj = cam->Projection;
+      proj[1][1] *= -1;
+      TransformComponent& transform = m_Scene->GetComponent<TransformComponent>(SelectedEntity);
+      glm::mat4& model = transform.TransformMatrix;
+      ImGuizmo::SetOrthographic(false);
+      ImGuizmo::SetDrawlist();
+      if (ImGuizmo::Manipulate(
+              glm::value_ptr(view),
+              glm::value_ptr(proj),
+              currentOp,
+              ImGuizmo::WORLD,
+              glm::value_ptr(model))) {
+        glm::vec3 translation, rotation, scale;
+        ImGuizmo::DecomposeMatrixToComponents(
+            glm::value_ptr(model),
+            glm::value_ptr(translation),
+            glm::value_ptr(rotation),
+            glm::value_ptr(scale));
+
+        transform.Position = translation;
+        transform.Rotation = rotation;
+        transform.Scale = scale;
+      }
+    }
   }
   ImGui::End();
 }

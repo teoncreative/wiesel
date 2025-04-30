@@ -30,7 +30,7 @@ struct Mesh {
   Mesh(std::vector<Vertex3D> vertices, std::vector<Index> indices);
   ~Mesh();
 
-  void UpdateTransform(TransformComponent& transform) const;
+  void UpdateTransform(glm::mat4 transformMatrix, glm::mat3 normalMatrix) const;
   void Allocate();
   void Deallocate();
 

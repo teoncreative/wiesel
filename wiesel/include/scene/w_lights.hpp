@@ -83,12 +83,11 @@ struct alignas(16) LightsUniformData {
   LightPoint PointLights[MAX_LIGHTS];
 };
 
+void UpdateLight(LightsUniformData& lights, const LightDirect& light,
+                 const TransformComponent& transform);
 
-void UpdateLight(LightsUniformData& lights, LightDirect& light,
-                 TransformComponent& transform);
-
-void UpdateLight(LightsUniformData& lights, LightPoint& light,
-                 TransformComponent& transform);
+void UpdateLight(LightsUniformData& lights, const LightPoint& light,
+                 const TransformComponent& transform);
 
 struct LightDirectComponent {
   LightDirectComponent() = default;
