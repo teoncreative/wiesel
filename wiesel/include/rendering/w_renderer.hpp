@@ -208,10 +208,10 @@ class Renderer {
   void SetViewport(VkExtent2D extent);
   void SetViewport(glm::vec2 extent);
 
-  void DrawModel(ModelComponent& model, TransformComponent& transform,
+  void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadowPass);
-  void DrawMesh(Ref<Mesh> mesh, TransformComponent& transform, bool shadowPass);
-  void DrawSprite(SpriteComponent& sprite, TransformComponent& transform);
+  void DrawMesh(Ref<Mesh> mesh, const TransformComponent& transform, bool shadowPass);
+  void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawSkybox(Ref<Skybox> skybox);
   void DrawFullscreen(Ref<Pipeline> pipeline, std::initializer_list<Ref<DescriptorSet>> descriptors);
 
@@ -219,6 +219,10 @@ class Renderer {
   void BeginFrame();
   void BeginShadowPass(uint32_t cascade);
   void EndShadowPass();
+#ifdef ID_BUFFER_PASS
+  void BeginIDPass();
+  void EndIDPass();
+#endif
   void BeginGeometryPass();
   void EndGeometryPass();
   void BeginSSAOGenPass();
@@ -405,6 +409,11 @@ class Renderer {
   Ref<DescriptorSetLayout> m_SSAOOutputDescriptorLayout;
   Ref<DescriptorSetLayout> m_GeometryOutputDescriptorLayout;
   Ref<DescriptorSetLayout> m_SpriteDrawDescriptorLayout;
+
+#ifdef ID_BUFFER_PASS
+  Ref<RenderPass> m_IDRenderPass;
+  Ref<Pipeline> m_IDPipeline;
+#endif
 
   Ref<RenderPass> m_GeometryRenderPass;
   Ref<Pipeline> m_GeometryPipeline;

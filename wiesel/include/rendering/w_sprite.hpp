@@ -38,7 +38,7 @@ class SpriteAsset {
   SpriteAsset() = default;
   ~SpriteAsset();
 
-  void UpdateTransform(TransformComponent& transform);
+  void UpdateTransform(glm::mat4 transformMatrix);
 
  private:
   friend class Renderer;

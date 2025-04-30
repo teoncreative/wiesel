@@ -62,7 +62,7 @@ void Scene::OnUpdate(float_t deltaTime) {
   for (const auto& entity : m_Registry.view<TransformComponent>()) {
     auto& transform = m_Registry.get<TransformComponent>(entity);
     if (transform.IsChanged) {
-      transform.UpdateMatrices();
+      UpdateMatrices(entity);
       transform.IsChanged = false;
       // todo this is a bit hacky
       // set the camera as changed if transform has changed
@@ -77,26 +77,19 @@ void Scene::OnUpdate(float_t deltaTime) {
   lights.PointLightCount = 0;
   for (const auto& entity : m_Registry.view<LightDirectComponent>()) {
     auto& light = m_Registry.get<LightDirectComponent>(entity);
-    auto transform = ApplyTransform(entity);
+    auto& transform = m_Registry.get<TransformComponent>(entity);
     UpdateLight(lights, light.LightData, transform);
   }
   for (const auto& entity : m_Registry.view<LightPointComponent>()) {
     auto& light = m_Registry.get<LightPointComponent>(entity);
-    auto transform = ApplyTransform(entity);
+    auto& transform = m_Registry.get<TransformComponent>(entity);
     UpdateLight(lights, light.LightData, transform);
   }
 
   for (const auto& entity :
        m_Registry.view<CameraComponent, TransformComponent>()) {
     auto& camera = m_Registry.get<CameraComponent>(entity);
-    auto transform = m_Registry.get<TransformComponent>(entity);
-    if (m_Registry.any_of<TreeComponent>(entity)) {
-      auto& tree = m_Registry.get<TreeComponent>(entity);
-      if (tree.Parent != entt::null) {
-        ApplyTransform(tree.Parent, transform);
-      }
-      camera.IsPosChanged = true;
-    }
+    auto& transform = m_Registry.get<TransformComponent>(entity);
     if (!camera.IsEnabled) {
       continue;
     }
@@ -105,7 +98,7 @@ void Scene::OnUpdate(float_t deltaTime) {
       camera.IsViewChanged = false;
     }
     if (camera.IsPosChanged) {
-      camera.UpdateView(transform.Position, transform.Rotation);
+      camera.UpdateView(transform.TransformMatrix);
       camera.IsPosChanged = false;
     }
     if (camera.IsAnyChanged) {
@@ -190,30 +183,33 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   return false;
 }
 
-void Scene::ApplyTransform(entt::entity parent, TransformComponent& childTransform) {
-  auto& parentTransform = m_Registry.get<TransformComponent>(parent);
-  childTransform.Position += parentTransform.Position;
-  childTransform.Rotation += parentTransform.Rotation;
-  childTransform.Scale *= parentTransform.Scale;
-  childTransform.IsChanged = true;
+glm::mat4 Scene::MakeLocal(const Wiesel::TransformComponent& t) {
+  glm::vec3 rotRad = glm::radians(t.Rotation);
+  glm::mat4 R      = glm::toMat4(glm::quat(rotRad));
+  glm::mat4 T      = glm::translate(glm::mat4(1.0f), t.Position);
+  glm::mat4 Tp     = glm::translate(glm::mat4(1.0f), t.Pivot);
+  glm::mat4 Tn     = glm::translate(glm::mat4(1.0f), -t.Pivot);
+  glm::mat4 S      = glm::scale(glm::mat4(1.0f), t.Scale);
 
-  if (m_Registry.any_of<TreeComponent>(parent)) {
-    auto& tree = m_Registry.get<TreeComponent>(parent);
-    if (tree.Parent != entt::null) {
-      ApplyTransform(tree.Parent, childTransform);
-    }
-  }
+  // move to Position, shift to Pivot, rotate+scale, shift back
+  return T * Tp * R * S * Tn;
 }
 
-TransformComponent Scene::ApplyTransform(entt::entity entity) {
-  auto transform = m_Registry.get<TransformComponent>(entity);
-  if (m_Registry.any_of<TreeComponent>(entity)) {
-    auto& tree = m_Registry.get<TreeComponent>(entity);
-    if (tree.Parent != entt::null) {
-      ApplyTransform(tree.Parent, transform);
-    }
+glm::mat4 Scene::GetWorldMatrix(entt::entity entity) {
+  auto& transform = m_Registry.get<TransformComponent>(entity);
+  glm::mat4 local = MakeLocal(transform);
+
+  if (auto* tree = m_Registry.try_get<TreeComponent>(entity);
+      tree && tree->Parent != entt::null) {
+    return GetWorldMatrix(tree->Parent) * local;
   }
-  return transform;
+  return local;
+}
+
+void Scene::UpdateMatrices(entt::entity entity) {
+  auto& tc = m_Registry.get<TransformComponent>(entity);
+  tc.TransformMatrix = GetWorldMatrix(entity);
+  tc.NormalMatrix    = glm::inverseTranspose(glm::mat3(tc.TransformMatrix));
 }
 
 bool Scene::Render() {
@@ -235,25 +231,21 @@ bool Scene::Render() {
         for (const auto& entity :
              GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = m_Registry.get<ModelComponent>(entity);
+          auto& transform = m_Registry.get<TransformComponent>(entity);
           if (!model.Data.ReceiveShadows) {
             continue;
           }
-          // We do the transfer twice, one here and one under the geometry pass
-          // Maybe if we can find a way to do this more efficiently, that would be better
-          auto transform = ApplyTransform(entity);
           renderer->DrawModel(model, transform, true);
         }
         renderer->EndShadowPass();
       }
-    } else {
-      // we might want to clear the shadow stuff or somehow disable it for later on
     }
 
     renderer->BeginGeometryPass();
     for (const auto& entity :
          GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
       auto& model = m_Registry.get<ModelComponent>(entity);
-      auto transform = ApplyTransform(entity);
+      auto& transform = m_Registry.get<TransformComponent>(entity);
       renderer->DrawModel(model, transform, false);
     }
     renderer->EndGeometryPass();
@@ -283,7 +275,7 @@ bool Scene::Render() {
     for (const auto& entity :
          GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
       auto& sprite = m_Registry.get<SpriteComponent>(entity);
-      auto transform = ApplyTransform(entity);
+      auto& transform = m_Registry.get<TransformComponent>(entity);
       renderer->DrawSprite(sprite, transform);
     }
     renderer->EndSpritePass();
@@ -293,7 +285,7 @@ bool Scene::Render() {
     renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->SpriteOutputDescriptor});
     renderer->EndCompositePass();
     renderer->EndFrame();
-    hasCamera = true;s
+    hasCamera = true;
   }
   return hasCamera;
 }

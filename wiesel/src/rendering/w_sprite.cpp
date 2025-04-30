@@ -101,14 +101,14 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   return texture;
 }
 
-void SpriteAsset::UpdateTransform(TransformComponent& transform) {
+void SpriteAsset::UpdateTransform(glm::mat4 transformMatrix) {
   if (!m_IsAllocated) { [[unlikely]]
     return;
   }
 
   for (const auto& item : m_Frames) {
     SpriteUniformData matrices{};
-    matrices.ModelMatrix = transform.TransformMatrix;
+    matrices.ModelMatrix = transformMatrix;
     memcpy(item.UniformBuffer->m_Data, &matrices, sizeof(SpriteUniformData));
   }
 }

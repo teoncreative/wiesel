@@ -18,9 +18,9 @@
 #include "systems/w_canvas_system.hpp"
 #include "util/w_keycodes.hpp"
 #include "util/w_math.hpp"
+#include "w_editor.hpp"
 #include "w_engine.hpp"
 #include "w_entrypoint.hpp"
-#include "editor/w_editor.hpp"
 
 #include <random>
 

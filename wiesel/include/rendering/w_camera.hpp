@@ -44,6 +44,11 @@ struct CameraComponent {
   glm::vec2 ViewportSize;
   glm::mat4 InvViewMatrix;
 
+#ifdef ID_BUFFER_PASS
+  Ref<AttachmentTexture> IDImage;
+  Ref<AttachmentTexture> IDDepthStencil;
+#endif
+
   Ref<AttachmentTexture> GeometryNormalImage;
   Ref<AttachmentTexture> GeometryNormalResolveImage;
   Ref<AttachmentTexture> GeometryDepthImage;
@@ -69,6 +74,9 @@ struct CameraComponent {
   Ref<AttachmentTexture> CompositeColorImage;
   Ref<AttachmentTexture> CompositeColorResolveImage;
 
+#ifdef ID_BUFFER_PASS
+  Ref<Framebuffer> IDFramebuffer;
+#endif
   Ref<Framebuffer> GeometryFramebuffer;
   Ref<Framebuffer> SSAOGenFramebuffer;
   Ref<Framebuffer> SSAOBlurFramebuffer;
@@ -77,6 +85,7 @@ struct CameraComponent {
   Ref<Framebuffer> CompositeFramebuffer;
   Ref<DescriptorSet> GlobalDescriptor;
   Ref<DescriptorSet> ShadowDescriptor;
+
   Ref<DescriptorSet> GeometryOutputDescriptor;
   Ref<DescriptorSet> SSAOOutputDescriptor;
   Ref<DescriptorSet> SSAOBlurOutputDescriptor;
@@ -102,7 +111,7 @@ struct CameraComponent {
   bool IsEnabled = true;
 
   void UpdateProjection();
-  void UpdateView(glm::vec3& position, glm::vec3& rotation);
+  void UpdateView(const glm::mat4& worldTransform);
   void UpdateAll();
 
   void ComputeCascades(const glm::vec3& lightDir);

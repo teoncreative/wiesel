@@ -3002,20 +3002,18 @@ void Renderer::EndGeometryPass() {
   m_GeometryRenderPass->End();
 }
 
-void Renderer::DrawModel(ModelComponent& model, TransformComponent& transform,
-                         bool shadowPass) {
+void Renderer::DrawModel(ModelComponent& model, const TransformComponent& transform, bool shadowPass) {
   for (int i = 0; i < model.Data.Meshes.size(); i++) {
     const auto& mesh = model.Data.Meshes[i];
     DrawMesh(mesh, transform, shadowPass);
   }
 }
 
-void Renderer::DrawMesh(Ref<Mesh> mesh, TransformComponent& transform,
-                        bool shadowPass) {
+void Renderer::DrawMesh(Ref<Mesh> mesh, const TransformComponent& transform, bool shadowPass) {
   if (!mesh->IsAllocated) {
     return;
   }
-  mesh->UpdateTransform(transform);
+  mesh->UpdateTransform(transform.TransformMatrix, transform.NormalMatrix);
 
   VkBuffer vertexBuffers[] = {mesh->VertexBuffer->m_Buffer};
   VkDeviceSize offsets[] = {0};
@@ -3043,12 +3041,11 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, TransformComponent& transform,
                    static_cast<uint32_t>(mesh->Indices.size()), 1, 0, 0, 0);
 }
 
-void Renderer::DrawSprite(SpriteComponent& sprite,
-                          TransformComponent& transform) {
+void Renderer::DrawSprite(SpriteComponent& sprite, const TransformComponent& transform) {
   if (!sprite.m_AssetHandle->m_IsAllocated) {
     return;
   }
-  sprite.m_AssetHandle->UpdateTransform(transform);
+  sprite.m_AssetHandle->UpdateTransform(transform.TransformMatrix);
   // TODO: In the feature, we can use instanced sprites for atlas sprites
   const SpriteAsset::Frame& frame =
       sprite.m_AssetHandle->m_Frames[sprite.m_CurrentFrame];

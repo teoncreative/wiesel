@@ -18,9 +18,9 @@
 #include "systems/w_canvas_system.hpp"
 #include "util/w_keycodes.hpp"
 #include "util/w_math.hpp"
+#include "w_editor.hpp"
 #include "w_engine.hpp"
 #include "w_entrypoint.hpp"
-#include "editor/w_editor.hpp"
 
 #include <random>
 
@@ -71,7 +71,7 @@ void DemoLayer::OnAttach() {
   {
     auto entity = m_Scene->CreateEntity("Sun");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Rotation = glm::vec3{63.0f, 210.0f, 0.0f};
+    transform.Rotation = glm::vec3{63.0f, 30.0f, 0.0f};
     auto& light = entity.AddComponent<LightDirectComponent>();
     light.LightData.Base.Color = glm::vec3(0.949f, 0.996f, 1.0f);
     light.LightData.Base.Ambient = 128.0f / 255.0f; // ≈ 0.502

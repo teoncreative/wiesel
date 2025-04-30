@@ -2,9 +2,7 @@
 
 layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
-    vec3 scale;
     mat3 normalMatrix;
-    mat4 rotationMatrix;
 };
 
 layout(set = 1, binding = 1, std140) uniform Camera {
