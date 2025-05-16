@@ -1,0 +1,12 @@
+<map id="w_vectors.hpp" name="w_vectors.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="137,5,253,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,109,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="174,33,93,75,91,70,171,28"/>
+<area shape="rect" id="Node000003" href="$w__utils_8hpp.html" title=" " alt="" coords="134,79,255,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="197,31,197,65,192,65,192,31"/>
+<area shape="rect" id="Node000005" href="$w__pch_8hpp.html" title=" " alt="" coords="248,152,339,177"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="217,29,244,49,270,77,285,108,292,137,287,139,280,109,266,80,241,53,213,33"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="89,152,223,177"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="191,106,171,141,166,139,186,103"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="212,102,268,142,265,146,209,106"/>
+</map>

@@ -1,0 +1,9 @@
+<map id="Wiesel::MouseButtonEvent" name="Wiesel::MouseButtonEvent">
+<area shape="rect" id="Node000001" title=" " alt="" coords="132,79,329,104"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1MouseButtonPressedEvent.html" title=" " alt="" coords="5,152,216,192"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="203,114,141,154,138,150,200,109"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1MouseButtonReleasedEvent.html" title=" " alt="" coords="241,152,461,192"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="261,109,323,150,320,154,258,114"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1Event.html" title=" " alt="" coords="175,5,286,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="233,44,233,79,228,79,228,44"/>
+</map>

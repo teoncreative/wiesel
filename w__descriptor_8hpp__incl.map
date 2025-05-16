@@ -1,0 +1,17 @@
+<map id="w_descriptor.hpp" name="w_descriptor.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="133,5,265,31"/>
+<area shape="rect" id="Node000002" href="$w__sampler_8hpp.html" title=" " alt="" coords="22,152,209,177"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="195,32,131,141,127,139,190,30"/>
+<area shape="rect" id="Node000003" href="$w__pch_8hpp.html" title=" " alt="" coords="117,225,207,251"/>
+<area shape="poly" id="edge9_Node000001_Node000003" title=" " alt="" coords="169,33,130,51,86,76,44,111,27,131,13,153,8,167,10,179,18,190,30,199,64,215,104,225,102,230,63,220,28,204,14,194,6,181,3,167,8,151,22,128,41,107,83,72,128,46,167,28"/>
+<area shape="rect" id="Node000004" href="$w__utils_8hpp.html" title=" " alt="" coords="284,152,405,177"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="237,28,277,47,297,61,315,77,333,107,343,138,338,139,328,109,311,80,294,65,275,52,235,33"/>
+<area shape="rect" id="Node000006" href="$w__image_8hpp.html" title=" " alt="" coords="191,79,301,104"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="209,30,233,66,229,69,205,32"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="125,176,149,212,145,215,121,179"/>
+<area shape="poly" id="edge5_Node000004_Node000003" title=" " alt="" coords="316,180,206,223,204,218,314,175"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="277,225,412,251"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="347,178,347,212,342,212,342,178"/>
+<area shape="poly" id="edge8_Node000006_Node000003" title=" " alt="" coords="247,105,239,139,223,179,207,200,189,218,185,214,203,197,218,176,234,138,242,104"/>
+<area shape="poly" id="edge7_Node000006_Node000004" title=" " alt="" coords="263,102,319,142,316,146,260,106"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="Wiesel::IBehavior" name="Wiesel::IBehavior">
+<area shape="rect" id="Node000001" title=" " alt="" coords="61,93,197,119"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1Entity.html" title=" " alt="" coords="5,5,117,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="81,40,122,91,118,94,77,43"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1Scene.html" title=" " alt="" coords="142,5,255,31"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="188,44,170,71,146,95,142,91,166,68,184,41"/>
+</map>

@@ -1,0 +1,29 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$classWiesel_1_1Event.html" title=" " alt="" coords="5,232,116,257"/>
+<area shape="rect" id="Node000001" href="$classWiesel_1_1AppRecreateSwapChainsEvent.html" title=" " alt="" coords="164,39,400,79"/>
+<area shape="poly" id="edge2_Node000000_Node000001" title=" " alt="" coords="70,218,104,153,130,119,162,89,183,77,186,82,166,93,134,122,109,156,74,220"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1KeyEvent.html" title=" " alt="" coords="215,104,349,129"/>
+<area shape="poly" id="edge3_Node000000_Node000002" title=" " alt="" coords="78,219,114,179,137,159,163,142,213,124,215,129,165,147,141,164,118,183,82,223"/>
+<area shape="rect" id="Node000006" href="$classWiesel_1_1MouseButtonEvent.html" title=" " alt="" coords="183,157,381,183"/>
+<area shape="poly" id="edge7_Node000000_Node000006" title=" " alt="" coords="95,223,163,193,208,180,210,185,165,198,97,228"/>
+<area shape="rect" id="Node000009" href="$classWiesel_1_1MouseMovedEvent.html" title=" " alt="" coords="183,207,381,232"/>
+<area shape="poly" id="edge10_Node000000_Node000009" title=" " alt="" coords="129,234,182,228,183,233,130,239"/>
+<area shape="rect" id="Node000010" href="$classWiesel_1_1MouseScrolledEvent.html" title=" " alt="" coords="179,256,385,281"/>
+<area shape="poly" id="edge11_Node000000_Node000010" title=" " alt="" coords="130,249,179,255,178,260,129,255"/>
+<area shape="rect" id="Node000011" href="$classWiesel_1_1ScriptsReloadedEvent.html" title=" " alt="" coords="174,305,390,331"/>
+<area shape="poly" id="edge12_Node000000_Node000011" title=" " alt="" coords="97,261,165,291,205,303,204,308,163,297,95,266"/>
+<area shape="rect" id="Node000012" href="$classWiesel_1_1WindowCloseEvent.html" title=" " alt="" coords="183,355,381,380"/>
+<area shape="poly" id="edge13_Node000000_Node000012" title=" " alt="" coords="82,267,118,306,140,325,165,341,193,352,191,357,163,346,137,329,114,310,78,270"/>
+<area shape="rect" id="Node000013" href="$classWiesel_1_1WindowResizeEvent.html" title=" " alt="" coords="179,404,385,429"/>
+<area shape="poly" id="edge14_Node000000_Node000013" title=" " alt="" coords="74,268,109,331,134,363,165,390,188,402,185,406,163,395,130,367,104,334,70,271"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1KeyPressedEvent.html" title=" " alt="" coords="465,5,651,31"/>
+<area shape="poly" id="edge4_Node000002_Node000003" title=" " alt="" coords="361,104,399,89,413,78,422,65,431,52,447,40,473,28,475,33,449,44,435,56,426,68,417,81,401,94,363,109"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1KeyReleasedEvent.html" title=" " alt="" coords="461,55,655,80"/>
+<area shape="poly" id="edge5_Node000002_Node000004" title=" " alt="" coords="362,100,486,77,487,83,363,105"/>
+<area shape="rect" id="Node000005" href="$classWiesel_1_1KeyTypedEvent.html" title=" " alt="" coords="471,104,645,129"/>
+<area shape="poly" id="edge6_Node000002_Node000005" title=" " alt="" coords="363,114,471,114,471,119,363,119"/>
+<area shape="rect" id="Node000007" href="$classWiesel_1_1MouseButtonPressedEvent.html" title=" " alt="" coords="453,154,663,194"/>
+<area shape="poly" id="edge8_Node000006_Node000007" title=" " alt="" coords="395,169,452,170,452,175,395,174"/>
+<area shape="rect" id="Node000008" href="$classWiesel_1_1MouseButtonReleasedEvent.html" title=" " alt="" coords="448,218,668,258"/>
+<area shape="poly" id="edge9_Node000006_Node000008" title=" " alt="" coords="358,183,401,193,487,215,486,221,399,198,357,188"/>
+</map>
