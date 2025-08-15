@@ -64,7 +64,8 @@ struct CameraComponent {
   Ref<AttachmentTexture> GeometryDepthStencil;
 
   Ref<AttachmentTexture> SSAOColorImage;
-  Ref<AttachmentTexture> SSAOBlurColorImage;
+  Ref<AttachmentTexture> SSAOBlurHorzColorImage;
+  Ref<AttachmentTexture> SSAOBlurVertColorImage;
 
   Ref<AttachmentTexture> LightingColorImage;
   Ref<AttachmentTexture> LightingColorResolveImage;
@@ -79,7 +80,8 @@ struct CameraComponent {
 #endif
   Ref<Framebuffer> GeometryFramebuffer;
   Ref<Framebuffer> SSAOGenFramebuffer;
-  Ref<Framebuffer> SSAOBlurFramebuffer;
+  Ref<Framebuffer> SSAOBlurHorzFramebuffer;
+  Ref<Framebuffer> SSAOBlurVertFramebuffer;
   Ref<Framebuffer> LightingFramebuffer;
   Ref<Framebuffer> SpriteFramebuffer;
   Ref<Framebuffer> CompositeFramebuffer;
@@ -88,7 +90,8 @@ struct CameraComponent {
 
   Ref<DescriptorSet> GeometryOutputDescriptor;
   Ref<DescriptorSet> SSAOOutputDescriptor;
-  Ref<DescriptorSet> SSAOBlurOutputDescriptor;
+  Ref<DescriptorSet> SSAOBlurHorzOutputDescriptor;
+  Ref<DescriptorSet> SSAOBlurVertOutputDescriptor;
   Ref<DescriptorSet> LightingOutputDescriptor;
   Ref<DescriptorSet> SpriteOutputDescriptor;
   Ref<DescriptorSet> CompositeOutputDescriptor;
@@ -149,7 +152,8 @@ struct CameraData {
   Ref<AttachmentTexture> GeometryMaterialResolveImage;
 
   Ref<AttachmentTexture> SSAOColorImage;
-  Ref<AttachmentTexture> SSAOBlurColorImage;
+  Ref<AttachmentTexture> SSAOBlurHorzColorImage;
+  Ref<AttachmentTexture> SSAOBlurVertColorImage;
 
   Ref<AttachmentTexture> LightingColorImage;
   Ref<AttachmentTexture> LightingColorResolveImage;
@@ -161,7 +165,8 @@ struct CameraData {
 
   Ref<Framebuffer> GeometryFramebuffer;
   Ref<Framebuffer> SSAOGenFramebuffer;
-  Ref<Framebuffer> SSAOBlurFramebuffer;
+  Ref<Framebuffer> SSAOBlurHorzFramebuffer;
+  Ref<Framebuffer> SSAOBlurVertFramebuffer;
   Ref<Framebuffer> LightingFramebuffer;
   Ref<Framebuffer> SpriteFramebuffer;
   Ref<Framebuffer> CompositeFramebuffer;
@@ -169,7 +174,8 @@ struct CameraData {
   Ref<DescriptorSet> ShadowDescriptor; // to draw geometry to shadow pass
   Ref<DescriptorSet> GeometryOutputDescriptor; // to draw geometry pass output
   Ref<DescriptorSet> SSAOOutputDescriptor; // to draw ssao pass output
-  Ref<DescriptorSet> SSAOBlurOutputDescriptor; // to draw ssao blur pass output
+  Ref<DescriptorSet> SSAOBlurHorzOutputDescriptor; // to draw ssao blur horz pass output
+  Ref<DescriptorSet> SSAOBlurVertOutputDescriptor; // to draw ssao blur vert pass output
   Ref<DescriptorSet> LightingOutputDescriptor; // to draw lighting pass output
   Ref<DescriptorSet> SpriteOutputDescriptor; // to draw sprite pass output
   Ref<DescriptorSet> CompositeOutputDescriptor; // to draw composite pass output
@@ -210,7 +216,8 @@ struct CameraData {
     GeometryMaterialResolveImage = camera.GeometryMaterialResolveImage;
 
     SSAOColorImage = camera.SSAOColorImage;
-    SSAOBlurColorImage = camera.SSAOBlurColorImage;
+    SSAOBlurHorzColorImage = camera.SSAOBlurHorzColorImage;
+    SSAOBlurVertColorImage = camera.SSAOBlurVertColorImage;
 
     LightingColorImage = camera.LightingColorImage;
     LightingColorResolveImage = camera.LightingColorResolveImage;
@@ -222,7 +229,8 @@ struct CameraData {
 
     GeometryFramebuffer = camera.GeometryFramebuffer;
     SSAOGenFramebuffer = camera.SSAOGenFramebuffer;
-    SSAOBlurFramebuffer = camera.SSAOBlurFramebuffer;
+    SSAOBlurHorzFramebuffer = camera.SSAOBlurHorzFramebuffer;
+    SSAOBlurVertFramebuffer = camera.SSAOBlurVertFramebuffer;
     LightingFramebuffer = camera.LightingFramebuffer;
     SpriteFramebuffer = camera.SpriteFramebuffer;
     CompositeFramebuffer = camera.CompositeFramebuffer;
@@ -230,7 +238,8 @@ struct CameraData {
     ShadowDescriptor = camera.ShadowDescriptor;
     GeometryOutputDescriptor = camera.GeometryOutputDescriptor;
     SSAOOutputDescriptor = camera.SSAOOutputDescriptor;
-    SSAOBlurOutputDescriptor = camera.SSAOBlurOutputDescriptor;
+    SSAOBlurHorzOutputDescriptor = camera.SSAOBlurHorzOutputDescriptor;
+    SSAOBlurVertOutputDescriptor = camera.SSAOBlurVertOutputDescriptor;
     LightingOutputDescriptor = camera.LightingOutputDescriptor;
     SpriteOutputDescriptor = camera.SpriteOutputDescriptor;
     CompositeOutputDescriptor = camera.CompositeOutputDescriptor;

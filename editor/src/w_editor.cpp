@@ -111,7 +111,7 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entityId, int dept
   if (ImGui::BeginPopupContextItem()) {
     SelectedEntity = entityId;
     if (ImGui::Button("Remove Entity")) {
-      m_App.GetScene()->DestroyEntity(entity);
+      m_App.GetScene()->RemoveEntity(entity);
       HasSelectedEntity = false;
     }
     ImGui::EndPopup();

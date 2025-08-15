@@ -10,13 +10,15 @@
 //
 
 #include "rendering/w_renderer.hpp"
-#include <random>
-#include <rendering/w_sampler.hpp>
+#include "rendering/w_perf_marker.hpp"
+#include "rendering/w_sampler.hpp"
 
 #include "util/imgui/imgui_spectrum.hpp"
 #include "util/w_spirv.hpp"
 #include "util/w_vectors.hpp"
 #include "w_engine.hpp"
+
+#include <random>
 
 namespace Wiesel {
 
@@ -52,6 +54,7 @@ void Renderer::Initialize(const RendererProperties&& properties) {
 #ifdef VULKAN_VALIDATION
   SetupDebugMessenger();
 #endif
+  PerfMarker::Init(m_Instance);
   CreateSurface();
   PickPhysicalDevice();
   CreateLogicalDevice();
@@ -197,14 +200,20 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.SSAOColorImage = CreateAttachmentTexture(
       {extent.width / 2, extent.height / 2, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
-  component.SSAOBlurColorImage = CreateAttachmentTexture(
+  component.SSAOBlurHorzColorImage = CreateAttachmentTexture(
+      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+       VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
+  component.SSAOBlurVertColorImage = CreateAttachmentTexture(
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
   component.SSAOGenFramebuffer = m_SSAOGenRenderPass->CreateFramebuffer(
       0, {component.SSAOColorImage->m_ImageViews[0]},
       {extent.width / 2, extent.height / 2});
-  component.SSAOBlurFramebuffer = m_SSAOBlurRenderPass->CreateFramebuffer(
-      0, {component.SSAOBlurColorImage->m_ImageViews[0]},
+  component.SSAOBlurHorzFramebuffer = m_SSAOBlurHorzRenderPass->CreateFramebuffer(
+      0, {component.SSAOBlurHorzColorImage->m_ImageViews[0]},
+      {extent.width, extent.height});
+  component.SSAOBlurVertFramebuffer = m_SSAOBlurVertRenderPass->CreateFramebuffer(
+      0, {component.SSAOBlurVertColorImage->m_ImageViews[0]},
       {extent.width, extent.height});
 
   component.GeometryViewPosImage = CreateAttachmentTexture(
@@ -377,18 +386,6 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
       m_DefaultNearestSampler);
   component.GeometryOutputDescriptor->Bake();
 
-  component.SSAOOutputDescriptor = CreateReference<DescriptorSet>();
-  component.SSAOOutputDescriptor->SetLayout(m_SSAOOutputDescriptorLayout);
-  component.SSAOOutputDescriptor->AddCombinedImageSampler(
-      0, component.SSAOColorImage->m_ImageViews[0], m_DefaultNearestSampler);
-  component.SSAOOutputDescriptor->Bake();
-
-  component.SSAOBlurOutputDescriptor = CreateReference<DescriptorSet>();
-  component.SSAOBlurOutputDescriptor->SetLayout(m_SSAOOutputDescriptorLayout);
-  component.SSAOBlurOutputDescriptor->AddCombinedImageSampler(
-      0, component.SSAOBlurColorImage->m_ImageViews[0], m_DefaultLinearSampler);
-  component.SSAOBlurOutputDescriptor->Bake();
-
   component.LightingOutputDescriptor = CreateReference<DescriptorSet>();
   component.LightingOutputDescriptor->SetLayout(m_PresentDescriptorLayout);
   component.LightingOutputDescriptor->AddCombinedImageSampler(
@@ -425,6 +422,30 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
       3, m_SSAONoise->m_ImageViews[0], m_DefaultLinearSampler);
   component.SSAOGenDescriptor->AddUniformBuffer(4, m_SSAOKernelUniformBuffer);
   component.SSAOGenDescriptor->Bake();
+
+  component.SSAOOutputDescriptor = CreateReference<DescriptorSet>();
+  component.SSAOOutputDescriptor->SetLayout(m_SSAOOutputDescriptorLayout);
+  component.SSAOOutputDescriptor->AddCombinedImageSampler(
+      0, component.SSAOColorImage->m_ImageViews[0], m_DefaultNearestSampler);
+  component.SSAOOutputDescriptor->AddCombinedImageSampler(
+      1, component.GeometryDepthResolveImage->m_ImageViews[0],m_DefaultNearestSampler);
+  component.SSAOOutputDescriptor->Bake();
+
+  component.SSAOBlurHorzOutputDescriptor = CreateReference<DescriptorSet>();
+  component.SSAOBlurHorzOutputDescriptor->SetLayout(m_SSAOBlurDescriptorLayout);
+  component.SSAOBlurHorzOutputDescriptor->AddCombinedImageSampler(
+      0, component.SSAOBlurHorzColorImage->m_ImageViews[0], m_DefaultLinearSampler);
+  component.SSAOBlurHorzOutputDescriptor->AddCombinedImageSampler(
+      1, component.GeometryDepthResolveImage->m_ImageViews[0],m_DefaultNearestSampler);
+  component.SSAOBlurHorzOutputDescriptor->Bake();
+
+  component.SSAOBlurVertOutputDescriptor = CreateReference<DescriptorSet>();
+  component.SSAOBlurVertOutputDescriptor->SetLayout(m_SSAOBlurDescriptorLayout);
+  component.SSAOBlurVertOutputDescriptor->AddCombinedImageSampler(
+      0, component.SSAOBlurVertColorImage->m_ImageViews[0], m_DefaultLinearSampler);
+  component.SSAOBlurHorzOutputDescriptor->AddCombinedImageSampler(
+      1, component.GeometryDepthResolveImage->m_ImageViews[0],m_DefaultNearestSampler);
+  component.SSAOBlurVertOutputDescriptor->Bake();
 
   component.IsViewChanged = true;
   component.IsPosChanged = true;
@@ -1730,6 +1751,9 @@ void Renderer::PickPhysicalDevice() {
     vkGetPhysicalDeviceFeatures(m_PhysicalDevice, &m_PhysicalDeviceFeatures);
     m_MsaaSamples = GetMaxUsableSampleCount();
     m_PreviousMsaaSamples = m_MsaaSamples;
+    if (m_PhysicalDeviceFeatures.shaderImageGatherExtended) {
+      m_ShaderFeatures.push_back("USE_GATHER");
+    }
   } else {
     throw std::runtime_error("failed to find a suitable GPU!");
   }
@@ -1841,15 +1865,19 @@ void Renderer::CreateDescriptorLayouts() {
                                         VK_SHADER_STAGE_FRAGMENT_BIT);
   m_SSAOGenDescriptorLayout->Bake();
 
-  m_SSAOBlurDescriptorLayout = CreateReference<DescriptorSetLayout>();
-  m_SSAOBlurDescriptorLayout->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  m_SSAOBlurDescriptorLayout->Bake();
-
   m_SSAOOutputDescriptorLayout = CreateReference<DescriptorSetLayout>();
   m_SSAOOutputDescriptorLayout->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // samplerSSAO
+  m_SSAOOutputDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // samplerDepth
   m_SSAOOutputDescriptorLayout->Bake();
+
+  m_SSAOBlurDescriptorLayout = CreateReference<DescriptorSetLayout>();
+  m_SSAOBlurDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // samplerSSAO
+  m_SSAOBlurDescriptorLayout->AddBinding(
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // samplerDepth
+  m_SSAOBlurDescriptorLayout->Bake();
 
   m_GeometryOutputDescriptorLayout = CreateReference<DescriptorSetLayout>();
   m_GeometryOutputDescriptorLayout->AddBinding(
@@ -2072,11 +2100,17 @@ void Renderer::CreateGeometryRenderPass() {
                                      .MsaaSamples = VK_SAMPLE_COUNT_1_BIT});
   m_SSAOGenRenderPass->Bake();
 
-  m_SSAOBlurRenderPass = CreateReference<RenderPass>(PassType::PostProcess);
-  m_SSAOBlurRenderPass->AttachOutput({.Type = AttachmentTextureType::Offscreen,
+  m_SSAOBlurHorzRenderPass = CreateReference<RenderPass>(PassType::PostProcess);
+  m_SSAOBlurHorzRenderPass->AttachOutput({.Type = AttachmentTextureType::Offscreen,
                                       .Format = VK_FORMAT_R8_UNORM,
                                       .MsaaSamples = VK_SAMPLE_COUNT_1_BIT});
-  m_SSAOBlurRenderPass->Bake();
+  m_SSAOBlurHorzRenderPass->Bake();
+
+  m_SSAOBlurVertRenderPass = CreateReference<RenderPass>(PassType::PostProcess);
+  m_SSAOBlurVertRenderPass->AttachOutput({.Type = AttachmentTextureType::Offscreen,
+                                      .Format = VK_FORMAT_R8_UNORM,
+                                      .MsaaSamples = VK_SAMPLE_COUNT_1_BIT});
+  m_SSAOBlurVertRenderPass->Bake();
 
   m_ShadowRenderPass = CreateReference<RenderPass>(PassType::Shadow);
   m_ShadowRenderPass->AttachOutput({.Type = AttachmentTextureType::DepthStencil,
@@ -2089,10 +2123,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   LOG_DEBUG("Creating graphics pipeline");
   auto geometryVertexShader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/geometry_shader.vert"});
+                    ShaderSourceSource, "assets/internal_shaders/geometry_shader.vert"});
   auto geometryFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/geometry_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/geometry_shader.frag"});
   m_GeometryPipeline = CreateReference<Pipeline>(PipelineProperties{
       m_MsaaSamples, CullModeBack, m_EnableWireframe, false});
   m_GeometryPipeline->SetVertexData(Vertex3D::GetBindingDescription(),
@@ -2106,10 +2140,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto skyboxVertexShader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/skybox_shader.vert"});
+                    ShaderSourceSource, "assets/internal_shaders/skybox_shader.vert"});
   auto skyboxFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/skybox_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/skybox_shader.frag"});
   m_SkyboxPipeline = CreateReference<Pipeline>(PipelineProperties{
       m_MsaaSamples, CullModeFront, false, false, true, false});
   m_SkyboxPipeline->SetRenderPass(m_LightingRenderPass);
@@ -2121,10 +2155,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto fullscreenVertexShader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/shaders/fullscreen_shader.vert"});
+       "assets/internal_shaders/fullscreen_shader.vert"});
   auto lightingFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/lighting_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/lighting_shader.frag"});
 
   m_LightingPipeline = CreateReference<Pipeline>(PipelineProperties{
       m_MsaaSamples, CullModeFront, false, true, true, false});
@@ -2139,10 +2173,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto shadowVertexShader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/shadow_shader.vert"});
+                    ShaderSourceSource, "assets/internal_shaders/shadow_shader.vert"});
   auto shadowFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/shadow_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/shadow_shader.frag"});
   m_ShadowPipeline = CreateReference<Pipeline>(PipelineProperties{
       VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, true, true});
   m_ShadowPipeline->SetRenderPass(m_ShadowRenderPass);
@@ -2158,7 +2192,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto ssaoFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/ssao_gen_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/ssao_gen_shader.frag"});
 
   m_SSAOGenPipeline = CreateReference<Pipeline>(PipelineProperties{
       VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
@@ -2169,24 +2203,36 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   m_SSAOGenPipeline->AddShader(ssaoFragmentShader);
   m_SSAOGenPipeline->Bake();
 
-  auto ssaoBlurFragmentShader = CreateShader(
+  auto ssaoBlurHorzFragmentShader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/shaders/ssao_blur_shader.frag"});
+       "assets/internal_shaders/ssao_blur_shader.frag"});
 
-  m_SSAOBlurPipeline = CreateReference<Pipeline>(PipelineProperties{
+  m_SSAOBlurHorzPipeline = CreateReference<Pipeline>(PipelineProperties{
       VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
-  m_SSAOBlurPipeline->SetRenderPass(m_SSAOBlurRenderPass);
-  m_SSAOBlurPipeline->AddInputLayout(m_SSAOBlurDescriptorLayout);
-  m_SSAOBlurPipeline->AddShader(fullscreenVertexShader);
-  m_SSAOBlurPipeline->AddShader(ssaoBlurFragmentShader);
-  m_SSAOBlurPipeline->Bake();
+  m_SSAOBlurHorzPipeline->SetRenderPass(m_SSAOBlurHorzRenderPass);
+  m_SSAOBlurHorzPipeline->AddInputLayout(m_SSAOBlurDescriptorLayout);
+  m_SSAOBlurHorzPipeline->AddShader(fullscreenVertexShader);
+  m_SSAOBlurHorzPipeline->AddShader(ssaoBlurHorzFragmentShader);
+  m_SSAOBlurHorzPipeline->Bake();
+
+  auto ssaoBlurVertFragmentShader = CreateShader(
+      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+       "assets/internal_shaders/ssao_blur_shader.frag", {"BLUR_VERTICAL"}});
+
+  m_SSAOBlurVertPipeline = CreateReference<Pipeline>(PipelineProperties{
+      VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
+  m_SSAOBlurVertPipeline->SetRenderPass(m_SSAOBlurVertRenderPass);
+  m_SSAOBlurVertPipeline->AddInputLayout(m_SSAOBlurDescriptorLayout);
+  m_SSAOBlurVertPipeline->AddShader(fullscreenVertexShader);
+  m_SSAOBlurVertPipeline->AddShader(ssaoBlurVertFragmentShader);
+  m_SSAOBlurVertPipeline->Bake();
 
   auto spriteVertexShader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/sprite_shader.vert"});
+                    ShaderSourceSource, "assets/internal_shaders/sprite_shader.vert"});
   auto spriteFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/sprite_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/sprite_shader.frag"});
 
   m_SpritePipeline = CreateReference<Pipeline>(PipelineProperties{
       VK_SAMPLE_COUNT_1_BIT, CullModeNone, false, true, false, false});
@@ -2201,7 +2247,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto compositeFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/quad_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/quad_shader.frag"});
 
   m_CompositePipeline = CreateReference<Pipeline>(PipelineProperties{
       m_MsaaSamples, CullModeFront, false, true, true, false});
@@ -2215,12 +2261,12 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 void Renderer::CreatePresentGraphicsPipelines() {
   auto presentVertexShader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/shaders/fullscreen_shader.vert"});
+       "assets/internal_shaders/fullscreen_shader.vert"});
   auto presentFragmentShader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "assets/shaders/quad_shader.frag"});
+                    ShaderSourceSource, "assets/internal_shaders/quad_shader.frag"});
   m_PresentPipeline = CreateReference<Pipeline>(
-      PipelineProperties{m_MsaaSamples, CullModeBack, false, true});
+      PipelineProperties{m_MsaaSamples, CullModeNone, false, true});
   m_PresentPipeline->SetRenderPass(m_PresentRenderPass);
   m_PresentPipeline->AddInputLayout(m_PresentDescriptorLayout);
   m_PresentPipeline->AddShader(presentVertexShader);
@@ -2233,6 +2279,9 @@ void Renderer::RecreatePipeline(Ref<Pipeline> pipeline) {
 }
 
 Ref<Shader> Renderer::CreateShader(ShaderProperties properties) {
+  for (const auto& item : m_ShaderFeatures) {
+    properties.Defines.push_back(item);
+  }
   return CreateReference<Shader>(properties);
 }
 
@@ -2970,7 +3019,7 @@ void Renderer::EndPresent() {
   vkWaitForFences(m_LogicalDevice, 1, &m_Fence, VK_TRUE, UINT64_MAX);
 }
 
-void Renderer::BeginFrame() {
+void Renderer::UpdateUniformData() {
   memcpy(m_LightsUniformBuffer->m_Data, &m_LightsUniformData,
          sizeof(m_LightsUniformData));
   memcpy(m_CameraUniformBuffer->m_Data, &m_CameraUniformData,
@@ -3124,20 +3173,59 @@ void Renderer::EndSSAOGenPass() {
                         m_CommandBuffer->m_Handle, 0, 1);
 }
 
-void Renderer::BeginSSAOBlurPass() {
+void Renderer::BeginSSAOBlurHorzPass() {
   TransitionImageLayout(m_Camera->SSAOColorImage->m_Images[0],
                         m_Camera->SSAOColorImage->m_Format,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle, 0, 1);
-  m_SSAOBlurRenderPass->Begin(m_Camera->SSAOBlurFramebuffer, {0, 0, 0, 0});
+  TransitionImageLayout(m_Camera->GeometryDepthResolveImage->m_Images[0],
+                        m_Camera->GeometryDepthResolveImage->m_Format,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                        m_CommandBuffer->m_Handle, 0, 1);
+  m_SSAOBlurHorzRenderPass->Begin(m_Camera->SSAOBlurHorzFramebuffer, {0, 0, 0, 0});
   SetViewport(m_ViewportSize);
 }
 
-void Renderer::EndSSAOBlurPass() {
-  m_SSAOBlurRenderPass->End();
+void Renderer::EndSSAOBlurHorzPass() {
+  m_SSAOBlurHorzRenderPass->End();
   TransitionImageLayout(m_Camera->SSAOColorImage->m_Images[0],
                         m_Camera->SSAOColorImage->m_Format,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                        m_CommandBuffer->m_Handle, 0, 1);
+  TransitionImageLayout(m_Camera->GeometryDepthResolveImage->m_Images[0],
+                        m_Camera->GeometryDepthResolveImage->m_Format,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                        m_CommandBuffer->m_Handle, 0, 1);
+}
+
+void Renderer::BeginSSAOBlurVertPass() {
+  TransitionImageLayout(m_Camera->SSAOBlurHorzColorImage->m_Images[0],
+                        m_Camera->SSAOBlurHorzColorImage->m_Format,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                        m_CommandBuffer->m_Handle, 0, 1);
+  TransitionImageLayout(m_Camera->GeometryDepthResolveImage->m_Images[0],
+                        m_Camera->GeometryDepthResolveImage->m_Format,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                        m_CommandBuffer->m_Handle, 0, 1);
+  m_SSAOBlurVertRenderPass->Begin(m_Camera->SSAOBlurVertFramebuffer, {0, 0, 0, 0});
+  SetViewport(m_ViewportSize);
+}
+
+void Renderer::EndSSAOBlurVertPass() {
+  m_SSAOBlurVertRenderPass->End();
+  TransitionImageLayout(m_Camera->SSAOBlurHorzColorImage->m_Images[0],
+                        m_Camera->SSAOBlurHorzColorImage->m_Format,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                        m_CommandBuffer->m_Handle, 0, 1);
+  TransitionImageLayout(m_Camera->GeometryDepthResolveImage->m_Images[0],
+                        m_Camera->GeometryDepthResolveImage->m_Format,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle, 0, 1);
@@ -3169,8 +3257,8 @@ void Renderer::BeginLightingPass() {
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle, 0, 1);
-  TransitionImageLayout(m_Camera->SSAOBlurColorImage->m_Images[0],
-                        m_Camera->SSAOBlurColorImage->m_Format,
+  TransitionImageLayout(m_Camera->SSAOBlurVertColorImage->m_Images[0],
+                        m_Camera->SSAOBlurVertColorImage->m_Format,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle, 0, 1);
@@ -3212,8 +3300,8 @@ void Renderer::EndLightingPass() {
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle, 0, 1);
-  TransitionImageLayout(m_Camera->SSAOBlurColorImage->m_Images[0],
-                        m_Camera->SSAOBlurColorImage->m_Format,
+  TransitionImageLayout(m_Camera->SSAOBlurVertColorImage->m_Images[0],
+                        m_Camera->SSAOBlurVertColorImage->m_Format,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
                         m_CommandBuffer->m_Handle, 0, 1);
@@ -3297,8 +3385,6 @@ void Renderer::DrawFullscreen(
   // Draw the quad.
   vkCmdDraw(m_CommandBuffer->m_Handle, 3, 1, 0, 0);
 }
-
-void Renderer::EndFrame() {}
 
 void Renderer::SetCameraData(Ref<CameraData> cameraData) {
   m_Camera = cameraData;

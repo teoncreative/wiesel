@@ -85,6 +85,32 @@ float calculateShadow(vec4 shadowCoord, uint cascadeIndex, float ambient, vec3 n
     }
 
     float bias = max(0.005 * dot(normal, -lightDir), 0.0005);
+    ivec2 smSize = textureSize(shadowMap, 0).xy;
+    vec2 texelSize = 1.0 / vec2(smSize);
+    #ifdef USE_GATHER
+    // gather four neighbours’ depth in one call
+    vec4 depths = textureGather(shadowMap, vec3(shadowCoord.xy, cascadeIndex));
+    // compare each
+    float sum = 0.0;
+    sum += (shadowCoord.z - bias > depths.x) ? 1.0 - ambient : 0.0;
+    sum += (shadowCoord.z - bias > depths.y) ? 1.0 - ambient : 0.0;
+    sum += (shadowCoord.z - bias > depths.z) ? 1.0 - ambient : 0.0;
+    sum += (shadowCoord.z - bias > depths.w) ? 1.0 - ambient : 0.0;
+    return 1.0 - sum * 0.25;
+    #else
+    float shadow = 0.0;
+    int count  = 0;
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            vec2 off = shadowCoord.xy + vec2(x, y) * texelSize;
+            float d = texture(shadowMap, vec3(off, cascadeIndex)).r;
+            shadow += (shadowCoord.z - bias > d) ? 1.0 - ambient : 0.0;
+            count++;
+        }
+    }
+    return 1.0 - (shadow / float(count));
+    #endif
+    /*
     float shadow = 0.0;
     int count = 0;
 
@@ -99,7 +125,7 @@ float calculateShadow(vec4 shadowCoord, uint cascadeIndex, float ambient, vec3 n
     }
 
     shadow /= count;
-    return 1.0 - shadow;
+    return 1.0 - shadow;*/
 }
 
 void main() {

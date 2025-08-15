@@ -39,12 +39,16 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
   return entity;
 }
 
-void Scene::DestroyEntity(Entity entity) {
+void Scene::RemoveEntity(Entity entity) {
   m_Entities.erase(entity.GetUUID());
-  m_Registry.destroy(entity);
+  m_DestroyQueue.push_back(entity.GetHandle());
   m_SceneHierarchy.erase(std::remove_if(m_SceneHierarchy.begin(), m_SceneHierarchy.end(), [&](auto& e) {
     return e == entity;
   }));
+}
+
+void Scene::DestroyEntity(entt::entity handle) {
+  m_Registry.destroy(handle);
 }
 
 void Scene::OnUpdate(float_t deltaTime) {
@@ -172,6 +176,13 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
   childTransform.IsChanged = true;
 }
 
+void Scene::ProcessDestroyQueue() {
+  for (const auto& item : m_DestroyQueue) {
+    DestroyEntity(item);
+  }
+  m_DestroyQueue.clear();
+}
+
 bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   for (const auto& entity : m_Registry.view<CameraComponent>()) {
     auto& component = m_Registry.get<CameraComponent>(entity);
@@ -224,7 +235,7 @@ bool Scene::Render() {
     }
     m_CurrentCamera->TransferFrom(camera, cameraTransform);
     renderer->SetCameraData(m_CurrentCamera);
-    renderer->BeginFrame();
+    renderer->UpdateUniformData();
     if (camera.DoesShadowPass) {
       for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
         renderer->BeginShadowPass(i);
@@ -232,7 +243,7 @@ bool Scene::Render() {
              GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = m_Registry.get<ModelComponent>(entity);
           auto& transform = m_Registry.get<TransformComponent>(entity);
-          if (!model.Data.ReceiveShadows) {
+          if (!model.Data.ReceiveShadows || !model.Data.EnableRendering) {
             continue;
           }
           renderer->DrawModel(model, transform, true);
@@ -246,6 +257,9 @@ bool Scene::Render() {
          GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
       auto& model = m_Registry.get<ModelComponent>(entity);
       auto& transform = m_Registry.get<TransformComponent>(entity);
+      if (!model.Data.EnableRendering) {
+        continue;
+      }
       renderer->DrawModel(model, transform, false);
     }
     renderer->EndGeometryPass();
@@ -255,10 +269,14 @@ bool Scene::Render() {
       renderer->DrawFullscreen(renderer->GetSSAOGenPipeline(), {renderer->GetCameraData()->SSAOGenDescriptor,
                                                                 renderer->GetCameraData()->GlobalDescriptor});
       renderer->EndSSAOGenPass();
-      renderer->BeginSSAOBlurPass();
-      renderer->GetSSAOBlurPipeline()->Bind(PipelineBindPointGraphics);
-      renderer->DrawFullscreen(renderer->GetSSAOBlurPipeline(), {renderer->GetCameraData()->SSAOOutputDescriptor});
-      renderer->EndSSAOBlurPass();
+      renderer->BeginSSAOBlurHorzPass();
+      renderer->GetSSAOBlurHorzPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(renderer->GetSSAOBlurHorzPipeline(), {renderer->GetCameraData()->SSAOOutputDescriptor});
+      renderer->EndSSAOBlurHorzPass();
+      renderer->BeginSSAOBlurVertPass();
+      renderer->GetSSAOBlurVertPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(renderer->GetSSAOBlurVertPipeline(), {renderer->GetCameraData()->SSAOBlurHorzOutputDescriptor});
+      renderer->EndSSAOBlurVertPass();
     }
     renderer->BeginLightingPass();
     renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
@@ -267,7 +285,7 @@ bool Scene::Render() {
     }
     renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
     renderer->DrawFullscreen(renderer->GetLightingPipeline(), {renderer->GetCameraData()->GeometryOutputDescriptor,
-                                                               renderer->GetCameraData()->SSAOBlurOutputDescriptor,
+                                                               renderer->GetCameraData()->SSAOBlurVertOutputDescriptor,
                                                               renderer->GetCameraData()->GlobalDescriptor});
     renderer->EndLightingPass();
     renderer->BeginSpritePass();
@@ -284,7 +302,6 @@ bool Scene::Render() {
     renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->LightingOutputDescriptor});
     renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->SpriteOutputDescriptor});
     renderer->EndCompositePass();
-    renderer->EndFrame();
     hasCamera = true;
   }
   return hasCamera;

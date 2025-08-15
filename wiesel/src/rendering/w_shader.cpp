@@ -32,10 +32,18 @@ Shader::Shader(ShaderProperties properties) : m_Properties(properties) {
   std::vector<uint32_t> code{};
   if (m_Properties.Source == ShaderSourceSource) {
     auto file = ReadFile(m_Properties.Path);
-    if (!Spirv::ShaderToSPV(m_Properties.Type, file, code)) {
+#ifdef DEBUG
+    bool debug = true;
+#else
+    bool debug = false;
+#endif
+    if (!Spirv::ShaderToSPV(m_Properties.Type, debug, file, m_Properties.Defines, code)) {
       throw std::runtime_error("Failed to compile shader!");
     }
   } else if (m_Properties.Source == ShaderSourcePrecompiled) {
+    if (!properties.Defines.empty()) {
+      LOG_WARN("Defines for shader was not empty but the shader is precompiled. Defines might not be matching.");
+    }
     code = ReadFileUint32(m_Properties.Path);
   } else {
     throw std::runtime_error("Shader source not implemented!");

@@ -170,8 +170,12 @@ class Renderer {
     return m_SSAOGenPipeline;
   }
 
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurPipeline() const {
-    return m_SSAOBlurPipeline;
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurHorzPipeline() const {
+    return m_SSAOBlurHorzPipeline;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurVertPipeline() const {
+    return m_SSAOBlurVertPipeline;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetLightingPipeline() const {
@@ -186,6 +190,10 @@ class Renderer {
     return m_CompositePipeline;
   }
 
+  WIESEL_GETTER_FN const Ref<Pipeline> GetPresentPipeline() const {
+    return m_PresentPipeline;
+  }
+
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
     return m_DefaultLinearSampler;
   }
@@ -197,6 +205,7 @@ class Renderer {
   WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadIndexBuffer() const {
     return m_QuadIndexBuffer;
   }
+
   WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadVertexBuffer() const {
     return m_QuadVertexBuffer;
   }
@@ -216,7 +225,7 @@ class Renderer {
   void DrawFullscreen(Ref<Pipeline> pipeline, std::initializer_list<Ref<DescriptorSet>> descriptors);
 
   void BeginRender();
-  void BeginFrame();
+  void UpdateUniformData();
   void BeginShadowPass(uint32_t cascade);
   void EndShadowPass();
 #ifdef ID_BUFFER_PASS
@@ -227,15 +236,16 @@ class Renderer {
   void EndGeometryPass();
   void BeginSSAOGenPass();
   void EndSSAOGenPass();
-  void BeginSSAOBlurPass();
-  void EndSSAOBlurPass();
+  void BeginSSAOBlurHorzPass();
+  void EndSSAOBlurHorzPass();
+  void BeginSSAOBlurVertPass();
+  void EndSSAOBlurVertPass();
   void BeginLightingPass();
   void EndLightingPass();
   void BeginSpritePass();
   void EndSpritePass();
   void BeginCompositePass();
   void EndCompositePass();
-  void EndFrame();
 
   bool BeginPresent();
   void EndPresent();
@@ -430,8 +440,10 @@ class Renderer {
   Ref<RenderPass> m_SSAOGenRenderPass;
   Ref<Pipeline> m_SSAOGenPipeline;
 
-  Ref<RenderPass> m_SSAOBlurRenderPass;
-  Ref<Pipeline> m_SSAOBlurPipeline;
+  Ref<RenderPass> m_SSAOBlurHorzRenderPass;
+  Ref<Pipeline> m_SSAOBlurHorzPipeline;
+  Ref<RenderPass> m_SSAOBlurVertRenderPass;
+  Ref<Pipeline> m_SSAOBlurVertPipeline;
 
   Ref<RenderPass> m_SpriteRenderPass;
   Ref<Pipeline> m_SpritePipeline;
@@ -457,6 +469,7 @@ class Renderer {
   SwapChainSupportDetails m_SwapChainDetails;
   VkPhysicalDeviceProperties m_PhysicalDeviceProperties;
   VkPhysicalDeviceFeatures m_PhysicalDeviceFeatures;
+  std::vector<std::string> m_ShaderFeatures;
 };
 
 #ifdef VULKAN_VALIDATION

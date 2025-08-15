@@ -7,11 +7,10 @@
 
 namespace Wiesel {
 
-SpriteAsset::~SpriteAsset() {
-
+SpriteTexture::~SpriteTexture() {
 }
 
-SpriteTexture::~SpriteTexture() {
+SpriteAsset::~SpriteAsset() {
 
 }
 

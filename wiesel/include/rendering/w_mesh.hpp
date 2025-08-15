@@ -58,7 +58,8 @@ struct Model {
   std::string ModelPath;
   std::string TexturesPath;
   std::map<std::string, Ref<Texture>> Textures;
-  bool ReceiveShadows = true;  // todo shadows
+  bool ReceiveShadows = true;
+  bool EnableRendering = true;
 };
 
 struct ModelComponent : public IComponent {

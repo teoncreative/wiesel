@@ -32,7 +32,7 @@ class Scene {
   Entity CreateEntity(const std::string& name = std::string());
   Entity CreateEntityWithUUID(UUID uuid,
                               const std::string& name = std::string());
-  void DestroyEntity(Entity entity);
+  void RemoveEntity(Entity entity);
 
   void OnUpdate(float_t deltaTime);
   void OnEvent(Event& event);
@@ -96,12 +96,15 @@ class Scene {
   void LinkEntities(entt::entity parent, entt::entity child);
   void UnlinkEntities(entt::entity parent, entt::entity child);
 
+  void ProcessDestroyQueue();
+
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
   void UpdateMatrices(entt::entity entity);
   bool Render();
+  void DestroyEntity(entt::entity handle);
 
  private:
   friend class Application;
@@ -112,6 +115,7 @@ class Scene {
   bool m_IsPaused = false;
   bool m_FirstUpdate = true;
   std::vector<entt::entity> m_SceneHierarchy;
+  std::vector<entt::entity> m_DestroyQueue;
   // this camera is used to render the scene to the current camera
   Ref<CameraData> m_CurrentCamera;
   Ref<Skybox> m_Skybox;
