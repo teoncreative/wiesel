@@ -16,7 +16,7 @@
 int main() {
   using namespace Wiesel;
 
-  std::cout << "Initializing engine...\n";
+  LOG_INFO("Initializing engine...");
   Engine::InitEngine();
   Application& app = *CreateApp();
   LOG_INFO("Initializing app...");

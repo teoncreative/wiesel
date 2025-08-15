@@ -72,6 +72,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
           });
     }
     ImGui::Checkbox("Receive Shadows", &model.Data.ReceiveShadows);
+    ImGui::Checkbox("Render", &model.Data.EnableRendering);
     ImGui::TreePop();
   }
   if (!visible) {

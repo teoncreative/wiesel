@@ -133,17 +133,19 @@ void Application::Run() {
       renderer->BeginRender();
       m_Scene->Render();
       if (renderer->BeginPresent()) {
-        //renderer->PresentImage(renderer->GetTargetColorResolveImage());
         m_ImGuiLayer->OnBeginFrame();
         for (const auto& layer : m_Overlays) {
           layer->OnImGuiRender();
         }
         m_ImGuiLayer->OnEndFrame();
+        /*renderer->DrawFullscreen(renderer->GetPresentPipeline(),
+                                 {renderer->GetCameraData()->CompositeOutputDescriptor});*/
         renderer->EndPresent();
       }
       for (const auto& layer : m_Overlays) {
         layer->OnPostRender();
       }
+      m_Scene->ProcessDestroyQueue();
     }
 
     m_Window->OnUpdate();

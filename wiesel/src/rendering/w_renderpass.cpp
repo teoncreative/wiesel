@@ -273,7 +273,6 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageVi
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-
 Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> outputViews, glm::vec2 extent) {
   std::vector<VkImageView> views;
   for (const auto& item : outputViews) {

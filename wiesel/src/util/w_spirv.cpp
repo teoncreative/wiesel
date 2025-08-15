@@ -143,7 +143,8 @@ EShLanguage FindLanguage(ShaderType type) {
   }
 }
 
-bool ShaderToSPV(ShaderType type, const std::vector<char>& input,
+bool ShaderToSPV(ShaderType type, bool debug, const std::vector<char>& input,
+                 const std::vector<std::string>& defines,
                  std::vector<uint32_t>& output) {
   LOG_INFO("Compiling shader...");
   EShLanguage stage = FindLanguage(type);
@@ -153,6 +154,14 @@ bool ShaderToSPV(ShaderType type, const std::vector<char>& input,
   InitResources(resources);
 
   shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+  shader.setDebugInfo(debug);
+
+  std::string preamble;
+  for (auto& d : defines) {
+    preamble += "#define " + d + "\n";
+  }
+  shader.setPreamble(preamble.c_str());
+
   EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
   const char* strings[] = {input.data()};
   const int lengths[] = {static_cast<int>(input.size())};
@@ -179,8 +188,9 @@ bool ShaderToSPV(ShaderType type, const std::vector<char>& input,
   }
   glslang::SpvOptions opt{};
   opt.validate = true;
-  opt.optimizeSize = true;
-  opt.stripDebugInfo = true;
+  if (!debug) {
+    opt.stripDebugInfo = true;
+  }
   glslang::GlslangToSpv(*program.getIntermediate(stage), output, &opt);
   return true;
 }

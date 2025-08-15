@@ -27,6 +27,7 @@ struct ShaderProperties {
   std::string Main;
   ShaderSource Source;
   std::string Path;
+  std::vector<std::string> Defines;
 };
 
 struct Shader {

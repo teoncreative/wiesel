@@ -135,7 +135,7 @@ bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
+bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
   m_App.SubmitToMainThread([this]() {
     for (const auto& entity : m_Scene->GetAllEntitiesWith<CameraComponent>()) {
       CameraComponent& component = m_Scene->GetComponent<CameraComponent>(entity);

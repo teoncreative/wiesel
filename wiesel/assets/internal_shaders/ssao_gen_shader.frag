@@ -26,6 +26,29 @@ layout(set = 1, binding = 1, std140) uniform Camera {
 layout (location = 0) in vec2 inUV;
 layout (location = 0) out float outFragColor;
 
+float rand(vec2 co) {
+    return fract(sin(dot(co,vec2(12.9898,78.233)))*43758.5453);
+}
+
+vec3 getNoise(vec2 uv){
+    // lower frequency so it doesn't tile too fast
+    float r1 = rand(uv * 0.5);
+    float r2 = rand(uv * 1.3);
+    float r3 = rand(uv * 2.7);
+    // make full‐range random
+    vec3 noise = normalize(vec3(r1, r2, r3) * 2.0 - 1.0);
+    // scale down amplitude to 20%
+    return noise * 0.2;
+}
+
+vec3 getNoiseLookup(vec2 uv) {
+    // Get a random vector using a noise lookup
+    ivec2 texDim = textureSize(samplerViewPos, 0);
+    ivec2 noiseDim = textureSize(ssaoNoise, 0);
+    const vec2 noiseUV = vec2(float(texDim.x)/float(noiseDim.x), float(texDim.y)/(noiseDim.y)) * uv;
+    return texture(ssaoNoise, noiseUV).xyz * 2.0 - 1.0;
+}
+
 void main() {
     //vec3 viewPos = texture(samplerViewPos, inUV).rgb;
     float linearDepth = texture(samplerDepth, inUV).r;
@@ -39,11 +62,7 @@ void main() {
     // Get G-Buffer values
     vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
 
-    // Get a random vector using a noise lookup
-    ivec2 texDim = textureSize(samplerViewPos, 0);
-    ivec2 noiseDim = textureSize(ssaoNoise, 0);
-    const vec2 noiseUV = vec2(float(texDim.x)/float(noiseDim.x), float(texDim.y)/(noiseDim.y)) * inUV;
-    vec3 randomVec = texture(ssaoNoise, noiseUV).xyz * 2.0 - 1.0;
+    vec3 randomVec = getNoise(inUV);
 
     // Create TBN matrix
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
@@ -70,6 +89,9 @@ void main() {
                                        SSAO_RADIUS / abs(linearDepth - sampleDist));
         if (actualDepth + bias < sampleDist) {
             occlusion += rangeCheck;
+        }
+        if (occlusion > float(SSAO_KERNEL_SIZE)*0.9) {
+            break;
         }
     }
     float strength = 1.0f;

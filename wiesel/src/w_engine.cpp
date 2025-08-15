@@ -35,6 +35,7 @@ Ref<Renderer> Engine::s_Renderer;
 Ref<AppWindow> Engine::s_Window;
 
 void Engine::InitEngine() {
+  LOG_INFO("Current work directory: {}", std::filesystem::current_path().string());
 #ifdef WIN32
   EnableAnsiColors();
 #endif
