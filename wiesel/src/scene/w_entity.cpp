@@ -19,12 +19,10 @@ Entity::Entity(entt::entity handle, Scene* scene)
     : m_EntityHandle(handle), m_Scene(scene) {
   m_Childs = nullptr;
   m_Parent = entt::null;
-  if (*this) {  // Is valid?
-    if (HasComponent<TreeComponent>()) {
-      TreeComponent& component = GetComponent<TreeComponent>();
-      m_Parent = component.Parent;
-      m_Childs = &component.Childs;
-    }
+  if (HasComponent<TreeComponent>()) {
+    TreeComponent& component = GetComponent<TreeComponent>();
+    m_Parent = component.Parent;
+    m_Childs = &component.Childs;
   }
 }
 
