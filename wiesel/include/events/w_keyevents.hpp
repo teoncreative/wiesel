@@ -19,7 +19,7 @@ class KeyEvent : public Event {
  public:
   WIESEL_GETTER_FN KeyCode GetKeyCode() const { return m_KeyCode; }
 
-  EVENT_CLASS_CATEGORY(EventCategory::Keyboard | EventCategory::Input)
+  EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryKeyboard | EventCategory::kEventCategoryInput)
  protected:
   KeyEvent(const KeyCode keycode) : m_KeyCode(keycode) {}
 

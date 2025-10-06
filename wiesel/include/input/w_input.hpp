@@ -16,14 +16,13 @@
 
 namespace Wiesel {
 struct KeyData {
-  KeyData() { Pressed = false; }
+  KeyData() { pressed = false; }
+  explicit KeyData(bool pressed) : pressed(pressed) { }
 
-  explicit KeyData(bool pressed) : Pressed(pressed){};
-
-  bool Pressed;
+  bool pressed;
 };
 
-enum InputMode { InputModeKeyboardAndMouse, InputModeGamepad };
+enum InputMode { kInputModeKeyboardAndMouse, kInputModeGamepad };
 
 class InputManager {
  public:
@@ -31,9 +30,8 @@ class InputManager {
   static bool IsPressed(KeyCode keyCode);
   static float GetAxis(const std::string& axisName);
 
-  static int GetMouseX() { return m_MouseX; }
-
-  static int GetMouseY() { return m_MouseY; }
+  static int mouse_x() { return mouse_x_; }
+  static int mouse_y() { return mouse_y_; }
 
   static void Init();
 
@@ -41,16 +39,16 @@ class InputManager {
   friend class Application;
 
   // todo maybe can be improved?
-  static std::map<std::string, std::vector<KeyCode>> m_KeyboardMapping;
-  static std::map<KeyCode, KeyData> m_Keys;
-  static std::map<MouseCode, KeyData> m_MouseButtons;
-  static std::map<std::string, float> m_Axis;
-  static int m_MouseX;
-  static int m_MouseY;
-  static float m_MouseAxisSensX;
-  static float m_MouseAxisSensY;
-  static InputMode m_InputMode;
-  static float m_MouseAxisLimitY;
+  static std::map<std::string, std::vector<KeyCode>> keyboard_mapping_;
+  static std::map<KeyCode, KeyData> keys_;
+  static std::map<MouseCode, KeyData> mouse_buttons_;
+  static std::map<std::string, float> axis_;
+  static int mouse_x_;
+  static int mouse_y_;
+  static float mouse_axis_sens_x_;
+  static float mouse_axis_sens_y_;
+  static InputMode input_mode_;
+  static float mouse_axis_limit_y_;
 };
 
 }  // namespace Wiesel

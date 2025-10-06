@@ -16,8 +16,8 @@ class Skybox {
   Skybox(Ref<Texture> texture);
   ~Skybox();
 
-  Ref<Texture> m_Texture;
-  Ref<DescriptorSet> m_Descriptors;
+  Ref<Texture> texture_;
+  Ref<DescriptorSet> descriptors_;
 };
 
 }

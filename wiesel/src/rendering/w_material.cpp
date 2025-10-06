@@ -16,13 +16,13 @@ namespace Wiesel {
 Material::Material() {}
 
 Material::~Material() {
-  BaseTexture = nullptr;
-  NormalMap = nullptr;
-  SpecularMap = nullptr;
-  HeightMap = nullptr;
-  AlbedoMap = nullptr;
-  RoughnessMap = nullptr;
-  MetallicMap = nullptr;
+  base_texture = nullptr;
+  normal_map = nullptr;
+  specular_map = nullptr;
+  height_map = nullptr;
+  albedo_map = nullptr;
+  roughness_map = nullptr;
+  metallic_map = nullptr;
 }
 
 void Material::Set(Ref<Material> material, Ref<Texture> texture,
@@ -31,20 +31,20 @@ void Material::Set(Ref<Material> material, Ref<Texture> texture,
     case TextureTypeNone:
       break;
     case TextureTypeDiffuse:
-      material->BaseTexture = texture;
+      material->base_texture = texture;
       break;
     case TextureTypeSpecular:
-      material->SpecularMap = texture;
+      material->specular_map = texture;
       break;
     case TextureTypeAmbient:
       break;
     case TextureTypeEmissive:
       break;
     case TextureTypeHeight:
-      material->HeightMap = texture;
+      material->height_map = texture;
       break;
     case TextureTypeNormals:
-      material->NormalMap = texture;
+      material->normal_map = texture;
       break;
     case TextureTypeShininess:
       break;
@@ -57,18 +57,18 @@ void Material::Set(Ref<Material> material, Ref<Texture> texture,
     case TextureTypeReflection:
       break;
     case TextureTypeBaseColor:
-      material->AlbedoMap = texture;
+      material->albedo_map = texture;
       break;
     case TextureTypeNormalCamera:
-      material->NormalMap = texture;
+      material->normal_map = texture;
       break;
     case TextureTypeEmissionColor:
       break;
     case TextureTypeMetalness:
-      material->MetallicMap = texture;
+      material->metallic_map = texture;
       break;
     case TextureTypeDiffuseRoughness:
-      material->RoughnessMap = texture;
+      material->roughness_map = texture;
       break;
     case TextureTypeAmbientOcclusion:
       break;

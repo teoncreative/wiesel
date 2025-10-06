@@ -4,6 +4,7 @@ project(Wiesel)
 option(ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
 option(ENABLE_VULKAN_VALIDATION "Enables Vulkan validation layer" OFF)
 option(ENABLE_ID_BUFFER_PASS "Enables id buffer pass, specifically used for the editor" ON)
+option(ENABLE_TRACY "Enables tracy profiler" OFF)
 
 if (UNIX)
     EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
@@ -23,6 +24,35 @@ set(CMAKE_INSTALL_RPATH "@loader_path/../lib/")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 set(INJECT_DEBUG_POSTFIX OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+##### TRACY #####
+if(ENABLE_TRACY)
+    include(FetchContent)
+    FetchContent_Declare(
+            tracy
+            GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+            GIT_TAG v0.12.2  # or whatever version you want
+            GIT_SHALLOW TRUE
+            GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(tracy)
+    FetchContent_GetProperties(tracy)
+    if(tracy_POPULATED)
+        message(STATUS "Tracy successfully downloaded and configured")
+        # Optional: Verify Tracy target exists
+        if(TARGET Tracy::TracyClient)
+            message(STATUS "Tracy::TracyClient target available")
+            set(LIB_TRACY Tracy::TracyClient)
+        elseif(TARGET tracy)
+            message(STATUS "tracy target available")
+            set(LIB_TRACY tracy)
+        else()
+            message(WARNING "Tracy downloaded but no target found")
+        endif()
+    else()
+        message(WARNING "Failed to download/configure Tracy - profiling disabled")
+    endif()
+endif()
 
 ##### SOURCES #####
 set(ENGINE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "wiesel root")
@@ -121,23 +151,29 @@ endif()
 
 ## LIBRARIES
 
+if (ENABLE_TRACY)
+    target_include_directories(wiesel PUBLIC ${LIBS_DIR}/tracy/public)
+    target_compile_definitions(wiesel PUBLIC TRACY_ENABLE)
+    target_link_libraries(wiesel PUBLIC ${LIB_TRACY})
+endif()
+
 if (VULKAN_FOUND)
     message(STATUS "Found Vulkan. Including and linking...")
     target_include_directories(wiesel PUBLIC ${GLFW_INCLUDE_DIRS})
-    target_link_libraries(wiesel Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
+    target_link_libraries(wiesel PUBLIC Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
 endif (VULKAN_FOUND)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
-target_link_libraries(wiesel glfw)
-target_link_libraries(wiesel assimp)
-target_link_libraries(wiesel freetype)
-target_link_libraries(wiesel EnTT)
-target_link_libraries(wiesel nfd)
-target_link_libraries(wiesel fmt)
-target_link_libraries(wiesel glslang)
-target_link_libraries(wiesel monolib)
+target_link_libraries(wiesel PUBLIC glfw)
+target_link_libraries(wiesel PUBLIC assimp)
+target_link_libraries(wiesel PUBLIC freetype)
+target_link_libraries(wiesel PUBLIC EnTT)
+target_link_libraries(wiesel PUBLIC nfd)
+target_link_libraries(wiesel PUBLIC fmt)
+target_link_libraries(wiesel PUBLIC glslang)
+target_link_libraries(wiesel PUBLIC monolib)
 
 function(_hash s outvar)
     string(MD5 _h "${s}")

@@ -236,8 +236,8 @@ class Time {
   static float_t GetTime();
 };
 
-std::vector<char> ReadFile(const std::string& filename);
-std::vector<uint32_t> ReadFileUint32(const std::string& filename);
+std::vector<char> ReadFile(const std::string& file_name);
+std::vector<uint32_t> ReadFileUint32(const std::string& file_name);
 
 std::string FormatVariableName(const std::string& name);
 

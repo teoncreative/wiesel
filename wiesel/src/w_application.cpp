@@ -17,42 +17,42 @@
 
 namespace Wiesel {
 
-Application* Application::s_Application;
+Application* Application::application_;
 
-Application::Application(const WindowProperties&& windowProps, const RendererProperties&& rendererProps) {
-  s_Application = this;
+Application::Application(const WindowProperties&& window_props, const RendererProperties&& renderer_props) {
+  application_ = this;
 
-  m_LayerCounter = 0;
-  m_IsRunning = true;
-  m_IsMinimized = false;
+  layer_counter_ = 0;
+  is_running_ = true;
+  is_minimized_ = false;
 
-  Engine::InitWindow(std::move(windowProps));
-  m_Window = Engine::GetWindow();
-  m_Window->SetEventHandler(WIESEL_BIND_FN(Application::OnEvent));
+  Engine::InitWindow(std::move(window_props));
+  window_ = Engine::GetWindow();
+  window_->SetEventHandler(WIESEL_BIND_FN(Application::OnEvent));
 
-  m_Window->GetWindowFramebufferSize(m_WindowSize);
-  if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
-    m_IsMinimized = true;
+  window_->GetWindowFramebufferSize(window_size_);
+  if (window_size_.Width == 0 || window_size_.Height == 0) {
+    is_minimized_ = true;
   }
 
-  Engine::InitRenderer(std::move(rendererProps));
-  m_Scene = CreateReference<Scene>();
-  m_ImGuiLayer = CreateReference<ImGuiLayer>();
-  PushOverlay(m_ImGuiLayer);
+  Engine::InitRenderer(std::move(renderer_props));
+  scene_ = CreateReference<Scene>();
+  imgui_layer_ = CreateReference<ImGuiLayer>();
+  PushOverlay(imgui_layer_);
 }
 
 Application::~Application() {
   LOG_DEBUG("Destroying Application");
-  for (const auto& item : m_Overlays) {
+  for (const auto& item : overlays_) {
     item->OnDetach();
   }
-  m_Overlays.clear();
-  for (const auto& item : m_Layers) {
+  overlays_.clear();
+  for (const auto& item : layers_) {
     item->OnDetach();
   }
-  m_Layers.clear();
-  m_Scene = nullptr;
-  m_Window = nullptr;
+  layers_.clear();
+  scene_ = nullptr;
+  window_ = nullptr;
   Engine::CleanupRenderer();
   Engine::CleanupWindow();
 }
@@ -65,13 +65,18 @@ void Application::OnEvent(Event& event) {
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPressed));
   dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
+  dispatcher.Dispatch<JoystickConnectedEvent>(WIESEL_BIND_FN(OnJoystickConnect));
+  dispatcher.Dispatch<JoystickDisconnectedEvent>(WIESEL_BIND_FN(OnJoystickDisconnect));
+  dispatcher.Dispatch<JoystickButtonPressedEvent>(WIESEL_BIND_FN(OnJoystickButtonPressed));
+  dispatcher.Dispatch<JoystickButtonReleasedEvent>(WIESEL_BIND_FN(OnJoystickButtonReleased));
+  dispatcher.Dispatch<JoystickAxisMovedEvent>(WIESEL_BIND_FN(OnJoystickButtonAxisMoved));
 
   if (event.m_Handled) {
     return;
   }
 
-  m_Scene->OnEvent(event);
-  for (auto it = m_Layers.rbegin(); it != m_Layers.rend(); ++it) {
+  scene_->OnEvent(event);
+  for (auto it = layers_.rbegin(); it != layers_.rend(); ++it) {
     const auto& layer = *it;
     if (event.m_Handled) {
       break;
@@ -82,9 +87,9 @@ void Application::OnEvent(Event& event) {
 }
 
 void Application::PushLayer(const Ref<Layer>& layer) {
-  m_Layers.push_back(layer);
+  layers_.push_back(layer);
   layer->OnAttach();
-  layer->m_Id = m_LayerCounter++;
+  layer->id_ = layer_counter_++;
 }
 
 void Application::RemoveLayer(const Ref<Layer>& layer) {
@@ -92,9 +97,9 @@ void Application::RemoveLayer(const Ref<Layer>& layer) {
 }
 
 void Application::PushOverlay(const Ref<Layer>& layer) {
-  m_Overlays.push_back(layer);
+  overlays_.push_back(layer);
   layer->OnAttach();
-  layer->m_Id = m_LayerCounter++;
+  layer->id_ = layer_counter_++;
 }
 
 void Application::RemoveOverlay(const Ref<Layer>& layer) {
@@ -102,70 +107,72 @@ void Application::RemoveOverlay(const Ref<Layer>& layer) {
 }
 
 void Application::Run() {
-  m_PreviousFrame = Time::GetTime();
+  PROFILE_THREAD("Application Thread");
+  previous_frame_ = Time::GetTime();
 
   Ref<Renderer> renderer = Engine::GetRenderer();
-  while (m_IsRunning) {
+  while (is_running_) {
+    PROFILE_FRAME_MARK();
     float time = Time::GetTime();
-    m_DeltaTime = time - m_PreviousFrame;
-    m_PreviousFrame = time;
+    delta_time_ = time - previous_frame_;
+    previous_frame_ = time;
 
-    m_FPSTimer += m_DeltaTime;
-    m_FrameCount++;
+    fps_timer_ += delta_time_;
+    frame_count_++;
 
-    if (m_FPSTimer >= 1.0f) {
-      m_FPS = static_cast<float>(m_FrameCount) / m_FPSTimer;
-      m_FrameCount = 0;
-      m_FPSTimer = 0.0f;
+    if (fps_timer_ >= 1.0f) {
+      fps_ = static_cast<float>(frame_count_) / fps_timer_;
+      frame_count_ = 0;
+      fps_timer_ = 0.0f;
     }
 
     ExecuteQueue();
 
-    if (!m_IsMinimized) {
-      for (const auto& layer : m_Layers) {
-        layer->OnUpdate(m_DeltaTime);
+    if (!is_minimized_) {
+      for (const auto& layer : layers_) {
+        layer->OnUpdate(delta_time_);
       }
-      for (const auto& layer : m_Overlays) {
-        layer->OnUpdate(m_DeltaTime);
+      for (const auto& layer : overlays_) {
+        layer->OnUpdate(delta_time_);
       }
-      m_Scene->OnUpdate(m_DeltaTime);
+      scene_->OnUpdate(delta_time_);
 
       renderer->BeginRender();
-      m_Scene->Render();
+      scene_->Render();
       if (renderer->BeginPresent()) {
-        m_ImGuiLayer->OnBeginFrame();
-        for (const auto& layer : m_Overlays) {
+        imgui_layer_->OnBeginFrame();
+        for (const auto& layer : overlays_) {
           layer->OnImGuiRender();
         }
-        m_ImGuiLayer->OnEndFrame();
+        imgui_layer_->OnEndFrame();
         /*renderer->DrawFullscreen(renderer->GetPresentPipeline(),
                                  {renderer->GetCameraData()->CompositeOutputDescriptor});*/
         renderer->EndPresent();
       }
-      for (const auto& layer : m_Overlays) {
+      for (const auto& layer : overlays_) {
         layer->OnPostRender();
       }
-      m_Scene->ProcessDestroyQueue();
+      scene_->ProcessDestroyQueue();
     }
 
-    m_Window->OnUpdate();
+    window_->OnUpdate();
 
-    if (m_WindowResized) {
-      m_Window->GetWindowFramebufferSize(m_WindowSize);
-      if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
-        m_IsMinimized = true;
+    if (window_resized_) {
+      window_->GetWindowFramebufferSize(window_size_);
+      if (window_size_.Width == 0 || window_size_.Height == 0) {
+        is_minimized_ = true;
       } else {
-        m_IsMinimized = false;
+        is_minimized_ = false;
         renderer->RecreateSwapChain();
       }
-      m_WindowResized = false;
+      window_resized_ = false;
     }
   }
 }
 
 void Application::Close() {
   LOG_INFO("Closing the application!");
-  m_IsRunning = false;
+  is_running_ = false;
 }
 
 bool Application::OnWindowClose(WindowCloseEvent& event) {
@@ -174,7 +181,7 @@ bool Application::OnWindowClose(WindowCloseEvent& event) {
 }
 
 bool Application::OnWindowResize(WindowResizeEvent& event) {
-  m_WindowResized = true;
+  window_resized_ = true;
   return false;
 }
 
@@ -186,82 +193,102 @@ void Application::UpdateKeyboardAxis() {
   bool down = InputManager::GetKey("Down");
 
   if (right && !left) {
-    InputManager::m_Axis["Horizontal"] = 1;
+    InputManager::axis_["Horizontal"] = 1;
   } else if (!right && left) {
-    InputManager::m_Axis["Horizontal"] = -1;
+    InputManager::axis_["Horizontal"] = -1;
   } else {
-    InputManager::m_Axis["Horizontal"] = 0;
+    InputManager::axis_["Horizontal"] = 0;
   }
 
   if (up && !down) {
-    InputManager::m_Axis["Vertical"] = 1;
+    InputManager::axis_["Vertical"] = 1;
   } else if (!up && down) {
-    InputManager::m_Axis["Vertical"] = -1;
+    InputManager::axis_["Vertical"] = -1;
   } else {
-    InputManager::m_Axis["Vertical"] = 0;
+    InputManager::axis_["Vertical"] = 0;
   }
 }
 
-bool Application::OnKeyPressed(Wiesel::KeyPressedEvent& event) {
-  InputManager::m_InputMode = InputModeKeyboardAndMouse;
-  InputManager::m_Keys[event.GetKeyCode()].Pressed = true;
+bool Application::OnKeyPressed(KeyPressedEvent& event) {
+  InputManager::input_mode_ = kInputModeKeyboardAndMouse;
+  InputManager::keys_[event.GetKeyCode()].pressed = true;
   UpdateKeyboardAxis();
   return false;
 }
 
-bool Application::OnKeyReleased(Wiesel::KeyReleasedEvent& event) {
-  InputManager::m_Keys[event.GetKeyCode()].Pressed = false;
+bool Application::OnKeyReleased(KeyReleasedEvent& event) {
+  InputManager::keys_[event.GetKeyCode()].pressed = false;
   UpdateKeyboardAxis();
   return false;
 }
 
-bool Application::OnMouseMoved(Wiesel::MouseMovedEvent& event) {
-  InputManager::m_InputMode = InputModeKeyboardAndMouse;
-  InputManager::m_MouseX = event.GetX();
-  InputManager::m_MouseY = event.GetY();
+bool Application::OnMouseMoved(MouseMovedEvent& event) {
+  InputManager::input_mode_ = kInputModeKeyboardAndMouse;
+  InputManager::mouse_x_ = event.GetX();
+  InputManager::mouse_y_ = event.GetY();
   // todo mouse delta raw
   if (event.GetCursorMode() == CursorModeRelative) {
-    InputManager::m_Axis["Mouse X"] +=
-        InputManager::m_MouseAxisSensX *
-        (((m_WindowSize.Width / 2.0f) - event.GetX()) / m_WindowSize.Width);
-    InputManager::m_Axis["Mouse Y"] +=
-        InputManager::m_MouseAxisSensY *
-        (((m_WindowSize.Height / 2.0f) - event.GetY()) / m_WindowSize.Width);
-    InputManager::m_Axis["Mouse Y"] = std::clamp(
-        InputManager::m_Axis["Mouse Y"], -InputManager::m_MouseAxisLimitY,
-        InputManager::m_MouseAxisLimitY);
+    InputManager::axis_["Mouse X"] +=
+        InputManager::mouse_axis_sens_x_ *
+        (((window_size_.Width / 2.0f) - event.GetX()) / window_size_.Width);
+    InputManager::axis_["Mouse Y"] +=
+        InputManager::mouse_axis_sens_y_ *
+        (((window_size_.Height / 2.0f) - event.GetY()) / window_size_.Width);
+    InputManager::axis_["Mouse Y"] = std::clamp(
+        InputManager::axis_["Mouse Y"], -InputManager::mouse_axis_limit_y_,
+        InputManager::mouse_axis_limit_y_);
   }
+  return false;
+}
+
+bool Application::OnJoystickConnect(JoystickConnectedEvent& event) {
+  return false;
+}
+
+bool Application::OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
+  return false;
+}
+
+bool Application::OnJoystickButtonPressed(JoystickButtonPressedEvent& event) {
+  return false;
+}
+
+bool Application::OnJoystickButtonReleased(JoystickButtonReleasedEvent& event) {
+  return false;
+}
+
+bool Application::OnJoystickButtonAxisMoved(JoystickAxisMovedEvent& event) {
   return false;
 }
 
 Ref<AppWindow> Application::GetWindow() {
-  return m_Window;
+  return window_;
 }
 
 const WindowSize& Application::GetWindowSize() {
-  return m_WindowSize;
+  return window_size_;
 }
 
 Ref<Scene> Application::GetScene() {
-  return m_Scene;
+  return scene_;
 }
 
 void Application::SubmitToMainThread(std::function<void()> fn) {
-  std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
-  m_MainThreadQueue.emplace_back(fn);
+  std::scoped_lock<std::mutex> lock(main_thread_queue_mutex_);
+  main_thread_queue_.emplace_back(fn);
 }
 
 void Application::ExecuteQueue() {
   // this has to be inside its own scope or it might have problems
-  std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
-  for (auto& func : m_MainThreadQueue) {
+  std::scoped_lock<std::mutex> lock(main_thread_queue_mutex_);
+  for (auto& func : main_thread_queue_) {
     func();
   }
-  m_MainThreadQueue.clear();
+  main_thread_queue_.clear();
 }
 
 Application* Application::Get() {
-  return s_Application;
+  return application_;
 }
 
 }  // namespace Wiesel

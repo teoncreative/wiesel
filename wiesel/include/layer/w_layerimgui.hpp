@@ -12,7 +12,6 @@
 #pragma once
 
 #include "layer/w_layer.hpp"
-#include "util/imgui/w_imguiutil.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {

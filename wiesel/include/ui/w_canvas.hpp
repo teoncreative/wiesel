@@ -17,12 +17,12 @@
 
 namespace Wiesel {
 struct TextComponent {
-  std::string Text;
+  std::string text;
 };
 
 enum CanvasType { CanvasTypeScreenSpace };
 
 struct CanvasComponent {
-  CanvasType Type;
+  CanvasType type;
 };
 }  // namespace Wiesel

@@ -33,85 +33,85 @@ struct CameraComponent {
   CameraComponent(const CameraComponent&) = default;
   ~CameraComponent() = default;
 
-  float FieldOfView = 60;
-  float NearPlane = 0.1f;
-  float FarPlane = 400.0f;
-  float AspectRatio = 1.0;
+  float field_of_view = 60;
+  float near_plane = 0.01f;
+  float far_plane = 400.0f;
+  float aspect_ratio = 1.0;
 
-  glm::mat4 ViewMatrix;
-  glm::mat4 Projection;
-  glm::mat4 InvProjection;
-  glm::vec2 ViewportSize;
-  glm::mat4 InvViewMatrix;
+  glm::mat4 view_matrix;
+  glm::mat4 projection;
+  glm::mat4 inv_projection;
+  glm::vec2 viewport_size;
+  glm::mat4 inv_view_matrix;
 
 #ifdef ID_BUFFER_PASS
-  Ref<AttachmentTexture> IDImage;
-  Ref<AttachmentTexture> IDDepthStencil;
+  Ref<AttachmentTexture> id_image;
+  Ref<AttachmentTexture> id_depth_stencil;
 #endif
 
-  Ref<AttachmentTexture> GeometryNormalImage;
-  Ref<AttachmentTexture> GeometryNormalResolveImage;
+  Ref<AttachmentTexture> geometry_normal_image;
+  Ref<AttachmentTexture> geometry_normal_resolve_image;
   Ref<AttachmentTexture> GeometryDepthImage;
-  Ref<AttachmentTexture> GeometryDepthResolveImage;
-  Ref<AttachmentTexture> GeometryAlbedoImage;
-  Ref<AttachmentTexture> GeometryAlbedoResolveImage;
-  Ref<AttachmentTexture> GeometryViewPosImage;
-  Ref<AttachmentTexture> GeometryViewPosResolveImage;
-  Ref<AttachmentTexture> GeometryWorldPosImage;
-  Ref<AttachmentTexture> GeometryWorldPosResolveImage;
-  Ref<AttachmentTexture> GeometryMaterialImage;
-  Ref<AttachmentTexture> GeometryMaterialResolveImage;
-  Ref<AttachmentTexture> GeometryDepthStencil;
+  Ref<AttachmentTexture> geometry_depth_resolve_image;
+  Ref<AttachmentTexture> geometry_albedo_image;
+  Ref<AttachmentTexture> geometry_albedo_resolve_image;
+  Ref<AttachmentTexture> geometry_view_pos_image;
+  Ref<AttachmentTexture> geometry_view_pos_resolve_image;
+  Ref<AttachmentTexture> geometry_world_pos_image;
+  Ref<AttachmentTexture> geometry_world_pos_resolve_image;
+  Ref<AttachmentTexture> geometry_material_image;
+  Ref<AttachmentTexture> geometry_material_resolve_image;
+  Ref<AttachmentTexture> geometry_depth_stencil;
 
-  Ref<AttachmentTexture> SSAOColorImage;
-  Ref<AttachmentTexture> SSAOBlurHorzColorImage;
-  Ref<AttachmentTexture> SSAOBlurVertColorImage;
+  Ref<AttachmentTexture> ssao_color_image;
+  Ref<AttachmentTexture> ssao_blur_horz_color_image;
+  Ref<AttachmentTexture> ssao_blur_vert_color_image;
 
-  Ref<AttachmentTexture> LightingColorImage;
-  Ref<AttachmentTexture> LightingColorResolveImage;
+  Ref<AttachmentTexture> lighting_color_image;
+  Ref<AttachmentTexture> lighting_color_resolve_image;
 
-  Ref<AttachmentTexture> SpriteColorImage;
+  Ref<AttachmentTexture> sprite_color_image;
 
-  Ref<AttachmentTexture> CompositeColorImage;
-  Ref<AttachmentTexture> CompositeColorResolveImage;
+  Ref<AttachmentTexture> composite_color_image;
+  Ref<AttachmentTexture> composite_color_resolve_image;
 
 #ifdef ID_BUFFER_PASS
-  Ref<Framebuffer> IDFramebuffer;
+  Ref<Framebuffer> id_framebuffer;
 #endif
-  Ref<Framebuffer> GeometryFramebuffer;
-  Ref<Framebuffer> SSAOGenFramebuffer;
-  Ref<Framebuffer> SSAOBlurHorzFramebuffer;
-  Ref<Framebuffer> SSAOBlurVertFramebuffer;
-  Ref<Framebuffer> LightingFramebuffer;
-  Ref<Framebuffer> SpriteFramebuffer;
-  Ref<Framebuffer> CompositeFramebuffer;
-  Ref<DescriptorSet> GlobalDescriptor;
-  Ref<DescriptorSet> ShadowDescriptor;
+  Ref<Framebuffer> geometry_framebuffer;
+  Ref<Framebuffer> ssao_gen_framebuffer;
+  Ref<Framebuffer> ssao_blur_horz_framebuffer;
+  Ref<Framebuffer> ssao_blur_vert_framebuffer;
+  Ref<Framebuffer> lighting_framebuffer;
+  Ref<Framebuffer> sprite_framebuffer;
+  Ref<Framebuffer> composite_framebuffer;
+  Ref<DescriptorSet> global_descriptor;
+  Ref<DescriptorSet> shadow_descriptor;
 
-  Ref<DescriptorSet> GeometryOutputDescriptor;
-  Ref<DescriptorSet> SSAOOutputDescriptor;
-  Ref<DescriptorSet> SSAOBlurHorzOutputDescriptor;
-  Ref<DescriptorSet> SSAOBlurVertOutputDescriptor;
-  Ref<DescriptorSet> LightingOutputDescriptor;
-  Ref<DescriptorSet> SpriteOutputDescriptor;
-  Ref<DescriptorSet> CompositeOutputDescriptor;
-  Ref<DescriptorSet> SSAOGenDescriptor;
-  FrustumPlanes Planes;
+  Ref<DescriptorSet> geometry_output_descriptor;
+  Ref<DescriptorSet> ssao_output_descriptor;
+  Ref<DescriptorSet> ssao_blur_horz_output_descriptor;
+  Ref<DescriptorSet> ssao_blur_vert_output_descriptor;
+  Ref<DescriptorSet> lighting_output_descriptor;
+  Ref<DescriptorSet> sprite_output_descriptor;
+  Ref<DescriptorSet> composite_output_descriptor;
+  Ref<DescriptorSet> ssao_gen_descriptor;
+  FrustumPlanes planes;
 
   // Shadow stuff
-  bool DoesShadowPass = false;
-  std::array<Cascade, WIESEL_SHADOW_CASCADE_COUNT> ShadowMapCascades;
-  Ref<AttachmentTexture> ShadowDepthStencil;
-  std::array<Ref<ImageView>, WIESEL_SHADOW_CASCADE_COUNT> ShadowDepthViews;
-  Ref<ImageView> ShadowDepthViewArray;
-  std::array<Ref<Framebuffer>, WIESEL_SHADOW_CASCADE_COUNT> ShadowFramebuffers;
+  bool does_shadow_pass = false;
+  std::array<Cascade, WIESEL_SHADOW_CASCADE_COUNT> shadow_map_cascades;
+  Ref<AttachmentTexture> shadow_depth_stencil;
+  std::array<Ref<ImageView>, WIESEL_SHADOW_CASCADE_COUNT> shadow_depth_views;
+  Ref<ImageView> shadow_depth_view_array;
+  std::array<Ref<Framebuffer>, WIESEL_SHADOW_CASCADE_COUNT> shadow_framebuffers;
 
-  glm::vec3 PreviousLightDir;
-  bool ForceLightReset = false;
-  bool IsPosChanged = true;
-  bool IsViewChanged = true;
-  bool IsAnyChanged = true;
-  bool IsEnabled = true;
+  glm::vec3 previous_light_dir;
+  bool force_light_reset = false;
+  bool pos_changed = true;
+  bool view_changed = true;
+  bool any_changed = true;
+  bool enabled = true;
 
   void UpdateProjection();
   void UpdateView(const glm::mat4& worldTransform);
@@ -124,132 +124,131 @@ struct CameraComponent {
 
 struct CameraData {
   CameraData() = default;
-  CameraData(glm::vec3 position, glm::mat4 viewMatrix, glm::mat4 projection)
-      : Position(position), ViewMatrix(viewMatrix), Projection(projection){};
+  CameraData(glm::vec3 position, glm::mat4 view_matrix, glm::mat4 projection)
+      : position(position), view_matrix(view_matrix), projection(projection){}
   CameraData(const CameraData&) = default;
   ~CameraData() = default;
 
-  glm::vec3 Position;
-  glm::mat4 ViewMatrix;
-  glm::mat4 Projection;
-  glm::mat4 InvProjection;
-  glm::vec2 ViewportSize;
-  float NearPlane = 0.1f;
-  float FarPlane = 1000.0f;
+  glm::vec3 position;
+  glm::mat4 view_matrix;
+  glm::mat4 projection;
+  glm::mat4 inv_projection;
+  glm::vec2 viewport_size;
+  float near_plane = 0.01f;
+  float far_plane = 1000.0f;
 
-  Ref<AttachmentTexture> GeometryNormalImage;
-  Ref<AttachmentTexture> GeometryNormalResolveImage;
-  Ref<AttachmentTexture> GeometryAlbedoImage;
-  Ref<AttachmentTexture> GeometryAlbedoResolveImage;
-  Ref<AttachmentTexture> GeometryViewPosImage;
-  Ref<AttachmentTexture> GeometryViewPosResolveImage;
-  Ref<AttachmentTexture> GeometryWorldPosImage;
-  Ref<AttachmentTexture> GeometryWorldPosResolveImage;
-  Ref<AttachmentTexture> GeometryDepthImage;
-  Ref<AttachmentTexture> GeometryDepthResolveImage;
-  Ref<AttachmentTexture> GeometryDepthStencil;
-  Ref<AttachmentTexture> GeometryMaterialImage;
-  Ref<AttachmentTexture> GeometryMaterialResolveImage;
+  Ref<AttachmentTexture> geometry_normal_image;
+  Ref<AttachmentTexture> geometry_normal_resolve_image;
+  Ref<AttachmentTexture> geometry_albedo_image;
+  Ref<AttachmentTexture> geometry_albedo_resolve_image;
+  Ref<AttachmentTexture> geometry_view_pos_image;
+  Ref<AttachmentTexture> geometry_view_pos_resolve_image;
+  Ref<AttachmentTexture> geometry_world_pos_image;
+  Ref<AttachmentTexture> geometry_world_pos_resolve_image;
+  Ref<AttachmentTexture> geometry_depth_image;
+  Ref<AttachmentTexture> geometry_depth_resolve_image;
+  Ref<AttachmentTexture> geometry_depth_stencil;
+  Ref<AttachmentTexture> geometry_material_image;
+  Ref<AttachmentTexture> geometry_material_resolve_image;
 
-  Ref<AttachmentTexture> SSAOColorImage;
-  Ref<AttachmentTexture> SSAOBlurHorzColorImage;
-  Ref<AttachmentTexture> SSAOBlurVertColorImage;
+  Ref<AttachmentTexture> ssao_color_image;
+  Ref<AttachmentTexture> ssao_blur_horz_color_image;
+  Ref<AttachmentTexture> ssao_blur_vert_color_image;
 
-  Ref<AttachmentTexture> LightingColorImage;
-  Ref<AttachmentTexture> LightingColorResolveImage;
+  Ref<AttachmentTexture> lighting_color_image;
+  Ref<AttachmentTexture> lighting_color_resolve_image;
 
-  Ref<AttachmentTexture> SpriteColorImage;
+  Ref<AttachmentTexture> sprite_color_image;
 
-  Ref<AttachmentTexture> CompositeColorImage;
-  Ref<AttachmentTexture> CompositeColorResolveImage;
+  Ref<AttachmentTexture> composite_color_image;
+  Ref<AttachmentTexture> composite_color_resolve_image;
 
-  Ref<Framebuffer> GeometryFramebuffer;
-  Ref<Framebuffer> SSAOGenFramebuffer;
-  Ref<Framebuffer> SSAOBlurHorzFramebuffer;
-  Ref<Framebuffer> SSAOBlurVertFramebuffer;
-  Ref<Framebuffer> LightingFramebuffer;
-  Ref<Framebuffer> SpriteFramebuffer;
-  Ref<Framebuffer> CompositeFramebuffer;
-  Ref<DescriptorSet> GlobalDescriptor; // to draw geometry
-  Ref<DescriptorSet> ShadowDescriptor; // to draw geometry to shadow pass
-  Ref<DescriptorSet> GeometryOutputDescriptor; // to draw geometry pass output
-  Ref<DescriptorSet> SSAOOutputDescriptor; // to draw ssao pass output
-  Ref<DescriptorSet> SSAOBlurHorzOutputDescriptor; // to draw ssao blur horz pass output
-  Ref<DescriptorSet> SSAOBlurVertOutputDescriptor; // to draw ssao blur vert pass output
-  Ref<DescriptorSet> LightingOutputDescriptor; // to draw lighting pass output
-  Ref<DescriptorSet> SpriteOutputDescriptor; // to draw sprite pass output
-  Ref<DescriptorSet> CompositeOutputDescriptor; // to draw composite pass output
-  Ref<DescriptorSet>
-      SSAOGenDescriptor; // used to render geometry pass output to ssao pass
-  FrustumPlanes Planes;
+  Ref<Framebuffer> geometry_framebuffer;
+  Ref<Framebuffer> ssao_gen_framebuffer;
+  Ref<Framebuffer> ssao_blur_horz_framebuffer;
+  Ref<Framebuffer> ssao_blur_vert_framebuffer;
+  Ref<Framebuffer> lighting_framebuffer;
+  Ref<Framebuffer> sprite_framebuffer;
+  Ref<Framebuffer> composite_framebuffer;
+  Ref<DescriptorSet> global_descriptor; // to draw geometry
+  Ref<DescriptorSet> shadow_descriptor; // to draw geometry to shadow pass
+  Ref<DescriptorSet> geometry_output_descriptor; // to draw geometry pass output
+  Ref<DescriptorSet> ssao_output_descriptor; // to draw ssao pass output
+  Ref<DescriptorSet> ssao_blur_horz_output_descriptor; // to draw ssao blur horz pass output
+  Ref<DescriptorSet> ssao_blur_vert_output_descriptor; // to draw ssao blur vert pass output
+  Ref<DescriptorSet> lighting_output_descriptor; // to draw lighting pass output
+  Ref<DescriptorSet> sprite_output_descriptor; // to draw sprite pass output
+  Ref<DescriptorSet> composite_output_descriptor; // to draw composite pass output
+  Ref<DescriptorSet> ssao_gen_descriptor; // used to render geometry pass output to ssao pass
+  FrustumPlanes planes;
 
   // Shadow stuff
-  bool DoesShadowPass = false;
-  std::array<Cascade, WIESEL_SHADOW_CASCADE_COUNT> ShadowMapCascades;
-  Ref<AttachmentTexture> ShadowDepthStencil;
-  std::array<Ref<Framebuffer>, WIESEL_SHADOW_CASCADE_COUNT> ShadowFramebuffers;
+  bool does_shadow_pass = false;
+  std::array<Cascade, WIESEL_SHADOW_CASCADE_COUNT> shadow_map_cascades;
+  Ref<AttachmentTexture> shadow_depth_stencil;
+  std::array<Ref<Framebuffer>, WIESEL_SHADOW_CASCADE_COUNT> shadow_framebuffers;
 
   void TransferFrom(CameraComponent& camera, TransformComponent& transform) {
     // Perhaps we could do this differently?
     // At first, we had 3 variables to update, but now we have a lot more...
 
-    Position = transform.Position;
-    ViewMatrix = camera.ViewMatrix;
-    Projection = camera.Projection;
-    InvProjection = camera.InvProjection;
-    ViewportSize = camera.ViewportSize;
-    NearPlane = camera.NearPlane;
-    FarPlane = camera.FarPlane;
+    position = transform.position;
+    view_matrix = camera.view_matrix;
+    projection = camera.projection;
+    inv_projection = camera.inv_projection;
+    viewport_size = camera.viewport_size;
+    near_plane = camera.near_plane;
+    far_plane = camera.far_plane;
 
-    GeometryNormalImage = camera.GeometryNormalImage;
-    GeometryNormalResolveImage = camera.GeometryNormalResolveImage;
-    GeometryAlbedoImage = camera.GeometryAlbedoImage;
-    GeometryAlbedoResolveImage = camera.GeometryAlbedoResolveImage;
-    GeometryViewPosImage = camera.GeometryViewPosImage;
-    GeometryViewPosResolveImage = camera.GeometryViewPosResolveImage;
-    GeometryWorldPosImage = camera.GeometryWorldPosImage;
-    GeometryWorldPosResolveImage = camera.GeometryWorldPosResolveImage;
-    GeometryDepthImage = camera.GeometryDepthImage;
-    GeometryDepthResolveImage = camera.GeometryDepthResolveImage;
-    GeometryDepthStencil = camera.GeometryDepthStencil;
-    GeometryMaterialImage = camera.GeometryMaterialImage;
-    GeometryMaterialResolveImage = camera.GeometryMaterialResolveImage;
+    geometry_normal_image = camera.geometry_normal_image;
+    geometry_normal_resolve_image = camera.geometry_normal_resolve_image;
+    geometry_albedo_image = camera.geometry_albedo_image;
+    geometry_albedo_resolve_image = camera.geometry_albedo_resolve_image;
+    geometry_view_pos_image = camera.geometry_view_pos_image;
+    geometry_view_pos_resolve_image = camera.geometry_view_pos_resolve_image;
+    geometry_world_pos_image = camera.geometry_world_pos_image;
+    geometry_world_pos_resolve_image = camera.geometry_world_pos_resolve_image;
+    geometry_depth_image = camera.GeometryDepthImage;
+    geometry_depth_resolve_image = camera.geometry_depth_resolve_image;
+    geometry_depth_stencil = camera.geometry_depth_stencil;
+    geometry_material_image = camera.geometry_material_image;
+    geometry_material_resolve_image = camera.geometry_material_resolve_image;
 
-    SSAOColorImage = camera.SSAOColorImage;
-    SSAOBlurHorzColorImage = camera.SSAOBlurHorzColorImage;
-    SSAOBlurVertColorImage = camera.SSAOBlurVertColorImage;
+    ssao_color_image = camera.ssao_color_image;
+    ssao_blur_horz_color_image = camera.ssao_blur_horz_color_image;
+    ssao_blur_vert_color_image = camera.ssao_blur_vert_color_image;
 
-    LightingColorImage = camera.LightingColorImage;
-    LightingColorResolveImage = camera.LightingColorResolveImage;
+    lighting_color_image = camera.lighting_color_image;
+    lighting_color_resolve_image = camera.lighting_color_resolve_image;
 
-    SpriteColorImage = camera.SpriteColorImage;
+    sprite_color_image = camera.sprite_color_image;
 
-    CompositeColorImage = camera.CompositeColorImage;
-    CompositeColorResolveImage = camera.CompositeColorResolveImage;
+    composite_color_image = camera.composite_color_image;
+    composite_color_resolve_image = camera.composite_color_resolve_image;
 
-    GeometryFramebuffer = camera.GeometryFramebuffer;
-    SSAOGenFramebuffer = camera.SSAOGenFramebuffer;
-    SSAOBlurHorzFramebuffer = camera.SSAOBlurHorzFramebuffer;
-    SSAOBlurVertFramebuffer = camera.SSAOBlurVertFramebuffer;
-    LightingFramebuffer = camera.LightingFramebuffer;
-    SpriteFramebuffer = camera.SpriteFramebuffer;
-    CompositeFramebuffer = camera.CompositeFramebuffer;
-    GlobalDescriptor = camera.GlobalDescriptor;
-    ShadowDescriptor = camera.ShadowDescriptor;
-    GeometryOutputDescriptor = camera.GeometryOutputDescriptor;
-    SSAOOutputDescriptor = camera.SSAOOutputDescriptor;
-    SSAOBlurHorzOutputDescriptor = camera.SSAOBlurHorzOutputDescriptor;
-    SSAOBlurVertOutputDescriptor = camera.SSAOBlurVertOutputDescriptor;
-    LightingOutputDescriptor = camera.LightingOutputDescriptor;
-    SpriteOutputDescriptor = camera.SpriteOutputDescriptor;
-    CompositeOutputDescriptor = camera.CompositeOutputDescriptor;
-    SSAOGenDescriptor = camera.SSAOGenDescriptor;
-    Planes = camera.Planes;
+    geometry_framebuffer = camera.geometry_framebuffer;
+    ssao_gen_framebuffer = camera.ssao_gen_framebuffer;
+    ssao_blur_horz_framebuffer = camera.ssao_blur_horz_framebuffer;
+    ssao_blur_vert_framebuffer = camera.ssao_blur_vert_framebuffer;
+    lighting_framebuffer = camera.lighting_framebuffer;
+    sprite_framebuffer = camera.sprite_framebuffer;
+    composite_framebuffer = camera.composite_framebuffer;
+    global_descriptor = camera.global_descriptor;
+    shadow_descriptor = camera.shadow_descriptor;
+    geometry_output_descriptor = camera.geometry_output_descriptor;
+    ssao_output_descriptor = camera.ssao_output_descriptor;
+    ssao_blur_horz_output_descriptor = camera.ssao_blur_horz_output_descriptor;
+    ssao_blur_vert_output_descriptor = camera.ssao_blur_vert_output_descriptor;
+    lighting_output_descriptor = camera.lighting_output_descriptor;
+    sprite_output_descriptor = camera.sprite_output_descriptor;
+    composite_output_descriptor = camera.composite_output_descriptor;
+    ssao_gen_descriptor = camera.ssao_gen_descriptor;
+    planes = camera.planes;
 
-    DoesShadowPass = camera.DoesShadowPass;
-    ShadowMapCascades = camera.ShadowMapCascades;
-    ShadowDepthStencil = camera.ShadowDepthStencil;
-    ShadowFramebuffers = camera.ShadowFramebuffers;
+    does_shadow_pass = camera.does_shadow_pass;
+    shadow_map_cascades = camera.shadow_map_cascades;
+    shadow_depth_stencil = camera.shadow_depth_stencil;
+    shadow_framebuffers = camera.shadow_framebuffers;
   }
 
 };

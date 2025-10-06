@@ -42,10 +42,19 @@ class GlfwAppWindow : public AppWindow {
   void SetCursorMode(CursorMode cursorMode) override;
 
  private:
-  WindowSize m_WindowSize;
-  WindowSize m_FramebufferSize;
-  WindowSize m_Scale;
+  WindowSize window_size_;
+  WindowSize framebuffer_size_;
+  WindowSize scale_;
 
-  GLFWwindow* m_Handle{};
+  GLFWwindow* handle_{};
+  std::array<std::optional<GLFWgamepadstate>, GLFW_JOYSTICK_LAST + 1> gamepad_prev_{};
+  struct RawJoyPrev {
+    bool valid = false;
+    std::vector<float> axes;
+    std::vector<unsigned char> buttons;
+    std::vector<unsigned char> hats;
+  };
+  std::array<RawJoyPrev, GLFW_JOYSTICK_LAST + 1> joy_prev_{};
+  bool first_frame_ = true;
 };
 }  // namespace Wiesel

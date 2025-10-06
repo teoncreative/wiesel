@@ -14,23 +14,23 @@
 namespace Wiesel {
 
 void CameraComponent::UpdateProjection() {
-  Projection = glm::perspective(glm::radians(FieldOfView), AspectRatio,
-                                NearPlane, FarPlane);
-  Projection[1][1] *=
+  projection = glm::perspective(glm::radians(field_of_view), aspect_ratio,
+                                near_plane, far_plane);
+  projection[1][1] *=
       -1;  // glm is originally designed for OpenGL, which Y coords where flipped
-  InvProjection = glm::inverse(Projection);
-  IsAnyChanged = true;
+  inv_projection = glm::inverse(projection);
+  any_changed = true;
 }
 
 void CameraComponent::UpdateView(const glm::mat4& worldTransform) {
-  InvViewMatrix = worldTransform;
-  ViewMatrix    = glm::inverse(worldTransform);
-  IsAnyChanged  = true;
+  inv_view_matrix = worldTransform;
+  view_matrix    = glm::inverse(worldTransform);
+  any_changed  = true;
 }
 
 void CameraComponent::UpdateAll() {
   ExtractFrustumPlanes();
-  ForceLightReset = true;
+  force_light_reset = true;
 }
 
 void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
@@ -41,9 +41,9 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
   float cascadeSplitLambda = 0.95f;
   float cascadeSplits[WIESEL_SHADOW_CASCADE_COUNT];
 
-  float clipRange = FarPlane - NearPlane;
-  float minZ = NearPlane;
-  float maxZ = NearPlane + clipRange;
+  float clipRange = far_plane - near_plane;
+  float minZ = near_plane;
+  float maxZ = near_plane + clipRange;
 
   float range = maxZ - minZ;
   float ratio = maxZ / minZ;
@@ -54,7 +54,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     float log = minZ * std::pow(ratio, p);
     float uniform = minZ + range * p;
     float d = cascadeSplitLambda * (log - uniform) + uniform;
-    cascadeSplits[i] = (d - NearPlane) / clipRange;
+    cascadeSplits[i] = (d - near_plane) / clipRange;
   }
 
   // Calculate orthographic projection matrix for each cascade
@@ -69,7 +69,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
         glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, -1.0f, 1.0f),
     };
     // Project frustum corners into world space
-    glm::mat4 invCam = glm::inverse(Projection * ViewMatrix);
+    glm::mat4 invCam = glm::inverse(projection * view_matrix);
     for (uint32_t j = 0; j < 8; j++) {
       glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[j], 1.0f);
       frustumCorners[j] = invCorner / invCorner.w;
@@ -116,32 +116,32 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     );
     lightOrthoMatrix[1][1] *= -1;
     // Store split distance and matrix in cascade
-    ShadowMapCascades[i].SplitDepth = (NearPlane + splitDist * clipRange) * -1.0f;
-    ShadowMapCascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
+    shadow_map_cascades[i].SplitDepth = (near_plane + splitDist * clipRange) * -1.0f;
+    shadow_map_cascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
     lastSplitDist = cascadeSplits[i];
   }
 
-  PreviousLightDir = lightDir;
-  DoesShadowPass = true;
-  ForceLightReset = false;
+  previous_light_dir = lightDir;
+  does_shadow_pass = true;
+  force_light_reset = false;
 }
 
 void CameraComponent::ExtractFrustumPlanes() {
-  glm::mat4 m = Projection * ViewMatrix;
+  glm::mat4 m = projection * view_matrix;
   // Each plane is in the form (a,b,c,d), representing ax + by + cz + d = 0
-  Planes.Left = glm::normalize(glm::vec4(m[0][3] + m[0][0], m[1][3] + m[1][0],
+  planes.Left = glm::normalize(glm::vec4(m[0][3] + m[0][0], m[1][3] + m[1][0],
                                          m[2][3] + m[2][0], m[3][3] + m[3][0]));
-  Planes.Right =
+  planes.Right =
       glm::normalize(glm::vec4(m[0][3] - m[0][0], m[1][3] - m[1][0],
                                m[2][3] - m[2][0], m[3][3] - m[3][0]));
-  Planes.Bottom =
+  planes.Bottom =
       glm::normalize(glm::vec4(m[0][3] + m[0][1], m[1][3] + m[1][1],
                                m[2][3] + m[2][1], m[3][3] + m[3][1]));
-  Planes.Top = glm::normalize(glm::vec4(m[0][3] - m[0][1], m[1][3] - m[1][1],
+  planes.Top = glm::normalize(glm::vec4(m[0][3] - m[0][1], m[1][3] - m[1][1],
                                         m[2][3] - m[2][1], m[3][3] - m[3][1]));
-  Planes.Near = glm::normalize(glm::vec4(m[0][3] + m[0][2], m[1][3] + m[1][2],
+  planes.Near = glm::normalize(glm::vec4(m[0][3] + m[0][2], m[1][3] + m[1][2],
                                          m[2][3] + m[2][2], m[3][3] + m[3][2]));
-  Planes.Far = glm::normalize(glm::vec4(m[0][3] - m[0][2], m[1][3] - m[1][2],
+  planes.Far = glm::normalize(glm::vec4(m[0][3] - m[0][2], m[1][3] - m[1][2],
                                         m[2][3] - m[2][2], m[3][3] - m[3][2]));
 }
 

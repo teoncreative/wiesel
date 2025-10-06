@@ -19,7 +19,7 @@
 namespace Wiesel {
 
 Scene::Scene() {
-  m_CurrentCamera = CreateReference<CameraData>();
+  current_camera_ = CreateReference<CameraData>();
 }
 
 Scene::~Scene() {}
@@ -29,90 +29,91 @@ Entity Scene::CreateEntity(const std::string& name) {
 }
 
 Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
-  Entity entity = {m_Registry.create(), this};
+  Entity entity = {registry_.create(), this};
   entity.AddComponent<IdComponent>(uuid);
   entity.AddComponent<TransformComponent>();
   entity.AddComponent<TagComponent>(name.empty() ? "Entity" : name);
 
-  m_Entities[uuid] = entity;
-  m_SceneHierarchy.push_back(entity);
+  entities_[uuid] = entity;
+  scene_hierarchy_.push_back(entity);
   return entity;
 }
 
 void Scene::RemoveEntity(Entity entity) {
-  m_Entities.erase(entity.GetUUID());
-  m_DestroyQueue.push_back(entity.GetHandle());
-  m_SceneHierarchy.erase(std::remove_if(m_SceneHierarchy.begin(), m_SceneHierarchy.end(), [&](auto& e) {
-    return e == entity;
-  }));
+  entities_.erase(entity.GetUUID());
+  destroy_queue_.push_back(entity.handle());
+  scene_hierarchy_.erase(std::ranges::remove_if(scene_hierarchy_, [&](auto& e) {
+                           return e == entity;
+                         }).begin());
 }
 
 void Scene::DestroyEntity(entt::entity handle) {
-  m_Registry.destroy(handle);
+  registry_.destroy(handle);
 }
 
 void Scene::OnUpdate(float_t deltaTime) {
-  if (!m_FirstUpdate) [[likely]] {
-    for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
-      auto& component = m_Registry.get<BehaviorsComponent>(entity);
-      for (const auto& entry : component.m_Behaviors) {
+  PROFILE_ZONE_SCOPED();
+  if (!first_update_) [[likely]] {
+    for (const auto& entity : registry_.view<BehaviorsComponent>()) {
+      auto& component = registry_.get<BehaviorsComponent>(entity);
+      for (const auto& entry : component.behaviors_) {
         entry.second->OnUpdate(deltaTime);
       }
     }
   } else {
-    m_FirstUpdate = false;
+    first_update_ = false;
   }
 
-  for (const auto& entity : m_Registry.view<TransformComponent>()) {
-    auto& transform = m_Registry.get<TransformComponent>(entity);
-    if (transform.IsChanged) {
+  for (const auto& entity : registry_.view<TransformComponent>()) {
+    auto& transform = registry_.get<TransformComponent>(entity);
+    if (transform.is_changed) {
       UpdateMatrices(entity);
-      transform.IsChanged = false;
+      transform.is_changed = false;
       // todo this is a bit hacky
       // set the camera as changed if transform has changed
-      if (m_Registry.any_of<CameraComponent>(entity)) {
-        auto& camera = m_Registry.get<CameraComponent>(entity);
-        camera.IsPosChanged = true;
+      if (registry_.any_of<CameraComponent>(entity)) {
+        auto& camera = registry_.get<CameraComponent>(entity);
+        camera.pos_changed = true;
       }
     }
   }
-  auto& lights = Engine::GetRenderer()->m_LightsUniformData;
-  lights.DirectLightCount = 0;
-  lights.PointLightCount = 0;
-  for (const auto& entity : m_Registry.view<LightDirectComponent>()) {
-    auto& light = m_Registry.get<LightDirectComponent>(entity);
-    auto& transform = m_Registry.get<TransformComponent>(entity);
-    UpdateLight(lights, light.LightData, transform);
+  auto& lights = Engine::GetRenderer()->lights_uniform_data_;
+  lights.direct_light_count = 0;
+  lights.point_light_count = 0;
+  for (const auto& entity : registry_.view<LightDirectComponent>()) {
+    auto& light = registry_.get<LightDirectComponent>(entity);
+    auto& transform = registry_.get<TransformComponent>(entity);
+    UpdateLight(lights, light.light_data, transform);
   }
-  for (const auto& entity : m_Registry.view<LightPointComponent>()) {
-    auto& light = m_Registry.get<LightPointComponent>(entity);
-    auto& transform = m_Registry.get<TransformComponent>(entity);
-    UpdateLight(lights, light.LightData, transform);
+  for (const auto& entity : registry_.view<LightPointComponent>()) {
+    auto& light = registry_.get<LightPointComponent>(entity);
+    auto& transform = registry_.get<TransformComponent>(entity);
+    UpdateLight(lights, light.light_data, transform);
   }
 
   for (const auto& entity :
-       m_Registry.view<CameraComponent, TransformComponent>()) {
-    auto& camera = m_Registry.get<CameraComponent>(entity);
-    auto& transform = m_Registry.get<TransformComponent>(entity);
-    if (!camera.IsEnabled) {
+       registry_.view<CameraComponent, TransformComponent>()) {
+    auto& camera = registry_.get<CameraComponent>(entity);
+    auto& transform = registry_.get<TransformComponent>(entity);
+    if (!camera.enabled) {
       continue;
     }
-    if (camera.IsViewChanged) {
+    if (camera.view_changed) {
       camera.UpdateProjection();
-      camera.IsViewChanged = false;
+      camera.view_changed = false;
     }
-    if (camera.IsPosChanged) {
-      camera.UpdateView(transform.TransformMatrix);
-      camera.IsPosChanged = false;
+    if (camera.pos_changed) {
+      camera.UpdateView(transform.transform_matrix);
+      camera.pos_changed = false;
     }
-    if (camera.IsAnyChanged) {
+    if (camera.any_changed) {
       camera.UpdateAll();
-      camera.IsAnyChanged = false;
+      camera.any_changed = false;
     }
-    if (lights.DirectLightCount > 0) {
-      camera.ComputeCascades(glm::normalize(lights.DirectLights[0].Direction));
+    if (lights.direct_light_count > 0) {
+      camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
     } else {
-      camera.DoesShadowPass = false;
+      camera.does_shadow_pass = false;
     }
   }
 }
@@ -121,129 +122,137 @@ void Scene::OnEvent(Event& event) {
   EventDispatcher dispatcher{event};
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
 
-  for (const auto& entity : m_Registry.view<BehaviorsComponent>()) {
-    auto& component = m_Registry.get<BehaviorsComponent>(entity);
+  for (const auto& entity : registry_.view<BehaviorsComponent>()) {
+    auto& component = registry_.get<BehaviorsComponent>(entity);
     component.OnEvent(event);
   }
 }
 
 void Scene::LinkEntities(entt::entity parent, entt::entity child) {
-  entt::entity loopEntity = parent;
-  while (loopEntity != entt::null) {
-    if (loopEntity == child) {
+  entt::entity loop_entity = parent;
+  while (loop_entity != entt::null) {
+    if (loop_entity == child) {
       return;
     }
-    if (!m_Registry.any_of<TreeComponent>(loopEntity)) {
+    if (!registry_.any_of<TreeComponent>(loop_entity)) {
       break;
     }
-    auto& tree = m_Registry.get_or_emplace<TreeComponent>(loopEntity);
-    loopEntity = tree.Parent;
+    auto& tree = registry_.get_or_emplace<TreeComponent>(loop_entity);
+    loop_entity = tree.parent;
   }
-  auto& parentTree = m_Registry.get_or_emplace<TreeComponent>(parent);
-  auto& childTree = m_Registry.get_or_emplace<TreeComponent>(child);
-  if (childTree.Parent != entt::null) {
-    UnlinkEntities(childTree.Parent, child);
+  auto& parent_tree = registry_.get_or_emplace<TreeComponent>(parent);
+  auto& child_tree = registry_.get_or_emplace<TreeComponent>(child);
+  if (child_tree.parent != entt::null) {
+    UnlinkEntities(child_tree.parent, child);
   }
-  parentTree.Childs.push_back(child);
-  childTree.Parent = parent;
-  auto& childTransform = m_Registry.get<TransformComponent>(child);
-  auto& parentTransform = m_Registry.get<TransformComponent>(parent);
-  glm::vec3 posDiff = childTransform.Position - parentTransform.Position;
-  glm::vec3 rotDiff = childTransform.Rotation - parentTransform.Rotation;
+  parent_tree.childs.push_back(child);
+  child_tree.parent = parent;
+  auto& child_transform = registry_.get<TransformComponent>(child);
+  auto& parent_transform = registry_.get<TransformComponent>(parent);
+  glm::vec3 posDiff = child_transform.position - parent_transform.position;
+  glm::vec3 rotDiff = child_transform.rotation - parent_transform.rotation;
 
-  childTransform.Position = posDiff;
-  childTransform.Rotation = rotDiff;
-  childTransform.IsChanged = true;
+  child_transform.position = posDiff;
+  child_transform.rotation = rotDiff;
+  child_transform.is_changed = true;
 }
 
 void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
-  auto& parentTree = m_Registry.get_or_emplace<TreeComponent>(parent);
-  auto& childTree = m_Registry.get_or_emplace<TreeComponent>(child);
-  if (childTree.Parent == entt::null) {
+  auto& parent_tree = registry_.get_or_emplace<TreeComponent>(parent);
+  auto& child_tree = registry_.get_or_emplace<TreeComponent>(child);
+  if (child_tree.parent == entt::null) {
     return;
   }
-  parentTree.Childs.erase(
-      std::remove(parentTree.Childs.begin(), parentTree.Childs.end(), child),
-      parentTree.Childs.end());
-  childTree.Parent = entt::null;
-  auto& childTransform = m_Registry.get<TransformComponent>(child);
-  auto& parentTransform = m_Registry.get<TransformComponent>(parent);
-  glm::vec3 posDiff = childTransform.Position + parentTransform.Position;
-  glm::vec3 rotDiff = childTransform.Rotation + parentTransform.Rotation;
+  parent_tree.childs.erase(
+      std::ranges::remove(parent_tree.childs, child).begin(),
+      parent_tree.childs.end());
+  child_tree.parent = entt::null;
+  auto& child_transform = registry_.get<TransformComponent>(child);
+  auto& parent_transform = registry_.get<TransformComponent>(parent);
+  glm::vec3 pos_diff = child_transform.position + parent_transform.position;
+  glm::vec3 rot_diff = child_transform.rotation + parent_transform.rotation;
 
-  childTransform.Position = posDiff;
-  childTransform.Rotation = rotDiff;
-  childTransform.IsChanged = true;
+  child_transform.position = pos_diff;
+  child_transform.rotation = rot_diff;
+  child_transform.is_changed = true;
 }
 
 void Scene::ProcessDestroyQueue() {
-  for (const auto& item : m_DestroyQueue) {
+  PROFILE_ZONE_SCOPED();
+  for (const auto& item : destroy_queue_) {
     DestroyEntity(item);
   }
-  m_DestroyQueue.clear();
+  destroy_queue_.clear();
 }
 
 bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
-  for (const auto& entity : m_Registry.view<CameraComponent>()) {
-    auto& component = m_Registry.get<CameraComponent>(entity);
-    component.AspectRatio = event.GetAspectRatio();
-    component.ViewportSize.x = event.GetWindowSize().Width;
-    component.ViewportSize.y = event.GetWindowSize().Height;
-    component.IsViewChanged = true;
+  for (const auto& entity : registry_.view<CameraComponent>()) {
+    auto& component = registry_.get<CameraComponent>(entity);
+    component.aspect_ratio = event.aspect_ratio();
+    component.viewport_size.x = event.window_size().Width;
+    component.viewport_size.y = event.window_size().Height;
+    component.view_changed = true;
   }
   return false;
 }
 
-glm::mat4 Scene::MakeLocal(const Wiesel::TransformComponent& t) {
-  glm::vec3 rotRad = glm::radians(t.Rotation);
-  glm::mat4 R      = glm::toMat4(glm::quat(rotRad));
-  glm::mat4 T      = glm::translate(glm::mat4(1.0f), t.Position);
-  glm::mat4 Tp     = glm::translate(glm::mat4(1.0f), t.Pivot);
-  glm::mat4 Tn     = glm::translate(glm::mat4(1.0f), -t.Pivot);
-  glm::mat4 S      = glm::scale(glm::mat4(1.0f), t.Scale);
+glm::mat4 Scene::MakeLocal(const TransformComponent& t) {
+  PROFILE_ZONE_SCOPED();
+  glm::vec3 rotRad = glm::radians(t.rotation);
+  glm::mat4 R = glm::toMat4(glm::quat(rotRad));
+  glm::mat4 T = glm::translate(glm::mat4(1.0f), t.position);
+  glm::mat4 Tp = glm::translate(glm::mat4(1.0f), t.pivot);
+  glm::mat4 Tn = glm::translate(glm::mat4(1.0f), -t.pivot);
+  glm::mat4 S = glm::scale(glm::mat4(1.0f), t.scale);
 
   // move to Position, shift to Pivot, rotate+scale, shift back
   return T * Tp * R * S * Tn;
 }
 
 glm::mat4 Scene::GetWorldMatrix(entt::entity entity) {
-  auto& transform = m_Registry.get<TransformComponent>(entity);
+  PROFILE_ZONE_SCOPED();
+  auto& transform = registry_.get<TransformComponent>(entity);
   glm::mat4 local = MakeLocal(transform);
 
-  if (auto* tree = m_Registry.try_get<TreeComponent>(entity);
-      tree && tree->Parent != entt::null) {
-    return GetWorldMatrix(tree->Parent) * local;
+  if (auto* tree = registry_.try_get<TreeComponent>(entity);
+      tree && tree->parent != entt::null) {
+    return GetWorldMatrix(tree->parent) * local;
   }
   return local;
 }
 
 void Scene::UpdateMatrices(entt::entity entity) {
-  auto& tc = m_Registry.get<TransformComponent>(entity);
-  tc.TransformMatrix = GetWorldMatrix(entity);
-  tc.NormalMatrix    = glm::inverseTranspose(glm::mat3(tc.TransformMatrix));
+  PROFILE_ZONE_SCOPED();
+  auto& tc = registry_.get<TransformComponent>(entity);
+  tc.transform_matrix = GetWorldMatrix(entity);
+  tc.normal_matrix = glm::inverseTranspose(glm::mat3(tc.transform_matrix));
 }
 
 bool Scene::Render() {
+  PROFILE_ZONE_SCOPED();
   bool hasCamera = false;
   Ref<Renderer> renderer = Engine::GetRenderer();
   // Render models
   for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
-    auto& camera = m_Registry.get<CameraComponent>(cameraEntity);
-    auto& cameraTransform = m_Registry.get<TransformComponent>(cameraEntity);
-    if (!camera.IsEnabled) {
+    auto& camera = registry_.get<CameraComponent>(cameraEntity);
+    auto& camera_transform = registry_.get<TransformComponent>(cameraEntity);
+    if (!camera.enabled) {
       continue;
     }
-    m_CurrentCamera->TransferFrom(camera, cameraTransform);
-    renderer->SetCameraData(m_CurrentCamera);
+    current_camera_->TransferFrom(camera, camera_transform);
+    renderer->SetCameraData(current_camera_);
     renderer->UpdateUniformData();
-    if (camera.DoesShadowPass) {
+    if (camera.does_shadow_pass) {
       for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
+        PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                         renderer->GetCommandBuffer().handle_,
+                         "Shadow Cascade Pass");
         renderer->BeginShadowPass(i);
         for (const auto& entity :
              GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-          auto& model = m_Registry.get<ModelComponent>(entity);
-          auto& transform = m_Registry.get<TransformComponent>(entity);
-          if (!model.Data.ReceiveShadows || !model.Data.EnableRendering) {
+          auto& model = registry_.get<ModelComponent>(entity);
+          auto& transform = registry_.get<TransformComponent>(entity);
+          if (!model.data.receive_shadows || !model.data.enable_rendering) {
             continue;
           }
           renderer->DrawModel(model, transform, true);
@@ -252,56 +261,99 @@ bool Scene::Render() {
       }
     }
 
-    renderer->BeginGeometryPass();
-    for (const auto& entity :
-         GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-      auto& model = m_Registry.get<ModelComponent>(entity);
-      auto& transform = m_Registry.get<TransformComponent>(entity);
-      if (!model.Data.EnableRendering) {
-        continue;
+    {
+      PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                       renderer->GetCommandBuffer().handle_, "Geometry Pass");
+      renderer->BeginGeometryPass();
+      for (const auto& entity :
+           GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
+        auto& model = registry_.get<ModelComponent>(entity);
+        auto& transform = registry_.get<TransformComponent>(entity);
+        if (!model.data.enable_rendering) {
+          continue;
+        }
+        renderer->DrawModel(model, transform, false);
       }
-      renderer->DrawModel(model, transform, false);
+      renderer->EndGeometryPass();
     }
-    renderer->EndGeometryPass();
     if (renderer->IsSSAOEnabled()) {
-      renderer->BeginSSAOGenPass();
-      renderer->GetSSAOGenPipeline()->Bind(PipelineBindPointGraphics);
-      renderer->DrawFullscreen(renderer->GetSSAOGenPipeline(), {renderer->GetCameraData()->SSAOGenDescriptor,
-                                                                renderer->GetCameraData()->GlobalDescriptor});
-      renderer->EndSSAOGenPass();
-      renderer->BeginSSAOBlurHorzPass();
-      renderer->GetSSAOBlurHorzPipeline()->Bind(PipelineBindPointGraphics);
-      renderer->DrawFullscreen(renderer->GetSSAOBlurHorzPipeline(), {renderer->GetCameraData()->SSAOOutputDescriptor});
-      renderer->EndSSAOBlurHorzPass();
-      renderer->BeginSSAOBlurVertPass();
-      renderer->GetSSAOBlurVertPipeline()->Bind(PipelineBindPointGraphics);
-      renderer->DrawFullscreen(renderer->GetSSAOBlurVertPipeline(), {renderer->GetCameraData()->SSAOBlurHorzOutputDescriptor});
-      renderer->EndSSAOBlurVertPass();
+      {
+        PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                         renderer->GetCommandBuffer().handle_, "SSAO Gen Pass");
+        renderer->BeginSSAOGenPass();
+        renderer->GetSSAOGenPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetSSAOGenPipeline(),
+            {renderer->GetCameraData()->ssao_gen_descriptor,
+             renderer->GetCameraData()->global_descriptor});
+        renderer->EndSSAOGenPass();
+      }
+      {
+        PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                         renderer->GetCommandBuffer().handle_,
+                         "SSAO Blur Pass");
+        renderer->BeginSSAOBlurHorzPass();
+        renderer->GetSSAOBlurHorzPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetSSAOBlurHorzPipeline(),
+            {renderer->GetCameraData()->ssao_output_descriptor});
+        renderer->EndSSAOBlurHorzPass();
+        renderer->BeginSSAOBlurVertPass();
+        renderer->GetSSAOBlurVertPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetSSAOBlurVertPipeline(),
+            {renderer->GetCameraData()->ssao_blur_horz_output_descriptor});
+        renderer->EndSSAOBlurVertPass();
+      }
     }
-    renderer->BeginLightingPass();
-    renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
-    if (m_Skybox) {
-      renderer->DrawSkybox(m_Skybox);
+    {
+      PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                       renderer->GetCommandBuffer().handle_, "Lighting Pass");
+      renderer->BeginLightingPass();
+      renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
+      if (skybox_) {
+        renderer->DrawSkybox(skybox_);
+      }
+      renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
+      renderer->DrawFullscreen(
+          renderer->GetLightingPipeline(),
+          {renderer->GetCameraData()->geometry_output_descriptor,
+           renderer->GetCameraData()->ssao_blur_vert_output_descriptor,
+           renderer->GetCameraData()->global_descriptor});
+      renderer->EndLightingPass();
     }
-    renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
-    renderer->DrawFullscreen(renderer->GetLightingPipeline(), {renderer->GetCameraData()->GeometryOutputDescriptor,
-                                                               renderer->GetCameraData()->SSAOBlurVertOutputDescriptor,
-                                                              renderer->GetCameraData()->GlobalDescriptor});
-    renderer->EndLightingPass();
-    renderer->BeginSpritePass();
-    renderer->GetSpritePipeline()->Bind(PipelineBindPointGraphics);
-    for (const auto& entity :
-         GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
-      auto& sprite = m_Registry.get<SpriteComponent>(entity);
-      auto& transform = m_Registry.get<TransformComponent>(entity);
-      renderer->DrawSprite(sprite, transform);
+    {
+      PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                       renderer->GetCommandBuffer().handle_, "Sprite Pass");
+      renderer->BeginSpritePass();
+      renderer->GetSpritePipeline()->Bind(PipelineBindPointGraphics);
+      for (const auto& entity :
+           GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
+        auto& sprite = registry_.get<SpriteComponent>(entity);
+        auto& transform = registry_.get<TransformComponent>(entity);
+        renderer->DrawSprite(sprite, transform);
+      }
+      renderer->EndSpritePass();
     }
-    renderer->EndSpritePass();
-    renderer->BeginCompositePass();
-    renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
-    renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->LightingOutputDescriptor});
-    renderer->DrawFullscreen(renderer->GetCompositePipeline(), {renderer->GetCameraData()->SpriteOutputDescriptor});
-    renderer->EndCompositePass();
+    {
+      PROFILE_GPU_ZONE(renderer->GetTracyCtx(),
+                       renderer->GetCommandBuffer().handle_, "Composite Pass");
+      renderer->BeginCompositePass();
+      renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
+      if (renderer->IsOnlySSAO()) {
+        renderer->DrawFullscreen(
+            renderer->GetCompositePipeline(),
+            {renderer->GetCameraData()->ssao_blur_vert_output_descriptor});
+      } else {
+        renderer->DrawFullscreen(
+            renderer->GetCompositePipeline(),
+            {renderer->GetCameraData()->lighting_output_descriptor});
+        renderer->DrawFullscreen(
+            renderer->GetCompositePipeline(),
+            {renderer->GetCameraData()->sprite_output_descriptor});
+      }
+      renderer->EndCompositePass();
+    }
     hasCamera = true;
   }
   return hasCamera;

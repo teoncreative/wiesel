@@ -43,13 +43,13 @@ class Scene {
   template <typename T>
   void OnAddComponent(entt::entity entity, T& component) {}
 
-  WIESEL_GETTER_FN bool IsRunning() const { return m_IsRunning; }
+  WIESEL_GETTER_FN bool IsRunning() const { return is_running_; }
 
-  WIESEL_GETTER_FN bool IsPaused() const { return m_IsPaused; }
+  WIESEL_GETTER_FN bool IsPaused() const { return is_paused_; }
 
-  void SetPaused(bool paused) { m_IsPaused = paused; }
+  void SetPaused(bool paused) { is_paused_ = paused; }
 
-  void SetSkybox(Ref<Skybox> skybox) { m_Skybox = skybox; }
+  void SetSkybox(Ref<Skybox> skybox) { skybox_ = skybox; }
 
   template <typename T, typename... Args>
   T& AddComponent(entt::entity handle, Args&&... args) {
@@ -57,7 +57,7 @@ class Scene {
       //throw std::runtime_error("Entity already has component!");
       std::terminate();
     }
-    auto& component = m_Registry.emplace<T>(
+    auto& component = registry_.emplace<T>(
         handle, std::forward<Args>(args)...);
     OnAddComponent(handle, component);
     return component;
@@ -65,12 +65,12 @@ class Scene {
 
   template <typename T>
   T& GetComponent(entt::entity handle) {  // This function is intentionally not marked as const!
-    return m_Registry.get<T>(handle);
+    return registry_.get<T>(handle);
   }
 
   template <typename T>
   bool HasComponent(entt::entity handle) const {
-    return m_Registry.any_of<T>(handle);
+    return registry_.any_of<T>(handle);
   }
 
   template <typename T>
@@ -80,18 +80,18 @@ class Scene {
     }
     auto& component = GetComponent<T>(handle);
     OnRemoveComponent<T>(handle, component);
-    m_Registry.remove<T>(handle);
+    registry_.remove<T>(handle);
   }
 
   template <typename... Components>
   auto GetAllEntitiesWith() {
-    return m_Registry.view<Components...>();
+    return registry_.view<Components...>();
   }
 
   /*
    * Returns the scene hierarchy. This is used by the editor.
    */
-  std::vector<entt::entity>& GetSceneHierarchy() { return m_SceneHierarchy; }
+  std::vector<entt::entity>& GetSceneHierarchy() { return scene_hierarchy_; }
 
   void LinkEntities(entt::entity parent, entt::entity child);
   void UnlinkEntities(entt::entity parent, entt::entity child);
@@ -109,15 +109,15 @@ class Scene {
  private:
   friend class Application;
 
-  std::unordered_map<UUID, entt::entity> m_Entities;
-  entt::registry m_Registry;
-  bool m_IsRunning = false;
-  bool m_IsPaused = false;
-  bool m_FirstUpdate = true;
-  std::vector<entt::entity> m_SceneHierarchy;
-  std::vector<entt::entity> m_DestroyQueue;
+  std::unordered_map<UUID, entt::entity> entities_;
+  entt::registry registry_;
+  bool is_running_ = false;
+  bool is_paused_ = false;
+  bool first_update_ = true;
+  std::vector<entt::entity> scene_hierarchy_;
+  std::vector<entt::entity> destroy_queue_;
   // this camera is used to render the scene to the current camera
-  Ref<CameraData> m_CurrentCamera;
-  Ref<Skybox> m_Skybox;
+  Ref<CameraData> current_camera_;
+  Ref<Skybox> skybox_;
 };
 }  // namespace Wiesel

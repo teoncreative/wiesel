@@ -45,7 +45,7 @@ class DemoLayer : public Wiesel::Layer {
 
  private:
   DemoApplication& m_App;
-  Wiesel::Ref<Wiesel::Scene> m_Scene;
+  Wiesel::Ref<Wiesel::Scene> scene_;
   Wiesel::Ref<Wiesel::Renderer> m_Renderer;
 };
 

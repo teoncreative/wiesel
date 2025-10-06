@@ -22,20 +22,20 @@ enum ShaderLang { ShaderLangGLSL, ShaderLangHLSL };
 VkShaderStageFlagBits GetShaderFlagBitsByType(ShaderType type);
 
 struct ShaderProperties {
-  ShaderType Type;
-  ShaderLang Lang;
-  std::string Main;
-  ShaderSource Source;
-  std::string Path;
-  std::vector<std::string> Defines;
+  ShaderType type;
+  ShaderLang lang;
+  std::string main;
+  ShaderSource source;
+  std::string path;
+  std::vector<std::string> defines;
 };
 
 struct Shader {
   Shader(ShaderProperties properties);
   ~Shader();
 
-  VkShaderModule m_ShaderModule;
-  ShaderProperties m_Properties;
+  VkShaderModule shader_module_;
+  ShaderProperties properties_;
 };
 
 }  // namespace Wiesel

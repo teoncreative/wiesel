@@ -14,6 +14,7 @@
 #include <GLFW/glfw3.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
+#include <ImGuizmo.h>
 
 #include "rendering/w_renderer.hpp"
 #include "util/imgui/imgui_spectrum.hpp"
@@ -50,7 +51,7 @@ void ImGuiLayer::OnAttach() {
   pool_info.pPoolSizes = pool_sizes;
 
   WIESEL_CHECK_VKRESULT(
-      vkCreateDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, &pool_info,
+      vkCreateDescriptorPool(Engine::GetRenderer()->logical_device_, &pool_info,
                              nullptr, &m_ImGuiPool));
 
   // 2: initialize imgui library
@@ -72,29 +73,26 @@ void ImGuiLayer::OnAttach() {
     style.Colors[ImGuiCol_WindowBg].w = 1.0f;
   }
 
-  Engine::GetRenderer()->m_Window->ImGuiInit();
+  Engine::GetRenderer()->window_->ImGuiInit();
 
   //this initializes imgui for Vulkan
   ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance = Engine::GetRenderer()->m_Instance;
-  init_info.PhysicalDevice = Engine::GetRenderer()->m_PhysicalDevice;
-  init_info.Device = Engine::GetRenderer()->m_LogicalDevice;
-  init_info.Queue = Engine::GetRenderer()->m_GraphicsQueue;
+  init_info.Instance = Engine::GetRenderer()->instance_;
+  init_info.PhysicalDevice = Engine::GetRenderer()->physical_device_;
+  init_info.Device = Engine::GetRenderer()->logical_device_;
+  init_info.Queue = Engine::GetRenderer()->graphics_queue_;
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.MSAASamples = Engine::GetRenderer()->m_MsaaSamples;
-  init_info.RenderPass = Engine::GetRenderer()->m_CompositeRenderPass->GetVulkanHandle();
+  init_info.MSAASamples = Engine::GetRenderer()->msaa_samples_;
+  init_info.RenderPass = Engine::GetRenderer()->composite_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
-
-  //execute a gpu command to upload imgui font textures
-  ImGui_ImplVulkan_CreateFontsTexture();
 }
 
 void ImGuiLayer::OnDetach() {
   LOG_DEBUG("Destroying imgui pool");
-  vkDeviceWaitIdle(Engine::GetRenderer()->m_LogicalDevice);
+  vkDeviceWaitIdle(Engine::GetRenderer()->logical_device_);
   // Vulkan does this
   /*vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool, nullptr);*/
   ImGui_ImplVulkan_Shutdown();
@@ -107,17 +105,19 @@ void ImGuiLayer::OnEvent(Event& event) {}
 void ImGuiLayer::OnImGuiRender() {}
 
 void ImGuiLayer::OnBeginFrame() {
+  PROFILE_ZONE_SCOPED();
   ImGui_ImplVulkan_NewFrame();
-  Engine::GetRenderer()->m_Window->ImGuiNewFrame();
+  Engine::GetRenderer()->window_->ImGuiNewFrame();
   ImGui::NewFrame();
   ImGuizmo::BeginFrame();
 }
 
 void ImGuiLayer::OnEndFrame() {
+  PROFILE_ZONE_SCOPED();
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(
       ImGui::GetDrawData(),
-      Engine::GetRenderer()->m_CommandBuffer->m_Handle);
+      Engine::GetRenderer()->command_buffer_->handle_);
   ImGui::EndFrame();
   ImGuiIO& io = ImGui::GetIO();
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {

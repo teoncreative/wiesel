@@ -31,13 +31,13 @@ class Sampler {
   friend class Renderer;
   friend class DescriptorSet;
 
-  VkSampler m_Sampler;
-  uint32_t m_MipLevels;
-  VkFilter m_MagFilter;
-  VkFilter m_MinFilter;
-  float m_MaxAnisotropy;
-  VkSamplerAddressMode m_AddressMode;
-  VkBorderColor m_BorderColor;
+  VkSampler sampler_;
+  uint32_t mip_levels_;
+  VkFilter mag_filter_;
+  VkFilter min_filter_;
+  float max_anisotropy_;
+  VkSamplerAddressMode address_mode_;
+  VkBorderColor border_color_;
 };
 }
 #endif  //WIESEL_SAMPLER_H

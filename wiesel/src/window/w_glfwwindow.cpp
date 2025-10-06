@@ -24,40 +24,40 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   glfwInit();
   LOG_DEBUG("GLFW Vulkan Support: {}", glfwVulkanSupported());
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  if (m_Properties.Resizable) {
+  if (properties_.resizable) {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   }
 
-  m_Handle = glfwCreateWindow(m_Properties.Size.Width, m_Properties.Size.Height,
-                              m_Properties.Title.c_str(), nullptr, nullptr);
-  glfwSetWindowUserPointer(m_Handle, this);
+  handle_ = glfwCreateWindow(properties_.size.Width, properties_.size.Height,
+                             properties_.title.c_str(), nullptr, nullptr);
+  glfwSetWindowUserPointer(handle_, this);
 
-  glfwGetFramebufferSize(m_Handle, &m_FramebufferSize.Width,
-                         &m_FramebufferSize.Height);
-  glfwGetWindowSize(m_Handle, &m_WindowSize.Width, &m_WindowSize.Height);
-  m_Scale.Width = m_FramebufferSize.Width / (float)m_WindowSize.Width;
-  m_Scale.Height = m_FramebufferSize.Height / (float)m_WindowSize.Height;
+  glfwGetFramebufferSize(handle_, &framebuffer_size_.Width,
+                         &framebuffer_size_.Height);
+  glfwGetWindowSize(handle_, &window_size_.Width, &window_size_.Height);
+  scale_.Width = framebuffer_size_.Width / (float)window_size_.Width;
+  scale_.Height = framebuffer_size_.Height / (float)window_size_.Height;
 
   glfwSetWindowSizeCallback(
-      m_Handle, [](GLFWwindow* window, int width, int height) {
+      handle_, [](GLFWwindow* window, int width, int height) {
         GlfwAppWindow& appWindow =
             *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
-        glfwGetFramebufferSize(appWindow.m_Handle,
-                               &appWindow.m_FramebufferSize.Width,
-                               &appWindow.m_FramebufferSize.Height);
-        glfwGetWindowSize(appWindow.m_Handle, &appWindow.m_WindowSize.Width,
-                          &appWindow.m_WindowSize.Height);
-        appWindow.m_Scale.Width = appWindow.m_FramebufferSize.Width /
-                                  (float)appWindow.m_WindowSize.Width;
-        appWindow.m_Scale.Height = appWindow.m_FramebufferSize.Height /
-                                   (float)appWindow.m_WindowSize.Height;
+        glfwGetFramebufferSize(appWindow.handle_,
+                               &appWindow.framebuffer_size_.Width,
+                               &appWindow.framebuffer_size_.Height);
+        glfwGetWindowSize(appWindow.handle_, &appWindow.window_size_.Width,
+                          &appWindow.window_size_.Height);
+        appWindow.scale_.Width = appWindow.framebuffer_size_.Width /
+                                 (float)appWindow.window_size_.Width;
+        appWindow.scale_.Height = appWindow.framebuffer_size_.Height /
+                                  (float)appWindow.window_size_.Height;
 
         WindowResizeEvent event({width, height}, width / (float)height);
         appWindow.GetEventHandler()(event);
       });
 
-  glfwSetWindowCloseCallback(m_Handle, [](GLFWwindow* window) {
+  glfwSetWindowCloseCallback(handle_, [](GLFWwindow* window) {
     GlfwAppWindow& appWindow =
         *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
@@ -65,8 +65,8 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
     appWindow.GetEventHandler()(event);
   });
 
-  glfwSetKeyCallback(m_Handle, [](GLFWwindow* window, int key, int scancode,
-                                  int action, int mods) {
+  glfwSetKeyCallback(handle_, [](GLFWwindow* window, int key, int scancode,
+                                 int action, int mods) {
     GlfwAppWindow& appWindow =
         *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
@@ -88,8 +88,7 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
       }
     }
   });
-
-  glfwSetCharCallback(m_Handle, [](GLFWwindow* window, unsigned int keycode) {
+  glfwSetCharCallback(handle_, [](GLFWwindow* window, unsigned int keycode) {
     GlfwAppWindow& appWindow =
         *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
@@ -98,18 +97,18 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   });
 
   glfwSetMouseButtonCallback(
-      m_Handle, [](GLFWwindow* window, int button, int action, int mods) {
+      handle_, [](GLFWwindow* window, int button, int action, int mods) {
         GlfwAppWindow& appWindow =
             *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
         switch (action) {
           case GLFW_PRESS: {
-            MouseButtonPressedEvent event(button);
+            MouseButtonPressedEvent event(static_cast<MouseCode>(button));
             appWindow.GetEventHandler()(event);
             break;
           }
           case GLFW_RELEASE: {
-            MouseButtonReleasedEvent event(button);
+            MouseButtonReleasedEvent event(static_cast<MouseCode>(button));
             appWindow.GetEventHandler()(event);
             break;
           }
@@ -117,7 +116,7 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
       });
 
   glfwSetScrollCallback(
-      m_Handle, [](GLFWwindow* window, double xOffset, double yOffset) {
+      handle_, [](GLFWwindow* window, double xOffset, double yOffset) {
         GlfwAppWindow& appWindow =
             *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
@@ -126,60 +125,208 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
       });
 
   glfwSetCursorPosCallback(
-      m_Handle, [](GLFWwindow* window, double xPos, double yPos) {
+      handle_, [](GLFWwindow* window, double xPos, double yPos) {
         GlfwAppWindow& appWindow =
             *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
 
-        if (xPos > appWindow.m_WindowSize.Width ||
-            yPos > appWindow.m_WindowSize.Height || xPos < 0 || yPos < 0) {
+        if (xPos > appWindow.window_size_.Width ||
+            yPos > appWindow.window_size_.Height || xPos < 0 || yPos < 0) {
           return;
         }
 
-        MouseMovedEvent event((float)xPos * appWindow.m_Scale.Width,
-                              (float)yPos * appWindow.m_Scale.Height,
-                              appWindow.m_CursorMode);
+        MouseMovedEvent event((float)xPos * appWindow.scale_.Width,
+                              (float)yPos * appWindow.scale_.Height,
+                              appWindow.cursor_mode_);
         appWindow.GetEventHandler()(event);
-        if (appWindow.m_CursorMode == CursorModeRelative) {
-          glfwSetCursorPos(window, appWindow.m_WindowSize.Width / 2.0f,
-                           appWindow.m_WindowSize.Height / 2.0f);
+        if (appWindow.cursor_mode_ == CursorModeRelative) {
+          glfwSetCursorPos(window, appWindow.window_size_.Width / 2.0f,
+                           appWindow.window_size_.Height / 2.0f);
         }
       });
 }
 
 GlfwAppWindow::~GlfwAppWindow() {
   LOG_DEBUG("Destroying GlfwAppWindow");
-  glfwDestroyWindow(m_Handle);
+  glfwDestroyWindow(handle_);
 }
 
 void GlfwAppWindow::OnUpdate() {
+  PROFILE_ZONE_SCOPED();
   glfwPollEvents();
+
+  if (first_frame_) { [[unlikely]]
+    glfwSetJoystickCallback([](int jid, int e) {
+      auto& app =
+          *(GlfwAppWindow*)glfwGetWindowUserPointer(glfwGetCurrentContext());
+      if (e == GLFW_CONNECTED) {
+        bool is_gamepad = glfwJoystickIsGamepad(jid);
+        JoystickConnectedEvent ev(jid, "", is_gamepad);
+        app.GetEventHandler()(ev);
+      } else if (e == GLFW_DISCONNECTED) {
+        JoystickDisconnectedEvent ev(jid);
+        app.GetEventHandler()(ev);
+        app.gamepad_prev_[jid].reset();
+      }
+    });
+    for (int jid = 0; jid < GLFW_JOYSTICK_LAST; jid++) {
+      bool is_gamepad = glfwJoystickIsGamepad(jid);
+      JoystickConnectedEvent ev(jid, "", is_gamepad);
+      GetEventHandler()(ev);
+    }
+    first_frame_ = false;
+  }
+  for (int joystick_id = 0; joystick_id <= GLFW_JOYSTICK_LAST; ++joystick_id) {
+    if (!glfwJoystickPresent(joystick_id)) {
+      continue;
+    }
+
+    if (glfwJoystickIsGamepad(joystick_id)) {
+      GLFWgamepadstate current_state{};
+      if (!glfwGetGamepadState(joystick_id, &current_state)) {
+        continue;
+      }
+
+      auto& previous_state = gamepad_prev_[joystick_id];
+      if (!previous_state.has_value()) {
+        previous_state = current_state;
+        continue;
+      }
+
+      for (int button_index = 0; button_index <= GLFW_GAMEPAD_BUTTON_LAST;
+           ++button_index) {
+        unsigned char previous_button = previous_state->buttons[button_index];
+        unsigned char current_button = current_state.buttons[button_index];
+
+        if (previous_button != current_button) {
+          if (current_button == GLFW_PRESS) {
+            JoystickButtonPressedEvent event(joystick_id, button_index);
+            GetEventHandler()(event);
+          } else {
+            JoystickButtonReleasedEvent event(joystick_id, button_index);
+            GetEventHandler()(event);
+          }
+        }
+      }
+
+      // axes
+      for (int axis_index = 0; axis_index <= GLFW_GAMEPAD_AXIS_LAST;
+           ++axis_index) {
+        float previous_axis_value = previous_state->axes[axis_index];
+        float current_axis_value = current_state.axes[axis_index];
+
+        if (fabsf(current_axis_value - previous_axis_value) > 0.01f) {
+          float adjusted_value =
+              (fabsf(current_axis_value) < 0.15f) ? 0.0f : current_axis_value;
+          JoystickAxisMovedEvent event(joystick_id, axis_index, adjusted_value);
+          GetEventHandler()(event);
+        }
+      }
+
+      previous_state = current_state;
+    } else {
+      int axis_count = 0;
+      int button_count = 0;
+      int hat_count = 0;
+
+      const float* axis_values = glfwGetJoystickAxes(joystick_id, &axis_count);
+      const unsigned char* button_values =
+          glfwGetJoystickButtons(joystick_id, &button_count);
+      const unsigned char* hat_values =
+          glfwGetJoystickHats(joystick_id, &hat_count);
+
+      auto& previous_state = joy_prev_[joystick_id];
+      if (!previous_state.valid) {
+        previous_state.valid = true;
+        previous_state.axes.assign(axis_values, axis_values + axis_count);
+        previous_state.buttons.assign(button_values,
+                                      button_values + button_count);
+        previous_state.hats.assign(hat_values, hat_values + hat_count);
+        continue;
+      }
+
+      if ((int)previous_state.axes.size() != axis_count) {
+        previous_state.axes.resize(axis_count, 0.0f);
+      }
+      if ((int)previous_state.buttons.size() != button_count) {
+        previous_state.buttons.resize(button_count, GLFW_RELEASE);
+      }
+      if ((int)previous_state.hats.size() != hat_count) {
+        previous_state.hats.resize(hat_count, GLFW_HAT_CENTERED);
+      }
+
+      // buttons
+      for (int button_index = 0; button_index < button_count; ++button_index) {
+        unsigned char previous_button = previous_state.buttons[button_index];
+        unsigned char current_button = button_values[button_index];
+
+        if (previous_button != current_button) {
+          if (current_button == GLFW_PRESS) {
+            JoystickButtonPressedEvent event(joystick_id, button_index);
+            GetEventHandler()(event);
+          } else {
+            JoystickButtonReleasedEvent event(joystick_id, button_index);
+            GetEventHandler()(event);
+          }
+        }
+      }
+
+      // axes
+      for (int axis_index = 0; axis_index < axis_count; ++axis_index) {
+        float previous_axis_value = previous_state.axes[axis_index];
+        float current_axis_value = axis_values[axis_index];
+
+        if (fabsf(current_axis_value - previous_axis_value) > 0.01f) {
+          float adjusted_value =
+              (fabsf(current_axis_value) < 0.10f) ? 0.0f : current_axis_value;
+          JoystickAxisMovedEvent event(joystick_id, axis_index, adjusted_value);
+          GetEventHandler()(event);
+        }
+      }
+
+      // hats
+      for (int hat_index = 0; hat_index < hat_count; ++hat_index) {
+        unsigned char previous_hat = previous_state.hats[hat_index];
+        unsigned char current_hat = hat_values[hat_index];
+
+        if (previous_hat != current_hat) {
+          JoystickHatChangedEvent event(joystick_id, hat_index, current_hat);
+          GetEventHandler()(event);
+        }
+      }
+
+      previous_state.axes.assign(axis_values, axis_values + axis_count);
+      previous_state.buttons.assign(button_values,
+                                    button_values + button_count);
+      previous_state.hats.assign(hat_values, hat_values + hat_count);
+    }
+  }
 }
 
 bool GlfwAppWindow::IsShouldClose() {
-  return glfwWindowShouldClose(m_Handle);
+  return glfwWindowShouldClose(handle_);
 }
 
 void GlfwAppWindow::CreateWindowSurface(VkInstance instance,
                                         VkSurfaceKHR* surface) {
   WIESEL_CHECK_VKRESULT(
-      glfwCreateWindowSurface(instance, m_Handle, nullptr, surface));
+      glfwCreateWindowSurface(instance, handle_, nullptr, surface));
 }
 
 void GlfwAppWindow::GetWindowFramebufferSize(WindowSize& size) {
-  glfwGetFramebufferSize(m_Handle, &size.Width, &size.Height);
+  glfwGetFramebufferSize(handle_, &size.Width, &size.Height);
 }
 
 void GlfwAppWindow::SetCursorMode(CursorMode cursorMode) {
-  m_CursorMode = cursorMode;
+  cursor_mode_ = cursorMode;
   switch (cursorMode) {
     case CursorModeNormal: {
-      glfwSetInputMode(m_Handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      glfwSetInputMode(handle_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       break;
     }
     case CursorModeRelative: {
-      glfwSetInputMode(m_Handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-      glfwSetCursorPos(m_Handle, m_WindowSize.Width / 2.0f,
-                       m_WindowSize.Height / 2.0f);
+      glfwSetInputMode(handle_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      glfwSetCursorPos(handle_, window_size_.Width / 2.0f,
+                       window_size_.Height / 2.0f);
       break;
     }
   }
@@ -193,7 +340,7 @@ const char** GlfwAppWindow::GetRequiredInstanceExtensions(
 }
 
 void GlfwAppWindow::ImGuiInit() {
-  ImGui_ImplGlfw_InitForVulkan(m_Handle, true);
+  ImGui_ImplGlfw_InitForVulkan(handle_, true);
 }
 
 void GlfwAppWindow::ImGuiNewFrame() {

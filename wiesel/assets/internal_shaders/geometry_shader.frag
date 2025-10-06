@@ -1,12 +1,12 @@
 #version 450
 
-uint VertexFlagHasTexture = 1 << 0;
-uint VertexFlagHasNormalMap = 1 << 1;
-uint VertexFlagHasSpecularMap = 1 << 2;
-uint VertexFlagHasHeightMap = 1 << 3;
-uint VertexFlagHasAlbedoMap = 1 << 4;
-uint VertexFlagHasRoughnessMap = 1 << 5;
-uint VertexFlagHasMetallicMap = 1 << 6;
+uint kVertexFlagHasTexture = 1 << 0;
+uint kVertexFlagHasNormalMap = 1 << 1;
+uint kVertexFlagHasSpecularMap = 1 << 2;
+uint kVertexFlagHasHeightMap = 1 << 3;
+uint kVertexFlagHasAlbedoMap = 1 << 4;
+uint kVertexFlagHasRoughnessMap = 1 << 5;
+uint kVertexFlagHasMetallicMap = 1 << 6;
 
 struct LightBase {
     vec3 position;
@@ -78,7 +78,7 @@ layout(location = 5) out vec4 outMaterial;
 
 vec3 getSurfaceNormal() {
     vec3 normal;
-    if ((inFlags & VertexFlagHasNormalMap) > 0) {
+    if ((inFlags & kVertexFlagHasNormalMap) > 0) {
         vec3 localNormal = 2.0 * texture(normalMap, inUV).rgb - 1.0;
         normal = normalize(inTBN * localNormal);
     } else {
@@ -95,7 +95,7 @@ float linearDepth(float depth) {
 
 void main() {
     vec4 baseColor;
-    if ((inFlags & VertexFlagHasTexture) > 0) {
+    if ((inFlags & kVertexFlagHasTexture) > 0) {
         baseColor = texture(baseTexture, inUV);
     } else {
         baseColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -105,19 +105,19 @@ void main() {
     }
 
     float specular;
-    if ((inFlags & VertexFlagHasSpecularMap) > 0) {
+    if ((inFlags & kVertexFlagHasSpecularMap) > 0) {
         specular = texture(specularMap, inUV).r;
     } else {
         specular = 0.0f;
     }
     float roughness;
-    if ((inFlags & VertexFlagHasRoughnessMap) > 0) {
+    if ((inFlags & kVertexFlagHasRoughnessMap) > 0) {
         roughness = texture(roughnessMap, inUV).r;
     } else {
         roughness = 0.0f;
     }
     float metallic;
-    if ((inFlags & VertexFlagHasMetallicMap) > 0) {
+    if ((inFlags & kVertexFlagHasMetallicMap) > 0) {
         metallic = texture(metallicMap, inUV).r;
     } else {
         metallic = 0.0f;
