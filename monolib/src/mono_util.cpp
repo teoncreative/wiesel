@@ -39,22 +39,22 @@ static std::pair<int,std::string> ExecuteAndGetOutput(const std::string& cmd, st
   return {rc, out};
 }
 
-bool CompileToDLL(const std::string& outputFile,
-                  const std::vector<std::string>& sourceFiles,
-                  const std::string& libDir,
-                  const std::vector<std::string>& linkLibs,
+bool CompileToDLL(const std::string& output_file,
+                  const std::vector<std::string>& source_files,
+                  const std::string& lib_dir,
+                  const std::vector<std::string>& link_libs,
                   bool debug) {
-  std::filesystem::path output_dir = std::filesystem::path(outputFile).parent_path();
+  std::filesystem::path output_dir = std::filesystem::path(output_file).parent_path();
   if (!std::filesystem::exists(output_dir) && !std::filesystem::create_directories(output_dir)) {
     std::cout << "Failed to create output directory: " << output_dir << std::endl;
     return false;
   }
-  std::string source = std::accumulate(sourceFiles.begin(), sourceFiles.end(), std::string(),
+  std::string source = std::accumulate(source_files.begin(), source_files.end(), std::string(),
                                        [](const std::string& a, const std::string& b) {
                                          return a.empty() ? b : a + " " + b;
                                        });
   std::string args;
-  for (const auto& lib : linkLibs) {
+  for (const auto& lib : link_libs) {
     args += " -reference:" + lib;
   }
   if (debug) {
@@ -63,10 +63,10 @@ bool CompileToDLL(const std::string& outputFile,
   }
   args += " -target:library";
   //args += " /nologo";
-  if (!libDir.empty()) {
-    args += " -lib:" + libDir;
+  if (!lib_dir.empty()) {
+    args += " -lib:" + lib_dir;
   }
-  args += " -out:" + outputFile;
+  args += " -out:" + output_file;
   args += " " + source;
 
   auto tmp = std::filesystem::temp_directory_path() / "wiesel_cmd_out.txt";

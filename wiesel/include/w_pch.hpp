@@ -25,6 +25,7 @@
 #include <fstream>
 #include <functional>
 #include <glm/glm.hpp>
+#include <glm/ext.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -46,5 +47,6 @@
 
 #include "util/w_attributes.hpp"
 #include "util/w_platformdetection.hpp"
+#include "util/w_tracy.hpp"
 
 #endif

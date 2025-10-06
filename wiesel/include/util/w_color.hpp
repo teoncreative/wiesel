@@ -14,7 +14,7 @@
 namespace Wiesel {
 template <typename V>
 struct Color {
-  V Red, Green, Blue, Alpha;
+  V red, green, blue, alpha;
 };
 
 using Colorf = Color<float>;

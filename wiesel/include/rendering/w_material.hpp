@@ -28,13 +28,13 @@ struct Material {
   Colorf SpecularColor = {1.0f, 1.0f, 1.0f};
   float Shininess = 0.5f;*/
 
-  Ref<Texture> BaseTexture;
-  Ref<Texture> NormalMap;
-  Ref<Texture> SpecularMap;
-  Ref<Texture> HeightMap;
-  Ref<Texture> AlbedoMap;
-  Ref<Texture> RoughnessMap;
-  Ref<Texture> MetallicMap;
+  Ref<Texture> base_texture;
+  Ref<Texture> normal_map;
+  Ref<Texture> specular_map;
+  Ref<Texture> height_map;
+  Ref<Texture> albedo_map;
+  Ref<Texture> roughness_map;
+  Ref<Texture> metallic_map;
 
   static void Set(Ref<Material> material, Ref<Texture> texture,
                   TextureType type);

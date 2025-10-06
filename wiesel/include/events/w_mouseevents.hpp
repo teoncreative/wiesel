@@ -29,7 +29,7 @@ class MouseMovedEvent : public Event {
   WIESEL_GETTER_FN CursorMode GetCursorMode() const { return m_CursorMode; }
 
   EVENT_CLASS_TYPE(MouseMoved)
-  EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
+  EVENT_CLASS_CATEGORY(kEventCategoryMouse | kEventCategoryInput)
  private:
   float m_MouseX, m_MouseY;
   CursorMode m_CursorMode;
@@ -45,7 +45,7 @@ class MouseScrolledEvent : public Event {
   WIESEL_GETTER_FN float_t GetYOffset() const { return m_YOffset; }
 
   EVENT_CLASS_TYPE(MouseScrolled)
-  EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
+  EVENT_CLASS_CATEGORY(kEventCategoryMouse | kEventCategoryInput)
  private:
   float m_XOffset, m_YOffset;
 };
@@ -54,8 +54,8 @@ class MouseButtonEvent : public Event {
  public:
   WIESEL_GETTER_FN MouseCode GetMouseButton() const { return m_Button; }
 
-  EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input |
-                       EventCategory::MouseButton)
+  EVENT_CLASS_CATEGORY(kEventCategoryMouse | kEventCategoryInput |
+                       kEventCategoryMouseButton)
  protected:
   MouseButtonEvent(const MouseCode button) : m_Button(button) {}
 

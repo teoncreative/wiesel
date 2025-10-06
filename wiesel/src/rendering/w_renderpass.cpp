@@ -32,25 +32,25 @@ VkPipelineBindPoint ToVkPipelineBindPoint(PipelineBindPoint point) {
   }
 }
 
-RenderPass::RenderPass(PassType passType) : m_PassType(passType) {
+RenderPass::RenderPass(PassType pass_type) : pass_type_(pass_type) {
 
 }
 
 RenderPass::~RenderPass() {
-  vkDestroyRenderPass(Engine::GetRenderer()->m_LogicalDevice, m_RenderPass, nullptr);
+  vkDestroyRenderPass(Engine::GetRenderer()->logical_device_, render_pass_, nullptr);
   //Engine::GetRenderer()->DestroyRenderPass(*this);
 }
 
 void RenderPass::AttachOutput(Ref<AttachmentTexture> attachment) {
-  m_Attachments.push_back({
-      .Type = attachment->m_Type,
-      .Format = attachment->m_Format,
-      .MsaaSamples = attachment->m_MsaaSamples
+  attachments_.push_back({
+      .type = attachment->type_,
+      .format = attachment->format_,
+      .msaa_samples = attachment->msaa_samples_
   });
 }
 
 void RenderPass::AttachOutput(AttachmentTextureInfo&& info) {
-  m_Attachments.push_back(info);
+  attachments_.push_back(info);
 }
 
 void RenderPass::Bake() {
@@ -60,13 +60,13 @@ void RenderPass::Bake() {
   std::vector<VkAttachmentReference> depthAttachmentRefs; // can only be one
 
   uint32_t index = 0;
-  for (const auto& item : m_Attachments) {
-    if (item.Type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
+  for (const auto& item : attachments_) {
+    if (item.type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
       descriptions.push_back({
-          .format = item.Format,
-          .samples = item.MsaaSamples,
-          .loadOp = m_PassType == PassType::Lighting ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR,
-          .storeOp = m_PassType == PassType::Geometry || m_PassType == PassType::Shadow ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
+          .format = item.format,
+          .samples = item.msaa_samples,
+          .loadOp = pass_type_ == PassType::Lighting ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = pass_type_ == PassType::Geometry || pass_type_ == PassType::Shadow ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
           .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -77,10 +77,10 @@ void RenderPass::Bake() {
           .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
       });
       index++;
-    } else if (item.Type == AttachmentTextureType::Color || item.Type == AttachmentTextureType::Offscreen) {
+    } else if (item.type == AttachmentTextureType::Color || item.type == AttachmentTextureType::Offscreen) {
       descriptions.push_back({
-          .format = item.Format,
-          .samples = item.MsaaSamples,
+          .format = item.format,
+          .samples = item.msaa_samples,
           .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
           .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -93,16 +93,16 @@ void RenderPass::Bake() {
           .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
       });
       index++;
-    } else if (item.Type == AttachmentTextureType::Resolve || item.Type == AttachmentTextureType::SwapChain) {
+    } else if (item.type == AttachmentTextureType::Resolve || item.type == AttachmentTextureType::SwapChain) {
       descriptions.push_back({
-          .format = item.Format,
+          .format = item.format,
           .samples = VK_SAMPLE_COUNT_1_BIT,
           .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
           .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
           .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-          .finalLayout = m_PassType == PassType::Present ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .finalLayout = pass_type_ == PassType::Present ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       });
       resolveAttachmentRefs.push_back({
           .attachment = index,
@@ -169,7 +169,7 @@ void RenderPass::Bake() {
                          VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     });
   }*/
-  if (m_PassType == PassType::Shadow) {
+  if (pass_type_ == PassType::Shadow) {
     dependencies.push_back({
       .srcSubpass = VK_SUBPASS_EXTERNAL,
       .dstSubpass = 0,
@@ -209,29 +209,29 @@ void RenderPass::Bake() {
   renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
   renderPassInfo.pDependencies = dependencies.data();
 
-  if (vkCreateRenderPass(Engine::GetRenderer()->m_LogicalDevice, &renderPassInfo, nullptr,
-                         &m_RenderPass) != VK_SUCCESS) {
+  if (vkCreateRenderPass(Engine::GetRenderer()->logical_device_, &renderPassInfo, nullptr,
+                         &render_pass_) != VK_SUCCESS) {
     throw std::runtime_error("failed to create render pass!");
   }
 }
 
-void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
+void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = m_RenderPass;
-  renderPassInfo.framebuffer = framebuffer->m_Handle;
+  renderPassInfo.renderPass = render_pass_;
+  renderPassInfo.framebuffer = framebuffer->handle_;
   renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent.width = framebuffer->m_Extent.x;
-  renderPassInfo.renderArea.extent.height = framebuffer->m_Extent.y;
+  renderPassInfo.renderArea.extent.width = framebuffer->extent_.x;
+  renderPassInfo.renderArea.extent.height = framebuffer->extent_.y;
 
   std::vector<VkClearValue> clearValues{};
-  for (const auto& item : m_Attachments) {
-    if (item.Type == AttachmentTextureType::Offscreen || item.Type == AttachmentTextureType::Color) {
+  for (const auto& item : attachments_) {
+    if (item.type == AttachmentTextureType::Offscreen || item.type == AttachmentTextureType::Color) {
       clearValues.push_back({
-          .color = {clearColor.Red, clearColor.Green,
-                    clearColor.Blue, clearColor.Alpha}
+          .color = {clear_color.red, clear_color.green,
+                    clear_color.blue, clear_color.alpha}
       });
-    } else if (item.Type == AttachmentTextureType::DepthStencil) {
+    } else if (item.type == AttachmentTextureType::DepthStencil) {
       clearValues.push_back({
           .depthStencil = {1.0f, 0}
       });
@@ -239,44 +239,44 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clearColor) {
   }
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
-  vkCmdBeginRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle, &renderPassInfo,
+  vkCmdBeginRenderPass(Engine::GetRenderer()->GetCommandBuffer().handle_, &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void RenderPass::End() {
-  vkCmdEndRenderPass(Engine::GetRenderer()->GetCommandBuffer().m_Handle);
+  vkCmdEndRenderPass(Engine::GetRenderer()->GetCommandBuffer().handle_);
 }
 
 // Change these to take span of Ref<ImageView> instead.
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> outputAttachments, glm::vec2 extent) {
-  bool hasDepth = false;
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> output_attachments, glm::vec2 extent) {
+  bool has_depth = false;
   std::vector<VkImageView> views;
-  for (const auto& item : outputAttachments) {
-    if (item->m_Type == AttachmentTextureType::DepthStencil && !hasDepth) {
-      views.push_back(item->m_ImageViews[index]->m_Handle);
-      hasDepth = true;
-    } else if (item->m_Type == AttachmentTextureType::Color || item->m_Type == AttachmentTextureType::Offscreen || item->m_Type == AttachmentTextureType::SwapChain ||
-               item->m_Type == AttachmentTextureType::Resolve) {
-      views.push_back(item->m_ImageViews[index]->m_Handle);
+  for (const auto& item : output_attachments) {
+    if (item->type_ == AttachmentTextureType::DepthStencil && !has_depth) {
+      views.push_back(item->image_views_[index]->handle_);
+      has_depth = true;
+    } else if (item->type_ == AttachmentTextureType::Color || item->type_ == AttachmentTextureType::Offscreen || item->type_ == AttachmentTextureType::SwapChain ||
+               item->type_ == AttachmentTextureType::Resolve) {
+      views.push_back(item->image_views_[index]->handle_);
     }
   }
   // TODO check if views match the expected framebuffer attachment size
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> outputViews, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> output_views, glm::vec2 extent) {
   std::vector<VkImageView> views;
-  for (const auto& item : outputViews) {
-    views.push_back(item->m_Handle);
+  for (const auto& item : output_views) {
+    views.push_back(item->handle_);
   }
   // TODO check if views match the expected framebuffer attachment size
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> outputViews, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent) {
   std::vector<VkImageView> views;
-  for (const auto& item : outputViews) {
-    views.push_back(item->m_Handle);
+  for (const auto& item : output_views) {
+    views.push_back(item->handle_);
   }
   // TODO check if views match the expected framebuffer attachment size
   return CreateReference<Framebuffer>(views, extent, *this);

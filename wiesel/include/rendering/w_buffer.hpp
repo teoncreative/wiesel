@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include "util/w_utils.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
@@ -26,10 +25,10 @@ class MemoryBuffer {
   explicit MemoryBuffer(MemoryType type);
   virtual ~MemoryBuffer();
 
-  MemoryType m_Type;
-  VkBuffer m_Buffer;
-  VkDeviceMemory m_BufferMemory;
-  uint32_t m_Size;
+  MemoryType type_;
+  VkBuffer buffer_handle_;
+  VkDeviceMemory memory_handle_;
+  uint32_t size_;
 };
 
 class IndexBuffer : public MemoryBuffer {
@@ -37,7 +36,7 @@ class IndexBuffer : public MemoryBuffer {
   IndexBuffer() : MemoryBuffer(MemoryTypeIndexBuffer) {}
   ~IndexBuffer() override {}
 
-  VkIndexType m_IndexType;
+  VkIndexType index_type_;
 };
 
 class UniformBuffer : public MemoryBuffer {
@@ -45,7 +44,7 @@ class UniformBuffer : public MemoryBuffer {
   UniformBuffer();
   ~UniformBuffer() override;
 
-  void* m_Data;
+  void* data_;
 };
 
 }  // namespace Wiesel

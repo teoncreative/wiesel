@@ -27,45 +27,45 @@
 namespace Wiesel {
 struct Mesh {
   Mesh();
-  Mesh(std::vector<Vertex3D> vertices, std::vector<Index> indices);
+  Mesh(const std::vector<Vertex3D>& vertices, const std::vector<Index>& indices);
   ~Mesh();
 
-  void UpdateTransform(glm::mat4 transformMatrix, glm::mat3 normalMatrix) const;
+  void UpdateTransform(glm::mat4 transform_matrix, glm::mat3 normal_matrix) const;
   void Allocate();
   void Deallocate();
 
-  std::vector<Vertex3D> Vertices;
-  std::vector<Index> Indices;
-  std::string ModelPath;
+  std::vector<Vertex3D> vertices;
+  std::vector<Index> indices;
+  std::string model_path;
 
-  bool IsAllocated;
+  bool allocated_;
   // Render Data
-  Ref<MemoryBuffer> VertexBuffer;
-  Ref<MemoryBuffer> ShadowVertexBuffer;
-  Ref<IndexBuffer> IndexBuffer;
-  Ref<UniformBuffer> UniformBuffer;
-  Ref<Material> Mat;
+  Ref<MemoryBuffer> vertex_buffer;
+  Ref<MemoryBuffer> shadow_vertex_buffer;
+  Ref<IndexBuffer> index_buffer;
+  Ref<UniformBuffer> uniform_buffer;
+  Ref<Material> mat;
 
-  Ref<DescriptorSet> GeometryDescriptors;
-  Ref<DescriptorSet> ShadowDescriptors;
+  Ref<DescriptorSet> geometry_descriptors;
+  Ref<DescriptorSet> shadow_descriptors;
 };
 
 struct Model {
   Model() = default;
   ~Model() = default;
 
-  std::vector<Ref<Mesh>> Meshes;
-  std::string ModelPath;
-  std::string TexturesPath;
-  std::map<std::string, Ref<Texture>> Textures;
-  bool ReceiveShadows = true;
-  bool EnableRendering = true;
+  std::vector<Ref<Mesh>> meshes;
+  std::string model_path;
+  std::string textures_path;
+  std::map<std::string, Ref<Texture>> textures;
+  bool receive_shadows = true;
+  bool enable_rendering = true;
 };
 
 struct ModelComponent : public IComponent {
   ModelComponent() = default;
   ModelComponent(const ModelComponent&) = default;
 
-  Model Data;
+  Model data;
 };
 }  // namespace Wiesel

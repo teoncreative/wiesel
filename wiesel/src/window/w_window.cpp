@@ -14,24 +14,24 @@
 namespace Wiesel {
 
 AppWindow::AppWindow(const WindowProperties& properties)
-    : m_Properties(properties) {}
+    : properties_(properties) {}
 
 AppWindow::~AppWindow() {}
 
 void AppWindow::SetEventHandler(const WindowEventFn& eventHandler) {
-  m_EventHandler = eventHandler;
+  event_handler_ = eventHandler;
 }
 
 WindowEventFn& AppWindow::GetEventHandler() {
-  return m_EventHandler;
+  return event_handler_;
 }
 
-void AppWindow::SetCursorMode(CursorMode mouseMode) {
-  m_CursorMode = mouseMode;
+void AppWindow::SetCursorMode(CursorMode mouse_mode) {
+  cursor_mode_ = mouse_mode;
 }
 
 CursorMode AppWindow::GetCursorMode() {
-  return m_CursorMode;
+  return cursor_mode_;
 }
 
 void AppWindow::ImGuiInit() {}

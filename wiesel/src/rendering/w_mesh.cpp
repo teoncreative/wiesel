@@ -17,60 +17,58 @@
 namespace Wiesel {
 
 Mesh::Mesh() {
-  Mat = CreateReference<Material>();
-  IsAllocated = false;
+  mat = CreateReference<Material>();
+  allocated_ = false;
 }
 
-Mesh::Mesh(std::vector<Vertex3D> vertices, std::vector<Index> indices) {
-  Mat = CreateReference<Material>();
-  Vertices = vertices;
-  Indices = indices;
-  IsAllocated = false;
+Mesh::Mesh(const std::vector<Vertex3D>& vertices, const std::vector<Index>& indices) : vertices(vertices), indices(indices) {
+  mat = CreateReference<Material>();
+  allocated_ = false;
 }
 
 Mesh::~Mesh() {
   Deallocate();
 }
 
-void Mesh::UpdateTransform(glm::mat4 transformMatrix, glm::mat3 normalMatrix) const {
-  if (!IsAllocated) { [[unlikely]]
+void Mesh::UpdateTransform(glm::mat4 transform_matrix, glm::mat3 normal_matrix) const {
+  if (!allocated_) { [[unlikely]]
     return;
   }
 
   MatricesUniformData matrices{};
-  matrices.ModelMatrix = transformMatrix;
-  matrices.NormalMatrix = normalMatrix;
+  matrices.ModelMatrix = transform_matrix;
+  matrices.NormalMatrix = normal_matrix;
 
-  memcpy(UniformBuffer->m_Data, &matrices, sizeof(MatricesUniformData));
+  memcpy(uniform_buffer->data_, &matrices, sizeof(MatricesUniformData));
 }
 
 void Mesh::Allocate() {
-  if (IsAllocated) {
+  if (allocated_) {
     Deallocate();
   }
 
-  VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(Vertices);
-  IndexBuffer = Engine::GetRenderer()->CreateIndexBuffer(Indices);
-  UniformBuffer = Engine::GetRenderer()->CreateUniformBuffer(
+  vertex_buffer = Engine::GetRenderer()->CreateVertexBuffer(vertices);
+  index_buffer = Engine::GetRenderer()->CreateIndexBuffer(indices);
+  uniform_buffer = Engine::GetRenderer()->CreateUniformBuffer(
       sizeof(MatricesUniformData));
-  GeometryDescriptors =
-      Engine::GetRenderer()->CreateMeshDescriptors(UniformBuffer, Mat);
-  ShadowDescriptors =
-      Engine::GetRenderer()->CreateShadowMeshDescriptors(UniformBuffer, Mat);
-  IsAllocated = true;
+  geometry_descriptors =
+      Engine::GetRenderer()->CreateMeshDescriptors(uniform_buffer, mat);
+  shadow_descriptors =
+      Engine::GetRenderer()->CreateShadowMeshDescriptors(uniform_buffer, mat);
+  allocated_ = true;
 }
 
 void Mesh::Deallocate() {
-  if (!IsAllocated) {
+  if (!allocated_) {
     return;
   }
-  Mat = nullptr;
-  UniformBuffer = nullptr;
-  GeometryDescriptors = nullptr;
-  ShadowDescriptors = nullptr;
-  VertexBuffer = nullptr;
-  IndexBuffer = nullptr;
-  IsAllocated = false;
+  mat = nullptr;
+  uniform_buffer = nullptr;
+  geometry_descriptors = nullptr;
+  shadow_descriptors = nullptr;
+  vertex_buffer = nullptr;
+  index_buffer = nullptr;
+  allocated_ = false;
 }
 
 }  // namespace Wiesel

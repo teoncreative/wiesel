@@ -15,10 +15,10 @@
 
 namespace Wiesel {
 
-MemoryBuffer::MemoryBuffer(MemoryType type) : m_Type(type) {}
+MemoryBuffer::MemoryBuffer(MemoryType type) : type_(type) {}
 
 MemoryBuffer::~MemoryBuffer() {
-  switch (m_Type) {
+  switch (type_) {
     case MemoryTypeVertexBuffer:
       Engine::GetRenderer()->DestroyVertexBuffer(*this);
       break;

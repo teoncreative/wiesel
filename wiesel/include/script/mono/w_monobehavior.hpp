@@ -22,21 +22,21 @@
 namespace Wiesel {
 class MonoBehavior : public IBehavior {
  public:
-  MonoBehavior(Entity entity, const std::string& scriptName);
+  MonoBehavior(Entity entity, const std::string& script_name);
   ~MonoBehavior() override;
 
-  void OnUpdate(float_t deltaTime) override;
+  void OnUpdate(float_t delta_time) override;
   void OnEvent(Event& event) override;
 
   template<class T>
   void AttachExternComponent(std::string variable, entt::entity entity) {
-    if (m_Unset || !m_Enabled) {
+    if (unset_ || !enabled_) {
       return;
     }
-    m_ScriptInstance->AttachExternComponent<T>(variable, entity);
+    script_instance_->AttachExternComponent<T>(variable, entity);
   }
 
-  ScriptInstance* GetScriptInstance() const { return m_ScriptInstance; }
+  ScriptInstance* script_instance() const { return script_instance_.get(); }
  private:
   void InstantiateScript();
   bool OnReloadScripts(ScriptsReloadedEvent& event);
@@ -44,7 +44,7 @@ class MonoBehavior : public IBehavior {
   bool OnKeyReleased(KeyReleasedEvent& event);
   bool OnMouseMoved(MouseMovedEvent& event);
 
-  ScriptInstance* m_ScriptInstance;
+  std::unique_ptr<ScriptInstance> script_instance_;
 };
 
 }  // namespace Wiesel

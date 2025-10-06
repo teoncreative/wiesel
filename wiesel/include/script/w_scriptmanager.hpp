@@ -70,7 +70,7 @@ class FieldData {
   }
 
   template <typename T>
-  T Get(MonoObject* instance) {
+  T Get(MonoObject* instance) const {
     T value;
     mono_field_get_value(instance, m_Field, &value);
     return value;
@@ -98,45 +98,45 @@ class ScriptData {
              MonoMethod* keyPressedMethod,
              MonoMethod* keyReleasedMethod,
              MonoMethod* mouseMovedMethod,
-             std::unordered_map<std::string, FieldData> fields) : m_Class(klass),
-        m_OnUpdateMethod(onUpdateMethod),
-        m_OnStartMethod(onStartMethod),
-        m_SetHandleMethod(setHandleMethod),
-        m_OnKeyPressedMethod(keyPressedMethod),
-        m_OnKeyReleasedMethod(keyReleasedMethod),
-        m_OnMouseMovedMethod(mouseMovedMethod),
-        m_Fields(fields) {}
+             std::unordered_map<std::string, FieldData> fields) : mono_class_(klass),
+        on_update_method_(onUpdateMethod),
+        on_start_method_(onStartMethod),
+        set_handle_method_(setHandleMethod),
+        on_key_pressed_method_(keyPressedMethod),
+        on_key_released_method_(keyReleasedMethod),
+        on_mouse_moved_method_(mouseMovedMethod),
+        fields_(fields) {}
 
-  MonoClass* GetClass() const { return m_Class; }
-  MonoMethod* GetOnUpdateMethod() const { return m_OnUpdateMethod; }
-  MonoMethod* GetOnStartMethod() const { return m_OnStartMethod; }
-  MonoMethod* GetSetHandleMethod() const { return m_SetHandleMethod; }
-  MonoMethod* GetOnKeyPressedMethod() const { return m_OnKeyPressedMethod; }
-  MonoMethod* GetOnKeyReleasedMethod() const { return m_OnKeyReleasedMethod; }
-  MonoMethod* GetOnMouseMovedMethod() const { return m_OnMouseMovedMethod; }
-  std::unordered_map<std::string, FieldData>& GetFields() { return m_Fields; }
+  MonoClass* mono_class() const { return mono_class_; }
+  MonoMethod* on_update_method() const { return on_update_method_; }
+  MonoMethod* on_start_method() const { return on_start_method_; }
+  MonoMethod* set_handle_method() const { return set_handle_method_; }
+  MonoMethod* on_key_pressed_method() const { return on_key_pressed_method_; }
+  MonoMethod* on_key_released_method() const { return on_key_released_method_; }
+  MonoMethod* on_mouse_moved_method() const { return on_mouse_moved_method_; }
+  std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
  private:
-  MonoClass* m_Class;
-  MonoMethod* m_OnUpdateMethod;
-  MonoMethod* m_OnStartMethod;
-  MonoMethod* m_SetHandleMethod;
-  MonoMethod* m_OnKeyPressedMethod;
-  MonoMethod* m_OnKeyReleasedMethod;
-  MonoMethod* m_OnMouseMovedMethod;
+  MonoClass* mono_class_;
+  MonoMethod* on_update_method_;
+  MonoMethod* on_start_method_;
+  MonoMethod* set_handle_method_;
+  MonoMethod* on_key_pressed_method_;
+  MonoMethod* on_key_released_method_;
+  MonoMethod* on_mouse_moved_method_;
 
-  std::unordered_map<std::string, FieldData> m_Fields;
+  std::unordered_map<std::string, FieldData> fields_;
 };
 
 
 class ScriptInstance {
  public:
-  ScriptInstance(ScriptData* data, MonoBehavior* behavior);
+  ScriptInstance(std::shared_ptr<ScriptData> data, MonoBehavior* behavior);
   ~ScriptInstance();
 
-  MonoObject* GetInstance() const { return m_Instance; }
-  MonoBehavior* GetBehavior() const { return m_Behavior; }
-  ScriptData* GetScriptData() const { return m_ScriptData; }
+  MonoObject* handle() const { return handle_; }
+  MonoBehavior* behavior() const { return behavior_; }
+  ScriptData& script_data() const { return *script_data_; }
 
   void OnStart();
   void OnUpdate(float_t deltaTime);
@@ -154,11 +154,11 @@ class ScriptInstance {
   friend class MonoBehavior;
 
   bool m_StartRan = false;
-  MonoObject* m_Instance;
-  MonoBehavior* m_Behavior;
-  ScriptData* m_ScriptData;
-  uint32_t m_GCHandle;
-  std::map<std::string, std::function<MonoObject*()>> m_AttachedVariables;
+  MonoObject* handle_;
+  MonoBehavior* behavior_;
+  std::shared_ptr<ScriptData> script_data_;
+  uint32_t gc_handle_;
+  std::map<std::string, std::function<MonoObject*()>> attached_variables_;
 };
 
 struct ScriptManagerProperties {
@@ -179,38 +179,38 @@ class ScriptManager {
   static void RegisterInternals();
   static void RegisterComponents();
 
-  static MonoDomain* GetRootDomain() { return m_RootDomain; }
-  static MonoDomain* GetAppDomain() { return m_AppDomain; }
-  static MonoClass* GetVector3fClass() { return m_MonoVector3fClass; }
-  static MonoClass* GetMonoBehaviorClass() { return m_MonoBehaviorClass; }
-  static const std::vector<std::string> GetScriptNames() { return m_ScriptNames; }
+  static MonoDomain* root_domain() { return root_domain_; }
+  static MonoDomain* app_domain() { return app_domain_; }
+  static MonoClass* vector3f_class() { return vector3f_class_; }
+  static MonoClass* behavior_class() { return behavior_class_; }
+  static const std::vector<std::string>& script_names() { return script_names_; }
 
   static MonoObject* GetComponentByName(Scene* scene, entt::entity entity, const std::string& name);
   template<class T>
   static MonoObject* GetComponent(Scene* scene, entt::entity entity);
   static bool HasComponentByName(Scene* scene, entt::entity entity, const std::string& name);
-  static ScriptInstance* CreateScriptInstance(MonoBehavior* behavior);
+  static std::unique_ptr<ScriptInstance> CreateScriptInstance(MonoBehavior* behavior);
 
   template<class T>
   static void RegisterComponent(std::string name, ComponentGetter getter, ComponentChecker checker);
  private:
-  static MonoDomain* m_RootDomain;
-  static MonoAssembly* m_CoreAssembly;
-  static MonoImage* m_CoreAssemblyImage;
-  static MonoDomain* m_AppDomain;
-  static MonoAssembly* m_AppAssembly;
-  static MonoImage* m_AppAssemblyImage;
+  static MonoDomain* root_domain_;
+  static MonoAssembly* core_assembly_;
+  static MonoImage* core_assembly_image_;
+  static MonoDomain* app_domain_;
+  static MonoAssembly* app_assembly_;
+  static MonoImage* app_assembly_image_;
 
-  static MonoClass* m_MonoBehaviorClass;
-  static MonoClass* m_MonoTransformComponentClass;
-  static MonoClass* m_MonoVector3fClass;
-  static MonoMethod* m_SetHandleMethod;
-  static std::map<std::string, ComponentGetter> m_ComponentGetters;
-  static std::map<std::type_index, ComponentGetter> m_ComponentGettersByType;
-  static std::map<std::string, ComponentChecker> m_ComponentCheckers;
-  static std::map<std::string, ScriptData*> m_ScriptData;
-  static std::vector<std::string> m_ScriptNames;
-  static bool m_EnableDebugger;
+  static MonoClass* behavior_class_;
+  static MonoClass* transform_component_class_;
+  static MonoClass* vector3f_class_;
+  static MonoMethod* set_handle_method_;
+  static std::map<std::string, ComponentGetter> component_getters_;
+  static std::map<std::type_index, ComponentGetter> component_getters_by_type_;
+  static std::map<std::string, ComponentChecker> component_checkers_;
+  static std::map<std::string, std::shared_ptr<ScriptData>> script_data_;
+  static std::vector<std::string> script_names_;
+  static bool enable_debugger_;
 };
 
 }

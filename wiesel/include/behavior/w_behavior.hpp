@@ -25,59 +25,59 @@ std::string GetFileNameFromPath(const std::string& path);
 class IBehavior {
  public:
   IBehavior(const std::string& name, Entity entity)
-      : m_Name(name),
-        m_Entity(entity),
-        m_Scene(entity.GetScene()),
-        m_InternalBehavior(true),
-        m_Enabled(true),
-        m_Unset(false) {}
+      : name_(name),
+        entity_(entity),
+        scene_(entity.GetScene()),
+        internal_behavior_(true),
+        enabled_(true),
+        unset_(false) {}
 
   virtual ~IBehavior() {}
 
-  virtual void OnUpdate(float_t deltaTime);
+  virtual void OnUpdate(float_t delta_time);
   virtual void OnEvent(Event& event);
 
   template <typename T, typename... Args>
   T& AddComponent(Args&&... args) {
-    return m_Entity.AddComponent<T>(args...);
+    return entity_.AddComponent<T>(args...);
   }
 
   template <typename T>
   WIESEL_GETTER_FN T& GetComponent() {
-    return m_Entity.GetComponent<T>();
+    return entity_.GetComponent<T>();
   }
 
   template <typename T>
   bool HasComponent() {
-    return m_Entity.HasComponent<T>();
+    return entity_.HasComponent<T>();
   }
 
   template <typename T>
   void RemoveComponent() {
-    m_Entity.RemoveComponent<T>();
+    entity_.RemoveComponent<T>();
   }
 
-  WIESEL_GETTER_FN const std::string& GetName() { return m_Name; }
+  WIESEL_GETTER_FN const std::string& GetName() { return name_; }
 
   WIESEL_GETTER_FN bool IsInternalBehavior() const {
-    return m_InternalBehavior;
+    return internal_behavior_;
   }
 
-  WIESEL_GETTER_FN bool IsEnabled() const { return m_Enabled; }
+  WIESEL_GETTER_FN bool IsEnabled() const { return enabled_; }
 
   virtual void SetEnabled(bool enabled);
 
-  WIESEL_GETTER_FN Entity GetEntity() { return m_Entity; }
-  WIESEL_GETTER_FN Scene* GetScene() { return m_Scene; }
-  WIESEL_GETTER_FN entt::entity GetEntityHandle() { return m_Entity.GetHandle(); }
+  WIESEL_GETTER_FN Entity entity() { return entity_; }
+  WIESEL_GETTER_FN Scene* scene() { return scene_; }
+  WIESEL_GETTER_FN entt::entity handle() { return entity_.handle(); }
 
  protected:
-  std::string m_Name;
-  Entity m_Entity;
-  Scene* m_Scene;
-  bool m_InternalBehavior;
-  bool m_Enabled;
-  bool m_Unset;
+  std::string name_;
+  Entity entity_;
+  Scene* scene_;
+  bool internal_behavior_;
+  bool enabled_;
+  bool unset_;
 };
 
 // todo maybe use custom entity component system with
@@ -93,11 +93,11 @@ class BehaviorsComponent : public IComponent {
   template <typename T, typename... Args>
   T& AddBehavior(Args&&... args) {
     T* behavior = new T(std::forward<Args>(args)...);
-    m_Behaviors.insert(std::pair(behavior->GetName(), behavior));
+    behaviors_.insert(std::pair(behavior->GetName(), behavior));
     return *behavior;
   }
 
-  std::unordered_map<std::string, IBehavior*> m_Behaviors;
+  std::unordered_map<std::string, IBehavior*> behaviors_;
 };
 
 }  // namespace Wiesel

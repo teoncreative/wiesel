@@ -4,10 +4,10 @@
 #include <mono/jit/jit.h>
 #include <string>
 
-bool CompileToDLL(const std::string& outputFile,
-                  const std::vector<std::string>& sourceFiles,
-                  const std::string& libDir = "",
-                  const std::vector<std::string>& linkLibs = {},
+bool CompileToDLL(const std::string& output_file,
+                  const std::vector<std::string>& source_files,
+                  const std::string& lib_dir = "",
+                  const std::vector<std::string>& link_libs = {},
                   bool debug = false);
 
 class MonoStringWrapper {
@@ -52,8 +52,8 @@ class MonoObjectWrapper {
   operator bool() { return object_ != nullptr; }
 
   std::string AsString() {
-    MonoString* resultString = mono_object_to_string(object_, nullptr);
-    const char* str = mono_string_to_utf8(resultString);
+    MonoString* result_string = mono_object_to_string(object_, nullptr);
+    const char* str = mono_string_to_utf8(result_string);
     std::string result(str);
     return result;
   }

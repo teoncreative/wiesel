@@ -12,22 +12,22 @@ CommandPool::CommandPool() {
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
   poolInfo.queueFamilyIndex = Engine::GetRenderer()->GetGraphicsQueueFamilyIndex();
   WIESEL_CHECK_VKRESULT(
-      vkCreateCommandPool(Engine::GetRenderer()->GetLogicalDevice(), &poolInfo, nullptr, &m_Handle));
+      vkCreateCommandPool(Engine::GetRenderer()->GetLogicalDevice(), &poolInfo, nullptr, &handle_));
 }
 
 CommandPool::~CommandPool() {
-  vkDestroyCommandPool(Engine::GetRenderer()->GetLogicalDevice(), m_Handle, nullptr);
+  vkDestroyCommandPool(Engine::GetRenderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
 Ref<CommandBuffer> CommandPool::CreateBuffer() {
-  if (!m_FreeBuffers.empty()) {
-    VkCommandBuffer buffer = m_FreeBuffers.front();
-    m_FreeBuffers.pop_front();
+  if (!free_buffers_.empty()) {
+    VkCommandBuffer buffer = free_buffers_.front();
+    free_buffers_.pop_front();
     return CreateReference<CommandBuffer>(*this, buffer);
   }
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.commandPool = m_Handle;
+  allocInfo.commandPool = handle_;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = 1;
 
@@ -38,14 +38,14 @@ Ref<CommandBuffer> CommandPool::CreateBuffer() {
 }
 
 void CommandPool::ReturnBuffer(VkCommandBuffer buffer) {
-  m_FreeBuffers.push_back(buffer);
+  free_buffers_.push_back(buffer);
 }
 
-CommandBuffer::CommandBuffer(CommandPool& pool, VkCommandBuffer commandBuffer) : m_Pool(pool), m_Handle(commandBuffer) {
+CommandBuffer::CommandBuffer(CommandPool& pool, VkCommandBuffer commandBuffer) : pool_(pool), handle_(commandBuffer) {
 }
 
 CommandBuffer::~CommandBuffer() {
-  m_Pool.ReturnBuffer(m_Handle);
+  pool_.ReturnBuffer(handle_);
 }
 
 void CommandBuffer::Begin() {
@@ -54,14 +54,14 @@ void CommandBuffer::Begin() {
   beginInfo.flags = 0;                   // Optional
   beginInfo.pInheritanceInfo = nullptr;  // Optional
 
-  WIESEL_CHECK_VKRESULT(vkBeginCommandBuffer(m_Handle, &beginInfo));
+  WIESEL_CHECK_VKRESULT(vkBeginCommandBuffer(handle_, &beginInfo));
 }
 
 void CommandBuffer::End() {
-  WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(m_Handle));
+  WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(handle_));
 }
 
 void CommandBuffer::Reset() {
-  vkResetCommandBuffer(m_Handle, 0);
+  vkResetCommandBuffer(handle_, 0);
 }
 }

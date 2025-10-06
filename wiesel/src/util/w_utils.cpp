@@ -47,50 +47,59 @@ std::string GetNameFromVulkanResult(VkResult errorCode) {
   }
 }
 
-std::vector<char> ReadFile(const std::string& filename) {
-  std::ifstream file(filename, std::ios::ate | std::ios::binary);
+std::vector<char> ReadFile(const std::string& file_name) {
+  std::ifstream file(file_name, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-    throw std::runtime_error("failed to open file: " + filename);
+    throw std::runtime_error("failed to open file: " + file_name);
   }
-  size_t fileSize = (size_t)file.tellg();
-  std::vector<char> buffer(fileSize);
+  size_t file_size = file.tellg();
+  std::vector<char> buffer(file_size);
 
   file.seekg(0);
-  file.read(buffer.data(), fileSize);
+  file.read(buffer.data(), file_size);
   file.close();
 
   return buffer;
 }
 
-std::vector<uint32_t> ReadFileUint32(const std::string& filename) {
-  std::ifstream file(filename, std::ios::ate | std::ios::binary);
+std::vector<uint32_t> ReadFileUint32(const std::string& file_name) {
+  std::ifstream file(file_name, std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-    throw std::runtime_error("failed to open file: " + filename);
+    throw std::runtime_error("failed to open file: " + file_name);
   }
-  size_t fileSize = (size_t)file.tellg();
+  size_t file_size = file.tellg();
   file.seekg(0);
 
-  std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
-  file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
+  std::vector<uint32_t> buffer(file_size / sizeof(uint32_t));
+  file.read(reinterpret_cast<char*>(buffer.data()), file_size);
   file.close();
 
   return buffer;
 }
 
 std::string FormatVariableName(const std::string& name) {
-  char* data = new char[name.size() + 1];
-  for (size_t i = 0; i < name.size(); i++) {
-    if (name[i] == '_') {
-      data[i] = ' ';
-      data[i + 1] = std::toupper(name[i + 1]);
-      i++;
-      continue;
-    }
-    data[i] = name[i];
+  // Calculate final size
+  size_t final_size = name.size();
+  for (char c : name) {
+    if (c == '_') final_size--; // underscore becomes space, next char becomes uppercase
   }
-  data[name.size()] = '\0';
-  return {data, name.size()};
+
+  std::string result;
+  result.reserve(final_size);
+
+  for (size_t i = 0; i < name.size(); i++) {
+    if (name[i] == '_' && i + 1 < name.size()) {
+      result += ' ';
+      result += std::toupper(name[i + 1]);
+      i++;
+    } else if (name[i] != '_') {
+      result += name[i];
+    }
+  }
+
+  return result;
 }
+
 }  // namespace Wiesel

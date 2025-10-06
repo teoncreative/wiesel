@@ -15,7 +15,7 @@
 namespace Wiesel {
 
 DescriptorSetLayout::DescriptorSetLayout() {
-  m_Allocated = false;
+  allocated_ = false;
 }
 
 DescriptorSetLayout::~DescriptorSetLayout() {
@@ -23,26 +23,26 @@ DescriptorSetLayout::~DescriptorSetLayout() {
 }
 
 void DescriptorSetLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags flags) {
-  m_Bindings.push_back({
-      .Index = static_cast<uint32_t>(m_Bindings.size()),
-      .Type = type,
-      .Flags = flags,
+  bindings_.push_back({
+      .index = static_cast<uint32_t>(bindings_.size()),
+      .type = type,
+      .flags = flags,
   });
 }
 
 void DescriptorSetLayout::Bake() {
-  if (m_Allocated) {
+  if (allocated_) {
     return; // todo error or destroy
   }
   std::vector<VkDescriptorSetLayoutBinding> bindings{};
-  bindings.reserve(m_Bindings.size());
+  bindings.reserve(bindings_.size());
 
-  for (const auto& item : m_Bindings) {
+  for (const auto& item : bindings_) {
     VkDescriptorSetLayoutBinding binding{
-        .binding = item.Index,
-        .descriptorType = item.Type,
+        .binding = item.index,
+        .descriptorType = item.type,
         .descriptorCount = 1,
-        .stageFlags = item.Flags,
+        .stageFlags = item.flags,
         .pImmutableSamplers = nullptr};
     bindings.push_back(binding);
   }
@@ -53,8 +53,8 @@ void DescriptorSetLayout::Bake() {
       .pBindings = bindings.data()};
 
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorSetLayout(
-      Engine::GetRenderer()->GetLogicalDevice(), &layoutInfo, nullptr, &m_Layout));
-  m_Allocated = true;
+      Engine::GetRenderer()->GetLogicalDevice(), &layoutInfo, nullptr, &layout_));
+  allocated_ = true;
 }
 
 }  // namespace Wiesel

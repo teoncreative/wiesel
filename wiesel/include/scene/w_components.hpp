@@ -42,16 +42,16 @@ struct TreeComponent : public IComponent {
   TreeComponent() = default;
   TreeComponent(const TreeComponent&) = default;
 
-  entt::entity Parent = entt::null;
-  std::vector<entt::entity> Childs;
+  entt::entity parent = entt::null;
+  std::vector<entt::entity> childs;
 };
 
 struct TagComponent : public IComponent {
-  TagComponent(const std::string& tag) : Tag(tag) {}
+  TagComponent(const std::string& tag) : tag(tag) {}
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
 
-  std::string Tag;
+  std::string tag;
 };
 
 struct TransformComponent : public IComponent {
@@ -71,7 +71,7 @@ struct TransformComponent : public IComponent {
 
   void SetPosition(float x, float y, float z);
 
-  void SetPosition(glm::vec3& pos) { SetPosition(pos.x, pos.y, pos.z); }
+  void SetPosition(const glm::vec3& pos) { SetPosition(pos.x, pos.y, pos.z); }
 
   void Rotate(float dx, float dy, float dz);
 
@@ -79,7 +79,7 @@ struct TransformComponent : public IComponent {
 
   void SetRotation(float x, float y, float z);
 
-  void SetRotation(glm::vec3& rot) { SetRotation(rot.x, rot.y, rot.z); }
+  void SetRotation(const glm::vec3& rot) { SetRotation(rot.x, rot.y, rot.z); }
 
   void Resize(float dx, float dy, float dz);
 
@@ -89,25 +89,26 @@ struct TransformComponent : public IComponent {
 
   void SetScale(const glm::vec3& scale) { SetScale(scale.x, scale.y, scale.z); }
 
-  glm::vec3 Position = {0.0f, 0.0f, 0.0f};
-  glm::vec3 Rotation = {0.0f, 0.0f, 0.0f};
-  glm::vec3 Scale = {1.0f, 1.0f, 1.0f};
-  glm::vec3 Pivot = {0.0f, 0.0f, 0.0f};
+  glm::vec3 position = {0.0f, 0.0f, 0.0f};
+  // rotation in degrees
+  glm::vec3 rotation = {0.0f, 0.0f, 0.0f};
+  glm::vec3 scale = {1.0f, 1.0f, 1.0f};
+  glm::vec3 pivot = {0.0f, 0.0f, 0.0f};
 
-  bool IsChanged = true;
-  glm::mat4 TransformMatrix = {};
-  glm::mat3 NormalMatrix = {};
+  bool is_changed = true;
+  glm::mat4 transform_matrix = {};
+  glm::mat3 normal_matrix = {};
 };
 
-struct RectangleTransformComponent  : public IComponent{
+struct RectangleTransformComponent  : public IComponent {
 
-  glm::vec2 Position = {0.0f, 0.0f};
-  glm::vec2 Rotation = {0.0f, 0.0f};
-  glm::vec2 Size = {0.0f, 0.0f};
-  glm::vec2 Scale = {1.0f, 1.0f};
+  glm::vec2 position = {0.0f, 0.0f};
+  glm::vec2 rotation = {0.0f, 0.0f};
+  glm::vec2 size = {0.0f, 0.0f};
+  glm::vec2 scale = {1.0f, 1.0f};
 
-  bool IsChanged = true;
-  bool IsDriven = true;
+  bool is_changed = true;
+  bool is_driven = true;
 };
 
 }  // namespace Wiesel

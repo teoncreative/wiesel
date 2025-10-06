@@ -14,20 +14,19 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
-using MouseCode = int32_t;  // Define MouseCode as int32_t
 
-enum : MouseCode {
-  Button0 = 0,
-  Button1 = 1,
-  Button2 = 2,
-  Button3 = 3,
-  Button4 = 4,
-  Button5 = 5,
-  Button6 = 6,
-  Button7 = 7,
+enum MouseCode : int32_t {
+  kMouseButton0 = 0,
+  kMouseButton1 = 1,
+  kMouseButton2 = 2,
+  kMouseButton3 = 3,
+  kMouseButton4 = 4,
+  kMouseButton5 = 5,
+  kMouseButton6 = 6,
+  kMouseButton7 = 7,
 
-  LeftButton = Button0,
-  RightButton = Button1,
-  MiddleButton = Button2
+  kMouseButtonLeft = kMouseButton0,
+  kMouseButtonRight = kMouseButton1,
+  kMouseButtonMiddle = kMouseButton2
 };
 }  // namespace Wiesel

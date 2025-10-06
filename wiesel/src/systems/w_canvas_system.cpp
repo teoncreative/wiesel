@@ -15,8 +15,8 @@ namespace Wiesel {
 void CanvasSystem::Update(Scene& scene) {}
 
 void CanvasSystem::Render(Scene& scene) {
-  for (const auto& _entity : scene.GetAllEntitiesWith<TextComponent>()) {
-    Entity entity{_entity, &scene};
+  for (const auto& handle : scene.GetAllEntitiesWith<TextComponent>()) {
+    Entity entity{handle, &scene};
     Entity parent = entity.GetParent();
     CanvasComponent* canvas;
     // Loop through parents
@@ -24,9 +24,8 @@ void CanvasSystem::Render(Scene& scene) {
       if (parent.HasComponent<CanvasComponent>()) {
         canvas = &parent.GetComponent<CanvasComponent>();
       }
-      Entity parentParent = parent.GetParent();
-      if (parentParent) {
-        parent = parentParent;
+      if (Entity parent_parent = parent.GetParent()) {
+        parent = parent_parent;
       } else {
         break;
       }

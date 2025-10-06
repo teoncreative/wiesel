@@ -14,57 +14,57 @@
 namespace Wiesel {
 
 glm::vec3 TransformComponent::GetForward() {
-  return -TransformMatrix[2];
+  return -transform_matrix[2];
 }
 
 glm::vec3 TransformComponent::GetBackward() {
-  return TransformMatrix[2];
+  return transform_matrix[2];
 }
 
 glm::vec3 TransformComponent::GetLeft() {
-  return -TransformMatrix[0];
+  return -transform_matrix[0];
 }
 
 glm::vec3 TransformComponent::GetRight() {
-  return TransformMatrix[0];
+  return transform_matrix[0];
 }
 
 glm::vec3 TransformComponent::GetUp() {
-  return TransformMatrix[1];
+  return transform_matrix[1];
 }
 
 glm::vec3 TransformComponent::GetDown() {
-  return -TransformMatrix[1];
+  return -transform_matrix[1];
 }
 
 void TransformComponent::Move(float dx, float dy, float dz) {
-  Position += glm::vec3{dx, dy, dz};
-  IsChanged = true;
+  position += glm::vec3{dx, dy, dz};
+  is_changed = true;
 }
 
 void TransformComponent::SetPosition(float x, float y, float z) {
-  Position = glm::vec3{x, y, z};
-  IsChanged = true;
+  position = glm::vec3{x, y, z};
+  is_changed = true;
 }
 
 void TransformComponent::Rotate(float dx, float dy, float dz) {
-  Rotation += glm::vec3{dx, dy, dz};
-  IsChanged = true;
+  rotation += glm::vec3{dx, dy, dz};
+  is_changed = true;
 }
 
 void TransformComponent::SetRotation(float x, float y, float z) {
-  Rotation = glm::vec3{x, y, z};
-  IsChanged = true;
+  rotation = glm::vec3{x, y, z};
+  is_changed = true;
 }
 
 void TransformComponent::Resize(float dx, float dy, float dz) {
-  Scale += glm::vec3{dx, dy, dz};
-  IsChanged = true;
+  scale += glm::vec3{dx, dy, dz};
+  is_changed = true;
 }
 
 void TransformComponent::SetScale(float x, float y, float z) {
-  Scale = glm::vec3{x, y, z};
-  IsChanged = true;
+  scale = glm::vec3{x, y, z};
+  is_changed = true;
 }
 
 }  // namespace Wiesel

@@ -155,33 +155,33 @@ enum TextureType {
 
 
 struct TextureProps {
-  TextureType Type = TextureTypeDiffuse;
-  bool GenerateMipmaps = true;
-  VkFormat ImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-  uint32_t Width;
-  uint32_t Height;
+  TextureType type = TextureTypeDiffuse;
+  bool generate_mipmaps = true;
+  VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
+  uint32_t width;
+  uint32_t height;
 };
 
 class Texture {
  public:
-  Texture(TextureType textureType, const std::string& path);
+  Texture(TextureType texture_type, const std::string& path);
   ~Texture();
 
-  TextureType m_Type;
-  VkImage m_Image;
-  VkFormat m_Format;
-  VkDeviceMemory m_DeviceMemory;
-  Ref<ImageView> m_ImageView;
-  VkSampler m_Sampler;
-  uint32_t m_MipLevels;
+  TextureType type_;
+  VkImage image_;
+  VkFormat format_;
+  VkDeviceMemory device_memory_;
+  Ref<ImageView> image_view_;
+  VkSampler sampler_;
+  uint32_t mip_levels_;
 
-  uint32_t m_Width;
-  uint32_t m_Height;
-  int32_t m_Channels;
-  VkDeviceSize m_Size;
+  uint32_t width_;
+  uint32_t height_;
+  int32_t channels_;
+  VkDeviceSize size_;
 
-  bool m_IsAllocated;
-  std::string m_Path;
+  bool is_allocated_;
+  std::string path_;
 };
 
 enum class AttachmentTextureType {
@@ -193,23 +193,23 @@ enum class AttachmentTextureType {
 };
 
 struct AttachmentTextureProps {
-  uint32_t Width = 0;
-  uint32_t Height = 0;
-  AttachmentTextureType Type = AttachmentTextureType::Color;
-  uint32_t ImageCount = 1;
-  VkFormat ImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-  VkSampleCountFlagBits MsaaSamples = VK_SAMPLE_COUNT_1_BIT;
-  bool Sampled = false;
-  uint32_t LayerCount = 1;
-  bool TransferDest = false;
+  uint32_t width = 0;
+  uint32_t height = 0;
+  AttachmentTextureType type = AttachmentTextureType::Color;
+  uint32_t image_count = 1;
+  VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
+  VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+  bool sampled = false;
+  uint32_t layer_count = 1;
+  bool transfer_dest = false;
 };
 
 class DescriptorSet;
 
 struct AttachmentTextureInfo {
-  AttachmentTextureType Type;
-  VkFormat Format;
-  VkSampleCountFlagBits MsaaSamples;
+  AttachmentTextureType type;
+  VkFormat format;
+  VkSampleCountFlagBits msaa_samples;
   /*VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
   VkAttachmentLoadOp StencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -221,20 +221,20 @@ class AttachmentTexture {
   AttachmentTexture() = default;
   ~AttachmentTexture();
 
-  AttachmentTextureType m_Type;
-  std::vector<VkImage> m_Images;
-  std::vector<Ref<ImageView>> m_ImageViews;
-  std::vector<Ref<Sampler>> m_Samplers;
-  std::vector<VkDeviceMemory> m_DeviceMemories;
-  VkFormat m_Format;
-  uint32_t m_Width;
-  uint32_t m_Height;
-  VkSampleCountFlagBits m_MsaaSamples;
-  Ref<DescriptorSet> m_Descriptors; // Deprecated, I'll move this
-  VkImageAspectFlags m_AspectFlags;
-  uint32_t m_MipLevels;
+  AttachmentTextureType type_;
+  std::vector<VkImage> images_;
+  std::vector<Ref<ImageView>> image_views_;
+  std::vector<Ref<Sampler>> samplers_;
+  std::vector<VkDeviceMemory> device_memories_;
+  VkFormat format_;
+  uint32_t width_;
+  uint32_t height_;
+  VkSampleCountFlagBits msaa_samples_;
+  Ref<DescriptorSet> descriptors_; // Deprecated, I'll move this
+  VkImageAspectFlags aspect_flags_;
+  uint32_t mip_levels_;
 
-  bool m_IsAllocated;
+  bool is_allocated_;
 
 };
 
@@ -243,9 +243,9 @@ class ImageView {
   ImageView() = default;
   ~ImageView();
 
-  VkImageView m_Handle;
-  uint32_t m_Layer;
-  uint32_t m_LayerCount;
+  VkImageView handle_;
+  uint32_t layer_;
+  uint32_t layer_count_;
 };
 
 }  // namespace Wiesel

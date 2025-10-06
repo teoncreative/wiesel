@@ -25,6 +25,7 @@ class Engine {
   static void CleanupRenderer();
   static void CleanupWindow();
   static void CleanupEngine();
+
   WIESEL_GETTER_FN static Ref<Renderer> GetRenderer();
   WIESEL_GETTER_FN static Ref<AppWindow> GetWindow();
 
@@ -41,18 +42,20 @@ class Engine {
                         const std::string& path);
 
  private:
-  static glm::mat4 ConvertMatrix(const aiMatrix4x4& aiMat);
-  static bool LoadTexture(Model& model, Ref<Mesh> mesh, aiMaterial* mat,
-                          aiTextureType type);
+  static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
+  static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
+                         aiTextureType type, const aiScene& scene);
+  static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex, TextureType type);
+  static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width, int height);
   static Ref<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
-                                     const aiScene& aiScene,
-                                     aiMatrix4x4 aiMatrix);
+                                     const aiScene& aiScene);
   static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
-                          std::vector<Ref<Mesh>>& meshes);
+                         std::vector<Ref<Mesh>>& meshes,
+                         const glm::mat4& parentTransform);
 
  private:
-  static Ref<Renderer> s_Renderer;
-  static Ref<AppWindow> s_Window;
+  static Ref<Renderer> kRenderer;
+  static Ref<AppWindow> kWindow;
 };
 
 Application* CreateApp();

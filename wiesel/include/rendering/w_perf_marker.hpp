@@ -31,29 +31,29 @@ class PerfMarker {
 class ScopedPerfMarker {
  public:
   ScopedPerfMarker(VkCommandBuffer cmd, const char* name, Colorf color)
-      : m_Cmd(cmd), m_EndFunc(nullptr) {
+      : cmd_(cmd), end_func_(nullptr) {
     if (!PerfMarker::vkCmdBeginDebugUtilsLabelEXT ||
         !PerfMarker::vkCmdEndDebugUtilsLabelEXT)
       return;
 
     VkDebugUtilsLabelEXT label{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     label.pLabelName = name;
-    label.color[0] = color.Red;
-    label.color[1] = color.Green;
-    label.color[2] = color.Blue;
-    label.color[3] = color.Alpha;
+    label.color[0] = color.red;
+    label.color[1] = color.green;
+    label.color[2] = color.blue;
+    label.color[3] = color.alpha;
     PerfMarker::vkCmdBeginDebugUtilsLabelEXT(cmd, &label);
-    m_EndFunc = vkCmdEndDebugUtilsLabelEXT;
+    end_func_ = vkCmdEndDebugUtilsLabelEXT;
   }
 
   ~ScopedPerfMarker() {
-    if (m_EndFunc)
-      m_EndFunc(m_Cmd);
+    if (end_func_)
+      end_func_(cmd_);
   }
 
  private:
-  VkCommandBuffer m_Cmd;
-  PFN_vkCmdEndDebugUtilsLabelEXT m_EndFunc;
+  VkCommandBuffer cmd_;
+  PFN_vkCmdEndDebugUtilsLabelEXT end_func_;
 };
 
 }  // namespace Wiesel
