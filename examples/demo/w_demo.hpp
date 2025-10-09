@@ -44,9 +44,9 @@ class DemoLayer : public Wiesel::Layer {
   bool OnWindowResize(Wiesel::WindowResizeEvent& event);
 
  private:
-  DemoApplication& m_App;
+  DemoApplication& app_;
   Wiesel::Ref<Wiesel::Scene> scene_;
-  Wiesel::Ref<Wiesel::Renderer> m_Renderer;
+  Wiesel::Ref<Wiesel::Renderer> renderer_;
 };
 
 }  // namespace WieselDemo

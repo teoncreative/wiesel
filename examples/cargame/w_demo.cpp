@@ -24,14 +24,15 @@
 
 #include <random>
 
+#include "layer/w_layerscene.hpp"
+
 using namespace Wiesel;
 using namespace Wiesel::Editor;
 
 namespace WieselDemo {
 
-DemoLayer::DemoLayer(DemoApplication& app) : m_App(app), Layer("Demo Layer") {
-  scene_ = app.GetScene();
-  m_Renderer = Engine::GetRenderer();
+DemoLayer::DemoLayer(DemoApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
+  renderer_ = Engine::GetRenderer();
 }
 
 DemoLayer::~DemoLayer() = default;
@@ -100,7 +101,7 @@ void DemoLayer::OnAttach() {
                                                   }, {}, {})
   ));
 
-  m_Renderer->SetVsync(false);
+  renderer_->SetVsync(false);
 }
 
 void DemoLayer::OnDetach() {
@@ -122,7 +123,7 @@ void DemoLayer::OnEvent(Event& event) {
 
 bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
   if (event.GetKeyCode() == KeyF1) {
-    m_App.Close();
+    app_.Close();
     return true;
   }
   return false;
@@ -137,7 +138,7 @@ bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
 }
 
 bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
-  m_App.SubmitToMainThread([this]() {
+  app_.SubmitToMainThread([this]() {
     for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
       CameraComponent& component = scene_->GetComponent<CameraComponent>(entity);
       Engine::GetRenderer()->SetupCameraComponent(component);
@@ -148,8 +149,10 @@ bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
 
 void DemoApplication::Init() {
   LOG_DEBUG("Init");
-  PushLayer(CreateReference<DemoLayer>(*this));
-  PushOverlay(CreateReference<EditorOverlay>(*this, scene_));
+  std::shared_ptr<Scene> scene = std::make_shared<Scene>();
+  PushLayer(CreateReference<ImGuiLayer>());
+  PushLayer(CreateReference<DemoLayer>(*this, scene));
+  PushLayer(CreateReference<EditorLayer>(*this, scene));
 }
 
 DemoApplication::DemoApplication() : Application({"Wiesel Demo"}, {}) {

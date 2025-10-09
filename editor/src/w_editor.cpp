@@ -9,6 +9,7 @@
 #include <ImGuizmo.h>
 
 #include "imgui_internal.h"
+#include "layer/w_layerscene.hpp"
 #include "scene/w_componentutil.hpp"
 #include "script/w_scriptmanager.hpp"
 #include "util/imgui/w_imguiutil.hpp"
@@ -16,22 +17,26 @@
 
 namespace Wiesel::Editor {
 
-EditorOverlay::EditorOverlay(Application& app, Ref<Scene> scene)
+EditorLayer::EditorLayer(Application& app, Ref<Scene> scene)
     : app_(app), scene_(scene), Layer("Demo Overlay") {}
 
-EditorOverlay::~EditorOverlay() = default;
+EditorLayer::~EditorLayer() = default;
 
-void EditorOverlay::OnAttach() {
+void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
 }
 
-void EditorOverlay::OnDetach() {
+void EditorLayer::OnDetach() {
   LOG_DEBUG("OnDetach");
 }
 
-void EditorOverlay::OnUpdate(float_t delta_time) {}
+void EditorLayer::OnUpdate(float_t delta_time) {
+  scene_->OnUpdate(delta_time);
+}
 
-void EditorOverlay::OnEvent(Event& event) {}
+void EditorLayer::OnEvent(Event& event) {
+  scene_->OnEvent(event);
+}
 
 // Todo move these to the editor overlay instead
 static entt::entity selected_entity_;
@@ -43,7 +48,7 @@ static struct SceneHierarchyData {
   bool bottom_part = false;
 } hierarchy_data_;
 
-void EditorOverlay::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
+void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
   auto& tag_component = entity.GetComponent<TagComponent>();
   std::string tag = "";
   for (int i = 0; i < depth; i++) {
@@ -118,7 +123,7 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entity_id, int dep
   if (ImGui::BeginPopupContextItem()) {
     selected_entity_ = entity_id;
     if (ImGui::Button("Remove Entity")) {
-      app_.GetScene()->RemoveEntity(entity);
+      scene_->RemoveEntity(entity);
       has_selected_entity_ = false;
     }
     ImGui::EndPopup();
@@ -126,13 +131,13 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entity_id, int dep
   }
   if (entity.child_handles()) {
     for (const auto& child_entity_id : *entity.child_handles()) {
-      Entity child = {child_entity_id, &*app_.GetScene()};
+      Entity child = {child_entity_id, scene_.get()};
       RenderEntity(child, child_entity_id, depth + 1, ignore_menu);
     }
   }
 }
 
-void EditorOverlay::OnImGuiRender() {
+void EditorLayer::OnBeginPresent() {
   ImGui::DockSpaceOverViewport();
 
   static bool scenePropertiesOpen = true;
@@ -173,8 +178,8 @@ void EditorOverlay::OnImGuiRender() {
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
     bool ignoreMenu = false;
 
-    for (const auto& entityId : app_.GetScene()->GetSceneHierarchy()) {
-      Entity entity = {entityId, &*app_.GetScene()};
+    for (const auto& entityId : scene_->GetSceneHierarchy()) {
+      Entity entity = {entityId, scene_.get()};
       if (entity.GetParent()) {
         continue;
       }
@@ -189,7 +194,7 @@ void EditorOverlay::OnImGuiRender() {
     if (ImGui::BeginPopup("right_click_hierarchy")) {
       if (ImGui::BeginMenu("Add")) {
         if (ImGui::MenuItem("Empty Object")) {
-          app_.GetScene()->CreateEntity();
+          scene_->CreateEntity();
           ImGui::CloseCurrentPopup();
         }
         ImGui::EndMenu();
@@ -201,7 +206,7 @@ void EditorOverlay::OnImGuiRender() {
 
   static bool componentsOpen = true;
   if (ImGui::Begin("Components", &componentsOpen) && has_selected_entity_) {
-    Entity entity = {selected_entity_, &*app_.GetScene()};
+    Entity entity = {selected_entity_, scene_.get()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
     if (ImGui::InputText("##", &tag.tag, ImGuiInputTextFlags_AutoSelectAll)) {
       if (tag.tag[0] == ' ') {
@@ -285,17 +290,25 @@ void EditorOverlay::OnImGuiRender() {
   ImGui::End();
 }
 
-void EditorOverlay::UpdateHierarchyOrder() {
+void EditorLayer::OnPostPresent() {
+  scene_->ProcessDestroyQueue();
+}
+
+void EditorLayer::OnPrePresent() {
+  scene_->Render();
+}
+
+void EditorLayer::UpdateHierarchyOrder() {
   if (hierarchy_data_.move_from == entt::null || hierarchy_data_.move_to == entt::null) {
     return;
   }
-  Entity fromEntity = {hierarchy_data_.move_from, &*app_.GetScene()};
-  Entity toEntity = {hierarchy_data_.move_to, &*app_.GetScene()};
-  auto& hierarcry = app_.GetScene()->GetSceneHierarchy();
+  Entity fromEntity = {hierarchy_data_.move_from, scene_.get()};
+  Entity toEntity = {hierarchy_data_.move_to, scene_.get()};
+  auto& hierarcry = scene_->GetSceneHierarchy();
   if (hierarchy_data_.bottom_part) {
     // todo move hierarchy order on childs
     if (fromEntity.parent_handle() != entt::null) {
-      app_.GetScene()->UnlinkEntities(fromEntity.parent_handle(), hierarchy_data_.move_from);
+      scene_->UnlinkEntities(fromEntity.parent_handle(), hierarchy_data_.move_from);
     }
     hierarcry.erase(
         std::remove(hierarcry.begin(), hierarcry.end(), hierarchy_data_.move_from),
@@ -307,7 +320,7 @@ void EditorOverlay::UpdateHierarchyOrder() {
       hierarcry.insert(insertPos, hierarchy_data_.move_from);
     }
   } else {
-    app_.GetScene()->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);
+    scene_->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);
   }
 }
 

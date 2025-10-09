@@ -13,6 +13,7 @@
 
 #include "util/w_keycodes.hpp"
 #include "util/w_mousecodes.hpp"
+#include "events/w_events.hpp"
 
 namespace Wiesel {
 struct KeyData {
@@ -30,25 +31,12 @@ class InputManager {
   static bool IsPressed(KeyCode keyCode);
   static float GetAxis(const std::string& axisName);
 
-  static int mouse_x() { return mouse_x_; }
-  static int mouse_y() { return mouse_y_; }
+  static int GetMouseX();
+  static int GetMouseY();
 
   static void Init();
+  static void OnEvent(Event& event);
 
- private:
-  friend class Application;
-
-  // todo maybe can be improved?
-  static std::map<std::string, std::vector<KeyCode>> keyboard_mapping_;
-  static std::map<KeyCode, KeyData> keys_;
-  static std::map<MouseCode, KeyData> mouse_buttons_;
-  static std::map<std::string, float> axis_;
-  static int mouse_x_;
-  static int mouse_y_;
-  static float mouse_axis_sens_x_;
-  static float mouse_axis_sens_y_;
-  static InputMode input_mode_;
-  static float mouse_axis_limit_y_;
 };
 
 }  // namespace Wiesel

@@ -11,10 +11,10 @@
 
 namespace Wiesel::Editor {
 
-class EditorOverlay : public Layer {
+class EditorLayer : public Layer {
  public:
-  explicit EditorOverlay(Application& app, Ref<Scene> scene);
-  ~EditorOverlay() override;
+  explicit EditorLayer(Application& app, Ref<Scene> scene);
+  ~EditorLayer() override;
 
   void OnAttach() override;
   void OnDetach() override;
@@ -22,8 +22,11 @@ class EditorOverlay : public Layer {
   void OnEvent(Event& event) override;
 
   void RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu);
-  void OnImGuiRender() override;
   void UpdateHierarchyOrder();
+
+  void OnBeginPresent() override;
+  void OnPostPresent() override;
+  void OnPrePresent() override;
 
  private:
   Application& app_;

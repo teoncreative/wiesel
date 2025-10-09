@@ -28,30 +28,30 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   }
 
-  handle_ = glfwCreateWindow(properties_.size.Width, properties_.size.Height,
+  handle_ = glfwCreateWindow(properties_.size.width, properties_.size.height,
                              properties_.title.c_str(), nullptr, nullptr);
   glfwSetWindowUserPointer(handle_, this);
 
-  glfwGetFramebufferSize(handle_, &framebuffer_size_.Width,
-                         &framebuffer_size_.Height);
-  glfwGetWindowSize(handle_, &window_size_.Width, &window_size_.Height);
-  scale_.Width = framebuffer_size_.Width / (float)window_size_.Width;
-  scale_.Height = framebuffer_size_.Height / (float)window_size_.Height;
+  glfwGetFramebufferSize(handle_, &framebuffer_size_.width,
+                         &framebuffer_size_.height);
+  glfwGetWindowSize(handle_, &window_size_.width, &window_size_.height);
+  scale_.width = framebuffer_size_.width / static_cast<float>(window_size_.width);
+  scale_.height = framebuffer_size_.height / static_cast<float>(window_size_.height);
 
   glfwSetWindowSizeCallback(
       handle_, [](GLFWwindow* window, int width, int height) {
         GlfwAppWindow& appWindow =
-            *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+            *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
         glfwGetFramebufferSize(appWindow.handle_,
-                               &appWindow.framebuffer_size_.Width,
-                               &appWindow.framebuffer_size_.Height);
-        glfwGetWindowSize(appWindow.handle_, &appWindow.window_size_.Width,
-                          &appWindow.window_size_.Height);
-        appWindow.scale_.Width = appWindow.framebuffer_size_.Width /
-                                 (float)appWindow.window_size_.Width;
-        appWindow.scale_.Height = appWindow.framebuffer_size_.Height /
-                                  (float)appWindow.window_size_.Height;
+                               &appWindow.framebuffer_size_.width,
+                               &appWindow.framebuffer_size_.height);
+        glfwGetWindowSize(appWindow.handle_, &appWindow.window_size_.width,
+                          &appWindow.window_size_.height);
+        appWindow.scale_.width = appWindow.framebuffer_size_.width /
+                                 (float)appWindow.window_size_.width;
+        appWindow.scale_.height = appWindow.framebuffer_size_.height /
+                                  (float)appWindow.window_size_.height;
 
         WindowResizeEvent event({width, height}, width / (float)height);
         appWindow.GetEventHandler()(event);
@@ -59,7 +59,7 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
 
   glfwSetWindowCloseCallback(handle_, [](GLFWwindow* window) {
     GlfwAppWindow& appWindow =
-        *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+        *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
     WindowCloseEvent event;
     appWindow.GetEventHandler()(event);
@@ -68,7 +68,7 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   glfwSetKeyCallback(handle_, [](GLFWwindow* window, int key, int scancode,
                                  int action, int mods) {
     GlfwAppWindow& appWindow =
-        *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+        *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
     switch (action) {
       case GLFW_PRESS: {
@@ -90,7 +90,7 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   });
   glfwSetCharCallback(handle_, [](GLFWwindow* window, unsigned int keycode) {
     GlfwAppWindow& appWindow =
-        *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+        *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
     KeyTypedEvent event(keycode);
     appWindow.GetEventHandler()(event);
@@ -99,7 +99,7 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   glfwSetMouseButtonCallback(
       handle_, [](GLFWwindow* window, int button, int action, int mods) {
         GlfwAppWindow& appWindow =
-            *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+            *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
         switch (action) {
           case GLFW_PRESS: {
@@ -112,35 +112,45 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
             appWindow.GetEventHandler()(event);
             break;
           }
+          default:
+            break;
         }
       });
 
   glfwSetScrollCallback(
       handle_, [](GLFWwindow* window, double xOffset, double yOffset) {
         GlfwAppWindow& appWindow =
-            *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+            *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
         MouseScrolledEvent event((float)xOffset, (float)yOffset);
         appWindow.GetEventHandler()(event);
       });
 
   glfwSetCursorPosCallback(
-      handle_, [](GLFWwindow* window, double xPos, double yPos) {
-        GlfwAppWindow& appWindow =
-            *(GlfwAppWindow*)glfwGetWindowUserPointer(window);
+      handle_, [](GLFWwindow* window, double raw_x, double raw_y) {
+        GlfwAppWindow& handle =
+            *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
 
-        if (xPos > appWindow.window_size_.Width ||
-            yPos > appWindow.window_size_.Height || xPos < 0 || yPos < 0) {
+        if (raw_x > handle.window_size_.width ||
+            raw_y > handle.window_size_.height || raw_x < 0 || raw_y < 0) {
           return;
         }
-
-        MouseMovedEvent event((float)xPos * appWindow.scale_.Width,
-                              (float)yPos * appWindow.scale_.Height,
-                              appWindow.cursor_mode_);
-        appWindow.GetEventHandler()(event);
-        if (appWindow.cursor_mode_ == CursorModeRelative) {
-          glfwSetCursorPos(window, appWindow.window_size_.Width / 2.0f,
-                           appWindow.window_size_.Height / 2.0f);
+        float x;
+        float y;
+        if (handle.cursor_mode_ == CursorModeRelative) {
+          x = (handle.window_size_.width / 2.0f - raw_x) /
+              handle.window_size_.width;
+          y = (handle.window_size_.height / 2.0f - raw_y) /
+              handle.window_size_.width;
+        } else {
+          x = static_cast<float>(raw_x) * handle.scale_.width;
+          y = static_cast<float>(raw_y) * handle.scale_.height;
+        }
+        MouseMovedEvent event(x, y, handle.cursor_mode_);
+        handle.GetEventHandler()(event);
+        if (handle.cursor_mode_ == CursorModeRelative) {
+          glfwSetCursorPos(window, handle.window_size_.width / 2.0f,
+                           handle.window_size_.height / 2.0f);
         }
       });
 }
@@ -154,7 +164,8 @@ void GlfwAppWindow::OnUpdate() {
   PROFILE_ZONE_SCOPED();
   glfwPollEvents();
 
-  if (first_frame_) { [[unlikely]]
+  if (first_frame_) {
+    [[unlikely]]
     glfwSetJoystickCallback([](int jid, int e) {
       auto& app =
           *(GlfwAppWindow*)glfwGetWindowUserPointer(glfwGetCurrentContext());
@@ -313,7 +324,7 @@ void GlfwAppWindow::CreateWindowSurface(VkInstance instance,
 }
 
 void GlfwAppWindow::GetWindowFramebufferSize(WindowSize& size) {
-  glfwGetFramebufferSize(handle_, &size.Width, &size.Height);
+  glfwGetFramebufferSize(handle_, &size.width, &size.height);
 }
 
 void GlfwAppWindow::SetCursorMode(CursorMode cursorMode) {
@@ -325,8 +336,8 @@ void GlfwAppWindow::SetCursorMode(CursorMode cursorMode) {
     }
     case CursorModeRelative: {
       glfwSetInputMode(handle_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-      glfwSetCursorPos(handle_, window_size_.Width / 2.0f,
-                       window_size_.Height / 2.0f);
+      glfwSetCursorPos(handle_, window_size_.width / 2.0f,
+                       window_size_.height / 2.0f);
       break;
     }
   }

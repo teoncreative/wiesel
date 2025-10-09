@@ -26,32 +26,30 @@ set(INJECT_DEBUG_POSTFIX OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ##### TRACY #####
-if(ENABLE_TRACY)
-    include(FetchContent)
-    FetchContent_Declare(
-            tracy
-            GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-            GIT_TAG v0.12.2  # or whatever version you want
-            GIT_SHALLOW TRUE
-            GIT_PROGRESS TRUE
-    )
-    FetchContent_MakeAvailable(tracy)
-    FetchContent_GetProperties(tracy)
-    if(tracy_POPULATED)
-        message(STATUS "Tracy successfully downloaded and configured")
-        # Optional: Verify Tracy target exists
-        if(TARGET Tracy::TracyClient)
-            message(STATUS "Tracy::TracyClient target available")
-            set(LIB_TRACY Tracy::TracyClient)
-        elseif(TARGET tracy)
-            message(STATUS "tracy target available")
-            set(LIB_TRACY tracy)
-        else()
-            message(WARNING "Tracy downloaded but no target found")
-        endif()
+include(FetchContent)
+FetchContent_Declare(
+        tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.12.2  # or whatever version you want
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(tracy)
+FetchContent_GetProperties(tracy)
+if(tracy_POPULATED)
+    message(STATUS "Tracy successfully downloaded and configured")
+    # Optional: Verify Tracy target exists
+    if(TARGET Tracy::TracyClient)
+        message(STATUS "Tracy::TracyClient target available")
+        set(LIB_TRACY Tracy::TracyClient)
+    elseif(TARGET tracy)
+        message(STATUS "tracy target available")
+        set(LIB_TRACY tracy)
     else()
-        message(WARNING "Failed to download/configure Tracy - profiling disabled")
+        message(FATAL_ERROR "Tracy downloaded but no target found")
     endif()
+else()
+    message(FATAL_ERROR "Failed to download/configure Tracy")
 endif()
 
 ##### SOURCES #####
@@ -151,10 +149,10 @@ endif()
 
 ## LIBRARIES
 
-if (ENABLE_TRACY)
-    target_include_directories(wiesel PUBLIC ${LIBS_DIR}/tracy/public)
+target_include_directories(wiesel PUBLIC ${LIBS_DIR}/tracy/public)
+target_link_libraries(wiesel PUBLIC ${LIB_TRACY})
+if(ENABLE_TRACY)
     target_compile_definitions(wiesel PUBLIC TRACY_ENABLE)
-    target_link_libraries(wiesel PUBLIC ${LIB_TRACY})
 endif()
 
 if (VULKAN_FOUND)

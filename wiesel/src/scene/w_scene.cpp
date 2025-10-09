@@ -189,8 +189,8 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   for (const auto& entity : registry_.view<CameraComponent>()) {
     auto& component = registry_.get<CameraComponent>(entity);
     component.aspect_ratio = event.aspect_ratio();
-    component.viewport_size.x = event.window_size().Width;
-    component.viewport_size.y = event.window_size().Height;
+    component.viewport_size.x = event.window_size().width;
+    component.viewport_size.y = event.window_size().height;
     component.view_changed = true;
   }
   return false;
