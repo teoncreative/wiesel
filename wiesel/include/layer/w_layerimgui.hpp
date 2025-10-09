@@ -25,9 +25,8 @@ class ImGuiLayer : public Layer {
   void OnUpdate(float_t deltaTime) override;
   void OnEvent(Event& event) override;
 
-  void OnImGuiRender() override;
-  void OnBeginFrame();
-  void OnEndFrame();
+  void OnBeginPresent() override;
+  void OnPresent() override;
 
  private:
   VkDescriptorPool m_ImGuiPool;

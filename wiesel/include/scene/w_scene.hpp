@@ -97,18 +97,16 @@ class Scene {
   void UnlinkEntities(entt::entity parent, entt::entity child);
 
   void ProcessDestroyQueue();
+  bool Render();
 
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
   void UpdateMatrices(entt::entity entity);
-  bool Render();
   void DestroyEntity(entt::entity handle);
 
  private:
-  friend class Application;
-
   std::unordered_map<UUID, entt::entity> entities_;
   entt::registry registry_;
   bool is_running_ = false;

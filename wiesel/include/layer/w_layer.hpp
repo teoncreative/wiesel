@@ -18,21 +18,23 @@
 namespace Wiesel {
 class Layer {
  public:
-  Layer(const std::string& layer_name);
-  virtual ~Layer();
+  explicit Layer(const std::string& layer_name) : layer_name_(layer_name) {}
+  virtual ~Layer() {}
 
-  virtual void OnAttach() = 0;
-  virtual void OnDetach() = 0;
-  virtual void OnUpdate(float_t delta_time) = 0;
-  virtual void OnEvent(Event& event) = 0;
+  virtual void OnAttach() {}
+  virtual void OnDetach() {}
+  virtual void OnUpdate(float_t delta_time) {}
+  virtual void OnEvent(Event& event) {}
 
-  virtual void OnImGuiRender();
-  virtual void OnPostRender();
+  virtual void OnPrePresent() {}
+  virtual void OnBeginPresent() {}
+  virtual void OnPresent() {}
+  virtual void OnPostPresent() {}
 
  protected:
   friend class Application;
 
-  uint32_t id_;
+  uint32_t id_ = -1;
   std::string layer_name_;  // used to debug
 };
 }  // namespace Wiesel

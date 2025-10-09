@@ -1929,8 +1929,8 @@ void Renderer::CreateSwapChain() {
   swap_chain_image_format_ = surfaceFormat.format;
 
   aspect_ratio_ = extent_.width / (float)extent_.height;
-  window_size_.Width = extent_.width;
-  window_size_.Height = extent_.height;
+  window_size_.width = extent_.width;
+  window_size_.height = extent_.height;
   recreate_swap_chain_ = false;
   swap_chain_created_ = true;
 
@@ -2823,7 +2823,7 @@ void Renderer::RecreateSwapChain() {
   LOG_INFO("Recreating swap chains...");
   WindowSize size{};
   window_->GetWindowFramebufferSize(size);
-  while (size.Width == 0 || size.Height == 0) {
+  while (size.width == 0 || size.height == 0) {
     window_->GetWindowFramebufferSize(size);
     window_->OnUpdate();
   }
@@ -2929,11 +2929,13 @@ bool Renderer::BeginPresent() {
                           m_CommandBuffer->m_Handle);
   }*/
 
-  TransitionImageLayout(camera_->composite_color_resolve_image->images_[0],
-                        camera_->composite_color_resolve_image->format_,
-                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
-                        command_buffer_->handle_, 0, 1);
+  if (camera_) {
+    TransitionImageLayout(camera_->composite_color_resolve_image->images_[0],
+                          camera_->composite_color_resolve_image->format_,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                          command_buffer_->handle_, 0, 1);
+  }
 
   present_pipeline_->Bind(PipelineBindPointGraphics);
   present_render_pass_->Begin(present_framebuffers_[image_index_], clear_color_);
@@ -2946,11 +2948,13 @@ void Renderer::EndPresent() {
   present_render_pass_->End();
   // This was done here to prevent some errors caused by doing it inside the pass
   // I'm not sure if this is a correct solution, find out and move this to the present image if not required
-  TransitionImageLayout(camera_->composite_color_resolve_image->images_[0],
-                        camera_->composite_color_resolve_image->format_,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
-                        command_buffer_->handle_, 0, 1);
+  if (camera_) {
+    TransitionImageLayout(camera_->composite_color_resolve_image->images_[0],
+                          camera_->composite_color_resolve_image->format_,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                          command_buffer_->handle_, 0, 1);
+  }
   /*
   for (const auto& item : textures) {
     TransitionImageLayout(item->m_Images[0], item->m_Format,
@@ -3528,8 +3532,8 @@ VkExtent2D Renderer::ChooseSwapExtent(
     Wiesel::WindowSize size{};
     window_->GetWindowFramebufferSize(size);
 
-    VkExtent2D actualExtent = {static_cast<uint32_t>(size.Width),
-                               static_cast<uint32_t>(size.Height)};
+    VkExtent2D actualExtent = {static_cast<uint32_t>(size.width),
+                               static_cast<uint32_t>(size.height)};
 
     actualExtent.width =
         std::clamp(actualExtent.width, capabilities.minImageExtent.width,

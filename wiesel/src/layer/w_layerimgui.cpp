@@ -102,9 +102,7 @@ void ImGuiLayer::OnUpdate(float_t deltaTime) {}
 
 void ImGuiLayer::OnEvent(Event& event) {}
 
-void ImGuiLayer::OnImGuiRender() {}
-
-void ImGuiLayer::OnBeginFrame() {
+void ImGuiLayer::OnBeginPresent() {
   PROFILE_ZONE_SCOPED();
   ImGui_ImplVulkan_NewFrame();
   Engine::GetRenderer()->window_->ImGuiNewFrame();
@@ -112,13 +110,11 @@ void ImGuiLayer::OnBeginFrame() {
   ImGuizmo::BeginFrame();
 }
 
-void ImGuiLayer::OnEndFrame() {
-  PROFILE_ZONE_SCOPED();
+void ImGuiLayer::OnPresent() {
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(
       ImGui::GetDrawData(),
       Engine::GetRenderer()->command_buffer_->handle_);
-  ImGui::EndFrame();
   ImGuiIO& io = ImGui::GetIO();
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
     // move this to window handle!!
@@ -126,4 +122,5 @@ void ImGuiLayer::OnEndFrame() {
     ImGui::RenderPlatformWindowsDefault();
   }
 }
+
 }  // namespace Wiesel

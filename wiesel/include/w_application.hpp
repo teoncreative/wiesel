@@ -40,25 +40,13 @@ class Application {
   void PushLayer(const Ref<Layer>& layer);
   void RemoveLayer(const Ref<Layer>& layer);
 
-  void PushOverlay(const Ref<Layer>& layer);
-  void RemoveOverlay(const Ref<Layer>& layer);
-
   bool OnWindowClose(WindowCloseEvent& event);
   bool OnWindowResize(WindowResizeEvent& event);
-  bool OnKeyPressed(KeyPressedEvent& event);
-  bool OnKeyReleased(KeyReleasedEvent& event);
-  bool OnMouseMoved(MouseMovedEvent& event);
-  bool OnJoystickConnect(JoystickConnectedEvent& event);
-  bool OnJoystickDisconnect(JoystickDisconnectedEvent& event);
-  bool OnJoystickButtonPressed(JoystickButtonPressedEvent& event);
-  bool OnJoystickButtonReleased(JoystickButtonReleasedEvent& event);
-  bool OnJoystickButtonAxisMoved(JoystickAxisMovedEvent& event);
 
   WIESEL_GETTER_FN Ref<AppWindow> GetWindow();
   WIESEL_GETTER_FN float_t GetFPS() const { return fps_; }
   WIESEL_GETTER_FN float_t GetDeltaTime() const { return delta_time_; }
   WIESEL_GETTER_FN const WindowSize& GetWindowSize();
-  WIESEL_GETTER_FN Ref<Scene> GetScene();
 
   void SubmitToMainThread(std::function<void()> fn);
 
@@ -80,7 +68,6 @@ class Application {
   WindowSize window_size_;
   // proper layer stack
   std::vector<Ref<Layer>> layers_;
-  std::vector<Ref<Layer>> overlays_;  // maybe have another class extending from Layer like OverlayLayer
   Ref<ImGuiLayer> imgui_layer_;
   uint32_t layer_counter_;
   Ref<AppWindow> window_;
@@ -91,7 +78,6 @@ class Application {
   uint32_t frame_count_ = 0;
   float_t fps_ = 0.0f;
 
-  Ref<Scene> scene_;  // move this to somewhere else
 
 };
 

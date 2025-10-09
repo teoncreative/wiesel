@@ -22,8 +22,8 @@ namespace Wiesel {
 using WindowEventFn = std::function<void(Event&)>;
 
 struct WindowSize {
-  int32_t Width;
-  int32_t Height;
+  int32_t width;
+  int32_t height;
 };
 
 enum CursorMode : uint8_t { CursorModeNormal, CursorModeRelative };
