@@ -23,6 +23,7 @@ namespace Wiesel {
 struct FrustumPlanes {
   glm::vec4 Left, Right, Bottom, Top, Near, Far;
 };
+
 struct Cascade {
   float SplitDepth;
   glm::mat4 ViewProjMatrix;

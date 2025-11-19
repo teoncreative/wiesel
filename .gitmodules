@@ -28,3 +28,6 @@
 [submodule "vendor/freetype"]
 	path = vendor/freetype
 	url = https://github.com/freetype/freetype.git
+[submodule "vendor/cxxopts"]
+	path = vendor/cxxopts
+	url = https://github.com/jarro2783/cxxopts

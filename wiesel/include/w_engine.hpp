@@ -26,8 +26,8 @@ class Engine {
   static void CleanupWindow();
   static void CleanupEngine();
 
-  WIESEL_GETTER_FN static Ref<Renderer> GetRenderer();
-  WIESEL_GETTER_FN static Ref<AppWindow> GetWindow();
+  WIESEL_GETTER_FN static std::shared_ptr<Renderer> GetRenderer();
+  WIESEL_GETTER_FN static std::shared_ptr<AppWindow> GetWindow();
 
   static aiScene* LoadAssimpModel(ModelComponent& modelComponent,
                                   const std::string& path,
@@ -47,7 +47,7 @@ class Engine {
                          aiTextureType type, const aiScene& scene);
   static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex, TextureType type);
   static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width, int height);
-  static Ref<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
+  static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
                                      const aiScene& aiScene);
   static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                          std::vector<Ref<Mesh>>& meshes,
@@ -58,5 +58,5 @@ class Engine {
   static Ref<AppWindow> kWindow;
 };
 
-Application* CreateApp();
+Application* CreateApp(int argc, char** argv);
 }  // namespace Wiesel

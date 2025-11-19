@@ -4,6 +4,8 @@
 
 #include "layer/w_layerscene.hpp"
 
+#include "w_engine.hpp"
+
 namespace Wiesel {
 
 SceneLayer::SceneLayer(std::shared_ptr<Scene> scene) : Layer("Scene Layer"), scene_(scene) {
@@ -27,6 +29,12 @@ void SceneLayer::OnEvent(Event& event) {
 }
 
 void SceneLayer::OnBeginPresent() {
+}
+
+void SceneLayer::OnPresent() {
+  std::shared_ptr<Renderer> renderer = Engine::GetRenderer();
+  renderer->DrawFullscreen(renderer->GetPresentPipeline(),
+                                {renderer->GetCameraData()->composite_output_descriptor});
 }
 
 void SceneLayer::OnPostPresent() {

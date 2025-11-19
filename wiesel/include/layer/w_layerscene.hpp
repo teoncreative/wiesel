@@ -20,9 +20,10 @@ public:
   void OnUpdate(float_t delta_time) override;
   void OnEvent(Event& event) override;
 
-  void OnBeginPresent() override;
-  void OnPostPresent() override;
   void OnPrePresent() override;
+  void OnBeginPresent() override;
+  void OnPresent() override;
+  void OnPostPresent() override;
 private:
   std::shared_ptr<Scene> scene_;
 
