@@ -172,6 +172,7 @@ target_link_libraries(wiesel PUBLIC nfd)
 target_link_libraries(wiesel PUBLIC fmt)
 target_link_libraries(wiesel PUBLIC glslang)
 target_link_libraries(wiesel PUBLIC monolib)
+target_link_libraries(wiesel PUBLIC cxxopts::cxxopts)
 
 function(_hash s outvar)
     string(MD5 _h "${s}")

@@ -21,6 +21,7 @@
 #include "w_editor.hpp"
 #include "w_engine.hpp"
 #include "w_entrypoint.hpp"
+#include <cxxopts.hpp>
 
 #include <random>
 
@@ -150,21 +151,32 @@ bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
 void DemoApplication::Init() {
   LOG_DEBUG("Init");
   std::shared_ptr<Scene> scene = std::make_shared<Scene>();
-  PushLayer(CreateReference<ImGuiLayer>());
-  PushLayer(CreateReference<DemoLayer>(*this, scene));
-  PushLayer(CreateReference<EditorLayer>(*this, scene));
+  if (enable_editor_) {
+    PushLayer(std::make_shared<ImGuiLayer>());
+    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<EditorLayer>(*this, scene));
+  } else {
+    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<SceneLayer>(scene));
+  }
 }
 
-DemoApplication::DemoApplication() : Application({"Wiesel Demo"}, {}) {
-  LOG_DEBUG("DemoApp constructor");
+DemoApplication::DemoApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
 }
 
 DemoApplication::~DemoApplication() {
-  LOG_DEBUG("DemoApp destructor");
 }
 }  // namespace WieselDemo
 
 // Called from entrypoint
-Application* Wiesel::CreateApp() {
-  return new WieselDemo::DemoApplication();
+Application* Wiesel::CreateApp(int argc, char** argv) {
+  cxxopts::Options options("demo", "Wiesel demo application");
+
+  options.add_options()
+      ("e,enable_editor", "Enable the editor", cxxopts::value<bool>()->default_value("false"));
+
+  auto result = options.parse(argc, argv);
+  bool enable_editor = result["enable_editor"].as<bool>();
+
+  return new WieselDemo::DemoApplication(enable_editor);
 }

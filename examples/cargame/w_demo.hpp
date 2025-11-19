@@ -22,10 +22,13 @@
 namespace WieselDemo {
 class DemoApplication : public Wiesel::Application {
  public:
-  DemoApplication();
+  DemoApplication(bool enable_editor);
   ~DemoApplication() override;
 
   void Init() override;
+
+private:
+  bool enable_editor_;
 };
 
 class DemoLayer : public Wiesel::Layer {

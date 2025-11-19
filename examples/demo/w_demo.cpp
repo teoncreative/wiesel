@@ -116,7 +116,7 @@ bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
+bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
   app_.SubmitToMainThread([this]() {
     for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
       CameraComponent& component = scene_->GetComponent<CameraComponent>(entity);
@@ -128,8 +128,10 @@ bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
 
 void DemoApplication::Init() {
   LOG_DEBUG("Init");
-  PushLayer(CreateReference<DemoLayer>(*this));
-  PushOverlay(CreateReference<EditorLayer>(*this, scene_));
+  std::shared_ptr<Scene> scene = std::make_shared<Scene>();
+  PushLayer(CreateReference<ImGuiLayer>());
+  PushLayer(CreateReference<DemoLayer>(*this, scene));
+  PushLayer(CreateReference<EditorLayer>(*this, scene));
 }
 
 DemoApplication::DemoApplication() : Application({"Wiesel Demo"}, {}) {
@@ -142,6 +144,6 @@ DemoApplication::~DemoApplication() {
 }  // namespace WieselDemo
 
 // Called from entrypoint
-Application* Wiesel::CreateApp() {
+Application* Wiesel::CreateApp(int argc, char** argv) {
   return new WieselDemo::DemoApplication();
 }

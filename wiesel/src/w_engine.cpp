@@ -76,14 +76,14 @@ void Engine::CleanupEngine() {
   //CleanupComponents();
 }
 
-Ref<Renderer> Engine::GetRenderer() {
+std::shared_ptr<Renderer> Engine::GetRenderer() {
   if (kRenderer == nullptr) {
     throw std::runtime_error("Renderer is not initialized!");
   }
   return kRenderer;
 }
 
-Ref<AppWindow> Engine::GetWindow() {
+std::shared_ptr<AppWindow> Engine::GetWindow() {
   return kWindow;
 }
 
@@ -271,14 +271,14 @@ unsigned char* Engine::ConvertBGRAtoRGBA(void* bgra_data, int width, int height)
   return rgba_data;
 }
 
-Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
+std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
                                     const aiScene& aiScene) {
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
 
   aiMaterial* material = aiScene.mMaterials[aiMesh->mMaterialIndex];
 
-  Ref<Mesh> mesh = CreateReference<Mesh>();
+  std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
   // todo handle materials properly within another class
   uint32_t flags = 0;
   flags |= VertexFlagHasTexture *
