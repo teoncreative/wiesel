@@ -47,7 +47,7 @@ var w__utils_8hpp =
     [ "CreateScope", "w__utils_8hpp.html#ac8aa39bcd5773c549d4ea63c491f98e0", null ],
     [ "FormatVariableName", "w__utils_8hpp.html#a7eeeed252d2944f5a68e764e2e6cff33", null ],
     [ "GetNameFromVulkanResult", "w__utils_8hpp.html#a07bd33629b6b0043e9fa1ada27f9bf48", null ],
-    [ "ReadFile", "w__utils_8hpp.html#afa23fd4e6a5eab0771602b27f148db40", null ],
-    [ "ReadFileUint32", "w__utils_8hpp.html#a010111615e05ac4c6b5ad329fc953250", null ],
+    [ "ReadFile", "w__utils_8hpp.html#a3340294b72175da4b3941555dd2405d5", null ],
+    [ "ReadFileUint32", "w__utils_8hpp.html#a2c40ae1af2e89d03c1c53e2075d37ce0", null ],
     [ "TrimLeft", "w__utils_8hpp.html#a3c59bbc69adffe21c19da9479123a87a", null ]
 ];

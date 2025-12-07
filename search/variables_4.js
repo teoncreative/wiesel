@@ -1,13 +1,23 @@
 var searchData=
 [
-  ['data_0',['data',['../structWiesel_1_1ModelComponent.html#a8f92885bb3ef865082d6db70025e90e0',1,'Wiesel::ModelComponent::Data'],['../structWiesel_1_1Pipeline_1_1SpecializationData.html#aef4a52480d1f9d658bb4761569c0b851',1,'Wiesel::Pipeline::SpecializationData::Data'],['../structWiesel_1_1ChangeResult.html#a7ec0c703cfd089d49f43d3556c3fee5e',1,'Wiesel::ChangeResult::Data']]],
-  ['datalength_1',['DataLength',['../structWiesel_1_1SpriteTexture.html#a1415d22621f1f1b64e73710e2d1747b1',1,'Wiesel::SpriteTexture']]],
-  ['datasize_2',['DataSize',['../structWiesel_1_1Pipeline_1_1SpecializationData.html#a49927f186fd27a438af746187d8cd1ec',1,'Wiesel::Pipeline::SpecializationData']]],
-  ['density_3',['Density',['../structWiesel_1_1LightBase.html#ab54f98d21f37ba60bbe2727492614480',1,'Wiesel::LightBase']]],
-  ['devicememory_4',['DeviceMemory',['../structWiesel_1_1SpriteTexture.html#a0a2545544e10d1e5be74503601c02017',1,'Wiesel::SpriteTexture']]],
-  ['diffuse_5',['Diffuse',['../structWiesel_1_1LightBase.html#a39280852414401298e0d73119d340f67',1,'Wiesel::LightBase']]],
-  ['direction_6',['Direction',['../structWiesel_1_1LightDirect.html#a9a4f3f88e90a80da2aa2a871ae82f035',1,'Wiesel::LightDirect']]],
-  ['directlightcount_7',['DirectLightCount',['../structWiesel_1_1LightsUniformData.html#a814355221d648734c3d710feec8d897c',1,'Wiesel::LightsUniformData']]],
-  ['directlights_8',['DirectLights',['../structWiesel_1_1LightsUniformData.html#ad3320803ebd223a47a29ea754c559e2b',1,'Wiesel::LightsUniformData']]],
-  ['doesshadowpass_9',['doesshadowpass',['../structWiesel_1_1CameraComponent.html#a361af8bf68fe001068c12f8f39cf58f9',1,'Wiesel::CameraComponent::DoesShadowPass'],['../structWiesel_1_1CameraData.html#a0d8fb3a3cd9938cfe1bbf267d3089058',1,'Wiesel::CameraData::DoesShadowPass']]]
+  ['data_0',['data',['../structWiesel_1_1Pipeline_1_1SpecializationData.html#a7f3ca3835db1a157ccec847d26ff8f6b',1,'Wiesel::Pipeline::SpecializationData::data'],['../structWiesel_1_1ModelComponent.html#ab55af383d0545fb6d80773d8a22fe5fa',1,'Wiesel::ModelComponent::data']]],
+  ['data_5f_1',['data_',['../classWiesel_1_1UniformBuffer.html#a08e43e06772140cc620168e7dcf2418a',1,'Wiesel::UniformBuffer']]],
+  ['data_5fsize_2',['data_size',['../structWiesel_1_1Pipeline_1_1SpecializationData.html#ac99215b1e8d6e52880251c2b4970d2eb',1,'Wiesel::Pipeline::SpecializationData']]],
+  ['datalength_3',['DataLength',['../structWiesel_1_1SpriteTexture.html#a1415d22621f1f1b64e73710e2d1747b1',1,'Wiesel::SpriteTexture']]],
+  ['defines_4',['defines',['../structWiesel_1_1ShaderProperties.html#afa33f868510ce7387d46395ded7efad8',1,'Wiesel::ShaderProperties']]],
+  ['delta_5ftime_5f_5',['delta_time_',['../classWiesel_1_1Application.html#ae3f6706cda0c5c0d9779d84dd696c81e',1,'Wiesel::Application']]],
+  ['density_6',['density',['../structWiesel_1_1LightBase.html#a921910c439298d370eb43dcd777e41f5',1,'Wiesel::LightBase']]],
+  ['descriptor_5flayouts_5f_7',['descriptor_layouts_',['../structWiesel_1_1Pipeline.html#ae12c6caf79b1b9d228f7abb90621c7a6',1,'Wiesel::Pipeline']]],
+  ['descriptor_5fpool_5f_8',['descriptor_pool_',['../classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4',1,'Wiesel::DescriptorSet']]],
+  ['descriptor_5fset_5f_9',['descriptor_set_',['../classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316',1,'Wiesel::DescriptorSet']]],
+  ['descriptors_5f_10',['descriptors_',['../classWiesel_1_1Skybox.html#a57869ffa657f1c7030a52627c28c9675',1,'Wiesel::Skybox::descriptors_'],['../classWiesel_1_1AttachmentTexture.html#a05f163f6e38a82d46981e22699199d60',1,'Wiesel::AttachmentTexture::descriptors_']]],
+  ['device_5fmemories_5f_11',['device_memories_',['../classWiesel_1_1AttachmentTexture.html#a29cd33b1b9a7da2fd3913f9bc0b18bcf',1,'Wiesel::AttachmentTexture']]],
+  ['device_5fmemory_5f_12',['device_memory_',['../classWiesel_1_1Texture.html#a2a4b592e764fe46d38f585c3d0ffce93',1,'Wiesel::Texture']]],
+  ['devicememory_13',['DeviceMemory',['../structWiesel_1_1SpriteTexture.html#a0a2545544e10d1e5be74503601c02017',1,'Wiesel::SpriteTexture']]],
+  ['diffuse_14',['diffuse',['../structWiesel_1_1LightBase.html#a4021cfe019eb6efc742b368133a55c6c',1,'Wiesel::LightBase']]],
+  ['direct_5flight_5fcount_15',['direct_light_count',['../structWiesel_1_1LightsUniformData.html#a531d0268ce2e5172d7ec69dd85cfea1f',1,'Wiesel::LightsUniformData']]],
+  ['direct_5flights_16',['direct_lights',['../structWiesel_1_1LightsUniformData.html#a2fde880168994b0cc9c9752ea248eda1',1,'Wiesel::LightsUniformData']]],
+  ['direction_17',['direction',['../structWiesel_1_1LightDirect.html#aab00209014b86aca484e775b6c876bf8',1,'Wiesel::LightDirect']]],
+  ['does_5fshadow_5fpass_18',['does_shadow_pass',['../structWiesel_1_1CameraComponent.html#a580e9f616299886b90e66b01acf867a2',1,'Wiesel::CameraComponent::does_shadow_pass'],['../structWiesel_1_1CameraData.html#a0f84a1899c6c8b167d9b67b354b3c9d0',1,'Wiesel::CameraData::does_shadow_pass']]],
+  ['dynamic_5fstates_5f_19',['dynamic_states_',['../structWiesel_1_1Pipeline.html#af7cb5a1016abeaab17faf890088edbd3',1,'Wiesel::Pipeline']]]
 ];

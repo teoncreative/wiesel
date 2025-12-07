@@ -5,23 +5,29 @@ var w__events_8hpp =
     [ "EVENT_CLASS_CATEGORY", "w__events_8hpp.html#abd52deea587a36ef619e596a0c691839", null ],
     [ "EVENT_CLASS_TYPE", "w__events_8hpp.html#a80d534fc4d69a68eefd1573fd0ac2f44", null ],
     [ "EventCategory", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759", [
-      [ "App", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759aacd309a2d71d6c19c2107d23012184e6", null ],
-      [ "Input", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a5e71ca3d80f0f5855748faedebc7a12b", null ],
-      [ "Keyboard", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a1e502c29f05c3367352a41201175c12e", null ],
-      [ "Mouse", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a3468a7cff4935e7aeff5ac06f39bca3d", null ],
-      [ "MouseButton", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a27ba1dd5f827125414d58e9aa7b36eb1", null ]
+      [ "kEventCategoryApp", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a77a164228b79f4281abac7b9809a585d", null ],
+      [ "kEventCategoryInput", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a439d641768a2ac15dce1a47b794aa2db", null ],
+      [ "kEventCategoryKeyboard", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759af78b6d3870a1cd344a46075ea22320f0", null ],
+      [ "kEventCategoryMouse", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a0fecc79df51cdf5478dd2e8f2d42d7dd", null ],
+      [ "kEventCategoryMouseButton", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a02fed28d5f747d6abffdd444c73d7136", null ]
     ] ],
     [ "EventType", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcf", [
-      [ "AppRecreateSwapChains", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa4abe45162b42f9aec9cbc6071e3e9f35", null ],
-      [ "WindowClose", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa6f7925f2358c6cbaba63fe3d5f4004d6", null ],
-      [ "WindowResize", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfadc20d638f9ff6995487557c9fa92b247", null ],
-      [ "KeyPressed", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa99d455fd932062c8c22e04ed299ceedc", null ],
-      [ "KeyReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfaa45ad2eae700b636bef94ba9299e13db", null ],
-      [ "KeyTyped", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa66f858a20f43d6dbb73c17a31695dc4a", null ],
-      [ "MouseButtonPressed", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfae9eb1c596825a6baf3108c31ffe1d1c7", null ],
-      [ "MouseButtonReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfac321cda24bef69e55d22e0a0b08eeff2", null ],
-      [ "MouseMoved", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfab384dca2ff85251f1416f2b6220d920c", null ],
-      [ "MouseScrolled", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa5417fa1a03d1d3360e9ab125f439ef58", null ],
-      [ "ScriptsReloaded", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfaee6d8e6b263ef4f92e531c1224369839", null ]
+      [ "AppRecreateSwapChains", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa70ce1bd94aa9c16114f9611dc099e584", null ],
+      [ "WindowClose", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfac984201d37197ab297a14d19efee4b07", null ],
+      [ "WindowResize", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa9f8f27bff2915738c4fe1b970e12f89c", null ],
+      [ "KeyPressed", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfac17e6984c1e5a887a49831beadee6bca", null ],
+      [ "KeyReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa4a77f07c8ad223b71ab4ce78a63841ab", null ],
+      [ "KeyTyped", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa9afbfd35b289eb4fc7f1bc148d7b422e", null ],
+      [ "MouseButtonPressed", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa7349f643d689997b7c54bf93e4095f5c", null ],
+      [ "MouseButtonReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa7584c169de594c27f00084b93186fd7c", null ],
+      [ "MouseMoved", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfac2770ad109c8063ce69a3608a9a16c08", null ],
+      [ "MouseScrolled", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa50edb169910041bb3c06f6e8322d74c1", null ],
+      [ "ScriptsReloaded", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa02b4aaebee2b092452625eb27f8a85f1", null ],
+      [ "JoystickConnected", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfafda311b9d480b046457d0c8f8067c4e7", null ],
+      [ "JoystickDisconnected", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfafb8848b3b8b1283742f4d488875db98c", null ],
+      [ "JoystickButtonPressed", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfac6a617a5278e3aaec658cac0f7ae263c", null ],
+      [ "JoystickButtonReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa98913a905aad67c179f13e65d0b534ad", null ],
+      [ "JoystickAxisMoved", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa11783af6be768504300caada41bca2d9", null ],
+      [ "JoystickHatChanged", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa234f5a67f7c3d14c6ffe80119141584f", null ]
     ] ]
 ];

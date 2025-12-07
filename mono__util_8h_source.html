@@ -104,10 +104,10 @@ $(document).ready(function(){initNavTree('mono__util_8h_source.html',''); initRe
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &lt;mono/jit/jit.h&gt;</span></div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;string&gt;</span></div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno"><a class="line" href="mono__util_8h.html#af5b6092f82e651a26bb27c5c49ead55b">    7</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="mono__util_8h.html#af5b6092f82e651a26bb27c5c49ead55b">CompileToDLL</a>(<span class="keyword">const</span> std::string&amp; outputFile,</div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span>                  <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; sourceFiles,</div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span>                  <span class="keyword">const</span> std::string&amp; libDir = <span class="stringliteral">&quot;&quot;</span>,</div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span>                  <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; linkLibs = {},</div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno"><a class="line" href="mono__util_8h.html#a383e44e52ab5f0b82f597cc66cd53d67">    7</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="mono__util_8h.html#a383e44e52ab5f0b82f597cc66cd53d67">CompileToDLL</a>(<span class="keyword">const</span> std::string&amp; output_file,</div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span>                  <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; source_files,</div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span>                  <span class="keyword">const</span> std::string&amp; lib_dir = <span class="stringliteral">&quot;&quot;</span>,</div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span>                  <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; link_libs = {},</div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>                  <span class="keywordtype">bool</span> debug = <span class="keyword">false</span>);</div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span> </div>
 <div class="foldopen" id="foldopen00013" data-start="{" data-end="};">
@@ -162,8 +162,8 @@ $(document).ready(function(){initNavTree('mono__util_8h_source.html',''); initRe
 <div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
 <div class="foldopen" id="foldopen00054" data-start="{" data-end="}">
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno"><a class="line" href="classMonoObjectWrapper.html#a95e03848a01e861d7e564ba987847ac1">   54</a></span>  std::string <a class="code hl_function" href="classMonoObjectWrapper.html#a95e03848a01e861d7e564ba987847ac1">AsString</a>() {</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>    MonoString* resultString = mono_object_to_string(object_, <span class="keyword">nullptr</span>);</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>    <span class="keyword">const</span> <span class="keywordtype">char</span>* str = mono_string_to_utf8(resultString);</div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>    MonoString* result_string = mono_object_to_string(object_, <span class="keyword">nullptr</span>);</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>    <span class="keyword">const</span> <span class="keywordtype">char</span>* str = mono_string_to_utf8(result_string);</div>
 <div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>    std::string result(str);</div>
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>    <span class="keywordflow">return</span> result;</div>
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>  }</div>
@@ -195,7 +195,7 @@ $(document).ready(function(){initNavTree('mono__util_8h_source.html',''); initRe
 <div class="ttc" id="aclassScopedMonoStringWrapper_html_a73261f539b297420925c593fccb48925"><div class="ttname"><a href="classScopedMonoStringWrapper.html#a73261f539b297420925c593fccb48925">ScopedMonoStringWrapper::length</a></div><div class="ttdeci">int length() const</div><div class="ttdef"><b>Definition</b> mono_util.h:41</div></div>
 <div class="ttc" id="aclassScopedMonoStringWrapper_html_a7dd60c1f3b7139ce67f5f51f6097b473"><div class="ttname"><a href="classScopedMonoStringWrapper.html#a7dd60c1f3b7139ce67f5f51f6097b473">ScopedMonoStringWrapper::~ScopedMonoStringWrapper</a></div><div class="ttdeci">~ScopedMonoStringWrapper()</div><div class="ttdef"><b>Definition</b> mono_util.h:35</div></div>
 <div class="ttc" id="aclassScopedMonoStringWrapper_html_ae245af482b1bade6f769d6be3108bf9e"><div class="ttname"><a href="classScopedMonoStringWrapper.html#ae245af482b1bade6f769d6be3108bf9e">ScopedMonoStringWrapper::ScopedMonoStringWrapper</a></div><div class="ttdeci">ScopedMonoStringWrapper(MonoStringWrapper string)</div><div class="ttdef"><b>Definition</b> mono_util.h:33</div></div>
-<div class="ttc" id="amono__util_8h_html_af5b6092f82e651a26bb27c5c49ead55b"><div class="ttname"><a href="mono__util_8h.html#af5b6092f82e651a26bb27c5c49ead55b">CompileToDLL</a></div><div class="ttdeci">bool CompileToDLL(const std::string &amp;outputFile, const std::vector&lt; std::string &gt; &amp;sourceFiles, const std::string &amp;libDir=&quot;&quot;, const std::vector&lt; std::string &gt; &amp;linkLibs={}, bool debug=false)</div></div>
+<div class="ttc" id="amono__util_8h_html_a383e44e52ab5f0b82f597cc66cd53d67"><div class="ttname"><a href="mono__util_8h.html#a383e44e52ab5f0b82f597cc66cd53d67">CompileToDLL</a></div><div class="ttdeci">bool CompileToDLL(const std::string &amp;output_file, const std::vector&lt; std::string &gt; &amp;source_files, const std::string &amp;lib_dir=&quot;&quot;, const std::vector&lt; std::string &gt; &amp;link_libs={}, bool debug=false)</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

@@ -1,0 +1,9 @@
+<map id="w_perf_marker.hpp" name="w_perf_marker.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="75,5,221,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,61,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="131,33,65,74,62,69,128,28"/>
+<area shape="rect" id="Node000003" href="$w__color_8hpp.html" title=" " alt="" coords="86,79,210,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="151,31,151,65,145,65,145,31"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="234,79,393,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="176,28,275,71,273,76,174,33"/>
+</map>

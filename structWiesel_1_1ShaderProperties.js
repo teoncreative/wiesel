@@ -1,8 +1,9 @@
 var structWiesel_1_1ShaderProperties =
 [
-    [ "Lang", "structWiesel_1_1ShaderProperties.html#a4c564e853b54d29f4929a576a3abc471", null ],
-    [ "Main", "structWiesel_1_1ShaderProperties.html#ac001bebae1d04ad5d0c5ee656be5434c", null ],
-    [ "Path", "structWiesel_1_1ShaderProperties.html#a9e0b40062f64f930c33d0465ceae816e", null ],
-    [ "Source", "structWiesel_1_1ShaderProperties.html#aeb123e8901de357e33231f7ec052ba58", null ],
-    [ "Type", "structWiesel_1_1ShaderProperties.html#afd9f98336879d13d4270a40a75a707f9", null ]
+    [ "defines", "structWiesel_1_1ShaderProperties.html#afa33f868510ce7387d46395ded7efad8", null ],
+    [ "lang", "structWiesel_1_1ShaderProperties.html#ae3d891d6c1894499e6798047987ad8d1", null ],
+    [ "main", "structWiesel_1_1ShaderProperties.html#a0dfa7d9e02660f0cf3019e17a153fa02", null ],
+    [ "path", "structWiesel_1_1ShaderProperties.html#a2af24f7dda214c7c7a83e09db444cc05", null ],
+    [ "source", "structWiesel_1_1ShaderProperties.html#af70a1b445ffe3a239a4d3a5798b2dfe6", null ],
+    [ "type", "structWiesel_1_1ShaderProperties.html#a31fb17fa33f45bf4871cb603539a7be0", null ]
 ];

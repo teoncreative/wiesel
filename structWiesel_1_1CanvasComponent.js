@@ -1,4 +1,4 @@
 var structWiesel_1_1CanvasComponent =
 [
-    [ "Type", "structWiesel_1_1CanvasComponent.html#ad1a100505a004cc1cc6b977b1041c030", null ]
+    [ "type", "structWiesel_1_1CanvasComponent.html#acc5d2daf0b33b70c39e2069183c6a763", null ]
 ];

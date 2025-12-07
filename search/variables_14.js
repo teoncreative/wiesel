@@ -1,9 +1,15 @@
 var searchData=
 [
-  ['vertexbuffer_0',['VertexBuffer',['../structWiesel_1_1Mesh.html#a899c6e849a63cb070e62b2465122d77d',1,'Wiesel::Mesh']]],
-  ['vertices_1',['Vertices',['../structWiesel_1_1Mesh.html#ab7c5f81d3e15c356bdfcf37aed61b6cf',1,'Wiesel::Mesh']]],
-  ['viewmatrix_2',['viewmatrix',['../structWiesel_1_1CameraComponent.html#a6bd41a8c0c1d87d229e931949d654713',1,'Wiesel::CameraComponent::ViewMatrix'],['../structWiesel_1_1CameraData.html#ab4f95ae06cc000d157da8c7bd2156024',1,'Wiesel::CameraData::ViewMatrix'],['../structWiesel_1_1CameraUniformData.html#a3ee50eafa8a5de97d024ca0d0d477864',1,'Wiesel::CameraUniformData::ViewMatrix']]],
-  ['viewportsize_3',['viewportsize',['../structWiesel_1_1CameraComponent.html#ac181493b73a7fbd80041c6df31612aa8',1,'Wiesel::CameraComponent::ViewportSize'],['../structWiesel_1_1CameraData.html#a52f29711ff2cf7ab1d7046237d1a6849',1,'Wiesel::CameraData::ViewportSize']]],
-  ['viewprojectionmatrix_4',['ViewProjectionMatrix',['../structWiesel_1_1ShadowMapMatricesUniformData.html#a57dc7ed7a909bce71c9ecf174992ef16',1,'Wiesel::ShadowMapMatricesUniformData']]],
-  ['viewprojmatrix_5',['ViewProjMatrix',['../structWiesel_1_1Cascade.html#ad80231cfcb28eeacd4c592093aa1ccc3',1,'Wiesel::Cascade']]]
+  ['vertex_5fattribute_5fdescriptions_5f_0',['vertex_attribute_descriptions_',['../structWiesel_1_1Pipeline.html#a130c8ec199ae9b57a5e0296cb79a8607',1,'Wiesel::Pipeline']]],
+  ['vertex_5fbuffer_1',['vertex_buffer',['../structWiesel_1_1Mesh.html#a2c5d05519699dba813f2e0498de06e89',1,'Wiesel::Mesh']]],
+  ['vertex_5finput_5fbinding_5fdescriptions_5f_2',['vertex_input_binding_descriptions_',['../structWiesel_1_1Pipeline.html#a93ddf47dee6dd41bee7e78aa4ed9a223',1,'Wiesel::Pipeline']]],
+  ['vertices_3',['vertices',['../structWiesel_1_1Mesh.html#ae49c47b13b2a4e7ecc36c32328ed844e',1,'Wiesel::Mesh']]],
+  ['view_5fchanged_4',['view_changed',['../structWiesel_1_1CameraComponent.html#a6a912715fe452853b4ad0cc485a834ca',1,'Wiesel::CameraComponent']]],
+  ['view_5fmatrix_5',['view_matrix',['../structWiesel_1_1CameraComponent.html#ad539fe88761041242903017a65d43767',1,'Wiesel::CameraComponent::view_matrix'],['../structWiesel_1_1CameraData.html#aaabbd1c93d93e7dc29945221e6881b66',1,'Wiesel::CameraData::view_matrix']]],
+  ['viewmatrix_6',['ViewMatrix',['../structWiesel_1_1CameraUniformData.html#a3ee50eafa8a5de97d024ca0d0d477864',1,'Wiesel::CameraUniformData']]],
+  ['viewport_5fsize_7',['viewport_size',['../structWiesel_1_1CameraComponent.html#affdf9652dbea21577c99672d5dc48ca7',1,'Wiesel::CameraComponent::viewport_size'],['../structWiesel_1_1CameraData.html#a6d820509ebfed5a8f86db02fefea5732',1,'Wiesel::CameraData::viewport_size']]],
+  ['viewprojectionmatrix_8',['ViewProjectionMatrix',['../structWiesel_1_1ShadowMapMatricesUniformData.html#a57dc7ed7a909bce71c9ecf174992ef16',1,'Wiesel::ShadowMapMatricesUniformData']]],
+  ['viewprojmatrix_9',['ViewProjMatrix',['../structWiesel_1_1Cascade.html#ad80231cfcb28eeacd4c592093aa1ccc3',1,'Wiesel::Cascade']]],
+  ['vkcmdbegindebugutilslabelext_10',['vkCmdBeginDebugUtilsLabelEXT',['../classWiesel_1_1PerfMarker.html#a7cec0ce65ad3217cde848954909780a0',1,'Wiesel::PerfMarker']]],
+  ['vkcmdenddebugutilslabelext_11',['vkCmdEndDebugUtilsLabelEXT',['../classWiesel_1_1PerfMarker.html#a60ae3ae85e07554419dc6255494b974f',1,'Wiesel::PerfMarker']]]
 ];

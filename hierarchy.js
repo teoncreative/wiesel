@@ -14,7 +14,6 @@ var hierarchy =
     [ "Wiesel::CanvasComponent", "structWiesel_1_1CanvasComponent.html", null ],
     [ "Wiesel::CanvasSystem", "classWiesel_1_1CanvasSystem.html", null ],
     [ "Wiesel::Cascade", "structWiesel_1_1Cascade.html", null ],
-    [ "Wiesel::ChangeResult< N >", "structWiesel_1_1ChangeResult.html", null ],
     [ "Wiesel::Color< V >", "structWiesel_1_1Color.html", null ],
     [ "Wiesel::Color< float >", "structWiesel_1_1Color.html", null ],
     [ "Wiesel::CommandBuffer", "classWiesel_1_1CommandBuffer.html", null ],
@@ -25,6 +24,12 @@ var hierarchy =
     [ "Wiesel::Entity", "classWiesel_1_1Entity.html", null ],
     [ "Wiesel::Event", "classWiesel_1_1Event.html", [
       [ "Wiesel::AppRecreateSwapChainsEvent", "classWiesel_1_1AppRecreateSwapChainsEvent.html", null ],
+      [ "Wiesel::JoystickAxisMovedEvent", "classWiesel_1_1JoystickAxisMovedEvent.html", null ],
+      [ "Wiesel::JoystickButtonPressedEvent", "classWiesel_1_1JoystickButtonPressedEvent.html", null ],
+      [ "Wiesel::JoystickButtonReleasedEvent", "classWiesel_1_1JoystickButtonReleasedEvent.html", null ],
+      [ "Wiesel::JoystickConnectedEvent", "classWiesel_1_1JoystickConnectedEvent.html", null ],
+      [ "Wiesel::JoystickDisconnectedEvent", "classWiesel_1_1JoystickDisconnectedEvent.html", null ],
+      [ "Wiesel::JoystickHatChangedEvent", "classWiesel_1_1JoystickHatChangedEvent.html", null ],
       [ "Wiesel::KeyEvent", "classWiesel_1_1KeyEvent.html", [
         [ "Wiesel::KeyPressedEvent", "classWiesel_1_1KeyPressedEvent.html", null ],
         [ "Wiesel::KeyReleasedEvent", "classWiesel_1_1KeyReleasedEvent.html", null ],
@@ -63,8 +68,9 @@ var hierarchy =
     [ "Wiesel::InputManager", "classWiesel_1_1InputManager.html", null ],
     [ "Wiesel::KeyData", "structWiesel_1_1KeyData.html", null ],
     [ "Wiesel::Layer", "classWiesel_1_1Layer.html", [
-      [ "Wiesel::Editor::EditorOverlay", "classWiesel_1_1Editor_1_1EditorOverlay.html", null ],
-      [ "Wiesel::ImGuiLayer", "classWiesel_1_1ImGuiLayer.html", null ]
+      [ "Wiesel::Editor::EditorLayer", "classWiesel_1_1Editor_1_1EditorLayer.html", null ],
+      [ "Wiesel::ImGuiLayer", "classWiesel_1_1ImGuiLayer.html", null ],
+      [ "Wiesel::SceneLayer", "classWiesel_1_1SceneLayer.html", null ]
     ] ],
     [ "Wiesel::LightBase", "structWiesel_1_1LightBase.html", null ],
     [ "Wiesel::LightDirect", "structWiesel_1_1LightDirect.html", null ],
@@ -82,11 +88,9 @@ var hierarchy =
     [ "Wiesel::Model", "structWiesel_1_1Model.html", null ],
     [ "MonoObjectWrapper", "classMonoObjectWrapper.html", null ],
     [ "MonoStringWrapper", "classMonoStringWrapper.html", null ],
+    [ "Wiesel::PerfMarker", "classWiesel_1_1PerfMarker.html", null ],
     [ "Wiesel::Pipeline", "structWiesel_1_1Pipeline.html", null ],
     [ "Wiesel::PipelineProperties", "structWiesel_1_1PipelineProperties.html", null ],
-    [ "Wiesel::ProfileData", "structWiesel_1_1ProfileData.html", null ],
-    [ "Wiesel::Profiler", "classWiesel_1_1Profiler.html", null ],
-    [ "Wiesel::ProfilerInstance", "classWiesel_1_1ProfilerInstance.html", null ],
     [ "Wiesel::PushConstant", "structWiesel_1_1PushConstant.html", null ],
     [ "Wiesel::QueueFamilyIndices", "structWiesel_1_1QueueFamilyIndices.html", null ],
     [ "Wiesel::Renderer", "classWiesel_1_1Renderer.html", null ],
@@ -96,6 +100,7 @@ var hierarchy =
     [ "Wiesel::SamplerProps", "structWiesel_1_1SamplerProps.html", null ],
     [ "Wiesel::Scene", "classWiesel_1_1Scene.html", null ],
     [ "ScopedMonoStringWrapper", "classScopedMonoStringWrapper.html", null ],
+    [ "Wiesel::ScopedPerfMarker", "classWiesel_1_1ScopedPerfMarker.html", null ],
     [ "Wiesel::ScriptData", "classWiesel_1_1ScriptData.html", null ],
     [ "Wiesel::ScriptInstance", "classWiesel_1_1ScriptInstance.html", null ],
     [ "Wiesel::ScriptManager", "classWiesel_1_1ScriptManager.html", null ],

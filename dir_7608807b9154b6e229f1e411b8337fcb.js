@@ -9,6 +9,7 @@ var dir_7608807b9154b6e229f1e411b8337fcb =
     [ "w_image.hpp", "w__image_8hpp.html", null ],
     [ "w_material.hpp", "w__material_8hpp.html", "w__material_8hpp" ],
     [ "w_mesh.hpp", "w__mesh_8hpp.html", "w__mesh_8hpp" ],
+    [ "w_perf_marker.hpp", "w__perf__marker_8hpp.html", "w__perf__marker_8hpp" ],
     [ "w_pipeline.hpp", "w__pipeline_8hpp.html", "w__pipeline_8hpp" ],
     [ "w_renderer.hpp", "w__renderer_8hpp.html", "w__renderer_8hpp" ],
     [ "w_renderpass.hpp", "w__renderpass_8hpp.html", "w__renderpass_8hpp" ],

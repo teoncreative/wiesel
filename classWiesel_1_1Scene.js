@@ -5,7 +5,6 @@ var classWiesel_1_1Scene =
     [ "AddComponent", "classWiesel_1_1Scene.html#a44fa055e2d1792d16b323aea6fd00fce", null ],
     [ "CreateEntity", "classWiesel_1_1Scene.html#ad22ccbbf88b2ab9c0f7d5b8b3f8cad58", null ],
     [ "CreateEntityWithUUID", "classWiesel_1_1Scene.html#aa93aa56515069aaea5402245e1d07e1c", null ],
-    [ "DestroyEntity", "classWiesel_1_1Scene.html#aac968bfc0ca893145563aa7da15936ac", null ],
     [ "GetAllEntitiesWith", "classWiesel_1_1Scene.html#a67771791cf68adf49036b3c177e837ea", null ],
     [ "GetComponent", "classWiesel_1_1Scene.html#a23dd724a921c6052fd3396323aec512d", null ],
     [ "GetSceneHierarchy", "classWiesel_1_1Scene.html#a6548bc2c7ff71dc93a67d1fbab2b66c5", null ],
@@ -17,9 +16,11 @@ var classWiesel_1_1Scene =
     [ "OnEvent", "classWiesel_1_1Scene.html#a3292fe1f59497b01570e7d19f7e3255e", null ],
     [ "OnRemoveComponent", "classWiesel_1_1Scene.html#aade6a8c6ee1c48d1f7af88cde0b82faf", null ],
     [ "OnUpdate", "classWiesel_1_1Scene.html#a6aea12ab304f14a238087248ffe291e0", null ],
+    [ "ProcessDestroyQueue", "classWiesel_1_1Scene.html#a77833f02ffd4ed65480d64ec82c73174", null ],
     [ "RemoveComponent", "classWiesel_1_1Scene.html#a547b4731dac733df6f4a27ba315d8dfb", null ],
+    [ "RemoveEntity", "classWiesel_1_1Scene.html#ac5734804a5af2c9fbadaa919f4b3f640", null ],
+    [ "Render", "classWiesel_1_1Scene.html#a099efc4a007171ad3ef70e76d12e92e6", null ],
     [ "SetPaused", "classWiesel_1_1Scene.html#ae3815c3f01be83c4fe6f03326c8c60e7", null ],
     [ "SetSkybox", "classWiesel_1_1Scene.html#a62dcf13408893c27aa4078a6a826ee51", null ],
-    [ "UnlinkEntities", "classWiesel_1_1Scene.html#aadd79179cfb3b3492185ae0096204381", null ],
-    [ "Application", "classWiesel_1_1Scene.html#a23f25bcc02a0e94c2f5a4188496b04d0", null ]
+    [ "UnlinkEntities", "classWiesel_1_1Scene.html#aadd79179cfb3b3492185ae0096204381", null ]
 ];

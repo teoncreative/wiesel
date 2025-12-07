@@ -1,17 +1,19 @@
 var searchData=
 [
-  ['main_0',['main',['../w__entrypoint_8hpp.html#ae66f6b31b5ad750f1fe042a706a4e3d4',1,'w_entrypoint.hpp']]],
-  ['material_1',['Material',['../structWiesel_1_1Material.html#a5d14657e7d484af71ba5ccb046aeb796',1,'Wiesel::Material']]],
-  ['memorybuffer_2',['MemoryBuffer',['../classWiesel_1_1MemoryBuffer.html#a2c03011e84ae8f6b99ed720ad104e729',1,'Wiesel::MemoryBuffer']]],
-  ['mesh_3',['mesh',['../structWiesel_1_1Mesh.html#ab94ea96e07e73afebb78280f9574fb31',1,'Wiesel::Mesh::Mesh(std::vector&lt; Vertex3D &gt; vertices, std::vector&lt; Index &gt; indices)'],['../structWiesel_1_1Mesh.html#abf23282d25849f288b8ff23a65a332ec',1,'Wiesel::Mesh::Mesh()']]],
-  ['model_4',['Model',['../structWiesel_1_1Model.html#a8af1c54e2b90bce570c53e6013d4210d',1,'Wiesel::Model']]],
-  ['modelcomponent_5',['modelcomponent',['../structWiesel_1_1ModelComponent.html#a5d0ea45c0c05e90edeb8eb750703700b',1,'Wiesel::ModelComponent::ModelComponent()=default'],['../structWiesel_1_1ModelComponent.html#ae1f515179e9e08afb3eddd28e9889e39',1,'Wiesel::ModelComponent::ModelComponent(const ModelComponent &amp;)=default']]],
-  ['monobehavior_6',['MonoBehavior',['../classWiesel_1_1MonoBehavior.html#a17ba3c94f1344bbca954c499d9c13496',1,'Wiesel::MonoBehavior']]],
-  ['monoobjectwrapper_7',['MonoObjectWrapper',['../classMonoObjectWrapper.html#a8e672c4297bf9569ae16ab22b7e266dc',1,'MonoObjectWrapper']]],
-  ['monostringwrapper_8',['MonoStringWrapper',['../classMonoStringWrapper.html#a9fd87087b5669f3d7bb705a27c80af97',1,'MonoStringWrapper']]],
-  ['mousebuttonpressedevent_9',['MouseButtonPressedEvent',['../classWiesel_1_1MouseButtonPressedEvent.html#aee2470bf6e940fc20053a4e58a22e8bb',1,'Wiesel::MouseButtonPressedEvent']]],
-  ['mousebuttonreleasedevent_10',['MouseButtonReleasedEvent',['../classWiesel_1_1MouseButtonReleasedEvent.html#a0251526eda903397d4f640f5cd690ae8',1,'Wiesel::MouseButtonReleasedEvent']]],
-  ['mousemovedevent_11',['MouseMovedEvent',['../classWiesel_1_1MouseMovedEvent.html#af2671e7fbb53174e892abac3bc020655',1,'Wiesel::MouseMovedEvent']]],
-  ['mousescrolledevent_12',['MouseScrolledEvent',['../classWiesel_1_1MouseScrolledEvent.html#afe1f5695c4ddc4db9b08fd14d6f256d2',1,'Wiesel::MouseScrolledEvent']]],
-  ['move_13',['move',['../structWiesel_1_1TransformComponent.html#a193b70bda91761b463fdca8ce58de626',1,'Wiesel::TransformComponent::Move(float dx, float dy, float dz)'],['../structWiesel_1_1TransformComponent.html#a927422870ee43c52d85ac8df4600e390',1,'Wiesel::TransformComponent::Move(const glm::vec3 &amp;delta)']]]
+  ['layer_0',['Layer',['../classWiesel_1_1Layer.html#a435c7827d78c440d60fbea9087aeeb8a',1,'Wiesel::Layer']]],
+  ['length_1',['length',['../classMonoStringWrapper.html#ad30ccf18b793ac50041bfd0565947797',1,'MonoStringWrapper::length()'],['../classScopedMonoStringWrapper.html#a73261f539b297420925c593fccb48925',1,'ScopedMonoStringWrapper::length()']]],
+  ['lightbase_2',['lightbase',['../structWiesel_1_1LightBase.html#a03937a08d5d8ed980ea28f3fa6732584',1,'Wiesel::LightBase::LightBase()'],['../structWiesel_1_1LightBase.html#a034432e0db455b069d2ad81370b5a90a',1,'Wiesel::LightBase::LightBase(glm::vec3 color, float density, float ambient)']]],
+  ['lightdirect_3',['lightdirect',['../structWiesel_1_1LightDirect.html#a34757ae5a85c50241286cf11de6e985c',1,'Wiesel::LightDirect::LightDirect()'],['../structWiesel_1_1LightDirect.html#aaee9804cccef74c315257d3a2892061f',1,'Wiesel::LightDirect::LightDirect(LightBase base)']]],
+  ['lightdirectcomponent_4',['lightdirectcomponent',['../structWiesel_1_1LightDirectComponent.html#a6a9da9cbd6fd5ef8327559bd1b269703',1,'Wiesel::LightDirectComponent::LightDirectComponent()=default'],['../structWiesel_1_1LightDirectComponent.html#a00bf49327c3ff187e7a515693dd97cb2',1,'Wiesel::LightDirectComponent::LightDirectComponent(const LightDirectComponent &amp;)=default']]],
+  ['lightpoint_5',['lightpoint',['../structWiesel_1_1LightPoint.html#a92fb0f631702c7cf620da23db7a974b3',1,'Wiesel::LightPoint::LightPoint()'],['../structWiesel_1_1LightPoint.html#a74a75511482315aa63812676b25303e4',1,'Wiesel::LightPoint::LightPoint(glm::vec3 position, LightBase base, float constant, float linear, float exp)']]],
+  ['lightpointcomponent_6',['lightpointcomponent',['../structWiesel_1_1LightPointComponent.html#ac6854b8053d2e9577a6c91a5d42beb0a',1,'Wiesel::LightPointComponent::LightPointComponent()=default'],['../structWiesel_1_1LightPointComponent.html#a600865ca780854d4d1bc7f0ff1ab9d39',1,'Wiesel::LightPointComponent::LightPointComponent(const LightPointComponent &amp;)=default']]],
+  ['lightsuniformdata_7',['LightsUniformData',['../structWiesel_1_1LightsUniformData.html#a8ca9037238a166c1e47f5091b7b22c19',1,'Wiesel::LightsUniformData']]],
+  ['linkentities_8',['LinkEntities',['../classWiesel_1_1Scene.html#a687d376dad0cdeadfc95014f4cdeac76',1,'Wiesel::Scene']]],
+  ['lo_9',['lo',['../classWiesel_1_1UUID.html#af2a53890a662d4640e77ce8eecf5a63c',1,'Wiesel::UUID']]],
+  ['loadapp_10',['LoadApp',['../classWiesel_1_1ScriptManager.html#a72b078ffcc072c7872b45ca30f3f9e77',1,'Wiesel::ScriptManager']]],
+  ['loadassimpmodel_11',['LoadAssimpModel',['../classWiesel_1_1Engine.html#ae13b2eb58dd468263f5e7cc80639d75c',1,'Wiesel::Engine']]],
+  ['loadcore_12',['LoadCore',['../classWiesel_1_1ScriptManager.html#abdc7757b343de167614c6c7088a39603',1,'Wiesel::ScriptManager']]],
+  ['loadfont_13',['LoadFont',['../namespaceImGui_1_1Spectrum.html#ab13759cb5a57a1d382205cdace63b4a9',1,'ImGui::Spectrum']]],
+  ['loadmodel_14',['loadmodel',['../classWiesel_1_1Engine.html#aa76497dc7a44adbc3e8d1a6a322d950c',1,'Wiesel::Engine::LoadModel(TransformComponent &amp;transform, ModelComponent &amp;modelComponent, const std::string &amp;path, bool convertToLeftHanded=true)'],['../classWiesel_1_1Engine.html#adb5ae655e7990cdea7df8d055dbff90a',1,'Wiesel::Engine::LoadModel(aiScene *scene, TransformComponent &amp;transform, ModelComponent &amp;modelComponent, const std::string &amp;path)']]],
+  ['loadspritetexture_15',['LoadSpriteTexture',['../namespaceWiesel.html#aa03fb1706a3e6171d103910c0c0c80f8',1,'Wiesel']]]
 ];

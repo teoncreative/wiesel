@@ -2,9 +2,10 @@ var structWiesel_1_1Model =
 [
     [ "Model", "structWiesel_1_1Model.html#a8af1c54e2b90bce570c53e6013d4210d", null ],
     [ "~Model", "structWiesel_1_1Model.html#ae4e3810eda385a15130a2b1b12788e5b", null ],
-    [ "Meshes", "structWiesel_1_1Model.html#a126a842cf9d01cc0244c1959bb7aca2c", null ],
-    [ "ModelPath", "structWiesel_1_1Model.html#ac3ff3fe3d6382bebc0c1b2c8a9180d91", null ],
-    [ "ReceiveShadows", "structWiesel_1_1Model.html#ab5a72e958468a7264ba4f5f9906f9f34", null ],
-    [ "Textures", "structWiesel_1_1Model.html#a135a5699e814234c95cd9b9cdc0283c2", null ],
-    [ "TexturesPath", "structWiesel_1_1Model.html#a8c5a782ae239cdb599608fe83e785dae", null ]
+    [ "enable_rendering", "structWiesel_1_1Model.html#ada05b910594486d912ae2592af455f71", null ],
+    [ "meshes", "structWiesel_1_1Model.html#a6a85b825adf4bcf7e30dd8f060e03d93", null ],
+    [ "model_path", "structWiesel_1_1Model.html#aa4c6b2c139aa4ad9959f2736f242d658", null ],
+    [ "receive_shadows", "structWiesel_1_1Model.html#ab2691c2022619f4dceeb2dd1d76955e0", null ],
+    [ "textures", "structWiesel_1_1Model.html#a3887d3793eae85867f1f4963e1e8cddf", null ],
+    [ "textures_path", "structWiesel_1_1Model.html#a737ab85bf97f1a6426d60964db49c009", null ]
 ];

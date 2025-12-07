@@ -1,5 +1,24 @@
 var searchData=
 [
   ['pi_0',['PI',['../w__utils_8hpp.html#a598a3330b3c21701223ee0ca14316eca',1,'w_utils.hpp']]],
-  ['printfn_1',['PRINTFN',['../w__logger_8hpp.html#a68d4eb9c34dbbf773d490a9a85b4110d',1,'w_logger.hpp']]]
+  ['printfn_1',['PRINTFN',['../w__logger_8hpp.html#a68d4eb9c34dbbf773d490a9a85b4110d',1,'w_logger.hpp']]],
+  ['profile_5falloc_2',['profile_alloc',['../w__tracy_8hpp.html#a7efb7368d8f9ca0cc3fff52da8ea3b89',1,'PROFILE_ALLOC:&#160;w_tracy.hpp'],['../w__tracy_8hpp.html#a7efb7368d8f9ca0cc3fff52da8ea3b89',1,'PROFILE_ALLOC:&#160;w_tracy.hpp']]],
+  ['profile_5falloc_5fnamed_3',['PROFILE_ALLOC_NAMED',['../w__tracy_8hpp.html#a07432e450ad8a1ab8cfc7925e17e9d32',1,'w_tracy.hpp']]],
+  ['profile_5fframe_5fmark_4',['PROFILE_FRAME_MARK',['../w__tracy_8hpp.html#add633b181c87eb83b881ae6e22a86ec5',1,'w_tracy.hpp']]],
+  ['profile_5ffree_5',['profile_free',['../w__tracy_8hpp.html#a08862b866a3d67bc2f086bf64e7ba614',1,'PROFILE_FREE:&#160;w_tracy.hpp'],['../w__tracy_8hpp.html#a08862b866a3d67bc2f086bf64e7ba614',1,'PROFILE_FREE:&#160;w_tracy.hpp']]],
+  ['profile_5ffree_5fnamed_6',['PROFILE_FREE_NAMED',['../w__tracy_8hpp.html#a08df7380adb18b3c9c60d8b546ff0c0c',1,'w_tracy.hpp']]],
+  ['profile_5fgpu_5fcollect_7',['PROFILE_GPU_COLLECT',['../w__tracy_8hpp.html#af943e1fea00147bea699942d8f380c85',1,'w_tracy.hpp']]],
+  ['profile_5fgpu_5fzone_8',['PROFILE_GPU_ZONE',['../w__tracy_8hpp.html#a823c76cb79948cc300a4e590eb399379',1,'w_tracy.hpp']]],
+  ['profile_5flockable_9',['PROFILE_LOCKABLE',['../w__tracy_8hpp.html#a2d69fac7f6f142c6a5b331639c03497d',1,'w_tracy.hpp']]],
+  ['profile_5fmessage_10',['profile_message',['../w__tracy_8hpp.html#a58c4d3f9d91aa10c707ff3db0a728312',1,'PROFILE_MESSAGE:&#160;w_tracy.hpp'],['../w__tracy_8hpp.html#a58c4d3f9d91aa10c707ff3db0a728312',1,'PROFILE_MESSAGE:&#160;w_tracy.hpp']]],
+  ['profile_5fmessage_5fc_11',['PROFILE_MESSAGE_C',['../w__tracy_8hpp.html#a66ee68b9294f67e72210c70cfc5d0054',1,'w_tracy.hpp']]],
+  ['profile_5fmessage_5fl_12',['profile_message_l',['../w__tracy_8hpp.html#a60f90ecd84aed9024110328f09680762',1,'PROFILE_MESSAGE_L:&#160;w_tracy.hpp'],['../w__tracy_8hpp.html#a60f90ecd84aed9024110328f09680762',1,'PROFILE_MESSAGE_L:&#160;w_tracy.hpp']]],
+  ['profile_5fplot_13',['PROFILE_PLOT',['../w__tracy_8hpp.html#a070e3f806921128bd5015d443301ad90',1,'w_tracy.hpp']]],
+  ['profile_5fplot_5fconfig_14',['PROFILE_PLOT_CONFIG',['../w__tracy_8hpp.html#abe10a02ebbabf74dc8a6020319b3b738',1,'w_tracy.hpp']]],
+  ['profile_5fsecure_5falloc_15',['PROFILE_SECURE_ALLOC',['../w__tracy_8hpp.html#ae9b827d278ac956d172cb71c0ef3bc7e',1,'w_tracy.hpp']]],
+  ['profile_5fsecure_5ffree_16',['PROFILE_SECURE_FREE',['../w__tracy_8hpp.html#a6e59361f7201f8af815ff4e483865a76',1,'w_tracy.hpp']]],
+  ['profile_5fthread_17',['PROFILE_THREAD',['../w__tracy_8hpp.html#a767fd69fd510d03c23eb4f68a2c80ad2',1,'w_tracy.hpp']]],
+  ['profile_5fzone_5fscoped_18',['PROFILE_ZONE_SCOPED',['../w__tracy_8hpp.html#a143c61e171ea29a6858df7ad14b7eee8',1,'w_tracy.hpp']]],
+  ['profile_5fzone_5fscoped_5fn_19',['PROFILE_ZONE_SCOPED_N',['../w__tracy_8hpp.html#abe05b28b8d35627b4d317ce193305ff0',1,'w_tracy.hpp']]],
+  ['profile_5fzone_5fvalue_20',['PROFILE_ZONE_VALUE',['../w__tracy_8hpp.html#a4b940fb4c88e045bafd06101dff4b661',1,'w_tracy.hpp']]]
 ];

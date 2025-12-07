@@ -1,14 +1,22 @@
 var searchData=
 [
   ['far_0',['Far',['../structWiesel_1_1FrustumPlanes.html#a3cc86d0b8cbd6f2552782035b3774cf5',1,'Wiesel::FrustumPlanes']]],
-  ['farplane_1',['farplane',['../structWiesel_1_1CameraComponent.html#abef5b5262dc737868f2b5b0e0a3f0a98',1,'Wiesel::CameraComponent::FarPlane'],['../structWiesel_1_1CameraData.html#a80bef3e3b54eee20119381e6111f6a2c',1,'Wiesel::CameraData::FarPlane'],['../structWiesel_1_1CameraUniformData.html#a76460579de87590461dea44a6576fe82',1,'Wiesel::CameraUniformData::FarPlane']]],
-  ['fieldofview_2',['FieldOfView',['../structWiesel_1_1CameraComponent.html#acebc570327990f7939adcff84abfa6c8',1,'Wiesel::CameraComponent']]],
-  ['flags_3',['flags',['../structWiesel_1_1DescriptorSetLayout_1_1Binding.html#a3857043a440336d7f13c66b7fb4b6703',1,'Wiesel::DescriptorSetLayout::Binding::Flags'],['../structWiesel_1_1PushConstant.html#a715f3fa48c9b970372231696ba54cf1d',1,'Wiesel::PushConstant::Flags'],['../structWiesel_1_1Vertex3D.html#aa8245e5ac88420e1138243977b5fa788',1,'Wiesel::Vertex3D::Flags']]],
-  ['forcelightreset_4',['ForceLightReset',['../structWiesel_1_1CameraComponent.html#accf40ccb2f5f355a791639b5a9e7f60d',1,'Wiesel::CameraComponent']]],
-  ['format_5',['format',['../structWiesel_1_1SpriteTexture.html#a38d5822e850f9365cf67def709fbd63f',1,'Wiesel::SpriteTexture::Format'],['../structWiesel_1_1AttachmentTextureInfo.html#a7dc4ece3bfcd14ddcbf4960a96187e0f',1,'Wiesel::AttachmentTextureInfo::Format']]],
-  ['formats_6',['formats',['../structWiesel_1_1SwapChainSupportDetails.html#afac03be9563087945ae31d6dc414f8a8',1,'Wiesel::SwapChainSupportDetails']]],
-  ['fuchsia400_7',['FUCHSIA400',['../namespaceImGui_1_1Spectrum.html#a5efaee8699d9806eed6960c35d68c9f6',1,'ImGui::Spectrum']]],
-  ['fuchsia500_8',['FUCHSIA500',['../namespaceImGui_1_1Spectrum.html#afed1ac0273cef6477d0799dab47d10c5',1,'ImGui::Spectrum']]],
-  ['fuchsia600_9',['FUCHSIA600',['../namespaceImGui_1_1Spectrum.html#ae798061a10d24ac3673a23d07095c6ad',1,'ImGui::Spectrum']]],
-  ['fuchsia700_10',['FUCHSIA700',['../namespaceImGui_1_1Spectrum.html#a8b8948702d5ef784249d90b44921ffc0',1,'ImGui::Spectrum']]]
+  ['far_5fplane_1',['far_plane',['../structWiesel_1_1CameraComponent.html#a8a247166ec39cbae4e30f1a365f453d8',1,'Wiesel::CameraComponent::far_plane'],['../structWiesel_1_1CameraData.html#ace1f7339d3c1fdd1bb6595617e4be63b',1,'Wiesel::CameraData::far_plane']]],
+  ['farplane_2',['FarPlane',['../structWiesel_1_1CameraUniformData.html#a76460579de87590461dea44a6576fe82',1,'Wiesel::CameraUniformData']]],
+  ['field_5fof_5fview_3',['field_of_view',['../structWiesel_1_1CameraComponent.html#ab096f0d8be61929c2529cac0218edd80',1,'Wiesel::CameraComponent']]],
+  ['flags_4',['flags',['../structWiesel_1_1DescriptorSetLayout_1_1Binding.html#a4d9e35f87bae38c9c005c530054a8c2d',1,'Wiesel::DescriptorSetLayout::Binding::flags'],['../structWiesel_1_1PushConstant.html#a3570179cd5874de6d2f8e29bfc68b33e',1,'Wiesel::PushConstant::flags'],['../structWiesel_1_1Vertex3D.html#aa8245e5ac88420e1138243977b5fa788',1,'Wiesel::Vertex3D::Flags']]],
+  ['flip_5fx_5f_5',['flip_x_',['../classWiesel_1_1SpriteComponent.html#a56d334cc64c0d83644c1431536dd87d1',1,'Wiesel::SpriteComponent']]],
+  ['flip_5fy_5f_6',['flip_y_',['../classWiesel_1_1SpriteComponent.html#afdd929764e311b287bc304f2a60adb54',1,'Wiesel::SpriteComponent']]],
+  ['force_5flight_5freset_7',['force_light_reset',['../structWiesel_1_1CameraComponent.html#a191630e276ef8dc62b6111b6be0bdf2e',1,'Wiesel::CameraComponent']]],
+  ['format_8',['format',['../structWiesel_1_1AttachmentTextureInfo.html#ad0de6e7c18c0ecb8b22064afd91c043c',1,'Wiesel::AttachmentTextureInfo::format'],['../structWiesel_1_1SpriteTexture.html#a38d5822e850f9365cf67def709fbd63f',1,'Wiesel::SpriteTexture::Format']]],
+  ['format_5f_9',['format_',['../classWiesel_1_1Texture.html#a1c5668d36d2e34e3aa116f90cadfc8c6',1,'Wiesel::Texture::format_'],['../classWiesel_1_1AttachmentTexture.html#a1c7caa46c826e48c479e2947b7ad37da',1,'Wiesel::AttachmentTexture::format_']]],
+  ['formats_10',['formats',['../structWiesel_1_1SwapChainSupportDetails.html#afac03be9563087945ae31d6dc414f8a8',1,'Wiesel::SwapChainSupportDetails']]],
+  ['fps_5f_11',['fps_',['../classWiesel_1_1Application.html#a30125a82bb661e464e2c8381ecd8d403',1,'Wiesel::Application']]],
+  ['fps_5ftimer_5f_12',['fps_timer_',['../classWiesel_1_1Application.html#a310011948884e5de81d62008b5003b15',1,'Wiesel::Application']]],
+  ['frame_5fcount_5f_13',['frame_count_',['../classWiesel_1_1Application.html#ab35d1a8d180eb5fea061e8b3d48bced7',1,'Wiesel::Application']]],
+  ['frame_5ftimer_5f_14',['frame_timer_',['../classWiesel_1_1SpriteComponent.html#a1efe0aefd056029cec2b9a665e822c60',1,'Wiesel::SpriteComponent']]],
+  ['fuchsia400_15',['FUCHSIA400',['../namespaceImGui_1_1Spectrum.html#a5efaee8699d9806eed6960c35d68c9f6',1,'ImGui::Spectrum']]],
+  ['fuchsia500_16',['FUCHSIA500',['../namespaceImGui_1_1Spectrum.html#afed1ac0273cef6477d0799dab47d10c5',1,'ImGui::Spectrum']]],
+  ['fuchsia600_17',['FUCHSIA600',['../namespaceImGui_1_1Spectrum.html#ae798061a10d24ac3673a23d07095c6ad',1,'ImGui::Spectrum']]],
+  ['fuchsia700_18',['FUCHSIA700',['../namespaceImGui_1_1Spectrum.html#a8b8948702d5ef784249d90b44921ffc0',1,'ImGui::Spectrum']]]
 ];

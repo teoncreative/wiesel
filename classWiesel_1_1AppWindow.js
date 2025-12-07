@@ -11,10 +11,10 @@ var classWiesel_1_1AppWindow =
     [ "ImGuiNewFrame", "classWiesel_1_1AppWindow.html#a539ab24ebbde81ef4f26960409fcbd50", null ],
     [ "IsShouldClose", "classWiesel_1_1AppWindow.html#a9cce1ba52b71ab00a88433db7387e516", null ],
     [ "OnUpdate", "classWiesel_1_1AppWindow.html#af1c0b862cd979158fd102de709d739ed", null ],
-    [ "SetCursorMode", "classWiesel_1_1AppWindow.html#aa2da2ad5383839a96580fa49c3aa1fa2", null ],
+    [ "SetCursorMode", "classWiesel_1_1AppWindow.html#a2ef5170e139b8b00c41c6b639ccf930f", null ],
     [ "SetEventHandler", "classWiesel_1_1AppWindow.html#a5e917babcea958ae36c43b1cc5196f20", null ],
     [ "Input", "classWiesel_1_1AppWindow.html#a9732a2f3b51c8d069f54b1a13fb64c68", null ],
-    [ "m_CursorMode", "classWiesel_1_1AppWindow.html#a5cb2367c02dbe688f7b35fb188c0430c", null ],
-    [ "m_EventHandler", "classWiesel_1_1AppWindow.html#a1d511b84fbb818eddb50e23286e307b4", null ],
-    [ "m_Properties", "classWiesel_1_1AppWindow.html#ab89154fb0cf0e37112dcfe961c37e31c", null ]
+    [ "cursor_mode_", "classWiesel_1_1AppWindow.html#a4e161294fa67c742802c819cfaabffdc", null ],
+    [ "event_handler_", "classWiesel_1_1AppWindow.html#afb670914fe64818785f191dc93ed52e2", null ],
+    [ "properties_", "classWiesel_1_1AppWindow.html#ae99b7158fa4aa813c66697a8e124974f", null ]
 ];

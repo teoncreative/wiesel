@@ -1,9 +1,9 @@
 var classWiesel_1_1MonoBehavior =
 [
-    [ "MonoBehavior", "classWiesel_1_1MonoBehavior.html#a17ba3c94f1344bbca954c499d9c13496", null ],
+    [ "MonoBehavior", "classWiesel_1_1MonoBehavior.html#a209d359c73b8c9714ffb45da921fb384", null ],
     [ "~MonoBehavior", "classWiesel_1_1MonoBehavior.html#ac22e585f8c7b8daca1ed4f8892bdd616", null ],
     [ "AttachExternComponent", "classWiesel_1_1MonoBehavior.html#ad3e7eb1705ed1b7413d0628513253a45", null ],
-    [ "GetScriptInstance", "classWiesel_1_1MonoBehavior.html#a5c58251997c2323647e9fb33b6357461", null ],
     [ "OnEvent", "classWiesel_1_1MonoBehavior.html#a5d8ebc278dce5d7f8425b29e3e066d16", null ],
-    [ "OnUpdate", "classWiesel_1_1MonoBehavior.html#a08c3d917f898612191407683ab9b7ebd", null ]
+    [ "OnUpdate", "classWiesel_1_1MonoBehavior.html#aa5ecc2f274dbc01b35d5d58d4e697e53", null ],
+    [ "script_instance", "classWiesel_1_1MonoBehavior.html#afc894dbabcd81b44b6fbf969634f4caf", null ]
 ];

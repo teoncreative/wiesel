@@ -1,4 +1,4 @@
 var structWiesel_1_1ShadowPipelinePushConstant =
 [
-    [ "CascadeIndex", "structWiesel_1_1ShadowPipelinePushConstant.html#a32453de65e03db12a91d2719564026f5", null ]
+    [ "cascade_index", "structWiesel_1_1ShadowPipelinePushConstant.html#a82670b65a6cc1d04b8de24d4e4509c47", null ]
 ];

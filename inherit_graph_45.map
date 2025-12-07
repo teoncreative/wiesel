@@ -1,3 +1,7 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$structWiesel_1_1MatricesUniformData.html" title=" " alt="" coords="5,5,220,31"/>
+<area shape="rect" id="Node000000" href="$classWiesel_1_1MemoryBuffer.html" title=" " alt="" coords="5,31,172,56"/>
+<area shape="rect" id="Node000001" href="$classWiesel_1_1IndexBuffer.html" title=" " alt="" coords="229,5,378,31"/>
+<area shape="poly" id="edge32_Node000000_Node000001" title=" " alt="" coords="186,29,228,24,229,29,186,34"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1UniformBuffer.html" title=" " alt="" coords="220,55,387,80"/>
+<area shape="poly" id="edge33_Node000000_Node000002" title=" " alt="" coords="186,52,220,55,219,61,186,57"/>
 </map>
