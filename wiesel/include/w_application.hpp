@@ -22,13 +22,12 @@
 #include "layer/w_layerimgui.hpp"
 #include "rendering/w_renderer.hpp"
 #include "scene/w_scene.hpp"
-#include "util/w_profiler.hpp"
 #include "util/w_utils.hpp"
 
 namespace Wiesel {
 class Application {
  public:
-  Application(const WindowProperties&& windowProps, const RendererProperties&& rendererProps);
+  Application(const WindowProperties&& window_props, const RendererProperties&& renderer_props);
   virtual ~Application();
 
   virtual void Init() = 0;
@@ -41,20 +40,13 @@ class Application {
   void PushLayer(const Ref<Layer>& layer);
   void RemoveLayer(const Ref<Layer>& layer);
 
-  void PushOverlay(const Ref<Layer>& layer);
-  void RemoveOverlay(const Ref<Layer>& layer);
-
   bool OnWindowClose(WindowCloseEvent& event);
   bool OnWindowResize(WindowResizeEvent& event);
-  bool OnKeyPressed(KeyPressedEvent& event);
-  bool OnKeyReleased(KeyReleasedEvent& event);
-  bool OnMouseMoved(MouseMovedEvent& event);
 
   WIESEL_GETTER_FN Ref<AppWindow> GetWindow();
-  WIESEL_GETTER_FN float_t GetFPS() const { return m_FPS; }
-  WIESEL_GETTER_FN float_t GetDeltaTime() const { return m_DeltaTime; }
+  WIESEL_GETTER_FN float_t GetFPS() const { return fps_; }
+  WIESEL_GETTER_FN float_t GetDeltaTime() const { return delta_time_; }
   WIESEL_GETTER_FN const WindowSize& GetWindowSize();
-  WIESEL_GETTER_FN Ref<Scene> GetScene();
 
   void SubmitToMainThread(std::function<void()> fn);
 
@@ -65,30 +57,27 @@ class Application {
   void UpdateKeyboardAxis();
 
  protected:
-  static Application* s_Application;
+  static Application* application_;
 
-  std::vector<std::function<void()>> m_MainThreadQueue;
-  std::mutex m_MainThreadQueueMutex;
+  std::vector<std::function<void()>> main_thread_queue_;
+  std::mutex main_thread_queue_mutex_;
 
-  bool m_IsRunning;
-  bool m_IsMinimized;
-  bool m_WindowResized;
-  WindowSize m_WindowSize;
+  bool is_running_;
+  bool is_minimized_;
+  bool window_resized_;
+  WindowSize window_size_;
   // proper layer stack
-  std::vector<Ref<Layer>> m_Layers;
-  std::vector<Ref<Layer>>
-      m_Overlays;  // maybe have another class extending from Layer like OverlayLayer
-  Ref<ImGuiLayer> m_ImGuiLayer;
-  uint32_t m_LayerCounter;
-  Ref<AppWindow> m_Window;
-  float_t m_PreviousFrame = 0.0;
-  float_t m_DeltaTime = 0.0;
+  std::vector<Ref<Layer>> layers_;
+  Ref<ImGuiLayer> imgui_layer_;
+  uint32_t layer_counter_;
+  Ref<AppWindow> window_;
+  float_t previous_frame_ = 0.0;
+  float_t delta_time_ = 0.0;
 
-  float_t m_FPSTimer = 0.0f;
-  uint32_t m_FrameCount = 0;
-  float_t m_FPS = 0.0f;
+  float_t fps_timer_ = 0.0f;
+  uint32_t frame_count_ = 0;
+  float_t fps_ = 0.0f;
 
-  Ref<Scene> m_Scene;  // move this to somewhere else
 
 };
 

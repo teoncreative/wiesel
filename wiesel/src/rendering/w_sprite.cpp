@@ -7,11 +7,10 @@
 
 namespace Wiesel {
 
-SpriteAsset::~SpriteAsset() {
-
+SpriteTexture::~SpriteTexture() {
 }
 
-SpriteTexture::~SpriteTexture() {
+SpriteAsset::~SpriteAsset() {
 
 }
 
@@ -101,26 +100,26 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   return texture;
 }
 
-void SpriteAsset::UpdateTransform(glm::mat4 transformMatrix) {
-  if (!m_IsAllocated) { [[unlikely]]
+void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix) {
+  if (!is_allocated_) { [[unlikely]]
     return;
   }
 
-  for (const auto& item : m_Frames) {
+  for (const auto& item : frames_) {
     SpriteUniformData matrices{};
-    matrices.ModelMatrix = transformMatrix;
-    memcpy(item.UniformBuffer->m_Data, &matrices, sizeof(SpriteUniformData));
+    matrices.ModelMatrix = transform_matrix;
+    memcpy(item.uniform_buffer->data_, &matrices, sizeof(SpriteUniformData));
   }
 }
 
 AddFrameResult SpriteBuilder::AddFrame(float_t durationSeconds, glm::vec2 uvPos, glm::vec2 uvSize) {
-  if (m_FixedSize) {
-    uvSize = m_FixedUVSize;
+  if (fixed_size_) {
+    uvSize = fixed_uv_size_;
   }
   if (uvSize.x <= 0 || uvSize.y <= 0) {
     return AddFrameResult::UVSizeShouldBeLargerThanZero;
   }
-  m_Frames.emplace_back(
+  frames_.emplace_back(
       glm::vec4{
           uvPos,
           uvSize
@@ -133,26 +132,26 @@ AddFrameResult SpriteBuilder::AddFrame(float_t durationSeconds, glm::vec2 uvPos,
 
 Ref<SpriteAsset> SpriteBuilder::Build() {
   Ref<SpriteAsset> asset = CreateReference<SpriteAsset>();
-  asset->m_Type = SpriteTypeAtlas;
-  asset->m_Frames = m_Frames;
-  asset->m_AtlasSize = m_AtlasSize;
-  asset->m_Texture = LoadSpriteTexture({m_AtlasPath});
-  asset->m_Sampler = m_Sampler ? m_Sampler : Engine::GetRenderer()->GetDefaultLinearSampler();
+  asset->type_ = SpriteTypeAtlas;
+  asset->frames_ = frames_;
+  asset->atlas_size_ = atlas_size_;
+  asset->texture_ = LoadSpriteTexture({atlas_path_});
+  asset->sampler_ = sampler_ ? sampler_ : Engine::GetRenderer()->GetDefaultLinearSampler();
   Ref<ImageView> view = Engine::GetRenderer()->CreateImageView(
-      asset->m_Texture->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,
+      asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,
       1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
-  for (SpriteAsset::Frame& item : asset->m_Frames) {
-    item.View = view;
+  for (SpriteAsset::Frame& item : asset->frames_) {
+    item.view = view;
     /*item.VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(std::vector<VertexSprite>{
         {{item.UVRect.x, item.UVRect.y}},
         {{item.UVRect.x + item.UVRect.z, item.UVRect.y}},
         {{item.UVRect.x, item.UVRect.y + item.UVRect.w}},
         {{item.UVRect.x + item.UVRect.z, item.UVRect.y + item.UVRect.w}},
     }); */
-    float u0 = item.UVRect.x           / m_AtlasSize.x; // left
-    float v0 = item.UVRect.y           / m_AtlasSize.y; // bottom
-    float u1 = (item.UVRect.x + item.UVRect.z) / m_AtlasSize.x; // right
-    float v1 = (item.UVRect.y + item.UVRect.w) / m_AtlasSize.y; // top
+    float u0 = item.uv_rect.x           / atlas_size_.x; // left
+    float v0 = item.uv_rect.y           / atlas_size_.y; // bottom
+    float u1 = (item.uv_rect.x + item.uv_rect.z) / atlas_size_.x; // right
+    float v1 = (item.uv_rect.y + item.uv_rect.w) / atlas_size_.y; // top
 
     std::vector<VertexSprite> uvs = {
         {{u0, v0}},   // UV for vertex 0 (bottom-left)
@@ -164,16 +163,16 @@ Ref<SpriteAsset> SpriteBuilder::Build() {
         {{u0, v1}},   //    "     5 (top-left)
     };
 
-    item.VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(uvs);
-    item.UniformBuffer = Engine::GetRenderer()->CreateUniformBuffer(
+    item.vertex_buffer = Engine::GetRenderer()->CreateVertexBuffer(uvs);
+    item.uniform_buffer = Engine::GetRenderer()->CreateUniformBuffer(
         sizeof(SpriteUniformData));
-    item.Descriptor = CreateReference<DescriptorSet>();
-    item.Descriptor->SetLayout(Engine::GetRenderer()->GetSpriteDrawDescriptorLayout());
-    item.Descriptor->AddCombinedImageSampler(0, view, asset->m_Sampler);
-    item.Descriptor->AddUniformBuffer(1, item.UniformBuffer);
-    item.Descriptor->Bake();
+    item.descriptor = CreateReference<DescriptorSet>();
+    item.descriptor->SetLayout(Engine::GetRenderer()->GetSpriteDrawDescriptorLayout());
+    item.descriptor->AddCombinedImageSampler(0, view, asset->sampler_);
+    item.descriptor->AddUniformBuffer(1, item.uniform_buffer);
+    item.descriptor->Bake();
   }
-  asset->m_IsAllocated = true;
+  asset->is_allocated_ = true;
   return asset;
 }
 }

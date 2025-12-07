@@ -21,19 +21,19 @@ namespace Wiesel {
 enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
 
 struct PipelineProperties {
-  VkSampleCountFlagBits m_MsaaSamples;
-  CullMode m_CullMode;
-  bool m_EnableWireframe;
-  bool m_EnableAlphaBlending;
-  bool m_EnableDepthTest = true;
-  bool m_EnableDepthWrite = true;
+  VkSampleCountFlagBits msaa_samples;
+  CullMode cull_mode;
+  bool enable_wireframe;
+  bool enable_alpha_blending;
+  bool enable_depth_test = true;
+  bool enable_depth_write = true;
 };
 
 struct PushConstant {
-  VkShaderStageFlags Flags;
-  uint32_t Size;
-  uint32_t Offset;
-  Ref<void> Ref;
+  VkShaderStageFlags flags;
+  uint32_t size;
+  uint32_t offset;
+  Ref<void> ref;
 };
 
 struct Pipeline {
@@ -46,53 +46,53 @@ struct Pipeline {
   void AddShader(Ref<Shader> shader);
   template<typename T>
   void AddShader(Ref<Shader> shader, T* data, std::vector<VkSpecializationMapEntry> mapEntries) {
-    m_Shaders.push_back({
-        .Shader = shader,
-        .Specialization = {
-            .Data = data,
-            .DataSize = sizeof(*data),
-            .MapEntries = mapEntries
+    shaders_.push_back({
+        .shader = shader,
+        .specialization = {
+            .data = data,
+            .data_size = sizeof(*data),
+            .map_entries = mapEntries
         }
     });
   }
 
-  void SetVertexData(VkVertexInputBindingDescription inputBindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
-  void SetVertexData(std::vector<VkVertexInputBindingDescription> inputBindingDescriptions, std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+  void SetVertexData(VkVertexInputBindingDescription input_binding_description, std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
+  void SetVertexData(std::vector<VkVertexInputBindingDescription> input_binding_descriptions, std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
 
   template<typename T>
   void AddPushConstant(Ref<T> ref, VkShaderStageFlags flags) {
-    m_PushConstants.push_back(PushConstant{
-        .Flags = flags,
-        .Size = sizeof(T),
-        .Offset = static_cast<uint32_t>(m_PushConstants.size()),
-        .Ref = std::static_pointer_cast<void>(ref)
+    push_constants_.push_back(PushConstant{
+        .flags = flags,
+        .size = sizeof(T),
+        .offset = static_cast<uint32_t>(push_constants_.size()),
+        .ref = std::static_pointer_cast<void>(ref)
     });
   }
 
   void Bake();
 
-  void Bind(PipelineBindPoint bindPoint);
+  void Bind(PipelineBindPoint bind_point);
   struct SpecializationData {
-    std::vector<VkSpecializationMapEntry> MapEntries;
-    size_t DataSize;
-    void* Data;
+    std::vector<VkSpecializationMapEntry> map_entries;
+    size_t data_size;
+    void* data;
   };
   struct ShaderInfo {
-    Ref<Shader> Shader;
-    SpecializationData Specialization;
+    Ref<Shader> shader;
+    SpecializationData specialization;
   };
-  PipelineProperties m_Properties;
-  std::vector<ShaderInfo> m_Shaders;
-  std::vector<VkDynamicState> m_DynamicStates;
+  PipelineProperties properties_;
+  std::vector<ShaderInfo> shaders_;
+  std::vector<VkDynamicState> dynamic_states_;
   Ref<RenderPass> m_RenderPass;
-  std::vector<Ref<DescriptorSetLayout>> m_DescriptorLayouts;
-  VkPipelineLayout m_Layout{};
-  VkPipeline m_Pipeline{};
-  bool m_HasVertexBinding = false;
-  std::vector<VkVertexInputBindingDescription> m_VertexInputBindingDescriptions;
-  std::vector<VkVertexInputAttributeDescription> m_VertexAttributeDescriptions;
-  std::vector<PushConstant> m_PushConstants;
-  bool m_IsAllocated = false;
+  std::vector<Ref<DescriptorSetLayout>> descriptor_layouts_;
+  VkPipelineLayout layout_{};
+  VkPipeline pipeline_{};
+  bool has_vertex_binding_ = false;
+  std::vector<VkVertexInputBindingDescription> vertex_input_binding_descriptions_;
+  std::vector<VkVertexInputAttributeDescription> vertex_attribute_descriptions_;
+  std::vector<PushConstant> push_constants_;
+  bool is_allocated_ = false;
 };
 
 }  // namespace Wiesel

@@ -31,10 +31,11 @@ void EnableAnsiColors() {
 #endif
 
 namespace Wiesel {
-Ref<Renderer> Engine::s_Renderer;
-Ref<AppWindow> Engine::s_Window;
+Ref<Renderer> Engine::kRenderer;
+Ref<AppWindow> Engine::kWindow;
 
 void Engine::InitEngine() {
+  LOG_INFO("Current work directory: {}", std::filesystem::current_path().string());
 #ifdef WIN32
   EnableAnsiColors();
 #endif
@@ -46,26 +47,26 @@ void Engine::InitEngine() {
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
-  s_Window = CreateReference<GlfwAppWindow>(std::move(props));
+  kWindow = CreateReference<GlfwAppWindow>(std::move(props));
   Dialogs::Init();
 }
 
 void Engine::InitRenderer(const RendererProperties&& props) {
-  if (s_Window == nullptr) {
+  if (kWindow == nullptr) {
     LOG_ERROR("Window should be initialized before renderer!");
     abort();
   }
-  s_Renderer = CreateReference<Renderer>(s_Window);
-  s_Renderer->Initialize(std::move(props));
+  kRenderer = CreateReference<Renderer>(kWindow);
+  kRenderer->Initialize(std::move(props));
 }
 
 void Engine::CleanupRenderer() {
-  s_Renderer->Cleanup();
-  s_Renderer = nullptr;
+  kRenderer->Cleanup();
+  kRenderer = nullptr;
 }
 
 void Engine::CleanupWindow() {
-  s_Window = nullptr;
+  kWindow = nullptr;
   Dialogs::Destroy();
 }
 
@@ -75,24 +76,24 @@ void Engine::CleanupEngine() {
   //CleanupComponents();
 }
 
-Ref<Renderer> Engine::GetRenderer() {
-  if (s_Renderer == nullptr) {
+std::shared_ptr<Renderer> Engine::GetRenderer() {
+  if (kRenderer == nullptr) {
     throw std::runtime_error("Renderer is not initialized!");
   }
-  return s_Renderer;
+  return kRenderer;
 }
 
-Ref<AppWindow> Engine::GetWindow() {
-  return s_Window;
+std::shared_ptr<AppWindow> Engine::GetWindow() {
+  return kWindow;
 }
 
 aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
                                  const std::string& path,
                                  bool convertToLeftHanded) {
-  auto& model = modelComponent.Data;
-  model.ModelPath = path;
+  auto& model = modelComponent.data;
+  model.model_path = path;
   auto fsPath = std::filesystem::relative(path);
-  model.TexturesPath = fsPath.parent_path().string();
+  model.textures_path = fsPath.parent_path().string();
   LOG_INFO("Loading model: {}", path);
 
   Assimp::Importer importer;
@@ -107,7 +108,7 @@ aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
   if (convertToLeftHanded) {
     flags |= aiProcess_ConvertToLeftHanded;
   }
-  importer.ReadFile(model.ModelPath, flags);
+  importer.ReadFile(model.model_path, flags);
   aiScene* scene = importer.GetOrphanedScene();
 
   if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
@@ -130,68 +131,184 @@ void Engine::LoadModel(TransformComponent& transform,
 void Engine::LoadModel(aiScene* scene, Wiesel::TransformComponent& transform,
                        Wiesel::ModelComponent& modelComponent,
                        const std::string& path) {
-  modelComponent.Data.Meshes.clear();
-  modelComponent.Data.Textures.clear();
-  ProcessNode(modelComponent.Data, scene->mRootNode, *scene,
-              modelComponent.Data.Meshes);
+  modelComponent.data.meshes.clear();
+  modelComponent.data.textures.clear();
+  ProcessNode(modelComponent.data, scene->mRootNode, *scene,
+              modelComponent.data.meshes, glm::mat4(1.0f));
   uint64_t vertices = 0;
-  for (const auto& item : modelComponent.Data.Meshes) {
+  for (const auto& item : modelComponent.data.meshes) {
     item->Allocate();
-    vertices += item->Vertices.size();
+    vertices += item->vertices.size();
   }
-  LOG_INFO("Loaded {} meshes!", modelComponent.Data.Meshes.size());
-  LOG_INFO("Loaded {} textures!", modelComponent.Data.Textures.size());
+  LOG_INFO("Loaded {} meshes!", modelComponent.data.meshes.size());
+  LOG_INFO("Loaded {} textures!", modelComponent.data.textures.size());
   LOG_INFO("Loaded {} vertices!", vertices);
 }
 
-bool Engine::LoadTexture(Model& model, Ref<Mesh> mesh, aiMaterial* mat,
-                         aiTextureType type) {
-  for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
+bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
+                         aiTextureType type, const aiScene& scene) {
+  size_t count = mat->GetTextureCount(type);
+  if (count > 1) {
+    LOG_WARN("Mesh has more than one texture for type {}", std::to_string(type));
+  }
+  for (unsigned int i = 0; i < count; i++) {
     aiString str;
     mat->GetTexture(type, i, &str);
     std::string s = std::string(str.C_Str());
     if (s.empty()) {
       continue;
     }
-    std::string textureFullPath = model.TexturesPath + "/" + s;
-    if (model.Textures.contains(textureFullPath)) {
-      Material::Set(mesh->Mat, model.Textures[textureFullPath],
-                    static_cast<TextureType>(type));
+
+    // Check if texture is embedded (starts with '*')
+    if (s[0] == '*') {
+      // Extract embedded texture index
+      int texIndex = std::atoi(s.c_str() + 1);
+
+      if (texIndex >= 0 && texIndex < scene.mNumTextures) {
+        aiTexture* embeddedTex = scene.mTextures[texIndex];
+
+        // Create unique identifier for embedded texture
+        std::string textureKey = model.textures_path + "/embedded_" + std::to_string(texIndex);
+
+        if (model.textures.contains(textureKey)) {
+          Material::Set(mesh->mat, model.textures[textureKey],
+                        static_cast<TextureType>(type));
+        } else {
+          std::shared_ptr<Texture> texture = CreateTextureFromEmbedded(
+              embeddedTex, static_cast<TextureType>(type));
+          if (texture == nullptr) {
+            continue;
+          }
+          Material::Set(mesh->mat, texture, static_cast<TextureType>(type));
+          model.textures.insert(std::pair(textureKey, texture));
+        }
+        return true;
+      }
     } else {
-      Ref<Texture> texture = Engine::GetRenderer()->CreateTexture(
-          textureFullPath, {static_cast<TextureType>(type)},{});
-      Material::Set(mesh->Mat, texture, static_cast<TextureType>(type));
-      model.Textures.insert(std::pair(textureFullPath, texture));
+      // Handle external texture file
+      std::string textureFullPath = model.textures_path + "/" + s;
+      if (model.textures.contains(textureFullPath)) {
+        Material::Set(mesh->mat, model.textures[textureFullPath],
+                      static_cast<TextureType>(type));
+      } else {
+        std::shared_ptr<Texture> texture = GetRenderer()->CreateTexture(
+            textureFullPath, {static_cast<TextureType>(type)},{});
+        if (texture == nullptr) {
+          continue;
+        }
+        Material::Set(mesh->mat, texture, static_cast<TextureType>(type));
+        model.textures.insert(std::pair(textureFullPath, texture));
+      }
+      return true;
     }
-    return true;
   }
   return false;
 }
 
-Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
-                                    const aiScene& aiScene,
-                                    aiMatrix4x4 aiMatrix) {
+std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
+                                                            TextureType type) {
+  int width, height;
+  unsigned char* pixelData = nullptr;
+
+  if (aiTex->mHeight == 0) {
+    // Compressed format - decode using stb_image
+    int channels;
+    pixelData = stbi_load_from_memory(
+        reinterpret_cast<unsigned char*>(aiTex->pcData),
+        aiTex->mWidth,
+        &width, &height, &channels,
+        STBI_rgb_alpha);
+
+    if (!pixelData) {
+      LOG_ERROR("Failed to decode embedded texture: {}", stbi_failure_reason());
+      return nullptr;
+    }
+  } else {
+    // Uncompressed format - convert BGRA to RGBA
+    width = aiTex->mWidth;
+    height = aiTex->mHeight;
+    pixelData = ConvertBGRAtoRGBA(aiTex->pcData, width, height);
+
+    if (!pixelData) {
+      LOG_ERROR("Failed to convert embedded texture format");
+      return nullptr;
+    }
+  }
+
+  TextureProps props;
+  props.width = width;
+  props.height = height;
+  props.type = type;
+  props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
+  props.generate_mipmaps = true;
+
+  auto texture = GetRenderer()->CreateTexture(
+      pixelData, 4, props, {});
+
+  stbi_image_free(pixelData);  // Works for both cases
+
+  return texture;
+}
+
+unsigned char* Engine::ConvertBGRAtoRGBA(void* bgra_data, int width, int height) {
+  aiTexel* texels = reinterpret_cast<aiTexel*>(bgra_data);
+  int size = width * height;
+
+  unsigned char* rgba_data = static_cast<unsigned char*>(
+      malloc(size * 4 * sizeof(unsigned char)));
+
+  if (!rgba_data) {
+    return nullptr;
+  }
+
+  for (int i = 0; i < size; i++) {
+    rgba_data[i * 4 + 0] = texels[i].r;
+    rgba_data[i * 4 + 1] = texels[i].g;
+    rgba_data[i * 4 + 2] = texels[i].b;
+    rgba_data[i * 4 + 3] = texels[i].a;
+  }
+
+  return rgba_data;
+}
+
+std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
+                                    const aiScene& aiScene) {
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
-  glm::mat4 mat = ConvertMatrix(aiMatrix);
 
   aiMaterial* material = aiScene.mMaterials[aiMesh->mMaterialIndex];
 
-  Ref<Mesh> mesh = CreateReference<Mesh>();
+  std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
   // todo handle materials properly within another class
   uint32_t flags = 0;
   flags |= VertexFlagHasTexture *
-           LoadTexture(model, mesh, material, aiTextureType_DIFFUSE);
+           LoadTexture(model, mesh, material, aiTextureType_DIFFUSE, aiScene);
   flags |= VertexFlagHasNormalMap *
-           LoadTexture(model, mesh, material, aiTextureType_NORMALS);
+           LoadTexture(model, mesh, material, aiTextureType_NORMALS, aiScene);
   flags |= VertexFlagHasSpecularMap *
-           LoadTexture(model, mesh, material, aiTextureType_SPECULAR);
+           LoadTexture(model, mesh, material, aiTextureType_SPECULAR, aiScene);
   flags |= VertexFlagHasAlbedoMap *
-           LoadTexture(model, mesh, material, aiTextureType_BASE_COLOR);
+           LoadTexture(model, mesh, material, aiTextureType_BASE_COLOR, aiScene);
   flags |= VertexFlagHasRoughnessMap *
-           LoadTexture(model, mesh, material, aiTextureType_DIFFUSE_ROUGHNESS);
+           LoadTexture(model, mesh, material, aiTextureType_DIFFUSE_ROUGHNESS, aiScene);
   flags |= VertexFlagHasMetallicMap *
-           LoadTexture(model, mesh, material, aiTextureType_METALNESS);
+           LoadTexture(model, mesh, material, aiTextureType_METALNESS, aiScene);
+
+  bool has_unsupported_textures = false;
+  for (size_t type = aiTextureType_NONE; type < AI_TEXTURE_TYPE_MAX; type++) {
+    if (type == aiTextureType_DIFFUSE || type == aiTextureType_NORMALS || type == aiTextureType_SPECULAR
+      || type == aiTextureType_BASE_COLOR || type == aiTextureType_DIFFUSE_ROUGHNESS
+      || type == aiTextureType_METALNESS) {
+      continue;
+    }
+    int count = material->GetTextureCount(static_cast<aiTextureType>(type));
+    if (count > 0) {
+      has_unsupported_textures = true;
+    }
+  }
+  if (has_unsupported_textures) {
+    LOG_WARN("Mesh has unsupported textures!");
+  }
 
   for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
     Vertex3D vertex{};
@@ -238,7 +355,7 @@ Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
       vertex.Tangent *= -1.0f;
     }
 
-    mesh->Vertices.push_back(vertex);
+    mesh->vertices.push_back(vertex);
   }
 
   // now walk through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
@@ -247,32 +364,35 @@ Ref<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
 
     // retrieve all indices of the face and store them in the indices vector
     for (int j = 0; j < face.mNumIndices; j++) {
-      mesh->Indices.push_back(face.mIndices[j]);
+      mesh->indices.push_back(face.mIndices[j]);
     }
   }
 
   return mesh;
 }
-
 void Engine::ProcessNode(Model& model, aiNode* node, const aiScene& scene,
-                         std::vector<Ref<Mesh>>& meshes) {
+                         std::vector<Ref<Mesh>>& meshes,
+                         const glm::mat4& parentTransform) {
+  // Accumulate transforms down the hierarchy
+  glm::mat4 nodeTransform = parentTransform * ConvertMatrix(node->mTransformation);
+
   for (uint32_t i = 0; i < node->mNumMeshes; i++) {
     aiMesh* aiMesh = scene.mMeshes[node->mMeshes[i]];
-    Ref<Mesh> mesh =
-        ProcessMesh(model, aiMesh, scene, node->mTransformation);
-    if (mesh == nullptr)
+    Ref<Mesh> mesh = ProcessMesh(model, aiMesh, scene);
+    if (mesh == nullptr) {
       continue;
+    }
+
     meshes.push_back(mesh);
   }
+
   for (uint32_t i = 0; i < node->mNumChildren; i++) {
-    ProcessNode(model, node->mChildren[i], scene, meshes);
+    ProcessNode(model, node->mChildren[i], scene, meshes, nodeTransform);
   }
 }
 
-glm::mat4 Engine::ConvertMatrix(const aiMatrix4x4& aiMat) {
-  return {aiMat.a1, aiMat.b1, aiMat.c1, aiMat.d1, aiMat.a2, aiMat.b2,
-          aiMat.c2, aiMat.d2, aiMat.a3, aiMat.b3, aiMat.c3, aiMat.d3,
-          aiMat.a4, aiMat.b4, aiMat.c4, aiMat.d4};
+glm::mat4 Engine::ConvertMatrix(const aiMatrix4x4& from) {
+  return glm::transpose(glm::make_mat4(&from.a1));
 }
 
 }  // namespace Wiesel

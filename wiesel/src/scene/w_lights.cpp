@@ -23,35 +23,35 @@ glm::vec3 EulerToDirection(glm::vec3 euler) {
 void UpdateLight(LightsUniformData& lights, const LightDirect& light,
                  const TransformComponent& transform) {
   // world position is the 4th column
-  glm::vec3 worldPos = glm::vec3(transform.TransformMatrix[3]);
+  glm::vec3 worldPos = glm::vec3(transform.transform_matrix[3]);
 
   glm::vec3 worldDir = glm::normalize(
-      glm::vec3(transform.TransformMatrix * glm::vec4(0,0,-1,0)));
+      glm::vec3(transform.transform_matrix * glm::vec4(0,0,-1,0)));
 
-  LightDirect& dst = lights.DirectLights[lights.DirectLightCount++];
-  dst.Direction                    = worldDir;
-  dst.Base.Position                = worldPos;
-  dst.Base.Color                   = light.Base.Color;
-  dst.Base.Ambient                 = light.Base.Ambient;
-  dst.Base.Diffuse                 = light.Base.Diffuse;
-  dst.Base.Specular                = light.Base.Specular;
-  dst.Base.Density                 = light.Base.Density;
+  LightDirect& dst = lights.direct_lights[lights.direct_light_count++];
+  dst.direction                    = worldDir;
+  dst.base.position                = worldPos;
+  dst.base.color                   = light.base.color;
+  dst.base.ambient                 = light.base.ambient;
+  dst.base.diffuse                 = light.base.diffuse;
+  dst.base.specular                = light.base.specular;
+  dst.base.density                 = light.base.density;
 }
 
 void UpdateLight(LightsUniformData& lights, const LightPoint& light,
                  const TransformComponent& transform) {
-  glm::vec3 worldPos = glm::vec3(transform.TransformMatrix[3]);
+  glm::vec3 worldPos = glm::vec3(transform.transform_matrix[3]);
 
-  LightPoint& dst = lights.PointLights[lights.PointLightCount++];
-  dst.Base.Position = worldPos;
-  dst.Base.Color    = light.Base.Color;
-  dst.Base.Ambient  = light.Base.Ambient;
-  dst.Base.Diffuse  = light.Base.Diffuse;
-  dst.Base.Specular = light.Base.Specular;
-  dst.Base.Density  = light.Base.Density;
-  dst.Constant      = light.Constant;
-  dst.Linear        = light.Linear;
-  dst.Exp           = light.Exp;
+  LightPoint& dst = lights.point_lights[lights.point_light_count++];
+  dst.base.position = worldPos;
+  dst.base.color    = light.base.color;
+  dst.base.ambient  = light.base.ambient;
+  dst.base.diffuse  = light.base.diffuse;
+  dst.base.specular = light.base.specular;
+  dst.base.density  = light.base.density;
+  dst.constant      = light.constant;
+  dst.linear        = light.linear;
+  dst.exp           = light.exp;
 }
 
 }  // namespace Wiesel

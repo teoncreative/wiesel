@@ -22,15 +22,18 @@
 namespace WieselDemo {
 class DemoApplication : public Wiesel::Application {
  public:
-  DemoApplication();
+  DemoApplication(bool enable_editor);
   ~DemoApplication() override;
 
   void Init() override;
+
+private:
+  bool enable_editor_;
 };
 
 class DemoLayer : public Wiesel::Layer {
  public:
-  explicit DemoLayer(DemoApplication& app);
+  explicit DemoLayer(DemoApplication& app, std::shared_ptr<Wiesel::Scene> scene);
   ~DemoLayer() override;
 
   void OnAttach() override;
@@ -44,9 +47,9 @@ class DemoLayer : public Wiesel::Layer {
   bool OnWindowResize(Wiesel::WindowResizeEvent& event);
 
  private:
-  DemoApplication& m_App;
-  Wiesel::Ref<Wiesel::Scene> m_Scene;
-  Wiesel::Ref<Wiesel::Renderer> m_Renderer;
+  DemoApplication& app_;
+  Wiesel::Ref<Wiesel::Scene> scene_;
+  Wiesel::Ref<Wiesel::Renderer> renderer_;
 };
 
 }  // namespace WieselDemo

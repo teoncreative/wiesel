@@ -22,6 +22,10 @@
 #include "w_engine.hpp"
 #include "mono_util.h"
 #include <typeindex>
+#include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
+
+#include <ranges>
 
 namespace Wiesel {
 
@@ -30,15 +34,15 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
     bool changed = false;
     changed |=
         ImGui::DragFloat3(PrefixLabel("Position").c_str(),
-                          reinterpret_cast<float*>(&component.Position), 0.1f);
+                          reinterpret_cast<float*>(&component.position), 0.1f);
     changed |=
         ImGui::DragFloat3(PrefixLabel("Rotation").c_str(),
-                          reinterpret_cast<float*>(&component.Rotation), 0.1f);
+                          reinterpret_cast<float*>(&component.rotation), 0.1f);
     changed |=
         ImGui::DragFloat3(PrefixLabel("Scale").c_str(),
-                          reinterpret_cast<float*>(&component.Scale), 0.1f);
+                          reinterpret_cast<float*>(&component.scale), 0.1f);
     if (changed) {
-      component.IsChanged = true;
+      component.is_changed = true;
     }
     ImGui::TreePop();
   }
@@ -48,7 +52,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Model", &visible)) {
     auto& model = entity.GetComponent<ModelComponent>();
-    ImGui::InputText("##", &model.Data.ModelPath, ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("##", &model.data.model_path, ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
     if (ImGui::Button("...")) {
       Dialogs::OpenFileDialog(
@@ -59,7 +63,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
               return;  // todo alert
             }
             Scene* engineScene = entity.GetScene();
-            entt::entity entityHandle = entity.GetHandle();
+            entt::entity entityHandle = entity.handle();
             Application::Get()->SubmitToMainThread(
                 [aiScene, entityHandle, engineScene, file]() {
                   Entity entity{entityHandle, engineScene};
@@ -71,7 +75,8 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
                 });
           });
     }
-    ImGui::Checkbox("Receive Shadows", &model.Data.ReceiveShadows);
+    ImGui::Checkbox("Receive Shadows", &model.data.receive_shadows);
+    ImGui::Checkbox("Render", &model.data.enable_rendering);
     ImGui::TreePop();
   }
   if (!visible) {
@@ -84,16 +89,16 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Directional Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
-                     &component.LightData.Base.Ambient, 0.01f);
+                     &component.light_data.base.ambient, 0.01f);
     ImGui::DragFloat(PrefixLabel("Diffuse").c_str(),
-                     &component.LightData.Base.Diffuse, 0.1f);
+                     &component.light_data.base.diffuse, 0.1f);
     ImGui::DragFloat(PrefixLabel("Specular").c_str(),
-                     &component.LightData.Base.Specular, 0.1f);
+                     &component.light_data.base.specular, 0.1f);
     ImGui::DragFloat(PrefixLabel("Density").c_str(),
-                     &component.LightData.Base.Density, 0.1f);
+                     &component.light_data.base.density, 0.1f);
     ImGui::ColorPicker3(
         PrefixLabel("Color").c_str(),
-        reinterpret_cast<float*>(&component.LightData.Base.Color));
+        reinterpret_cast<float*>(&component.light_data.base.color));
     ImGui::TreePop();
   }
   if (!visible) {
@@ -106,24 +111,24 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Point Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
-                     &component.LightData.Base.Ambient, 0.01f);
+                     &component.light_data.base.ambient, 0.01f);
     ImGui::DragFloat(PrefixLabel("Diffuse").c_str(),
-                     &component.LightData.Base.Diffuse, 0.1f);
+                     &component.light_data.base.diffuse, 0.1f);
     ImGui::DragFloat(PrefixLabel("Specular").c_str(),
-                     &component.LightData.Base.Specular, 0.1f);
+                     &component.light_data.base.specular, 0.1f);
     ImGui::DragFloat(PrefixLabel("Density").c_str(),
-                     &component.LightData.Base.Density, 0.1f);
+                     &component.light_data.base.density, 0.1f);
     if (ImGui::TreeNode("Attenuation")) {
       ImGui::DragFloat(PrefixLabel("Constant").c_str(),
-                       &component.LightData.Constant, 0.1f);
+                       &component.light_data.constant, 0.1f);
       ImGui::DragFloat(PrefixLabel("Linear").c_str(),
-                       &component.LightData.Linear, 0.1f);
+                       &component.light_data.linear, 0.1f);
       ImGui::DragFloat(PrefixLabel("Exp").c_str(),
-                       &component.LightData.Exp, 0.1f);
+                       &component.light_data.exp, 0.1f);
       ImGui::TreePop();
     }
     ImGui::ColorPicker3(
-        "Color", reinterpret_cast<float*>(&component.LightData.Base.Color));
+        "Color", reinterpret_cast<float*>(&component.light_data.base.color));
     ImGui::TreePop();
   }
   if (!visible) {
@@ -137,13 +142,13 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Camera", &visible)) {
     bool changed = false;
     changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
-                                &component.FieldOfView, 1.0f);
+                                &component.field_of_view, 1.0f);
     changed |= ImGui::DragFloat(PrefixLabel("Near Plane").c_str(),
-                                &component.NearPlane, 0.1f);
+                                &component.near_plane, 0.1f);
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
-                                &component.FarPlane, 0.1f);
+                                &component.far_plane, 0.1f);
     if (changed) {
-      component.IsViewChanged = true;
+      component.view_changed = true;
     }
 
     ImGui::TreePop();
@@ -200,31 +205,31 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
       }
     }*/
     if (auto mono = dynamic_cast<MonoBehavior*>(&behavior)) {
-      auto* instance = mono->GetScriptInstance();
-      auto* data = instance->GetScriptData();
-      for (auto& [key, value] : data->GetFields()) {
+      ScriptInstance& instance = *mono->script_instance();
+      ScriptData& data = instance.script_data();
+      for (FieldData& value : data.fields() | std::views::values) {
         if (value.GetFieldType() == FieldType::Float) {
-          float_t val = value.Get<float_t>(instance->GetInstance());
+          float_t val = value.Get<float_t>(instance.handle());
           if (ImGui::DragFloat(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 0.1f)) {
-            value.Set(instance->GetInstance(), &val);
+            value.Set(instance.handle(), &val);
           }
         } else if (value.GetFieldType() == FieldType::Integer) {
-          int32_t val = value.Get<int32_t>(instance->GetInstance());
+          int32_t val = value.Get<int32_t>(instance.handle());
           if (ImGui::DragInt(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 1)) {
-            value.Set(instance->GetInstance(), &val);
+            value.Set(instance.handle(), &val);
           }
         } else if (value.GetFieldType() == FieldType::Boolean) {
-          bool val = value.Get<bool>(instance->GetInstance());
+          bool val = value.Get<bool>(instance.handle());
           if (ImGui::Checkbox(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val)) {
-            value.Set(instance->GetInstance(), &val);
+            value.Set(instance.handle(), &val);
           }
         } else if (value.GetFieldType() == FieldType::String) {
-          MonoObject* val = value.Get<MonoObject*>(instance->GetInstance());
+          MonoObject* val = value.Get<MonoObject*>(instance.handle());
           MonoObjectWrapper wrapper{val};
           std::string str = wrapper.AsString();
           if (ImGui::InputText(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
-            MonoString* newVal = mono_string_new(ScriptManager::GetAppDomain(), str.c_str());
-            value.Set(instance->GetInstance(), newVal);
+            MonoString* newVal = mono_string_new(ScriptManager::app_domain(), str.c_str());
+            value.Set(instance.handle(), newVal);
           }
         }
         // todo objects, long and unsigned numbers
@@ -234,7 +239,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
     ImGui::TreePop();
   }
   if (!visible) {
-    component.m_Behaviors.erase(behavior.GetName());
+    component.behaviors_.erase(behavior.GetName());
     delete &behavior;
     visible = true;
     return true;
@@ -243,7 +248,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
 }
 
 void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
-  for (const auto& entry : component.m_Behaviors) {
+  for (const auto& entry : component.behaviors_) {
     if (RenderBehaviorComponentImGui(component, *entry.second, entity)) {
       break;
     }
@@ -279,13 +284,13 @@ static bool shouldOpenMonoScriptPopup = false;
 
 void RenderAddComponentImGui_BehaviorsComponent(Entity entity) {
   if (ImGui::MenuItem("C# Script")) {
-    addMonoScriptEntityId = entity.GetHandle();
+    addMonoScriptEntityId = entity.handle();
     shouldOpenMonoScriptPopup = true;
   }
 }
 
 void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
-  if (entity.GetHandle() != addMonoScriptEntityId)
+  if (entity.handle() != addMonoScriptEntityId)
     return;
 
   if (shouldOpenMonoScriptPopup) {
@@ -296,7 +301,7 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
   static int currentScriptIndex = 0;
   bool open = true;
   if (ImGui::BeginPopupModal("Add C# Script", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
-    const std::vector<std::string> scriptNames = ScriptManager::GetScriptNames();
+    const std::vector<std::string> scriptNames = ScriptManager::script_names();
     if (!scriptNames.empty()) {
       ImGui::Combo("Script Name", &currentScriptIndex,
                    [](void* data, int idx, const char** out_text) {

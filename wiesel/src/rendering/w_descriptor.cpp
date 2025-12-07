@@ -19,23 +19,23 @@
 namespace Wiesel {
 
 DescriptorSet::DescriptorSet() {
-    m_Allocated = false;
+    allocated_ = false;
 }
 
 DescriptorSet::~DescriptorSet() {
-  if (!m_Allocated) {
+  if (!allocated_) {
     return;
   }
-  vkDestroyDescriptorPool(Engine::GetRenderer()->GetLogicalDevice(), m_DescriptorPool,
+  vkDestroyDescriptorPool(Engine::GetRenderer()->GetLogicalDevice(), descriptor_pool_,
                           nullptr);
 }
 
 void DescriptorSet::Bake() {
-  if (m_Allocated) {
+  if (allocated_) {
     // Destroying the pool is enough to destroy all descriptor set objects.
-    vkDestroyDescriptorPool(Engine::GetRenderer()->GetLogicalDevice(), m_DescriptorPool,
+    vkDestroyDescriptorPool(Engine::GetRenderer()->GetLogicalDevice(), descriptor_pool_,
                             nullptr);
-    m_Allocated = false;
+    allocated_ = false;
   }
   VkDescriptorPoolSize poolSizes[] = {
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
@@ -48,36 +48,36 @@ void DescriptorSet::Bake() {
 
   // Allocate pool
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
-      Engine::GetRenderer()->GetLogicalDevice(), &poolInfo, nullptr, &m_DescriptorPool));
+      Engine::GetRenderer()->GetLogicalDevice(), &poolInfo, nullptr, &descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      1, m_Layout->m_Layout};
+      1, layout_->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  allocInfo.descriptorPool = m_DescriptorPool;
+  allocInfo.descriptorPool = descriptor_pool_;
   allocInfo.descriptorSetCount = layouts.size();
   allocInfo.pSetLayouts = layouts.data();
   WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(Engine::GetRenderer()->GetLogicalDevice(), &allocInfo,
-                                                 &m_DescriptorSet));
+                                                 &descriptor_set_));
 
   std::vector<VkWriteDescriptorSet> writes;
-  writes.reserve(m_CombinedImageSamplers.size() + m_UniformBufferData.size());
+  writes.reserve(combined_image_samplers_.size() + uniform_buffer_data_.size());
   std::vector<VkDescriptorBufferInfo> bufferInfos;
-  bufferInfos.reserve(m_UniformBufferData.size());
+  bufferInfos.reserve(uniform_buffer_data_.size());
   std::vector<VkDescriptorImageInfo> imageInfos;
-  imageInfos.reserve(m_CombinedImageSamplers.size());
+  imageInfos.reserve(combined_image_samplers_.size());
 
-  for (const auto& item : m_CombinedImageSamplers) {
+  for (const auto& item : combined_image_samplers_) {
     VkDescriptorImageInfo imageInfo;
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = item.ImageView->m_Handle;
-    imageInfo.sampler = item.Sampler->m_Sampler;
+    imageInfo.imageView = item.image_view->handle_;
+    imageInfo.sampler = item.sampler->sampler_;
     imageInfos.emplace_back(imageInfo);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = m_DescriptorSet;
-    set.dstBinding = item.DstBinding;
+    set.dstSet = descriptor_set_;
+    set.dstBinding = item.dst_binding;
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
@@ -86,17 +86,17 @@ void DescriptorSet::Bake() {
     writes.emplace_back(set);
   }
 
-  for (const auto& item : m_UniformBufferData) {
+  for (const auto& item : uniform_buffer_data_) {
     VkDescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer = item.Ubo->m_Buffer;
+    bufferInfo.buffer = item.ubo->buffer_handle_;
     bufferInfo.offset = 0;
-    bufferInfo.range = item.Ubo->m_Size;
+    bufferInfo.range = item.ubo->size_;
     bufferInfos.emplace_back(bufferInfo);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = m_DescriptorSet;
-    set.dstBinding = item.DstBinding;
+    set.dstSet = descriptor_set_;
+    set.dstBinding = item.dst_binding;
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     set.descriptorCount = 1;
@@ -107,7 +107,7 @@ void DescriptorSet::Bake() {
   vkUpdateDescriptorSets(Engine::GetRenderer()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
-  m_Allocated = true;
+  allocated_ = true;
 }
 
 }  // namespace Wiesel

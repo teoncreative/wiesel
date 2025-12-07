@@ -19,7 +19,7 @@ namespace Wiesel {
 // https://github.com/TheCherno/Hazel/tree/e4b0493999206bd2c3ff9d30fa333bcf81f313c8/Hazel/src/Hazel/Events
 // Event system on Hazel is a great fit for what we want to do, i'll be improving it to fit our needs over time
 
-enum EventType {
+enum class EventType {
   AppRecreateSwapChains,
   WindowClose,
   WindowResize,
@@ -30,15 +30,21 @@ enum EventType {
   MouseButtonReleased,
   MouseMoved,
   MouseScrolled,
-  ScriptsReloaded
+  ScriptsReloaded,
+  JoystickConnected,
+  JoystickDisconnected,
+  JoystickButtonPressed,
+  JoystickButtonReleased,
+  JoystickAxisMoved,
+  JoystickHatChanged
 };
 
 enum EventCategory {
-  App = BIT(0),
-  Input = BIT(1),
-  Keyboard = BIT(2),
-  Mouse = BIT(3),
-  MouseButton = BIT(4)
+  kEventCategoryApp = BIT(0),
+  kEventCategoryInput = BIT(1),
+  kEventCategoryKeyboard = BIT(2),
+  kEventCategoryMouse = BIT(3),
+  kEventCategoryMouseButton = BIT(4)
 };
 
 class Event {

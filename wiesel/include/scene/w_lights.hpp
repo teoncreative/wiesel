@@ -19,68 +19,68 @@ namespace Wiesel {
 
 struct alignas(16) LightBase {
   LightBase()
-      : Color({1.0f, 1.0f, 1.0f}),
-        Ambient(0.20f),
-        Diffuse(1.0f),
-        Specular(0.85f),
-        Density(1.0f) {}
+      : color({1.0f, 1.0f, 1.0f}),
+        ambient(0.20f),
+        diffuse(1.0f),
+        specular(0.85f),
+        density(1.0f) {}
 
   LightBase(glm::vec3 color, float density, float ambient)
-      : Color(color), Density(density), Ambient(ambient) {}
+      : color(color), density(density), ambient(ambient) {}
 
   ~LightBase() = default;
 
-  alignas(16) glm::vec3 Position;
-  alignas(16) glm::vec3 Color;
-  float Ambient;
-  float Diffuse;
-  float Specular;
-  float Density;
+  alignas(16) glm::vec3 position;
+  alignas(16) glm::vec3 color;
+  float ambient;
+  float diffuse;
+  float specular;
+  float density;
 };
 
 struct alignas(16) LightDirect {
-  LightDirect() : Base({}) {}
+  LightDirect() : base({}) {}
 
   LightDirect(LightBase base)
-      : Base(base) {}
+      : base(base) {}
 
   ~LightDirect() = default;
 
-  alignas(16) glm::vec3 Direction;
-  LightBase Base;
+  alignas(16) glm::vec3 direction;
+  LightBase base;
 };
 
 struct alignas(16) LightPoint {
   LightPoint()
-      : Base({}),
-        Constant(1.0f),
-        Linear(0.09f),
-        Exp(0.032f) {}
+      : base({}),
+        constant(1.0f),
+        linear(0.09f),
+        exp(0.032f) {}
 
   LightPoint(glm::vec3 position, LightBase base, float constant, float linear,
              float exp)
-      : Base(base),
-        Constant(constant),
-        Linear(linear),
-        Exp(exp) {}
+      : base(base),
+        constant(constant),
+        linear(linear),
+        exp(exp) {}
 
   ~LightPoint() = default;
 
-  LightBase Base;
-  float Constant;
-  float Linear;
-  float Exp;
+  LightBase base;
+  float constant;
+  float linear;
+  float exp;
 };
 
 static const int MAX_LIGHTS = 16;
 
 struct alignas(16) LightsUniformData {
-  LightsUniformData() : DirectLightCount(0), PointLightCount(0){};
+  LightsUniformData() : direct_light_count(0), point_light_count(0){};
 
-  uint32_t DirectLightCount;
-  uint32_t PointLightCount;
-  LightDirect DirectLights[MAX_LIGHTS];
-  LightPoint PointLights[MAX_LIGHTS];
+  uint32_t direct_light_count;
+  uint32_t point_light_count;
+  LightDirect direct_lights[MAX_LIGHTS];
+  LightPoint point_lights[MAX_LIGHTS];
 };
 
 void UpdateLight(LightsUniformData& lights, const LightDirect& light,
@@ -93,14 +93,14 @@ struct LightDirectComponent {
   LightDirectComponent() = default;
   LightDirectComponent(const LightDirectComponent&) = default;
 
-  LightDirect LightData;
+  LightDirect light_data;
 };
 
 struct LightPointComponent {
   LightPointComponent() = default;
   LightPointComponent(const LightPointComponent&) = default;
 
-  LightPoint LightData;
+  LightPoint light_data;
 };
 
 }  // namespace Wiesel

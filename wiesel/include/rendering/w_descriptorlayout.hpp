@@ -24,13 +24,13 @@ class DescriptorSetLayout {
   void AddBinding(VkDescriptorType type, VkShaderStageFlags flags);
   void Bake();
 
-  bool m_Allocated;
-  VkDescriptorSetLayout m_Layout;
+  bool allocated_;
+  VkDescriptorSetLayout layout_;
   struct Binding {
-    uint32_t Index;
-    VkDescriptorType Type;
-    VkShaderStageFlags Flags;
+    uint32_t index;
+    VkDescriptorType type;
+    VkShaderStageFlags flags;
   };
-  std::vector<Binding> m_Bindings;
+  std::vector<Binding> bindings_;
 };
 }  // namespace Wiesel

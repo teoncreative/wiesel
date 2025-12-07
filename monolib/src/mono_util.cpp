@@ -3,54 +3,58 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <fstream>
 
-std::pair<int, std::string> ExecuteCommandAndGetOutput(const char* command) {
-  // Create a temporary file
-  const char* temp_file_name = "temp_output.txt";
+static std::filesystem::path ResolveMcs() {
+#ifdef _WIN32
+  const char* v = std::getenv("MONO_ROOT"); // <- use MONO_ROOT, not MONO_PATH
+  if (!v) throw std::runtime_error("MONO_ROOT not set");
+  std::filesystem::path p(v);
 
-  // Construct the command to redirect output to the temporary file
-  std::string new_command = std::string(command) + " > " + temp_file_name + " 2>&1";
-
-  // Execute the command
-  int result = std::system(new_command.c_str());
-
-  // Read the temporary file into a string
-  FILE* file = std::fopen(temp_file_name, "r");
-  if (file) {
-    std::string output;
-    char buffer[128];
-    while (std::fgets(buffer, sizeof(buffer), file) != nullptr) {
-      output += buffer;
-    }
-    std::fclose(file);
-    std::remove(temp_file_name); // Delete the temporary file
-    return {result, output};
+  // tolerate people passing lib\mono\4.x or bin\ or the bat itself
+  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs.bat") return p;
+  if (p.filename() == "bin") return p / "mcs.bat";
+  if (p.string().find("\\lib\\mono\\") != std::string::npos) {
+    return p.parent_path().parent_path() / "bin" / "mcs.bat";
   }
-  return {result, ""};
+  return p / "bin" / "mcs.bat";
+#else
+  const char* v = std::getenv("MONO_ROOT");
+  if (!v) throw std::runtime_error("MONO_ROOT not set");
+  std::filesystem::path p(v);
+  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs") return p;
+  if (p.filename() == "bin") return p / "mcs";
+  if (p.string().find("/lib/mono/") != std::string::npos) {
+    return p.parent_path().parent_path() / "bin" / "mcs";
+  }
+  return p / "bin" / "mcs";
+#endif
 }
 
-bool CompileToDLL(const std::string& outputFile,
-                  const std::vector<std::string>& sourceFiles,
-                  const std::string& libDir,
-                  const std::vector<std::string>& linkLibs,
+static std::pair<int,std::string> ExecuteAndGetOutput(const std::string& cmd, std::filesystem::path tmp) {
+  int rc = std::system(cmd.c_str());
+  std::ifstream in(tmp, std::ios::binary);
+  std::string out((std::istreambuf_iterator<char>(in)), {});
+  std::error_code ec; std::filesystem::remove(tmp, ec);
+  return {rc, out};
+}
+
+bool CompileToDLL(const std::string& output_file,
+                  const std::vector<std::string>& source_files,
+                  const std::string& lib_dir,
+                  const std::vector<std::string>& link_libs,
                   bool debug) {
-  std::filesystem::path output_dir = std::filesystem::path(outputFile).parent_path();
+  std::filesystem::path output_dir = std::filesystem::path(output_file).parent_path();
   if (!std::filesystem::exists(output_dir) && !std::filesystem::create_directories(output_dir)) {
     std::cout << "Failed to create output directory: " << output_dir << std::endl;
     return false;
   }
-  // I hate this, words cannot describe the disgust I have for myself for writing this code
-#ifdef WIN32
-  std::string command_prefix = ".\\mono\\bin\\mcs.bat";
-#else
-  std::string command_prefix = "mono/bin/mcs";
-#endif
-  std::string source = std::accumulate(sourceFiles.begin(), sourceFiles.end(), std::string(),
+  std::string source = std::accumulate(source_files.begin(), source_files.end(), std::string(),
                                        [](const std::string& a, const std::string& b) {
                                          return a.empty() ? b : a + " " + b;
                                        });
   std::string args;
-  for (const auto& lib : linkLibs) {
+  for (const auto& lib : link_libs) {
     args += " -reference:" + lib;
   }
   if (debug) {
@@ -59,14 +63,20 @@ bool CompileToDLL(const std::string& outputFile,
   }
   args += " -target:library";
   //args += " /nologo";
-  if (!libDir.empty()) {
-    args += " -lib:" + libDir;
+  if (!lib_dir.empty()) {
+    args += " -lib:" + lib_dir;
   }
-  args += " -out:" + outputFile;
+  args += " -out:" + output_file;
   args += " " + source;
 
-  std::string command = command_prefix + args;
-  std::pair result = ExecuteCommandAndGetOutput(command.c_str());
+  auto tmp = std::filesystem::temp_directory_path() / "wiesel_cmd_out.txt";
+  std::string mcs = ResolveMcs().make_preferred().string();
+  std::string command = "\"" + mcs + "\"" + args + " > \"" + tmp.string() + "\" 2>&1";
+
+#ifdef WIN32
+  command = "\"" + command + "\"";
+#endif
+  std::pair result = ExecuteAndGetOutput(command,tmp);
   if (result.first != 0) {
     std::cout << "Failed to compile C# sources to DLL (error code:" << result.first << ")" << std::endl << result.second;
     std::cout << "Compile command: " << command << std::endl;

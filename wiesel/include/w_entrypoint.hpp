@@ -13,12 +13,12 @@
 
 #include "w_engine.hpp"
 
-int main() {
+int main(int argc, char** argv) {
   using namespace Wiesel;
 
-  std::cout << "Initializing engine...\n";
+  LOG_INFO("Initializing engine...");
   Engine::InitEngine();
-  Application& app = *CreateApp();
+  Application& app = *CreateApp(argc, argv);
   LOG_INFO("Initializing app...");
   app.Init();
   LOG_INFO("Running...");

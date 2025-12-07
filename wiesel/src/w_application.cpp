@@ -17,42 +17,34 @@
 
 namespace Wiesel {
 
-Application* Application::s_Application;
+Application* Application::application_;
 
-Application::Application(const WindowProperties&& windowProps, const RendererProperties&& rendererProps) {
-  s_Application = this;
+Application::Application(const WindowProperties&& window_props, const RendererProperties&& renderer_props) {
+  application_ = this;
 
-  m_LayerCounter = 0;
-  m_IsRunning = true;
-  m_IsMinimized = false;
+  layer_counter_ = 0;
+  is_running_ = true;
+  is_minimized_ = false;
 
-  Engine::InitWindow(std::move(windowProps));
-  m_Window = Engine::GetWindow();
-  m_Window->SetEventHandler(WIESEL_BIND_FN(Application::OnEvent));
+  Engine::InitWindow(std::move(window_props));
+  window_ = Engine::GetWindow();
+  window_->SetEventHandler(WIESEL_BIND_FN(Application::OnEvent));
 
-  m_Window->GetWindowFramebufferSize(m_WindowSize);
-  if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
-    m_IsMinimized = true;
+  window_->GetWindowFramebufferSize(window_size_);
+  if (window_size_.width == 0 || window_size_.height == 0) {
+    is_minimized_ = true;
   }
 
-  Engine::InitRenderer(std::move(rendererProps));
-  m_Scene = CreateReference<Scene>();
-  m_ImGuiLayer = CreateReference<ImGuiLayer>();
-  PushOverlay(m_ImGuiLayer);
+  Engine::InitRenderer(std::move(renderer_props));
 }
 
 Application::~Application() {
   LOG_DEBUG("Destroying Application");
-  for (const auto& item : m_Overlays) {
+  for (const auto& item : layers_) {
     item->OnDetach();
   }
-  m_Overlays.clear();
-  for (const auto& item : m_Layers) {
-    item->OnDetach();
-  }
-  m_Layers.clear();
-  m_Scene = nullptr;
-  m_Window = nullptr;
+  layers_.clear();
+  window_ = nullptr;
   Engine::CleanupRenderer();
   Engine::CleanupWindow();
 }
@@ -62,16 +54,13 @@ void Application::OnEvent(Event& event) {
 
   dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_FN(OnWindowClose));
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResize));
-  dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPressed));
-  dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
-  dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
 
+  InputManager::OnEvent(event);
   if (event.m_Handled) {
     return;
   }
 
-  m_Scene->OnEvent(event);
-  for (auto it = m_Layers.rbegin(); it != m_Layers.rend(); ++it) {
+  for (auto it = layers_.rbegin(); it != layers_.rend(); ++it) {
     const auto& layer = *it;
     if (event.m_Handled) {
       break;
@@ -82,88 +71,78 @@ void Application::OnEvent(Event& event) {
 }
 
 void Application::PushLayer(const Ref<Layer>& layer) {
-  m_Layers.push_back(layer);
+  layers_.push_back(layer);
+  layer->id_ = layer_counter_++;
   layer->OnAttach();
-  layer->m_Id = m_LayerCounter++;
 }
 
 void Application::RemoveLayer(const Ref<Layer>& layer) {
   // todo
 }
 
-void Application::PushOverlay(const Ref<Layer>& layer) {
-  m_Overlays.push_back(layer);
-  layer->OnAttach();
-  layer->m_Id = m_LayerCounter++;
-}
-
-void Application::RemoveOverlay(const Ref<Layer>& layer) {
-  // todo
-}
-
 void Application::Run() {
-  m_PreviousFrame = Time::GetTime();
+  PROFILE_THREAD("Application Thread");
+  previous_frame_ = Time::GetTime();
 
   Ref<Renderer> renderer = Engine::GetRenderer();
-  while (m_IsRunning) {
+  while (is_running_) {
+    PROFILE_FRAME_MARK();
     float time = Time::GetTime();
-    m_DeltaTime = time - m_PreviousFrame;
-    m_PreviousFrame = time;
+    delta_time_ = time - previous_frame_;
+    previous_frame_ = time;
 
-    m_FPSTimer += m_DeltaTime;
-    m_FrameCount++;
+    fps_timer_ += delta_time_;
+    frame_count_++;
 
-    if (m_FPSTimer >= 1.0f) {
-      m_FPS = static_cast<float>(m_FrameCount) / m_FPSTimer;
-      m_FrameCount = 0;
-      m_FPSTimer = 0.0f;
+    if (fps_timer_ >= 1.0f) {
+      fps_ = static_cast<float>(frame_count_) / fps_timer_;
+      frame_count_ = 0;
+      fps_timer_ = 0.0f;
     }
 
     ExecuteQueue();
 
-    if (!m_IsMinimized) {
-      for (const auto& layer : m_Layers) {
-        layer->OnUpdate(m_DeltaTime);
+    if (!is_minimized_) {
+      for (const auto& layer : layers_) {
+        layer->OnUpdate(delta_time_);
       }
-      for (const auto& layer : m_Overlays) {
-        layer->OnUpdate(m_DeltaTime);
-      }
-      m_Scene->OnUpdate(m_DeltaTime);
 
       renderer->BeginRender();
-      m_Scene->Render();
+      for (const auto& layer : layers_) {
+        layer->OnPrePresent();
+      }
       if (renderer->BeginPresent()) {
-        //renderer->PresentImage(renderer->GetTargetColorResolveImage());
-        m_ImGuiLayer->OnBeginFrame();
-        for (const auto& layer : m_Overlays) {
-          layer->OnImGuiRender();
+        for (const auto& layer : layers_) {
+          layer->OnBeginPresent();
         }
-        m_ImGuiLayer->OnEndFrame();
+        for (const auto& layer : layers_) {
+          layer->OnPresent();
+        }
         renderer->EndPresent();
       }
-      for (const auto& layer : m_Overlays) {
-        layer->OnPostRender();
+      for (const auto& layer : layers_) {
+        layer->OnPostPresent();
       }
     }
 
-    m_Window->OnUpdate();
+    window_->OnUpdate();
 
-    if (m_WindowResized) {
-      m_Window->GetWindowFramebufferSize(m_WindowSize);
-      if (m_WindowSize.Width == 0 || m_WindowSize.Height == 0) {
-        m_IsMinimized = true;
+    if (window_resized_) {
+      window_->GetWindowFramebufferSize(window_size_);
+      if (window_size_.width == 0 || window_size_.height == 0) {
+        is_minimized_ = true;
       } else {
-        m_IsMinimized = false;
+        is_minimized_ = false;
         renderer->RecreateSwapChain();
       }
-      m_WindowResized = false;
+      window_resized_ = false;
     }
   }
 }
 
 void Application::Close() {
   LOG_INFO("Closing the application!");
-  m_IsRunning = false;
+  is_running_ = false;
 }
 
 bool Application::OnWindowClose(WindowCloseEvent& event) {
@@ -172,94 +151,34 @@ bool Application::OnWindowClose(WindowCloseEvent& event) {
 }
 
 bool Application::OnWindowResize(WindowResizeEvent& event) {
-  m_WindowResized = true;
-  return false;
-}
-
-// todo handle input logic in InputManager
-void Application::UpdateKeyboardAxis() {
-  bool right = InputManager::GetKey("Right");
-  bool left = InputManager::GetKey("Left");
-  bool up = InputManager::GetKey("Up");
-  bool down = InputManager::GetKey("Down");
-
-  if (right && !left) {
-    InputManager::m_Axis["Horizontal"] = 1;
-  } else if (!right && left) {
-    InputManager::m_Axis["Horizontal"] = -1;
-  } else {
-    InputManager::m_Axis["Horizontal"] = 0;
-  }
-
-  if (up && !down) {
-    InputManager::m_Axis["Vertical"] = 1;
-  } else if (!up && down) {
-    InputManager::m_Axis["Vertical"] = -1;
-  } else {
-    InputManager::m_Axis["Vertical"] = 0;
-  }
-}
-
-bool Application::OnKeyPressed(Wiesel::KeyPressedEvent& event) {
-  InputManager::m_InputMode = InputModeKeyboardAndMouse;
-  InputManager::m_Keys[event.GetKeyCode()].Pressed = true;
-  UpdateKeyboardAxis();
-  return false;
-}
-
-bool Application::OnKeyReleased(Wiesel::KeyReleasedEvent& event) {
-  InputManager::m_Keys[event.GetKeyCode()].Pressed = false;
-  UpdateKeyboardAxis();
-  return false;
-}
-
-bool Application::OnMouseMoved(Wiesel::MouseMovedEvent& event) {
-  InputManager::m_InputMode = InputModeKeyboardAndMouse;
-  InputManager::m_MouseX = event.GetX();
-  InputManager::m_MouseY = event.GetY();
-  // todo mouse delta raw
-  if (event.GetCursorMode() == CursorModeRelative) {
-    InputManager::m_Axis["Mouse X"] +=
-        InputManager::m_MouseAxisSensX *
-        (((m_WindowSize.Width / 2.0f) - event.GetX()) / m_WindowSize.Width);
-    InputManager::m_Axis["Mouse Y"] +=
-        InputManager::m_MouseAxisSensY *
-        (((m_WindowSize.Height / 2.0f) - event.GetY()) / m_WindowSize.Width);
-    InputManager::m_Axis["Mouse Y"] = std::clamp(
-        InputManager::m_Axis["Mouse Y"], -InputManager::m_MouseAxisLimitY,
-        InputManager::m_MouseAxisLimitY);
-  }
+  window_resized_ = true;
   return false;
 }
 
 Ref<AppWindow> Application::GetWindow() {
-  return m_Window;
+  return window_;
 }
 
 const WindowSize& Application::GetWindowSize() {
-  return m_WindowSize;
-}
-
-Ref<Scene> Application::GetScene() {
-  return m_Scene;
+  return window_size_;
 }
 
 void Application::SubmitToMainThread(std::function<void()> fn) {
-  std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
-  m_MainThreadQueue.emplace_back(fn);
+  std::scoped_lock<std::mutex> lock(main_thread_queue_mutex_);
+  main_thread_queue_.emplace_back(fn);
 }
 
 void Application::ExecuteQueue() {
   // this has to be inside its own scope or it might have problems
-  std::scoped_lock<std::mutex> lock(m_MainThreadQueueMutex);
-  for (auto& func : m_MainThreadQueue) {
+  std::scoped_lock<std::mutex> lock(main_thread_queue_mutex_);
+  for (auto& func : main_thread_queue_) {
     func();
   }
-  m_MainThreadQueue.clear();
+  main_thread_queue_.clear();
 }
 
 Application* Application::Get() {
-  return s_Application;
+  return application_;
 }
 
 }  // namespace Wiesel

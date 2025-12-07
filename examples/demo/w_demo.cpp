@@ -29,9 +29,9 @@ using namespace Wiesel::Editor;
 
 namespace WieselDemo {
 
-DemoLayer::DemoLayer(DemoApplication& app) : m_App(app), Layer("Demo Layer") {
-  m_Scene = app.GetScene();
-  m_Renderer = Engine::GetRenderer();
+DemoLayer::DemoLayer(DemoApplication& app) : app_(app), Layer("Demo Layer") {
+  scene_ = app.GetScene();
+  renderer_ = Engine::GetRenderer();
 }
 
 DemoLayer::~DemoLayer() = default;
@@ -42,34 +42,34 @@ void DemoLayer::OnAttach() {
   entt::entity sponzaEntity;
   entt::entity pointLightEntity;
   {
-    Entity entity = m_Scene->CreateEntity("Sponza");
-    sponzaEntity = entity.GetHandle();
+    Entity entity = scene_->CreateEntity("Sponza");
+    sponzaEntity = entity.handle();
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Scale = {0.01f, 0.01f, 0.01f};
-    transform.Position = {5.0f, 2.0f, 0.0f};
+    transform.scale = {0.01f, 0.01f, 0.01f};
+    transform.position = {5.0f, 2.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
-    auto entity = m_Scene->CreateEntity("Directional Light");
+    auto entity = scene_->CreateEntity("Directional Light");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Position = glm::vec3(1.0f, 1.0f, 1.0f);
+    transform.position = glm::vec3(1.0f, 1.0f, 1.0f);
     entity.AddComponent<LightDirectComponent>();
   }
   {
-    auto entity = m_Scene->CreateEntity("Point Light");
-    pointLightEntity = entity.GetHandle();
+    auto entity = scene_->CreateEntity("Point Light");
+    pointLightEntity = entity.handle();
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Position = glm::vec3{0.0f, 5.0f, 0.0f};
+    transform.position = glm::vec3{0.0f, 5.0f, 0.0f};
     entity.AddComponent<LightPointComponent>();
   }
   {
-    auto entity = m_Scene->CreateEntity("Camera");
+    auto entity = scene_->CreateEntity("Camera");
     auto& camera = entity.AddComponent<CameraComponent>();
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
+    transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
@@ -80,7 +80,7 @@ void DemoLayer::OnAttach() {
     auto& ui = entity.AddComponent<CanvasComponent>();
   }*/
 
-  m_Renderer->SetVsync(false);
+  renderer_->SetVsync(false);
 }
 
 void DemoLayer::OnDetach() {
@@ -102,7 +102,7 @@ void DemoLayer::OnEvent(Event& event) {
 
 bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
   if (event.GetKeyCode() == KeyF1) {
-    m_App.Close();
+    app_.Close();
     return true;
   }
   return false;
@@ -116,10 +116,10 @@ bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
-  m_App.SubmitToMainThread([this]() {
-    for (const auto& entity : m_Scene->GetAllEntitiesWith<CameraComponent>()) {
-      CameraComponent& component = m_Scene->GetComponent<CameraComponent>(entity);
+bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
+  app_.SubmitToMainThread([this]() {
+    for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+      CameraComponent& component = scene_->GetComponent<CameraComponent>(entity);
       Engine::GetRenderer()->SetupCameraComponent(component);
     }
   });
@@ -128,8 +128,10 @@ bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
 
 void DemoApplication::Init() {
   LOG_DEBUG("Init");
-  PushLayer(CreateReference<DemoLayer>(*this));
-  PushOverlay(CreateReference<EditorOverlay>(*this, m_Scene));
+  std::shared_ptr<Scene> scene = std::make_shared<Scene>();
+  PushLayer(CreateReference<ImGuiLayer>());
+  PushLayer(CreateReference<DemoLayer>(*this, scene));
+  PushLayer(CreateReference<EditorLayer>(*this, scene));
 }
 
 DemoApplication::DemoApplication() : Application({"Wiesel Demo"}, {}) {
@@ -142,6 +144,6 @@ DemoApplication::~DemoApplication() {
 }  // namespace WieselDemo
 
 // Called from entrypoint
-Application* Wiesel::CreateApp() {
+Application* Wiesel::CreateApp(int argc, char** argv) {
   return new WieselDemo::DemoApplication();
 }

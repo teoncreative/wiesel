@@ -20,6 +20,7 @@ void Init();
 void Cleanup();
 void InitResources(TBuiltInResource& resources);
 EShLanguage FindLanguage(ShaderType type);
-bool ShaderToSPV(ShaderType type, const std::vector<char>& input,
+bool ShaderToSPV(ShaderType type, bool debug, const std::vector<char>& input,
+                 const std::vector<std::string>& defines,
                  std::vector<uint32_t>& output);
 }  // namespace Wiesel::Spirv

@@ -35,11 +35,11 @@ Sampler::Sampler(uint32_t mipLevels, const Wiesel::SamplerProps& props) {
   samplerInfo.maxLod = static_cast<float>(mipLevels);
 
   WIESEL_CHECK_VKRESULT(
-      vkCreateSampler(Engine::GetRenderer()->GetLogicalDevice(), &samplerInfo, nullptr, &m_Sampler));
+      vkCreateSampler(Engine::GetRenderer()->GetLogicalDevice(), &samplerInfo, nullptr, &sampler_));
 }
 
 Sampler::~Sampler() {
-  vkDestroySampler(Engine::GetRenderer()->GetLogicalDevice(), m_Sampler, nullptr);
+  vkDestroySampler(Engine::GetRenderer()->GetLogicalDevice(), sampler_, nullptr);
 }
 
 }

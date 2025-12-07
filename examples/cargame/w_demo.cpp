@@ -21,74 +21,77 @@
 #include "w_editor.hpp"
 #include "w_engine.hpp"
 #include "w_entrypoint.hpp"
+#include <cxxopts.hpp>
 
 #include <random>
+
+#include "layer/w_layerscene.hpp"
 
 using namespace Wiesel;
 using namespace Wiesel::Editor;
 
 namespace WieselDemo {
 
-DemoLayer::DemoLayer(DemoApplication& app) : m_App(app), Layer("Demo Layer") {
-  m_Scene = app.GetScene();
-  m_Renderer = Engine::GetRenderer();
+DemoLayer::DemoLayer(DemoApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
+  renderer_ = Engine::GetRenderer();
 }
 
 DemoLayer::~DemoLayer() = default;
 
 void DemoLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
-  Entity cameraEntity = m_Scene->CreateEntity("Camera");
+  Entity cameraEntity = scene_->CreateEntity("Camera");
   {
     auto& transform = cameraEntity.GetComponent<TransformComponent>();
     auto& camera = cameraEntity.AddComponent<CameraComponent>();
-    camera.FarPlane = 45.0f;
-    transform.Position = glm::vec3(0.0f, 1.0f, 0.0f);
+    camera.far_plane = 45.0f;
+    transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
     auto& behaviors = cameraEntity.AddComponent<BehaviorsComponent>();
     MonoBehavior& behavior = behaviors.AddBehavior<MonoBehavior>(cameraEntity, "CameraScript");
-    behavior.SetEnabled(false);
+    //behavior.SetEnabled(false);
   }
   {
-    Entity entity = m_Scene->CreateEntity("City");
+    Entity entity = scene_->CreateEntity("City");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Scale = {1, 1, 1};
-    transform.Position = {0.0f, 0.0f, 0.0f};
+    transform.scale = {1, 1, 1};
+    transform.position = {0.0f, 0.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
     Engine::LoadModel(transform, model, "assets/models/city/gmae.obj", false);
   }
   {
-    Entity entity = m_Scene->CreateEntity("Car");
+    Entity entity = scene_->CreateEntity("Car");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Scale = {0.06, 0.06, 0.06};
-    transform.Position = {0.0f, 0.0f, 0.0f};
+    transform.scale = {0.06, 0.06, 0.06};
+    transform.position = {0.0f, 0.0f, 0.0f};
+    transform.rotation = {-90.0f, 0.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/car/Mercedes_AMG_GT3.obj", false);
-    auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    MonoBehavior& behavior = behaviors.AddBehavior<MonoBehavior>(entity, "CarScript");
-    behavior.AttachExternComponent<TransformComponent>("CameraTransform", cameraEntity);
+    Engine::LoadModel(transform, model, "assets/models/bike/cyberpunk_bike.glb", false);
+    //auto& behaviors = entity.AddComponent<BehaviorsComponent>();
+    //MonoBehavior& behavior = behaviors.AddBehavior<MonoBehavior>(entity, "CarScript");
+    //behavior.AttachExternComponent<TransformComponent>("CameraTransform", cameraEntity);
   }
   {
-    auto entity = m_Scene->CreateEntity("Sun");
+    auto entity = scene_->CreateEntity("Sun");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.Rotation = glm::vec3{63.0f, 30.0f, 0.0f};
+    transform.rotation = glm::vec3{63.0f, 30.0f, 0.0f};
     auto& light = entity.AddComponent<LightDirectComponent>();
-    light.LightData.Base.Color = glm::vec3(0.949f, 0.996f, 1.0f);
-    light.LightData.Base.Ambient = 128.0f / 255.0f; // ≈ 0.502
-    light.LightData.Base.Diffuse = 1.0f;
-    light.LightData.Base.Specular = 8.0f / 255.0f; // ≈ 0.031
-    light.LightData.Base.Density = 1.0f;
+    light.light_data.base.color = glm::vec3(0.949f, 0.996f, 1.0f);
+    light.light_data.base.ambient = 128.0f / 255.0f; // ≈ 0.502
+    light.light_data.base.diffuse = 1.0f;
+    light.light_data.base.specular = 8.0f / 255.0f; // ≈ 0.031
+    light.light_data.base.density = 1.0f;
   }
   {
-    auto entity = m_Scene->CreateEntity("Speedometer");
+    auto entity = scene_->CreateEntity("Speedometer");
     auto& transform = entity.GetComponent<TransformComponent>();
     auto& sprite = entity.AddComponent<SpriteComponent>();
     SpriteBuilder builder{"assets/textures/speedometer_320.png", {320, 298}};
     builder.SetSampler(Engine::GetRenderer()->GetDefaultLinearSampler());
     builder.AddFrame(0, {0,0}, {320, 298});
-    sprite.m_AssetHandle = builder.Build();
+    sprite.asset_handle_ = builder.Build();
   }
-  m_Scene->SetSkybox(CreateReference<Skybox>(
+  scene_->SetSkybox(CreateReference<Skybox>(
       Engine::GetRenderer()->CreateCubemapTexture({
                                                       "assets/textures/skymap/right.jpg",
                                                       "assets/textures/skymap/left.jpg",
@@ -99,7 +102,7 @@ void DemoLayer::OnAttach() {
                                                   }, {}, {})
   ));
 
-  m_Renderer->SetVsync(false);
+  renderer_->SetVsync(false);
 }
 
 void DemoLayer::OnDetach() {
@@ -121,7 +124,7 @@ void DemoLayer::OnEvent(Event& event) {
 
 bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
   if (event.GetKeyCode() == KeyF1) {
-    m_App.Close();
+    app_.Close();
     return true;
   }
   return false;
@@ -135,10 +138,10 @@ bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
-  m_App.SubmitToMainThread([this]() {
-    for (const auto& entity : m_Scene->GetAllEntitiesWith<CameraComponent>()) {
-      CameraComponent& component = m_Scene->GetComponent<CameraComponent>(entity);
+bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
+  app_.SubmitToMainThread([this]() {
+    for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+      CameraComponent& component = scene_->GetComponent<CameraComponent>(entity);
       Engine::GetRenderer()->SetupCameraComponent(component);
     }
   });
@@ -147,20 +150,33 @@ bool DemoLayer::OnWindowResize(Wiesel::WindowResizeEvent& event) {
 
 void DemoApplication::Init() {
   LOG_DEBUG("Init");
-  PushLayer(CreateReference<DemoLayer>(*this));
-  PushOverlay(CreateReference<EditorOverlay>(*this, m_Scene));
+  std::shared_ptr<Scene> scene = std::make_shared<Scene>();
+  if (enable_editor_) {
+    PushLayer(std::make_shared<ImGuiLayer>());
+    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<EditorLayer>(*this, scene));
+  } else {
+    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<SceneLayer>(scene));
+  }
 }
 
-DemoApplication::DemoApplication() : Application({"Wiesel Demo"}, {}) {
-  LOG_DEBUG("DemoApp constructor");
+DemoApplication::DemoApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
 }
 
 DemoApplication::~DemoApplication() {
-  LOG_DEBUG("DemoApp destructor");
 }
 }  // namespace WieselDemo
 
 // Called from entrypoint
-Application* Wiesel::CreateApp() {
-  return new WieselDemo::DemoApplication();
+Application* Wiesel::CreateApp(int argc, char** argv) {
+  cxxopts::Options options("demo", "Wiesel demo application");
+
+  options.add_options()
+      ("e,enable_editor", "Enable the editor", cxxopts::value<bool>()->default_value("false"));
+
+  auto result = options.parse(argc, argv);
+  bool enable_editor = result["enable_editor"].as<bool>();
+
+  return new WieselDemo::DemoApplication(enable_editor);
 }

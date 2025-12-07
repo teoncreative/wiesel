@@ -78,154 +78,154 @@ bool Internals_Behavior_HasComponent(Scene* scene, entt::entity entity,
 
 float Internals_TransformComponent_GetPositionX(Scene* scene,
                                                 entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Position.x;
+  return scene->GetComponent<TransformComponent>(entity).position.x;
 }
 
 void Internals_TransformComponent_SetPositionX(Scene* scene,
                                                entt::entity entity,
                                                float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Position.x == value) {
+  if (c.position.x == value) {
     return;
   }
-  c.Position.x = value;
-  c.IsChanged = true;
+  c.position.x = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetPositionY(Scene* scene,
                                                 entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Position.y;
+  return scene->GetComponent<TransformComponent>(entity).position.y;
 }
 
 void Internals_TransformComponent_SetPositionY(Scene* scene,
                                                entt::entity entity,
                                                float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Position.y == value) {
+  if (c.position.y == value) {
     return;
   }
-  c.Position.y = value;
-  c.IsChanged = true;
+  c.position.y = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetPositionZ(Scene* scene,
                                                 entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Position.z;
+  return scene->GetComponent<TransformComponent>(entity).position.z;
 }
 
 void Internals_TransformComponent_SetPositionZ(Scene* scene,
                                                entt::entity entity,
                                                float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Position.z == value) {
+  if (c.position.z == value) {
     return;
   }
-  c.Position.z = value;
-  c.IsChanged = true;
+  c.position.z = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetRotationX(Scene* scene,
                                                 entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Rotation.x;
+  return scene->GetComponent<TransformComponent>(entity).rotation.x;
 }
 
 void Internals_TransformComponent_SetRotationX(Scene* scene,
                                                entt::entity entity,
                                                float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Rotation.x == value) {
+  if (c.rotation.x == value) {
     return;
   }
-  c.Rotation.x = value;
-  c.IsChanged = true;
+  c.rotation.x = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetRotationY(Scene* scene,
                                                 entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Rotation.y;
+  return scene->GetComponent<TransformComponent>(entity).rotation.y;
 }
 
 void Internals_TransformComponent_SetRotationY(Scene* scene,
                                                entt::entity entity,
                                                float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Rotation.y == value) {
+  if (c.rotation.y == value) {
     return;
   }
-  c.Rotation.y = value;
-  c.IsChanged = true;
+  c.rotation.y = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetRotationZ(Scene* scene,
                                                 entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Rotation.z;
+  return scene->GetComponent<TransformComponent>(entity).rotation.z;
 }
 
 void Internals_TransformComponent_SetRotationZ(Scene* scene,
                                                entt::entity entity,
                                                float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Rotation.z == value) {
+  if (c.rotation.z == value) {
     return;
   }
-  c.Rotation.z = value;
-  c.IsChanged = true;
+  c.rotation.z = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetScaleX(Scene* scene,
                                              entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Scale.x;
+  return scene->GetComponent<TransformComponent>(entity).scale.x;
 }
 
 void Internals_TransformComponent_SetScaleX(Scene* scene, entt::entity entity,
                                             float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Scale.x == value) {
+  if (c.scale.x == value) {
     return;
   }
-  c.Scale.x = value;
-  c.IsChanged = true;
+  c.scale.x = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetScaleY(Scene* scene,
                                              entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Scale.y;
+  return scene->GetComponent<TransformComponent>(entity).scale.y;
 }
 
 void Internals_TransformComponent_SetScaleY(Scene* scene, entt::entity entity,
                                             float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Scale.y == value) {
+  if (c.scale.y == value) {
     return;
   }
-  c.Scale.y = value;
-  c.IsChanged = true;
+  c.scale.y = value;
+  c.is_changed = true;
 }
 
 float Internals_TransformComponent_GetScaleZ(Scene* scene,
                                              entt::entity entity) {
-  return scene->GetComponent<TransformComponent>(entity).Scale.z;
+  return scene->GetComponent<TransformComponent>(entity).scale.z;
 }
 
 void Internals_TransformComponent_SetScaleZ(Scene* scene, entt::entity entity,
                                             float value) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
-  if (c.Scale.z == value) {
+  if (c.scale.z == value) {
     return;
   }
-  c.Scale.z = value;
-  c.IsChanged = true;
+  c.scale.z = value;
+  c.is_changed = true;
 }
 
 MonoObject* CreateVector3fWithValues(float x, float y, float z) {
-  MonoObject* obj = mono_object_new(ScriptManager::GetAppDomain(),
-                                    ScriptManager::GetVector3fClass());
+  MonoObject* obj = mono_object_new(ScriptManager::app_domain(),
+                                    ScriptManager::vector3f_class());
   void* args[3];
   args[0] = &x;
   args[1] = &y;
   args[2] = &z;
   MonoMethod* method = mono_class_get_method_from_name(
-      ScriptManager::GetVector3fClass(), ".ctor", 3);
+      ScriptManager::vector3f_class(), ".ctor", 3);
   mono_runtime_invoke(method, obj, args, nullptr);
   return obj;
 }
@@ -272,33 +272,33 @@ MonoObject* Internals_TransformComponent_GetDown(Scene* scene,
   return CreateVector3fWithValues(val.x, val.y, val.z);
 }
 
-ScriptInstance::ScriptInstance(ScriptData* data, MonoBehavior* behavior) {
-  m_Behavior = behavior;
-  m_ScriptData = data;
-  m_Instance = mono_object_new(ScriptManager::GetAppDomain(), data->GetClass());
-  mono_runtime_object_init(m_Instance);
+ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data, MonoBehavior* behavior) {
+  behavior_ = behavior;
+  script_data_ = data;
+  handle_ = mono_object_new(ScriptManager::app_domain(), data->mono_class());
+  mono_runtime_object_init(handle_);
 
   uint64_t behaviorPtr = (uint64_t)behavior;
-  uint64_t scenePtr = (uint64_t)behavior->GetScene();
-  uint64_t entityId = (uint64_t)behavior->GetEntityHandle();
-  MonoClass* baseClass = ScriptManager::GetMonoBehaviorClass();
+  uint64_t scenePtr = (uint64_t)behavior->scene();
+  uint64_t entityId = (uint64_t)behavior->handle();
+  MonoClass* baseClass = ScriptManager::behavior_class();
   MonoClassField* field =
       mono_class_get_field_from_name(baseClass, "behaviorPtr");
-  mono_field_set_value(m_Instance, field, &behaviorPtr);
+  mono_field_set_value(handle_, field, &behaviorPtr);
   field = mono_class_get_field_from_name(baseClass, "scenePtr");
-  mono_field_set_value(m_Instance, field, &scenePtr);
+  mono_field_set_value(handle_, field, &scenePtr);
   field = mono_class_get_field_from_name(baseClass, "entityId");
-  mono_field_set_value(m_Instance, field, &entityId);
-  m_GCHandle = mono_gchandle_new(m_Instance, true);
+  mono_field_set_value(handle_, field, &entityId);
+  gc_handle_ = mono_gchandle_new(handle_, true);
 }
 
 ScriptInstance::~ScriptInstance() {
-  mono_gchandle_free(m_GCHandle);
+  mono_gchandle_free(gc_handle_);
 }
 
 void ScriptInstance::OnStart() {
   UpdateAttachments();
-  mono_runtime_invoke(m_ScriptData->GetOnStartMethod(), m_Instance, nullptr,
+  mono_runtime_invoke(script_data_->on_start_method(), handle_, nullptr,
                       nullptr);
 }
 
@@ -308,48 +308,48 @@ void ScriptInstance::OnUpdate(float_t deltaTime) {
     m_StartRan = true;
   }
 
-  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  mono_domain_set(ScriptManager::app_domain(), true);
   void* args[1];
   args[0] = &deltaTime;
-  mono_runtime_invoke(m_ScriptData->GetOnUpdateMethod(), m_Instance, args,
+  mono_runtime_invoke(script_data_->on_update_method(), handle_, args,
                       nullptr);
 }
 
 bool ScriptInstance::OnKeyPressed(KeyPressedEvent& event) {
-  if (!m_ScriptData->GetOnKeyPressedMethod()) {
+  if (!script_data_->on_key_pressed_method()) {
     return false;
   }
-  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  mono_domain_set(ScriptManager::app_domain(), true);
   void* args[2];
   int32_t keyCode = event.GetKeyCode();
   bool repeat = event.IsRepeat();
   args[0] = &keyCode;
   args[1] = &repeat;
-  MonoObject* data = mono_runtime_invoke(m_ScriptData->GetOnKeyPressedMethod(),
-                                         m_Instance, args, nullptr);
+  MonoObject* data = mono_runtime_invoke(script_data_->on_key_pressed_method(),
+                                         handle_, args, nullptr);
   bool value = *(bool*)mono_object_unbox(data);
   return value;
 }
 
 bool ScriptInstance::OnKeyReleased(KeyReleasedEvent& event) {
-  if (!m_ScriptData->GetOnKeyReleasedMethod()) {
+  if (!script_data_->on_key_released_method()) {
     return false;
   }
-  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  mono_domain_set(ScriptManager::app_domain(), true);
   void* args[1];
   int32_t keyCode = event.GetKeyCode();
   args[0] = &keyCode;
-  MonoObject* data = mono_runtime_invoke(m_ScriptData->GetOnKeyReleasedMethod(),
-                                         m_Instance, args, nullptr);
+  MonoObject* data = mono_runtime_invoke(script_data_->on_key_released_method(),
+                                         handle_, args, nullptr);
   bool value = *(bool*)mono_object_unbox(data);
   return value;
 }
 
 bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
-  if (!m_ScriptData->GetOnMouseMovedMethod()) {
+  if (!script_data_->on_mouse_moved_method()) {
     return false;
   }
-  mono_domain_set(ScriptManager::GetAppDomain(), true);
+  mono_domain_set(ScriptManager::app_domain(), true);
   void* args[3];
   float x = event.GetX();
   float y = event.GetY();
@@ -357,8 +357,8 @@ bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
   args[0] = &x;
   args[1] = &y;
   args[2] = &cursorMode;
-  MonoObject* data = mono_runtime_invoke(m_ScriptData->GetOnMouseMovedMethod(),
-                                         m_Instance, args, nullptr);
+  MonoObject* data = mono_runtime_invoke(script_data_->on_mouse_moved_method(),
+                                         handle_, args, nullptr);
   bool value = *(bool*)mono_object_unbox(data);
   return value;
 }
@@ -369,8 +369,8 @@ template void ScriptInstance::AttachExternComponent<TransformComponent>(std::str
 template <class T>
 void ScriptInstance::AttachExternComponent(std::string variable,
                                            entt::entity entity) {
-  Scene* scene = m_Behavior->GetScene();
-  m_AttachedVariables.insert(std::pair(variable, [scene, entity]() {
+  Scene* scene = behavior_->scene();
+  attached_variables_.insert(std::pair(variable, [scene, entity]() {
     return ScriptManager::GetComponent<T>(scene, entity);
   }));
 
@@ -380,44 +380,44 @@ void ScriptInstance::AttachExternComponent(std::string variable,
 }
 
 void ScriptInstance::UpdateAttachments() {
-  for (const auto& item : m_AttachedVariables) {
+  for (const auto& item : attached_variables_) {
     MonoObject* object = item.second();
     if (!object) {
       continue;
     }
     MonoClassField* field = mono_class_get_field_from_name(
-        m_ScriptData->GetClass(), item.first.c_str());
+        script_data_->mono_class(), item.first.c_str());
     if (!field) {
       continue;
     }
-    mono_field_set_value(m_Instance, field, object);
+    mono_field_set_value(handle_, field, object);
   }
 }
 
-MonoDomain* ScriptManager::m_RootDomain = nullptr;
-MonoAssembly* ScriptManager::m_CoreAssembly = nullptr;
-MonoImage* ScriptManager::m_CoreAssemblyImage = nullptr;
-MonoDomain* ScriptManager::m_AppDomain = nullptr;
-MonoAssembly* ScriptManager::m_AppAssembly = nullptr;
-MonoImage* ScriptManager::m_AppAssemblyImage = nullptr;
-MonoClass* ScriptManager::m_MonoBehaviorClass = nullptr;
-MonoClass* ScriptManager::m_MonoTransformComponentClass = nullptr;
-MonoClass* ScriptManager::m_MonoVector3fClass = nullptr;
-MonoMethod* ScriptManager::m_SetHandleMethod = nullptr;
+MonoDomain* ScriptManager::root_domain_ = nullptr;
+MonoAssembly* ScriptManager::core_assembly_ = nullptr;
+MonoImage* ScriptManager::core_assembly_image_ = nullptr;
+MonoDomain* ScriptManager::app_domain_ = nullptr;
+MonoAssembly* ScriptManager::app_assembly_ = nullptr;
+MonoImage* ScriptManager::app_assembly_image_ = nullptr;
+MonoClass* ScriptManager::behavior_class_ = nullptr;
+MonoClass* ScriptManager::transform_component_class_ = nullptr;
+MonoClass* ScriptManager::vector3f_class_ = nullptr;
+MonoMethod* ScriptManager::set_handle_method_ = nullptr;
 
 std::map<std::string, ScriptManager::ComponentGetter>
-    ScriptManager::m_ComponentGetters;
+    ScriptManager::component_getters_;
 std::map<std::type_index, ScriptManager::ComponentGetter>
-    ScriptManager::m_ComponentGettersByType;
+    ScriptManager::component_getters_by_type_;
 std::map<std::string, ScriptManager::ComponentChecker>
-    ScriptManager::m_ComponentCheckers;
-std::map<std::string, ScriptData*> ScriptManager::m_ScriptData;
-std::vector<std::string> ScriptManager::m_ScriptNames;
-bool ScriptManager::m_EnableDebugger;
+    ScriptManager::component_checkers_;
+std::map<std::string, std::shared_ptr<ScriptData>> ScriptManager::script_data_;
+std::vector<std::string> ScriptManager::script_names_;
+bool ScriptManager::enable_debugger_;
 
 MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
                                               const std::string& name) {
-  auto& fn = m_ComponentGetters[name];
+  auto& fn = component_getters_[name];
   if (fn == nullptr) {
     return nullptr;
   }
@@ -426,7 +426,7 @@ MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
 
 template <class T>
 MonoObject* ScriptManager::GetComponent(Wiesel::Scene* scene, entt::entity entity) {
-  auto& fn = m_ComponentGettersByType[std::type_index(typeid(T))];
+  auto& fn = component_getters_by_type_[std::type_index(typeid(T))];
   if (fn == nullptr) {
     return nullptr;
   }
@@ -435,7 +435,7 @@ MonoObject* ScriptManager::GetComponent(Wiesel::Scene* scene, entt::entity entit
 
 bool ScriptManager::HasComponentByName(Scene* scene, entt::entity entity,
                                        const std::string& name) {
-  auto& fn = m_ComponentCheckers[name];
+  auto& fn = component_checkers_[name];
   if (fn == nullptr) {
     return false;
   }
@@ -443,13 +443,13 @@ bool ScriptManager::HasComponentByName(Scene* scene, entt::entity entity,
 }
 
 void ScriptManager::Init(const ScriptManagerProperties&& props) {
-  m_EnableDebugger = props.EnableDebugger;
+  enable_debugger_ = props.EnableDebugger;
   LOG_INFO("Initializing mono...");
 
   mono_set_dirs("mono/lib", "mono/etc");
   mono_config_parse("mono/etc/mono/config");
 
-  if (m_EnableDebugger) {
+  if (enable_debugger_) {
     const char* opt[] = {
         "--debugger-agent=transport=dt_socket,address=0.0.0.0:50000,server=y,suspend=n"
     };
@@ -457,7 +457,7 @@ void ScriptManager::Init(const ScriptManagerProperties&& props) {
     mono_debug_init(MONO_DEBUG_FORMAT_MONO);
   }
 
-  m_RootDomain = mono_jit_init("WieselJITRuntime");
+  root_domain_ = mono_jit_init("WieselJITRuntime");
 
   RegisterComponents();
   RegisterInternals();
@@ -476,14 +476,11 @@ void ScriptManager::Destroy() {
 void ScriptManager::Reload() {
   LOG_INFO("Reloading scripts...");
 
-  mono_domain_set(m_RootDomain, true);
-  mono_domain_unload(m_AppDomain);
+  mono_domain_set(root_domain_, true);
+  mono_domain_unload(app_domain_);
 
-  for (const auto& [first, second] : m_ScriptData) {
-    delete second;
-  }
-  m_ScriptData.clear();
-  m_ScriptNames.clear();
+  script_data_.clear();
+  script_names_.clear();
 
   RegisterComponents();
   RegisterInternals();
@@ -505,22 +502,22 @@ void ScriptManager::LoadCore() {
       sourceFiles.push_back(name);
     }
   }
-  CompileToDLL("obj/Core.dll", sourceFiles, "", {}, m_EnableDebugger);
+  CompileToDLL("obj/Core.dll", sourceFiles, "", {}, enable_debugger_);
 
-  m_CoreAssembly = mono_domain_assembly_open(m_RootDomain, "obj/Core.dll");
-  assert(m_CoreAssembly);
+  core_assembly_ = mono_domain_assembly_open(root_domain_, "obj/Core.dll");
+  assert(core_assembly_);
 
-  m_CoreAssemblyImage = mono_assembly_get_image(m_CoreAssembly);
-  m_MonoBehaviorClass =
-      mono_class_from_name(m_CoreAssemblyImage, "WieselEngine", "MonoBehavior");
-  m_SetHandleMethod =
-      mono_class_get_method_from_name(m_MonoBehaviorClass, "SetHandle", 1);
+  core_assembly_image_ = mono_assembly_get_image(core_assembly_);
+  behavior_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "MonoBehavior");
+  set_handle_method_ =
+      mono_class_get_method_from_name(behavior_class_, "SetHandle", 1);
 
   // Component classes
-  m_MonoTransformComponentClass = mono_class_from_name(
-      m_CoreAssemblyImage, "WieselEngine", "TransformComponent");
-  m_MonoVector3fClass =
-      mono_class_from_name(m_CoreAssemblyImage, "WieselEngine", "Vector3f");
+  transform_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "TransformComponent");
+  vector3f_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
 }
 
 void ScriptManager::LoadApp() {
@@ -543,38 +540,38 @@ void ScriptManager::LoadApp() {
       LOG_INFO("Found DLL to link {}", name);
     }
   }
-  if (!CompileToDLL("obj/App.dll", sourceFiles, "obj", linkLibs, m_EnableDebugger)) {
+  if (!CompileToDLL("obj/App.dll", sourceFiles, "obj", linkLibs, enable_debugger_)) {
     return;
   }
-  m_AppDomain = mono_domain_create_appdomain(const_cast<char*>("WieselApp"), nullptr);
-  mono_domain_set(m_AppDomain, true);
+  app_domain_ = mono_domain_create_appdomain(const_cast<char*>("WieselApp"), nullptr);
+  mono_domain_set(app_domain_, true);
   //mono_domain_assembly_open(m_AppDomain, "obj/Core.dll");
-  m_AppAssembly = mono_domain_assembly_open(m_AppDomain, "obj/App.dll");
-  assert(m_AppAssembly);
+  app_assembly_ = mono_domain_assembly_open(app_domain_, "obj/App.dll");
+  assert(app_assembly_);
 
-  m_AppAssemblyImage = mono_assembly_get_image(m_AppAssembly);
+  app_assembly_image_ = mono_assembly_get_image(app_assembly_);
 
   const MonoTableInfo* tableInfo =
-      mono_image_get_table_info(m_AppAssemblyImage, MONO_TABLE_TYPEDEF);
+      mono_image_get_table_info(app_assembly_image_, MONO_TABLE_TYPEDEF);
   int rows = mono_table_info_get_rows(tableInfo);
 
   for (int i = 0; i < rows; i++) {
     uint32_t cols[MONO_TYPEDEF_SIZE];
     mono_metadata_decode_row(tableInfo, i, cols, MONO_TYPEDEF_SIZE);
     std::string className =
-        mono_metadata_string_heap(m_AppAssemblyImage, cols[MONO_TYPEDEF_NAME]);
+        mono_metadata_string_heap(app_assembly_image_, cols[MONO_TYPEDEF_NAME]);
     if (className == "<Module>") {
       continue;
     }
     std::string classNamespace = mono_metadata_string_heap(
-        m_AppAssemblyImage, cols[MONO_TYPEDEF_NAMESPACE]);
+        app_assembly_image_, cols[MONO_TYPEDEF_NAMESPACE]);
     // this is needed to load the class, facepalm Microsoft
-    mono_class_from_name(m_AppAssemblyImage, classNamespace.c_str(),
+    mono_class_from_name(app_assembly_image_, classNamespace.c_str(),
                          className.c_str());
 
     LOG_INFO("Found class {} in namespace {}", className, classNamespace);
     MonoClass* klass = mono_class_from_name(
-        m_AppAssemblyImage, classNamespace.c_str(), className.c_str());
+        app_assembly_image_, classNamespace.c_str(), className.c_str());
     if (!klass) {
       LOG_ERROR("Class {} in namespace {} not found!", className,
                 classNamespace);
@@ -604,12 +601,12 @@ void ScriptManager::LoadApp() {
         mono_class_get_method_from_name(klass, "OnKeyReleased", 1);  // KeyCode
     MonoMethod* onMouseMovedMethod = mono_class_get_method_from_name(
         klass, "OnMouseMoved", 3);  // x, y, cursorMode
-    m_ScriptData.insert(std::pair(
+    script_data_.insert(std::pair(
         className,
-        new ScriptData(klass, onStartMethod, onUpdateMethod, m_SetHandleMethod,
+        std::make_shared<ScriptData>(klass, onStartMethod, onUpdateMethod, set_handle_method_,
                        onKeyPressedMethod, onKeyReleasedMethod,
                        onMouseMovedMethod, fields)));
-    m_ScriptNames.push_back(className);
+    script_names_.push_back(className);
   }
 }
 
@@ -648,15 +645,15 @@ void ScriptManager::RegisterInternals() {
 }
 
 void ScriptManager::RegisterComponents() {
-  m_ComponentGetters.clear();
-  m_ComponentCheckers.clear();
+  component_getters_.clear();
+  component_checkers_.clear();
 
   RegisterComponent<TransformComponent>(
       "TransformComponent",
       [](Scene* scene, entt::entity entity) -> MonoObject* {
         // todo add macro for this
         MonoObject* obj =
-            mono_object_new(m_AppDomain, m_MonoTransformComponentClass);
+            mono_object_new(app_domain_, transform_component_class_);
         void* args[2];
         uint64_t scenePtr = (uint64_t)scene;
         uint64_t entityId = (uint64_t)entity;
@@ -664,7 +661,7 @@ void ScriptManager::RegisterComponents() {
         args[1] = &entityId;
 
         MonoMethod* method = mono_class_get_method_from_name(
-            m_MonoTransformComponentClass, ".ctor", 2);
+            transform_component_class_, ".ctor", 2);
         mono_runtime_invoke(method, obj, args, nullptr);
         return obj;
       },
@@ -673,19 +670,19 @@ void ScriptManager::RegisterComponents() {
       });
 }
 
-ScriptInstance* ScriptManager::CreateScriptInstance(MonoBehavior* behavior) {
-  if (!m_ScriptData.contains(behavior->GetName())) {
+std::unique_ptr<ScriptInstance> ScriptManager::CreateScriptInstance(MonoBehavior* behavior) {
+  if (!script_data_.contains(behavior->GetName())) {
     return nullptr;
   }
-  ScriptData* data = m_ScriptData[behavior->GetName()];
-  return new ScriptInstance(data, behavior);
+  std::shared_ptr<ScriptData> data = script_data_[behavior->GetName()];
+  return std::make_unique<ScriptInstance>(data, behavior);
 }
 
 template <class T>
 void ScriptManager::RegisterComponent(std::string name, ComponentGetter getter,
                                       ComponentChecker checker) {
-  m_ComponentGetters.insert(std::pair(name, getter));
-  m_ComponentGettersByType.insert(std::pair(std::type_index(typeid(T)), getter));
-  m_ComponentCheckers.insert(std::pair(name, checker));
+  component_getters_.insert(std::pair(name, getter));
+  component_getters_by_type_.insert(std::pair(std::type_index(typeid(T)), getter));
+  component_checkers_.insert(std::pair(name, checker));
 }
 }  // namespace Wiesel

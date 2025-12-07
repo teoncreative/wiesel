@@ -22,54 +22,54 @@ class Entity {
 
   template <typename T, typename... Args>
   T& AddComponent(Args&&... args) {
-    return m_Scene->AddComponent<T>(m_EntityHandle, std::forward<Args>(args)...);
+    return scene_->AddComponent<T>(entity_handle_, std::forward<Args>(args)...);
   }
 
   template <typename T>
   T& GetComponent() {  // This function is intentionally not marked as const!
-    return m_Scene->GetComponent<T>(m_EntityHandle);
+    return scene_->GetComponent<T>(entity_handle_);
   }
 
   template <typename T>
   bool HasComponent() const {
-    return m_Scene->HasComponent<T>(m_EntityHandle);
+    return scene_->HasComponent<T>(entity_handle_);
   }
 
   template <typename T>
   void RemoveComponent() {
-    m_Scene->RemoveComponent<T>(m_EntityHandle);
+    scene_->RemoveComponent<T>(entity_handle_);
   }
 
-  operator bool() const { return m_EntityHandle != entt::null; }
+  operator bool() const { return entity_handle_ != entt::null; }
 
-  operator entt::entity() const { return m_EntityHandle; }
+  operator entt::entity() const { return entity_handle_; }
 
-  operator uint32_t() const { return (uint32_t)m_EntityHandle; }
+  operator uint32_t() const { return (uint32_t)entity_handle_; }
 
   UUID GetUUID() { return GetComponent<IdComponent>().Id; }
 
-  const std::string& GetName() { return GetComponent<TagComponent>().Tag; }
+  const std::string& GetName() { return GetComponent<TagComponent>().tag; }
 
-  Entity GetParent() const { return {m_Parent, m_Scene}; }
-  entt::entity GetParentHandle() const { return m_Parent; }
-  const std::vector<entt::entity>* GetChildHandles() const { return m_Childs; }
+  Entity GetParent() const { return {parent_handle_, scene_}; }
+  entt::entity parent_handle() const { return parent_handle_; }
+  const std::vector<entt::entity>* child_handles() const { return child_handles_; }
 
   bool operator==(const Entity& other) const {
-    return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
+    return entity_handle_ == other.entity_handle_ && scene_ == other.scene_;
   }
 
   bool operator!=(const Entity& other) const { return !(*this == other); }
 
-  entt::entity GetHandle() const { return m_EntityHandle; }
+  entt::entity handle() const { return entity_handle_; }
 
-  Scene* GetScene() const { return m_Scene; }
+  Scene* GetScene() const { return scene_; }
 
 
  private:
-  entt::entity m_EntityHandle;
-  Scene* m_Scene;
-  entt::entity m_Parent;
-  std::vector<entt::entity>* m_Childs;
+  entt::entity entity_handle_;
+  Scene* scene_;
+  entt::entity parent_handle_;
+  std::vector<entt::entity>* child_handles_;
 };
 
 }  // namespace Wiesel

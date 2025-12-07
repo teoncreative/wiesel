@@ -22,20 +22,20 @@ namespace Wiesel {
 using WindowEventFn = std::function<void(Event&)>;
 
 struct WindowSize {
-  int32_t Width;
-  int32_t Height;
+  int32_t width;
+  int32_t height;
 };
 
 enum CursorMode : uint8_t { CursorModeNormal, CursorModeRelative };
 
 struct WindowProperties {
-  std::string Title;
-  WindowSize Size;
-  bool Resizable;
+  std::string title;
+  WindowSize size;
+  bool resizable;
 
   WindowProperties(std::string title = "Wiesel",
                    const WindowSize& size = {1600, 900}, bool resizable = false)
-      : Title(std::move(title)), Size(size), Resizable(resizable) {}
+      : title(std::move(title)), size(size), resizable(resizable) {}
 };
 
 class AppWindow {
@@ -52,7 +52,7 @@ class AppWindow {
   void SetEventHandler(const WindowEventFn& callback);
   WIESEL_GETTER_FN WindowEventFn& GetEventHandler();
 
-  virtual void SetCursorMode(CursorMode mouseMode);
+  virtual void SetCursorMode(CursorMode mouse_mode);
   WIESEL_GETTER_FN virtual CursorMode GetCursorMode();
 
   virtual void CreateWindowSurface(VkInstance instance,
@@ -64,8 +64,8 @@ class AppWindow {
  protected:
   friend class Input;
 
-  WindowProperties m_Properties;
-  WindowEventFn m_EventHandler;
-  CursorMode m_CursorMode;
+  WindowProperties properties_;
+  WindowEventFn event_handler_;
+  CursorMode cursor_mode_;
 };
 }  // namespace Wiesel

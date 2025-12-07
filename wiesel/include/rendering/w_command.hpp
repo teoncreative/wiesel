@@ -19,12 +19,12 @@ class CommandPool {
 
   Ref<CommandBuffer> CreateBuffer();
 
-  VkCommandPool m_Handle{};
+  VkCommandPool handle_{};
  private:
   friend class CommandBuffer;
   void ReturnBuffer(VkCommandBuffer buffer);
 
-  std::list<VkCommandBuffer> m_FreeBuffers;
+  std::list<VkCommandBuffer> free_buffers_;
 };
 
 class CommandBuffer {
@@ -36,9 +36,9 @@ class CommandBuffer {
   void Begin();
   void End();
 
-  VkCommandBuffer m_Handle;
+  VkCommandBuffer handle_;
  private:
-  CommandPool& m_Pool;
+  CommandPool& pool_;
 
 };
 }

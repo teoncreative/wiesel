@@ -15,13 +15,13 @@
 
 namespace Wiesel {
 
-Texture::Texture(TextureType textureType, const std::string& path)
-    : m_Type(textureType), m_Path(path) {
-  m_Width = 0;
-  m_Height = 0;
-  m_Size = 0;
-  m_IsAllocated = false;
-  m_MipLevels = 1;
+Texture::Texture(TextureType texture_type, const std::string& path)
+    : type_(texture_type), path_(path) {
+  width_ = 0;
+  height_ = 0;
+  size_ = 0;
+  is_allocated_ = false;
+  mip_levels_ = 1;
 }
 
 Texture::~Texture() {
@@ -33,7 +33,7 @@ AttachmentTexture::~AttachmentTexture() {
 }
 
 ImageView::~ImageView() {
-  vkDestroyImageView(Engine::GetRenderer()->GetLogicalDevice(), m_Handle, nullptr);
+  vkDestroyImageView(Engine::GetRenderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
 }  // namespace Wiesel

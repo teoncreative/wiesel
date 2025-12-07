@@ -38,30 +38,30 @@ class SpriteAsset {
   SpriteAsset() = default;
   ~SpriteAsset();
 
-  void UpdateTransform(glm::mat4 transformMatrix);
+  void UpdateTransform(glm::mat4 transform_matrix);
 
  private:
   friend class Renderer;
   friend class SpriteBuilder;
 
   struct Frame {
-    glm::vec4 UVRect;
-    uint32_t InstanceId;
-    float_t Duration;
-    Ref<ImageView> View;
-    Ref<DescriptorSet> Descriptor;
-    Ref<MemoryBuffer> VertexBuffer;
-    Ref<UniformBuffer> UniformBuffer;
+    glm::vec4 uv_rect;
+    uint32_t instance_id;
+    float_t duration;
+    Ref<ImageView> view;
+    Ref<DescriptorSet> descriptor;
+    Ref<MemoryBuffer> vertex_buffer;
+    Ref<UniformBuffer> uniform_buffer;
 
-    Frame(const glm::vec4 &uv, float_t d = 0.0f) : UVRect(uv), Duration(d) {}
+    Frame(const glm::vec4 &uv, float_t d = 0.0f) : uv_rect(uv), duration(d) {}
   };
 
-  SpriteType m_Type;
-  glm::vec2 m_AtlasSize;
-  Ref<SpriteTexture> m_Texture;
-  Ref<Sampler> m_Sampler;
-  std::vector<Frame> m_Frames;
-  bool m_IsAllocated = false;
+  SpriteType type_;
+  glm::vec2 atlas_size_;
+  Ref<SpriteTexture> texture_;
+  Ref<Sampler> sampler_;
+  std::vector<Frame> frames_;
+  bool is_allocated_ = false;
 };
 
 enum class AddFrameResult {
@@ -71,42 +71,42 @@ enum class AddFrameResult {
 
 class SpriteBuilder {
  public:
-  SpriteBuilder(const std::string& atlasPath, glm::vec2 atlasSize) : m_AtlasPath(atlasPath), m_AtlasSize(atlasSize) {
+  SpriteBuilder(const std::string& atlas_path, glm::vec2 atlas_size) : atlas_path_(atlas_path), atlas_size_(atlas_size) {
 
   }
 
   void SetFixedSize(glm::vec2 size) {
-    m_FixedUVSize = size;
-    m_FixedSize = true;
+    fixed_uv_size_ = size;
+    fixed_size_ = true;
   }
 
   AddFrameResult AddFrame(float_t durationSeconds, glm::vec2 uvPos, glm::vec2 uvSize = {0, 0});
 
   void SetSampler(Ref<Sampler> sampler) {
-      m_Sampler = sampler;
+      sampler_ = sampler;
   }
 
   Ref<SpriteAsset> Build();
  private:
-  bool m_FixedSize = false;
-  std::string m_AtlasPath;
-  glm::vec2 m_AtlasSize;
-  glm::vec2 m_FixedUVSize;
-  Ref<Sampler> m_Sampler;
-  std::vector<SpriteAsset::Frame> m_Frames;
+  bool fixed_size_ = false;
+  std::string atlas_path_;
+  glm::vec2 atlas_size_;
+  glm::vec2 fixed_uv_size_;
+  Ref<Sampler> sampler_;
+  std::vector<SpriteAsset::Frame> frames_;
 };
 
 class SpriteComponent {
  public:
   friend class Renderer;
-  Ref<SpriteAsset> m_AssetHandle;
+  Ref<SpriteAsset> asset_handle_;
   // TODO
-  glm::vec2 m_Pivot;
-  glm::vec4 m_Tint;
-  uint32_t m_CurrentFrame = 0;
-  float_t m_FrameTimer = 0.0f;
-  bool m_FlipX = false, m_FlipY = false;
-  uint8_t m_SortLayer = 0;
+  glm::vec2 pivot_;
+  glm::vec4 tint_;
+  uint32_t current_frame_ = 0;
+  float_t frame_timer_ = 0.0f;
+  bool flip_x_ = false, flip_y_ = false;
+  uint8_t sort_layer_ = 0;
 
 };
 

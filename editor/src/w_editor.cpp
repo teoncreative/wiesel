@@ -3,54 +3,66 @@
 //
 
 #include "w_editor.hpp"
+
+#include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
+#include <ImGuizmo.h>
+
 #include "imgui_internal.h"
+#include "layer/w_layerscene.hpp"
 #include "scene/w_componentutil.hpp"
 #include "script/w_scriptmanager.hpp"
+#include "util/imgui/w_imguiutil.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel::Editor {
 
-EditorOverlay::EditorOverlay(Application& app, Ref<Scene> scene)
-    : m_App(app), m_Scene(scene), Layer("Demo Overlay") {}
+EditorLayer::EditorLayer(Application& app, Ref<Scene> scene)
+    : app_(app), scene_(scene), Layer("Demo Overlay") {}
 
-EditorOverlay::~EditorOverlay() = default;
+EditorLayer::~EditorLayer() = default;
 
-void EditorOverlay::OnAttach() {
+void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
 }
 
-void EditorOverlay::OnDetach() {
+void EditorLayer::OnDetach() {
   LOG_DEBUG("OnDetach");
 }
 
-void EditorOverlay::OnUpdate(float_t deltaTime) {}
+void EditorLayer::OnUpdate(float_t delta_time) {
+  scene_->OnUpdate(delta_time);
+}
 
-void EditorOverlay::OnEvent(Wiesel::Event& event) {}
+void EditorLayer::OnEvent(Event& event) {
+  scene_->OnEvent(event);
+}
 
-static entt::entity SelectedEntity;
-static bool HasSelectedEntity = false;
-static ImGuizmo::OPERATION currentOp = ImGuizmo::TRANSLATE;
+// Todo move these to the editor overlay instead
+static entt::entity selected_entity_;
+static bool has_selected_entity_ = false;
+static ImGuizmo::OPERATION current_op_ = ImGuizmo::TRANSLATE;
 static struct SceneHierarchyData {
-  entt::entity MoveFrom = entt::null;
-  entt::entity MoveTo = entt::null;
-  bool BottomPart = false;
-} HierarchyData;
+  entt::entity move_from = entt::null;
+  entt::entity move_to = entt::null;
+  bool bottom_part = false;
+} hierarchy_data_;
 
-void EditorOverlay::RenderEntity(Entity& entity, entt::entity entityId, int depth, bool& ignoreMenu) {
-  auto& tagComponent = entity.GetComponent<TagComponent>();
+void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
+  auto& tag_component = entity.GetComponent<TagComponent>();
   std::string tag = "";
   for (int i = 0; i < depth; i++) {
     tag += "\t";
   }
-  tag += tagComponent.Tag;
+  tag += tag_component.tag;
   tag += "##";
-  tag += (uint32_t) entityId;
+  tag += (uint32_t) entity_id;
 
   if (ImGui::Selectable(tag.c_str(),
-                        HasSelectedEntity && SelectedEntity == entityId,
+                        has_selected_entity_ && selected_entity_ == entity_id,
                         ImGuiSelectableFlags_None, ImVec2(0, 0))) {
-    SelectedEntity = entityId;
-    HasSelectedEntity = true;
+    selected_entity_ = entity_id;
+    has_selected_entity_ = true;
   }
 
   ImGuiDragDropFlags src_flags = 0;
@@ -65,16 +77,16 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entityId, int dept
     if (!(src_flags & ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
       ImGui::Text("%s", tag.c_str());
     }
-    ImGui::SetDragDropPayload("SceneHierarchy Entity", &entityId, sizeof(entt::entity));
+    ImGui::SetDragDropPayload("SceneHierarchy Entity", &entity_id, sizeof(entt::entity));
     ImGui::EndDragDropSource();
   }
 
   if (ImGui::BeginDragDropTarget()) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
-      entt::entity* newData = static_cast<entt::entity*>(payload->Data);
-      HierarchyData.MoveFrom = *newData;
-      HierarchyData.MoveTo = entityId;
-      HierarchyData.BottomPart = false;
+      entt::entity* new_data = static_cast<entt::entity*>(payload->Data);
+      hierarchy_data_.move_from = *new_data;
+      hierarchy_data_.move_to = entity_id;
+      hierarchy_data_.bottom_part = false;
     }
     ImGui::EndDragDropTarget();
   }
@@ -83,7 +95,7 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entityId, int dept
     if (!(src_flags & ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
       ImGui::Text("%s", tag.c_str());
     }
-    ImGui::SetDragDropPayload("SceneHierarchy Entity", &entityId, sizeof(entt::entity));
+    ImGui::SetDragDropPayload("SceneHierarchy Entity", &entity_id, sizeof(entt::entity));
     ImGui::EndDragDropSource();
   }
 
@@ -91,9 +103,9 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entityId, int dept
     target_flags |= ImGuiDragDropFlags_AcceptNoDrawDefaultRect; // Don't display the yellow rectangle
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
       entt::entity newData = *(entt::entity*)payload->Data;
-      HierarchyData.MoveFrom = newData;
-      HierarchyData.MoveTo = entityId;
-      HierarchyData.BottomPart = true;
+      hierarchy_data_.move_from = newData;
+      hierarchy_data_.move_to = entity_id;
+      hierarchy_data_.bottom_part = true;
     }
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImGuiContext& g = *GImGui;
@@ -109,23 +121,23 @@ void EditorOverlay::RenderEntity(Entity& entity, entt::entity entityId, int dept
 
 
   if (ImGui::BeginPopupContextItem()) {
-    SelectedEntity = entityId;
+    selected_entity_ = entity_id;
     if (ImGui::Button("Remove Entity")) {
-      m_App.GetScene()->DestroyEntity(entity);
-      HasSelectedEntity = false;
+      scene_->RemoveEntity(entity);
+      has_selected_entity_ = false;
     }
     ImGui::EndPopup();
-    ignoreMenu = true;
+    ignore_menu = true;
   }
-  if (entity.GetChildHandles()) {
-    for (const auto& childEntityId : *entity.GetChildHandles()) {
-      Entity child = {childEntityId, &*m_App.GetScene()};
-      RenderEntity(child, childEntityId, depth + 1, ignoreMenu);
+  if (entity.child_handles()) {
+    for (const auto& child_entity_id : *entity.child_handles()) {
+      Entity child = {child_entity_id, scene_.get()};
+      RenderEntity(child, child_entity_id, depth + 1, ignore_menu);
     }
   }
 }
 
-void EditorOverlay::OnImGuiRender() {
+void EditorLayer::OnBeginPresent() {
   ImGui::DockSpaceOverViewport();
 
   static bool scenePropertiesOpen = true;
@@ -140,6 +152,10 @@ void EditorOverlay::OnImGuiRender() {
                         Engine::GetRenderer()->IsSSAOEnabledPtr())) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
+    if (ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(),
+                        Engine::GetRenderer()->IsOnlySSAOPtr())) {
+      Engine::GetRenderer()->SetRecreatePipeline(true);
+    }
     if (ImGui::Button("Recreate Pipeline")) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
@@ -150,11 +166,11 @@ void EditorOverlay::OnImGuiRender() {
   ImGui::End();
 
   if (ImGui::Begin("Gizmo Tools")) {
-    if (ImGui::RadioButton("Translate", currentOp==ImGuizmo::TRANSLATE)) currentOp = ImGuizmo::TRANSLATE;
+    if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) current_op_ = ImGuizmo::TRANSLATE;
     ImGui::SameLine();
-    if (ImGui::RadioButton("Rotate",    currentOp==ImGuizmo::ROTATE))    currentOp = ImGuizmo::ROTATE;
+    if (ImGui::RadioButton("Rotate",    current_op_ == ImGuizmo::ROTATE))    current_op_ = ImGuizmo::ROTATE;
     ImGui::SameLine();
-    if (ImGui::RadioButton("Scale",     currentOp==ImGuizmo::SCALE))     currentOp = ImGuizmo::SCALE;
+    if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
   }
   ImGui::End();
 
@@ -162,8 +178,8 @@ void EditorOverlay::OnImGuiRender() {
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
     bool ignoreMenu = false;
 
-    for (const auto& entityId : m_App.GetScene()->GetSceneHierarchy()) {
-      Entity entity = {entityId, &*m_App.GetScene()};
+    for (const auto& entityId : scene_->GetSceneHierarchy()) {
+      Entity entity = {entityId, scene_.get()};
       if (entity.GetParent()) {
         continue;
       }
@@ -174,11 +190,11 @@ void EditorOverlay::OnImGuiRender() {
     UpdateHierarchyOrder();
 
     if (!ignoreMenu && ImGui::IsMouseClicked(1, false))
-      ImGui::OpenPopup("right_click_hierarcy");
-    if (ImGui::BeginPopup("right_click_hierarcy")) {
+      ImGui::OpenPopup("right_click_hierarchy");
+    if (ImGui::BeginPopup("right_click_hierarchy")) {
       if (ImGui::BeginMenu("Add")) {
         if (ImGui::MenuItem("Empty Object")) {
-          m_App.GetScene()->CreateEntity();
+          scene_->CreateEntity();
           ImGui::CloseCurrentPopup();
         }
         ImGui::EndMenu();
@@ -189,16 +205,16 @@ void EditorOverlay::OnImGuiRender() {
   ImGui::End();
 
   static bool componentsOpen = true;
-  if (ImGui::Begin("Components", &componentsOpen) && HasSelectedEntity) {
-    Entity entity = {SelectedEntity, &*m_App.GetScene()};
+  if (ImGui::Begin("Components", &componentsOpen) && has_selected_entity_) {
+    Entity entity = {selected_entity_, scene_.get()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
-    if (ImGui::InputText("##", &tag.Tag, ImGuiInputTextFlags_AutoSelectAll)) {
-      if (tag.Tag[0] == ' ') {
-        TrimLeft(tag.Tag);
+    if (ImGui::InputText("##", &tag.tag, ImGuiInputTextFlags_AutoSelectAll)) {
+      if (tag.tag[0] == ' ') {
+        TrimLeft(tag.tag);
       }
 
-      if (tag.Tag.empty()) {
-        tag.Tag = "Entity";
+      if (tag.tag.empty()) {
+        tag.tag = "Entity";
       }
     }
     ImGui::SameLine();
@@ -216,10 +232,10 @@ void EditorOverlay::OnImGuiRender() {
   static bool viewportOpen = true;
   if (ImGui::Begin("Viewport", &viewportOpen)) {
     ImTextureID desc =
-        reinterpret_cast<ImTextureID>(Engine::GetRenderer()->GetCameraData()->CompositeOutputDescriptor->m_DescriptorSet);
+        reinterpret_cast<ImTextureID>(Engine::GetRenderer()->GetCameraData()->composite_output_descriptor->descriptor_set_);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float imageAspect = (float)Engine::GetRenderer()->GetCameraData()->CompositeColorImage->m_Width / (float)Engine::GetRenderer()->GetCameraData()->CompositeColorImage->m_Height;
+    float imageAspect = (float)Engine::GetRenderer()->GetCameraData()->composite_color_image->width_ / (float)Engine::GetRenderer()->GetCameraData()->composite_color_image->height_;
     float availAspect = avail.x / avail.y;
 
     ImVec2 drawSize;
@@ -237,25 +253,25 @@ void EditorOverlay::OnImGuiRender() {
     ImVec2 imageMin = ImGui::GetItemRectMin(); // top-left of last item (the image)
 
     ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
-    std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(m_App.GetFPS()));
+    std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(app_.GetFPS()));
 
     ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
 
     ImGuizmo::SetRect(6, 6, drawSize.x, drawSize.y);
 
-    if (HasSelectedEntity) {
+    if (has_selected_entity_) {
       Ref<CameraData> cam = Engine::GetRenderer()->GetCameraData();
-      glm::mat4 view = cam->ViewMatrix;
-      glm::mat4 proj = cam->Projection;
+      glm::mat4 view = cam->view_matrix;
+      glm::mat4 proj = cam->projection;
       proj[1][1] *= -1;
-      TransformComponent& transform = m_Scene->GetComponent<TransformComponent>(SelectedEntity);
-      glm::mat4& model = transform.TransformMatrix;
+      TransformComponent& transform = scene_->GetComponent<TransformComponent>(selected_entity_);
+      glm::mat4& model = transform.transform_matrix;
       ImGuizmo::SetOrthographic(false);
       ImGuizmo::SetDrawlist();
       if (ImGuizmo::Manipulate(
               glm::value_ptr(view),
               glm::value_ptr(proj),
-              currentOp,
+              current_op_,
               ImGuizmo::WORLD,
               glm::value_ptr(model))) {
         glm::vec3 translation, rotation, scale;
@@ -265,38 +281,46 @@ void EditorOverlay::OnImGuiRender() {
             glm::value_ptr(rotation),
             glm::value_ptr(scale));
 
-        transform.Position = translation;
-        transform.Rotation = rotation;
-        transform.Scale = scale;
+        transform.position = translation;
+        transform.rotation = rotation;
+        transform.scale = scale;
       }
     }
   }
   ImGui::End();
 }
 
-void EditorOverlay::UpdateHierarchyOrder() {
-  if (HierarchyData.MoveFrom == entt::null || HierarchyData.MoveTo == entt::null) {
+void EditorLayer::OnPostPresent() {
+  scene_->ProcessDestroyQueue();
+}
+
+void EditorLayer::OnPrePresent() {
+  scene_->Render();
+}
+
+void EditorLayer::UpdateHierarchyOrder() {
+  if (hierarchy_data_.move_from == entt::null || hierarchy_data_.move_to == entt::null) {
     return;
   }
-  Entity fromEntity = {HierarchyData.MoveFrom, &*m_App.GetScene()};
-  Entity toEntity = {HierarchyData.MoveTo, &*m_App.GetScene()};
-  auto& hierarcry = m_App.GetScene()->GetSceneHierarchy();
-  if (HierarchyData.BottomPart) {
+  Entity fromEntity = {hierarchy_data_.move_from, scene_.get()};
+  Entity toEntity = {hierarchy_data_.move_to, scene_.get()};
+  auto& hierarcry = scene_->GetSceneHierarchy();
+  if (hierarchy_data_.bottom_part) {
     // todo move hierarchy order on childs
-    if (fromEntity.GetParentHandle() != entt::null) {
-      m_App.GetScene()->UnlinkEntities(fromEntity.GetParentHandle(), HierarchyData.MoveFrom);
+    if (fromEntity.parent_handle() != entt::null) {
+      scene_->UnlinkEntities(fromEntity.parent_handle(), hierarchy_data_.move_from);
     }
     hierarcry.erase(
-        std::remove(hierarcry.begin(), hierarcry.end(), HierarchyData.MoveFrom),
+        std::remove(hierarcry.begin(), hierarcry.end(), hierarchy_data_.move_from),
         hierarcry.end());
-    auto insertPos = std::find(hierarcry.begin(), hierarcry.end(), HierarchyData.MoveTo) + 1;
+    auto insertPos = std::find(hierarcry.begin(), hierarcry.end(), hierarchy_data_.move_to) + 1;
     if (hierarcry.end() < insertPos) {
-      hierarcry.push_back(HierarchyData.MoveFrom);
+      hierarcry.push_back(hierarchy_data_.move_from);
     } else {
-      hierarcry.insert(insertPos, HierarchyData.MoveFrom);
+      hierarcry.insert(insertPos, hierarchy_data_.move_from);
     }
   } else {
-    m_App.GetScene()->LinkEntities(HierarchyData.MoveTo, HierarchyData.MoveFrom);
+    scene_->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);
   }
 }
 

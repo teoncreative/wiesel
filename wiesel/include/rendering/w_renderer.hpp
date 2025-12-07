@@ -39,7 +39,7 @@
 namespace Wiesel {
 
 struct ShadowPipelinePushConstant {
-  int CascadeIndex;
+  int cascade_index;
 };
 
 struct RendererProperties {};
@@ -65,30 +65,30 @@ class Renderer {
   void SetupCameraComponent(CameraComponent& component);
 
   Ref<Texture> CreateBlankTexture();
-  Ref<Texture> CreateBlankTexture(const TextureProps& textureProps,
-                                  const SamplerProps& samplerProps);
+  Ref<Texture> CreateBlankTexture(const TextureProps& texture_props,
+                                  const SamplerProps& sampler_props);
   Ref<Texture> CreateTexture(const std::string& path,
-                             const TextureProps& textureProps,
-                             const SamplerProps& samplerProps);
+                             const TextureProps& texture_props,
+                             const SamplerProps& sampler_props);
   Ref<Texture> CreateTexture(void* buffer,
-                             size_t sizePerPixel,
-                             const TextureProps& textureProps,
-                             const SamplerProps& samplerProps);
+                             size_t size_per_pixel,
+                             const TextureProps& texture_props,
+                             const SamplerProps& sampler_props);
   Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
-                                    const TextureProps& textureProps,
-                                    const SamplerProps& samplerProps);
+                                    const TextureProps& texture_props,
+                                    const SamplerProps& sampler_props);
   void DestroyTexture(Texture& texture);
-  VkSampler CreateTextureSampler(uint32_t mipLevels, const SamplerProps& props);
+  VkSampler CreateTextureSampler(uint32_t mip_levels, const SamplerProps& props);
 
   Ref<AttachmentTexture> CreateAttachmentTexture(
       const AttachmentTextureProps& props);
 
   void SetAttachmentTextureBuffer(Ref<AttachmentTexture> texture, void* buffer,
-                                  size_t sizePerPixel);
+                                  size_t size_per_pixel);
 
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
-  Ref<DescriptorSet> CreateMeshDescriptors(Ref<UniformBuffer> uniformBuffer,
+  Ref<DescriptorSet> CreateMeshDescriptors(Ref<UniformBuffer> uniform_buffer,
                                             Ref<Material> material);
 
   Ref<DescriptorSet> CreateShadowMeshDescriptors(
@@ -114,95 +114,103 @@ class Renderer {
   WIESEL_GETTER_FN VkSampleCountFlagBits GetMsaaSamples();
 
   void SetVsync(bool vsync);
-  WIESEL_GETTER_FN bool IsVsync();
+  WIESEL_GETTER_FN bool IsVsync() { return enable_vsync_; }
 
-  void SetWireframeEnabled(bool value);
-  WIESEL_GETTER_FN bool IsWireframeEnabled();
-  WIESEL_GETTER_FN bool* IsWireframeEnabledPtr();
-
-  void SetSSAOEnabled(bool value);
-  WIESEL_GETTER_FN bool IsSSAOEnabled();
-  WIESEL_GETTER_FN bool* IsSSAOEnabledPtr();
-
-  void SetRecreatePipeline(bool value);
-  WIESEL_GETTER_FN bool IsRecreatePipeline();
+  void SetWireframeEnabled(bool value) { enable_wireframe_ = value; }
+  WIESEL_GETTER_FN bool IsWireframeEnabled() const { return enable_wireframe_; }
+  WIESEL_GETTER_FN bool* IsWireframeEnabledPtr() { return &enable_wireframe_; }
+  void SetSSAOEnabled(bool value) { enable_ssao_ = value; }
+  WIESEL_GETTER_FN bool IsSSAOEnabled() const { return enable_ssao_; }
+  WIESEL_GETTER_FN bool* IsSSAOEnabledPtr() { return &enable_ssao_; }
+  WIESEL_GETTER_FN bool IsOnlySSAO() { return only_ssao_; }
+  WIESEL_GETTER_FN bool* IsOnlySSAOPtr() { return &only_ssao_; }
+  void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
+  WIESEL_GETTER_FN bool IsRecreatePipeline() const { return recreate_pipeline_; }
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
-  WIESEL_GETTER_FN float GetAspectRatio() const;
-  WIESEL_GETTER_FN const WindowSize& GetWindowSize() const;
-
-  WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return m_Extent; };
+  WIESEL_GETTER_FN float GetAspectRatio() const { return aspect_ratio_; }
+  WIESEL_GETTER_FN const WindowSize& GetWindowSize() const { return window_size_; }
+  WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return extent_; }
 
   WIESEL_GETTER_FN const uint32_t GetGraphicsQueueFamilyIndex() const {
-    return m_QueueFamilyIndices.graphicsFamily.value();
+    return queue_family_indices_.graphicsFamily.value();
   }
 
   WIESEL_GETTER_FN const uint32_t GetPresentQueueFamilyIndex() const {
-    return m_QueueFamilyIndices.presentFamily.value();
+    return queue_family_indices_.presentFamily.value();
   }
 
   WIESEL_GETTER_FN const CommandBuffer& GetCommandBuffer() const {
-    return *m_CommandBuffer;
+    return *command_buffer_;
   }
 
   WIESEL_GETTER_FN const VkFormat GetSwapChainImageFormat() const {
-    return m_SwapChainImageFormat;
+    return swap_chain_image_format_;
   }
 
   WIESEL_GETTER_FN const Ref<CameraData> GetCameraData()
       const {
-    return m_Camera;
+    return camera_;
   }
 
   WIESEL_GETTER_FN const VkPhysicalDeviceProperties GetPhysicalDeviceProperties() const {
-    return m_PhysicalDeviceProperties;
+    return physical_device_properties_;
   }
 
   WIESEL_GETTER_FN const VkPhysicalDeviceFeatures GetPhysicalDeviceFeatures() const {
-    return m_PhysicalDeviceFeatures;
+    return physical_device_features_;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetSkyboxPipeline() const {
-    return m_SkyboxPipeline;
+    return skybox_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOGenPipeline() const {
-    return m_SSAOGenPipeline;
+    return ssao_gen_pipeline_;
   }
 
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurPipeline() const {
-    return m_SSAOBlurPipeline;
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurHorzPipeline() const {
+    return ssao_blur_horz_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurVertPipeline() const {
+    return ssao_blur_vert_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetLightingPipeline() const {
-    return m_LightingPipeline;
+    return lighting_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetSpritePipeline() const {
-    return m_SpritePipeline;
+    return sprite_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetCompositePipeline() const {
-    return m_CompositePipeline;
+    return composite_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetPresentPipeline() const {
+    return present_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
-    return m_DefaultLinearSampler;
+    return default_linear_sampler_;
   }
 
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultNearestSampler() const {
-    return m_DefaultNearestSampler;
+    return default_nearest_sampler_;
   }
 
   WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadIndexBuffer() const {
-    return m_QuadIndexBuffer;
+    return quad_index_buffer_;
   }
+
   WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadVertexBuffer() const {
-    return m_QuadVertexBuffer;
+    return quad_vertex_buffer_;
   }
 
   WIESEL_GETTER_FN const Ref<DescriptorSetLayout> GetSpriteDrawDescriptorLayout() const {
-    return m_SpriteDrawDescriptorLayout;
+    return sprite_draw_descriptor_layout_;
   }
 
   void SetViewport(VkExtent2D extent);
@@ -210,13 +218,13 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadowPass);
-  void DrawMesh(Ref<Mesh> mesh, const TransformComponent& transform, bool shadowPass);
+  void DrawMesh(std::shared_ptr<Mesh> mesh, const TransformComponent& transform, bool shadowPass);
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
-  void DrawSkybox(Ref<Skybox> skybox);
-  void DrawFullscreen(Ref<Pipeline> pipeline, std::initializer_list<Ref<DescriptorSet>> descriptors);
+  void DrawSkybox(std::shared_ptr<Skybox> skybox);
+  void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
 
   void BeginRender();
-  void BeginFrame();
+  void UpdateUniformData();
   void BeginShadowPass(uint32_t cascade);
   void EndShadowPass();
 #ifdef ID_BUFFER_PASS
@@ -227,15 +235,16 @@ class Renderer {
   void EndGeometryPass();
   void BeginSSAOGenPass();
   void EndSSAOGenPass();
-  void BeginSSAOBlurPass();
-  void EndSSAOBlurPass();
+  void BeginSSAOBlurHorzPass();
+  void EndSSAOBlurHorzPass();
+  void BeginSSAOBlurVertPass();
+  void EndSSAOBlurVertPass();
   void BeginLightingPass();
   void EndLightingPass();
   void BeginSpritePass();
   void EndSpritePass();
   void BeginCompositePass();
   void EndCompositePass();
-  void EndFrame();
 
   bool BeginPresent();
   void EndPresent();
@@ -340,130 +349,142 @@ class Renderer {
                                      const VkAllocationCallbacks* pAllocator);
 #endif
 
+  void CreateTracy();
+  TracyVkCtx GetTracyCtx() const {
+    return tracy_ctx_;
+  }
+
  private:
   friend class ImGuiLayer;
   friend class RenderPass;
   friend class Mesh;
   friend class Scene;
+  friend class CommandBuffer;
 
-  static Ref<Renderer> s_Renderer;
+  static Ref<Renderer> renderer_;
 
 #ifdef VULKAN_VALIDATION
-  std::vector<const char*> validationLayers;
-  VkDebugUtilsMessengerEXT m_DebugMessenger{};
+  std::vector<const char*> validation_layers_;
+  VkDebugUtilsMessengerEXT debug_messenger_{};
 #endif
-  std::vector<const char*> m_DeviceExtensions;
+  std::vector<const char*> device_extensions_;
 
-  bool m_Initialized;
-  Ref<AppWindow> m_Window;
-  VkInstance m_Instance{};
-  VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
-  VkDevice m_LogicalDevice{};
-  VkSurfaceKHR m_Surface{};
-  VkQueue m_GraphicsQueue{};
-  VkQueue m_PresentQueue{};
-  VkSwapchainKHR m_SwapChain{};
-  bool m_SwapChainCreated;
+  bool initialized_;
+  Ref<AppWindow> window_;
+  VkInstance instance_{};
+  VkPhysicalDevice physical_device_ = VK_NULL_HANDLE;
+  VkDevice logical_device_{};
+  VkSurfaceKHR surface_{};
+  VkQueue graphics_queue_{};
+  VkQueue present_queue_{};
+  VkSwapchainKHR swap_chain_{};
+  bool swap_chain_created_;
 
-  uint32_t m_ImageIndex;
-  VkFormat m_SwapChainImageFormat;
-  Ref<AttachmentTexture> m_SwapChainTexture;
+  uint32_t image_index_;
+  VkFormat swap_chain_image_format_;
+  Ref<AttachmentTexture> swap_chain_texture_;
 
-  VkExtent2D m_Extent{};
+  VkExtent2D extent_{};
 
-  Ref<CommandPool> m_CommandPool;
-  Ref<CommandBuffer> m_CommandBuffer;
+  Ref<CommandPool> command_pool_;
+  Ref<CommandBuffer> command_buffer_;
 
-  VkSemaphore m_ImageAvailableSemaphore;
-  VkSemaphore m_RenderFinishedSemaphore;
-  VkFence m_Fence;
+  VkSemaphore image_available_semaphore_;
+  VkSemaphore render_finished_semaphore_;
+  VkFence fence_;
 
-  float_t m_AspectRatio;
-  WindowSize m_WindowSize;
-  VkSampleCountFlagBits m_MsaaSamples;
-  VkSampleCountFlagBits m_PreviousMsaaSamples;
-  Colorf m_ClearColor;
-  bool m_Vsync;
-  Ref<UniformBuffer> m_LightsUniformBuffer;
-  LightsUniformData m_LightsUniformData;
-  Ref<UniformBuffer> m_CameraUniformBuffer;
-  Ref<UniformBuffer> m_ShadowCameraUniformBuffer;
-  Ref<UniformBuffer> m_SSAOKernelUniformBuffer;
-  CameraUniformData m_CameraUniformData;
-  ShadowMapMatricesUniformData m_ShadowCameraUniformData;
-  SSAOKernelUniformData m_SSAOKernelUniformData;
-  bool m_EnableWireframe;
-  bool m_EnableSSAO;
-  bool m_RecreatePipeline;
-  bool m_RecreateSwapChain;
+  float_t aspect_ratio_;
+  WindowSize window_size_;
+  VkSampleCountFlagBits msaa_samples_;
+  VkSampleCountFlagBits previous_msaa_samples_;
+  Colorf clear_color_;
+  bool enable_vsync_;
+  Ref<UniformBuffer> lights_uniform_buffer_;
+  LightsUniformData lights_uniform_data_;
+  Ref<UniformBuffer> camera_uniform_buffer_;
+  Ref<UniformBuffer> shadow_camera_uniform_buffer_;
+  Ref<UniformBuffer> ssao_kernel_uniform_buffer_;
+  CameraUniformData camera_uniform_data_;
+  ShadowMapMatricesUniformData shadow_camera_uniform_data_;
+  SSAOKernelUniformData ssao_kernel_uniform_data_;
+  bool enable_wireframe_;
+  bool enable_ssao_;
+  bool only_ssao_;
+  bool recreate_pipeline_;
+  bool recreate_swap_chain_;
 
-  Ref<CameraData> m_Camera;
-  glm::vec2 m_ViewportSize;
+  Ref<CameraData> camera_;
+  glm::vec2 viewport_size_;
 
-  Ref<DescriptorSetLayout> m_GeometryMeshDescriptorLayout;
-  Ref<DescriptorSetLayout> m_ShadowMeshDescriptorLayout;
-  Ref<DescriptorSetLayout> m_GlobalDescriptorLayout;
-  Ref<DescriptorSetLayout> m_GlobalShadowDescriptorLayout;
-  Ref<DescriptorSetLayout> m_SSAOGenDescriptorLayout;
-  Ref<DescriptorSetLayout> m_SSAOBlurDescriptorLayout;
-  Ref<DescriptorSetLayout> m_SSAOOutputDescriptorLayout;
-  Ref<DescriptorSetLayout> m_GeometryOutputDescriptorLayout;
-  Ref<DescriptorSetLayout> m_SpriteDrawDescriptorLayout;
+  Ref<DescriptorSetLayout> geometry_mesh_descriptor_layout_;
+  Ref<DescriptorSetLayout> shadow_mesh_descriptor_layout_;
+  Ref<DescriptorSetLayout> global_descriptor_layout_;
+  Ref<DescriptorSetLayout> global_shadow_descriptor_layout_;
+  Ref<DescriptorSetLayout> ssao_gen_descriptor_layout_;
+  Ref<DescriptorSetLayout> ssao_blur_descriptor_layout_;
+  Ref<DescriptorSetLayout> ssao_output_descriptor_layout_;
+  Ref<DescriptorSetLayout> geometry_output_descriptor_layout_;
+  Ref<DescriptorSetLayout> sprite_draw_descriptor_layout_;
 
 #ifdef ID_BUFFER_PASS
-  Ref<RenderPass> m_IDRenderPass;
-  Ref<Pipeline> m_IDPipeline;
+  Ref<RenderPass> id_render_pass_;
+  Ref<Pipeline> id_pipeline_;
 #endif
 
-  Ref<RenderPass> m_GeometryRenderPass;
-  Ref<Pipeline> m_GeometryPipeline;
+  Ref<RenderPass> geometry_render_pass_;
+  Ref<Pipeline> geometry_pipeline_;
 
-  Ref<RenderPass> m_ShadowRenderPass;
-  Ref<Pipeline> m_ShadowPipeline;
-  Ref<ShadowPipelinePushConstant> m_ShadowPipelinePushConstant;
+  Ref<RenderPass> shadow_render_pass_;
+  Ref<Pipeline> shadow_pipeline_;
+  Ref<ShadowPipelinePushConstant> shadow_pipeline_push_constant_;
 
-  Ref<RenderPass> m_LightingRenderPass;
-  Ref<DescriptorSetLayout> m_SkyboxDescriptorLayout;
-  Ref<Pipeline> m_SkyboxPipeline;
-  Ref<Pipeline> m_LightingPipeline;
+  Ref<RenderPass> lighting_render_pass_;
+  Ref<DescriptorSetLayout> skybox_descriptor_layout_;
+  Ref<Pipeline> skybox_pipeline_;
+  Ref<Pipeline> lighting_pipeline_;
 
-  Ref<RenderPass> m_SSAOGenRenderPass;
-  Ref<Pipeline> m_SSAOGenPipeline;
+  Ref<RenderPass> ssao_gen_render_pass_;
+  Ref<Pipeline> ssao_gen_pipeline_;
 
-  Ref<RenderPass> m_SSAOBlurRenderPass;
-  Ref<Pipeline> m_SSAOBlurPipeline;
+  Ref<RenderPass> ssao_blur_horz_render_pass_;
+  Ref<Pipeline> ssao_blur_horz_pipeline_;
+  Ref<RenderPass> ssao_blur_vert_render_pass_;
+  Ref<Pipeline> ssao_blur_vert_pipeline_;
 
-  Ref<RenderPass> m_SpriteRenderPass;
-  Ref<Pipeline> m_SpritePipeline;
+  Ref<RenderPass> sprite_render_pass_;
+  Ref<Pipeline> sprite_pipeline_;
 
-  Ref<RenderPass> m_CompositeRenderPass;
-  Ref<Pipeline> m_CompositePipeline;
+  Ref<RenderPass> composite_render_pass_;
+  Ref<Pipeline> composite_pipeline_;
 
-  Ref<RenderPass> m_PresentRenderPass;
-  Ref<DescriptorSetLayout> m_PresentDescriptorLayout;
-  Ref<Pipeline> m_PresentPipeline;
-  Ref<AttachmentTexture> m_PresentColorImage;
-  Ref<AttachmentTexture> m_PresentDepthStencil;
-  std::vector<Ref<Framebuffer>> m_PresentFramebuffers;
+  Ref<RenderPass> present_render_pass_;
+  Ref<DescriptorSetLayout> present_descriptor_layout_;
+  Ref<Pipeline> present_pipeline_;
+  Ref<AttachmentTexture> present_color_image_;
+  Ref<AttachmentTexture> present_depth_stencil_;
+  std::vector<Ref<Framebuffer>> present_framebuffers_;
 
-  Ref<Sampler> m_DefaultLinearSampler;
-  Ref<Sampler> m_DefaultNearestSampler;
-  Ref<Texture> m_BlankTexture;
-  Ref<MemoryBuffer> m_QuadVertexBuffer;
-  Ref<IndexBuffer> m_QuadIndexBuffer;
-  Ref<AttachmentTexture> m_SSAONoise;
+  Ref<Sampler> default_linear_sampler_;
+  Ref<Sampler> default_nearest_sampler_;
+  Ref<Texture> blank_texture_;
+  Ref<MemoryBuffer> quad_vertex_buffer_;
+  Ref<IndexBuffer> quad_index_buffer_;
+  Ref<AttachmentTexture> ssao_noise_;
 
-  QueueFamilyIndices m_QueueFamilyIndices;
-  SwapChainSupportDetails m_SwapChainDetails;
-  VkPhysicalDeviceProperties m_PhysicalDeviceProperties;
-  VkPhysicalDeviceFeatures m_PhysicalDeviceFeatures;
+  QueueFamilyIndices queue_family_indices_;
+  SwapChainSupportDetails swap_chain_details_;
+  VkPhysicalDeviceProperties physical_device_properties_;
+  VkPhysicalDeviceFeatures physical_device_features_;
+  std::vector<std::string> shader_features_;
+
+  TracyVkCtx tracy_ctx_;
 };
 
 #ifdef VULKAN_VALIDATION
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+    VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    VkDebugUtilsMessageTypeFlagsEXT message_type,
+    const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 #endif
 
 }  // namespace Wiesel

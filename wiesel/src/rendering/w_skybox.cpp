@@ -7,8 +7,8 @@
 
 namespace Wiesel {
 
-Skybox::Skybox(Ref<Texture> texture) : m_Texture(texture) {
-  m_Descriptors = Engine::GetRenderer()->CreateSkyboxDescriptors(m_Texture);
+Skybox::Skybox(Ref<Texture> texture) : texture_(texture) {
+  descriptors_ = Engine::GetRenderer()->CreateSkyboxDescriptors(texture_);
 }
 
 Skybox::~Skybox() {

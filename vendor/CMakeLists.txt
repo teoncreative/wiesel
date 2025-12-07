@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 
+if(POLICY CMP0175)
+    cmake_policy(SET CMP0175 OLD)
+endif()
+
 find_package(Vulkan REQUIRED)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -21,3 +25,4 @@ add_subdirectory(${VENDOR_DIR}/fmt)
 set(ENABLE_HLSL ON CACHE BOOL "" FORCE)
 set(ENABLE_GLSLANG_INSTALL ON CACHE BOOL "" FORCE)
 add_subdirectory(${VENDOR_DIR}/glslang)
+add_subdirectory(${VENDOR_DIR}/cxxopts)

@@ -16,25 +16,24 @@
 
 namespace Wiesel {
 
-MonoBehavior::MonoBehavior(Entity entity, const std::string& scriptName) :
-      IBehavior(scriptName, entity) {
-  m_Unset = true;
-  m_InternalBehavior = false;
-  m_Unset = false;
-  m_Enabled = true;
-  m_ScriptInstance = nullptr;
+MonoBehavior::MonoBehavior(Entity entity, const std::string& script_name) :
+      IBehavior(script_name, entity) {
+  unset_ = true;
+  internal_behavior_ = false;
+  unset_ = false;
+  enabled_ = true;
+  script_instance_ = nullptr;
   InstantiateScript();
 }
 
 MonoBehavior::~MonoBehavior() {
-  delete m_ScriptInstance;
 }
 
-void MonoBehavior::OnUpdate(float_t deltaTime) {
-  if (m_Unset || !m_Enabled) {
+void MonoBehavior::OnUpdate(float_t delta_time) {
+  if (unset_ || !enabled_) {
     return;
   }
-  m_ScriptInstance->OnUpdate(deltaTime);
+  script_instance_->OnUpdate(delta_time);
 }
 
 void MonoBehavior::OnEvent(Event& event) {
@@ -47,39 +46,38 @@ void MonoBehavior::OnEvent(Event& event) {
 }
 
 void MonoBehavior::InstantiateScript() {
-  if (m_Name.empty()) {
+  if (name_.empty()) {
     return;
   }
-  m_ScriptInstance = ScriptManager::CreateScriptInstance(this);
+  script_instance_ = ScriptManager::CreateScriptInstance(this);
 }
 
 bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {
-  std::map<std::string, std::function<MonoObject*()>> copy = m_ScriptInstance->m_AttachedVariables;
-  delete m_ScriptInstance;
-  m_ScriptInstance = nullptr;
+  std::map<std::string, std::function<MonoObject*()>> copy = script_instance_->attached_variables_;
+  script_instance_ = nullptr;
   InstantiateScript();
-  m_ScriptInstance->m_AttachedVariables = copy;
+  script_instance_->attached_variables_ = copy;
   return false;
 }
 
 bool MonoBehavior::OnKeyPressed(KeyPressedEvent& event) {
-  if (m_Unset || !m_Enabled) {
+  if (unset_ || !enabled_) {
     return false;
   }
-  return m_ScriptInstance->OnKeyPressed(event);
+  return script_instance_->OnKeyPressed(event);
 }
 
 bool MonoBehavior::OnKeyReleased(KeyReleasedEvent& event) {
-  if (m_Unset || !m_Enabled) {
+  if (unset_ || !enabled_) {
     return false;
   }
-  return m_ScriptInstance->OnKeyReleased(event);
+  return script_instance_->OnKeyReleased(event);
 }
 
 bool MonoBehavior::OnMouseMoved(MouseMovedEvent& event) {
-  if (m_Unset || !m_Enabled) {
+  if (unset_ || !enabled_) {
     return false;
   }
-  return m_ScriptInstance->OnMouseMoved(event);
+  return script_instance_->OnMouseMoved(event);
 }
 }
