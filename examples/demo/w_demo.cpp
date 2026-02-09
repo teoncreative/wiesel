@@ -29,8 +29,7 @@ using namespace Wiesel::Editor;
 
 namespace WieselDemo {
 
-DemoLayer::DemoLayer(DemoApplication& app) : app_(app), Layer("Demo Layer") {
-  scene_ = app.GetScene();
+DemoLayer::DemoLayer(DemoApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
   renderer_ = Engine::GetRenderer();
 }
 

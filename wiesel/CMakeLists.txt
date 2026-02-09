@@ -7,7 +7,7 @@ option(ENABLE_ID_BUFFER_PASS "Enables id buffer pass, specifically used for the 
 option(ENABLE_TRACY "Enables tracy profiler" OFF)
 
 if (UNIX)
-    EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
+    execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
     message(STATUS "Arch: ${DEVICEARCHITECTURE}")
 endif ()
 
@@ -30,7 +30,7 @@ include(FetchContent)
 FetchContent_Declare(
         tracy
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
-        GIT_TAG v0.12.2  # or whatever version you want
+        GIT_TAG v0.13.1
         GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
 )
@@ -173,6 +173,7 @@ target_link_libraries(wiesel PUBLIC fmt)
 target_link_libraries(wiesel PUBLIC glslang)
 target_link_libraries(wiesel PUBLIC monolib)
 target_link_libraries(wiesel PUBLIC cxxopts::cxxopts)
+target_link_libraries(wiesel PUBLIC GPUOpen::VulkanMemoryAllocator)
 
 function(_hash s outvar)
     string(MD5 _h "${s}")
@@ -183,7 +184,7 @@ endfunction()
 function(target_include_assets target_project assets_dir)
     get_filename_component(ASSETS_DIR "${assets_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
     if(NOT EXISTS "${ASSETS_DIR}")
-        return()  # optional: nothing to do
+        return()
     endif()
 
     _hash("${ASSETS_DIR}-project" ASSET_ID)

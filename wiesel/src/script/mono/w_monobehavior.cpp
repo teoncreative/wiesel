@@ -18,10 +18,6 @@ namespace Wiesel {
 
 MonoBehavior::MonoBehavior(Entity entity, const std::string& script_name) :
       IBehavior(script_name, entity) {
-  unset_ = true;
-  internal_behavior_ = false;
-  unset_ = false;
-  enabled_ = true;
   script_instance_ = nullptr;
   InstantiateScript();
 }
@@ -50,6 +46,10 @@ void MonoBehavior::InstantiateScript() {
     return;
   }
   script_instance_ = ScriptManager::CreateScriptInstance(this);
+  if (script_instance_) {
+    unset_ = false;
+    enabled_ = true;
+  }
 }
 
 bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {

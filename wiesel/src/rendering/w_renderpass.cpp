@@ -32,7 +32,7 @@ VkPipelineBindPoint ToVkPipelineBindPoint(PipelineBindPoint point) {
   }
 }
 
-RenderPass::RenderPass(PassType pass_type) : pass_type_(pass_type) {
+RenderPass::RenderPass(PassType pass_type, const std::string& debug_name) : pass_type_(pass_type), debug_name(debug_name) {
 
 }
 
@@ -104,10 +104,12 @@ void RenderPass::Bake() {
           .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
           .finalLayout = pass_type_ == PassType::Present ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       });
-      resolveAttachmentRefs.push_back({
-          .attachment = index,
-          .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-      });
+      if (item.msaa_samples > VK_SAMPLE_COUNT_1_BIT || item.type == AttachmentTextureType::Resolve) {
+        resolveAttachmentRefs.push_back({
+            .attachment = index,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        });
+      }
       index++;
     }
   }
@@ -213,6 +215,10 @@ void RenderPass::Bake() {
                          &render_pass_) != VK_SUCCESS) {
     throw std::runtime_error("failed to create render pass!");
   }
+
+  Engine::GetRenderer()->SetObjectName(VK_OBJECT_TYPE_RENDER_PASS,
+                                       reinterpret_cast<uint64_t>(render_pass_),
+                                       debug_name.c_str());
 }
 
 void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) {
@@ -248,7 +254,7 @@ void RenderPass::End() {
 }
 
 // Change these to take span of Ref<ImageView> instead.
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> output_attachments, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture* const> output_attachments, glm::vec2 extent) {
   bool has_depth = false;
   std::vector<VkImageView> views;
   for (const auto& item : output_attachments) {
@@ -264,7 +270,7 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<Attachm
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageView*> output_views, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(std::span<ImageView*> output_views, glm::vec2 extent) {
   std::vector<VkImageView> views;
   for (const auto& item : output_views) {
     views.push_back(item->handle_);
@@ -273,7 +279,7 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<ImageVi
   return CreateReference<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent) {
+Ref<Framebuffer> RenderPass::CreateFramebuffer(std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent) {
   std::vector<VkImageView> views;
   for (const auto& item : output_views) {
     views.push_back(item->handle_);

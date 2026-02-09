@@ -44,7 +44,7 @@ VkPipelineBindPoint ToVkPipelineBindPoint(PipelineBindPoint point);
 
 class RenderPass {
  public:
-  RenderPass(PassType pass_type);
+  RenderPass(PassType pass_type, const std::string& debug_name);
   ~RenderPass();
 
   void AttachOutput(Ref<AttachmentTexture> ref);
@@ -55,14 +55,23 @@ class RenderPass {
   void Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color);
   void End();
 
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture*> output_attachments, glm::vec2 extent);
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<ImageView*> output_views, glm::vec2 extent);
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture* const> output_attachments, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(std::span<ImageView*> output_views, glm::vec2 extent);
+  Ref<Framebuffer> CreateFramebuffer(std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent);
+
+  Ref<Framebuffer> CreateFramebuffer(
+      uint32_t index,
+      std::initializer_list<AttachmentTexture* const> output_attachments,
+      glm::vec2 extent
+  ) {
+    return CreateFramebuffer(index, std::span(output_attachments.begin(), output_attachments.end()), extent);
+  }
 
   const VkRenderPass& GetVulkanHandle() const { return render_pass_; }
  private:
   friend class Pipeline;
   PassType pass_type_;
+  std::string debug_name;
   VkRenderPass render_pass_;
   std::vector<AttachmentTextureInfo> attachments_;
 

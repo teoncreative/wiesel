@@ -16,6 +16,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #include <stb_image.h>
+#include <vk_mem_alloc.h>
 
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_camera.hpp"
@@ -35,6 +36,7 @@
 #include "w_shader.hpp"
 #include "w_skybox.hpp"
 #include "window/w_window.hpp"
+
 
 namespace Wiesel {
 
@@ -290,11 +292,15 @@ class Renderer {
       VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
       uint32_t layerCount = 1);
 
+  void SetObjectName(VkObjectType type, uint64_t handle, const char* name);
+
  private:
   void CreateVulkanInstance();
+  void LoadInstanceExtensions();
   void CreateSurface();
   void PickPhysicalDevice();
   void CreateLogicalDevice();
+  void LoadDeviceExtensions();
   void CreateDescriptorLayouts();
   void CreateSwapChain();
   void CreateGeometryRenderPass();
@@ -478,6 +484,9 @@ class Renderer {
   std::vector<std::string> shader_features_;
 
   TracyVkCtx tracy_ctx_;
+  PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ = nullptr;
+  PFN_vkCreateDebugUtilsMessengerEXT pfn_create_debug_utils_messenger_ext_ = nullptr;
+  PFN_vkDestroyDebugUtilsMessengerEXT pfn_destroy_debug_utils_messenger_ext_ = nullptr;
 };
 
 #ifdef VULKAN_VALIDATION

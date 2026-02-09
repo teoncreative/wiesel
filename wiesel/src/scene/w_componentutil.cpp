@@ -159,6 +159,46 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
   }
 }
 
+void RenderScriptVariables(ScriptInstance* instance) {
+  if (!instance) {
+    return;
+  }
+  ScriptData& data = instance->script_data();
+  for (FieldData& value : data.fields() | std::views::values) {
+    if (value.GetFieldType() == FieldType::Float) {
+      float_t val = value.Get<float_t>(instance->handle());
+      if (ImGui::DragFloat(
+              PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val,
+              0.1f)) {
+        value.Set(instance->handle(), &val);
+      }
+    } else if (value.GetFieldType() == FieldType::Integer) {
+      int32_t val = value.Get<int32_t>(instance->handle());
+      if (ImGui::DragInt(PrefixLabel(value.GetFormattedName().c_str()).c_str(),
+                         &val, 1)) {
+        value.Set(instance->handle(), &val);
+      }
+    } else if (value.GetFieldType() == FieldType::Boolean) {
+      bool val = value.Get<bool>(instance->handle());
+      if (ImGui::Checkbox(PrefixLabel(value.GetFormattedName().c_str()).c_str(),
+                          &val)) {
+        value.Set(instance->handle(), &val);
+      }
+    } else if (value.GetFieldType() == FieldType::String) {
+      MonoObject* val = value.Get<MonoObject*>(instance->handle());
+      MonoObjectWrapper wrapper{val};
+      std::string str = wrapper.AsString();
+      if (ImGui::InputText(
+              PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
+        MonoString* newVal =
+            mono_string_new(ScriptManager::app_domain(), str.c_str());
+        value.Set(instance->handle(), newVal);
+      }
+    }
+    // todo objects, long and unsigned numbers
+  }
+}
+
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                                   IBehavior& behavior,
                                   Entity entity) {
@@ -204,36 +244,8 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
         return true;
       }
     }*/
-    if (auto mono = dynamic_cast<MonoBehavior*>(&behavior)) {
-      ScriptInstance& instance = *mono->script_instance();
-      ScriptData& data = instance.script_data();
-      for (FieldData& value : data.fields() | std::views::values) {
-        if (value.GetFieldType() == FieldType::Float) {
-          float_t val = value.Get<float_t>(instance.handle());
-          if (ImGui::DragFloat(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 0.1f)) {
-            value.Set(instance.handle(), &val);
-          }
-        } else if (value.GetFieldType() == FieldType::Integer) {
-          int32_t val = value.Get<int32_t>(instance.handle());
-          if (ImGui::DragInt(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val, 1)) {
-            value.Set(instance.handle(), &val);
-          }
-        } else if (value.GetFieldType() == FieldType::Boolean) {
-          bool val = value.Get<bool>(instance.handle());
-          if (ImGui::Checkbox(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val)) {
-            value.Set(instance.handle(), &val);
-          }
-        } else if (value.GetFieldType() == FieldType::String) {
-          MonoObject* val = value.Get<MonoObject*>(instance.handle());
-          MonoObjectWrapper wrapper{val};
-          std::string str = wrapper.AsString();
-          if (ImGui::InputText(PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
-            MonoString* newVal = mono_string_new(ScriptManager::app_domain(), str.c_str());
-            value.Set(instance.handle(), newVal);
-          }
-        }
-        // todo objects, long and unsigned numbers
-      }
+    if (MonoBehavior* mono = dynamic_cast<MonoBehavior*>(&behavior)) {
+      RenderScriptVariables(mono->script_instance());
     }
 
     ImGui::TreePop();

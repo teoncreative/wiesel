@@ -30,7 +30,7 @@ class IBehavior {
         scene_(entity.GetScene()),
         internal_behavior_(true),
         enabled_(true),
-        unset_(false) {}
+        unset_(true) {}
 
   virtual ~IBehavior() {}
 

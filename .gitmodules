@@ -31,3 +31,6 @@
 [submodule "vendor/cxxopts"]
 	path = vendor/cxxopts
 	url = https://github.com/jarro2783/cxxopts
+[submodule "vendor/VulkanMemoryAllocator"]
+	path = vendor/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator

@@ -20,8 +20,6 @@ void IBehavior::OnUpdate(float_t delta_time) {}
 void IBehavior::OnEvent(Event& event) {}
 
 void IBehavior::SetEnabled(bool enabled) {
-  if (unset_)
-    return;
   enabled_ = enabled;
 }
 

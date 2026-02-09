@@ -52,7 +52,7 @@ struct CameraComponent {
 
   Ref<AttachmentTexture> geometry_normal_image;
   Ref<AttachmentTexture> geometry_normal_resolve_image;
-  Ref<AttachmentTexture> GeometryDepthImage;
+  Ref<AttachmentTexture> geometry_depth_image;
   Ref<AttachmentTexture> geometry_depth_resolve_image;
   Ref<AttachmentTexture> geometry_albedo_image;
   Ref<AttachmentTexture> geometry_albedo_resolve_image;
@@ -209,7 +209,7 @@ struct CameraData {
     geometry_view_pos_resolve_image = camera.geometry_view_pos_resolve_image;
     geometry_world_pos_image = camera.geometry_world_pos_image;
     geometry_world_pos_resolve_image = camera.geometry_world_pos_resolve_image;
-    geometry_depth_image = camera.GeometryDepthImage;
+    geometry_depth_image = camera.geometry_depth_image;
     geometry_depth_resolve_image = camera.geometry_depth_resolve_image;
     geometry_depth_stencil = camera.geometry_depth_stencil;
     geometry_material_image = camera.geometry_material_image;

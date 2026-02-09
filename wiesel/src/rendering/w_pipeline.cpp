@@ -268,7 +268,7 @@ void Pipeline::Bind(PipelineBindPoint bind_point) {
                     pipeline_);
   for (const auto& item : push_constants_) {
     vkCmdPushConstants(Engine::GetRenderer()->GetCommandBuffer().handle_, layout_,
-                       item.flags, 0, item.size, item.ref.get());
+                       item.flags, 0, item.size, item.ptr.get());
   }
 }
 

@@ -20,6 +20,9 @@
 
 #include <random>
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 namespace Wiesel {
 
 Renderer::Renderer(Ref<AppWindow> window) : window_(window) {
@@ -55,6 +58,7 @@ Renderer::~Renderer() {
 
 void Renderer::Initialize(const RendererProperties&& properties) {
   CreateVulkanInstance();
+  LoadInstanceExtensions();
 #ifdef VULKAN_VALIDATION
   SetupDebugMessenger();
 #endif
@@ -62,6 +66,7 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   CreateSurface();
   PickPhysicalDevice();
   CreateLogicalDevice();
+  LoadDeviceExtensions();
   CreateGlobalUniformBuffers();
   // ---
   CreateCommandPools();
@@ -211,14 +216,14 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.ssao_blur_vert_color_image = CreateAttachmentTexture(
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
-  component.ssao_gen_framebuffer = ssao_gen_render_pass_->CreateFramebuffer(
-      0, {component.ssao_color_image->image_views_[0]},
+  component.ssao_gen_framebuffer = ssao_gen_render_pass_->CreateFramebuffer(0,
+      {component.ssao_color_image.get()},
       {extent.width / 2, extent.height / 2});
   component.ssao_blur_horz_framebuffer = ssao_blur_horz_render_pass_->CreateFramebuffer(
-      0, {component.ssao_blur_horz_color_image->image_views_[0]},
+      0, {component.ssao_blur_horz_color_image.get()},
       {extent.width, extent.height});
   component.ssao_blur_vert_framebuffer = ssao_blur_vert_render_pass_->CreateFramebuffer(
-      0, {component.ssao_blur_vert_color_image->image_views_[0]},
+      0, {component.ssao_blur_vert_color_image.get()},
       {extent.width, extent.height});
 
   component.geometry_view_pos_image = CreateAttachmentTexture(
@@ -227,7 +232,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.geometry_world_pos_image = CreateAttachmentTexture(
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R32G32B32A32_SFLOAT, msaa_samples_, true});
-  component.GeometryDepthImage = CreateAttachmentTexture(
+  component.geometry_depth_image = CreateAttachmentTexture(
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R32_SFLOAT, msaa_samples_, true});
   component.geometry_normal_image = CreateAttachmentTexture(
@@ -257,7 +262,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
         component.shadow_depth_views[i].get(),
     };
     component.shadow_framebuffers[i] = shadow_render_pass_->CreateFramebuffer(
-        0, textures, {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM});
+        textures, {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM});
   }
 
   if (msaa_samples_ > VK_SAMPLE_COUNT_1_BIT) {
@@ -282,7 +287,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
     std::array<AttachmentTexture*, 13> textures = {
         component.geometry_view_pos_image.get(),
         component.geometry_world_pos_image.get(),
-        component.GeometryDepthImage.get(),
+        component.geometry_depth_image.get(),
         component.geometry_normal_image.get(),
         component.geometry_albedo_image.get(),
         component.geometry_material_image.get(),
@@ -299,18 +304,18 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   } else {
     component.geometry_view_pos_resolve_image = component.geometry_view_pos_image;
     component.geometry_world_pos_resolve_image = component.geometry_world_pos_image;
-    component.geometry_depth_resolve_image = component.GeometryDepthImage;
+    component.geometry_depth_resolve_image = component.geometry_depth_image;
     component.geometry_normal_resolve_image = component.geometry_normal_image;
     component.geometry_albedo_resolve_image = component.geometry_albedo_image;
     component.geometry_material_resolve_image = component.geometry_material_image;
     std::array<AttachmentTexture*, 7> textures = {
         component.geometry_view_pos_image.get(),
         component.geometry_world_pos_image.get(),
-        component.GeometryDepthImage.get(),
+        component.geometry_depth_image.get(),
         component.geometry_normal_image.get(),
         component.geometry_albedo_image.get(),
-        component.geometry_depth_stencil.get(),
         component.geometry_material_image.get(),
+        component.geometry_depth_stencil.get()
     };
     component.geometry_framebuffer = geometry_render_pass_->CreateFramebuffer(
         0, textures, component.viewport_size);
@@ -318,7 +323,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
 
   component.lighting_color_image = CreateAttachmentTexture(
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
-       swap_chain_image_format_, msaa_samples_});
+       swap_chain_image_format_, msaa_samples_, msaa_samples_ == VK_SAMPLE_COUNT_1_BIT});
   if (msaa_samples_ > VK_SAMPLE_COUNT_1_BIT) {
     component.lighting_color_resolve_image = CreateAttachmentTexture(
         {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
@@ -341,29 +346,29 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
        swap_chain_image_format_, VK_SAMPLE_COUNT_1_BIT, true});
 
-  std::array<AttachmentTexture*, 1> textures{component.sprite_color_image.get()};
+  std::array<AttachmentTexture*, 1> sprite_attachments{component.sprite_color_image.get()};
   component.sprite_framebuffer = sprite_render_pass_->CreateFramebuffer(
-      0, textures, {extent.width, extent.height});
+      0, sprite_attachments, {extent.width, extent.height});
 
   component.composite_color_image = CreateAttachmentTexture(
       {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
-       swap_chain_image_format_, msaa_samples_});
+       swap_chain_image_format_, msaa_samples_, msaa_samples_ == VK_SAMPLE_COUNT_1_BIT});
   if (msaa_samples_ > VK_SAMPLE_COUNT_1_BIT) {
     component.composite_color_resolve_image = CreateAttachmentTexture(
         {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
          swap_chain_image_format_, VK_SAMPLE_COUNT_1_BIT, true});
 
-    std::array<AttachmentTexture*, 2> textures{
+    std::array<AttachmentTexture*, 2> composite_attachments{
         component.composite_color_image.get(),
         component.composite_color_resolve_image.get()};
     component.composite_framebuffer = lighting_render_pass_->CreateFramebuffer(
-        0, textures, {extent.width, extent.height});
+        0, composite_attachments, {extent.width, extent.height});
   } else {
     component.composite_color_resolve_image = component.lighting_color_image;
-    std::array<AttachmentTexture*, 1> textures{
+    std::array<AttachmentTexture*, 1> composite_attachments{
         component.composite_color_image.get()};
     component.composite_framebuffer = lighting_render_pass_->CreateFramebuffer(
-        0, textures, {extent.width, extent.height});
+        0, composite_attachments, {extent.width, extent.height});
   }
 
   component.global_descriptor = CreateGlobalDescriptors(component);
@@ -448,8 +453,8 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.ssao_blur_vert_output_descriptor->SetLayout(ssao_blur_descriptor_layout_);
   component.ssao_blur_vert_output_descriptor->AddCombinedImageSampler(
       0, component.ssao_blur_vert_color_image->image_views_[0], default_linear_sampler_);
-  component.ssao_blur_horz_output_descriptor->AddCombinedImageSampler(
-      1, component.geometry_depth_resolve_image->image_views_[0],default_nearest_sampler_);
+  component.ssao_blur_vert_output_descriptor->AddCombinedImageSampler(
+      1, component.geometry_depth_resolve_image->image_views_[0], default_nearest_sampler_);
   component.ssao_blur_vert_output_descriptor->Bake();
 
   component.view_changed = true;
@@ -789,20 +794,20 @@ Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
   texture->width_ = props.width;
   texture->height_ = props.height;
   texture->msaa_samples_ = props.msaa_samples;
-  int flags;
+  int usage;
   if (props.type == AttachmentTextureType::DepthStencil) {
-    flags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
   } else {
-    flags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
   }
 
   if (props.sampled) {
-    flags |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    usage |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
   } else {
-    flags |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+    usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
   }
   if (props.transfer_dest) {
-    flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   }
 
   int aspectFlags;
@@ -819,7 +824,7 @@ Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
 
   for (uint32_t i = 0; i < props.image_count; i++) {
     CreateImage(props.width, props.height, 1, props.msaa_samples,
-                props.image_format, VK_IMAGE_TILING_OPTIMAL, flags,
+                props.image_format, VK_IMAGE_TILING_OPTIMAL, usage,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->images_[i],
                 texture->device_memories_[i], 0, props.layer_count);
 
@@ -966,8 +971,7 @@ Ref<DescriptorSet> Renderer::CreateMeshDescriptors(
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
       logical_device_, &poolInfo, nullptr, &object->descriptor_pool_));
 
-  std::vector<VkDescriptorSetLayout> layouts{
-      1, geometry_mesh_descriptor_layout_->layout_};
+  std::vector<VkDescriptorSetLayout> layouts(1, geometry_mesh_descriptor_layout_->layout_);
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -1470,9 +1474,8 @@ Ref<DescriptorSet> Renderer::CreateDescriptors(Ref<AttachmentTexture> texture) {
   VkDescriptorImageInfo imageInfo;
   imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   imageInfo.imageView = texture->image_views_[0]->handle_;
-  imageInfo.sampler = texture->samplers_.empty()
-                          ? default_linear_sampler_->sampler_
-                          : texture->samplers_[0]->sampler_;
+  imageInfo.sampler = texture->sampler_ ? texture->sampler_->sampler_
+                          : default_linear_sampler_->sampler_;
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
   set.dstSet = object->descriptor_set_;
@@ -1568,6 +1571,9 @@ Colorf& Renderer::GetClearColor() {
 
 void Renderer::SetMsaaSamples(VkSampleCountFlagBits samples) {
   msaa_samples_ = samples;
+  if (swap_chain_created_) {
+    recreate_swap_chain_ = true;
+  }
 }
 
 VkSampleCountFlagBits Renderer::GetMsaaSamples() {
@@ -1679,6 +1685,13 @@ void Renderer::CreateVulkanInstance() {
   WIESEL_CHECK_VKRESULT(vkCreateInstance(&createInfo, nullptr, &instance_));
 }
 
+void Renderer::LoadInstanceExtensions() {
+  pfn_create_debug_utils_messenger_ext_ = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+  instance_, "vkCreateDebugUtilsMessengerEXT");
+  pfn_destroy_debug_utils_messenger_ext_ = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+      instance_, "vkDestroyDebugUtilsMessengerEXT");
+}
+
 void Renderer::CreateSurface() {
   window_->CreateWindowSurface(instance_, &surface_);
 }
@@ -1763,6 +1776,11 @@ void Renderer::CreateLogicalDevice() {
                    &present_queue_);
   vkGetDeviceQueue(logical_device_, GetGraphicsQueueFamilyIndex(), 0,
                    &graphics_queue_);
+}
+
+void Renderer::LoadDeviceExtensions() {
+  pfn_set_debug_utils_object_name_ext_ = (PFN_vkSetDebugUtilsObjectNameEXT)
+    vkGetDeviceProcAddr(logical_device_, "vkSetDebugUtilsObjectNameEXT");
 }
 
 void Renderer::CreateDescriptorLayouts() {
@@ -1921,11 +1939,11 @@ void Renderer::CreateSwapChain() {
     throw std::runtime_error("failed to create swap chain!");
   }
 
-  std::vector<VkImage> swapChainImages;
+  std::vector<VkImage> swap_chain_images;
   vkGetSwapchainImagesKHR(logical_device_, swap_chain_, &imageCount, nullptr);
-  swapChainImages.resize(imageCount);
+  swap_chain_images.resize(imageCount);
   vkGetSwapchainImagesKHR(logical_device_, swap_chain_, &imageCount,
-                          swapChainImages.data());
+                          swap_chain_images.data());
   swap_chain_image_format_ = surfaceFormat.format;
 
   aspect_ratio_ = extent_.width / (float)extent_.height;
@@ -1941,7 +1959,7 @@ void Renderer::CreateSwapChain() {
   texture->type_ = AttachmentTextureType::SwapChain;
   texture->is_allocated_ = true;
   texture->msaa_samples_ = msaa_samples_;
-  for (VkImage& image : swapChainImages) {
+  for (VkImage& image : swap_chain_images) {
     TransitionImageLayout(image, swap_chain_image_format_,
                           VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
@@ -1957,24 +1975,24 @@ void Renderer::CreateSwapChain() {
 
   present_depth_stencil_ = CreateAttachmentTexture(
       {extent_.width, extent_.height, AttachmentTextureType::DepthStencil,
-       static_cast<uint32_t>(swapChainImages.size()), FindDepthFormat(),
+       static_cast<uint32_t>(swap_chain_images.size()), FindDepthFormat(),
        msaa_samples_});
 
   present_color_image_ = CreateAttachmentTexture(
       {extent_.width, extent_.height, AttachmentTextureType::Color,
-       static_cast<uint32_t>(swapChainImages.size()), swap_chain_image_format_,
+       static_cast<uint32_t>(swap_chain_images.size()), swap_chain_image_format_,
        msaa_samples_});
 
-  present_render_pass_ = CreateReference<RenderPass>(PassType::Present);
+  present_render_pass_ = CreateReference<RenderPass>(PassType::Present, "Present RenderPass");
   present_render_pass_->AttachOutput(present_color_image_);
   present_render_pass_->AttachOutput(present_depth_stencil_);
   present_render_pass_->AttachOutput(swap_chain_texture_);
   present_render_pass_->Bake();
-  present_framebuffers_.resize(swapChainImages.size());
+  present_framebuffers_.resize(swap_chain_images.size());
   std::array<AttachmentTexture*, 3> textures{present_color_image_.get(),
                                              present_depth_stencil_.get(),
                                              swap_chain_texture_.get()};
-  for (uint32_t i = 0; i < swapChainImages.size(); i++) {
+  for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
     present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
         i, textures, {extent_.width, extent_.height});
   }
@@ -1983,7 +2001,7 @@ void Renderer::CreateSwapChain() {
 void Renderer::CreateGeometryRenderPass() {
   LOG_DEBUG("Creating render pass");
 
-  geometry_render_pass_ = CreateReference<RenderPass>(PassType::Geometry);
+  geometry_render_pass_ = CreateReference<RenderPass>(PassType::Geometry, "Geometry RenderPass");
   geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
                                       .msaa_samples = msaa_samples_});
@@ -2028,7 +2046,7 @@ void Renderer::CreateGeometryRenderPass() {
   }
   geometry_render_pass_->Bake();
 
-  lighting_render_pass_ = CreateReference<RenderPass>(PassType::Lighting);
+  lighting_render_pass_ = CreateReference<RenderPass>(PassType::Lighting, "Deferred Lightning RenderPass");
   lighting_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                       .format = swap_chain_image_format_,
                                       .msaa_samples = msaa_samples_});
@@ -2039,7 +2057,7 @@ void Renderer::CreateGeometryRenderPass() {
   }
   lighting_render_pass_->Bake();
 
-  composite_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess);
+  composite_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess, "Composite RenderPass");
   composite_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                        .format = swap_chain_image_format_,
                                        .msaa_samples = msaa_samples_});
@@ -2050,31 +2068,31 @@ void Renderer::CreateGeometryRenderPass() {
   }
   composite_render_pass_->Bake();
 
-  sprite_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess);
+  sprite_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess, "Sprite RenderPass");
   sprite_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                     .format = swap_chain_image_format_,
                                     .msaa_samples = VK_SAMPLE_COUNT_1_BIT});
   sprite_render_pass_->Bake();
 
-  ssao_gen_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess);
+  ssao_gen_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess, "SSAO Generate RenderPass");
   ssao_gen_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                      .format = VK_FORMAT_R8_UNORM,
                                      .msaa_samples = VK_SAMPLE_COUNT_1_BIT});
   ssao_gen_render_pass_->Bake();
 
-  ssao_blur_horz_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess);
+  ssao_blur_horz_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess, "SSAO Horizontal Blur RenderPass");
   ssao_blur_horz_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                       .format = VK_FORMAT_R8_UNORM,
                                       .msaa_samples = VK_SAMPLE_COUNT_1_BIT});
   ssao_blur_horz_render_pass_->Bake();
 
-  ssao_blur_vert_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess);
+  ssao_blur_vert_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess, "SSAO Vertical Blur RenderPass");
   ssao_blur_vert_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                                       .format = VK_FORMAT_R8_UNORM,
                                       .msaa_samples = VK_SAMPLE_COUNT_1_BIT});
   ssao_blur_vert_render_pass_->Bake();
 
-  shadow_render_pass_ = CreateReference<RenderPass>(PassType::Shadow);
+  shadow_render_pass_ = CreateReference<RenderPass>(PassType::Shadow, "Deferred Shadow RenderPass");
   shadow_render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
                                     .format = FindDepthFormat(),
                                     .msaa_samples = VK_SAMPLE_COUNT_1_BIT});
@@ -2083,10 +2101,10 @@ void Renderer::CreateGeometryRenderPass() {
 
 void Renderer::CreateGeometryGraphicsPipelines() {
   LOG_DEBUG("Creating graphics pipeline");
-  auto geometryVertexShader =
+  auto geometry_vertex_shader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/geometry_shader.vert"});
-  auto geometryFragmentShader =
+  auto geometry_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/geometry_shader.frag"});
   geometry_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
@@ -2096,14 +2114,14 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   geometry_pipeline_->SetRenderPass(geometry_render_pass_);
   geometry_pipeline_->AddInputLayout(geometry_mesh_descriptor_layout_);
   geometry_pipeline_->AddInputLayout(global_descriptor_layout_);
-  geometry_pipeline_->AddShader(geometryVertexShader);
-  geometry_pipeline_->AddShader(geometryFragmentShader);
+  geometry_pipeline_->AddShader(geometry_vertex_shader);
+  geometry_pipeline_->AddShader(geometry_fragment_shader);
   geometry_pipeline_->Bake();
 
-  auto skyboxVertexShader =
+  auto skybox_vertex_shader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/skybox_shader.vert"});
-  auto skyboxFragmentShader =
+  auto skybox_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/skybox_shader.frag"});
   skybox_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
@@ -2111,14 +2129,14 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   skybox_pipeline_->SetRenderPass(lighting_render_pass_);
   skybox_pipeline_->AddInputLayout(skybox_descriptor_layout_);
   skybox_pipeline_->AddInputLayout(global_descriptor_layout_);
-  skybox_pipeline_->AddShader(skyboxVertexShader);
-  skybox_pipeline_->AddShader(skyboxFragmentShader);
+  skybox_pipeline_->AddShader(skybox_vertex_shader);
+  skybox_pipeline_->AddShader(skybox_fragment_shader);
   skybox_pipeline_->Bake();
 
-  auto fullscreenVertexShader = CreateShader(
+  auto fullscreen_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "assets/internal_shaders/fullscreen_shader.vert"});
-  auto lightingFragmentShader =
+  auto lighting_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/lighting_shader.frag"});
 
@@ -2129,14 +2147,14 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   lighting_pipeline_->AddInputLayout(ssao_output_descriptor_layout_);
   lighting_pipeline_->AddInputLayout(global_descriptor_layout_);
   lighting_pipeline_->AddInputLayout(skybox_descriptor_layout_);
-  lighting_pipeline_->AddShader(fullscreenVertexShader);
-  lighting_pipeline_->AddShader(lightingFragmentShader);
+  lighting_pipeline_->AddShader(fullscreen_vertex_shader);
+  lighting_pipeline_->AddShader(lighting_fragment_shader);
   lighting_pipeline_->Bake();
 
-  auto shadowVertexShader =
+  auto shadow_vertex_shader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/shadow_shader.vert"});
-  auto shadowFragmentShader =
+  auto shadow_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/shadow_shader.frag"});
   shadow_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
@@ -2144,15 +2162,16 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   shadow_pipeline_->SetRenderPass(shadow_render_pass_);
   shadow_pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                                   Vertex3D::GetAttributeDescriptions());
+  shadow_pipeline_push_constant_ = std::make_shared<ShadowPipelinePushConstant>();
   shadow_pipeline_->AddPushConstant(shadow_pipeline_push_constant_,
                                     VK_SHADER_STAGE_VERTEX_BIT);
   shadow_pipeline_->AddInputLayout(shadow_mesh_descriptor_layout_);
   shadow_pipeline_->AddInputLayout(global_shadow_descriptor_layout_);
-  shadow_pipeline_->AddShader(shadowVertexShader);
-  shadow_pipeline_->AddShader(shadowFragmentShader);
+  shadow_pipeline_->AddShader(shadow_vertex_shader);
+  shadow_pipeline_->AddShader(shadow_fragment_shader);
   shadow_pipeline_->Bake();
 
-  auto ssaoFragmentShader =
+  auto ssao_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/ssao_gen_shader.frag"});
 
@@ -2161,11 +2180,11 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   ssao_gen_pipeline_->SetRenderPass(ssao_gen_render_pass_);
   ssao_gen_pipeline_->AddInputLayout(ssao_gen_descriptor_layout_);
   ssao_gen_pipeline_->AddInputLayout(global_descriptor_layout_);
-  ssao_gen_pipeline_->AddShader(fullscreenVertexShader);
-  ssao_gen_pipeline_->AddShader(ssaoFragmentShader);
+  ssao_gen_pipeline_->AddShader(fullscreen_vertex_shader);
+  ssao_gen_pipeline_->AddShader(ssao_fragment_shader);
   ssao_gen_pipeline_->Bake();
 
-  auto ssaoBlurHorzFragmentShader = CreateShader(
+  auto ssao_blur_horz_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "assets/internal_shaders/ssao_blur_shader.frag"});
 
@@ -2173,11 +2192,11 @@ void Renderer::CreateGeometryGraphicsPipelines() {
       VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
   ssao_blur_horz_pipeline_->SetRenderPass(ssao_blur_horz_render_pass_);
   ssao_blur_horz_pipeline_->AddInputLayout(ssao_blur_descriptor_layout_);
-  ssao_blur_horz_pipeline_->AddShader(fullscreenVertexShader);
-  ssao_blur_horz_pipeline_->AddShader(ssaoBlurHorzFragmentShader);
+  ssao_blur_horz_pipeline_->AddShader(fullscreen_vertex_shader);
+  ssao_blur_horz_pipeline_->AddShader(ssao_blur_horz_fragment_shader);
   ssao_blur_horz_pipeline_->Bake();
 
-  auto ssaoBlurVertFragmentShader = CreateShader(
+  auto ssao_blur_vert_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "assets/internal_shaders/ssao_blur_shader.frag", {"BLUR_VERTICAL"}});
 
@@ -2185,14 +2204,14 @@ void Renderer::CreateGeometryGraphicsPipelines() {
       VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
   ssao_blur_vert_pipeline_->SetRenderPass(ssao_blur_vert_render_pass_);
   ssao_blur_vert_pipeline_->AddInputLayout(ssao_blur_descriptor_layout_);
-  ssao_blur_vert_pipeline_->AddShader(fullscreenVertexShader);
-  ssao_blur_vert_pipeline_->AddShader(ssaoBlurVertFragmentShader);
+  ssao_blur_vert_pipeline_->AddShader(fullscreen_vertex_shader);
+  ssao_blur_vert_pipeline_->AddShader(ssao_blur_vert_fragment_shader);
   ssao_blur_vert_pipeline_->Bake();
 
-  auto spriteVertexShader =
+  auto sprite_vertex_shader =
       CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/sprite_shader.vert"});
-  auto spriteFragmentShader =
+  auto sprite_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/sprite_shader.frag"});
 
@@ -2203,11 +2222,11 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   sprite_pipeline_->SetRenderPass(sprite_render_pass_);
   sprite_pipeline_->AddInputLayout(sprite_draw_descriptor_layout_);
   sprite_pipeline_->AddInputLayout(global_descriptor_layout_);
-  sprite_pipeline_->AddShader(spriteVertexShader);
-  sprite_pipeline_->AddShader(spriteFragmentShader);
+  sprite_pipeline_->AddShader(sprite_vertex_shader);
+  sprite_pipeline_->AddShader(sprite_fragment_shader);
   sprite_pipeline_->Bake();
 
-  auto compositeFragmentShader =
+  auto composite_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/quad_shader.frag"});
 
@@ -2215,24 +2234,24 @@ void Renderer::CreateGeometryGraphicsPipelines() {
       msaa_samples_, CullModeFront, false, true, true, false});
   composite_pipeline_->SetRenderPass(composite_render_pass_);
   composite_pipeline_->AddInputLayout(skybox_descriptor_layout_);
-  composite_pipeline_->AddShader(fullscreenVertexShader);
-  composite_pipeline_->AddShader(compositeFragmentShader);
+  composite_pipeline_->AddShader(fullscreen_vertex_shader);
+  composite_pipeline_->AddShader(composite_fragment_shader);
   composite_pipeline_->Bake();
 }
 
 void Renderer::CreatePresentGraphicsPipelines() {
-  auto presentVertexShader = CreateShader(
+  auto present_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "assets/internal_shaders/fullscreen_shader.vert"});
-  auto presentFragmentShader =
+  auto present_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
                     ShaderSourceSource, "assets/internal_shaders/quad_shader.frag"});
   present_pipeline_ = CreateReference<Pipeline>(
       PipelineProperties{msaa_samples_, CullModeNone, false, true});
   present_pipeline_->SetRenderPass(present_render_pass_);
   present_pipeline_->AddInputLayout(present_descriptor_layout_);
-  present_pipeline_->AddShader(presentVertexShader);
-  present_pipeline_->AddShader(presentFragmentShader);
+  present_pipeline_->AddShader(present_vertex_shader);
+  present_pipeline_->AddShader(present_fragment_shader);
   present_pipeline_->Bake();
 }
 
@@ -2479,8 +2498,6 @@ void Renderer::CreateCommandBuffers() {
 }
 
 void Renderer::CreatePermanentResources() {
-  shadow_pipeline_push_constant_ = CreateReference<ShadowPipelinePushConstant>();
-
   blank_texture_ = CreateBlankTexture();
 
   std::vector<Index> quadIndices = {0, 1, 2, 2, 3, 0};
@@ -2610,6 +2627,19 @@ Ref<ImageView> Renderer::CreateImageView(VkImage image, VkFormat format,
       vkCreateImageView(logical_device_, &viewInfo, nullptr, &view->handle_));
 
   return view;
+}
+
+void Renderer::SetObjectName(VkObjectType type, uint64_t handle,
+                             const char* name) {
+  if (!pfn_set_debug_utils_object_name_ext_) {
+    return; // Silently skip if not available
+  }
+  VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+  nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+  nameInfo.objectType = type;
+  nameInfo.objectHandle = handle;
+  nameInfo.pObjectName = name;
+  pfn_set_debug_utils_object_name_ext_(logical_device_, &nameInfo);
 }
 
 Ref<ImageView> Renderer::CreateImageView(Ref<AttachmentTexture> image,
@@ -2764,8 +2794,19 @@ VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
 }
 
 void Renderer::CreateTracy() {
-  tracy_ctx_ = TracyVkContext(physical_device_, logical_device_,
-                                       graphics_queue_, command_buffer_->handle_);
+  auto vk_get_physical_device_calibrateable_time_domains_ext =
+    (PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)
+    vkGetInstanceProcAddr(instance_, "vkGetPhysicalDeviceCalibrateableTimeDomainsEXT");
+
+  auto vk_get_calibrated_timestamps_ext =
+      (PFN_vkGetCalibratedTimestampsEXT)
+      vkGetDeviceProcAddr(logical_device_, "vkGetCalibratedTimestampsEXT");
+
+  tracy_ctx_ = TracyVkContextCalibrated(
+      physical_device_, logical_device_,
+      graphics_queue_, command_buffer_->handle_,
+      vk_get_physical_device_calibrateable_time_domains_ext,
+      vk_get_calibrated_timestamps_ext);
 }
 
 void Renderer::CreateSyncObjects() {
@@ -2909,6 +2950,7 @@ bool Renderer::BeginPresent() {
                                           UINT64_MAX, image_available_semaphore_,
                                           VK_NULL_HANDLE, &image_index_);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    LOG_INFO("Received VK_ERROR_OUT_OF_DATE_KHR, trying to recreate swap chain.");
     recreate_swap_chain_ = true;
     return false;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -2963,6 +3005,7 @@ void Renderer::EndPresent() {
                           m_CommandBuffer->m_Handle);
   }*/
 
+  PROFILE_GPU_COLLECT(tracy_ctx_, command_buffer_->handle_);
   command_buffer_->End();
 
   // Presentation
@@ -2984,7 +3027,6 @@ void Renderer::EndPresent() {
 
   WIESEL_CHECK_VKRESULT(
       vkQueueSubmit(graphics_queue_, 1, &submitInfo, fence_));
-  PROFILE_GPU_COLLECT(tracy_ctx_, command_buffer_->handle_);
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -3388,24 +3430,24 @@ void Renderer::DrawFullscreen(
   vkCmdDraw(command_buffer_->handle_, 3, 1, 0, 0);
 }
 
-void Renderer::SetCameraData(Ref<CameraData> cameraData) {
-  camera_ = cameraData;
-  viewport_size_ = cameraData->viewport_size;
-  camera_uniform_data_.Position = cameraData->position;
-  camera_uniform_data_.ViewMatrix = cameraData->view_matrix;
-  camera_uniform_data_.Projection = cameraData->projection;
-  camera_uniform_data_.InvProjection = cameraData->inv_projection;
-  camera_uniform_data_.NearPlane = cameraData->near_plane;
-  camera_uniform_data_.FarPlane = cameraData->far_plane;
-  shadow_camera_uniform_data_.EnableShadows = cameraData->does_shadow_pass;
+void Renderer::SetCameraData(Ref<CameraData> camera_data) {
+  camera_ = camera_data;
+  viewport_size_ = camera_data->viewport_size;
+  camera_uniform_data_.Position = camera_data->position;
+  camera_uniform_data_.ViewMatrix = camera_data->view_matrix;
+  camera_uniform_data_.Projection = camera_data->projection;
+  camera_uniform_data_.InvProjection = camera_data->inv_projection;
+  camera_uniform_data_.NearPlane = camera_data->near_plane;
+  camera_uniform_data_.FarPlane = camera_data->far_plane;
+  shadow_camera_uniform_data_.EnableShadows = camera_data->does_shadow_pass;
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     shadow_camera_uniform_data_.ViewProjectionMatrix[i] =
-        cameraData->shadow_map_cascades[i].ViewProjMatrix;
+        camera_data->shadow_map_cascades[i].ViewProjMatrix;
     camera_uniform_data_.CascadeSplits[i] =
-        cameraData->shadow_map_cascades[i].SplitDepth;
+        camera_data->shadow_map_cascades[i].SplitDepth;
   }
   // Todo move this to another ubo for options maybe
-  camera_uniform_data_.EnableSSAO = enable_ssao_;
+  camera_uniform_data_.enable_ssao = enable_ssao_;
 }
 
 std::vector<const char*> Renderer::GetRequiredExtensions() {
@@ -3654,10 +3696,8 @@ VkResult Renderer::CreateDebugUtilsMessengerEXT(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
     const VkAllocationCallbacks* pAllocator,
     VkDebugUtilsMessengerEXT* pDebugMessenger) {
-  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance, "vkCreateDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+  if (pfn_create_debug_utils_messenger_ext_) {
+    return pfn_create_debug_utils_messenger_ext_(instance, pCreateInfo, pAllocator, pDebugMessenger);
   } else {
     return VK_ERROR_EXTENSION_NOT_PRESENT;
   }
@@ -3704,11 +3744,8 @@ bool Renderer::CheckValidationLayerSupport() {
 void Renderer::DestroyDebugUtilsMessengerEXT(
     VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
     const VkAllocationCallbacks* pAllocator) {
-  auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance, "vkDestroyDebugUtilsMessengerEXT");
-
-  if (func != nullptr) {
-    func(instance, debugMessenger, pAllocator);
+  if (pfn_destroy_debug_utils_messenger_ext_) {
+    pfn_destroy_debug_utils_messenger_ext_(instance, debugMessenger, pAllocator);
   }
 }
 

@@ -37,13 +37,23 @@ void DescriptorSet::Bake() {
                             nullptr);
     allocated_ = false;
   }
-  VkDescriptorPoolSize poolSizes[] = {
-      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
+
+  std::vector<VkDescriptorPoolSize> poolSizes;
+
+  if (!combined_image_samplers_.empty()) {
+    poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                         static_cast<uint32_t>(combined_image_samplers_.size())});
+  }
+
+  if (!uniform_buffer_data_.empty()) {
+    poolSizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                         static_cast<uint32_t>(uniform_buffer_data_.size())});
+  }
 
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  poolInfo.poolSizeCount = std::size(poolSizes);
-  poolInfo.pPoolSizes = poolSizes;
+  poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+  poolInfo.pPoolSizes = poolSizes.data();
   poolInfo.maxSets = 1;
 
   // Allocate pool

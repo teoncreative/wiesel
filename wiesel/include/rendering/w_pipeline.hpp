@@ -33,19 +33,19 @@ struct PushConstant {
   VkShaderStageFlags flags;
   uint32_t size;
   uint32_t offset;
-  Ref<void> ref;
+  std::shared_ptr<void> ptr;
 };
 
 struct Pipeline {
   explicit Pipeline(PipelineProperties properties);
   ~Pipeline();
 
-  void SetRenderPass(Ref<RenderPass> pass);
-  void AddInputLayout(Ref<DescriptorSetLayout> layout);
+  void SetRenderPass(std::shared_ptr<RenderPass> pass);
+  void AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout);
   void AddDynamicState(VkDynamicState state);
-  void AddShader(Ref<Shader> shader);
+  void AddShader(std::shared_ptr<Shader> shader);
   template<typename T>
-  void AddShader(Ref<Shader> shader, T* data, std::vector<VkSpecializationMapEntry> mapEntries) {
+  void AddShader(std::shared_ptr<Shader> shader, T* data, std::vector<VkSpecializationMapEntry> mapEntries) {
     shaders_.push_back({
         .shader = shader,
         .specialization = {
@@ -60,12 +60,13 @@ struct Pipeline {
   void SetVertexData(std::vector<VkVertexInputBindingDescription> input_binding_descriptions, std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
 
   template<typename T>
-  void AddPushConstant(Ref<T> ref, VkShaderStageFlags flags) {
+  void AddPushConstant(std::shared_ptr<T> ptr, VkShaderStageFlags flags) {
+    assert(ptr);
     push_constants_.push_back(PushConstant{
         .flags = flags,
         .size = sizeof(T),
         .offset = static_cast<uint32_t>(push_constants_.size()),
-        .ref = std::static_pointer_cast<void>(ref)
+        .ptr = std::static_pointer_cast<void>(ptr)
     });
   }
 
@@ -78,14 +79,14 @@ struct Pipeline {
     void* data;
   };
   struct ShaderInfo {
-    Ref<Shader> shader;
+    std::shared_ptr<Shader> shader;
     SpecializationData specialization;
   };
   PipelineProperties properties_;
   std::vector<ShaderInfo> shaders_;
   std::vector<VkDynamicState> dynamic_states_;
-  Ref<RenderPass> m_RenderPass;
-  std::vector<Ref<DescriptorSetLayout>> descriptor_layouts_;
+  std::shared_ptr<RenderPass> m_RenderPass;
+  std::vector<std::shared_ptr<DescriptorSetLayout>> descriptor_layouts_;
   VkPipelineLayout layout_{};
   VkPipeline pipeline_{};
   bool has_vertex_binding_ = false;

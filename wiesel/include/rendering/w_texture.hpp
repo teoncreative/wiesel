@@ -224,13 +224,12 @@ class AttachmentTexture {
   AttachmentTextureType type_;
   std::vector<VkImage> images_;
   std::vector<Ref<ImageView>> image_views_;
-  std::vector<Ref<Sampler>> samplers_;
+  Ref<Sampler> sampler_;
   std::vector<VkDeviceMemory> device_memories_;
   VkFormat format_;
   uint32_t width_;
   uint32_t height_;
   VkSampleCountFlagBits msaa_samples_;
-  Ref<DescriptorSet> descriptors_; // Deprecated, I'll move this
   VkImageAspectFlags aspect_flags_;
   uint32_t mip_levels_;
 

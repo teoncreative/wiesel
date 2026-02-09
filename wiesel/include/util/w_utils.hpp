@@ -21,9 +21,10 @@
 namespace Wiesel {
 
 #define WIESEL_SHADOW_CASCADE_COUNT 4
-#define WIESEL_SSAO_KERNEL_SIZE 24
+#define WIESEL_SSAO_KERNEL_SIZE 32
 #define WIESEL_SSAO_RADIUS 0.5
 #define WIESEL_SSAO_NOISE_DIM 8
+#define WIESEL_SSAO_BIAS 0.025
 #define WIESEL_SHADOWMAP_DIM 4096
 
 std::string GetNameFromVulkanResult(VkResult errorCode);
@@ -178,7 +179,7 @@ struct alignas(16) CameraUniformData {
   float FarPlane;
   float _pad1[2];
   glm::vec4 CascadeSplits;
-  uint32_t EnableSSAO;
+  uint32_t enable_ssao;
 };
 
 struct alignas(16) ShadowMapMatricesUniformData {
