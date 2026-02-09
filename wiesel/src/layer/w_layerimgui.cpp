@@ -85,7 +85,7 @@ void ImGuiLayer::OnAttach() {
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
   init_info.MSAASamples = Engine::GetRenderer()->msaa_samples_;
-  init_info.RenderPass = Engine::GetRenderer()->composite_render_pass_->GetVulkanHandle();
+  init_info.RenderPass = Engine::GetRenderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 }
