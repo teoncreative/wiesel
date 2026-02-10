@@ -103,15 +103,14 @@ void DemoLayer::OnAttach() {
   {
     auto entity = scene_->CreateEntity("Camera");
     auto& camera = entity.AddComponent<CameraComponent>();
-    camera.viewport_size = {1920, 1080};
+    camera.viewport_size = {1280, 720};
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
-  renderer_->SetVsync(false);
-  renderer_->SetSSAOEnabled(true);
+  renderer_->render_settings().vsync = false;
 }
 
 void DemoLayer::OnDetach() {

@@ -54,6 +54,7 @@ layout(set = 2, binding = 1, std140) uniform Camera {
     vec4 cascadeSplits;
     int enableSSAO;
     int debugCascades;
+    mat4 prevViewProjection;
 } cam;
 
 layout(set = 2, binding = 2) uniform ShadowMapMatrices {

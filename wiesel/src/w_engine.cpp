@@ -296,6 +296,9 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
 
   bool has_unsupported_textures = false;
   for (size_t type = aiTextureType_NONE; type < AI_TEXTURE_TYPE_MAX; type++) {
+    if (type == aiTextureType_UNKNOWN) {
+      continue;
+    }
     if (type == aiTextureType_DIFFUSE || type == aiTextureType_NORMALS || type == aiTextureType_SPECULAR
       || type == aiTextureType_BASE_COLOR || type == aiTextureType_DIFFUSE_ROUGHNESS
       || type == aiTextureType_METALNESS) {

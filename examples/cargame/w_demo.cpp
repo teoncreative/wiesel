@@ -102,7 +102,7 @@ void DemoLayer::OnAttach() {
                                                   }, {}, {})
   ));
 
-  renderer_->SetVsync(false);
+  renderer_->render_settings().vsync = false;
   //renderer_->SetMsaaSamples(VK_SAMPLE_COUNT_1_BIT);
 }
 

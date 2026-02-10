@@ -325,7 +325,8 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassFramebuffer(ssao_gen, cam->ssao_gen_framebuffer);
   g.SetPassViewport(ssao_gen, {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
   g.SetPassClearColor(ssao_gen, {0, 0, 0, 0});
-  g.SetPassEnabled(ssao_gen, renderer->IsSSAOEnabled());
+  auto& settings = renderer->render_settings();
+  g.SetPassEnabled(ssao_gen, settings.ssao_enabled);
 
   // --- SSAO Blur Horizontal ---
   uint32_t ssao_blur_horz = g.AddPass("SSAO Blur H", renderer->ssao_blur_horz_render_pass_,
@@ -341,7 +342,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassFramebuffer(ssao_blur_horz, cam->ssao_blur_horz_framebuffer);
   g.SetPassViewport(ssao_blur_horz, cam->viewport_size);
   g.SetPassClearColor(ssao_blur_horz, {0, 0, 0, 0});
-  g.SetPassEnabled(ssao_blur_horz, renderer->IsSSAOEnabled());
+  g.SetPassEnabled(ssao_blur_horz, settings.ssao_enabled);
 
   // --- SSAO Blur Vertical ---
   uint32_t ssao_blur_vert = g.AddPass("SSAO Blur V", renderer->ssao_blur_vert_render_pass_,
@@ -357,7 +358,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassFramebuffer(ssao_blur_vert, cam->ssao_blur_vert_framebuffer);
   g.SetPassViewport(ssao_blur_vert, cam->viewport_size);
   g.SetPassClearColor(ssao_blur_vert, {0, 0, 0, 0});
-  g.SetPassEnabled(ssao_blur_vert, renderer->IsSSAOEnabled());
+  g.SetPassEnabled(ssao_blur_vert, settings.ssao_enabled);
 
   // --- Lighting Pass ---
   uint32_t lighting = g.AddPass("Lighting", renderer->lighting_render_pass_,
@@ -406,7 +407,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   uint32_t composite = g.AddPass("Composite", renderer->composite_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
-        if (renderer->IsOnlySSAO()) {
+        if (renderer->render_settings().only_ssao) {
           renderer->DrawFullscreen(
               renderer->GetCompositePipeline(),
               {renderer->GetCameraData()->ssao_blur_vert_output_descriptor});
@@ -425,6 +426,105 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassFramebuffer(composite, cam->composite_framebuffer);
   g.SetPassViewport(composite, cam->viewport_size);
   g.SetPassClearColor(composite, renderer->GetClearColor());
+
+  // --- Post-process resources ---
+  RGResource bloom_extract_out = g.ImportTexture("BloomExtract", cam->bloom_extract_image);
+  RGResource bloom_blur_h_out = g.ImportTexture("BloomBlurH", cam->bloom_blur_h_image);
+  RGResource bloom_blur_v_out = g.ImportTexture("BloomBlurV", cam->bloom_blur_v_image);
+  RGResource bloom_composite_out = g.ImportTexture("BloomComposite", cam->bloom_composite_image);
+  RGResource motion_blur_out = g.ImportTexture("MotionBlur", cam->motion_blur_image);
+
+  // --- Bloom Extract (half-res) ---
+  uint32_t bloom_extract = g.AddPass("Bloom Extract", renderer->postprocess_render_pass_,
+      [renderer](VkCommandBuffer) {
+        auto& s = renderer->render_settings();
+        renderer->bloom_push_constants_->threshold = s.bloom_threshold;
+        renderer->bloom_push_constants_->intensity = s.bloom_intensity;
+        renderer->GetBloomExtractPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetBloomExtractPipeline(),
+            {renderer->GetCameraData()->bloom_extract_descriptor});
+      });
+  g.PassReadsTexture(bloom_extract, composite_out);
+  g.PassWritesColor(bloom_extract, bloom_extract_out);
+  g.SetPassFramebuffer(bloom_extract, cam->bloom_extract_framebuffer);
+  g.SetPassViewport(bloom_extract, {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
+  g.SetPassClearColor(bloom_extract, {0, 0, 0, 0});
+  g.SetPassEnabled(bloom_extract, settings.bloom_enabled);
+
+  // --- Bloom Blur Horizontal (half-res) ---
+  uint32_t bloom_blur_h = g.AddPass("Bloom Blur H", renderer->postprocess_render_pass_,
+      [renderer](VkCommandBuffer) {
+        renderer->GetBloomBlurHPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetBloomBlurHPipeline(),
+            {renderer->GetCameraData()->bloom_blur_h_descriptor});
+      });
+  g.PassReadsTexture(bloom_blur_h, bloom_extract_out);
+  g.PassWritesColor(bloom_blur_h, bloom_blur_h_out);
+  g.SetPassFramebuffer(bloom_blur_h, cam->bloom_blur_h_framebuffer);
+  g.SetPassViewport(bloom_blur_h, {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
+  g.SetPassClearColor(bloom_blur_h, {0, 0, 0, 0});
+  g.SetPassEnabled(bloom_blur_h, settings.bloom_enabled);
+
+  // --- Bloom Blur Vertical (half-res) ---
+  uint32_t bloom_blur_v = g.AddPass("Bloom Blur V", renderer->postprocess_render_pass_,
+      [renderer](VkCommandBuffer) {
+        renderer->GetBloomBlurVPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetBloomBlurVPipeline(),
+            {renderer->GetCameraData()->bloom_blur_v_descriptor});
+      });
+  g.PassReadsTexture(bloom_blur_v, bloom_blur_h_out);
+  g.PassWritesColor(bloom_blur_v, bloom_blur_v_out);
+  g.SetPassFramebuffer(bloom_blur_v, cam->bloom_blur_v_framebuffer);
+  g.SetPassViewport(bloom_blur_v, {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
+  g.SetPassClearColor(bloom_blur_v, {0, 0, 0, 0});
+  g.SetPassEnabled(bloom_blur_v, settings.bloom_enabled);
+
+  // --- Bloom Composite (full-res) ---
+  uint32_t bloom_comp = g.AddPass("Bloom Composite", renderer->postprocess_render_pass_,
+      [renderer](VkCommandBuffer) {
+        auto& s = renderer->render_settings();
+        renderer->bloom_push_constants_->threshold = s.bloom_threshold;
+        renderer->bloom_push_constants_->intensity = s.bloom_intensity;
+        renderer->GetBloomCompositePipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetBloomCompositePipeline(),
+            {renderer->GetCameraData()->bloom_composite_descriptor});
+      });
+  g.PassReadsTexture(bloom_comp, composite_out);
+  g.PassReadsTexture(bloom_comp, bloom_blur_v_out);
+  g.PassWritesColor(bloom_comp, bloom_composite_out);
+  g.SetPassFramebuffer(bloom_comp, cam->bloom_composite_framebuffer);
+  g.SetPassViewport(bloom_comp, cam->viewport_size);
+  g.SetPassClearColor(bloom_comp, {0, 0, 0, 0});
+  g.SetPassEnabled(bloom_comp, settings.bloom_enabled);
+
+  // --- Motion Blur (full-res) ---
+  uint32_t motion_blur = g.AddPass("Motion Blur", renderer->postprocess_render_pass_,
+      [renderer](VkCommandBuffer) {
+        auto& s = renderer->render_settings();
+        renderer->motion_blur_push_constants_->strength = s.motion_blur_strength;
+        renderer->motion_blur_push_constants_->num_samples = s.motion_blur_samples;
+        auto mb_desc = s.bloom_enabled
+            ? renderer->GetCameraData()->motion_blur_after_bloom_desc
+            : renderer->GetCameraData()->motion_blur_after_composite_desc;
+        renderer->GetMotionBlurPipeline()->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(
+            renderer->GetMotionBlurPipeline(),
+            {mb_desc, renderer->GetCameraData()->global_descriptor});
+      });
+  g.PassReadsTexture(motion_blur, composite_out);
+  if (settings.bloom_enabled) {
+    g.PassReadsTexture(motion_blur, bloom_composite_out);
+  }
+  g.PassReadsTexture(motion_blur, geo_world_pos);
+  g.PassWritesColor(motion_blur, motion_blur_out);
+  g.SetPassFramebuffer(motion_blur, cam->motion_blur_framebuffer);
+  g.SetPassViewport(motion_blur, cam->viewport_size);
+  g.SetPassClearColor(motion_blur, {0, 0, 0, 0});
+  g.SetPassEnabled(motion_blur, settings.motion_blur_enabled);
 
   g.Compile();
 }
@@ -449,13 +549,13 @@ bool Scene::Render() {
     renderer->SetCameraData(current_camera_);
     renderer->UpdateUniformData();
 
-    // Build render graph on first use or when invalidated
-    auto& graph = render_graphs_[cameraEntity];
-    if (!graph) {
-      BuildRenderGraph(cameraEntity);
-    }
+    // Rebuild render graph each frame to pick up settings changes
+    BuildRenderGraph(cameraEntity);
+    render_graphs_[cameraEntity]->Execute(renderer->GetCommandBuffer().handle_);
 
-    graph->Execute(renderer->GetCommandBuffer().handle_);
+    // Store current VP for next frame's motion blur
+    camera.prev_view_projection = camera.projection * camera.view_matrix;
+
     hasCamera = true;
   }
   return hasCamera;

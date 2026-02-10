@@ -144,20 +144,35 @@ void EditorLayer::OnBeginPresent() {
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
     ImGui::SeparatorText("Controls");
-    if (ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
-                        Engine::GetRenderer()->IsWireframeEnabledPtr())) {
-      Engine::GetRenderer()->SetRecreatePipeline(true);
-    }
-    if (ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
-                        Engine::GetRenderer()->IsSSAOEnabledPtr())) {
-      Engine::GetRenderer()->SetRecreatePipeline(true);
-    }
-    if (ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(),
-                        Engine::GetRenderer()->IsOnlySSAOPtr())) {
-      Engine::GetRenderer()->SetRecreatePipeline(true);
-    }
+    auto& settings = Engine::GetRenderer()->render_settings();
+    ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
+                        &settings.wireframe_enabled);
+    ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
+                    &settings.ssao_enabled);
+    ImGui::Checkbox(PrefixLabel("Enable Vsync").c_str(),
+                    &settings.vsync);
+    ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(),
+                    &settings.only_ssao);
     ImGui::Checkbox(PrefixLabel("Debug Cascades").c_str(),
-                    Engine::GetRenderer()->IsDebugCascadesPtr());
+                    &settings.debug_cascades);
+    ImGui::SeparatorText("Post Processing");
+    ImGui::Checkbox(PrefixLabel("Enable Bloom").c_str(),
+                    &settings.bloom_enabled);
+    if (settings.bloom_enabled) {
+      ImGui::SliderFloat(PrefixLabel("Bloom Threshold").c_str(),
+                         &settings.bloom_threshold, 0.0f, 1.0f);
+      ImGui::SliderFloat(PrefixLabel("Bloom Intensity").c_str(),
+                         &settings.bloom_intensity, 0.0f, 2.0f);
+    }
+    ImGui::Checkbox(PrefixLabel("Enable Motion Blur").c_str(),
+                    &settings.motion_blur_enabled);
+    if (settings.motion_blur_enabled) {
+      ImGui::SliderFloat(PrefixLabel("MB Strength").c_str(),
+                         &settings.motion_blur_strength, 0.0f, 3.0f);
+      ImGui::SliderInt(PrefixLabel("MB Samples").c_str(),
+                       &settings.motion_blur_samples, 2, 16);
+    }
+
     if (ImGui::Button("Recreate Pipeline")) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
@@ -243,11 +258,13 @@ void EditorLayer::OnBeginPresent() {
   ImGui::End();
   static bool viewportOpen = true;
   if (ImGui::Begin("Viewport", &viewportOpen)) {
+    auto finalOutputDesc = Engine::GetRenderer()->GetFinalOutputDescriptor();
+    auto finalOutputImage = Engine::GetRenderer()->GetFinalOutputImage();
     ImTextureID desc =
-        reinterpret_cast<ImTextureID>(Engine::GetRenderer()->GetCameraData()->composite_output_descriptor->descriptor_set_);
+        reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float imageAspect = (float)Engine::GetRenderer()->GetCameraData()->composite_color_image->width_ / (float)Engine::GetRenderer()->GetCameraData()->composite_color_image->height_;
+    float imageAspect = (float)finalOutputImage->width_ / (float)finalOutputImage->height_;
     float availAspect = avail.x / avail.y;
 
     ImVec2 drawSize;

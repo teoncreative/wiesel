@@ -16,6 +16,7 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
+#include <type_traits>
 #include <algorithm>  // Necessary for std::clamp
 #include <any>
 #include <array>

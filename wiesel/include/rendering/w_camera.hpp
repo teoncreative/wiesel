@@ -77,6 +77,15 @@ struct CameraComponent {
   Ref<AttachmentTexture> composite_color_image;
   Ref<AttachmentTexture> composite_color_resolve_image;
 
+  // Bloom
+  Ref<AttachmentTexture> bloom_extract_image;
+  Ref<AttachmentTexture> bloom_blur_h_image;
+  Ref<AttachmentTexture> bloom_blur_v_image;
+  Ref<AttachmentTexture> bloom_composite_image;
+
+  // Motion blur
+  Ref<AttachmentTexture> motion_blur_image;
+
 #ifdef ID_BUFFER_PASS
   Ref<Framebuffer> id_framebuffer;
 #endif
@@ -87,6 +96,12 @@ struct CameraComponent {
   Ref<Framebuffer> lighting_framebuffer;
   Ref<Framebuffer> sprite_framebuffer;
   Ref<Framebuffer> composite_framebuffer;
+  Ref<Framebuffer> bloom_extract_framebuffer;
+  Ref<Framebuffer> bloom_blur_h_framebuffer;
+  Ref<Framebuffer> bloom_blur_v_framebuffer;
+  Ref<Framebuffer> bloom_composite_framebuffer;
+  Ref<Framebuffer> motion_blur_framebuffer;
+
   Ref<DescriptorSet> global_descriptor;
   Ref<DescriptorSet> shadow_descriptor;
 
@@ -98,6 +113,19 @@ struct CameraComponent {
   Ref<DescriptorSet> sprite_output_descriptor;
   Ref<DescriptorSet> composite_output_descriptor;
   Ref<DescriptorSet> ssao_gen_descriptor;
+
+  // Bloom descriptors
+  Ref<DescriptorSet> bloom_extract_descriptor;
+  Ref<DescriptorSet> bloom_blur_h_descriptor;
+  Ref<DescriptorSet> bloom_blur_v_descriptor;
+  Ref<DescriptorSet> bloom_composite_descriptor;
+  Ref<DescriptorSet> bloom_output_descriptor;
+
+  // Motion blur descriptors
+  Ref<DescriptorSet> motion_blur_after_composite_desc;
+  Ref<DescriptorSet> motion_blur_after_bloom_desc;
+  Ref<DescriptorSet> motion_blur_output_descriptor;
+
   FrustumPlanes planes;
 
   // Shadow stuff
@@ -109,6 +137,7 @@ struct CameraComponent {
   std::array<Ref<Framebuffer>, WIESEL_SHADOW_CASCADE_COUNT> shadow_framebuffers;
 
   glm::vec3 previous_light_dir;
+  glm::mat4 prev_view_projection{1.0f};
   bool force_light_reset = false;
   bool pos_changed = true;
   bool view_changed = true;
@@ -165,6 +194,12 @@ struct CameraData {
   Ref<AttachmentTexture> composite_color_image;
   Ref<AttachmentTexture> composite_color_resolve_image;
 
+  Ref<AttachmentTexture> bloom_extract_image;
+  Ref<AttachmentTexture> bloom_blur_h_image;
+  Ref<AttachmentTexture> bloom_blur_v_image;
+  Ref<AttachmentTexture> bloom_composite_image;
+  Ref<AttachmentTexture> motion_blur_image;
+
   Ref<Framebuffer> geometry_framebuffer;
   Ref<Framebuffer> ssao_gen_framebuffer;
   Ref<Framebuffer> ssao_blur_horz_framebuffer;
@@ -172,16 +207,31 @@ struct CameraData {
   Ref<Framebuffer> lighting_framebuffer;
   Ref<Framebuffer> sprite_framebuffer;
   Ref<Framebuffer> composite_framebuffer;
-  Ref<DescriptorSet> global_descriptor; // to draw geometry
-  Ref<DescriptorSet> shadow_descriptor; // to draw geometry to shadow pass
-  Ref<DescriptorSet> geometry_output_descriptor; // to draw geometry pass output
-  Ref<DescriptorSet> ssao_output_descriptor; // to draw ssao pass output
-  Ref<DescriptorSet> ssao_blur_horz_output_descriptor; // to draw ssao blur horz pass output
-  Ref<DescriptorSet> ssao_blur_vert_output_descriptor; // to draw ssao blur vert pass output
-  Ref<DescriptorSet> lighting_output_descriptor; // to draw lighting pass output
-  Ref<DescriptorSet> sprite_output_descriptor; // to draw sprite pass output
-  Ref<DescriptorSet> composite_output_descriptor; // to draw composite pass output
-  Ref<DescriptorSet> ssao_gen_descriptor; // used to render geometry pass output to ssao pass
+  Ref<Framebuffer> bloom_extract_framebuffer;
+  Ref<Framebuffer> bloom_blur_h_framebuffer;
+  Ref<Framebuffer> bloom_blur_v_framebuffer;
+  Ref<Framebuffer> bloom_composite_framebuffer;
+  Ref<Framebuffer> motion_blur_framebuffer;
+
+  Ref<DescriptorSet> global_descriptor;
+  Ref<DescriptorSet> shadow_descriptor;
+  Ref<DescriptorSet> geometry_output_descriptor;
+  Ref<DescriptorSet> ssao_output_descriptor;
+  Ref<DescriptorSet> ssao_blur_horz_output_descriptor;
+  Ref<DescriptorSet> ssao_blur_vert_output_descriptor;
+  Ref<DescriptorSet> lighting_output_descriptor;
+  Ref<DescriptorSet> sprite_output_descriptor;
+  Ref<DescriptorSet> composite_output_descriptor;
+  Ref<DescriptorSet> ssao_gen_descriptor;
+  Ref<DescriptorSet> bloom_extract_descriptor;
+  Ref<DescriptorSet> bloom_blur_h_descriptor;
+  Ref<DescriptorSet> bloom_blur_v_descriptor;
+  Ref<DescriptorSet> bloom_composite_descriptor;
+  Ref<DescriptorSet> bloom_output_descriptor;
+  Ref<DescriptorSet> motion_blur_after_composite_desc;
+  Ref<DescriptorSet> motion_blur_after_bloom_desc;
+  Ref<DescriptorSet> motion_blur_output_descriptor;
+
   FrustumPlanes planes;
 
   // Shadow stuff
@@ -189,6 +239,8 @@ struct CameraData {
   std::array<Cascade, WIESEL_SHADOW_CASCADE_COUNT> shadow_map_cascades;
   Ref<AttachmentTexture> shadow_depth_stencil;
   std::array<Ref<Framebuffer>, WIESEL_SHADOW_CASCADE_COUNT> shadow_framebuffers;
+
+  glm::mat4 prev_view_projection{1.0f};
 
   void TransferFrom(CameraComponent& camera, TransformComponent& transform) {
     // Perhaps we could do this differently?
@@ -228,6 +280,12 @@ struct CameraData {
     composite_color_image = camera.composite_color_image;
     composite_color_resolve_image = camera.composite_color_resolve_image;
 
+    bloom_extract_image = camera.bloom_extract_image;
+    bloom_blur_h_image = camera.bloom_blur_h_image;
+    bloom_blur_v_image = camera.bloom_blur_v_image;
+    bloom_composite_image = camera.bloom_composite_image;
+    motion_blur_image = camera.motion_blur_image;
+
     geometry_framebuffer = camera.geometry_framebuffer;
     ssao_gen_framebuffer = camera.ssao_gen_framebuffer;
     ssao_blur_horz_framebuffer = camera.ssao_blur_horz_framebuffer;
@@ -235,6 +293,12 @@ struct CameraData {
     lighting_framebuffer = camera.lighting_framebuffer;
     sprite_framebuffer = camera.sprite_framebuffer;
     composite_framebuffer = camera.composite_framebuffer;
+    bloom_extract_framebuffer = camera.bloom_extract_framebuffer;
+    bloom_blur_h_framebuffer = camera.bloom_blur_h_framebuffer;
+    bloom_blur_v_framebuffer = camera.bloom_blur_v_framebuffer;
+    bloom_composite_framebuffer = camera.bloom_composite_framebuffer;
+    motion_blur_framebuffer = camera.motion_blur_framebuffer;
+
     global_descriptor = camera.global_descriptor;
     shadow_descriptor = camera.shadow_descriptor;
     geometry_output_descriptor = camera.geometry_output_descriptor;
@@ -245,12 +309,21 @@ struct CameraData {
     sprite_output_descriptor = camera.sprite_output_descriptor;
     composite_output_descriptor = camera.composite_output_descriptor;
     ssao_gen_descriptor = camera.ssao_gen_descriptor;
+    bloom_extract_descriptor = camera.bloom_extract_descriptor;
+    bloom_blur_h_descriptor = camera.bloom_blur_h_descriptor;
+    bloom_blur_v_descriptor = camera.bloom_blur_v_descriptor;
+    bloom_composite_descriptor = camera.bloom_composite_descriptor;
+    bloom_output_descriptor = camera.bloom_output_descriptor;
+    motion_blur_after_composite_desc = camera.motion_blur_after_composite_desc;
+    motion_blur_after_bloom_desc = camera.motion_blur_after_bloom_desc;
+    motion_blur_output_descriptor = camera.motion_blur_output_descriptor;
     planes = camera.planes;
 
     does_shadow_pass = camera.does_shadow_pass;
     shadow_map_cascades = camera.shadow_map_cascades;
     shadow_depth_stencil = camera.shadow_depth_stencil;
     shadow_framebuffers = camera.shadow_framebuffers;
+    prev_view_projection = camera.prev_view_projection;
   }
 
 };

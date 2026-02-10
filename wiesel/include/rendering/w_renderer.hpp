@@ -44,6 +44,70 @@ struct ShadowPipelinePushConstant {
   int cascade_index;
 };
 
+struct BloomPushConstants {
+  float threshold;
+  float intensity;
+};
+
+struct MotionBlurPushConstants {
+  float strength;
+  int num_samples;
+};
+
+template<typename T>
+class Setting {
+public:
+  Setting(T v) : value(v), change_hook(nullptr) {}
+
+  void SetHook(bool* ptr) {
+    change_hook = ptr;
+  }
+
+  Setting& operator=(const T& new_val) {
+    if (value == new_val) {
+      return *this;
+    }
+    if (change_hook) {
+      *change_hook = true;
+    }
+    value = new_val;
+    return *this;
+  }
+
+  T* operator&() {
+    return &value;
+  }
+
+  operator T() const {
+    return value;
+  }
+private:
+  T value;
+  bool* change_hook;
+
+};
+
+struct RenderSettings {
+  // Pass enable/disable - no pipeline recreation needed
+  Setting<bool> ssao_enabled = true;
+  Setting<bool> bloom_enabled = false;
+  Setting<bool> motion_blur_enabled = false;
+  Setting<bool> only_ssao = false;
+  Setting<bool> debug_cascades = false;
+
+  // Requires pipeline recreation
+  Setting<bool> wireframe_enabled = false;
+  Setting<bool> vsync = false;
+  Setting<VkSampleCountFlagBits> msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+
+  // Effect parameters - push constants, updated every frame
+  Setting<float> bloom_threshold = 0.7f;
+  Setting<float> bloom_intensity = 0.6f;
+  Setting<float> motion_blur_strength = 1.0f;
+  Setting<int> motion_blur_samples = 8;
+
+};
+
 struct RendererProperties {};
 
 class Renderer {
@@ -112,23 +176,12 @@ class Renderer {
   void SetClearColor(const Colorf& color);
   WIESEL_GETTER_FN Colorf& GetClearColor();
 
-  void SetMsaaSamples(VkSampleCountFlagBits samples);
-  WIESEL_GETTER_FN VkSampleCountFlagBits GetMsaaSamples();
-
-  void SetVsync(bool vsync);
-  WIESEL_GETTER_FN bool IsVsync() { return enable_vsync_; }
-
-  void SetWireframeEnabled(bool value) { enable_wireframe_ = value; }
-  WIESEL_GETTER_FN bool IsWireframeEnabled() const { return enable_wireframe_; }
-  WIESEL_GETTER_FN bool* IsWireframeEnabledPtr() { return &enable_wireframe_; }
-  void SetSSAOEnabled(bool value) { enable_ssao_ = value; }
-  WIESEL_GETTER_FN bool IsSSAOEnabled() const { return enable_ssao_; }
-  WIESEL_GETTER_FN bool* IsSSAOEnabledPtr() { return &enable_ssao_; }
-  WIESEL_GETTER_FN bool IsOnlySSAO() { return only_ssao_; }
-  WIESEL_GETTER_FN bool* IsOnlySSAOPtr() { return &only_ssao_; }
-  WIESEL_GETTER_FN bool* IsDebugCascadesPtr() { return &debug_cascades_; }
+  WIESEL_GETTER_FN RenderSettings& render_settings() { return render_settings_; }
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
   WIESEL_GETTER_FN bool IsRecreatePipeline() const { return recreate_pipeline_; }
+
+  Ref<DescriptorSet> GetFinalOutputDescriptor() const;
+  Ref<AttachmentTexture> GetFinalOutputImage() const;
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const { return aspect_ratio_; }
@@ -196,6 +249,26 @@ class Renderer {
     return present_pipeline_;
   }
 
+  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomExtractPipeline() const {
+    return bloom_extract_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomBlurHPipeline() const {
+    return bloom_blur_h_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomBlurVPipeline() const {
+    return bloom_blur_v_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomCompositePipeline() const {
+    return bloom_composite_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetMotionBlurPipeline() const {
+    return motion_blur_pipeline_;
+  }
+
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
     return default_linear_sampler_;
   }
@@ -228,26 +301,6 @@ class Renderer {
 
   void BeginRender();
   void UpdateUniformData();
-  void BeginShadowPass(uint32_t cascade);
-  void EndShadowPass();
-#ifdef ID_BUFFER_PASS
-  void BeginIDPass();
-  void EndIDPass();
-#endif
-  void BeginGeometryPass();
-  void EndGeometryPass();
-  void BeginSSAOGenPass();
-  void EndSSAOGenPass();
-  void BeginSSAOBlurHorzPass();
-  void EndSSAOBlurHorzPass();
-  void BeginSSAOBlurVertPass();
-  void EndSSAOBlurVertPass();
-  void BeginLightingPass();
-  void EndLightingPass();
-  void BeginSpritePass();
-  void EndSpritePass();
-  void BeginCompositePass();
-  void EndCompositePass();
 
   bool BeginPresent();
   void EndPresent();
@@ -403,10 +456,7 @@ class Renderer {
 
   float_t aspect_ratio_;
   WindowSize window_size_;
-  VkSampleCountFlagBits msaa_samples_;
-  VkSampleCountFlagBits previous_msaa_samples_;
   Colorf clear_color_;
-  bool enable_vsync_;
   Ref<UniformBuffer> lights_uniform_buffer_;
   LightsUniformData lights_uniform_data_;
   Ref<UniformBuffer> camera_uniform_buffer_;
@@ -415,10 +465,7 @@ class Renderer {
   CameraUniformData camera_uniform_data_;
   ShadowMapMatricesUniformData shadow_camera_uniform_data_;
   SSAOKernelUniformData ssao_kernel_uniform_data_;
-  bool enable_wireframe_;
-  bool enable_ssao_;
-  bool only_ssao_;
-  bool debug_cascades_;
+  RenderSettings render_settings_;
   bool recreate_pipeline_;
   bool recreate_swap_chain_;
 
@@ -465,6 +512,16 @@ class Renderer {
 
   Ref<RenderPass> composite_render_pass_;
   Ref<Pipeline> composite_pipeline_;
+
+  Ref<RenderPass> postprocess_render_pass_;
+  Ref<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
+  Ref<Pipeline> bloom_extract_pipeline_;
+  Ref<Pipeline> bloom_blur_h_pipeline_;
+  Ref<Pipeline> bloom_blur_v_pipeline_;
+  Ref<Pipeline> bloom_composite_pipeline_;
+  Ref<Pipeline> motion_blur_pipeline_;
+  Ref<BloomPushConstants> bloom_push_constants_;
+  Ref<MotionBlurPushConstants> motion_blur_push_constants_;
 
   Ref<RenderPass> present_render_pass_;
   Ref<DescriptorSetLayout> present_descriptor_layout_;
