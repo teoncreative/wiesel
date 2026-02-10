@@ -127,7 +127,7 @@ void main() {
     outViewPos = vec4(inViewPos, 1.0);
     outDepth = linearDepth(gl_FragCoord.z);
     outWorldPos = vec4(inWorldPos, 1.0);
-    outNormal = vec4(normal, 1.0);
+    outNormal = vec4(normal * 0.5 + 0.5, 1.0);
     outAlbedo = vec4(inColor, 1.0f) * baseColor;
     outMaterial = vec4(specular, roughness, metallic, 0);
     /*switch(cascadeIndex) {

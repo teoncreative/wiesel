@@ -36,13 +36,14 @@ struct CameraComponent {
 
   float field_of_view = 60;
   float near_plane = 0.01f;
-  float far_plane = 400.0f;
-  float aspect_ratio = 1.0;
+  float far_plane = 1000.0f;
+  float aspect_ratio = 0.0;
 
   glm::mat4 view_matrix;
   glm::mat4 projection;
   glm::mat4 inv_projection;
   glm::vec2 viewport_size;
+  bool resources_dirty = false;
   glm::mat4 inv_view_matrix;
 
 #ifdef ID_BUFFER_PASS

@@ -126,6 +126,7 @@ class Renderer {
   WIESEL_GETTER_FN bool* IsSSAOEnabledPtr() { return &enable_ssao_; }
   WIESEL_GETTER_FN bool IsOnlySSAO() { return only_ssao_; }
   WIESEL_GETTER_FN bool* IsOnlySSAOPtr() { return &only_ssao_; }
+  WIESEL_GETTER_FN bool* IsDebugCascadesPtr() { return &debug_cascades_; }
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
   WIESEL_GETTER_FN bool IsRecreatePipeline() const { return recreate_pipeline_; }
 
@@ -363,6 +364,7 @@ class Renderer {
  private:
   friend class ImGuiLayer;
   friend class RenderPass;
+  friend class RenderGraph;
   friend class Mesh;
   friend class Scene;
   friend class CommandBuffer;
@@ -416,6 +418,7 @@ class Renderer {
   bool enable_wireframe_;
   bool enable_ssao_;
   bool only_ssao_;
+  bool debug_cascades_;
   bool recreate_pipeline_;
   bool recreate_swap_chain_;
 

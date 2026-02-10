@@ -14,6 +14,7 @@
 #include <entt/entt.hpp>
 
 #include "rendering/w_skybox.hpp"
+#include "rendering/w_rendergraph.hpp"
 #include "events/w_appevents.hpp"
 #include "events/w_events.hpp"
 #include "rendering/w_camera.hpp"
@@ -98,6 +99,8 @@ class Scene {
 
   void ProcessDestroyQueue();
   bool Render();
+  void BuildRenderGraph(entt::entity camera_entity);
+  void InvalidateRenderGraphs();
 
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
@@ -117,5 +120,6 @@ class Scene {
   // this camera is used to render the scene to the current camera
   Ref<CameraData> current_camera_;
   Ref<Skybox> skybox_;
+  std::unordered_map<entt::entity, Ref<RenderGraph>> render_graphs_;
 };
 }  // namespace Wiesel

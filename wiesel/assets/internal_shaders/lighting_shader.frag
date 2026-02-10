@@ -53,6 +53,7 @@ layout(set = 2, binding = 1, std140) uniform Camera {
     float far;
     vec4 cascadeSplits;
     int enableSSAO;
+    int debugCascades;
 } cam;
 
 layout(set = 2, binding = 2) uniform ShadowMapMatrices {
@@ -75,7 +76,8 @@ const mat4 biasMat = mat4(
 0.5, 0.5, 0.0, 1.0
 );
 
-float calculateShadow(vec4 shadowCoord, uint cascadeIndex, float ambient, vec3 normal, vec3 lightDir) {
+// Returns 0.0 = fully shadowed, 1.0 = fully lit
+float calculateShadow(vec4 shadowCoord, uint cascadeIndex, vec3 normal, vec3 lightDir) {
     shadowCoord /= shadowCoord.w;
 
     if (shadowCoord.z < 0.0 || shadowCoord.z > 1.0 ||
@@ -84,18 +86,20 @@ float calculateShadow(vec4 shadowCoord, uint cascadeIndex, float ambient, vec3 n
         return 1.0;
     }
 
-    float bias = max(0.005 * dot(normal, -lightDir), 0.0005);
+    // Slope-scaled bias: larger at grazing angles where acne is worst
+    float cosTheta = clamp(dot(normal, lightDir), 0.0, 1.0);
+    float slopeFactor = sqrt(1.0 - cosTheta * cosTheta) / max(cosTheta, 0.001);
+    float bias = clamp(0.002 * slopeFactor, 0.0005, 0.01);
+
     ivec2 smSize = textureSize(shadowMap, 0).xy;
     vec2 texelSize = 1.0 / vec2(smSize);
     #ifdef USE_GATHER
-    // gather four neighbours’ depth in one call
     vec4 depths = textureGather(shadowMap, vec3(shadowCoord.xy, cascadeIndex));
-    // compare each
     float sum = 0.0;
-    sum += (shadowCoord.z - bias > depths.x) ? 1.0 - ambient : 0.0;
-    sum += (shadowCoord.z - bias > depths.y) ? 1.0 - ambient : 0.0;
-    sum += (shadowCoord.z - bias > depths.z) ? 1.0 - ambient : 0.0;
-    sum += (shadowCoord.z - bias > depths.w) ? 1.0 - ambient : 0.0;
+    sum += (shadowCoord.z - bias > depths.x) ? 1.0 : 0.0;
+    sum += (shadowCoord.z - bias > depths.y) ? 1.0 : 0.0;
+    sum += (shadowCoord.z - bias > depths.z) ? 1.0 : 0.0;
+    sum += (shadowCoord.z - bias > depths.w) ? 1.0 : 0.0;
     return 1.0 - sum * 0.25;
     #else
     float shadow = 0.0;
@@ -104,28 +108,12 @@ float calculateShadow(vec4 shadowCoord, uint cascadeIndex, float ambient, vec3 n
         for (int y = -1; y <= 1; ++y) {
             vec2 off = shadowCoord.xy + vec2(x, y) * texelSize;
             float d = texture(shadowMap, vec3(off, cascadeIndex)).r;
-            shadow += (shadowCoord.z - bias > d) ? 1.0 - ambient : 0.0;
+            shadow += (shadowCoord.z - bias > d) ? 1.0 : 0.0;
             count++;
         }
     }
     return 1.0 - (shadow / float(count));
     #endif
-    /*
-    float shadow = 0.0;
-    int count = 0;
-
-    vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            vec2 pcfOffset = vec2(x, y) * texelSize;
-            float pcfDepth = texture(shadowMap, vec3(shadowCoord.xy + pcfOffset, cascadeIndex)).r;
-            shadow += (shadowCoord.z - bias > pcfDepth) ? 1.0 - ambient : 0.0;
-            count++;
-        }
-    }
-
-    shadow /= count;
-    return 1.0 - shadow;*/
 }
 
 void main() {
@@ -146,80 +134,75 @@ void main() {
     } else {
         ambientOcclusion = 1.0f;
     }
-    vec3 viewDir = normalize(cam.position - viewPos);
+    vec3 viewDir = normalize(cam.position - worldPos);
 
-    vec3 result = vec3(0.0f, 0.0f, 0.0f);
-
-    float lightAmbient = 1.0f;
-    vec3 lightDir = vec3(-worldPos);
+    // Directional light (shadow-receiving)
+    vec3 sunAmbientContrib = vec3(0.0);
+    vec3 sunDiffSpecContrib = vec3(0.0);
+    float sunAmbient = 0.0;
+    vec3 sunDir = vec3(0.0);
     for (int i = 0; i < lights.directLightCount; i++) {
         LightDirect light = lights.directLights[i];
-        lightAmbient = light.base.ambient;
-        lightDir = light.direction;
+        sunDir = normalize(light.direction);
+        sunAmbient = light.base.ambient;
 
-        // Direction of the light (already normalized and transformed)
-        vec3 lightDir = normalize(light.direction);
+        float diff = light.base.diffuse * max(dot(normal, sunDir), 0.0);
 
-        float lightAmbient = light.base.ambient;
-
-        // Calculate diffuse and specular components
-        float lightDiffuse = light.base.diffuse * max(dot(normal, lightDir), 0.0);
-
-        float lightSpecular = 0.0;
-        if (lightDiffuse > 0.0) {
-            // Calculate halfway vector for specular reflection
-            //         vec3 viewDir = normalize(-inFragPosition);
-            vec3 halfwayDir = normalize(lightDir + viewDir);
-            float shininess = 32.0;
-            lightSpecular = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
+        float spec = 0.0;
+        if (diff > 0.0) {
+            vec3 halfwayDir = normalize(sunDir + viewDir);
+            spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular;
         }
 
-        // Final color = diffuse color * light color + specular color * light color
-        vec3 specularColor = vec3(1.0); // White specular color
-        result += (lightAmbient * albedo.rgb * ambientOcclusion + lightDiffuse * albedo.rgb + lightSpecular * specularColor) * light.base.color * light.base.density;
+        // Separate ambient (not shadowed) from diffuse+specular (shadowed)
+        sunAmbientContrib = sunAmbient * albedo.rgb * ambientOcclusion * light.base.color * light.base.density;
+        sunDiffSpecContrib = (diff * albedo.rgb + spec * vec3(1.0)) * light.base.color * light.base.density;
         break;
     }
+
+    // Point lights (not affected by directional shadow)
+    vec3 pointResult = vec3(0.0);
     for (int i = 0; i < lights.pointLightCount; i++) {
         LightPoint light = lights.pointLights[i];
-        // Calculate light direction and distance
-        vec3 lightDir = normalize(light.base.position - worldPos);
-        float distance = length(light.base.position - worldPos);
-        float attenuation = 1.0 / (light.constant + light.linear * distance + light.exp * distance * distance);
+        vec3 pDir = normalize(light.base.position - worldPos);
+        float dist = length(light.base.position - worldPos);
+        float atten = 1.0 / (light.constant + light.linear * dist + light.exp * dist * dist);
 
-        float lightAmbient = light.base.ambient;
-        lightAmbient *= attenuation;
+        float pAmbient = light.base.ambient * atten;
+        float pDiff = light.base.diffuse * max(dot(normal, pDir), 0.0) * atten;
 
-        // Calculate diffuse and specular components
-        float lightDiffuse = light.base.diffuse * max(dot(normal, lightDir), 0.0);
-        lightDiffuse *= attenuation;
-
-        float lightSpecular = 0.0;
-        if (lightDiffuse > 0.0) {
-            // Calculate halfway vector for specular reflection
-            //         vec3 viewDir = normalize(-inFragPosition);
-            vec3 halfwayDir = normalize(lightDir + viewDir);
-            float shininess = 32.0;
-            lightSpecular = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
-
-            // Attenuate light intensity based on distance
-            lightSpecular *= attenuation;
+        float pSpec = 0.0;
+        if (pDiff > 0.0) {
+            vec3 halfwayDir = normalize(pDir + viewDir);
+            pSpec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular * atten;
         }
 
-        // Final color = diffuse color * light color + specular color * light color
-        vec3 specularColor = vec3(1.0); // White specular color
-        result += (lightAmbient * albedo.rgb * ambientOcclusion + lightDiffuse * albedo.rgb + lightSpecular * specularColor) * light.base.color * light.base.density;
+        pointResult += (pAmbient * albedo.rgb * ambientOcclusion + pDiff * albedo.rgb + pSpec * vec3(1.0)) * light.base.color * light.base.density;
     }
-    float shadow = 1.0f;
+
+    // Shadow (only affects directional diffuse+specular)
+    float shadow = 1.0;
     uint cascadeIndex = 0;
-    if (shadowMatrices.enableShadows != 0 && lightAmbient > 0) {
-        // Get cascade index for the current fragment's view position
+    if (shadowMatrices.enableShadows != 0 && sunAmbient > 0.0) {
         for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
             if (viewPos.z < cam.cascadeSplits[i]) {
                 cascadeIndex = i + 1;
             }
         }
         vec4 shadowCoord = biasMat * shadowMatrices.viewProjectionMatrix[cascadeIndex] * vec4(worldPos, 1.0);
-        shadow = calculateShadow(shadowCoord, cascadeIndex, lightAmbient, normal, lightDir);
+        shadow = calculateShadow(shadowCoord, cascadeIndex, normal, sunDir);
     }
-    outFragColor = vec4(clamp(result * shadow, 0.0, 1.0), albedo.a);
+    vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult, 0.0, 1.0);
+
+    if (cam.debugCascades != 0) {
+        const vec3 cascadeColors[4] = vec3[](
+            vec3(1.0, 0.2, 0.2),  // red = cascade 0 (nearest)
+            vec3(0.2, 1.0, 0.2),  // green = cascade 1
+            vec3(0.2, 0.2, 1.0),  // blue = cascade 2
+            vec3(1.0, 1.0, 0.2)   // yellow = cascade 3 (farthest)
+        );
+        finalColor = mix(finalColor, cascadeColors[cascadeIndex], 0.35);
+    }
+
+    outFragColor = vec4(finalColor, albedo.a);
 }

@@ -37,12 +37,8 @@ DemoLayer::~DemoLayer() = default;
 
 void DemoLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
-  // Loading a model to the scene
-  entt::entity sponzaEntity;
-  entt::entity pointLightEntity;
   {
     Entity entity = scene_->CreateEntity("Sponza");
-    sponzaEntity = entity.handle();
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.scale = {0.01f, 0.01f, 0.01f};
     transform.position = {5.0f, 2.0f, 0.0f};
@@ -52,34 +48,70 @@ void DemoLayer::OnAttach() {
     behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
   {
-    auto entity = scene_->CreateEntity("Directional Light");
+    auto entity = scene_->CreateEntity("Sun");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.position = glm::vec3(1.0f, 1.0f, 1.0f);
-    entity.AddComponent<LightDirectComponent>();
+    transform.rotation = glm::vec3{55.0f, 30.0f, 0.0f};
+    auto& light = entity.AddComponent<LightDirectComponent>();
+    light.light_data.base.color = glm::vec3(1.0f, 0.98f, 0.95f);
+    light.light_data.base.ambient = 0.15f;
+    light.light_data.base.diffuse = 1.0f;
+    light.light_data.base.specular = 0.5f;
+    light.light_data.base.density = 1.0f;
   }
   {
-    auto entity = scene_->CreateEntity("Point Light");
-    pointLightEntity = entity.handle();
+    auto entity = scene_->CreateEntity("Light Center");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.position = glm::vec3{0.0f, 5.0f, 0.0f};
-    entity.AddComponent<LightPointComponent>();
+    transform.position = {5.0f, 3.5f, 0.0f};
+    auto& light = entity.AddComponent<LightPointComponent>();
+    light.light_data.base.color = glm::vec3(1.0f, 0.85f, 0.6f);
+    light.light_data.base.ambient = 0.05f;
+    light.light_data.base.diffuse = 1.2f;
+    light.light_data.base.specular = 0.8f;
+    light.light_data.base.density = 1.5f;
+    light.light_data.constant = 1.0f;
+    light.light_data.linear = 0.045f;
+    light.light_data.exp = 0.016f;
+  }
+  {
+    auto entity = scene_->CreateEntity("Light Left");
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.position = {5.0f, 2.5f, 3.0f};
+    auto& light = entity.AddComponent<LightPointComponent>();
+    light.light_data.base.color = glm::vec3(1.0f, 0.9f, 0.7f);
+    light.light_data.base.ambient = 0.03f;
+    light.light_data.base.diffuse = 1.0f;
+    light.light_data.base.specular = 0.6f;
+    light.light_data.base.density = 1.0f;
+    light.light_data.constant = 1.0f;
+    light.light_data.linear = 0.07f;
+    light.light_data.exp = 0.025f;
+  }
+  {
+    auto entity = scene_->CreateEntity("Light Right");
+    auto& transform = entity.GetComponent<TransformComponent>();
+    transform.position = {5.0f, 2.5f, -3.0f};
+    auto& light = entity.AddComponent<LightPointComponent>();
+    light.light_data.base.color = glm::vec3(1.0f, 0.9f, 0.7f);
+    light.light_data.base.ambient = 0.03f;
+    light.light_data.base.diffuse = 1.0f;
+    light.light_data.base.specular = 0.6f;
+    light.light_data.base.density = 1.0f;
+    light.light_data.constant = 1.0f;
+    light.light_data.linear = 0.07f;
+    light.light_data.exp = 0.025f;
   }
   {
     auto entity = scene_->CreateEntity("Camera");
     auto& camera = entity.AddComponent<CameraComponent>();
+    camera.viewport_size = {1920, 1080};
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
-  //m_Scene->LinkEntities(sponzaEntity, pointLightEntity);
-  /*{
-    Entity entity = m_Scene->CreateEntity("Canvas");
-    auto& ui = entity.AddComponent<CanvasComponent>();
-  }*/
-
   renderer_->SetVsync(false);
+  renderer_->SetSSAOEnabled(true);
 }
 
 void DemoLayer::OnDetach() {
@@ -96,7 +128,6 @@ void DemoLayer::OnEvent(Event& event) {
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPress));
   dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
-  dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResize));
 }
 
 bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
@@ -112,16 +143,6 @@ bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
 }
 
 bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
-  return false;
-}
-
-bool DemoLayer::OnWindowResize(WindowResizeEvent& event) {
-  app_.SubmitToMainThread([this]() {
-    for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-      CameraComponent& component = scene_->GetComponent<CameraComponent>(entity);
-      Engine::GetRenderer()->SetupCameraComponent(component);
-    }
-  });
   return false;
 }
 

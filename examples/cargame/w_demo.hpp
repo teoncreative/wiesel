@@ -44,7 +44,6 @@ class DemoLayer : public Wiesel::Layer {
   bool OnKeyPress(Wiesel::KeyPressedEvent& event);
   bool OnKeyReleased(Wiesel::KeyReleasedEvent& event);
   bool OnMouseMoved(Wiesel::MouseMovedEvent& event);
-  bool OnWindowResize(Wiesel::WindowResizeEvent& event);
 
  private:
   DemoApplication& app_;

@@ -156,8 +156,20 @@ void EditorLayer::OnBeginPresent() {
                         Engine::GetRenderer()->IsOnlySSAOPtr())) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
     }
+    ImGui::Checkbox(PrefixLabel("Debug Cascades").c_str(),
+                    Engine::GetRenderer()->IsDebugCascadesPtr());
     if (ImGui::Button("Recreate Pipeline")) {
       Engine::GetRenderer()->SetRecreatePipeline(true);
+    }
+
+    ImGui::SeparatorText("Shadow Cascades");
+    auto cam = Engine::GetRenderer()->GetCameraData();
+    if (cam) {
+      ImGui::Text("Shadows: %s", cam->does_shadow_pass ? "ON" : "OFF");
+      for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; i++) {
+        ImGui::Text("Cascade %d: split Z = %.2f", i,
+                    cam->shadow_map_cascades[i].SplitDepth);
+      }
     }
     if (ImGui::Button("Reload Scripts")) {
       ScriptManager::Reload();

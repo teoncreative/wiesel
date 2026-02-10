@@ -180,6 +180,7 @@ struct alignas(16) CameraUniformData {
   float _pad1[2];
   glm::vec4 CascadeSplits;
   uint32_t enable_ssao;
+  uint32_t debug_cascades;
 };
 
 struct alignas(16) ShadowMapMatricesUniformData {

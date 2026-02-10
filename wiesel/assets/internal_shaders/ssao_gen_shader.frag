@@ -1,7 +1,7 @@
 #version 450
 
 layout(constant_id = 0) const int SSAO_KERNEL_SIZE = 32;
-layout(constant_id = 1) const float SSAO_RADIUS = 0.5;
+layout(constant_id = 1) const float SSAO_RADIUS = 1.5;
 
 layout(set = 0, binding = 0) uniform sampler2D samplerViewPos;
 layout(set = 0, binding = 1) uniform sampler2D samplerNormal;
@@ -31,14 +31,10 @@ float rand(vec2 co) {
 }
 
 vec3 getNoise(vec2 uv){
-    // lower frequency so it doesn't tile too fast
     float r1 = rand(uv * 0.5);
     float r2 = rand(uv * 1.3);
     float r3 = rand(uv * 2.7);
-    // make full‐range random
-    vec3 noise = normalize(vec3(r1, r2, r3) * 2.0 - 1.0);
-    // scale down amplitude to 20%
-    return noise * 0.2;
+    return normalize(vec3(r1, r2, r3) * 2.0 - 1.0);
 }
 
 vec3 getNoiseLookup(vec2 uv) {
@@ -50,51 +46,52 @@ vec3 getNoiseLookup(vec2 uv) {
 }
 
 void main() {
-    //vec3 viewPos = texture(samplerViewPos, inUV).rgb;
     float linearDepth = texture(samplerDepth, inUV).r;
-    //float linearDepth = texture(samplerViewPos, inUV).w;
+
+    // Reconstruct view-space position (camera looks down -Z)
     vec2 ndc = inUV * 2.0 - 1.0;
     vec4 clip = vec4(ndc, 1.0, 1.0);
     vec4 vd   = cam.invProjection * clip;
-    vec3 viewDir = normalize(vd.xyz / vd.w);
-    vec3 viewPos = viewDir * linearDepth;
+    vec3 viewRay = vd.xyz / vd.w;
+    vec3 viewPos = viewRay * (-linearDepth / viewRay.z);
+    // viewPos.z is now negative (standard view space)
 
-    // Get G-Buffer values
-    vec3 normal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
+    // Decode world-space normal → view space
+    vec3 worldNormal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);
+    vec3 normal = normalize(mat3(cam.viewMatrix) * worldNormal);
 
     vec3 randomVec = getNoise(inUV);
 
-    // Create TBN matrix
+    // Create TBN matrix (view space)
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     vec3 bitangent = cross(tangent, normal);
     mat3 TBN = mat3(tangent, bitangent, normal);
 
-    // Calculate occlusion value
-    float occlusion = 0.0f;
-    // remove banding
-    const float bias = 0.025f * linearDepth;
+    // Calculate occlusion
+    float occlusion = 0.0;
+    const float bias = 0.005 * linearDepth;
     for(int i = 0; i < SSAO_KERNEL_SIZE; i++) {
-        vec3 sampleOffset = TBN * ssaoKernel.samples[i].xyz * SSAO_RADIUS;
-        vec3 samplePos    = viewPos + sampleOffset;
+        vec3 samplePos = viewPos + TBN * ssaoKernel.samples[i].xyz * SSAO_RADIUS;
 
-        // project
-        vec4 offset = vec4(samplePos, 1.0f);
-        offset = cam.projection * offset;
+        // Project sample to screen UV
+        vec4 offset = cam.projection * vec4(samplePos, 1.0);
         offset.xyz /= offset.w;
-        offset.xyz = offset.xyz * 0.5f + 0.5f;
+        offset.xy = offset.xy * 0.5 + 0.5;
 
-        float sampleDist  = length(samplePos);                   // distance from camera
-        float actualDepth = texture(samplerDepth, offset.xy).r;  // positive linear
-        float rangeCheck  = smoothstep(0.0, 1.0,
-                                       SSAO_RADIUS / abs(linearDepth - sampleDist));
-        if (actualDepth + bias < sampleDist) {
+        // Compare positive linear depths
+        float sampleLinearDepth = -samplePos.z;
+        float actualDepth = texture(samplerDepth, offset.xy).r;
+
+        float rangeCheck = smoothstep(0.0, 1.0,
+                                       SSAO_RADIUS / abs(linearDepth - actualDepth));
+        if (actualDepth + bias < sampleLinearDepth) {
             occlusion += rangeCheck;
         }
-        if (occlusion > float(SSAO_KERNEL_SIZE)*0.9) {
+        if (occlusion > float(SSAO_KERNEL_SIZE) * 0.9) {
             break;
         }
     }
-    float strength = 1.0f;
+    float strength = 2.5;
     occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
     outFragColor = pow(occlusion, strength);
 }

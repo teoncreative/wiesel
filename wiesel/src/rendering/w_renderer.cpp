@@ -43,6 +43,7 @@ Renderer::Renderer(Ref<AppWindow> window) : window_(window) {
   enable_wireframe_ = false;
   enable_ssao_ = true;
   only_ssao_ = false;
+  debug_cascades_ = false;
   recreate_swap_chain_ = false;
   swap_chain_created_ = false;
   enable_vsync_ = true;
@@ -202,50 +203,51 @@ void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
 }
 
 void Renderer::SetupCameraComponent(CameraComponent& component) {
-  component.aspect_ratio = Engine::GetRenderer()->GetAspectRatio();
-  VkExtent2D extent = Engine::GetRenderer()->GetExtent();
-  component.viewport_size.x = extent.width;
-  component.viewport_size.y = extent.height;
+  if (component.aspect_ratio <= 0) {
+    component.aspect_ratio = component.viewport_size.x / component.viewport_size.y;
+  }
+  uint32_t rw = static_cast<uint32_t>(component.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(component.viewport_size.y);
 
   component.ssao_color_image = CreateAttachmentTexture(
-      {extent.width / 2, extent.height / 2, AttachmentTextureType::Offscreen, 1,
+      {rw / 2, rh / 2, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
   component.ssao_blur_horz_color_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
   component.ssao_blur_vert_color_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
   component.ssao_gen_framebuffer = ssao_gen_render_pass_->CreateFramebuffer(0,
       {component.ssao_color_image.get()},
-      {extent.width / 2, extent.height / 2});
+      {rw / 2, rh / 2});
   component.ssao_blur_horz_framebuffer = ssao_blur_horz_render_pass_->CreateFramebuffer(
       0, {component.ssao_blur_horz_color_image.get()},
-      {extent.width, extent.height});
+      {rw, rh});
   component.ssao_blur_vert_framebuffer = ssao_blur_vert_render_pass_->CreateFramebuffer(
       0, {component.ssao_blur_vert_color_image.get()},
-      {extent.width, extent.height});
+      {rw, rh});
 
   component.geometry_view_pos_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R32G32B32A32_SFLOAT, msaa_samples_, true});
   component.geometry_world_pos_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R32G32B32A32_SFLOAT, msaa_samples_, true});
   component.geometry_depth_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R32_SFLOAT, msaa_samples_, true});
   component.geometry_normal_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8G8B8A8_UNORM, msaa_samples_, true});
   component.geometry_albedo_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R8G8B8A8_UNORM, msaa_samples_, true});
   component.geometry_material_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R16G16B16A16_SFLOAT, msaa_samples_, true});
   component.geometry_depth_stencil = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::DepthStencil, 1,
+      {rw, rh, AttachmentTextureType::DepthStencil, 1,
        FindDepthFormat(), msaa_samples_, true});
 
   component.shadow_depth_stencil = CreateAttachmentTexture(
@@ -267,22 +269,22 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
 
   if (msaa_samples_ > VK_SAMPLE_COUNT_1_BIT) {
     component.geometry_view_pos_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT, true});
     component.geometry_world_pos_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT, true});
     component.geometry_depth_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          VK_FORMAT_R32_SFLOAT, VK_SAMPLE_COUNT_1_BIT, true});
     component.geometry_normal_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
     component.geometry_albedo_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT, true});
     component.geometry_material_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          VK_FORMAT_R16G16B16A16_SFLOAT, VK_SAMPLE_COUNT_1_BIT, true});
     std::array<AttachmentTexture*, 13> textures = {
         component.geometry_view_pos_image.get(),
@@ -322,53 +324,53 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   }
 
   component.lighting_color_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        swap_chain_image_format_, msaa_samples_, msaa_samples_ == VK_SAMPLE_COUNT_1_BIT});
   if (msaa_samples_ > VK_SAMPLE_COUNT_1_BIT) {
     component.lighting_color_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          swap_chain_image_format_, VK_SAMPLE_COUNT_1_BIT, true});
 
     std::array<AttachmentTexture*, 2> textures{
         component.lighting_color_image.get(),
         component.lighting_color_resolve_image.get()};
     component.lighting_framebuffer = lighting_render_pass_->CreateFramebuffer(
-        0, textures, {extent.width, extent.height});
+        0, textures, {rw, rh});
   } else {
     component.lighting_color_resolve_image = component.lighting_color_image;
     std::array<AttachmentTexture*, 1> textures{
         component.lighting_color_image.get()};
     component.lighting_framebuffer = lighting_render_pass_->CreateFramebuffer(
-        0, textures, {extent.width, extent.height});
+        0, textures, {rw, rh});
   }
 
   component.sprite_color_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        swap_chain_image_format_, VK_SAMPLE_COUNT_1_BIT, true});
 
   std::array<AttachmentTexture*, 1> sprite_attachments{component.sprite_color_image.get()};
   component.sprite_framebuffer = sprite_render_pass_->CreateFramebuffer(
-      0, sprite_attachments, {extent.width, extent.height});
+      0, sprite_attachments, {rw, rh});
 
   component.composite_color_image = CreateAttachmentTexture(
-      {extent.width, extent.height, AttachmentTextureType::Offscreen, 1,
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
        swap_chain_image_format_, msaa_samples_, msaa_samples_ == VK_SAMPLE_COUNT_1_BIT});
   if (msaa_samples_ > VK_SAMPLE_COUNT_1_BIT) {
     component.composite_color_resolve_image = CreateAttachmentTexture(
-        {extent.width, extent.height, AttachmentTextureType::Resolve, 1,
+        {rw, rh, AttachmentTextureType::Resolve, 1,
          swap_chain_image_format_, VK_SAMPLE_COUNT_1_BIT, true});
 
     std::array<AttachmentTexture*, 2> composite_attachments{
         component.composite_color_image.get(),
         component.composite_color_resolve_image.get()};
     component.composite_framebuffer = lighting_render_pass_->CreateFramebuffer(
-        0, composite_attachments, {extent.width, extent.height});
+        0, composite_attachments, {rw, rh});
   } else {
     component.composite_color_resolve_image = component.lighting_color_image;
     std::array<AttachmentTexture*, 1> composite_attachments{
         component.composite_color_image.get()};
     component.composite_framebuffer = lighting_render_pass_->CreateFramebuffer(
-        0, composite_attachments, {extent.width, extent.height});
+        0, composite_attachments, {rw, rh});
   }
 
   component.global_descriptor = CreateGlobalDescriptors(component);
@@ -457,6 +459,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
       1, component.geometry_depth_resolve_image->image_views_[0], default_nearest_sampler_);
   component.ssao_blur_vert_output_descriptor->Bake();
 
+  component.resources_dirty = false;
   component.view_changed = true;
   component.pos_changed = true;
 }
@@ -2372,117 +2375,75 @@ void Renderer::TransitionImageLayout(VkImage image, VkFormat format,
   barrier.subresourceRange.baseArrayLayer = baseLayer;
   barrier.subresourceRange.layerCount = layerCount;
 
+  // Derive src access mask and pipeline stage from old layout
   VkPipelineStageFlags sourceStage;
+  switch (oldLayout) {
+    case VK_IMAGE_LAYOUT_UNDEFINED:
+      barrier.srcAccessMask = 0;
+      sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+      barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      sourceStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+      barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+      barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+      sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+      barrier.srcAccessMask = 0;
+      sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      break;
+    default:
+      barrier.srcAccessMask = 0;
+      sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      break;
+  }
+
+  // Derive dst access mask and pipeline stage from new layout
   VkPipelineStageFlags destinationStage;
-
-  if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
-      newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
-             newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-                            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR &&
-             newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = 0;
-
-    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
-             newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = 0;
-
-    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-    barrier.srcAccessMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    barrier.dstAccessMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-             newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  } else {
-    throw std::invalid_argument("unsupported layout transition!");
+  switch (newLayout) {
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+      barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+      barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+      barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+      destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+      barrier.dstAccessMask = 0;
+      destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      break;
+    default:
+      barrier.dstAccessMask = 0;
+      destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      break;
   }
 
   vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0,
@@ -2872,11 +2833,8 @@ void Renderer::RecreateSwapChain() {
   vkDeviceWaitIdle(logical_device_);
 
   CleanupPresentGraphics();
-  CleanupGeometryGraphics();
   CreateSwapChain();
   CreatePresentGraphicsPipelines();
-  CreateGeometryRenderPass();
-  CreateGeometryGraphicsPipelines();
 }
 
 void Renderer::SetViewport(VkExtent2D extent) {
@@ -3448,6 +3406,7 @@ void Renderer::SetCameraData(Ref<CameraData> camera_data) {
   }
   // Todo move this to another ubo for options maybe
   camera_uniform_data_.enable_ssao = enable_ssao_;
+  camera_uniform_data_.debug_cascades = debug_cascades_;
 }
 
 std::vector<const char*> Renderer::GetRequiredExtensions() {
