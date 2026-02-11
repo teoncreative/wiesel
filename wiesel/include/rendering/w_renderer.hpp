@@ -294,7 +294,8 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadowPass);
-  void DrawMesh(std::shared_ptr<Mesh> mesh, const TransformComponent& transform, bool shadowPass);
+  void DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors, bool shadowPass);
+  void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);

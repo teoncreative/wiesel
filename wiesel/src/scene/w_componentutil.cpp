@@ -84,8 +84,6 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
       // "None" option
       if (ImGui::Selectable("(None)", !model.model_handle.IsValid())) {
         model.model_handle = kNullAssetHandle;
-        model.data.meshes.clear();
-        model.data.textures.clear();
       }
 
       // List all registered Model assets
@@ -97,7 +95,6 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
         if (ImGui::Selectable(meta->name.c_str(), is_selected)) {
           if (model.model_handle != handle) {
             model.model_handle = handle;
-            Engine::LoadModelAsync(entity.handle(), entity.GetScene());
           }
         }
         if (is_selected) {
@@ -112,7 +109,6 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
     if (AcceptAssetDragDrop(AssetType::Model, dropped)) {
       if (model.model_handle != dropped) {
         model.model_handle = dropped;
-        Engine::LoadModelAsync(entity.handle(), entity.GetScene());
       }
     }
 

@@ -31,24 +31,19 @@ struct Mesh {
   Mesh(const std::vector<Vertex3D>& vertices, const std::vector<Index>& indices);
   ~Mesh();
 
-  void UpdateTransform(glm::mat4 transform_matrix, glm::mat3 normal_matrix) const;
   void Allocate();
   void Deallocate();
 
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
   std::string model_path;
-
-  bool allocated_;
-  // Render Data
-  Ref<MemoryBuffer> vertex_buffer;
-  Ref<MemoryBuffer> shadow_vertex_buffer;
-  Ref<IndexBuffer> index_buffer;
-  Ref<UniformBuffer> uniform_buffer;
   Ref<Material> mat;
 
-  Ref<DescriptorSet> geometry_descriptors;
-  Ref<DescriptorSet> shadow_descriptors;
+  // Shared GPU geometry (created once, used by all entities referencing this mesh)
+  Ref<MemoryBuffer> vertex_buffer;
+  Ref<IndexBuffer> index_buffer;
+
+  bool allocated_;
 };
 
 struct Model {
@@ -63,11 +58,20 @@ struct Model {
 
 struct ModelComponent : public IComponent {
   ModelComponent() = default;
-  ModelComponent(const ModelComponent&) = default;
+  // Copy settings but NOT render data - each entity gets its own allocation
+  ModelComponent(const ModelComponent& other)
+      : model_handle(other.model_handle),
+        receive_shadows(other.receive_shadows),
+        enable_rendering(other.enable_rendering) {}
 
   AssetHandle model_handle;
-  Model data;
   bool receive_shadows = true;
   bool enable_rendering = true;
+
+  // Per-entity render data (lazily allocated by renderer)
+  Ref<UniformBuffer> uniform_buffer;
+  std::vector<Ref<DescriptorSet>> geometry_descriptors;  // one per mesh
+  std::vector<Ref<DescriptorSet>> shadow_descriptors;    // one per mesh
+  AssetHandle render_model_;  // tracks which model render data was built for
 };
 }  // namespace Wiesel

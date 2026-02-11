@@ -133,7 +133,6 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
           }
           auto& model = entity.GetComponent<ModelComponent>();
           model.model_handle = dropped;
-          Engine::LoadModelAsync(entity_id, entity.GetScene());
         }
         // Future: handle AssetType::Script, AssetType::Texture, etc.
       }

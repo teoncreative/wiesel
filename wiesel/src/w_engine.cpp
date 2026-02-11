@@ -17,9 +17,9 @@
 #include "scene/w_componentutil.hpp"
 #include "scene/w_entity.hpp"
 #include "scene/w_lights.hpp"
+#include "script/w_scriptmanager.hpp"
 #include "util/w_dialogs.hpp"
 #include "window/w_glfwwindow.hpp"
-#include "script/w_scriptmanager.hpp"
 
 #ifdef WIN32
 #include <windows.h>
@@ -38,15 +38,14 @@ Ref<Renderer> Engine::kRenderer;
 Ref<AppWindow> Engine::kWindow;
 
 void Engine::InitEngine() {
-  LOG_INFO("Current work directory: {}", std::filesystem::current_path().string());
+  LOG_INFO("Current work directory: {}",
+           std::filesystem::current_path().string());
 #ifdef WIN32
   EnableAnsiColors();
 #endif
   InitializeComponents();
   InputManager::Init();
-  ScriptManager::Init({
-      .EnableDebugger = true
-  });
+  ScriptManager::Init({.EnableDebugger = true});
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
@@ -90,28 +89,22 @@ std::shared_ptr<AppWindow> Engine::GetWindow() {
   return kWindow;
 }
 
-aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
-                                 const std::string& path,
+aiScene* Engine::LoadAssimpModel(const std::string& path,
                                  bool convertToLeftHanded) {
-  auto& model = modelComponent.data;
-  model.model_path = path;
   auto fsPath = std::filesystem::relative(path);
-  model.textures_path = fsPath.parent_path().string();
   LOG_INFO("Loading model: {}", path);
 
   Assimp::Importer importer;
   importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
                               aiPrimitiveType_LINE | aiPrimitiveType_POINT);
   importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
-  uint32_t flags = aiProcess_Triangulate |
-                   aiProcess_CalcTangentSpace |
-                   aiProcess_FlipUVs |
-                   aiProcess_JoinIdenticalVertices |
+  uint32_t flags = aiProcess_Triangulate | aiProcess_CalcTangentSpace |
+                   aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
                    aiProcessPreset_TargetRealtime_Fast;
   if (convertToLeftHanded) {
     flags |= aiProcess_ConvertToLeftHanded;
   }
-  importer.ReadFile(model.model_path, flags);
+  importer.ReadFile(path, flags);
   aiScene* scene = importer.GetOrphanedScene();
 
   if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
@@ -123,113 +116,63 @@ aiScene* Engine::LoadAssimpModel(ModelComponent& modelComponent,
   return scene;
 }
 
-void Engine::LoadModel(TransformComponent& transform,
-                       ModelComponent& modelComponent,
-                       const std::string& path,
-                       bool convertToLeftHanded) {
-  aiScene* scene = LoadAssimpModel(modelComponent, path, convertToLeftHanded);
-  LoadModel(scene, transform, modelComponent, path);
-}
-
-void Engine::LoadModel(aiScene* scene, Wiesel::TransformComponent& transform,
-                       Wiesel::ModelComponent& modelComponent,
-                       const std::string& path) {
-  modelComponent.data.meshes.clear();
-  modelComponent.data.textures.clear();
-  ProcessNode(modelComponent.data, scene->mRootNode, *scene,
-              modelComponent.data.meshes, glm::mat4(1.0f));
-  uint64_t vertices = 0;
-  for (const auto& item : modelComponent.data.meshes) {
-    item->Allocate();
-    vertices += item->vertices.size();
-  }
-  LOG_INFO("Loaded {} meshes!", modelComponent.data.meshes.size());
-  LOG_INFO("Loaded {} textures!", modelComponent.data.textures.size());
-  LOG_INFO("Loaded {} vertices!", vertices);
-}
-
-void Engine::LoadModelAsync(entt::entity entityHandle, Scene* scene,
-                            bool convertToLeftHanded) {
-  Entity entity{entityHandle, scene};
-  if (!entity.HasComponent<ModelComponent>()) {
-    LOG_ERROR("LoadModelAsync: entity has no ModelComponent");
-    return;
-  }
-
-  auto& modelComp = entity.GetComponent<ModelComponent>();
+void Engine::LoadModelAsync(AssetHandle handle) {
   auto& assets = AssetManager::Get();
-  const AssetMetadata* meta = assets.GetMetadata(modelComp.model_handle);
+  const AssetMetadata* meta = assets.GetMetadata(handle);
   if (!meta) {
     LOG_ERROR("LoadModelAsync: invalid model_handle");
     return;
   }
-
+  if (!assets.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+    return;
+  }
   std::string path = meta->source_path;
-  AssetHandle handle = modelComp.model_handle;
-
-  // Set model path/textures_path on the component data before spawning thread
-  modelComp.data.model_path = path;
   auto fsPath = std::filesystem::relative(path);
-  modelComp.data.textures_path = fsPath.parent_path().string();
 
-  assets.SetLoadState(handle, AssetLoadState::Loading);
-
-  // TODO use a thread pool for this instead
   // Background thread: Assimp file I/O + parsing only
-  std::thread([entityHandle, scene, path, handle, convertToLeftHanded]() {
-    LOG_INFO("Loading model async: {}", path);
-
-    Assimp::Importer importer;
-    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
-                                aiPrimitiveType_LINE | aiPrimitiveType_POINT);
-    importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
-    uint32_t flags = aiProcess_Triangulate |
-                     aiProcess_CalcTangentSpace |
-                     aiProcess_FlipUVs |
-                     aiProcess_JoinIdenticalVertices |
-                     aiProcessPreset_TargetRealtime_Fast;
-    if (convertToLeftHanded) {
-      flags |= aiProcess_ConvertToLeftHanded;
-    }
-    importer.ReadFile(path, flags);
-    aiScene* aiScenePtr = importer.GetOrphanedScene();
-
-    if (!aiScenePtr || (aiScenePtr->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
-        !aiScenePtr->mRootNode) {
-      LOG_ERROR("Failed to load model {}: {}", path, importer.GetErrorString());
-      AssetManager::Get().SetLoadState(handle, AssetLoadState::Failed);
-      return;
-    }
+  // TODO use a thread pool for this instead
+  std::thread([path, handle, fsPath]() {
+    aiScene* assimp_scene = LoadAssimpModel(path);
 
     // Main thread: ProcessNode (texture loading needs GPU) + Allocate
     Application::Get()->SubmitToMainThread(
-        [aiScenePtr, entityHandle, scene, path, handle]() {
-          Entity ent{entityHandle, scene};
-          if (!ent.HasComponent<ModelComponent>()) {
-            delete aiScenePtr;
-            return;
+        [assimp_scene, path, handle, fsPath]() {
+          std::shared_ptr<Model> model = std::make_shared<Model>();
+          model->model_path = path;
+          model->textures_path = fsPath.parent_path().string();
+          model->meshes.clear();
+          model->textures.clear();
+          ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
+                      glm::mat4(1.0f));
+          uint64_t vertices = 0;
+          for (const auto& item : model->meshes) {
+            item->Allocate();
+            vertices += item->vertices.size();
           }
-          auto& transform = ent.GetComponent<TransformComponent>();
-          auto& modelComp = ent.GetComponent<ModelComponent>();
-          LoadModel(aiScenePtr, transform, modelComp, path);
+          LOG_INFO("Loaded {} meshes!", model->meshes.size());
+          LOG_INFO("Loaded {} textures!", model->textures.size());
+          LOG_INFO("Loaded {} vertices!", vertices);
 
           // Register textures with AssetManager
           auto& assets = AssetManager::Get();
-          for (auto& [texPath, tex] : modelComp.data.textures) {
-            assets.RegisterAndStore<Texture>(texPath, AssetType::Texture, texPath, tex);
+          for (auto& [texPath, tex] : model->textures) {
+            assets.RegisterAndStore<Texture>(texPath, AssetType::Texture,
+                                             texPath, tex);
           }
-
-          assets.SetLoadState(handle, AssetLoadState::Loaded);
-          delete aiScenePtr;
+          assets.SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
+          assets.Store(handle, model);
+          delete assimp_scene;
         });
   }).detach();
 }
 
-bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
-                         aiTextureType type, const aiScene& scene) {
+bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
+                         aiMaterial* mat, aiTextureType type,
+                         const aiScene& scene) {
   size_t count = mat->GetTextureCount(type);
   if (count > 1) {
-    LOG_WARN("Mesh has more than one texture for type {}", std::to_string(type));
+    LOG_WARN("Mesh has more than one texture for type {}",
+             std::to_string(type));
   }
   for (unsigned int i = 0; i < count; i++) {
     aiString str;
@@ -248,7 +191,8 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* m
         aiTexture* embeddedTex = scene.mTextures[texIndex];
 
         // Create unique identifier for embedded texture
-        std::string textureKey = model.textures_path + "/embedded_" + std::to_string(texIndex);
+        std::string textureKey =
+            model.textures_path + "/embedded_" + std::to_string(texIndex);
 
         if (model.textures.contains(textureKey)) {
           Material::Set(mesh->mat, model.textures[textureKey],
@@ -272,7 +216,7 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* m
                       static_cast<TextureType>(type));
       } else {
         std::shared_ptr<Texture> texture = GetRenderer()->CreateTexture(
-            textureFullPath, {static_cast<TextureType>(type)},{});
+            textureFullPath, {static_cast<TextureType>(type)}, {});
         if (texture == nullptr) {
           continue;
         }
@@ -286,7 +230,7 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* m
 }
 
 std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
-                                                            TextureType type) {
+                                                           TextureType type) {
   int width, height;
   unsigned char* pixelData = nullptr;
 
@@ -294,10 +238,8 @@ std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
     // Compressed format - decode using stb_image
     int channels;
     pixelData = stbi_load_from_memory(
-        reinterpret_cast<unsigned char*>(aiTex->pcData),
-        aiTex->mWidth,
-        &width, &height, &channels,
-        STBI_rgb_alpha);
+        reinterpret_cast<unsigned char*>(aiTex->pcData), aiTex->mWidth, &width,
+        &height, &channels, STBI_rgb_alpha);
 
     if (!pixelData) {
       LOG_ERROR("Failed to decode embedded texture: {}", stbi_failure_reason());
@@ -322,20 +264,20 @@ std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
   props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
   props.generate_mipmaps = true;
 
-  auto texture = GetRenderer()->CreateTexture(
-      pixelData, 4, props, {});
+  auto texture = GetRenderer()->CreateTexture(pixelData, 4, props, {});
 
   stbi_image_free(pixelData);  // Works for both cases
 
   return texture;
 }
 
-unsigned char* Engine::ConvertBGRAtoRGBA(void* bgra_data, int width, int height) {
+unsigned char* Engine::ConvertBGRAtoRGBA(void* bgra_data, int width,
+                                         int height) {
   aiTexel* texels = reinterpret_cast<aiTexel*>(bgra_data);
   int size = width * height;
 
-  unsigned char* rgba_data = static_cast<unsigned char*>(
-      malloc(size * 4 * sizeof(unsigned char)));
+  unsigned char* rgba_data =
+      static_cast<unsigned char*>(malloc(size * 4 * sizeof(unsigned char)));
 
   if (!rgba_data) {
     return nullptr;
@@ -352,7 +294,7 @@ unsigned char* Engine::ConvertBGRAtoRGBA(void* bgra_data, int width, int height)
 }
 
 std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
-                                    const aiScene& aiScene) {
+                                          const aiScene& aiScene) {
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
 
@@ -367,10 +309,12 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
            LoadTexture(model, mesh, material, aiTextureType_NORMALS, aiScene);
   flags |= VertexFlagHasSpecularMap *
            LoadTexture(model, mesh, material, aiTextureType_SPECULAR, aiScene);
-  flags |= VertexFlagHasAlbedoMap *
-           LoadTexture(model, mesh, material, aiTextureType_BASE_COLOR, aiScene);
+  flags |=
+      VertexFlagHasAlbedoMap *
+      LoadTexture(model, mesh, material, aiTextureType_BASE_COLOR, aiScene);
   flags |= VertexFlagHasRoughnessMap *
-           LoadTexture(model, mesh, material, aiTextureType_DIFFUSE_ROUGHNESS, aiScene);
+           LoadTexture(model, mesh, material, aiTextureType_DIFFUSE_ROUGHNESS,
+                       aiScene);
   flags |= VertexFlagHasMetallicMap *
            LoadTexture(model, mesh, material, aiTextureType_METALNESS, aiScene);
 
@@ -379,9 +323,10 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     if (type == aiTextureType_UNKNOWN) {
       continue;
     }
-    if (type == aiTextureType_DIFFUSE || type == aiTextureType_NORMALS || type == aiTextureType_SPECULAR
-      || type == aiTextureType_BASE_COLOR || type == aiTextureType_DIFFUSE_ROUGHNESS
-      || type == aiTextureType_METALNESS) {
+    if (type == aiTextureType_DIFFUSE || type == aiTextureType_NORMALS ||
+        type == aiTextureType_SPECULAR || type == aiTextureType_BASE_COLOR ||
+        type == aiTextureType_DIFFUSE_ROUGHNESS ||
+        type == aiTextureType_METALNESS) {
       continue;
     }
     int count = material->GetTextureCount(static_cast<aiTextureType>(type));
@@ -433,7 +378,10 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     vector.z = aiMesh->mBitangents[i].z;
     vertex.BiTangent = vector;
 
-    float handedness = glm::dot(glm::cross(vertex.Normal, vertex.Tangent), vertex.BiTangent) < 0.0f ? -1.0f : 1.0f;
+    float handedness = glm::dot(glm::cross(vertex.Normal, vertex.Tangent),
+                                vertex.BiTangent) < 0.0f
+                           ? -1.0f
+                           : 1.0f;
     if (handedness < 0.0f) {
       vertex.Tangent *= -1.0f;
     }
@@ -453,11 +401,13 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
 
   return mesh;
 }
+
 void Engine::ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                          std::vector<Ref<Mesh>>& meshes,
                          const glm::mat4& parentTransform) {
   // Accumulate transforms down the hierarchy
-  glm::mat4 nodeTransform = parentTransform * ConvertMatrix(node->mTransformation);
+  glm::mat4 nodeTransform =
+      parentTransform * ConvertMatrix(node->mTransformation);
 
   for (uint32_t i = 0; i < node->mNumMeshes; i++) {
     aiMesh* aiMesh = scene.mMeshes[node->mMeshes[i]];

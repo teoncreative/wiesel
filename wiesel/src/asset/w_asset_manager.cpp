@@ -43,20 +43,20 @@ AssetHandle AssetManager::Register(const std::string& name, AssetType type,
     auto pit = path_index_.find(source_path);
     if (pit != path_index_.end()) {
       LOG_WARN("Asset with source path '{}' already registered as '{}'",
-               source_path, registry_[pit->second].metadata.name);
+               source_path, registry_[pit->second]->metadata.name);
       return pit->second;
     }
   }
 
   AssetHandle handle = AssetHandle::Generate();
 
-  AssetEntry entry;
-  entry.metadata.handle = handle;
-  entry.metadata.type = type;
-  entry.metadata.name = name;
-  entry.metadata.source_path = source_path;
+  auto entry = std::make_unique<AssetEntry>();
+  entry->metadata.handle = handle;
+  entry->metadata.type = type;
+  entry->metadata.name = name;
+  entry->metadata.source_path = source_path;
 
-  registry_[handle] = std::move(entry);
+  registry_.emplace(handle, std::move(entry));
 
   if (!source_path.empty()) {
     path_index_[source_path] = handle;
@@ -81,13 +81,13 @@ bool AssetManager::Register(AssetHandle handle, const std::string& name,
     return false;
   }
 
-  AssetEntry entry;
-  entry.metadata.handle = handle;
-  entry.metadata.type = type;
-  entry.metadata.name = name;
-  entry.metadata.source_path = source_path;
+  auto entry = std::make_unique<AssetEntry>();
+  entry->metadata.handle = handle;
+  entry->metadata.type = type;
+  entry->metadata.name = name;
+  entry->metadata.source_path = source_path;
 
-  registry_[handle] = std::move(entry);
+  registry_.emplace(handle, std::move(entry));
 
   if (!source_path.empty()) {
     path_index_.try_emplace(source_path, handle);
@@ -103,7 +103,7 @@ void AssetManager::Unregister(AssetHandle handle) {
   auto it = registry_.find(handle);
   if (it == registry_.end()) return;
 
-  const auto& meta = it->second.metadata;
+  const auto& meta = it->second->metadata;
   if (!meta.source_path.empty()) {
     path_index_.erase(meta.source_path);
   }
@@ -125,7 +125,7 @@ bool AssetManager::HasAsset(AssetHandle handle) const {
 const AssetMetadata* AssetManager::GetMetadata(AssetHandle handle) const {
   auto it = registry_.find(handle);
   if (it == registry_.end()) return nullptr;
-  return &it->second.metadata;
+  return &it->second->metadata;
 }
 
 AssetHandle AssetManager::FindByName(const std::string& name) const {
@@ -143,7 +143,7 @@ AssetHandle AssetManager::FindBySourcePath(const std::string& source_path) const
 std::vector<AssetHandle> AssetManager::GetAllOfType(AssetType type) const {
   std::vector<AssetHandle> result;
   for (const auto& [handle, entry] : registry_) {
-    if (entry.metadata.type == type) {
+    if (entry->metadata.type == type) {
       result.push_back(handle);
     }
   }
@@ -165,17 +165,18 @@ size_t AssetManager::GetAssetCount() const {
 
 // Load state
 
-void AssetManager::SetLoadState(AssetHandle handle, AssetLoadState state) {
+bool AssetManager::SetLoadState(AssetHandle handle, AssetLoadState expected, AssetLoadState new_state) {
   auto it = registry_.find(handle);
   if (it != registry_.end()) {
-    it->second.metadata.load_state = state;
+    return it->second->metadata.load_state.compare_exchange_strong(expected, new_state);
   }
+  return false;
 }
 
 AssetLoadState AssetManager::GetLoadState(AssetHandle handle) const {
   auto it = registry_.find(handle);
   if (it != registry_.end()) {
-    return it->second.metadata.load_state;
+    return it->second->metadata.load_state;
   }
   return AssetLoadState::Unloaded;
 }
@@ -184,19 +185,19 @@ AssetLoadState AssetManager::GetLoadState(AssetHandle handle) const {
 
 bool AssetManager::IsLoaded(AssetHandle handle) const {
   auto it = registry_.find(handle);
-  return it != registry_.end() && it->second.resource != nullptr;
+  return it != registry_.end() && it->second->resource != nullptr;
 }
 
 void AssetManager::Unload(AssetHandle handle) {
   auto it = registry_.find(handle);
   if (it != registry_.end()) {
-    it->second.resource.reset();
+    it->second->resource.reset();
   }
 }
 
 void AssetManager::UnloadAll() {
   for (auto& [handle, entry] : registry_) {
-    entry.resource.reset();
+    entry->resource.reset();
   }
 }
 

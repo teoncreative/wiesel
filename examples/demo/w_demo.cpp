@@ -47,7 +47,6 @@ void DemoLayer::OnAttach() {
     transform.position = {5.0f, 2.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
     model.model_handle = assets.Register("Sponza", AssetType::Model, "assets/models/sponza/sponza.gltf");
-    Engine::LoadModelAsync(entity.handle(), entity.GetScene());
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }

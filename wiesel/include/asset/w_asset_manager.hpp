@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "asset/w_asset_handle.hpp"
-#include "util/w_utils.hpp"
 #include "util/w_logger.hpp"
+#include "util/w_utils.hpp"
+#include "w_engine.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
 
@@ -17,9 +18,11 @@ struct AssetMetadata {
   std::string name;
   std::string source_path;
 
-  AssetLoadState load_state = AssetLoadState::Unloaded;
+  std::atomic<AssetLoadState> load_state = AssetLoadState::Unloaded;
 
-  bool IsValid() const { return handle.IsValid() && type != AssetType::None; }
+  bool IsValid() const {
+    return handle.IsValid() && type != AssetType::None;
+  }
 };
 
 class AssetManager {
@@ -49,7 +52,7 @@ class AssetManager {
   size_t GetAssetCount() const;
 
   // Load state
-  void SetLoadState(AssetHandle handle, AssetLoadState state);
+  bool SetLoadState(AssetHandle handle, AssetLoadState expected, AssetLoadState new_state);
   AssetLoadState GetLoadState(AssetHandle handle) const;
 
   // Resource storage (type-erased)
@@ -59,6 +62,9 @@ class AssetManager {
 
   template <typename T>
   Ref<T> Get(AssetHandle handle) const;
+
+  template <typename T>
+  Ref<T> GetOrLoad(AssetHandle handle) const;
 
   bool IsLoaded(AssetHandle handle) const;
   void Unload(AssetHandle handle);
@@ -82,7 +88,7 @@ class AssetManager {
 
   static AssetManager instance_;
 
-  std::unordered_map<AssetHandle, AssetEntry> registry_;
+  std::unordered_map<AssetHandle, std::unique_ptr<AssetEntry>> registry_;
   std::unordered_map<std::string, AssetHandle> path_index_;
   std::unordered_map<std::string, AssetHandle> name_index_;
 };
@@ -97,16 +103,29 @@ void AssetManager::Store(AssetHandle handle, Ref<T> resource) {
               handle.ToString());
     return;
   }
-  it->second.resource = std::static_pointer_cast<void>(resource);
+  it->second->resource = std::static_pointer_cast<void>(resource);
 }
 
 template <typename T>
 Ref<T> AssetManager::Get(AssetHandle handle) const {
   auto it = registry_.find(handle);
-  if (it == registry_.end() || !it->second.resource) {
+  if (it == registry_.end() || !it->second->resource) {
     return nullptr;
   }
-  return std::static_pointer_cast<T>(it->second.resource);
+  return std::static_pointer_cast<T>(it->second->resource);
+}
+
+template <typename T>
+Ref<T> AssetManager::GetOrLoad(AssetHandle handle) const {
+  auto it = registry_.find(handle);
+  if (it == registry_.end()) {
+    return nullptr;
+  }
+  if (!it->second->resource) {
+    Engine::LoadModelAsync(handle);
+    return nullptr;
+  }
+  return std::static_pointer_cast<T>(it->second->resource);
 }
 
 template <typename T>

@@ -31,20 +31,10 @@ class Engine {
   WIESEL_GETTER_FN static std::shared_ptr<Renderer> GetRenderer();
   WIESEL_GETTER_FN static std::shared_ptr<AppWindow> GetWindow();
 
-  static aiScene* LoadAssimpModel(ModelComponent& modelComponent,
-                                  const std::string& path,
+  static aiScene* LoadAssimpModel(const std::string& path,
                                   bool convertToLeftHanded = true);
-  static void LoadModel(TransformComponent& transform,
-                        ModelComponent& modelComponent,
-                        const std::string& path,
-                        bool convertToLeftHanded = true);
 
-  static void LoadModel(aiScene* scene, TransformComponent& transform,
-                        ModelComponent& modelComponent,
-                        const std::string& path);
-
-  static void LoadModelAsync(entt::entity entity, Scene* scene,
-                             bool convertToLeftHanded = true);
+  static void LoadModelAsync(AssetHandle handle);
 
  private:
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);

@@ -23,6 +23,8 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#include "asset/w_asset_manager.hpp"
+
 namespace Wiesel {
 
 Renderer::Renderer(Ref<AppWindow> window) : window_(window) {
@@ -3161,27 +3163,64 @@ void Renderer::UpdateUniformData() {
          sizeof(camera_uniform_data_));
 }
 
+void Renderer::AllocateModelRenderData(ModelComponent& model, const Model& model_data) {
+  // Create one UBO per entity (shared across all meshes - same transform)
+  model.uniform_buffer = CreateUniformBuffer(sizeof(MatricesUniformData));
+
+  // Create per-mesh descriptor sets that bind this entity's UBO + mesh's material
+  model.geometry_descriptors.clear();
+  model.shadow_descriptors.clear();
+  model.geometry_descriptors.reserve(model_data.meshes.size());
+  model.shadow_descriptors.reserve(model_data.meshes.size());
+
+  for (const auto& mesh : model_data.meshes) {
+    model.geometry_descriptors.push_back(
+        CreateMeshDescriptors(model.uniform_buffer, mesh->mat));
+    model.shadow_descriptors.push_back(
+        CreateShadowMeshDescriptors(model.uniform_buffer, mesh->mat));
+  }
+
+  model.render_model_ = model.model_handle;
+}
+
 void Renderer::DrawModel(ModelComponent& model, const TransformComponent& transform, bool shadowPass) {
   PROFILE_ZONE_SCOPED();
-  for (int i = 0; i < model.data.meshes.size(); i++) {
-    const auto& mesh = model.data.meshes[i];
-    DrawMesh(mesh, transform, shadowPass);
+  AssetManager& assets = AssetManager::Get();
+  const Ref<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
+  if (!ptr) {
+    return;
+  }
+
+  // Lazily allocate per-entity render data (or re-allocate if model changed)
+  if (model.render_model_ != model.model_handle || !model.uniform_buffer) {
+    AllocateModelRenderData(model, *ptr);
+  }
+
+  // Update this entity's transform UBO
+  MatricesUniformData matrices{};
+  matrices.ModelMatrix = transform.transform_matrix;
+  matrices.NormalMatrix = transform.normal_matrix;
+  memcpy(model.uniform_buffer->data_, &matrices, sizeof(MatricesUniformData));
+
+  for (size_t i = 0; i < ptr->meshes.size(); i++) {
+    Ref<DescriptorSet> descriptors = shadowPass
+        ? model.shadow_descriptors[i]
+        : model.geometry_descriptors[i];
+    DrawMesh(ptr->meshes[i], descriptors, shadowPass);
   }
 }
 
-void Renderer::DrawMesh(Ref<Mesh> mesh, const TransformComponent& transform, bool shadowPass) {
+void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors, bool shadowPass) {
   PROFILE_ZONE_SCOPED();
   if (!mesh->allocated_) {
     return;
   }
-  mesh->UpdateTransform(transform.transform_matrix, transform.normal_matrix);
 
   VkBuffer vertexBuffers[] = {mesh->vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
   static_assert(std::size(vertexBuffers) == std::size(offsets));
   vkCmdBindVertexBuffers(command_buffer_->handle_, 0, std::size(vertexBuffers),
                          vertexBuffers, offsets);
-  // Todo get the index type from index buffer instead of hardcoding it.
   vkCmdBindIndexBuffer(command_buffer_->handle_, mesh->index_buffer->buffer_handle_,
                        0, mesh->index_buffer->index_type_);
 
@@ -3189,8 +3228,7 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, const TransformComponent& transform, boo
       shadowPass ? shadow_pipeline_->layout_ : geometry_pipeline_->layout_;
 
   VkDescriptorSet sets[2] = {
-      shadowPass ? mesh->shadow_descriptors->descriptor_set_
-                 : mesh->geometry_descriptors->descriptor_set_,
+      mesh_descriptors->descriptor_set_,
       shadowPass ? camera_->shadow_descriptor->descriptor_set_
                  : camera_->global_descriptor->descriptor_set_};
 
