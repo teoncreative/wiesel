@@ -1,0 +1,124 @@
+//
+// Created by Metehan Gezer on 10.02.2026.
+//
+
+#pragma once
+
+#include "w_pch.hpp"
+#include "asset/w_asset_handle.hpp"
+#include "util/w_utils.hpp"
+#include "util/w_logger.hpp"
+
+namespace Wiesel {
+
+struct AssetMetadata {
+  AssetHandle handle;
+  AssetType type = AssetType::None;
+  std::string name;
+  std::string source_path;
+
+  AssetLoadState load_state = AssetLoadState::Unloaded;
+
+  bool IsValid() const { return handle.IsValid() && type != AssetType::None; }
+};
+
+class AssetManager {
+ public:
+  static AssetManager& Get();
+
+  // Registration (metadata only, no loading)
+
+  AssetHandle Register(const std::string& name, AssetType type,
+                       const std::string& source_path);
+
+  bool Register(AssetHandle handle, const std::string& name, AssetType type,
+                const std::string& source_path);
+
+  void Unregister(AssetHandle handle);
+
+  // Metadata queries
+
+  bool HasAsset(AssetHandle handle) const;
+  const AssetMetadata* GetMetadata(AssetHandle handle) const;
+
+  AssetHandle FindByName(const std::string& name) const;
+  AssetHandle FindBySourcePath(const std::string& source_path) const;
+
+  std::vector<AssetHandle> GetAllOfType(AssetType type) const;
+  std::vector<AssetHandle> GetAll() const;
+  size_t GetAssetCount() const;
+
+  // Load state
+  void SetLoadState(AssetHandle handle, AssetLoadState state);
+  AssetLoadState GetLoadState(AssetHandle handle) const;
+
+  // Resource storage (type-erased)
+
+  template <typename T>
+  void Store(AssetHandle handle, Ref<T> resource);
+
+  template <typename T>
+  Ref<T> Get(AssetHandle handle) const;
+
+  bool IsLoaded(AssetHandle handle) const;
+  void Unload(AssetHandle handle);
+  void UnloadAll();
+
+  template <typename T>
+  AssetHandle RegisterAndStore(const std::string& name, AssetType type,
+                               const std::string& source_path, Ref<T> resource);
+
+  // Lifecycle
+
+  void Clear();
+
+ private:
+  AssetManager() = default;
+
+  struct AssetEntry {
+    AssetMetadata metadata;
+    std::shared_ptr<void> resource;
+  };
+
+  static AssetManager instance_;
+
+  std::unordered_map<AssetHandle, AssetEntry> registry_;
+  std::unordered_map<std::string, AssetHandle> path_index_;
+  std::unordered_map<std::string, AssetHandle> name_index_;
+};
+
+// Template implementations
+
+template <typename T>
+void AssetManager::Store(AssetHandle handle, Ref<T> resource) {
+  auto it = registry_.find(handle);
+  if (it == registry_.end()) {
+    LOG_ERROR("AssetManager::Store called with unregistered handle {}",
+              handle.ToString());
+    return;
+  }
+  it->second.resource = std::static_pointer_cast<void>(resource);
+}
+
+template <typename T>
+Ref<T> AssetManager::Get(AssetHandle handle) const {
+  auto it = registry_.find(handle);
+  if (it == registry_.end() || !it->second.resource) {
+    return nullptr;
+  }
+  return std::static_pointer_cast<T>(it->second.resource);
+}
+
+template <typename T>
+AssetHandle AssetManager::RegisterAndStore(const std::string& name,
+                                           AssetType type,
+                                           const std::string& source_path,
+                                           Ref<T> resource) {
+  AssetHandle handle = Register(name, type, source_path);
+  if (handle.IsValid()) {
+    Store<T>(handle, std::move(resource));
+  }
+  return handle;
+}
+
+}  // namespace Wiesel

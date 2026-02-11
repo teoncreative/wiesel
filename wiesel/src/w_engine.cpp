@@ -11,8 +11,11 @@
 
 #include "w_engine.hpp"
 
+#include <thread>
+#include "asset/w_asset_manager.hpp"
 #include "input/w_input.hpp"
 #include "scene/w_componentutil.hpp"
+#include "scene/w_entity.hpp"
 #include "scene/w_lights.hpp"
 #include "util/w_dialogs.hpp"
 #include "window/w_glfwwindow.hpp"
@@ -143,6 +146,83 @@ void Engine::LoadModel(aiScene* scene, Wiesel::TransformComponent& transform,
   LOG_INFO("Loaded {} meshes!", modelComponent.data.meshes.size());
   LOG_INFO("Loaded {} textures!", modelComponent.data.textures.size());
   LOG_INFO("Loaded {} vertices!", vertices);
+}
+
+void Engine::LoadModelAsync(entt::entity entityHandle, Scene* scene,
+                            bool convertToLeftHanded) {
+  Entity entity{entityHandle, scene};
+  if (!entity.HasComponent<ModelComponent>()) {
+    LOG_ERROR("LoadModelAsync: entity has no ModelComponent");
+    return;
+  }
+
+  auto& modelComp = entity.GetComponent<ModelComponent>();
+  auto& assets = AssetManager::Get();
+  const AssetMetadata* meta = assets.GetMetadata(modelComp.model_handle);
+  if (!meta) {
+    LOG_ERROR("LoadModelAsync: invalid model_handle");
+    return;
+  }
+
+  std::string path = meta->source_path;
+  AssetHandle handle = modelComp.model_handle;
+
+  // Set model path/textures_path on the component data before spawning thread
+  modelComp.data.model_path = path;
+  auto fsPath = std::filesystem::relative(path);
+  modelComp.data.textures_path = fsPath.parent_path().string();
+
+  assets.SetLoadState(handle, AssetLoadState::Loading);
+
+  // TODO use a thread pool for this instead
+  // Background thread: Assimp file I/O + parsing only
+  std::thread([entityHandle, scene, path, handle, convertToLeftHanded]() {
+    LOG_INFO("Loading model async: {}", path);
+
+    Assimp::Importer importer;
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
+                                aiPrimitiveType_LINE | aiPrimitiveType_POINT);
+    importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
+    uint32_t flags = aiProcess_Triangulate |
+                     aiProcess_CalcTangentSpace |
+                     aiProcess_FlipUVs |
+                     aiProcess_JoinIdenticalVertices |
+                     aiProcessPreset_TargetRealtime_Fast;
+    if (convertToLeftHanded) {
+      flags |= aiProcess_ConvertToLeftHanded;
+    }
+    importer.ReadFile(path, flags);
+    aiScene* aiScenePtr = importer.GetOrphanedScene();
+
+    if (!aiScenePtr || (aiScenePtr->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
+        !aiScenePtr->mRootNode) {
+      LOG_ERROR("Failed to load model {}: {}", path, importer.GetErrorString());
+      AssetManager::Get().SetLoadState(handle, AssetLoadState::Failed);
+      return;
+    }
+
+    // Main thread: ProcessNode (texture loading needs GPU) + Allocate
+    Application::Get()->SubmitToMainThread(
+        [aiScenePtr, entityHandle, scene, path, handle]() {
+          Entity ent{entityHandle, scene};
+          if (!ent.HasComponent<ModelComponent>()) {
+            delete aiScenePtr;
+            return;
+          }
+          auto& transform = ent.GetComponent<TransformComponent>();
+          auto& modelComp = ent.GetComponent<ModelComponent>();
+          LoadModel(aiScenePtr, transform, modelComp, path);
+
+          // Register textures with AssetManager
+          auto& assets = AssetManager::Get();
+          for (auto& [texPath, tex] : modelComp.data.textures) {
+            assets.RegisterAndStore<Texture>(texPath, AssetType::Texture, texPath, tex);
+          }
+
+          assets.SetLoadState(handle, AssetLoadState::Loaded);
+          delete aiScenePtr;
+        });
+  }).detach();
 }
 
 bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
@@ -365,7 +445,7 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
   for (unsigned int i = 0; i < aiMesh->mNumFaces; i++) {
     aiFace face = aiMesh->mFaces[i];
 
-    // retrieve all indices of the face and store them in the indices vector
+    // Retrieve all indices of the face and store them in the indices vector
     for (int j = 0; j < face.mNumIndices; j++) {
       mesh->indices.push_back(face.mIndices[j]);
     }

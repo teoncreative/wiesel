@@ -16,6 +16,8 @@
 
 namespace Wiesel {
 
+class Scene;
+
 class Engine {
  public:
   static void InitEngine();
@@ -40,6 +42,9 @@ class Engine {
   static void LoadModel(aiScene* scene, TransformComponent& transform,
                         ModelComponent& modelComponent,
                         const std::string& path);
+
+  static void LoadModelAsync(entt::entity entity, Scene* scene,
+                             bool convertToLeftHanded = true);
 
  private:
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);

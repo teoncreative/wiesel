@@ -275,7 +275,8 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
           for (const auto& entity : GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
             auto& model = registry_.get<ModelComponent>(entity);
             auto& transform = registry_.get<TransformComponent>(entity);
-            if (!model.data.receive_shadows || !model.data.enable_rendering) continue;
+            if (!model.receive_shadows || !model.enable_rendering) continue;
+            if (model.data.meshes.empty()) continue;
             renderer->DrawModel(model, transform, true);
           }
         });
@@ -294,7 +295,8 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
         for (const auto& entity : GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = registry_.get<ModelComponent>(entity);
           auto& transform = registry_.get<TransformComponent>(entity);
-          if (!model.data.enable_rendering) continue;
+          if (!model.enable_rendering) continue;
+          if (model.data.meshes.empty()) continue;
           renderer->DrawModel(model, transform, false);
         }
       });

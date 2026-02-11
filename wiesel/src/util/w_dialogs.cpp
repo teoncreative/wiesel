@@ -10,12 +10,12 @@
 //
 
 #include "util/w_dialogs.hpp"
+#include "util/w_logger.hpp"
 
-#include <nfd.h>
+#include "nfd.h"
+#include "nfd.hpp"
 
 #include <thread>
-
-#include "util/w_logger.hpp"
 
 namespace Wiesel::Dialogs {
 
@@ -31,7 +31,10 @@ void OpenFileDialog(std::vector<FilterEntry> filters,
   std::vector<nfdnfilteritem_t> filterList;
   nfdfiltersize_t filterCount = filters.size();
   for (int i = 0; i < filterCount; i++) {
-    filterList.push_back({filters[i].name, filters[i].spec});
+    filterList.push_back({
+      reinterpret_cast<const nfdnchar_t*>(filters[i].name.c_str()),
+      reinterpret_cast<const nfdnchar_t*>(filters[i].spec.c_str())
+    });
   }
   nfdresult_t result = NFD_OpenDialog(&outPath,  reinterpret_cast<const nfdfilteritem_t*>(filterList.data()), filterList.size(), NULL);
   if (result == NFD_OKAY) {

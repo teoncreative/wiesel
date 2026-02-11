@@ -10,6 +10,7 @@
 //
 
 #include "w_demo.hpp"
+#include "asset/w_asset_manager.hpp"
 #include "imgui_internal.h"
 #include "input/w_input.hpp"
 #include "layer/w_layerimgui.hpp"
@@ -40,6 +41,8 @@ DemoLayer::~DemoLayer() = default;
 
 void DemoLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
+  auto& assets = AssetManager::Get();
+
   Entity cameraEntity = scene_->CreateEntity("Camera");
   {
     auto& transform = cameraEntity.GetComponent<TransformComponent>();
@@ -57,7 +60,8 @@ void DemoLayer::OnAttach() {
     transform.scale = {1, 1, 1};
     transform.position = {0.0f, 0.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/city/gmae.obj", false);
+    model.model_handle = assets.Register("City", AssetType::Model, "assets/models/city/gmae.obj");
+    Engine::LoadModelAsync(entity.handle(), entity.GetScene(), false);
   }
   {
     Entity entity = scene_->CreateEntity("Car");
@@ -66,10 +70,8 @@ void DemoLayer::OnAttach() {
     transform.position = {0.0f, 0.0f, 0.0f};
     transform.rotation = {-90.0f, 0.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/bike/cyberpunk_bike.glb", false);
-    //auto& behaviors = entity.AddComponent<BehaviorsComponent>();
-    //MonoBehavior& behavior = behaviors.AddBehavior<MonoBehavior>(entity, "CarScript");
-    //behavior.AttachExternComponent<TransformComponent>("CameraTransform", cameraEntity);
+    model.model_handle = assets.Register("Cyberpunk Bike", AssetType::Model, "assets/models/bike/cyberpunk_bike.glb");
+    Engine::LoadModelAsync(entity.handle(), entity.GetScene(), false);
   }
   {
     auto entity = scene_->CreateEntity("Sun");
@@ -90,17 +92,21 @@ void DemoLayer::OnAttach() {
     builder.SetSampler(Engine::GetRenderer()->GetDefaultLinearSampler());
     builder.AddFrame(0, {0,0}, {320, 298});
     sprite.asset_handle_ = builder.Build();
+    assets.Register("Speedometer Sprite", AssetType::Sprite, "assets/textures/speedometer_320.png");
   }
-  scene_->SetSkybox(CreateReference<Skybox>(
-      Engine::GetRenderer()->CreateCubemapTexture({
-                                                      "assets/textures/skymap/right.jpg",
-                                                      "assets/textures/skymap/left.jpg",
-                                                      "assets/textures/skymap/top.jpg",
-                                                      "assets/textures/skymap/bottom.jpg",
-                                                      "assets/textures/skymap/front.jpg",
-                                                      "assets/textures/skymap/back.jpg"
-                                                  }, {}, {})
-  ));
+  {
+    auto skyboxTexture = Engine::GetRenderer()->CreateCubemapTexture({
+        "assets/textures/skymap/right.jpg",
+        "assets/textures/skymap/left.jpg",
+        "assets/textures/skymap/top.jpg",
+        "assets/textures/skymap/bottom.jpg",
+        "assets/textures/skymap/front.jpg",
+        "assets/textures/skymap/back.jpg"
+    }, {}, {});
+    assets.RegisterAndStore<Texture>("Skybox Cubemap", AssetType::Skybox,
+                                     "assets/textures/skymap/", skyboxTexture);
+    scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
+  }
 
   renderer_->render_settings().vsync = false;
   //renderer_->SetMsaaSamples(VK_SAMPLE_COUNT_1_BIT);

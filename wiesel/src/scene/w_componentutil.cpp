@@ -11,6 +11,7 @@
 
 #include "scene/w_componentutil.hpp"
 
+#include "asset/w_asset_manager.hpp"
 #include "behavior/w_behavior.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
@@ -48,35 +49,88 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
   }
 }
 
+// Accepts an AssetHandle drag-drop payload, filtered by type.
+// Returns true and writes the handle if accepted; false otherwise.
+static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle) {
+  if (ImGui::BeginDragDropTarget()) {
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
+      AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
+      const AssetMetadata* meta = AssetManager::Get().GetMetadata(dropped);
+      if (meta && meta->type == required_type) {
+        out_handle = dropped;
+        ImGui::EndDragDropTarget();
+        return true;
+      }
+    }
+    ImGui::EndDragDropTarget();
+  }
+  return false;
+}
+
 void RenderComponentImGui(ModelComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Model", &visible)) {
     auto& model = entity.GetComponent<ModelComponent>();
-    ImGui::InputText("##", &model.data.model_path, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
-    if (ImGui::Button("...")) {
-      Dialogs::OpenFileDialog(
-          {{"Model file", "obj,gltf"}}, [&entity](const std::string& file) {
-            auto& model = entity.GetComponent<ModelComponent>();
-            aiScene* aiScene = Engine::LoadAssimpModel(model, file);
-            if (aiScene == nullptr) {
-              return;  // todo alert
-            }
-            Scene* engineScene = entity.GetScene();
-            entt::entity entityHandle = entity.handle();
-            Application::Get()->SubmitToMainThread(
-                [aiScene, entityHandle, engineScene, file]() {
-                  Entity entity{entityHandle, engineScene};
-                  if (entity.HasComponent<ModelComponent>()) {
-                    auto& transform = entity.GetComponent<TransformComponent>();
-                    auto& model = entity.GetComponent<ModelComponent>();
-                    Engine::LoadModel(aiScene, transform, model, file);
-                  }
-                });
-          });
+    auto& assets = AssetManager::Get();
+
+    // Asset selector: show current asset name + dropdown to pick from registered model assets
+    const AssetMetadata* currentMeta = model.model_handle.IsValid()
+        ? assets.GetMetadata(model.model_handle)
+        : nullptr;
+    std::string currentName = currentMeta ? currentMeta->name : "(None)";
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 4);
+    if (ImGui::BeginCombo(PrefixLabel("Asset").c_str(), currentName.c_str())) {
+      // "None" option
+      if (ImGui::Selectable("(None)", !model.model_handle.IsValid())) {
+        model.model_handle = kNullAssetHandle;
+        model.data.meshes.clear();
+        model.data.textures.clear();
+      }
+
+      // List all registered Model assets
+      auto modelAssets = assets.GetAllOfType(AssetType::Model);
+      for (auto& handle : modelAssets) {
+        const auto* meta = assets.GetMetadata(handle);
+        if (!meta) continue;
+        bool is_selected = model.model_handle == handle;
+        if (ImGui::Selectable(meta->name.c_str(), is_selected)) {
+          if (model.model_handle != handle) {
+            model.model_handle = handle;
+            Engine::LoadModelAsync(entity.handle(), entity.GetScene());
+          }
+        }
+        if (is_selected) {
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+      ImGui::EndCombo();
     }
-    ImGui::Checkbox("Receive Shadows", &model.data.receive_shadows);
-    ImGui::Checkbox("Render", &model.data.enable_rendering);
+
+    // Drop target: drag a Model asset from the Asset Browser onto the combo
+    AssetHandle dropped;
+    if (AcceptAssetDragDrop(AssetType::Model, dropped)) {
+      if (model.model_handle != dropped) {
+        model.model_handle = dropped;
+        Engine::LoadModelAsync(entity.handle(), entity.GetScene());
+      }
+    }
+
+    // Show load state
+    if (model.model_handle.IsValid()) {
+      AssetLoadState state = assets.GetLoadState(model.model_handle);
+      const char* stateStr = "Unknown";
+      switch (state) {
+        case AssetLoadState::Unloaded: stateStr = "Unloaded"; break;
+        case AssetLoadState::Loading:  stateStr = "Loading..."; break;
+        case AssetLoadState::Loaded:   stateStr = "Loaded"; break;
+        case AssetLoadState::Failed:   stateStr = "Failed"; break;
+      }
+      ImGui::TextDisabled("Status: %s", stateStr);
+    }
+
+    ImGui::Checkbox("Receive Shadows", &model.receive_shadows);
+    ImGui::Checkbox("Render", &model.enable_rendering);
     ImGui::TreePop();
   }
   if (!visible) {

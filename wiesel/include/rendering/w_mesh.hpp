@@ -17,6 +17,7 @@
 
 #include <assimp/Importer.hpp>
 
+#include "asset/w_asset_handle.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_material.hpp"
@@ -58,14 +59,15 @@ struct Model {
   std::string model_path;
   std::string textures_path;
   std::map<std::string, Ref<Texture>> textures;
-  bool receive_shadows = true;
-  bool enable_rendering = true;
 };
 
 struct ModelComponent : public IComponent {
   ModelComponent() = default;
   ModelComponent(const ModelComponent&) = default;
 
+  AssetHandle model_handle;
   Model data;
+  bool receive_shadows = true;
+  bool enable_rendering = true;
 };
 }  // namespace Wiesel

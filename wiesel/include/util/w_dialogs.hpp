@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include "nfd.hpp"
 #include "w_pch.hpp"
 #ifdef _WIN32
 #include <locale>
@@ -21,21 +20,8 @@
 
 namespace Wiesel::Dialogs {
 struct FilterEntry {
-  const nfdnchar_t* name;
-  const nfdnchar_t* spec;
-
-  FilterEntry(const std::string& name, const std::string& spec) {
-#ifdef _WIN32
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wname = converter.from_bytes(name);
-    std::wstring wspec = converter.from_bytes(spec);
-    this->name = wname.c_str();
-    this->spec = wspec.c_str();
-#else
-    this->name = name.c_str();
-    this->spec = spec.c_str();
-#endif
-  }
+  std::string name;
+  std::string spec;
 };
 
 void Init();

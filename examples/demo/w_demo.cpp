@@ -10,6 +10,7 @@
 //
 
 #include "w_demo.hpp"
+#include "asset/w_asset_manager.hpp"
 #include "imgui_internal.h"
 #include "input/w_input.hpp"
 #include "layer/w_layerimgui.hpp"
@@ -37,13 +38,16 @@ DemoLayer::~DemoLayer() = default;
 
 void DemoLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
+  auto& assets = AssetManager::Get();
+
   {
     Entity entity = scene_->CreateEntity("Sponza");
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.scale = {0.01f, 0.01f, 0.01f};
     transform.position = {5.0f, 2.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    Engine::LoadModel(transform, model, "assets/models/sponza/sponza.gltf");
+    model.model_handle = assets.Register("Sponza", AssetType::Model, "assets/models/sponza/sponza.gltf");
+    Engine::LoadModelAsync(entity.handle(), entity.GetScene());
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
