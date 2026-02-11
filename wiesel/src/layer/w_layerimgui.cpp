@@ -84,7 +84,7 @@ void ImGuiLayer::OnAttach() {
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.MSAASamples = Engine::GetRenderer()->render_settings().msaa_samples;
+  init_info.MSAASamples = Engine::GetRenderer()->options().msaa_samples;
   init_info.RenderPass = Engine::GetRenderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);

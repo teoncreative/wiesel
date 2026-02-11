@@ -186,7 +186,7 @@ void Scene::ProcessDestroyQueue() {
 }
 
 bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
-  for (const auto& entity : registry_.view<CameraComponent>()) {
+  /*for (const auto& entity : registry_.view<CameraComponent>()) {
     auto& component = registry_.get<CameraComponent>(entity);
     component.aspect_ratio = event.aspect_ratio();
     component.viewport_size.x = event.window_size().width;
@@ -194,6 +194,7 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
     component.resources_dirty = true;
     component.view_changed = true;
   }
+  return false;*/
   return false;
 }
 
@@ -325,7 +326,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassFramebuffer(ssao_gen, cam->ssao_gen_framebuffer);
   g.SetPassViewport(ssao_gen, {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
   g.SetPassClearColor(ssao_gen, {0, 0, 0, 0});
-  auto& settings = renderer->render_settings();
+  auto& settings = renderer->options();
   g.SetPassEnabled(ssao_gen, settings.ssao_enabled);
 
   // --- SSAO Blur Horizontal ---
@@ -407,7 +408,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   uint32_t composite = g.AddPass("Composite", renderer->composite_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
-        if (renderer->render_settings().only_ssao) {
+        if (renderer->options().only_ssao) {
           renderer->DrawFullscreen(
               renderer->GetCompositePipeline(),
               {renderer->GetCameraData()->ssao_blur_vert_output_descriptor});
@@ -437,7 +438,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   // --- Bloom Extract (half-res) ---
   uint32_t bloom_extract = g.AddPass("Bloom Extract", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
-        auto& s = renderer->render_settings();
+        auto& s = renderer->options();
         renderer->bloom_push_constants_->threshold = s.bloom_threshold;
         renderer->bloom_push_constants_->intensity = s.bloom_intensity;
         renderer->GetBloomExtractPipeline()->Bind(PipelineBindPointGraphics);
@@ -485,7 +486,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   // --- Bloom Composite (full-res) ---
   uint32_t bloom_comp = g.AddPass("Bloom Composite", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
-        auto& s = renderer->render_settings();
+        auto& s = renderer->options();
         renderer->bloom_push_constants_->threshold = s.bloom_threshold;
         renderer->bloom_push_constants_->intensity = s.bloom_intensity;
         renderer->GetBloomCompositePipeline()->Bind(PipelineBindPointGraphics);
@@ -504,7 +505,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   // --- Motion Blur (full-res) ---
   uint32_t motion_blur = g.AddPass("Motion Blur", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
-        auto& s = renderer->render_settings();
+        auto& s = renderer->options();
         renderer->motion_blur_push_constants_->strength = s.motion_blur_strength;
         renderer->motion_blur_push_constants_->num_samples = s.motion_blur_samples;
         auto mb_desc = s.bloom_enabled

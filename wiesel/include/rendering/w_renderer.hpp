@@ -64,30 +64,50 @@ public:
   }
 
   Setting& operator=(const T& new_val) {
-    if (value == new_val) {
-      return *this;
-    }
-    if (change_hook) {
-      *change_hook = true;
-    }
-    value = new_val;
+    SetValue(new_val);
     return *this;
-  }
-
-  T* operator&() {
-    return &value;
   }
 
   operator T() const {
     return value;
   }
+
+  struct Proxy {
+    Setting* owner;
+    T old_value;
+
+    operator T*() {
+      return &owner->value;
+    }
+
+    ~Proxy() {
+      if (owner->change_hook && old_value != owner->value) {
+        *owner->change_hook = true;
+      }
+    }
+  };
+
+  Proxy operator&() {
+    return Proxy{this, value};
+  }
+
 private:
+  void SetValue(const T& new_val) {
+    if (value == new_val) {
+      return;
+    }
+
+    value = new_val;
+
+    if (change_hook)
+      *change_hook = true;
+  }
+
   T value;
   bool* change_hook;
-
 };
 
-struct RenderSettings {
+struct RendererOptions {
   // Pass enable/disable - no pipeline recreation needed
   Setting<bool> ssao_enabled = true;
   Setting<bool> bloom_enabled = false;
@@ -97,8 +117,9 @@ struct RenderSettings {
 
   // Requires pipeline recreation
   Setting<bool> wireframe_enabled = false;
-  Setting<bool> vsync = false;
   Setting<VkSampleCountFlagBits> msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+  // Requires swap-chain recreation
+  Setting<bool> vsync = false;
 
   // Effect parameters - push constants, updated every frame
   Setting<float> bloom_threshold = 0.7f;
@@ -143,6 +164,9 @@ class Renderer {
   Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
                                     const TextureProps& texture_props,
                                     const SamplerProps& sampler_props);
+  Ref<Texture> CreateCubemapTextureFromSingle(const std::string& path,
+                                    const TextureProps& texture_props,
+                                    const SamplerProps& sampler_props);
   void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mip_levels, const SamplerProps& props);
 
@@ -176,7 +200,7 @@ class Renderer {
   void SetClearColor(const Colorf& color);
   WIESEL_GETTER_FN Colorf& GetClearColor();
 
-  WIESEL_GETTER_FN RenderSettings& render_settings() { return render_settings_; }
+  WIESEL_GETTER_FN RendererOptions& options() { return options_; }
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
   WIESEL_GETTER_FN bool IsRecreatePipeline() const { return recreate_pipeline_; }
 
@@ -317,8 +341,9 @@ class Renderer {
 
   void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-                         uint32_t height, VkDeviceSize baseOffset = 0,
-                         uint32_t layer = 0);
+                         uint32_t height, VkDeviceSize base_offset = 0,
+                         uint32_t layer = 0,
+                         uint32_t layer_count = 1);
 
   void TransitionImageLayout(VkImage image, VkFormat format,
                              VkImageLayout oldLayout, VkImageLayout newLayout,
@@ -373,9 +398,9 @@ class Renderer {
   int32_t RateDeviceSuitability(VkPhysicalDevice device);
   bool IsDeviceSuitable(VkPhysicalDevice device);
   VkSurfaceFormatKHR ChooseSwapSurfaceFormat(
-      const std::vector<VkSurfaceFormatKHR>& availableFormats);
+      const std::vector<VkSurfaceFormatKHR>& available_formats);
   VkPresentModeKHR ChooseSwapPresentMode(
-      const std::vector<VkPresentModeKHR>& availablePresentModes);
+      const std::vector<VkPresentModeKHR>& available_present_modes);
   VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
   bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
   SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
@@ -466,7 +491,7 @@ class Renderer {
   CameraUniformData camera_uniform_data_;
   ShadowMapMatricesUniformData shadow_camera_uniform_data_;
   SSAOKernelUniformData ssao_kernel_uniform_data_;
-  RenderSettings render_settings_;
+  RendererOptions options_;
   bool recreate_pipeline_;
   bool recreate_swap_chain_;
 

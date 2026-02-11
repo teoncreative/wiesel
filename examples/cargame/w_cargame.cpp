@@ -9,7 +9,7 @@
 //         http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "w_demo.hpp"
+#include <cxxopts.hpp>
 #include "asset/w_asset_manager.hpp"
 #include "imgui_internal.h"
 #include "input/w_input.hpp"
@@ -19,10 +19,10 @@
 #include "systems/w_canvas_system.hpp"
 #include "util/w_keycodes.hpp"
 #include "util/w_math.hpp"
+#include "w_cargame.hpp"
 #include "w_editor.hpp"
 #include "w_engine.hpp"
 #include "w_entrypoint.hpp"
-#include <cxxopts.hpp>
 
 #include <random>
 
@@ -108,7 +108,7 @@ void DemoLayer::OnAttach() {
     scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
   }
 
-  renderer_->render_settings().vsync = false;
+  renderer_->options().vsync = false;
   //renderer_->SetMsaaSamples(VK_SAMPLE_COUNT_1_BIT);
 }
 

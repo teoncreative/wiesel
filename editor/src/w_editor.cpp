@@ -200,7 +200,7 @@ void EditorLayer::OnBeginPresent() {
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
     ImGui::SeparatorText("Controls");
-    auto& settings = Engine::GetRenderer()->render_settings();
+    auto& settings = Engine::GetRenderer()->options();
     ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
                         &settings.wireframe_enabled);
     ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),

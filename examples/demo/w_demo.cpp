@@ -106,14 +106,20 @@ void DemoLayer::OnAttach() {
   {
     auto entity = scene_->CreateEntity("Camera");
     auto& camera = entity.AddComponent<CameraComponent>();
-    camera.viewport_size = {1280, 720};
+    camera.viewport_size = {1920, 1080};
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
-  renderer_->render_settings().vsync = false;
+  {
+    auto skyboxTexture = Engine::GetRenderer()->CreateCubemapTextureFromSingle("assets/textures/cubemap/Cubemap_Sky_03-512x512.png", {}, {});
+    assets.RegisterAndStore<Texture>("Skybox Cubemap", AssetType::Skybox,
+                                     "assets/textures/skymap/", skyboxTexture);
+    scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
+  }
+  renderer_->options().vsync = false;
 }
 
 void DemoLayer::OnDetach() {
