@@ -21,15 +21,18 @@
 
 namespace WieselDemo {
 class DemoApplication : public Wiesel::Application {
- public:
-  DemoApplication();
+public:
+  DemoApplication(bool enable_editor);
   ~DemoApplication() override;
 
   void Init() override;
+
+private:
+  bool enable_editor_;
 };
 
 class DemoLayer : public Wiesel::Layer {
- public:
+public:
   explicit DemoLayer(DemoApplication& app, std::shared_ptr<Wiesel::Scene> scene);
   ~DemoLayer() override;
 
@@ -42,10 +45,10 @@ class DemoLayer : public Wiesel::Layer {
   bool OnKeyReleased(Wiesel::KeyReleasedEvent& event);
   bool OnMouseMoved(Wiesel::MouseMovedEvent& event);
 
- private:
+private:
   DemoApplication& app_;
-  std::shared_ptr<Wiesel::Scene> scene_;
-  std::shared_ptr<Wiesel::Renderer> renderer_;
+  Wiesel::Ref<Wiesel::Scene> scene_;
+  Wiesel::Ref<Wiesel::Renderer> renderer_;
 };
 
 }  // namespace WieselDemo

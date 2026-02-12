@@ -17,6 +17,7 @@
 #include "w_engine.hpp"
 
 namespace Wiesel {
+class PipelineRecreatedEvent;
 
 Scene::Scene() {
   current_camera_ = CreateReference<CameraData>();
@@ -121,6 +122,7 @@ void Scene::OnUpdate(float_t deltaTime) {
 void Scene::OnEvent(Event& event) {
   EventDispatcher dispatcher{event};
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
+  dispatcher.Dispatch<PipelineRecreatedEvent>(WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
   for (const auto& entity : registry_.view<BehaviorsComponent>()) {
     auto& component = registry_.get<BehaviorsComponent>(entity);
@@ -198,6 +200,14 @@ bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
   return false;
 }
 
+bool Scene::OnPipelineRecreatedEvent(PipelineRecreatedEvent& event) {
+  for (const auto& entity : registry_.view<CameraComponent>()) {
+    auto& component = registry_.get<CameraComponent>(entity);
+    component.resources_dirty = true;
+  }
+  return false;
+}
+
 glm::mat4 Scene::MakeLocal(const TransformComponent& t) {
   PROFILE_ZONE_SCOPED();
   glm::vec3 rotRad = glm::radians(t.rotation);
@@ -242,26 +252,36 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   std::shared_ptr<CameraData> cam = current_camera_;
 
   // Import all existing resources (initial layout UNDEFINED - graph handles transitions)
-  RGResource geo_view_pos = g.ImportTexture("GeoViewPos", cam->geometry_view_pos_resolve_image);
-  RGResource geo_world_pos = g.ImportTexture("GeoWorldPos", cam->geometry_world_pos_resolve_image);
-  RGResource geo_depth = g.ImportTexture("GeoDepth", cam->geometry_depth_resolve_image);
-  RGResource geo_normal = g.ImportTexture("GeoNormal", cam->geometry_normal_resolve_image);
-  RGResource geo_albedo = g.ImportTexture("GeoAlbedo", cam->geometry_albedo_resolve_image);
-  RGResource geo_material = g.ImportTexture("GeoMaterial", cam->geometry_material_resolve_image);
+  // Use resolve images when MSAA > 1, otherwise use the regular images
+  bool use_resolve = renderer->options().msaa_samples > VK_SAMPLE_COUNT_1_BIT;
+  RGResource geo_view_pos = g.ImportTexture("GeoViewPos",
+      use_resolve ? cam->geometry_view_pos_resolve_image : cam->geometry_view_pos_image);
+  RGResource geo_world_pos = g.ImportTexture("GeoWorldPos",
+      use_resolve ? cam->geometry_world_pos_resolve_image : cam->geometry_world_pos_image);
+  RGResource geo_depth = g.ImportTexture("GeoDepth",
+      use_resolve ? cam->geometry_depth_resolve_image : cam->geometry_depth_image);
+  RGResource geo_normal = g.ImportTexture("GeoNormal",
+      use_resolve ? cam->geometry_normal_resolve_image : cam->geometry_normal_image);
+  RGResource geo_albedo = g.ImportTexture("GeoAlbedo",
+      use_resolve ? cam->geometry_albedo_resolve_image : cam->geometry_albedo_image);
+  RGResource geo_material = g.ImportTexture("GeoMaterial",
+      use_resolve ? cam->geometry_material_resolve_image : cam->geometry_material_image);
   RGResource ssao_noise = g.ImportTexture("SSAONoise", renderer->ssao_noise_);
   RGResource ssao_out = g.ImportTexture("SSAOOut", cam->ssao_color_image);
   RGResource ssao_blur_h = g.ImportTexture("SSAOBlurH", cam->ssao_blur_horz_color_image);
   RGResource ssao_blur_v = g.ImportTexture("SSAOBlurV", cam->ssao_blur_vert_color_image);
-  RGResource lighting_out = g.ImportTexture("LightingOut", cam->lighting_color_resolve_image);
+  RGResource lighting_out = g.ImportTexture("LightingOut",
+      use_resolve ? cam->lighting_color_resolve_image : cam->lighting_color_image);
   RGResource sprite_out = g.ImportTexture("SpriteOut", cam->sprite_color_image);
-  RGResource composite_out = g.ImportTexture("CompositeOut", cam->composite_color_resolve_image);
+  RGResource composite_out = g.ImportTexture("CompositeOut",
+      use_resolve ? cam->composite_color_resolve_image : cam->composite_color_image);
 
   RGResource shadow_depth;
   if (cam->shadow_depth_stencil) {
     shadow_depth = g.ImportTexture("ShadowDepth", cam->shadow_depth_stencil);
   }
 
-  // --- Shadow Passes ---
+  // Shadow Passes
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     uint32_t shadow = g.AddPass("Shadow " + std::to_string(i), renderer->shadow_render_pass_,
         [this, renderer, i](VkCommandBuffer) {
@@ -288,7 +308,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
     g.SetPassClearColor(shadow, {0, 0, 0, 1});
   }
 
-  // --- Geometry Pass ---
+  // Geometry Pass
   uint32_t geo = g.AddPass("Geometry", renderer->geometry_render_pass_,
       [this, renderer](VkCommandBuffer) {
         renderer->geometry_pipeline_->Bind(PipelineBindPointGraphics);
@@ -309,7 +329,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassViewport(geo, cam->viewport_size);
   g.SetPassClearColor(geo, {0, 0, 0, 0});
 
-  // --- SSAO Gen Pass ---
+  // SSAO Gen Pass
   uint32_t ssao_gen = g.AddPass("SSAO Gen", renderer->ssao_gen_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetSSAOGenPipeline()->Bind(PipelineBindPointGraphics);
@@ -329,7 +349,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   auto& settings = renderer->options();
   g.SetPassEnabled(ssao_gen, settings.ssao_enabled);
 
-  // --- SSAO Blur Horizontal ---
+  // SSAO Blur Horizontal
   uint32_t ssao_blur_horz = g.AddPass("SSAO Blur H", renderer->ssao_blur_horz_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetSSAOBlurHorzPipeline()->Bind(PipelineBindPointGraphics);
@@ -345,7 +365,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassClearColor(ssao_blur_horz, {0, 0, 0, 0});
   g.SetPassEnabled(ssao_blur_horz, settings.ssao_enabled);
 
-  // --- SSAO Blur Vertical ---
+  // SSAO Blur Vertical
   uint32_t ssao_blur_vert = g.AddPass("SSAO Blur V", renderer->ssao_blur_vert_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetSSAOBlurVertPipeline()->Bind(PipelineBindPointGraphics);
@@ -361,7 +381,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassClearColor(ssao_blur_vert, {0, 0, 0, 0});
   g.SetPassEnabled(ssao_blur_vert, settings.ssao_enabled);
 
-  // --- Lighting Pass ---
+  // Lighting Pass
   uint32_t lighting = g.AddPass("Lighting", renderer->lighting_render_pass_,
       [this, renderer](VkCommandBuffer) {
         renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
@@ -389,7 +409,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassViewport(lighting, cam->viewport_size);
   g.SetPassClearColor(lighting, renderer->GetClearColor());
 
-  // --- Sprite Pass ---
+  // Sprite Pass
   uint32_t sprite = g.AddPass("Sprite", renderer->sprite_render_pass_,
       [this, renderer](VkCommandBuffer) {
         renderer->GetSpritePipeline()->Bind(PipelineBindPointGraphics);
@@ -404,7 +424,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassViewport(sprite, cam->viewport_size);
   g.SetPassClearColor(sprite, {0, 0, 0, 0});
 
-  // --- Composite Pass ---
+  // Composite Pass
   uint32_t composite = g.AddPass("Composite", renderer->composite_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
@@ -428,14 +448,14 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassViewport(composite, cam->viewport_size);
   g.SetPassClearColor(composite, renderer->GetClearColor());
 
-  // --- Post-process resources ---
+  // Post-process resources
   RGResource bloom_extract_out = g.ImportTexture("BloomExtract", cam->bloom_extract_image);
   RGResource bloom_blur_h_out = g.ImportTexture("BloomBlurH", cam->bloom_blur_h_image);
   RGResource bloom_blur_v_out = g.ImportTexture("BloomBlurV", cam->bloom_blur_v_image);
   RGResource bloom_composite_out = g.ImportTexture("BloomComposite", cam->bloom_composite_image);
   RGResource motion_blur_out = g.ImportTexture("MotionBlur", cam->motion_blur_image);
 
-  // --- Bloom Extract (half-res) ---
+  // Bloom Extract (half-res)
   uint32_t bloom_extract = g.AddPass("Bloom Extract", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
         auto& s = renderer->options();
@@ -453,7 +473,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassClearColor(bloom_extract, {0, 0, 0, 0});
   g.SetPassEnabled(bloom_extract, settings.bloom_enabled);
 
-  // --- Bloom Blur Horizontal (half-res) ---
+  // Bloom Blur Horizontal (half-res)
   uint32_t bloom_blur_h = g.AddPass("Bloom Blur H", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetBloomBlurHPipeline()->Bind(PipelineBindPointGraphics);
@@ -468,7 +488,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassClearColor(bloom_blur_h, {0, 0, 0, 0});
   g.SetPassEnabled(bloom_blur_h, settings.bloom_enabled);
 
-  // --- Bloom Blur Vertical (half-res) ---
+  // Bloom Blur Vertical (half-res)
   uint32_t bloom_blur_v = g.AddPass("Bloom Blur V", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
         renderer->GetBloomBlurVPipeline()->Bind(PipelineBindPointGraphics);
@@ -483,7 +503,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassClearColor(bloom_blur_v, {0, 0, 0, 0});
   g.SetPassEnabled(bloom_blur_v, settings.bloom_enabled);
 
-  // --- Bloom Composite (full-res) ---
+  // Bloom Composite (full-res)
   uint32_t bloom_comp = g.AddPass("Bloom Composite", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
         auto& s = renderer->options();
@@ -502,7 +522,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   g.SetPassClearColor(bloom_comp, {0, 0, 0, 0});
   g.SetPassEnabled(bloom_comp, settings.bloom_enabled);
 
-  // --- Motion Blur (full-res) ---
+  // Motion Blur (full-res)
   uint32_t motion_blur = g.AddPass("Motion Blur", renderer->postprocess_render_pass_,
       [renderer](VkCommandBuffer) {
         auto& s = renderer->options();

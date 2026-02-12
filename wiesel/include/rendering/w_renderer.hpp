@@ -374,6 +374,14 @@ class Renderer {
 
   void SetObjectName(VkObjectType type, uint64_t handle, const char* name);
 
+  VkSampleCountFlagBits GetMaxMsaaSamples() const {
+    return max_msaa_samples_;
+  }
+
+  VkSampleCountFlags GetSupportedMsaaFlags() const {
+    return possible_msaa_flags;
+  }
+
  private:
   void CreateVulkanInstance();
   void LoadInstanceExtensions();
@@ -419,7 +427,9 @@ class Renderer {
   bool HasStencilComponent(VkFormat format);
   void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
                        int32_t texHeight, uint32_t mipLevels);
-  VkSampleCountFlagBits GetMaxUsableSampleCount();
+
+  VkSampleCountFlagBits FindMaxUsableSampleCount(VkSampleCountFlags flags);
+
 #ifdef VULKAN_VALIDATION
   bool CheckValidationLayerSupport();
   void SetupDebugMessenger();
@@ -568,6 +578,9 @@ class Renderer {
   VkPhysicalDeviceProperties physical_device_properties_;
   VkPhysicalDeviceFeatures physical_device_features_;
   std::vector<std::string> shader_features_;
+
+  VkSampleCountFlagBits max_msaa_samples_;
+  VkSampleCountFlags possible_msaa_flags;
 
   TracyVkCtx tracy_ctx_;
   PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ = nullptr;

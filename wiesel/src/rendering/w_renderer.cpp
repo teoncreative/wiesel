@@ -24,6 +24,7 @@
 #include <vk_mem_alloc.h>
 
 #include "asset/w_asset_manager.hpp"
+#include "events/w_engineevents.hpp"
 
 namespace Wiesel {
 
@@ -55,7 +56,7 @@ Renderer::~Renderer() {
 
 void Renderer::Initialize(const RendererProperties&& properties) {
   options_.wireframe_enabled.SetHook(&recreate_pipeline_);
-  options_.msaa_samples.SetHook(&recreate_pipeline_);
+  options_.msaa_samples.SetHook(&recreate_swap_chain_);
   options_.vsync.SetHook(&recreate_swap_chain_);
   CreateVulkanInstance();
   LoadInstanceExtensions();
@@ -202,6 +203,8 @@ void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
 }
 
 void Renderer::SetupCameraComponent(CameraComponent& component) {
+  LOG_INFO("Recreating camera component. MSAA Samples: {}", (uint64_t)options_.msaa_samples);
+  LOG_INFO("  Viewport: {}x{}", component.viewport_size.x, component.viewport_size.y);
   if (component.aspect_ratio <= 0) {
     component.aspect_ratio =
         component.viewport_size.x / component.viewport_size.y;
@@ -367,13 +370,13 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
     std::array<AttachmentTexture*, 2> composite_attachments{
         component.composite_color_image.get(),
         component.composite_color_resolve_image.get()};
-    component.composite_framebuffer = lighting_render_pass_->CreateFramebuffer(
+    component.composite_framebuffer = composite_render_pass_->CreateFramebuffer(
         0, composite_attachments, {rw, rh});
   } else {
-    component.composite_color_resolve_image = component.lighting_color_image;
+    component.composite_color_resolve_image = component.composite_color_image;
     std::array<AttachmentTexture*, 1> composite_attachments{
         component.composite_color_image.get()};
-    component.composite_framebuffer = lighting_render_pass_->CreateFramebuffer(
+    component.composite_framebuffer = composite_render_pass_->CreateFramebuffer(
         0, composite_attachments, {rw, rh});
   }
 
@@ -1982,7 +1985,11 @@ void Renderer::PickPhysicalDevice() {
     vkGetPhysicalDeviceProperties(physical_device_,
                                   &physical_device_properties_);
     vkGetPhysicalDeviceFeatures(physical_device_, &physical_device_features_);
-    options_.msaa_samples = GetMaxUsableSampleCount();
+    possible_msaa_flags =
+        physical_device_properties_.limits.framebufferColorSampleCounts &
+        physical_device_properties_.limits.framebufferDepthSampleCounts;
+    max_msaa_samples_ = FindMaxUsableSampleCount(possible_msaa_flags);
+    options_.msaa_samples = max_msaa_samples_;
     if (physical_device_features_.shaderImageGatherExtended) {
       shader_features_.push_back("USE_GATHER");
     }
@@ -2249,24 +2256,41 @@ void Renderer::CreateSwapChain() {
        static_cast<uint32_t>(swap_chain_images.size()), FindDepthFormat(),
        options_.msaa_samples});
 
-  present_color_image_ = CreateAttachmentTexture(
-      {extent_.width, extent_.height, AttachmentTextureType::Color,
-       static_cast<uint32_t>(swap_chain_images.size()),
-       swap_chain_image_format_, options_.msaa_samples});
-
   present_render_pass_ =
       CreateReference<RenderPass>(PassType::Present, "Present RenderPass");
-  present_render_pass_->AttachOutput(present_color_image_);
-  present_render_pass_->AttachOutput(present_depth_stencil_);
-  present_render_pass_->AttachOutput(swap_chain_texture_);
-  present_render_pass_->Bake();
   present_framebuffers_.resize(swap_chain_images.size());
-  std::array<AttachmentTexture*, 3> textures{present_color_image_.get(),
-                                             present_depth_stencil_.get(),
-                                             swap_chain_texture_.get()};
-  for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
-    present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
-        i, textures, {extent_.width, extent_.height});
+
+  if (options_.msaa_samples > VK_SAMPLE_COUNT_1_BIT) {
+    // With MSAA, render to MSAA color attachment and resolve to swapchain
+    present_color_image_ = CreateAttachmentTexture(
+        {extent_.width, extent_.height, AttachmentTextureType::Color,
+         static_cast<uint32_t>(swap_chain_images.size()),
+         swap_chain_image_format_, options_.msaa_samples});
+    present_render_pass_->AttachOutput(present_color_image_);
+    present_render_pass_->AttachOutput(present_depth_stencil_);
+    present_render_pass_->AttachOutput(swap_chain_texture_);
+    present_render_pass_->Bake();
+
+    std::array<AttachmentTexture*, 3> textures{present_color_image_.get(),
+                                               present_depth_stencil_.get(),
+                                               swap_chain_texture_.get()};
+    for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
+      present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
+          i, textures, {extent_.width, extent_.height});
+    }
+  } else {
+    // Without MSAA, render directly to swapchain
+    present_color_image_ = swap_chain_texture_;
+    present_render_pass_->AttachOutput(swap_chain_texture_);
+    present_render_pass_->AttachOutput(present_depth_stencil_);
+    present_render_pass_->Bake();
+
+    std::array<AttachmentTexture*, 2> textures{swap_chain_texture_.get(),
+                                               present_depth_stencil_.get()};
+    for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
+      present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
+          i, textures, {extent_.width, extent_.height});
+    }
   }
 }
 
@@ -3110,27 +3134,23 @@ void Renderer::GenerateMipmaps(VkImage image, VkFormat imageFormat,
   EndSingleTimeCommands(commandBuffer);
 }
 
-VkSampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
-  PROFILE_ZONE_SCOPED();
-  VkSampleCountFlags counts =
-      physical_device_properties_.limits.framebufferColorSampleCounts &
-      physical_device_properties_.limits.framebufferDepthSampleCounts;
-  if (counts & VK_SAMPLE_COUNT_64_BIT) {
+VkSampleCountFlagBits Renderer::FindMaxUsableSampleCount(VkSampleCountFlags flags) {
+  if (flags & VK_SAMPLE_COUNT_64_BIT) {
     return VK_SAMPLE_COUNT_64_BIT;
   }
-  if (counts & VK_SAMPLE_COUNT_32_BIT) {
+  if (flags & VK_SAMPLE_COUNT_32_BIT) {
     return VK_SAMPLE_COUNT_32_BIT;
   }
-  if (counts & VK_SAMPLE_COUNT_16_BIT) {
+  if (flags & VK_SAMPLE_COUNT_16_BIT) {
     return VK_SAMPLE_COUNT_16_BIT;
   }
-  if (counts & VK_SAMPLE_COUNT_8_BIT) {
+  if (flags & VK_SAMPLE_COUNT_8_BIT) {
     return VK_SAMPLE_COUNT_8_BIT;
   }
-  if (counts & VK_SAMPLE_COUNT_4_BIT) {
+  if (flags & VK_SAMPLE_COUNT_4_BIT) {
     return VK_SAMPLE_COUNT_4_BIT;
   }
-  if (counts & VK_SAMPLE_COUNT_2_BIT) {
+  if (flags & VK_SAMPLE_COUNT_2_BIT) {
     return VK_SAMPLE_COUNT_2_BIT;
   }
   return VK_SAMPLE_COUNT_1_BIT;
@@ -3175,8 +3195,32 @@ void Renderer::CleanupDescriptorLayouts() {
 }
 
 void Renderer::CleanupGeometryGraphics() {
+  // Cleanup all pipelines
   geometry_pipeline_ = nullptr;
+  shadow_pipeline_ = nullptr;
+  skybox_pipeline_ = nullptr;
+  lighting_pipeline_ = nullptr;
+  ssao_gen_pipeline_ = nullptr;
+  ssao_blur_horz_pipeline_ = nullptr;
+  ssao_blur_vert_pipeline_ = nullptr;
+  sprite_pipeline_ = nullptr;
+  composite_pipeline_ = nullptr;
+  bloom_extract_pipeline_ = nullptr;
+  bloom_blur_h_pipeline_ = nullptr;
+  bloom_blur_v_pipeline_ = nullptr;
+  bloom_composite_pipeline_ = nullptr;
+  motion_blur_pipeline_ = nullptr;
+
+  // Cleanup all render passes
   geometry_render_pass_ = nullptr;
+  lighting_render_pass_ = nullptr;
+  composite_render_pass_ = nullptr;
+  sprite_render_pass_ = nullptr;
+  ssao_gen_render_pass_ = nullptr;
+  ssao_blur_horz_render_pass_ = nullptr;
+  ssao_blur_vert_render_pass_ = nullptr;
+  shadow_render_pass_ = nullptr;
+  postprocess_render_pass_ = nullptr;
 }
 
 void Renderer::CleanupPresentGraphics() {
@@ -3214,9 +3258,16 @@ void Renderer::RecreateSwapChain() {
 
   vkDeviceWaitIdle(logical_device_);
 
+  CleanupGeometryGraphics();
   CleanupPresentGraphics();
   CreateSwapChain();
+  CreateGeometryRenderPass();
+  CreateGeometryGraphicsPipelines();
   CreatePresentGraphicsPipelines();
+
+  // Notify that pipelines were recreated so cameras can recreate their resources
+  PipelineRecreatedEvent event{};
+  Engine::GetWindow()->GetEventHandler()(event);
 }
 
 void Renderer::SetViewport(VkExtent2D extent) {
@@ -3265,16 +3316,20 @@ void Renderer::BeginRender() {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate swap chain");
     RecreateSwapChain();
     recreate_swap_chain_ = false;
-    recreate_pipeline_ = false;
+    recreate_pipeline_ = false; // Already handled in RecreateSwapChain
   }
   if (recreate_pipeline_) {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate Pipeline");
     vkDeviceWaitIdle(logical_device_);
     LOG_INFO("Recreating graphics pipeline...");
     geometry_pipeline_->properties_.enable_wireframe =
-        options_.wireframe_enabled;
+      options_.wireframe_enabled;
+    geometry_pipeline_->properties_.msaa_samples =
+        options_.msaa_samples;
     RecreatePipeline(geometry_pipeline_);
     recreate_pipeline_ = false;
+    PipelineRecreatedEvent event{};
+    Engine::GetWindow()->GetEventHandler()(event);
   }
 }
 

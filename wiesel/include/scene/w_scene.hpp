@@ -13,11 +13,12 @@
 
 #include <entt/entt.hpp>
 
-#include "rendering/w_skybox.hpp"
-#include "rendering/w_rendergraph.hpp"
 #include "events/w_appevents.hpp"
+#include "events/w_engineevents.hpp"
 #include "events/w_events.hpp"
 #include "rendering/w_camera.hpp"
+#include "rendering/w_rendergraph.hpp"
+#include "rendering/w_skybox.hpp"
 #include "scene/w_components.hpp"
 #include "w_pch.hpp"
 
@@ -104,6 +105,7 @@ class Scene {
 
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
+  bool OnPipelineRecreatedEvent(PipelineRecreatedEvent& event);
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
   void UpdateMatrices(entt::entity entity);

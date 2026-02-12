@@ -158,6 +158,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
 }
 
 void EditorLayer::OnBeginPresent() {
+  Renderer* renderer = Engine::GetRenderer().get();
+
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
 
   // Build initial layout once
@@ -200,7 +202,7 @@ void EditorLayer::OnBeginPresent() {
   //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
     ImGui::SeparatorText("Controls");
-    auto& settings = Engine::GetRenderer()->options();
+    auto& settings = renderer->options();
     ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
                         &settings.wireframe_enabled);
     ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
@@ -229,12 +231,45 @@ void EditorLayer::OnBeginPresent() {
                        &settings.motion_blur_samples, 2, 16);
     }
 
+    VkSampleCountFlags supported = renderer->GetSupportedMsaaFlags();
+
+    const VkSampleCountFlagBits values[] = {
+      VK_SAMPLE_COUNT_1_BIT,
+      VK_SAMPLE_COUNT_2_BIT,
+      VK_SAMPLE_COUNT_4_BIT,
+      VK_SAMPLE_COUNT_8_BIT,
+      VK_SAMPLE_COUNT_16_BIT,
+      VK_SAMPLE_COUNT_32_BIT,
+      VK_SAMPLE_COUNT_64_BIT
+  };
+
+    std::vector<const char*> labels;
+    std::vector<VkSampleCountFlagBits> available;
+
+    for (auto v : values) {
+      if (supported & v) {
+        available.push_back(v);
+
+        static char buffer[8];
+        snprintf(buffer, sizeof(buffer), "%dx", (int)v);
+        labels.push_back(strdup(buffer)); // or store properly
+      }
+    }
+
+    static int currentIndex = 0;
+
+    if (ImGui::Combo("MSAA Samples", &currentIndex, labels.data(),
+                     labels.size())) {
+      VkSampleCountFlagBits selected = available[currentIndex];
+      renderer->options().msaa_samples = selected;
+    }
+
     if (ImGui::Button("Recreate Pipeline")) {
-      Engine::GetRenderer()->SetRecreatePipeline(true);
+      renderer->SetRecreatePipeline(true);
     }
 
     ImGui::SeparatorText("Shadow Cascades");
-    auto cam = Engine::GetRenderer()->GetCameraData();
+    auto cam = renderer->GetCameraData();
     if (cam) {
       ImGui::Text("Shadows: %s", cam->does_shadow_pass ? "ON" : "OFF");
       for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; i++) {
@@ -639,8 +674,8 @@ void EditorLayer::OnBeginPresent() {
 
   static bool viewportOpen = true;
   if (ImGui::Begin("Viewport", &viewportOpen)) {
-    auto finalOutputDesc = Engine::GetRenderer()->GetFinalOutputDescriptor();
-    auto finalOutputImage = Engine::GetRenderer()->GetFinalOutputImage();
+    auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
+    auto finalOutputImage = renderer->GetFinalOutputImage();
     ImTextureID desc =
         reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
 
@@ -670,7 +705,7 @@ void EditorLayer::OnBeginPresent() {
     ImGuizmo::SetRect(6, 6, drawSize.x, drawSize.y);
 
     if (has_selected_entity_) {
-      Ref<CameraData> cam = Engine::GetRenderer()->GetCameraData();
+      Ref<CameraData> cam = renderer->GetCameraData();
       glm::mat4 view = cam->view_matrix;
       glm::mat4 proj = cam->projection;
       proj[1][1] *= -1;

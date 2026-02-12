@@ -94,18 +94,35 @@ void RenderPass::Bake() {
       });
       index++;
     } else if (item.type == AttachmentTextureType::Resolve || item.type == AttachmentTextureType::SwapChain) {
-      descriptions.push_back({
-          .format = item.format,
-          .samples = VK_SAMPLE_COUNT_1_BIT,
-          .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-          .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-          .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-          .finalLayout = pass_type_ == PassType::Present ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      });
-      if (item.msaa_samples > VK_SAMPLE_COUNT_1_BIT || item.type == AttachmentTextureType::Resolve) {
+      bool used_as_resolve = item.msaa_samples > VK_SAMPLE_COUNT_1_BIT || item.type == AttachmentTextureType::Resolve;
+      if (used_as_resolve) {
+        descriptions.push_back({
+            .format = item.format,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = pass_type_ == PassType::Present ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        });
         resolveAttachmentRefs.push_back({
+            .attachment = index,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        });
+      } else {
+        // SwapChain used as direct color target (no MSAA resolve needed)
+        descriptions.push_back({
+            .format = item.format,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        });
+        colorAttachmentRefs.push_back({
             .attachment = index,
             .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         });
@@ -232,14 +249,14 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) 
 
   std::vector<VkClearValue> clearValues{};
   for (const auto& item : attachments_) {
-    if (item.type == AttachmentTextureType::Offscreen || item.type == AttachmentTextureType::Color) {
+    if (item.type == AttachmentTextureType::DepthStencil) {
+      clearValues.push_back({
+          .depthStencil = {1.0f, 0}
+      });
+    } else {
       clearValues.push_back({
           .color = {clear_color.red, clear_color.green,
                     clear_color.blue, clear_color.alpha}
-      });
-    } else if (item.type == AttachmentTextureType::DepthStencil) {
-      clearValues.push_back({
-          .depthStencil = {1.0f, 0}
       });
     }
   }

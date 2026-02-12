@@ -16,6 +16,8 @@
 #include <imgui.h>
 #include <ImGuizmo.h>
 
+#include "backends/imgui_impl_glfw.h"
+#include "events/w_engineevents.hpp"
 #include "rendering/w_renderer.hpp"
 #include "util/imgui/imgui_spectrum.hpp"
 #include "w_engine.hpp"
@@ -100,10 +102,53 @@ void ImGuiLayer::OnDetach() {
 
 void ImGuiLayer::OnUpdate(float_t deltaTime) {}
 
-void ImGuiLayer::OnEvent(Event& event) {}
+void ImGuiLayer::OnEvent(Event& event) {
+  EventDispatcher dispatcher{event};
+  dispatcher.Dispatch<PipelineRecreatedEvent>([this](PipelineRecreatedEvent& e) {
+    // Defer reinitialization until next frame to avoid mid-frame issues
+    needs_reinitialization_ = true;
+    return false;
+  });
+}
+
+void ImGuiLayer::ReinitializeImGuiVulkan() {
+  LOG_INFO("Reinitializing ImGui backends for MSAA change");
+
+  // No need for vkDeviceWaitIdle here - RecreateSwapChain already did that
+  // and we're between frames, so it's safe to reinitialize
+
+  // Shutdown both backends
+  ImGui_ImplVulkan_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+
+  // Reinitialize GLFW backend (must be done before Vulkan backend)
+  Engine::GetRenderer()->window_->ImGuiInit();
+
+  // Reinitialize Vulkan backend with new settings
+  ImGui_ImplVulkan_InitInfo init_info = {};
+  init_info.Instance = Engine::GetRenderer()->instance_;
+  init_info.PhysicalDevice = Engine::GetRenderer()->physical_device_;
+  init_info.Device = Engine::GetRenderer()->logical_device_;
+  init_info.Queue = Engine::GetRenderer()->graphics_queue_;
+  init_info.DescriptorPool = m_ImGuiPool;
+  init_info.MinImageCount = 3;
+  init_info.ImageCount = 3;
+  init_info.MSAASamples = Engine::GetRenderer()->options().msaa_samples;
+  init_info.RenderPass = Engine::GetRenderer()->present_render_pass_->GetVulkanHandle();
+
+  ImGui_ImplVulkan_Init(&init_info);
+
+  needs_reinitialization_ = false;
+}
 
 void ImGuiLayer::OnBeginPresent() {
   PROFILE_ZONE_SCOPED();
+
+  // Handle deferred reinitialization at the start of a new frame
+  if (needs_reinitialization_) {
+    ReinitializeImGuiVulkan();
+  }
+
   ImGui_ImplVulkan_NewFrame();
   Engine::GetRenderer()->window_->ImGuiNewFrame();
   ImGui::NewFrame();

@@ -36,11 +36,13 @@ enum class EventType {
   JoystickButtonPressed,
   JoystickButtonReleased,
   JoystickAxisMoved,
-  JoystickHatChanged
+  JoystickHatChanged,
+  PipelineRecreated
 };
 
 enum EventCategory {
   kEventCategoryApp = BIT(0),
+  kEventCategoryEngine = BIT(0),
   kEventCategoryInput = BIT(1),
   kEventCategoryKeyboard = BIT(2),
   kEventCategoryMouse = BIT(3),

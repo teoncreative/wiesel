@@ -28,8 +28,11 @@ class ImGuiLayer : public Layer {
   void OnBeginPresent() override;
   void OnPresent() override;
 
+  void ReinitializeImGuiVulkan();
+
  private:
   VkDescriptorPool m_ImGuiPool;
+  bool needs_reinitialization_ = false;
 
 
 };

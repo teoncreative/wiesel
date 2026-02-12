@@ -25,6 +25,9 @@
 
 #include <random>
 
+#include "cxxopts.hpp"
+#include "layer/w_layerscene.hpp"
+
 using namespace Wiesel;
 using namespace Wiesel::Editor;
 
@@ -143,6 +146,18 @@ bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
     app_.Close();
     return true;
   }
+  if (event.GetKeyCode() == Key1) {
+    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+  }
+  if (event.GetKeyCode() == Key2) {
+    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_2_BIT;
+  }
+  if (event.GetKeyCode() == Key3) {
+    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_4_BIT;
+  }
+  if (event.GetKeyCode() == Key4) {
+    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_8_BIT;
+  }
   return false;
 }
 
@@ -157,21 +172,32 @@ bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
 void DemoApplication::Init() {
   LOG_DEBUG("Init");
   std::shared_ptr<Scene> scene = std::make_shared<Scene>();
-  PushLayer(CreateReference<ImGuiLayer>());
-  PushLayer(CreateReference<DemoLayer>(*this, scene));
-  PushLayer(CreateReference<EditorLayer>(*this, scene));
+  if (enable_editor_) {
+    PushLayer(std::make_shared<ImGuiLayer>());
+    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<EditorLayer>(*this, scene));
+  } else {
+    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<SceneLayer>(scene));
+  }
 }
 
-DemoApplication::DemoApplication() : Application({"Wiesel Demo"}, {}) {
-  LOG_DEBUG("DemoApp constructor");
+DemoApplication::DemoApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
 }
 
 DemoApplication::~DemoApplication() {
-  LOG_DEBUG("DemoApp destructor");
 }
 }  // namespace WieselDemo
 
 // Called from entrypoint
 Application* Wiesel::CreateApp(int argc, char** argv) {
-  return new WieselDemo::DemoApplication();
+  cxxopts::Options options("demo", "Wiesel demo application");
+
+  options.add_options()
+      ("e,enable_editor", "Enable the editor", cxxopts::value<bool>()->default_value("false"));
+
+  auto result = options.parse(argc, argv);
+  bool enable_editor = result["enable_editor"].as<bool>();
+
+  return new WieselDemo::DemoApplication(enable_editor);
 }

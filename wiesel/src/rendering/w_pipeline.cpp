@@ -56,6 +56,7 @@ void Pipeline::SetVertexData(std::vector<VkVertexInputBindingDescription> i, std
 }
 
 void Pipeline::Bake() {
+  LOG_DEBUG("Creating pipeline with {} samples", (uint64_t)properties_.msaa_samples);
   if (is_allocated_) {
     vkDestroyPipeline(Engine::GetRenderer()->GetLogicalDevice(), pipeline_, nullptr);
     vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), layout_, nullptr);
