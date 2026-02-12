@@ -128,7 +128,7 @@ void DemoLayer::OnAttach() {
   renderer_->options().bloom_intensity = 0.8;
   renderer_->options().motion_blur_enabled = true;
   renderer_->options().motion_blur_strength = 1;
-  renderer_->options().aa_mode = AntiAliasingMode::TAA;
+  renderer_->options().aa_mode = AntiAliasingMode::FXAA;
   renderer_->options().msaa_mode = SamplingMode::DISABLED;
 }
 

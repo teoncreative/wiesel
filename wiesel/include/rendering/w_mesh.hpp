@@ -72,6 +72,6 @@ struct ModelComponent : public IComponent {
   Ref<UniformBuffer> uniform_buffer;
   std::vector<Ref<DescriptorSet>> geometry_descriptors;  // one per mesh
   std::vector<Ref<DescriptorSet>> shadow_descriptors;    // one per mesh
-  AssetHandle render_model_;  // tracks which model render data was built for
+  AssetHandle render_model;  // tracks which model render data was built for
 };
 }  // namespace Wiesel

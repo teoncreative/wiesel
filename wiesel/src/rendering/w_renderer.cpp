@@ -3622,7 +3622,7 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
         CreateShadowMeshDescriptors(model.uniform_buffer, mesh->mat));
   }
 
-  model.render_model_ = model.model_handle;
+  model.render_model = model.model_handle;
 }
 
 void Renderer::DrawModel(ModelComponent& model,
@@ -3635,7 +3635,7 @@ void Renderer::DrawModel(ModelComponent& model,
   }
 
   // Lazily allocate per-entity render data (or re-allocate if model changed)
-  if (model.render_model_ != model.model_handle || !model.uniform_buffer) {
+  if (model.render_model != model.model_handle || !model.uniform_buffer) {
     AllocateModelRenderData(model, *ptr);
   }
 
