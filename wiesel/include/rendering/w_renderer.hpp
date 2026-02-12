@@ -54,6 +54,16 @@ struct MotionBlurPushConstants {
   int num_samples;
 };
 
+struct FxaaPushConstants {
+  glm::vec2 inverse_screen_size;
+};
+
+enum class AntiAliasingMode {
+  None,
+  FXAA,
+  TAA
+};
+
 template<typename T>
 class Setting {
 public:
@@ -120,6 +130,9 @@ struct RendererOptions {
   Setting<VkSampleCountFlagBits> msaa_samples = VK_SAMPLE_COUNT_1_BIT;
   // Requires swap-chain recreation
   Setting<bool> vsync = false;
+
+  // Anti-aliasing mode (mutually exclusive: None, FXAA, TAA)
+  Setting<AntiAliasingMode> aa_mode = AntiAliasingMode::None;
 
   // Effect parameters - push constants, updated every frame
   Setting<float> bloom_threshold = 0.7f;
@@ -291,6 +304,18 @@ class Renderer {
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetMotionBlurPipeline() const {
     return motion_blur_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetFxaaPipeline() const {
+    return fxaa_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetTaaPipeline() const {
+    return taa_pipeline_;
+  }
+
+  WIESEL_GETTER_FN const Ref<Pipeline> GetTaaCopyPipeline() const {
+    return taa_copy_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
@@ -501,6 +526,8 @@ class Renderer {
   CameraUniformData camera_uniform_data_;
   ShadowMapMatricesUniformData shadow_camera_uniform_data_;
   SSAOKernelUniformData ssao_kernel_uniform_data_;
+  glm::mat4 prev_jittered_vp_{1.0f};
+  uint32_t taa_frame_index_ = 0;
   RendererOptions options_;
   bool recreate_pipeline_;
   bool recreate_swap_chain_;
@@ -556,8 +583,13 @@ class Renderer {
   Ref<Pipeline> bloom_blur_v_pipeline_;
   Ref<Pipeline> bloom_composite_pipeline_;
   Ref<Pipeline> motion_blur_pipeline_;
+  Ref<Pipeline> fxaa_pipeline_;
+  Ref<Pipeline> taa_pipeline_;
+  Ref<Pipeline> taa_copy_pipeline_;
   Ref<BloomPushConstants> bloom_push_constants_;
   Ref<MotionBlurPushConstants> motion_blur_push_constants_;
+  Ref<FxaaPushConstants> fxaa_push_constants_;
+  Ref<DescriptorSetLayout> taa_descriptor_layout_;
 
   Ref<RenderPass> present_render_pass_;
   Ref<DescriptorSetLayout> present_descriptor_layout_;

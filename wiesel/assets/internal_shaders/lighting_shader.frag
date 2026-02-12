@@ -55,6 +55,7 @@ layout(set = 2, binding = 1, std140) uniform Camera {
     int enableSSAO;
     int debugCascades;
     mat4 prevViewProjection;
+    vec2 taaJitterOffset;
 } cam;
 
 layout(set = 2, binding = 2) uniform ShadowMapMatrices {

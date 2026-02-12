@@ -231,6 +231,14 @@ void EditorLayer::OnBeginPresent() {
                        &settings.motion_blur_samples, 2, 16);
     }
 
+    {
+      const char* aa_labels[] = {"None", "FXAA", "TAA"};
+      int aa_current = static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
+      if (ImGui::Combo(PrefixLabel("Anti-Aliasing").c_str(), &aa_current, aa_labels, IM_ARRAYSIZE(aa_labels))) {
+        settings.aa_mode = static_cast<AntiAliasingMode>(aa_current);
+      }
+    }
+
     VkSampleCountFlags supported = renderer->GetSupportedMsaaFlags();
 
     const VkSampleCountFlagBits values[] = {
@@ -246,21 +254,28 @@ void EditorLayer::OnBeginPresent() {
     std::vector<const char*> labels;
     std::vector<VkSampleCountFlagBits> available;
 
+    int selected_index = 0;
+    int i = 0;
     for (auto v : values) {
-      if (supported & v) {
-        available.push_back(v);
-
-        static char buffer[8];
-        snprintf(buffer, sizeof(buffer), "%dx", (int)v);
-        labels.push_back(strdup(buffer)); // or store properly
+      if (!(supported & v)) {
+        i++;
+        continue;
       }
+      if (renderer->options().msaa_samples == v) {
+        selected_index = i;
+      }
+      available.push_back(v);
+
+      static char buffer[8];
+      snprintf(buffer, sizeof(buffer), "%dx", (int)v);
+      labels.push_back(strdup(buffer));  // or store properly
+      i++;
     }
 
-    static int currentIndex = 0;
 
-    if (ImGui::Combo("MSAA Samples", &currentIndex, labels.data(),
+    if (ImGui::Combo("MSAA Samples", &selected_index, labels.data(),
                      labels.size())) {
-      VkSampleCountFlagBits selected = available[currentIndex];
+      VkSampleCountFlagBits selected = available[selected_index];
       renderer->options().msaa_samples = selected;
     }
 

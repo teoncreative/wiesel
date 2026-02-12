@@ -109,7 +109,7 @@ void DemoLayer::OnAttach() {
   {
     auto entity = scene_->CreateEntity("Camera");
     auto& camera = entity.AddComponent<CameraComponent>();
-    camera.viewport_size = {1920, 1080};
+    camera.viewport_size = {2560, 1440};
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
@@ -123,6 +123,13 @@ void DemoLayer::OnAttach() {
     scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
   }
   renderer_->options().vsync = false;
+  renderer_->options().bloom_enabled = true;
+  renderer_->options().bloom_threshold = 0.5;
+  renderer_->options().bloom_intensity = 0.8;
+  renderer_->options().motion_blur_enabled = true;
+  renderer_->options().motion_blur_strength = 1;
+  renderer_->options().aa_mode = AntiAliasingMode::TAA;
+  renderer_->options().msaa_samples = VK_SAMPLE_COUNT_1_BIT;
 }
 
 void DemoLayer::OnDetach() {
@@ -139,6 +146,7 @@ void DemoLayer::OnEvent(Event& event) {
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPress));
   dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
+  dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnResizeEvent));
 }
 
 bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
@@ -166,6 +174,20 @@ bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
 }
 
 bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
+  return false;
+}
+
+bool DemoLayer::OnResizeEvent(WindowResizeEvent& event) {
+  if (app_.IsEditorEnabled()) {
+    return false;
+  }
+  for (entt::entity entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+    CameraComponent& camera = scene_->GetComponent<CameraComponent>(entity);
+    camera.viewport_size.x = event.window_size().width;
+    camera.viewport_size.y = event.window_size().height;
+    camera.aspect_ratio = event.aspect_ratio();
+    camera.view_changed = true;
+  }
   return false;
 }
 

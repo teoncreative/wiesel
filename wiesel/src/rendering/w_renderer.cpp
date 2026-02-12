@@ -587,6 +587,101 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
       0, component.motion_blur_image->image_views_[0], default_linear_sampler_);
   component.motion_blur_output_descriptor->Bake();
 
+  // FXAA resources
+  component.fxaa_image = CreateAttachmentTexture(
+      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
+       VK_SAMPLE_COUNT_1_BIT, true});
+  {
+    std::array<AttachmentTexture*, 1> att{component.fxaa_image.get()};
+    component.fxaa_framebuffer = postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
+  }
+
+  component.fxaa_after_composite_desc = CreateReference<DescriptorSet>();
+  component.fxaa_after_composite_desc->SetLayout(present_descriptor_layout_);
+  component.fxaa_after_composite_desc->AddCombinedImageSampler(
+      0, component.composite_color_resolve_image->image_views_[0], default_linear_sampler_);
+  component.fxaa_after_composite_desc->Bake();
+
+  component.fxaa_after_bloom_desc = CreateReference<DescriptorSet>();
+  component.fxaa_after_bloom_desc->SetLayout(present_descriptor_layout_);
+  component.fxaa_after_bloom_desc->AddCombinedImageSampler(
+      0, component.bloom_composite_image->image_views_[0], default_linear_sampler_);
+  component.fxaa_after_bloom_desc->Bake();
+
+  component.fxaa_after_motion_blur_desc = CreateReference<DescriptorSet>();
+  component.fxaa_after_motion_blur_desc->SetLayout(present_descriptor_layout_);
+  component.fxaa_after_motion_blur_desc->AddCombinedImageSampler(
+      0, component.motion_blur_image->image_views_[0], default_linear_sampler_);
+  component.fxaa_after_motion_blur_desc->Bake();
+
+  component.fxaa_output_descriptor = CreateReference<DescriptorSet>();
+  component.fxaa_output_descriptor->SetLayout(present_descriptor_layout_);
+  component.fxaa_output_descriptor->AddCombinedImageSampler(
+      0, component.fxaa_image->image_views_[0], default_linear_sampler_);
+  component.fxaa_output_descriptor->Bake();
+
+  // TAA resources
+  component.taa_output_image = CreateAttachmentTexture(
+      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
+       VK_SAMPLE_COUNT_1_BIT, true});
+  component.taa_history_image = CreateAttachmentTexture(
+      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
+       VK_SAMPLE_COUNT_1_BIT, true});
+  {
+    std::array<AttachmentTexture*, 1> att{component.taa_output_image.get()};
+    component.taa_framebuffer = postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
+  }
+  {
+    std::array<AttachmentTexture*, 1> att{component.taa_history_image.get()};
+    component.taa_history_framebuffer = postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
+  }
+
+  component.taa_descriptor = CreateReference<DescriptorSet>();
+  component.taa_descriptor->SetLayout(taa_descriptor_layout_);
+  component.taa_descriptor->AddCombinedImageSampler(
+      0, component.composite_color_resolve_image->image_views_[0], default_linear_sampler_);
+  component.taa_descriptor->AddCombinedImageSampler(
+      1, component.taa_history_image->image_views_[0], default_linear_sampler_);
+  component.taa_descriptor->AddCombinedImageSampler(
+      2, component.geometry_depth_resolve_image->image_views_[0], default_nearest_sampler_);
+  component.taa_descriptor->Bake();
+
+  component.taa_copy_descriptor = CreateReference<DescriptorSet>();
+  component.taa_copy_descriptor->SetLayout(present_descriptor_layout_);
+  component.taa_copy_descriptor->AddCombinedImageSampler(
+      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
+  component.taa_copy_descriptor->Bake();
+
+  component.taa_output_descriptor = CreateReference<DescriptorSet>();
+  component.taa_output_descriptor->SetLayout(present_descriptor_layout_);
+  component.taa_output_descriptor->AddCombinedImageSampler(
+      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
+  component.taa_output_descriptor->Bake();
+
+  // TAA-aware bloom descriptors
+  component.bloom_extract_after_taa_desc = CreateReference<DescriptorSet>();
+  component.bloom_extract_after_taa_desc->SetLayout(present_descriptor_layout_);
+  component.bloom_extract_after_taa_desc->AddCombinedImageSampler(
+      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
+  component.bloom_extract_after_taa_desc->Bake();
+
+  component.bloom_composite_after_taa_desc = CreateReference<DescriptorSet>();
+  component.bloom_composite_after_taa_desc->SetLayout(postprocess_2input_descriptor_layout_);
+  component.bloom_composite_after_taa_desc->AddCombinedImageSampler(
+      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
+  component.bloom_composite_after_taa_desc->AddCombinedImageSampler(
+      1, component.bloom_blur_v_image->image_views_[0], default_linear_sampler_);
+  component.bloom_composite_after_taa_desc->Bake();
+
+  // TAA-aware motion blur descriptor
+  component.motion_blur_after_taa_desc = CreateReference<DescriptorSet>();
+  component.motion_blur_after_taa_desc->SetLayout(postprocess_2input_descriptor_layout_);
+  component.motion_blur_after_taa_desc->AddCombinedImageSampler(
+      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
+  component.motion_blur_after_taa_desc->AddCombinedImageSampler(
+      1, component.geometry_world_pos_resolve_image->image_views_[0], default_nearest_sampler_);
+  component.motion_blur_after_taa_desc->Bake();
+
   component.resources_dirty = false;
   component.view_changed = true;
   component.pos_changed = true;
@@ -2158,6 +2253,12 @@ void Renderer::CreateDescriptorLayouts() {
   postprocess_2input_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   postprocess_2input_descriptor_layout_->Bake();
+
+  taa_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+  taa_descriptor_layout_->Bake();
 }
 
 void Renderer::CreateSwapChain() {
@@ -2646,6 +2747,42 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   motion_blur_pipeline_->AddShader(fullscreen_vertex_shader);
   motion_blur_pipeline_->AddShader(motion_blur_frag);
   motion_blur_pipeline_->Bake();
+
+  // FXAA pipeline
+  fxaa_push_constants_ = std::make_shared<FxaaPushConstants>();
+  fxaa_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+      VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
+  fxaa_pipeline_->SetRenderPass(postprocess_render_pass_);
+  fxaa_pipeline_->AddInputLayout(present_descriptor_layout_);
+  fxaa_pipeline_->AddPushConstant(fxaa_push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);
+  fxaa_pipeline_->AddShader(fullscreen_vertex_shader);
+  fxaa_pipeline_->AddShader(CreateShader(
+      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+       "assets/internal_shaders/fxaa.frag"}));
+  fxaa_pipeline_->Bake();
+
+  // TAA pipeline
+  taa_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+      VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
+  taa_pipeline_->SetRenderPass(postprocess_render_pass_);
+  taa_pipeline_->AddInputLayout(taa_descriptor_layout_);
+  taa_pipeline_->AddInputLayout(global_descriptor_layout_);
+  taa_pipeline_->AddShader(fullscreen_vertex_shader);
+  taa_pipeline_->AddShader(CreateShader(
+      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+       "assets/internal_shaders/taa.frag"}));
+  taa_pipeline_->Bake();
+
+  // TAA history copy pipeline (simple passthrough)
+  taa_copy_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+      VK_SAMPLE_COUNT_1_BIT, CullModeFront, false, false, false, false});
+  taa_copy_pipeline_->SetRenderPass(postprocess_render_pass_);
+  taa_copy_pipeline_->AddInputLayout(present_descriptor_layout_);
+  taa_copy_pipeline_->AddShader(fullscreen_vertex_shader);
+  taa_copy_pipeline_->AddShader(CreateShader(
+      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+       "assets/internal_shaders/quad_shader.frag"}));
+  taa_copy_pipeline_->Bake();
 }
 
 void Renderer::CreatePresentGraphicsPipelines() {
@@ -3192,6 +3329,7 @@ void Renderer::CreateSyncObjects() {
 void Renderer::CleanupDescriptorLayouts() {
   geometry_mesh_descriptor_layout_ = nullptr;
   present_descriptor_layout_ = nullptr;
+  taa_descriptor_layout_ = nullptr;
 }
 
 void Renderer::CleanupGeometryGraphics() {
@@ -3210,6 +3348,9 @@ void Renderer::CleanupGeometryGraphics() {
   bloom_blur_v_pipeline_ = nullptr;
   bloom_composite_pipeline_ = nullptr;
   motion_blur_pipeline_ = nullptr;
+  fxaa_pipeline_ = nullptr;
+  taa_pipeline_ = nullptr;
+  taa_copy_pipeline_ = nullptr;
 
   // Cleanup all render passes
   geometry_render_pass_ = nullptr;
@@ -3597,6 +3738,18 @@ void Renderer::DrawFullscreen(
   vkCmdDraw(command_buffer_->handle_, 3, 1, 0, 0);
 }
 
+static float Halton(int index, int base) {
+  float result = 0.0f;
+  float f = 1.0f / static_cast<float>(base);
+  int i = index;
+  while (i > 0) {
+    result += f * static_cast<float>(i % base);
+    i /= base;
+    f /= static_cast<float>(base);
+  }
+  return result;
+}
+
 void Renderer::SetCameraData(Ref<CameraData> camera_data) {
   camera_ = camera_data;
   viewport_size_ = camera_data->viewport_size;
@@ -3615,26 +3768,54 @@ void Renderer::SetCameraData(Ref<CameraData> camera_data) {
   }
   camera_uniform_data_.enable_ssao = options_.ssao_enabled;
   camera_uniform_data_.debug_cascades = options_.debug_cascades;
-  camera_uniform_data_.PrevViewProjection = camera_data->prev_view_projection;
+
+  // TAA jitter
+  if (options_.aa_mode == AntiAliasingMode::TAA) {
+    camera_uniform_data_.PrevViewProjection = prev_jittered_vp_;
+
+    int idx = static_cast<int>((taa_frame_index_ % 16) + 1);
+    float jitter_x = Halton(idx, 2) - 0.5f;
+    float jitter_y = Halton(idx, 3) - 0.5f;
+    camera_uniform_data_.Projection[2][0] += jitter_x * 2.0f / viewport_size_.x;
+    camera_uniform_data_.Projection[2][1] += jitter_y * 2.0f / viewport_size_.y;
+    camera_uniform_data_.TaaJitterOffset = glm::vec2(
+        jitter_x / viewport_size_.x,
+        jitter_y / viewport_size_.y
+    );
+
+    prev_jittered_vp_ = camera_uniform_data_.Projection * camera_uniform_data_.ViewMatrix;
+    taa_frame_index_++;
+  } else {
+    camera_uniform_data_.PrevViewProjection = camera_data->prev_view_projection;
+    camera_uniform_data_.TaaJitterOffset = glm::vec2(0.0f);
+  }
 }
 
 Ref<DescriptorSet> Renderer::GetFinalOutputDescriptor() const {
   if (!camera_)
     return nullptr;
+  if (options_.aa_mode == AntiAliasingMode::FXAA)
+    return camera_->fxaa_output_descriptor;
   if (options_.motion_blur_enabled)
     return camera_->motion_blur_output_descriptor;
   if (options_.bloom_enabled)
     return camera_->bloom_output_descriptor;
+  if (options_.aa_mode == AntiAliasingMode::TAA)
+    return camera_->taa_output_descriptor;
   return camera_->composite_output_descriptor;
 }
 
 Ref<AttachmentTexture> Renderer::GetFinalOutputImage() const {
   if (!camera_)
     return nullptr;
+  if (options_.aa_mode == AntiAliasingMode::FXAA)
+    return camera_->fxaa_image;
   if (options_.motion_blur_enabled)
     return camera_->motion_blur_image;
   if (options_.bloom_enabled)
     return camera_->bloom_composite_image;
+  if (options_.aa_mode == AntiAliasingMode::TAA)
+    return camera_->taa_output_image;
   return camera_->composite_color_resolve_image;
 }
 

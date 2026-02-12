@@ -235,6 +235,8 @@ class AttachmentTexture {
 
   bool is_allocated_;
 
+  // Tracked by the render graph across frames for correct barrier insertion
+  VkImageLayout current_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 
 class ImageView {

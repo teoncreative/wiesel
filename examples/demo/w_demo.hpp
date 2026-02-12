@@ -27,6 +27,9 @@ public:
 
   void Init() override;
 
+  bool IsEditorEnabled() const {
+    return enable_editor_;
+  }
 private:
   bool enable_editor_;
 };
@@ -44,6 +47,7 @@ public:
   bool OnKeyPress(Wiesel::KeyPressedEvent& event);
   bool OnKeyReleased(Wiesel::KeyReleasedEvent& event);
   bool OnMouseMoved(Wiesel::MouseMovedEvent& event);
+  bool OnResizeEvent(Wiesel::WindowResizeEvent& event);
 
 private:
   DemoApplication& app_;

@@ -183,6 +183,8 @@ struct alignas(16) CameraUniformData {
   uint32_t debug_cascades;
   float _pad2[2];
   alignas(16) glm::mat4 PrevViewProjection;
+  alignas(16) glm::vec2 TaaJitterOffset;
+  float _pad3[2];
 };
 
 struct alignas(16) ShadowMapMatricesUniformData {

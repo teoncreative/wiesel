@@ -68,6 +68,7 @@ struct RGResourceData {
 struct RGResourceRef {
   RGResource resource;
   RGAccess access;
+  bool skip_dependency = false;  // If true, don't create topological edge
 };
 
 // Execute callback - called each frame during graph execution
@@ -116,6 +117,11 @@ class RenderGraph {
   // Configure pass inputs (resources the pass reads)
   void PassReadsTexture(uint32_t pass, RGResource resource);
   void PassReadsDepth(uint32_t pass, RGResource resource);
+
+  // Read a resource from a previous frame (barrier only, no dependency edge).
+  // Use this for frame-to-frame resources like TAA history that would create
+  // cycles if declared as normal reads.
+  void PassReadsExternalTexture(uint32_t pass, RGResource resource);
 
   // Configure pass outputs (resources the pass writes)
   void PassWritesColor(uint32_t pass, RGResource resource);

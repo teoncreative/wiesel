@@ -54,8 +54,14 @@ RGResource RenderGraph::ImportTexture(const std::string& name,
   data.name = name;
   data.is_transient = false;
   data.texture = texture;
-  data.initial_layout = initial_layout;
-  data.current_layout = initial_layout;
+  // Use the texture's tracked layout if no explicit initial layout was given
+  if (initial_layout == VK_IMAGE_LAYOUT_UNDEFINED && texture) {
+    data.initial_layout = texture->current_layout_;
+    data.current_layout = texture->current_layout_;
+  } else {
+    data.initial_layout = initial_layout;
+    data.current_layout = initial_layout;
+  }
   resources_.push_back(std::move(data));
 
   compiled_ = false;
@@ -101,6 +107,11 @@ void RenderGraph::PassReadsTexture(uint32_t pass, RGResource resource) {
 
 void RenderGraph::PassReadsDepth(uint32_t pass, RGResource resource) {
   passes_[pass].inputs_.push_back({resource, RGAccess::DepthStencilReadOnly});
+  compiled_ = false;
+}
+
+void RenderGraph::PassReadsExternalTexture(uint32_t pass, RGResource resource) {
+  passes_[pass].inputs_.push_back({resource, RGAccess::ShaderRead, true});
   compiled_ = false;
 }
 
@@ -167,6 +178,7 @@ void RenderGraph::TopologicalSort() {
   // Second pass: create edges from writers to readers
   for (uint32_t i = 0; i < pass_count; i++) {
     for (const auto& input : passes_[i].inputs_) {
+      if (input.skip_dependency) continue;  // External/cross-frame reads
       auto it = resource_writer.find(input.resource.index);
       if (it != resource_writer.end() && it->second != i) {
         adj[it->second].push_back(i);
@@ -297,6 +309,7 @@ void RenderGraph::TransitionResource(VkCommandBuffer cmd, RGResourceData& resour
       layer_count);
 
   resource.current_layout = required;
+  resource.texture->current_layout_ = required;
 }
 
 void RenderGraph::InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pass) {
@@ -320,7 +333,11 @@ void RenderGraph::InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pas
 
 void RenderGraph::UpdateOutputLayouts(const RenderGraphPass& pass) {
   for (const auto& output : pass.outputs_) {
-    resources_[output.resource.index].current_layout = RGAccessToLayout(output.access);
+    auto layout = RGAccessToLayout(output.access);
+    resources_[output.resource.index].current_layout = layout;
+    if (resources_[output.resource.index].texture) {
+      resources_[output.resource.index].texture->current_layout_ = layout;
+    }
   }
 }
 

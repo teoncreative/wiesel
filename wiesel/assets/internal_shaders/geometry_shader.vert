@@ -14,6 +14,10 @@ layout(set = 1, binding = 1, std140) uniform Camera {
     float near;
     float far;
     vec4 cascadeSplits;
+    int enableSSAO;
+    int debugCascades;
+    mat4 prevViewProjection;
+    vec2 taaJitterOffset;
 } cam;
 
 layout(location = 0) in vec3 inVertexPosition;

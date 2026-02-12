@@ -86,6 +86,13 @@ struct CameraComponent {
   // Motion blur
   Ref<AttachmentTexture> motion_blur_image;
 
+  // FXAA
+  Ref<AttachmentTexture> fxaa_image;
+
+  // TAA
+  Ref<AttachmentTexture> taa_output_image;
+  Ref<AttachmentTexture> taa_history_image;
+
 #ifdef ID_BUFFER_PASS
   Ref<Framebuffer> id_framebuffer;
 #endif
@@ -101,6 +108,9 @@ struct CameraComponent {
   Ref<Framebuffer> bloom_blur_v_framebuffer;
   Ref<Framebuffer> bloom_composite_framebuffer;
   Ref<Framebuffer> motion_blur_framebuffer;
+  Ref<Framebuffer> fxaa_framebuffer;
+  Ref<Framebuffer> taa_framebuffer;
+  Ref<Framebuffer> taa_history_framebuffer;
 
   Ref<DescriptorSet> global_descriptor;
   Ref<DescriptorSet> shadow_descriptor;
@@ -124,7 +134,23 @@ struct CameraComponent {
   // Motion blur descriptors
   Ref<DescriptorSet> motion_blur_after_composite_desc;
   Ref<DescriptorSet> motion_blur_after_bloom_desc;
+  Ref<DescriptorSet> motion_blur_after_taa_desc;
   Ref<DescriptorSet> motion_blur_output_descriptor;
+
+  // FXAA descriptors
+  Ref<DescriptorSet> fxaa_after_composite_desc;
+  Ref<DescriptorSet> fxaa_after_bloom_desc;
+  Ref<DescriptorSet> fxaa_after_motion_blur_desc;
+  Ref<DescriptorSet> fxaa_output_descriptor;
+
+  // TAA descriptors
+  Ref<DescriptorSet> taa_descriptor;
+  Ref<DescriptorSet> taa_copy_descriptor;
+  Ref<DescriptorSet> taa_output_descriptor;
+
+  // TAA-aware bloom/motion blur descriptors
+  Ref<DescriptorSet> bloom_extract_after_taa_desc;
+  Ref<DescriptorSet> bloom_composite_after_taa_desc;
 
   FrustumPlanes planes;
 
@@ -138,6 +164,7 @@ struct CameraComponent {
 
   glm::vec3 previous_light_dir;
   glm::mat4 prev_view_projection{1.0f};
+  uint32_t taa_frame_count = 0;
   bool force_light_reset = false;
   bool pos_changed = true;
   bool view_changed = true;
@@ -199,6 +226,9 @@ struct CameraData {
   Ref<AttachmentTexture> bloom_blur_v_image;
   Ref<AttachmentTexture> bloom_composite_image;
   Ref<AttachmentTexture> motion_blur_image;
+  Ref<AttachmentTexture> fxaa_image;
+  Ref<AttachmentTexture> taa_output_image;
+  Ref<AttachmentTexture> taa_history_image;
 
   Ref<Framebuffer> geometry_framebuffer;
   Ref<Framebuffer> ssao_gen_framebuffer;
@@ -212,6 +242,9 @@ struct CameraData {
   Ref<Framebuffer> bloom_blur_v_framebuffer;
   Ref<Framebuffer> bloom_composite_framebuffer;
   Ref<Framebuffer> motion_blur_framebuffer;
+  Ref<Framebuffer> fxaa_framebuffer;
+  Ref<Framebuffer> taa_framebuffer;
+  Ref<Framebuffer> taa_history_framebuffer;
 
   Ref<DescriptorSet> global_descriptor;
   Ref<DescriptorSet> shadow_descriptor;
@@ -230,7 +263,17 @@ struct CameraData {
   Ref<DescriptorSet> bloom_output_descriptor;
   Ref<DescriptorSet> motion_blur_after_composite_desc;
   Ref<DescriptorSet> motion_blur_after_bloom_desc;
+  Ref<DescriptorSet> motion_blur_after_taa_desc;
   Ref<DescriptorSet> motion_blur_output_descriptor;
+  Ref<DescriptorSet> fxaa_after_composite_desc;
+  Ref<DescriptorSet> fxaa_after_bloom_desc;
+  Ref<DescriptorSet> fxaa_after_motion_blur_desc;
+  Ref<DescriptorSet> fxaa_output_descriptor;
+  Ref<DescriptorSet> taa_descriptor;
+  Ref<DescriptorSet> taa_copy_descriptor;
+  Ref<DescriptorSet> taa_output_descriptor;
+  Ref<DescriptorSet> bloom_extract_after_taa_desc;
+  Ref<DescriptorSet> bloom_composite_after_taa_desc;
 
   FrustumPlanes planes;
 
@@ -285,6 +328,9 @@ struct CameraData {
     bloom_blur_v_image = camera.bloom_blur_v_image;
     bloom_composite_image = camera.bloom_composite_image;
     motion_blur_image = camera.motion_blur_image;
+    fxaa_image = camera.fxaa_image;
+    taa_output_image = camera.taa_output_image;
+    taa_history_image = camera.taa_history_image;
 
     geometry_framebuffer = camera.geometry_framebuffer;
     ssao_gen_framebuffer = camera.ssao_gen_framebuffer;
@@ -298,6 +344,9 @@ struct CameraData {
     bloom_blur_v_framebuffer = camera.bloom_blur_v_framebuffer;
     bloom_composite_framebuffer = camera.bloom_composite_framebuffer;
     motion_blur_framebuffer = camera.motion_blur_framebuffer;
+    fxaa_framebuffer = camera.fxaa_framebuffer;
+    taa_framebuffer = camera.taa_framebuffer;
+    taa_history_framebuffer = camera.taa_history_framebuffer;
 
     global_descriptor = camera.global_descriptor;
     shadow_descriptor = camera.shadow_descriptor;
@@ -316,7 +365,17 @@ struct CameraData {
     bloom_output_descriptor = camera.bloom_output_descriptor;
     motion_blur_after_composite_desc = camera.motion_blur_after_composite_desc;
     motion_blur_after_bloom_desc = camera.motion_blur_after_bloom_desc;
+    motion_blur_after_taa_desc = camera.motion_blur_after_taa_desc;
     motion_blur_output_descriptor = camera.motion_blur_output_descriptor;
+    fxaa_after_composite_desc = camera.fxaa_after_composite_desc;
+    fxaa_after_bloom_desc = camera.fxaa_after_bloom_desc;
+    fxaa_after_motion_blur_desc = camera.fxaa_after_motion_blur_desc;
+    fxaa_output_descriptor = camera.fxaa_output_descriptor;
+    taa_descriptor = camera.taa_descriptor;
+    taa_copy_descriptor = camera.taa_copy_descriptor;
+    taa_output_descriptor = camera.taa_output_descriptor;
+    bloom_extract_after_taa_desc = camera.bloom_extract_after_taa_desc;
+    bloom_composite_after_taa_desc = camera.bloom_composite_after_taa_desc;
     planes = camera.planes;
 
     does_shadow_pass = camera.does_shadow_pass;
