@@ -198,7 +198,7 @@ struct AttachmentTextureProps {
   AttachmentTextureType type = AttachmentTextureType::Color;
   uint32_t image_count = 1;
   VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
-  VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+  SamplingMode sampling_mode = SamplingMode::DISABLED;
   bool sampled = false;
   uint32_t layer_count = 1;
   bool transfer_dest = false;
@@ -209,7 +209,7 @@ class DescriptorSet;
 struct AttachmentTextureInfo {
   AttachmentTextureType type;
   VkFormat format;
-  VkSampleCountFlagBits msaa_samples;
+  SamplingMode msaa_mode;
   /*VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
   VkAttachmentLoadOp StencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -229,7 +229,7 @@ class AttachmentTexture {
   VkFormat format_;
   uint32_t width_;
   uint32_t height_;
-  VkSampleCountFlagBits msaa_samples_;
+  SamplingMode sampling_mode_;
   VkImageAspectFlags aspect_flags_;
   uint32_t mip_levels_;
 

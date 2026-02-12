@@ -72,7 +72,7 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   vkUnmapMemory(renderer->GetLogicalDevice(), stagingBufferMemory);
 
   renderer->CreateImage(texture->Size.x, texture->Size.y, 1,
-              VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_UNORM,
+              SamplingMode::DISABLED, VK_FORMAT_R8G8B8A8_UNORM,
               VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,

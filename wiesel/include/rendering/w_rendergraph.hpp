@@ -48,7 +48,7 @@ struct RGTextureDesc {
   uint32_t width = 0;
   uint32_t height = 0;
   VkFormat format = VK_FORMAT_UNDEFINED;
-  VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+  SamplingMode samples = SamplingMode::DISABLED;
   AttachmentTextureType type = AttachmentTextureType::Offscreen;
   uint32_t layer_count = 1;
   bool sampled = true;

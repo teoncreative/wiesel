@@ -239,44 +239,25 @@ void EditorLayer::OnBeginPresent() {
       }
     }
 
-    VkSampleCountFlags supported = renderer->GetSupportedMsaaFlags();
-
-    const VkSampleCountFlagBits values[] = {
-      VK_SAMPLE_COUNT_1_BIT,
-      VK_SAMPLE_COUNT_2_BIT,
-      VK_SAMPLE_COUNT_4_BIT,
-      VK_SAMPLE_COUNT_8_BIT,
-      VK_SAMPLE_COUNT_16_BIT,
-      VK_SAMPLE_COUNT_32_BIT,
-      VK_SAMPLE_COUNT_64_BIT
-  };
-
+    std::vector<SamplingMode> supported_values =
+        renderer->GetSupportedSamplingModes();
     std::vector<const char*> labels;
-    std::vector<VkSampleCountFlagBits> available;
 
+    // Find current selection
+    SamplingMode current_mode = renderer->options().msaa_mode;
     int selected_index = 0;
-    int i = 0;
-    for (auto v : values) {
-      if (!(supported & v)) {
-        i++;
-        continue;
-      }
-      if (renderer->options().msaa_samples == v) {
-        selected_index = i;
-      }
-      available.push_back(v);
 
-      static char buffer[8];
-      snprintf(buffer, sizeof(buffer), "%dx", (int)v);
-      labels.push_back(strdup(buffer));  // or store properly
-      i++;
+    for (size_t i = 0; i < supported_values.size(); i++) {
+      labels.push_back(ToString(supported_values[i]));
+
+      if (supported_values[i] == current_mode) {
+        selected_index = static_cast<int>(i);
+      }
     }
-
 
     if (ImGui::Combo("MSAA Samples", &selected_index, labels.data(),
                      labels.size())) {
-      VkSampleCountFlagBits selected = available[selected_index];
-      renderer->options().msaa_samples = selected;
+      renderer->options().msaa_mode = supported_values[selected_index];
     }
 
     if (ImGui::Button("Recreate Pipeline")) {

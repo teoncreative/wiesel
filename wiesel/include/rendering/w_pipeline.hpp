@@ -21,7 +21,7 @@ namespace Wiesel {
 enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
 
 struct PipelineProperties {
-  VkSampleCountFlagBits msaa_samples;
+  SamplingMode sampling_mode;
   CullMode cull_mode;
   bool enable_wireframe;
   bool enable_alpha_blending;

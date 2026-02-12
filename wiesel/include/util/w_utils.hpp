@@ -242,6 +242,47 @@ class Time {
   static float_t GetTime();
 };
 
+enum class AntiAliasingMode {
+  None,
+  FXAA,
+  TAA
+};
+
+enum class SamplingMode {
+  DISABLED,
+  X2,
+  X4,
+  X8,
+  X16,
+  X32,
+  X64
+};
+
+inline const char* ToString(SamplingMode sampling_mode) {
+  switch (sampling_mode) {
+    case SamplingMode::DISABLED: return "Disabled";
+    case SamplingMode::X2: return "2x";
+    case SamplingMode::X4: return "4x";
+    case SamplingMode::X8: return "8x";
+    case SamplingMode::X16: return "16x";
+    case SamplingMode::X32: return "32x";
+    case SamplingMode::X64: return "64x";
+    default: return "Unknown";
+  }
+}
+
+inline VkSampleCountFlagBits ToVkSampleCountFlagBits(SamplingMode mode) {
+  switch (mode) {
+    case SamplingMode::X2: return VK_SAMPLE_COUNT_2_BIT;
+    case SamplingMode::X4: return VK_SAMPLE_COUNT_4_BIT;
+    case SamplingMode::X8: return VK_SAMPLE_COUNT_8_BIT;
+    case SamplingMode::X16: return VK_SAMPLE_COUNT_16_BIT;
+    case SamplingMode::X32: return VK_SAMPLE_COUNT_32_BIT;
+    case SamplingMode::X64: return VK_SAMPLE_COUNT_64_BIT;
+    default: return VK_SAMPLE_COUNT_1_BIT;
+  }
+}
+
 std::vector<char> ReadFile(const std::string& file_name);
 std::vector<uint32_t> ReadFileUint32(const std::string& file_name);
 

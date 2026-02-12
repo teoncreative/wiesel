@@ -228,7 +228,7 @@ void RenderGraph::CreateTransientResources() {
     props.type = resource.desc.type;
     props.image_count = 1;
     props.image_format = resource.desc.format;
-    props.msaa_samples = resource.desc.samples;
+    props.sampling_mode = resource.desc.samples;
     props.sampled = resource.desc.sampled;
     props.layer_count = resource.desc.layer_count;
 

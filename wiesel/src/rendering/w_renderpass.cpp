@@ -45,7 +45,7 @@ void RenderPass::AttachOutput(Ref<AttachmentTexture> attachment) {
   attachments_.push_back({
       .type = attachment->type_,
       .format = attachment->format_,
-      .msaa_samples = attachment->msaa_samples_
+      .msaa_mode = attachment->sampling_mode_
   });
 }
 
@@ -64,7 +64,7 @@ void RenderPass::Bake() {
     if (item.type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
       descriptions.push_back({
           .format = item.format,
-          .samples = item.msaa_samples,
+          .samples = ToVkSampleCountFlagBits(item.msaa_mode),
           .loadOp = pass_type_ == PassType::Lighting ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR,
           .storeOp = pass_type_ == PassType::Geometry || pass_type_ == PassType::Shadow ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -80,7 +80,7 @@ void RenderPass::Bake() {
     } else if (item.type == AttachmentTextureType::Color || item.type == AttachmentTextureType::Offscreen) {
       descriptions.push_back({
           .format = item.format,
-          .samples = item.msaa_samples,
+          .samples = ToVkSampleCountFlagBits(item.msaa_mode),
           .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
           .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -94,7 +94,7 @@ void RenderPass::Bake() {
       });
       index++;
     } else if (item.type == AttachmentTextureType::Resolve || item.type == AttachmentTextureType::SwapChain) {
-      bool used_as_resolve = item.msaa_samples > VK_SAMPLE_COUNT_1_BIT || item.type == AttachmentTextureType::Resolve;
+      bool used_as_resolve = item.msaa_mode > SamplingMode::DISABLED || item.type == AttachmentTextureType::Resolve;
       if (used_as_resolve) {
         descriptions.push_back({
             .format = item.format,

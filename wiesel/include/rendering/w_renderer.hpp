@@ -58,12 +58,6 @@ struct FxaaPushConstants {
   glm::vec2 inverse_screen_size;
 };
 
-enum class AntiAliasingMode {
-  None,
-  FXAA,
-  TAA
-};
-
 template<typename T>
 class Setting {
 public:
@@ -127,7 +121,7 @@ struct RendererOptions {
 
   // Requires pipeline recreation
   Setting<bool> wireframe_enabled = false;
-  Setting<VkSampleCountFlagBits> msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+  Setting<SamplingMode> msaa_mode = SamplingMode::DISABLED;
   // Requires swap-chain recreation
   Setting<bool> vsync = false;
 
@@ -381,7 +375,7 @@ class Renderer {
                              uint32_t baseLayer, uint32_t layerCount);
 
   void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
-                   VkSampleCountFlagBits numSamples, VkFormat format,
+                   SamplingMode msaa_mode, VkFormat format,
                    VkImageTiling tiling, VkImageUsageFlags usage,
                    VkMemoryPropertyFlags properties, VkImage& image,
                    VkDeviceMemory& imageMemory, VkImageCreateFlags flags = 0,
@@ -399,12 +393,12 @@ class Renderer {
 
   void SetObjectName(VkObjectType type, uint64_t handle, const char* name);
 
-  VkSampleCountFlagBits GetMaxMsaaSamples() const {
-    return max_msaa_samples_;
+  SamplingMode GetHighestSamplingMode() const {
+    return max_sampling_mode_;
   }
 
-  VkSampleCountFlags GetSupportedMsaaFlags() const {
-    return possible_msaa_flags;
+  const std::vector<SamplingMode>& GetSupportedSamplingModes() const {
+    return supported_sampling_modes_;
   }
 
  private:
@@ -452,8 +446,6 @@ class Renderer {
   bool HasStencilComponent(VkFormat format);
   void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
                        int32_t texHeight, uint32_t mipLevels);
-
-  VkSampleCountFlagBits FindMaxUsableSampleCount(VkSampleCountFlags flags);
 
 #ifdef VULKAN_VALIDATION
   bool CheckValidationLayerSupport();
@@ -611,8 +603,8 @@ class Renderer {
   VkPhysicalDeviceFeatures physical_device_features_;
   std::vector<std::string> shader_features_;
 
-  VkSampleCountFlagBits max_msaa_samples_;
-  VkSampleCountFlags possible_msaa_flags;
+  SamplingMode max_sampling_mode_;
+  std::vector<SamplingMode> supported_sampling_modes_;
 
   TracyVkCtx tracy_ctx_;
   PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ = nullptr;

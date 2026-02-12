@@ -253,7 +253,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
 
   // Import all existing resources (initial layout UNDEFINED - graph handles transitions)
   // Use resolve images when MSAA > 1, otherwise use the regular images
-  bool use_resolve = renderer->options().msaa_samples > VK_SAMPLE_COUNT_1_BIT;
+  bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
   RGResource geo_view_pos = g.ImportTexture("GeoViewPos",
       use_resolve ? cam->geometry_view_pos_resolve_image : cam->geometry_view_pos_image);
   RGResource geo_world_pos = g.ImportTexture("GeoWorldPos",

@@ -56,7 +56,7 @@ void Pipeline::SetVertexData(std::vector<VkVertexInputBindingDescription> i, std
 }
 
 void Pipeline::Bake() {
-  LOG_DEBUG("Creating pipeline with {} samples", (uint64_t)properties_.msaa_samples);
+  LOG_DEBUG("Creating pipeline with {} samples", (uint64_t)properties_.sampling_mode);
   if (is_allocated_) {
     vkDestroyPipeline(Engine::GetRenderer()->GetLogicalDevice(), pipeline_, nullptr);
     vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), layout_, nullptr);
@@ -190,7 +190,7 @@ void Pipeline::Bake() {
   multisampling.sType =
       VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = VK_FALSE;
-  multisampling.rasterizationSamples = properties_.msaa_samples;
+  multisampling.rasterizationSamples = ToVkSampleCountFlagBits(properties_.sampling_mode);
 
   std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
   for (const auto& item : m_RenderPass->attachments_) {

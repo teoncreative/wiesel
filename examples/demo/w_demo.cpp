@@ -129,7 +129,7 @@ void DemoLayer::OnAttach() {
   renderer_->options().motion_blur_enabled = true;
   renderer_->options().motion_blur_strength = 1;
   renderer_->options().aa_mode = AntiAliasingMode::TAA;
-  renderer_->options().msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+  renderer_->options().msaa_mode = SamplingMode::DISABLED;
 }
 
 void DemoLayer::OnDetach() {
@@ -155,16 +155,16 @@ bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
     return true;
   }
   if (event.GetKeyCode() == Key1) {
-    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+    renderer_->options().msaa_mode = SamplingMode::DISABLED;
   }
   if (event.GetKeyCode() == Key2) {
-    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_2_BIT;
+    renderer_->options().msaa_mode = SamplingMode::X2;
   }
   if (event.GetKeyCode() == Key3) {
-    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_4_BIT;
+    renderer_->options().msaa_mode = SamplingMode::X4;
   }
   if (event.GetKeyCode() == Key4) {
-    renderer_->options().msaa_samples = VK_SAMPLE_COUNT_8_BIT;
+    renderer_->options().msaa_mode = SamplingMode::X8;
   }
   return false;
 }
