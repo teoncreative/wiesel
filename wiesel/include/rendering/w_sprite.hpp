@@ -40,10 +40,6 @@ class SpriteAsset {
 
   void UpdateTransform(glm::mat4 transform_matrix);
 
- private:
-  friend class Renderer;
-  friend class SpriteBuilder;
-
   struct Frame {
     glm::vec4 uv_rect;
     uint32_t instance_id;
@@ -55,6 +51,15 @@ class SpriteAsset {
 
     Frame(const glm::vec4 &uv, float_t d = 0.0f) : uv_rect(uv), duration(d) {}
   };
+
+  const Ref<SpriteTexture>& GetTexture() const { return texture_; }
+  const Ref<Sampler>& GetSampler() const { return sampler_; }
+  const std::vector<Frame>& GetFrames() const { return frames_; }
+  bool IsAllocated() const { return is_allocated_; }
+
+ private:
+  friend class Renderer;
+  friend class SpriteBuilder;
 
   SpriteType type_;
   glm::vec2 atlas_size_;
@@ -71,7 +76,7 @@ enum class AddFrameResult {
 
 class SpriteBuilder {
  public:
-  SpriteBuilder(const std::string& atlas_path, glm::vec2 atlas_size) : atlas_path_(atlas_path), atlas_size_(atlas_size) {
+  SpriteBuilder(const std::string& virtual_atlas_path, glm::vec2 atlas_size) : virtual_atlas_path_(virtual_atlas_path), atlas_size_(atlas_size) {
 
   }
 
@@ -80,7 +85,7 @@ class SpriteBuilder {
     fixed_size_ = true;
   }
 
-  AddFrameResult AddFrame(float_t durationSeconds, glm::vec2 uvPos, glm::vec2 uvSize = {0, 0});
+  AddFrameResult AddFrame(float_t duration_seconds, glm::vec2 uv_pos, glm::vec2 uv_size = {0, 0});
 
   void SetSampler(Ref<Sampler> sampler) {
       sampler_ = sampler;
@@ -89,7 +94,7 @@ class SpriteBuilder {
   Ref<SpriteAsset> Build();
  private:
   bool fixed_size_ = false;
-  std::string atlas_path_;
+  std::string virtual_atlas_path_;
   glm::vec2 atlas_size_;
   glm::vec2 fixed_uv_size_;
   Ref<Sampler> sampler_;

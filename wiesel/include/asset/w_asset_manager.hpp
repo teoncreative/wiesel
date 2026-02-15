@@ -16,7 +16,7 @@ struct AssetMetadata {
   AssetHandle handle;
   AssetType type = AssetType::None;
   std::string name;
-  std::string source_path;
+  std::string virtual_source_path;
 
   std::atomic<AssetLoadState> load_state = AssetLoadState::Unloaded;
 
@@ -32,10 +32,10 @@ class AssetManager {
   // Registration (metadata only, no loading)
 
   AssetHandle Register(const std::string& name, AssetType type,
-                       const std::string& source_path);
+                       const std::string& virtual_source_path);
 
   bool Register(AssetHandle handle, const std::string& name, AssetType type,
-                const std::string& source_path);
+                const std::string& virtual_source_path);
 
   void Unregister(AssetHandle handle);
 
@@ -45,7 +45,7 @@ class AssetManager {
   const AssetMetadata* GetMetadata(AssetHandle handle) const;
 
   AssetHandle FindByName(const std::string& name) const;
-  AssetHandle FindBySourcePath(const std::string& source_path) const;
+  AssetHandle FindBySourcePath(const std::string& virtual_source_path) const;
 
   std::vector<AssetHandle> GetAllOfType(AssetType type) const;
   std::vector<AssetHandle> GetAll() const;
@@ -72,7 +72,7 @@ class AssetManager {
 
   template <typename T>
   AssetHandle RegisterAndStore(const std::string& name, AssetType type,
-                               const std::string& source_path, Ref<T> resource);
+                               const std::string& virtual_source_path, Ref<T> resource);
 
   // Lifecycle
 
@@ -131,9 +131,9 @@ Ref<T> AssetManager::GetOrLoad(AssetHandle handle) const {
 template <typename T>
 AssetHandle AssetManager::RegisterAndStore(const std::string& name,
                                            AssetType type,
-                                           const std::string& source_path,
+                                           const std::string& virtual_source_path,
                                            Ref<T> resource) {
-  AssetHandle handle = Register(name, type, source_path);
+  AssetHandle handle = Register(name, type, virtual_source_path);
   if (handle.IsValid()) {
     Store<T>(handle, std::move(resource));
   }

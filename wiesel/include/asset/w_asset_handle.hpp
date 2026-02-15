@@ -25,6 +25,7 @@ enum class AssetType : uint8_t {
   Sprite,
   Skybox,
   Font,
+  Script,
   Count
 };
 

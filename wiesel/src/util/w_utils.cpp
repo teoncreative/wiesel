@@ -10,6 +10,7 @@
 //
 
 #include "util/w_utils.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -47,36 +48,14 @@ std::string GetNameFromVulkanResult(VkResult errorCode) {
   }
 }
 
-std::vector<char> ReadFile(const std::string& file_name) {
-  std::ifstream file(file_name, std::ios::ate | std::ios::binary);
-
-  if (!file.is_open()) {
-    throw std::runtime_error("failed to open file: " + file_name);
-  }
-  size_t file_size = file.tellg();
-  std::vector<char> buffer(file_size);
-
-  file.seekg(0);
-  file.read(buffer.data(), file_size);
-  file.close();
-
-  return buffer;
+std::vector<char> ReadVirtualFile(const std::string& virtual_path) {
+  VfsFile file = Engine::GetVirtualFileSystem()->Open(virtual_path);
+  return file.AsChars();
 }
 
-std::vector<uint32_t> ReadFileUint32(const std::string& file_name) {
-  std::ifstream file(file_name, std::ios::ate | std::ios::binary);
-
-  if (!file.is_open()) {
-    throw std::runtime_error("failed to open file: " + file_name);
-  }
-  size_t file_size = file.tellg();
-  file.seekg(0);
-
-  std::vector<uint32_t> buffer(file_size / sizeof(uint32_t));
-  file.read(reinterpret_cast<char*>(buffer.data()), file_size);
-  file.close();
-
-  return buffer;
+std::vector<uint32_t> ReadVirtualFileUint32(const std::string& virtual_path) {
+  VfsFile file = Engine::GetVirtualFileSystem()->Open(virtual_path);
+  return file.AsUint32();
 }
 
 std::string FormatVariableName(const std::string& name) {

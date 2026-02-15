@@ -31,26 +31,26 @@ VkShaderStageFlagBits GetShaderFlagBitsByType(ShaderType type) {
 Shader::Shader(ShaderProperties properties) : properties_(properties) {
   std::vector<uint32_t> code{};
   if (properties_.source == ShaderSourceSource) {
-    auto file = ReadFile(properties_.path);
+    std::vector<char> data = ReadVirtualFile(properties_.virtual_path);
 #ifdef DEBUG
     bool debug = true;
 #else
     bool debug = false;
 #endif
-    if (!Spirv::ShaderToSPV(properties_.type, debug, file, properties_.defines, code)) {
+    if (!Spirv::ShaderToSPV(properties_.type, debug, data, properties_.defines, code)) {
       throw std::runtime_error("Failed to compile shader!");
     }
   } else if (properties_.source == ShaderSourcePrecompiled) {
     if (!properties.defines.empty()) {
       LOG_WARN("Defines for shader was not empty but the shader is precompiled. Defines might not be matching.");
     }
-    code = ReadFileUint32(properties_.path);
+    code = ReadVirtualFileUint32(properties_.virtual_path);
   } else {
     throw std::runtime_error("Shader source not implemented!");
   }
   LOG_DEBUG("Creating shader with lang: {}, type: {}, source: {} {}, main: {}",
             std::to_string(properties_.lang), std::to_string(properties_.type),
-            std::to_string(properties_.source), properties_.path,
+            std::to_string(properties_.source), properties_.virtual_path,
             properties_.main);
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

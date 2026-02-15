@@ -197,8 +197,21 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
                                 &component.near_plane, 0.1f);
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
                                 &component.far_plane, 0.1f);
+    int width = component.viewport_size.x;
+    changed |= ImGui::InputInt(PrefixLabel("Width").c_str(), &width);
+    if (width > 16) {
+      component.viewport_size.x = width;
+    }
+    int height = component.viewport_size.y;
+    changed |= ImGui::InputInt(PrefixLabel("Height").c_str(), &height);
+    if (height > 9) {
+      component.viewport_size.y = height;
+    }
+
     if (changed) {
+      component.aspect_ratio = component.viewport_size.x / component.viewport_size.y;
       component.view_changed = true;
+      component.resources_dirty = true;
     }
 
     ImGui::TreePop();

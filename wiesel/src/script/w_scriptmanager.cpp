@@ -15,6 +15,7 @@
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/mono-debug.h>
 #include <mono/metadata/object.h>
+#include "asset/w_asset_manager.hpp"
 #include "input/w_input.hpp"
 #include "mono_util.h"
 #include "scene/w_entity.hpp"
@@ -476,6 +477,12 @@ void ScriptManager::Destroy() {
 void ScriptManager::Reload() {
   LOG_INFO("Reloading scripts...");
 
+  // Unregister old script assets before re-registering
+  AssetManager& mgr = AssetManager::Get();
+  for (AssetHandle handle : mgr.GetAllOfType(AssetType::Script)) {
+    mgr.Unregister(handle);
+  }
+
   mono_domain_set(root_domain_, true);
   mono_domain_unload(app_domain_);
 
@@ -492,19 +499,33 @@ void ScriptManager::Reload() {
 }
 
 void ScriptManager::LoadCore() {
-  LOG_INFO("Compiling core scripts...");
-  std::vector<std::string> sourceFiles;
-  for (const auto& entry : std::filesystem::recursive_directory_iterator(
-           "assets/internal_scripts")) {
-    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-      std::string name = entry.path().string();
-      LOG_INFO("Found internal script {}", name);
-      sourceFiles.push_back(name);
-    }
-  }
-  CompileToDLL("obj/Core.dll", sourceFiles, "", {}, enable_debugger_);
+  std::string dll_path = "obj/Core.dll";
 
-  core_assembly_ = mono_domain_assembly_open(root_domain_, "obj/Core.dll");
+  if (Engine::GetEngineProperties().dev_mode) {
+    LOG_INFO("Compiling core scripts...");
+    std::vector<std::string> sourceFiles;
+    std::optional<std::filesystem::path> physical = Engine::GetVirtualFileSystem()->GetPhysicalPath("/engine/internal_scripts");
+    assert(physical.has_value());
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(*physical)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+        std::string name = entry.path().string();
+        LOG_INFO("Found internal script {}", name);
+        sourceFiles.push_back(name);
+
+        std::filesystem::path rel = std::filesystem::relative(entry.path(), *physical);
+        std::string vfs_path = "/engine/internal_scripts/" + rel.generic_string();
+        std::string script_name = entry.path().stem().string();
+        AssetManager::Get().Register(script_name, AssetType::Script, vfs_path);
+      }
+    }
+    CompileToDLL(dll_path, sourceFiles, "", {}, enable_debugger_);
+  } else {
+    // Release: Core.dll should be pre-compiled and placed next to the executable
+    dll_path = "Core.dll";
+    LOG_INFO("Loading pre-compiled core scripts from {}", dll_path);
+  }
+
+  core_assembly_ = mono_domain_assembly_open(root_domain_, dll_path.c_str());
   assert(core_assembly_);
 
   core_assembly_image_ = mono_assembly_get_image(core_assembly_);
@@ -521,32 +542,52 @@ void ScriptManager::LoadCore() {
 }
 
 void ScriptManager::LoadApp() {
-  // todo load files from project file when project system is added
-  std::vector<std::string> sourceFiles;
-  for (const auto& entry :
-       std::filesystem::recursive_directory_iterator("assets/scripts")) {
-    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-      std::string name = entry.path().string();
-      LOG_INFO("Found user script {}", name);
-      sourceFiles.push_back(name);
+  std::string dll_path = "obj/App.dll";
+
+  if (Engine::GetEngineProperties().dev_mode) {
+    // Dev mode: compile from source
+    std::optional<std::filesystem::path> physical = Engine::GetVirtualFileSystem()->GetPhysicalPath("/app/scripts");
+    if (!physical.has_value() || !std::filesystem::exists(*physical)) {
+      LOG_WARN("No app scripts directory found, skipping app script loading");
+      return;
     }
-  }
-  std::vector<std::string> linkLibs;
-  for (const auto& entry :
-       std::filesystem::recursive_directory_iterator("obj")) {
-    if (entry.is_regular_file() && entry.path().extension() == ".dll") {
-      std::string name = entry.path().string();
-      linkLibs.push_back(name);
-      LOG_INFO("Found DLL to link {}", name);
+    std::vector<std::string> sourceFiles;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(*physical)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+        std::string name = entry.path().string();
+        LOG_INFO("Found user script {}", name);
+        sourceFiles.push_back(name);
+
+        std::filesystem::path rel = std::filesystem::relative(entry.path(), *physical);
+        std::string vfs_path = "/app/scripts/" + rel.generic_string();
+        std::string script_name = entry.path().stem().string();
+        AssetManager::Get().Register(script_name, AssetType::Script, vfs_path);
+      }
     }
+    std::vector<std::string> link_libs;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator("obj")) {
+      if (entry.is_regular_file() && entry.path().extension() == ".dll") {
+        std::string name = entry.path().string();
+        link_libs.push_back(name);
+        LOG_INFO("Found DLL to link {}", name);
+      }
+    }
+    if (!CompileToDLL(dll_path, sourceFiles, "obj", link_libs, enable_debugger_)) {
+      return;
+    }
+  } else {
+    // Release: App.dll should be pre-compiled and placed next to the executable
+    dll_path = "App.dll";
+    if (!std::filesystem::exists(dll_path)) {
+      LOG_WARN("No pre-compiled App.dll found, skipping app scripts");
+      return;
+    }
+    LOG_INFO("Loading pre-compiled app scripts from {}", dll_path);
   }
-  if (!CompileToDLL("obj/App.dll", sourceFiles, "obj", linkLibs, enable_debugger_)) {
-    return;
-  }
+
   app_domain_ = mono_domain_create_appdomain(const_cast<char*>("WieselApp"), nullptr);
   mono_domain_set(app_domain_, true);
-  //mono_domain_assembly_open(m_AppDomain, "obj/Core.dll");
-  app_assembly_ = mono_domain_assembly_open(app_domain_, "obj/App.dll");
+  app_assembly_ = mono_domain_assembly_open(app_domain_, dll_path.c_str());
   assert(app_assembly_);
 
   app_assembly_image_ = mono_assembly_get_image(app_assembly_);

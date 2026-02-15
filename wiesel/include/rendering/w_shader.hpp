@@ -26,7 +26,7 @@ struct ShaderProperties {
   ShaderLang lang;
   std::string main;
   ShaderSource source;
-  std::string path;
+  std::string virtual_path;
   std::vector<std::string> defines;
 };
 

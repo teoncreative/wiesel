@@ -12,15 +12,28 @@
 #pragma once
 
 #include "rendering/w_renderer.hpp"
+#include "util/w_vfs.hpp"
 #include "w_application.hpp"
 
 namespace Wiesel {
 
 class Scene;
 
+struct EngineProperties {
+    bool editor_enabled = false;
+    std::filesystem::path engine_assets_path;
+    std::filesystem::path editor_assets_path;
+    std::filesystem::path app_assets_path;
+    std::filesystem::path project_path;
+    std::filesystem::path user_data_path;
+    bool dev_mode = false;  // Affects hot reloading, logging, etc.
+
+    static EngineProperties Parse(int argc, char** argv);
+};
+
 class Engine {
  public:
-  static void InitEngine();
+  static void InitEngine(const EngineProperties& props);
   static void InitWindow(const WindowProperties&& props);
   static void InitRenderer(const RendererProperties&& props);
 
@@ -30,11 +43,16 @@ class Engine {
 
   WIESEL_GETTER_FN static std::shared_ptr<Renderer> GetRenderer();
   WIESEL_GETTER_FN static std::shared_ptr<AppWindow> GetWindow();
+  WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> GetVirtualFileSystem();
+  WIESEL_GETTER_FN static const EngineProperties& GetEngineProperties() {
+    return properties_;
+  }
 
   static aiScene* LoadAssimpModel(const std::string& path,
                                   bool convertToLeftHanded = true);
 
   static void LoadModelAsync(AssetHandle handle);
+
 
  private:
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
@@ -45,13 +63,17 @@ class Engine {
   static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
                                      const aiScene& aiScene);
   static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
-                         std::vector<Ref<Mesh>>& meshes,
+                         std::vector<std::shared_ptr<Mesh>>& meshes,
                          const glm::mat4& parentTransform);
 
+  static void InitializeVfs();
+
  private:
-  static Ref<Renderer> kRenderer;
-  static Ref<AppWindow> kWindow;
+  static EngineProperties properties_;
+  static std::shared_ptr<Renderer> renderer_;
+  static std::shared_ptr<AppWindow> window_;
+  static std::shared_ptr<VirtualFileSystem> vfs_;
 };
 
-Application* CreateApp(int argc, char** argv);
+Application* CreateApp();
 }  // namespace Wiesel

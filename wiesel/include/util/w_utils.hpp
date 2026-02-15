@@ -283,8 +283,8 @@ inline VkSampleCountFlagBits ToVkSampleCountFlagBits(SamplingMode mode) {
   }
 }
 
-std::vector<char> ReadFile(const std::string& file_name);
-std::vector<uint32_t> ReadFileUint32(const std::string& file_name);
+std::vector<char> ReadVirtualFile(const std::string& virtual_path);
+std::vector<uint32_t> ReadVirtualFileUint32(const std::string& virtual_path);
 
 std::string FormatVariableName(const std::string& name);
 

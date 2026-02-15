@@ -28,8 +28,10 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   list.reserve(paths.size());
   for (size_t i = 0; i < paths.size(); ++i) {
     ImageEntry entry;
+    VfsFile vfs_sprite = Engine::GetVirtualFileSystem()->Open(paths[i]);
     entry.pixels =
-        stbi_load(paths[i].c_str(), &entry.w, &entry.h, &entry.channels, STBI_rgb_alpha);
+        stbi_load_from_memory(vfs_sprite.Data(), static_cast<int>(vfs_sprite.Size()),
+                              &entry.w, &entry.h, &entry.channels, STBI_rgb_alpha);
     if (!entry.pixels) {
       throw std::runtime_error("failed to load texture image: " + paths[i]);
     }
@@ -112,19 +114,19 @@ void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix) {
   }
 }
 
-AddFrameResult SpriteBuilder::AddFrame(float_t durationSeconds, glm::vec2 uvPos, glm::vec2 uvSize) {
+AddFrameResult SpriteBuilder::AddFrame(float_t duration_seconds, glm::vec2 uv_pos, glm::vec2 uv_size) {
   if (fixed_size_) {
-    uvSize = fixed_uv_size_;
+    uv_size = fixed_uv_size_;
   }
-  if (uvSize.x <= 0 || uvSize.y <= 0) {
+  if (uv_size.x <= 0 || uv_size.y <= 0) {
     return AddFrameResult::UVSizeShouldBeLargerThanZero;
   }
   frames_.emplace_back(
       glm::vec4{
-          uvPos,
-          uvSize
+          uv_pos,
+          uv_size
       },
-      durationSeconds
+      duration_seconds
   );
 
   return AddFrameResult::Success;
@@ -135,7 +137,7 @@ Ref<SpriteAsset> SpriteBuilder::Build() {
   asset->type_ = SpriteTypeAtlas;
   asset->frames_ = frames_;
   asset->atlas_size_ = atlas_size_;
-  asset->texture_ = LoadSpriteTexture({atlas_path_});
+  asset->texture_ = LoadSpriteTexture({virtual_atlas_path_});
   asset->sampler_ = sampler_ ? sampler_ : Engine::GetRenderer()->GetDefaultLinearSampler();
   Ref<ImageView> view = Engine::GetRenderer()->CreateImageView(
       asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,

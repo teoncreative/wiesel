@@ -6,11 +6,16 @@
 
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <ImGuizmo.h>
 
 #include "asset/w_asset_manager.hpp"
 #include "imgui_internal.h"
+#include "rendering/w_sprite.hpp"
+#include "rendering/w_texture.hpp"
 #include "util/w_dialogs.hpp"
+#include "util/w_filewatcher.hpp"
+#include "util/w_platform.hpp"
 #include "layer/w_layerscene.hpp"
 #include "scene/w_componentutil.hpp"
 #include "script/w_scriptmanager.hpp"
@@ -18,27 +23,6 @@
 #include "w_engine.hpp"
 
 namespace Wiesel::Editor {
-
-EditorLayer::EditorLayer(Application& app, Ref<Scene> scene)
-    : app_(app), scene_(scene), Layer("Demo Overlay") {}
-
-EditorLayer::~EditorLayer() = default;
-
-void EditorLayer::OnAttach() {
-  LOG_DEBUG("OnAttach");
-}
-
-void EditorLayer::OnDetach() {
-  LOG_DEBUG("OnDetach");
-}
-
-void EditorLayer::OnUpdate(float_t delta_time) {
-  scene_->OnUpdate(delta_time);
-}
-
-void EditorLayer::OnEvent(Event& event) {
-  scene_->OnEvent(event);
-}
 
 // Todo move these to the editor overlay instead
 static entt::entity selected_entity_;
@@ -49,6 +33,110 @@ static struct SceneHierarchyData {
   entt::entity move_to = entt::null;
   bool bottom_part = false;
 } hierarchy_data_;
+
+static FileWatcher script_watcher_;
+static float script_watch_timer_ = 0.0f;
+static constexpr float kScriptWatchInterval = 1.0f;
+
+struct ThumbnailEntry {
+  VkDescriptorSet texture_id = nullptr;
+  bool attempted = false;
+};
+
+static std::unordered_map<AssetHandle, ThumbnailEntry> thumbnail_cache_;
+
+static void CleanupThumbnailCache() {
+  for (auto& [handle, entry] : thumbnail_cache_) {
+    if (entry.texture_id) {
+      ImGui_ImplVulkan_RemoveTexture(entry.texture_id);
+    }
+  }
+  thumbnail_cache_.clear();
+}
+
+EditorLayer::EditorLayer(Application& app, Ref<Scene> scene)
+    : app_(app), scene_(scene), Layer("Demo Overlay") {}
+
+EditorLayer::~EditorLayer() = default;
+
+void EditorLayer::OnAttach() {
+  LOG_DEBUG("OnAttach");
+
+  // Start watching app scripts directory for hot reload
+  if (Engine::GetEngineProperties().dev_mode) {
+    std::optional<std::filesystem::path> scripts_dir =
+        Engine::GetVirtualFileSystem()->GetPhysicalPath("/app/scripts");
+    if (scripts_dir.has_value() && std::filesystem::exists(*scripts_dir)) {
+      script_watcher_.Watch(*scripts_dir, true);
+      LOG_INFO("Watching scripts directory: {}", scripts_dir->string());
+    }
+  }
+}
+
+void EditorLayer::OnDetach() {
+  LOG_DEBUG("OnDetach");
+  CleanupThumbnailCache();
+}
+
+void EditorLayer::OnUpdate(float_t delta_time) {
+  scene_->OnUpdate(delta_time);
+
+  // Poll script file watcher for hot reload
+  if (script_watcher_.IsWatching()) {
+    script_watch_timer_ += delta_time;
+    if (script_watch_timer_ >= kScriptWatchInterval) {
+      script_watch_timer_ = 0.0f;
+      if (script_watcher_.Poll()) {
+        LOG_INFO("Script changes detected, reloading...");
+        CleanupThumbnailCache();
+        ScriptManager::Reload();
+      }
+    }
+  }
+}
+
+void EditorLayer::OnEvent(Event& event) {
+  scene_->OnEvent(event);
+}
+
+static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetadata& meta) {
+  auto it = thumbnail_cache_.find(handle);
+  if (it != thumbnail_cache_.end()) {
+    return it->second;
+  }
+
+  ThumbnailEntry entry;
+  AssetManager& mgr = AssetManager::Get();
+
+  if (meta.type == AssetType::Texture || meta.type == AssetType::Skybox) {
+    Ref<Texture> texture = mgr.Get<Texture>(handle);
+    if (!texture || !texture->is_allocated_ || !texture->image_view_) {
+      return entry;  // Not loaded yet, retry next frame
+    }
+    entry.texture_id = ImGui_ImplVulkan_AddTexture(
+        texture->sampler_, texture->image_view_->handle_,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    entry.attempted = true;
+  } else if (meta.type == AssetType::Sprite) {
+    Ref<SpriteAsset> sprite = mgr.Get<SpriteAsset>(handle);
+    if (!sprite || !sprite->IsAllocated() || sprite->GetFrames().empty()) {
+      return entry;
+    }
+    const SpriteAsset::Frame& frame = sprite->GetFrames()[0];
+    if (!frame.view || !sprite->GetSampler()) {
+      return entry;
+    }
+    entry.texture_id = ImGui_ImplVulkan_AddTexture(
+        sprite->GetSampler()->GetHandle(), frame.view->handle_,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    entry.attempted = true;
+  }
+
+  if (entry.attempted) {
+    thumbnail_cache_[handle] = entry;
+  }
+  return entry;
+}
 
 void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
   auto& tag_component = entity.GetComponent<TagComponent>();
@@ -192,7 +280,6 @@ void EditorLayer::OnBeginPresent() {
     ImGui::DockBuilderDockWindow("Components", dock_left_bottom);
     ImGui::DockBuilderDockWindow("Viewport", dock_center);
     ImGui::DockBuilderDockWindow("Scene Properties", dock_right);
-    ImGui::DockBuilderDockWindow("Gizmo Tools", dock_right);
     ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
 
     ImGui::DockBuilderFinish(dockspace_id);
@@ -279,15 +366,6 @@ void EditorLayer::OnBeginPresent() {
   }
   ImGui::End();
 
-  if (ImGui::Begin("Gizmo Tools")) {
-    if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) current_op_ = ImGuizmo::TRANSLATE;
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Rotate",    current_op_ == ImGuizmo::ROTATE))    current_op_ = ImGuizmo::ROTATE;
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
-  }
-  ImGui::End();
-
   static bool sceneOpen = true;
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
     bool ignoreMenu = false;
@@ -357,17 +435,20 @@ void EditorLayer::OnBeginPresent() {
 
     for (auto& handle : mgr.GetAll()) {
       const auto* meta = mgr.GetMetadata(handle);
-      if (!meta || meta->source_path.empty()) continue;
+      if (!meta || meta->virtual_source_path.empty()) continue;
 
-      const auto& path = meta->source_path;
-
-      // Check if this asset is under current_dir
-      if (!current_dir.empty() && path.rfind(current_dir, 0) != 0) continue;
+      const auto& path = meta->virtual_source_path;
 
       // Get the remainder after current_dir prefix
-      std::string remainder = current_dir.empty()
-                                  ? path
-                                  : path.substr(current_dir.size());
+      // current_dir is stored as "/app/models/" or empty for root
+      std::string remainder;
+      if (current_dir.empty()) {
+        // Strip leading / from VFS paths to get first-level dirs
+        remainder = (!path.empty() && path[0] == '/') ? path.substr(1) : path;
+      } else {
+        if (path.rfind(current_dir, 0) != 0) continue;
+        remainder = path.substr(current_dir.size());
+      }
 
       size_t slash = remainder.find_first_of("/\\");
       if (slash != std::string::npos) {
@@ -387,9 +468,12 @@ void EditorLayer::OnBeginPresent() {
       }
 
       if (!current_dir.empty()) {
-        // Split current_dir into parts
-        std::string accumulated;
+        // Split current_dir into parts, preserving leading /
+        std::string accumulated = "/";
         std::string remaining = current_dir;
+        if (!remaining.empty() && remaining[0] == '/') {
+          remaining = remaining.substr(1);
+        }
         while (!remaining.empty()) {
           auto slash = remaining.find_first_of("/\\");
           std::string part;
@@ -424,24 +508,27 @@ void EditorLayer::OnBeginPresent() {
     // Resolves an imported file: if outside the project, copies into dest_dir.
     // For models (copy_folder=true): copies the entire parent folder to preserve
     // relative texture references (e.g. .gltf + textures, .obj + .mtl).
-    // Returns a forward-slash relative path to the file.
+    // Returns a VFS path (e.g. /app/models/sponza/sponza.gltf).
     static auto ResolveImportPath = [](const std::string& file,
                                        const std::string& dest_dir,
                                        bool copy_folder) -> std::string {
       namespace fs = std::filesystem;
       fs::path abs = fs::absolute(file);
-      fs::path cwd = fs::current_path();
+      fs::path app_assets = fs::absolute(Engine::GetEngineProperties().app_assets_path);
 
-      // Check if already under the project directory
-      auto rel = fs::relative(abs, cwd);
+      auto ToVfsPath = [&](const fs::path& physical_path) -> std::string {
+        auto rel = fs::relative(physical_path, app_assets);
+        return "/app/" + rel.generic_string();
+      };
+
+      // Check if already under the app assets directory
+      auto rel = fs::relative(abs, app_assets);
       std::string relStr = rel.string();
       if (relStr.find("..") == std::string::npos) {
-        // Already inside project, use as-is
-        std::ranges::replace(relStr, '\\', '/');
-        return relStr;
+        return ToVfsPath(abs);
       }
 
-      // Outside project - need to copy
+      // Outside project, need to copy
       std::error_code ec;
       if (copy_folder) {
         // Copy entire parent folder to preserve texture/material references
@@ -454,10 +541,7 @@ void EditorLayer::OnBeginPresent() {
           LOG_ERROR("Failed to copy folder '{}' to '{}': {}", src_dir.string(), dest.string(), ec.message());
           return "";
         }
-        fs::path dest_file = dest / abs.filename();
-        std::string result = fs::relative(dest_file, cwd).string();
-        std::ranges::replace(result, '\\', '/');
-        return result;
+        return ToVfsPath(dest / abs.filename());
       } else {
         // Copy single file
         fs::path dest = fs::path(dest_dir) / abs.filename();
@@ -467,9 +551,7 @@ void EditorLayer::OnBeginPresent() {
           LOG_ERROR("Failed to copy asset '{}' to '{}': {}", file, dest.string(), ec.message());
           return "";
         }
-        std::string result = fs::relative(dest, cwd).string();
-        std::ranges::replace(result, '\\', '/');
-        return result;
+        return ToVfsPath(dest);
       }
     };
 
@@ -513,7 +595,10 @@ void EditorLayer::OnBeginPresent() {
 
       auto DrawTile = [&](const char* label, ImVec4 icon_color,
                           const char* type_abbrev, bool is_selected,
-                          bool is_folder) -> bool {
+                          bool is_folder,
+                          VkDescriptorSet thumbnail = nullptr,
+                          const AssetMetadata* asset_meta = nullptr,
+                          bool* double_clicked = nullptr) -> bool {
         bool clicked = false;
         ImGui::PushID(label);
 
@@ -524,6 +609,9 @@ void EditorLayer::OnBeginPresent() {
         // Invisible button for interaction
         if (ImGui::InvisibleButton("##tile", ImVec2(tile_size, tile_size + 20))) {
           clicked = true;
+        }
+        if (double_clicked && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+          *double_clicked = true;
         }
         bool hovered = ImGui::IsItemHovered();
 
@@ -542,17 +630,23 @@ void EditorLayer::OnBeginPresent() {
               IM_COL32(70, 70, 70, 120), 4.0f);
         }
 
-        // Icon rectangle
-        ImU32 col32 = ImGui::ColorConvertFloat4ToU32(icon_color);
-        dl->AddRectFilled(icon_min, icon_max, col32, is_folder ? 2.0f : 6.0f);
+        // Icon: thumbnail image or colored rectangle
+        if (thumbnail) {
+          dl->AddImageRounded(reinterpret_cast<ImTextureID>(thumbnail), icon_min, icon_max,
+                              ImVec2(0, 0), ImVec2(1, 1),
+                              IM_COL32_WHITE, 6.0f);
+        } else {
+          ImU32 col32 = ImGui::ColorConvertFloat4ToU32(icon_color);
+          dl->AddRectFilled(icon_min, icon_max, col32, is_folder ? 2.0f : 6.0f);
 
-        // Type abbreviation centered in icon
-        if (type_abbrev && type_abbrev[0]) {
-          ImVec2 text_sz = ImGui::CalcTextSize(type_abbrev);
-          ImVec2 text_pos(
-              icon_min.x + (tile_size - text_sz.x) * 0.5f,
-              icon_min.y + (tile_size - text_sz.y) * 0.5f);
-          dl->AddText(text_pos, IM_COL32(255, 255, 255, 200), type_abbrev);
+          // Type abbreviation centered in icon
+          if (type_abbrev && type_abbrev[0]) {
+            ImVec2 text_sz = ImGui::CalcTextSize(type_abbrev);
+            ImVec2 text_pos(
+                icon_min.x + (tile_size - text_sz.x) * 0.5f,
+                icon_min.y + (tile_size - text_sz.y) * 0.5f);
+            dl->AddText(text_pos, IM_COL32(255, 255, 255, 200), type_abbrev);
+          }
         }
 
         // Label below icon (truncated)
@@ -573,9 +667,33 @@ void EditorLayer::OnBeginPresent() {
         dl->AddText(label_pos, IM_COL32(220, 220, 220, 255),
                      display_label.c_str());
 
-        // Tooltip with full name on hover
+        // Tooltip on hover
         if (hovered) {
-          ImGui::SetTooltip("%s", label);
+          if (asset_meta) {
+            ImGui::BeginTooltip();
+            ImGui::TextUnformatted(asset_meta->name.c_str());
+            ImGui::Separator();
+            ImGui::Text("Type: %s", AssetTypeToString(asset_meta->type));
+            ImGui::Text("Handle: %s", asset_meta->handle.ToString().c_str());
+            ImGui::Text("Path: %s", asset_meta->virtual_source_path.c_str());
+
+            AssetLoadState load_state = asset_meta->load_state.load();
+            const char* state_str = "Unknown";
+            switch (load_state) {
+              case AssetLoadState::Unloaded: state_str = "Unloaded"; break;
+              case AssetLoadState::Loading:  state_str = "Loading";  break;
+              case AssetLoadState::Loaded:   state_str = "Loaded";   break;
+              case AssetLoadState::Failed:   state_str = "Failed";   break;
+            }
+            ImGui::Text("State: %s", state_str);
+
+            auto physical_path = Engine::GetVirtualFileSystem()->GetPhysicalPath(asset_meta->virtual_source_path);
+            ImGui::Text("Source: %s", physical_path.has_value() ? "Filesystem" : "Archive");
+
+            ImGui::EndTooltip();
+          } else {
+            ImGui::SetTooltip("%s", label);
+          }
         }
 
         ImGui::PopID();
@@ -599,10 +717,12 @@ void EditorLayer::OnBeginPresent() {
           std::string trimmed = current_dir;
           if (!trimmed.empty() && (trimmed.back() == '/' || trimmed.back() == '\\'))
             trimmed.pop_back();
-          auto slash = trimmed.find_last_of("/\\");
-          current_dir = (slash != std::string::npos)
-                            ? trimmed.substr(0, slash + 1)
-                            : "";
+          size_t slash = trimmed.find_last_of("/\\");
+          if (slash == std::string::npos || slash == 0) {
+            current_dir = "";
+          } else {
+            current_dir = trimmed.substr(0, slash + 1);
+          }
         }
         NextColumn();
       }
@@ -611,7 +731,11 @@ void EditorLayer::OnBeginPresent() {
       for (const auto& dir : subdirs) {
         if (DrawTile(dir.c_str(), ImVec4(0.3f, 0.35f, 0.45f, 1.0f), "Directory",
                      false, true)) {
-          current_dir += dir + "/";
+          if (current_dir.empty()) {
+            current_dir = "/" + dir + "/";
+          } else {
+            current_dir += dir + "/";
+          }
         }
         NextColumn();
       }
@@ -626,6 +750,7 @@ void EditorLayer::OnBeginPresent() {
           case AssetType::Sprite:   return {0.20f, 0.60f, 0.65f, 1.0f};
           case AssetType::Skybox:   return {0.25f, 0.55f, 0.55f, 1.0f};
           case AssetType::Font:     return {0.65f, 0.60f, 0.25f, 1.0f};
+          case AssetType::Script:   return {0.55f, 0.70f, 0.30f, 1.0f};
           default:                  return {0.40f, 0.40f, 0.40f, 1.0f};
         }
       };
@@ -639,6 +764,7 @@ void EditorLayer::OnBeginPresent() {
           case AssetType::Sprite:   return "Sprite";
           case AssetType::Skybox:   return "Skybox";
           case AssetType::Font:     return "Font";
+          case AssetType::Script:   return "Script";
           default:                  return "?";
         }
       };
@@ -648,10 +774,26 @@ void EditorLayer::OnBeginPresent() {
         const auto* meta = mgr.GetMetadata(handle);
         if (!meta) continue;
 
+        VkDescriptorSet thumbnail = nullptr;
+        if (meta->type == AssetType::Texture || meta->type == AssetType::Sprite ||
+            meta->type == AssetType::Skybox) {
+          ThumbnailEntry thumb = GetOrCreateThumbnail(handle, *meta);
+          thumbnail = thumb.texture_id;
+        }
+
         bool is_sel = selected_asset == handle;
+        bool dbl_clicked = false;
         if (DrawTile(meta->name.c_str(), GetAssetColor(meta->type),
-                     GetAssetAbbrev(meta->type), is_sel, false)) {
+                     GetAssetAbbrev(meta->type), is_sel, false, thumbnail, meta, &dbl_clicked)) {
           selected_asset = handle;
+        }
+
+        if (dbl_clicked && meta->type == AssetType::Script) {
+          std::optional<std::filesystem::path> physical =
+              Engine::GetVirtualFileSystem()->GetPhysicalPath(meta->virtual_source_path);
+          if (physical.has_value()) {
+            OpenFileInDefaultEditor(*physical);
+          }
         }
 
         // Drag source for asset tiles
@@ -670,6 +812,12 @@ void EditorLayer::OnBeginPresent() {
 
   static bool viewportOpen = true;
   if (ImGui::Begin("Viewport", &viewportOpen)) {
+    if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) current_op_ = ImGuizmo::TRANSLATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Rotate",    current_op_ == ImGuizmo::ROTATE))    current_op_ = ImGuizmo::ROTATE;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
+
     auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
     auto finalOutputImage = renderer->GetFinalOutputImage();
     ImTextureID desc =

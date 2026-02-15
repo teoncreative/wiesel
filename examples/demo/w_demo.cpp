@@ -49,7 +49,7 @@ void DemoLayer::OnAttach() {
     transform.scale = {0.01f, 0.01f, 0.01f};
     transform.position = {5.0f, 2.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    model.model_handle = assets.Register("Sponza", AssetType::Model, "assets/models/sponza/sponza.gltf");
+    model.model_handle = assets.Register("Sponza", AssetType::Model, "/app/models/sponza/sponza.gltf");
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "TestBehavior");
   }
@@ -117,9 +117,9 @@ void DemoLayer::OnAttach() {
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
   {
-    auto skyboxTexture = Engine::GetRenderer()->CreateCubemapTextureFromSingle("assets/textures/cubemap/Cubemap_Sky_03-512x512.png", {}, {});
+    auto skyboxTexture = Engine::GetRenderer()->CreateCubemapTextureFromSingle("/app/textures/cubemap/Cubemap_Sky_03-512x512.png", {}, {});
     assets.RegisterAndStore<Texture>("Skybox Cubemap", AssetType::Skybox,
-                                     "assets/textures/skymap/", skyboxTexture);
+                                     "/app/textures/skymap/", skyboxTexture);
     scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
   }
   renderer_->options().vsync = false;
@@ -187,6 +187,7 @@ bool DemoLayer::OnResizeEvent(WindowResizeEvent& event) {
     camera.viewport_size.y = event.window_size().height;
     camera.aspect_ratio = event.aspect_ratio();
     camera.view_changed = true;
+    camera.resources_dirty = true;
   }
   return false;
 }
@@ -212,14 +213,7 @@ DemoApplication::~DemoApplication() {
 }  // namespace WieselDemo
 
 // Called from entrypoint
-Application* Wiesel::CreateApp(int argc, char** argv) {
-  cxxopts::Options options("demo", "Wiesel demo application");
-
-  options.add_options()
-      ("e,enable_editor", "Enable the editor", cxxopts::value<bool>()->default_value("false"));
-
-  auto result = options.parse(argc, argv);
-  bool enable_editor = result["enable_editor"].as<bool>();
-
+Application* Wiesel::CreateApp() {
+  bool enable_editor = Engine::GetEngineProperties().editor_enabled;
   return new WieselDemo::DemoApplication(enable_editor);
 }

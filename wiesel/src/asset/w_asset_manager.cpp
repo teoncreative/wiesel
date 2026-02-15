@@ -16,6 +16,7 @@ const char* AssetTypeToString(AssetType type) {
     case AssetType::Sprite:   return "Sprite";
     case AssetType::Skybox:   return "Skybox";
     case AssetType::Font:     return "Font";
+    case AssetType::Script:   return "Script";
     default:                  return "Unknown";
   }
 }
@@ -28,6 +29,7 @@ AssetType AssetTypeFromString(std::string_view s) {
   if (s == "Sprite")   return AssetType::Sprite;
   if (s == "Skybox")   return AssetType::Skybox;
   if (s == "Font")     return AssetType::Font;
+  if (s == "Script")   return AssetType::Script;
   return AssetType::None;
 }
 
@@ -38,12 +40,12 @@ AssetManager& AssetManager::Get() {
 }
 
 AssetHandle AssetManager::Register(const std::string& name, AssetType type,
-                                   const std::string& source_path) {
-  if (!source_path.empty()) {
-    auto pit = path_index_.find(source_path);
+                                   const std::string& virtual_source_path) {
+  if (!virtual_source_path.empty()) {
+    auto pit = path_index_.find(virtual_source_path);
     if (pit != path_index_.end()) {
       LOG_WARN("Asset with source path '{}' already registered as '{}'",
-               source_path, registry_[pit->second]->metadata.name);
+               virtual_source_path, registry_[pit->second]->metadata.name);
       return pit->second;
     }
   }
@@ -54,24 +56,24 @@ AssetHandle AssetManager::Register(const std::string& name, AssetType type,
   entry->metadata.handle = handle;
   entry->metadata.type = type;
   entry->metadata.name = name;
-  entry->metadata.source_path = source_path;
+  entry->metadata.virtual_source_path = virtual_source_path;
 
   registry_.emplace(handle, std::move(entry));
 
-  if (!source_path.empty()) {
-    path_index_[source_path] = handle;
+  if (!virtual_source_path.empty()) {
+    path_index_[virtual_source_path] = handle;
   }
   if (!name.empty()) {
     name_index_.try_emplace(name, handle);
   }
 
   LOG_DEBUG("Registered asset '{}' [{}] path='{}' = {}", name,
-            AssetTypeToString(type), source_path, handle.ToString());
+            AssetTypeToString(type), virtual_source_path, handle.ToString());
   return handle;
 }
 
 bool AssetManager::Register(AssetHandle handle, const std::string& name,
-                            AssetType type, const std::string& source_path) {
+                            AssetType type, const std::string& virtual_source_path) {
   if (!handle.IsValid()) {
     LOG_ERROR("Cannot register asset with nil handle");
     return false;
@@ -85,12 +87,12 @@ bool AssetManager::Register(AssetHandle handle, const std::string& name,
   entry->metadata.handle = handle;
   entry->metadata.type = type;
   entry->metadata.name = name;
-  entry->metadata.source_path = source_path;
+  entry->metadata.virtual_source_path = virtual_source_path;
 
   registry_.emplace(handle, std::move(entry));
 
-  if (!source_path.empty()) {
-    path_index_.try_emplace(source_path, handle);
+  if (!virtual_source_path.empty()) {
+    path_index_.try_emplace(virtual_source_path, handle);
   }
   if (!name.empty()) {
     name_index_.try_emplace(name, handle);
@@ -104,8 +106,8 @@ void AssetManager::Unregister(AssetHandle handle) {
   if (it == registry_.end()) return;
 
   const auto& meta = it->second->metadata;
-  if (!meta.source_path.empty()) {
-    path_index_.erase(meta.source_path);
+  if (!meta.virtual_source_path.empty()) {
+    path_index_.erase(meta.virtual_source_path);
   }
   if (!meta.name.empty()) {
     auto nit = name_index_.find(meta.name);
@@ -134,8 +136,8 @@ AssetHandle AssetManager::FindByName(const std::string& name) const {
   return kNullAssetHandle;
 }
 
-AssetHandle AssetManager::FindBySourcePath(const std::string& source_path) const {
-  auto it = path_index_.find(source_path);
+AssetHandle AssetManager::FindBySourcePath(const std::string& virtual_source_path) const {
+  auto it = path_index_.find(virtual_source_path);
   if (it != path_index_.end()) return it->second;
   return kNullAssetHandle;
 }

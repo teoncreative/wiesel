@@ -27,6 +27,8 @@ class Sampler {
   Sampler(uint32_t mipLevels, const SamplerProps& props);
   ~Sampler();
 
+  VkSampler GetHandle() const { return sampler_; }
+
  private:
   friend class Renderer;
   friend class DescriptorSet;

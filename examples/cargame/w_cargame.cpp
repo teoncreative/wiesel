@@ -47,6 +47,7 @@ void DemoLayer::OnAttach() {
   {
     auto& transform = cameraEntity.GetComponent<TransformComponent>();
     auto& camera = cameraEntity.AddComponent<CameraComponent>();
+    camera.viewport_size = {2560, 1440};
     camera.far_plane = 45.0f;
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
@@ -60,8 +61,7 @@ void DemoLayer::OnAttach() {
     transform.scale = {1, 1, 1};
     transform.position = {0.0f, 0.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    model.model_handle = assets.Register("City", AssetType::Model, "assets/models/city/gmae.obj");
-    Engine::LoadModelAsync(entity.handle(), entity.GetScene(), false);
+    model.model_handle = assets.Register("City", AssetType::Model, "/app/models/city/gmae.obj");
   }
   {
     Entity entity = scene_->CreateEntity("Car");
@@ -70,8 +70,7 @@ void DemoLayer::OnAttach() {
     transform.position = {0.0f, 0.0f, 0.0f};
     transform.rotation = {-90.0f, 0.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
-    model.model_handle = assets.Register("Cyberpunk Bike", AssetType::Model, "assets/models/bike/cyberpunk_bike.glb");
-    Engine::LoadModelAsync(entity.handle(), entity.GetScene(), false);
+    model.model_handle = assets.Register("Cyberpunk Bike", AssetType::Model, "/app/models/bike/cyberpunk_bike.glb");
   }
   {
     auto entity = scene_->CreateEntity("Sun");
@@ -88,24 +87,24 @@ void DemoLayer::OnAttach() {
     auto entity = scene_->CreateEntity("Speedometer");
     auto& transform = entity.GetComponent<TransformComponent>();
     auto& sprite = entity.AddComponent<SpriteComponent>();
-    SpriteBuilder builder{"assets/textures/speedometer_320.png", {320, 298}};
+    SpriteBuilder builder{"/app/textures/speedometer_320.png", {320, 298}};
     builder.SetSampler(Engine::GetRenderer()->GetDefaultLinearSampler());
     builder.AddFrame(0, {0,0}, {320, 298});
     sprite.asset_handle_ = builder.Build();
-    assets.Register("Speedometer Sprite", AssetType::Sprite, "assets/textures/speedometer_320.png");
+    assets.Register("Speedometer Sprite", AssetType::Sprite, "/app/textures/speedometer_320.png");
   }
   {
-    auto skyboxTexture = Engine::GetRenderer()->CreateCubemapTexture({
-        "assets/textures/skymap/right.jpg",
-        "assets/textures/skymap/left.jpg",
-        "assets/textures/skymap/top.jpg",
-        "assets/textures/skymap/bottom.jpg",
-        "assets/textures/skymap/front.jpg",
-        "assets/textures/skymap/back.jpg"
+    auto skybox_texture = Engine::GetRenderer()->CreateCubemapTexture({
+        "/app/textures/skymap/right.jpg",
+        "/app/textures/skymap/left.jpg",
+        "/app/textures/skymap/top.jpg",
+        "/app/textures/skymap/bottom.jpg",
+        "/app/textures/skymap/front.jpg",
+        "/app/textures/skymap/back.jpg"
     }, {}, {});
     assets.RegisterAndStore<Texture>("Skybox Cubemap", AssetType::Skybox,
-                                     "assets/textures/skymap/", skyboxTexture);
-    scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
+                                     "/app/textures/skymap/", skybox_texture);
+    scene_->SetSkybox(CreateReference<Skybox>(skybox_texture));
   }
 
   renderer_->options().vsync = false;
@@ -165,14 +164,7 @@ DemoApplication::~DemoApplication() {
 }  // namespace WieselDemo
 
 // Called from entrypoint
-Application* Wiesel::CreateApp(int argc, char** argv) {
-  cxxopts::Options options("demo", "Wiesel demo application");
-
-  options.add_options()
-      ("e,enable_editor", "Enable the editor", cxxopts::value<bool>()->default_value("false"));
-
-  auto result = options.parse(argc, argv);
-  bool enable_editor = result["enable_editor"].as<bool>();
-
+Application* Wiesel::CreateApp() {
+  bool enable_editor = Engine::GetEngineProperties().editor_enabled;
   return new WieselDemo::DemoApplication(enable_editor);
 }

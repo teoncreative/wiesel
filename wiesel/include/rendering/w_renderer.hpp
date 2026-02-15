@@ -171,7 +171,7 @@ class Renderer {
   Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
                                     const TextureProps& texture_props,
                                     const SamplerProps& sampler_props);
-  Ref<Texture> CreateCubemapTextureFromSingle(const std::string& path,
+  Ref<Texture> CreateCubemapTextureFromSingle(const std::string& virtual_path,
                                     const TextureProps& texture_props,
                                     const SamplerProps& sampler_props);
   void DestroyTexture(Texture& texture);

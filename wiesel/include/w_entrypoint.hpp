@@ -13,12 +13,28 @@
 
 #include "w_engine.hpp"
 
+#ifdef WIN32
+#include <windows.h>
+
+void EnableAnsiColors() {
+  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD dwMode = 0;
+  GetConsoleMode(hOut, &dwMode);
+  dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  SetConsoleMode(hOut, dwMode);
+}
+#endif
+
 int main(int argc, char** argv) {
   using namespace Wiesel;
+#ifdef WIN32
+  EnableAnsiColors();
+#endif
 
   LOG_INFO("Initializing engine...");
-  Engine::InitEngine();
-  Application& app = *CreateApp(argc, argv);
+  EngineProperties properties = EngineProperties::Parse(argc, argv);
+  Engine::InitEngine(properties);
+  Application& app = *CreateApp();
   LOG_INFO("Initializing app...");
   app.Init();
   LOG_INFO("Running...");

@@ -238,7 +238,8 @@ void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
 }
 
 void Renderer::SetupCameraComponent(CameraComponent& component) {
-  LOG_INFO("  Viewport: {}x{}", component.viewport_size.x, component.viewport_size.y);
+  LOG_INFO("  Viewport: {}x{}", component.viewport_size.x,
+           component.viewport_size.y);
   if (component.aspect_ratio <= 0) {
     component.aspect_ratio =
         component.viewport_size.x / component.viewport_size.y;
@@ -270,9 +271,9 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.geometry_world_pos_image = CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R32G32B32A32_SFLOAT, options_.msaa_mode, true});
-  component.geometry_depth_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R32_SFLOAT,
-       options_.msaa_mode, true});
+  component.geometry_depth_image =
+      CreateAttachmentTexture({rw, rh, AttachmentTextureType::Offscreen, 1,
+                               VK_FORMAT_R32_SFLOAT, options_.msaa_mode, true});
   component.geometry_normal_image = CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8G8B8A8_UNORM,
        options_.msaa_mode, true});
@@ -282,9 +283,9 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.geometry_material_image = CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R16G16B16A16_SFLOAT, options_.msaa_mode, true});
-  component.geometry_depth_stencil = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::DepthStencil, 1, FindDepthFormat(),
-       options_.msaa_mode, true});
+  component.geometry_depth_stencil =
+      CreateAttachmentTexture({rw, rh, AttachmentTextureType::DepthStencil, 1,
+                               FindDepthFormat(), options_.msaa_mode, true});
 
   component.shadow_depth_stencil = CreateAttachmentTexture(
       {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM,
@@ -363,8 +364,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
 
   component.lighting_color_image = CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       options_.msaa_mode,
-       options_.msaa_mode == SamplingMode::DISABLED});
+       options_.msaa_mode, options_.msaa_mode == SamplingMode::DISABLED});
   if (options_.msaa_mode > SamplingMode::DISABLED) {
     component.lighting_color_resolve_image = CreateAttachmentTexture(
         {rw, rh, AttachmentTextureType::Resolve, 1, swap_chain_image_format_,
@@ -394,8 +394,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
 
   component.composite_color_image = CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       options_.msaa_mode,
-       options_.msaa_mode == SamplingMode::DISABLED});
+       options_.msaa_mode, options_.msaa_mode == SamplingMode::DISABLED});
   if (options_.msaa_mode > SamplingMode::DISABLED) {
     component.composite_color_resolve_image = CreateAttachmentTexture(
         {rw, rh, AttachmentTextureType::Resolve, 1, swap_chain_image_format_,
@@ -627,19 +626,22 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
        SamplingMode::DISABLED, true});
   {
     std::array<AttachmentTexture*, 1> att{component.fxaa_image.get()};
-    component.fxaa_framebuffer = postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
+    component.fxaa_framebuffer =
+        postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
   }
 
   component.fxaa_after_composite_desc = CreateReference<DescriptorSet>();
   component.fxaa_after_composite_desc->SetLayout(present_descriptor_layout_);
   component.fxaa_after_composite_desc->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0], default_linear_sampler_);
+      0, component.composite_color_resolve_image->image_views_[0],
+      default_linear_sampler_);
   component.fxaa_after_composite_desc->Bake();
 
   component.fxaa_after_bloom_desc = CreateReference<DescriptorSet>();
   component.fxaa_after_bloom_desc->SetLayout(present_descriptor_layout_);
   component.fxaa_after_bloom_desc->AddCombinedImageSampler(
-      0, component.bloom_composite_image->image_views_[0], default_linear_sampler_);
+      0, component.bloom_composite_image->image_views_[0],
+      default_linear_sampler_);
   component.fxaa_after_bloom_desc->Bake();
 
   component.fxaa_after_motion_blur_desc = CreateReference<DescriptorSet>();
@@ -663,21 +665,25 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
        SamplingMode::DISABLED, true});
   {
     std::array<AttachmentTexture*, 1> att{component.taa_output_image.get()};
-    component.taa_framebuffer = postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
+    component.taa_framebuffer =
+        postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
   }
   {
     std::array<AttachmentTexture*, 1> att{component.taa_history_image.get()};
-    component.taa_history_framebuffer = postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
+    component.taa_history_framebuffer =
+        postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
   }
 
   component.taa_descriptor = CreateReference<DescriptorSet>();
   component.taa_descriptor->SetLayout(taa_descriptor_layout_);
   component.taa_descriptor->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0], default_linear_sampler_);
+      0, component.composite_color_resolve_image->image_views_[0],
+      default_linear_sampler_);
   component.taa_descriptor->AddCombinedImageSampler(
       1, component.taa_history_image->image_views_[0], default_linear_sampler_);
   component.taa_descriptor->AddCombinedImageSampler(
-      2, component.geometry_depth_resolve_image->image_views_[0], default_nearest_sampler_);
+      2, component.geometry_depth_resolve_image->image_views_[0],
+      default_nearest_sampler_);
   component.taa_descriptor->Bake();
 
   component.taa_copy_descriptor = CreateReference<DescriptorSet>();
@@ -700,20 +706,24 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.bloom_extract_after_taa_desc->Bake();
 
   component.bloom_composite_after_taa_desc = CreateReference<DescriptorSet>();
-  component.bloom_composite_after_taa_desc->SetLayout(postprocess_2input_descriptor_layout_);
+  component.bloom_composite_after_taa_desc->SetLayout(
+      postprocess_2input_descriptor_layout_);
   component.bloom_composite_after_taa_desc->AddCombinedImageSampler(
       0, component.taa_output_image->image_views_[0], default_linear_sampler_);
   component.bloom_composite_after_taa_desc->AddCombinedImageSampler(
-      1, component.bloom_blur_v_image->image_views_[0], default_linear_sampler_);
+      1, component.bloom_blur_v_image->image_views_[0],
+      default_linear_sampler_);
   component.bloom_composite_after_taa_desc->Bake();
 
   // TAA-aware motion blur descriptor
   component.motion_blur_after_taa_desc = CreateReference<DescriptorSet>();
-  component.motion_blur_after_taa_desc->SetLayout(postprocess_2input_descriptor_layout_);
+  component.motion_blur_after_taa_desc->SetLayout(
+      postprocess_2input_descriptor_layout_);
   component.motion_blur_after_taa_desc->AddCombinedImageSampler(
       0, component.taa_output_image->image_views_[0], default_linear_sampler_);
   component.motion_blur_after_taa_desc->AddCombinedImageSampler(
-      1, component.geometry_world_pos_resolve_image->image_views_[0], default_nearest_sampler_);
+      1, component.geometry_world_pos_resolve_image->image_views_[0],
+      default_nearest_sampler_);
   component.motion_blur_after_taa_desc->Bake();
 
   component.resources_dirty = false;
@@ -839,15 +849,16 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
                                      const SamplerProps& sampler_props) {
   Ref<Texture> texture = CreateReference<Texture>(texture_props.type, path);
 
+  VfsFile vfs_file = Engine::GetVirtualFileSystem()->Open(path);
   stbi_uc* pixels =
-      stbi_load(path.c_str(), reinterpret_cast<int*>(&texture->width_),
-                reinterpret_cast<int*>(&texture->height_), &texture->channels_,
-                STBI_rgb_alpha);
+      stbi_load_from_memory(vfs_file.Data(), static_cast<int>(vfs_file.Size()),
+                            reinterpret_cast<int*>(&texture->width_),
+                            reinterpret_cast<int*>(&texture->height_),
+                            &texture->channels_, STBI_rgb_alpha);
 
   if (!pixels) {
     LOG_WARN("Failed to load texture from {}", path);
     return nullptr;
-    //throw std::runtime_error("failed to load texture image: " + path);
   }
   texture->size_ = texture->width_ * texture->height_ * STBI_rgb_alpha;
   if (texture_props.generate_mipmaps) {
@@ -969,8 +980,10 @@ Ref<Texture> Renderer::CreateCubemapTexture(
   stbi_uc* allPixels;
   for (size_t i = 0; i < 6; ++i) {
     int w, h, channels;
-    stbi_uc* pixels =
-        stbi_load(paths[i].c_str(), &w, &h, &channels, STBI_rgb_alpha);
+    VfsFile vfs_face = Engine::GetVirtualFileSystem()->Open(paths[i]);
+    stbi_uc* pixels = stbi_load_from_memory(vfs_face.Data(),
+                                            static_cast<int>(vfs_face.Size()),
+                                            &w, &h, &channels, STBI_rgb_alpha);
     if (!pixels) {
       throw std::runtime_error("failed to load texture image: " + paths[i]);
     }
@@ -1037,158 +1050,123 @@ Ref<Texture> Renderer::CreateCubemapTexture(
   }
   texture->is_allocated_ = true;
   return texture;
-}Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
-    const std::string& path,
-    const TextureProps& texture_props,
-    const SamplerProps& sampler_props)
-{
-    Ref<Texture> texture = CreateReference<Texture>(texture_props.type, "");
-
-    int w, h, channels;
-    stbi_uc* pixels = stbi_load(path.c_str(), &w, &h, &channels, STBI_rgb_alpha);
-    if (!pixels)
-        throw std::runtime_error("failed to load cubemap: " + path);
-
-    const bool isHorizontalStrip =
-        (w % 6 == 0) && (h > 0) && (h == w / 6);
-
-    const bool isVerticalCross =
-        (w % 4 == 0) && (h % 3 == 0) && (w / 4 == h / 3);
-
-    if (!isHorizontalStrip && !isVerticalCross)
-        throw std::runtime_error("Unsupported cubemap layout: " + path);
-
-    uint32_t faceSize = 0;
-
-    if (isHorizontalStrip)
-        faceSize = w / 6;
-    else
-        faceSize = w / 4;
-
-    texture->width_  = faceSize;
-    texture->height_ = faceSize;
-    texture->size_   = faceSize * faceSize * 4;
-    texture->mip_levels_ = 1;
-
-    VkDeviceSize totalSize = texture->size_ * 6;
-
-    std::vector<stbi_uc> cubePixels(totalSize);
-
-    auto copyFace = [&](uint32_t faceIndex, uint32_t gridX, uint32_t gridY)
-    {
-        for (uint32_t row = 0; row < faceSize; row++)
-        {
-            memcpy(
-                cubePixels.data() + faceIndex * texture->size_ + row * faceSize * 4,
-                pixels + ((gridY * faceSize + row) * w + gridX * faceSize) * 4,
-                faceSize * 4
-            );
-        }
-    };
-
-    if (isHorizontalStrip)
-    {
-        for (uint32_t face = 0; face < 6; face++)
-        {
-            copyFace(face, face, 0);
-        }
-    }
-    else
-    {
-        // Vertical cross (4x3 fold layout)
-        // Grid layout:
-        //       +Y        (1,0)
-        // -X +Z +X -Z     (0,1)(1,1)(2,1)(3,1)
-        //       -Y        (1,2)
-
-        copyFace(0, 2, 1); // +X
-        copyFace(1, 0, 1); // -X
-        copyFace(2, 1, 0); // +Y
-        copyFace(3, 1, 2); // -Y
-        copyFace(4, 1, 1); // +Z
-        copyFace(5, 3, 1); // -Z
-    }
-
-    stbi_image_free(pixels);
-
-    // Create staging buffer
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingMemory;
-
-    CreateBuffer(totalSize,
-                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 stagingBuffer,
-                 stagingMemory);
-
-    void* data;
-    vkMapMemory(logical_device_, stagingMemory, 0, totalSize, 0, &data);
-    memcpy(data, cubePixels.data(), totalSize);
-    vkUnmapMemory(logical_device_, stagingMemory);
-
-    // Create cube image
-    CreateImage(faceSize, faceSize,
-                texture->mip_levels_,
-                SamplingMode::DISABLED,
-                texture_props.image_format,
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                texture->image_,
-                texture->device_memory_,
-                VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
-                6);
-
-    // Transition entire cube
-    TransitionImageLayout(
-        texture->image_,
-        texture_props.image_format,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        texture->mip_levels_,
-        0,
-        6);
-
-    // Copy all 6 faces at once
-    CopyBufferToImage(
-        stagingBuffer,
-        texture->image_,
-        faceSize,
-        faceSize,
-        0,
-        0,
-        6);
-
-    TransitionImageLayout(
-        texture->image_,
-        texture_props.image_format,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        texture->mip_levels_,
-        0,
-        6);
-
-    vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-    vkFreeMemory(logical_device_, stagingMemory, nullptr);
-
-    texture->sampler_ =
-        CreateTextureSampler(texture->mip_levels_, sampler_props);
-
-    texture->image_view_ =
-        CreateImageView(texture->image_,
-                        texture_props.image_format,
-                        VK_IMAGE_ASPECT_COLOR_BIT,
-                        texture->mip_levels_,
-                        VK_IMAGE_VIEW_TYPE_CUBE,
-                        0,
-                        6);
-
-    texture->is_allocated_ = true;
-    return texture;
 }
 
+Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
+    const std::string& virtual_path, const TextureProps& texture_props,
+    const SamplerProps& sampler_props) {
+  Ref<Texture> texture = CreateReference<Texture>(texture_props.type, "");
+
+  int w, h, channels;
+  VfsFile vfs_cubemap = Engine::GetVirtualFileSystem()->Open(virtual_path);
+  stbi_uc* pixels = stbi_load_from_memory(vfs_cubemap.Data(),
+                                          static_cast<int>(vfs_cubemap.Size()),
+                                          &w, &h, &channels, STBI_rgb_alpha);
+  if (!pixels) {
+    throw std::runtime_error("failed to load cubemap: " + virtual_path);
+  }
+  const bool is_horizontal_strip = (w % 6 == 0) && (h > 0) && (h == w / 6);
+
+  const bool is_vertical_cross =
+      (w % 4 == 0) && (h % 3 == 0) && (w / 4 == h / 3);
+
+  if (!is_horizontal_strip && !is_vertical_cross) {
+    throw std::runtime_error("Unsupported cubemap layout: " + virtual_path);
+  }
+
+  uint32_t faceSize = 0;
+
+  if (is_horizontal_strip)
+    faceSize = w / 6;
+  else
+    faceSize = w / 4;
+
+  texture->width_ = faceSize;
+  texture->height_ = faceSize;
+  texture->size_ = faceSize * faceSize * 4;
+  texture->mip_levels_ = 1;
+
+  VkDeviceSize totalSize = texture->size_ * 6;
+
+  std::vector<stbi_uc> cubePixels(totalSize);
+
+  auto copyFace = [&](uint32_t faceIndex, uint32_t gridX, uint32_t gridY) {
+    for (uint32_t row = 0; row < faceSize; row++) {
+      memcpy(
+          cubePixels.data() + faceIndex * texture->size_ + row * faceSize * 4,
+          pixels + ((gridY * faceSize + row) * w + gridX * faceSize) * 4,
+          faceSize * 4);
+    }
+  };
+
+  if (is_horizontal_strip) {
+    for (uint32_t face = 0; face < 6; face++) {
+      copyFace(face, face, 0);
+    }
+  } else {
+    // Vertical cross (4x3 fold layout)
+    // Grid layout:
+    //       +Y        (1,0)
+    // -X +Z +X -Z     (0,1)(1,1)(2,1)(3,1)
+    //       -Y        (1,2)
+
+    copyFace(0, 2, 1);  // +X
+    copyFace(1, 0, 1);  // -X
+    copyFace(2, 1, 0);  // +Y
+    copyFace(3, 1, 2);  // -Y
+    copyFace(4, 1, 1);  // +Z
+    copyFace(5, 3, 1);  // -Z
+  }
+
+  stbi_image_free(pixels);
+
+  // Create staging buffer
+  VkBuffer stagingBuffer;
+  VkDeviceMemory stagingMemory;
+
+  CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+               stagingBuffer, stagingMemory);
+
+  void* data;
+  vkMapMemory(logical_device_, stagingMemory, 0, totalSize, 0, &data);
+  memcpy(data, cubePixels.data(), totalSize);
+  vkUnmapMemory(logical_device_, stagingMemory);
+
+  // Create cube image
+  CreateImage(faceSize, faceSize, texture->mip_levels_, SamplingMode::DISABLED,
+              texture_props.image_format, VK_IMAGE_TILING_OPTIMAL,
+              VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
+              texture->device_memory_, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
+
+  // Transition entire cube
+  TransitionImageLayout(
+      texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, 0, 6);
+
+  // Copy all 6 faces at once
+  CopyBufferToImage(stagingBuffer, texture->image_, faceSize, faceSize, 0, 0,
+                    6);
+
+  TransitionImageLayout(texture->image_, texture_props.image_format,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        texture->mip_levels_, 0, 6);
+
+  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
+  vkFreeMemory(logical_device_, stagingMemory, nullptr);
+
+  texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
+
+  texture->image_view_ = CreateImageView(
+      texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
+      texture->mip_levels_, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6);
+
+  texture->is_allocated_ = true;
+  return texture;
+}
 
 Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
     const AttachmentTextureProps& props) {
@@ -2115,7 +2093,7 @@ void Renderer::PickPhysicalDevice() {
                                   &physical_device_properties_);
     vkGetPhysicalDeviceFeatures(physical_device_, &physical_device_features_);
     supported_sampling_modes_ = ConvertToSamplingModes(
-      physical_device_properties_.limits.framebufferColorSampleCounts &
+        physical_device_properties_.limits.framebufferColorSampleCounts &
         physical_device_properties_.limits.framebufferDepthSampleCounts);
     max_sampling_mode_ = FindHighestSamplingMode(supported_sampling_modes_);
     options_.msaa_mode = max_sampling_mode_;
@@ -2289,9 +2267,12 @@ void Renderer::CreateDescriptorLayouts() {
   postprocess_2input_descriptor_layout_->Bake();
 
   taa_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
-  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                     VK_SHADER_STAGE_FRAGMENT_BIT);
+  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                     VK_SHADER_STAGE_FRAGMENT_BIT);
+  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                     VK_SHADER_STAGE_FRAGMENT_BIT);
   taa_descriptor_layout_->Bake();
 }
 
@@ -2434,30 +2415,24 @@ void Renderer::CreateGeometryRenderPass() {
 
   geometry_render_pass_ =
       CreateReference<RenderPass>(PassType::Geometry, "Geometry RenderPass");
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R32_SFLOAT,
-       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R8G8B8A8_UNORM,
-       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R8G8B8A8_UNORM,
-       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-       .msaa_mode = options_.msaa_mode});
+  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                                       .msaa_mode = options_.msaa_mode});
+  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                                       .msaa_mode = options_.msaa_mode});
+  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = VK_FORMAT_R32_SFLOAT,
+                                       .msaa_mode = options_.msaa_mode});
+  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = VK_FORMAT_R8G8B8A8_UNORM,
+                                       .msaa_mode = options_.msaa_mode});
+  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = VK_FORMAT_R8G8B8A8_UNORM,
+                                       .msaa_mode = options_.msaa_mode});
+  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                                       .msaa_mode = options_.msaa_mode});
   geometry_render_pass_->AttachOutput(
       {.type = AttachmentTextureType::DepthStencil,
        .format = FindDepthFormat(),
@@ -2471,18 +2446,15 @@ void Renderer::CreateGeometryRenderPass() {
         {.type = AttachmentTextureType::Resolve,
          .format = VK_FORMAT_R32G32B32A32_SFLOAT,
          .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = VK_FORMAT_R32_SFLOAT,
-         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = VK_FORMAT_R8G8B8A8_UNORM,
-         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = VK_FORMAT_R8G8B8A8_UNORM,
-         .msaa_mode = SamplingMode::DISABLED});
+    geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                         .format = VK_FORMAT_R32_SFLOAT,
+                                         .msaa_mode = SamplingMode::DISABLED});
+    geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                         .format = VK_FORMAT_R8G8B8A8_UNORM,
+                                         .msaa_mode = SamplingMode::DISABLED});
+    geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                         .format = VK_FORMAT_R8G8B8A8_UNORM,
+                                         .msaa_mode = SamplingMode::DISABLED});
     geometry_render_pass_->AttachOutput(
         {.type = AttachmentTextureType::Resolve,
          .format = VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -2492,15 +2464,13 @@ void Renderer::CreateGeometryRenderPass() {
 
   lighting_render_pass_ = CreateReference<RenderPass>(
       PassType::Lighting, "Deferred Lightning RenderPass");
-  lighting_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = swap_chain_image_format_,
-       .msaa_mode = options_.msaa_mode});
+  lighting_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                       .format = swap_chain_image_format_,
+                                       .msaa_mode = options_.msaa_mode});
   if (options_.msaa_mode > SamplingMode::DISABLED) {
-    lighting_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = swap_chain_image_format_,
-         .msaa_mode = SamplingMode::DISABLED});
+    lighting_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                         .format = swap_chain_image_format_,
+                                         .msaa_mode = SamplingMode::DISABLED});
   }
   lighting_render_pass_->Bake();
 
@@ -2570,13 +2540,12 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   LOG_DEBUG("Creating graphics pipeline");
   auto geometry_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/geometry_shader.vert"});
+       "/engine/internal_shaders/geometry_shader.vert"});
   auto geometry_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/geometry_shader.frag"});
-  geometry_pipeline_ = CreateReference<Pipeline>(
-      PipelineProperties{options_.msaa_mode, CullModeBack,
-                         options_.wireframe_enabled, false});
+       "/engine/internal_shaders/geometry_shader.frag"});
+  geometry_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+      options_.msaa_mode, CullModeBack, options_.wireframe_enabled, false});
   geometry_pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                                     Vertex3D::GetAttributeDescriptions());
   geometry_pipeline_->SetRenderPass(geometry_render_pass_);
@@ -2588,10 +2557,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto skybox_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/skybox_shader.vert"});
+       "/engine/internal_shaders/skybox_shader.vert"});
   auto skybox_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/skybox_shader.frag"});
+       "/engine/internal_shaders/skybox_shader.frag"});
   skybox_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       options_.msaa_mode, CullModeFront, false, false, true, false});
   skybox_pipeline_->SetRenderPass(lighting_render_pass_);
@@ -2603,10 +2572,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto fullscreen_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/fullscreen_shader.vert"});
+       "/engine/internal_shaders/fullscreen_shader.vert"});
   auto lighting_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/lighting_shader.frag"});
+       "/engine/internal_shaders/lighting_shader.frag"});
 
   lighting_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       options_.msaa_mode, CullModeFront, false, true, true, false});
@@ -2621,10 +2590,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto shadow_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/shadow_shader.vert"});
+       "/engine/internal_shaders/shadow_shader.vert"});
   auto shadow_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/shadow_shader.frag"});
+       "/engine/internal_shaders/shadow_shader.frag"});
   shadow_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, true, true});
   shadow_pipeline_->SetRenderPass(shadow_render_pass_);
@@ -2642,7 +2611,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto ssao_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/ssao_gen_shader.frag"});
+       "/engine/internal_shaders/ssao_gen_shader.frag"});
 
   ssao_gen_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
@@ -2655,7 +2624,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto ssao_blur_horz_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/ssao_blur_shader.frag"});
+       "/engine/internal_shaders/ssao_blur_shader.frag"});
 
   ssao_blur_horz_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
@@ -2670,7 +2639,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
                     ShaderLangGLSL,
                     "main",
                     ShaderSourceSource,
-                    "assets/internal_shaders/ssao_blur_shader.frag",
+                    "/engine/internal_shaders/ssao_blur_shader.frag",
                     {"BLUR_VERTICAL"}});
 
   ssao_blur_vert_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
@@ -2683,10 +2652,10 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto sprite_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/sprite_shader.vert"});
+       "/engine/internal_shaders/sprite_shader.vert"});
   auto sprite_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/sprite_shader.frag"});
+       "/engine/internal_shaders/sprite_shader.frag"});
 
   sprite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, true, false, false});
@@ -2701,7 +2670,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto composite_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/quad_shader.frag"});
+       "/engine/internal_shaders/quad_shader.frag"});
 
   composite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       options_.msaa_mode, CullModeFront, false, true, true, false});
@@ -2714,7 +2683,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   // --- Bloom pipelines ---
   auto bloom_extract_frag = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/bloom_extract.frag"});
+       "/engine/internal_shaders/bloom_extract.frag"});
   bloom_push_constants_ = std::make_shared<BloomPushConstants>();
   bloom_extract_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
@@ -2728,7 +2697,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto bloom_blur_h_frag = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/bloom_blur.frag"});
+       "/engine/internal_shaders/bloom_blur.frag"});
   bloom_blur_h_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   bloom_blur_h_pipeline_->SetRenderPass(postprocess_render_pass_);
@@ -2742,7 +2711,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
                     ShaderLangGLSL,
                     "main",
                     ShaderSourceSource,
-                    "assets/internal_shaders/bloom_blur.frag",
+                    "/engine/internal_shaders/bloom_blur.frag",
                     {"BLUR_VERTICAL"}});
   bloom_blur_v_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
@@ -2754,7 +2723,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
 
   auto bloom_composite_frag = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/bloom_composite.frag"});
+       "/engine/internal_shaders/bloom_composite.frag"});
   bloom_composite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   bloom_composite_pipeline_->SetRenderPass(postprocess_render_pass_);
@@ -2769,7 +2738,7 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   // --- Motion blur pipeline ---
   auto motion_blur_frag = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/motion_blur.frag"});
+       "/engine/internal_shaders/motion_blur.frag"});
   motion_blur_push_constants_ = std::make_shared<MotionBlurPushConstants>();
   motion_blur_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
@@ -2788,11 +2757,12 @@ void Renderer::CreateGeometryGraphicsPipelines() {
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   fxaa_pipeline_->SetRenderPass(postprocess_render_pass_);
   fxaa_pipeline_->AddInputLayout(present_descriptor_layout_);
-  fxaa_pipeline_->AddPushConstant(fxaa_push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);
+  fxaa_pipeline_->AddPushConstant(fxaa_push_constants_,
+                                  VK_SHADER_STAGE_FRAGMENT_BIT);
   fxaa_pipeline_->AddShader(fullscreen_vertex_shader);
-  fxaa_pipeline_->AddShader(CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/fxaa.frag"}));
+  fxaa_pipeline_->AddShader(
+      CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
+                    ShaderSourceSource, "/engine/internal_shaders/fxaa.frag"}));
   fxaa_pipeline_->Bake();
 
   // TAA pipeline
@@ -2802,9 +2772,9 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   taa_pipeline_->AddInputLayout(taa_descriptor_layout_);
   taa_pipeline_->AddInputLayout(global_descriptor_layout_);
   taa_pipeline_->AddShader(fullscreen_vertex_shader);
-  taa_pipeline_->AddShader(CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/taa.frag"}));
+  taa_pipeline_->AddShader(
+      CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
+                    ShaderSourceSource, "/engine/internal_shaders/taa.frag"}));
   taa_pipeline_->Bake();
 
   // TAA history copy pipeline (simple passthrough)
@@ -2815,19 +2785,19 @@ void Renderer::CreateGeometryGraphicsPipelines() {
   taa_copy_pipeline_->AddShader(fullscreen_vertex_shader);
   taa_copy_pipeline_->AddShader(CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/quad_shader.frag"}));
+       "/engine/internal_shaders/quad_shader.frag"}));
   taa_copy_pipeline_->Bake();
 }
 
 void Renderer::CreatePresentGraphicsPipelines() {
   auto present_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/fullscreen_shader.vert"});
+       "/engine/internal_shaders/fullscreen_shader.vert"});
   auto present_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "assets/internal_shaders/quad_shader.frag"});
-  present_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      options_.msaa_mode, CullModeNone, false, true});
+       "/engine/internal_shaders/quad_shader.frag"});
+  present_pipeline_ = CreateReference<Pipeline>(
+      PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
   present_pipeline_->SetRenderPass(present_render_pass_);
   present_pipeline_->AddInputLayout(present_descriptor_layout_);
   present_pipeline_->AddShader(present_vertex_shader);
@@ -3469,16 +3439,15 @@ void Renderer::BeginRender() {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate swap chain");
     RecreateSwapChain();
     recreate_swap_chain_ = false;
-    recreate_pipeline_ = false; // Already handled in RecreateSwapChain
+    recreate_pipeline_ = false;  // Already handled in RecreateSwapChain
   }
   if (recreate_pipeline_) {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate Pipeline");
     vkDeviceWaitIdle(logical_device_);
     LOG_INFO("Recreating graphics pipeline...");
     geometry_pipeline_->properties_.enable_wireframe =
-      options_.wireframe_enabled;
-    geometry_pipeline_->properties_.sampling_mode =
-        options_.msaa_mode;
+        options_.wireframe_enabled;
+    geometry_pipeline_->properties_.sampling_mode = options_.msaa_mode;
     RecreatePipeline(geometry_pipeline_);
     recreate_pipeline_ = false;
     PipelineRecreatedEvent event{};
@@ -3790,12 +3759,11 @@ void Renderer::SetCameraData(Ref<CameraData> camera_data) {
     float jitter_y = Halton(idx, 3) - 0.5f;
     camera_uniform_data_.Projection[2][0] += jitter_x * 2.0f / viewport_size_.x;
     camera_uniform_data_.Projection[2][1] += jitter_y * 2.0f / viewport_size_.y;
-    camera_uniform_data_.TaaJitterOffset = glm::vec2(
-        jitter_x / viewport_size_.x,
-        jitter_y / viewport_size_.y
-    );
+    camera_uniform_data_.TaaJitterOffset =
+        glm::vec2(jitter_x / viewport_size_.x, jitter_y / viewport_size_.y);
 
-    prev_jittered_vp_ = camera_uniform_data_.Projection * camera_uniform_data_.ViewMatrix;
+    prev_jittered_vp_ =
+        camera_uniform_data_.Projection * camera_uniform_data_.ViewMatrix;
     taa_frame_index_++;
   } else {
     camera_uniform_data_.PrevViewProjection = camera_data->prev_view_projection;

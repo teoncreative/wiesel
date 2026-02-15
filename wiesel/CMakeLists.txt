@@ -175,106 +175,11 @@ target_link_libraries(wiesel PUBLIC monolib)
 target_link_libraries(wiesel PUBLIC cxxopts::cxxopts)
 target_link_libraries(wiesel PUBLIC GPUOpen::VulkanMemoryAllocator)
 
+if (WIN32)
+    target_link_libraries(wiesel PUBLIC shell32 ole32)
+endif()
+
 function(_hash s outvar)
     string(MD5 _h "${s}")
     set(${outvar} "${_h}" PARENT_SCOPE)
-endfunction()
-
-# ---- project assets ----
-function(target_include_assets target_project assets_dir)
-    get_filename_component(ASSETS_DIR "${assets_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-    if(NOT EXISTS "${ASSETS_DIR}")
-        return()
-    endif()
-
-    _hash("${ASSETS_DIR}-project" ASSET_ID)
-    set(STAGE "${CMAKE_BINARY_DIR}/assetpacks/${ASSET_ID}")
-
-    if(NOT TARGET assetpack_${ASSET_ID})
-        set(all_outs)
-
-        # 1) copy whole assets dir if present
-        if(EXISTS "${ASSETS_DIR}")
-            set(copy_stamp "${STAGE}/.copy_assets.stamp")
-            add_custom_command(OUTPUT "${copy_stamp}"
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGE}/assets"
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory "${ASSETS_DIR}" "${STAGE}/assets"
-                    COMMAND ${CMAKE_COMMAND} -E touch "${copy_stamp}"
-                    DEPENDS "${ASSETS_DIR}"
-                    VERBATIM)
-            list(APPEND all_outs "${copy_stamp}")
-        endif()
-
-        # 2) compile GLSL in assets/shaders -> assets/shaders/*.spv (optional)
-        if(EXISTS "${ASSETS_DIR}/shaders")
-            file(GLOB_RECURSE GLSL "${ASSETS_DIR}/shaders/*.frag" "${ASSETS_DIR}/shaders/*.vert")
-            foreach(f IN LISTS GLSL)
-                get_filename_component(fn "${f}" NAME)
-                set(spv "${STAGE}/assets/shaders/${fn}.spv")
-                add_custom_command(OUTPUT "${spv}"
-                        COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGE}/assets/shaders"
-                        COMMAND glslc "${f}" -o "${spv}"
-                        DEPENDS "${f}" VERBATIM)
-                list(APPEND all_outs "${spv}")
-            endforeach()
-        endif()
-
-        add_custom_target(assetpack_${ASSET_ID} DEPENDS ${all_outs})
-    endif()
-
-    add_dependencies(${target_project} assetpack_${ASSET_ID})
-
-    # deploy (safe even if some dirs are missing)
-    add_custom_command(TARGET ${target_project} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${STAGE}/assets" "$<TARGET_FILE_DIR:${target_project}>/assets"
-            VERBATIM)
-endfunction()
-
-# ---- engine assets ----
-# copies ${ENGINE_DIRECTORY}/assets if it exists; also compiles internal_shaders
-function(target_include_engine_assets target_project)
-    get_filename_component(ENG_DIR "${ENGINE_DIRECTORY}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-    if(NOT EXISTS "${ENG_DIR}")
-        return()
-    endif()
-
-    _hash("${ENG_DIR}-engine" ASSET_ID)
-    set(STAGE "${CMAKE_BINARY_DIR}/assetpacks/${ASSET_ID}")
-
-    if(NOT TARGET assetpack_${ASSET_ID})
-        set(all_outs)
-
-        # 1) copy engine assets tree if present
-        if(EXISTS "${ENG_DIR}/assets")
-            set(copy_stamp "${STAGE}/.copy_engine_assets.stamp")
-            add_custom_command(OUTPUT "${copy_stamp}"
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGE}/assets"
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory "${ENG_DIR}/assets" "${STAGE}/assets"
-                    COMMAND ${CMAKE_COMMAND} -E touch "${copy_stamp}"
-                    DEPENDS "${ENG_DIR}/assets" VERBATIM)
-            list(APPEND all_outs "${copy_stamp}")
-        endif()
-
-        # 2) compile internal shaders -> assets/internal_shaders/*.spv (optional)
-        if(EXISTS "${ENG_DIR}/assets/internal_shaders")
-            file(GLOB_RECURSE IGLSL "${ENG_DIR}/assets/internal_shaders/*.frag" "${ENG_DIR}/assets/internal_shaders/*.vert")
-            foreach(f IN LISTS IGLSL)
-                get_filename_component(fn "${f}" NAME)
-                set(spv "${STAGE}/assets/internal_shaders/${fn}.spv")
-                add_custom_command(OUTPUT "${spv}"
-                        COMMAND ${CMAKE_COMMAND} -E make_directory "${STAGE}/assets/internal_shaders"
-                        COMMAND glslc "${f}" -o "${spv}"
-                        DEPENDS "${f}" VERBATIM)
-                list(APPEND all_outs "${spv}")
-            endforeach()
-        endif()
-
-        add_custom_target(assetpack_${ASSET_ID} DEPENDS ${all_outs})
-    endif()
-
-    add_dependencies(${target_project} assetpack_${ASSET_ID})
-
-    add_custom_command(TARGET ${target_project} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${STAGE}/assets" "$<TARGET_FILE_DIR:${target_project}>/assets"
-            VERBATIM)
 endfunction()

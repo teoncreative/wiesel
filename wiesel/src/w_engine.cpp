@@ -12,6 +12,8 @@
 #include "w_engine.hpp"
 
 #include <thread>
+#include <assimp/IOSystem.hpp>
+#include <assimp/IOStream.hpp>
 #include "asset/w_asset_manager.hpp"
 #include "input/w_input.hpp"
 #include "scene/w_componentutil.hpp"
@@ -19,56 +21,263 @@
 #include "scene/w_lights.hpp"
 #include "script/w_scriptmanager.hpp"
 #include "util/w_dialogs.hpp"
+#include "util/w_platform.hpp"
 #include "window/w_glfwwindow.hpp"
-
-#ifdef WIN32
-#include <windows.h>
-
-void EnableAnsiColors() {
-  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-  DWORD dwMode = 0;
-  GetConsoleMode(hOut, &dwMode);
-  dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-  SetConsoleMode(hOut, dwMode);
-}
-#endif
+#include <cxxopts.hpp>
 
 namespace Wiesel {
-Ref<Renderer> Engine::kRenderer;
-Ref<AppWindow> Engine::kWindow;
 
-void Engine::InitEngine() {
+// Assimp IOStream backed by a VfsFile
+class VfsAssimpIOStream : public Assimp::IOStream {
+  friend class VfsAssimpIOSystem;
+public:
+  explicit VfsAssimpIOStream(VfsFile file) : file_(std::move(file)) {}
+  ~VfsAssimpIOStream() override = default;
+
+  size_t Read(void* pvBuffer, size_t pSize, size_t pCount) override {
+    size_t bytes_requested = pSize * pCount;
+    size_t bytes_read = file_.Read(pvBuffer, bytes_requested);
+    return bytes_read / pSize;
+  }
+
+  size_t Write(const void* /*pvBuffer*/, size_t /*pSize*/, size_t /*pCount*/) override {
+    return 0; // Read-only
+  }
+
+  aiReturn Seek(size_t pOffset, aiOrigin pOrigin) override {
+    switch (pOrigin) {
+      case aiOrigin_SET: file_.Seek(pOffset); break;
+      case aiOrigin_CUR: file_.SeekRelative(static_cast<int64_t>(pOffset)); break;
+      case aiOrigin_END: file_.Seek(file_.Size() - pOffset); break;
+      default: return aiReturn_FAILURE;
+    }
+    return aiReturn_SUCCESS;
+  }
+
+  size_t Tell() const override { return file_.Tell(); }
+  size_t FileSize() const override { return file_.Size(); }
+  void Flush() override {}
+
+private:
+  VfsFile file_;
+};
+
+// Assimp IOSystem backed by VFS
+class VfsAssimpIOSystem : public Assimp::IOSystem {
+public:
+  VfsAssimpIOSystem(std::shared_ptr<VirtualFileSystem> vfs, const std::string& base_dir)
+      : vfs_(std::move(vfs)), base_dir_(base_dir) {}
+
+  ~VfsAssimpIOSystem() override = default;
+
+  bool Exists(const char* pFile) const override {
+    return vfs_->FileExists(ResolvePath(pFile));
+  }
+
+  char getOsSeparator() const override { return '/'; }
+
+  Assimp::IOStream* Open(const char* pFile, const char* /*pMode*/) override {
+    std::string resolved = ResolvePath(pFile);
+    if (!vfs_->FileExists(resolved)) {
+      return nullptr;
+    }
+    VfsFile file = vfs_->Open(resolved);
+    return new VfsAssimpIOStream(std::move(file));
+  }
+
+  void Close(Assimp::IOStream* pFile) override {
+    delete pFile;
+  }
+
+private:
+  std::string ResolvePath(const char* pFile) const {
+    std::string path(pFile);
+    // If already an absolute VFS path, use as-is
+    if (!path.empty() && path[0] == '/') {
+      return path;
+    }
+    // Relative path: resolve against the model's base directory
+    return base_dir_ + "/" + path;
+  }
+
+  std::shared_ptr<VirtualFileSystem> vfs_;
+  std::string base_dir_;
+};
+
+EngineProperties EngineProperties::Parse(int argc, char** argv) {
+    EngineProperties config;
+    std::filesystem::path exe_dir = GetExecutableDirectory();
+
+    // Setup cxxopts
+    cxxopts::Options options(argv[0], "Wiesel Game Engine");
+
+    options.add_options()
+        ("e,editor", "Enable editor layer", cxxopts::value<bool>()->default_value("false"))
+        ("dev", "Enable development mode", cxxopts::value<bool>()->default_value("false"))
+        ("engine-assets", "Path to engine assets directory or pak file",
+            cxxopts::value<std::string>())
+        ("editor-assets", "Path to editor assets directory or pak file",
+            cxxopts::value<std::string>())
+        ("app-assets", "Path to application assets directory",
+            cxxopts::value<std::string>())
+        ("project", "Path to project directory",
+            cxxopts::value<std::string>())
+        ("h,help", "Print usage information");
+
+    try {
+        auto result = options.parse(argc, argv);
+
+        // Handle help
+        if (result.count("help")) {
+            std::cout << options.help() << std::endl;
+            std::exit(0);
+        }
+
+        // Parse flags
+        config.editor_enabled = result["editor"].as<bool>();
+        config.dev_mode = result["dev"].as<bool>();
+
+        // Parse optional paths
+        if (result.count("engine-assets")) {
+            config.engine_assets_path = result["engine-assets"].as<std::string>();
+        }
+
+        if (result.count("editor-assets")) {
+            config.editor_assets_path = result["editor-assets"].as<std::string>();
+        }
+
+        if (result.count("app-assets")) {
+            config.app_assets_path = result["app-assets"].as<std::string>();
+        }
+
+        if (result.count("project")) {
+            config.project_path = result["project"].as<std::string>();
+        }
+
+    } catch (const cxxopts::exceptions::exception& e) {
+        std::cerr << "Error parsing arguments: " << e.what() << std::endl;
+        std::cerr << options.help() << std::endl;
+        std::exit(1);
+    }
+
+    // Fallback to environment variables
+    if (config.engine_assets_path.empty()) {
+        if (const char* env = std::getenv("WIESEL_ENGINE_ASSETS")) {
+            config.engine_assets_path = env;
+        }
+    }
+
+    if (config.editor_assets_path.empty() && config.editor_enabled) {
+        if (const char* env = std::getenv("WIESEL_EDITOR_ASSETS")) {
+            config.editor_assets_path = env;
+        }
+    }
+
+    if (config.app_assets_path.empty()) {
+        if (const char* env = std::getenv("WIESEL_APP_ASSETS")) {
+            config.app_assets_path = env;
+        }
+    }
+
+    if (config.project_path.empty()) {
+        if (const char* env = std::getenv("WIESEL_PROJECT_PATH")) {
+            config.project_path = env;
+        }
+    }
+
+    // Final fallback to default locations
+    if (config.engine_assets_path.empty()) {
+        // Development: Look for source tree
+        std::filesystem::path dev_path = exe_dir / "../../../engine/assets";
+        if (std::filesystem::exists(dev_path)) {
+            config.engine_assets_path = dev_path;
+            config.dev_mode = true;
+        } else {
+            // Release: Look for pak or embedded
+            config.engine_assets_path = exe_dir / "engine.pak";
+        }
+    }
+
+    if (config.editor_assets_path.empty() && config.editor_enabled) {
+        std::filesystem::path dev_path = exe_dir / "../../../editor/assets";
+        if (std::filesystem::exists(dev_path)) {
+            config.editor_assets_path = dev_path;
+        } else {
+            config.editor_assets_path = exe_dir / "editor.pak";
+        }
+    }
+
+    if (config.app_assets_path.empty()) {
+        // Default to assets/ relative to current working directory
+        std::filesystem::path default_app = std::filesystem::current_path() / "assets";
+        if (std::filesystem::exists(default_app)) {
+            config.app_assets_path = default_app;
+        }
+    }
+
+    if (config.user_data_path.empty()) {
+        config.user_data_path = GetUserDataDirectory();
+    }
+
+    return config;
+}
+EngineProperties Engine::properties_;
+std::shared_ptr<Renderer> Engine::renderer_;
+std::shared_ptr<AppWindow> Engine::window_;
+std::shared_ptr<VirtualFileSystem> Engine::vfs_;
+
+void Engine::InitEngine(const EngineProperties& props) {
+  properties_ = props;
   LOG_INFO("Current work directory: {}",
            std::filesystem::current_path().string());
-#ifdef WIN32
-  EnableAnsiColors();
-#endif
+  LOG_INFO(" - engine_assets_path: {}", props.engine_assets_path.string());
+  LOG_INFO(" - editor_enabled: {}", props.editor_enabled);
+  LOG_INFO(" - editor_assets_path: {}", props.editor_assets_path.string());
+  LOG_INFO(" - app_assets_path: {}", props.app_assets_path.string());
+  LOG_INFO(" - project_path: {}", props.project_path.string());
+  LOG_INFO(" - user_data_path: {}", props.user_data_path.string());
+  LOG_INFO(" - dev_mode: {}", props.dev_mode);
+  InitializeVfs();
   InitializeComponents();
   InputManager::Init();
   ScriptManager::Init({.EnableDebugger = true});
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
-  kWindow = CreateReference<GlfwAppWindow>(std::move(props));
+  window_ = CreateReference<GlfwAppWindow>(std::move(props));
   Dialogs::Init();
 }
 
 void Engine::InitRenderer(const RendererProperties&& props) {
-  if (kWindow == nullptr) {
+  if (window_ == nullptr) {
     LOG_ERROR("Window should be initialized before renderer!");
     abort();
   }
-  kRenderer = CreateReference<Renderer>(kWindow);
-  kRenderer->Initialize(std::move(props));
+  renderer_ = CreateReference<Renderer>(window_);
+  renderer_->Initialize(std::move(props));
+}
+
+void Engine::InitializeVfs() {
+  vfs_ = std::make_shared<VirtualFileSystem>();
+  vfs_->Mount("/engine", properties_.engine_assets_path.string(), 100);
+  if (properties_.editor_enabled && !properties_.editor_assets_path.empty()) {
+    vfs_->Mount("/editor", properties_.editor_assets_path.string(), 90);
+  }
+  if (!properties_.app_assets_path.empty()) {
+    vfs_->Mount("/app", properties_.app_assets_path.string(), 80);
+  }
+  if (!properties_.user_data_path.empty()) {
+    vfs_->Mount("/user", properties_.user_data_path.string(), 0);
+  }
 }
 
 void Engine::CleanupRenderer() {
-  kRenderer->Cleanup();
-  kRenderer = nullptr;
+  renderer_->Cleanup();
+  renderer_ = nullptr;
 }
 
 void Engine::CleanupWindow() {
-  kWindow = nullptr;
+  window_ = nullptr;
   Dialogs::Destroy();
 }
 
@@ -79,22 +288,33 @@ void Engine::CleanupEngine() {
 }
 
 std::shared_ptr<Renderer> Engine::GetRenderer() {
-  if (kRenderer == nullptr) {
+  if (renderer_ == nullptr) {
     throw std::runtime_error("Renderer is not initialized!");
   }
-  return kRenderer;
+  return renderer_;
 }
 
 std::shared_ptr<AppWindow> Engine::GetWindow() {
-  return kWindow;
+  return window_;
+}
+
+std::shared_ptr<VirtualFileSystem> Engine::GetVirtualFileSystem() {
+  return vfs_;
 }
 
 aiScene* Engine::LoadAssimpModel(const std::string& path,
                                  bool convertToLeftHanded) {
-  auto fsPath = std::filesystem::relative(path);
   LOG_INFO("Loading model: {}", path);
 
+  // Derive base directory for resolving relative references (e.g. .bin, textures)
+  std::string base_dir = path;
+  size_t last_slash = base_dir.rfind('/');
+  if (last_slash != std::string::npos) {
+    base_dir = base_dir.substr(0, last_slash);
+  }
+
   Assimp::Importer importer;
+  importer.SetIOHandler(new VfsAssimpIOSystem(vfs_, base_dir));
   importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
                               aiPrimitiveType_LINE | aiPrimitiveType_POINT);
   importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
@@ -104,7 +324,7 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
   if (convertToLeftHanded) {
     flags |= aiProcess_ConvertToLeftHanded;
   }
-  importer.ReadFile(path, flags);
+  importer.ReadFile(path.c_str(), flags);
   aiScene* scene = importer.GetOrphanedScene();
 
   if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
@@ -126,26 +346,37 @@ void Engine::LoadModelAsync(AssetHandle handle) {
   if (!assets.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
     return;
   }
-  std::string path = meta->source_path;
-  auto fsPath = std::filesystem::relative(path);
+  std::string path = meta->virtual_source_path;
+
+  // Derive VFS directory for relative texture resolution
+  std::string textures_dir = path;
+  size_t last_slash = textures_dir.rfind('/');
+  if (last_slash != std::string::npos) {
+    textures_dir = textures_dir.substr(0, last_slash);
+  }
 
   // Background thread: Assimp file I/O + parsing only
   // TODO use a thread pool for this instead
-  std::thread([path, handle, fsPath]() {
+  std::thread([path, handle, textures_dir]() {
     aiScene* assimp_scene = LoadAssimpModel(path);
+
+    if (!assimp_scene) {
+      AssetManager::Get().SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+      return;
+    }
 
     // Main thread: ProcessNode (texture loading needs GPU) + Allocate
     Application::Get()->SubmitToMainThread(
-        [assimp_scene, path, handle, fsPath]() {
+        [assimp_scene, path, handle, textures_dir]() {
           std::shared_ptr<Model> model = std::make_shared<Model>();
           model->model_path = path;
-          model->textures_path = fsPath.parent_path().string();
+          model->textures_path = textures_dir;
           model->meshes.clear();
           model->textures.clear();
           ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
                       glm::mat4(1.0f));
           uint64_t vertices = 0;
-          for (const auto& item : model->meshes) {
+          for (const std::shared_ptr<Mesh>& item : model->meshes) {
             item->Allocate();
             vertices += item->vertices.size();
           }
@@ -154,7 +385,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
           LOG_INFO("Loaded {} vertices!", vertices);
 
           // Register textures with AssetManager
-          auto& assets = AssetManager::Get();
+          AssetManager& assets = AssetManager::Get();
           for (auto& [texPath, tex] : model->textures) {
             assets.RegisterAndStore<Texture>(texPath, AssetType::Texture,
                                              texPath, tex);
