@@ -23,6 +23,11 @@
 #include "w_pch.hpp"
 
 namespace Wiesel {
+
+enum class SystemType {
+  Update
+};
+
 class Entity;
 class CanvasSystem;
 
@@ -36,7 +41,7 @@ class Scene {
                               const std::string& name = std::string());
   void RemoveEntity(Entity entity);
 
-  void OnUpdate(float_t deltaTime);
+  void OnUpdate(float_t delta_time);
   void OnEvent(Event& event);
 
   template <typename T>
@@ -103,6 +108,30 @@ class Scene {
   void BuildRenderGraph(entt::entity camera_entity);
   void InvalidateRenderGraphs();
 
+  template <typename Entity, typename... Components, typename Func>
+  void BindSystem(SystemType type, Func func) {
+    systems_[type].push_back([this, func](float_t delta_time) {
+      for (auto handle : registry_.view<Components...>()) {
+        Entity entity{handle, this};
+        func(delta_time, entity, registry_.get<Components>(handle)...);
+      }
+    });
+  }
+
+  template <typename Entity, typename... Components, typename Func>
+  void BindSystem(SystemType type, const std::string& tag, Func func) {
+    systems_[type].push_back([this, func, tag](float_t delta_time) {
+      for (auto handle : registry_.view<Components...>()) {
+        Entity entity{handle, this};
+        if (entity.GetName() != tag) {
+          continue;
+        }
+        func(delta_time, entity, registry_.get<Components>(handle)...);
+      }
+    });
+  }
+
+
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
   bool OnPipelineRecreatedEvent(PipelineRecreatedEvent& event);
@@ -123,5 +152,6 @@ class Scene {
   Ref<CameraData> current_camera_;
   Ref<Skybox> skybox_;
   std::unordered_map<entt::entity, Ref<RenderGraph>> render_graphs_;
+  std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
 };
 }  // namespace Wiesel
