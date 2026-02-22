@@ -30,23 +30,15 @@ layout(set = 1, binding = 1, std140) uniform Camera {
 layout (location = 0) in vec2 inUV;
 layout (location = 0) out float outFragColor;
 
-float rand(vec2 co) {
-    return fract(sin(dot(co,vec2(12.9898,78.233)))*43758.5453);
-}
-
-vec3 getNoise(vec2 uv){
-    float r1 = rand(uv * 0.5);
-    float r2 = rand(uv * 1.3);
-    float r3 = rand(uv * 2.7);
-    return normalize(vec3(r1, r2, r3) * 2.0 - 1.0);
-}
-
-vec3 getNoiseLookup(vec2 uv) {
-    // Get a random vector using a noise lookup
+vec3 getNoise(vec2 uv) {
+    // Tile the noise texture across the screen
     ivec2 texDim = textureSize(samplerViewPos, 0);
     ivec2 noiseDim = textureSize(ssaoNoise, 0);
-    const vec2 noiseUV = vec2(float(texDim.x)/float(noiseDim.x), float(texDim.y)/(noiseDim.y)) * uv;
-    return texture(ssaoNoise, noiseUV).xyz * 2.0 - 1.0;
+    vec2 noiseUV = vec2(float(texDim.x)/float(noiseDim.x), float(texDim.y)/float(noiseDim.y)) * uv;
+    // ssaoNoise is R32G32B32A32_SFLOAT, values already in [-1,1]
+    vec3 n = texture(ssaoNoise, noiseUV).xyz;
+    n.z = 0.0; // keep rotation in tangent plane
+    return normalize(n);
 }
 
 void main() {
@@ -73,7 +65,8 @@ void main() {
 
     // Calculate occlusion
     float occlusion = 0.0;
-    const float bias = 0.005 * linearDepth;
+    int validSamples = 0;
+    const float bias = 0.01 + 0.005 * linearDepth;
     for(int i = 0; i < SSAO_KERNEL_SIZE; i++) {
         vec3 samplePos = viewPos + TBN * ssaoKernel.samples[i].xyz * SSAO_RADIUS;
 
@@ -82,20 +75,23 @@ void main() {
         offset.xyz /= offset.w;
         offset.xy = offset.xy * 0.5 + 0.5;
 
+        // Skip samples that fall outside the screen
+        if (offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0) {
+            continue;
+        }
+        validSamples++;
+
         // Compare positive linear depths
         float sampleLinearDepth = -samplePos.z;
         float actualDepth = texture(samplerDepth, offset.xy).r;
 
-        float rangeCheck = smoothstep(0.0, 1.0,
-                                       SSAO_RADIUS / abs(linearDepth - actualDepth));
+        float rangeCheck = 1.0 - smoothstep(0.0, SSAO_RADIUS,
+                                           abs(linearDepth - actualDepth));
         if (actualDepth + bias < sampleLinearDepth) {
             occlusion += rangeCheck;
         }
-        if (occlusion > float(SSAO_KERNEL_SIZE) * 0.9) {
-            break;
-        }
     }
-    float strength = 2.5;
-    occlusion = 1.0 - (occlusion / float(SSAO_KERNEL_SIZE));
+    float strength = 1.5;
+    occlusion = 1.0 - (occlusion / max(float(validSamples), 1.0));
     outFragColor = pow(occlusion, strength);
 }

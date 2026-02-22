@@ -1,0 +1,143 @@
+
+//
+//    Copyright 2023 Metehan Gezer
+//
+//     Licensed under the Apache License, Version 2.0 (the "License");
+//     you may not use this file except in compliance with the License.
+//     You may obtain a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+
+#include "rendering/w_render_feature.hpp"
+#include "rendering/w_renderer.hpp"
+
+namespace Wiesel {
+
+void CameraResourcePool::SetTexture(const std::string& name,
+                                    Ref<AttachmentTexture> tex) {
+  textures_[name] = std::move(tex);
+}
+
+Ref<AttachmentTexture> CameraResourcePool::GetTexture(
+    const std::string& name) const {
+  auto it = textures_.find(name);
+  if (it != textures_.end()) return it->second;
+  return nullptr;
+}
+
+bool CameraResourcePool::HasTexture(const std::string& name) const {
+  return textures_.count(name) > 0;
+}
+
+void CameraResourcePool::SetFramebuffer(const std::string& name,
+                                        Ref<Framebuffer> fb) {
+  framebuffers_[name] = std::move(fb);
+}
+
+Ref<Framebuffer> CameraResourcePool::GetFramebuffer(
+    const std::string& name) const {
+  auto it = framebuffers_.find(name);
+  if (it != framebuffers_.end()) return it->second;
+  return nullptr;
+}
+
+bool CameraResourcePool::HasFramebuffer(const std::string& name) const {
+  return framebuffers_.count(name) > 0;
+}
+
+void CameraResourcePool::SetDescriptor(const std::string& name,
+                                       Ref<DescriptorSet> ds) {
+  descriptors_[name] = std::move(ds);
+}
+
+Ref<DescriptorSet> CameraResourcePool::GetDescriptor(
+    const std::string& name) const {
+  auto it = descriptors_.find(name);
+  if (it != descriptors_.end()) return it->second;
+  return nullptr;
+}
+
+bool CameraResourcePool::HasDescriptor(const std::string& name) const {
+  return descriptors_.count(name) > 0;
+}
+
+void CameraResourcePool::SetImageView(const std::string& name,
+                                      Ref<ImageView> view) {
+  image_views_[name] = std::move(view);
+}
+
+Ref<ImageView> CameraResourcePool::GetImageView(
+    const std::string& name) const {
+  auto it = image_views_.find(name);
+  if (it != image_views_.end()) return it->second;
+  return nullptr;
+}
+
+bool CameraResourcePool::HasImageView(const std::string& name) const {
+  return image_views_.count(name) > 0;
+}
+
+void CameraResourcePool::Clear() {
+  textures_.clear();
+  framebuffers_.clear();
+  descriptors_.clear();
+  image_views_.clear();
+}
+
+void RenderResourceRegistry::Register(const std::string& name,
+                                      RGResource handle) {
+  resources_[name] = handle;
+}
+
+RGResource RenderResourceRegistry::Get(const std::string& name) const {
+  auto it = resources_.find(name);
+  if (it != resources_.end()) return it->second;
+  return RGResource{};  // invalid handle
+}
+
+bool RenderResourceRegistry::Has(const std::string& name) const {
+  return resources_.count(name) > 0;
+}
+
+RenderPipeline::RenderPipeline(Ref<Renderer> renderer)
+    : renderer_(std::move(renderer)) {}
+
+void RenderPipeline::RemoveFeature(const std::string& name) {
+  features_.erase(
+      std::remove_if(features_.begin(), features_.end(),
+                     [&name](const Ref<RenderFeature>& f) {
+                       return f->GetName() == name;
+                     }),
+      features_.end());
+}
+
+void RenderPipeline::SetupResources(RenderContext& ctx) {
+  for (auto& feature : features_) {
+    if (feature->IsEnabled(ctx)) {
+      feature->SetupResources(ctx);
+    }
+  }
+}
+
+void RenderPipeline::BuildRenderGraph(RenderGraph& graph,
+                                      RenderContext& ctx) {
+  RenderResourceRegistry registry;
+  for (auto& feature : features_) {
+    if (feature->IsEnabled(ctx)) {
+      feature->AddPasses(graph, registry, ctx);
+    }
+  }
+}
+
+Ref<DescriptorSet> RenderPipeline::GetFinalOutputDescriptor(
+    CameraResourcePool& pool) const {
+  return pool.GetDescriptor("PipelineOutputDescriptor");
+}
+
+Ref<AttachmentTexture> RenderPipeline::GetFinalOutputImage(
+    CameraResourcePool& pool) const {
+  return pool.GetTexture("PipelineOutput");
+}
+
+}  // namespace Wiesel

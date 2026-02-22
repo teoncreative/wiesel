@@ -27,3 +27,4 @@ add_subdirectory(editor)
 # examples
 add_subdirectory(examples/demo)
 add_subdirectory(examples/cargame)
+add_subdirectory(examples/leap_land)

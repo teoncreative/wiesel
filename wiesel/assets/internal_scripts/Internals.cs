@@ -80,5 +80,10 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern Vector3f TransformComponent_GetDown(ulong scenePtr, ulong entityId);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool ModelComponent_GetEnableRendering(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void ModelComponent_SetEnableRendering(ulong scenePtr, ulong entityId, bool value);
+
     }
 }

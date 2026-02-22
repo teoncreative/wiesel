@@ -14,7 +14,18 @@
 #include <rendering/w_sprite.hpp>
 
 #include "behavior/w_behavior.hpp"
+#include "rendering/w_render_feature.hpp"
 #include "rendering/w_renderer.hpp"
+#include "rendering/features/w_shadow_feature.hpp"
+#include "rendering/features/w_geometry_feature.hpp"
+#include "rendering/features/w_ssao_feature.hpp"
+#include "rendering/features/w_lighting_feature.hpp"
+#include "rendering/features/w_sprite_feature.hpp"
+#include "rendering/features/w_composite_feature.hpp"
+#include "rendering/features/w_taa_feature.hpp"
+#include "rendering/features/w_bloom_feature.hpp"
+#include "rendering/features/w_motion_blur_feature.hpp"
+#include "rendering/features/w_fxaa_feature.hpp"
 #include "scene/w_entity.hpp"
 #include "w_engine.hpp"
 
@@ -252,443 +263,30 @@ void Scene::InvalidateRenderGraphs() {
 
 void Scene::BuildRenderGraph(entt::entity camera_entity) {
   Ref<Renderer> renderer = Engine::GetRenderer();
+  auto& camera = registry_.get<CameraComponent>(camera_entity);
+
   std::shared_ptr<RenderGraph>& graph = render_graphs_[camera_entity];
   graph = CreateReference<RenderGraph>(*renderer);
-  RenderGraph& g = *graph;
-  std::shared_ptr<CameraData> cam = current_camera_;
 
-  // Import all existing resources (initial layout UNDEFINED - graph handles transitions)
-  // Use resolve images when MSAA > 1, otherwise use the regular images
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RGResource geo_view_pos = g.ImportTexture(
-      "GeoViewPos", use_resolve ? cam->geometry_view_pos_resolve_image
-                                : cam->geometry_view_pos_image);
-  RGResource geo_world_pos = g.ImportTexture(
-      "GeoWorldPos", use_resolve ? cam->geometry_world_pos_resolve_image
-                                 : cam->geometry_world_pos_image);
-  RGResource geo_depth = g.ImportTexture(
-      "GeoDepth", use_resolve ? cam->geometry_depth_resolve_image
-                              : cam->geometry_depth_image);
-  RGResource geo_normal = g.ImportTexture(
-      "GeoNormal", use_resolve ? cam->geometry_normal_resolve_image
-                               : cam->geometry_normal_image);
-  RGResource geo_albedo = g.ImportTexture(
-      "GeoAlbedo", use_resolve ? cam->geometry_albedo_resolve_image
-                               : cam->geometry_albedo_image);
-  RGResource geo_material = g.ImportTexture(
-      "GeoMaterial", use_resolve ? cam->geometry_material_resolve_image
-                                 : cam->geometry_material_image);
-  RGResource ssao_noise = g.ImportTexture("SSAONoise", renderer->ssao_noise_);
-  RGResource ssao_out = g.ImportTexture("SSAOOut", cam->ssao_color_image);
-  RGResource ssao_blur_h =
-      g.ImportTexture("SSAOBlurH", cam->ssao_blur_horz_color_image);
-  RGResource ssao_blur_v =
-      g.ImportTexture("SSAOBlurV", cam->ssao_blur_vert_color_image);
-  RGResource lighting_out = g.ImportTexture(
-      "LightingOut", use_resolve ? cam->lighting_color_resolve_image
-                                 : cam->lighting_color_image);
-  RGResource sprite_out = g.ImportTexture("SpriteOut", cam->sprite_color_image);
-  RGResource composite_out = g.ImportTexture(
-      "CompositeOut", use_resolve ? cam->composite_color_resolve_image
-                                  : cam->composite_color_image);
+  RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
+                    camera.viewport_size, use_resolve};
 
-  RGResource shadow_depth;
-  if (cam->shadow_depth_stencil) {
-    shadow_depth = g.ImportTexture("ShadowDepth", cam->shadow_depth_stencil);
-  }
-
-  // Shadow Passes
-  for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
-    uint32_t shadow = g.AddPass(
-        "Shadow " + std::to_string(i), renderer->shadow_render_pass_,
-        [this, renderer, i](VkCommandBuffer) {
-          if (!current_camera_->does_shadow_pass) {
-            return;
-          }
-          memcpy(renderer->shadow_camera_uniform_buffer_->data_,
-                 &renderer->shadow_camera_uniform_data_,
-                 sizeof(renderer->shadow_camera_uniform_data_));
-          renderer->shadow_pipeline_push_constant_->cascade_index = i;
-          renderer->shadow_pipeline_->Bind(PipelineBindPointGraphics);
-          for (const auto& entity :
-               GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-            auto& model = registry_.get<ModelComponent>(entity);
-            auto& transform = registry_.get<TransformComponent>(entity);
-            if (!model.receive_shadows || !model.enable_rendering ||
-                !model.model_handle)
-              continue;
-            renderer->DrawModel(model, transform, true);
-          }
-        });
-    if (shadow_depth.IsValid()) {
-      g.PassWritesDepth(shadow, shadow_depth);
-    }
-    g.SetPassFramebuffer(shadow, cam->shadow_framebuffers[i]);
-    g.SetPassViewport(shadow, {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM});
-    g.SetPassClearColor(shadow, {0, 0, 0, 1});
-  }
-
-  // Geometry Pass
-  uint32_t geo = g.AddPass(
-      "Geometry", renderer->geometry_render_pass_,
-      [this, renderer](VkCommandBuffer) {
-        renderer->geometry_pipeline_->Bind(PipelineBindPointGraphics);
-        for (const auto& entity :
-             GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-          auto& model = registry_.get<ModelComponent>(entity);
-          auto& transform = registry_.get<TransformComponent>(entity);
-          if (!model.enable_rendering || !model.model_handle)
-            continue;
-          renderer->DrawModel(model, transform, false);
-        }
-      });
-  g.PassWritesColor(geo, geo_view_pos);
-  g.PassWritesColor(geo, geo_world_pos);
-  g.PassWritesColor(geo, geo_depth);
-  g.PassWritesColor(geo, geo_normal);
-  g.PassWritesColor(geo, geo_albedo);
-  g.PassWritesColor(geo, geo_material);
-  g.SetPassFramebuffer(geo, cam->geometry_framebuffer);
-  g.SetPassViewport(geo, cam->viewport_size);
-  g.SetPassClearColor(geo, {0, 0, 0, 0});
-
-  // SSAO Gen Pass
-  uint32_t ssao_gen = g.AddPass(
-      "SSAO Gen", renderer->ssao_gen_render_pass_, [renderer](VkCommandBuffer) {
-        renderer->GetSSAOGenPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetSSAOGenPipeline(),
-            {renderer->GetCameraData()->ssao_gen_descriptor,
-             renderer->GetCameraData()->global_descriptor});
-      });
-  g.PassReadsTexture(ssao_gen, geo_view_pos);
-  g.PassReadsTexture(ssao_gen, geo_normal);
-  g.PassReadsTexture(ssao_gen, geo_depth);
-  g.PassReadsTexture(ssao_gen, ssao_noise);
-  g.PassWritesColor(ssao_gen, ssao_out);
-  g.SetPassFramebuffer(ssao_gen, cam->ssao_gen_framebuffer);
-  g.SetPassViewport(ssao_gen,
-                    {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
-  g.SetPassClearColor(ssao_gen, {0, 0, 0, 0});
-  auto& settings = renderer->options();
-  g.SetPassEnabled(ssao_gen, settings.ssao_enabled);
-
-  // SSAO Blur Horizontal
-  uint32_t ssao_blur_horz = g.AddPass(
-      "SSAO Blur H", renderer->ssao_blur_horz_render_pass_,
-      [renderer](VkCommandBuffer) {
-        renderer->GetSSAOBlurHorzPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetSSAOBlurHorzPipeline(),
-            {renderer->GetCameraData()->ssao_output_descriptor});
-      });
-  g.PassReadsTexture(ssao_blur_horz, ssao_out);
-  g.PassReadsTexture(ssao_blur_horz, geo_depth);
-  g.PassWritesColor(ssao_blur_horz, ssao_blur_h);
-  g.SetPassFramebuffer(ssao_blur_horz, cam->ssao_blur_horz_framebuffer);
-  g.SetPassViewport(ssao_blur_horz, cam->viewport_size);
-  g.SetPassClearColor(ssao_blur_horz, {0, 0, 0, 0});
-  g.SetPassEnabled(ssao_blur_horz, settings.ssao_enabled);
-
-  // SSAO Blur Vertical
-  uint32_t ssao_blur_vert = g.AddPass(
-      "SSAO Blur V", renderer->ssao_blur_vert_render_pass_,
-      [renderer](VkCommandBuffer) {
-        renderer->GetSSAOBlurVertPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetSSAOBlurVertPipeline(),
-            {renderer->GetCameraData()->ssao_blur_horz_output_descriptor});
-      });
-  g.PassReadsTexture(ssao_blur_vert, ssao_blur_h);
-  g.PassReadsTexture(ssao_blur_vert, geo_depth);
-  g.PassWritesColor(ssao_blur_vert, ssao_blur_v);
-  g.SetPassFramebuffer(ssao_blur_vert, cam->ssao_blur_vert_framebuffer);
-  g.SetPassViewport(ssao_blur_vert, cam->viewport_size);
-  g.SetPassClearColor(ssao_blur_vert, {0, 0, 0, 0});
-  g.SetPassEnabled(ssao_blur_vert, settings.ssao_enabled);
-
-  // Lighting Pass
-  uint32_t lighting = g.AddPass(
-      "Lighting", renderer->lighting_render_pass_,
-      [this, renderer](VkCommandBuffer) {
-        renderer->GetSkyboxPipeline()->Bind(PipelineBindPointGraphics);
-        if (skybox_) {
-          renderer->DrawSkybox(skybox_);
-        }
-        renderer->GetLightingPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetLightingPipeline(),
-            {renderer->GetCameraData()->geometry_output_descriptor,
-             renderer->GetCameraData()->ssao_blur_vert_output_descriptor,
-             renderer->GetCameraData()->global_descriptor});
-      });
-  g.PassReadsTexture(lighting, geo_view_pos);
-  g.PassReadsTexture(lighting, geo_world_pos);
-  g.PassReadsTexture(lighting, geo_normal);
-  g.PassReadsTexture(lighting, geo_albedo);
-  g.PassReadsTexture(lighting, geo_material);
-  g.PassReadsTexture(lighting, ssao_blur_v);
-  if (shadow_depth.IsValid()) {
-    g.PassReadsTexture(lighting, shadow_depth);
-  }
-  g.PassWritesColor(lighting, lighting_out);
-  g.SetPassFramebuffer(lighting, cam->lighting_framebuffer);
-  g.SetPassViewport(lighting, cam->viewport_size);
-  g.SetPassClearColor(lighting, renderer->GetClearColor());
-
-  // Sprite Pass
-  uint32_t sprite = g.AddPass(
-      "Sprite", renderer->sprite_render_pass_,
-      [this, renderer](VkCommandBuffer) {
-        renderer->GetSpritePipeline()->Bind(PipelineBindPointGraphics);
-        for (const auto& entity :
-             GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
-          auto& spr = registry_.get<SpriteComponent>(entity);
-          auto& transform = registry_.get<TransformComponent>(entity);
-          renderer->DrawSprite(spr, transform);
-        }
-      });
-  g.PassWritesColor(sprite, sprite_out);
-  g.SetPassFramebuffer(sprite, cam->sprite_framebuffer);
-  g.SetPassViewport(sprite, cam->viewport_size);
-  g.SetPassClearColor(sprite, {0, 0, 0, 0});
-
-  // Composite Pass
-  uint32_t composite = g.AddPass(
-      "Composite", renderer->composite_render_pass_,
-      [renderer](VkCommandBuffer) {
-        renderer->GetCompositePipeline()->Bind(PipelineBindPointGraphics);
-        if (renderer->options().only_ssao) {
-          renderer->DrawFullscreen(
-              renderer->GetCompositePipeline(),
-              {renderer->GetCameraData()->ssao_blur_vert_output_descriptor});
-        } else {
-          renderer->DrawFullscreen(
-              renderer->GetCompositePipeline(),
-              {renderer->GetCameraData()->lighting_output_descriptor});
-          renderer->DrawFullscreen(
-              renderer->GetCompositePipeline(),
-              {renderer->GetCameraData()->sprite_output_descriptor});
-        }
-      });
-  g.PassReadsTexture(composite, lighting_out);
-  g.PassReadsTexture(composite, sprite_out);
-  g.PassWritesColor(composite, composite_out);
-  g.SetPassFramebuffer(composite, cam->composite_framebuffer);
-  g.SetPassViewport(composite, cam->viewport_size);
-  g.SetPassClearColor(composite, renderer->GetClearColor());
-
-  // Post-process resources
-  RGResource taa_out = g.ImportTexture("TAAOutput", cam->taa_output_image);
-  RGResource taa_history =
-      g.ImportTexture("TAAHistory", cam->taa_history_image);
-  RGResource bloom_extract_out =
-      g.ImportTexture("BloomExtract", cam->bloom_extract_image);
-  RGResource bloom_blur_h_out =
-      g.ImportTexture("BloomBlurH", cam->bloom_blur_h_image);
-  RGResource bloom_blur_v_out =
-      g.ImportTexture("BloomBlurV", cam->bloom_blur_v_image);
-  RGResource bloom_composite_out =
-      g.ImportTexture("BloomComposite", cam->bloom_composite_image);
-  RGResource motion_blur_out =
-      g.ImportTexture("MotionBlur", cam->motion_blur_image);
-  RGResource fxaa_out = g.ImportTexture("FXAA", cam->fxaa_image);
-
-  bool taa_active = settings.aa_mode == AntiAliasingMode::TAA;
-  bool fxaa_active = settings.aa_mode == AntiAliasingMode::FXAA;
-
-  // TAA (after composite, before bloom)
-  uint32_t taa_pass = g.AddPass(
-      "TAA", renderer->postprocess_render_pass_, [renderer](VkCommandBuffer) {
-        renderer->GetTaaPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetTaaPipeline(),
-            {renderer->GetCameraData()->taa_descriptor,
-             renderer->GetCameraData()->global_descriptor});
-      });
-  g.PassReadsTexture(taa_pass, composite_out);
-  // taa_history is from the previous frame - use external read to get a
-  // barrier without creating a dependency edge (avoids cycle with TAA History Copy).
-  g.PassReadsExternalTexture(taa_pass, taa_history);
-  g.PassReadsTexture(taa_pass, geo_depth);
-  g.PassWritesColor(taa_pass, taa_out);
-  g.SetPassFramebuffer(taa_pass, cam->taa_framebuffer);
-  g.SetPassViewport(taa_pass, cam->viewport_size);
-  g.SetPassClearColor(taa_pass, {0, 0, 0, 0});
-  g.SetPassEnabled(taa_pass, taa_active);
-
-  // TAA History Copy
-  uint32_t taa_copy = g.AddPass(
-      "TAA History Copy", renderer->postprocess_render_pass_,
-      [renderer](VkCommandBuffer) {
-        renderer->GetTaaCopyPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetTaaCopyPipeline(),
-            {renderer->GetCameraData()->taa_copy_descriptor});
-      });
-  g.PassReadsTexture(taa_copy, taa_out);
-  g.PassWritesColor(taa_copy, taa_history);
-  g.SetPassFramebuffer(taa_copy, cam->taa_history_framebuffer);
-  g.SetPassViewport(taa_copy, cam->viewport_size);
-  g.SetPassClearColor(taa_copy, {0, 0, 0, 0});
-  g.SetPassEnabled(taa_copy, taa_active);
-
-  // Bloom Extract (half-res)
-  uint32_t bloom_extract = g.AddPass(
-      "Bloom Extract", renderer->postprocess_render_pass_,
-      [renderer](VkCommandBuffer) {
-        auto& s = renderer->options();
-        renderer->bloom_push_constants_->threshold = s.bloom_threshold;
-        renderer->bloom_push_constants_->intensity = s.bloom_intensity;
-        auto desc =
-            s.aa_mode == AntiAliasingMode::TAA
-                ? renderer->GetCameraData()->bloom_extract_after_taa_desc
-                : renderer->GetCameraData()->bloom_extract_descriptor;
-        renderer->GetBloomExtractPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(renderer->GetBloomExtractPipeline(), {desc});
-      });
-  g.PassReadsTexture(bloom_extract, composite_out);
-  if (taa_active) {
-    g.PassReadsTexture(bloom_extract, taa_out);
-  }
-  g.PassWritesColor(bloom_extract, bloom_extract_out);
-  g.SetPassFramebuffer(bloom_extract, cam->bloom_extract_framebuffer);
-  g.SetPassViewport(bloom_extract,
-                    {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
-  g.SetPassClearColor(bloom_extract, {0, 0, 0, 0});
-  g.SetPassEnabled(bloom_extract, settings.bloom_enabled);
-
-  // Bloom Blur Horizontal (half-res)
-  uint32_t bloom_blur_h = g.AddPass(
-      "Bloom Blur H", renderer->postprocess_render_pass_,
-      [renderer](VkCommandBuffer) {
-        renderer->GetBloomBlurHPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetBloomBlurHPipeline(),
-            {renderer->GetCameraData()->bloom_blur_h_descriptor});
-      });
-  g.PassReadsTexture(bloom_blur_h, bloom_extract_out);
-  g.PassWritesColor(bloom_blur_h, bloom_blur_h_out);
-  g.SetPassFramebuffer(bloom_blur_h, cam->bloom_blur_h_framebuffer);
-  g.SetPassViewport(bloom_blur_h,
-                    {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
-  g.SetPassClearColor(bloom_blur_h, {0, 0, 0, 0});
-  g.SetPassEnabled(bloom_blur_h, settings.bloom_enabled);
-
-  // Bloom Blur Vertical (half-res)
-  uint32_t bloom_blur_v = g.AddPass(
-      "Bloom Blur V", renderer->postprocess_render_pass_,
-      [renderer](VkCommandBuffer) {
-        renderer->GetBloomBlurVPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetBloomBlurVPipeline(),
-            {renderer->GetCameraData()->bloom_blur_v_descriptor});
-      });
-  g.PassReadsTexture(bloom_blur_v, bloom_blur_h_out);
-  g.PassWritesColor(bloom_blur_v, bloom_blur_v_out);
-  g.SetPassFramebuffer(bloom_blur_v, cam->bloom_blur_v_framebuffer);
-  g.SetPassViewport(bloom_blur_v,
-                    {cam->viewport_size.x / 2, cam->viewport_size.y / 2});
-  g.SetPassClearColor(bloom_blur_v, {0, 0, 0, 0});
-  g.SetPassEnabled(bloom_blur_v, settings.bloom_enabled);
-
-  // Bloom Composite (full-res)
-  uint32_t bloom_comp = g.AddPass(
-      "Bloom Composite", renderer->postprocess_render_pass_,
-      [renderer](VkCommandBuffer) {
-        auto& s = renderer->options();
-        renderer->bloom_push_constants_->threshold = s.bloom_threshold;
-        renderer->bloom_push_constants_->intensity = s.bloom_intensity;
-        auto desc =
-            s.aa_mode == AntiAliasingMode::TAA
-                ? renderer->GetCameraData()->bloom_composite_after_taa_desc
-                : renderer->GetCameraData()->bloom_composite_descriptor;
-        renderer->GetBloomCompositePipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(renderer->GetBloomCompositePipeline(), {desc});
-      });
-  g.PassReadsTexture(bloom_comp, composite_out);
-  if (taa_active) {
-    g.PassReadsTexture(bloom_comp, taa_out);
-  }
-  g.PassReadsTexture(bloom_comp, bloom_blur_v_out);
-  g.PassWritesColor(bloom_comp, bloom_composite_out);
-  g.SetPassFramebuffer(bloom_comp, cam->bloom_composite_framebuffer);
-  g.SetPassViewport(bloom_comp, cam->viewport_size);
-  g.SetPassClearColor(bloom_comp, {0, 0, 0, 0});
-  g.SetPassEnabled(bloom_comp, settings.bloom_enabled);
-
-  // Motion Blur (full-res)
-  uint32_t motion_blur = g.AddPass(
-      "Motion Blur", renderer->postprocess_render_pass_,
-      [renderer](VkCommandBuffer) {
-        auto& s = renderer->options();
-        renderer->motion_blur_push_constants_->strength =
-            s.motion_blur_strength;
-        renderer->motion_blur_push_constants_->num_samples =
-            s.motion_blur_samples;
-        Ref<DescriptorSet> mb_desc;
-        if (s.bloom_enabled)
-          mb_desc = renderer->GetCameraData()->motion_blur_after_bloom_desc;
-        else if (s.aa_mode == AntiAliasingMode::TAA)
-          mb_desc = renderer->GetCameraData()->motion_blur_after_taa_desc;
-        else
-          mb_desc = renderer->GetCameraData()->motion_blur_after_composite_desc;
-        renderer->GetMotionBlurPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(
-            renderer->GetMotionBlurPipeline(),
-            {mb_desc, renderer->GetCameraData()->global_descriptor});
-      });
-  g.PassReadsTexture(motion_blur, composite_out);
-  if (settings.bloom_enabled) {
-    g.PassReadsTexture(motion_blur, bloom_composite_out);
-  }
-  if (taa_active) {
-    g.PassReadsTexture(motion_blur, taa_out);
-  }
-  g.PassReadsTexture(motion_blur, geo_world_pos);
-  g.PassWritesColor(motion_blur, motion_blur_out);
-  g.SetPassFramebuffer(motion_blur, cam->motion_blur_framebuffer);
-  g.SetPassViewport(motion_blur, cam->viewport_size);
-  g.SetPassClearColor(motion_blur, {0, 0, 0, 0});
-  g.SetPassEnabled(motion_blur, settings.motion_blur_enabled);
-
-  // FXAA (final pass, after motion blur)
-  uint32_t fxaa_pass = g.AddPass(
-      "FXAA", renderer->postprocess_render_pass_, [renderer](VkCommandBuffer) {
-        auto& s = renderer->options();
-        auto cam = renderer->GetCameraData();
-        renderer->fxaa_push_constants_->inverse_screen_size = {
-            1.0f / cam->viewport_size.x, 1.0f / cam->viewport_size.y};
-        Ref<DescriptorSet> fxaa_desc;
-        if (s.motion_blur_enabled)
-          fxaa_desc = cam->fxaa_after_motion_blur_desc;
-        else if (s.bloom_enabled)
-          fxaa_desc = cam->fxaa_after_bloom_desc;
-        else
-          fxaa_desc = cam->fxaa_after_composite_desc;
-        renderer->GetFxaaPipeline()->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(renderer->GetFxaaPipeline(), {fxaa_desc});
-      });
-  g.PassReadsTexture(fxaa_pass, composite_out);
-  if (settings.motion_blur_enabled) {
-    g.PassReadsTexture(fxaa_pass, motion_blur_out);
-  }
-  if (settings.bloom_enabled) {
-    g.PassReadsTexture(fxaa_pass, bloom_composite_out);
-  }
-  g.PassWritesColor(fxaa_pass, fxaa_out);
-  g.SetPassFramebuffer(fxaa_pass, cam->fxaa_framebuffer);
-  g.SetPassViewport(fxaa_pass, cam->viewport_size);
-  g.SetPassClearColor(fxaa_pass, {0, 0, 0, 0});
-  g.SetPassEnabled(fxaa_pass, fxaa_active);
-
-  g.Compile();
+  auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
+                                          : *default_pipeline_;
+  pipeline.BuildRenderGraph(*graph, ctx);
+  graph->Compile();
 }
 
 bool Scene::Render() {
   PROFILE_ZONE_SCOPED();
   bool hasCamera = false;
   Ref<Renderer> renderer = Engine::GetRenderer();
+
+  // Ensure we have a default pipeline
+  if (!default_pipeline_) {
+    default_pipeline_ = CreateDefaultPipeline(renderer);
+  }
 
   for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
     auto& camera = registry_.get<CameraComponent>(cameraEntity);
@@ -698,7 +296,13 @@ bool Scene::Render() {
 
     if (camera.resources_dirty) {
       vkDeviceWaitIdle(renderer->GetLogicalDevice());
-      renderer->SetupCameraComponent(camera);
+      bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
+      RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
+                        camera.viewport_size, use_resolve};
+      auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
+                                              : *default_pipeline_;
+      pipeline.SetupResources(ctx);
+      camera.resources_dirty = false;
       render_graphs_.erase(cameraEntity);
     }
 
@@ -716,6 +320,41 @@ bool Scene::Render() {
     hasCamera = true;
   }
   return hasCamera;
+}
+
+void Scene::SetRenderPipeline(Ref<RenderPipeline> pipeline) {
+  default_pipeline_ = std::move(pipeline);
+  // Invalidate all camera resources so they get rebuilt with the new pipeline
+  for (const auto& entity : registry_.view<CameraComponent>()) {
+    auto& camera = registry_.get<CameraComponent>(entity);
+    if (!camera.render_pipeline) {
+      camera.resource_pool.Clear();
+      camera.resources_dirty = true;
+    }
+  }
+}
+
+void Scene::SetRenderPipeline(entt::entity camera_entity,
+                              Ref<RenderPipeline> pipeline) {
+  auto& camera = registry_.get<CameraComponent>(camera_entity);
+  camera.render_pipeline = std::move(pipeline);
+  camera.resource_pool.Clear();
+  camera.resources_dirty = true;
+}
+
+Ref<RenderPipeline> Scene::CreateDefaultPipeline(Ref<Renderer> renderer) {
+  auto pipeline = CreateReference<RenderPipeline>(renderer);
+  pipeline->AddFeature<ShadowFeature>(renderer);
+  pipeline->AddFeature<GeometryFeature>(renderer);
+  pipeline->AddFeature<SSAOFeature>(renderer);
+  pipeline->AddFeature<LightingFeature>(renderer);
+  pipeline->AddFeature<SpriteFeature>(renderer);
+  pipeline->AddFeature<CompositeFeature>(renderer);
+  pipeline->AddFeature<TAAFeature>(renderer);
+  pipeline->AddFeature<BloomFeature>(renderer);
+  pipeline->AddFeature<MotionBlurFeature>(renderer);
+  pipeline->AddFeature<FXAAFeature>(renderer);
+  return pipeline;
 }
 
 }  // namespace Wiesel

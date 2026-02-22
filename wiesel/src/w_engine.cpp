@@ -595,7 +595,13 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     }
     vertex.Flags = flags;
 
-    vertex.Color = {1.0f, 1.0f, 1.0f};
+    if (aiMesh->mColors[0]) {
+      vertex.Color = {aiMesh->mColors[0][i].r,
+                      aiMesh->mColors[0][i].g,
+                      aiMesh->mColors[0][i].b};
+    } else {
+      vertex.Color = {1.0f, 1.0f, 1.0f};
+    }
 
     // tangent
     vector.x = aiMesh->mTangents[i].x;

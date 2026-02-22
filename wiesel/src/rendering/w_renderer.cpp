@@ -108,8 +108,6 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   CreateCommandPools();
   CreateDescriptorLayouts();
   CreateSwapChain();
-  CreateGeometryRenderPass();
-  CreateGeometryGraphicsPipelines();
   CreatePresentGraphicsPipelines();
   CreateCommandBuffers();
   CreatePermanentResources();
@@ -211,7 +209,8 @@ Ref<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
   // TODO not use host coherent memory, use staging buffer and copy when it changes
   // like how I did in GlistEngine
   // This is slow af
-  CreateBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  CreateBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                uniformBuffer->buffer_handle_, uniformBuffer->memory_handle_);
@@ -238,495 +237,16 @@ void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
 }
 
 void Renderer::SetupCameraComponent(CameraComponent& component) {
+  // Deprecated: resource setup is now handled by RenderFeature::SetupResources.
+  // This method just ensures aspect ratio is set and marks the component
+  // as dirty so the pipeline-based setup runs on next Render().
   LOG_INFO("  Viewport: {}x{}", component.viewport_size.x,
            component.viewport_size.y);
   if (component.aspect_ratio <= 0) {
     component.aspect_ratio =
         component.viewport_size.x / component.viewport_size.y;
   }
-  uint32_t rw = static_cast<uint32_t>(component.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(component.viewport_size.y);
-
-  component.ssao_color_image = CreateAttachmentTexture(
-      {rw / 2, rh / 2, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8_UNORM,
-       SamplingMode::DISABLED, true});
-  component.ssao_blur_horz_color_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8_UNORM,
-       SamplingMode::DISABLED, true});
-  component.ssao_blur_vert_color_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8_UNORM,
-       SamplingMode::DISABLED, true});
-  component.ssao_gen_framebuffer = ssao_gen_render_pass_->CreateFramebuffer(
-      0, {component.ssao_color_image.get()}, {rw / 2, rh / 2});
-  component.ssao_blur_horz_framebuffer =
-      ssao_blur_horz_render_pass_->CreateFramebuffer(
-          0, {component.ssao_blur_horz_color_image.get()}, {rw, rh});
-  component.ssao_blur_vert_framebuffer =
-      ssao_blur_vert_render_pass_->CreateFramebuffer(
-          0, {component.ssao_blur_vert_color_image.get()}, {rw, rh});
-
-  component.geometry_view_pos_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R32G32B32A32_SFLOAT, options_.msaa_mode, true});
-  component.geometry_world_pos_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R32G32B32A32_SFLOAT, options_.msaa_mode, true});
-  component.geometry_depth_image =
-      CreateAttachmentTexture({rw, rh, AttachmentTextureType::Offscreen, 1,
-                               VK_FORMAT_R32_SFLOAT, options_.msaa_mode, true});
-  component.geometry_normal_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8G8B8A8_UNORM,
-       options_.msaa_mode, true});
-  component.geometry_albedo_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8G8B8A8_UNORM,
-       options_.msaa_mode, true});
-  component.geometry_material_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R16G16B16A16_SFLOAT, options_.msaa_mode, true});
-  component.geometry_depth_stencil =
-      CreateAttachmentTexture({rw, rh, AttachmentTextureType::DepthStencil, 1,
-                               FindDepthFormat(), options_.msaa_mode, true});
-
-  component.shadow_depth_stencil = CreateAttachmentTexture(
-      {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM,
-       AttachmentTextureType::DepthStencil, 1, FindDepthFormat(),
-       SamplingMode::DISABLED, true, WIESEL_SHADOW_CASCADE_COUNT});
-  component.shadow_depth_view_array = CreateImageView(
-      component.shadow_depth_stencil, VK_IMAGE_VIEW_TYPE_2D_ARRAY, 0,
-      WIESEL_SHADOW_CASCADE_COUNT);
-  for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
-    component.shadow_depth_views[i] = CreateImageView(
-        component.shadow_depth_stencil, VK_IMAGE_VIEW_TYPE_2D, i);
-    std::array<ImageView*, 1> textures = {
-        component.shadow_depth_views[i].get(),
-    };
-    component.shadow_framebuffers[i] = shadow_render_pass_->CreateFramebuffer(
-        textures, {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM});
-  }
-
-  if (options_.msaa_mode != SamplingMode::DISABLED) {
-    component.geometry_view_pos_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1,
-         VK_FORMAT_R32G32B32A32_SFLOAT, SamplingMode::DISABLED, true});
-    component.geometry_world_pos_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1,
-         VK_FORMAT_R32G32B32A32_SFLOAT, SamplingMode::DISABLED, true});
-    component.geometry_depth_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1, VK_FORMAT_R32_SFLOAT,
-         SamplingMode::DISABLED, true});
-    component.geometry_normal_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1, VK_FORMAT_R8G8B8A8_UNORM,
-         SamplingMode::DISABLED, true});
-    component.geometry_albedo_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1, VK_FORMAT_R8G8B8A8_UNORM,
-         SamplingMode::DISABLED, true});
-    component.geometry_material_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1,
-         VK_FORMAT_R16G16B16A16_SFLOAT, SamplingMode::DISABLED, true});
-    std::array<AttachmentTexture*, 13> textures = {
-        component.geometry_view_pos_image.get(),
-        component.geometry_world_pos_image.get(),
-        component.geometry_depth_image.get(),
-        component.geometry_normal_image.get(),
-        component.geometry_albedo_image.get(),
-        component.geometry_material_image.get(),
-        component.geometry_depth_stencil.get(),
-        component.geometry_view_pos_resolve_image.get(),
-        component.geometry_world_pos_resolve_image.get(),
-        component.geometry_depth_resolve_image.get(),
-        component.geometry_normal_resolve_image.get(),
-        component.geometry_albedo_resolve_image.get(),
-        component.geometry_material_resolve_image.get(),
-    };
-    component.geometry_framebuffer = geometry_render_pass_->CreateFramebuffer(
-        0, textures, component.viewport_size);
-  } else {
-    component.geometry_view_pos_resolve_image =
-        component.geometry_view_pos_image;
-    component.geometry_world_pos_resolve_image =
-        component.geometry_world_pos_image;
-    component.geometry_depth_resolve_image = component.geometry_depth_image;
-    component.geometry_normal_resolve_image = component.geometry_normal_image;
-    component.geometry_albedo_resolve_image = component.geometry_albedo_image;
-    component.geometry_material_resolve_image =
-        component.geometry_material_image;
-    std::array<AttachmentTexture*, 7> textures = {
-        component.geometry_view_pos_image.get(),
-        component.geometry_world_pos_image.get(),
-        component.geometry_depth_image.get(),
-        component.geometry_normal_image.get(),
-        component.geometry_albedo_image.get(),
-        component.geometry_material_image.get(),
-        component.geometry_depth_stencil.get()};
-    component.geometry_framebuffer = geometry_render_pass_->CreateFramebuffer(
-        0, textures, component.viewport_size);
-  }
-
-  component.lighting_color_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       options_.msaa_mode, options_.msaa_mode == SamplingMode::DISABLED});
-  if (options_.msaa_mode > SamplingMode::DISABLED) {
-    component.lighting_color_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1, swap_chain_image_format_,
-         SamplingMode::DISABLED, true});
-
-    std::array<AttachmentTexture*, 2> textures{
-        component.lighting_color_image.get(),
-        component.lighting_color_resolve_image.get()};
-    component.lighting_framebuffer =
-        lighting_render_pass_->CreateFramebuffer(0, textures, {rw, rh});
-  } else {
-    component.lighting_color_resolve_image = component.lighting_color_image;
-    std::array<AttachmentTexture*, 1> textures{
-        component.lighting_color_image.get()};
-    component.lighting_framebuffer =
-        lighting_render_pass_->CreateFramebuffer(0, textures, {rw, rh});
-  }
-
-  component.sprite_color_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-
-  std::array<AttachmentTexture*, 1> sprite_attachments{
-      component.sprite_color_image.get()};
-  component.sprite_framebuffer =
-      sprite_render_pass_->CreateFramebuffer(0, sprite_attachments, {rw, rh});
-
-  component.composite_color_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       options_.msaa_mode, options_.msaa_mode == SamplingMode::DISABLED});
-  if (options_.msaa_mode > SamplingMode::DISABLED) {
-    component.composite_color_resolve_image = CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Resolve, 1, swap_chain_image_format_,
-         SamplingMode::DISABLED, true});
-
-    std::array<AttachmentTexture*, 2> composite_attachments{
-        component.composite_color_image.get(),
-        component.composite_color_resolve_image.get()};
-    component.composite_framebuffer = composite_render_pass_->CreateFramebuffer(
-        0, composite_attachments, {rw, rh});
-  } else {
-    component.composite_color_resolve_image = component.composite_color_image;
-    std::array<AttachmentTexture*, 1> composite_attachments{
-        component.composite_color_image.get()};
-    component.composite_framebuffer = composite_render_pass_->CreateFramebuffer(
-        0, composite_attachments, {rw, rh});
-  }
-
-  component.global_descriptor = CreateGlobalDescriptors(component);
-  component.shadow_descriptor = CreateShadowGlobalDescriptors(component);
-  component.geometry_output_descriptor = CreateReference<DescriptorSet>();
-  component.geometry_output_descriptor->SetLayout(
-      geometry_output_descriptor_layout_);
-  component.geometry_output_descriptor->AddCombinedImageSampler(
-      0, component.geometry_view_pos_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.geometry_output_descriptor->AddCombinedImageSampler(
-      1, component.geometry_world_pos_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.geometry_output_descriptor->AddCombinedImageSampler(
-      2, component.geometry_depth_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.geometry_output_descriptor->AddCombinedImageSampler(
-      3, component.geometry_normal_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.geometry_output_descriptor->AddCombinedImageSampler(
-      4, component.geometry_albedo_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.geometry_output_descriptor->AddCombinedImageSampler(
-      5, component.geometry_material_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.geometry_output_descriptor->Bake();
-
-  component.lighting_output_descriptor = CreateReference<DescriptorSet>();
-  component.lighting_output_descriptor->SetLayout(present_descriptor_layout_);
-  component.lighting_output_descriptor->AddCombinedImageSampler(
-      0, component.lighting_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.lighting_output_descriptor->Bake();
-
-  component.sprite_output_descriptor = CreateReference<DescriptorSet>();
-  component.sprite_output_descriptor->SetLayout(present_descriptor_layout_);
-  component.sprite_output_descriptor->AddCombinedImageSampler(
-      0, component.sprite_color_image->image_views_[0],
-      default_linear_sampler_);
-  component.sprite_output_descriptor->Bake();
-
-  component.composite_output_descriptor = CreateReference<DescriptorSet>();
-  component.composite_output_descriptor->SetLayout(present_descriptor_layout_);
-  component.composite_output_descriptor->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.composite_output_descriptor->Bake();
-
-  component.ssao_gen_descriptor = CreateReference<DescriptorSet>();
-  component.ssao_gen_descriptor->SetLayout(ssao_gen_descriptor_layout_);
-  component.ssao_gen_descriptor->AddCombinedImageSampler(
-      0, component.geometry_view_pos_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.ssao_gen_descriptor->AddCombinedImageSampler(
-      1, component.geometry_normal_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.ssao_gen_descriptor->AddCombinedImageSampler(
-      2, component.geometry_depth_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.ssao_gen_descriptor->AddCombinedImageSampler(
-      3, ssao_noise_->image_views_[0], default_linear_sampler_);
-  component.ssao_gen_descriptor->AddUniformBuffer(4,
-                                                  ssao_kernel_uniform_buffer_);
-  component.ssao_gen_descriptor->Bake();
-
-  component.ssao_output_descriptor = CreateReference<DescriptorSet>();
-  component.ssao_output_descriptor->SetLayout(ssao_output_descriptor_layout_);
-  component.ssao_output_descriptor->AddCombinedImageSampler(
-      0, component.ssao_color_image->image_views_[0], default_nearest_sampler_);
-  component.ssao_output_descriptor->AddCombinedImageSampler(
-      1, component.geometry_depth_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.ssao_output_descriptor->Bake();
-
-  component.ssao_blur_horz_output_descriptor = CreateReference<DescriptorSet>();
-  component.ssao_blur_horz_output_descriptor->SetLayout(
-      ssao_blur_descriptor_layout_);
-  component.ssao_blur_horz_output_descriptor->AddCombinedImageSampler(
-      0, component.ssao_blur_horz_color_image->image_views_[0],
-      default_linear_sampler_);
-  component.ssao_blur_horz_output_descriptor->AddCombinedImageSampler(
-      1, component.geometry_depth_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.ssao_blur_horz_output_descriptor->Bake();
-
-  component.ssao_blur_vert_output_descriptor = CreateReference<DescriptorSet>();
-  component.ssao_blur_vert_output_descriptor->SetLayout(
-      ssao_blur_descriptor_layout_);
-  component.ssao_blur_vert_output_descriptor->AddCombinedImageSampler(
-      0, component.ssao_blur_vert_color_image->image_views_[0],
-      default_linear_sampler_);
-  component.ssao_blur_vert_output_descriptor->AddCombinedImageSampler(
-      1, component.geometry_depth_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.ssao_blur_vert_output_descriptor->Bake();
-
-  // --- Bloom resources ---
-  uint32_t hrw = rw / 2, hrh = rh / 2;
-
-  component.bloom_extract_image = CreateAttachmentTexture(
-      {hrw, hrh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  component.bloom_blur_h_image = CreateAttachmentTexture(
-      {hrw, hrh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  component.bloom_blur_v_image = CreateAttachmentTexture(
-      {hrw, hrh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  component.bloom_composite_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-
-  component.bloom_extract_framebuffer =
-      postprocess_render_pass_->CreateFramebuffer(
-          0, {component.bloom_extract_image.get()}, {hrw, hrh});
-  component.bloom_blur_h_framebuffer =
-      postprocess_render_pass_->CreateFramebuffer(
-          0, {component.bloom_blur_h_image.get()}, {hrw, hrh});
-  component.bloom_blur_v_framebuffer =
-      postprocess_render_pass_->CreateFramebuffer(
-          0, {component.bloom_blur_v_image.get()}, {hrw, hrh});
-  component.bloom_composite_framebuffer =
-      postprocess_render_pass_->CreateFramebuffer(
-          0, {component.bloom_composite_image.get()}, {rw, rh});
-
-  // Bloom extract descriptor: reads composite output
-  component.bloom_extract_descriptor = CreateReference<DescriptorSet>();
-  component.bloom_extract_descriptor->SetLayout(present_descriptor_layout_);
-  component.bloom_extract_descriptor->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_extract_descriptor->Bake();
-
-  // Bloom blur H descriptor: reads bloom extract
-  component.bloom_blur_h_descriptor = CreateReference<DescriptorSet>();
-  component.bloom_blur_h_descriptor->SetLayout(present_descriptor_layout_);
-  component.bloom_blur_h_descriptor->AddCombinedImageSampler(
-      0, component.bloom_extract_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_blur_h_descriptor->Bake();
-
-  // Bloom blur V descriptor: reads bloom blur H
-  component.bloom_blur_v_descriptor = CreateReference<DescriptorSet>();
-  component.bloom_blur_v_descriptor->SetLayout(present_descriptor_layout_);
-  component.bloom_blur_v_descriptor->AddCombinedImageSampler(
-      0, component.bloom_blur_h_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_blur_v_descriptor->Bake();
-
-  // Bloom composite descriptor: reads composite + bloom blur V (2 inputs)
-  component.bloom_composite_descriptor = CreateReference<DescriptorSet>();
-  component.bloom_composite_descriptor->SetLayout(
-      postprocess_2input_descriptor_layout_);
-  component.bloom_composite_descriptor->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_composite_descriptor->AddCombinedImageSampler(
-      1, component.bloom_blur_v_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_composite_descriptor->Bake();
-
-  // Bloom output descriptor: for present to read bloom composite result
-  component.bloom_output_descriptor = CreateReference<DescriptorSet>();
-  component.bloom_output_descriptor->SetLayout(present_descriptor_layout_);
-  component.bloom_output_descriptor->AddCombinedImageSampler(
-      0, component.bloom_composite_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_output_descriptor->Bake();
-
-  // --- Motion blur resources ---
-  component.motion_blur_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  component.motion_blur_framebuffer =
-      postprocess_render_pass_->CreateFramebuffer(
-          0, {component.motion_blur_image.get()}, {rw, rh});
-
-  // Motion blur after composite (when bloom is off): reads composite + world pos
-  component.motion_blur_after_composite_desc = CreateReference<DescriptorSet>();
-  component.motion_blur_after_composite_desc->SetLayout(
-      postprocess_2input_descriptor_layout_);
-  component.motion_blur_after_composite_desc->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.motion_blur_after_composite_desc->AddCombinedImageSampler(
-      1, component.geometry_world_pos_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.motion_blur_after_composite_desc->Bake();
-
-  // Motion blur after bloom (when bloom is on): reads bloom composite + world pos
-  component.motion_blur_after_bloom_desc = CreateReference<DescriptorSet>();
-  component.motion_blur_after_bloom_desc->SetLayout(
-      postprocess_2input_descriptor_layout_);
-  component.motion_blur_after_bloom_desc->AddCombinedImageSampler(
-      0, component.bloom_composite_image->image_views_[0],
-      default_linear_sampler_);
-  component.motion_blur_after_bloom_desc->AddCombinedImageSampler(
-      1, component.geometry_world_pos_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.motion_blur_after_bloom_desc->Bake();
-
-  // Motion blur output descriptor: for present to read final result
-  component.motion_blur_output_descriptor = CreateReference<DescriptorSet>();
-  component.motion_blur_output_descriptor->SetLayout(
-      present_descriptor_layout_);
-  component.motion_blur_output_descriptor->AddCombinedImageSampler(
-      0, component.motion_blur_image->image_views_[0], default_linear_sampler_);
-  component.motion_blur_output_descriptor->Bake();
-
-  // FXAA resources
-  component.fxaa_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  {
-    std::array<AttachmentTexture*, 1> att{component.fxaa_image.get()};
-    component.fxaa_framebuffer =
-        postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
-  }
-
-  component.fxaa_after_composite_desc = CreateReference<DescriptorSet>();
-  component.fxaa_after_composite_desc->SetLayout(present_descriptor_layout_);
-  component.fxaa_after_composite_desc->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.fxaa_after_composite_desc->Bake();
-
-  component.fxaa_after_bloom_desc = CreateReference<DescriptorSet>();
-  component.fxaa_after_bloom_desc->SetLayout(present_descriptor_layout_);
-  component.fxaa_after_bloom_desc->AddCombinedImageSampler(
-      0, component.bloom_composite_image->image_views_[0],
-      default_linear_sampler_);
-  component.fxaa_after_bloom_desc->Bake();
-
-  component.fxaa_after_motion_blur_desc = CreateReference<DescriptorSet>();
-  component.fxaa_after_motion_blur_desc->SetLayout(present_descriptor_layout_);
-  component.fxaa_after_motion_blur_desc->AddCombinedImageSampler(
-      0, component.motion_blur_image->image_views_[0], default_linear_sampler_);
-  component.fxaa_after_motion_blur_desc->Bake();
-
-  component.fxaa_output_descriptor = CreateReference<DescriptorSet>();
-  component.fxaa_output_descriptor->SetLayout(present_descriptor_layout_);
-  component.fxaa_output_descriptor->AddCombinedImageSampler(
-      0, component.fxaa_image->image_views_[0], default_linear_sampler_);
-  component.fxaa_output_descriptor->Bake();
-
-  // TAA resources
-  component.taa_output_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  component.taa_history_image = CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1, swap_chain_image_format_,
-       SamplingMode::DISABLED, true});
-  {
-    std::array<AttachmentTexture*, 1> att{component.taa_output_image.get()};
-    component.taa_framebuffer =
-        postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
-  }
-  {
-    std::array<AttachmentTexture*, 1> att{component.taa_history_image.get()};
-    component.taa_history_framebuffer =
-        postprocess_render_pass_->CreateFramebuffer(0, att, {rw, rh});
-  }
-
-  component.taa_descriptor = CreateReference<DescriptorSet>();
-  component.taa_descriptor->SetLayout(taa_descriptor_layout_);
-  component.taa_descriptor->AddCombinedImageSampler(
-      0, component.composite_color_resolve_image->image_views_[0],
-      default_linear_sampler_);
-  component.taa_descriptor->AddCombinedImageSampler(
-      1, component.taa_history_image->image_views_[0], default_linear_sampler_);
-  component.taa_descriptor->AddCombinedImageSampler(
-      2, component.geometry_depth_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.taa_descriptor->Bake();
-
-  component.taa_copy_descriptor = CreateReference<DescriptorSet>();
-  component.taa_copy_descriptor->SetLayout(present_descriptor_layout_);
-  component.taa_copy_descriptor->AddCombinedImageSampler(
-      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
-  component.taa_copy_descriptor->Bake();
-
-  component.taa_output_descriptor = CreateReference<DescriptorSet>();
-  component.taa_output_descriptor->SetLayout(present_descriptor_layout_);
-  component.taa_output_descriptor->AddCombinedImageSampler(
-      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
-  component.taa_output_descriptor->Bake();
-
-  // TAA-aware bloom descriptors
-  component.bloom_extract_after_taa_desc = CreateReference<DescriptorSet>();
-  component.bloom_extract_after_taa_desc->SetLayout(present_descriptor_layout_);
-  component.bloom_extract_after_taa_desc->AddCombinedImageSampler(
-      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
-  component.bloom_extract_after_taa_desc->Bake();
-
-  component.bloom_composite_after_taa_desc = CreateReference<DescriptorSet>();
-  component.bloom_composite_after_taa_desc->SetLayout(
-      postprocess_2input_descriptor_layout_);
-  component.bloom_composite_after_taa_desc->AddCombinedImageSampler(
-      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
-  component.bloom_composite_after_taa_desc->AddCombinedImageSampler(
-      1, component.bloom_blur_v_image->image_views_[0],
-      default_linear_sampler_);
-  component.bloom_composite_after_taa_desc->Bake();
-
-  // TAA-aware motion blur descriptor
-  component.motion_blur_after_taa_desc = CreateReference<DescriptorSet>();
-  component.motion_blur_after_taa_desc->SetLayout(
-      postprocess_2input_descriptor_layout_);
-  component.motion_blur_after_taa_desc->AddCombinedImageSampler(
-      0, component.taa_output_image->image_views_[0], default_linear_sampler_);
-  component.motion_blur_after_taa_desc->AddCombinedImageSampler(
-      1, component.geometry_world_pos_resolve_image->image_views_[0],
-      default_nearest_sampler_);
-  component.motion_blur_after_taa_desc->Bake();
-
-  component.resources_dirty = false;
+  component.resources_dirty = true;
   component.view_changed = true;
   component.pos_changed = true;
 }
@@ -1745,11 +1265,12 @@ Ref<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
   {
     VkDescriptorImageInfo imageInfo;
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (camera.shadow_depth_view_array == nullptr) {
+    auto shadow_view = camera.resource_pool.GetImageView("ShadowDepthViewArray");
+    if (shadow_view == nullptr) {
       imageInfo.imageView = blank_texture_->image_view_->handle_;
       imageInfo.sampler = blank_texture_->sampler_;
     } else {
-      imageInfo.imageView = camera.shadow_depth_view_array->handle_;
+      imageInfo.imageView = shadow_view->handle_;
       imageInfo.sampler = default_linear_sampler_->sampler_;
     }
     imageInfos.emplace_back(imageInfo);
@@ -1971,8 +1492,14 @@ void Renderer::Cleanup() {
   CleanupGlobalUniformBuffers();
   blank_texture_ = nullptr;
 
+  if (pick_staging_buffer_ != VK_NULL_HANDLE) {
+    vkDestroyBuffer(logical_device_, pick_staging_buffer_, nullptr);
+    vkFreeMemory(logical_device_, pick_staging_memory_, nullptr);
+    pick_staging_buffer_ = VK_NULL_HANDLE;
+    pick_staging_memory_ = VK_NULL_HANDLE;
+  }
+
   LOG_DEBUG("Destroying graphics");
-  CleanupGeometryGraphics();
   CleanupPresentGraphics();
 
   LOG_DEBUG("Destroying descriptor set layout");
@@ -2410,385 +1937,6 @@ void Renderer::CreateSwapChain() {
   }
 }
 
-void Renderer::CreateGeometryRenderPass() {
-  LOG_DEBUG("Creating render pass");
-
-  geometry_render_pass_ =
-      CreateReference<RenderPass>(PassType::Geometry, "Geometry RenderPass");
-  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                                       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                                       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R32_SFLOAT,
-                                       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                                       .msaa_mode = options_.msaa_mode});
-  geometry_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = FindDepthFormat(),
-       .msaa_mode = options_.msaa_mode});
-  if (options_.msaa_mode > SamplingMode::DISABLED) {
-    geometry_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                         .format = VK_FORMAT_R32_SFLOAT,
-                                         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                         .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                         .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                         .msaa_mode = SamplingMode::DISABLED});
-    geometry_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-         .msaa_mode = SamplingMode::DISABLED});
-  }
-  geometry_render_pass_->Bake();
-
-  lighting_render_pass_ = CreateReference<RenderPass>(
-      PassType::Lighting, "Deferred Lightning RenderPass");
-  lighting_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = swap_chain_image_format_,
-                                       .msaa_mode = options_.msaa_mode});
-  if (options_.msaa_mode > SamplingMode::DISABLED) {
-    lighting_render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                         .format = swap_chain_image_format_,
-                                         .msaa_mode = SamplingMode::DISABLED});
-  }
-  lighting_render_pass_->Bake();
-
-  composite_render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
-                                                       "Composite RenderPass");
-  composite_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = swap_chain_image_format_,
-       .msaa_mode = options_.msaa_mode});
-  if (options_.msaa_mode > SamplingMode::DISABLED) {
-    composite_render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = swap_chain_image_format_,
-         .msaa_mode = SamplingMode::DISABLED});
-  }
-  composite_render_pass_->Bake();
-
-  sprite_render_pass_ =
-      CreateReference<RenderPass>(PassType::PostProcess, "Sprite RenderPass");
-  sprite_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                     .format = swap_chain_image_format_,
-                                     .msaa_mode = SamplingMode::DISABLED});
-  sprite_render_pass_->Bake();
-
-  ssao_gen_render_pass_ = CreateReference<RenderPass>(
-      PassType::PostProcess, "SSAO Generate RenderPass");
-  ssao_gen_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                       .format = VK_FORMAT_R8_UNORM,
-                                       .msaa_mode = SamplingMode::DISABLED});
-  ssao_gen_render_pass_->Bake();
-
-  ssao_blur_horz_render_pass_ = CreateReference<RenderPass>(
-      PassType::PostProcess, "SSAO Horizontal Blur RenderPass");
-  ssao_blur_horz_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R8_UNORM,
-       .msaa_mode = SamplingMode::DISABLED});
-  ssao_blur_horz_render_pass_->Bake();
-
-  ssao_blur_vert_render_pass_ = CreateReference<RenderPass>(
-      PassType::PostProcess, "SSAO Vertical Blur RenderPass");
-  ssao_blur_vert_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R8_UNORM,
-       .msaa_mode = SamplingMode::DISABLED});
-  ssao_blur_vert_render_pass_->Bake();
-
-  shadow_render_pass_ = CreateReference<RenderPass>(
-      PassType::Shadow, "Deferred Shadow RenderPass");
-  shadow_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = FindDepthFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  shadow_render_pass_->Bake();
-
-  // Shared post-process render pass for bloom and motion blur
-  postprocess_render_pass_ = CreateReference<RenderPass>(
-      PassType::PostProcess, "PostProcess RenderPass");
-  postprocess_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = swap_chain_image_format_,
-       .msaa_mode = SamplingMode::DISABLED});
-  postprocess_render_pass_->Bake();
-}
-
-void Renderer::CreateGeometryGraphicsPipelines() {
-  LOG_DEBUG("Creating graphics pipeline");
-  auto geometry_vertex_shader = CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/geometry_shader.vert"});
-  auto geometry_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/geometry_shader.frag"});
-  geometry_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      options_.msaa_mode, CullModeBack, options_.wireframe_enabled, false});
-  geometry_pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
-                                    Vertex3D::GetAttributeDescriptions());
-  geometry_pipeline_->SetRenderPass(geometry_render_pass_);
-  geometry_pipeline_->AddInputLayout(geometry_mesh_descriptor_layout_);
-  geometry_pipeline_->AddInputLayout(global_descriptor_layout_);
-  geometry_pipeline_->AddShader(geometry_vertex_shader);
-  geometry_pipeline_->AddShader(geometry_fragment_shader);
-  geometry_pipeline_->Bake();
-
-  auto skybox_vertex_shader = CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/skybox_shader.vert"});
-  auto skybox_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/skybox_shader.frag"});
-  skybox_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      options_.msaa_mode, CullModeFront, false, false, true, false});
-  skybox_pipeline_->SetRenderPass(lighting_render_pass_);
-  skybox_pipeline_->AddInputLayout(skybox_descriptor_layout_);
-  skybox_pipeline_->AddInputLayout(global_descriptor_layout_);
-  skybox_pipeline_->AddShader(skybox_vertex_shader);
-  skybox_pipeline_->AddShader(skybox_fragment_shader);
-  skybox_pipeline_->Bake();
-
-  auto fullscreen_vertex_shader = CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
-  auto lighting_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/lighting_shader.frag"});
-
-  lighting_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      options_.msaa_mode, CullModeFront, false, true, true, false});
-  lighting_pipeline_->SetRenderPass(lighting_render_pass_);
-  lighting_pipeline_->AddInputLayout(geometry_output_descriptor_layout_);
-  lighting_pipeline_->AddInputLayout(ssao_output_descriptor_layout_);
-  lighting_pipeline_->AddInputLayout(global_descriptor_layout_);
-  lighting_pipeline_->AddInputLayout(skybox_descriptor_layout_);
-  lighting_pipeline_->AddShader(fullscreen_vertex_shader);
-  lighting_pipeline_->AddShader(lighting_fragment_shader);
-  lighting_pipeline_->Bake();
-
-  auto shadow_vertex_shader = CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/shadow_shader.vert"});
-  auto shadow_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/shadow_shader.frag"});
-  shadow_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, true, true});
-  shadow_pipeline_->SetRenderPass(shadow_render_pass_);
-  shadow_pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
-                                  Vertex3D::GetAttributeDescriptions());
-  shadow_pipeline_push_constant_ =
-      std::make_shared<ShadowPipelinePushConstant>();
-  shadow_pipeline_->AddPushConstant(shadow_pipeline_push_constant_,
-                                    VK_SHADER_STAGE_VERTEX_BIT);
-  shadow_pipeline_->AddInputLayout(shadow_mesh_descriptor_layout_);
-  shadow_pipeline_->AddInputLayout(global_shadow_descriptor_layout_);
-  shadow_pipeline_->AddShader(shadow_vertex_shader);
-  shadow_pipeline_->AddShader(shadow_fragment_shader);
-  shadow_pipeline_->Bake();
-
-  auto ssao_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/ssao_gen_shader.frag"});
-
-  ssao_gen_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  ssao_gen_pipeline_->SetRenderPass(ssao_gen_render_pass_);
-  ssao_gen_pipeline_->AddInputLayout(ssao_gen_descriptor_layout_);
-  ssao_gen_pipeline_->AddInputLayout(global_descriptor_layout_);
-  ssao_gen_pipeline_->AddShader(fullscreen_vertex_shader);
-  ssao_gen_pipeline_->AddShader(ssao_fragment_shader);
-  ssao_gen_pipeline_->Bake();
-
-  auto ssao_blur_horz_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/ssao_blur_shader.frag"});
-
-  ssao_blur_horz_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  ssao_blur_horz_pipeline_->SetRenderPass(ssao_blur_horz_render_pass_);
-  ssao_blur_horz_pipeline_->AddInputLayout(ssao_blur_descriptor_layout_);
-  ssao_blur_horz_pipeline_->AddShader(fullscreen_vertex_shader);
-  ssao_blur_horz_pipeline_->AddShader(ssao_blur_horz_fragment_shader);
-  ssao_blur_horz_pipeline_->Bake();
-
-  auto ssao_blur_vert_fragment_shader =
-      CreateShader({ShaderTypeFragment,
-                    ShaderLangGLSL,
-                    "main",
-                    ShaderSourceSource,
-                    "/engine/internal_shaders/ssao_blur_shader.frag",
-                    {"BLUR_VERTICAL"}});
-
-  ssao_blur_vert_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  ssao_blur_vert_pipeline_->SetRenderPass(ssao_blur_vert_render_pass_);
-  ssao_blur_vert_pipeline_->AddInputLayout(ssao_blur_descriptor_layout_);
-  ssao_blur_vert_pipeline_->AddShader(fullscreen_vertex_shader);
-  ssao_blur_vert_pipeline_->AddShader(ssao_blur_vert_fragment_shader);
-  ssao_blur_vert_pipeline_->Bake();
-
-  auto sprite_vertex_shader = CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/sprite_shader.vert"});
-  auto sprite_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/sprite_shader.frag"});
-
-  sprite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeNone, false, true, false, false});
-  sprite_pipeline_->SetVertexData(VertexSprite::GetBindingDescriptions(),
-                                  VertexSprite::GetAttributeDescriptions());
-  sprite_pipeline_->SetRenderPass(sprite_render_pass_);
-  sprite_pipeline_->AddInputLayout(sprite_draw_descriptor_layout_);
-  sprite_pipeline_->AddInputLayout(global_descriptor_layout_);
-  sprite_pipeline_->AddShader(sprite_vertex_shader);
-  sprite_pipeline_->AddShader(sprite_fragment_shader);
-  sprite_pipeline_->Bake();
-
-  auto composite_fragment_shader = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/quad_shader.frag"});
-
-  composite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      options_.msaa_mode, CullModeFront, false, true, true, false});
-  composite_pipeline_->SetRenderPass(composite_render_pass_);
-  composite_pipeline_->AddInputLayout(skybox_descriptor_layout_);
-  composite_pipeline_->AddShader(fullscreen_vertex_shader);
-  composite_pipeline_->AddShader(composite_fragment_shader);
-  composite_pipeline_->Bake();
-
-  // --- Bloom pipelines ---
-  auto bloom_extract_frag = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_extract.frag"});
-  bloom_push_constants_ = std::make_shared<BloomPushConstants>();
-  bloom_extract_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  bloom_extract_pipeline_->SetRenderPass(postprocess_render_pass_);
-  bloom_extract_pipeline_->AddInputLayout(present_descriptor_layout_);
-  bloom_extract_pipeline_->AddPushConstant(bloom_push_constants_,
-                                           VK_SHADER_STAGE_FRAGMENT_BIT);
-  bloom_extract_pipeline_->AddShader(fullscreen_vertex_shader);
-  bloom_extract_pipeline_->AddShader(bloom_extract_frag);
-  bloom_extract_pipeline_->Bake();
-
-  auto bloom_blur_h_frag = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_blur.frag"});
-  bloom_blur_h_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  bloom_blur_h_pipeline_->SetRenderPass(postprocess_render_pass_);
-  bloom_blur_h_pipeline_->AddInputLayout(present_descriptor_layout_);
-  bloom_blur_h_pipeline_->AddShader(fullscreen_vertex_shader);
-  bloom_blur_h_pipeline_->AddShader(bloom_blur_h_frag);
-  bloom_blur_h_pipeline_->Bake();
-
-  auto bloom_blur_v_frag =
-      CreateShader({ShaderTypeFragment,
-                    ShaderLangGLSL,
-                    "main",
-                    ShaderSourceSource,
-                    "/engine/internal_shaders/bloom_blur.frag",
-                    {"BLUR_VERTICAL"}});
-  bloom_blur_v_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  bloom_blur_v_pipeline_->SetRenderPass(postprocess_render_pass_);
-  bloom_blur_v_pipeline_->AddInputLayout(present_descriptor_layout_);
-  bloom_blur_v_pipeline_->AddShader(fullscreen_vertex_shader);
-  bloom_blur_v_pipeline_->AddShader(bloom_blur_v_frag);
-  bloom_blur_v_pipeline_->Bake();
-
-  auto bloom_composite_frag = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_composite.frag"});
-  bloom_composite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  bloom_composite_pipeline_->SetRenderPass(postprocess_render_pass_);
-  bloom_composite_pipeline_->AddInputLayout(
-      postprocess_2input_descriptor_layout_);
-  bloom_composite_pipeline_->AddPushConstant(bloom_push_constants_,
-                                             VK_SHADER_STAGE_FRAGMENT_BIT);
-  bloom_composite_pipeline_->AddShader(fullscreen_vertex_shader);
-  bloom_composite_pipeline_->AddShader(bloom_composite_frag);
-  bloom_composite_pipeline_->Bake();
-
-  // --- Motion blur pipeline ---
-  auto motion_blur_frag = CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/motion_blur.frag"});
-  motion_blur_push_constants_ = std::make_shared<MotionBlurPushConstants>();
-  motion_blur_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  motion_blur_pipeline_->SetRenderPass(postprocess_render_pass_);
-  motion_blur_pipeline_->AddInputLayout(postprocess_2input_descriptor_layout_);
-  motion_blur_pipeline_->AddInputLayout(global_descriptor_layout_);
-  motion_blur_pipeline_->AddPushConstant(motion_blur_push_constants_,
-                                         VK_SHADER_STAGE_FRAGMENT_BIT);
-  motion_blur_pipeline_->AddShader(fullscreen_vertex_shader);
-  motion_blur_pipeline_->AddShader(motion_blur_frag);
-  motion_blur_pipeline_->Bake();
-
-  // FXAA pipeline
-  fxaa_push_constants_ = std::make_shared<FxaaPushConstants>();
-  fxaa_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  fxaa_pipeline_->SetRenderPass(postprocess_render_pass_);
-  fxaa_pipeline_->AddInputLayout(present_descriptor_layout_);
-  fxaa_pipeline_->AddPushConstant(fxaa_push_constants_,
-                                  VK_SHADER_STAGE_FRAGMENT_BIT);
-  fxaa_pipeline_->AddShader(fullscreen_vertex_shader);
-  fxaa_pipeline_->AddShader(
-      CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "/engine/internal_shaders/fxaa.frag"}));
-  fxaa_pipeline_->Bake();
-
-  // TAA pipeline
-  taa_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  taa_pipeline_->SetRenderPass(postprocess_render_pass_);
-  taa_pipeline_->AddInputLayout(taa_descriptor_layout_);
-  taa_pipeline_->AddInputLayout(global_descriptor_layout_);
-  taa_pipeline_->AddShader(fullscreen_vertex_shader);
-  taa_pipeline_->AddShader(
-      CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "/engine/internal_shaders/taa.frag"}));
-  taa_pipeline_->Bake();
-
-  // TAA history copy pipeline (simple passthrough)
-  taa_copy_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
-  taa_copy_pipeline_->SetRenderPass(postprocess_render_pass_);
-  taa_copy_pipeline_->AddInputLayout(present_descriptor_layout_);
-  taa_copy_pipeline_->AddShader(fullscreen_vertex_shader);
-  taa_copy_pipeline_->AddShader(CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/quad_shader.frag"}));
-  taa_copy_pipeline_->Bake();
-}
-
 void Renderer::CreatePresentGraphicsPipelines() {
   auto present_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -3060,6 +2208,13 @@ void Renderer::CreatePermanentResources() {
                              .transfer_dest = true});
   SetAttachmentTextureBuffer(ssao_noise_, noiseValues.data(),
                              sizeof(glm::vec4));
+
+  // Entity pick staging buffer (4 bytes for one float)
+  CreateBuffer(sizeof(float),
+               VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+               pick_staging_buffer_, pick_staging_memory_);
 }
 
 void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
@@ -3314,38 +2469,6 @@ void Renderer::CleanupDescriptorLayouts() {
   taa_descriptor_layout_ = nullptr;
 }
 
-void Renderer::CleanupGeometryGraphics() {
-  // Cleanup all pipelines
-  geometry_pipeline_ = nullptr;
-  shadow_pipeline_ = nullptr;
-  skybox_pipeline_ = nullptr;
-  lighting_pipeline_ = nullptr;
-  ssao_gen_pipeline_ = nullptr;
-  ssao_blur_horz_pipeline_ = nullptr;
-  ssao_blur_vert_pipeline_ = nullptr;
-  sprite_pipeline_ = nullptr;
-  composite_pipeline_ = nullptr;
-  bloom_extract_pipeline_ = nullptr;
-  bloom_blur_h_pipeline_ = nullptr;
-  bloom_blur_v_pipeline_ = nullptr;
-  bloom_composite_pipeline_ = nullptr;
-  motion_blur_pipeline_ = nullptr;
-  fxaa_pipeline_ = nullptr;
-  taa_pipeline_ = nullptr;
-  taa_copy_pipeline_ = nullptr;
-
-  // Cleanup all render passes
-  geometry_render_pass_ = nullptr;
-  lighting_render_pass_ = nullptr;
-  composite_render_pass_ = nullptr;
-  sprite_render_pass_ = nullptr;
-  ssao_gen_render_pass_ = nullptr;
-  ssao_blur_horz_render_pass_ = nullptr;
-  ssao_blur_vert_render_pass_ = nullptr;
-  shadow_render_pass_ = nullptr;
-  postprocess_render_pass_ = nullptr;
-}
-
 void Renderer::CleanupPresentGraphics() {
   present_pipeline_ = nullptr;
   present_color_image_ = nullptr;
@@ -3381,11 +2504,8 @@ void Renderer::RecreateSwapChain() {
 
   vkDeviceWaitIdle(logical_device_);
 
-  CleanupGeometryGraphics();
   CleanupPresentGraphics();
   CreateSwapChain();
-  CreateGeometryRenderPass();
-  CreateGeometryGraphicsPipelines();
   CreatePresentGraphicsPipelines();
 
   // Notify that pipelines were recreated so cameras can recreate their resources
@@ -3443,12 +2563,8 @@ void Renderer::BeginRender() {
   }
   if (recreate_pipeline_) {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate Pipeline");
-    vkDeviceWaitIdle(logical_device_);
-    LOG_INFO("Recreating graphics pipeline...");
-    geometry_pipeline_->properties_.enable_wireframe =
-        options_.wireframe_enabled;
-    geometry_pipeline_->properties_.sampling_mode = options_.msaa_mode;
-    RecreatePipeline(geometry_pipeline_);
+    // Pipelines are now owned by features. Mark camera resources dirty
+    // so features recreate their pipelines with updated options.
     recreate_pipeline_ = false;
     PipelineRecreatedEvent event{};
     Engine::GetWindow()->GetEventHandler()(event);
@@ -3567,15 +2683,35 @@ void Renderer::EndPresent() {
 
 void Renderer::UpdateUniformData() {
   PROFILE_ZONE_SCOPED();
+  // Lights don't change between cameras; memcpy to host-coherent is fine.
   memcpy(lights_uniform_buffer_->data_, &lights_uniform_data_,
          sizeof(lights_uniform_data_));
-  memcpy(camera_uniform_buffer_->data_, &camera_uniform_data_,
-         sizeof(camera_uniform_data_));
+
+  // Camera and shadow UBOs change per-camera.  Use vkCmdUpdateBuffer so
+  // each camera's render passes read the correct values even when multiple
+  // cameras are rendered in a single command buffer submission.
+  VkCommandBuffer cmd = command_buffer_->handle_;
+  vkCmdUpdateBuffer(cmd, camera_uniform_buffer_->buffer_handle_, 0,
+                    sizeof(camera_uniform_data_), &camera_uniform_data_);
+  vkCmdUpdateBuffer(cmd, shadow_camera_uniform_buffer_->buffer_handle_, 0,
+                    sizeof(shadow_camera_uniform_data_),
+                    &shadow_camera_uniform_data_);
+
+  // Barrier: transfer writes must be visible before shaders read the UBOs.
+  VkMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+  vkCmdPipelineBarrier(cmd,
+      VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+      0, 1, &barrier, 0, nullptr, 0, nullptr);
 }
 
 void Renderer::AllocateModelRenderData(ModelComponent& model,
                                        const Model& model_data) {
-  // Create one UBO per entity (shared across all meshes - same transform)
+  // Create one UBO per entity (shared across all meshes, same transform)
   model.uniform_buffer = CreateUniformBuffer(sizeof(MatricesUniformData));
 
   // Create per-mesh descriptor sets that bind this entity's UBO + mesh's material
@@ -3585,6 +2721,17 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
   model.shadow_descriptors.reserve(model_data.meshes.size());
 
   for (const auto& mesh : model_data.meshes) {
+    // Apply default texture to meshes that lack a diffuse texture
+    if (model.default_texture && mesh->mat && !mesh->mat->base_texture) {
+      mesh->mat->base_texture = model.default_texture;
+      // Update vertex flags so the shader samples the texture
+      for (auto& v : mesh->vertices) {
+        v.Flags |= VertexFlagHasTexture;
+      }
+      // Re-upload vertex data with updated flags
+      mesh->Deallocate();
+      mesh->Allocate();
+    }
     model.geometry_descriptors.push_back(
         CreateMeshDescriptors(model.uniform_buffer, mesh->mat));
     model.shadow_descriptors.push_back(
@@ -3595,7 +2742,8 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
 }
 
 void Renderer::DrawModel(ModelComponent& model,
-                         const TransformComponent& transform, bool shadowPass) {
+                         const TransformComponent& transform, bool shadowPass,
+                         entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = AssetManager::Get();
   const Ref<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
@@ -3612,6 +2760,9 @@ void Renderer::DrawModel(ModelComponent& model,
   MatricesUniformData matrices{};
   matrices.ModelMatrix = transform.transform_matrix;
   matrices.NormalMatrix = transform.normal_matrix;
+  if (entity_handle != entt::null) {
+    matrices.EntityId = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+  }
   memcpy(model.uniform_buffer->data_, &matrices, sizeof(MatricesUniformData));
 
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
@@ -3637,13 +2788,13 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
                        mesh->index_buffer->buffer_handle_, 0,
                        mesh->index_buffer->index_type_);
 
-  VkPipelineLayout layout =
-      shadowPass ? shadow_pipeline_->layout_ : geometry_pipeline_->layout_;
+  VkPipelineLayout layout = bound_pipeline_->layout_;
 
+  auto global_desc = shadowPass
+      ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
+      : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkDescriptorSet sets[2] = {mesh_descriptors->descriptor_set_,
-                             shadowPass
-                                 ? camera_->shadow_descriptor->descriptor_set_
-                                 : camera_->global_descriptor->descriptor_set_};
+                             global_desc->descriptor_set_};
 
   vkCmdBindDescriptorSets(command_buffer_->handle_,
                           VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 2, sets,
@@ -3651,6 +2802,94 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
 
   vkCmdDrawIndexed(command_buffer_->handle_,
                    static_cast<uint32_t>(mesh->indices.size()), 1, 0, 0, 0);
+}
+
+void Renderer::RequestEntityPick(uint32_t x, uint32_t y,
+                                 Ref<AttachmentTexture> entity_id_texture) {
+  pick_x_ = x;
+  pick_y_ = y;
+  pick_entity_id_image_ = entity_id_texture;
+  pick_pending_ = true;
+}
+
+bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
+  out_entity = entt::null;
+  if (!pick_pending_ || !pick_entity_id_image_) {
+    return false;
+  }
+  pick_pending_ = false;
+
+  // Clamp to image bounds
+  uint32_t w = pick_entity_id_image_->width_;
+  uint32_t h = pick_entity_id_image_->height_;
+  if (pick_x_ >= w || pick_y_ >= h) {
+    pick_entity_id_image_ = nullptr;
+    return true;  // Pick executed, but out of bounds → background
+  }
+
+  VkImage src_image = pick_entity_id_image_->images_[0];
+
+  VkCommandBuffer cmd = BeginSingleTimeCommands();
+
+  // Transition to transfer src
+  VkImageMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = src_image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+  barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+                       nullptr, 1, &barrier);
+
+  // Copy 1 pixel
+  VkBufferImageCopy region{};
+  region.bufferOffset = 0;
+  region.bufferRowLength = 0;
+  region.bufferImageHeight = 0;
+  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.mipLevel = 0;
+  region.imageSubresource.baseArrayLayer = 0;
+  region.imageSubresource.layerCount = 1;
+  region.imageOffset = {static_cast<int32_t>(pick_x_),
+                        static_cast<int32_t>(pick_y_), 0};
+  region.imageExtent = {1, 1, 1};
+  vkCmdCopyImageToBuffer(cmd, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                         pick_staging_buffer_, 1, &region);
+
+  // Transition back
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
+                       nullptr, 1, &barrier);
+
+  EndSingleTimeCommands(cmd);
+
+  // Read back the value
+  void* data;
+  vkMapMemory(logical_device_, pick_staging_memory_, 0, sizeof(float), 0,
+              &data);
+  float value = *static_cast<float*>(data);
+  vkUnmapMemory(logical_device_, pick_staging_memory_);
+
+  pick_entity_id_image_ = nullptr;
+
+  if (value > 0.5f) {
+    uint32_t id = static_cast<uint32_t>(value) - 1;
+    out_entity = static_cast<entt::entity>(id);
+  }
+  return true;
 }
 
 void Renderer::DrawSprite(SpriteComponent& sprite,
@@ -3672,11 +2911,11 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
                          buffers, offsets);
 
   VkDescriptorSet sets[] = {frame.descriptor->descriptor_set_,
-                            camera_->global_descriptor->descriptor_set_};
+                            camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
 
   vkCmdBindDescriptorSets(
       command_buffer_->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      sprite_pipeline_->layout_, 0, std::size(sets), sets, 0, nullptr);
+      bound_pipeline_->layout_, 0, std::size(sets), sets, 0, nullptr);
 
   vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
 }
@@ -3684,11 +2923,11 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
 void Renderer::DrawSkybox(Ref<Skybox> skybox) {
   std::array<VkDescriptorSet, 2> sets{
       skybox->descriptors_->descriptor_set_,
-      camera_->global_descriptor->descriptor_set_};
+      camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
 
   vkCmdBindDescriptorSets(
       command_buffer_->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      skybox_pipeline_->layout_, 0, 2, sets.data(), 0, nullptr);
+      bound_pipeline_->layout_, 0, 2, sets.data(), 0, nullptr);
 
   // draw cube via gl_VertexIndex (no vertex/index buffer needed)
   vkCmdDraw(command_buffer_->handle_, 36, 1, 0, 0);
@@ -3772,31 +3011,15 @@ void Renderer::SetCameraData(Ref<CameraData> camera_data) {
 }
 
 Ref<DescriptorSet> Renderer::GetFinalOutputDescriptor() const {
-  if (!camera_)
+  if (!camera_ || !camera_->resource_pool)
     return nullptr;
-  if (options_.aa_mode == AntiAliasingMode::FXAA)
-    return camera_->fxaa_output_descriptor;
-  if (options_.motion_blur_enabled)
-    return camera_->motion_blur_output_descriptor;
-  if (options_.bloom_enabled)
-    return camera_->bloom_output_descriptor;
-  if (options_.aa_mode == AntiAliasingMode::TAA)
-    return camera_->taa_output_descriptor;
-  return camera_->composite_output_descriptor;
+  return camera_->resource_pool->GetDescriptor("PipelineOutputDescriptor");
 }
 
 Ref<AttachmentTexture> Renderer::GetFinalOutputImage() const {
-  if (!camera_)
+  if (!camera_ || !camera_->resource_pool)
     return nullptr;
-  if (options_.aa_mode == AntiAliasingMode::FXAA)
-    return camera_->fxaa_image;
-  if (options_.motion_blur_enabled)
-    return camera_->motion_blur_image;
-  if (options_.bloom_enabled)
-    return camera_->bloom_composite_image;
-  if (options_.aa_mode == AntiAliasingMode::TAA)
-    return camera_->taa_output_image;
-  return camera_->composite_color_resolve_image;
+  return camera_->resource_pool->GetTexture("PipelineOutput");
 }
 
 std::vector<const char*> Renderer::GetRequiredExtensions() {

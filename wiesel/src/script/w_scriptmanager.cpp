@@ -11,6 +11,7 @@
 #include "script/w_scriptmanager.hpp"
 
 #include <direct.h>
+#include "rendering/w_mesh.hpp"
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/mono-debug.h>
@@ -218,6 +219,17 @@ void Internals_TransformComponent_SetScaleZ(Scene* scene, entt::entity entity,
   c.is_changed = true;
 }
 
+bool Internals_ModelComponent_GetEnableRendering(Scene* scene,
+                                                  entt::entity entity) {
+  return scene->GetComponent<ModelComponent>(entity).enable_rendering;
+}
+
+void Internals_ModelComponent_SetEnableRendering(Scene* scene,
+                                                  entt::entity entity,
+                                                  bool value) {
+  scene->GetComponent<ModelComponent>(entity).enable_rendering = value;
+}
+
 MonoObject* CreateVector3fWithValues(float x, float y, float z) {
   MonoObject* obj = mono_object_new(ScriptManager::app_domain(),
                                     ScriptManager::vector3f_class());
@@ -403,6 +415,7 @@ MonoAssembly* ScriptManager::app_assembly_ = nullptr;
 MonoImage* ScriptManager::app_assembly_image_ = nullptr;
 MonoClass* ScriptManager::behavior_class_ = nullptr;
 MonoClass* ScriptManager::transform_component_class_ = nullptr;
+MonoClass* ScriptManager::model_component_class_ = nullptr;
 MonoClass* ScriptManager::vector3f_class_ = nullptr;
 MonoMethod* ScriptManager::set_handle_method_ = nullptr;
 
@@ -537,6 +550,8 @@ void ScriptManager::LoadCore() {
   // Component classes
   transform_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "TransformComponent");
+  model_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "ModelComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
 }
@@ -683,6 +698,8 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetRight);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetUp);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetDown);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetEnableRendering);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetEnableRendering);
 }
 
 void ScriptManager::RegisterComponents() {
@@ -708,6 +725,26 @@ void ScriptManager::RegisterComponents() {
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<TransformComponent>(entity);
+      });
+
+  RegisterComponent<ModelComponent>(
+      "ModelComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj =
+            mono_object_new(app_domain_, model_component_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+
+        MonoMethod* method = mono_class_get_method_from_name(
+            model_component_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<ModelComponent>(entity);
       });
 }
 

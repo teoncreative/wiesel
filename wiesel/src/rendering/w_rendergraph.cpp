@@ -42,8 +42,6 @@ RenderGraph::~RenderGraph() {
   DestroyTransientResources();
 }
 
-// --- Build Phase ---
-
 RGResource RenderGraph::ImportTexture(const std::string& name,
                                       Ref<AttachmentTexture> texture,
                                       VkImageLayout initial_layout) {
@@ -150,8 +148,6 @@ void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
   passes_[pass].manages_render_pass_ = manages;
 }
 
-// --- Compile Phase ---
-
 void RenderGraph::Compile() {
   CreateTransientResources();
   TopologicalSort();
@@ -243,8 +239,6 @@ void RenderGraph::DestroyTransientResources() {
     }
   }
 }
-
-// --- Execute Phase ---
 
 void RenderGraph::Execute(VkCommandBuffer cmd) {
   if (!compiled_) {
@@ -341,7 +335,7 @@ void RenderGraph::UpdateOutputLayouts(const RenderGraphPass& pass) {
   }
 }
 
-// --- Management ---
+// Management
 
 void RenderGraph::MarkDirty() {
   dirty_ = true;

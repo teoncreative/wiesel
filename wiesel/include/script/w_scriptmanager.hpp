@@ -203,6 +203,7 @@ class ScriptManager {
 
   static MonoClass* behavior_class_;
   static MonoClass* transform_component_class_;
+  static MonoClass* model_component_class_;
   static MonoClass* vector3f_class_;
   static MonoMethod* set_handle_method_;
   static std::map<std::string, ComponentGetter> component_getters_;

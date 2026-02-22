@@ -21,7 +21,7 @@ namespace Wiesel {
 class Renderer;
 class RenderPass;
 class Framebuffer;
-class Pipeline;
+struct Pipeline;
 
 // Opaque handle to a resource in the render graph
 struct RGResource {
@@ -99,7 +99,7 @@ class RenderGraph {
   explicit RenderGraph(Renderer& renderer);
   ~RenderGraph();
 
-  // --- Build Phase ---
+  // Build Phase
 
   // Import an external resource into the graph
   RGResource ImportTexture(const std::string& name,
@@ -135,13 +135,10 @@ class RenderGraph {
   void SetPassEnabled(uint32_t pass, bool enabled);
   void SetPassManagesRenderPass(uint32_t pass, bool manages);
 
-  // --- Compile Phase ---
   void Compile();
-
-  // --- Execute Phase ---
   void Execute(VkCommandBuffer cmd);
 
-  // --- Management ---
+  // Management
   void MarkDirty();
   bool IsDirty() const { return dirty_; }
   bool IsCompiled() const { return compiled_; }

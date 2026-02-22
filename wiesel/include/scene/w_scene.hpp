@@ -17,6 +17,7 @@
 #include "events/w_engineevents.hpp"
 #include "events/w_events.hpp"
 #include "rendering/w_camera.hpp"
+#include "rendering/w_render_feature.hpp"
 #include "rendering/w_rendergraph.hpp"
 #include "rendering/w_skybox.hpp"
 #include "scene/w_components.hpp"
@@ -57,6 +58,16 @@ class Scene {
   void SetPaused(bool paused) { is_paused_ = paused; }
 
   void SetSkybox(Ref<Skybox> skybox) { skybox_ = skybox; }
+  Ref<Skybox> GetSkybox() const { return skybox_; }
+
+  // Set the default render pipeline for all cameras without a per-camera override.
+  void SetRenderPipeline(Ref<RenderPipeline> pipeline);
+  // Set a per-camera render pipeline override.
+  void SetRenderPipeline(entt::entity camera, Ref<RenderPipeline> pipeline);
+  // Create a default pipeline with all built-in features.
+  static Ref<RenderPipeline> CreateDefaultPipeline(Ref<Renderer> renderer);
+
+  Ref<RenderPipeline> GetDefaultPipeline() const { return default_pipeline_; }
 
   template <typename T, typename... Args>
   T& AddComponent(entt::entity handle, Args&&... args) {
@@ -151,6 +162,7 @@ class Scene {
   // this camera is used to render the scene to the current camera
   Ref<CameraData> current_camera_;
   Ref<Skybox> skybox_;
+  Ref<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, Ref<RenderGraph>> render_graphs_;
   std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
 };

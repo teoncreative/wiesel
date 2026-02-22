@@ -27,33 +27,38 @@
 #include <random>
 
 #include "layer/w_layerscene.hpp"
+#include "rendering/w_render_feature.hpp"
+#include "rendering/features/w_shadow_feature.hpp"
+#include "rendering/features/w_geometry_feature.hpp"
+#include "rendering/features/w_ssao_feature.hpp"
+#include "rendering/features/w_lighting_feature.hpp"
+#include "rendering/features/w_sprite_feature.hpp"
+#include "rendering/features/w_composite_feature.hpp"
+#include "rendering/features/w_toon_feature.hpp"
 
 using namespace Wiesel;
 using namespace Wiesel::Editor;
 
-namespace WieselDemo {
+namespace LeapLand {
 
-DemoLayer::DemoLayer(DemoApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
+GameLayer::GameLayer(GameApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
   renderer_ = Engine::GetRenderer();
 }
 
-DemoLayer::~DemoLayer() = default;
+GameLayer::~GameLayer() = default;
 
-void DemoLayer::OnAttach() {
+void GameLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
   auto& assets = AssetManager::Get();
 
-  Entity cameraEntity = scene_->CreateEntity("Camera");
+  Entity camera_entity = scene_->CreateEntity("Camera");
   {
-    auto& transform = cameraEntity.GetComponent<TransformComponent>();
-    auto& camera = cameraEntity.AddComponent<CameraComponent>();
+    auto& transform = camera_entity.GetComponent<TransformComponent>();
+    auto& camera = camera_entity.AddComponent<CameraComponent>();
     camera.viewport_size = {2560, 1440};
-    camera.far_plane = 45.0f;
+    camera.far_plane = 1000.0f;
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
     Engine::GetRenderer()->SetupCameraComponent(camera);
-    auto& behaviors = cameraEntity.AddComponent<BehaviorsComponent>();
-    MonoBehavior& behavior = behaviors.AddBehavior<MonoBehavior>(cameraEntity, "CameraScript");
-    //behavior.SetEnabled(false);
   }
   {
     Entity entity = scene_->CreateEntity("City");
@@ -64,13 +69,16 @@ void DemoLayer::OnAttach() {
     model.model_handle = assets.Register("City", AssetType::Model, "/app/models/city/gmae.obj");
   }
   {
-    Entity entity = scene_->CreateEntity("Car");
-    auto& transform = entity.GetComponent<TransformComponent>();
+    Entity car_entity = scene_->CreateEntity("Car");
+    auto& transform = car_entity.GetComponent<TransformComponent>();
     transform.scale = {0.06, 0.06, 0.06};
     transform.position = {0.0f, 0.0f, 0.0f};
-    transform.rotation = {-90.0f, 0.0f, 0.0f};
-    auto& model = entity.AddComponent<ModelComponent>();
-    model.model_handle = assets.Register("Cyberpunk Bike", AssetType::Model, "/app/models/bike/cyberpunk_bike.glb");
+    transform.rotation = {0.0f, 180.0f, 0.0f};
+    auto& model = car_entity.AddComponent<ModelComponent>();
+    model.model_handle = assets.Register("Mercedes AMG GT3", AssetType::Model, "/app/models/car/Mercedes_AMG_GT3.obj");
+    auto& behaviors = car_entity.AddComponent<BehaviorsComponent>();
+    MonoBehavior& car_script = behaviors.AddBehavior<MonoBehavior>(car_entity, "CarScript");
+    car_script.AttachExternComponent<TransformComponent>("CameraTransform", camera_entity.handle());
   }
   {
     auto entity = scene_->CreateEntity("Sun");
@@ -104,22 +112,21 @@ void DemoLayer::OnAttach() {
     }, {}, {});
     assets.RegisterAndStore<Texture>("Skybox Cubemap", AssetType::Skybox,
                                      "/app/textures/skymap/", skybox_texture);
-    scene_->SetSkybox(CreateReference<Skybox>(skybox_texture));
+    scene_->SetSkybox(std::make_shared<Skybox>(skybox_texture));
   }
 
   renderer_->options().vsync = false;
-  //renderer_->SetMsaaSamples(VK_SAMPLE_COUNT_1_BIT);
 }
 
-void DemoLayer::OnDetach() {
+void GameLayer::OnDetach() {
   LOG_DEBUG("OnDetach");
 }
 
-void DemoLayer::OnUpdate(float_t deltaTime) {
+void GameLayer::OnUpdate(float_t deltaTime) {
   //LOG_INFO("OnUpdate {}", deltaTime);
 }
 
-void DemoLayer::OnEvent(Event& event) {
+void GameLayer::OnEvent(Event& event) {
   EventDispatcher dispatcher(event);
 
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPress));
@@ -127,7 +134,7 @@ void DemoLayer::OnEvent(Event& event) {
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
 }
 
-bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
+bool GameLayer::OnKeyPress(KeyPressedEvent& event) {
   if (event.GetKeyCode() == KeyF1) {
     app_.Close();
     return true;
@@ -135,36 +142,36 @@ bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
+bool GameLayer::OnKeyReleased(KeyReleasedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
+bool GameLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-void DemoApplication::Init() {
+void GameApplication::Init() {
   LOG_DEBUG("Init");
   std::shared_ptr<Scene> scene = std::make_shared<Scene>();
   if (enable_editor_) {
     PushLayer(std::make_shared<ImGuiLayer>());
-    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<GameLayer>(*this, scene));
     PushLayer(std::make_shared<EditorLayer>(*this, scene));
   } else {
-    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<GameLayer>(*this, scene));
     PushLayer(std::make_shared<SceneLayer>(scene));
   }
 }
 
-DemoApplication::DemoApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
+GameApplication::GameApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
 }
 
-DemoApplication::~DemoApplication() {
+GameApplication::~GameApplication() {
 }
 }  // namespace WieselDemo
 
 // Called from entrypoint
 Application* Wiesel::CreateApp() {
   bool enable_editor = Engine::GetEngineProperties().editor_enabled;
-  return new WieselDemo::DemoApplication(enable_editor);
+  return new LeapLand::GameApplication(enable_editor);
 }

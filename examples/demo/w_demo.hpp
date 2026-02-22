@@ -19,11 +19,11 @@
 #include "w_application.hpp"
 #include "w_pch.hpp"
 
-namespace WieselDemo {
-class DemoApplication : public Wiesel::Application {
+namespace LeapLand {
+class GameApplication : public Wiesel::Application {
 public:
-  DemoApplication(bool enable_editor);
-  ~DemoApplication() override;
+  GameApplication(bool enable_editor);
+  ~GameApplication() override;
 
   void Init() override;
 
@@ -34,10 +34,10 @@ private:
   bool enable_editor_;
 };
 
-class DemoLayer : public Wiesel::Layer {
+class GameLayer : public Wiesel::Layer {
 public:
-  explicit DemoLayer(DemoApplication& app, std::shared_ptr<Wiesel::Scene> scene);
-  ~DemoLayer() override;
+  explicit GameLayer(GameApplication& app, std::shared_ptr<Wiesel::Scene> scene);
+  ~GameLayer() override;
 
   void OnAttach() override;
   void OnDetach() override;
@@ -50,7 +50,7 @@ public:
   bool OnResizeEvent(Wiesel::WindowResizeEvent& event);
 
 private:
-  DemoApplication& app_;
+  GameApplication& app_;
   Wiesel::Ref<Wiesel::Scene> scene_;
   Wiesel::Ref<Wiesel::Renderer> renderer_;
 };

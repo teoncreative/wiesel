@@ -117,6 +117,10 @@ namespace WieselEngine
             return new Vector3f(lhs.X * rhs, lhs.Y * rhs, lhs.Z * rhs);
         }
 
+        public static Vector3f operator*(float lhs, Vector3f rhs) {
+            return new Vector3f(lhs * rhs.X, lhs * rhs.Y, lhs * rhs.Z);
+        }
+
         public static Vector3f operator+(Vector3f lhs, Vector3f rhs) {
             return new Vector3f(lhs.X + rhs.X, lhs.Y + rhs.Y, lhs.Z + rhs.Z);
         }
@@ -163,6 +167,30 @@ namespace WieselEngine
             if (length == 0f)
                 return new Vector3f(0, 0, 0);
             return this / length;
+        }
+
+        public float SqrLength()
+        {
+            return X * X + Y * Y + Z * Z;
+        }
+
+        public static float Dot(Vector3f a, Vector3f b)
+        {
+            return a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+        }
+
+        public static Vector3f Cross(Vector3f a, Vector3f b)
+        {
+            return new Vector3f(
+                a.Y * b.Z - a.Z * b.Y,
+                a.Z * b.X - a.X * b.Z,
+                a.X * b.Y - a.Y * b.X
+            );
+        }
+
+        public static float Distance(Vector3f a, Vector3f b)
+        {
+            return (a - b).Length();
         }
 
         public override string ToString()

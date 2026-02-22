@@ -49,14 +49,28 @@ void main() {
         velocity = velocity * (maxVel / velLen);
     }
 
-    // Sample along the motion vector
+    // Sample along the motion vector, rejecting any that fall off-screen
+    // to prevent edge wrapping / streaking artifacts.
+    vec2 texelSize = 1.0 / textureSize(sceneImage, 0);
+    vec2 minBound = texelSize * 0.5;
+    vec2 maxBound = 1.0 - texelSize * 0.5;
+
     vec3 result = vec3(0.0);
+    int validCount = 0;
     int samples = max(numSamples, 2);
     for (int i = 0; i < samples; i++) {
         float t = float(i) / float(samples - 1) - 0.5;
-        vec2 sampleUV = clamp(inUV + velocity * t, 0.0, 1.0);
-        result += texture(sceneImage, sampleUV).rgb;
+        vec2 sampleUV = inUV + velocity * t;
+        if (sampleUV.x >= minBound.x && sampleUV.x <= maxBound.x &&
+            sampleUV.y >= minBound.y && sampleUV.y <= maxBound.y) {
+            result += texture(sceneImage, sampleUV).rgb;
+            validCount++;
+        }
     }
-    result /= float(samples);
+    if (validCount > 0) {
+        result /= float(validCount);
+    } else {
+        result = texture(sceneImage, inUV).rgb;
+    }
     outColor = vec4(result, 1.0);
 }

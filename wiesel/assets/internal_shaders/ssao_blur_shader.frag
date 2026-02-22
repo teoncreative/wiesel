@@ -25,7 +25,9 @@ void main() {
     // Edge aware Bilateral blur
     float centerDepth = texture(samplerDepth, inUV).r;
     float sum = 0, wsum = 0;
-    for (int i = -4; i <= 4; i++) {
+    const float spatialSigma = 4.0;
+    float rangeSigma = max(0.05, 0.01 * centerDepth);
+    for (int i = -6; i <= 6; i++) {
         #ifdef BLUR_VERTICAL
         vec2 off = vec2(0, texelSize.y * float(i));
         #else
@@ -33,11 +35,9 @@ void main() {
         #endif
         float s = texture(samplerSSAO, inUV + off).r;
         float d = texture(samplerDepth, inUV + off).r;
-        float w_spatial = exp(-0.5 * (i * i) / 9.0);
-        float rangeSigma = 0.1;
+        float w_spatial = exp(-0.5 * (i * i) / (spatialSigma * spatialSigma));
         float diff = d - centerDepth;
         float w_range = exp(-0.5 * (diff*diff)/(rangeSigma*rangeSigma));
-        //float w_range = exp(-0.5 * ((d - centerDepth) * 100.0) * ((d - centerDepth) * 100.0));
         float w = w_spatial * w_range;
         sum += s * w;
         wsum += w;

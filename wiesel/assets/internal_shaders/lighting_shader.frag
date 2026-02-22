@@ -79,7 +79,7 @@ const mat4 biasMat = mat4(
 );
 
 // Returns 0.0 = fully shadowed, 1.0 = fully lit
-float calculateShadow(vec4 shadowCoord, uint cascadeIndex, vec3 normal, vec3 lightDir) {
+float calculateShadow(vec4 shadowCoord, uint cascadeIndex) {
     shadowCoord /= shadowCoord.w;
 
     if (shadowCoord.z < 0.0 || shadowCoord.z > 1.0 ||
@@ -88,10 +88,9 @@ float calculateShadow(vec4 shadowCoord, uint cascadeIndex, vec3 normal, vec3 lig
         return 1.0;
     }
 
-    // Slope-scaled bias: larger at grazing angles where acne is worst
-    float cosTheta = clamp(dot(normal, lightDir), 0.0, 1.0);
-    float slopeFactor = sqrt(1.0 - cosTheta * cosTheta) / max(cosTheta, 0.001);
-    float bias = clamp(0.002 * slopeFactor, 0.0005, 0.01);
+    // Minimal depth bias: the shadow pass uses front-face culling which
+    // already provides natural self-shadowing prevention.
+    float bias = 0.00005;
 
     ivec2 smSize = textureSize(shadowMap, 0).xy;
     vec2 texelSize = 1.0 / vec2(smSize);
@@ -191,8 +190,14 @@ void main() {
                 cascadeIndex = i + 1;
             }
         }
-        vec4 shadowCoord = biasMat * shadowMatrices.viewProjectionMatrix[cascadeIndex] * vec4(worldPos, 1.0);
-        shadow = calculateShadow(shadowCoord, cascadeIndex, normal, sunDir);
+        // Normal offset: shift the shadow lookup position along the surface normal.
+        // This prevents contact shadow loss without depth-bias artifacts.
+        // Scale offset by sin(theta) so grazing surfaces get more offset.
+        float nCos = clamp(dot(normal, sunDir), 0.0, 1.0);
+        float nSin = sqrt(1.0 - nCos * nCos);
+        vec3 shadowWorldPos = worldPos + normal * (0.03 * nSin + 0.005);
+        vec4 shadowCoord = biasMat * shadowMatrices.viewProjectionMatrix[cascadeIndex] * vec4(shadowWorldPos, 1.0);
+        shadow = calculateShadow(shadowCoord, cascadeIndex);
     }
     vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult, 0.0, 1.0);
 

@@ -265,12 +265,14 @@ void Pipeline::Bake() {
 }
 
 void Pipeline::Bind(PipelineBindPoint bind_point) {
-  vkCmdBindPipeline(Engine::GetRenderer()->GetCommandBuffer().handle_, ToVkPipelineBindPoint(bind_point),
+  auto renderer = Engine::GetRenderer();
+  vkCmdBindPipeline(renderer->GetCommandBuffer().handle_, ToVkPipelineBindPoint(bind_point),
                     pipeline_);
   for (const auto& item : push_constants_) {
-    vkCmdPushConstants(Engine::GetRenderer()->GetCommandBuffer().handle_, layout_,
+    vkCmdPushConstants(renderer->GetCommandBuffer().handle_, layout_,
                        item.flags, 0, item.size, item.ptr.get());
   }
+  renderer->SetBoundPipeline(this);
 }
 
 }  // namespace Wiesel

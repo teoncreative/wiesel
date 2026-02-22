@@ -31,15 +31,15 @@
 using namespace Wiesel;
 using namespace Wiesel::Editor;
 
-namespace WieselDemo {
+namespace LeapLand {
 
-DemoLayer::DemoLayer(DemoApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
+GameLayer::GameLayer(GameApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
   renderer_ = Engine::GetRenderer();
 }
 
-DemoLayer::~DemoLayer() = default;
+GameLayer::~GameLayer() = default;
 
-void DemoLayer::OnAttach() {
+void GameLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
   auto& assets = AssetManager::Get();
 
@@ -132,15 +132,15 @@ void DemoLayer::OnAttach() {
   renderer_->options().msaa_mode = SamplingMode::DISABLED;
 }
 
-void DemoLayer::OnDetach() {
+void GameLayer::OnDetach() {
   LOG_DEBUG("OnDetach");
 }
 
-void DemoLayer::OnUpdate(float_t deltaTime) {
+void GameLayer::OnUpdate(float_t deltaTime) {
   //LOG_INFO("OnUpdate {}", deltaTime);
 }
 
-void DemoLayer::OnEvent(Event& event) {
+void GameLayer::OnEvent(Event& event) {
   EventDispatcher dispatcher(event);
 
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPress));
@@ -149,7 +149,7 @@ void DemoLayer::OnEvent(Event& event) {
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnResizeEvent));
 }
 
-bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
+bool GameLayer::OnKeyPress(KeyPressedEvent& event) {
   if (event.GetKeyCode() == KeyF1) {
     app_.Close();
     return true;
@@ -169,15 +169,15 @@ bool DemoLayer::OnKeyPress(KeyPressedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnKeyReleased(KeyReleasedEvent& event) {
+bool GameLayer::OnKeyReleased(KeyReleasedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnMouseMoved(MouseMovedEvent& event) {
+bool GameLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-bool DemoLayer::OnResizeEvent(WindowResizeEvent& event) {
+bool GameLayer::OnResizeEvent(WindowResizeEvent& event) {
   if (app_.IsEditorEnabled()) {
     return false;
   }
@@ -192,28 +192,28 @@ bool DemoLayer::OnResizeEvent(WindowResizeEvent& event) {
   return false;
 }
 
-void DemoApplication::Init() {
+void GameApplication::Init() {
   LOG_DEBUG("Init");
   std::shared_ptr<Scene> scene = std::make_shared<Scene>();
   if (enable_editor_) {
     PushLayer(std::make_shared<ImGuiLayer>());
-    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<GameLayer>(*this, scene));
     PushLayer(std::make_shared<EditorLayer>(*this, scene));
   } else {
-    PushLayer(std::make_shared<DemoLayer>(*this, scene));
+    PushLayer(std::make_shared<GameLayer>(*this, scene));
     PushLayer(std::make_shared<SceneLayer>(scene));
   }
 }
 
-DemoApplication::DemoApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
+GameApplication::GameApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
 }
 
-DemoApplication::~DemoApplication() {
+GameApplication::~GameApplication() {
 }
 }  // namespace WieselDemo
 
 // Called from entrypoint
 Application* Wiesel::CreateApp() {
   bool enable_editor = Engine::GetEngineProperties().editor_enabled;
-  return new WieselDemo::DemoApplication(enable_editor);
+  return new LeapLand::GameApplication(enable_editor);
 }

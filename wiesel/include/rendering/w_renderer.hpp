@@ -16,7 +16,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #include <stb_image.h>
-#include <vk_mem_alloc.h>
 
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_camera.hpp"
@@ -42,20 +41,6 @@ namespace Wiesel {
 
 struct ShadowPipelinePushConstant {
   int cascade_index;
-};
-
-struct BloomPushConstants {
-  float threshold;
-  float intensity;
-};
-
-struct MotionBlurPushConstants {
-  float strength;
-  int num_samples;
-};
-
-struct FxaaPushConstants {
-  glm::vec2 inverse_screen_size;
 };
 
 template<typename T>
@@ -248,68 +233,8 @@ class Renderer {
     return physical_device_features_;
   }
 
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSkyboxPipeline() const {
-    return skybox_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOGenPipeline() const {
-    return ssao_gen_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurHorzPipeline() const {
-    return ssao_blur_horz_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSSAOBlurVertPipeline() const {
-    return ssao_blur_vert_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetLightingPipeline() const {
-    return lighting_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetSpritePipeline() const {
-    return sprite_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetCompositePipeline() const {
-    return composite_pipeline_;
-  }
-
   WIESEL_GETTER_FN const Ref<Pipeline> GetPresentPipeline() const {
     return present_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomExtractPipeline() const {
-    return bloom_extract_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomBlurHPipeline() const {
-    return bloom_blur_h_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomBlurVPipeline() const {
-    return bloom_blur_v_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetBloomCompositePipeline() const {
-    return bloom_composite_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetMotionBlurPipeline() const {
-    return motion_blur_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetFxaaPipeline() const {
-    return fxaa_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetTaaPipeline() const {
-    return taa_pipeline_;
-  }
-
-  WIESEL_GETTER_FN const Ref<Pipeline> GetTaaCopyPipeline() const {
-    return taa_copy_pipeline_;
   }
 
   WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
@@ -332,6 +257,56 @@ class Renderer {
     return sprite_draw_descriptor_layout_;
   }
 
+  // Descriptor layout getters (used by RenderFeatures)
+
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGeometryMeshDescriptorLayout() const {
+    return geometry_mesh_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetShadowMeshDescriptorLayout() const {
+    return shadow_mesh_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGlobalDescriptorLayout() const {
+    return global_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGlobalShadowDescriptorLayout() const {
+    return global_shadow_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSSAOGenDescriptorLayout() const {
+    return ssao_gen_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSSAOBlurDescriptorLayout() const {
+    return ssao_blur_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSSAOOutputDescriptorLayout() const {
+    return ssao_output_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGeometryOutputDescriptorLayout() const {
+    return geometry_output_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSkyboxDescriptorLayout() const {
+    return skybox_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetPresentDescriptorLayout() const {
+    return present_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetPostprocess2InputDescriptorLayout() const {
+    return postprocess_2input_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetTAADescriptorLayout() const {
+    return taa_descriptor_layout_;
+  }
+
+  // Shared resource getters (used by RenderFeatures)
+
+  WIESEL_GETTER_FN Ref<AttachmentTexture> GetSSAONoise() const { return ssao_noise_; }
+  WIESEL_GETTER_FN Ref<UniformBuffer> GetSSAOKernelUniformBuffer() const { return ssao_kernel_uniform_buffer_; }
+  WIESEL_GETTER_FN Ref<UniformBuffer> GetCameraUniformBuffer() const { return camera_uniform_buffer_; }
+  WIESEL_GETTER_FN Ref<UniformBuffer> GetLightsUniformBuffer() const { return lights_uniform_buffer_; }
+  WIESEL_GETTER_FN Ref<UniformBuffer> GetShadowCameraUniformBuffer() const { return shadow_camera_uniform_buffer_; }
+  ShadowMapMatricesUniformData& GetShadowCameraUniformData() { return shadow_camera_uniform_data_; }
+
+  VkFormat FindDepthFormat();
+
   void SetViewport(VkExtent2D extent);
   void SetViewport(glm::vec2 extent);
 
@@ -342,6 +317,8 @@ class Renderer {
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
+  void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
+  Pipeline* GetBoundPipeline() const { return bound_pipeline_; }
 
   void BeginRender();
   void UpdateUniformData();
@@ -410,15 +387,12 @@ class Renderer {
   void LoadDeviceExtensions();
   void CreateDescriptorLayouts();
   void CreateSwapChain();
-  void CreateGeometryRenderPass();
-  void CreateGeometryGraphicsPipelines();
   void CreatePresentGraphicsPipelines();
   void CreateCommandPools();
   void CreateCommandBuffers();
   void CreatePermanentResources();
   void CreateSyncObjects();
   void CreateGlobalUniformBuffers();
-  void CleanupGeometryGraphics();
   void CleanupPresentGraphics();
   void CleanupDescriptorLayouts();
   void CleanupGlobalUniformBuffers();
@@ -442,7 +416,6 @@ class Renderer {
   VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates,
                                VkImageTiling tiling,
                                VkFormatFeatureFlags features);
-  VkFormat FindDepthFormat();
   bool HasStencilComponent(VkFormat format);
   void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
                        int32_t texHeight, uint32_t mipLevels);
@@ -542,46 +515,12 @@ class Renderer {
   Ref<Pipeline> id_pipeline_;
 #endif
 
-  Ref<RenderPass> geometry_render_pass_;
-  Ref<Pipeline> geometry_pipeline_;
-
-  Ref<RenderPass> shadow_render_pass_;
-  Ref<Pipeline> shadow_pipeline_;
-  Ref<ShadowPipelinePushConstant> shadow_pipeline_push_constant_;
-
-  Ref<RenderPass> lighting_render_pass_;
   Ref<DescriptorSetLayout> skybox_descriptor_layout_;
-  Ref<Pipeline> skybox_pipeline_;
-  Ref<Pipeline> lighting_pipeline_;
-
-  Ref<RenderPass> ssao_gen_render_pass_;
-  Ref<Pipeline> ssao_gen_pipeline_;
-
-  Ref<RenderPass> ssao_blur_horz_render_pass_;
-  Ref<Pipeline> ssao_blur_horz_pipeline_;
-  Ref<RenderPass> ssao_blur_vert_render_pass_;
-  Ref<Pipeline> ssao_blur_vert_pipeline_;
-
-  Ref<RenderPass> sprite_render_pass_;
-  Ref<Pipeline> sprite_pipeline_;
-
-  Ref<RenderPass> composite_render_pass_;
-  Ref<Pipeline> composite_pipeline_;
-
-  Ref<RenderPass> postprocess_render_pass_;
   Ref<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
-  Ref<Pipeline> bloom_extract_pipeline_;
-  Ref<Pipeline> bloom_blur_h_pipeline_;
-  Ref<Pipeline> bloom_blur_v_pipeline_;
-  Ref<Pipeline> bloom_composite_pipeline_;
-  Ref<Pipeline> motion_blur_pipeline_;
-  Ref<Pipeline> fxaa_pipeline_;
-  Ref<Pipeline> taa_pipeline_;
-  Ref<Pipeline> taa_copy_pipeline_;
-  Ref<BloomPushConstants> bloom_push_constants_;
-  Ref<MotionBlurPushConstants> motion_blur_push_constants_;
-  Ref<FxaaPushConstants> fxaa_push_constants_;
   Ref<DescriptorSetLayout> taa_descriptor_layout_;
+
+  // Currently bound pipeline, set by Pipeline::Bind(), used by Draw*
+  Pipeline* bound_pipeline_ = nullptr;
 
   Ref<RenderPass> present_render_pass_;
   Ref<DescriptorSetLayout> present_descriptor_layout_;
