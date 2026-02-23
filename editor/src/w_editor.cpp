@@ -938,7 +938,7 @@ void EditorLayer::OnBeginPresent() {
       std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(app_.GetFPS()));
       ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
 
-      // Right-click fly mode (Unity-style: hold right-click for mouse look + WASD)
+      // Right-click mouse look
       static bool scene_right_active = false;
       if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
         if (sceneHovered && !scene_right_active) {
@@ -949,18 +949,21 @@ void EditorLayer::OnBeginPresent() {
       }
 
       if (scene_right_active) {
+        ImGuiIO& io = ImGui::GetIO();
+
+        // Mouse look
+        editor_yaw_ -= io.MouseDelta.x * mouse_sensitivity_;
+        editor_pitch_ -= io.MouseDelta.y * mouse_sensitivity_;
+        editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
+        editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
+      }
+
+      // WASD camera movement (works when scene panel is hovered)
+      if (sceneHovered) {
         ImGui::GetIO().WantCaptureKeyboard = true;
         ImGuiIO& io = ImGui::GetIO();
         float dt = io.DeltaTime;
 
-        // Mouse look
-        editor_yaw_ += io.MouseDelta.x * mouse_sensitivity_;
-        editor_pitch_ -= io.MouseDelta.y * mouse_sensitivity_;
-        editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
-        editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
-
-        // Extract camera axes directly from the rotation quaternion
-        // This guarantees movement matches the rendered view exactly
         glm::quat q = glm::quat(glm::radians(editor_camera_transform_.rotation));
         glm::mat4 R = glm::toMat4(q);
         glm::vec3 cam_right   =  glm::vec3(R[0]); // local +X
