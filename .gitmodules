@@ -34,3 +34,6 @@
 [submodule "vendor/VulkanMemoryAllocator"]
 	path = vendor/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "vendor/bullet3"]
+	path = vendor/bullet3
+	url = https://github.com/bulletphysics/bullet3.git

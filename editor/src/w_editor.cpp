@@ -11,6 +11,8 @@
 
 #include "asset/w_asset_manager.hpp"
 #include "imgui_internal.h"
+#include "physics/w_collider.hpp"
+#include "physics/w_physics_world.hpp"
 #include "rendering/w_sprite.hpp"
 #include "rendering/w_texture.hpp"
 #include "util/w_dialogs.hpp"
@@ -20,6 +22,7 @@
 #include "scene/w_componentutil.hpp"
 #include "script/w_scriptmanager.hpp"
 #include "util/imgui/w_imguiutil.hpp"
+#include "input/w_input.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel::Editor {
@@ -62,6 +65,18 @@ EditorLayer::~EditorLayer() = default;
 void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
 
+  // Initialize editor free camera
+  editor_camera_transform_.position = glm::vec3(0.0f, 5.0f, -10.0f);
+  editor_camera_transform_.scale = glm::vec3(1.0f);
+  editor_yaw_ = 180.0f;  // facing +Z (quat look = -sin(y),-cos(y) so 180 gives +Z)
+  editor_pitch_ = -15.0f; // slightly looking down
+  editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
+
+  editor_camera_.viewport_size = {2560, 1440};
+  editor_camera_.far_plane = 500.0f;
+  editor_camera_.field_of_view = 60.0f;
+  Engine::GetRenderer()->SetupCameraComponent(editor_camera_);
+
   // Start watching app scripts directory for hot reload
   if (Engine::GetEngineProperties().dev_mode) {
     std::optional<std::filesystem::path> scripts_dir =
@@ -79,7 +94,14 @@ void EditorLayer::OnDetach() {
 }
 
 void EditorLayer::OnUpdate(float_t delta_time) {
-  scene_->OnUpdate(delta_time);
+  // Only let scripts read input when the Game panel is focused during play
+  InputManager::SetEnabled(editor_state_ == EditorState::Playing && game_panel_focused_);
+
+  if (editor_state_ == EditorState::Playing) {
+    scene_->OnUpdate(delta_time);
+  } else {
+    scene_->OnUpdateEditor(delta_time);
+  }
 
   // Poll script file watcher for hot reload
   if (script_watcher_.IsWatching()) {
@@ -96,7 +118,21 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 }
 
 void EditorLayer::OnEvent(Event& event) {
-  scene_->OnEvent(event);
+  if (editor_state_ == EditorState::Playing) {
+    // Only forward input events (keyboard/mouse) when the Game panel is focused
+    bool is_input = event.IsInCategory(EventCategory::kEventCategoryInput);
+    if (is_input && !game_panel_focused_) {
+      return;
+    }
+    scene_->OnEvent(event);
+  } else {
+    // Only forward structural events in edit mode (window resize, pipeline recreated)
+    auto type = event.GetEventType();
+    if (type == WindowResizeEvent::GetStaticType() ||
+        type == PipelineRecreatedEvent::GetStaticType()) {
+      scene_->OnEvent(event);
+    }
+  }
 }
 
 static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetadata& meta) {
@@ -278,7 +314,8 @@ void EditorLayer::OnBeginPresent() {
     // Dock windows
     ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left_top);
     ImGui::DockBuilderDockWindow("Components", dock_left_bottom);
-    ImGui::DockBuilderDockWindow("Viewport", dock_center);
+    ImGui::DockBuilderDockWindow("Scene", dock_center);
+    ImGui::DockBuilderDockWindow("Game", dock_center);
     ImGui::DockBuilderDockWindow("Scene Properties", dock_right);
     ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
 
@@ -363,6 +400,15 @@ void EditorLayer::OnBeginPresent() {
     if (ImGui::Button("Reload Scripts")) {
       ScriptManager::Reload();
     }
+
+    ImGui::SeparatorText("Physics");
+    {
+      auto& physics = scene_->GetPhysicsWorld();
+      glm::vec3 gravity = physics.GetGravity();
+      if (ImGui::DragFloat3(PrefixLabel("Gravity").c_str(), &gravity.x, 0.1f)) {
+        physics.SetGravity(gravity);
+      }
+    }
   }
   ImGui::End();
 
@@ -381,7 +427,7 @@ void EditorLayer::OnBeginPresent() {
 
     UpdateHierarchyOrder();
 
-    if (!ignoreMenu && ImGui::IsMouseClicked(1, false))
+    if (!ignoreMenu && ImGui::IsWindowHovered() && ImGui::IsMouseClicked(1, false))
       ImGui::OpenPopup("right_click_hierarchy");
     if (ImGui::BeginPopup("right_click_hierarchy")) {
       if (ImGui::BeginMenu("Add")) {
@@ -810,103 +856,407 @@ void EditorLayer::OnBeginPresent() {
   }
   ImGui::End();
 
-  static bool viewportOpen = true;
-  if (ImGui::Begin("Viewport", &viewportOpen)) {
+  // Helper lambda: draws Play/Stop buttons, returns true if state changed
+  auto DrawPlayStopButtons = [&]() -> bool {
+    bool changed = false;
+    if (editor_state_ == EditorState::Edit) {
+      if (ImGui::Button("Play")) {
+        TakeSnapshot();
+        editor_state_ = EditorState::Playing;
+        scene_->ResetFirstUpdate();
+        ImGui::SetWindowFocus("Game");
+        changed = true;
+      }
+    } else {
+      if (ImGui::Button("Stop")) {
+        editor_state_ = EditorState::Edit;
+        RestoreSnapshot();
+        ImGui::SetWindowFocus("Scene");
+        changed = true;
+      }
+    }
+    return changed;
+  };
+
+  //
+  // Scene Panel (editor free camera)
+  //
+
+  static bool sceneViewOpen = true;
+  ImGuiWindowFlags sceneFlags = ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
+  if (ImGui::Begin("Scene", &sceneViewOpen, sceneFlags)) {
+    // Play/Stop buttons + gizmo controls
+    DrawPlayStopButtons();
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+    ImGui::SameLine();
     if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) current_op_ = ImGuizmo::TRANSLATE;
     ImGui::SameLine();
     if (ImGui::RadioButton("Rotate",    current_op_ == ImGuizmo::ROTATE))    current_op_ = ImGuizmo::ROTATE;
     ImGui::SameLine();
     if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
 
-    auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
-    auto finalOutputImage = renderer->GetFinalOutputImage();
-    ImTextureID desc =
-        reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
+    // Editor camera output from its own resource pool
+    auto editorDesc = editor_camera_.resource_pool.GetDescriptor("PipelineOutputDescriptor");
+    auto editorImage = editor_camera_.resource_pool.GetTexture("PipelineOutput");
 
+    // Handle viewport resize
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    float imageAspect = (float)finalOutputImage->width_ / (float)finalOutputImage->height_;
-    float availAspect = avail.x / avail.y;
-
-    ImVec2 drawSize;
-    if (availAspect > imageAspect) {
-      drawSize.y = avail.y;
-      drawSize.x = drawSize.y * imageAspect;
-    } else {
-      drawSize.x = avail.x;
-      drawSize.y = drawSize.x / imageAspect;
+    uint32_t newW = static_cast<uint32_t>(avail.x);
+    uint32_t newH = static_cast<uint32_t>(avail.y);
+    if (newW > 0 && newH > 0 &&
+        (newW != editor_camera_.viewport_size.x || newH != editor_camera_.viewport_size.y)) {
+      editor_camera_.viewport_size = {newW, newH};
+      editor_camera_.aspect_ratio = static_cast<float>(newW) / static_cast<float>(newH);
+      editor_camera_.view_changed = true;
+      editor_camera_.resources_dirty = true;
     }
 
-    ImGui::Image(desc, drawSize);
-    //ImGui::Image(desc, ImVec2(texture->m_Width, texture->m_Height));
+    if (editorDesc && editorImage) {
+      ImTextureID desc =
+          reinterpret_cast<ImTextureID>(editorDesc->descriptor_set_);
 
-    ImVec2 imageMin = ImGui::GetItemRectMin(); // top-left of last item (the image)
+      float imageAspect = (float)editorImage->width_ / (float)editorImage->height_;
+      float availAspect = avail.x / avail.y;
 
-    ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
-    std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(app_.GetFPS()));
+      ImVec2 drawSize;
+      if (availAspect > imageAspect) {
+        drawSize.y = avail.y;
+        drawSize.x = drawSize.y * imageAspect;
+      } else {
+        drawSize.x = avail.x;
+        drawSize.y = drawSize.x / imageAspect;
+      }
 
-    ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+      ImGui::Image(desc, drawSize);
 
-    ImGuizmo::SetRect(6, 6, drawSize.x, drawSize.y);
+      ImVec2 imageMin = ImGui::GetItemRectMin();
+      bool sceneHovered = ImGui::IsItemHovered();
 
-    if (has_selected_entity_) {
-      Ref<CameraData> cam = renderer->GetCameraData();
-      glm::mat4 view = cam->view_matrix;
-      glm::mat4 proj = cam->projection;
-      proj[1][1] *= -1;
-      TransformComponent& transform = scene_->GetComponent<TransformComponent>(selected_entity_);
-      glm::mat4& model = transform.transform_matrix;
-      ImGuizmo::SetOrthographic(false);
-      ImGuizmo::SetDrawlist();
-      if (ImGuizmo::Manipulate(
-              glm::value_ptr(view),
-              glm::value_ptr(proj),
-              current_op_,
-              ImGuizmo::WORLD,
-              glm::value_ptr(model))) {
-        glm::vec3 translation, rotation, scale;
-        ImGuizmo::DecomposeMatrixToComponents(
-            glm::value_ptr(model),
-            glm::value_ptr(translation),
-            glm::value_ptr(rotation),
-            glm::value_ptr(scale));
+      // FPS overlay
+      ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
+      std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(app_.GetFPS()));
+      ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
 
-        transform.position = translation;
-        transform.rotation = rotation;
-        transform.scale = scale;
+      // Right-click fly mode (Unity-style: hold right-click for mouse look + WASD)
+      static bool scene_right_active = false;
+      if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        if (sceneHovered && !scene_right_active) {
+          scene_right_active = true;
+        }
+      } else {
+        scene_right_active = false;
+      }
+
+      if (scene_right_active) {
+        ImGui::GetIO().WantCaptureKeyboard = true;
+        ImGuiIO& io = ImGui::GetIO();
+        float dt = io.DeltaTime;
+
+        // Mouse look
+        editor_yaw_ += io.MouseDelta.x * mouse_sensitivity_;
+        editor_pitch_ -= io.MouseDelta.y * mouse_sensitivity_;
+        editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
+        editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
+
+        // Extract camera axes directly from the rotation quaternion
+        // This guarantees movement matches the rendered view exactly
+        glm::quat q = glm::quat(glm::radians(editor_camera_transform_.rotation));
+        glm::mat4 R = glm::toMat4(q);
+        glm::vec3 cam_right   =  glm::vec3(R[0]); // local +X
+        glm::vec3 cam_forward = -glm::vec3(R[2]); // local -Z = look direction
+
+        float speed = camera_speed_ * dt;
+        if (io.KeyShift) speed *= 3.0f;
+
+        if (ImGui::IsKeyDown(ImGuiKey_W)) editor_camera_transform_.position += cam_forward * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_S)) editor_camera_transform_.position -= cam_forward * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_D)) editor_camera_transform_.position += cam_right * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_A)) editor_camera_transform_.position -= cam_right * speed;
+        if (ImGui::IsKeyDown(ImGuiKey_E)) editor_camera_transform_.position.y += speed;
+        if (ImGui::IsKeyDown(ImGuiKey_Q)) editor_camera_transform_.position.y -= speed;
+      }
+
+      // Scroll to zoom (even without right-click)
+      if (sceneHovered) {
+        float scroll = ImGui::GetIO().MouseWheel;
+        if (std::abs(scroll) > 0.01f) {
+          glm::quat q = glm::quat(glm::radians(editor_camera_transform_.rotation));
+          glm::mat4 R = glm::toMat4(q);
+          glm::vec3 cam_forward = -glm::vec3(R[2]);
+          editor_camera_transform_.position += cam_forward * scroll * camera_speed_ * 0.3f;
+        }
+      }
+
+      // ImGuizmo (uses editor camera matrices, disabled during right-click camera)
+      if (has_selected_entity_ && !scene_right_active) {
+        glm::mat4 view = editor_camera_.view_matrix;
+        glm::mat4 proj = editor_camera_.projection;
+        proj[1][1] *= -1;
+        TransformComponent& transform = scene_->GetComponent<TransformComponent>(selected_entity_);
+        glm::mat4& model = transform.transform_matrix;
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        ImGuizmo::SetRect(imageMin.x, imageMin.y, drawSize.x, drawSize.y);
+        if (ImGuizmo::Manipulate(
+                glm::value_ptr(view),
+                glm::value_ptr(proj),
+                current_op_,
+                ImGuizmo::WORLD,
+                glm::value_ptr(model))) {
+          glm::vec3 translation, rotation, scale;
+          ImGuizmo::DecomposeMatrixToComponents(
+              glm::value_ptr(model),
+              glm::value_ptr(translation),
+              glm::value_ptr(rotation),
+              glm::value_ptr(scale));
+
+          transform.position = translation;
+          transform.rotation = rotation;
+          transform.scale = scale;
+        }
+
+        // Draw collider wireframes for selected entity
+        glm::mat4 vp = proj * view;
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+        auto projectPoint = [&](glm::vec3 worldPos) -> ImVec2 {
+          glm::vec4 clip = vp * glm::vec4(worldPos, 1.0f);
+          if (clip.w <= 0.001f) return ImVec2(-9999, -9999);
+          glm::vec3 ndc = glm::vec3(clip) / clip.w;
+          return ImVec2(
+              imageMin.x + (ndc.x * 0.5f + 0.5f) * drawSize.x,
+              imageMin.y + (-ndc.y * 0.5f + 0.5f) * drawSize.y);
+        };
+
+        auto drawLine3D = [&](glm::vec3 a, glm::vec3 b, ImU32 color) {
+          ImVec2 sa = projectPoint(a);
+          ImVec2 sb = projectPoint(b);
+          drawList->AddLine(sa, sb, color, 1.5f);
+        };
+
+        if (scene_->HasComponent<BoxColliderComponent>(selected_entity_)) {
+          auto& box = scene_->GetComponent<BoxColliderComponent>(selected_entity_);
+          glm::vec3 center = transform.position + box.offset;
+          glm::vec3 h = box.half_extents;
+          glm::vec3 corners[8] = {
+              center + glm::vec3(-h.x, -h.y, -h.z),
+              center + glm::vec3( h.x, -h.y, -h.z),
+              center + glm::vec3( h.x,  h.y, -h.z),
+              center + glm::vec3(-h.x,  h.y, -h.z),
+              center + glm::vec3(-h.x, -h.y,  h.z),
+              center + glm::vec3( h.x, -h.y,  h.z),
+              center + glm::vec3( h.x,  h.y,  h.z),
+              center + glm::vec3(-h.x,  h.y,  h.z),
+          };
+          ImU32 col = IM_COL32(0, 255, 0, 200);
+          drawLine3D(corners[0], corners[1], col);
+          drawLine3D(corners[1], corners[2], col);
+          drawLine3D(corners[2], corners[3], col);
+          drawLine3D(corners[3], corners[0], col);
+          drawLine3D(corners[4], corners[5], col);
+          drawLine3D(corners[5], corners[6], col);
+          drawLine3D(corners[6], corners[7], col);
+          drawLine3D(corners[7], corners[4], col);
+          drawLine3D(corners[0], corners[4], col);
+          drawLine3D(corners[1], corners[5], col);
+          drawLine3D(corners[2], corners[6], col);
+          drawLine3D(corners[3], corners[7], col);
+        }
+
+        if (scene_->HasComponent<SphereColliderComponent>(selected_entity_)) {
+          auto& sphere = scene_->GetComponent<SphereColliderComponent>(selected_entity_);
+          glm::vec3 center = transform.position + sphere.offset;
+          float r = sphere.radius;
+          ImU32 col = IM_COL32(0, 255, 0, 200);
+          constexpr int segments = 32;
+          for (int ring = 0; ring < 3; ring++) {
+            for (int i = 0; i < segments; i++) {
+              float a0 = (float)i / segments * 2.0f * glm::pi<float>();
+              float a1 = (float)(i + 1) / segments * 2.0f * glm::pi<float>();
+              glm::vec3 p0, p1;
+              if (ring == 0) {
+                p0 = center + glm::vec3(cosf(a0), sinf(a0), 0) * r;
+                p1 = center + glm::vec3(cosf(a1), sinf(a1), 0) * r;
+              } else if (ring == 1) {
+                p0 = center + glm::vec3(cosf(a0), 0, sinf(a0)) * r;
+                p1 = center + glm::vec3(cosf(a1), 0, sinf(a1)) * r;
+              } else {
+                p0 = center + glm::vec3(0, cosf(a0), sinf(a0)) * r;
+                p1 = center + glm::vec3(0, cosf(a1), sinf(a1)) * r;
+              }
+              drawLine3D(p0, p1, col);
+            }
+          }
+        }
+      }
+
+      // Entity picking: click on Scene panel to select (only when not right-clicking)
+      if (!scene_right_active && ImGui::IsMouseClicked(0) && sceneHovered &&
+          !ImGuizmo::IsUsing() && !ImGuizmo::IsOver()) {
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        float relX = mouse.x - imageMin.x;
+        float relY = mouse.y - imageMin.y;
+        if (relX >= 0 && relY >= 0 && relX < drawSize.x && relY < drawSize.y) {
+          uint32_t renderW = editorImage->width_;
+          uint32_t renderH = editorImage->height_;
+          uint32_t px = static_cast<uint32_t>(relX * renderW / drawSize.x);
+          uint32_t py = static_cast<uint32_t>(relY * renderH / drawSize.y);
+          auto entity_id_tex = editor_camera_.resource_pool.GetTexture(
+              "geometry.entity_id_resolve");
+          if (entity_id_tex) {
+            renderer->RequestEntityPick(px, py, entity_id_tex);
+          }
+        }
       }
     }
   }
   ImGui::End();
+
+  // ======== Game Panel (primary scene camera, only when playing) ========
+  static bool gameViewOpen = true;
+  {
+    bool gameVisible = ImGui::Begin("Game", &gameViewOpen);
+    game_panel_focused_ = ImGui::IsWindowFocused();
+    if (gameVisible) {
+      DrawPlayStopButtons();
+
+      if (editor_state_ == EditorState::Playing) {
+        auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
+        auto finalOutputImage = renderer->GetFinalOutputImage();
+        if (finalOutputDesc && finalOutputImage) {
+          ImTextureID gameDesc =
+              reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
+
+          ImVec2 avail = ImGui::GetContentRegionAvail();
+          float imageAspect = (float)finalOutputImage->width_ / (float)finalOutputImage->height_;
+          float availAspect = avail.x / avail.y;
+
+          ImVec2 drawSize;
+          if (availAspect > imageAspect) {
+            drawSize.y = avail.y;
+            drawSize.x = drawSize.y * imageAspect;
+          } else {
+            drawSize.x = avail.x;
+            drawSize.y = drawSize.x / imageAspect;
+          }
+          ImGui::Image(gameDesc, drawSize);
+        }
+      } else {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        const char* text = "Not Playing";
+        ImVec2 textSize = ImGui::CalcTextSize(text);
+        ImGui::SetCursorPos(ImVec2(
+            ImGui::GetCursorPosX() + (avail.x - textSize.x) * 0.5f,
+            ImGui::GetCursorPosY() + (avail.y - textSize.y) * 0.5f));
+        ImGui::TextDisabled("%s", text);
+      }
+    }
+    ImGui::End();
+  }
 }
 
 void EditorLayer::OnPostPresent() {
+  // Execute pending entity pick readback (GPU is idle after EndPresent fence)
+  Renderer* renderer = Engine::GetRenderer().get();
+  entt::entity picked;
+  if (renderer->ExecuteEntityPick(picked)) {
+    if (picked != entt::null && scene_->GetRegistry().valid(picked)) {
+      selected_entity_ = picked;
+      has_selected_entity_ = true;
+    } else {
+      has_selected_entity_ = false;
+    }
+  }
+
   scene_->ProcessDestroyQueue();
 }
 
+void EditorLayer::TakeSnapshot() {
+  scene_snapshot_.clear();
+  for (auto entity : scene_->GetAllEntitiesWith<TransformComponent>()) {
+    auto& t = scene_->GetComponent<TransformComponent>(entity);
+    scene_snapshot_[entity] = {t.position, t.rotation, t.scale};
+  }
+}
+
+void EditorLayer::RestoreSnapshot() {
+  // Restore transforms
+  for (auto& [entity, snap] : scene_snapshot_) {
+    if (!scene_->GetRegistry().valid(entity))
+      continue;
+    auto& t = scene_->GetComponent<TransformComponent>(entity);
+    t.position = snap.position;
+    t.rotation = snap.rotation;
+    t.scale = snap.scale;
+    t.is_changed = true;
+  }
+
+  // Reset physics and scripts
+  scene_->ResetPhysicsWorld();
+  scene_->ResetScriptStates();
+  scene_->ResetFirstUpdate();
+}
+
 void EditorLayer::OnPrePresent() {
-  scene_->Render();
+  Renderer* renderer = Engine::GetRenderer().get();
+  VkCommandBuffer cmd = renderer->GetCommandBuffer().handle_;
+
+  if (editor_state_ == EditorState::Playing) {
+    // PLAY MODE: Both editor camera and ECS cameras render.
+    // BeginPresent/EndPresent handle the ECS camera transitions.
+    // We must manually transition the editor camera's output.
+
+    // Transition editor PipelineOutput back to COLOR_ATTACHMENT
+    // (it was left in SHADER_READ from our manual transition last frame)
+    auto editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
+    if (editorOutput) {
+      renderer->TransitionImageLayout(
+          editorOutput->images_[0], editorOutput->format_,
+          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, cmd, 0, 1);
+    }
+
+    // Render editor camera
+    scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
+
+    // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
+    editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
+    if (editorOutput) {
+      renderer->TransitionImageLayout(
+          editorOutput->images_[0], editorOutput->format_,
+          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, cmd, 0, 1);
+    }
+
+    // Render ECS cameras (sets camera_ to ECS camera for BeginPresent)
+    scene_->Render();
+  } else {
+    // EDIT MODE: Only editor camera renders.
+    // camera_ will point to editor camera after RenderFromExternal.
+    // BeginPresent/EndPresent handle its transitions automatically.
+    scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
+  }
 }
 
 void EditorLayer::UpdateHierarchyOrder() {
   if (hierarchy_data_.move_from == entt::null || hierarchy_data_.move_to == entt::null) {
     return;
   }
-  Entity fromEntity = {hierarchy_data_.move_from, scene_.get()};
-  Entity toEntity = {hierarchy_data_.move_to, scene_.get()};
-  auto& hierarcry = scene_->GetSceneHierarchy();
+  Entity from_entity = {hierarchy_data_.move_from, scene_.get()};
+  Entity to_entity = {hierarchy_data_.move_to, scene_.get()};
+  auto& hierarchy = scene_->GetSceneHierarchy();
   if (hierarchy_data_.bottom_part) {
     // todo move hierarchy order on childs
-    if (fromEntity.parent_handle() != entt::null) {
-      scene_->UnlinkEntities(fromEntity.parent_handle(), hierarchy_data_.move_from);
+    if (from_entity.parent_handle() != entt::null) {
+      scene_->UnlinkEntities(from_entity.parent_handle(), hierarchy_data_.move_from);
     }
-    hierarcry.erase(
-        std::remove(hierarcry.begin(), hierarcry.end(), hierarchy_data_.move_from),
-        hierarcry.end());
-    auto insertPos = std::find(hierarcry.begin(), hierarcry.end(), hierarchy_data_.move_to) + 1;
-    if (hierarcry.end() < insertPos) {
-      hierarcry.push_back(hierarchy_data_.move_from);
+    std::erase(hierarchy, hierarchy_data_.move_from);
+    auto insert_pos = std::ranges::find(hierarchy, hierarchy_data_.move_to) + 1;
+    if (hierarchy.end() < insert_pos) {
+      hierarchy.push_back(hierarchy_data_.move_from);
     } else {
-      hierarcry.insert(insertPos, hierarchy_data_.move_from);
+      hierarchy.insert(insert_pos, hierarchy_data_.move_from);
     }
   } else {
     scene_->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);

@@ -41,6 +41,9 @@ GeometryFeature::GeometryFeature(Ref<Renderer> renderer)
   render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                               .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                               .msaa_mode = renderer_->options().msaa_mode});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = VK_FORMAT_R32_SFLOAT,
+                              .msaa_mode = renderer_->options().msaa_mode});
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::DepthStencil,
        .format = renderer_->FindDepthFormat(),
@@ -63,6 +66,9 @@ GeometryFeature::GeometryFeature(Ref<Renderer> renderer)
                                 .msaa_mode = SamplingMode::DISABLED});
     render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
                                 .format = VK_FORMAT_R16G16B16A16_SFLOAT,
+                                .msaa_mode = SamplingMode::DISABLED});
+    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                .format = VK_FORMAT_R32_SFLOAT,
                                 .msaa_mode = SamplingMode::DISABLED});
   }
   render_pass_->Bake();
@@ -114,6 +120,9 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
   pool.SetTexture("geometry.material", renderer.CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R16G16B16A16_SFLOAT, msaa, true}));
+  pool.SetTexture("geometry.entity_id", renderer.CreateAttachmentTexture(
+      {rw, rh, AttachmentTextureType::Offscreen, 1,
+       VK_FORMAT_R32_SFLOAT, msaa, true}));
   pool.SetTexture("geometry.depth_stencil", renderer.CreateAttachmentTexture(
       {rw, rh, AttachmentTextureType::DepthStencil, 1,
        renderer.FindDepthFormat(), msaa, true}));
@@ -143,14 +152,19 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
         renderer.CreateAttachmentTexture(
             {rw, rh, AttachmentTextureType::Resolve, 1,
              VK_FORMAT_R16G16B16A16_SFLOAT, SamplingMode::DISABLED, true}));
+    pool.SetTexture("geometry.entity_id_resolve",
+        renderer.CreateAttachmentTexture(
+            {rw, rh, AttachmentTextureType::Resolve, 1,
+             VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
 
-    std::array<AttachmentTexture*, 13> textures = {
+    std::array<AttachmentTexture*, 15> textures = {
         pool.GetTexture("geometry.view_pos").get(),
         pool.GetTexture("geometry.world_pos").get(),
         pool.GetTexture("geometry.depth").get(),
         pool.GetTexture("geometry.normal").get(),
         pool.GetTexture("geometry.albedo").get(),
         pool.GetTexture("geometry.material").get(),
+        pool.GetTexture("geometry.entity_id").get(),
         pool.GetTexture("geometry.depth_stencil").get(),
         pool.GetTexture("geometry.view_pos_resolve").get(),
         pool.GetTexture("geometry.world_pos_resolve").get(),
@@ -158,6 +172,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
         pool.GetTexture("geometry.normal_resolve").get(),
         pool.GetTexture("geometry.albedo_resolve").get(),
         pool.GetTexture("geometry.material_resolve").get(),
+        pool.GetTexture("geometry.entity_id_resolve").get(),
     };
     pool.SetFramebuffer("geometry",
         render_pass_->CreateFramebuffer(0, textures, ctx.viewport_size));
@@ -175,14 +190,17 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
                     pool.GetTexture("geometry.albedo"));
     pool.SetTexture("geometry.material_resolve",
                     pool.GetTexture("geometry.material"));
+    pool.SetTexture("geometry.entity_id_resolve",
+                    pool.GetTexture("geometry.entity_id"));
 
-    std::array<AttachmentTexture*, 7> textures = {
+    std::array<AttachmentTexture*, 8> textures = {
         pool.GetTexture("geometry.view_pos").get(),
         pool.GetTexture("geometry.world_pos").get(),
         pool.GetTexture("geometry.depth").get(),
         pool.GetTexture("geometry.normal").get(),
         pool.GetTexture("geometry.albedo").get(),
         pool.GetTexture("geometry.material").get(),
+        pool.GetTexture("geometry.entity_id").get(),
         pool.GetTexture("geometry.depth_stencil").get(),
     };
     pool.SetFramebuffer("geometry",
@@ -249,6 +267,10 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
       "GeoMaterial",
       use_resolve ? pool.GetTexture("geometry.material_resolve")
                   : pool.GetTexture("geometry.material"));
+  RGResource geo_entity_id = graph.ImportTexture(
+      "GeoEntityId",
+      use_resolve ? pool.GetTexture("geometry.entity_id_resolve")
+                  : pool.GetTexture("geometry.entity_id"));
 
   // Capture stable pointers for the deferred lambda execution.
   // Scene and Renderer are alive for the entire frame.
@@ -266,7 +288,7 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
           auto& transform = scene->GetComponent<TransformComponent>(entity);
           if (!model.enable_rendering || !model.model_handle)
             continue;
-          renderer->DrawModel(model, transform, false);
+          renderer->DrawModel(model, transform, false, entity);
         }
       });
 
@@ -276,6 +298,7 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   graph.PassWritesColor(geo, geo_normal);
   graph.PassWritesColor(geo, geo_albedo);
   graph.PassWritesColor(geo, geo_material);
+  graph.PassWritesColor(geo, geo_entity_id);
   graph.SetPassFramebuffer(geo, pool.GetFramebuffer("geometry"));
   graph.SetPassViewport(geo, ctx.viewport_size);
   graph.SetPassClearColor(geo, {0, 0, 0, 0});
@@ -287,6 +310,7 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   registry.Register("GeoNormal", geo_normal);
   registry.Register("GeoAlbedo", geo_albedo);
   registry.Register("GeoMaterial", geo_material);
+  registry.Register("GeoEntityId", geo_entity_id);
 }
 
 }  // namespace Wiesel

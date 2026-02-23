@@ -8,6 +8,21 @@ namespace WieselEngine
         private ulong scenePtr;
         private ulong entityId;
 
+        protected ulong ScenePtr { get { return scenePtr; } }
+        protected ulong EntityId { get { return entityId; } }
+
+        public Entity Entity { get { return new Entity(scenePtr, entityId); } }
+
+        public static implicit operator Entity(MonoBehavior behavior)
+        {
+            return behavior.Entity;
+        }
+
+        public Entity GetEntity(ulong otherEntityId)
+        {
+            return new Entity(scenePtr, otherEntityId);
+        }
+
         public virtual void OnStart()
         {
         }
@@ -29,6 +44,30 @@ namespace WieselEngine
         public virtual bool OnMouseMoved(float x, float y, CursorMode cursorMode)
         {
             return false;
+        }
+
+        public virtual void OnTriggerEnter(ulong otherEntityId)
+        {
+        }
+
+        public virtual void OnTriggerStay(ulong otherEntityId)
+        {
+        }
+
+        public virtual void OnTriggerExit(ulong otherEntityId)
+        {
+        }
+
+        public virtual void OnCollisionEnter(ulong otherEntityId)
+        {
+        }
+
+        public virtual void OnCollisionStay(ulong otherEntityId)
+        {
+        }
+
+        public virtual void OnCollisionExit(ulong otherEntityId)
+        {
         }
 
         public T GetComponent<T>()

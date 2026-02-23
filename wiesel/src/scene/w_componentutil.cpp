@@ -13,6 +13,8 @@
 
 #include "asset/w_asset_manager.hpp"
 #include "behavior/w_behavior.hpp"
+#include "physics/w_collider.hpp"
+#include "physics/w_rigidbody.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
 #include "script/mono/w_monobehavior.hpp"
@@ -266,7 +268,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                                   IBehavior& behavior,
                                   Entity entity) {
   static bool visible = true;
-  if (ImGui::ClosableTreeNode(behavior.GetName().c_str(), &visible)) {
+  if (ImGui::ClosableTreeNode(behavior.GetEditorName().c_str(), &visible)) {
     bool enabled = behavior.IsEnabled();
     if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
       behavior.SetEnabled(enabled);
@@ -327,6 +329,102 @@ void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
     if (RenderBehaviorComponentImGui(component, *entry.second, entity)) {
       break;
     }
+  }
+}
+
+void RenderComponentImGui(BoxColliderComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Box Collider", &visible)) {
+    ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
+                      reinterpret_cast<float*>(&component.offset), 0.05f);
+    ImGui::DragFloat3(PrefixLabel("Half Extents").c_str(),
+                      reinterpret_cast<float*>(&component.half_extents), 0.05f,
+                      0.0f, 1000.0f);
+    ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<BoxColliderComponent>();
+    visible = true;
+  }
+}
+
+void RenderComponentImGui(SphereColliderComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Sphere Collider", &visible)) {
+    ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
+                      reinterpret_cast<float*>(&component.offset), 0.05f);
+    ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.05f,
+                     0.0f, 1000.0f);
+    ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<SphereColliderComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_BoxColliderComponent(Entity entity) {
+  if (ImGui::MenuItem("Box Collider")) {
+    entity.AddComponent<BoxColliderComponent>();
+  }
+}
+
+void RenderAddComponentImGui_SphereColliderComponent(Entity entity) {
+  if (ImGui::MenuItem("Sphere Collider")) {
+    entity.AddComponent<SphereColliderComponent>();
+  }
+}
+
+void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Rigid Body", &visible)) {
+    const char* types[] = {"Static", "Kinematic", "Dynamic"};
+    int type_idx = (int)component.type;
+    if (ImGui::Combo(PrefixLabel("Type").c_str(), &type_idx, types, 3)) {
+      component.type = (RigidBodyType)type_idx;
+      component.is_dirty = true;
+    }
+    if (component.type == RigidBodyType::Dynamic) {
+      if (ImGui::DragFloat(PrefixLabel("Mass").c_str(), &component.mass, 0.1f,
+                           0.01f, 10000.0f)) {
+        component.is_dirty = true;
+      }
+    }
+    if (ImGui::DragFloat(PrefixLabel("Friction").c_str(), &component.friction,
+                         0.01f, 0.0f, 1.0f)) {
+      component.is_dirty = true;
+    }
+    if (ImGui::DragFloat(PrefixLabel("Restitution").c_str(),
+                         &component.restitution, 0.01f, 0.0f, 1.0f)) {
+      component.is_dirty = true;
+    }
+    if (ImGui::DragFloat(PrefixLabel("Linear Damping").c_str(),
+                         &component.linear_damping, 0.01f, 0.0f, 1.0f)) {
+      component.is_dirty = true;
+    }
+    if (ImGui::DragFloat(PrefixLabel("Angular Damping").c_str(),
+                         &component.angular_damping, 0.01f, 0.0f, 1.0f)) {
+      component.is_dirty = true;
+    }
+    ImGui::Checkbox(PrefixLabel("Lock Rotation X").c_str(),
+                    &component.lock_rotation_x);
+    ImGui::Checkbox(PrefixLabel("Lock Rotation Y").c_str(),
+                    &component.lock_rotation_y);
+    ImGui::Checkbox(PrefixLabel("Lock Rotation Z").c_str(),
+                    &component.lock_rotation_z);
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<RigidBodyComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_RigidBodyComponent(Entity entity) {
+  if (ImGui::MenuItem("Rigid Body")) {
+    entity.AddComponent<RigidBodyComponent>();
   }
 }
 
@@ -458,6 +556,9 @@ void InitializeComponents() {
   RegisterComponentType<LightPointComponent>(RenderComponentImGui, RenderAddComponentImGui_LightPointComponent, nullptr);
   RegisterComponentType<CameraComponent>(RenderComponentImGui, RenderAddComponentImGui_CameraComponent, nullptr);
   RegisterComponentType<BehaviorsComponent>(RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
+  RegisterComponentType<BoxColliderComponent>(RenderComponentImGui, RenderAddComponentImGui_BoxColliderComponent, nullptr);
+  RegisterComponentType<SphereColliderComponent>(RenderComponentImGui, RenderAddComponentImGui_SphereColliderComponent, nullptr);
+  RegisterComponentType<RigidBodyComponent>(RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent, nullptr);
 }
 
 void RenderExistingComponents(Entity entity) {

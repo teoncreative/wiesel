@@ -3,6 +3,7 @@
 layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
+    float entityId;
 };
 
 layout(set = 1, binding = 1, std140) uniform Camera {
@@ -38,6 +39,7 @@ layout(location = 6) out uint outFlags;
 layout(location = 7) out vec3 outViewDir;
 layout(location = 8) out vec3 outViewPos; // view-space pos
 layout(location = 9) out mat3 outTBN;
+layout(location = 12) out flat float outEntityId;
 
 void main() {
     // world‐space
@@ -56,6 +58,7 @@ void main() {
     outUV = inUV;
     outFlags = inFlags;
     outViewDir = normalize(cam.position - outWorldPos);
+    outEntityId = entityId;
 
     gl_Position    = cam.projection * viewPos4;
 }

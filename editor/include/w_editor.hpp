@@ -6,10 +6,13 @@
 #define WIESEL_PARENT_W_EDITOR_H
 
 #include "behavior/w_behavior.hpp"
+#include "rendering/w_camera.hpp"
 #include "scene/w_scene.hpp"
 #include "w_application.hpp"
 
 namespace Wiesel::Editor {
+
+enum class EditorState { Edit, Playing };
 
 class EditorLayer : public Layer {
  public:
@@ -29,8 +32,30 @@ class EditorLayer : public Layer {
   void OnPrePresent() override;
 
  private:
+  void TakeSnapshot();
+  void RestoreSnapshot();
+
   Application& app_;
   Ref<Scene> scene_;
+
+  // Play/Stop state
+  EditorState editor_state_ = EditorState::Edit;
+
+  // Editor free camera (not in the scene's ECS)
+  CameraComponent editor_camera_;
+  TransformComponent editor_camera_transform_;
+  float editor_yaw_ = 0.0f;
+  float editor_pitch_ = 0.0f;
+  float camera_speed_ = 10.0f;
+  float mouse_sensitivity_ = 0.1f;
+  bool cursor_captured_ = false;
+  bool game_panel_focused_ = false;
+
+  // Scene snapshot for Play/Stop restore
+  struct EntitySnapshot {
+    glm::vec3 position, rotation, scale;
+  };
+  std::unordered_map<entt::entity, EntitySnapshot> scene_snapshot_;
 };
 }
 

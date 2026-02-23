@@ -37,6 +37,11 @@ class InputManager {
   static void Init();
   static void OnEvent(Event& event);
 
+  // When disabled, GetKey/IsPressed/GetAxis return false/0 for scripts.
+  // The underlying key state still updates so nothing is lost on re-enable.
+  static void SetEnabled(bool enabled);
+  static bool IsEnabled();
+
 };
 
 }  // namespace Wiesel

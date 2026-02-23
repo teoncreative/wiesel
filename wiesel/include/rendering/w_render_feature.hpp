@@ -25,7 +25,7 @@ class Scene;
 struct CameraComponent;
 class RenderPipeline;
 
-// Dynamic resource storage - replaces flat CameraComponent fields.
+// Dynamic resource storage. Replaces flat CameraComponent fields.
 // Resources are stored by name and looked up at runtime.
 class CameraResourcePool {
  public:

@@ -26,6 +26,7 @@ class IBehavior {
  public:
   IBehavior(const std::string& name, Entity entity)
       : name_(name),
+        editor_name_("Script: " + name),
         entity_(entity),
         scene_(entity.GetScene()),
         internal_behavior_(true),
@@ -58,6 +59,7 @@ class IBehavior {
   }
 
   WIESEL_GETTER_FN const std::string& GetName() { return name_; }
+  WIESEL_GETTER_FN const std::string& GetEditorName() { return editor_name_; }
 
   WIESEL_GETTER_FN bool IsInternalBehavior() const {
     return internal_behavior_;
@@ -73,6 +75,7 @@ class IBehavior {
 
  protected:
   std::string name_;
+  std::string editor_name_;
   Entity entity_;
   Scene* scene_;
   bool internal_behavior_;

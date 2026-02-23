@@ -20,6 +20,7 @@
 #include "rendering/w_render_feature.hpp"
 #include "rendering/w_rendergraph.hpp"
 #include "rendering/w_skybox.hpp"
+#include "physics/w_physics_world.hpp"
 #include "scene/w_components.hpp"
 #include "w_pch.hpp"
 
@@ -43,6 +44,7 @@ class Scene {
   void RemoveEntity(Entity entity);
 
   void OnUpdate(float_t delta_time);
+  void OnUpdateEditor(float_t delta_time);
   void OnEvent(Event& event);
 
   template <typename T>
@@ -106,6 +108,9 @@ class Scene {
     return registry_.view<Components...>();
   }
 
+  entt::registry& GetRegistry() { return registry_; }
+  PhysicsWorld& GetPhysicsWorld() { return *physics_world_; }
+
   /*
    * Returns the scene hierarchy. This is used by the editor.
    */
@@ -116,8 +121,13 @@ class Scene {
 
   void ProcessDestroyQueue();
   bool Render();
+  bool RenderFromExternal(CameraComponent& camera, TransformComponent& transform);
   void BuildRenderGraph(entt::entity camera_entity);
   void InvalidateRenderGraphs();
+
+  void ResetPhysicsWorld();
+  void ResetScriptStates();
+  void ResetFirstUpdate() { first_update_ = true; }
 
   template <typename Entity, typename... Components, typename Func>
   void BindSystem(SystemType type, Func func) {
@@ -164,6 +174,10 @@ class Scene {
   Ref<Skybox> skybox_;
   Ref<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, Ref<RenderGraph>> render_graphs_;
+  Ref<RenderGraph> external_render_graph_;
   std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
+  std::unique_ptr<PhysicsWorld> physics_world_;
+
+  void UpdateSceneState(float_t delta_time);
 };
 }  // namespace Wiesel

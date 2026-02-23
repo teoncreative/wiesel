@@ -61,6 +61,7 @@ bool CompileToDLL(const std::string& output_file,
     //args += " -debug:portable";
     args += " -debug";
   }
+  args += " -langversion:latest";
   args += " -target:library";
   //args += " /nologo";
   if (!lib_dir.empty()) {

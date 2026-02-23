@@ -36,6 +36,7 @@ struct LightPoint {
 layout (set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
+    float entityId;
 };
 
 layout (set = 1, binding = 1, std140) uniform Camera {
@@ -71,6 +72,7 @@ layout(location = 6) in flat uint inFlags;
 layout(location = 7) in vec3 inViewDir;
 layout(location = 8) in vec3 inViewPos;
 layout(location = 9) in mat3 inTBN;
+layout(location = 12) in flat float inEntityId;
 
 layout(location = 0) out vec4 outViewPos;
 layout(location = 1) out vec4 outWorldPos;
@@ -78,6 +80,7 @@ layout(location = 2) out float outDepth;
 layout(location = 3) out vec4 outNormal;
 layout(location = 4) out vec4 outAlbedo;
 layout(location = 5) out vec4 outMaterial;
+layout(location = 6) out float outEntityId;
 
 
 vec3 getSurfaceNormal() {
@@ -134,6 +137,7 @@ void main() {
     outNormal = vec4(normal * 0.5 + 0.5, 1.0);
     outAlbedo = vec4(inColor, 1.0f) * baseColor;
     outMaterial = vec4(specular, roughness, metallic, 0);
+    outEntityId = inEntityId;
     /*switch(cascadeIndex) {
         case 0 :
             outColor.rgb *= vec3(1.0f, 0.25f, 0.25f);

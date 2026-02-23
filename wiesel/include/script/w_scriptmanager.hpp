@@ -98,6 +98,12 @@ class ScriptData {
              MonoMethod* keyPressedMethod,
              MonoMethod* keyReleasedMethod,
              MonoMethod* mouseMovedMethod,
+             MonoMethod* triggerEnterMethod,
+             MonoMethod* triggerStayMethod,
+             MonoMethod* triggerExitMethod,
+             MonoMethod* collisionEnterMethod,
+             MonoMethod* collisionStayMethod,
+             MonoMethod* collisionExitMethod,
              std::unordered_map<std::string, FieldData> fields) : mono_class_(klass),
         on_update_method_(onUpdateMethod),
         on_start_method_(onStartMethod),
@@ -105,6 +111,12 @@ class ScriptData {
         on_key_pressed_method_(keyPressedMethod),
         on_key_released_method_(keyReleasedMethod),
         on_mouse_moved_method_(mouseMovedMethod),
+        on_trigger_enter_method_(triggerEnterMethod),
+        on_trigger_stay_method_(triggerStayMethod),
+        on_trigger_exit_method_(triggerExitMethod),
+        on_collision_enter_method_(collisionEnterMethod),
+        on_collision_stay_method_(collisionStayMethod),
+        on_collision_exit_method_(collisionExitMethod),
         fields_(fields) {}
 
   MonoClass* mono_class() const { return mono_class_; }
@@ -114,6 +126,12 @@ class ScriptData {
   MonoMethod* on_key_pressed_method() const { return on_key_pressed_method_; }
   MonoMethod* on_key_released_method() const { return on_key_released_method_; }
   MonoMethod* on_mouse_moved_method() const { return on_mouse_moved_method_; }
+  MonoMethod* on_trigger_enter_method() const { return on_trigger_enter_method_; }
+  MonoMethod* on_trigger_stay_method() const { return on_trigger_stay_method_; }
+  MonoMethod* on_trigger_exit_method() const { return on_trigger_exit_method_; }
+  MonoMethod* on_collision_enter_method() const { return on_collision_enter_method_; }
+  MonoMethod* on_collision_stay_method() const { return on_collision_stay_method_; }
+  MonoMethod* on_collision_exit_method() const { return on_collision_exit_method_; }
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
  private:
@@ -124,6 +142,12 @@ class ScriptData {
   MonoMethod* on_key_pressed_method_;
   MonoMethod* on_key_released_method_;
   MonoMethod* on_mouse_moved_method_;
+  MonoMethod* on_trigger_enter_method_;
+  MonoMethod* on_trigger_stay_method_;
+  MonoMethod* on_trigger_exit_method_;
+  MonoMethod* on_collision_enter_method_;
+  MonoMethod* on_collision_stay_method_;
+  MonoMethod* on_collision_exit_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
 };
@@ -139,11 +163,20 @@ class ScriptInstance {
   ScriptData& script_data() const { return *script_data_; }
 
   void OnStart();
-  void OnUpdate(float_t deltaTime);
+  void OnUpdate(float_t delta_time);
+  void ResetStartState() { has_started_ = false; }
 
   bool OnKeyPressed(KeyPressedEvent& event);
   bool OnKeyReleased(KeyReleasedEvent& event);
   bool OnMouseMoved(MouseMovedEvent& event);
+
+  void OnTriggerEnter(entt::entity other);
+  void OnTriggerStay(entt::entity other);
+  void OnTriggerExit(entt::entity other);
+
+  void OnCollisionEnter(entt::entity other);
+  void OnCollisionStay(entt::entity other);
+  void OnCollisionExit(entt::entity other);
 
   template<class T>
   void AttachExternComponent(std::string variable, entt::entity entity);
@@ -153,7 +186,7 @@ class ScriptInstance {
  private:
   friend class MonoBehavior;
 
-  bool m_StartRan = false;
+  bool has_started_ = false;
   MonoObject* handle_;
   MonoBehavior* behavior_;
   std::shared_ptr<ScriptData> script_data_;
@@ -204,6 +237,9 @@ class ScriptManager {
   static MonoClass* behavior_class_;
   static MonoClass* transform_component_class_;
   static MonoClass* model_component_class_;
+  static MonoClass* box_collider_class_;
+  static MonoClass* sphere_collider_class_;
+  static MonoClass* rigidbody_class_;
   static MonoClass* vector3f_class_;
   static MonoMethod* set_handle_method_;
   static std::map<std::string, ComponentGetter> component_getters_;

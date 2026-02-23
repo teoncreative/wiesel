@@ -51,7 +51,7 @@ struct CameraComponent {
 
   FrustumPlanes planes;
 
-  // Dynamic resource storage (replaces all flat texture/framebuffer/descriptor fields)
+  // Dynamic resource storage
   CameraResourcePool resource_pool;
 
   // Per-camera pipeline override (nullptr = use scene default)

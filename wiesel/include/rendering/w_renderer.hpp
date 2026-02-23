@@ -311,12 +311,16 @@ class Renderer {
   void SetViewport(glm::vec2 extent);
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
-                 bool shadowPass);
+                 bool shadowPass, entt::entity entity_handle = entt::null);
   void DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors, bool shadowPass);
   void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
+  void RequestEntityPick(uint32_t x, uint32_t y,
+                         Ref<AttachmentTexture> entity_id_texture);
+  bool ExecuteEntityPick(entt::entity& out_entity);
+
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
   Pipeline* GetBoundPipeline() const { return bound_pipeline_; }
 
@@ -510,10 +514,13 @@ class Renderer {
   Ref<DescriptorSetLayout> geometry_output_descriptor_layout_;
   Ref<DescriptorSetLayout> sprite_draw_descriptor_layout_;
 
-#ifdef ID_BUFFER_PASS
-  Ref<RenderPass> id_render_pass_;
-  Ref<Pipeline> id_pipeline_;
-#endif
+  // Entity picking readback
+  VkBuffer pick_staging_buffer_ = VK_NULL_HANDLE;
+  VkDeviceMemory pick_staging_memory_ = VK_NULL_HANDLE;
+  bool pick_pending_ = false;
+  uint32_t pick_x_ = 0;
+  uint32_t pick_y_ = 0;
+  Ref<AttachmentTexture> pick_entity_id_image_;
 
   Ref<DescriptorSetLayout> skybox_descriptor_layout_;
   Ref<DescriptorSetLayout> postprocess_2input_descriptor_layout_;

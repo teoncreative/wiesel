@@ -162,8 +162,9 @@ struct VertexSprite {
 };
 
 struct alignas(16) MatricesUniformData {
-  alignas(16) glm::mat4 ModelMatrix;
-  alignas(16) glm::mat3 NormalMatrix;
+  alignas(16) glm::mat4 model_matrix;
+  alignas(16) glm::mat3 normal_matrix;
+  float entity_id = 0.0f;
 };
 
 struct alignas(16) SpriteUniformData {

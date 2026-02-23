@@ -11,6 +11,10 @@
 #include "script/w_scriptmanager.hpp"
 
 #include <direct.h>
+#include "physics/w_collider.hpp"
+#include "physics/w_collision_system.hpp"
+#include "physics/w_rigidbody.hpp"
+#include "physics/w_physics_world.hpp"
 #include "rendering/w_mesh.hpp"
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-config.h>
@@ -230,6 +234,210 @@ void Internals_ModelComponent_SetEnableRendering(Scene* scene,
   scene->GetComponent<ModelComponent>(entity).enable_rendering = value;
 }
 
+// --- BoxColliderComponent ---
+float Internals_BoxCollider_GetOffsetX(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).offset.x;
+}
+float Internals_BoxCollider_GetOffsetY(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).offset.y;
+}
+float Internals_BoxCollider_GetOffsetZ(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).offset.z;
+}
+void Internals_BoxCollider_SetOffsetX(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<BoxColliderComponent>(entity).offset.x = v;
+}
+void Internals_BoxCollider_SetOffsetY(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<BoxColliderComponent>(entity).offset.y = v;
+}
+void Internals_BoxCollider_SetOffsetZ(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<BoxColliderComponent>(entity).offset.z = v;
+}
+float Internals_BoxCollider_GetHalfExtentsX(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).half_extents.x;
+}
+float Internals_BoxCollider_GetHalfExtentsY(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).half_extents.y;
+}
+float Internals_BoxCollider_GetHalfExtentsZ(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).half_extents.z;
+}
+void Internals_BoxCollider_SetHalfExtentsX(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<BoxColliderComponent>(entity).half_extents.x = v;
+}
+void Internals_BoxCollider_SetHalfExtentsY(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<BoxColliderComponent>(entity).half_extents.y = v;
+}
+void Internals_BoxCollider_SetHalfExtentsZ(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<BoxColliderComponent>(entity).half_extents.z = v;
+}
+bool Internals_BoxCollider_GetIsTrigger(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<BoxColliderComponent>(entity).is_trigger;
+}
+void Internals_BoxCollider_SetIsTrigger(Scene* scene, entt::entity entity, bool v) {
+  scene->GetComponent<BoxColliderComponent>(entity).is_trigger = v;
+}
+
+// --- SphereColliderComponent ---
+float Internals_SphereCollider_GetOffsetX(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<SphereColliderComponent>(entity).offset.x;
+}
+float Internals_SphereCollider_GetOffsetY(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<SphereColliderComponent>(entity).offset.y;
+}
+float Internals_SphereCollider_GetOffsetZ(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<SphereColliderComponent>(entity).offset.z;
+}
+void Internals_SphereCollider_SetOffsetX(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<SphereColliderComponent>(entity).offset.x = v;
+}
+void Internals_SphereCollider_SetOffsetY(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<SphereColliderComponent>(entity).offset.y = v;
+}
+void Internals_SphereCollider_SetOffsetZ(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<SphereColliderComponent>(entity).offset.z = v;
+}
+float Internals_SphereCollider_GetRadius(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<SphereColliderComponent>(entity).radius;
+}
+void Internals_SphereCollider_SetRadius(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<SphereColliderComponent>(entity).radius = v;
+}
+bool Internals_SphereCollider_GetIsTrigger(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<SphereColliderComponent>(entity).is_trigger;
+}
+void Internals_SphereCollider_SetIsTrigger(Scene* scene, entt::entity entity, bool v) {
+  scene->GetComponent<SphereColliderComponent>(entity).is_trigger = v;
+}
+
+// --- RigidBodyComponent ---
+// All runtime physics access goes through RigidBodyComponent C++ API,
+// which is the single source of truth for both C++ and C# callers.
+int32_t Internals_RigidBody_GetType(Scene* scene, entt::entity entity) {
+  return (int32_t)scene->GetComponent<RigidBodyComponent>(entity).type;
+}
+void Internals_RigidBody_SetType(Scene* scene, entt::entity entity, int32_t v) {
+  auto& rb = scene->GetComponent<RigidBodyComponent>(entity);
+  rb.type = (RigidBodyType)v;
+  rb.is_dirty = true;
+}
+float Internals_RigidBody_GetMass(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).mass;
+}
+void Internals_RigidBody_SetMass(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetMassRuntime(v);
+}
+float Internals_RigidBody_GetLinearVelocityX(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).GetLinearVelocity().x;
+}
+float Internals_RigidBody_GetLinearVelocityY(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).GetLinearVelocity().y;
+}
+float Internals_RigidBody_GetLinearVelocityZ(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).GetLinearVelocity().z;
+}
+void Internals_RigidBody_SetLinearVelocity(Scene* scene, entt::entity entity,
+                                           float x, float y, float z) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetLinearVelocity({x, y, z});
+}
+float Internals_RigidBody_GetAngularVelocityX(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).GetAngularVelocity().x;
+}
+float Internals_RigidBody_GetAngularVelocityY(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).GetAngularVelocity().y;
+}
+float Internals_RigidBody_GetAngularVelocityZ(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).GetAngularVelocity().z;
+}
+void Internals_RigidBody_SetAngularVelocity(Scene* scene, entt::entity entity,
+                                            float x, float y, float z) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetAngularVelocity({x, y, z});
+}
+float Internals_RigidBody_GetFriction(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).friction;
+}
+void Internals_RigidBody_SetFriction(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetFrictionRuntime(v);
+}
+float Internals_RigidBody_GetRestitution(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).restitution;
+}
+void Internals_RigidBody_SetRestitution(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetRestitutionRuntime(v);
+}
+float Internals_RigidBody_GetLinearDamping(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).linear_damping;
+}
+void Internals_RigidBody_SetLinearDamping(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetLinearDampingRuntime(v);
+}
+float Internals_RigidBody_GetAngularDamping(Scene* scene, entt::entity entity) {
+  return scene->GetComponent<RigidBodyComponent>(entity).angular_damping;
+}
+void Internals_RigidBody_SetAngularDamping(Scene* scene, entt::entity entity, float v) {
+  scene->GetComponent<RigidBodyComponent>(entity).SetAngularDampingRuntime(v);
+}
+void Internals_RigidBody_AddForce(Scene* scene, entt::entity entity,
+                                  float x, float y, float z) {
+  scene->GetComponent<RigidBodyComponent>(entity).AddForce({x, y, z});
+}
+void Internals_RigidBody_AddImpulse(Scene* scene, entt::entity entity,
+                                    float x, float y, float z) {
+  scene->GetComponent<RigidBodyComponent>(entity).AddImpulse({x, y, z});
+}
+
+// --- Physics queries (backed by PhysicsWorld) ---
+bool Internals_Physics_Raycast(Scene* scene,
+    float ox, float oy, float oz,
+    float dx, float dy, float dz, float maxDist,
+    uint64_t ignoreEntity,
+    uint64_t* outEntity, float* outPx, float* outPy, float* outPz,
+    float* outNx, float* outNy, float* outNz, float* outDist) {
+  glm::vec3 origin(ox, oy, oz);
+  glm::vec3 dir = glm::normalize(glm::vec3(dx, dy, dz));
+  glm::vec3 to = origin + dir * maxDist;
+
+  entt::entity ignore = (ignoreEntity != 0)
+      ? static_cast<entt::entity>(static_cast<uint32_t>(ignoreEntity))
+      : entt::null;
+
+  RaycastHit hit;
+  if (scene->GetPhysicsWorld().Raycast(origin, to, hit, ignore)) {
+    *outEntity = (uint64_t)hit.entity;
+    *outPx = hit.point.x; *outPy = hit.point.y; *outPz = hit.point.z;
+    *outNx = hit.normal.x; *outNy = hit.normal.y; *outNz = hit.normal.z;
+    *outDist = hit.distance;
+    return true;
+  }
+  return false;
+}
+
+MonoArray* Internals_Physics_OverlapBox(Scene* scene,
+    float cx, float cy, float cz, float hx, float hy, float hz) {
+  auto entities = scene->GetPhysicsWorld().OverlapBox(
+      glm::vec3(cx, cy, cz), glm::vec3(hx, hy, hz));
+
+  MonoArray* arr = mono_array_new(ScriptManager::app_domain(),
+      mono_get_uint64_class(), entities.size());
+  for (size_t i = 0; i < entities.size(); i++) {
+    mono_array_set(arr, uint64_t, i, (uint64_t)entities[i]);
+  }
+  return arr;
+}
+
+MonoArray* Internals_Physics_OverlapSphere(Scene* scene,
+    float cx, float cy, float cz, float radius) {
+  auto entities = scene->GetPhysicsWorld().OverlapSphere(
+      glm::vec3(cx, cy, cz), radius);
+
+  MonoArray* arr = mono_array_new(ScriptManager::app_domain(),
+      mono_get_uint64_class(), entities.size());
+  for (size_t i = 0; i < entities.size(); i++) {
+    mono_array_set(arr, uint64_t, i, (uint64_t)entities[i]);
+  }
+  return arr;
+}
+
 MonoObject* CreateVector3fWithValues(float x, float y, float z) {
   MonoObject* obj = mono_object_new(ScriptManager::app_domain(),
                                     ScriptManager::vector3f_class());
@@ -315,15 +523,15 @@ void ScriptInstance::OnStart() {
                       nullptr);
 }
 
-void ScriptInstance::OnUpdate(float_t deltaTime) {
-  if (!m_StartRan) {
+void ScriptInstance::OnUpdate(float_t delta_time) {
+  if (!has_started_) {
     OnStart();
-    m_StartRan = true;
+    has_started_ = true;
   }
 
   mono_domain_set(ScriptManager::app_domain(), true);
   void* args[1];
-  args[0] = &deltaTime;
+  args[0] = &delta_time;
   mono_runtime_invoke(script_data_->on_update_method(), handle_, args,
                       nullptr);
 }
@@ -376,6 +584,66 @@ bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
   return value;
 }
 
+void ScriptInstance::OnTriggerEnter(entt::entity other) {
+  if (!script_data_->on_trigger_enter_method()) return;
+  mono_domain_set(ScriptManager::app_domain(), true);
+  void* args[1];
+  uint64_t otherId = (uint64_t)other;
+  args[0] = &otherId;
+  mono_runtime_invoke(script_data_->on_trigger_enter_method(), handle_, args,
+                      nullptr);
+}
+
+void ScriptInstance::OnTriggerStay(entt::entity other) {
+  if (!script_data_->on_trigger_stay_method()) return;
+  mono_domain_set(ScriptManager::app_domain(), true);
+  void* args[1];
+  uint64_t otherId = (uint64_t)other;
+  args[0] = &otherId;
+  mono_runtime_invoke(script_data_->on_trigger_stay_method(), handle_, args,
+                      nullptr);
+}
+
+void ScriptInstance::OnTriggerExit(entt::entity other) {
+  if (!script_data_->on_trigger_exit_method()) return;
+  mono_domain_set(ScriptManager::app_domain(), true);
+  void* args[1];
+  uint64_t otherId = (uint64_t)other;
+  args[0] = &otherId;
+  mono_runtime_invoke(script_data_->on_trigger_exit_method(), handle_, args,
+                      nullptr);
+}
+
+void ScriptInstance::OnCollisionEnter(entt::entity other) {
+  if (!script_data_->on_collision_enter_method()) return;
+  mono_domain_set(ScriptManager::app_domain(), true);
+  void* args[1];
+  uint64_t otherId = (uint64_t)other;
+  args[0] = &otherId;
+  mono_runtime_invoke(script_data_->on_collision_enter_method(), handle_, args,
+                      nullptr);
+}
+
+void ScriptInstance::OnCollisionStay(entt::entity other) {
+  if (!script_data_->on_collision_stay_method()) return;
+  mono_domain_set(ScriptManager::app_domain(), true);
+  void* args[1];
+  uint64_t otherId = (uint64_t)other;
+  args[0] = &otherId;
+  mono_runtime_invoke(script_data_->on_collision_stay_method(), handle_, args,
+                      nullptr);
+}
+
+void ScriptInstance::OnCollisionExit(entt::entity other) {
+  if (!script_data_->on_collision_exit_method()) return;
+  mono_domain_set(ScriptManager::app_domain(), true);
+  void* args[1];
+  uint64_t otherId = (uint64_t)other;
+  args[0] = &otherId;
+  mono_runtime_invoke(script_data_->on_collision_exit_method(), handle_, args,
+                      nullptr);
+}
+
 // explicitly instantiate needed types, this is required:
 template void ScriptInstance::AttachExternComponent<TransformComponent>(std::string, entt::entity);
 
@@ -387,7 +655,7 @@ void ScriptInstance::AttachExternComponent(std::string variable,
     return ScriptManager::GetComponent<T>(scene, entity);
   }));
 
-  if (m_StartRan) {
+  if (has_started_) {
     UpdateAttachments();
   }
 }
@@ -416,6 +684,9 @@ MonoImage* ScriptManager::app_assembly_image_ = nullptr;
 MonoClass* ScriptManager::behavior_class_ = nullptr;
 MonoClass* ScriptManager::transform_component_class_ = nullptr;
 MonoClass* ScriptManager::model_component_class_ = nullptr;
+MonoClass* ScriptManager::box_collider_class_ = nullptr;
+MonoClass* ScriptManager::sphere_collider_class_ = nullptr;
+MonoClass* ScriptManager::rigidbody_class_ = nullptr;
 MonoClass* ScriptManager::vector3f_class_ = nullptr;
 MonoMethod* ScriptManager::set_handle_method_ = nullptr;
 
@@ -552,6 +823,12 @@ void ScriptManager::LoadCore() {
       core_assembly_image_, "WieselEngine", "TransformComponent");
   model_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "ModelComponent");
+  box_collider_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "BoxColliderComponent");
+  sphere_collider_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "SphereColliderComponent");
+  rigidbody_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "RigidBodyComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
 }
@@ -657,11 +934,27 @@ void ScriptManager::LoadApp() {
         mono_class_get_method_from_name(klass, "OnKeyReleased", 1);  // KeyCode
     MonoMethod* onMouseMovedMethod = mono_class_get_method_from_name(
         klass, "OnMouseMoved", 3);  // x, y, cursorMode
+    MonoMethod* onTriggerEnterMethod =
+        mono_class_get_method_from_name(klass, "OnTriggerEnter", 1);
+    MonoMethod* onTriggerStayMethod =
+        mono_class_get_method_from_name(klass, "OnTriggerStay", 1);
+    MonoMethod* onTriggerExitMethod =
+        mono_class_get_method_from_name(klass, "OnTriggerExit", 1);
+    MonoMethod* onCollisionEnterMethod =
+        mono_class_get_method_from_name(klass, "OnCollisionEnter", 1);
+    MonoMethod* onCollisionStayMethod =
+        mono_class_get_method_from_name(klass, "OnCollisionStay", 1);
+    MonoMethod* onCollisionExitMethod =
+        mono_class_get_method_from_name(klass, "OnCollisionExit", 1);
     script_data_.insert(std::pair(
         className,
         std::make_shared<ScriptData>(klass, onStartMethod, onUpdateMethod, set_handle_method_,
                        onKeyPressedMethod, onKeyReleasedMethod,
-                       onMouseMovedMethod, fields)));
+                       onMouseMovedMethod,
+                       onTriggerEnterMethod, onTriggerStayMethod,
+                       onTriggerExitMethod,
+                       onCollisionEnterMethod, onCollisionStayMethod,
+                       onCollisionExitMethod, fields)));
     script_names_.push_back(className);
   }
 }
@@ -700,6 +993,59 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetDown);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetEnableRendering);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetEnableRendering);
+  // BoxColliderComponent
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetX);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetY);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetZ);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetOffsetX);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetOffsetY);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetOffsetZ);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetHalfExtentsX);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetHalfExtentsY);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetHalfExtentsZ);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetHalfExtentsX);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetHalfExtentsY);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetHalfExtentsZ);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetIsTrigger);
+  WIESEL_ADD_INTERNAL_CALL(BoxCollider_SetIsTrigger);
+  // SphereColliderComponent
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_GetOffsetX);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_GetOffsetY);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_GetOffsetZ);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_SetOffsetX);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_SetOffsetY);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_SetOffsetZ);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_GetRadius);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_SetRadius);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_GetIsTrigger);
+  WIESEL_ADD_INTERNAL_CALL(SphereCollider_SetIsTrigger);
+  // RigidBodyComponent
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetType);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetType);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetMass);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetMass);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetLinearVelocityX);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetLinearVelocityY);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetLinearVelocityZ);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetLinearVelocity);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetAngularVelocityX);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetAngularVelocityY);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetAngularVelocityZ);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetAngularVelocity);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetFriction);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetFriction);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetRestitution);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetRestitution);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetLinearDamping);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetLinearDamping);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_GetAngularDamping);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_SetAngularDamping);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_AddForce);
+  WIESEL_ADD_INTERNAL_CALL(RigidBody_AddImpulse);
+  // Physics queries
+  WIESEL_ADD_INTERNAL_CALL(Physics_Raycast);
+  WIESEL_ADD_INTERNAL_CALL(Physics_OverlapBox);
+  WIESEL_ADD_INTERNAL_CALL(Physics_OverlapSphere);
 }
 
 void ScriptManager::RegisterComponents() {
@@ -745,6 +1091,66 @@ void ScriptManager::RegisterComponents() {
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<ModelComponent>(entity);
+      });
+
+  RegisterComponent<BoxColliderComponent>(
+      "BoxColliderComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj =
+            mono_object_new(app_domain_, box_collider_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+
+        MonoMethod* method = mono_class_get_method_from_name(
+            box_collider_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<BoxColliderComponent>(entity);
+      });
+
+  RegisterComponent<SphereColliderComponent>(
+      "SphereColliderComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj =
+            mono_object_new(app_domain_, sphere_collider_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+
+        MonoMethod* method = mono_class_get_method_from_name(
+            sphere_collider_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<SphereColliderComponent>(entity);
+      });
+
+  RegisterComponent<RigidBodyComponent>(
+      "RigidBodyComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj =
+            mono_object_new(app_domain_, rigidbody_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+
+        MonoMethod* method = mono_class_get_method_from_name(
+            rigidbody_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<RigidBodyComponent>(entity);
       });
 }
 

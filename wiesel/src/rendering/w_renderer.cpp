@@ -2758,10 +2758,10 @@ void Renderer::DrawModel(ModelComponent& model,
 
   // Update this entity's transform UBO
   MatricesUniformData matrices{};
-  matrices.ModelMatrix = transform.transform_matrix;
-  matrices.NormalMatrix = transform.normal_matrix;
+  matrices.model_matrix = transform.transform_matrix;
+  matrices.normal_matrix = transform.normal_matrix;
   if (entity_handle != entt::null) {
-    matrices.EntityId = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+    matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
   }
   memcpy(model.uniform_buffer->data_, &matrices, sizeof(MatricesUniformData));
 

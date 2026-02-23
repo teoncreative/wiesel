@@ -24,6 +24,7 @@ float mouse_axis_sens_x_ = 80.0f;
 float mouse_axis_sens_y_ = 80.0f;
 InputMode input_mode_ = kInputModeKeyboardAndMouse;
 float mouse_axis_limit_y_ = 75.0f;
+bool input_enabled_ = true;
 
 static void UpdateKeyboardAxis() {
   bool right = InputManager::GetKey("Right");
@@ -127,6 +128,7 @@ void InputManager::OnEvent(Event& event) {
 }
 
 bool InputManager::GetKey(const std::string& key) {
+  if (!input_enabled_) return false;
   for (const auto& code : keyboard_mapping_[key]) {
     if (keys_[code].pressed) {
       return true;
@@ -136,11 +138,21 @@ bool InputManager::GetKey(const std::string& key) {
 }
 
 bool InputManager::IsPressed(KeyCode code) {
+  if (!input_enabled_) return false;
   return keys_[code].pressed;
 }
 
 float InputManager::GetAxis(const std::string& axisName) {
+  if (!input_enabled_) return 0.0f;
   return axis_[axisName];
+}
+
+void InputManager::SetEnabled(bool enabled) {
+  input_enabled_ = enabled;
+}
+
+bool InputManager::IsEnabled() {
+  return input_enabled_;
 }
 
 

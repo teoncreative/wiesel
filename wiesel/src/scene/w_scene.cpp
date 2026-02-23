@@ -27,6 +27,7 @@
 #include "rendering/features/w_motion_blur_feature.hpp"
 #include "rendering/features/w_fxaa_feature.hpp"
 #include "scene/w_entity.hpp"
+#include "script/mono/w_monobehavior.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
@@ -34,6 +35,7 @@ class PipelineRecreatedEvent;
 
 Scene::Scene() {
   current_camera_ = CreateReference<CameraData>();
+  physics_world_ = std::make_unique<PhysicsWorld>(this);
 }
 
 Scene::~Scene() {}
@@ -68,6 +70,9 @@ void Scene::DestroyEntity(entt::entity handle) {
 void Scene::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
   if (!first_update_) [[likely]] {
+    // Create bodies for new entities before scripts run
+    physics_world_->EnsureBodiesExist();
+
     for (const auto& entity : registry_.view<BehaviorsComponent>()) {
       BehaviorsComponent& component = registry_.get<BehaviorsComponent>(entity);
       for (IBehavior*& value : component.behaviors_ | std::views::values) {
@@ -77,10 +82,25 @@ void Scene::OnUpdate(float_t delta_time) {
     for (auto&& fn : systems_[SystemType::Update]) {
       fn(delta_time);
     }
+
+    // Physics step
+    physics_world_->SyncTransformsFromECS();
+    physics_world_->StepSimulation(delta_time);
+    physics_world_->SyncTransformsToECS();
+    physics_world_->DetectContacts();
   } else {
     first_update_ = false;
   }
 
+  UpdateSceneState(delta_time);
+}
+
+void Scene::OnUpdateEditor(float_t delta_time) {
+  PROFILE_ZONE_SCOPED();
+  UpdateSceneState(delta_time);
+}
+
+void Scene::UpdateSceneState(float_t delta_time) {
   for (const auto& entity : registry_.view<TransformComponent>()) {
     auto& transform = registry_.get<TransformComponent>(entity);
     if (transform.is_changed) {
@@ -199,6 +219,7 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
 void Scene::ProcessDestroyQueue() {
   PROFILE_ZONE_SCOPED();
   for (const auto& item : destroy_queue_) {
+    physics_world_->DestroyBody(item);
     DestroyEntity(item);
   }
   destroy_queue_.clear();
@@ -320,6 +341,82 @@ bool Scene::Render() {
     hasCamera = true;
   }
   return hasCamera;
+}
+
+bool Scene::RenderFromExternal(CameraComponent& camera,
+                               TransformComponent& transform) {
+  PROFILE_ZONE_SCOPED();
+  Ref<Renderer> renderer = Engine::GetRenderer();
+
+  if (!default_pipeline_) {
+    default_pipeline_ = CreateDefaultPipeline(renderer);
+  }
+
+  // Compute transform matrix (no entity hierarchy for external camera)
+  glm::vec3 rotRad = glm::radians(transform.rotation);
+  glm::mat4 R = glm::toMat4(glm::quat(rotRad));
+  glm::mat4 T = glm::translate(glm::mat4(1.0f), transform.position);
+  glm::mat4 S = glm::scale(glm::mat4(1.0f), transform.scale);
+  transform.transform_matrix = T * R * S;
+
+  // Update camera matrices
+  if (camera.view_changed) {
+    camera.UpdateProjection();
+    camera.view_changed = false;
+  }
+  camera.UpdateView(transform.transform_matrix);
+  camera.UpdateAll();
+
+  // Setup resources if dirty
+  if (camera.resources_dirty) {
+    vkDeviceWaitIdle(renderer->GetLogicalDevice());
+    bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
+    RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
+                      camera.viewport_size, use_resolve};
+    auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
+                                            : *default_pipeline_;
+    pipeline.SetupResources(ctx);
+    camera.resources_dirty = false;
+    external_render_graph_ = nullptr;
+  }
+
+  current_camera_->TransferFrom(camera, transform);
+  renderer->SetCameraData(current_camera_);
+  renderer->UpdateUniformData();
+
+  // Build and execute render graph
+  external_render_graph_ = CreateReference<RenderGraph>(*renderer);
+  bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
+  RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
+                    camera.viewport_size, use_resolve};
+  auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
+                                          : *default_pipeline_;
+  pipeline.BuildRenderGraph(*external_render_graph_, ctx);
+  external_render_graph_->Compile();
+  external_render_graph_->Execute(renderer->GetCommandBuffer().handle_);
+
+  camera.prev_view_projection = camera.projection * camera.view_matrix;
+  return true;
+}
+
+void Scene::ResetPhysicsWorld() {
+  glm::vec3 gravity = physics_world_->GetGravity();
+  physics_world_.reset();
+  physics_world_ = std::make_unique<PhysicsWorld>(this);
+  physics_world_->SetGravity(gravity);
+}
+
+void Scene::ResetScriptStates() {
+  for (const auto& entity : registry_.view<BehaviorsComponent>()) {
+    auto& component = registry_.get<BehaviorsComponent>(entity);
+    for (auto& [name, behavior] : component.behaviors_) {
+      if (auto* mono = dynamic_cast<MonoBehavior*>(behavior)) {
+        if (auto* instance = mono->script_instance()) {
+          instance->ResetStartState();
+        }
+      }
+    }
+  }
 }
 
 void Scene::SetRenderPipeline(Ref<RenderPipeline> pipeline) {
