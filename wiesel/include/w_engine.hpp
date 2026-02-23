@@ -49,7 +49,7 @@ class Engine {
   }
 
   static aiScene* LoadAssimpModel(const std::string& path,
-                                  bool convertToLeftHanded = true);
+                                  bool convert_to_left_handed = true);
 
   static void LoadModelAsync(AssetHandle handle);
 

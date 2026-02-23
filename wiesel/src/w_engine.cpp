@@ -303,7 +303,7 @@ std::shared_ptr<VirtualFileSystem> Engine::GetVirtualFileSystem() {
 }
 
 aiScene* Engine::LoadAssimpModel(const std::string& path,
-                                 bool convertToLeftHanded) {
+                                 bool convert_to_left_handed) {
   LOG_INFO("Loading model: {}", path);
 
   // Derive base directory for resolving relative references (e.g. .bin, textures)
@@ -321,7 +321,7 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
   uint32_t flags = aiProcess_Triangulate | aiProcess_CalcTangentSpace |
                    aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
                    aiProcessPreset_TargetRealtime_Fast;
-  if (convertToLeftHanded) {
+  if (convert_to_left_handed) {
     flags |= aiProcess_ConvertToLeftHanded;
   }
   importer.ReadFile(path.c_str(), flags);
