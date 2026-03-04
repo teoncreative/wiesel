@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include <fmt/core.h>
+#include <format>
+#include <print>
 
 #include "w_pch.hpp"
 
@@ -55,7 +56,7 @@ WIESEL_FUNC_SIG
 // MSVC Version
 
 #define PRINTFN(fmsg, func, msg, ...) \
-  fmt::print(fmsg, func, fmt::format(msg, __VA_ARGS__))
+  std::print(fmsg, func, std::format(msg, __VA_ARGS__))
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 #define LOG_DEBUG(msg, ...)                                    \
@@ -93,7 +94,7 @@ WIESEL_FUNC_SIG
 
 // Non-MSVC Version
 #define PRINTFN(fmsg, func, msg, args...) \
-  fmt::print(fmsg, func, fmt::format(msg, ##args))
+  std::print(fmsg, func, std::format(msg, ##args))
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
 #define LOG_DEBUG(msg, args...)                                    \

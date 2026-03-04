@@ -17,6 +17,7 @@
 
 #include <assimp/Importer.hpp>
 
+#include "animation/w_animation.hpp"
 #include "asset/w_asset_handle.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_descriptor.hpp"
@@ -38,6 +39,7 @@ struct Mesh {
   std::vector<Index> indices;
   std::string model_path;
   Ref<Material> mat;
+  int32_t node_index = -1;  // which node in the hierarchy this mesh belongs to
 
   // Shared GPU geometry (created once, used by all entities referencing this mesh)
   Ref<MemoryBuffer> vertex_buffer;
@@ -54,6 +56,13 @@ struct Model {
   std::string model_path;
   std::string textures_path;
   std::map<std::string, Ref<Texture>> textures;
+
+  // Animation data (shared across all entities using this model)
+  Skeleton skeleton;
+  NodeHierarchy node_hierarchy;
+  std::vector<AnimationClip> animation_clips;
+  bool has_skeleton = false;
+  bool has_animations = false;
 };
 
 struct ModelComponent : public IComponent {
@@ -75,5 +84,12 @@ struct ModelComponent : public IComponent {
   std::vector<Ref<DescriptorSet>> geometry_descriptors;  // one per mesh
   std::vector<Ref<DescriptorSet>> shadow_descriptors;    // one per mesh
   AssetHandle render_model;  // tracks which model render data was built for
+
+  // Bone animation GPU data (per-entity)
+  Ref<UniformBuffer> bone_ubo_;
+  Ref<DescriptorSet> bone_descriptor_;
+
+  // Per-mesh UBOs for node animation (only allocated for animated models)
+  std::vector<Ref<UniformBuffer>> mesh_uniform_buffers_;
 };
 }  // namespace Wiesel

@@ -1,5 +1,7 @@
 #version 450
 
+#define MAX_BONES 128
+
 layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
@@ -21,6 +23,10 @@ layout(set = 1, binding = 1, std140) uniform Camera {
     vec2 taaJitterOffset;
 } cam;
 
+layout(set = 2, binding = 0, std140) uniform BoneMatrices {
+    mat4 bones[MAX_BONES];
+} boneData;
+
 layout(location = 0) in vec3 inVertexPosition;
 layout(location = 1) in vec3 inColor;
 layout(location = 2) in vec2 inUV;
@@ -28,6 +34,8 @@ layout(location = 3) in vec3 inVertexNormal;
 layout(location = 4) in vec3 inTangent;
 layout(location = 5) in vec3 inBiTangent;
 layout(location = 6) in uint inFlags;
+layout(location = 7) in ivec4 inBoneIndices;
+layout(location = 8) in vec4 inBoneWeights;
 
 layout(location = 0) out vec3 outWorldPos;
 layout(location = 1) out vec3 outColor;
@@ -42,17 +50,37 @@ layout(location = 9) out mat3 outTBN;
 layout(location = 12) out flat float outEntityId;
 
 void main() {
-    // world‐space
-    vec4 worldPos4   = modelMatrix * vec4(inVertexPosition, 1.0);
+    vec4 localPos = vec4(inVertexPosition, 1.0);
+    vec3 localNormal = inVertexNormal;
+    vec3 localTangent = inTangent;
+    vec3 localBiTangent = inBiTangent;
+
+    // Skeletal animation skinning
+    float totalWeight = inBoneWeights.x + inBoneWeights.y
+                      + inBoneWeights.z + inBoneWeights.w;
+    if (totalWeight > 0.0) {
+        mat4 skin = inBoneWeights.x * boneData.bones[inBoneIndices.x]
+                  + inBoneWeights.y * boneData.bones[inBoneIndices.y]
+                  + inBoneWeights.z * boneData.bones[inBoneIndices.z]
+                  + inBoneWeights.w * boneData.bones[inBoneIndices.w];
+        localPos = skin * localPos;
+        mat3 skin3 = mat3(skin);
+        localNormal = skin3 * localNormal;
+        localTangent = skin3 * localTangent;
+        localBiTangent = skin3 * localBiTangent;
+    }
+
+    // world-space
+    vec4 worldPos4   = modelMatrix * localPos;
     outWorldPos      = worldPos4.xyz;
 
-    // view‐space
+    // view-space
     vec4 viewPos4   = cam.viewMatrix * worldPos4;
     outViewPos      = viewPos4.xyz;
 
-    outNormal       = mat3(modelMatrix) * inVertexNormal;
-    outTangent      = mat3(modelMatrix) * inTangent;
-    outBiTangent    = mat3(modelMatrix) * inBiTangent;
+    outNormal       = mat3(modelMatrix) * localNormal;
+    outTangent      = mat3(modelMatrix) * localTangent;
+    outBiTangent    = mat3(modelMatrix) * localBiTangent;
     outTBN          = mat3(outTangent, outBiTangent, outNormal);
     outColor = inColor;
     outUV = inUV;

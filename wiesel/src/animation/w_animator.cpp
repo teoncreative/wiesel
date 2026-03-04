@@ -1,0 +1,173 @@
+#include "animation/w_animator.hpp"
+
+#include "rendering/w_mesh.hpp"
+
+namespace Wiesel {
+
+// Binary search: find the index of the last key with time <= target
+template <typename T>
+static int FindKeyIndex(const std::vector<AnimationKey<T>>& keys, float time) {
+  if (keys.size() <= 1) return 0;
+  int lo = 0;
+  int hi = static_cast<int>(keys.size()) - 1;
+  while (lo < hi - 1) {
+    int mid = (lo + hi) / 2;
+    if (keys[mid].time <= time)
+      lo = mid;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+
+glm::vec3 Animator::InterpolatePosition(const AnimationChannel& channel,
+                                        float time) {
+  auto& keys = channel.position_keys;
+  if (keys.empty()) return glm::vec3(0.0f);
+  if (keys.size() == 1) return keys[0].value;
+
+  int i = FindKeyIndex(keys, time);
+  int next = i + 1;
+  if (next >= static_cast<int>(keys.size())) return keys[i].value;
+
+  float dt = keys[next].time - keys[i].time;
+  float t = (dt > 0.0f) ? (time - keys[i].time) / dt : 0.0f;
+  t = glm::clamp(t, 0.0f, 1.0f);
+  return glm::mix(keys[i].value, keys[next].value, t);
+}
+
+glm::quat Animator::InterpolateRotation(const AnimationChannel& channel,
+                                        float time) {
+  auto& keys = channel.rotation_keys;
+  if (keys.empty()) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+  if (keys.size() == 1) return keys[0].value;
+
+  int i = FindKeyIndex(keys, time);
+  int next = i + 1;
+  if (next >= static_cast<int>(keys.size())) return keys[i].value;
+
+  float dt = keys[next].time - keys[i].time;
+  float t = (dt > 0.0f) ? (time - keys[i].time) / dt : 0.0f;
+  t = glm::clamp(t, 0.0f, 1.0f);
+  return glm::slerp(keys[i].value, keys[next].value, t);
+}
+
+glm::vec3 Animator::InterpolateScale(const AnimationChannel& channel,
+                                     float time) {
+  auto& keys = channel.scale_keys;
+  if (keys.empty()) return glm::vec3(1.0f);
+  if (keys.size() == 1) return keys[0].value;
+
+  int i = FindKeyIndex(keys, time);
+  int next = i + 1;
+  if (next >= static_cast<int>(keys.size())) return keys[i].value;
+
+  float dt = keys[next].time - keys[i].time;
+  float t = (dt > 0.0f) ? (time - keys[i].time) / dt : 0.0f;
+  t = glm::clamp(t, 0.0f, 1.0f);
+  return glm::mix(keys[i].value, keys[next].value, t);
+}
+
+glm::mat4 Animator::MakeTransform(const glm::vec3& pos, const glm::quat& rot,
+                                  const glm::vec3& scale) {
+  glm::mat4 m = glm::translate(glm::mat4(1.0f), pos);
+  m *= glm::mat4_cast(rot);
+  m = glm::scale(m, scale);
+  return m;
+}
+
+void Animator::Evaluate(const Model& model, const AnimationClip& clip,
+                        float time, std::vector<glm::mat4>& bone_matrices,
+                        std::vector<glm::mat4>& node_transforms) {
+  PROFILE_ZONE_SCOPED_N("Animator::Evaluate");
+  const auto& hierarchy = model.node_hierarchy;
+  const auto& skeleton = model.skeleton;
+
+  // Build channel lookup (node_name -> channel index)
+  std::unordered_map<std::string, int32_t> channel_map;
+  channel_map.reserve(clip.channels.size());
+  for (int32_t i = 0; i < static_cast<int32_t>(clip.channels.size()); i++) {
+    channel_map[clip.channels[i].node_name] = i;
+  }
+
+  // Resize output arrays
+  node_transforms.resize(hierarchy.nodes.size(), glm::mat4(1.0f));
+  bone_matrices.resize(skeleton.bones.size(), glm::mat4(1.0f));
+
+  // Walk hierarchy top-down to compute global transforms
+  for (int32_t i = 0; i < static_cast<int32_t>(hierarchy.nodes.size()); i++) {
+    const auto& node = hierarchy.nodes[i];
+
+    // Determine local transform: animated or default
+    glm::mat4 local_transform = node.local_transform;
+    auto ch_it = channel_map.find(node.name);
+    if (ch_it != channel_map.end()) {
+      const auto& channel = clip.channels[ch_it->second];
+      glm::vec3 pos = InterpolatePosition(channel, time);
+      glm::quat rot = InterpolateRotation(channel, time);
+      glm::vec3 scl = InterpolateScale(channel, time);
+      local_transform = MakeTransform(pos, rot, scl);
+    }
+
+    // Compute global transform
+    if (node.parent_index >= 0) {
+      node_transforms[i] = node_transforms[node.parent_index] * local_transform;
+    } else {
+      node_transforms[i] = local_transform;
+    }
+  }
+
+  // Compute bone skinning matrices
+  for (int32_t b = 0; b < static_cast<int32_t>(skeleton.bones.size()); b++) {
+    const auto& bone = skeleton.bones[b];
+    // Find the node corresponding to this bone
+    auto node_it = hierarchy.node_name_to_index.find(bone.name);
+    if (node_it != hierarchy.node_name_to_index.end()) {
+      int32_t node_idx = node_it->second;
+      bone_matrices[b] =
+          node_transforms[node_idx] * bone.inverse_bind_matrix;
+    }
+  }
+}
+
+void Animator::BlendBoneMatrices(const std::vector<glm::mat4>& a,
+                                 const std::vector<glm::mat4>& b, float t,
+                                 std::vector<glm::mat4>& out) {
+  PROFILE_ZONE_SCOPED_N("Animator::BlendBoneMatrices");
+  size_t count = std::min(a.size(), b.size());
+  out.resize(count);
+  t = glm::clamp(t, 0.0f, 1.0f);
+
+  for (size_t i = 0; i < count; i++) {
+    // Decompose both matrices into T/R/S
+    glm::vec3 pos_a, pos_b, scale_a, scale_b, skew;
+    glm::quat rot_a, rot_b;
+    glm::vec4 perspective;
+
+    glm::decompose(a[i], scale_a, rot_a, pos_a, skew, perspective);
+    glm::decompose(b[i], scale_b, rot_b, pos_b, skew, perspective);
+
+    // Interpolate
+    glm::vec3 pos = glm::mix(pos_a, pos_b, t);
+    glm::quat rot = glm::slerp(rot_a, rot_b, t);
+    glm::vec3 scale = glm::mix(scale_a, scale_b, t);
+
+    // Recompose
+    out[i] = MakeTransform(pos, rot, scale);
+  }
+
+  // If one array is larger, copy the remaining entries
+  if (a.size() > count) {
+    out.resize(a.size());
+    for (size_t i = count; i < a.size(); i++) {
+      out[i] = a[i];
+    }
+  } else if (b.size() > count) {
+    out.resize(b.size());
+    for (size_t i = count; i < b.size(); i++) {
+      out[i] = b[i];
+    }
+  }
+}
+
+}  // namespace Wiesel

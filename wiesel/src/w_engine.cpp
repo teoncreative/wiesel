@@ -320,6 +320,7 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
   importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
   uint32_t flags = aiProcess_Triangulate | aiProcess_CalcTangentSpace |
                    aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
+                   aiProcess_LimitBoneWeights |
                    aiProcessPreset_TargetRealtime_Fast;
   if (convert_to_left_handed) {
     flags |= aiProcess_ConvertToLeftHanded;
@@ -373,8 +374,11 @@ void Engine::LoadModelAsync(AssetHandle handle) {
           model->textures_path = textures_dir;
           model->meshes.clear();
           model->textures.clear();
+          model->node_hierarchy.nodes.clear();
+          model->node_hierarchy.node_name_to_index.clear();
           ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
-                      glm::mat4(1.0f));
+                      -1);
+          ExtractAnimations(*model, *assimp_scene);
           uint64_t vertices = 0;
           for (const std::shared_ptr<Mesh>& item : model->meshes) {
             item->Allocate();
@@ -383,6 +387,17 @@ void Engine::LoadModelAsync(AssetHandle handle) {
           LOG_INFO("Loaded {} meshes!", model->meshes.size());
           LOG_INFO("Loaded {} textures!", model->textures.size());
           LOG_INFO("Loaded {} vertices!", vertices);
+          if (model->has_skeleton) {
+            LOG_INFO("Loaded {} bones!", model->skeleton.bones.size());
+          }
+          if (model->has_animations) {
+            LOG_INFO("Loaded {} animation clips!", model->animation_clips.size());
+            for (const auto& clip : model->animation_clips) {
+              LOG_INFO("  Clip '{}': {:.1f} ticks, {:.0f} tps, {} channels",
+                       clip.name, clip.duration, clip.ticks_per_second,
+                       clip.channels.size());
+            }
+          }
 
           // Register textures with AssetManager
           AssetManager& assets = AssetManager::Get();
@@ -604,16 +619,24 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     }
 
     // tangent
-    vector.x = aiMesh->mTangents[i].x;
-    vector.y = aiMesh->mTangents[i].y;
-    vector.z = aiMesh->mTangents[i].z;
-    vertex.Tangent = vector;
+    if (aiMesh->mTangents) {
+      vector.x = aiMesh->mTangents[i].x;
+      vector.y = aiMesh->mTangents[i].y;
+      vector.z = aiMesh->mTangents[i].z;
+      vertex.Tangent = vector;
+    } else {
+      vertex.Tangent = {1.0f, 0.0f, 0.0f};
+    }
 
     // bitangent
-    vector.x = aiMesh->mBitangents[i].x;
-    vector.y = aiMesh->mBitangents[i].y;
-    vector.z = aiMesh->mBitangents[i].z;
-    vertex.BiTangent = vector;
+    if (aiMesh->mBitangents) {
+      vector.x = aiMesh->mBitangents[i].x;
+      vector.y = aiMesh->mBitangents[i].y;
+      vector.z = aiMesh->mBitangents[i].z;
+      vertex.BiTangent = vector;
+    } else {
+      vertex.BiTangent = {0.0f, 0.0f, 1.0f};
+    }
 
     float handedness = glm::dot(glm::cross(vertex.Normal, vertex.Tangent),
                                 vertex.BiTangent) < 0.0f
@@ -624,6 +647,43 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     }
 
     mesh->vertices.push_back(vertex);
+  }
+
+  // Extract bone weights
+  if (aiMesh->mNumBones > 0) {
+    for (uint32_t b = 0; b < aiMesh->mNumBones; b++) {
+      aiBone* bone = aiMesh->mBones[b];
+      std::string bone_name = bone->mName.C_Str();
+
+      // Register bone in skeleton if not already present
+      int32_t bone_index;
+      auto it = model.skeleton.bone_name_to_index.find(bone_name);
+      if (it != model.skeleton.bone_name_to_index.end()) {
+        bone_index = it->second;
+      } else {
+        bone_index = static_cast<int32_t>(model.skeleton.bones.size());
+        BoneInfo bone_info;
+        bone_info.name = bone_name;
+        bone_info.inverse_bind_matrix = ConvertMatrix(bone->mOffsetMatrix);
+        model.skeleton.bones.push_back(bone_info);
+        model.skeleton.bone_name_to_index[bone_name] = bone_index;
+      }
+
+      // Write bone weights into vertices
+      for (uint32_t w = 0; w < bone->mNumWeights; w++) {
+        uint32_t vertex_id = bone->mWeights[w].mVertexId;
+        float weight = bone->mWeights[w].mWeight;
+        auto& v = mesh->vertices[vertex_id];
+        for (int s = 0; s < WIESEL_MAX_BONE_INFLUENCE; s++) {
+          if (v.BoneWeights[s] == 0.0f) {
+            v.BoneIndices[s] = bone_index;
+            v.BoneWeights[s] = weight;
+            break;
+          }
+        }
+      }
+    }
+    model.has_skeleton = true;
   }
 
   // now walk through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
@@ -641,23 +701,116 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
 
 void Engine::ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                          std::vector<Ref<Mesh>>& meshes,
-                         const glm::mat4& parentTransform) {
-  // Accumulate transforms down the hierarchy
-  glm::mat4 nodeTransform =
-      parentTransform * ConvertMatrix(node->mTransformation);
+                         int32_t parent_node_index) {
+  int32_t node_index = static_cast<int32_t>(model.node_hierarchy.nodes.size());
+
+  NodeInfo node_info;
+  node_info.name = node->mName.C_Str();
+  node_info.parent_index = parent_node_index;
+  node_info.local_transform = ConvertMatrix(node->mTransformation);
+  node_info.bone_index = -1;
+
+  model.node_hierarchy.node_name_to_index[node_info.name] = node_index;
 
   for (uint32_t i = 0; i < node->mNumMeshes; i++) {
-    aiMesh* aiMesh = scene.mMeshes[node->mMeshes[i]];
-    Ref<Mesh> mesh = ProcessMesh(model, aiMesh, scene);
+    int32_t mesh_index = static_cast<int32_t>(meshes.size());
+    aiMesh* mesh_ptr = scene.mMeshes[node->mMeshes[i]];
+    Ref<Mesh> mesh = ProcessMesh(model, mesh_ptr, scene);
     if (mesh == nullptr) {
       continue;
     }
-
+    mesh->node_index = node_index;
+    node_info.mesh_indices.push_back(mesh_index);
     meshes.push_back(mesh);
   }
 
+  // Reserve placeholder children indices
   for (uint32_t i = 0; i < node->mNumChildren; i++) {
-    ProcessNode(model, node->mChildren[i], scene, meshes, nodeTransform);
+    node_info.children.push_back(-1);
+  }
+
+  model.node_hierarchy.nodes.push_back(std::move(node_info));
+
+  // Recurse children, filling in child indices
+  for (uint32_t i = 0; i < node->mNumChildren; i++) {
+    int32_t child_index = static_cast<int32_t>(model.node_hierarchy.nodes.size());
+    model.node_hierarchy.nodes[node_index].children[i] = child_index;
+    ProcessNode(model, node->mChildren[i], scene, meshes, node_index);
+  }
+}
+
+void Engine::ExtractAnimations(Model& model, const aiScene& scene) {
+  if (scene.mNumAnimations == 0) {
+    return;
+  }
+  model.has_animations = true;
+
+  for (uint32_t a = 0; a < scene.mNumAnimations; a++) {
+    aiAnimation* anim = scene.mAnimations[a];
+    AnimationClip clip;
+    clip.name = anim->mName.C_Str();
+    clip.duration = static_cast<float>(anim->mDuration);
+    clip.ticks_per_second = anim->mTicksPerSecond > 0
+        ? static_cast<float>(anim->mTicksPerSecond) : 25.0f;
+
+    for (uint32_t c = 0; c < anim->mNumChannels; c++) {
+      aiNodeAnim* chan = anim->mChannels[c];
+      AnimationChannel ch;
+      ch.node_name = chan->mNodeName.C_Str();
+
+      ch.position_keys.reserve(chan->mNumPositionKeys);
+      for (uint32_t k = 0; k < chan->mNumPositionKeys; k++) {
+        ch.position_keys.push_back({
+            static_cast<float>(chan->mPositionKeys[k].mTime),
+            glm::vec3(chan->mPositionKeys[k].mValue.x,
+                      chan->mPositionKeys[k].mValue.y,
+                      chan->mPositionKeys[k].mValue.z)});
+      }
+
+      ch.rotation_keys.reserve(chan->mNumRotationKeys);
+      for (uint32_t k = 0; k < chan->mNumRotationKeys; k++) {
+        ch.rotation_keys.push_back({
+            static_cast<float>(chan->mRotationKeys[k].mTime),
+            glm::quat(chan->mRotationKeys[k].mValue.w,
+                      chan->mRotationKeys[k].mValue.x,
+                      chan->mRotationKeys[k].mValue.y,
+                      chan->mRotationKeys[k].mValue.z)});
+      }
+
+      ch.scale_keys.reserve(chan->mNumScalingKeys);
+      for (uint32_t k = 0; k < chan->mNumScalingKeys; k++) {
+        ch.scale_keys.push_back({
+            static_cast<float>(chan->mScalingKeys[k].mTime),
+            glm::vec3(chan->mScalingKeys[k].mValue.x,
+                      chan->mScalingKeys[k].mValue.y,
+                      chan->mScalingKeys[k].mValue.z)});
+      }
+
+      clip.channels.push_back(std::move(ch));
+    }
+
+    model.animation_clips.push_back(std::move(clip));
+  }
+
+  // Link bone parent indices via node hierarchy
+  for (auto& bone : model.skeleton.bones) {
+    auto node_it = model.node_hierarchy.node_name_to_index.find(bone.name);
+    if (node_it != model.node_hierarchy.node_name_to_index.end()) {
+      int32_t node_idx = node_it->second;
+      model.node_hierarchy.nodes[node_idx].bone_index =
+          model.skeleton.bone_name_to_index[bone.name];
+      // Walk up to find parent bone
+      int32_t parent_node = model.node_hierarchy.nodes[node_idx].parent_index;
+      while (parent_node >= 0) {
+        auto parent_bone_it = model.skeleton.bone_name_to_index.find(
+            model.node_hierarchy.nodes[parent_node].name);
+        if (parent_bone_it != model.skeleton.bone_name_to_index.end()) {
+          bone.parent_index = parent_bone_it->second;
+          break;
+        }
+        parent_node = model.node_hierarchy.nodes[parent_node].parent_index;
+      }
+    }
   }
 }
 

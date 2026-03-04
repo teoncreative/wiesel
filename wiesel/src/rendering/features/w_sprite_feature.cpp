@@ -48,6 +48,7 @@ SpriteFeature::SpriteFeature(Ref<Renderer> renderer)
 }
 
 void SpriteFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("SpriteFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -75,6 +76,7 @@ void SpriteFeature::SetupResources(RenderContext& ctx) {
 void SpriteFeature::AddPasses(RenderGraph& graph,
                               RenderResourceRegistry& registry,
                               RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("SpriteFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   auto* scene = &ctx.scene;

@@ -95,6 +95,7 @@ bool SSAOFeature::IsEnabled(const RenderContext& ctx) const {
 }
 
 void SSAOFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("SSAOFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -182,6 +183,7 @@ void SSAOFeature::SetupResources(RenderContext& ctx) {
 void SSAOFeature::AddPasses(RenderGraph& graph,
                             RenderResourceRegistry& registry,
                             RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("SSAOFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
 

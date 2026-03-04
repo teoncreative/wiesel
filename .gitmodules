@@ -19,9 +19,6 @@
 [submodule "vendor/imguizmo"]
 	path = vendor/imguizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
-[submodule "vendor/fmt"]
-	path = vendor/fmt
-	url = https://github.com/fmtlib/fmt.git
 [submodule "vendor/glslang"]
 	path = vendor/glslang
 	url = https://github.com/KhronosGroup/glslang.git

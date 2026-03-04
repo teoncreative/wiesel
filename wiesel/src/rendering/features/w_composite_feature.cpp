@@ -50,6 +50,7 @@ CompositeFeature::CompositeFeature(Ref<Renderer> renderer)
 }
 
 void CompositeFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("CompositeFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -104,6 +105,7 @@ void CompositeFeature::SetupResources(RenderContext& ctx) {
 void CompositeFeature::AddPasses(RenderGraph& graph,
                                  RenderResourceRegistry& registry,
                                  RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("CompositeFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   bool use_resolve = ctx.use_msaa_resolve;
@@ -119,7 +121,7 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   auto lighting_out = registry.Get("LightingOut");
   auto sprite_out = registry.Get("SpriteOut");
 
-  // Composite pass
+  // Composite pass (canvas is blended later by CanvasFeature)
   auto pipeline = pipeline_;
   uint32_t composite = graph.AddPass(
       "Composite", render_pass_,

@@ -43,12 +43,14 @@ ShadowFeature::ShadowFeature(Ref<Renderer> renderer)
   pipeline_->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT);
   pipeline_->AddInputLayout(renderer_->GetShadowMeshDescriptorLayout());
   pipeline_->AddInputLayout(renderer_->GetGlobalShadowDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetBoneDescriptorLayout());
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
 }
 
 void ShadowFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("ShadowFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   auto& camera = ctx.camera;
@@ -87,6 +89,7 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
 void ShadowFeature::AddPasses(RenderGraph& graph,
                               RenderResourceRegistry& registry,
                               RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("ShadowFeature::AddPasses");
   auto& pool = ctx.resources;
 
   // Import the layered shadow depth texture

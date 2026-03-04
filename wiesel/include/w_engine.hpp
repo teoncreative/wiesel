@@ -64,7 +64,8 @@ class Engine {
                                      const aiScene& aiScene);
   static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                          std::vector<std::shared_ptr<Mesh>>& meshes,
-                         const glm::mat4& parentTransform);
+                         int32_t parent_node_index);
+  static void ExtractAnimations(Model& model, const aiScene& scene);
 
   static void InitializeVfs();
 

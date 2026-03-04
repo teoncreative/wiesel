@@ -26,6 +26,7 @@
 #include "scene/w_entity.hpp"
 #include "scene/w_scene.hpp"
 #include "script/mono/w_monobehavior.hpp"
+#include "ui/w_canvas.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
 
@@ -493,6 +494,167 @@ MonoObject* Internals_TransformComponent_GetDown(Scene* scene,
   return CreateVector3fWithValues(val.x, val.y, val.z);
 }
 
+// --- RectangleTransformComponent ---
+float Internals_RectTransform_GetPositionX(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).position.x; }
+float Internals_RectTransform_GetPositionY(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).position.y; }
+void Internals_RectTransform_SetPositionX(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.position.x = v; c.is_changed = true; }
+void Internals_RectTransform_SetPositionY(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.position.y = v; c.is_changed = true; }
+float Internals_RectTransform_GetRotation(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).rotation; }
+void Internals_RectTransform_SetRotation(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.rotation = v; c.is_changed = true; }
+float Internals_RectTransform_GetSizeX(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).size.x; }
+float Internals_RectTransform_GetSizeY(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).size.y; }
+void Internals_RectTransform_SetSizeX(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.size.x = v; c.is_changed = true; }
+void Internals_RectTransform_SetSizeY(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.size.y = v; c.is_changed = true; }
+float Internals_RectTransform_GetScaleX(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).scale.x; }
+float Internals_RectTransform_GetScaleY(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).scale.y; }
+void Internals_RectTransform_SetScaleX(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.scale.x = v; c.is_changed = true; }
+void Internals_RectTransform_SetScaleY(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.scale.y = v; c.is_changed = true; }
+int32_t Internals_RectTransform_GetAnchor(Scene* s, entt::entity e) { return static_cast<int32_t>(s->GetComponent<RectangleTransformComponent>(e).anchor); }
+void Internals_RectTransform_SetAnchor(Scene* s, entt::entity e, int32_t v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.anchor = static_cast<AnchorPreset>(v); c.is_changed = true; }
+int32_t Internals_RectTransform_GetPivot(Scene* s, entt::entity e) { return static_cast<int32_t>(s->GetComponent<RectangleTransformComponent>(e).pivot); }
+void Internals_RectTransform_SetPivot(Scene* s, entt::entity e, int32_t v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.pivot = static_cast<AnchorPreset>(v); c.is_changed = true; }
+int32_t Internals_RectTransform_GetSizeModeX(Scene* s, entt::entity e) { return static_cast<int32_t>(s->GetComponent<RectangleTransformComponent>(e).size_mode_x); }
+void Internals_RectTransform_SetSizeModeX(Scene* s, entt::entity e, int32_t v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.size_mode_x = static_cast<SizeMode>(v); c.is_changed = true; }
+int32_t Internals_RectTransform_GetSizeModeY(Scene* s, entt::entity e) { return static_cast<int32_t>(s->GetComponent<RectangleTransformComponent>(e).size_mode_y); }
+void Internals_RectTransform_SetSizeModeY(Scene* s, entt::entity e, int32_t v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.size_mode_y = static_cast<SizeMode>(v); c.is_changed = true; }
+float Internals_RectTransform_GetPaddingLeft(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).padding.x; }
+float Internals_RectTransform_GetPaddingTop(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).padding.y; }
+float Internals_RectTransform_GetPaddingRight(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).padding.z; }
+float Internals_RectTransform_GetPaddingBottom(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).padding.w; }
+void Internals_RectTransform_SetPaddingLeft(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.padding.x = v; c.is_changed = true; }
+void Internals_RectTransform_SetPaddingTop(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.padding.y = v; c.is_changed = true; }
+void Internals_RectTransform_SetPaddingRight(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.padding.z = v; c.is_changed = true; }
+void Internals_RectTransform_SetPaddingBottom(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<RectangleTransformComponent>(e); c.padding.w = v; c.is_changed = true; }
+float Internals_RectTransform_GetComputedPositionX(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).computed_position.x; }
+float Internals_RectTransform_GetComputedPositionY(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).computed_position.y; }
+float Internals_RectTransform_GetComputedSizeX(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).computed_size.x; }
+float Internals_RectTransform_GetComputedSizeY(Scene* s, entt::entity e) { return s->GetComponent<RectangleTransformComponent>(e).computed_size.y; }
+
+// --- CanvasComponent ---
+int32_t Internals_Canvas_GetDirection(Scene* s, entt::entity e) { return static_cast<int32_t>(s->GetComponent<CanvasComponent>(e).direction); }
+void Internals_Canvas_SetDirection(Scene* s, entt::entity e, int32_t v) { s->GetComponent<CanvasComponent>(e).direction = static_cast<LayoutDirection>(v); }
+int32_t Internals_Canvas_GetAlignment(Scene* s, entt::entity e) { return static_cast<int32_t>(s->GetComponent<CanvasComponent>(e).alignment); }
+void Internals_Canvas_SetAlignment(Scene* s, entt::entity e, int32_t v) { s->GetComponent<CanvasComponent>(e).alignment = static_cast<ChildAlignment>(v); }
+float Internals_Canvas_GetSpacing(Scene* s, entt::entity e) { return s->GetComponent<CanvasComponent>(e).spacing; }
+void Internals_Canvas_SetSpacing(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasComponent>(e).spacing = v; }
+int32_t Internals_Canvas_GetSortOrder(Scene* s, entt::entity e) { return s->GetComponent<CanvasComponent>(e).sort_order; }
+void Internals_Canvas_SetSortOrder(Scene* s, entt::entity e, int32_t v) { s->GetComponent<CanvasComponent>(e).sort_order = v; }
+
+// --- CanvasRectComponent ---
+float Internals_CanvasRect_GetColorR(Scene* s, entt::entity e) { return s->GetComponent<CanvasRectComponent>(e).color.r; }
+float Internals_CanvasRect_GetColorG(Scene* s, entt::entity e) { return s->GetComponent<CanvasRectComponent>(e).color.g; }
+float Internals_CanvasRect_GetColorB(Scene* s, entt::entity e) { return s->GetComponent<CanvasRectComponent>(e).color.b; }
+float Internals_CanvasRect_GetColorA(Scene* s, entt::entity e) { return s->GetComponent<CanvasRectComponent>(e).color.a; }
+void Internals_CanvasRect_SetColorR(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasRectComponent>(e).color.r = v; }
+void Internals_CanvasRect_SetColorG(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasRectComponent>(e).color.g = v; }
+void Internals_CanvasRect_SetColorB(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasRectComponent>(e).color.b = v; }
+void Internals_CanvasRect_SetColorA(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasRectComponent>(e).color.a = v; }
+
+// --- CanvasImageComponent ---
+float Internals_CanvasImage_GetTintR(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).tint.r; }
+float Internals_CanvasImage_GetTintG(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).tint.g; }
+float Internals_CanvasImage_GetTintB(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).tint.b; }
+float Internals_CanvasImage_GetTintA(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).tint.a; }
+void Internals_CanvasImage_SetTintR(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).tint.r = v; s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true; }
+void Internals_CanvasImage_SetTintG(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).tint.g = v; s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true; }
+void Internals_CanvasImage_SetTintB(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).tint.b = v; s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true; }
+void Internals_CanvasImage_SetTintA(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).tint.a = v; s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true; }
+float Internals_CanvasImage_GetUVRectX(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).uv_rect.x; }
+float Internals_CanvasImage_GetUVRectY(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).uv_rect.y; }
+float Internals_CanvasImage_GetUVRectZ(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).uv_rect.z; }
+float Internals_CanvasImage_GetUVRectW(Scene* s, entt::entity e) { return s->GetComponent<CanvasImageComponent>(e).uv_rect.w; }
+void Internals_CanvasImage_SetUVRectX(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).uv_rect.x = v; }
+void Internals_CanvasImage_SetUVRectY(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).uv_rect.y = v; }
+void Internals_CanvasImage_SetUVRectZ(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).uv_rect.z = v; }
+void Internals_CanvasImage_SetUVRectW(Scene* s, entt::entity e, float v) { s->GetComponent<CanvasImageComponent>(e).uv_rect.w = v; }
+
+// --- TextComponent ---
+MonoString* Internals_Text_GetText(Scene* s, entt::entity e) {
+  return mono_string_new(ScriptManager::app_domain(), s->GetComponent<TextComponent>(e).text.c_str());
+}
+void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
+  const char* str = mono_string_to_utf8(v);
+  auto& c = s->GetComponent<TextComponent>(e);
+  c.text = str;
+  c.gpu_dirty_ = true;
+  mono_free((void*)str);
+}
+MonoString* Internals_Text_GetFontPath(Scene* s, entt::entity e) {
+  return mono_string_new(ScriptManager::app_domain(), s->GetComponent<TextComponent>(e).font_path.c_str());
+}
+void Internals_Text_SetFontPath(Scene* s, entt::entity e, MonoString* v) {
+  const char* str = mono_string_to_utf8(v);
+  auto& c = s->GetComponent<TextComponent>(e);
+  c.font_path = str;
+  c.gpu_dirty_ = true;
+  mono_free((void*)str);
+}
+float Internals_Text_GetFontSize(Scene* s, entt::entity e) { return s->GetComponent<TextComponent>(e).font_size; }
+void Internals_Text_SetFontSize(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<TextComponent>(e); c.font_size = v; c.gpu_dirty_ = true; }
+float Internals_Text_GetColorR(Scene* s, entt::entity e) { return s->GetComponent<TextComponent>(e).color.r; }
+float Internals_Text_GetColorG(Scene* s, entt::entity e) { return s->GetComponent<TextComponent>(e).color.g; }
+float Internals_Text_GetColorB(Scene* s, entt::entity e) { return s->GetComponent<TextComponent>(e).color.b; }
+float Internals_Text_GetColorA(Scene* s, entt::entity e) { return s->GetComponent<TextComponent>(e).color.a; }
+void Internals_Text_SetColorR(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<TextComponent>(e); c.color.r = v; c.gpu_dirty_ = true; }
+void Internals_Text_SetColorG(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<TextComponent>(e); c.color.g = v; c.gpu_dirty_ = true; }
+void Internals_Text_SetColorB(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<TextComponent>(e); c.color.b = v; c.gpu_dirty_ = true; }
+void Internals_Text_SetColorA(Scene* s, entt::entity e, float v) { auto& c = s->GetComponent<TextComponent>(e); c.color.a = v; c.gpu_dirty_ = true; }
+
+// --- AnimatorComponent ---
+void Internals_Animator_SetBool(Scene* s, entt::entity e, MonoString* name, bool value) {
+  const char* cstr = mono_string_to_utf8(name);
+  s->GetComponent<AnimatorComponent>(e).SetBool(cstr, value);
+  mono_free((void*)cstr);
+}
+void Internals_Animator_SetInt(Scene* s, entt::entity e, MonoString* name, int value) {
+  const char* cstr = mono_string_to_utf8(name);
+  s->GetComponent<AnimatorComponent>(e).SetInt(cstr, value);
+  mono_free((void*)cstr);
+}
+void Internals_Animator_SetFloat(Scene* s, entt::entity e, MonoString* name, float value) {
+  const char* cstr = mono_string_to_utf8(name);
+  s->GetComponent<AnimatorComponent>(e).SetFloat(cstr, value);
+  mono_free((void*)cstr);
+}
+void Internals_Animator_SetTrigger(Scene* s, entt::entity e, MonoString* name) {
+  const char* cstr = mono_string_to_utf8(name);
+  s->GetComponent<AnimatorComponent>(e).SetTrigger(cstr);
+  mono_free((void*)cstr);
+}
+bool Internals_Animator_GetBool(Scene* s, entt::entity e, MonoString* name) {
+  const char* cstr = mono_string_to_utf8(name);
+  bool val = s->GetComponent<AnimatorComponent>(e).GetBool(cstr);
+  mono_free((void*)cstr);
+  return val;
+}
+int Internals_Animator_GetInt(Scene* s, entt::entity e, MonoString* name) {
+  const char* cstr = mono_string_to_utf8(name);
+  int val = s->GetComponent<AnimatorComponent>(e).GetInt(cstr);
+  mono_free((void*)cstr);
+  return val;
+}
+float Internals_Animator_GetFloat(Scene* s, entt::entity e, MonoString* name) {
+  const char* cstr = mono_string_to_utf8(name);
+  float val = s->GetComponent<AnimatorComponent>(e).GetFloat(cstr);
+  mono_free((void*)cstr);
+  return val;
+}
+void Internals_Animator_Play(Scene* s, entt::entity e, MonoString* stateName, float blendTime) {
+  const char* cstr = mono_string_to_utf8(stateName);
+  s->GetComponent<AnimatorComponent>(e).Play(cstr, blendTime);
+  mono_free((void*)cstr);
+}
+MonoString* Internals_Animator_GetCurrentState(Scene* s, entt::entity e) {
+  auto& anim = s->GetComponent<AnimatorComponent>(e);
+  return mono_string_new(ScriptManager::app_domain(), anim.current_state_name.c_str());
+}
+bool Internals_Animator_GetIsPlaying(Scene* s, entt::entity e) {
+  return s->GetComponent<AnimatorComponent>(e).playing;
+}
+void Internals_Animator_SetIsPlaying(Scene* s, entt::entity e, bool value) {
+  s->GetComponent<AnimatorComponent>(e).playing = value;
+}
+
 ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data, MonoBehavior* behavior) {
   behavior_ = behavior;
   script_data_ = data;
@@ -524,6 +686,7 @@ void ScriptInstance::OnStart() {
 }
 
 void ScriptInstance::OnUpdate(float_t delta_time) {
+  PROFILE_ZONE_SCOPED_N("ScriptInstance::OnUpdate");
   if (!has_started_) {
     OnStart();
     has_started_ = true;
@@ -687,6 +850,12 @@ MonoClass* ScriptManager::model_component_class_ = nullptr;
 MonoClass* ScriptManager::box_collider_class_ = nullptr;
 MonoClass* ScriptManager::sphere_collider_class_ = nullptr;
 MonoClass* ScriptManager::rigidbody_class_ = nullptr;
+MonoClass* ScriptManager::rect_transform_class_ = nullptr;
+MonoClass* ScriptManager::canvas_component_class_ = nullptr;
+MonoClass* ScriptManager::canvas_rect_class_ = nullptr;
+MonoClass* ScriptManager::canvas_image_class_ = nullptr;
+MonoClass* ScriptManager::text_component_class_ = nullptr;
+MonoClass* ScriptManager::animator_component_class_ = nullptr;
 MonoClass* ScriptManager::vector3f_class_ = nullptr;
 MonoMethod* ScriptManager::set_handle_method_ = nullptr;
 
@@ -829,6 +998,18 @@ void ScriptManager::LoadCore() {
       core_assembly_image_, "WieselEngine", "SphereColliderComponent");
   rigidbody_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "RigidBodyComponent");
+  rect_transform_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "RectTransformComponent");
+  canvas_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "CanvasComponent");
+  canvas_rect_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "CanvasRectComponent");
+  canvas_image_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "CanvasImageComponent");
+  text_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "TextComponent");
+  animator_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "AnimatorComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
 }
@@ -1046,6 +1227,103 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Physics_Raycast);
   WIESEL_ADD_INTERNAL_CALL(Physics_OverlapBox);
   WIESEL_ADD_INTERNAL_CALL(Physics_OverlapSphere);
+  // RectangleTransformComponent
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPositionX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPositionY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPositionX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPositionY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetRotation);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetRotation);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetSizeX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetSizeY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetSizeX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetSizeY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetScaleX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetScaleY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetScaleX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetScaleY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetAnchor);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetAnchor);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPivot);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPivot);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetSizeModeX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetSizeModeX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetSizeModeY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetSizeModeY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPaddingLeft);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPaddingTop);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPaddingRight);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetPaddingBottom);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPaddingLeft);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPaddingTop);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPaddingRight);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_SetPaddingBottom);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetComputedPositionX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetComputedPositionY);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetComputedSizeX);
+  WIESEL_ADD_INTERNAL_CALL(RectTransform_GetComputedSizeY);
+  // CanvasComponent
+  WIESEL_ADD_INTERNAL_CALL(Canvas_GetDirection);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_SetDirection);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_GetAlignment);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_SetAlignment);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_GetSpacing);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_SetSpacing);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_GetSortOrder);
+  WIESEL_ADD_INTERNAL_CALL(Canvas_SetSortOrder);
+  // CanvasRectComponent
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorR);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorG);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorB);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorA);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorR);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorG);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorB);
+  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorA);
+  // CanvasImageComponent
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintR);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintG);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintB);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintA);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintR);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintG);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintB);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintA);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectX);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectY);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectZ);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectW);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectX);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectY);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectZ);
+  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectW);
+  // TextComponent
+  WIESEL_ADD_INTERNAL_CALL(Text_GetText);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetText);
+  WIESEL_ADD_INTERNAL_CALL(Text_GetFontPath);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetFontPath);
+  WIESEL_ADD_INTERNAL_CALL(Text_GetFontSize);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetFontSize);
+  WIESEL_ADD_INTERNAL_CALL(Text_GetColorR);
+  WIESEL_ADD_INTERNAL_CALL(Text_GetColorG);
+  WIESEL_ADD_INTERNAL_CALL(Text_GetColorB);
+  WIESEL_ADD_INTERNAL_CALL(Text_GetColorA);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetColorR);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetColorG);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetColorB);
+  WIESEL_ADD_INTERNAL_CALL(Text_SetColorA);
+
+  WIESEL_ADD_INTERNAL_CALL(Animator_SetBool);
+  WIESEL_ADD_INTERNAL_CALL(Animator_SetInt);
+  WIESEL_ADD_INTERNAL_CALL(Animator_SetFloat);
+  WIESEL_ADD_INTERNAL_CALL(Animator_SetTrigger);
+  WIESEL_ADD_INTERNAL_CALL(Animator_GetBool);
+  WIESEL_ADD_INTERNAL_CALL(Animator_GetInt);
+  WIESEL_ADD_INTERNAL_CALL(Animator_GetFloat);
+  WIESEL_ADD_INTERNAL_CALL(Animator_Play);
+  WIESEL_ADD_INTERNAL_CALL(Animator_GetCurrentState);
+  WIESEL_ADD_INTERNAL_CALL(Animator_GetIsPlaying);
+  WIESEL_ADD_INTERNAL_CALL(Animator_SetIsPlaying);
 }
 
 void ScriptManager::RegisterComponents() {
@@ -1152,6 +1430,117 @@ void ScriptManager::RegisterComponents() {
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<RigidBodyComponent>(entity);
       });
+
+  RegisterComponent<RectangleTransformComponent>(
+      "RectTransformComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj = mono_object_new(app_domain_, rect_transform_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+        MonoMethod* method = mono_class_get_method_from_name(
+            rect_transform_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<RectangleTransformComponent>(entity);
+      });
+
+  RegisterComponent<CanvasComponent>(
+      "CanvasComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj = mono_object_new(app_domain_, canvas_component_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+        MonoMethod* method = mono_class_get_method_from_name(
+            canvas_component_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<CanvasComponent>(entity);
+      });
+
+  RegisterComponent<CanvasRectComponent>(
+      "CanvasRectComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj = mono_object_new(app_domain_, canvas_rect_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+        MonoMethod* method = mono_class_get_method_from_name(
+            canvas_rect_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<CanvasRectComponent>(entity);
+      });
+
+  RegisterComponent<CanvasImageComponent>(
+      "CanvasImageComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj = mono_object_new(app_domain_, canvas_image_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+        MonoMethod* method = mono_class_get_method_from_name(
+            canvas_image_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<CanvasImageComponent>(entity);
+      });
+
+  RegisterComponent<TextComponent>(
+      "TextComponent",
+      [](Scene* scene, entt::entity entity) -> MonoObject* {
+        MonoObject* obj = mono_object_new(app_domain_, text_component_class_);
+        void* args[2];
+        uint64_t scenePtr = (uint64_t)scene;
+        uint64_t entityId = (uint64_t)entity;
+        args[0] = &scenePtr;
+        args[1] = &entityId;
+        MonoMethod* method = mono_class_get_method_from_name(
+            text_component_class_, ".ctor", 2);
+        mono_runtime_invoke(method, obj, args, nullptr);
+        return obj;
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<TextComponent>(entity);
+      });
+
+  if (animator_component_class_) {
+    RegisterComponent<AnimatorComponent>(
+        "AnimatorComponent",
+        [](Scene* scene, entt::entity entity) -> MonoObject* {
+          MonoObject* obj =
+              mono_object_new(app_domain_, animator_component_class_);
+          void* args[2];
+          uint64_t scenePtr = (uint64_t)scene;
+          uint64_t entityId = (uint64_t)entity;
+          args[0] = &scenePtr;
+          args[1] = &entityId;
+          MonoMethod* method = mono_class_get_method_from_name(
+              animator_component_class_, ".ctor", 2);
+          mono_runtime_invoke(method, obj, args, nullptr);
+          return obj;
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<AnimatorComponent>(entity);
+        });
+  }
 }
 
 std::unique_ptr<ScriptInstance> ScriptManager::CreateScriptInstance(MonoBehavior* behavior) {

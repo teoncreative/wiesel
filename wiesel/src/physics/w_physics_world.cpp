@@ -242,6 +242,7 @@ void PhysicsWorld::DestroyBody(entt::entity entity) {
 }
 
 void PhysicsWorld::EnsureBodiesExist() {
+  PROFILE_ZONE_SCOPED_N("Physics::EnsureBodiesExist");
   auto& registry = scene_->GetRegistry();
 
   // Entities with box collider
@@ -261,10 +262,12 @@ void PhysicsWorld::EnsureBodiesExist() {
 }
 
 void PhysicsWorld::StepSimulation(float delta_time) {
+  PROFILE_ZONE_SCOPED_N("Physics::StepSimulation");
   dynamics_world_->stepSimulation(delta_time, 4, 1.0f / 60.0f);
 }
 
 void PhysicsWorld::SyncTransformsFromECS() {
+  PROFILE_ZONE_SCOPED_N("Physics::SyncFromECS");
   auto& registry = scene_->GetRegistry();
   for (auto& [entity, data] : bodies_) {
     if (!registry.valid(entity)) continue;
@@ -291,6 +294,7 @@ void PhysicsWorld::SyncTransformsFromECS() {
 }
 
 void PhysicsWorld::SyncTransformsToECS() {
+  PROFILE_ZONE_SCOPED_N("Physics::SyncToECS");
   auto& registry = scene_->GetRegistry();
   for (auto& [entity, data] : bodies_) {
     if (data.is_ghost) continue;
@@ -318,6 +322,7 @@ void PhysicsWorld::SyncTransformsToECS() {
 }
 
 void PhysicsWorld::DetectContacts() {
+  PROFILE_ZONE_SCOPED_N("Physics::DetectContacts");
   auto& registry = scene_->GetRegistry();
 
   // Helper to invoke callbacks on all MonoBehaviors of an entity

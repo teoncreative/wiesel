@@ -61,6 +61,7 @@ bool ToonFeature::IsEnabled(const RenderContext& ctx) const {
 }
 
 void ToonFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("ToonFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -113,6 +114,7 @@ void ToonFeature::SetupResources(RenderContext& ctx) {
 void ToonFeature::AddPasses(RenderGraph& graph,
                             RenderResourceRegistry& registry,
                             RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("ToonFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   auto push_constants = push_constants_;

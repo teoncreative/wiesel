@@ -5,6 +5,7 @@
 #include "w_editor.hpp"
 
 #include <imgui.h>
+#include "util/w_tracy.hpp"
 #include <misc/cpp/imgui_stdlib.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <ImGuizmo.h>
@@ -41,6 +42,19 @@ static FileWatcher script_watcher_;
 static float script_watch_timer_ = 0.0f;
 static constexpr float kScriptWatchInterval = 1.0f;
 
+struct ResolutionPreset {
+  const char* label;
+  glm::vec2 size;  // {0,0} = Free Aspect
+};
+static const ResolutionPreset kResolutionPresets[] = {
+    {"1920x1080", {1920, 1080}},
+    {"1600x900",  {1600, 900}},
+    {"1280x720",  {1280, 720}},
+    {"854x480",   {854, 480}},
+    {"Free Aspect", {0, 0}},
+};
+static constexpr int kResolutionPresetCount = sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]);
+
 struct ThumbnailEntry {
   VkDescriptorSet texture_id = nullptr;
   bool attempted = false;
@@ -72,10 +86,11 @@ void EditorLayer::OnAttach() {
   editor_pitch_ = -15.0f; // slightly looking down
   editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
 
-  editor_camera_.viewport_size = {2560, 1440};
+  editor_camera_.viewport_size = {1920, 1080};
   editor_camera_.far_plane = 500.0f;
   editor_camera_.field_of_view = 60.0f;
   Engine::GetRenderer()->SetupCameraComponent(editor_camera_);
+  scene_->SetRenderResolution(kResolutionPresets[resolution_preset_index_].size);
 
   // Start watching app scripts directory for hot reload
   if (Engine::GetEngineProperties().dev_mode) {
@@ -94,6 +109,7 @@ void EditorLayer::OnDetach() {
 }
 
 void EditorLayer::OnUpdate(float_t delta_time) {
+  PROFILE_ZONE_SCOPED_N("Editor::OnUpdate");
   // Only let scripts read input when the Game panel is focused during play
   InputManager::SetEnabled(editor_state_ == EditorState::Playing && game_panel_focused_);
 
@@ -176,72 +192,46 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
 
 void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
   auto& tag_component = entity.GetComponent<TagComponent>();
-  std::string tag = "";
-  for (int i = 0; i < depth; i++) {
-    tag += "\t";
-  }
-  tag += tag_component.tag;
-  tag += "##";
-  tag += (uint32_t) entity_id;
+  bool has_children = entity.child_handles() && !entity.child_handles()->empty();
+  bool is_selected = has_selected_entity_ && selected_entity_ == entity_id;
 
-  if (ImGui::Selectable(tag.c_str(),
-                        has_selected_entity_ && selected_entity_ == entity_id,
-                        ImGuiSelectableFlags_None, ImVec2(0, 0))) {
+  // Build unique label
+  std::string label = tag_component.tag + "##" + std::to_string(static_cast<uint32_t>(entity_id));
+
+  ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
+      | ImGuiTreeNodeFlags_SpanAvailWidth
+      | ImGuiTreeNodeFlags_FramePadding;
+  if (is_selected) {
+    flags |= ImGuiTreeNodeFlags_Selected;
+  }
+  if (!has_children) {
+    flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+  }
+
+  bool node_open = ImGui::TreeNodeEx(label.c_str(), flags);
+
+  // Selection on click
+  if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
     selected_entity_ = entity_id;
     has_selected_entity_ = true;
   }
 
-  ImGuiDragDropFlags src_flags = 0;
-  src_flags |= ImGuiDragDropFlags_SourceNoDisableHover;     // Keep the source displayed as hovered
-  //src_flags |= ImGuiDragDropFlags_SourceNoHoldToOpenOthers; // Because our dragging is local, we disable the feature of opening foreign treenodes/tabs while dragging
-  //src_flags |= ImGuiDragDropFlags_SourceNoPreviewTooltip; // Hide the tooltip
-
-  ImGuiDragDropFlags target_flags = 0;
-  target_flags |= ImGuiDragDropFlags_AcceptBeforeDelivery;    // Don't wait until the delivery (release mouse button on a target) to do something
-
+  // Drag & drop source
+  ImGuiDragDropFlags src_flags = ImGuiDragDropFlags_SourceNoDisableHover;
   if (ImGui::BeginDragDropSource(src_flags)) {
-    if (!(src_flags & ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
-      ImGui::Text("%s", tag.c_str());
-    }
+    ImGui::Text("%s", tag_component.tag.c_str());
     ImGui::SetDragDropPayload("SceneHierarchy Entity", &entity_id, sizeof(entt::entity));
     ImGui::EndDragDropSource();
   }
 
+  // Drag & drop target: drop ON entity to make it a child
+  ImGuiDragDropFlags target_flags = ImGuiDragDropFlags_AcceptBeforeDelivery;
   if (ImGui::BeginDragDropTarget()) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
-      entt::entity* new_data = static_cast<entt::entity*>(payload->Data);
-      hierarchy_data_.move_from = *new_data;
+      hierarchy_data_.move_from = *static_cast<entt::entity*>(payload->Data);
       hierarchy_data_.move_to = entity_id;
       hierarchy_data_.bottom_part = false;
     }
-    ImGui::EndDragDropTarget();
-  }
-
-  if (ImGui::BeginDragDropSource(src_flags)) {
-    if (!(src_flags & ImGuiDragDropFlags_SourceNoPreviewTooltip)) {
-      ImGui::Text("%s", tag.c_str());
-    }
-    ImGui::SetDragDropPayload("SceneHierarchy Entity", &entity_id, sizeof(entt::entity));
-    ImGui::EndDragDropSource();
-  }
-
-  if (ImGui::BeginDragDropTarget()) {
-    target_flags |= ImGuiDragDropFlags_AcceptNoDrawDefaultRect; // Don't display the yellow rectangle
-    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
-      entt::entity newData = *(entt::entity*)payload->Data;
-      hierarchy_data_.move_from = newData;
-      hierarchy_data_.move_to = entity_id;
-      hierarchy_data_.bottom_part = true;
-    }
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    ImGuiContext& g = *GImGui;
-    ImRect r = g.DragDropTargetRect;
-    ImVec2 min = r.Min;
-    ImVec2 max = r.Max;
-    min.y += 2.0f;
-    max.y -= 2.0f;
-    window->DrawList->AddRect(min, max, ImGui::GetColorU32(ImGuiCol_DragDropTarget), 0.0f, 0, 1.0f);
-
     ImGui::EndDragDropTarget();
   }
 
@@ -255,33 +245,42 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
           if (!entity.HasComponent<ModelComponent>()) {
             entity.AddComponent<ModelComponent>();
           }
-          auto& model = entity.GetComponent<ModelComponent>();
-          model.model_handle = dropped;
+          entity.GetComponent<ModelComponent>().model_handle = dropped;
         }
-        // Future: handle AssetType::Script, AssetType::Texture, etc.
       }
     }
     ImGui::EndDragDropTarget();
   }
 
+  // Context menu
   if (ImGui::BeginPopupContextItem()) {
     selected_entity_ = entity_id;
-    if (ImGui::Button("Remove Entity")) {
+    has_selected_entity_ = true;
+    if (ImGui::MenuItem("Add Child")) {
+      Entity child = scene_->CreateEntity();
+      scene_->LinkEntities(entity_id, child);
+    }
+    ImGui::Separator();
+    if (ImGui::MenuItem("Delete")) {
       scene_->RemoveEntity(entity);
       has_selected_entity_ = false;
     }
     ImGui::EndPopup();
     ignore_menu = true;
   }
-  if (entity.child_handles()) {
+
+  // Recurse into children if the tree node is open
+  if (has_children && node_open) {
     for (const auto& child_entity_id : *entity.child_handles()) {
       Entity child = {child_entity_id, scene_.get()};
       RenderEntity(child, child_entity_id, depth + 1, ignore_menu);
     }
+    ImGui::TreePop();
   }
 }
 
 void EditorLayer::OnBeginPresent() {
+  PROFILE_ZONE_SCOPED_N("Editor::OnBeginPresent");
   Renderer* renderer = Engine::GetRenderer().get();
 
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
@@ -416,28 +415,50 @@ void EditorLayer::OnBeginPresent() {
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
     bool ignoreMenu = false;
 
-    for (const auto& entityId : scene_->GetSceneHierarchy()) {
-      Entity entity = {entityId, scene_.get()};
-      if (entity.GetParent()) {
-        continue;
-      }
+    // Scene root node (always open, not collapsible)
+    ImGuiTreeNodeFlags scene_flags = ImGuiTreeNodeFlags_DefaultOpen
+        | ImGuiTreeNodeFlags_OpenOnArrow
+        | ImGuiTreeNodeFlags_SpanAvailWidth
+        | ImGuiTreeNodeFlags_FramePadding
+        | ImGuiTreeNodeFlags_Framed;
+    bool scene_open = ImGui::TreeNodeEx("##SceneRoot", scene_flags, "Scene");
 
-      RenderEntity(entity, entityId, 0, ignoreMenu);
+    // Right-click on scene root to add entities
+    if (ImGui::BeginPopupContextItem("scene_root_context")) {
+      if (ImGui::MenuItem("Add Empty Entity")) {
+        scene_->CreateEntity();
+      }
+      ImGui::EndPopup();
+      ignoreMenu = true;
+    }
+
+    if (scene_open) {
+      for (const auto& entityId : scene_->GetSceneHierarchy()) {
+        Entity entity = {entityId, scene_.get()};
+        if (entity.GetParent()) {
+          continue;
+        }
+        RenderEntity(entity, entityId, 0, ignoreMenu);
+      }
+      ImGui::TreePop();
     }
 
     UpdateHierarchyOrder();
 
+    // Right-click on empty space
     if (!ignoreMenu && ImGui::IsWindowHovered() && ImGui::IsMouseClicked(1, false))
       ImGui::OpenPopup("right_click_hierarchy");
     if (ImGui::BeginPopup("right_click_hierarchy")) {
-      if (ImGui::BeginMenu("Add")) {
-        if (ImGui::MenuItem("Empty Object")) {
-          scene_->CreateEntity();
-          ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndMenu();
+      if (ImGui::MenuItem("Add Empty Entity")) {
+        scene_->CreateEntity();
+        ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
+    }
+
+    // Click empty space to deselect
+    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered()) {
+      has_selected_entity_ = false;
     }
   }
   ImGui::End();
@@ -884,7 +905,8 @@ void EditorLayer::OnBeginPresent() {
 
   static bool sceneViewOpen = true;
   ImGuiWindowFlags sceneFlags = ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
-  if (ImGui::Begin("Scene", &sceneViewOpen, sceneFlags)) {
+  scene_panel_visible_ = ImGui::Begin("Scene", &sceneViewOpen, sceneFlags);
+  if (scene_panel_visible_) {
     // Play/Stop buttons + gizmo controls
     DrawPlayStopButtons();
     ImGui::SameLine();
@@ -895,6 +917,23 @@ void EditorLayer::OnBeginPresent() {
     if (ImGui::RadioButton("Rotate",    current_op_ == ImGuizmo::ROTATE))    current_op_ = ImGuizmo::ROTATE;
     ImGui::SameLine();
     if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
+    {
+      float comboWidth = 130.0f;
+      float rightEdge = ImGui::GetWindowContentRegionMax().x;
+      ImGui::SameLine(rightEdge - comboWidth);
+      ImGui::SetNextItemWidth(comboWidth);
+      if (ImGui::BeginCombo("##SceneResolution", kResolutionPresets[resolution_preset_index_].label)) {
+        for (int i = 0; i < kResolutionPresetCount; i++) {
+          bool selected = (i == resolution_preset_index_);
+          if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
+            resolution_preset_index_ = i;
+            scene_->SetRenderResolution(kResolutionPresets[i].size);
+          }
+          if (selected) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+      }
+    }
 
     // Editor camera output from its own resource pool
     auto editorDesc = editor_camera_.resource_pool.GetDescriptor("PipelineOutputDescriptor");
@@ -902,15 +941,19 @@ void EditorLayer::OnBeginPresent() {
 
     // Handle viewport resize
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    uint32_t newW = static_cast<uint32_t>(avail.x);
-    uint32_t newH = static_cast<uint32_t>(avail.y);
-    if (newW > 0 && newH > 0 &&
-        (newW != editor_camera_.viewport_size.x || newH != editor_camera_.viewport_size.y)) {
-      editor_camera_.viewport_size = {newW, newH};
-      editor_camera_.aspect_ratio = static_cast<float>(newW) / static_cast<float>(newH);
-      editor_camera_.view_changed = true;
-      editor_camera_.resources_dirty = true;
+    if (scene_->GetRenderResolution().x <= 0) {
+      // Free Aspect: editor camera tracks panel size (old behavior)
+      uint32_t newW = static_cast<uint32_t>(avail.x);
+      uint32_t newH = static_cast<uint32_t>(avail.y);
+      if (newW > 0 && newH > 0 &&
+          (newW != editor_camera_.viewport_size.x || newH != editor_camera_.viewport_size.y)) {
+        editor_camera_.viewport_size = {newW, newH};
+        editor_camera_.aspect_ratio = static_cast<float>(newW) / static_cast<float>(newH);
+        editor_camera_.view_changed = true;
+        editor_camera_.resources_dirty = true;
+      }
     }
+    // When a preset is active, RenderFromExternal applies render_resolution_ automatically
 
     if (editorDesc && editorImage) {
       ImTextureID desc =
@@ -931,12 +974,19 @@ void EditorLayer::OnBeginPresent() {
       ImGui::Image(desc, drawSize);
 
       ImVec2 imageMin = ImGui::GetItemRectMin();
+      ImVec2 imageMax = ImGui::GetItemRectMax();
       bool sceneHovered = ImGui::IsItemHovered();
 
-      // FPS overlay
+      // FPS overlay (top-left)
       ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
-      std::string fpsStr = fmt::format("FPS: {}", static_cast<int>(app_.GetFPS()));
+      std::string fpsStr = std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
       ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+
+      // Resolution overlay (top-right)
+      std::string resStr = std::format("{}x{}", (int)editor_camera_.viewport_size.x, (int)editor_camera_.viewport_size.y);
+      ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
+      ImVec2 resPos = ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
+      ImGui::GetWindowDrawList()->AddText(resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
 
       // Right-click mouse look
       static bool scene_right_active = false;
@@ -1094,6 +1144,42 @@ void EditorLayer::OnBeginPresent() {
         }
       }
 
+      // 2D canvas element selection highlight
+      if (has_selected_entity_ &&
+          scene_->HasComponent<RectangleTransformComponent>(selected_entity_)) {
+        auto& rt = scene_->GetComponent<RectangleTransformComponent>(selected_entity_);
+        float renderW = static_cast<float>(editorImage->width_);
+        float renderH = static_cast<float>(editorImage->height_);
+        float scaleX = drawSize.x / renderW;
+        float scaleY = drawSize.y / renderH;
+
+        ImVec2 rMin(imageMin.x + rt.computed_position.x * scaleX,
+                    imageMin.y + rt.computed_position.y * scaleY);
+        ImVec2 rMax(imageMin.x + (rt.computed_position.x + rt.computed_size.x) * scaleX,
+                    imageMin.y + (rt.computed_position.y + rt.computed_size.y) * scaleY);
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImU32 outlineCol = IM_COL32(50, 150, 255, 230);
+        ImU32 fillCol = IM_COL32(50, 150, 255, 30);
+        drawList->AddRectFilled(rMin, rMax, fillCol);
+        drawList->AddRect(rMin, rMax, outlineCol, 0.0f, 0, 2.0f);
+
+        // Corner handles
+        float handleSize = 4.0f;
+        ImU32 handleCol = IM_COL32(255, 255, 255, 255);
+        ImVec2 corners[4] = {rMin, {rMax.x, rMin.y}, rMax, {rMin.x, rMax.y}};
+        for (auto& c : corners) {
+          drawList->AddRectFilled(
+              ImVec2(c.x - handleSize, c.y - handleSize),
+              ImVec2(c.x + handleSize, c.y + handleSize),
+              handleCol);
+          drawList->AddRect(
+              ImVec2(c.x - handleSize, c.y - handleSize),
+              ImVec2(c.x + handleSize, c.y + handleSize),
+              outlineCol, 0.0f, 0, 1.0f);
+        }
+      }
+
       // Entity picking: click on Scene panel to select (only when not right-clicking)
       if (!scene_right_active && ImGui::IsMouseClicked(0) && sceneHovered &&
           !ImGuizmo::IsUsing() && !ImGuizmo::IsOver()) {
@@ -1120,19 +1206,58 @@ void EditorLayer::OnBeginPresent() {
   static bool gameViewOpen = true;
   {
     bool gameVisible = ImGui::Begin("Game", &gameViewOpen);
+    game_panel_visible_ = gameVisible;
     game_panel_focused_ = ImGui::IsWindowFocused();
     if (gameVisible) {
       DrawPlayStopButtons();
+      {
+        float comboWidth = 130.0f;
+        float rightEdge = ImGui::GetWindowContentRegionMax().x;
+        ImGui::SameLine(rightEdge - comboWidth);
+        ImGui::SetNextItemWidth(comboWidth);
+        if (ImGui::BeginCombo("##GameResolution", kResolutionPresets[resolution_preset_index_].label)) {
+          for (int i = 0; i < kResolutionPresetCount; i++) {
+            bool selected = (i == resolution_preset_index_);
+            if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
+              resolution_preset_index_ = i;
+              scene_->SetRenderResolution(kResolutionPresets[i].size);
+            }
+            if (selected) ImGui::SetItemDefaultFocus();
+          }
+          ImGui::EndCombo();
+        }
+      }
 
       if (editor_state_ == EditorState::Playing) {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        if (scene_->GetRenderResolution().x <= 0) {
+          // Free Aspect: game camera tracks panel size (old behavior)
+          for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+            auto& cam = scene_->GetComponent<CameraComponent>(entity);
+            if (!cam.enabled) continue;
+            uint32_t w = static_cast<uint32_t>(avail.x);
+            uint32_t h = static_cast<uint32_t>(avail.y);
+            if (w > 0 && h > 0 &&
+                (w != static_cast<uint32_t>(cam.viewport_size.x) ||
+                 h != static_cast<uint32_t>(cam.viewport_size.y))) {
+              cam.viewport_size = {w, h};
+              cam.aspect_ratio = static_cast<float>(w) / static_cast<float>(h);
+              cam.view_changed = true;
+              cam.resources_dirty = true;
+            }
+            break;  // only first enabled camera
+          }
+        }
+        // When a preset is active, Scene::Render() applies render_resolution_ automatically
+
         auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
         auto finalOutputImage = renderer->GetFinalOutputImage();
         if (finalOutputDesc && finalOutputImage) {
           ImTextureID gameDesc =
               reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
 
-          ImVec2 avail = ImGui::GetContentRegionAvail();
-          float imageAspect = (float)finalOutputImage->width_ / (float)finalOutputImage->height_;
+          float imageAspect = static_cast<float>(finalOutputImage->width_) /
+                              static_cast<float>(finalOutputImage->height_);
           float availAspect = avail.x / avail.y;
 
           ImVec2 drawSize;
@@ -1144,6 +1269,21 @@ void EditorLayer::OnBeginPresent() {
             drawSize.y = drawSize.x / imageAspect;
           }
           ImGui::Image(gameDesc, drawSize);
+
+          ImVec2 imageMin = ImGui::GetItemRectMin();
+
+          ImVec2 imageMax = ImGui::GetItemRectMax();
+
+          // FPS overlay (top-left)
+          ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
+          std::string fpsStr = std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
+          ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+
+          // Resolution overlay (top-right)
+          std::string resStr = std::format("{}x{}", finalOutputImage->width_, finalOutputImage->height_);
+          ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
+          ImVec2 resPos = ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
+          ImGui::GetWindowDrawList()->AddText(resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
         }
       } else {
         ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -1202,42 +1342,51 @@ void EditorLayer::RestoreSnapshot() {
 }
 
 void EditorLayer::OnPrePresent() {
+  PROFILE_ZONE_SCOPED_N("Editor::OnPrePresent");
   Renderer* renderer = Engine::GetRenderer().get();
   VkCommandBuffer cmd = renderer->GetCommandBuffer().handle_;
 
   if (editor_state_ == EditorState::Playing) {
-    // PLAY MODE: Both editor camera and ECS cameras render.
-    // BeginPresent/EndPresent handle the ECS camera transitions.
-    // We must manually transition the editor camera's output.
+    // PLAY MODE: Only render viewports that are actually visible.
+    // This avoids double rendering when Scene and Game are tabbed.
 
-    // Transition editor PipelineOutput back to COLOR_ATTACHMENT
-    // (it was left in SHADER_READ from our manual transition last frame)
-    auto editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
-    if (editorOutput) {
-      renderer->TransitionImageLayout(
-          editorOutput->images_[0], editorOutput->format_,
-          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, cmd, 0, 1);
+    if (scene_panel_visible_) {
+      // Transition editor PipelineOutput back to COLOR_ATTACHMENT
+      // (it was left in SHADER_READ from our manual transition last frame)
+      auto editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
+      if (editorOutput) {
+        renderer->TransitionImageLayout(
+            editorOutput->images_[0], editorOutput->format_,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, cmd, 0, 1);
+      }
+
+      // Render editor camera
+      PROFILE_PLOT("Scene Width", static_cast<double>(editor_camera_.viewport_size.x));
+      PROFILE_PLOT("Scene Height", static_cast<double>(editor_camera_.viewport_size.y));
+      scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
+      PROFILE_FRAME_MARK_NAMED("Scene");
+
+      // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
+      editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
+      if (editorOutput) {
+        renderer->TransitionImageLayout(
+            editorOutput->images_[0], editorOutput->format_,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, cmd, 0, 1);
+      }
     }
 
-    // Render editor camera
-    scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
-
-    // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
-    editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
-    if (editorOutput) {
-      renderer->TransitionImageLayout(
-          editorOutput->images_[0], editorOutput->format_,
-          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, cmd, 0, 1);
+    if (game_panel_visible_) {
+      PROFILE_FRAME_MARK_NAMED("Game");
+      // Render ECS cameras (sets camera_ to ECS camera for BeginPresent)
+      scene_->Render();
     }
-
-    // Render ECS cameras (sets camera_ to ECS camera for BeginPresent)
-    scene_->Render();
   } else {
+    PROFILE_FRAME_MARK_NAMED("Scene");
     // EDIT MODE: Only editor camera renders.
     // camera_ will point to editor camera after RenderFromExternal.
-    // BeginPresent/EndPresent handle its transitions automatically.
+    // BeginPresent/EndPresent handle its transitions automatically.uti
     scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
   }
 }

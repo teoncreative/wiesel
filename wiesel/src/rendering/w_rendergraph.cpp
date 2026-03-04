@@ -149,6 +149,7 @@ void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
 }
 
 void RenderGraph::Compile() {
+  PROFILE_ZONE_SCOPED_N("RenderGraph::Compile");
   CreateTransientResources();
   TopologicalSort();
   compiled_ = true;
@@ -241,6 +242,7 @@ void RenderGraph::DestroyTransientResources() {
 }
 
 void RenderGraph::Execute(VkCommandBuffer cmd) {
+  PROFILE_ZONE_SCOPED_N("RenderGraph::Execute");
   if (!compiled_) {
     LOG_ERROR("RenderGraph: Execute called before Compile!");
     return;
@@ -253,6 +255,9 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
   for (uint32_t idx : sorted_order_) {
     auto& pass = passes_[idx];
     if (!pass.enabled_) continue;
+
+    PROFILE_ZONE_SCOPED_N("RenderPass");
+    ZoneText(pass.name_.c_str(), pass.name_.size());
 
     // Insert barriers for inputs (transition to required layouts)
     InsertBarriers(cmd, pass);

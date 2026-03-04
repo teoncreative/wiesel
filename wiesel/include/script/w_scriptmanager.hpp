@@ -240,6 +240,12 @@ class ScriptManager {
   static MonoClass* box_collider_class_;
   static MonoClass* sphere_collider_class_;
   static MonoClass* rigidbody_class_;
+  static MonoClass* rect_transform_class_;
+  static MonoClass* canvas_component_class_;
+  static MonoClass* canvas_rect_class_;
+  static MonoClass* canvas_image_class_;
+  static MonoClass* text_component_class_;
+  static MonoClass* animator_component_class_;
   static MonoClass* vector3f_class_;
   static MonoMethod* set_handle_method_;
   static std::map<std::string, ComponentGetter> component_getters_;

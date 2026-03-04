@@ -50,6 +50,9 @@ class EditorLayer : public Layer {
   float mouse_sensitivity_ = 0.1f;
   bool cursor_captured_ = false;
   bool game_panel_focused_ = false;
+  bool scene_panel_visible_ = true;
+  bool game_panel_visible_ = true;
+  int resolution_preset_index_ = 0;  // index into kResolutionPresets
 
   // Scene snapshot for Play/Stop restore
   struct EntitySnapshot {

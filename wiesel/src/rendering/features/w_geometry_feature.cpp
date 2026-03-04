@@ -87,12 +87,14 @@ GeometryFeature::GeometryFeature(Ref<Renderer> renderer)
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(renderer_->GetGeometryMeshDescriptorLayout());
   pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetBoneDescriptorLayout());
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
 }
 
 void GeometryFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("GeometryFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   auto& camera = ctx.camera;
@@ -239,6 +241,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
 void GeometryFeature::AddPasses(RenderGraph& graph,
                                 RenderResourceRegistry& registry,
                                 RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("GeometryFeature::AddPasses");
   auto& pool = ctx.resources;
   bool use_resolve = ctx.use_msaa_resolve;
 

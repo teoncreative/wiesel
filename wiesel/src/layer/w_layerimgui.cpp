@@ -156,6 +156,7 @@ void ImGuiLayer::OnBeginPresent() {
 }
 
 void ImGuiLayer::OnPresent() {
+  PROFILE_ZONE_SCOPED_N("ImGuiLayer::OnPresent");
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(
       ImGui::GetDrawData(),

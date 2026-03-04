@@ -25,8 +25,14 @@
 #include "rendering/features/w_taa_feature.hpp"
 #include "rendering/features/w_bloom_feature.hpp"
 #include "rendering/features/w_motion_blur_feature.hpp"
+#include "rendering/features/w_canvas_feature.hpp"
 #include "rendering/features/w_fxaa_feature.hpp"
+#include "animation/w_animation.hpp"
+#include "animation/w_animation_controller.hpp"
+#include "animation/w_animator.hpp"
+#include "asset/w_asset_manager.hpp"
 #include "scene/w_entity.hpp"
+#include "systems/w_canvas_system.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "w_engine.hpp"
 
@@ -73,14 +79,20 @@ void Scene::OnUpdate(float_t delta_time) {
     // Create bodies for new entities before scripts run
     physics_world_->EnsureBodiesExist();
 
-    for (const auto& entity : registry_.view<BehaviorsComponent>()) {
-      BehaviorsComponent& component = registry_.get<BehaviorsComponent>(entity);
-      for (IBehavior*& value : component.behaviors_ | std::views::values) {
-        value->OnUpdate(delta_time);
+    {
+      PROFILE_ZONE_SCOPED_N("Behaviors::OnUpdate");
+      for (const auto& entity : registry_.view<BehaviorsComponent>()) {
+        BehaviorsComponent& component = registry_.get<BehaviorsComponent>(entity);
+        for (IBehavior*& value : component.behaviors_ | std::views::values) {
+          value->OnUpdate(delta_time);
+        }
       }
     }
-    for (auto&& fn : systems_[SystemType::Update]) {
-      fn(delta_time);
+    {
+      PROFILE_ZONE_SCOPED_N("Systems::Update");
+      for (auto&& fn : systems_[SystemType::Update]) {
+        fn(delta_time);
+      }
     }
 
     // Physics step
@@ -101,6 +113,7 @@ void Scene::OnUpdateEditor(float_t delta_time) {
 }
 
 void Scene::UpdateSceneState(float_t delta_time) {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateSceneState");
   for (const auto& entity : registry_.view<TransformComponent>()) {
     auto& transform = registry_.get<TransformComponent>(entity);
     if (transform.is_changed) {
@@ -127,6 +140,253 @@ void Scene::UpdateSceneState(float_t delta_time) {
     auto& transform = registry_.get<TransformComponent>(entity);
     UpdateLight(lights, light.light_data, transform);
   }
+
+  // Animation evaluation
+  {
+  PROFILE_ZONE_SCOPED_N("Animation Evaluation");
+  for (const auto& entity :
+       registry_.view<AnimatorComponent, ModelComponent>()) {
+    auto& animator = registry_.get<AnimatorComponent>(entity);
+    auto& model_comp = registry_.get<ModelComponent>(entity);
+    if (!animator.playing) {
+      continue;
+    }
+
+    const Ref<Model>& model_data =
+        AssetManager::Get().GetOrLoad<Model>(model_comp.model_handle);
+    if (!model_data || model_data->animation_clips.empty()) {
+      continue;
+    }
+
+    // Helper: find clip by name in model
+    auto find_clip = [&](const std::string& name) -> const AnimationClip* {
+      for (const auto& c : model_data->animation_clips) {
+        if (c.name == name) return &c;
+      }
+      return nullptr;
+    };
+
+    if (animator.UseController()) {
+      // --- Controller mode ---
+      auto& ctrl = animator.controller;
+
+      // Initialize state if needed
+      if (animator.current_state_name.empty() && !ctrl.default_state.empty()) {
+        animator.current_state_name = ctrl.default_state;
+        animator.state_time = 0.0f;
+      }
+
+      const auto* cur_state = ctrl.FindState(animator.current_state_name);
+      if (!cur_state) continue;
+
+      // Check transitions (current state transitions first, then "any state")
+      const AnimationTransition* fired_transition = nullptr;
+      for (const auto& trans : ctrl.transitions) {
+        if (!trans.from_state.empty() &&
+            trans.from_state != animator.current_state_name)
+          continue;
+        // Evaluate all conditions
+        bool all_met = true;
+        for (const auto& cond : trans.conditions) {
+          auto param_it = animator.parameters.find(cond.param_name);
+          if (param_it == animator.parameters.end()) {
+            all_met = false;
+            break;
+          }
+          const auto& param = param_it->second;
+          switch (cond.param_type) {
+            case AnimParamType::Trigger:
+              if (!param.b) all_met = false;
+              break;
+            case AnimParamType::Bool:
+              switch (cond.op) {
+                case ConditionOp::Equals:
+                  if (param.b != cond.value.b) all_met = false;
+                  break;
+                case ConditionOp::NotEquals:
+                  if (param.b == cond.value.b) all_met = false;
+                  break;
+                default:
+                  break;
+              }
+              break;
+            case AnimParamType::Int:
+              switch (cond.op) {
+                case ConditionOp::Equals:
+                  if (param.i != cond.value.i) all_met = false;
+                  break;
+                case ConditionOp::NotEquals:
+                  if (param.i == cond.value.i) all_met = false;
+                  break;
+                case ConditionOp::Greater:
+                  if (param.i <= cond.value.i) all_met = false;
+                  break;
+                case ConditionOp::Less:
+                  if (param.i >= cond.value.i) all_met = false;
+                  break;
+              }
+              break;
+            case AnimParamType::Float:
+              switch (cond.op) {
+                case ConditionOp::Equals:
+                  if (std::abs(param.f - cond.value.f) > 0.001f)
+                    all_met = false;
+                  break;
+                case ConditionOp::NotEquals:
+                  if (std::abs(param.f - cond.value.f) <= 0.001f)
+                    all_met = false;
+                  break;
+                case ConditionOp::Greater:
+                  if (param.f <= cond.value.f) all_met = false;
+                  break;
+                case ConditionOp::Less:
+                  if (param.f >= cond.value.f) all_met = false;
+                  break;
+              }
+              break;
+          }
+          if (!all_met) break;
+        }
+        if (all_met && trans.to_state != animator.current_state_name) {
+          fired_transition = &trans;
+          break;
+        }
+      }
+
+      if (fired_transition) {
+        // Consume triggers used in this transition
+        for (const auto& cond : fired_transition->conditions) {
+          if (cond.param_type == AnimParamType::Trigger) {
+            auto param_it = animator.parameters.find(cond.param_name);
+            if (param_it != animator.parameters.end()) {
+              param_it->second.b = false;
+            }
+          }
+        }
+
+        // Start crossfade
+        if (fired_transition->blend_duration > 0.0f) {
+          animator.prev_clip_name = cur_state->clip_name;
+          animator.prev_clip_time = animator.state_time;
+          animator.prev_bone_matrices = animator.bone_matrices;
+          animator.prev_node_transforms = animator.node_transforms;
+          animator.is_blending = true;
+          animator.blend_duration = fired_transition->blend_duration;
+          animator.blend_elapsed = 0.0f;
+          animator.blend_weight = 0.0f;
+        } else {
+          animator.is_blending = false;
+        }
+
+        animator.current_state_name = fired_transition->to_state;
+        animator.state_time = 0.0f;
+        cur_state = ctrl.FindState(animator.current_state_name);
+        if (!cur_state) continue;
+      }
+
+      // Find the current clip
+      const AnimationClip* clip = find_clip(cur_state->clip_name);
+      if (!clip) continue;
+
+      // Advance state time
+      float tps = clip->ticks_per_second;
+      animator.state_time +=
+          delta_time * cur_state->speed * animator.playback_speed * tps;
+      if (cur_state->looping && clip->duration > 0.0f) {
+        animator.state_time =
+            std::fmod(animator.state_time, clip->duration);
+        if (animator.state_time < 0.0f) {
+          animator.state_time += clip->duration;
+        }
+      } else {
+        animator.state_time =
+            glm::clamp(animator.state_time, 0.0f, clip->duration);
+      }
+
+      // Evaluate current clip
+      Animator::Evaluate(*model_data, *clip, animator.state_time,
+                         animator.bone_matrices, animator.node_transforms);
+
+      // Handle crossfade blending
+      if (animator.is_blending) {
+        animator.blend_elapsed += delta_time;
+        animator.blend_weight = glm::clamp(
+            animator.blend_elapsed / animator.blend_duration, 0.0f, 1.0f);
+
+        // Advance previous clip time too (so it doesn't freeze)
+        const AnimationClip* prev_clip = find_clip(animator.prev_clip_name);
+        if (prev_clip) {
+          // prev_clip_time was captured at transition start; keep advancing it
+          float prev_tps = prev_clip->ticks_per_second;
+          animator.prev_clip_time += delta_time * prev_tps;
+          if (prev_clip->duration > 0.0f) {
+            animator.prev_clip_time =
+                std::fmod(animator.prev_clip_time, prev_clip->duration);
+            if (animator.prev_clip_time < 0.0f)
+              animator.prev_clip_time += prev_clip->duration;
+          }
+
+          Animator::Evaluate(*model_data, *prev_clip, animator.prev_clip_time,
+                             animator.prev_bone_matrices,
+                             animator.prev_node_transforms);
+        }
+
+        // Blend: prev → current
+        Animator::BlendBoneMatrices(animator.prev_bone_matrices,
+                                   animator.bone_matrices, animator.blend_weight,
+                                   animator.bone_matrices);
+
+        if (animator.blend_weight >= 1.0f) {
+          animator.is_blending = false;
+        }
+      }
+
+      // Keep legacy fields in sync for editor display
+      animator.current_clip_name = cur_state->clip_name;
+      animator.playback_time = animator.state_time;
+      animator.looping = cur_state->looping;
+
+    } else {
+      // --- Legacy single-clip mode ---
+      const AnimationClip* clip = nullptr;
+      if (!animator.current_clip_name.empty()) {
+        clip = find_clip(animator.current_clip_name);
+      }
+      if (!clip) {
+        clip = &model_data->animation_clips[0];
+        animator.current_clip_name = clip->name;
+      }
+
+      float tps = clip->ticks_per_second;
+      animator.playback_time += delta_time * animator.playback_speed * tps;
+      if (animator.looping && clip->duration > 0.0f) {
+        animator.playback_time =
+            std::fmod(animator.playback_time, clip->duration);
+        if (animator.playback_time < 0.0f) {
+          animator.playback_time += clip->duration;
+        }
+      } else {
+        animator.playback_time =
+            glm::clamp(animator.playback_time, 0.0f, clip->duration);
+      }
+
+      Animator::Evaluate(*model_data, *clip, animator.playback_time,
+                         animator.bone_matrices, animator.node_transforms);
+    }
+
+    // Upload bone matrices to GPU
+    if (model_comp.bone_ubo_ && model_comp.bone_ubo_->data_) {
+      BoneMatricesUniformData gpu_data{};
+      size_t count = std::min(animator.bone_matrices.size(),
+                              static_cast<size_t>(WIESEL_MAX_BONES));
+      for (size_t b = 0; b < count; b++) {
+        gpu_data.bone_matrices[b] = animator.bone_matrices[b];
+      }
+      memcpy(model_comp.bone_ubo_->data_, &gpu_data,
+             sizeof(BoneMatricesUniformData));
+    }
+  }
+  }  // end Animation Evaluation profile zone
 
   for (const auto& entity :
        registry_.view<CameraComponent, TransformComponent>()) {
@@ -226,15 +486,17 @@ void Scene::ProcessDestroyQueue() {
 }
 
 bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
-  /*for (const auto& entity : registry_.view<CameraComponent>()) {
+  if (render_resolution_.x > 0 && render_resolution_.y > 0) {
+    return false;  // fixed resolution, don't react to window resize
+  }
+  for (const auto& entity : registry_.view<CameraComponent>()) {
     auto& component = registry_.get<CameraComponent>(entity);
-    component.aspect_ratio = event.aspect_ratio();
     component.viewport_size.x = event.window_size().width;
     component.viewport_size.y = event.window_size().height;
+    component.aspect_ratio = event.aspect_ratio();
     component.resources_dirty = true;
     component.view_changed = true;
   }
-  return false;*/
   return false;
 }
 
@@ -283,6 +545,7 @@ void Scene::InvalidateRenderGraphs() {
 }
 
 void Scene::BuildRenderGraph(entt::entity camera_entity) {
+  PROFILE_ZONE_SCOPED_N("Scene::BuildRenderGraph");
   Ref<Renderer> renderer = Engine::GetRenderer();
   auto& camera = registry_.get<CameraComponent>(camera_entity);
 
@@ -315,6 +578,24 @@ bool Scene::Render() {
     if (!camera.enabled)
       continue;
 
+    // Apply scene render resolution if set
+    if (render_resolution_.x > 0 && render_resolution_.y > 0) {
+      if (render_resolution_.x != camera.viewport_size.x ||
+          render_resolution_.y != camera.viewport_size.y) {
+        camera.viewport_size = render_resolution_;
+        camera.aspect_ratio = render_resolution_.x / render_resolution_.y;
+        camera.view_changed = true;
+        camera.resources_dirty = true;
+      }
+    }
+
+    // Compute canvas layout using the camera's viewport size so the layout
+    // matches the push constant the canvas shader receives.
+    {
+      CanvasSystem canvas_system;
+      canvas_system.Update(*this, camera.viewport_size);
+    }
+
     if (camera.resources_dirty) {
       vkDeviceWaitIdle(renderer->GetLogicalDevice());
       bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
@@ -326,6 +607,9 @@ bool Scene::Render() {
       camera.resources_dirty = false;
       render_graphs_.erase(cameraEntity);
     }
+
+    PROFILE_PLOT("Game Width", static_cast<double>(camera.viewport_size.x));
+    PROFILE_PLOT("Game Height", static_cast<double>(camera.viewport_size.y));
 
     current_camera_->TransferFrom(camera, camera_transform);
     renderer->SetCameraData(current_camera_);
@@ -352,6 +636,23 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
     default_pipeline_ = CreateDefaultPipeline(renderer);
   }
 
+  // Apply scene render resolution if set
+  if (render_resolution_.x > 0 && render_resolution_.y > 0) {
+    if (render_resolution_.x != camera.viewport_size.x ||
+        render_resolution_.y != camera.viewport_size.y) {
+      camera.viewport_size = render_resolution_;
+      camera.aspect_ratio = render_resolution_.x / render_resolution_.y;
+      camera.view_changed = true;
+      camera.resources_dirty = true;
+    }
+  }
+
+  // Compute canvas layout using camera viewport (must match shader push constant)
+  {
+    CanvasSystem canvas_system;
+    canvas_system.Update(*this, camera.viewport_size);
+  }
+
   // Compute transform matrix (no entity hierarchy for external camera)
   glm::vec3 rotRad = glm::radians(transform.rotation);
   glm::mat4 R = glm::toMat4(glm::quat(rotRad));
@@ -367,12 +668,20 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   camera.UpdateView(transform.transform_matrix);
   camera.UpdateAll();
 
+  // Compute shadow cascades for external camera (same as ECS cameras)
+  auto& lights = Engine::GetRenderer()->lights_uniform_data_;
+  if (lights.direct_light_count > 0) {
+    camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
+  } else {
+    camera.does_shadow_pass = false;
+  }
+
   // Setup resources if dirty
   if (camera.resources_dirty) {
     vkDeviceWaitIdle(renderer->GetLogicalDevice());
     bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
     RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                      camera.viewport_size, use_resolve};
+                      camera.viewport_size, use_resolve, true};
     auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
                                             : *default_pipeline_;
     pipeline.SetupResources(ctx);
@@ -388,7 +697,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   external_render_graph_ = CreateReference<RenderGraph>(*renderer);
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
   RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                    camera.viewport_size, use_resolve};
+                    camera.viewport_size, use_resolve, true};
   auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
                                           : *default_pipeline_;
   pipeline.BuildRenderGraph(*external_render_graph_, ctx);
@@ -451,6 +760,7 @@ Ref<RenderPipeline> Scene::CreateDefaultPipeline(Ref<Renderer> renderer) {
   pipeline->AddFeature<BloomFeature>(renderer);
   pipeline->AddFeature<MotionBlurFeature>(renderer);
   pipeline->AddFeature<FXAAFeature>(renderer);
+  pipeline->AddFeature<CanvasFeature>(renderer);
   return pipeline;
 }
 

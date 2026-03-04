@@ -93,6 +93,7 @@ bool BloomFeature::IsEnabled(const RenderContext& ctx) const {
 }
 
 void BloomFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("BloomFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -189,6 +190,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
 void BloomFeature::AddPasses(RenderGraph& graph,
                              RenderResourceRegistry& registry,
                              RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("BloomFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   auto push_constants = push_constants_;

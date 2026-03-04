@@ -63,6 +63,7 @@ bool TAAFeature::IsEnabled(const RenderContext& ctx) const {
 }
 
 void TAAFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("TAAFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -137,6 +138,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
 void TAAFeature::AddPasses(RenderGraph& graph,
                            RenderResourceRegistry& registry,
                            RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("TAAFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
 

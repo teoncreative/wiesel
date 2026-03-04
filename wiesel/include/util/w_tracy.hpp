@@ -12,6 +12,7 @@
 #include "tracy/TracyVulkan.hpp"
 
 #define PROFILE_FRAME_MARK() FrameMark
+#define PROFILE_FRAME_MARK_NAMED(name) FrameMarkNamed(name)
 #define PROFILE_ZONE_SCOPED() ZoneScoped
 #define PROFILE_ZONE_SCOPED_N(name) ZoneScopedN(name)
 #define PROFILE_LOCKABLE(type, varname) TracyLockable(type, varname)

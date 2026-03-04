@@ -62,6 +62,9 @@ class Scene {
   void SetSkybox(Ref<Skybox> skybox) { skybox_ = skybox; }
   Ref<Skybox> GetSkybox() const { return skybox_; }
 
+  void SetRenderResolution(glm::vec2 resolution) { render_resolution_ = resolution; }
+  glm::vec2 GetRenderResolution() const { return render_resolution_; }
+
   // Set the default render pipeline for all cameras without a per-camera override.
   void SetRenderPipeline(Ref<RenderPipeline> pipeline);
   // Set a per-camera render pipeline override.
@@ -177,6 +180,7 @@ class Scene {
   Ref<RenderGraph> external_render_graph_;
   std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
   std::unique_ptr<PhysicsWorld> physics_world_;
+  glm::vec2 render_resolution_{0.0f, 0.0f};
 
   void UpdateSceneState(float_t delta_time);
 };

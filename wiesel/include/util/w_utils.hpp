@@ -68,6 +68,8 @@ struct Vertex3D {
   glm::vec3 Tangent;
   glm::vec3 BiTangent;
   uint32_t Flags;
+  glm::ivec4 BoneIndices = {0, 0, 0, 0};
+  glm::vec4 BoneWeights = {0.0f, 0.0f, 0.0f, 0.0f};
 
   static VkVertexInputBindingDescription GetBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
@@ -96,6 +98,10 @@ struct Vertex3D {
         {5, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, BiTangent)});
     attributeDescriptions.push_back(
         {6, 0, VK_FORMAT_R32_UINT, (uint32_t) offsetof(Vertex3D, Flags)});
+    attributeDescriptions.push_back(
+        {7, 0, VK_FORMAT_R32G32B32A32_SINT, (uint32_t) offsetof(Vertex3D, BoneIndices)});
+    attributeDescriptions.push_back(
+        {8, 0, VK_FORMAT_R32G32B32A32_SFLOAT, (uint32_t) offsetof(Vertex3D, BoneWeights)});
 
     return attributeDescriptions;
   }

@@ -73,6 +73,7 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
 }
 
 void LightingFeature::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("LightingFeature::SetupResources");
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
@@ -122,6 +123,7 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
 void LightingFeature::AddPasses(RenderGraph& graph,
                                 RenderResourceRegistry& registry,
                                 RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("LightingFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
   Scene* scene = &ctx.scene;

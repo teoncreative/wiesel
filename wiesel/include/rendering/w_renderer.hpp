@@ -178,6 +178,7 @@ class Renderer {
 
   Ref<DescriptorSet> CreateGlobalDescriptors(CameraComponent& camera);
   Ref<DescriptorSet> CreateShadowGlobalDescriptors(CameraComponent& camera);
+  Ref<DescriptorSet> CreateBoneDescriptors(Ref<UniformBuffer> bone_ubo);
 
   Ref<DescriptorSet> CreateDescriptors(Ref<AttachmentTexture> texture);
   Ref<DescriptorSet> CreateSkyboxDescriptors(Ref<Texture> texture);
@@ -295,6 +296,12 @@ class Renderer {
   WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetTAADescriptorLayout() const {
     return taa_descriptor_layout_;
   }
+  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetBoneDescriptorLayout() const {
+    return bone_descriptor_layout_;
+  }
+  WIESEL_GETTER_FN Ref<DescriptorSet> GetIdentityBoneDescriptor() const {
+    return identity_bone_descriptor_;
+  }
 
   // Shared resource getters (used by RenderFeatures)
 
@@ -312,9 +319,19 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadowPass, entt::entity entity_handle = entt::null);
-  void DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors, bool shadowPass);
+  void DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
+                Ref<DescriptorSet> bone_descriptors, bool shadowPass);
   void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
+  void DrawCanvasRect(const RectangleTransformComponent& rt,
+                      CanvasRectComponent& rect,
+                      Ref<DescriptorSetLayout> layout);
+  void DrawCanvasImage(const RectangleTransformComponent& rt,
+                       CanvasImageComponent& img,
+                       Ref<DescriptorSetLayout> layout);
+  void DrawCanvasText(const RectangleTransformComponent& rt,
+                      TextComponent& text,
+                      Ref<DescriptorSetLayout> layout);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
   void RequestEntityPick(uint32_t x, uint32_t y,
@@ -525,6 +542,9 @@ class Renderer {
   Ref<DescriptorSetLayout> skybox_descriptor_layout_;
   Ref<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
   Ref<DescriptorSetLayout> taa_descriptor_layout_;
+  Ref<DescriptorSetLayout> bone_descriptor_layout_;
+  Ref<UniformBuffer> identity_bone_ubo_;
+  Ref<DescriptorSet> identity_bone_descriptor_;
 
   // Currently bound pipeline, set by Pipeline::Bind(), used by Draw*
   Pipeline* bound_pipeline_ = nullptr;

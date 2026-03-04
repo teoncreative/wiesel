@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(wiesel-parent)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)  # avoid compiler-specific extensions
 
@@ -28,3 +28,4 @@ add_subdirectory(editor)
 add_subdirectory(examples/demo)
 add_subdirectory(examples/cargame)
 add_subdirectory(examples/leap_land)
+add_subdirectory(examples/game_martyr)

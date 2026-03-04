@@ -62,6 +62,7 @@ struct RenderContext {
   CameraResourcePool& resources;
   glm::vec2 viewport_size;
   bool use_msaa_resolve;
+  bool is_external = false;
 };
 
 // Named render graph resource registry.

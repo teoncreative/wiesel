@@ -12,6 +12,8 @@
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_perf_marker.hpp"
 #include "rendering/w_sampler.hpp"
+#include "rendering/features/w_canvas_feature.hpp"
+#include "ui/w_font.hpp"
 
 #include "util/imgui/imgui_spectrum.hpp"
 #include "util/w_spirv.hpp"
@@ -23,6 +25,7 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#include "animation/w_animation.hpp"
 #include "asset/w_asset_manager.hpp"
 #include "events/w_engineevents.hpp"
 
@@ -1351,6 +1354,14 @@ Ref<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
   return object;
 }
 
+Ref<DescriptorSet> Renderer::CreateBoneDescriptors(Ref<UniformBuffer> bone_ubo) {
+  auto desc = CreateReference<DescriptorSet>();
+  desc->SetLayout(bone_descriptor_layout_);
+  desc->AddUniformBuffer(0, bone_ubo);
+  desc->Bake();
+  return desc;
+}
+
 Ref<DescriptorSet> Renderer::CreateDescriptors(Ref<AttachmentTexture> texture) {
   Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
 
@@ -1801,6 +1812,12 @@ void Renderer::CreateDescriptorLayouts() {
   taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                      VK_SHADER_STAGE_FRAGMENT_BIT);
   taa_descriptor_layout_->Bake();
+
+  // Bone matrices UBO layout (set 2 for geometry and shadow passes)
+  bone_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  bone_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                      VK_SHADER_STAGE_VERTEX_BIT);
+  bone_descriptor_layout_->Bake();
 }
 
 void Renderer::CreateSwapChain() {
@@ -2215,6 +2232,17 @@ void Renderer::CreatePermanentResources() {
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                pick_staging_buffer_, pick_staging_memory_);
+
+  // Identity bone UBO (shared by all static / non-animated models)
+  identity_bone_ubo_ = CreateUniformBuffer(sizeof(BoneMatricesUniformData));
+  {
+    BoneMatricesUniformData identity{};
+    for (auto& m : identity.bone_matrices) {
+      m = glm::mat4(1.0f);
+    }
+    memcpy(identity_bone_ubo_->data_, &identity, sizeof(BoneMatricesUniformData));
+  }
+  identity_bone_descriptor_ = CreateBoneDescriptors(identity_bone_ubo_);
 }
 
 void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
@@ -2467,6 +2495,7 @@ void Renderer::CleanupDescriptorLayouts() {
   geometry_mesh_descriptor_layout_ = nullptr;
   present_descriptor_layout_ = nullptr;
   taa_descriptor_layout_ = nullptr;
+  bone_descriptor_layout_ = nullptr;
 }
 
 void Renderer::CleanupPresentGraphics() {
@@ -2738,6 +2767,34 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
         CreateShadowMeshDescriptors(model.uniform_buffer, mesh->mat));
   }
 
+  // Bone animation GPU resources
+  if (model_data.has_skeleton) {
+    // Animated model: per-entity bone UBO, initialized to identity
+    model.bone_ubo_ = CreateUniformBuffer(sizeof(BoneMatricesUniformData));
+    {
+      BoneMatricesUniformData identity{};
+      for (auto& m : identity.bone_matrices) {
+        m = glm::mat4(1.0f);
+      }
+      memcpy(model.bone_ubo_->data_, &identity, sizeof(BoneMatricesUniformData));
+    }
+    model.bone_descriptor_ = CreateBoneDescriptors(model.bone_ubo_);
+  } else {
+    // Static model: share the identity bone descriptor
+    model.bone_ubo_ = nullptr;
+    model.bone_descriptor_ = identity_bone_descriptor_;
+  }
+
+  // Per-mesh UBOs for node animation (each mesh may have a different node transform)
+  model.mesh_uniform_buffers_.clear();
+  if (model_data.has_animations && model_data.node_hierarchy.nodes.size() > 1) {
+    model.mesh_uniform_buffers_.resize(model_data.meshes.size());
+    for (size_t i = 0; i < model_data.meshes.size(); i++) {
+      model.mesh_uniform_buffers_[i] =
+          CreateUniformBuffer(sizeof(MatricesUniformData));
+    }
+  }
+
   model.render_model = model.model_handle;
 }
 
@@ -2756,6 +2813,18 @@ void Renderer::DrawModel(ModelComponent& model,
     AllocateModelRenderData(model, *ptr);
   }
 
+  // Upload bone matrices if this entity has a bone UBO
+  if (model.bone_ubo_ && model.bone_ubo_->data_) {
+    // bone_matrices are written by the animation system each frame
+    // (AnimatorComponent → bone_matrices → bone_ubo_)
+    // Nothing to do here; the scene's animation update already uploaded them.
+  }
+
+  // Determine the bone descriptor to bind
+  Ref<DescriptorSet> bone_desc = model.bone_descriptor_
+      ? model.bone_descriptor_
+      : identity_bone_descriptor_;
+
   // Update this entity's transform UBO
   MatricesUniformData matrices{};
   matrices.model_matrix = transform.transform_matrix;
@@ -2768,12 +2837,12 @@ void Renderer::DrawModel(ModelComponent& model,
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
     Ref<DescriptorSet> descriptors = shadowPass ? model.shadow_descriptors[i]
                                                 : model.geometry_descriptors[i];
-    DrawMesh(ptr->meshes[i], descriptors, shadowPass);
+    DrawMesh(ptr->meshes[i], descriptors, bone_desc, shadowPass);
   }
 }
 
 void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
-                        bool shadowPass) {
+                        Ref<DescriptorSet> bone_descriptors, bool shadowPass) {
   PROFILE_ZONE_SCOPED();
   if (!mesh->allocated_) {
     return;
@@ -2793,11 +2862,12 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
   auto global_desc = shadowPass
       ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
       : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
-  VkDescriptorSet sets[2] = {mesh_descriptors->descriptor_set_,
-                             global_desc->descriptor_set_};
+  VkDescriptorSet sets[3] = {mesh_descriptors->descriptor_set_,
+                             global_desc->descriptor_set_,
+                             bone_descriptors->descriptor_set_};
 
   vkCmdBindDescriptorSets(command_buffer_->handle_,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 2, sets,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 3, sets,
                           0, nullptr);
 
   vkCmdDrawIndexed(command_buffer_->handle_,
@@ -2918,6 +2988,156 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
       bound_pipeline_->layout_, 0, std::size(sets), sets, 0, nullptr);
 
   vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+}
+
+void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
+                              CanvasRectComponent& rect,
+                              Ref<DescriptorSetLayout> layout) {
+  // Lazily allocate GPU resources
+  if (!rect.ubo_) {
+    rect.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+    rect.descriptor_ = CreateReference<DescriptorSet>();
+    rect.descriptor_->SetLayout(layout);
+    rect.descriptor_->AddUniformBuffer(0, rect.ubo_);
+    rect.descriptor_->Bake();
+    rect.gpu_dirty_ = true;
+  }
+
+  // Update UBO
+  CanvasElementUniformData data{};
+  data.position = rt.computed_position;
+  data.size = rt.computed_size;
+  data.color = rect.color;
+  data.uv_rect = {0, 0, 1, 1};
+  memcpy(rect.ubo_->data_, &data, sizeof(CanvasElementUniformData));
+
+  VkDescriptorSet sets[] = {rect.descriptor_->descriptor_set_};
+  vkCmdBindDescriptorSets(command_buffer_->handle_,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
+  vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+}
+
+void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
+                               CanvasImageComponent& img,
+                               Ref<DescriptorSetLayout> layout) {
+  if (!img.texture || !img.texture->is_allocated_) {
+    return;
+  }
+
+  // Lazily allocate GPU resources
+  if (!img.ubo_ || img.gpu_dirty_) {
+    if (!img.ubo_) {
+      img.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+    }
+    img.descriptor_ = CreateReference<DescriptorSet>();
+    img.descriptor_->SetLayout(layout);
+    img.descriptor_->AddUniformBuffer(0, img.ubo_);
+    img.descriptor_->AddCombinedImageSampler(1, img.texture->image_view_,
+                                             GetDefaultLinearSampler());
+    img.descriptor_->Bake();
+    img.gpu_dirty_ = false;
+  }
+
+  // Update UBO
+  CanvasElementUniformData data{};
+  data.position = rt.computed_position;
+  data.size = rt.computed_size;
+  data.color = img.tint;
+  data.uv_rect = img.uv_rect;
+  memcpy(img.ubo_->data_, &data, sizeof(CanvasElementUniformData));
+
+  VkDescriptorSet sets[] = {img.descriptor_->descriptor_set_};
+  vkCmdBindDescriptorSets(command_buffer_->handle_,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
+  vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+}
+
+void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
+                              TextComponent& text,
+                              Ref<DescriptorSetLayout> layout) {
+  if (text.text.empty()) {
+    return;
+  }
+
+  Ref<Font> font = FontCache::Get(text.font_path, text.font_size);
+  if (!font || !font->IsLoaded()) {
+    return;
+  }
+
+  float scale = text.font_size / font->GetNativeSize();
+  float cursor_x = rt.computed_position.x;
+  float cursor_y = rt.computed_position.y + font->GetAscent() * scale;
+
+  // Rebuild per-glyph GPU resources if text changed
+  if (text.gpu_dirty_ || text.prev_text_ != text.text) {
+    // Count visible glyphs via UTF-8 decoding
+    size_t visible = 0;
+    for (size_t i = 0; i < text.text.size();) {
+      uint32_t cp = Font::DecodeUTF8(text.text, i);
+      const GlyphInfo* g = font->GetGlyph(cp);
+      if (g && g->size.x > 0 && g->size.y > 0) {
+        visible++;
+      }
+    }
+
+    // Grow pool if needed, reuse existing allocations
+    while (text.glyph_gpu_.size() < visible) {
+      TextGlyphGPU gpu;
+      gpu.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+      gpu.descriptor = CreateReference<DescriptorSet>();
+      gpu.descriptor->SetLayout(layout);
+      gpu.descriptor->AddUniformBuffer(0, gpu.ubo);
+      gpu.descriptor->AddCombinedImageSampler(
+          1, font->GetAtlasImageView(), GetDefaultLinearSampler());
+      gpu.descriptor->Bake();
+      text.glyph_gpu_.push_back(std::move(gpu));
+    }
+    text.prev_text_ = text.text;
+    text.gpu_dirty_ = false;
+  }
+
+  // Update UBOs and draw each glyph
+  size_t glyph_idx = 0;
+  for (size_t i = 0; i < text.text.size();) {
+    uint32_t cp = Font::DecodeUTF8(text.text, i);
+    const GlyphInfo* glyph = font->GetGlyph(cp);
+    if (!glyph || glyph->size.x == 0 || glyph->size.y == 0) {
+      if (glyph) {
+        cursor_x += std::round((glyph->advance >> 6) * scale);
+      }
+      continue;
+    }
+
+    if (glyph_idx >= text.glyph_gpu_.size()) {
+      break;
+    }
+
+    float x = std::round(cursor_x + glyph->bearing.x * scale);
+    float y = std::round(cursor_y - glyph->bearing.y * scale);
+    float w = std::round(glyph->size.x * scale);
+    float h = std::round(glyph->size.y * scale);
+
+    auto& gpu = text.glyph_gpu_[glyph_idx];
+
+    CanvasElementUniformData data{};
+    data.position = {x, y};
+    data.size = {w, h};
+    data.color = text.color;
+    data.uv_rect = {glyph->uv_min.x, glyph->uv_min.y, glyph->uv_max.x,
+                    glyph->uv_max.y};
+    memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
+
+    VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
+    vkCmdBindDescriptorSets(command_buffer_->handle_,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
+    vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+
+    glyph_idx++;
+    cursor_x += std::round((glyph->advance >> 6) * scale);
+  }
 }
 
 void Renderer::DrawSkybox(Ref<Skybox> skybox) {

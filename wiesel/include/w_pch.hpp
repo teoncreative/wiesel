@@ -10,6 +10,7 @@
 
 #pragma once
 
+#define NOMINMAX
 #ifdef __cplusplus
 #include <vulkan/vulkan.h>
 #define GLM_ENABLE_EXPERIMENTAL

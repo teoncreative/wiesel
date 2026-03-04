@@ -18,8 +18,15 @@
 namespace Wiesel {
 class CanvasSystem {
  public:
-  void Update(Scene& scene);
-  void Render(Scene& scene);
+  void Update(Scene& scene, glm::vec2 screen_size);
   void OnEvent(Event& event);
+
+ private:
+  static glm::vec2 ComputeAnchorOrigin(AnchorPreset anchor,
+                                        glm::vec2 parent_size);
+  void LayoutChildren(Scene& scene, entt::entity parent,
+                      glm::vec2 parent_pos, glm::vec2 parent_size,
+                      const CanvasComponent* canvas,
+                      int32_t& draw_order);
 };
 }  // namespace Wiesel

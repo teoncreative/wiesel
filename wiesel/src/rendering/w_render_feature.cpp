@@ -113,6 +113,7 @@ void RenderPipeline::RemoveFeature(const std::string& name) {
 }
 
 void RenderPipeline::SetupResources(RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("RenderPipeline::SetupResources");
   for (auto& feature : features_) {
     if (feature->IsEnabled(ctx)) {
       feature->SetupResources(ctx);
@@ -122,6 +123,7 @@ void RenderPipeline::SetupResources(RenderContext& ctx) {
 
 void RenderPipeline::BuildRenderGraph(RenderGraph& graph,
                                       RenderContext& ctx) {
+  PROFILE_ZONE_SCOPED_N("RenderPipeline::BuildRenderGraph");
   RenderResourceRegistry registry;
   for (auto& feature : features_) {
     if (feature->IsEnabled(ctx)) {
