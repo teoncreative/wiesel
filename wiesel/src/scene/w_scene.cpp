@@ -33,6 +33,7 @@
 #include "asset/w_asset_manager.hpp"
 #include "scene/w_entity.hpp"
 #include "systems/w_canvas_system.hpp"
+#include "ai/w_agent_controller.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "w_engine.hpp"
 
@@ -86,6 +87,14 @@ void Scene::OnUpdate(float_t delta_time) {
         for (IBehavior*& value : component.behaviors_ | std::views::values) {
           value->OnUpdate(delta_time);
         }
+      }
+    }
+    {
+      PROFILE_ZONE_SCOPED_N("AgentController::Evaluate");
+      for (const auto& entity : registry_.view<AgentController>()) {
+        auto& controller = registry_.get<AgentController>(entity);
+        controller.Evaluate(delta_time);
+        controller.Update(delta_time);
       }
     }
     {
@@ -331,10 +340,11 @@ void Scene::UpdateSceneState(float_t delta_time) {
                              animator.prev_node_transforms);
         }
 
-        // Blend: prev → current
-        Animator::BlendBoneMatrices(animator.prev_bone_matrices,
-                                   animator.bone_matrices, animator.blend_weight,
-                                   animator.bone_matrices);
+        // Blend node transforms, then recompute bone matrices
+        Animator::BlendAndSkin(*model_data,
+                               animator.prev_node_transforms,
+                               animator.node_transforms, animator.blend_weight,
+                               animator.bone_matrices, animator.node_transforms);
 
         if (animator.blend_weight >= 1.0f) {
           animator.is_blending = false;
@@ -372,6 +382,67 @@ void Scene::UpdateSceneState(float_t delta_time) {
 
       Animator::Evaluate(*model_data, *clip, animator.playback_time,
                          animator.bone_matrices, animator.node_transforms);
+    }
+
+    // Apply bone overrides (e.g. head look-at)
+    if (!animator.bone_overrides.empty() && model_data) {
+      const auto& hierarchy = model_data->node_hierarchy;
+      const auto& skeleton = model_data->skeleton;
+
+      for (auto& ovr : animator.bone_overrides) {
+        if (!ovr.enabled) continue;
+
+        // Resolve indices on first use
+        if (ovr.cached_node_index < 0) {
+          ovr.cached_node_index = hierarchy.FindNode(ovr.bone_name);
+          ovr.cached_bone_index = skeleton.FindBone(ovr.bone_name);
+        }
+        int ni = ovr.cached_node_index;
+        int bi = ovr.cached_bone_index;
+        if (ni < 0 || bi < 0 ||
+            ni >= static_cast<int>(animator.node_transforms.size()) ||
+            bi >= static_cast<int>(animator.bone_matrices.size()))
+          continue;
+
+        // Decompose current global node transform
+        glm::vec3 pos, scale, skew;
+        glm::quat rot;
+        glm::vec4 persp;
+        glm::decompose(animator.node_transforms[ni], scale, rot, pos, skew,
+                        persp);
+
+        // Apply additional rotation in local space
+        glm::quat new_rot = rot * ovr.additional_rotation;
+        animator.node_transforms[ni] =
+            glm::translate(glm::mat4(1.0f), pos) *
+            glm::mat4_cast(new_rot) *
+            glm::scale(glm::mat4(1.0f), scale);
+
+        // Recompute bone matrix for this bone
+        animator.bone_matrices[bi] =
+            animator.node_transforms[ni] *
+            skeleton.bones[bi].inverse_bind_matrix;
+
+        // Re-propagate to children
+        const auto& node = hierarchy.nodes[ni];
+        for (int32_t child_idx : node.children) {
+          if (child_idx < 0 ||
+              child_idx >= static_cast<int>(animator.node_transforms.size()))
+            continue;
+
+          animator.node_transforms[child_idx] =
+              animator.node_transforms[ni] *
+              hierarchy.nodes[child_idx].local_transform;
+
+          int32_t child_bone = hierarchy.nodes[child_idx].bone_index;
+          if (child_bone >= 0 &&
+              child_bone < static_cast<int>(animator.bone_matrices.size())) {
+            animator.bone_matrices[child_bone] =
+                animator.node_transforms[child_idx] *
+                skeleton.bones[child_bone].inverse_bind_matrix;
+          }
+        }
+      }
     }
 
     // Upload bone matrices to GPU
@@ -416,15 +487,16 @@ void Scene::UpdateSceneState(float_t delta_time) {
 }
 
 void Scene::OnEvent(Event& event) {
+  PROFILE_ZONE_SCOPED_N("Scene::OnEvent");
   EventDispatcher dispatcher{event};
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
   dispatcher.Dispatch<PipelineRecreatedEvent>(
       WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
-  for (const auto& entity : registry_.view<BehaviorsComponent>()) {
+  /*for (const auto& entity : registry_.view<BehaviorsComponent>()) {
     auto& component = registry_.get<BehaviorsComponent>(entity);
     component.OnEvent(event);
-  }
+  }*/
 }
 
 void Scene::LinkEntities(entt::entity parent, entt::entity child) {

@@ -39,7 +39,11 @@ class GlfwAppWindow : public AppWindow {
   const char** GetRequiredInstanceExtensions(
       uint32_t* extensionsCount) override;
 
-  void SetCursorMode(CursorMode cursorMode) override;
+  void SetTitle(const std::string& title) override;
+  void SetCursorMode(CursorMode cursor_mode) override;
+  void WarpCursor(double x, double y) override;
+  void GetCursorDelta(double& dx, double& dy) override;
+  void ResetCursorDelta() override;
 
  private:
   WindowSize window_size_;
@@ -47,6 +51,9 @@ class GlfwAppWindow : public AppWindow {
   WindowSize scale_;
 
   GLFWwindow* handle_{};
+  double prev_cursor_x_ = 0.0, prev_cursor_y_ = 0.0;
+  bool cursor_relative_first_ = true;
+  double cursor_delta_x_ = 0.0, cursor_delta_y_ = 0.0;
   std::array<std::optional<GLFWgamepadstate>, GLFW_JOYSTICK_LAST + 1> gamepad_prev_{};
   struct RawJoyPrev {
     bool valid = false;

@@ -125,34 +125,6 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
         MouseScrolledEvent event((float)xOffset, (float)yOffset);
         app_window.GetEventHandler()(event);
       });
-
-  glfwSetCursorPosCallback(
-      handle_, [](GLFWwindow* window, double raw_x, double raw_y) {
-        GlfwAppWindow& app_window =
-            *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
-
-        if (raw_x > app_window.window_size_.width ||
-            raw_y > app_window.window_size_.height || raw_x < 0 || raw_y < 0) {
-          return;
-        }
-        float x;
-        float y;
-        if (app_window.cursor_mode_ == CursorModeRelative) {
-          x = (app_window.window_size_.width / 2.0f - raw_x) /
-              app_window.window_size_.width;
-          y = (app_window.window_size_.height / 2.0f - raw_y) /
-              app_window.window_size_.width;
-        } else {
-          x = static_cast<float>(raw_x) * app_window.scale_.width;
-          y = static_cast<float>(raw_y) * app_window.scale_.height;
-        }
-        MouseMovedEvent event(x, y, app_window.cursor_mode_);
-        app_window.GetEventHandler()(event);
-        if (app_window.cursor_mode_ == CursorModeRelative) {
-          glfwSetCursorPos(window, app_window.window_size_.width / 2.0f,
-                           app_window.window_size_.height / 2.0f);
-        }
-      });
 }
 
 GlfwAppWindow::~GlfwAppWindow() {
@@ -162,7 +134,37 @@ GlfwAppWindow::~GlfwAppWindow() {
 
 void GlfwAppWindow::OnUpdate() {
   PROFILE_ZONE_SCOPED();
-  glfwPollEvents();
+  {
+    PROFILE_ZONE_SCOPED_N("glfwPollEvents");
+    glfwPollEvents();
+  }
+
+  // Poll cursor position once per frame
+  double cur_x, cur_y;
+  glfwGetCursorPos(handle_, &cur_x, &cur_y);
+
+  if (cursor_relative_first_) {
+    prev_cursor_x_ = cur_x;
+    prev_cursor_y_ = cur_y;
+    cursor_relative_first_ = false;
+  }
+
+  double dx = cur_x - prev_cursor_x_;
+  double dy = cur_y - prev_cursor_y_;
+  prev_cursor_x_ = cur_x;
+  prev_cursor_y_ = cur_y;
+
+  if (dx != 0.0 || dy != 0.0) {
+    if (cursor_mode_ == CursorModeRelative) {
+      MouseMovedEvent event(dx, dy, cursor_mode_);
+      GetEventHandler()(event);
+    } else {
+      double x = cur_x * scale_.width;
+      double y = cur_y * scale_.height;
+      MouseMovedEvent event(x, y, cursor_mode_);
+      GetEventHandler()(event);
+    }
+  }
 
   if (first_frame_) [[unlikely]] {
     glfwSetJoystickCallback([](int jid, int e) {
@@ -326,20 +328,46 @@ void GlfwAppWindow::GetWindowFramebufferSize(WindowSize& size) {
   glfwGetFramebufferSize(handle_, &size.width, &size.height);
 }
 
-void GlfwAppWindow::SetCursorMode(CursorMode cursorMode) {
-  cursor_mode_ = cursorMode;
-  switch (cursorMode) {
+void GlfwAppWindow::SetTitle(const std::string& title) {
+  AppWindow::SetTitle(title);
+  glfwSetWindowTitle(handle_, title.c_str());
+}
+
+void GlfwAppWindow::SetCursorMode(CursorMode cursor_mode) {
+  cursor_mode_ = cursor_mode;
+  switch (cursor_mode) {
     case CursorModeNormal: {
       glfwSetInputMode(handle_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       break;
     }
-    case CursorModeRelative: {
+    case CursorModeHidden: {
+      glfwSetInputMode(handle_, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+      break;
+    }
+    case CursorModeRelative:
+    case CursorModeUnlocked: {
+      cursor_relative_first_ = true;
+      cursor_delta_x_ = 0.0f;
+      cursor_delta_y_ = 0.0f;
       glfwSetInputMode(handle_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-      glfwSetCursorPos(handle_, window_size_.width / 2.0f,
-                       window_size_.height / 2.0f);
       break;
     }
   }
+  glfwSetInputMode(handle_, GLFW_RAW_MOUSE_MOTION, cursor_mode == CursorModeRelative);
+}
+
+void GlfwAppWindow::WarpCursor(double x, double y) {
+  glfwSetCursorPos(handle_, x, y);
+}
+
+void GlfwAppWindow::GetCursorDelta(double& dx, double& dy) {
+  dx = cursor_delta_x_;
+  dy = cursor_delta_y_;
+}
+
+void GlfwAppWindow::ResetCursorDelta() {
+  cursor_delta_x_ = 0.0f;
+  cursor_delta_y_ = 0.0f;
 }
 
 const char** GlfwAppWindow::GetRequiredInstanceExtensions(

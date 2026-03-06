@@ -164,6 +164,16 @@ struct AnimatorComponent : public IComponent {
   std::vector<glm::mat4> bone_matrices;
   std::vector<glm::mat4> node_transforms;
 
+  // Bone overrides - applied after animation eval, before GPU upload
+  struct BoneOverride {
+    std::string bone_name;
+    glm::quat additional_rotation = glm::quat(1, 0, 0, 0);
+    bool enabled = false;
+    int32_t cached_node_index = -1;
+    int32_t cached_bone_index = -1;
+  };
+  std::vector<BoneOverride> bone_overrides;
+
   // GPU resources (per-entity, allocated lazily)
   Ref<UniformBuffer> bone_ubo;
 

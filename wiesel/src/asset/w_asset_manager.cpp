@@ -17,6 +17,8 @@ const char* AssetTypeToString(AssetType type) {
     case AssetType::Skybox:   return "Skybox";
     case AssetType::Font:     return "Font";
     case AssetType::Script:   return "Script";
+    case AssetType::Scene:    return "Scene";
+    case AssetType::Prefab:   return "Prefab";
     default:                  return "Unknown";
   }
 }
@@ -30,6 +32,8 @@ AssetType AssetTypeFromString(std::string_view s) {
   if (s == "Skybox")   return AssetType::Skybox;
   if (s == "Font")     return AssetType::Font;
   if (s == "Script")   return AssetType::Script;
+  if (s == "Scene")    return AssetType::Scene;
+  if (s == "Prefab")   return AssetType::Prefab;
   return AssetType::None;
 }
 

@@ -26,6 +26,10 @@ WindowEventFn& AppWindow::GetEventHandler() {
   return event_handler_;
 }
 
+void AppWindow::SetTitle(const std::string& title) {
+  properties_.title = title;
+}
+
 void AppWindow::SetCursorMode(CursorMode mouse_mode) {
   cursor_mode_ = mouse_mode;
 }
@@ -33,6 +37,8 @@ void AppWindow::SetCursorMode(CursorMode mouse_mode) {
 CursorMode AppWindow::GetCursorMode() {
   return cursor_mode_;
 }
+
+void AppWindow::WarpCursor(double x, double y) {}
 
 void AppWindow::ImGuiInit() {}
 

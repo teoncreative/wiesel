@@ -456,6 +456,12 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
       }
     } else {
       // Handle external texture file
+      // Strip absolute paths (e.g. "C:/Users/.../texture.png") to just filename
+      // so we resolve relative to the model's directory
+      size_t last_sep = s.find_last_of("/\\");
+      if (last_sep != std::string::npos && (s.find(':') != std::string::npos || s[0] == '/')) {
+        s = s.substr(last_sep + 1);
+      }
       std::string textureFullPath = model.textures_path + "/" + s;
       if (model.textures.contains(textureFullPath)) {
         Material::Set(mesh->mat, model.textures[textureFullPath],
@@ -615,7 +621,10 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
                       aiMesh->mColors[0][i].g,
                       aiMesh->mColors[0][i].b};
     } else {
-      vertex.Color = {1.0f, 1.0f, 1.0f};
+      // Fall back to material diffuse color when no vertex colors exist
+      aiColor4D diffuse_color(1.0f, 1.0f, 1.0f, 1.0f);
+      material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse_color);
+      vertex.Color = {diffuse_color.r, diffuse_color.g, diffuse_color.b};
     }
 
     // tangent

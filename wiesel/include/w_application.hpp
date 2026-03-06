@@ -46,6 +46,9 @@ class Application {
   WIESEL_GETTER_FN Ref<AppWindow> GetWindow();
   WIESEL_GETTER_FN float_t GetFPS() const { return fps_; }
   WIESEL_GETTER_FN float_t GetDeltaTime() const { return delta_time_; }
+
+  void SetMaxFPS(float_t max_fps) { max_fps_ = max_fps; }
+  WIESEL_GETTER_FN float_t GetMaxFPS() const { return max_fps_; }
   WIESEL_GETTER_FN const WindowSize& GetWindowSize();
 
   void SubmitToMainThread(std::function<void()> fn);
@@ -77,6 +80,7 @@ class Application {
   float_t fps_timer_ = 0.0f;
   uint32_t frame_count_ = 0;
   float_t fps_ = 0.0f;
+  float_t max_fps_ = 0.0f;  // 0 = unlimited
 
 
 };

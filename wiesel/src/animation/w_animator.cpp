@@ -130,42 +130,49 @@ void Animator::Evaluate(const Model& model, const AnimationClip& clip,
   }
 }
 
-void Animator::BlendBoneMatrices(const std::vector<glm::mat4>& a,
-                                 const std::vector<glm::mat4>& b, float t,
-                                 std::vector<glm::mat4>& out) {
-  PROFILE_ZONE_SCOPED_N("Animator::BlendBoneMatrices");
-  size_t count = std::min(a.size(), b.size());
-  out.resize(count);
+void Animator::BlendAndSkin(const Model& model,
+                            const std::vector<glm::mat4>& node_a,
+                            const std::vector<glm::mat4>& node_b, float t,
+                            std::vector<glm::mat4>& out_bone_matrices,
+                            std::vector<glm::mat4>& out_node_transforms) {
+  PROFILE_ZONE_SCOPED_N("Animator::BlendAndSkin");
+  const auto& hierarchy = model.node_hierarchy;
+  const auto& skeleton = model.skeleton;
+
+  size_t count = std::min(node_a.size(), node_b.size());
+  out_node_transforms.resize(hierarchy.nodes.size(), glm::mat4(1.0f));
+  out_bone_matrices.resize(skeleton.bones.size(), glm::mat4(1.0f));
   t = glm::clamp(t, 0.0f, 1.0f);
 
+  // Blend node transforms (these are clean global TRS matrices, safe to decompose)
   for (size_t i = 0; i < count; i++) {
-    // Decompose both matrices into T/R/S
     glm::vec3 pos_a, pos_b, scale_a, scale_b, skew;
     glm::quat rot_a, rot_b;
     glm::vec4 perspective;
 
-    glm::decompose(a[i], scale_a, rot_a, pos_a, skew, perspective);
-    glm::decompose(b[i], scale_b, rot_b, pos_b, skew, perspective);
+    glm::decompose(node_a[i], scale_a, rot_a, pos_a, skew, perspective);
+    glm::decompose(node_b[i], scale_b, rot_b, pos_b, skew, perspective);
 
-    // Interpolate
     glm::vec3 pos = glm::mix(pos_a, pos_b, t);
     glm::quat rot = glm::slerp(rot_a, rot_b, t);
     glm::vec3 scale = glm::mix(scale_a, scale_b, t);
 
-    // Recompose
-    out[i] = MakeTransform(pos, rot, scale);
+    out_node_transforms[i] = MakeTransform(pos, rot, scale);
   }
 
-  // If one array is larger, copy the remaining entries
-  if (a.size() > count) {
-    out.resize(a.size());
-    for (size_t i = count; i < a.size(); i++) {
-      out[i] = a[i];
-    }
-  } else if (b.size() > count) {
-    out.resize(b.size());
-    for (size_t i = count; i < b.size(); i++) {
-      out[i] = b[i];
+  // Copy remaining nodes from whichever is larger
+  for (size_t i = count; i < node_a.size(); i++) {
+    out_node_transforms[i] = node_a[i];
+  }
+
+  // Recompute bone skinning matrices from blended node transforms
+  for (int32_t b = 0; b < static_cast<int32_t>(skeleton.bones.size()); b++) {
+    const auto& bone = skeleton.bones[b];
+    auto node_it = hierarchy.node_name_to_index.find(bone.name);
+    if (node_it != hierarchy.node_name_to_index.end()) {
+      int32_t node_idx = node_it->second;
+      out_bone_matrices[b] =
+          out_node_transforms[node_idx] * bone.inverse_bind_matrix;
     }
   }
 }

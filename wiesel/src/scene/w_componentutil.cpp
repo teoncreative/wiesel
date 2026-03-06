@@ -403,6 +403,12 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
                          &component.angular_damping, 0.01f, 0.0f, 1.0f)) {
       component.is_dirty = true;
     }
+    ImGui::Checkbox(PrefixLabel("Lock Position X").c_str(),
+                    &component.lock_position_x);
+    ImGui::Checkbox(PrefixLabel("Lock Position Y").c_str(),
+                    &component.lock_position_y);
+    ImGui::Checkbox(PrefixLabel("Lock Position Z").c_str(),
+                    &component.lock_position_z);
     ImGui::Checkbox(PrefixLabel("Lock Rotation X").c_str(),
                     &component.lock_rotation_x);
     ImGui::Checkbox(PrefixLabel("Lock Rotation Y").c_str(),

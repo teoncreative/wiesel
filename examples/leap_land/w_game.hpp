@@ -53,6 +53,31 @@ private:
   GameApplication& app_;
   Wiesel::Ref<Wiesel::Scene> scene_;
   Wiesel::Ref<Wiesel::Renderer> renderer_;
+
+  // Game state
+  entt::entity player_entity_ = entt::null;
+  std::vector<entt::entity> coin_entities_;
+  std::vector<entt::entity> hazard_entities_;
+  entt::entity hp_fill_entity_ = entt::null;
+  entt::entity hp_text_entity_ = entt::null;
+  entt::entity level_text_entity_ = entt::null;
+  entt::entity coin_text_entity_ = entt::null;
+  entt::entity hp_bg_entity_ = entt::null;
+  int max_health_ = 100;
+  int current_health_ = 100;
+  int prev_coins_displayed_ = -1;
+  int prev_health_displayed_ = -1;
+  float damage_cooldown_ = 0.0f;
+
+  // Death/respawn
+  bool is_dead_ = false;
+  entt::entity death_overlay_entity_ = entt::null;
+  entt::entity death_text_entity_ = entt::null;
+  entt::entity death_btn_bg_entity_ = entt::null;
+  entt::entity death_btn_text_entity_ = entt::null;
+
+  void SetDeathScreenVisible(bool visible);
+  void Respawn();
 };
 
 }  // namespace LeapLand

@@ -20,6 +20,8 @@ struct SamplerProps {
   float MaxAnisotropy = -1.0f;
   VkSamplerAddressMode AddressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
   VkBorderColor BorderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  VkBool32 CompareEnable = VK_FALSE;
+  VkCompareOp CompareOp = VK_COMPARE_OP_ALWAYS;
 };
 
 class Sampler {

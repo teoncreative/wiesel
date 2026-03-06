@@ -143,7 +143,14 @@ void Pipeline::Bake() {
   VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
   inputAssembly.sType =
       VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-  inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  switch (properties_.topology) {
+    case PrimitiveTopology::LineList:
+      inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+      break;
+    default:
+      inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+      break;
+  }
   inputAssembly.primitiveRestartEnable = VK_FALSE;
 
   VkPipelineViewportStateCreateInfo viewportState{};

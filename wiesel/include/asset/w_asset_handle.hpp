@@ -26,6 +26,8 @@ enum class AssetType : uint8_t {
   Skybox,
   Font,
   Script,
+  Scene,
+  Prefab,
   Count
 };
 

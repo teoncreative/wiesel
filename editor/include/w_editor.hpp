@@ -6,6 +6,8 @@
 #define WIESEL_PARENT_W_EDITOR_H
 
 #include "behavior/w_behavior.hpp"
+#include "events/w_mouseevents.hpp"
+#include "project/w_project.hpp"
 #include "rendering/w_camera.hpp"
 #include "scene/w_scene.hpp"
 #include "w_application.hpp"
@@ -23,6 +25,7 @@ class EditorLayer : public Layer {
   void OnDetach() override;
   void OnUpdate(float_t delta_time) override;
   void OnEvent(Event& event) override;
+  bool OnMouseMoved(MouseMovedEvent& event);
 
   void RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu);
   void UpdateHierarchyOrder();
@@ -35,8 +38,29 @@ class EditorLayer : public Layer {
   void TakeSnapshot();
   void RestoreSnapshot();
 
+  // Toolbar / Menu
+  void RenderMainMenuBar();
+  void NewProject();
+  void OpenProject();
+  void SaveProject();
+  void NewScene();
+  void SaveScene();
+  void SaveSceneAs();
+  void ClearScene();
+  void OpenSceneFromPath(const std::filesystem::path& path);
+  void UpdateWindowTitle();
+  void AutoSave();
+  void ScanProjectAssets();
+
   Application& app_;
   Ref<Scene> scene_;
+
+  // Project
+  std::unique_ptr<Project> project_;
+  std::filesystem::path current_scene_path_;
+  bool scene_dirty_ = false;
+  float auto_save_timer_ = 0.0f;
+  static constexpr float kAutoSaveInterval = 30.0f;  // seconds
 
   // Play/Stop state
   EditorState editor_state_ = EditorState::Edit;

@@ -17,6 +17,7 @@
 #include "behavior/w_behavior.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "script/w_scriptmanager.hpp"
+#include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 
 namespace Wiesel {
 
@@ -114,6 +115,16 @@ btCollisionShape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) {
     auto& sphere = registry.get<SphereColliderComponent>(entity);
     return new btSphereShape(sphere.radius);
   }
+  if (registry.any_of<HeightfieldColliderComponent>(entity)) {
+    auto& hf = registry.get<HeightfieldColliderComponent>(entity);
+    if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) return nullptr;
+    auto* shape = new btHeightfieldTerrainShape(
+        hf.width, hf.length, hf.height_data.data(),
+        hf.min_height, hf.max_height,
+        1 /*upAxis=Y*/, false /*flipQuadEdges*/);
+    shape->setLocalScaling(btVector3(hf.scale.x, hf.scale.y, hf.scale.z));
+    return shape;
+  }
   return nullptr;
 }
 
@@ -124,12 +135,23 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
   btCollisionShape* shape = CreateShapeForEntity(entity);
   if (!shape) return;
 
-  // Determine collider offset
+  // Determine collider offset and collision group
   glm::vec3 offset(0.0f);
-  if (registry.any_of<BoxColliderComponent>(entity))
-    offset = registry.get<BoxColliderComponent>(entity).offset;
-  else if (registry.any_of<SphereColliderComponent>(entity))
-    offset = registry.get<SphereColliderComponent>(entity).offset;
+  uint16_t collision_group = CollisionGroupDefault;
+  if (registry.any_of<BoxColliderComponent>(entity)) {
+    auto& box = registry.get<BoxColliderComponent>(entity);
+    offset = box.offset;
+    collision_group = box.collision_group;
+  } else if (registry.any_of<SphereColliderComponent>(entity)) {
+    auto& sphere = registry.get<SphereColliderComponent>(entity);
+    offset = sphere.offset;
+    collision_group = sphere.collision_group;
+  } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
+    auto& hf = registry.get<HeightfieldColliderComponent>(entity);
+    // Bullet centers the heightfield AABB, so offset Y by (min+max)/2
+    offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
+    collision_group = hf.collision_group;
+  }
 
   // Check if this is a trigger (ghost object)
   bool is_trigger = false;
@@ -162,7 +184,10 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
   float linear_damping = 0.0f;
   float angular_damping = 0.05f;
 
-  if (registry.any_of<RigidBodyComponent>(entity)) {
+  // Heightfield is always static
+  bool force_static = registry.any_of<HeightfieldColliderComponent>(entity);
+
+  if (!force_static && registry.any_of<RigidBodyComponent>(entity)) {
     auto& rb = registry.get<RigidBodyComponent>(entity);
     type = rb.type;
     mass = (type == RigidBodyType::Dynamic) ? rb.mass : 0.0f;
@@ -203,6 +228,11 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
   // Rotation locks
   if (registry.any_of<RigidBodyComponent>(entity)) {
     auto& rb = registry.get<RigidBodyComponent>(entity);
+    btVector3 linear_factor(
+        rb.lock_position_x ? 0.0f : 1.0f,
+        rb.lock_position_y ? 0.0f : 1.0f,
+        rb.lock_position_z ? 0.0f : 1.0f);
+    body->setLinearFactor(linear_factor);
     btVector3 angular_factor(
         rb.lock_rotation_x ? 0.0f : 1.0f,
         rb.lock_rotation_y ? 0.0f : 1.0f,
@@ -212,7 +242,7 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     rb.is_dirty = false;
   }
 
-  dynamics_world_->addRigidBody(body);
+  dynamics_world_->addRigidBody(body, collision_group, CollisionGroupAll);
   bodies_[entity] = {body, shape, motion_state, false};
 }
 
@@ -259,6 +289,13 @@ void PhysicsWorld::EnsureBodiesExist() {
       CreateBody(handle);
     }
   }
+  // Entities with heightfield collider
+  for (auto handle :
+       registry.view<TransformComponent, HeightfieldColliderComponent>()) {
+    if (!bodies_.count(handle)) {
+      CreateBody(handle);
+    }
+  }
 }
 
 void PhysicsWorld::StepSimulation(float delta_time) {
@@ -277,6 +314,10 @@ void PhysicsWorld::SyncTransformsFromECS() {
       offset = registry.get<BoxColliderComponent>(entity).offset;
     else if (registry.any_of<SphereColliderComponent>(entity))
       offset = registry.get<SphereColliderComponent>(entity).offset;
+    else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
+      auto& hf = registry.get<HeightfieldColliderComponent>(entity);
+      offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
+    }
 
     btTransform tf = MakeBtTransform(entity, offset);
 
@@ -286,6 +327,20 @@ void PhysicsWorld::SyncTransformsFromECS() {
     }
 
     auto* body = static_cast<btRigidBody*>(data.bt_object);
+
+    // For dynamic bodies, physics owns the position - only sync if game code
+    // explicitly changed the transform (e.g. teleport/SetPosition). Otherwise
+    // gravity and other forces would be cancelled every frame.
+    if (registry.any_of<RigidBodyComponent>(entity)) {
+      auto& rb = registry.get<RigidBodyComponent>(entity);
+      if (rb.type == RigidBodyType::Dynamic) {
+        if (!rb.is_dirty) {
+          continue;  // skip - let physics be the authority
+        }
+        rb.is_dirty = false;
+      }
+    }
+
     if (data.motion_state)
       body->getMotionState()->setWorldTransform(tf);
     body->setWorldTransform(tf);
@@ -309,6 +364,10 @@ void PhysicsWorld::SyncTransformsToECS() {
       offset = registry.get<BoxColliderComponent>(entity).offset;
     else if (registry.any_of<SphereColliderComponent>(entity))
       offset = registry.get<SphereColliderComponent>(entity).offset;
+    else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
+      auto& hf = registry.get<HeightfieldColliderComponent>(entity);
+      offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
+    }
 
     btTransform tf;
     static_cast<btRigidBody*>(data.bt_object)
@@ -433,6 +492,46 @@ bool PhysicsWorld::Raycast(const glm::vec3& from, const glm::vec3& to,
 
   hit.entity = PtrToEntity(
       callback.m_collisionObject->getUserPointer());
+  hit.point = ToGlm(callback.m_hitPointWorld);
+  hit.normal = ToGlm(callback.m_hitNormalWorld);
+  hit.distance = (callback.m_hitPointWorld - bt_from).length();
+  return true;
+}
+
+bool PhysicsWorld::Raycast(const glm::vec3& from, const glm::vec3& to,
+                           RaycastHit& hit, entt::entity ignore,
+                           uint16_t collision_mask) const {
+  btVector3 bt_from = ToBt(from);
+  btVector3 bt_to = ToBt(to);
+
+  struct FilteredRayCallback : public btCollisionWorld::ClosestRayResultCallback {
+    const btCollisionObject* ignore_obj;
+    uint16_t mask;
+    FilteredRayCallback(const btVector3& f, const btVector3& t,
+                        const btCollisionObject* ig, uint16_t m)
+        : ClosestRayResultCallback(f, t), ignore_obj(ig), mask(m) {}
+    btScalar addSingleResult(btCollisionWorld::LocalRayResult& result,
+                             bool normalInWorldSpace) override {
+      if (result.m_collisionObject == ignore_obj) return 1.0f;
+      // Check collision group against mask
+      if (!(result.m_collisionObject->getBroadphaseHandle()->m_collisionFilterGroup & mask))
+        return 1.0f;
+      return ClosestRayResultCallback::addSingleResult(result, normalInWorldSpace);
+    }
+  };
+
+  const btCollisionObject* ignore_obj = nullptr;
+  if (ignore != entt::null) {
+    auto it = bodies_.find(ignore);
+    if (it != bodies_.end()) ignore_obj = it->second.bt_object;
+  }
+
+  FilteredRayCallback callback(bt_from, bt_to, ignore_obj, collision_mask);
+  dynamics_world_->rayTest(bt_from, bt_to, callback);
+
+  if (!callback.hasHit()) return false;
+
+  hit.entity = PtrToEntity(callback.m_collisionObject->getUserPointer());
   hit.point = ToGlm(callback.m_hitPointWorld);
   hit.normal = ToGlm(callback.m_hitNormalWorld);
   hit.distance = (callback.m_hitPointWorld - bt_from).length();

@@ -2,7 +2,9 @@ namespace WieselEngine
 {
     public enum CursorMode : ushort {
         Normal,
-        Relative
+        Hidden,
+        Relative,
+        Unlocked
     }
 
     public enum KeyCode : int {

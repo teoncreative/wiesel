@@ -46,6 +46,37 @@ void OpenFileDialog(std::vector<FilterEntry> filters,
   }
 }
 
+void SaveFileDialog(std::vector<FilterEntry> filters,
+                    std::function<void(const std::string&)> fn) {
+  nfdchar_t* outPath;
+  std::vector<nfdnfilteritem_t> filterList;
+  nfdfiltersize_t filterCount = filters.size();
+  for (int i = 0; i < filterCount; i++) {
+    filterList.push_back({
+      reinterpret_cast<const nfdnchar_t*>(filters[i].name.c_str()),
+      reinterpret_cast<const nfdnchar_t*>(filters[i].spec.c_str())
+    });
+  }
+  nfdresult_t result = NFD_SaveDialog(&outPath, reinterpret_cast<const nfdfilteritem_t*>(filterList.data()), filterList.size(), NULL, NULL);
+  if (result == NFD_OKAY) {
+    fn(std::string(outPath));
+    NFD_FreePath(outPath);
+  } else {
+    fn("");
+  }
+}
+
+void SelectFolderDialog(std::function<void(const std::string&)> fn) {
+  nfdchar_t* outPath;
+  nfdresult_t result = NFD_PickFolder(&outPath, NULL);
+  if (result == NFD_OKAY) {
+    fn(std::string(outPath));
+    NFD_FreePath(outPath);
+  } else {
+    fn("");
+  }
+}
+
 void Destroy() {
   NFD_Quit();
 }
