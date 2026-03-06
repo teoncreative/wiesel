@@ -41,21 +41,32 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
   float cascadeSplitLambda = 0.95f;
   float cascadeSplits[WIESEL_SHADOW_CASCADE_COUNT];
 
-  float clipRange = far_plane - near_plane;
-  float minZ = near_plane;
-  float maxZ = near_plane + clipRange;
+  // This ensures shadow quality is consistent regardless of camera settings.
+  float effectiveNear = 0.5f;
+  float effectiveFar  = 200.0f;
+
+  float clipRange = effectiveFar - effectiveNear;
+  float minZ = effectiveNear;
+  float maxZ = effectiveFar;
 
   float range = maxZ - minZ;
   float ratio = maxZ / minZ;
 
-  // Calculate split depths
+  // Calculate split depths as normalized [0,1] fractions of the effective range
   for (uint32_t i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     float p = (i + 1.0f) / static_cast<float>(WIESEL_SHADOW_CASCADE_COUNT);
     float log = minZ * std::pow(ratio, p);
     float uniform = minZ + range * p;
     float d = cascadeSplitLambda * (log - uniform) + uniform;
-    cascadeSplits[i] = (d - near_plane) / clipRange;
+    cascadeSplits[i] = (d - effectiveNear) / clipRange;
   }
+
+  // Build a shadow-specific projection using the clamped near/far.
+  // This ensures frustum corners (and thus cascade ortho volumes) are
+  // sized by the effective range, not the real camera range.
+  glm::mat4 shadowProjection = glm::perspective(
+      glm::radians(field_of_view), aspect_ratio, effectiveNear, effectiveFar);
+  shadowProjection[1][1] *= -1;
 
   // Calculate orthographic projection matrix for each cascade
   float lastSplitDist = 0.0;
@@ -68,8 +79,8 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
         glm::vec3(-1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f),
         glm::vec3(1.0f, -1.0f, 1.0f), glm::vec3(-1.0f, -1.0f, 1.0f),
     };
-    // Project frustum corners into world space
-    glm::mat4 invCam = glm::inverse(projection * view_matrix);
+    // Unproject using the shadow-specific projection (clamped near/far)
+    glm::mat4 invCam = glm::inverse(shadowProjection * view_matrix);
     for (uint32_t j = 0; j < 8; j++) {
       glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[j], 1.0f);
       frustumCorners[j] = invCorner / invCorner.w;
@@ -133,7 +144,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     lightOrthoMatrix[3][1] += (roundedOrigin.y - shadowOrigin.y) / halfDim;
 
     // Store split distance and matrix in cascade
-    shadow_map_cascades[i].SplitDepth = (near_plane + splitDist * clipRange) * -1.0f;
+    shadow_map_cascades[i].SplitDepth = (effectiveNear + splitDist * clipRange) * -1.0f;
     shadow_map_cascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
     lastSplitDist = cascadeSplits[i];
   }

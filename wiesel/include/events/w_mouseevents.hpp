@@ -19,19 +19,19 @@
 namespace Wiesel {
 class MouseMovedEvent : public Event {
  public:
-  MouseMovedEvent(const float_t x, const float_t y, CursorMode cursorMode)
+  MouseMovedEvent(const double x, const double y, CursorMode cursorMode)
       : m_MouseX(x), m_MouseY(y), m_CursorMode(cursorMode) {}
 
-  WIESEL_GETTER_FN float_t GetX() const { return m_MouseX; }
+  WIESEL_GETTER_FN double GetX() const { return m_MouseX; }
 
-  WIESEL_GETTER_FN float_t GetY() const { return m_MouseY; }
+  WIESEL_GETTER_FN double GetY() const { return m_MouseY; }
 
   WIESEL_GETTER_FN CursorMode GetCursorMode() const { return m_CursorMode; }
 
   EVENT_CLASS_TYPE(MouseMoved)
   EVENT_CLASS_CATEGORY(kEventCategoryMouse | kEventCategoryInput)
  private:
-  float m_MouseX, m_MouseY;
+  double m_MouseX, m_MouseY;
   CursorMode m_CursorMode;
 };
 

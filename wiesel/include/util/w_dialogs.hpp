@@ -29,6 +29,11 @@ void Init();
 void OpenFileDialog(std::vector<FilterEntry> filters,
                     std::function<void(const std::string&)> fn);
 
+void SaveFileDialog(std::vector<FilterEntry> filters,
+                    std::function<void(const std::string&)> fn);
+
+void SelectFolderDialog(std::function<void(const std::string&)> fn);
+
 void Destroy();
 
 }  // namespace Wiesel::Dialogs

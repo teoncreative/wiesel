@@ -103,6 +103,7 @@ struct RendererOptions {
   Setting<bool> motion_blur_enabled = false;
   Setting<bool> only_ssao = false;
   Setting<bool> debug_cascades = false;
+  Setting<bool> debug_colliders = false;
 
   // Requires pipeline recreation
   Setting<bool> wireframe_enabled = false;
@@ -558,6 +559,7 @@ class Renderer {
 
   Ref<Sampler> default_linear_sampler_;
   Ref<Sampler> default_nearest_sampler_;
+  Ref<Sampler> shadow_sampler_;
   Ref<Texture> blank_texture_;
   Ref<MemoryBuffer> quad_vertex_buffer_;
   Ref<IndexBuffer> quad_index_buffer_;

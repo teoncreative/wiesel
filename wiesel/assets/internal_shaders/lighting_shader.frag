@@ -64,7 +64,7 @@ layout(set = 2, binding = 2) uniform ShadowMapMatrices {
 } shadowMatrices;
 
 
-layout(set = 2, binding = 3) uniform sampler2DArray shadowMap;
+layout(set = 2, binding = 3) uniform sampler2DArrayShadow shadowMap;
 
 layout(location = 0) in vec2 inUV;
 
@@ -78,43 +78,62 @@ const mat4 biasMat = mat4(
 0.5, 0.5, 0.0, 1.0
 );
 
-// Returns 0.0 = fully shadowed, 1.0 = fully lit
-float calculateShadow(vec4 shadowCoord, uint cascadeIndex) {
+// 16-sample Poisson disk for shadow filtering
+const vec2 poissonDisk[16] = vec2[](
+    vec2(-0.94201624, -0.39906216),
+    vec2( 0.94558609, -0.76890725),
+    vec2(-0.09418410, -0.92938870),
+    vec2( 0.34495938,  0.29387760),
+    vec2(-0.91588581,  0.45771432),
+    vec2(-0.81544232, -0.87912464),
+    vec2(-0.38277543,  0.27676845),
+    vec2( 0.97484398,  0.75648379),
+    vec2( 0.44323325, -0.97511554),
+    vec2( 0.53742981, -0.47373420),
+    vec2(-0.26496911, -0.41893023),
+    vec2( 0.79197514,  0.19090188),
+    vec2(-0.24188840,  0.99706507),
+    vec2(-0.81409955,  0.91437590),
+    vec2( 0.19984126,  0.78641367),
+    vec2( 0.14383161, -0.14100790)
+);
+
+// Per-pixel pseudo-random rotation to break banding
+float interleavedGradientNoise(vec2 screenPos) {
+    vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
+    return fract(magic.z * fract(dot(screenPos, magic.xy)));
+}
+
+// Sample shadow for a single cascade using Poisson disk PCF
+float sampleShadowCascade(vec4 shadowCoord, uint cascadeIndex, float filterRadius, float slopeBias) {
     shadowCoord /= shadowCoord.w;
 
     if (shadowCoord.z < 0.0 || shadowCoord.z > 1.0 ||
-    shadowCoord.x < 0.0 || shadowCoord.x > 1.0 ||
-    shadowCoord.y < 0.0 || shadowCoord.y > 1.0) {
+        shadowCoord.x < 0.0 || shadowCoord.x > 1.0 ||
+        shadowCoord.y < 0.0 || shadowCoord.y > 1.0) {
         return 1.0;
     }
 
-    // Minimal depth bias: the shadow pass uses front-face culling which
-    // already provides natural self-shadowing prevention.
-    float bias = 0.00005;
+    // Depth bias: pull the receiver slightly toward the light to prevent acne
+    // without the large spatial offset that causes contact-edge leaking
+    float refZ = shadowCoord.z - slopeBias;
+
+    vec2 screenPos = gl_FragCoord.xy;
+    float angle = interleavedGradientNoise(screenPos) * 6.283185;
+    float s = sin(angle);
+    float c = cos(angle);
+    mat2 rotation = mat2(c, s, -s, c);
 
     ivec2 smSize = textureSize(shadowMap, 0).xy;
     vec2 texelSize = 1.0 / vec2(smSize);
-    #ifdef USE_GATHER
-    vec4 depths = textureGather(shadowMap, vec3(shadowCoord.xy, cascadeIndex));
-    float sum = 0.0;
-    sum += (shadowCoord.z - bias > depths.x) ? 1.0 : 0.0;
-    sum += (shadowCoord.z - bias > depths.y) ? 1.0 : 0.0;
-    sum += (shadowCoord.z - bias > depths.z) ? 1.0 : 0.0;
-    sum += (shadowCoord.z - bias > depths.w) ? 1.0 : 0.0;
-    return 1.0 - sum * 0.25;
-    #else
+
     float shadow = 0.0;
-    int count  = 0;
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
-            vec2 off = shadowCoord.xy + vec2(x, y) * texelSize;
-            float d = texture(shadowMap, vec3(off, cascadeIndex)).r;
-            shadow += (shadowCoord.z - bias > d) ? 1.0 : 0.0;
-            count++;
-        }
+    for (int i = 0; i < 16; ++i) {
+        vec2 offset = rotation * poissonDisk[i] * filterRadius * texelSize;
+        vec2 sampleUV = shadowCoord.xy + offset;
+        shadow += texture(shadowMap, vec4(sampleUV, float(cascadeIndex), refZ));
     }
-    return 1.0 - (shadow / float(count));
-    #endif
+    return shadow / 16.0;
 }
 
 void main() {
@@ -190,14 +209,40 @@ void main() {
                 cascadeIndex = i + 1;
             }
         }
-        // Normal offset: shift the shadow lookup position along the surface normal.
-        // This prevents contact shadow loss without depth-bias artifacts.
-        // Scale offset by sin(theta) so grazing surfaces get more offset.
+
+        // Normal offset to prevent self-shadowing.
+        // Scale by sin(angle) so grazing surfaces get more offset.
+        // Keep it small to minimize contact-edge light leaking.
         float nCos = clamp(dot(normal, sunDir), 0.0, 1.0);
         float nSin = sqrt(1.0 - nCos * nCos);
-        vec3 shadowWorldPos = worldPos + normal * (0.03 * nSin + 0.005);
+        vec3 shadowWorldPos = worldPos + normal * (0.008 * nSin + 0.001);
+
+        // Filter radius: larger for farther cascades (they cover more world space per texel)
+        float filterRadius = 1.5 + float(cascadeIndex) * 0.5;
+
         vec4 shadowCoord = biasMat * shadowMatrices.viewProjectionMatrix[cascadeIndex] * vec4(shadowWorldPos, 1.0);
-        shadow = calculateShadow(shadowCoord, cascadeIndex);
+        shadow = sampleShadowCascade(shadowCoord, cascadeIndex, filterRadius, 0.0);
+
+        // Cascade blending: blend with the next cascade near boundaries to avoid hard seams
+        if (cascadeIndex < SHADOW_MAP_CASCADE_COUNT - 1) {
+            // Current cascade's split depth (view-space Z, negative)
+            float splitDepth = cam.cascadeSplits[cascadeIndex];
+            // Previous cascade's split (or effective near for cascade 0)
+            float prevSplit = (cascadeIndex == 0) ? 0.0 : cam.cascadeSplits[cascadeIndex - 1];
+            float cascadeRange = splitDepth - prevSplit;
+            // Blend in the last 15% of the cascade range
+            float blendZone = cascadeRange * 0.15;
+            float distToEdge = viewPos.z - splitDepth; // positive when past the boundary
+
+            if (distToEdge > -blendZone && distToEdge < 0.0) {
+                float blendFactor = smoothstep(0.0, 1.0, (distToEdge + blendZone) / blendZone);
+                uint nextCascade = cascadeIndex + 1;
+                float nextFilterRadius = 1.5 + float(nextCascade) * 0.5;
+                vec4 nextShadowCoord = biasMat * shadowMatrices.viewProjectionMatrix[nextCascade] * vec4(shadowWorldPos, 1.0);
+                float nextShadow = sampleShadowCascade(nextShadowCoord, nextCascade, nextFilterRadius, 0.0);
+                shadow = mix(shadow, nextShadow, blendFactor);
+            }
+        }
     }
     vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult, 0.0, 1.0);
 

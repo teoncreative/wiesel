@@ -20,6 +20,11 @@
 namespace Wiesel {
 enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
 
+enum class PrimitiveTopology {
+  TriangleList,
+  LineList,
+};
+
 struct PipelineProperties {
   SamplingMode sampling_mode;
   CullMode cull_mode;
@@ -27,6 +32,7 @@ struct PipelineProperties {
   bool enable_alpha_blending;
   bool enable_depth_test = true;
   bool enable_depth_write = true;
+  PrimitiveTopology topology = PrimitiveTopology::TriangleList;
 };
 
 struct PushConstant {

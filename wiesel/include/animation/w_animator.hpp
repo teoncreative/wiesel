@@ -15,11 +15,14 @@ class Animator {
                        float time, std::vector<glm::mat4>& bone_matrices,
                        std::vector<glm::mat4>& node_transforms);
 
-  // Blend two sets of bone matrices using TRS decompose-lerp-recompose.
+  // Blend two sets of node transforms using TRS decompose-lerp-recompose,
+  // then recompute bone skinning matrices from the blended node transforms.
   // t=0 gives fully 'a', t=1 gives fully 'b'.
-  static void BlendBoneMatrices(const std::vector<glm::mat4>& a,
-                                const std::vector<glm::mat4>& b, float t,
-                                std::vector<glm::mat4>& out);
+  static void BlendAndSkin(const Model& model,
+                           const std::vector<glm::mat4>& node_a,
+                           const std::vector<glm::mat4>& node_b, float t,
+                           std::vector<glm::mat4>& out_bone_matrices,
+                           std::vector<glm::mat4>& out_node_transforms);
 
  private:
   static glm::vec3 InterpolatePosition(const AnimationChannel& channel,

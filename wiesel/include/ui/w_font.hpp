@@ -38,6 +38,7 @@ class Font {
   Ref<ImageView> GetAtlasImageView() const { return atlas_image_view_; }
   float GetLineHeight() const { return line_height_; }
   float GetAscent() const { return ascent_; }
+  float GetDescent() const { return descent_; }
   float GetNativeSize() const { return native_size_; }
   glm::vec2 MeasureText(const std::string& text, float font_size);
 
@@ -57,6 +58,7 @@ class Font {
   float native_size_ = 0;
   float line_height_ = 0;
   float ascent_ = 0;
+  float descent_ = 0;
 
   std::unordered_map<uint32_t, GlyphInfo> glyphs_;
 

@@ -26,7 +26,12 @@ struct WindowSize {
   int32_t height;
 };
 
-enum CursorMode : uint8_t { CursorModeNormal, CursorModeRelative };
+enum CursorMode : uint8_t {
+  CursorModeNormal,    // Cursor visible, absolute position
+  CursorModeHidden,    // Cursor hidden but constrained, absolute position
+  CursorModeRelative,  // Cursor hidden and unlocked, sends delta
+  CursorModeUnlocked   // Cursor hidden and unlocked, absolute position
+};
 
 struct WindowProperties {
   std::string title;
@@ -52,8 +57,13 @@ class AppWindow {
   void SetEventHandler(const WindowEventFn& callback);
   WIESEL_GETTER_FN WindowEventFn& GetEventHandler();
 
+  virtual void SetTitle(const std::string& title);
+
   virtual void SetCursorMode(CursorMode mouse_mode);
   WIESEL_GETTER_FN virtual CursorMode GetCursorMode();
+  virtual void WarpCursor(double x, double y);
+  virtual void GetCursorDelta(double& dx, double& dy) { dx = 0; dy = 0; }
+  virtual void ResetCursorDelta() {}
 
   virtual void CreateWindowSurface(VkInstance instance,
                                    VkSurfaceKHR* surface) = 0;

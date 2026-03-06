@@ -178,17 +178,7 @@ bool GameLayer::OnMouseMoved(MouseMovedEvent& event) {
 }
 
 bool GameLayer::OnResizeEvent(WindowResizeEvent& event) {
-  if (app_.IsEditorEnabled()) {
-    return false;
-  }
-  for (entt::entity entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-    CameraComponent& camera = scene_->GetComponent<CameraComponent>(entity);
-    camera.viewport_size.x = event.window_size().width;
-    camera.viewport_size.y = event.window_size().height;
-    camera.aspect_ratio = event.aspect_ratio();
-    camera.view_changed = true;
-    camera.resources_dirty = true;
-  }
+  // Scene::OnWindowResizeEvent handles camera viewport updates
   return false;
 }
 

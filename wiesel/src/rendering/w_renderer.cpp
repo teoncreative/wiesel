@@ -165,6 +165,9 @@ template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex2DNoColor>(
 template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<VertexSprite>(
     std::vector<VertexSprite>);
 
+template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
+    std::vector<glm::vec3>);
+
 void Renderer::DestroyVertexBuffer(MemoryBuffer& buffer) {
   vkDestroyBuffer(logical_device_, buffer.buffer_handle_, nullptr);
   vkFreeMemory(logical_device_, buffer.memory_handle_, nullptr);
@@ -834,8 +837,8 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
   }
   samplerInfo.borderColor = props.BorderColor;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
-  samplerInfo.compareEnable = VK_FALSE;
-  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+  samplerInfo.compareEnable = props.CompareEnable;
+  samplerInfo.compareOp = props.CompareOp;
 
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.maxLod = static_cast<float>(mip_levels);
@@ -1274,7 +1277,7 @@ Ref<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
       imageInfo.sampler = blank_texture_->sampler_;
     } else {
       imageInfo.imageView = shadow_view->handle_;
-      imageInfo.sampler = default_linear_sampler_->sampler_;
+      imageInfo.sampler = shadow_sampler_->sampler_;
     }
     imageInfos.emplace_back(imageInfo);
 
@@ -2188,6 +2191,11 @@ void Renderer::CreatePermanentResources() {
   default_linear_sampler_ = CreateReference<Sampler>(1, SamplerProps{});
   default_nearest_sampler_ = CreateReference<Sampler>(
       1, SamplerProps{VK_FILTER_NEAREST, VK_FILTER_NEAREST, -1.0f});
+  shadow_sampler_ = CreateReference<Sampler>(1, SamplerProps{
+      VK_FILTER_LINEAR, VK_FILTER_LINEAR, -1.0f,
+      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+      VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+      VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL});
 
   // SSAO
   ssao_kernel_uniform_buffer_ =

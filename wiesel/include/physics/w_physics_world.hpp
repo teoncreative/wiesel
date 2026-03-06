@@ -77,6 +77,9 @@ class PhysicsWorld {
   bool Raycast(const glm::vec3& from, const glm::vec3& to,
                RaycastHit& hit,
                entt::entity ignore = entt::null) const;
+  bool Raycast(const glm::vec3& from, const glm::vec3& to,
+               RaycastHit& hit, entt::entity ignore,
+               uint16_t collision_mask) const;
   std::vector<entt::entity> OverlapBox(const glm::vec3& center,
                                        const glm::vec3& half_extents) const;
   std::vector<entt::entity> OverlapSphere(const glm::vec3& center,

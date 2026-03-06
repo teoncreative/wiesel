@@ -392,5 +392,15 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Animator_SetIsPlaying(ulong scenePtr, ulong entityId, bool value);
 
+
+        // SceneManager
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_LoadScene(string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_LoadScenePath(string path);
+
+        // Prefab
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong Prefab_Instantiate(ulong scenePtr, string path);
     }
 }

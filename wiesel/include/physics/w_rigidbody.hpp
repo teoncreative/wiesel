@@ -31,6 +31,9 @@ struct RigidBodyComponent : public IComponent {
   float restitution = 0.0f;
   float linear_damping = 0.0f;
   float angular_damping = 0.05f;
+  bool lock_position_x = false;
+  bool lock_position_y = false;
+  bool lock_position_z = false;
   bool lock_rotation_x = false;
   bool lock_rotation_y = false;
   bool lock_rotation_z = false;

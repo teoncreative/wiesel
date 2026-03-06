@@ -46,6 +46,7 @@ Font::Font(const std::string& vfs_path, float size_px) : native_size_(size_px) {
   FT_Set_Pixel_Sizes(ft_face_, 0, static_cast<FT_UInt>(size_px));
   line_height_ = static_cast<float>(ft_face_->size->metrics.height >> 6);
   ascent_ = static_cast<float>(ft_face_->size->metrics.ascender >> 6);
+  descent_ = static_cast<float>(-(ft_face_->size->metrics.descender >> 6));
 
   // Pre-rasterize common Unicode ranges so on-demand rasterization is rare
   atlas_pixels_.resize(atlas_width_ * atlas_height_, 0);
@@ -126,7 +127,11 @@ glm::vec2 Font::MeasureText(const std::string& text, float font_size) {
     width = cursor * scale;
   }
 
-  float height = (max_ascender + max_descender) * scale;
+  // Use face-level ascent + descent for a fixed, predictable height.
+  // This ensures all strings at the same font size produce the same box height
+  // regardless of which characters are present (e.g. "A" vs "Şg").
+  // Matches DrawCanvasText which positions the baseline at ascent_ from the top.
+  float height = (ascent_ + descent_) * scale;
   return {width, height};
 }
 

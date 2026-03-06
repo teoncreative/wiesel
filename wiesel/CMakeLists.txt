@@ -34,6 +34,17 @@ FetchContent_Declare(
         GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(tracy)
+
+##### NLOHMANN JSON #####
+FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+FetchContent_MakeAvailable(nlohmann_json)
 FetchContent_GetProperties(tracy)
 if(tracy_POPULATED)
     message(STATUS "Tracy successfully downloaded and configured")
@@ -171,6 +182,8 @@ target_link_libraries(wiesel PUBLIC cxxopts::cxxopts)
 target_link_libraries(wiesel PUBLIC GPUOpen::VulkanMemoryAllocator)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/bullet3/src)
 target_link_libraries(wiesel PUBLIC BulletDynamics BulletCollision LinearMath)
+target_link_libraries(wiesel PUBLIC Recast Detour)
+target_link_libraries(wiesel PUBLIC nlohmann_json::nlohmann_json)
 
 if (WIN32)
     target_link_libraries(wiesel PUBLIC shell32 ole32)

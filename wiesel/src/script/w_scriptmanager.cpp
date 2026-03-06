@@ -27,6 +27,8 @@
 #include "scene/w_scene.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "ui/w_canvas.hpp"
+#include "scene/w_scene_manager.hpp"
+#include "scene/w_prefab.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
 
@@ -1140,6 +1142,43 @@ void ScriptManager::LoadApp() {
   }
 }
 
+// SceneManager internal calls
+void Internals_SceneManager_LoadScene(MonoString* name) {
+  const char* cstr = mono_string_to_utf8(name);
+  SceneManager::Get().LoadScene(cstr);
+  mono_free((void*)cstr);
+}
+
+void Internals_SceneManager_LoadScenePath(MonoString* path) {
+  const char* cstr = mono_string_to_utf8(path);
+  SceneManager::Get().LoadSceneFromPath(cstr);
+  mono_free((void*)cstr);
+}
+
+uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  const char* cstr = mono_string_to_utf8(path);
+
+  // Try VFS path first, then filesystem
+  std::filesystem::path fs_path;
+  auto physical = Engine::GetVirtualFileSystem()->GetPhysicalPath(cstr);
+  if (physical.has_value()) {
+    fs_path = *physical;
+  } else {
+    fs_path = cstr;
+  }
+  mono_free((void*)cstr);
+
+  auto shared_scene = SceneManager::Get().GetActiveScene();
+  if (!shared_scene) {
+    LOG_ERROR("Prefab_Instantiate: no active scene");
+    return 0;
+  }
+
+  Entity entity = Prefab::InstantiateFromFile(shared_scene, fs_path);
+  return static_cast<uint32_t>(entity.handle());
+}
+
 void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Log_Info);
   WIESEL_ADD_INTERNAL_CALL(Input_GetAxis);
@@ -1324,6 +1363,10 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Animator_GetCurrentState);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetIsPlaying);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetIsPlaying);
+  // SceneManager
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScenePath);
+  WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
 }
 
 void ScriptManager::RegisterComponents() {

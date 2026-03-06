@@ -50,12 +50,16 @@ Application::~Application() {
 }
 
 void Application::OnEvent(Event& event) {
+  PROFILE_ZONE_SCOPED_N("Application::OnEvent");
   EventDispatcher dispatcher(event);
 
   dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_FN(OnWindowClose));
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResize));
 
-  InputManager::OnEvent(event);
+  {
+    PROFILE_ZONE_SCOPED_N("InputManager::OnEvent");
+    InputManager::OnEvent(event);
+  }
   if (event.m_Handled) {
     return;
   }
@@ -66,7 +70,10 @@ void Application::OnEvent(Event& event) {
       break;
     }
 
-    layer->OnEvent(event);
+    {
+      PROFILE_ZONE_SCOPED_N("Layer::OnEvent");
+      layer->OnEvent(event);
+    }
   }
 }
 
@@ -136,6 +143,15 @@ void Application::Run() {
         renderer->RecreateSwapChain();
       }
       window_resized_ = false;
+    }
+
+    // Frame rate limiting
+    if (max_fps_ > 0.0f) {
+      float_t target_frame_time = 1.0f / max_fps_;
+      float_t elapsed = Time::GetTime() - previous_frame_;
+      while (elapsed < target_frame_time) {
+        elapsed = Time::GetTime() - previous_frame_;
+      }
     }
   }
 }
