@@ -77,6 +77,7 @@ class EditorLayer : public Layer {
   bool scene_panel_visible_ = true;
   bool game_panel_visible_ = true;
   int resolution_preset_index_ = 0;  // index into kResolutionPresets
+  bool show_about_popup_ = false;
 
   // Scene snapshot for Play/Stop restore
   struct EntitySnapshot {

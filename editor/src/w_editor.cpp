@@ -1760,6 +1760,13 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("Help")) {
+      if (ImGui::MenuItem("About")) {
+        show_about_popup_ = true;
+      }
+      ImGui::EndMenu();
+    }
+
     // Right-aligned project/scene info
     {
       std::string info;
@@ -1780,6 +1787,40 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     ImGui::EndMainMenuBar();
+  }
+
+  // About popup
+  if (show_about_popup_) {
+    ImGui::OpenPopup("About Wiesel");
+    show_about_popup_ = false;
+  }
+  if (ImGui::BeginPopupModal("About Wiesel", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::Text("Wiesel Engine");
+    ImGui::Separator();
+
+    ImGui::Text("Git Branch: %s", WIESEL_GIT_BRANCH);
+    ImGui::Text("Git Commit: %s", WIESEL_GIT_COMMIT);
+    ImGui::Text("Build Type: %s", WIESEL_BUILD_TYPE);
+
+#ifdef WIESEL_BACKEND_SDL3
+    ImGui::Text("Window Backend: SDL3");
+#else
+    ImGui::Text("Window Backend: GLFW");
+#endif
+
+    auto props = Engine::GetRenderer()->GetPhysicalDeviceProperties();
+    uint32_t vk_major = VK_API_VERSION_MAJOR(props.apiVersion);
+    uint32_t vk_minor = VK_API_VERSION_MINOR(props.apiVersion);
+    uint32_t vk_patch = VK_API_VERSION_PATCH(props.apiVersion);
+    ImGui::Text("GPU: %s", props.deviceName);
+    ImGui::Text("Vulkan: %u.%u.%u", vk_major, vk_minor, vk_patch);
+    ImGui::Text("FPS: %.1f", app_.GetFPS());
+
+    ImGui::Separator();
+    if (ImGui::Button("Close", ImVec2(120, 0))) {
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
   }
 
   // Keyboard shortcuts
