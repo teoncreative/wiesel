@@ -11,12 +11,16 @@
 
 #include "layer/w_layerimgui.hpp"
 
-#include <GLFW/glfw3.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 #include <ImGuizmo.h>
 
+#ifdef WIESEL_BACKEND_SDL3
+#include <backends/imgui_impl_sdl3.h>
+#else
+#include <GLFW/glfw3.h>
 #include "backends/imgui_impl_glfw.h"
+#endif
 #include "events/w_engineevents.hpp"
 #include "rendering/w_renderer.hpp"
 #include "util/imgui/imgui_spectrum.hpp"
@@ -119,9 +123,13 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
 
   // Shutdown both backends
   ImGui_ImplVulkan_Shutdown();
+#ifdef WIESEL_BACKEND_SDL3
+  ImGui_ImplSDL3_Shutdown();
+#else
   ImGui_ImplGlfw_Shutdown();
+#endif
 
-  // Reinitialize GLFW backend (must be done before Vulkan backend)
+  // Reinitialize window backend (must be done before Vulkan backend)
   Engine::GetRenderer()->window_->ImGuiInit();
 
   // Reinitialize Vulkan backend with new settings

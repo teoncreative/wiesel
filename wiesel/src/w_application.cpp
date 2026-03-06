@@ -13,7 +13,6 @@
 
 #include "input/w_input.hpp"
 #include "w_engine.hpp"
-#include "window/w_glfwwindow.hpp"
 
 namespace Wiesel {
 

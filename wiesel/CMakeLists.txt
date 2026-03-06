@@ -4,6 +4,8 @@ project(Wiesel)
 option(ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
 option(ENABLE_VULKAN_VALIDATION "Enables Vulkan validation layer" OFF)
 option(ENABLE_TRACY "Enables tracy profiler" OFF)
+set(WIESEL_WINDOW_BACKEND "SDL3" CACHE STRING "Window backend: GLFW or SDL3")
+set_property(CACHE WIESEL_WINDOW_BACKEND PROPERTY STRINGS "GLFW" "SDL3")
 
 if (UNIX)
     execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
@@ -45,6 +47,22 @@ FetchContent_Declare(
 )
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 FetchContent_MakeAvailable(nlohmann_json)
+
+##### SDL3 (optional) #####
+if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+            sdl3
+            GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+            GIT_TAG release-3.2.14
+            GIT_SHALLOW TRUE
+            GIT_PROGRESS TRUE
+    )
+    FetchContent_MakeAvailable(sdl3)
+endif()
+
 FetchContent_GetProperties(tracy)
 if(tracy_POPULATED)
     message(STATUS "Tracy successfully downloaded and configured")
@@ -70,6 +88,15 @@ set(INCLUDE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
 file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cpp")
 file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.hpp")
 
+# Exclude inactive window backend
+if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
+    list(FILTER SOURCES EXCLUDE REGEX "w_glfwwindow\\.cpp$")
+    list(FILTER HEADERS EXCLUDE REGEX "w_glfwwindow\\.hpp$")
+else()
+    list(FILTER SOURCES EXCLUDE REGEX "w_sdlwindow\\.cpp$")
+    list(FILTER HEADERS EXCLUDE REGEX "w_sdlwindow\\.hpp$")
+endif()
+
 message("ENGINE_DIRECTORY: " ${ENGINE_DIRECTORY})
 message("SOURCES_DIRECTORY: " ${SOURCES_DIRECTORY})
 message("INCLUDE_DIRECTORY: " ${INCLUDE_DIRECTORY})
@@ -84,12 +111,17 @@ file(
         "${VENDOR_DIR}/imgui/imgui_demo.cpp" # remove
         "${VENDOR_DIR}/imgui/backends/imgui_impl_metal.cpp" # todo implement our own imgui backend instead
         "${VENDOR_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
-        "${VENDOR_DIR}/imgui/backends/imgui_impl_glfw.cpp"
         "${VENDOR_DIR}/imgui/misc/cpp/imgui_stdlib.cpp"
         "${VENDOR_DIR}/imgui/backends/*.h"
         "${VENDOR_DIR}/imgui/misc/cpp/*.h"
         "${VENDOR_DIR}/imgui/*.h"
 )
+if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
+    file(GLOB IMGUI_BACKEND_FILES "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp")
+else()
+    file(GLOB IMGUI_BACKEND_FILES "${VENDOR_DIR}/imgui/backends/imgui_impl_glfw.cpp")
+endif()
+list(APPEND IMGUI_FILES ${IMGUI_BACKEND_FILES})
 file(
         GLOB IMGUIZMO_FILES
         "${VENDOR_DIR}/imguizmo/GraphEditor.cpp"
@@ -164,14 +196,20 @@ endif()
 
 if (VULKAN_FOUND)
     message(STATUS "Found Vulkan. Including and linking...")
-    target_include_directories(wiesel PUBLIC ${GLFW_INCLUDE_DIRS})
-    target_link_libraries(wiesel PUBLIC Vulkan::Vulkan glfw ${GLFW_LIBRARIES})
+    target_link_libraries(wiesel PUBLIC Vulkan::Vulkan)
+    if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
+        target_link_libraries(wiesel PUBLIC SDL3::SDL3-static)
+        target_compile_definitions(wiesel PUBLIC WIESEL_BACKEND_SDL3=1)
+    else()
+        target_include_directories(wiesel PUBLIC ${GLFW_INCLUDE_DIRS})
+        target_link_libraries(wiesel PUBLIC glfw ${GLFW_LIBRARIES})
+        target_compile_definitions(wiesel PUBLIC WIESEL_BACKEND_GLFW=1)
+    endif()
 endif (VULKAN_FOUND)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
-target_link_libraries(wiesel PUBLIC glfw)
 target_link_libraries(wiesel PUBLIC assimp)
 target_link_libraries(wiesel PUBLIC freetype)
 target_link_libraries(wiesel PUBLIC EnTT)

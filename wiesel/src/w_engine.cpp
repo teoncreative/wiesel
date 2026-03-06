@@ -22,7 +22,11 @@
 #include "script/w_scriptmanager.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_platform.hpp"
+#ifdef WIESEL_BACKEND_SDL3
+#include "window/w_sdlwindow.hpp"
+#else
 #include "window/w_glfwwindow.hpp"
+#endif
 #include <cxxopts.hpp>
 
 namespace Wiesel {
@@ -244,7 +248,11 @@ void Engine::InitEngine(const EngineProperties& props) {
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
+#ifdef WIESEL_BACKEND_SDL3
+  window_ = CreateReference<SdlAppWindow>(std::move(props));
+#else
   window_ = CreateReference<GlfwAppWindow>(std::move(props));
+#endif
   Dialogs::Init();
 }
 
