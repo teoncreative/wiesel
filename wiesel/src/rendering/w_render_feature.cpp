@@ -78,11 +78,28 @@ bool CameraResourcePool::HasImageView(const std::string& name) const {
   return image_views_.count(name) > 0;
 }
 
+void CameraResourcePool::SetBuffer(const std::string& name,
+                                    Ref<UniformBuffer> buf) {
+  buffers_[name] = std::move(buf);
+}
+
+Ref<UniformBuffer> CameraResourcePool::GetBuffer(
+    const std::string& name) const {
+  auto it = buffers_.find(name);
+  if (it != buffers_.end()) return it->second;
+  return nullptr;
+}
+
+bool CameraResourcePool::HasBuffer(const std::string& name) const {
+  return buffers_.count(name) > 0;
+}
+
 void CameraResourcePool::Clear() {
   textures_.clear();
   framebuffers_.clear();
   descriptors_.clear();
   image_views_.clear();
+  buffers_.clear();
 }
 
 void RenderResourceRegistry::Register(const std::string& name,

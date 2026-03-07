@@ -113,7 +113,7 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
 
   auto pipeline = pipeline_;
   uint32_t motion_blur = graph.AddPass(
-      "Motion Blur", render_pass_,
+      "MotionBlur", render_pass_,
       [pool, renderer, pipeline, push_constants](VkCommandBuffer) {
         auto& s = renderer->options();
         push_constants->strength = s.motion_blur_strength;

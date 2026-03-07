@@ -45,6 +45,10 @@ class CameraResourcePool {
   Ref<ImageView> GetImageView(const std::string& name) const;
   bool HasImageView(const std::string& name) const;
 
+  void SetBuffer(const std::string& name, Ref<UniformBuffer> buf);
+  Ref<UniformBuffer> GetBuffer(const std::string& name) const;
+  bool HasBuffer(const std::string& name) const;
+
   void Clear();
 
  private:
@@ -52,6 +56,7 @@ class CameraResourcePool {
   std::unordered_map<std::string, Ref<Framebuffer>> framebuffers_;
   std::unordered_map<std::string, Ref<DescriptorSet>> descriptors_;
   std::unordered_map<std::string, Ref<ImageView>> image_views_;
+  std::unordered_map<std::string, Ref<UniformBuffer>> buffers_;
 };
 
 // Context passed to features during resource setup and pass building.

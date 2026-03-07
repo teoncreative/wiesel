@@ -26,6 +26,7 @@
 #include <random>
 
 #include "cxxopts.hpp"
+#include "layer/w_layerconsole.hpp"
 #include "layer/w_layerscene.hpp"
 
 using namespace Wiesel;
@@ -65,11 +66,11 @@ void GameLayer::OnAttach() {
     light.light_data.base.density = 1.0f;
   }
   {
-    auto entity = scene_->CreateEntity("Light Center");
+    auto entity = scene_->CreateEntity("Light Red");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.position = {5.0f, 3.5f, 0.0f};
+    transform.position = {2.0f, 2.5f, 0.4f};
     auto& light = entity.AddComponent<LightPointComponent>();
-    light.light_data.base.color = glm::vec3(1.0f, 0.85f, 0.6f);
+    light.light_data.base.color = glm::vec3(1.0f, 0.0f, 0.0f);
     light.light_data.base.ambient = 0.05f;
     light.light_data.base.diffuse = 1.2f;
     light.light_data.base.specular = 0.8f;
@@ -77,34 +78,40 @@ void GameLayer::OnAttach() {
     light.light_data.constant = 1.0f;
     light.light_data.linear = 0.045f;
     light.light_data.exp = 0.016f;
+    auto& red_behaviors = entity.AddComponent<BehaviorsComponent>();
+    red_behaviors.AddBehavior<MonoBehavior>(entity, "LightBob");
   }
   {
-    auto entity = scene_->CreateEntity("Light Left");
+    auto entity = scene_->CreateEntity("Light Green");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.position = {5.0f, 2.5f, 3.0f};
+    transform.position = {5.0f, 2.5f, 0.4f};
     auto& light = entity.AddComponent<LightPointComponent>();
-    light.light_data.base.color = glm::vec3(1.0f, 0.9f, 0.7f);
-    light.light_data.base.ambient = 0.03f;
-    light.light_data.base.diffuse = 1.0f;
-    light.light_data.base.specular = 0.6f;
-    light.light_data.base.density = 1.0f;
+    light.light_data.base.color = glm::vec3(0.0f, 1.0f, 0.0f);
+    light.light_data.base.ambient = 0.05f;
+    light.light_data.base.diffuse = 1.2f;
+    light.light_data.base.specular = 0.8f;
+    light.light_data.base.density = 1.5f;
     light.light_data.constant = 1.0f;
-    light.light_data.linear = 0.07f;
-    light.light_data.exp = 0.025f;
+    light.light_data.linear = 0.045f;
+    light.light_data.exp = 0.016f;
+    auto& green_behaviors = entity.AddComponent<BehaviorsComponent>();
+    green_behaviors.AddBehavior<MonoBehavior>(entity, "LightBob");
   }
   {
-    auto entity = scene_->CreateEntity("Light Right");
+    auto entity = scene_->CreateEntity("Light Blue");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.position = {5.0f, 2.5f, -3.0f};
+    transform.position = {8.0f, 2.5f, 0.4f};
     auto& light = entity.AddComponent<LightPointComponent>();
-    light.light_data.base.color = glm::vec3(1.0f, 0.9f, 0.7f);
-    light.light_data.base.ambient = 0.03f;
-    light.light_data.base.diffuse = 1.0f;
-    light.light_data.base.specular = 0.6f;
-    light.light_data.base.density = 1.0f;
+    light.light_data.base.color = glm::vec3(0.0f, 0.0f, 1.0f);
+    light.light_data.base.ambient = 0.05f;
+    light.light_data.base.diffuse = 1.2f;
+    light.light_data.base.specular = 0.8f;
+    light.light_data.base.density = 1.5f;
     light.light_data.constant = 1.0f;
-    light.light_data.linear = 0.07f;
-    light.light_data.exp = 0.025f;
+    light.light_data.linear = 0.045f;
+    light.light_data.exp = 0.016f;
+    auto& blue_behaviors = entity.AddComponent<BehaviorsComponent>();
+    blue_behaviors.AddBehavior<MonoBehavior>(entity, "LightBob");
   }
   {
     auto entity = scene_->CreateEntity("Camera");
@@ -154,6 +161,11 @@ bool GameLayer::OnKeyPress(KeyPressedEvent& event) {
     app_.Close();
     return true;
   }
+  if (event.GetKeyCode() == KeyGraveAccent && !event.IsRepeat()) {
+    auto& console = Engine::GetConsole();
+    console.Toggle();
+    return true;
+  }
   if (event.GetKeyCode() == Key1) {
     renderer_->options().msaa_mode = SamplingMode::DISABLED;
   }
@@ -187,15 +199,18 @@ void GameApplication::Init() {
   std::shared_ptr<Scene> scene = std::make_shared<Scene>();
   if (enable_editor_) {
     PushLayer(std::make_shared<ImGuiLayer>());
+    PushLayer(std::make_shared<ConsoleLayer>());
     PushLayer(std::make_shared<GameLayer>(*this, scene));
     PushLayer(std::make_shared<EditorLayer>(*this, scene));
   } else {
     PushLayer(std::make_shared<GameLayer>(*this, scene));
     PushLayer(std::make_shared<SceneLayer>(scene));
+    PushLayer(std::make_shared<ImGuiLayer>());
+    PushLayer(std::make_shared<ConsoleLayer>());
   }
 }
 
-GameApplication::GameApplication(bool enable_editor) : Application({"Wiesel Demo"}, {}), enable_editor_(enable_editor) {
+GameApplication::GameApplication(bool enable_editor) : Application({"Wiesel Demo", {1600, 900}, true}, {}), enable_editor_(enable_editor) {
 }
 
 GameApplication::~GameApplication() {

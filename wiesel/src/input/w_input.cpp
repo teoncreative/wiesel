@@ -66,10 +66,9 @@ static bool OnMouseMoved(MouseMovedEvent& event) {
   input_mode_ = kInputModeKeyboardAndMouse;
   mouse_x_ = event.GetX();
   mouse_y_ = event.GetY();
-  // todo mouse delta raw
   if (event.GetCursorMode() == CursorModeRelative) {
-    axis_["Mouse X"] += mouse_axis_sens_x_ * event.GetX();
-    axis_["Mouse Y"] += mouse_axis_sens_y_ * event.GetY();
+    axis_["Mouse X"] -= mouse_axis_sens_x_ * event.GetDeltaX();
+    axis_["Mouse Y"] -= mouse_axis_sens_y_ * event.GetDeltaY();
     axis_["Mouse Y"] = std::clamp(
         axis_["Mouse Y"], -mouse_axis_limit_y_,
         mouse_axis_limit_y_);
@@ -143,7 +142,6 @@ bool InputManager::IsPressed(KeyCode code) {
 }
 
 float InputManager::GetAxis(const std::string& axisName) {
-  if (!input_enabled_) return 0.0f;
   return axis_[axisName];
 }
 

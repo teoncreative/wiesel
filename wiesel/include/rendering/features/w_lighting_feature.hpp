@@ -33,6 +33,8 @@ class LightingFeature : public RenderFeature {
   Ref<Renderer> renderer_;
   Ref<RenderPass> render_pass_;
   Ref<Pipeline> lighting_pipeline_;
+  Ref<Pipeline> rt_lighting_pipeline_;
+  Ref<DescriptorSetLayout> rt_shadow_desc_layout_;
   Ref<Pipeline> skybox_pipeline_;
 };
 

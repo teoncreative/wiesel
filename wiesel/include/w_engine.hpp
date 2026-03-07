@@ -12,6 +12,7 @@
 #pragma once
 
 #include "rendering/w_renderer.hpp"
+#include "util/w_command.hpp"
 #include "util/w_vfs.hpp"
 #include "w_application.hpp"
 
@@ -44,6 +45,7 @@ class Engine {
   WIESEL_GETTER_FN static std::shared_ptr<Renderer> GetRenderer();
   WIESEL_GETTER_FN static std::shared_ptr<AppWindow> GetWindow();
   WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> GetVirtualFileSystem();
+  WIESEL_GETTER_FN static DeveloperConsole& GetConsole();
   WIESEL_GETTER_FN static const EngineProperties& GetEngineProperties() {
     return properties_;
   }
@@ -74,6 +76,7 @@ class Engine {
   static std::shared_ptr<Renderer> renderer_;
   static std::shared_ptr<AppWindow> window_;
   static std::shared_ptr<VirtualFileSystem> vfs_;
+  static DeveloperConsole console_;
 };
 
 Application* CreateApp();

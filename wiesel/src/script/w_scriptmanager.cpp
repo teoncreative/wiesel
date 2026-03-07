@@ -859,6 +859,7 @@ MonoClass* ScriptManager::canvas_image_class_ = nullptr;
 MonoClass* ScriptManager::text_component_class_ = nullptr;
 MonoClass* ScriptManager::animator_component_class_ = nullptr;
 MonoClass* ScriptManager::vector3f_class_ = nullptr;
+MonoClass* ScriptManager::entity_class_ = nullptr;
 MonoMethod* ScriptManager::set_handle_method_ = nullptr;
 
 std::map<std::string, ScriptManager::ComponentGetter>
@@ -1014,6 +1015,8 @@ void ScriptManager::LoadCore() {
       core_assembly_image_, "WieselEngine", "AnimatorComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
+  entity_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "Entity");
 }
 
 void ScriptManager::LoadApp() {
@@ -1177,6 +1180,73 @@ uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
 
   Entity entity = Prefab::InstantiateFromFile(shared_scene, fs_path);
   return static_cast<uint32_t>(entity.handle());
+}
+
+// Console
+void Internals_Console_RegisterCommand(MonoString* name, MonoString* description, MonoObject* callback) {
+  const char* name_cstr = mono_string_to_utf8(name);
+  const char* desc_cstr = mono_string_to_utf8(description);
+  std::string name_str = name_cstr;
+  std::string desc_str = desc_cstr;
+  mono_free((void*)name_cstr);
+  mono_free((void*)desc_cstr);
+
+  uint32_t gc_handle = mono_gchandle_new(callback, true);
+
+  Engine::GetConsole().Register(name_str, desc_str, [gc_handle](const std::vector<std::string>& args) {
+    MonoObject* delegate = mono_gchandle_get_target(gc_handle);
+    if (!delegate) return;
+
+    MonoDomain* domain = mono_domain_get();
+    MonoArray* mono_args = mono_array_new(domain, mono_get_string_class(), args.size());
+    for (size_t i = 0; i < args.size(); i++) {
+      mono_array_set(mono_args, MonoString*, i, mono_string_new(domain, args[i].c_str()));
+    }
+
+    void* invoke_args[1] = { mono_args };
+    MonoObject* exception = nullptr;
+    MonoMethod* invoke_method = mono_get_delegate_invoke(mono_object_get_class(delegate));
+    mono_runtime_invoke(invoke_method, delegate, invoke_args, &exception);
+
+    if (exception) {
+      MonoString* exc_str = mono_object_to_string(exception, nullptr);
+      if (exc_str) {
+        const char* exc_cstr = mono_string_to_utf8(exc_str);
+        Engine::GetConsole().LogError(exc_cstr);
+        mono_free((void*)exc_cstr);
+      }
+    }
+  });
+}
+
+void Internals_Console_UnregisterCommand(MonoString* name) {
+  const char* cstr = mono_string_to_utf8(name);
+  Engine::GetConsole().Unregister(cstr);
+  mono_free((void*)cstr);
+}
+
+void Internals_Console_Execute(MonoString* command_line) {
+  const char* cstr = mono_string_to_utf8(command_line);
+  Engine::GetConsole().Execute(cstr);
+  mono_free((void*)cstr);
+}
+
+void Internals_Console_LogInfo(MonoString* message) {
+  const char* cstr = mono_string_to_utf8(message);
+  Engine::GetConsole().LogInfo(cstr);
+  mono_free((void*)cstr);
+}
+
+void Internals_Console_LogWarning(MonoString* message) {
+  const char* cstr = mono_string_to_utf8(message);
+  Engine::GetConsole().LogWarning(cstr);
+  mono_free((void*)cstr);
+}
+
+void Internals_Console_LogError(MonoString* message) {
+  const char* cstr = mono_string_to_utf8(message);
+  Engine::GetConsole().LogError(cstr);
+  mono_free((void*)cstr);
 }
 
 void ScriptManager::RegisterInternals() {
@@ -1367,6 +1437,13 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScene);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScenePath);
   WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
+  // Console
+  WIESEL_ADD_INTERNAL_CALL(Console_RegisterCommand);
+  WIESEL_ADD_INTERNAL_CALL(Console_UnregisterCommand);
+  WIESEL_ADD_INTERNAL_CALL(Console_Execute);
+  WIESEL_ADD_INTERNAL_CALL(Console_LogInfo);
+  WIESEL_ADD_INTERNAL_CALL(Console_LogWarning);
+  WIESEL_ADD_INTERNAL_CALL(Console_LogError);
 }
 
 void ScriptManager::RegisterComponents() {

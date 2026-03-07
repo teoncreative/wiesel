@@ -45,6 +45,27 @@ class DescriptorSet {
     });
   }
 
+  void AddStorageBuffer(uint32_t dst_binding, Ref<UniformBuffer> buffer) {
+    storage_buffer_data_.push_back({
+        .dst_binding = dst_binding,
+        .buffer = buffer
+    });
+  }
+
+  void AddStorageImage(uint32_t dst_binding, Ref<ImageView> view) {
+    storage_image_data_.push_back({
+        .dst_binding = dst_binding,
+        .image_view = view
+    });
+  }
+
+  void AddAccelerationStructure(uint32_t dst_binding, VkAccelerationStructureKHR as) {
+    acceleration_structure_data_.push_back({
+        .dst_binding = dst_binding,
+        .as = as
+    });
+  }
+
   void Bake();
 
   bool allocated_;
@@ -61,7 +82,22 @@ class DescriptorSet {
     uint32_t dst_binding;
     Ref<UniformBuffer> ubo;
   };
+  struct StorageBufferData {
+    uint32_t dst_binding;
+    Ref<UniformBuffer> buffer;
+  };
+  struct StorageImageData {
+    uint32_t dst_binding;
+    Ref<ImageView> image_view;
+  };
+  struct AccelerationStructureData {
+    uint32_t dst_binding;
+    VkAccelerationStructureKHR as;
+  };
   std::vector<CombinedImageSamplerData> combined_image_samplers_;
   std::vector<UniformBufferData> uniform_buffer_data_;
+  std::vector<StorageBufferData> storage_buffer_data_;
+  std::vector<StorageImageData> storage_image_data_;
+  std::vector<AccelerationStructureData> acceleration_structure_data_;
 };
 }  // namespace Wiesel

@@ -43,7 +43,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
 
   // This ensures shadow quality is consistent regardless of camera settings.
   float effectiveNear = 0.5f;
-  float effectiveFar  = 200.0f;
+  float effectiveFar  = 1000.0f;
 
   float clipRange = effectiveFar - effectiveNear;
   float minZ = effectiveNear;

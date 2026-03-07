@@ -202,6 +202,7 @@ struct AttachmentTextureProps {
   bool sampled = false;
   uint32_t layer_count = 1;
   bool transfer_dest = false;
+  bool storage = false;
 };
 
 class DescriptorSet;

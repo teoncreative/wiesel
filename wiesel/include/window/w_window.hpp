@@ -39,7 +39,7 @@ struct WindowProperties {
   bool resizable;
 
   WindowProperties(std::string title = "Wiesel",
-                   const WindowSize& size = {1600, 900}, bool resizable = false)
+                   const WindowSize& size = {1600, 900}, bool resizable = true)
       : title(std::move(title)), size(size), resizable(resizable) {}
 };
 

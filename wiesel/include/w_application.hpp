@@ -49,6 +49,9 @@ class Application {
 
   void SetMaxFPS(float_t max_fps) { max_fps_ = max_fps; }
   WIESEL_GETTER_FN float_t GetMaxFPS() const { return max_fps_; }
+
+  void SetTimeScale(float_t time_scale) { time_scale_ = time_scale; }
+  WIESEL_GETTER_FN float_t GetTimeScale() const { return time_scale_; }
   WIESEL_GETTER_FN const WindowSize& GetWindowSize();
 
   void SubmitToMainThread(std::function<void()> fn);
@@ -81,6 +84,7 @@ class Application {
   uint32_t frame_count_ = 0;
   float_t fps_ = 0.0f;
   float_t max_fps_ = 0.0f;  // 0 = unlimited
+  float_t time_scale_ = 1.0f;
 
 
 };

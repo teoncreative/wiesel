@@ -71,7 +71,7 @@ class EditorLayer : public Layer {
   float editor_yaw_ = 0.0f;
   float editor_pitch_ = 0.0f;
   float camera_speed_ = 10.0f;
-  float mouse_sensitivity_ = 0.1f;
+  float mouse_sensitivity_ = 160.0f;
   bool cursor_captured_ = false;
   bool game_panel_focused_ = false;
   bool scene_panel_visible_ = true;

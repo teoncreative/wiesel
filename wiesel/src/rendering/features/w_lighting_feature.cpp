@@ -70,6 +70,35 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
   lighting_pipeline_->AddShader(fullscreen_vert);
   lighting_pipeline_->AddShader(lighting_frag);
   lighting_pipeline_->Bake();
+
+  // RT shadow variant: same pipeline but with USE_RT_SHADOWS define and extra descriptor set
+  if (renderer_->IsRayTracingSupported()) {
+    auto rt_lighting_frag = renderer_->CreateShader(
+        {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+         "/engine/internal_shaders/lighting_shader.frag",
+         {"USE_RT_SHADOWS"}});
+
+    rt_shadow_desc_layout_ = CreateReference<DescriptorSetLayout>();
+    rt_shadow_desc_layout_->AddBinding(
+        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        VK_SHADER_STAGE_FRAGMENT_BIT);
+    rt_shadow_desc_layout_->Bake();
+
+    rt_lighting_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+        renderer_->options().msaa_mode, CullModeFront, false, true, true,
+        false});
+    rt_lighting_pipeline_->SetRenderPass(render_pass_);
+    rt_lighting_pipeline_->AddInputLayout(
+        renderer_->GetGeometryOutputDescriptorLayout());
+    rt_lighting_pipeline_->AddInputLayout(
+        renderer_->GetSSAOOutputDescriptorLayout());
+    rt_lighting_pipeline_->AddInputLayout(
+        renderer_->GetGlobalDescriptorLayout());
+    rt_lighting_pipeline_->AddInputLayout(rt_shadow_desc_layout_);
+    rt_lighting_pipeline_->AddShader(fullscreen_vert);
+    rt_lighting_pipeline_->AddShader(rt_lighting_frag);
+    rt_lighting_pipeline_->Bake();
+  }
 }
 
 void LightingFeature::SetupResources(RenderContext& ctx) {
@@ -145,23 +174,47 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   RGResource ssao_blur_v = registry.Get("SSAOBlurV");
   RGResource shadow_depth = registry.Get("ShadowDepth");
 
+  // Check if RT shadow mask is available
+  bool use_rt_shadows = registry.Has("RTShadowMask") && rt_lighting_pipeline_
+                        && pool->HasTexture("rt_shadow.mask");
+  RGResource rt_shadow_mask;
+  if (use_rt_shadows) {
+    rt_shadow_mask = registry.Get("RTShadowMask");
+
+    auto rt_shadow_desc = CreateReference<DescriptorSet>();
+    rt_shadow_desc->SetLayout(rt_shadow_desc_layout_);
+    rt_shadow_desc->AddStorageImage(
+        0, pool->GetTexture("rt_shadow.mask")->image_views_[0]);
+    rt_shadow_desc->Bake();
+    pool->SetDescriptor("lighting.rt_shadow", rt_shadow_desc);
+  }
+
   // Lighting pass
   std::shared_ptr<Pipeline> skybox_pipeline = skybox_pipeline_;
-  std::shared_ptr<Pipeline> lighting_pipeline = lighting_pipeline_;
+  std::shared_ptr<Pipeline> lighting_pipeline =
+      use_rt_shadows ? rt_lighting_pipeline_ : lighting_pipeline_;
   uint32_t lighting = graph.AddPass(
       "Lighting", render_pass_,
       [pool, renderer, scene, skybox_pipeline,
-       lighting_pipeline](VkCommandBuffer) {
+       lighting_pipeline, use_rt_shadows](VkCommandBuffer) {
         skybox_pipeline->Bind(PipelineBindPointGraphics);
         auto skybox = scene->GetSkybox();
         if (skybox) {
           renderer->DrawSkybox(skybox);
         }
         lighting_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(lighting_pipeline,
-            {pool->GetDescriptor("geometry.output"),
-             pool->GetDescriptor("ssao.blur_v.output"),
-             pool->GetDescriptor("GlobalDescriptor")});
+        if (use_rt_shadows) {
+          renderer->DrawFullscreen(lighting_pipeline,
+              {pool->GetDescriptor("geometry.output"),
+               pool->GetDescriptor("ssao.blur_v.output"),
+               pool->GetDescriptor("GlobalDescriptor"),
+               pool->GetDescriptor("lighting.rt_shadow")});
+        } else {
+          renderer->DrawFullscreen(lighting_pipeline,
+              {pool->GetDescriptor("geometry.output"),
+               pool->GetDescriptor("ssao.blur_v.output"),
+               pool->GetDescriptor("GlobalDescriptor")});
+        }
       });
 
   graph.PassReadsTexture(lighting, geo_view_pos);
@@ -174,6 +227,9 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   }
   if (shadow_depth.IsValid()) {
     graph.PassReadsTexture(lighting, shadow_depth);
+  }
+  if (rt_shadow_mask.IsValid()) {
+    graph.PassReadsTexture(lighting, rt_shadow_mask);
   }
   graph.PassWritesColor(lighting, lighting_out);
   graph.SetPassFramebuffer(lighting, pool->GetFramebuffer("lighting"));

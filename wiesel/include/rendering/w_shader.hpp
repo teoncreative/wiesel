@@ -12,8 +12,16 @@
 #pragma once
 
 namespace Wiesel {
-// todo
-enum ShaderType { ShaderTypeVertex, ShaderTypeFragment };
+enum ShaderType {
+  ShaderTypeVertex,
+  ShaderTypeFragment,
+  ShaderTypeRayGen,
+  ShaderTypeClosestHit,
+  ShaderTypeMiss,
+  ShaderTypeAnyHit,
+  ShaderTypeIntersection,
+  ShaderTypeCallable
+};
 
 enum ShaderSource { ShaderSourcePrecompiled, ShaderSourceSource };
 
