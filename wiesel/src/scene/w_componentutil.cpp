@@ -254,6 +254,63 @@ void RenderScriptVariables(ScriptInstance* instance) {
             mono_string_new(ScriptManager::app_domain(), str.c_str());
         value.Set(instance->handle(), newVal);
       }
+    } else if (value.GetFieldType() == FieldType::Entity) {
+      MonoObject* entity_obj = value.Get<MonoObject*>(instance->handle());
+      std::string entity_label = "(None)";
+      entt::entity current_entity_id = entt::null;
+
+      if (entity_obj) {
+        MonoClassField* id_field = mono_class_get_field_from_name(
+            ScriptManager::entity_class(), "entityId");
+        if (id_field) {
+          uint64_t id_val = 0;
+          mono_field_get_value(entity_obj, id_field, &id_val);
+          current_entity_id = static_cast<entt::entity>(id_val);
+          Scene* scene = instance->behavior()->scene();
+          if (scene && scene->HasEntity(current_entity_id) &&
+              scene->HasComponent<TagComponent>(current_entity_id)) {
+            entity_label = scene->GetComponent<TagComponent>(current_entity_id).tag;
+          } else {
+            entity_label = "(Invalid)";
+          }
+        }
+      }
+
+      std::string label = PrefixLabel(value.GetFormattedName().c_str());
+      ImGui::InputText(label.c_str(), &entity_label,
+                       ImGuiInputTextFlags_ReadOnly);
+
+      // Drag-drop target: accept entities from scene hierarchy
+      if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload =
+                ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
+          entt::entity dropped_entity =
+              *static_cast<const entt::entity*>(payload->Data);
+          Scene* scene = instance->behavior()->scene();
+          if (scene) {
+            MonoObject* new_entity = mono_object_new(
+                ScriptManager::app_domain(), ScriptManager::entity_class());
+            MonoMethod* ctor = mono_class_get_method_from_name(
+                ScriptManager::entity_class(), ".ctor", 2);
+            uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
+            uint64_t entity_id = static_cast<uint64_t>(dropped_entity);
+            void* args[2] = {&scene_ptr, &entity_id};
+            mono_runtime_invoke(ctor, new_entity, args, nullptr);
+            value.Set(instance->handle(), new_entity);
+          }
+        }
+        ImGui::EndDragDropTarget();
+      }
+
+      // Clear button
+      if (current_entity_id != entt::null) {
+        ImGui::SameLine();
+        std::string clear_id = "X##clear_" + value.GetFieldName();
+        if (ImGui::SmallButton(clear_id.c_str())) {
+          MonoObject* null_val = nullptr;
+          value.Set(instance->handle(), &null_val);
+        }
+      }
     }
     // todo objects, long and unsigned numbers
   }

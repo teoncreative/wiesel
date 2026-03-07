@@ -91,7 +91,7 @@ struct Pipeline {
   PipelineProperties properties_;
   std::vector<ShaderInfo> shaders_;
   std::vector<VkDynamicState> dynamic_states_;
-  std::shared_ptr<RenderPass> m_RenderPass;
+  std::shared_ptr<RenderPass> render_pass_;
   std::vector<std::shared_ptr<DescriptorSetLayout>> descriptor_layouts_;
   VkPipelineLayout layout_{};
   VkPipeline pipeline_{};

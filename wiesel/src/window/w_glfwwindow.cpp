@@ -155,13 +155,15 @@ void GlfwAppWindow::OnUpdate() {
   prev_cursor_y_ = cur_y;
 
   if (dx != 0.0 || dy != 0.0) {
+    double norm_dx = dx / window_size_.width;
+    double norm_dy = dy / window_size_.width;
     if (cursor_mode_ == CursorModeRelative) {
-      MouseMovedEvent event(dx, dy, cursor_mode_);
+      MouseMovedEvent event(cur_x, cur_y, norm_dx, norm_dy, cursor_mode_);
       GetEventHandler()(event);
     } else {
       double x = cur_x * scale_.width;
       double y = cur_y * scale_.height;
-      MouseMovedEvent event(x, y, cursor_mode_);
+      MouseMovedEvent event(x, y, norm_dx, norm_dy, cursor_mode_);
       GetEventHandler()(event);
     }
   }

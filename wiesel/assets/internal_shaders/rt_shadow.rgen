@@ -1,0 +1,89 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+
+layout(binding = 1, set = 0, r32ui) writeonly uniform uimage2D shadowMask;
+
+layout(binding = 2, set = 0) uniform sampler2D worldPosTex;
+layout(binding = 3, set = 0) uniform sampler2D worldNormalTex;
+
+struct ShadowLight {
+  vec4 posOrDir;  // xyz = direction (directional) or position (point), w = type (0=dir, 1=point)
+  vec4 params;    // x = range (point light max distance), yzw = unused
+};
+
+const int MAX_LIGHTS = 32;
+
+layout(binding = 4, set = 0, std140) uniform ShadowLightData {
+  ShadowLight lights[MAX_LIGHTS];
+  int count;
+} shadowLights;
+
+layout(location = 0) rayPayloadEXT float visibility;
+
+void main() {
+  ivec2 pixel = ivec2(gl_LaunchIDEXT.xy);
+  ivec2 size = ivec2(gl_LaunchSizeEXT.xy);
+  vec2 uv = (vec2(pixel) + 0.5) / vec2(size);
+
+  vec3 worldPos = texture(worldPosTex, uv).rgb;
+  // G-buffer normals are encoded as n * 0.5 + 0.5
+  vec3 normal = normalize(texture(worldNormalTex, uv).rgb * 2.0 - 1.0);
+
+  // Skip background pixels (zero position = no geometry) - all lit
+  if (worldPos == vec3(0.0)) {
+    imageStore(shadowMask, pixel, uvec4(0xFFFFFFFFu));
+    return;
+  }
+
+  uint mask = 0u;
+  int lightCount = min(shadowLights.count, MAX_LIGHTS);
+
+  for (int i = 0; i < lightCount; i++) {
+    float type = shadowLights.lights[i].posOrDir.w;
+    vec3 direction;
+    float tmax;
+
+    if (type < 0.5) {
+      // Directional light: ray toward light direction
+      direction = normalize(shadowLights.lights[i].posOrDir.xyz);
+      tmax = 1000.0;
+    } else {
+      // Point light: ray toward light position
+      vec3 lightPos = shadowLights.lights[i].posOrDir.xyz;
+      direction = normalize(lightPos - worldPos);
+      tmax = length(lightPos - worldPos);
+    }
+
+    // Offset origin along normal to avoid self-intersection
+    vec3 origin = worldPos + normal * 0.01;
+
+    visibility = 0.0;
+    traceRayEXT(
+        topLevelAS,
+        gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT,
+        0xFF,   // cull mask
+        0,      // SBT record offset
+        0,      // SBT record stride
+        0,      // miss index
+        origin,
+        0.001,  // tmin
+        direction,
+        tmax,
+        0       // payload location
+    );
+
+    // Set bit if visible (lit)
+    if (visibility > 0.5) {
+      mask |= (1u << i);
+    }
+  }
+
+  // Unused light slots default to lit
+  for (int i = lightCount; i < MAX_LIGHTS; i++) {
+    mask |= (1u << i);
+  }
+
+  imageStore(shadowMask, pixel, uvec4(mask));
+}

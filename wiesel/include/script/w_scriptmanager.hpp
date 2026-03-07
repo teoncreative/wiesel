@@ -32,6 +32,7 @@ enum class FieldType {
   UnsignedInteger,
   UnsignedLong,
   String,
+  Entity,
   Object
 };
 
@@ -58,6 +59,8 @@ class FieldData {
       m_FieldType = FieldType::UnsignedLong;
     } else if (typeName == "System.String") {
       m_FieldType = FieldType::String;
+    } else if (typeName == "WieselEngine.Entity") {
+      m_FieldType = FieldType::Entity;
     } else {
       m_FieldType = FieldType::Object;
     }
@@ -215,6 +218,7 @@ class ScriptManager {
   static MonoDomain* root_domain() { return root_domain_; }
   static MonoDomain* app_domain() { return app_domain_; }
   static MonoClass* vector3f_class() { return vector3f_class_; }
+  static MonoClass* entity_class() { return entity_class_; }
   static MonoClass* behavior_class() { return behavior_class_; }
   static const std::vector<std::string>& script_names() { return script_names_; }
 
@@ -247,6 +251,7 @@ class ScriptManager {
   static MonoClass* text_component_class_;
   static MonoClass* animator_component_class_;
   static MonoClass* vector3f_class_;
+  static MonoClass* entity_class_;
   static MonoMethod* set_handle_method_;
   static std::map<std::string, ComponentGetter> component_getters_;
   static std::map<std::type_index, ComponentGetter> component_getters_by_type_;

@@ -27,6 +27,7 @@
 #include "rendering/features/w_motion_blur_feature.hpp"
 #include "rendering/features/w_canvas_feature.hpp"
 #include "rendering/features/w_fxaa_feature.hpp"
+#include "rendering/features/w_rt_shadow_feature.hpp"
 #include "animation/w_animation.hpp"
 #include "animation/w_animation_controller.hpp"
 #include "animation/w_animator.hpp"
@@ -493,10 +494,10 @@ void Scene::OnEvent(Event& event) {
   dispatcher.Dispatch<PipelineRecreatedEvent>(
       WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
-  /*for (const auto& entity : registry_.view<BehaviorsComponent>()) {
+  for (const auto& entity : registry_.view<BehaviorsComponent>()) {
     auto& component = registry_.get<BehaviorsComponent>(entity);
     component.OnEvent(event);
-  }*/
+  }
 }
 
 void Scene::LinkEntities(entt::entity parent, entt::entity child) {
@@ -622,7 +623,11 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   auto& camera = registry_.get<CameraComponent>(camera_entity);
 
   std::shared_ptr<RenderGraph>& graph = render_graphs_[camera_entity];
-  graph = CreateReference<RenderGraph>(*renderer);
+  if (!graph) {
+    graph = CreateReference<RenderGraph>(*renderer);
+  } else {
+    graph->Clear();
+  }
 
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
   RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
@@ -766,7 +771,11 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   renderer->UpdateUniformData();
 
   // Build and execute render graph
-  external_render_graph_ = CreateReference<RenderGraph>(*renderer);
+  if (!external_render_graph_) {
+    external_render_graph_ = CreateReference<RenderGraph>(*renderer);
+  } else {
+    external_render_graph_->Clear();
+  }
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
   RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
                     camera.viewport_size, use_resolve, true};
@@ -824,6 +833,9 @@ Ref<RenderPipeline> Scene::CreateDefaultPipeline(Ref<Renderer> renderer) {
   auto pipeline = CreateReference<RenderPipeline>(renderer);
   pipeline->AddFeature<ShadowFeature>(renderer);
   pipeline->AddFeature<GeometryFeature>(renderer);
+  if (renderer->IsRayTracingSupported()) {
+    pipeline->AddFeature<RTShadowFeature>(renderer);
+  }
   pipeline->AddFeature<SSAOFeature>(renderer);
   pipeline->AddFeature<LightingFeature>(renderer);
   pipeline->AddFeature<SpriteFeature>(renderer);

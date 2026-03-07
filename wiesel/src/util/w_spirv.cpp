@@ -131,15 +131,24 @@ void InitResources(TBuiltInResource& resources) {
 
 EShLanguage FindLanguage(ShaderType type) {
   switch (type) {
-    case ShaderTypeVertex: {
+    case ShaderTypeVertex:
       return EShLangVertex;
-    }
-    case ShaderTypeFragment: {
+    case ShaderTypeFragment:
       return EShLangFragment;
-    }
-    default: {
+    case ShaderTypeRayGen:
+      return EShLangRayGen;
+    case ShaderTypeClosestHit:
+      return EShLangClosestHit;
+    case ShaderTypeMiss:
+      return EShLangMiss;
+    case ShaderTypeAnyHit:
+      return EShLangAnyHit;
+    case ShaderTypeIntersection:
+      return EShLangIntersect;
+    case ShaderTypeCallable:
+      return EShLangCallable;
+    default:
       throw std::runtime_error("Shader stage is not implemented yet");
-    }
   }
 }
 
@@ -153,7 +162,8 @@ bool ShaderToSPV(ShaderType type, bool debug, const std::vector<char>& input,
   TBuiltInResource resources = {};
   InitResources(resources);
 
-  shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+  shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_2);
+  shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
   shader.setDebugInfo(debug);
 
   std::string preamble;

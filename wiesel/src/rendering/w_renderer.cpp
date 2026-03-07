@@ -10,6 +10,7 @@
 //
 
 #include "rendering/w_renderer.hpp"
+#include "rendering/w_acceleration_structure.hpp"
 #include "rendering/w_perf_marker.hpp"
 #include "rendering/w_sampler.hpp"
 #include "rendering/features/w_canvas_feature.hpp"
@@ -104,11 +105,24 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   PerfMarker::Init(instance_);
   CreateSurface();
   PickPhysicalDevice();
+  rt_supported_ = CheckRayTracingSupport(physical_device_);
+  if (rt_supported_) {
+    LOG_INFO("Ray tracing extensions supported - enabling RT");
+    device_extensions_.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+    device_extensions_.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+    device_extensions_.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+  } else {
+    LOG_INFO("Ray tracing extensions not supported - RT disabled");
+  }
   CreateLogicalDevice();
   LoadDeviceExtensions();
   CreateGlobalUniformBuffers();
   // ---
   CreateCommandPools();
+  if (rt_supported_) {
+    as_manager_ = CreateReference<AccelerationStructureManager>(
+        Engine::GetRenderer());
+  }
   CreateDescriptorLayouts();
   CreateSwapChain();
   CreatePresentGraphicsPipelines();
@@ -130,29 +144,40 @@ Ref<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertices) {
 
   memoryBuffer->size_ = vertices.size();
 
-  VkDeviceSize bufferSize = sizeof(T) * vertices.size();
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  VkDeviceSize buffer_size = sizeof(T) * vertices.size();
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+  CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, bufferSize, 0, &data);
-  memcpy(data, vertices.data(), bufferSize);
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, buffer_size, 0, &data);
+  memcpy(data, vertices.data(), buffer_size);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
+  VkBufferUsageFlags vertex_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  if (rt_supported_) {
+    vertex_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                   VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+  }
   CreateBuffer(
-      bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+      buffer_size, vertex_usage,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryBuffer->buffer_handle_,
       memoryBuffer->memory_handle_);
 
-  CopyBuffer(stagingBuffer, memoryBuffer->buffer_handle_, bufferSize);
+  CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  if (rt_supported_) {
+    VkBufferDeviceAddressInfo addrInfo{};
+    addrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addrInfo.buffer = memoryBuffer->buffer_handle_;
+    memoryBuffer->device_address_ = vkGetBufferDeviceAddress(logical_device_, &addrInfo);
+  }
+
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   return memoryBuffer;
 }
 
@@ -179,30 +204,41 @@ Ref<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
   static_assert(sizeof(Index) == sizeof(uint32_t));
   memoryBuffer->index_type_ = VK_INDEX_TYPE_UINT32;
   memoryBuffer->size_ = indices.size();
-  VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+  VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
 
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
-  CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+  CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, bufferSize, 0, &data);
-  memcpy(data, indices.data(), (size_t)bufferSize);
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, buffer_size, 0, &data);
+  memcpy(data, indices.data(), (size_t)buffer_size);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
+  VkBufferUsageFlags index_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+  if (rt_supported_) {
+    index_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+  }
   CreateBuffer(
-      bufferSize,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      buffer_size, index_usage,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryBuffer->buffer_handle_,
       memoryBuffer->memory_handle_);
 
-  CopyBuffer(stagingBuffer, memoryBuffer->buffer_handle_, bufferSize);
+  CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  if (rt_supported_) {
+    VkBufferDeviceAddressInfo addrInfo{};
+    addrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addrInfo.buffer = memoryBuffer->buffer_handle_;
+    memoryBuffer->device_address_ = vkGetBufferDeviceAddress(logical_device_, &addrInfo);
+  }
+
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
   return memoryBuffer;
 }
@@ -228,6 +264,22 @@ Ref<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
   memset(uniformBuffer->data_, 0, size);
 
   return uniformBuffer;
+}
+
+Ref<UniformBuffer> Renderer::CreateStorageBuffer(VkDeviceSize size) {
+  Ref<UniformBuffer> buffer = CreateReference<UniformBuffer>();
+  buffer->data_ = malloc(size);
+  buffer->size_ = size;
+  CreateBuffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+               buffer->buffer_handle_, buffer->memory_handle_);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_,
+                                    buffer->memory_handle_, 0, size, 0,
+                                    &buffer->data_));
+  memset(buffer->data_, 0, size);
+  return buffer;
 }
 
 void Renderer::DestroyIndexBuffer(MemoryBuffer& buffer) {
@@ -270,18 +322,18 @@ Ref<Texture> Renderer::CreateBlankTexture() {
       1;
 
   VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, texture->size_, 0,
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
               &data);
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, format, VK_IMAGE_TILING_OPTIMAL,
@@ -293,12 +345,12 @@ Ref<Texture> Renderer::CreateBlankTexture() {
   TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         texture->mip_levels_);
-  CopyBufferToImage(stagingBuffer, texture->image_,
+  CopyBufferToImage(staging_buffer, texture->image_,
                     static_cast<uint32_t>(texture->width_),
                     static_cast<uint32_t>(texture->height_));
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
   // todo loading pregenerated mipmaps
   GenerateMipmaps(texture->image_, VK_FORMAT_R8G8B8A8_UNORM, texture->width_,
@@ -328,18 +380,18 @@ Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
       1;
 
   VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, texture->size_, 0,
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
               &data);
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, format, VK_IMAGE_TILING_OPTIMAL,
@@ -351,12 +403,12 @@ Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
   TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         texture->mip_levels_);
-  CopyBufferToImage(stagingBuffer, texture->image_,
+  CopyBufferToImage(staging_buffer, texture->image_,
                     static_cast<uint32_t>(texture->width_),
                     static_cast<uint32_t>(texture->height_));
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
   // todo loading pregenerated mipmaps
   GenerateMipmaps(texture->image_, VK_FORMAT_R8G8B8A8_UNORM, texture->width_,
@@ -395,18 +447,18 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
     texture->mip_levels_ = 1;
   }
 
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, texture->size_, 0,
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
               &data);
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   stbi_image_free(pixels);
 
@@ -421,12 +473,12 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
   TransitionImageLayout(
       texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_);
-  CopyBufferToImage(stagingBuffer, texture->image_,
+  CopyBufferToImage(staging_buffer, texture->image_,
                     static_cast<uint32_t>(texture->width_),
                     static_cast<uint32_t>(texture->height_));
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
   // todo loading pregenerated mipmaps
   GenerateMipmaps(texture->image_, texture_props.image_format, texture->width_,
@@ -456,18 +508,18 @@ Ref<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
     texture->mip_levels_ = 1;
   }
 
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, texture->size_, 0,
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
               &data);
   memcpy(data, buffer, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, texture_props.image_format,
@@ -480,11 +532,11 @@ Ref<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
   TransitionImageLayout(
       texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_);
-  CopyBufferToImage(stagingBuffer, texture->image_, texture->width_,
+  CopyBufferToImage(staging_buffer, texture->image_, texture->width_,
                     texture->height_);
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
   // todo loading pregenerated mipmaps
   GenerateMipmaps(texture->image_, texture_props.image_format, texture->width_,
@@ -530,17 +582,17 @@ Ref<Texture> Renderer::CreateCubemapTexture(
     memcpy(allPixels + i * texture->size_, pixels, texture->size_);
     stbi_image_free(pixels);
   }
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
   CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, totalSize, 0, &data);
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, totalSize, 0, &data);
   memcpy(data, allPixels, static_cast<size_t>(totalSize));
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, texture_props.image_format,
@@ -556,12 +608,12 @@ Ref<Texture> Renderer::CreateCubemapTexture(
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, layer, 1);
 
     CopyBufferToImage(
-        stagingBuffer, texture->image_, static_cast<uint32_t>(texture->width_),
+        staging_buffer, texture->image_, static_cast<uint32_t>(texture->width_),
         static_cast<uint32_t>(texture->height_), texture->size_ * layer, layer);
   }
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   delete[] allPixels;
 
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
@@ -647,13 +699,13 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
   stbi_image_free(pixels);
 
   // Create staging buffer
-  VkBuffer stagingBuffer;
+  VkBuffer staging_buffer;
   VkDeviceMemory stagingMemory;
 
   CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingMemory);
+               staging_buffer, stagingMemory);
 
   void* data;
   vkMapMemory(logical_device_, stagingMemory, 0, totalSize, 0, &data);
@@ -673,7 +725,7 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, 0, 6);
 
   // Copy all 6 faces at once
-  CopyBufferToImage(stagingBuffer, texture->image_, faceSize, faceSize, 0, 0,
+  CopyBufferToImage(staging_buffer, texture->image_, faceSize, faceSize, 0, 0,
                     6);
 
   TransitionImageLayout(texture->image_, texture_props.image_format,
@@ -681,7 +733,7 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         texture->mip_levels_, 0, 6);
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, stagingMemory, nullptr);
 
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
@@ -720,6 +772,9 @@ Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
   }
   if (props.transfer_dest) {
     usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+  }
+  if (props.storage) {
+    usage |= VK_IMAGE_USAGE_STORAGE_BIT;
   }
 
   int aspectFlags;
@@ -774,24 +829,24 @@ Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
 
 void Renderer::SetAttachmentTextureBuffer(Ref<AttachmentTexture> texture,
                                           void* buffer, size_t sizePerPixel) {
-  VkBuffer stagingBuffer;
-  VkDeviceMemory stagingBufferMemory;
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
   size_t size = texture->width_ * texture->height_ * sizePerPixel;
   CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+               staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingBufferMemory, 0, size, 0, &data);
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, size, 0, &data);
   memcpy(data, buffer, static_cast<size_t>(size));
-  vkUnmapMemory(logical_device_, stagingBufferMemory);
+  vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   TransitionImageLayout(texture->images_[0], texture->format_,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
 
-  CopyBufferToImage(stagingBuffer, texture->images_[0],
+  CopyBufferToImage(staging_buffer, texture->images_[0],
                     static_cast<uint32_t>(texture->width_),
                     static_cast<uint32_t>(texture->height_));
 
@@ -799,8 +854,8 @@ void Renderer::SetAttachmentTextureBuffer(Ref<AttachmentTexture> texture,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 
-  vkDestroyBuffer(logical_device_, stagingBuffer, nullptr);
-  vkFreeMemory(logical_device_, stagingBufferMemory, nullptr);
+  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 }
 
 void Renderer::DestroyTexture(Texture& texture) {
@@ -1559,7 +1614,7 @@ void Renderer::CreateVulkanInstance() {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = "No Engine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  appInfo.apiVersion = VK_API_VERSION_1_2;
 
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -1664,16 +1719,51 @@ void Renderer::CreateLogicalDevice() {
     queueCreateInfos.push_back(queueCreateInfo);
   }
 
-  VkPhysicalDeviceFeatures deviceFeatures{};
-  deviceFeatures.fillModeNonSolid = true;
-  deviceFeatures.samplerAnisotropy = VK_TRUE;
+  VkPhysicalDeviceFeatures2 deviceFeatures2{};
+  deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  deviceFeatures2.features.fillModeNonSolid = true;
+  deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
+
+  VkPhysicalDeviceVulkan12Features vulkan12Features{};
+  vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+  vulkan12Features.bufferDeviceAddress = VK_TRUE;
+  deviceFeatures2.pNext = &vulkan12Features;
+
+  VkPhysicalDeviceVulkan11Features vulkan11Features{};
+  vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+  vulkan12Features.pNext = &vulkan11Features;
+
+  // RT feature structs (chained only when RT is supported)
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR asFeatures{};
+  asFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+  asFeatures.accelerationStructure = VK_TRUE;
+
+  VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeatures{};
+  rtPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+  rtPipelineFeatures.rayTracingPipeline = VK_TRUE;
+
+  if (rt_supported_) {
+    vulkan11Features.pNext = &asFeatures;
+    asFeatures.pNext = &rtPipelineFeatures;
+
+    // Query RT properties for SBT alignment
+    rt_pipeline_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+    rt_as_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+    rt_pipeline_properties_.pNext = &rt_as_properties_;
+
+    VkPhysicalDeviceProperties2 props2{};
+    props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    props2.pNext = &rt_pipeline_properties_;
+    vkGetPhysicalDeviceProperties2(physical_device_, &props2);
+  }
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   createInfo.queueCreateInfoCount =
       static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();
-  createInfo.pEnabledFeatures = &deviceFeatures;
+  createInfo.pEnabledFeatures = nullptr;  // Using pNext chain instead
+  createInfo.pNext = &deviceFeatures2;
   createInfo.enabledExtensionCount =
       static_cast<uint32_t>(device_extensions_.size());
   createInfo.ppEnabledExtensionNames = device_extensions_.data();
@@ -1694,6 +1784,49 @@ void Renderer::LoadDeviceExtensions() {
   pfn_set_debug_utils_object_name_ext_ =
       (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(
           logical_device_, "vkSetDebugUtilsObjectNameEXT");
+
+  if (rt_supported_) {
+    pfn_vkCreateAccelerationStructureKHR_ =
+        (PFN_vkCreateAccelerationStructureKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkCreateAccelerationStructureKHR");
+    pfn_vkDestroyAccelerationStructureKHR_ =
+        (PFN_vkDestroyAccelerationStructureKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkDestroyAccelerationStructureKHR");
+    pfn_vkGetAccelerationStructureBuildSizesKHR_ =
+        (PFN_vkGetAccelerationStructureBuildSizesKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkGetAccelerationStructureBuildSizesKHR");
+    pfn_vkCmdBuildAccelerationStructuresKHR_ =
+        (PFN_vkCmdBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkCmdBuildAccelerationStructuresKHR");
+    pfn_vkGetAccelerationStructureDeviceAddressKHR_ =
+        (PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkGetAccelerationStructureDeviceAddressKHR");
+    pfn_vkCreateRayTracingPipelinesKHR_ =
+        (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkCreateRayTracingPipelinesKHR");
+    pfn_vkGetRayTracingShaderGroupHandlesKHR_ =
+        (PFN_vkGetRayTracingShaderGroupHandlesKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkGetRayTracingShaderGroupHandlesKHR");
+    pfn_vkCmdTraceRaysKHR_ =
+        (PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(
+            logical_device_, "vkCmdTraceRaysKHR");
+    LOG_INFO("Ray tracing function pointers loaded");
+  }
+}
+
+bool Renderer::CheckRayTracingSupport(VkPhysicalDevice device) {
+  uint32_t extensionCount;
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+  std::vector<VkExtensionProperties> extensions(extensionCount);
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
+
+  bool has_as = false, has_rt_pipeline = false, has_deferred = false;
+  for (const auto& ext : extensions) {
+    if (strcmp(ext.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0) has_as = true;
+    if (strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) has_rt_pipeline = true;
+    if (strcmp(ext.extensionName, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) == 0) has_deferred = true;
+  }
+  return has_as && has_rt_pipeline && has_deferred;
 }
 
 void Renderer::CreateDescriptorLayouts() {
@@ -1892,6 +2025,7 @@ void Renderer::CreateSwapChain() {
   window_size_.height = extent_.height;
   recreate_swap_chain_ = false;
   swap_chain_created_ = true;
+  stats_.swap_chain_images = imageCount;
 
   Ref<AttachmentTexture> texture = CreateReference<AttachmentTexture>();
   texture->format_ = surfaceFormat.format;
@@ -2005,6 +2139,13 @@ void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   allocInfo.allocationSize = memRequirements.size;
   allocInfo.memoryTypeIndex =
       FindMemoryType(memRequirements.memoryTypeBits, properties);
+
+  VkMemoryAllocateFlagsInfo allocFlagsInfo{};
+  if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
+    allocFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+    allocFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+    allocInfo.pNext = &allocFlagsInfo;
+  }
 
   WIESEL_CHECK_VKRESULT(
       vkAllocateMemory(logical_device_, &allocInfo, nullptr, &bufferMemory));
@@ -2587,6 +2728,7 @@ void Renderer::SetViewport(glm::vec2 extent) {
 
 void Renderer::BeginRender() {
   PROFILE_ZONE_SCOPED();
+  stats_.Reset();
   vkResetFences(logical_device_, 1, &fence_);
   command_buffer_->Reset();
   command_buffer_->Begin();
@@ -2842,6 +2984,7 @@ void Renderer::DrawModel(ModelComponent& model,
   }
   memcpy(model.uniform_buffer->data_, &matrices, sizeof(MatricesUniformData));
 
+  stats_.models++;
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
     Ref<DescriptorSet> descriptors = shadowPass ? model.shadow_descriptors[i]
                                                 : model.geometry_descriptors[i];
@@ -2878,8 +3021,12 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
                           VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 3, sets,
                           0, nullptr);
 
-  vkCmdDrawIndexed(command_buffer_->handle_,
-                   static_cast<uint32_t>(mesh->indices.size()), 1, 0, 0, 0);
+  uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
+  vkCmdDrawIndexed(command_buffer_->handle_, index_count, 1, 0, 0, 0);
+  stats_.draw_calls++;
+  stats_.meshes++;
+  stats_.vertices += static_cast<uint32_t>(mesh->vertices.size());
+  stats_.triangles += index_count / 3;
 }
 
 void Renderer::RequestEntityPick(uint32_t x, uint32_t y,
@@ -3389,7 +3536,7 @@ VkExtent2D Renderer::ChooseSwapExtent(
       std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;
   } else {
-    Wiesel::WindowSize size{};
+    WindowSize size{};
     window_->GetWindowFramebufferSize(size);
 
     VkExtent2D actualExtent = {static_cast<uint32_t>(size.width),

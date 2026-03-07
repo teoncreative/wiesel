@@ -29,6 +29,8 @@ VkImageLayout RGAccessToLayout(RGAccess access) {
       return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     case RGAccess::ShaderRead:
       return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    case RGAccess::StorageImageWrite:
+      return VK_IMAGE_LAYOUT_GENERAL;
     case RGAccess::Present:
       return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     default:
@@ -36,10 +38,17 @@ VkImageLayout RGAccessToLayout(RGAccess access) {
   }
 }
 
-RenderGraph::RenderGraph(Renderer& renderer) : renderer_(renderer) {}
+RenderGraph::RenderGraph(Renderer& renderer) : renderer_(renderer) {
+#ifdef WIESEL_GPU_PROFILING
+  timestamp_period_ = renderer_.GetPhysicalDeviceProperties().limits.timestampPeriod;
+#endif
+}
 
 RenderGraph::~RenderGraph() {
   DestroyTransientResources();
+#ifdef WIESEL_GPU_PROFILING
+  DestroyQueryPool();
+#endif
 }
 
 RGResource RenderGraph::ImportTexture(const std::string& name,
@@ -123,6 +132,11 @@ void RenderGraph::PassWritesDepth(uint32_t pass, RGResource resource) {
   compiled_ = false;
 }
 
+void RenderGraph::PassWritesStorageImage(uint32_t pass, RGResource resource) {
+  passes_[pass].outputs_.push_back({resource, RGAccess::StorageImageWrite});
+  compiled_ = false;
+}
+
 void RenderGraph::PassPresents(uint32_t pass, RGResource resource) {
   passes_[pass].outputs_.push_back({resource, RGAccess::Present});
   compiled_ = false;
@@ -146,6 +160,15 @@ void RenderGraph::SetPassEnabled(uint32_t pass, bool enabled) {
 
 void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
   passes_[pass].manages_render_pass_ = manages;
+}
+
+void RenderGraph::Clear() {
+  DestroyTransientResources();
+  resources_.clear();
+  passes_.clear();
+  sorted_order_.clear();
+  compiled_ = false;
+  dirty_ = true;
 }
 
 void RenderGraph::Compile() {
@@ -248,6 +271,53 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     return;
   }
 
+#ifdef WIESEL_GPU_PROFILING
+  // Ensure query pool is large enough for all passes (2 timestamps per pass)
+  uint32_t enabled_count = 0;
+  for (uint32_t idx : sorted_order_) {
+    if (passes_[idx].enabled_) enabled_count++;
+  }
+  uint32_t required_queries = enabled_count * 2;
+
+  if (!query_pool_created_ || required_queries > query_count_) {
+    if (query_pool_created_) {
+      DestroyQueryPool();
+    }
+    query_count_ = std::max(required_queries, 64u);
+    CreateQueryPool();
+  }
+
+  // Read previous frame's GPU results into gpu_timings_cache
+  std::vector<float> gpu_timings_cache;
+  uint32_t read_frame = (timing_frame_ + 1) % kTimingFrames;
+  if (query_pool_created_ && !query_pass_names_.empty()) {
+    uint32_t num_queries = static_cast<uint32_t>(query_pass_names_.size()) * 2;
+    std::vector<uint64_t> timestamps(num_queries);
+    VkResult result = vkGetQueryPoolResults(
+        renderer_.GetLogicalDevice(), query_pools_[read_frame],
+        0, num_queries,
+        num_queries * sizeof(uint64_t), timestamps.data(),
+        sizeof(uint64_t),
+        VK_QUERY_RESULT_64_BIT);
+
+    if (result == VK_SUCCESS) {
+      gpu_timings_cache.resize(query_pass_names_.size());
+      for (size_t i = 0; i < query_pass_names_.size(); i++) {
+        uint64_t begin_ts = timestamps[i * 2];
+        uint64_t end_ts = timestamps[i * 2 + 1];
+        gpu_timings_cache[i] = static_cast<float>(end_ts - begin_ts) * timestamp_period_ / 1e6f;
+      }
+    }
+  }
+
+  // Reset the current frame's query pool
+  vkCmdResetQueryPool(cmd, query_pools_[timing_frame_], 0, query_count_);
+  query_pass_names_.clear();
+  uint32_t query_idx = 0;
+#endif
+
+  pass_timings_.clear();
+
   // Note: we do NOT reset resource layouts between frames.
   // Layouts persist across frames so that barrier insertion uses the
   // actual Vulkan image layout from the previous frame's end state.
@@ -261,6 +331,13 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
 
     // Insert barriers for inputs (transition to required layouts)
     InsertBarriers(cmd, pass);
+
+#ifdef WIESEL_GPU_PROFILING
+    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                        query_pools_[timing_frame_], query_idx * 2);
+#endif
+
+    auto cpu_start = std::chrono::high_resolution_clock::now();
 
     // Begin render pass
     if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
@@ -280,9 +357,33 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
       pass.render_pass_->End();
     }
 
+    auto cpu_end = std::chrono::high_resolution_clock::now();
+    float cpu_ms = std::chrono::duration<float, std::milli>(cpu_end - cpu_start).count();
+
+    PassTimingResult timing;
+    timing.name = pass.name_;
+    timing.cpu_time_ms = cpu_ms;
+
+#ifdef WIESEL_GPU_PROFILING
+    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                        query_pools_[timing_frame_], query_idx * 2 + 1);
+    // Apply previous frame's GPU timing if available at same index
+    if (query_idx < gpu_timings_cache.size()) {
+      timing.gpu_time_ms = gpu_timings_cache[query_idx];
+    }
+    query_pass_names_.push_back(pass.name_);
+    query_idx++;
+#endif
+
+    pass_timings_.push_back(std::move(timing));
+
     // Update resource layouts for outputs
     UpdateOutputLayouts(pass);
   }
+
+#ifdef WIESEL_GPU_PROFILING
+  timing_frame_ = (timing_frame_ + 1) % kTimingFrames;
+#endif
 }
 
 void RenderGraph::TransitionResource(VkCommandBuffer cmd, RGResourceData& resource, VkImageLayout required) {
@@ -326,6 +427,9 @@ void RenderGraph::InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pas
     if (output.access == RGAccess::ColorAttachmentWrite) {
       auto& resource = resources_[output.resource.index];
       TransitionResource(cmd, resource, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    } else if (output.access == RGAccess::StorageImageWrite) {
+      auto& resource = resources_[output.resource.index];
+      TransitionResource(cmd, resource, VK_IMAGE_LAYOUT_GENERAL);
     }
   }
 }
@@ -360,5 +464,33 @@ RenderGraphPass& RenderGraph::GetPass(uint32_t index) {
 const RenderGraphPass& RenderGraph::GetPass(uint32_t index) const {
   return passes_[index];
 }
+
+#ifdef WIESEL_GPU_PROFILING
+void RenderGraph::CreateQueryPool() {
+  VkQueryPoolCreateInfo ci{};
+  ci.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+  ci.queryType = VK_QUERY_TYPE_TIMESTAMP;
+  ci.queryCount = query_count_;
+
+  VkDevice device = renderer_.GetLogicalDevice();
+  for (uint32_t i = 0; i < kTimingFrames; i++) {
+    vkCreateQueryPool(device, &ci, nullptr, &query_pools_[i]);
+  }
+  query_pool_created_ = true;
+}
+
+void RenderGraph::DestroyQueryPool() {
+  if (!query_pool_created_) return;
+  VkDevice device = renderer_.GetLogicalDevice();
+  vkDeviceWaitIdle(device);
+  for (uint32_t i = 0; i < kTimingFrames; i++) {
+    if (query_pools_[i]) {
+      vkDestroyQueryPool(device, query_pools_[i], nullptr);
+      query_pools_[i] = VK_NULL_HANDLE;
+    }
+  }
+  query_pool_created_ = false;
+}
+#endif
 
 }  // namespace Wiesel

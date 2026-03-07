@@ -29,6 +29,7 @@ class MemoryBuffer {
   VkBuffer buffer_handle_;
   VkDeviceMemory memory_handle_;
   uint32_t size_;
+  VkDeviceAddress device_address_ = 0;
 };
 
 class IndexBuffer : public MemoryBuffer {

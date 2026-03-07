@@ -50,6 +50,21 @@ void DescriptorSet::Bake() {
                          static_cast<uint32_t>(uniform_buffer_data_.size())});
   }
 
+  if (!storage_buffer_data_.empty()) {
+    poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                         static_cast<uint32_t>(storage_buffer_data_.size())});
+  }
+
+  if (!storage_image_data_.empty()) {
+    poolSizes.push_back({VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                         static_cast<uint32_t>(storage_image_data_.size())});
+  }
+
+  if (!acceleration_structure_data_.empty()) {
+    poolSizes.push_back({VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+                         static_cast<uint32_t>(acceleration_structure_data_.size())});
+  }
+
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
@@ -70,12 +85,17 @@ void DescriptorSet::Bake() {
   WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(Engine::GetRenderer()->GetLogicalDevice(), &allocInfo,
                                                  &descriptor_set_));
 
+  size_t total_writes = combined_image_samplers_.size() + uniform_buffer_data_.size()
+                     + storage_buffer_data_.size() + storage_image_data_.size()
+                     + acceleration_structure_data_.size();
   std::vector<VkWriteDescriptorSet> writes;
-  writes.reserve(combined_image_samplers_.size() + uniform_buffer_data_.size());
-  std::vector<VkDescriptorBufferInfo> bufferInfos;
-  bufferInfos.reserve(uniform_buffer_data_.size());
+  writes.reserve(total_writes);
+  std::vector<VkDescriptorBufferInfo> buffer_infos;
+  buffer_infos.reserve(uniform_buffer_data_.size() + storage_buffer_data_.size());
   std::vector<VkDescriptorImageInfo> imageInfos;
-  imageInfos.reserve(combined_image_samplers_.size());
+  imageInfos.reserve(combined_image_samplers_.size() + storage_image_data_.size());
+  std::vector<VkWriteDescriptorSetAccelerationStructureKHR> asWrites;
+  asWrites.reserve(acceleration_structure_data_.size());
 
   for (const auto& item : combined_image_samplers_) {
     VkDescriptorImageInfo imageInfo;
@@ -97,11 +117,11 @@ void DescriptorSet::Bake() {
   }
 
   for (const auto& item : uniform_buffer_data_) {
-    VkDescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer = item.ubo->buffer_handle_;
-    bufferInfo.offset = 0;
-    bufferInfo.range = item.ubo->size_;
-    bufferInfos.emplace_back(bufferInfo);
+    VkDescriptorBufferInfo buffer_info;
+    buffer_info.buffer = item.ubo->buffer_handle_;
+    buffer_info.offset = 0;
+    buffer_info.range = item.ubo->size_;
+    buffer_infos.emplace_back(buffer_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -110,10 +130,67 @@ void DescriptorSet::Bake() {
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     set.descriptorCount = 1;
-    set.pBufferInfo = &bufferInfos.back();
+    set.pBufferInfo = &buffer_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
+
+  for (const auto& item : storage_buffer_data_) {
+    VkDescriptorBufferInfo buffer_info;
+    buffer_info.buffer = item.buffer->buffer_handle_;
+    buffer_info.offset = 0;
+    buffer_info.range = item.buffer->size_;
+    buffer_infos.emplace_back(buffer_info);
+
+    VkWriteDescriptorSet set{};
+    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set.dstSet = descriptor_set_;
+    set.dstBinding = item.dst_binding;
+    set.dstArrayElement = 0;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    set.descriptorCount = 1;
+    set.pBufferInfo = &buffer_infos.back();
+    set.pNext = nullptr;
+    writes.emplace_back(set);
+  }
+
+  for (const auto& item : storage_image_data_) {
+    VkDescriptorImageInfo imageInfo;
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageInfo.imageView = item.image_view->handle_;
+    imageInfo.sampler = VK_NULL_HANDLE;
+    imageInfos.emplace_back(imageInfo);
+
+    VkWriteDescriptorSet set{};
+    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set.dstSet = descriptor_set_;
+    set.dstBinding = item.dst_binding;
+    set.dstArrayElement = 0;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    set.descriptorCount = 1;
+    set.pImageInfo = &imageInfos.back();
+    set.pNext = nullptr;
+    writes.emplace_back(set);
+  }
+
+  for (const auto& item : acceleration_structure_data_) {
+    VkWriteDescriptorSetAccelerationStructureKHR asWrite{};
+    asWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+    asWrite.accelerationStructureCount = 1;
+    asWrite.pAccelerationStructures = &item.as;
+    asWrites.emplace_back(asWrite);
+
+    VkWriteDescriptorSet set{};
+    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    set.dstSet = descriptor_set_;
+    set.dstBinding = item.dst_binding;
+    set.dstArrayElement = 0;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    set.descriptorCount = 1;
+    set.pNext = &asWrites.back();
+    writes.emplace_back(set);
+  }
+
   vkUpdateDescriptorSets(Engine::GetRenderer()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 

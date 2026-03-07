@@ -26,7 +26,7 @@ Pipeline::~Pipeline() {
 }
 
 void Pipeline::SetRenderPass(Ref<RenderPass> pass) {
-  m_RenderPass = pass;
+  render_pass_ = pass;
 }
 
 void Pipeline::AddInputLayout(Ref<DescriptorSetLayout> layout) {
@@ -200,7 +200,7 @@ void Pipeline::Bake() {
   multisampling.rasterizationSamples = ToVkSampleCountFlagBits(properties_.sampling_mode);
 
   std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
-  for (const auto& item : m_RenderPass->attachments_) {
+  for (const auto& item : render_pass_->attachments_) {
     if (item.type != AttachmentTextureType::Color && item.type != AttachmentTextureType::Offscreen) {
       continue;
     }
@@ -261,7 +261,7 @@ void Pipeline::Bake() {
   pipelineInfo.pColorBlendState = &colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = layout_;
-  pipelineInfo.renderPass = m_RenderPass->GetVulkanHandle();
+  pipelineInfo.renderPass = render_pass_->GetVulkanHandle();
   pipelineInfo.subpass = 0;
 
   WIESEL_CHECK_VKRESULT(

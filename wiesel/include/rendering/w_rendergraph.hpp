@@ -37,6 +37,7 @@ enum class RGAccess {
   DepthStencilWrite,          // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
   DepthStencilReadOnly,       // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
   ShaderRead,                 // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+  StorageImageWrite,          // VK_IMAGE_LAYOUT_GENERAL
   Present                     // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 };
 
@@ -94,6 +95,15 @@ class RenderGraphPass {
   bool IsEnabled() const { return enabled_; }
 };
 
+// Per-pass timing data
+struct PassTimingResult {
+  std::string name;
+  float cpu_time_ms = 0.0f;
+#ifdef WIESEL_GPU_PROFILING
+  float gpu_time_ms = 0.0f;
+#endif
+};
+
 class RenderGraph {
  public:
   explicit RenderGraph(Renderer& renderer);
@@ -126,6 +136,7 @@ class RenderGraph {
   // Configure pass outputs (resources the pass writes)
   void PassWritesColor(uint32_t pass, RGResource resource);
   void PassWritesDepth(uint32_t pass, RGResource resource);
+  void PassWritesStorageImage(uint32_t pass, RGResource resource);
   void PassPresents(uint32_t pass, RGResource resource);
 
   // Configure pass properties
@@ -138,6 +149,9 @@ class RenderGraph {
   void Compile();
   void Execute(VkCommandBuffer cmd);
 
+  // Clear all passes and resources for rebuilding, but keep GPU profiling state
+  void Clear();
+
   // Management
   void MarkDirty();
   bool IsDirty() const { return dirty_; }
@@ -149,6 +163,13 @@ class RenderGraph {
   // Get a pass by index
   RenderGraphPass& GetPass(uint32_t index);
   const RenderGraphPass& GetPass(uint32_t index) const;
+
+  const std::vector<PassTimingResult>& GetPassTimings() const { return pass_timings_; }
+
+#ifdef WIESEL_GPU_PROFILING
+  void CreateQueryPool();
+  void DestroyQueryPool();
+#endif
 
  private:
   void TopologicalSort();
@@ -164,6 +185,18 @@ class RenderGraph {
   std::vector<RGResourceData> resources_;
   std::vector<RenderGraphPass> passes_;
   std::vector<uint32_t> sorted_order_;
+  std::vector<PassTimingResult> pass_timings_;
+
+#ifdef WIESEL_GPU_PROFILING
+  // Double-buffered query pools: write to current frame, read from previous
+  static constexpr uint32_t kTimingFrames = 2;
+  VkQueryPool query_pools_[kTimingFrames] = {};
+  uint32_t timing_frame_ = 0;
+  uint32_t query_count_ = 0;  // Number of queries used in the current frame
+  float timestamp_period_ = 0.0f;
+  std::vector<std::string> query_pass_names_;  // Maps query pair index to pass name
+  bool query_pool_created_ = false;
+#endif
 };
 
 }  // namespace Wiesel

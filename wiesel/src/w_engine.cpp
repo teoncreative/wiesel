@@ -229,6 +229,7 @@ EngineProperties Engine::properties_;
 std::shared_ptr<Renderer> Engine::renderer_;
 std::shared_ptr<AppWindow> Engine::window_;
 std::shared_ptr<VirtualFileSystem> Engine::vfs_;
+DeveloperConsole Engine::console_;
 
 void Engine::InitEngine(const EngineProperties& props) {
   properties_ = props;
@@ -308,6 +309,10 @@ std::shared_ptr<AppWindow> Engine::GetWindow() {
 
 std::shared_ptr<VirtualFileSystem> Engine::GetVirtualFileSystem() {
   return vfs_;
+}
+
+DeveloperConsole& Engine::GetConsole() {
+  return console_;
 }
 
 aiScene* Engine::LoadAssimpModel(const std::string& path,

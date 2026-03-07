@@ -55,14 +55,6 @@ void Application::OnEvent(Event& event) {
   dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_FN(OnWindowClose));
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResize));
 
-  {
-    PROFILE_ZONE_SCOPED_N("InputManager::OnEvent");
-    InputManager::OnEvent(event);
-  }
-  if (event.m_Handled) {
-    return;
-  }
-
   for (auto it = layers_.rbegin(); it != layers_.rend(); ++it) {
     const auto& layer = *it;
     if (event.m_Handled) {
@@ -73,6 +65,11 @@ void Application::OnEvent(Event& event) {
       PROFILE_ZONE_SCOPED_N("Layer::OnEvent");
       layer->OnEvent(event);
     }
+  }
+
+  if (!event.m_Handled) {
+    PROFILE_ZONE_SCOPED_N("InputManager::OnEvent");
+    InputManager::OnEvent(event);
   }
 }
 
@@ -109,11 +106,13 @@ void Application::Run() {
     ExecuteQueue();
 
     if (!is_minimized_) {
+      float_t scaled_delta = delta_time_ * time_scale_;
       for (const auto& layer : layers_) {
-        layer->OnUpdate(delta_time_);
+        layer->OnUpdate(scaled_delta);
       }
 
       renderer->BeginRender();
+      renderer->stats_.frame_time_ms = delta_time_ * 1000.0f;
       for (const auto& layer : layers_) {
         layer->OnPrePresent();
       }

@@ -50,6 +50,7 @@ struct ResolutionPreset {
   glm::vec2 size;  // {0,0} = Free Aspect
 };
 static const ResolutionPreset kResolutionPresets[] = {
+    {"2560x1440", {2560, 1440}},
     {"1920x1080", {1920, 1080}},
     {"1600x900",  {1600, 900}},
     {"1280x720",  {1280, 720}},
@@ -200,8 +201,8 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
 bool EditorLayer::OnMouseMoved(MouseMovedEvent& event) {
   if (event.GetCursorMode() == CursorModeRelative) {
-    editor_yaw_ -= event.GetX() * mouse_sensitivity_;
-    editor_pitch_ -= event.GetY() * mouse_sensitivity_;
+    editor_yaw_ -= event.GetDeltaX() * mouse_sensitivity_;
+    editor_pitch_ -= event.GetDeltaY() * mouse_sensitivity_;
     editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
     editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
   }
@@ -216,6 +217,13 @@ void EditorLayer::OnEvent(Event& event) {
     bool is_input = event.IsInCategory(EventCategory::kEventCategoryInput);
     if (is_input && !game_panel_focused_) {
       return;
+    }
+    // Don't forward mouse moves to the game when cursor isn't captured
+    if (event.GetEventType() == MouseMovedEvent::GetStaticType()) {
+      auto& mouse_event = static_cast<MouseMovedEvent&>(event);
+      if (mouse_event.GetCursorMode() != CursorModeRelative) {
+        return;
+      }
     }
     scene_->OnEvent(event);
   } else {
@@ -286,8 +294,9 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
 
   bool node_open = ImGui::TreeNodeEx(label.c_str(), flags);
 
-  // Selection on click
-  if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+  // Selection on release (not during drag)
+  if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(0)
+      && !ImGui::IsItemToggledOpen() && !ImGui::IsDragDropActive()) {
     selected_entity_ = entity_id;
     has_selected_entity_ = true;
   }
@@ -301,9 +310,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
   }
 
   // Drag & drop target: drop ON entity to make it a child
-  ImGuiDragDropFlags target_flags = ImGuiDragDropFlags_AcceptBeforeDelivery;
   if (ImGui::BeginDragDropTarget()) {
-    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity", target_flags)) {
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
       hierarchy_data_.move_from = *static_cast<entt::entity*>(payload->Data);
       hierarchy_data_.move_to = entity_id;
       hierarchy_data_.bottom_part = false;
@@ -411,6 +419,8 @@ void EditorLayer::OnBeginPresent() {
     ImGui::DockBuilderDockWindow("Game", dock_center);
     ImGui::DockBuilderDockWindow("Scene Properties", dock_right);
     ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
+    ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
+    ImGui::DockBuilderDockWindow("Render Stats", dock_right);
 
     ImGui::DockBuilderFinish(dockspace_id);
   }
@@ -432,6 +442,10 @@ void EditorLayer::OnBeginPresent() {
                     &settings.debug_cascades);
     ImGui::Checkbox(PrefixLabel("Debug Colliders").c_str(),
                     &settings.debug_colliders);
+    if (renderer->IsRayTracingSupported()) {
+      ImGui::Checkbox(PrefixLabel("RT Shadows").c_str(),
+                      &settings.rt_shadows_enabled);
+    }
     ImGui::SeparatorText("Post Processing");
     ImGui::Checkbox(PrefixLabel("Enable Bloom").c_str(),
                     &settings.bloom_enabled);
@@ -542,20 +556,46 @@ void EditorLayer::OnBeginPresent() {
 
     UpdateHierarchyOrder();
 
-    // Right-click on empty space
-    if (!ignoreMenu && ImGui::IsWindowHovered() && ImGui::IsMouseClicked(1, false))
-      ImGui::OpenPopup("right_click_hierarchy");
+    // Invisible drop zone covering remaining empty space to unparent entities
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    if (avail.y > 0) {
+      ImGui::InvisibleButton("##HierarchyDropZone", ImVec2(avail.x, avail.y));
+      if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
+          entt::entity dropped = *static_cast<entt::entity*>(payload->Data);
+          Entity dropped_entity = {dropped, scene_.get()};
+          if (dropped_entity.parent_handle() != entt::null) {
+            scene_->UnlinkEntities(dropped_entity.parent_handle(), dropped);
+            scene_dirty_ = true;
+          }
+        }
+        ImGui::EndDragDropTarget();
+      }
+
+      // Click empty space to deselect
+      if (ImGui::IsItemClicked(0)) {
+        has_selected_entity_ = false;
+      }
+
+      // Right-click on empty space
+      if (ImGui::IsItemClicked(1)) {
+        ImGui::OpenPopup("right_click_hierarchy");
+      }
+    } else {
+      // No remaining space - still handle right-click and deselect
+      if (!ignoreMenu && ImGui::IsWindowHovered() && ImGui::IsMouseClicked(1, false))
+        ImGui::OpenPopup("right_click_hierarchy");
+      if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered()) {
+        has_selected_entity_ = false;
+      }
+    }
+
     if (ImGui::BeginPopup("right_click_hierarchy")) {
       if (ImGui::MenuItem("Add Empty Entity")) {
         scene_->CreateEntity();
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
-    }
-
-    // Click empty space to deselect
-    if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered()) {
-      has_selected_entity_ = false;
     }
   }
   ImGui::End();
@@ -1162,6 +1202,248 @@ void EditorLayer::OnBeginPresent() {
   }
   ImGui::End();
 
+  // Developer Console Panel
+  {
+    static bool console_open = true;
+    static std::vector<std::string> history;
+    static int history_pos = -1;  // -1 = new line, 0..N = browsing history
+    static char input_buf[512] = "";
+
+    auto HistoryCallback = [](ImGuiInputTextCallbackData* data) -> int {
+      if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
+        if (history.empty()) return 0;
+        if (data->EventKey == ImGuiKey_UpArrow) {
+          if (history_pos == -1) {
+            history_pos = static_cast<int>(history.size()) - 1;
+          } else if (history_pos > 0) {
+            history_pos--;
+          }
+        } else if (data->EventKey == ImGuiKey_DownArrow) {
+          if (history_pos != -1) {
+            history_pos++;
+            if (history_pos >= static_cast<int>(history.size())) {
+              history_pos = -1;
+            }
+          }
+        }
+        const char* text = (history_pos >= 0) ? history[history_pos].c_str() : "";
+        data->DeleteChars(0, data->BufTextLen);
+        data->InsertChars(0, text);
+      }
+      return 0;
+    };
+
+    if (ImGui::Begin("Developer Console", &console_open)) {
+      auto& cmd = Engine::GetConsole();
+      const auto& log = cmd.GetLog();
+
+      // Toolbar
+      if (ImGui::Button("Clear")) {
+        cmd.Clear();
+      }
+      ImGui::SameLine();
+      static bool auto_scroll = true;
+      ImGui::Checkbox("Auto-scroll", &auto_scroll);
+
+      ImGui::Separator();
+
+      // Log output
+      float footer_height = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+      if (ImGui::BeginChild("ConsoleLog", ImVec2(0, -footer_height), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar)) {
+        for (const auto& line : log) {
+          ImVec4 color;
+          switch (line.level) {
+            case ConsoleLogLevel::Warning: color = ImVec4(1.0f, 0.8f, 0.2f, 1.0f); break;
+            case ConsoleLogLevel::Error:   color = ImVec4(1.0f, 0.3f, 0.3f, 1.0f); break;
+            default:                color = ImVec4(0.8f, 0.8f, 0.8f, 1.0f); break;
+          }
+          ImGui::PushStyleColor(ImGuiCol_Text, color);
+          ImGui::TextUnformatted(line.text.c_str());
+          ImGui::PopStyleColor();
+        }
+        if (auto_scroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+          ImGui::SetScrollHereY(1.0f);
+        }
+      }
+      ImGui::EndChild();
+
+      // Input line with history
+      ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue
+          | ImGuiInputTextFlags_CallbackHistory;
+      ImGui::SetNextItemWidth(-1);
+      if (ImGui::InputText("##ConsoleInput", input_buf, sizeof(input_buf), input_flags, HistoryCallback)) {
+        if (input_buf[0] != '\0') {
+          // Don't duplicate consecutive identical commands
+          if (history.empty() || history.back() != input_buf) {
+            history.push_back(input_buf);
+          }
+          cmd.Execute(input_buf);
+          input_buf[0] = '\0';
+        }
+        history_pos = -1;
+        ImGui::SetKeyboardFocusHere(-1);
+      }
+    }
+    ImGui::End();
+  }
+
+  // Render Stats Panel
+  {
+    static bool stats_open = true;
+    if (ImGui::Begin("Render Stats", &stats_open)) {
+      auto renderer = Engine::GetRenderer();
+      const auto& stats = renderer->GetStats();
+
+      ImGui::SeparatorText("Performance");
+      ImGui::Text("FPS: %.1f", app_.GetFPS());
+      ImGui::Text("Frame Time: %.2f ms", stats.frame_time_ms);
+      ImGui::Text("Delta Time: %.4f s", app_.GetDeltaTime());
+
+      ImGui::SeparatorText("Draw Stats");
+      ImGui::Text("Draw Calls: %u", stats.draw_calls);
+      ImGui::Text("Models: %u", stats.models);
+      ImGui::Text("Meshes: %u", stats.meshes);
+      ImGui::Text("Vertices: %u", stats.vertices);
+      ImGui::Text("Triangles: %u", stats.triangles);
+
+      ImGui::SeparatorText("Renderer");
+      ImGui::Text("MSAA: %s", renderer->options().msaa_mode == SamplingMode::DISABLED ? "Off"
+          : renderer->options().msaa_mode == SamplingMode::X2 ? "2x"
+          : renderer->options().msaa_mode == SamplingMode::X4 ? "4x" : "8x");
+      ImGui::Text("VSync: %s", renderer->options().vsync ? "On" : "Off");
+      ImGui::Text("AA Mode: %s", renderer->options().aa_mode == AntiAliasingMode::None ? "None"
+          : renderer->options().aa_mode == AntiAliasingMode::FXAA ? "FXAA" : "TAA");
+      ImGui::Text("Swap Chain Images: %u", stats.swap_chain_images);
+      ImGui::Text("Frames in Flight: %u", stats.frames_in_flight);
+
+      if (scene_) {
+        ImGui::SeparatorText("Render Pipelines");
+
+        // Collect unique pipelines and their cameras
+        struct PipelineInfo {
+          RenderPipeline* pipeline;
+          std::vector<std::string> cameras;
+          bool is_default;
+        };
+        std::map<RenderPipeline*, PipelineInfo> pipeline_map;
+
+        auto default_pipeline = scene_->GetDefaultPipeline();
+        if (default_pipeline) {
+          pipeline_map[default_pipeline.get()] = {default_pipeline.get(), {}, true};
+        }
+
+        for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent, TagComponent>()) {
+          auto& cam = scene_->GetComponent<CameraComponent>(entity);
+          auto& tag = scene_->GetComponent<TagComponent>(entity);
+          RenderPipeline* pl = cam.render_pipeline
+              ? cam.render_pipeline.get()
+              : default_pipeline.get();
+          if (pl) {
+            auto& info = pipeline_map[pl];
+            info.pipeline = pl;
+            info.cameras.push_back(tag.tag);
+            if (pl == default_pipeline.get()) {
+              info.is_default = true;
+            }
+          }
+        }
+
+        for (const auto& [ptr, info] : pipeline_map) {
+          std::string label = info.is_default ? "Default Pipeline" : "Custom Pipeline";
+          if (ImGui::TreeNodeEx(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+            // Cameras using this pipeline
+            ImGui::TextDisabled("Cameras:");
+            if (info.cameras.empty()) {
+              ImGui::SameLine();
+              ImGui::TextDisabled("(none)");
+            }
+            for (const auto& cam_name : info.cameras) {
+              ImGui::SameLine();
+              ImGui::Text("%s", cam_name.c_str());
+            }
+
+            // Feature list with timings
+            ImGui::TextDisabled("Features:");
+            const auto& features = info.pipeline->GetFeatures();
+
+            // Collect pass timings from the first camera using this pipeline
+            std::vector<PassTimingResult> timings;
+            for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+              auto& cam = scene_->GetComponent<CameraComponent>(entity);
+              RenderPipeline* cam_pl = cam.render_pipeline
+                  ? cam.render_pipeline.get()
+                  : default_pipeline.get();
+              if (cam_pl != ptr) continue;
+
+              auto graph = scene_->GetRenderGraph(entity);
+              if (graph) {
+                timings = graph->GetPassTimings();
+              }
+              break;
+            }
+            // Fallback to external render graph (editor camera)
+            if (timings.empty()) {
+              auto ext_graph = scene_->GetExternalRenderGraph();
+              if (ext_graph) {
+                timings = ext_graph->GetPassTimings();
+              }
+            }
+
+            for (const auto& feature : features) {
+              const auto& fname = feature->GetName();
+              float cpu_total = 0.0f;
+              int pass_count = 0;
+#ifdef WIESEL_GPU_PROFILING
+              float gpu_total = 0.0f;
+#endif
+              for (const auto& t : timings) {
+                if (t.name.size() >= fname.size() &&
+                    t.name.compare(0, fname.size(), fname) == 0) {
+                  cpu_total += t.cpu_time_ms;
+#ifdef WIESEL_GPU_PROFILING
+                  gpu_total += t.gpu_time_ms;
+#endif
+                  pass_count++;
+                }
+              }
+              if (pass_count > 0) {
+#ifdef WIESEL_GPU_PROFILING
+                ImGui::BulletText("%-20s  CPU %.3f ms  GPU %.3f ms",
+                    fname.c_str(), cpu_total, gpu_total);
+#else
+                ImGui::BulletText("%-20s  CPU %.3f ms",
+                    fname.c_str(), cpu_total);
+#endif
+              } else {
+                ImGui::BulletText("%s", fname.c_str());
+              }
+            }
+
+            if (!timings.empty()) {
+              float total_cpu = 0.0f;
+#ifdef WIESEL_GPU_PROFILING
+              float total_gpu = 0.0f;
+#endif
+              for (const auto& t : timings) {
+                total_cpu += t.cpu_time_ms;
+#ifdef WIESEL_GPU_PROFILING
+                total_gpu += t.gpu_time_ms;
+#endif
+              }
+#ifdef WIESEL_GPU_PROFILING
+              ImGui::Text("  Total: CPU %.3f ms  GPU %.3f ms", total_cpu, total_gpu);
+#else
+              ImGui::Text("  Total: CPU %.3f ms", total_cpu);
+#endif
+            }
+            ImGui::TreePop();
+          }
+        }
+      }
+    }
+    ImGui::End();
+  }
+
   // Helper lambda: draws Play/Stop buttons, returns true if state changed
   auto DrawPlayStopButtons = [&]() -> bool {
     bool changed = false;
@@ -1697,6 +1979,8 @@ void EditorLayer::UpdateHierarchyOrder() {
   } else {
     scene_->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);
   }
+  hierarchy_data_.move_from = entt::null;
+  hierarchy_data_.move_to = entt::null;
 }
 
 // ============================================================================

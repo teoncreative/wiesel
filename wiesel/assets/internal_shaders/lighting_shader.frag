@@ -10,6 +10,10 @@ layout(set = 0, binding = 4) uniform sampler2D samplerAlbedo;
 layout(set = 0, binding = 5) uniform sampler2D samplerMaterial;
 layout(set = 1, binding = 0) uniform sampler2D samplerSSAO;
 
+#ifdef USE_RT_SHADOWS
+layout(set = 3, binding = 0, r32ui) readonly uniform uimage2D rtShadowMask;
+#endif
+
 struct LightBase {
     vec3 position;
     float _pad0;
@@ -156,7 +160,64 @@ void main() {
     }
     vec3 viewDir = normalize(cam.position - worldPos);
 
-    // Directional light (shadow-receiving)
+#ifdef USE_RT_SHADOWS
+    // RT shadows: per-light shadow bitmask in r32ui image.
+    // Bit i = 1 means light i is visible (lit), 0 means shadowed.
+    // Order matches the RT shadow UBO: directional lights first, then point lights.
+    uint rtMask = imageLoad(rtShadowMask, ivec2(gl_FragCoord.xy)).r;
+    int rtLightIndex = 0;
+
+    // Directional lights with per-light RT shadow
+    vec3 dirResult = vec3(0.0);
+    for (int i = 0; i < lights.directLightCount; i++) {
+        LightDirect light = lights.directLights[i];
+        vec3 lDir = normalize(light.direction);
+
+        float diff = light.base.diffuse * max(dot(normal, lDir), 0.0);
+        float spec = 0.0;
+        if (diff > 0.0) {
+            vec3 halfwayDir = normalize(lDir + viewDir);
+            spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular;
+        }
+
+        vec3 ambient = light.base.ambient * albedo.rgb * ambientOcclusion * light.base.color * light.base.density;
+        vec3 diffSpec = (diff * albedo.rgb + spec * vec3(1.0)) * light.base.color * light.base.density;
+
+        float shadow = float((rtMask >> rtLightIndex) & 1u);
+        rtLightIndex++;
+
+        dirResult += ambient + diffSpec * shadow;
+    }
+
+    // Point lights with per-light RT shadow
+    vec3 pointResult = vec3(0.0);
+    for (int i = 0; i < lights.pointLightCount; i++) {
+        LightPoint light = lights.pointLights[i];
+        vec3 pDir = normalize(light.base.position - worldPos);
+        float dist = length(light.base.position - worldPos);
+        float atten = 1.0 / (light.constant + light.linear * dist + light.exp * dist * dist);
+
+        float pAmbient = light.base.ambient * atten;
+        float pDiff = light.base.diffuse * max(dot(normal, pDir), 0.0) * atten;
+        float pSpec = 0.0;
+        if (pDiff > 0.0) {
+            vec3 halfwayDir = normalize(pDir + viewDir);
+            pSpec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular * atten;
+        }
+
+        float shadow = float((rtMask >> rtLightIndex) & 1u);
+        rtLightIndex++;
+
+        vec3 ambient = pAmbient * albedo.rgb * ambientOcclusion;
+        vec3 diffSpec = pDiff * albedo.rgb + pSpec * vec3(1.0);
+        pointResult += (ambient + diffSpec * shadow) * light.base.color * light.base.density;
+    }
+
+    vec3 finalColor = clamp(dirResult + pointResult, 0.0, 1.0);
+
+    outFragColor = vec4(finalColor, albedo.a);
+#else
+    // Cascaded shadow map path (shadow only on first directional light)
     vec3 sunAmbientContrib = vec3(0.0);
     vec3 sunDiffSpecContrib = vec3(0.0);
     float sunAmbient = 0.0;
@@ -174,13 +235,11 @@ void main() {
             spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular;
         }
 
-        // Separate ambient (not shadowed) from diffuse+specular (shadowed)
         sunAmbientContrib = sunAmbient * albedo.rgb * ambientOcclusion * light.base.color * light.base.density;
         sunDiffSpecContrib = (diff * albedo.rgb + spec * vec3(1.0)) * light.base.color * light.base.density;
         break;
     }
 
-    // Point lights (not affected by directional shadow)
     vec3 pointResult = vec3(0.0);
     for (int i = 0; i < lights.pointLightCount; i++) {
         LightPoint light = lights.pointLights[i];
@@ -200,7 +259,6 @@ void main() {
         pointResult += (pAmbient * albedo.rgb * ambientOcclusion + pDiff * albedo.rgb + pSpec * vec3(1.0)) * light.base.color * light.base.density;
     }
 
-    // Shadow (only affects directional diffuse+specular)
     float shadow = 1.0;
     uint cascadeIndex = 0;
     if (shadowMatrices.enableShadows != 0 && sunAmbient > 0.0) {
@@ -210,29 +268,21 @@ void main() {
             }
         }
 
-        // Normal offset to prevent self-shadowing.
-        // Scale by sin(angle) so grazing surfaces get more offset.
-        // Keep it small to minimize contact-edge light leaking.
         float nCos = clamp(dot(normal, sunDir), 0.0, 1.0);
         float nSin = sqrt(1.0 - nCos * nCos);
         vec3 shadowWorldPos = worldPos + normal * (0.008 * nSin + 0.001);
 
-        // Filter radius: larger for farther cascades (they cover more world space per texel)
         float filterRadius = 1.5 + float(cascadeIndex) * 0.5;
 
         vec4 shadowCoord = biasMat * shadowMatrices.viewProjectionMatrix[cascadeIndex] * vec4(shadowWorldPos, 1.0);
         shadow = sampleShadowCascade(shadowCoord, cascadeIndex, filterRadius, 0.0);
 
-        // Cascade blending: blend with the next cascade near boundaries to avoid hard seams
         if (cascadeIndex < SHADOW_MAP_CASCADE_COUNT - 1) {
-            // Current cascade's split depth (view-space Z, negative)
             float splitDepth = cam.cascadeSplits[cascadeIndex];
-            // Previous cascade's split (or effective near for cascade 0)
             float prevSplit = (cascadeIndex == 0) ? 0.0 : cam.cascadeSplits[cascadeIndex - 1];
             float cascadeRange = splitDepth - prevSplit;
-            // Blend in the last 15% of the cascade range
             float blendZone = cascadeRange * 0.15;
-            float distToEdge = viewPos.z - splitDepth; // positive when past the boundary
+            float distToEdge = viewPos.z - splitDepth;
 
             if (distToEdge > -blendZone && distToEdge < 0.0) {
                 float blendFactor = smoothstep(0.0, 1.0, (distToEdge + blendZone) / blendZone);
@@ -244,6 +294,7 @@ void main() {
             }
         }
     }
+
     vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult, 0.0, 1.0);
 
     if (cam.debugCascades != 0) {
@@ -257,4 +308,5 @@ void main() {
     }
 
     outFragColor = vec4(finalColor, albedo.a);
+#endif
 }

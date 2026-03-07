@@ -91,6 +91,10 @@ class Scene {
     return registry_.get<T>(handle);
   }
 
+  bool HasEntity(entt::entity handle) const {
+    return registry_.valid(handle);
+  }
+
   template <typename T>
   bool HasComponent(entt::entity handle) const {
     return registry_.any_of<T>(handle);
@@ -127,6 +131,15 @@ class Scene {
   bool RenderFromExternal(CameraComponent& camera, TransformComponent& transform);
   void BuildRenderGraph(entt::entity camera_entity);
   void InvalidateRenderGraphs();
+
+  Ref<RenderGraph> GetRenderGraph(entt::entity camera_entity) const {
+    auto it = render_graphs_.find(camera_entity);
+    return it != render_graphs_.end() ? it->second : nullptr;
+  }
+
+  Ref<RenderGraph> GetExternalRenderGraph() const {
+    return external_render_graph_;
+  }
 
   void ResetPhysicsWorld();
   void ResetScriptStates();

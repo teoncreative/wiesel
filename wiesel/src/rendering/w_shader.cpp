@@ -22,8 +22,19 @@ VkShaderStageFlagBits GetShaderFlagBitsByType(ShaderType type) {
       return VK_SHADER_STAGE_VERTEX_BIT;
     case ShaderTypeFragment:
       return VK_SHADER_STAGE_FRAGMENT_BIT;
+    case ShaderTypeRayGen:
+      return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    case ShaderTypeClosestHit:
+      return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    case ShaderTypeMiss:
+      return VK_SHADER_STAGE_MISS_BIT_KHR;
+    case ShaderTypeAnyHit:
+      return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+    case ShaderTypeIntersection:
+      return VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+    case ShaderTypeCallable:
+      return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
     default:
-      // Invalid
       return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
   }
 }

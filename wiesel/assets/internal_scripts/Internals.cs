@@ -402,5 +402,19 @@ namespace WieselEngine
         // Prefab
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Prefab_Instantiate(ulong scenePtr, string path);
+
+        // Console
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Console_RegisterCommand(string name, string description, System.Action<string[]> callback);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Console_UnregisterCommand(string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Console_Execute(string commandLine);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Console_LogInfo(string message);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Console_LogWarning(string message);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Console_LogError(string message);
     }
 }

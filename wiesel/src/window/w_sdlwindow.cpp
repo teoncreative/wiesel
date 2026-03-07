@@ -191,7 +191,9 @@ void SdlAppWindow::OnUpdate() {
   {
     PROFILE_ZONE_SCOPED_N("SDL_PollEvent");
     while (SDL_PollEvent(&e)) {
-      ImGui_ImplSDL3_ProcessEvent(&e);
+      if (ImGui::GetCurrentContext()) {
+        ImGui_ImplSDL3_ProcessEvent(&e);
+      }
 
       switch (e.type) {
         case SDL_EVENT_QUIT: {
@@ -327,15 +329,19 @@ void SdlAppWindow::OnUpdate() {
 
   // Dispatch one coalesced mouse event per frame
   if (had_mouse_motion) {
+    double norm_dx = mouse_dx / window_size_.width;
+    double norm_dy = mouse_dy / window_size_.width;
     if (cursor_mode_ == CursorModeRelative) {
-      MouseMovedEvent event(mouse_dx, mouse_dy, cursor_mode_);
+      float mx, my;
+      SDL_GetMouseState(&mx, &my);
+      MouseMovedEvent event(mx, my, norm_dx, norm_dy, cursor_mode_);
       GetEventHandler()(event);
     } else {
       float mx, my;
       SDL_GetMouseState(&mx, &my);
       double x = static_cast<double>(mx) * scale_.width;
       double y = static_cast<double>(my) * scale_.height;
-      MouseMovedEvent event(x, y, cursor_mode_);
+      MouseMovedEvent event(x, y, norm_dx, norm_dy, cursor_mode_);
       GetEventHandler()(event);
     }
   }

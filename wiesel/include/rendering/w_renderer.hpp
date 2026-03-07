@@ -39,6 +39,8 @@
 
 namespace Wiesel {
 
+class AccelerationStructureManager;
+
 struct ShadowPipelinePushConstant {
   int cascade_index;
 };
@@ -104,6 +106,7 @@ struct RendererOptions {
   Setting<bool> only_ssao = false;
   Setting<bool> debug_cascades = false;
   Setting<bool> debug_colliders = false;
+  Setting<bool> rt_shadows_enabled = true;
 
   // Requires pipeline recreation
   Setting<bool> wireframe_enabled = false;
@@ -124,6 +127,25 @@ struct RendererOptions {
 
 struct RendererProperties {};
 
+struct RenderStats {
+  uint32_t draw_calls = 0;
+  uint32_t vertices = 0;
+  uint32_t triangles = 0;
+  uint32_t meshes = 0;
+  uint32_t models = 0;
+  float frame_time_ms = 0.0f;
+  uint32_t swap_chain_images = 0;
+  uint32_t frames_in_flight = 1;
+
+  void Reset() {
+    draw_calls = 0;
+    vertices = 0;
+    triangles = 0;
+    meshes = 0;
+    models = 0;
+  }
+};
+
 class Renderer {
  public:
   explicit Renderer(Ref<AppWindow> window);
@@ -140,6 +162,7 @@ class Renderer {
   void DestroyIndexBuffer(MemoryBuffer& buffer);
 
   Ref<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
+  Ref<UniformBuffer> CreateStorageBuffer(VkDeviceSize size);
   void DestroyUniformBuffer(UniformBuffer& buffer);
 
   void SetupCameraComponent(CameraComponent& component);
@@ -234,6 +257,26 @@ class Renderer {
   WIESEL_GETTER_FN const VkPhysicalDeviceFeatures GetPhysicalDeviceFeatures() const {
     return physical_device_features_;
   }
+
+  WIESEL_GETTER_FN bool IsRayTracingSupported() const { return rt_supported_; }
+  WIESEL_GETTER_FN const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& GetRTProperties() const {
+    return rt_pipeline_properties_;
+  }
+  WIESEL_GETTER_FN const VkPhysicalDeviceAccelerationStructurePropertiesKHR& GetASProperties() const {
+    return rt_as_properties_;
+  }
+
+  // RT function pointer accessors
+  PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR() const { return pfn_vkCreateAccelerationStructureKHR_; }
+  PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR() const { return pfn_vkDestroyAccelerationStructureKHR_; }
+  PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR() const { return pfn_vkGetAccelerationStructureBuildSizesKHR_; }
+  PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR() const { return pfn_vkCmdBuildAccelerationStructuresKHR_; }
+  PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR() const { return pfn_vkGetAccelerationStructureDeviceAddressKHR_; }
+  PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR() const { return pfn_vkCreateRayTracingPipelinesKHR_; }
+  PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR() const { return pfn_vkGetRayTracingShaderGroupHandlesKHR_; }
+  PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR() const { return pfn_vkCmdTraceRaysKHR_; }
+
+  WIESEL_GETTER_FN Ref<AccelerationStructureManager> GetASManager() const { return as_manager_; }
 
   WIESEL_GETTER_FN const Ref<Pipeline> GetPresentPipeline() const {
     return present_pipeline_;
@@ -341,6 +384,8 @@ class Renderer {
 
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
   Pipeline* GetBoundPipeline() const { return bound_pipeline_; }
+
+  const RenderStats& GetStats() const { return stats_; }
 
   void BeginRender();
   void UpdateUniformData();
@@ -469,6 +514,8 @@ class Renderer {
   friend class Mesh;
   friend class Scene;
   friend class CommandBuffer;
+  friend class AccelerationStructureManager;
+  friend class Application;
 
   static Ref<Renderer> renderer_;
 
@@ -536,6 +583,8 @@ class Renderer {
   VkBuffer pick_staging_buffer_ = VK_NULL_HANDLE;
   VkDeviceMemory pick_staging_memory_ = VK_NULL_HANDLE;
   bool pick_pending_ = false;
+
+  RenderStats stats_;
   uint32_t pick_x_ = 0;
   uint32_t pick_y_ = 0;
   Ref<AttachmentTexture> pick_entity_id_image_;
@@ -578,6 +627,23 @@ class Renderer {
   PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ = nullptr;
   PFN_vkCreateDebugUtilsMessengerEXT pfn_create_debug_utils_messenger_ext_ = nullptr;
   PFN_vkDestroyDebugUtilsMessengerEXT pfn_destroy_debug_utils_messenger_ext_ = nullptr;
+
+  // Ray tracing support
+  Ref<AccelerationStructureManager> as_manager_;
+  bool rt_supported_ = false;
+  VkPhysicalDeviceRayTracingPipelinePropertiesKHR rt_pipeline_properties_{};
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR rt_as_properties_{};
+  bool CheckRayTracingSupport(VkPhysicalDevice device);
+
+  // RT function pointers
+  PFN_vkCreateAccelerationStructureKHR pfn_vkCreateAccelerationStructureKHR_ = nullptr;
+  PFN_vkDestroyAccelerationStructureKHR pfn_vkDestroyAccelerationStructureKHR_ = nullptr;
+  PFN_vkGetAccelerationStructureBuildSizesKHR pfn_vkGetAccelerationStructureBuildSizesKHR_ = nullptr;
+  PFN_vkCmdBuildAccelerationStructuresKHR pfn_vkCmdBuildAccelerationStructuresKHR_ = nullptr;
+  PFN_vkGetAccelerationStructureDeviceAddressKHR pfn_vkGetAccelerationStructureDeviceAddressKHR_ = nullptr;
+  PFN_vkCreateRayTracingPipelinesKHR pfn_vkCreateRayTracingPipelinesKHR_ = nullptr;
+  PFN_vkGetRayTracingShaderGroupHandlesKHR pfn_vkGetRayTracingShaderGroupHandlesKHR_ = nullptr;
+  PFN_vkCmdTraceRaysKHR pfn_vkCmdTraceRaysKHR_ = nullptr;
 };
 
 #ifdef VULKAN_VALIDATION

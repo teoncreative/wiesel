@@ -19,20 +19,27 @@
 namespace Wiesel {
 class MouseMovedEvent : public Event {
  public:
-  MouseMovedEvent(const double x, const double y, CursorMode cursorMode)
-      : m_MouseX(x), m_MouseY(y), m_CursorMode(cursorMode) {}
+  MouseMovedEvent(double x, double y, double delta_x, double delta_y,
+                  CursorMode cursor_mode)
+      : x_(x), y_(y), delta_x_(delta_x), delta_y_(delta_y),
+        cursor_mode_(cursor_mode) {}
 
-  WIESEL_GETTER_FN double GetX() const { return m_MouseX; }
+  // Absolute screen position (pixels, DPI-scaled)
+  WIESEL_GETTER_FN double GetX() const { return x_; }
+  WIESEL_GETTER_FN double GetY() const { return y_; }
 
-  WIESEL_GETTER_FN double GetY() const { return m_MouseY; }
+  // Normalized delta (pixel delta / window width)
+  WIESEL_GETTER_FN double GetDeltaX() const { return delta_x_; }
+  WIESEL_GETTER_FN double GetDeltaY() const { return delta_y_; }
 
-  WIESEL_GETTER_FN CursorMode GetCursorMode() const { return m_CursorMode; }
+  WIESEL_GETTER_FN CursorMode GetCursorMode() const { return cursor_mode_; }
 
   EVENT_CLASS_TYPE(MouseMoved)
   EVENT_CLASS_CATEGORY(kEventCategoryMouse | kEventCategoryInput)
  private:
-  double m_MouseX, m_MouseY;
-  CursorMode m_CursorMode;
+  double x_, y_;
+  double delta_x_, delta_y_;
+  CursorMode cursor_mode_;
 };
 
 class MouseScrolledEvent : public Event {
