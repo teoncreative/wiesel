@@ -411,9 +411,14 @@ class Renderer {
                     VkDeviceMemory& bufferMemory);
 
   void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+  void CopyBuffer(VkCommandBuffer cmd, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
   void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                          uint32_t height, VkDeviceSize base_offset = 0,
                          uint32_t layer = 0,
+                         uint32_t layer_count = 1);
+  void CopyBufferToImage(VkCommandBuffer cmd, VkBuffer buffer, VkImage image,
+                         uint32_t width, uint32_t height,
+                         VkDeviceSize base_offset = 0, uint32_t layer = 0,
                          uint32_t layer_count = 1);
 
   void TransitionImageLayout(VkImage image, VkFormat format,
@@ -481,7 +486,19 @@ class Renderer {
   bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
   SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
   VkCommandBuffer BeginSingleTimeCommands();
+  VkCommandBuffer BeginSingleTimeCommands(VkCommandPool pool);
   void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+  void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool pool);
+
+  // Create a transient command pool for background thread uploads.
+  // Set it as active with SetThreadCommandPool() before doing GPU uploads
+  // from a non-main thread, then clear it when done.
+  public:
+  VkCommandPool CreateTransientCommandPool();
+  static void SetThreadCommandPool(VkCommandPool pool);
+
+ private:
+  static thread_local VkCommandPool tl_command_pool_;
   uint32_t FindMemoryType(uint32_t typeFilter,
                           VkMemoryPropertyFlags properties);
 
@@ -494,6 +511,8 @@ class Renderer {
   bool HasStencilComponent(VkFormat format);
   void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
                        int32_t texHeight, uint32_t mipLevels);
+  void GenerateMipmaps(VkCommandBuffer cmd, VkImage image, VkFormat imageFormat,
+                       int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
 #ifdef VULKAN_VALIDATION
   bool CheckValidationLayerSupport();
@@ -541,6 +560,7 @@ class Renderer {
   VkSurfaceKHR surface_{};
   VkQueue graphics_queue_{};
   VkQueue present_queue_{};
+  std::mutex queue_submit_mutex_;
   VkSwapchainKHR swap_chain_{};
   bool swap_chain_created_;
 

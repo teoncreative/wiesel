@@ -357,8 +357,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     textures_dir = textures_dir.substr(0, last_slash);
   }
 
-  // Background thread: Assimp file I/O + parsing only
-  // TODO use a thread pool for this instead
+  // Background thread: Assimp parsing + GPU uploads (using per-thread command pool)
   std::thread([path, handle, textures_dir]() {
     aiScene* assimp_scene = LoadAssimpModel(path);
 
@@ -367,47 +366,55 @@ void Engine::LoadModelAsync(AssetHandle handle) {
       return;
     }
 
-    // Main thread: ProcessNode (texture loading needs GPU) + Allocate
-    Application::Get()->SubmitToMainThread(
-        [assimp_scene, path, handle, textures_dir]() {
-          std::shared_ptr<Model> model = std::make_shared<Model>();
-          model->model_path = path;
-          model->textures_path = textures_dir;
-          model->meshes.clear();
-          model->textures.clear();
-          model->node_hierarchy.nodes.clear();
-          model->node_hierarchy.node_name_to_index.clear();
-          ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
-                      -1);
-          ExtractAnimations(*model, *assimp_scene);
-          uint64_t vertices = 0;
-          for (const std::shared_ptr<Mesh>& item : model->meshes) {
-            item->Allocate();
-            vertices += item->vertices.size();
-          }
-          LOG_INFO("Loaded {} meshes!", model->meshes.size());
-          LOG_INFO("Loaded {} textures!", model->textures.size());
-          LOG_INFO("Loaded {} vertices!", vertices);
-          if (model->has_skeleton) {
-            LOG_INFO("Loaded {} bones!", model->skeleton.bones.size());
-          }
-          if (model->has_animations) {
-            LOG_INFO("Loaded {} animation clips!", model->animation_clips.size());
-            for (const auto& clip : model->animation_clips) {
-              LOG_INFO("  Clip '{}': {:.1f} ticks, {:.0f} tps, {} channels",
-                       clip.name, clip.duration, clip.ticks_per_second,
-                       clip.channels.size());
-            }
-          }
+    // All GPU work happens here on the background thread using a dedicated
+    // command pool.  Queue submissions are mutex-protected in EndSingleTimeCommands.
+    VkCommandPool upload_pool = renderer_->CreateTransientCommandPool();
+    Renderer::SetThreadCommandPool(upload_pool);
 
-          // Register textures with AssetManager
+    std::shared_ptr<Model> model = std::make_shared<Model>();
+    model->model_path = path;
+    model->textures_path = textures_dir;
+    model->meshes.clear();
+    model->textures.clear();
+    model->node_hierarchy.nodes.clear();
+    model->node_hierarchy.node_name_to_index.clear();
+    ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
+                -1);
+    ExtractAnimations(*model, *assimp_scene);
+    uint64_t vertices = 0;
+    for (const std::shared_ptr<Mesh>& item : model->meshes) {
+      item->Allocate();
+      vertices += item->vertices.size();
+    }
+
+    Renderer::SetThreadCommandPool(VK_NULL_HANDLE);
+    vkDestroyCommandPool(renderer_->GetLogicalDevice(), upload_pool, nullptr);
+    delete assimp_scene;
+
+    LOG_INFO("Loaded {} meshes!", model->meshes.size());
+    LOG_INFO("Loaded {} textures!", model->textures.size());
+    LOG_INFO("Loaded {} vertices!", vertices);
+    if (model->has_skeleton) {
+      LOG_INFO("Loaded {} bones!", model->skeleton.bones.size());
+    }
+    if (model->has_animations) {
+      LOG_INFO("Loaded {} animation clips!", model->animation_clips.size());
+      for (const auto& clip : model->animation_clips) {
+        LOG_INFO("  Clip '{}': {:.1f} ticks, {:.0f} tps, {} channels",
+                 clip.name, clip.duration, clip.ticks_per_second,
+                 clip.channels.size());
+      }
+    }
+
+    // Register on main thread (no GPU work, just data structure updates)
+    Application::Get()->SubmitToMainThread(
+        [model, handle]() {
           for (auto& [texPath, tex] : model->textures) {
             asset_manager_->RegisterAndStore<Texture>(texPath, AssetType::Texture,
                                              texPath, tex);
           }
           asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
           asset_manager_->Store(handle, model);
-          delete assimp_scene;
         });
   }).detach();
 }
