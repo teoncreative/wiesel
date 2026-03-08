@@ -17,12 +17,12 @@ Framebuffer::Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent, R
   framebufferInfo.height = extent.y;
   framebufferInfo.layers = 1;
 
-  WIESEL_CHECK_VKRESULT(vkCreateFramebuffer(Engine::GetRenderer()->GetLogicalDevice(), &framebufferInfo,
+  WIESEL_CHECK_VKRESULT(vkCreateFramebuffer(Engine::renderer()->GetLogicalDevice(), &framebufferInfo,
                                             nullptr, &handle_));
 }
 
 Framebuffer::~Framebuffer() {
-  vkDestroyFramebuffer(Engine::GetRenderer()->GetLogicalDevice(), handle_, nullptr);
+  vkDestroyFramebuffer(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
 }

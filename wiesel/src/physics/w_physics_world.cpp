@@ -221,7 +221,7 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     body->setCollisionFlags(body->getCollisionFlags() |
                             btCollisionObject::CF_STATIC_OBJECT);
   } else {
-    // Dynamic - prevent deactivation so scripts can always read velocity
+    // Dynamic, prevent deactivation so scripts can always read velocity
     body->setActivationState(DISABLE_DEACTIVATION);
   }
 
@@ -328,14 +328,14 @@ void PhysicsWorld::SyncTransformsFromECS() {
 
     auto* body = static_cast<btRigidBody*>(data.bt_object);
 
-    // For dynamic bodies, physics owns the position - only sync if game code
+    // For dynamic bodies, physics owns the position. Only sync if game code
     // explicitly changed the transform (e.g. teleport/SetPosition). Otherwise
     // gravity and other forces would be cancelled every frame.
     if (registry.any_of<RigidBodyComponent>(entity)) {
       auto& rb = registry.get<RigidBodyComponent>(entity);
       if (rb.type == RigidBodyType::Dynamic) {
         if (!rb.is_dirty) {
-          continue;  // skip - let physics be the authority
+          continue;  // skip, let physics be the authority
         }
         rb.is_dirty = false;
       }

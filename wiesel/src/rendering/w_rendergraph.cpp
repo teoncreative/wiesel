@@ -10,6 +10,7 @@
 //
 
 #include "rendering/w_rendergraph.hpp"
+#include "rendering/w_deletion_queue.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "rendering/w_framebuffer.hpp"
@@ -29,6 +30,8 @@ VkImageLayout RGAccessToLayout(RGAccess access) {
       return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     case RGAccess::ShaderRead:
       return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    case RGAccess::StorageImageRead:
+      return VK_IMAGE_LAYOUT_GENERAL;
     case RGAccess::StorageImageWrite:
       return VK_IMAGE_LAYOUT_GENERAL;
     case RGAccess::Present:
@@ -117,6 +120,11 @@ void RenderGraph::PassReadsDepth(uint32_t pass, RGResource resource) {
   compiled_ = false;
 }
 
+void RenderGraph::PassReadsStorageImage(uint32_t pass, RGResource resource) {
+  passes_[pass].inputs_.push_back({resource, RGAccess::StorageImageRead});
+  compiled_ = false;
+}
+
 void RenderGraph::PassReadsExternalTexture(uint32_t pass, RGResource resource) {
   passes_[pass].inputs_.push_back({resource, RGAccess::ShaderRead, true});
   compiled_ = false;
@@ -165,7 +173,18 @@ void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
 void RenderGraph::Clear() {
   DestroyTransientResources();
   resources_.clear();
+
+  // Defer destruction of old passes, their execute lambdas may capture
+  // Ref<> resources still referenced by in-flight command buffers.
+  if (!passes_.empty()) {
+    auto old_passes = std::make_shared<std::vector<RenderGraphPass>>(
+        std::move(passes_));
+    renderer_.GetDeletionQueue().Push([old_passes]() {
+      // old_passes released here, destroying lambdas and their captures
+    });
+  }
   passes_.clear();
+
   sorted_order_.clear();
   compiled_ = false;
   dirty_ = true;
@@ -287,11 +306,12 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     CreateQueryPool();
   }
 
-  // Read previous frame's GPU results into gpu_timings_cache
+  // Read from the oldest pool (kMaxFramesInFlight frames ago, guaranteed done).
   std::vector<float> gpu_timings_cache;
   uint32_t read_frame = (timing_frame_ + 1) % kTimingFrames;
-  if (query_pool_created_ && !query_pass_names_.empty()) {
-    uint32_t num_queries = static_cast<uint32_t>(query_pass_names_.size()) * 2;
+  auto& read_names = query_pass_names_[read_frame];
+  if (query_pool_created_ && !read_names.empty()) {
+    uint32_t num_queries = static_cast<uint32_t>(read_names.size()) * 2;
     std::vector<uint64_t> timestamps(num_queries);
     VkResult result = vkGetQueryPoolResults(
         renderer_.GetLogicalDevice(), query_pools_[read_frame],
@@ -301,8 +321,8 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
         VK_QUERY_RESULT_64_BIT);
 
     if (result == VK_SUCCESS) {
-      gpu_timings_cache.resize(query_pass_names_.size());
-      for (size_t i = 0; i < query_pass_names_.size(); i++) {
+      gpu_timings_cache.resize(read_names.size());
+      for (size_t i = 0; i < read_names.size(); i++) {
         uint64_t begin_ts = timestamps[i * 2];
         uint64_t end_ts = timestamps[i * 2 + 1];
         gpu_timings_cache[i] = static_cast<float>(end_ts - begin_ts) * timestamp_period_ / 1e6f;
@@ -310,9 +330,9 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     }
   }
 
-  // Reset the current frame's query pool
+  // Reset the current frame's query pool and pass names
   vkCmdResetQueryPool(cmd, query_pools_[timing_frame_], 0, query_count_);
-  query_pass_names_.clear();
+  query_pass_names_[timing_frame_].clear();
   uint32_t query_idx = 0;
 #endif
 
@@ -371,7 +391,7 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     if (query_idx < gpu_timings_cache.size()) {
       timing.gpu_time_ms = gpu_timings_cache[query_idx];
     }
-    query_pass_names_.push_back(pass.name_);
+    query_pass_names_[timing_frame_].push_back(pass.name_);
     query_idx++;
 #endif
 

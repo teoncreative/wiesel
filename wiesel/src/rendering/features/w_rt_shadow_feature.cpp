@@ -44,7 +44,7 @@ RTShadowFeature::RTShadowFeature(Ref<Renderer> renderer)
   // UBO for shadow light data
   shadow_lights_ubo_ = renderer_->CreateUniformBuffer(sizeof(RTShadowLightUBO));
 
-  // Compile RT shaders (no compile-time defines needed - 32 lights is baked in shader)
+  // Compile RT shaders
   auto raygen = renderer_->CreateShader(
       {ShaderTypeRayGen, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/internal_shaders/rt_shadow.rgen"});
@@ -147,13 +147,22 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
           ubo_data.count++;
         }
 
-        memcpy(lights_ubo->data_, &ubo_data, sizeof(RTShadowLightUBO));
+        vkCmdUpdateBuffer(cmd, lights_ubo->buffer_handle_, 0,
+                          sizeof(RTShadowLightUBO), &ubo_data);
+        VkMemoryBarrier ubo_barrier{};
+        ubo_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        ubo_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        ubo_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+        vkCmdPipelineBarrier(cmd,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+            0, 1, &ubo_barrier, 0, nullptr, 0, nullptr);
 
-        // Create descriptor set for this frame
+        // New descriptor each frame (TLAS handle changes); old one is deferred
+        // by SetDescriptor via the DeletionQueue for safe multi-frame-in-flight.
         auto desc = CreateReference<DescriptorSet>();
         desc->SetLayout(rt_layout);
         desc->AddAccelerationStructure(0, as_manager->GetTLAS());
-
         desc->AddStorageImage(1, pool->GetTexture("rt_shadow.mask")->image_views_[0]);
         desc->AddCombinedImageSampler(
             2, pool->GetTexture("geometry.world_pos_resolve")->image_views_[0],
@@ -163,6 +172,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
             renderer->GetDefaultNearestSampler());
         desc->AddUniformBuffer(4, lights_ubo);
         desc->Bake();
+        pool->SetDescriptor("rt_shadow.desc", desc);
 
         // Bind and trace
         rt_pipeline->Bind(cmd);

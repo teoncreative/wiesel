@@ -67,8 +67,8 @@ class PhysicsWorld {
 
   // Simulation
   void StepSimulation(float delta_time);
-  void SyncTransformsFromECS();  // ECS → Bullet (kinematic + ghost)
-  void SyncTransformsToECS();    // Bullet → ECS (dynamic)
+  void SyncTransformsFromECS();  // ECS -> Bullet (kinematic + ghost)
+  void SyncTransformsToECS();    // Bullet -> ECS (dynamic)
 
   // Contact detection - walks manifolds/ghosts, dispatches callbacks
   void DetectContacts();

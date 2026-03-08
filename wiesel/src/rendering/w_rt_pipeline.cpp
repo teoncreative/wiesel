@@ -255,9 +255,10 @@ void RTPipeline::CreateSBT() {
   VkDeviceAddress sbtAddr = vkGetBufferDeviceAddress(device, &addrInfo);
 
   // Set up strided regions
+  // Raygen: spec requires size == stride (only one raygen shader invoked)
   raygen_region_.deviceAddress = sbtAddr;
   raygen_region_.stride = handleSizeAligned;
-  raygen_region_.size = raygenSize;
+  raygen_region_.size = handleSizeAligned;
 
   miss_region_.deviceAddress = sbtAddr + raygenSize;
   miss_region_.stride = handleSizeAligned;

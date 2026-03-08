@@ -147,6 +147,16 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
       renderer.GetDefaultLinearSampler());
   lighting_output_desc->Bake();
   pool.SetDescriptor("lighting.output", lighting_output_desc);
+
+  // RT shadow descriptor for reading the shadow mask in the lighting shader
+  if (rt_shadow_desc_layout_ && pool.HasTexture("rt_shadow.mask")) {
+    auto rt_shadow_desc = CreateReference<DescriptorSet>();
+    rt_shadow_desc->SetLayout(rt_shadow_desc_layout_);
+    rt_shadow_desc->AddStorageImage(
+        0, pool.GetTexture("rt_shadow.mask")->image_views_[0]);
+    rt_shadow_desc->Bake();
+    pool.SetDescriptor("lighting.rt_shadow", rt_shadow_desc);
+  }
 }
 
 void LightingFeature::AddPasses(RenderGraph& graph,
@@ -176,17 +186,10 @@ void LightingFeature::AddPasses(RenderGraph& graph,
 
   // Check if RT shadow mask is available
   bool use_rt_shadows = registry.Has("RTShadowMask") && rt_lighting_pipeline_
-                        && pool->HasTexture("rt_shadow.mask");
+                        && pool->HasDescriptor("lighting.rt_shadow");
   RGResource rt_shadow_mask;
   if (use_rt_shadows) {
     rt_shadow_mask = registry.Get("RTShadowMask");
-
-    auto rt_shadow_desc = CreateReference<DescriptorSet>();
-    rt_shadow_desc->SetLayout(rt_shadow_desc_layout_);
-    rt_shadow_desc->AddStorageImage(
-        0, pool->GetTexture("rt_shadow.mask")->image_views_[0]);
-    rt_shadow_desc->Bake();
-    pool->SetDescriptor("lighting.rt_shadow", rt_shadow_desc);
   }
 
   // Lighting pass
@@ -229,7 +232,7 @@ void LightingFeature::AddPasses(RenderGraph& graph,
     graph.PassReadsTexture(lighting, shadow_depth);
   }
   if (rt_shadow_mask.IsValid()) {
-    graph.PassReadsTexture(lighting, rt_shadow_mask);
+    graph.PassReadsStorageImage(lighting, rt_shadow_mask);
   }
   graph.PassWritesColor(lighting, lighting_out);
   graph.SetPassFramebuffer(lighting, pool->GetFramebuffer("lighting"));

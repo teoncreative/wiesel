@@ -28,7 +28,7 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   list.reserve(paths.size());
   for (size_t i = 0; i < paths.size(); ++i) {
     ImageEntry entry;
-    VfsFile vfs_sprite = Engine::GetVirtualFileSystem()->Open(paths[i]);
+    VfsFile vfs_sprite = Engine::vfs()->Open(paths[i]);
     entry.pixels =
         stbi_load_from_memory(vfs_sprite.Data(), static_cast<int>(vfs_sprite.Size()),
                               &entry.w, &entry.h, &entry.channels, STBI_rgb_alpha);
@@ -60,7 +60,7 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   }
   list.clear();
 
-  Ref<Renderer> renderer = Engine::GetRenderer();
+  Ref<Renderer> renderer = Engine::renderer();
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   renderer->CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -138,13 +138,13 @@ Ref<SpriteAsset> SpriteBuilder::Build() {
   asset->frames_ = frames_;
   asset->atlas_size_ = atlas_size_;
   asset->texture_ = LoadSpriteTexture({virtual_atlas_path_});
-  asset->sampler_ = sampler_ ? sampler_ : Engine::GetRenderer()->GetDefaultLinearSampler();
-  Ref<ImageView> view = Engine::GetRenderer()->CreateImageView(
+  asset->sampler_ = sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
+  Ref<ImageView> view = Engine::renderer()->CreateImageView(
       asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,
       1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
   for (SpriteAsset::Frame& item : asset->frames_) {
     item.view = view;
-    /*item.VertexBuffer = Engine::GetRenderer()->CreateVertexBuffer(std::vector<VertexSprite>{
+    /*item.VertexBuffer = Engine::renderer()->CreateVertexBuffer(std::vector<VertexSprite>{
         {{item.UVRect.x, item.UVRect.y}},
         {{item.UVRect.x + item.UVRect.z, item.UVRect.y}},
         {{item.UVRect.x, item.UVRect.y + item.UVRect.w}},
@@ -165,11 +165,11 @@ Ref<SpriteAsset> SpriteBuilder::Build() {
         {{u0, v1}},   //    "     5 (top-left)
     };
 
-    item.vertex_buffer = Engine::GetRenderer()->CreateVertexBuffer(uvs);
-    item.uniform_buffer = Engine::GetRenderer()->CreateUniformBuffer(
+    item.vertex_buffer = Engine::renderer()->CreateVertexBuffer(uvs);
+    item.uniform_buffer = Engine::renderer()->CreateUniformBuffer(
         sizeof(SpriteUniformData));
     item.descriptor = CreateReference<DescriptorSet>();
-    item.descriptor->SetLayout(Engine::GetRenderer()->GetSpriteDrawDescriptorLayout());
+    item.descriptor->SetLayout(Engine::renderer()->GetSpriteDrawDescriptorLayout());
     item.descriptor->AddCombinedImageSampler(0, view, asset->sampler_);
     item.descriptor->AddUniformBuffer(1, item.uniform_buffer);
     item.descriptor->Bake();

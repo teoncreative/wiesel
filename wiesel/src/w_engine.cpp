@@ -230,6 +230,8 @@ std::shared_ptr<Renderer> Engine::renderer_;
 std::shared_ptr<AppWindow> Engine::window_;
 std::shared_ptr<VirtualFileSystem> Engine::vfs_;
 DeveloperConsole Engine::console_;
+std::shared_ptr<AssetManager> Engine::asset_manager_;
+std::shared_ptr<ScriptManager> Engine::script_manager_;
 
 void Engine::InitEngine(const EngineProperties& props) {
   properties_ = props;
@@ -242,10 +244,12 @@ void Engine::InitEngine(const EngineProperties& props) {
   LOG_INFO(" - project_path: {}", props.project_path.string());
   LOG_INFO(" - user_data_path: {}", props.user_data_path.string());
   LOG_INFO(" - dev_mode: {}", props.dev_mode);
+  asset_manager_ = std::make_shared<AssetManager>();
   InitializeVfs();
   InitializeComponents();
   InputManager::Init();
-  ScriptManager::Init({.EnableDebugger = true});
+  script_manager_ = std::make_shared<ScriptManager>();
+  script_manager_->Init({.EnableDebugger = true});
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
@@ -280,6 +284,11 @@ void Engine::InitializeVfs() {
   }
 }
 
+void Engine::CleanupAssets() {
+  asset_manager_->Clear();
+  asset_manager_ = nullptr;
+}
+
 void Engine::CleanupRenderer() {
   renderer_->Cleanup();
   renderer_ = nullptr;
@@ -291,29 +300,9 @@ void Engine::CleanupWindow() {
 }
 
 void Engine::CleanupEngine() {
-  ScriptManager::Destroy();
-  //InputManager::Destroy();
-  //CleanupComponents();
+  script_manager_ = nullptr;
 }
 
-std::shared_ptr<Renderer> Engine::GetRenderer() {
-  if (renderer_ == nullptr) {
-    throw std::runtime_error("Renderer is not initialized!");
-  }
-  return renderer_;
-}
-
-std::shared_ptr<AppWindow> Engine::GetWindow() {
-  return window_;
-}
-
-std::shared_ptr<VirtualFileSystem> Engine::GetVirtualFileSystem() {
-  return vfs_;
-}
-
-DeveloperConsole& Engine::GetConsole() {
-  return console_;
-}
 
 aiScene* Engine::LoadAssimpModel(const std::string& path,
                                  bool convert_to_left_handed) {
@@ -351,13 +340,12 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
 }
 
 void Engine::LoadModelAsync(AssetHandle handle) {
-  auto& assets = AssetManager::Get();
-  const AssetMetadata* meta = assets.GetMetadata(handle);
+  const AssetMetadata* meta = asset_manager_->GetMetadata(handle);
   if (!meta) {
     LOG_ERROR("LoadModelAsync: invalid model_handle");
     return;
   }
-  if (!assets.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+  if (!asset_manager_->SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
     return;
   }
   std::string path = meta->virtual_source_path;
@@ -375,7 +363,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     aiScene* assimp_scene = LoadAssimpModel(path);
 
     if (!assimp_scene) {
-      AssetManager::Get().SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+      Engine::asset_manager().SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
       return;
     }
 
@@ -413,13 +401,12 @@ void Engine::LoadModelAsync(AssetHandle handle) {
           }
 
           // Register textures with AssetManager
-          AssetManager& assets = AssetManager::Get();
           for (auto& [texPath, tex] : model->textures) {
-            assets.RegisterAndStore<Texture>(texPath, AssetType::Texture,
+            asset_manager_->RegisterAndStore<Texture>(texPath, AssetType::Texture,
                                              texPath, tex);
           }
-          assets.SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
-          assets.Store(handle, model);
+          asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
+          asset_manager_->Store(handle, model);
           delete assimp_scene;
         });
   }).detach();
@@ -480,7 +467,7 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
         Material::Set(mesh->mat, model.textures[textureFullPath],
                       static_cast<TextureType>(type));
       } else {
-        std::shared_ptr<Texture> texture = GetRenderer()->CreateTexture(
+        std::shared_ptr<Texture> texture = renderer_->CreateTexture(
             textureFullPath, {static_cast<TextureType>(type)}, {});
         if (texture == nullptr) {
           continue;
@@ -529,7 +516,7 @@ std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
   props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
   props.generate_mipmaps = true;
 
-  auto texture = GetRenderer()->CreateTexture(pixelData, 4, props, {});
+  auto texture = renderer_->CreateTexture(pixelData, 4, props, {});
 
   stbi_image_free(pixelData);  // Works for both cases
 

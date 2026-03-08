@@ -13,6 +13,7 @@
 #include "mono_util.h"
 #include "script/w_scriptmanager.hpp"
 #include "input/w_input.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -45,7 +46,7 @@ void MonoBehavior::InstantiateScript() {
   if (name_.empty()) {
     return;
   }
-  script_instance_ = ScriptManager::CreateScriptInstance(this);
+  script_instance_ = Engine::script_manager().CreateScriptInstance(this);
   if (script_instance_) {
     unset_ = false;
     enabled_ = true;

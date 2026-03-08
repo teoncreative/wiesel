@@ -10,6 +10,7 @@
 //
 
 #include "rendering/w_acceleration_structure.hpp"
+#include "rendering/w_deletion_queue.hpp"
 #include "rendering/w_renderer.hpp"
 #include "scene/w_scene.hpp"
 #include "asset/w_asset_manager.hpp"
@@ -182,7 +183,7 @@ Ref<AccelerationStructure> AccelerationStructureManager::GetOrBuildBLAS(
 void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
                                              Scene& scene) {
   VkDevice device = renderer_->GetLogicalDevice();
-  AssetManager& assets = AssetManager::Get();
+  AssetManager& assets = Engine::asset_manager();
 
   // Collect instances
   std::vector<VkAccelerationStructureInstanceKHR> instances;
@@ -221,11 +222,22 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   }
 
   if (instances.empty()) {
-    // No geometry to trace against
-    if (tlas_) {
-      DestroyAS(*tlas_);
-      tlas_ = nullptr;
+    // No geometry to trace against, defer destruction of existing TLAS
+    if (tlas_ && tlas_->handle != VK_NULL_HANDLE) {
+      Ref<AccelerationStructure> old_tlas = tlas_;
+      Ref<Renderer> renderer_ref = renderer_;
+      renderer_->GetDeletionQueue().Push([old_tlas, renderer_ref]() {
+        VkDevice device = renderer_ref->GetLogicalDevice();
+        if (old_tlas->handle != VK_NULL_HANDLE) {
+          renderer_ref->vkDestroyAccelerationStructureKHR()(device, old_tlas->handle, nullptr);
+        }
+        if (old_tlas->buffer != VK_NULL_HANDLE) {
+          vkDestroyBuffer(device, old_tlas->buffer, nullptr);
+          vkFreeMemory(device, old_tlas->memory, nullptr);
+        }
+      });
     }
+    tlas_ = nullptr;
     return;
   }
 
@@ -290,15 +302,22 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
       device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo,
       &instanceCount, &sizeInfo);
 
-  // Recreate TLAS if needed
-  if (!tlas_) {
-    tlas_ = CreateReference<AccelerationStructure>();
+  // Defer destruction of old TLAS so in-flight frames can still reference it
+  if (tlas_ && tlas_->handle != VK_NULL_HANDLE) {
+    Ref<AccelerationStructure> old_tlas = tlas_;
+    Ref<Renderer> renderer_ref = renderer_;
+    renderer_->GetDeletionQueue().Push([old_tlas, renderer_ref]() {
+      VkDevice device = renderer_ref->GetLogicalDevice();
+      if (old_tlas->handle != VK_NULL_HANDLE) {
+        renderer_ref->vkDestroyAccelerationStructureKHR()(device, old_tlas->handle, nullptr);
+      }
+      if (old_tlas->buffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, old_tlas->buffer, nullptr);
+        vkFreeMemory(device, old_tlas->memory, nullptr);
+      }
+    });
   }
-
-  // Destroy old and recreate (full rebuild each frame for simplicity)
-  if (tlas_->handle != VK_NULL_HANDLE) {
-    DestroyAS(*tlas_);
-  }
+  tlas_ = CreateReference<AccelerationStructure>();
 
   renderer_->CreateBuffer(
       sizeInfo.accelerationStructureSize,

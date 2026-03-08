@@ -66,6 +66,14 @@ class DescriptorSet {
     });
   }
 
+  void ClearBindings() {
+    combined_image_samplers_.clear();
+    uniform_buffer_data_.clear();
+    storage_buffer_data_.clear();
+    storage_image_data_.clear();
+    acceleration_structure_data_.clear();
+  }
+
   void Bake();
 
   bool allocated_;

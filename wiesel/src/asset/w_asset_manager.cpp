@@ -37,12 +37,6 @@ AssetType AssetTypeFromString(std::string_view s) {
   return AssetType::None;
 }
 
-AssetManager AssetManager::instance_;
-
-AssetManager& AssetManager::Get() {
-  return instance_;
-}
-
 AssetHandle AssetManager::Register(const std::string& name, AssetType type,
                                    const std::string& virtual_source_path) {
   if (!virtual_source_path.empty()) {

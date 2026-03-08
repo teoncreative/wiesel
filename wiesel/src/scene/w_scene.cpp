@@ -46,7 +46,10 @@ Scene::Scene() {
   physics_world_ = std::make_unique<PhysicsWorld>(this);
 }
 
-Scene::~Scene() {}
+Scene::~Scene() {
+  LOG_DEBUG("~Scene destructor");
+  Cleanup();
+}
 
 Entity Scene::CreateEntity(const std::string& name) {
   return CreateEntityWithUUID(UUID(), name);
@@ -137,7 +140,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
       }
     }
   }
-  auto& lights = Engine::GetRenderer()->lights_uniform_data_;
+  auto& lights = Engine::renderer()->lights_uniform_data_;
   lights.direct_light_count = 0;
   lights.point_light_count = 0;
   for (const auto& entity : registry_.view<LightDirectComponent>()) {
@@ -163,7 +166,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
     }
 
     const Ref<Model>& model_data =
-        AssetManager::Get().GetOrLoad<Model>(model_comp.model_handle);
+        Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
     if (!model_data || model_data->animation_clips.empty()) {
       continue;
     }
@@ -617,9 +620,57 @@ void Scene::InvalidateRenderGraphs() {
   render_graphs_.clear();
 }
 
+void Scene::Cleanup() {
+  LOG_DEBUG("Scene::Cleanup - render_graphs: {}, external: {}",
+            render_graphs_.size(), external_render_graph_ != nullptr);
+  render_graphs_.clear();
+  external_render_graph_ = nullptr;
+  default_pipeline_ = nullptr;
+
+  // Clear camera resource pools so their descriptor sets are freed.
+  auto camera_view = registry_.view<CameraComponent>();
+  LOG_DEBUG("Scene::Cleanup - cameras: {}", camera_view.size());
+  for (auto entity : camera_view) {
+    auto& camera = registry_.get<CameraComponent>(entity);
+    camera.resource_pool.Clear();
+    camera.render_pipeline = nullptr;
+  }
+
+  // Clear per-entity render data (descriptor sets, uniform buffers).
+  for (auto entity : registry_.view<ModelComponent>()) {
+    auto& model = registry_.get<ModelComponent>(entity);
+    model.geometry_descriptors.clear();
+    model.shadow_descriptors.clear();
+    model.uniform_buffer = nullptr;
+    model.bone_ubo_ = nullptr;
+    model.bone_descriptor_ = nullptr;
+    model.mesh_uniform_buffers_.clear();
+  }
+
+  for (auto entity : registry_.view<CanvasRectComponent>()) {
+    auto& rect = registry_.get<CanvasRectComponent>(entity);
+    rect.descriptor_ = nullptr;
+    rect.ubo_ = nullptr;
+  }
+
+  for (auto entity : registry_.view<CanvasImageComponent>()) {
+    auto& img = registry_.get<CanvasImageComponent>(entity);
+    img.descriptor_ = nullptr;
+    img.ubo_ = nullptr;
+  }
+
+  for (auto entity : registry_.view<TextComponent>()) {
+    auto& text = registry_.get<TextComponent>(entity);
+    text.glyph_gpu_.clear();
+  }
+
+  skybox_ = nullptr;
+  current_camera_ = nullptr;
+}
+
 void Scene::BuildRenderGraph(entt::entity camera_entity) {
   PROFILE_ZONE_SCOPED_N("Scene::BuildRenderGraph");
-  Ref<Renderer> renderer = Engine::GetRenderer();
+  Ref<Renderer> renderer = Engine::renderer();
   auto& camera = registry_.get<CameraComponent>(camera_entity);
 
   std::shared_ptr<RenderGraph>& graph = render_graphs_[camera_entity];
@@ -642,7 +693,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
 bool Scene::Render() {
   PROFILE_ZONE_SCOPED();
   bool hasCamera = false;
-  Ref<Renderer> renderer = Engine::GetRenderer();
+  Ref<Renderer> renderer = Engine::renderer();
 
   // Ensure we have a default pipeline
   if (!default_pipeline_) {
@@ -707,7 +758,7 @@ bool Scene::Render() {
 bool Scene::RenderFromExternal(CameraComponent& camera,
                                TransformComponent& transform) {
   PROFILE_ZONE_SCOPED();
-  Ref<Renderer> renderer = Engine::GetRenderer();
+  Ref<Renderer> renderer = Engine::renderer();
 
   if (!default_pipeline_) {
     default_pipeline_ = CreateDefaultPipeline(renderer);
@@ -746,7 +797,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   camera.UpdateAll();
 
   // Compute shadow cascades for external camera (same as ECS cameras)
-  auto& lights = Engine::GetRenderer()->lights_uniform_data_;
+  auto& lights = Engine::renderer()->lights_uniform_data_;
   if (lights.direct_light_count > 0) {
     camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
   } else {

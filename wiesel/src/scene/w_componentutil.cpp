@@ -59,7 +59,7 @@ static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle
   if (ImGui::BeginDragDropTarget()) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
       AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-      const AssetMetadata* meta = AssetManager::Get().GetMetadata(dropped);
+      const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
       if (meta && meta->type == required_type) {
         out_handle = dropped;
         ImGui::EndDragDropTarget();
@@ -75,7 +75,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Model", &visible)) {
     auto& model = entity.GetComponent<ModelComponent>();
-    auto& assets = AssetManager::Get();
+    auto& assets = Engine::asset_manager();
 
     // Asset selector: show current asset name + dropdown to pick from registered model assets
     const AssetMetadata* currentMeta = model.model_handle.IsValid()
@@ -251,7 +251,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
       if (ImGui::InputText(
               PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
         MonoString* newVal =
-            mono_string_new(ScriptManager::app_domain(), str.c_str());
+            mono_string_new(Engine::script_manager().app_domain(), str.c_str());
         value.Set(instance->handle(), newVal);
       }
     } else if (value.GetFieldType() == FieldType::Entity) {
@@ -261,7 +261,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
 
       if (entity_obj) {
         MonoClassField* id_field = mono_class_get_field_from_name(
-            ScriptManager::entity_class(), "entityId");
+            Engine::script_manager().entity_class(), "entityId");
         if (id_field) {
           uint64_t id_val = 0;
           mono_field_get_value(entity_obj, id_field, &id_val);
@@ -289,9 +289,9 @@ void RenderScriptVariables(ScriptInstance* instance) {
           Scene* scene = instance->behavior()->scene();
           if (scene) {
             MonoObject* new_entity = mono_object_new(
-                ScriptManager::app_domain(), ScriptManager::entity_class());
+                Engine::script_manager().app_domain(), Engine::script_manager().entity_class());
             MonoMethod* ctor = mono_class_get_method_from_name(
-                ScriptManager::entity_class(), ".ctor", 2);
+                Engine::script_manager().entity_class(), ".ctor", 2);
             uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
             uint64_t entity_id = static_cast<uint64_t>(dropped_entity);
             void* args[2] = {&scene_ptr, &entity_id};
@@ -663,7 +663,7 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
     if (entity.HasComponent<ModelComponent>()) {
       auto& model_comp = entity.GetComponent<ModelComponent>();
       if (model_comp.model_handle.IsValid()) {
-        model_ptr = AssetManager::Get().GetOrLoad<Model>(model_comp.model_handle);
+        model_ptr = Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
       }
     }
 
@@ -976,7 +976,7 @@ void RenderAddComponentImGui_LightDirectComponent(Entity entity) {
 void RenderAddComponentImGui_CameraComponent(Entity entity) {
   if (ImGui::MenuItem("Camera")) {
     auto& component = entity.AddComponent<CameraComponent>();
-    Engine::GetRenderer()->SetupCameraComponent(component);
+    Engine::renderer()->SetupCameraComponent(component);
   }
 }
 static entt::entity addMonoScriptEntityId = entt::null;
@@ -1001,7 +1001,7 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
   static int currentScriptIndex = 0;
   bool open = true;
   if (ImGui::BeginPopupModal("Add C# Script", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
-    const std::vector<std::string> scriptNames = ScriptManager::script_names();
+    const std::vector<std::string> scriptNames = Engine::script_manager().script_names();
     if (!scriptNames.empty()) {
       ImGui::Combo("Script Name", &currentScriptIndex,
                    [](void* data, int idx, const char** out_text) {

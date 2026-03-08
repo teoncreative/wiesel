@@ -206,59 +206,62 @@ class ScriptManager {
   using ComponentGetter = std::function<MonoObject*(Scene*, entt::entity)>;
   using ComponentChecker = std::function<bool(Scene*, entt::entity)>;
 
-  static void Init(const ScriptManagerProperties&& properties);
-  static void Destroy();
-  static void Reload();
+  ScriptManager() = default;
+  ~ScriptManager();
 
-  static void LoadCore();
-  static void LoadApp();
-  static void RegisterInternals();
-  static void RegisterComponents();
+  void Init(const ScriptManagerProperties&& properties);
+  void Destroy();
+  void Reload();
 
-  static MonoDomain* root_domain() { return root_domain_; }
-  static MonoDomain* app_domain() { return app_domain_; }
-  static MonoClass* vector3f_class() { return vector3f_class_; }
-  static MonoClass* entity_class() { return entity_class_; }
-  static MonoClass* behavior_class() { return behavior_class_; }
-  static const std::vector<std::string>& script_names() { return script_names_; }
+  void LoadCore();
+  void LoadApp();
+  void RegisterInternals();
+  void RegisterComponents();
 
-  static MonoObject* GetComponentByName(Scene* scene, entt::entity entity, const std::string& name);
+  MonoDomain* root_domain() { return root_domain_; }
+  MonoDomain* app_domain() { return app_domain_; }
+  MonoClass* vector3f_class() { return vector3f_class_; }
+  MonoClass* entity_class() { return entity_class_; }
+  MonoClass* behavior_class() { return behavior_class_; }
+  const std::vector<std::string>& script_names() { return script_names_; }
+
+  MonoObject* GetComponentByName(Scene* scene, entt::entity entity, const std::string& name);
   template<class T>
-  static MonoObject* GetComponent(Scene* scene, entt::entity entity);
-  static bool HasComponentByName(Scene* scene, entt::entity entity, const std::string& name);
-  static std::unique_ptr<ScriptInstance> CreateScriptInstance(MonoBehavior* behavior);
+  MonoObject* GetComponent(Scene* scene, entt::entity entity);
+  bool HasComponentByName(Scene* scene, entt::entity entity, const std::string& name);
+  std::unique_ptr<ScriptInstance> CreateScriptInstance(MonoBehavior* behavior);
 
   template<class T>
-  static void RegisterComponent(std::string name, ComponentGetter getter, ComponentChecker checker);
+  void RegisterComponent(std::string name, ComponentGetter getter, ComponentChecker checker);
  private:
-  static MonoDomain* root_domain_;
-  static MonoAssembly* core_assembly_;
-  static MonoImage* core_assembly_image_;
-  static MonoDomain* app_domain_;
-  static MonoAssembly* app_assembly_;
-  static MonoImage* app_assembly_image_;
+  MonoDomain* root_domain_ = nullptr;
+  MonoAssembly* core_assembly_ = nullptr;
+  MonoImage* core_assembly_image_ = nullptr;
+  MonoDomain* app_domain_ = nullptr;
+  MonoAssembly* app_assembly_ = nullptr;
+  MonoImage* app_assembly_image_ = nullptr;
 
-  static MonoClass* behavior_class_;
-  static MonoClass* transform_component_class_;
-  static MonoClass* model_component_class_;
-  static MonoClass* box_collider_class_;
-  static MonoClass* sphere_collider_class_;
-  static MonoClass* rigidbody_class_;
-  static MonoClass* rect_transform_class_;
-  static MonoClass* canvas_component_class_;
-  static MonoClass* canvas_rect_class_;
-  static MonoClass* canvas_image_class_;
-  static MonoClass* text_component_class_;
-  static MonoClass* animator_component_class_;
-  static MonoClass* vector3f_class_;
-  static MonoClass* entity_class_;
-  static MonoMethod* set_handle_method_;
-  static std::map<std::string, ComponentGetter> component_getters_;
-  static std::map<std::type_index, ComponentGetter> component_getters_by_type_;
-  static std::map<std::string, ComponentChecker> component_checkers_;
-  static std::map<std::string, std::shared_ptr<ScriptData>> script_data_;
-  static std::vector<std::string> script_names_;
-  static bool enable_debugger_;
+  MonoClass* behavior_class_ = nullptr;
+  MonoClass* transform_component_class_ = nullptr;
+  MonoClass* model_component_class_ = nullptr;
+  MonoClass* box_collider_class_ = nullptr;
+  MonoClass* sphere_collider_class_ = nullptr;
+  MonoClass* rigidbody_class_ = nullptr;
+  MonoClass* rect_transform_class_ = nullptr;
+  MonoClass* canvas_component_class_ = nullptr;
+  MonoClass* canvas_rect_class_ = nullptr;
+  MonoClass* canvas_image_class_ = nullptr;
+  MonoClass* text_component_class_ = nullptr;
+  MonoClass* animator_component_class_ = nullptr;
+  MonoClass* vector3f_class_ = nullptr;
+  MonoClass* entity_class_ = nullptr;
+  MonoMethod* set_handle_method_ = nullptr;
+  std::map<std::string, ComponentGetter> component_getters_;
+  std::map<std::type_index, ComponentGetter> component_getters_by_type_;
+  std::map<std::string, ComponentChecker> component_checkers_;
+  std::map<std::string, std::shared_ptr<ScriptData>> script_data_;
+  std::vector<std::string> script_names_;
+  bool enable_debugger_ = false;
 };
 
 }

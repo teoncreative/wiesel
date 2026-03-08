@@ -23,7 +23,7 @@ Font::Font(const std::string& vfs_path, float size_px) : native_size_(size_px) {
   }
 
   // Load font file via VFS - keep data alive for FreeType
-  std::shared_ptr<VirtualFileSystem> vfs = Engine::GetVirtualFileSystem();
+  std::shared_ptr<VirtualFileSystem> vfs = Engine::vfs();
   if (!vfs->FileExists(vfs_path)) {
     LOG_ERROR("Font file not found: {}", vfs_path);
     FT_Done_FreeType(ft_library_);
@@ -52,13 +52,13 @@ Font::Font(const std::string& vfs_path, float size_px) : native_size_(size_px) {
   atlas_pixels_.resize(atlas_width_ * atlas_height_, 0);
   // ASCII printable (U+0020 - U+007E)
   for (uint32_t c = 0x0020; c <= 0x007E; c++) RasterizeGlyph(c);
-  // Latin-1 Supplement (U+00A0 - U+00FF) - accented Western European
+  // Latin-1 Supplement (U+00A0 - U+00FF): accented Western European
   for (uint32_t c = 0x00A0; c <= 0x00FF; c++) RasterizeGlyph(c);
-  // Latin Extended-A (U+0100 - U+017F) - Turkish ğ/ş/ı, Polish, Czech, etc.
+  // Latin Extended-A (U+0100 - U+017F): Turkish ğ/ş/ı, Polish, Czech, etc.
   for (uint32_t c = 0x0100; c <= 0x017F; c++) RasterizeGlyph(c);
   // Latin Extended-B (U+0180 - U+024F)
   for (uint32_t c = 0x0180; c <= 0x024F; c++) RasterizeGlyph(c);
-  // General Punctuation (U+2000 - U+206F) - em dash, bullets, ellipsis
+  // General Punctuation (U+2000 - U+206F): em dash, bullets, ellipsis
   for (uint32_t c = 0x2000; c <= 0x206F; c++) RasterizeGlyph(c);
 
   UploadAtlas();
@@ -179,7 +179,7 @@ void Font::RasterizeGlyph(uint32_t codepoint) {
 
 void Font::UploadAtlas() {
   PROFILE_ZONE_SCOPED_N("Font::UploadAtlas");
-  Ref<Renderer> renderer = Engine::GetRenderer();
+  Ref<Renderer> renderer = Engine::renderer();
   TextureProps props{};
   props.type = TextureTypeNone;
   props.generate_mipmaps = false;

@@ -20,10 +20,10 @@ MemoryBuffer::MemoryBuffer(MemoryType type) : type_(type) {}
 MemoryBuffer::~MemoryBuffer() {
   switch (type_) {
     case MemoryTypeVertexBuffer:
-      Engine::GetRenderer()->DestroyVertexBuffer(*this);
+      Engine::renderer()->DestroyVertexBuffer(*this);
       break;
     case MemoryTypeIndexBuffer:
-      Engine::GetRenderer()->DestroyIndexBuffer(*this);
+      Engine::renderer()->DestroyIndexBuffer(*this);
       break;
     case MemoryTypeUniformBuffer:
       // this is handled by the object
@@ -36,7 +36,7 @@ UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {
 }
 
 UniformBuffer::~UniformBuffer() {
-  Engine::GetRenderer()->DestroyUniformBuffer(*this);
+  Engine::renderer()->DestroyUniformBuffer(*this);
 }
 
 }  // namespace Wiesel

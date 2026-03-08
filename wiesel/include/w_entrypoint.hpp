@@ -41,5 +41,6 @@ int main(int argc, char** argv) {
   app.Run();
   LOG_INFO("Cleaning up...");
   delete &app;
+  Engine::CleanupEngine();
   LOG_INFO("Done!");
 }

@@ -75,7 +75,7 @@ bool SceneManager::ProcessPendingLoad(Ref<Scene> scene) {
   auto view = scene->GetAllEntitiesWith<CameraComponent>();
   for (auto entity : view) {
     auto& cam = scene->GetComponent<CameraComponent>(entity);
-    Engine::GetRenderer()->SetupCameraComponent(cam);
+    Engine::renderer()->SetupCameraComponent(cam);
   }
 
   scene->ResetFirstUpdate();

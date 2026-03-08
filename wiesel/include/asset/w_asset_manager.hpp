@@ -27,7 +27,7 @@ struct AssetMetadata {
 
 class AssetManager {
  public:
-  static AssetManager& Get();
+  AssetManager() = default;
 
   // Registration (metadata only, no loading)
 
@@ -79,14 +79,10 @@ class AssetManager {
   void Clear();
 
  private:
-  AssetManager() = default;
-
   struct AssetEntry {
     AssetMetadata metadata;
     std::shared_ptr<void> resource;
   };
-
-  static AssetManager instance_;
 
   std::unordered_map<AssetHandle, std::unique_ptr<AssetEntry>> registry_;
   std::unordered_map<std::string, AssetHandle> path_index_;

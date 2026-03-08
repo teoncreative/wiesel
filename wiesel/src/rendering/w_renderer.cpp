@@ -121,7 +121,7 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   CreateCommandPools();
   if (rt_supported_) {
     as_manager_ = CreateReference<AccelerationStructureManager>(
-        Engine::GetRenderer());
+        Engine::renderer());
   }
   CreateDescriptorLayouts();
   CreateSwapChain();
@@ -427,7 +427,7 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
                                      const SamplerProps& sampler_props) {
   Ref<Texture> texture = CreateReference<Texture>(texture_props.type, path);
 
-  VfsFile vfs_file = Engine::GetVirtualFileSystem()->Open(path);
+  VfsFile vfs_file = Engine::vfs()->Open(path);
   stbi_uc* pixels =
       stbi_load_from_memory(vfs_file.Data(), static_cast<int>(vfs_file.Size()),
                             reinterpret_cast<int*>(&texture->width_),
@@ -558,7 +558,7 @@ Ref<Texture> Renderer::CreateCubemapTexture(
   stbi_uc* allPixels;
   for (size_t i = 0; i < 6; ++i) {
     int w, h, channels;
-    VfsFile vfs_face = Engine::GetVirtualFileSystem()->Open(paths[i]);
+    VfsFile vfs_face = Engine::vfs()->Open(paths[i]);
     stbi_uc* pixels = stbi_load_from_memory(vfs_face.Data(),
                                             static_cast<int>(vfs_face.Size()),
                                             &w, &h, &channels, STBI_rgb_alpha);
@@ -636,7 +636,7 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
   Ref<Texture> texture = CreateReference<Texture>(texture_props.type, "");
 
   int w, h, channels;
-  VfsFile vfs_cubemap = Engine::GetVirtualFileSystem()->Open(virtual_path);
+  VfsFile vfs_cubemap = Engine::vfs()->Open(virtual_path);
   stbi_uc* pixels = stbi_load_from_memory(vfs_cubemap.Data(),
                                           static_cast<int>(vfs_cubemap.Size()),
                                           &w, &h, &channels, STBI_rgb_alpha);
@@ -1144,6 +1144,7 @@ Ref<DescriptorSet> Renderer::CreateMeshDescriptors(
   vkUpdateDescriptorSets(logical_device_, static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
+  object->allocated_ = true;
   return object;
 }
 
@@ -1227,6 +1228,7 @@ Ref<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
   vkUpdateDescriptorSets(logical_device_, static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
+  object->allocated_ = true;
   return object;
 }
 
@@ -1409,6 +1411,7 @@ Ref<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
   vkUpdateDescriptorSets(logical_device_, static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
+  object->allocated_ = true;
   return object;
 }
 
@@ -1468,6 +1471,7 @@ Ref<DescriptorSet> Renderer::CreateDescriptors(Ref<AttachmentTexture> texture) {
   vkUpdateDescriptorSets(logical_device_, static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
+  object->allocated_ = true;
   return object;
 }
 
@@ -1520,6 +1524,7 @@ Ref<DescriptorSet> Renderer::CreateSkyboxDescriptors(Ref<Texture> texture) {
   vkUpdateDescriptorSets(logical_device_, static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
+  object->allocated_ = true;
   return object;
 }
 
@@ -1546,12 +1551,20 @@ Colorf& Renderer::GetClearColor() {
   return clear_color_;
 }
 
+void Renderer::WaitForGPU() {
+  if (!initialized_) {
+    return;
+  }
+  vkDeviceWaitIdle(logical_device_);
+  deletion_queue_.FlushAll();
+}
+
 void Renderer::Cleanup() {
   if (!initialized_) {
     return;
   }
 
-  vkDeviceWaitIdle(logical_device_);
+  WaitForGPU();
   LOG_DEBUG("Destroying Renderer");
 
   camera_ = nullptr;
@@ -1560,6 +1573,8 @@ void Renderer::Cleanup() {
 
   CleanupGlobalUniformBuffers();
   blank_texture_ = nullptr;
+  ssao_noise_ = nullptr;
+  pick_entity_id_image_ = nullptr;
 
   if (pick_staging_buffer_ != VK_NULL_HANDLE) {
     vkDestroyBuffer(logical_device_, pick_staging_buffer_, nullptr);
@@ -1575,13 +1590,27 @@ void Renderer::Cleanup() {
   CleanupDescriptorLayouts();
 
   LOG_DEBUG("Destroying semaphores and fences");
-  vkDestroySemaphore(logical_device_, render_finished_semaphore_, nullptr);
-  vkDestroySemaphore(logical_device_, image_available_semaphore_, nullptr);
-  vkDestroyFence(logical_device_, fence_, nullptr);
+  for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
+    vkDestroySemaphore(logical_device_, render_finished_semaphores_[i], nullptr);
+    vkDestroySemaphore(logical_device_, image_available_semaphores_[i], nullptr);
+    vkDestroySemaphore(logical_device_, render_order_semaphores_[i], nullptr);
+    vkDestroyFence(logical_device_, fences_[i], nullptr);
+  }
+
+  LOG_DEBUG("Destroying acceleration structures");
+  as_manager_ = nullptr;
 
   LOG_DEBUG("Destroying command pool");
-  command_buffer_ = nullptr;
+  command_buffers_.clear();
   command_pool_ = nullptr;
+
+  LOG_DEBUG("Destroying Tracy Vulkan context");
+  TracyVkDestroy(tracy_ctx_);
+  tracy_ctx_ = nullptr;
+
+  // Flush any items added to the deletion queue during cleanup
+  // (e.g. descriptors deferred by CameraResourcePool::SetDescriptor).
+  deletion_queue_.FlushAll();
 
   LOG_DEBUG("Destroying device");
   vkDestroyDevice(logical_device_, nullptr);
@@ -2026,6 +2055,7 @@ void Renderer::CreateSwapChain() {
   recreate_swap_chain_ = false;
   swap_chain_created_ = true;
   stats_.swap_chain_images = imageCount;
+  stats_.frames_in_flight = kMaxFramesInFlight;
 
   Ref<AttachmentTexture> texture = CreateReference<AttachmentTexture>();
   texture->format_ = surfaceFormat.format;
@@ -2311,7 +2341,10 @@ void Renderer::CreateCommandPools() {
 }
 
 void Renderer::CreateCommandBuffers() {
-  command_buffer_ = command_pool_->CreateBuffer();
+  command_buffers_.resize(kMaxFramesInFlight);
+  for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
+    command_buffers_[i] = command_pool_->CreateBuffer();
+  }
 }
 
 void Renderer::CreatePermanentResources() {
@@ -2325,9 +2358,9 @@ void Renderer::CreatePermanentResources() {
       {{-1.0f, 1.0f}, {0.0f, 1.0f}},
   };
 
-  quad_index_buffer_ = Engine::GetRenderer()->CreateIndexBuffer(quadIndices);
+  quad_index_buffer_ = Engine::renderer()->CreateIndexBuffer(quadIndices);
 
-  quad_vertex_buffer_ = Engine::GetRenderer()->CreateVertexBuffer(quadVertices);
+  quad_vertex_buffer_ = Engine::renderer()->CreateVertexBuffer(quadVertices);
 
   default_linear_sampler_ = CreateReference<Sampler>(1, SamplerProps{});
   default_nearest_sampler_ = CreateReference<Sampler>(
@@ -2618,7 +2651,7 @@ void Renderer::CreateTracy() {
 
   tracy_ctx_ = TracyVkContextCalibrated(
       physical_device_, logical_device_, graphics_queue_,
-      command_buffer_->handle_,
+      command_buffers_[current_frame_]->handle_,
       vk_get_physical_device_calibrateable_time_domains_ext,
       vk_get_calibrated_timestamps_ext);
 }
@@ -2632,19 +2665,38 @@ void Renderer::CreateSyncObjects() {
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-  WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
-      logical_device_, &semaphoreInfo, nullptr, &image_available_semaphore_));
-  WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
-      logical_device_, &semaphoreInfo, nullptr, &render_finished_semaphore_));
-  WIESEL_CHECK_VKRESULT(
-      vkCreateFence(logical_device_, &fenceInfo, nullptr, &fence_));
+  image_available_semaphores_.resize(kMaxFramesInFlight);
+  render_finished_semaphores_.resize(kMaxFramesInFlight);
+  render_order_semaphores_.resize(kMaxFramesInFlight);
+  fences_.resize(kMaxFramesInFlight);
+
+  for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
+        logical_device_, &semaphoreInfo, nullptr, &image_available_semaphores_[i]));
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
+        logical_device_, &semaphoreInfo, nullptr, &render_finished_semaphores_[i]));
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
+        logical_device_, &semaphoreInfo, nullptr, &render_order_semaphores_[i]));
+    WIESEL_CHECK_VKRESULT(
+        vkCreateFence(logical_device_, &fenceInfo, nullptr, &fences_[i]));
+  }
 }
 
 void Renderer::CleanupDescriptorLayouts() {
   geometry_mesh_descriptor_layout_ = nullptr;
-  present_descriptor_layout_ = nullptr;
+  shadow_mesh_descriptor_layout_ = nullptr;
+  global_descriptor_layout_ = nullptr;
+  global_shadow_descriptor_layout_ = nullptr;
+  ssao_gen_descriptor_layout_ = nullptr;
+  ssao_blur_descriptor_layout_ = nullptr;
+  ssao_output_descriptor_layout_ = nullptr;
+  geometry_output_descriptor_layout_ = nullptr;
+  sprite_draw_descriptor_layout_ = nullptr;
+  skybox_descriptor_layout_ = nullptr;
+  postprocess_2input_descriptor_layout_ = nullptr;
   taa_descriptor_layout_ = nullptr;
   bone_descriptor_layout_ = nullptr;
+  present_descriptor_layout_ = nullptr;
 }
 
 void Renderer::CleanupPresentGraphics() {
@@ -2668,6 +2720,13 @@ void Renderer::CreateGlobalUniformBuffers() {
 void Renderer::CleanupGlobalUniformBuffers() {
   lights_uniform_buffer_ = nullptr;
   camera_uniform_buffer_ = nullptr;
+  shadow_camera_uniform_buffer_ = nullptr;
+  ssao_kernel_uniform_buffer_ = nullptr;
+  identity_bone_ubo_ = nullptr;
+  identity_bone_descriptor_ = nullptr;
+  default_linear_sampler_ = nullptr;
+  default_nearest_sampler_ = nullptr;
+  shadow_sampler_ = nullptr;
 }
 
 void Renderer::RecreateSwapChain() {
@@ -2688,7 +2747,7 @@ void Renderer::RecreateSwapChain() {
 
   // Notify that pipelines were recreated so cameras can recreate their resources
   PipelineRecreatedEvent event{};
-  Engine::GetWindow()->GetEventHandler()(event);
+  Engine::window()->GetEventHandler()(event);
 }
 
 void Renderer::SetViewport(VkExtent2D extent) {
@@ -2700,12 +2759,12 @@ void Renderer::SetViewport(VkExtent2D extent) {
   viewport.height = static_cast<float>(extent.height);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(command_buffer_->handle_, 0, 1, &viewport);
+  vkCmdSetViewport(command_buffers_[current_frame_]->handle_, 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = extent;
-  vkCmdSetScissor(command_buffer_->handle_, 0, 1, &scissor);
+  vkCmdSetScissor(command_buffers_[current_frame_]->handle_, 0, 1, &scissor);
 }
 
 void Renderer::SetViewport(glm::vec2 extent) {
@@ -2717,21 +2776,25 @@ void Renderer::SetViewport(glm::vec2 extent) {
   viewport.height = extent.y;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(command_buffer_->handle_, 0, 1, &viewport);
+  vkCmdSetViewport(command_buffers_[current_frame_]->handle_, 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent.width = extent.x;
   scissor.extent.height = extent.y;
-  vkCmdSetScissor(command_buffer_->handle_, 0, 1, &scissor);
+  vkCmdSetScissor(command_buffers_[current_frame_]->handle_, 0, 1, &scissor);
 }
 
 void Renderer::BeginRender() {
   PROFILE_ZONE_SCOPED();
   stats_.Reset();
-  vkResetFences(logical_device_, 1, &fence_);
-  command_buffer_->Reset();
-  command_buffer_->Begin();
+
+  // Wait for this frame slot's previous work to complete
+  vkWaitForFences(logical_device_, 1, &fences_[current_frame_], VK_TRUE, UINT64_MAX);
+  vkResetFences(logical_device_, 1, &fences_[current_frame_]);
+
+  command_buffers_[current_frame_]->Reset();
+  command_buffers_[current_frame_]->Begin();
 
   // Reloading stuff
   if (recreate_swap_chain_) {
@@ -2746,25 +2809,38 @@ void Renderer::BeginRender() {
     // so features recreate their pipelines with updated options.
     recreate_pipeline_ = false;
     PipelineRecreatedEvent event{};
-    Engine::GetWindow()->GetEventHandler()(event);
+    Engine::window()->GetEventHandler()(event);
   }
 }
 
 bool Renderer::BeginPresent() {
   PROFILE_ZONE_SCOPED();
   VkResult result = vkAcquireNextImageKHR(
-      logical_device_, swap_chain_, UINT64_MAX, image_available_semaphore_,
+      logical_device_, swap_chain_, UINT64_MAX, image_available_semaphores_[current_frame_],
       VK_NULL_HANDLE, &image_index_);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     LOG_INFO(
         "Received VK_ERROR_OUT_OF_DATE_KHR, trying to recreate swap chain.");
     recreate_swap_chain_ = true;
+    // End the command buffer and submit empty work so the fence and
+    // render_finished semaphore get signaled (prevents next frame deadlock).
+    command_buffers_[current_frame_]->End();
+    VkSubmitInfo empty_submit{};
+    empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    empty_submit.commandBufferCount = 1;
+    empty_submit.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
+    VkSemaphore empty_signal[] = {
+        render_finished_semaphores_[current_frame_],
+        render_order_semaphores_[current_frame_]};
+    empty_submit.signalSemaphoreCount = 2;
+    empty_submit.pSignalSemaphores = empty_signal;
+    vkQueueSubmit(graphics_queue_, 1, &empty_submit, fences_[current_frame_]);
+    frame_counter_++;
+    current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
     return false;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
-  // Setup
-  vkResetFences(logical_device_, 1, &fence_);
 
   /*TransitionImageLayout(GeometryColorResolveImage->m_Images[0],
                         GeometryColorResolveImage->m_Format,
@@ -2784,7 +2860,7 @@ bool Renderer::BeginPresent() {
       TransitionImageLayout(final_image->images_[0], final_image->format_,
                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
-                            command_buffer_->handle_, 0, 1);
+                            command_buffers_[current_frame_]->handle_, 0, 1);
     }
   }
 
@@ -2804,7 +2880,7 @@ void Renderer::EndPresent() {
       TransitionImageLayout(final_image->images_[0], final_image->format_,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
-                            command_buffer_->handle_, 0, 1);
+                            command_buffers_[current_frame_]->handle_, 0, 1);
     }
   }
   /*
@@ -2815,27 +2891,40 @@ void Renderer::EndPresent() {
                           m_CommandBuffer->m_Handle);
   }*/
 
-  PROFILE_GPU_COLLECT(tracy_ctx_, command_buffer_->handle_);
-  command_buffer_->End();
+  PROFILE_GPU_COLLECT(tracy_ctx_, command_buffers_[current_frame_]->handle_);
+  command_buffers_[current_frame_]->End();
 
   // Presentation
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &command_buffer_->handle_;
+  submitInfo.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
 
-  VkSemaphore waitSemaphores[] = {image_available_semaphore_};
+  // Wait on image availability AND the previous frame's render order semaphore.
+  // The latter serializes GPU execution across frames so shared intermediate
+  // render targets don't have layout conflicts.
+  uint32_t prev_frame = (current_frame_ + kMaxFramesInFlight - 1) % kMaxFramesInFlight;
+  VkSemaphore waitSemaphores[] = {
+      image_available_semaphores_[current_frame_],
+      render_order_semaphores_[prev_frame]};
   VkPipelineStageFlags waitStages[] = {
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-  submitInfo.waitSemaphoreCount = 1;
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+  // On the very first frame, no previous frame has signaled the order
+  // semaphore yet. Skip the cross-frame wait in that case.
+  uint32_t wait_count = frame_counter_ > 0 ? 2 : 1;
+  submitInfo.waitSemaphoreCount = wait_count;
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
 
-  VkSemaphore signalSemaphores[] = {render_finished_semaphore_};
-  submitInfo.signalSemaphoreCount = 1;
+  // Signal both render_finished (for present) and render_order (for next frame)
+  VkSemaphore signalSemaphores[] = {
+      render_finished_semaphores_[current_frame_],
+      render_order_semaphores_[current_frame_]};
+  submitInfo.signalSemaphoreCount = 2;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo, fence_));
+  WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo, fences_[current_frame_]));
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -2857,19 +2946,18 @@ void Renderer::EndPresent() {
     throw std::runtime_error("failed to present swap chain image!");
   }
 
-  vkWaitForFences(logical_device_, 1, &fence_, VK_TRUE, UINT64_MAX);
+  deletion_queue_.Flush();
+  frame_counter_++;
+  current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
 }
 
 void Renderer::UpdateUniformData() {
   PROFILE_ZONE_SCOPED();
-  // Lights don't change between cameras; memcpy to host-coherent is fine.
-  memcpy(lights_uniform_buffer_->data_, &lights_uniform_data_,
-         sizeof(lights_uniform_data_));
-
-  // Camera and shadow UBOs change per-camera.  Use vkCmdUpdateBuffer so
-  // each camera's render passes read the correct values even when multiple
-  // cameras are rendered in a single command buffer submission.
-  VkCommandBuffer cmd = command_buffer_->handle_;
+  // Use vkCmdUpdateBuffer for all UBOs so writes are recorded in the
+  // command buffer and safe with multiple frames in flight.
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  vkCmdUpdateBuffer(cmd, lights_uniform_buffer_->buffer_handle_, 0,
+                    sizeof(lights_uniform_data_), &lights_uniform_data_);
   vkCmdUpdateBuffer(cmd, camera_uniform_buffer_->buffer_handle_, 0,
                     sizeof(camera_uniform_data_), &camera_uniform_data_);
   vkCmdUpdateBuffer(cmd, shadow_camera_uniform_buffer_->buffer_handle_, 0,
@@ -2952,7 +3040,7 @@ void Renderer::DrawModel(ModelComponent& model,
                          const TransformComponent& transform, bool shadowPass,
                          entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
-  AssetManager& assets = AssetManager::Get();
+  AssetManager& assets = Engine::asset_manager();
   const Ref<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
   if (!ptr) {
     return;
@@ -3002,9 +3090,9 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
   VkBuffer vertexBuffers[] = {mesh->vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
   static_assert(std::size(vertexBuffers) == std::size(offsets));
-  vkCmdBindVertexBuffers(command_buffer_->handle_, 0, std::size(vertexBuffers),
+  vkCmdBindVertexBuffers(command_buffers_[current_frame_]->handle_, 0, std::size(vertexBuffers),
                          vertexBuffers, offsets);
-  vkCmdBindIndexBuffer(command_buffer_->handle_,
+  vkCmdBindIndexBuffer(command_buffers_[current_frame_]->handle_,
                        mesh->index_buffer->buffer_handle_, 0,
                        mesh->index_buffer->index_type_);
 
@@ -3017,12 +3105,12 @@ void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
                              global_desc->descriptor_set_,
                              bone_descriptors->descriptor_set_};
 
-  vkCmdBindDescriptorSets(command_buffer_->handle_,
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                           VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 3, sets,
                           0, nullptr);
 
   uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
-  vkCmdDrawIndexed(command_buffer_->handle_, index_count, 1, 0, 0, 0);
+  vkCmdDrawIndexed(command_buffers_[current_frame_]->handle_, index_count, 1, 0, 0, 0);
   stats_.draw_calls++;
   stats_.meshes++;
   stats_.vertices += static_cast<uint32_t>(mesh->vertices.size());
@@ -3128,21 +3216,21 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
   const SpriteAsset::Frame& frame =
       sprite.asset_handle_->frames_[sprite.current_frame_];
 
-  Ref<MemoryBuffer> vertexBuffer = Engine::GetRenderer()->GetQuadVertexBuffer();
+  Ref<MemoryBuffer> vertexBuffer = Engine::renderer()->GetQuadVertexBuffer();
   VkBuffer buffers[] = {frame.vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
   static_assert(std::size(buffers) == std::size(offsets));
-  vkCmdBindVertexBuffers(command_buffer_->handle_, 0, std::size(buffers),
+  vkCmdBindVertexBuffers(command_buffers_[current_frame_]->handle_, 0, std::size(buffers),
                          buffers, offsets);
 
   VkDescriptorSet sets[] = {frame.descriptor->descriptor_set_,
                             camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
 
   vkCmdBindDescriptorSets(
-      command_buffer_->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      command_buffers_[current_frame_]->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
       bound_pipeline_->layout_, 0, std::size(sets), sets, 0, nullptr);
 
-  vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
 }
 
 void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
@@ -3167,10 +3255,10 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
   memcpy(rect.ubo_->data_, &data, sizeof(CanvasElementUniformData));
 
   VkDescriptorSet sets[] = {rect.descriptor_->descriptor_set_};
-  vkCmdBindDescriptorSets(command_buffer_->handle_,
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                           VK_PIPELINE_BIND_POINT_GRAPHICS,
                           bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-  vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
 }
 
 void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
@@ -3203,10 +3291,10 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
   memcpy(img.ubo_->data_, &data, sizeof(CanvasElementUniformData));
 
   VkDescriptorSet sets[] = {img.descriptor_->descriptor_set_};
-  vkCmdBindDescriptorSets(command_buffer_->handle_,
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                           VK_PIPELINE_BIND_POINT_GRAPHICS,
                           bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-  vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
 }
 
 void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
@@ -3285,10 +3373,10 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
     memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
 
     VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
-    vkCmdBindDescriptorSets(command_buffer_->handle_,
+    vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                             VK_PIPELINE_BIND_POINT_GRAPHICS,
                             bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-    vkCmdDraw(command_buffer_->handle_, 6, 1, 0, 0);
+    vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
 
     glyph_idx++;
     cursor_x += std::round((glyph->advance >> 6) * scale);
@@ -3301,11 +3389,11 @@ void Renderer::DrawSkybox(Ref<Skybox> skybox) {
       camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
 
   vkCmdBindDescriptorSets(
-      command_buffer_->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      command_buffers_[current_frame_]->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
       bound_pipeline_->layout_, 0, 2, sets.data(), 0, nullptr);
 
   // draw cube via gl_VertexIndex (no vertex/index buffer needed)
-  vkCmdDraw(command_buffer_->handle_, 36, 1, 0, 0);
+  vkCmdDraw(command_buffers_[current_frame_]->handle_, 36, 1, 0, 0);
 }
 
 void Renderer::DrawFullscreen(
@@ -3325,12 +3413,12 @@ void Renderer::DrawFullscreen(
     }
     sets.push_back(item->descriptor_set_);
   }
-  vkCmdBindDescriptorSets(command_buffer_->handle_,
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                           VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout_, 0,
                           sets.size(), sets.data(), 0, nullptr);
 
   // Draw the quad.
-  vkCmdDraw(command_buffer_->handle_, 3, 1, 0, 0);
+  vkCmdDraw(command_buffers_[current_frame_]->handle_, 3, 1, 0, 0);
 }
 
 static float Halton(int index, int base) {
