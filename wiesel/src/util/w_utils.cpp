@@ -49,12 +49,12 @@ std::string GetNameFromVulkanResult(VkResult errorCode) {
 }
 
 std::vector<char> ReadVirtualFile(const std::string& virtual_path) {
-  VfsFile file = Engine::GetVirtualFileSystem()->Open(virtual_path);
+  VfsFile file = Engine::vfs()->Open(virtual_path);
   return file.AsChars();
 }
 
 std::vector<uint32_t> ReadVirtualFileUint32(const std::string& virtual_path) {
-  VfsFile file = Engine::GetVirtualFileSystem()->Open(virtual_path);
+  VfsFile file = Engine::vfs()->Open(virtual_path);
   return file.AsUint32();
 }
 

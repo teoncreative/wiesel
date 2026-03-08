@@ -19,7 +19,7 @@ DescriptorSetLayout::DescriptorSetLayout() {
 }
 
 DescriptorSetLayout::~DescriptorSetLayout() {
-  Engine::GetRenderer()->DestroyDescriptorLayout(*this);
+  Engine::renderer()->DestroyDescriptorLayout(*this);
 }
 
 void DescriptorSetLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags flags) {
@@ -53,7 +53,7 @@ void DescriptorSetLayout::Bake() {
       .pBindings = bindings.data()};
 
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorSetLayout(
-      Engine::GetRenderer()->GetLogicalDevice(), &layoutInfo, nullptr, &layout_));
+      Engine::renderer()->GetLogicalDevice(), &layoutInfo, nullptr, &layout_));
   allocated_ = true;
 }
 

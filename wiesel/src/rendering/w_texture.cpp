@@ -25,15 +25,15 @@ Texture::Texture(TextureType texture_type, const std::string& path)
 }
 
 Texture::~Texture() {
-  Engine::GetRenderer()->DestroyTexture(*this);
+  Engine::renderer()->DestroyTexture(*this);
 }
 
 AttachmentTexture::~AttachmentTexture() {
-  Engine::GetRenderer()->DestroyAttachmentTexture(*this);
+  Engine::renderer()->DestroyAttachmentTexture(*this);
 }
 
 ImageView::~ImageView() {
-  vkDestroyImageView(Engine::GetRenderer()->GetLogicalDevice(), handle_, nullptr);
+  vkDestroyImageView(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
 }  // namespace Wiesel

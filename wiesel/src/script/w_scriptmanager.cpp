@@ -60,11 +60,11 @@ bool Internals_Input_GetKey(MonoString* str) {
 }
 
 void Internals_Input_SetCursorMode(uint16_t mode) {
-  Engine::GetWindow()->SetCursorMode((CursorMode)mode);
+  Engine::window()->SetCursorMode((CursorMode)mode);
 }
 
 uint16_t Internals_Input_GetCursorMode() {
-  uint16_t cursorMode = Engine::GetWindow()->GetCursorMode();
+  uint16_t cursorMode = Engine::window()->GetCursorMode();
   return cursorMode;
 }
 
@@ -72,7 +72,7 @@ MonoObject* Internals_Behavior_GetComponent(Scene* scene, entt::entity entity,
                                             MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
   MonoObject* component =
-      ScriptManager::GetComponentByName(scene, entity, cstr);
+      Engine::script_manager().GetComponentByName(scene, entity, cstr);
   mono_free((void*)cstr);
   return component;
 }
@@ -80,7 +80,7 @@ MonoObject* Internals_Behavior_GetComponent(Scene* scene, entt::entity entity,
 bool Internals_Behavior_HasComponent(Scene* scene, entt::entity entity,
                                      MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
-  bool hasComponent = ScriptManager::HasComponentByName(scene, entity, cstr);
+  bool hasComponent = Engine::script_manager().HasComponentByName(scene, entity, cstr);
   mono_free((void*)cstr);
   return hasComponent;
 }
@@ -420,7 +420,7 @@ MonoArray* Internals_Physics_OverlapBox(Scene* scene,
   auto entities = scene->GetPhysicsWorld().OverlapBox(
       glm::vec3(cx, cy, cz), glm::vec3(hx, hy, hz));
 
-  MonoArray* arr = mono_array_new(ScriptManager::app_domain(),
+  MonoArray* arr = mono_array_new(Engine::script_manager().app_domain(),
       mono_get_uint64_class(), entities.size());
   for (size_t i = 0; i < entities.size(); i++) {
     mono_array_set(arr, uint64_t, i, (uint64_t)entities[i]);
@@ -433,7 +433,7 @@ MonoArray* Internals_Physics_OverlapSphere(Scene* scene,
   auto entities = scene->GetPhysicsWorld().OverlapSphere(
       glm::vec3(cx, cy, cz), radius);
 
-  MonoArray* arr = mono_array_new(ScriptManager::app_domain(),
+  MonoArray* arr = mono_array_new(Engine::script_manager().app_domain(),
       mono_get_uint64_class(), entities.size());
   for (size_t i = 0; i < entities.size(); i++) {
     mono_array_set(arr, uint64_t, i, (uint64_t)entities[i]);
@@ -442,14 +442,14 @@ MonoArray* Internals_Physics_OverlapSphere(Scene* scene,
 }
 
 MonoObject* CreateVector3fWithValues(float x, float y, float z) {
-  MonoObject* obj = mono_object_new(ScriptManager::app_domain(),
-                                    ScriptManager::vector3f_class());
+  MonoObject* obj = mono_object_new(Engine::script_manager().app_domain(),
+                                    Engine::script_manager().vector3f_class());
   void* args[3];
   args[0] = &x;
   args[1] = &y;
   args[2] = &z;
   MonoMethod* method = mono_class_get_method_from_name(
-      ScriptManager::vector3f_class(), ".ctor", 3);
+      Engine::script_manager().vector3f_class(), ".ctor", 3);
   mono_runtime_invoke(method, obj, args, nullptr);
   return obj;
 }
@@ -572,7 +572,7 @@ void Internals_CanvasImage_SetUVRectW(Scene* s, entt::entity e, float v) { s->Ge
 
 // --- TextComponent ---
 MonoString* Internals_Text_GetText(Scene* s, entt::entity e) {
-  return mono_string_new(ScriptManager::app_domain(), s->GetComponent<TextComponent>(e).text.c_str());
+  return mono_string_new(Engine::script_manager().app_domain(), s->GetComponent<TextComponent>(e).text.c_str());
 }
 void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
   const char* str = mono_string_to_utf8(v);
@@ -582,7 +582,7 @@ void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
   mono_free((void*)str);
 }
 MonoString* Internals_Text_GetFontPath(Scene* s, entt::entity e) {
-  return mono_string_new(ScriptManager::app_domain(), s->GetComponent<TextComponent>(e).font_path.c_str());
+  return mono_string_new(Engine::script_manager().app_domain(), s->GetComponent<TextComponent>(e).font_path.c_str());
 }
 void Internals_Text_SetFontPath(Scene* s, entt::entity e, MonoString* v) {
   const char* str = mono_string_to_utf8(v);
@@ -648,7 +648,7 @@ void Internals_Animator_Play(Scene* s, entt::entity e, MonoString* stateName, fl
 }
 MonoString* Internals_Animator_GetCurrentState(Scene* s, entt::entity e) {
   auto& anim = s->GetComponent<AnimatorComponent>(e);
-  return mono_string_new(ScriptManager::app_domain(), anim.current_state_name.c_str());
+  return mono_string_new(Engine::script_manager().app_domain(), anim.current_state_name.c_str());
 }
 bool Internals_Animator_GetIsPlaying(Scene* s, entt::entity e) {
   return s->GetComponent<AnimatorComponent>(e).playing;
@@ -660,13 +660,13 @@ void Internals_Animator_SetIsPlaying(Scene* s, entt::entity e, bool value) {
 ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data, MonoBehavior* behavior) {
   behavior_ = behavior;
   script_data_ = data;
-  handle_ = mono_object_new(ScriptManager::app_domain(), data->mono_class());
+  handle_ = mono_object_new(Engine::script_manager().app_domain(), data->mono_class());
   mono_runtime_object_init(handle_);
 
   uint64_t behaviorPtr = (uint64_t)behavior;
   uint64_t scenePtr = (uint64_t)behavior->scene();
   uint64_t entityId = (uint64_t)behavior->handle();
-  MonoClass* baseClass = ScriptManager::behavior_class();
+  MonoClass* baseClass = Engine::script_manager().behavior_class();
   MonoClassField* field =
       mono_class_get_field_from_name(baseClass, "behaviorPtr");
   mono_field_set_value(handle_, field, &behaviorPtr);
@@ -694,7 +694,7 @@ void ScriptInstance::OnUpdate(float_t delta_time) {
     has_started_ = true;
   }
 
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   args[0] = &delta_time;
   mono_runtime_invoke(script_data_->on_update_method(), handle_, args,
@@ -705,7 +705,7 @@ bool ScriptInstance::OnKeyPressed(KeyPressedEvent& event) {
   if (!script_data_->on_key_pressed_method()) {
     return false;
   }
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[2];
   int32_t keyCode = event.GetKeyCode();
   bool repeat = event.IsRepeat();
@@ -721,7 +721,7 @@ bool ScriptInstance::OnKeyReleased(KeyReleasedEvent& event) {
   if (!script_data_->on_key_released_method()) {
     return false;
   }
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   int32_t keyCode = event.GetKeyCode();
   args[0] = &keyCode;
@@ -735,7 +735,7 @@ bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
   if (!script_data_->on_mouse_moved_method()) {
     return false;
   }
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[3];
   float x = event.GetX();
   float y = event.GetY();
@@ -751,7 +751,7 @@ bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
 
 void ScriptInstance::OnTriggerEnter(entt::entity other) {
   if (!script_data_->on_trigger_enter_method()) return;
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
@@ -761,7 +761,7 @@ void ScriptInstance::OnTriggerEnter(entt::entity other) {
 
 void ScriptInstance::OnTriggerStay(entt::entity other) {
   if (!script_data_->on_trigger_stay_method()) return;
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
@@ -771,7 +771,7 @@ void ScriptInstance::OnTriggerStay(entt::entity other) {
 
 void ScriptInstance::OnTriggerExit(entt::entity other) {
   if (!script_data_->on_trigger_exit_method()) return;
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
@@ -781,7 +781,7 @@ void ScriptInstance::OnTriggerExit(entt::entity other) {
 
 void ScriptInstance::OnCollisionEnter(entt::entity other) {
   if (!script_data_->on_collision_enter_method()) return;
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
@@ -791,7 +791,7 @@ void ScriptInstance::OnCollisionEnter(entt::entity other) {
 
 void ScriptInstance::OnCollisionStay(entt::entity other) {
   if (!script_data_->on_collision_stay_method()) return;
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
@@ -801,7 +801,7 @@ void ScriptInstance::OnCollisionStay(entt::entity other) {
 
 void ScriptInstance::OnCollisionExit(entt::entity other) {
   if (!script_data_->on_collision_exit_method()) return;
-  mono_domain_set(ScriptManager::app_domain(), true);
+  mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
@@ -817,7 +817,7 @@ void ScriptInstance::AttachExternComponent(std::string variable,
                                            entt::entity entity) {
   Scene* scene = behavior_->scene();
   attached_variables_.insert(std::pair(variable, [scene, entity]() {
-    return ScriptManager::GetComponent<T>(scene, entity);
+    return Engine::script_manager().GetComponent<T>(scene, entity);
   }));
 
   if (has_started_) {
@@ -840,37 +840,7 @@ void ScriptInstance::UpdateAttachments() {
   }
 }
 
-MonoDomain* ScriptManager::root_domain_ = nullptr;
-MonoAssembly* ScriptManager::core_assembly_ = nullptr;
-MonoImage* ScriptManager::core_assembly_image_ = nullptr;
-MonoDomain* ScriptManager::app_domain_ = nullptr;
-MonoAssembly* ScriptManager::app_assembly_ = nullptr;
-MonoImage* ScriptManager::app_assembly_image_ = nullptr;
-MonoClass* ScriptManager::behavior_class_ = nullptr;
-MonoClass* ScriptManager::transform_component_class_ = nullptr;
-MonoClass* ScriptManager::model_component_class_ = nullptr;
-MonoClass* ScriptManager::box_collider_class_ = nullptr;
-MonoClass* ScriptManager::sphere_collider_class_ = nullptr;
-MonoClass* ScriptManager::rigidbody_class_ = nullptr;
-MonoClass* ScriptManager::rect_transform_class_ = nullptr;
-MonoClass* ScriptManager::canvas_component_class_ = nullptr;
-MonoClass* ScriptManager::canvas_rect_class_ = nullptr;
-MonoClass* ScriptManager::canvas_image_class_ = nullptr;
-MonoClass* ScriptManager::text_component_class_ = nullptr;
-MonoClass* ScriptManager::animator_component_class_ = nullptr;
-MonoClass* ScriptManager::vector3f_class_ = nullptr;
-MonoClass* ScriptManager::entity_class_ = nullptr;
-MonoMethod* ScriptManager::set_handle_method_ = nullptr;
-
-std::map<std::string, ScriptManager::ComponentGetter>
-    ScriptManager::component_getters_;
-std::map<std::type_index, ScriptManager::ComponentGetter>
-    ScriptManager::component_getters_by_type_;
-std::map<std::string, ScriptManager::ComponentChecker>
-    ScriptManager::component_checkers_;
-std::map<std::string, std::shared_ptr<ScriptData>> ScriptManager::script_data_;
-std::vector<std::string> ScriptManager::script_names_;
-bool ScriptManager::enable_debugger_;
+ScriptManager::~ScriptManager() { Destroy(); }
 
 MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
                                               const std::string& name) {
@@ -934,7 +904,7 @@ void ScriptManager::Reload() {
   LOG_INFO("Reloading scripts...");
 
   // Unregister old script assets before re-registering
-  AssetManager& mgr = AssetManager::Get();
+  AssetManager& mgr = Engine::asset_manager();
   for (AssetHandle handle : mgr.GetAllOfType(AssetType::Script)) {
     mgr.Unregister(handle);
   }
@@ -957,10 +927,10 @@ void ScriptManager::Reload() {
 void ScriptManager::LoadCore() {
   std::string dll_path = "obj/Core.dll";
 
-  if (Engine::GetEngineProperties().dev_mode) {
+  if (Engine::properties().dev_mode) {
     LOG_INFO("Compiling core scripts...");
     std::vector<std::string> sourceFiles;
-    std::optional<std::filesystem::path> physical = Engine::GetVirtualFileSystem()->GetPhysicalPath("/engine/internal_scripts");
+    std::optional<std::filesystem::path> physical = Engine::vfs()->GetPhysicalPath("/engine/internal_scripts");
     assert(physical.has_value());
     for (const auto& entry : std::filesystem::recursive_directory_iterator(*physical)) {
       if (entry.is_regular_file() && entry.path().extension() == ".cs") {
@@ -971,7 +941,7 @@ void ScriptManager::LoadCore() {
         std::filesystem::path rel = std::filesystem::relative(entry.path(), *physical);
         std::string vfs_path = "/engine/internal_scripts/" + rel.generic_string();
         std::string script_name = entry.path().stem().string();
-        AssetManager::Get().Register(script_name, AssetType::Script, vfs_path);
+        Engine::asset_manager().Register(script_name, AssetType::Script, vfs_path);
       }
     }
     CompileToDLL(dll_path, sourceFiles, "", {}, enable_debugger_);
@@ -1022,9 +992,9 @@ void ScriptManager::LoadCore() {
 void ScriptManager::LoadApp() {
   std::string dll_path = "obj/App.dll";
 
-  if (Engine::GetEngineProperties().dev_mode) {
+  if (Engine::properties().dev_mode) {
     // Dev mode: compile from source
-    std::optional<std::filesystem::path> physical = Engine::GetVirtualFileSystem()->GetPhysicalPath("/app/scripts");
+    std::optional<std::filesystem::path> physical = Engine::vfs()->GetPhysicalPath("/app/scripts");
     if (!physical.has_value() || !std::filesystem::exists(*physical)) {
       LOG_WARN("No app scripts directory found, skipping app script loading");
       return;
@@ -1039,7 +1009,7 @@ void ScriptManager::LoadApp() {
         std::filesystem::path rel = std::filesystem::relative(entry.path(), *physical);
         std::string vfs_path = "/app/scripts/" + rel.generic_string();
         std::string script_name = entry.path().stem().string();
-        AssetManager::Get().Register(script_name, AssetType::Script, vfs_path);
+        Engine::asset_manager().Register(script_name, AssetType::Script, vfs_path);
       }
     }
     std::vector<std::string> link_libs;
@@ -1164,7 +1134,7 @@ uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
 
   // Try VFS path first, then filesystem
   std::filesystem::path fs_path;
-  auto physical = Engine::GetVirtualFileSystem()->GetPhysicalPath(cstr);
+  auto physical = Engine::vfs()->GetPhysicalPath(cstr);
   if (physical.has_value()) {
     fs_path = *physical;
   } else {
@@ -1193,7 +1163,7 @@ void Internals_Console_RegisterCommand(MonoString* name, MonoString* description
 
   uint32_t gc_handle = mono_gchandle_new(callback, true);
 
-  Engine::GetConsole().Register(name_str, desc_str, [gc_handle](const std::vector<std::string>& args) {
+  Engine::console().Register(name_str, desc_str, [gc_handle](const std::vector<std::string>& args) {
     MonoObject* delegate = mono_gchandle_get_target(gc_handle);
     if (!delegate) return;
 
@@ -1212,7 +1182,7 @@ void Internals_Console_RegisterCommand(MonoString* name, MonoString* description
       MonoString* exc_str = mono_object_to_string(exception, nullptr);
       if (exc_str) {
         const char* exc_cstr = mono_string_to_utf8(exc_str);
-        Engine::GetConsole().LogError(exc_cstr);
+        Engine::console().LogError(exc_cstr);
         mono_free((void*)exc_cstr);
       }
     }
@@ -1221,31 +1191,31 @@ void Internals_Console_RegisterCommand(MonoString* name, MonoString* description
 
 void Internals_Console_UnregisterCommand(MonoString* name) {
   const char* cstr = mono_string_to_utf8(name);
-  Engine::GetConsole().Unregister(cstr);
+  Engine::console().Unregister(cstr);
   mono_free((void*)cstr);
 }
 
 void Internals_Console_Execute(MonoString* command_line) {
   const char* cstr = mono_string_to_utf8(command_line);
-  Engine::GetConsole().Execute(cstr);
+  Engine::console().Execute(cstr);
   mono_free((void*)cstr);
 }
 
 void Internals_Console_LogInfo(MonoString* message) {
   const char* cstr = mono_string_to_utf8(message);
-  Engine::GetConsole().LogInfo(cstr);
+  Engine::console().LogInfo(cstr);
   mono_free((void*)cstr);
 }
 
 void Internals_Console_LogWarning(MonoString* message) {
   const char* cstr = mono_string_to_utf8(message);
-  Engine::GetConsole().LogWarning(cstr);
+  Engine::console().LogWarning(cstr);
   mono_free((void*)cstr);
 }
 
 void Internals_Console_LogError(MonoString* message) {
   const char* cstr = mono_string_to_utf8(message);
-  Engine::GetConsole().LogError(cstr);
+  Engine::console().LogError(cstr);
   mono_free((void*)cstr);
 }
 
@@ -1452,8 +1422,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<TransformComponent>(
       "TransformComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
-        // todo add macro for this
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj =
             mono_object_new(app_domain_, transform_component_class_);
         void* args[2];
@@ -1473,7 +1442,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<ModelComponent>(
       "ModelComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj =
             mono_object_new(app_domain_, model_component_class_);
         void* args[2];
@@ -1493,7 +1462,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<BoxColliderComponent>(
       "BoxColliderComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj =
             mono_object_new(app_domain_, box_collider_class_);
         void* args[2];
@@ -1513,7 +1482,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<SphereColliderComponent>(
       "SphereColliderComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj =
             mono_object_new(app_domain_, sphere_collider_class_);
         void* args[2];
@@ -1533,7 +1502,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<RigidBodyComponent>(
       "RigidBodyComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj =
             mono_object_new(app_domain_, rigidbody_class_);
         void* args[2];
@@ -1553,7 +1522,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<RectangleTransformComponent>(
       "RectTransformComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj = mono_object_new(app_domain_, rect_transform_class_);
         void* args[2];
         uint64_t scenePtr = (uint64_t)scene;
@@ -1571,7 +1540,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<CanvasComponent>(
       "CanvasComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj = mono_object_new(app_domain_, canvas_component_class_);
         void* args[2];
         uint64_t scenePtr = (uint64_t)scene;
@@ -1589,7 +1558,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<CanvasRectComponent>(
       "CanvasRectComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj = mono_object_new(app_domain_, canvas_rect_class_);
         void* args[2];
         uint64_t scenePtr = (uint64_t)scene;
@@ -1607,7 +1576,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<CanvasImageComponent>(
       "CanvasImageComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj = mono_object_new(app_domain_, canvas_image_class_);
         void* args[2];
         uint64_t scenePtr = (uint64_t)scene;
@@ -1625,7 +1594,7 @@ void ScriptManager::RegisterComponents() {
 
   RegisterComponent<TextComponent>(
       "TextComponent",
-      [](Scene* scene, entt::entity entity) -> MonoObject* {
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
         MonoObject* obj = mono_object_new(app_domain_, text_component_class_);
         void* args[2];
         uint64_t scenePtr = (uint64_t)scene;
@@ -1644,7 +1613,7 @@ void ScriptManager::RegisterComponents() {
   if (animator_component_class_) {
     RegisterComponent<AnimatorComponent>(
         "AnimatorComponent",
-        [](Scene* scene, entt::entity entity) -> MonoObject* {
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
           MonoObject* obj =
               mono_object_new(app_domain_, animator_component_class_);
           void* args[2];

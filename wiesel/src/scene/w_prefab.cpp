@@ -70,7 +70,7 @@ static nlohmann::json SerializeSingleEntity(Entity entity) {
     nlohmann::json model;
     if (m.model_handle.IsValid()) {
       model["asset_handle"] = m.model_handle.ToString();
-      const auto* meta = AssetManager::Get().GetMetadata(m.model_handle);
+      const auto* meta = Engine::asset_manager().GetMetadata(m.model_handle);
       if (meta) {
         model["asset_name"] = meta->name;
         model["asset_path"] = meta->virtual_source_path;
@@ -196,7 +196,7 @@ static Entity DeserializeSingleEntity(Ref<Scene> scene,
     c.viewport_size = DeserializeVec2(
         cj.value("viewport_size", nlohmann::json::array()), {1920, 1080});
     c.enabled = cj.value("enabled", true);
-    Engine::GetRenderer()->SetupCameraComponent(c);
+    Engine::renderer()->SetupCameraComponent(c);
   }
 
   // Model
@@ -208,8 +208,8 @@ static Entity DeserializeSingleEntity(Ref<Scene> scene,
     std::string asset_path = mj.value("asset_path", "");
     if (!handle_str.empty()) {
       AssetHandle handle = AssetHandle::FromString(handle_str);
-      if (!AssetManager::Get().HasAsset(handle) && !asset_path.empty()) {
-        AssetManager::Get().Register(handle, asset_name, AssetType::Model,
+      if (!Engine::asset_manager().HasAsset(handle) && !asset_path.empty()) {
+        Engine::asset_manager().Register(handle, asset_name, AssetType::Model,
                                      asset_path);
       }
       m.model_handle = handle;

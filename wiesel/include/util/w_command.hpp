@@ -67,27 +67,27 @@ class DeveloperConsole {
   bool visible_ = false;
 };
 
-// These macros require w_engine.hpp to be included (for Engine::GetConsole()).
+// These macros require w_engine.hpp to be included (for Engine::console()).
 // They are defined here so w_command.hpp is the single header for console functionality.
 // The actual Engine class is forward-referenced; the macros expand at call site
 // where w_engine.hpp is already included.
 #ifdef _MSC_VER
 
 #define DCON_LOG_INFO(msg, ...) \
-  ::Wiesel::Engine::GetConsole().LogInfo(std::format(msg, __VA_ARGS__))
+  ::Wiesel::Engine::console().LogInfo(std::format(msg, __VA_ARGS__))
 #define DCON_LOG_WARN(msg, ...) \
-  ::Wiesel::Engine::GetConsole().LogWarning(std::format(msg, __VA_ARGS__))
+  ::Wiesel::Engine::console().LogWarning(std::format(msg, __VA_ARGS__))
 #define DCON_LOG_ERROR(msg, ...) \
-  ::Wiesel::Engine::GetConsole().LogError(std::format(msg, __VA_ARGS__))
+  ::Wiesel::Engine::console().LogError(std::format(msg, __VA_ARGS__))
 
 #else
 
 #define DCON_LOG_INFO(msg, args...) \
-  ::Wiesel::Engine::GetConsole().LogInfo(std::format(msg, ##args))
+  ::Wiesel::Engine::console().LogInfo(std::format(msg, ##args))
 #define DCON_LOG_WARN(msg, args...) \
-  ::Wiesel::Engine::GetConsole().LogWarning(std::format(msg, ##args))
+  ::Wiesel::Engine::console().LogWarning(std::format(msg, ##args))
 #define DCON_LOG_ERROR(msg, args...) \
-  ::Wiesel::Engine::GetConsole().LogError(std::format(msg, ##args))
+  ::Wiesel::Engine::console().LogError(std::format(msg, ##args))
 
 #endif
 

@@ -37,8 +37,8 @@ RenderPass::RenderPass(PassType pass_type, const std::string& debug_name) : pass
 }
 
 RenderPass::~RenderPass() {
-  vkDestroyRenderPass(Engine::GetRenderer()->logical_device_, render_pass_, nullptr);
-  //Engine::GetRenderer()->DestroyRenderPass(*this);
+  vkDestroyRenderPass(Engine::renderer()->logical_device_, render_pass_, nullptr);
+  //Engine::renderer()->DestroyRenderPass(*this);
 }
 
 void RenderPass::AttachOutput(Ref<AttachmentTexture> attachment) {
@@ -228,12 +228,12 @@ void RenderPass::Bake() {
   renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
   renderPassInfo.pDependencies = dependencies.data();
 
-  if (vkCreateRenderPass(Engine::GetRenderer()->logical_device_, &renderPassInfo, nullptr,
+  if (vkCreateRenderPass(Engine::renderer()->logical_device_, &renderPassInfo, nullptr,
                          &render_pass_) != VK_SUCCESS) {
     throw std::runtime_error("failed to create render pass!");
   }
 
-  Engine::GetRenderer()->SetObjectName(VK_OBJECT_TYPE_RENDER_PASS,
+  Engine::renderer()->SetObjectName(VK_OBJECT_TYPE_RENDER_PASS,
                                        reinterpret_cast<uint64_t>(render_pass_),
                                        debug_name.c_str());
 }
@@ -262,12 +262,12 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) 
   }
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
-  vkCmdBeginRenderPass(Engine::GetRenderer()->GetCommandBuffer().handle_, &renderPassInfo,
+  vkCmdBeginRenderPass(Engine::renderer()->GetCommandBuffer().handle_, &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void RenderPass::End() {
-  vkCmdEndRenderPass(Engine::GetRenderer()->GetCommandBuffer().handle_);
+  vkCmdEndRenderPass(Engine::renderer()->GetCommandBuffer().handle_);
 }
 
 // Change these to take span of Ref<ImageView> instead.

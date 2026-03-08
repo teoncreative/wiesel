@@ -42,14 +42,14 @@ using namespace Wiesel::Editor;
 namespace LeapLand {
 
 GameLayer::GameLayer(GameApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
-  renderer_ = Engine::GetRenderer();
+  renderer_ = Engine::renderer();
 }
 
 GameLayer::~GameLayer() = default;
 
 void GameLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
-  auto& assets = AssetManager::Get();
+  auto& assets = Engine::asset_manager();
 
   Entity camera_entity = scene_->CreateEntity("Camera");
   {
@@ -58,7 +58,7 @@ void GameLayer::OnAttach() {
     camera.viewport_size = {2560, 1440};
     camera.far_plane = 1000.0f;
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
-    Engine::GetRenderer()->SetupCameraComponent(camera);
+    Engine::renderer()->SetupCameraComponent(camera);
   }
   {
     Entity entity = scene_->CreateEntity("City");
@@ -96,13 +96,13 @@ void GameLayer::OnAttach() {
     auto& transform = entity.GetComponent<TransformComponent>();
     auto& sprite = entity.AddComponent<SpriteComponent>();
     SpriteBuilder builder{"/app/textures/speedometer_320.png", {320, 298}};
-    builder.SetSampler(Engine::GetRenderer()->GetDefaultLinearSampler());
+    builder.SetSampler(Engine::renderer()->GetDefaultLinearSampler());
     builder.AddFrame(0, {0,0}, {320, 298});
     sprite.asset_handle_ = builder.Build();
     assets.Register("Speedometer Sprite", AssetType::Sprite, "/app/textures/speedometer_320.png");
   }
   {
-    auto skybox_texture = Engine::GetRenderer()->CreateCubemapTexture({
+    auto skybox_texture = Engine::renderer()->CreateCubemapTexture({
         "/app/textures/skymap/right.jpg",
         "/app/textures/skymap/left.jpg",
         "/app/textures/skymap/top.jpg",
@@ -172,6 +172,6 @@ GameApplication::~GameApplication() {
 
 // Called from entrypoint
 Application* Wiesel::CreateApp() {
-  bool enable_editor = Engine::GetEngineProperties().editor_enabled;
+  bool enable_editor = Engine::properties().editor_enabled;
   return new LeapLand::GameApplication(enable_editor);
 }

@@ -35,14 +35,14 @@ using namespace Wiesel::Editor;
 namespace LeapLand {
 
 GameLayer::GameLayer(GameApplication& app, std::shared_ptr<Scene> scene) : app_(app), scene_(scene), Layer("Demo Layer") {
-  renderer_ = Engine::GetRenderer();
+  renderer_ = Engine::renderer();
 }
 
 GameLayer::~GameLayer() = default;
 
 void GameLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
-  auto& assets = AssetManager::Get();
+  auto& assets = Engine::asset_manager();
 
   {
     Entity entity = scene_->CreateEntity("Sponza");
@@ -119,12 +119,12 @@ void GameLayer::OnAttach() {
     camera.viewport_size = {2560, 1440};
     auto& transform = entity.GetComponent<TransformComponent>();
     transform.position = glm::vec3(0.0f, 1.0f, 0.0f);
-    Engine::GetRenderer()->SetupCameraComponent(camera);
+    Engine::renderer()->SetupCameraComponent(camera);
     auto& behaviors = entity.AddComponent<BehaviorsComponent>();
     behaviors.AddBehavior<MonoBehavior>(entity, "CameraScript");
   }
   {
-    auto skyboxTexture = Engine::GetRenderer()->CreateCubemapTextureFromSingle("/app/textures/cubemap/Cubemap_Sky_03-512x512.png", {}, {});
+    auto skyboxTexture = Engine::renderer()->CreateCubemapTextureFromSingle("/app/textures/cubemap/Cubemap_Sky_03-512x512.png", {}, {});
     assets.RegisterAndStore<Texture>("Skybox Cubemap", AssetType::Skybox,
                                      "/app/textures/skymap/", skyboxTexture);
     scene_->SetSkybox(CreateReference<Skybox>(skyboxTexture));
@@ -162,7 +162,7 @@ bool GameLayer::OnKeyPress(KeyPressedEvent& event) {
     return true;
   }
   if (event.GetKeyCode() == KeyGraveAccent && !event.IsRepeat()) {
-    auto& console = Engine::GetConsole();
+    auto& console = Engine::console();
     console.Toggle();
     return true;
   }
@@ -219,6 +219,6 @@ GameApplication::~GameApplication() {
 
 // Called from entrypoint
 Application* Wiesel::CreateApp() {
-  bool enable_editor = Engine::GetEngineProperties().editor_enabled;
+  bool enable_editor = Engine::properties().editor_enabled;
   return new LeapLand::GameApplication(enable_editor);
 }

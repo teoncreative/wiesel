@@ -18,6 +18,7 @@ void SceneLayer::OnAttach() {
 }
 
 void SceneLayer::OnDetach() {
+  scene_->Cleanup();
 }
 
 void SceneLayer::OnUpdate(float_t delta_time) {
@@ -32,7 +33,7 @@ void SceneLayer::OnBeginPresent() {
 }
 
 void SceneLayer::OnPresent() {
-  std::shared_ptr<Renderer> renderer = Engine::GetRenderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
   renderer->DrawFullscreen(renderer->GetPresentPipeline(),
                                 {renderer->GetFinalOutputDescriptor()});
 }

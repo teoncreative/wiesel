@@ -18,6 +18,7 @@
 #include <stb_image.h>
 
 #include "rendering/w_buffer.hpp"
+#include "rendering/w_deletion_queue.hpp"
 #include "rendering/w_camera.hpp"
 #include "rendering/w_command.hpp"
 #include "rendering/w_descriptor.hpp"
@@ -135,7 +136,7 @@ struct RenderStats {
   uint32_t models = 0;
   float frame_time_ms = 0.0f;
   uint32_t swap_chain_images = 0;
-  uint32_t frames_in_flight = 1;
+  uint32_t frames_in_flight = 0;
 
   void Reset() {
     draw_calls = 0;
@@ -238,7 +239,7 @@ class Renderer {
   }
 
   WIESEL_GETTER_FN const CommandBuffer& GetCommandBuffer() const {
-    return *command_buffer_;
+    return *command_buffers_[current_frame_];
   }
 
   WIESEL_GETTER_FN const VkFormat GetSwapChainImageFormat() const {
@@ -387,6 +388,8 @@ class Renderer {
 
   const RenderStats& GetStats() const { return stats_; }
 
+  DeletionQueue& GetDeletionQueue() { return deletion_queue_; }
+
   void BeginRender();
   void UpdateUniformData();
 
@@ -396,6 +399,11 @@ class Renderer {
   void SetCameraData(Ref<CameraData> camera);
 
   void RecreateSwapChain();
+
+  // Wait for all GPU work to finish and flush the deletion queue.
+  // Call before destroying resources that may still be in flight.
+  void WaitForGPU();
+
   void Cleanup();
 
   void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -542,12 +550,17 @@ class Renderer {
 
   VkExtent2D extent_{};
 
-  Ref<CommandPool> command_pool_;
-  Ref<CommandBuffer> command_buffer_;
+  static constexpr uint32_t kMaxFramesInFlight = 2;
+  uint32_t current_frame_ = 0;
+  uint64_t frame_counter_ = 0;
 
-  VkSemaphore image_available_semaphore_;
-  VkSemaphore render_finished_semaphore_;
-  VkFence fence_;
+  Ref<CommandPool> command_pool_;
+  std::vector<Ref<CommandBuffer>> command_buffers_;
+
+  std::vector<VkSemaphore> image_available_semaphores_;
+  std::vector<VkSemaphore> render_finished_semaphores_;
+  std::vector<VkSemaphore> render_order_semaphores_;  // Cross-frame GPU serialization
+  std::vector<VkFence> fences_;
 
   float_t aspect_ratio_;
   WindowSize window_size_;
@@ -627,6 +640,8 @@ class Renderer {
   PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ = nullptr;
   PFN_vkCreateDebugUtilsMessengerEXT pfn_create_debug_utils_messenger_ext_ = nullptr;
   PFN_vkDestroyDebugUtilsMessengerEXT pfn_destroy_debug_utils_messenger_ext_ = nullptr;
+
+  DeletionQueue deletion_queue_;
 
   // Ray tracing support
   Ref<AccelerationStructureManager> as_manager_;

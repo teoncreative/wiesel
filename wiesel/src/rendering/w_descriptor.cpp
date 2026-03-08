@@ -26,14 +26,14 @@ DescriptorSet::~DescriptorSet() {
   if (!allocated_) {
     return;
   }
-  vkDestroyDescriptorPool(Engine::GetRenderer()->GetLogicalDevice(), descriptor_pool_,
+  vkDestroyDescriptorPool(Engine::renderer()->GetLogicalDevice(), descriptor_pool_,
                           nullptr);
 }
 
 void DescriptorSet::Bake() {
   if (allocated_) {
     // Destroying the pool is enough to destroy all descriptor set objects.
-    vkDestroyDescriptorPool(Engine::GetRenderer()->GetLogicalDevice(), descriptor_pool_,
+    vkDestroyDescriptorPool(Engine::renderer()->GetLogicalDevice(), descriptor_pool_,
                             nullptr);
     allocated_ = false;
   }
@@ -73,7 +73,7 @@ void DescriptorSet::Bake() {
 
   // Allocate pool
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
-      Engine::GetRenderer()->GetLogicalDevice(), &poolInfo, nullptr, &descriptor_pool_));
+      Engine::renderer()->GetLogicalDevice(), &poolInfo, nullptr, &descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
       1, layout_->layout_};
@@ -82,7 +82,7 @@ void DescriptorSet::Bake() {
   allocInfo.descriptorPool = descriptor_pool_;
   allocInfo.descriptorSetCount = layouts.size();
   allocInfo.pSetLayouts = layouts.data();
-  WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(Engine::GetRenderer()->GetLogicalDevice(), &allocInfo,
+  WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(Engine::renderer()->GetLogicalDevice(), &allocInfo,
                                                  &descriptor_set_));
 
   size_t total_writes = combined_image_samplers_.size() + uniform_buffer_data_.size()
@@ -191,7 +191,7 @@ void DescriptorSet::Bake() {
     writes.emplace_back(set);
   }
 
-  vkUpdateDescriptorSets(Engine::GetRenderer()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()),
+  vkUpdateDescriptorSets(Engine::renderer()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()),
                          writes.data(), 0, nullptr);
 
   allocated_ = true;

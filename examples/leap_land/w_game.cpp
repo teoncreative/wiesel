@@ -46,7 +46,7 @@ static Entity CreateModel(Ref<Scene>& scene, const std::string& name,
                            glm::vec3 pos, Ref<Texture> palette = nullptr,
                            glm::vec3 scale = {1, 1, 1},
                            glm::vec3 rot = {0, 0, 0}) {
-  auto& assets = AssetManager::Get();
+  auto& assets = Engine::asset_manager();
   Entity entity = scene->CreateEntity(name);
   auto& transform = entity.GetComponent<TransformComponent>();
   transform.position = pos;
@@ -64,21 +64,21 @@ static Entity CreateModel(Ref<Scene>& scene, const std::string& name,
 
 GameLayer::GameLayer(GameApplication& app, std::shared_ptr<Scene> scene)
     : app_(app), scene_(scene), Layer("Game Layer") {
-  renderer_ = Engine::GetRenderer();
+  renderer_ = Engine::renderer();
 }
 
 GameLayer::~GameLayer() = default;
 
 void GameLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
-  auto& assets = AssetManager::Get();
+  auto& assets = Engine::asset_manager();
 
   // Load palette texture shared by all leap land models
   // Use nearest-neighbor sampling since this is a small color palette
   SamplerProps palette_sampler;
   palette_sampler.MagFilter = VK_FILTER_NEAREST;
   palette_sampler.MinFilter = VK_FILTER_NEAREST;
-  auto palette = Engine::GetRenderer()->CreateTexture(
+  auto palette = Engine::renderer()->CreateTexture(
       "/app/textures/palette.png", {TextureTypeDiffuse}, palette_sampler);
 
   // Platforms (with box colliders for ground detection)
@@ -189,7 +189,7 @@ void GameLayer::OnAttach() {
     auto& camera = camera_entity.AddComponent<CameraComponent>();
     camera.viewport_size = {2560, 1440};
     camera.far_plane = 500.0f;
-    Engine::GetRenderer()->SetupCameraComponent(camera);
+    Engine::renderer()->SetupCameraComponent(camera);
     auto& behaviors = camera_entity.AddComponent<BehaviorsComponent>();
     MonoBehavior& mono_behavior = behaviors.AddBehavior<MonoBehavior>(camera_entity, "CameraFollow");
     mono_behavior.AttachExternComponent<TransformComponent>("PlayerTransform", player_entity);
@@ -208,7 +208,7 @@ void GameLayer::OnAttach() {
   }
 
   {
-    auto skybox_texture = Engine::GetRenderer()->CreateCubemapTexture({
+    auto skybox_texture = Engine::renderer()->CreateCubemapTexture({
         "/app/textures/skybox/px.png",
         "/app/textures/skybox/nx.png",
         "/app/textures/skybox/py.png",
@@ -733,6 +733,6 @@ void GameApplication::Init() {
 
 // Called from entrypoint
 Application* Wiesel::CreateApp() {
-  bool enable_editor = Engine::GetEngineProperties().editor_enabled;
+  bool enable_editor = Engine::properties().editor_enabled;
   return new LeapLand::GameApplication(enable_editor);
 }

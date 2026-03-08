@@ -132,6 +132,10 @@ class Scene {
   void BuildRenderGraph(entt::entity camera_entity);
   void InvalidateRenderGraphs();
 
+  // Release all GPU resources (render graphs, camera resource pools, pipelines).
+  // Must be called before vkDestroyDevice.
+  void Cleanup();
+
   Ref<RenderGraph> GetRenderGraph(entt::entity camera_entity) const {
     auto it = render_graphs_.find(camera_entity);
     return it != render_graphs_.end() ? it->second : nullptr;

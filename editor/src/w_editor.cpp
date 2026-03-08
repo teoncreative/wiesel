@@ -93,7 +93,7 @@ void EditorLayer::OnAttach() {
   editor_camera_.viewport_size = {1920, 1080};
   editor_camera_.far_plane = 500.0f;
   editor_camera_.field_of_view = 60.0f;
-  Engine::GetRenderer()->SetupCameraComponent(editor_camera_);
+  Engine::renderer()->SetupCameraComponent(editor_camera_);
   scene_->SetRenderResolution(kResolutionPresets[resolution_preset_index_].size);
 
   // Register this scene as the active scene for SceneManager
@@ -101,7 +101,7 @@ void EditorLayer::OnAttach() {
 
   // Auto-load project if --project was passed on command line
   {
-    const auto& project_path = Engine::GetEngineProperties().project_path;
+    const auto& project_path = Engine::properties().project_path;
     if (!project_path.empty()) {
       namespace fs = std::filesystem;
       fs::path pp(project_path);
@@ -120,7 +120,7 @@ void EditorLayer::OnAttach() {
           project_ = std::move(proj);
           Project::SetActive(project_.get());
 
-          auto* vfs = Engine::GetVirtualFileSystem().get();
+          auto* vfs = Engine::vfs().get();
           if (fs::exists(project_->GetAssetsDirectory())) {
             vfs->Unmount("/app");
             vfs->Mount("/app", project_->GetAssetsDirectory().string());
@@ -147,9 +147,9 @@ void EditorLayer::OnAttach() {
   }
 
   // Start watching app scripts directory for hot reload
-  if (Engine::GetEngineProperties().dev_mode) {
+  if (Engine::properties().dev_mode) {
     std::optional<std::filesystem::path> scripts_dir =
-        Engine::GetVirtualFileSystem()->GetPhysicalPath("/app/scripts");
+        Engine::vfs()->GetPhysicalPath("/app/scripts");
     if (scripts_dir.has_value() && std::filesystem::exists(*scripts_dir)) {
       script_watcher_.Watch(*scripts_dir, true);
       LOG_INFO("Watching scripts directory: {}", scripts_dir->string());
@@ -160,6 +160,9 @@ void EditorLayer::OnAttach() {
 void EditorLayer::OnDetach() {
   LOG_DEBUG("OnDetach");
   CleanupThumbnailCache();
+  editor_camera_.resource_pool.Clear();
+  editor_camera_.render_pipeline = nullptr;
+  scene_->Cleanup();
 }
 
 void EditorLayer::OnUpdate(float_t delta_time) {
@@ -193,7 +196,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
       if (script_watcher_.Poll()) {
         LOG_INFO("Script changes detected, reloading...");
         CleanupThumbnailCache();
-        ScriptManager::Reload();
+        Engine::script_manager().Reload();
       }
     }
   }
@@ -242,7 +245,7 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
   }
 
   ThumbnailEntry entry;
-  AssetManager& mgr = AssetManager::Get();
+  AssetManager& mgr = Engine::asset_manager();
 
   if (meta.type == AssetType::Texture || meta.type == AssetType::Skybox) {
     Ref<Texture> texture = mgr.Get<Texture>(handle);
@@ -323,7 +326,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
   if (ImGui::BeginDragDropTarget()) {
     if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
       AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-      const AssetMetadata* meta = AssetManager::Get().GetMetadata(dropped);
+      const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
       if (meta) {
         if (meta->type == AssetType::Model) {
           if (!entity.HasComponent<ModelComponent>()) {
@@ -381,7 +384,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
 
 void EditorLayer::OnBeginPresent() {
   PROFILE_ZONE_SCOPED_N("Editor::OnBeginPresent");
-  Renderer* renderer = Engine::GetRenderer().get();
+  Renderer* renderer = Engine::renderer().get();
 
   RenderMainMenuBar();
 
@@ -507,7 +510,7 @@ void EditorLayer::OnBeginPresent() {
       }
     }
     if (ImGui::Button("Reload Scripts")) {
-      ScriptManager::Reload();
+      Engine::script_manager().Reload();
     }
 
     ImGui::SeparatorText("Physics");
@@ -627,7 +630,7 @@ void EditorLayer::OnBeginPresent() {
   ImGui::End();
   static bool assetBrowserOpen = true;
   if (ImGui::Begin("Asset Browser", &assetBrowserOpen)) {
-    auto& mgr = AssetManager::Get();
+    auto& mgr = Engine::asset_manager();
 
     static std::string current_dir;  // relative to assets dir, e.g. "" or "models/" or "scenes/"
     static std::string selected_file;
@@ -642,7 +645,7 @@ void EditorLayer::OnBeginPresent() {
     };
     std::vector<FileEntry> entries;
 
-    auto physical_app = Engine::GetVirtualFileSystem()->GetPhysicalPath("/app");
+    auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
     if (physical_app.has_value()) {
       namespace fs = std::filesystem;
       fs::path browse_dir = fs::absolute(*physical_app) / current_dir;
@@ -734,7 +737,7 @@ void EditorLayer::OnBeginPresent() {
       ImGui::InputText("##foldername", new_folder_name, sizeof(new_folder_name));
       if (ImGui::Button("Create") && new_folder_name[0] != '\0') {
         namespace fs = std::filesystem;
-        auto physical_app = Engine::GetVirtualFileSystem()->GetPhysicalPath("/app");
+        auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
         if (physical_app.has_value()) {
           fs::path base = fs::absolute(*physical_app);
           if (!current_dir.empty()) {
@@ -762,7 +765,7 @@ void EditorLayer::OnBeginPresent() {
       if (file.empty()) return;
 
       fs::path abs = fs::absolute(file);
-      auto physical_app = Engine::GetVirtualFileSystem()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
       if (!physical_app.has_value()) {
         LOG_ERROR("No /app mount point – open a project first");
         return;
@@ -791,7 +794,7 @@ void EditorLayer::OnBeginPresent() {
       auto vfs_rel = fs::relative(dest, app_assets);
       std::string vfs_path = "/app/" + vfs_rel.generic_string();
       std::string name = abs.stem().string();
-      AssetManager::Get().Register(name, type, vfs_path);
+      Engine::asset_manager().Register(name, type, vfs_path);
       LOG_INFO("Imported {} to {}", name, vfs_path);
     };
 
@@ -921,7 +924,7 @@ void EditorLayer::OnBeginPresent() {
             }
             ImGui::Text("State: %s", state_str);
 
-            auto physical_path = Engine::GetVirtualFileSystem()->GetPhysicalPath(asset_meta->virtual_source_path);
+            auto physical_path = Engine::vfs()->GetPhysicalPath(asset_meta->virtual_source_path);
             ImGui::Text("Source: %s", physical_path.has_value() ? "Filesystem" : "Archive");
 
             ImGui::EndTooltip();
@@ -1159,7 +1162,7 @@ void EditorLayer::OnBeginPresent() {
         ImGui::InputText("##rename", rename_buf, sizeof(rename_buf));
         if (ImGui::Button("OK") && rename_buf[0] != '\0') {
           namespace fs = std::filesystem;
-          auto physical_app_path = Engine::GetVirtualFileSystem()->GetPhysicalPath("/app");
+          auto physical_app_path = Engine::vfs()->GetPhysicalPath("/app");
           if (physical_app_path.has_value()) {
             fs::path old_path = fs::absolute(*physical_app_path) / current_dir / renaming_file;
             std::string ext = old_path.extension().string();
@@ -1234,7 +1237,7 @@ void EditorLayer::OnBeginPresent() {
     };
 
     if (ImGui::Begin("Developer Console", &console_open)) {
-      auto& cmd = Engine::GetConsole();
+      auto& cmd = Engine::console();
       const auto& log = cmd.GetLog();
 
       // Toolbar
@@ -1291,7 +1294,7 @@ void EditorLayer::OnBeginPresent() {
   {
     static bool stats_open = true;
     if (ImGui::Begin("Render Stats", &stats_open)) {
-      auto renderer = Engine::GetRenderer();
+      auto renderer = Engine::renderer();
       const auto& stats = renderer->GetStats();
 
       ImGui::SeparatorText("Performance");
@@ -1366,26 +1369,34 @@ void EditorLayer::OnBeginPresent() {
             ImGui::TextDisabled("Features:");
             const auto& features = info.pipeline->GetFeatures();
 
-            // Collect pass timings from the first camera using this pipeline
+            // Collect pass timings: prefer external render graph (editor camera)
+            // in edit mode since ECS camera graphs may have stale data.
             std::vector<PassTimingResult> timings;
-            for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-              auto& cam = scene_->GetComponent<CameraComponent>(entity);
-              RenderPipeline* cam_pl = cam.render_pipeline
-                  ? cam.render_pipeline.get()
-                  : default_pipeline.get();
-              if (cam_pl != ptr) continue;
-
-              auto graph = scene_->GetRenderGraph(entity);
-              if (graph) {
-                timings = graph->GetPassTimings();
-              }
-              break;
-            }
-            // Fallback to external render graph (editor camera)
-            if (timings.empty()) {
+            if (editor_state_ == EditorState::Edit) {
               auto ext_graph = scene_->GetExternalRenderGraph();
               if (ext_graph) {
                 timings = ext_graph->GetPassTimings();
+              }
+            } else {
+              for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+                auto& cam = scene_->GetComponent<CameraComponent>(entity);
+                RenderPipeline* cam_pl = cam.render_pipeline
+                    ? cam.render_pipeline.get()
+                    : default_pipeline.get();
+                if (cam_pl != ptr) continue;
+
+                auto graph = scene_->GetRenderGraph(entity);
+                if (graph) {
+                  timings = graph->GetPassTimings();
+                }
+                break;
+              }
+              // Fallback to external render graph if no ECS camera graph found
+              if (timings.empty()) {
+                auto ext_graph = scene_->GetExternalRenderGraph();
+                if (ext_graph) {
+                  timings = ext_graph->GetPassTimings();
+                }
               }
             }
 
@@ -1562,12 +1573,12 @@ void EditorLayer::OnBeginPresent() {
       if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
         if (scene_hovered && !scene_right_active) {
           scene_right_active = true;
-          Engine::GetWindow()->SetCursorMode(CursorModeRelative);
+          Engine::window()->SetCursorMode(CursorModeRelative);
         }
       } else {
         if (scene_right_active) {
           scene_right_active = false;
-          Engine::GetWindow()->SetCursorMode(CursorModeNormal);
+          Engine::window()->SetCursorMode(CursorModeNormal);
         }
       }
 
@@ -1867,7 +1878,7 @@ void EditorLayer::OnBeginPresent() {
 
 void EditorLayer::OnPostPresent() {
   // Execute pending entity pick readback (GPU is idle after EndPresent fence)
-  Renderer* renderer = Engine::GetRenderer().get();
+  Renderer* renderer = Engine::renderer().get();
   entt::entity picked;
   if (renderer->ExecuteEntityPick(picked)) {
     if (picked != entt::null && scene_->GetRegistry().valid(picked)) {
@@ -1909,7 +1920,7 @@ void EditorLayer::RestoreSnapshot() {
 
 void EditorLayer::OnPrePresent() {
   PROFILE_ZONE_SCOPED_N("Editor::OnPrePresent");
-  Renderer* renderer = Engine::GetRenderer().get();
+  Renderer* renderer = Engine::renderer().get();
   VkCommandBuffer cmd = renderer->GetCommandBuffer().handle_;
 
   if (editor_state_ == EditorState::Playing) {
@@ -2092,7 +2103,7 @@ void EditorLayer::RenderMainMenuBar() {
     ImGui::Text("Window Backend: GLFW");
 #endif
 
-    auto props = Engine::GetRenderer()->GetPhysicalDeviceProperties();
+    auto props = Engine::renderer()->GetPhysicalDeviceProperties();
     uint32_t vk_major = VK_API_VERSION_MAJOR(props.apiVersion);
     uint32_t vk_minor = VK_API_VERSION_MINOR(props.apiVersion);
     uint32_t vk_patch = VK_API_VERSION_PATCH(props.apiVersion);
@@ -2133,7 +2144,7 @@ void EditorLayer::NewProject() {
         Project::SetActive(project_.get());
 
         // Mount project assets
-        auto* vfs = Engine::GetVirtualFileSystem().get();
+        auto* vfs = Engine::vfs().get();
         vfs->Unmount("/app");
         vfs->Mount("/app", project_->GetAssetsDirectory().string());
 
@@ -2162,7 +2173,7 @@ void EditorLayer::OpenProject() {
         Project::SetActive(project_.get());
 
         // Mount project assets
-        auto* vfs = Engine::GetVirtualFileSystem().get();
+        auto* vfs = Engine::vfs().get();
         vfs->Unmount("/app");
         vfs->Mount("/app", project_->GetAssetsDirectory().string());
 
@@ -2233,7 +2244,7 @@ void EditorLayer::OpenSceneFromPath(const std::filesystem::path& path) {
     auto view = scene_->GetAllEntitiesWith<CameraComponent>();
     for (auto entity : view) {
       auto& cam = scene_->GetComponent<CameraComponent>(entity);
-      Engine::GetRenderer()->SetupCameraComponent(cam);
+      Engine::renderer()->SetupCameraComponent(cam);
     }
 
     // Track last opened scene in project
@@ -2278,7 +2289,7 @@ void EditorLayer::SaveScene() {
 
       // Register scene asset if not already in asset browser
       auto vfs_path = "/app/" + rel.generic_string();
-      auto& mgr = AssetManager::Get();
+      auto& mgr = Engine::asset_manager();
       bool found = false;
       for (auto& h : mgr.GetAll()) {
         const auto* meta = mgr.GetMetadata(h);
@@ -2353,7 +2364,7 @@ void EditorLayer::UpdateWindowTitle() {
   if (scene_dirty_) {
     title += " *";
   }
-  Engine::GetWindow()->SetTitle(title);
+  Engine::window()->SetTitle(title);
 }
 
 void EditorLayer::AutoSave() {
@@ -2381,7 +2392,7 @@ void EditorLayer::ScanProjectAssets() {
   if (!project_) return;
 
   namespace fs = std::filesystem;
-  auto& mgr = AssetManager::Get();
+  auto& mgr = Engine::asset_manager();
 
   // Register scenes with SceneManager and collect existing VFS paths
   SceneManager::Get().ClearRegisteredScenes();

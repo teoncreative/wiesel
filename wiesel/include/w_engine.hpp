@@ -19,6 +19,8 @@
 namespace Wiesel {
 
 class Scene;
+class AssetManager;
+class ScriptManager;
 
 struct EngineProperties {
     bool editor_enabled = false;
@@ -38,15 +40,18 @@ class Engine {
   static void InitWindow(const WindowProperties&& props);
   static void InitRenderer(const RendererProperties&& props);
 
+  static void CleanupAssets();
   static void CleanupRenderer();
   static void CleanupWindow();
   static void CleanupEngine();
 
-  WIESEL_GETTER_FN static std::shared_ptr<Renderer> GetRenderer();
-  WIESEL_GETTER_FN static std::shared_ptr<AppWindow> GetWindow();
-  WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> GetVirtualFileSystem();
-  WIESEL_GETTER_FN static DeveloperConsole& GetConsole();
-  WIESEL_GETTER_FN static const EngineProperties& GetEngineProperties() {
+  WIESEL_GETTER_FN static Ref<Renderer> renderer() { return renderer_; }
+  WIESEL_GETTER_FN static Ref<AppWindow> window() { return window_; }
+  WIESEL_GETTER_FN static Ref<VirtualFileSystem> vfs() { return vfs_; }
+  WIESEL_GETTER_FN static DeveloperConsole& console() { return console_; }
+  WIESEL_GETTER_FN static AssetManager& asset_manager() { return *asset_manager_; }
+  WIESEL_GETTER_FN static ScriptManager& script_manager() { return *script_manager_; }
+  WIESEL_GETTER_FN static const EngineProperties& properties() {
     return properties_;
   }
 
@@ -77,6 +82,8 @@ class Engine {
   static std::shared_ptr<AppWindow> window_;
   static std::shared_ptr<VirtualFileSystem> vfs_;
   static DeveloperConsole console_;
+  static std::shared_ptr<AssetManager> asset_manager_;
+  static std::shared_ptr<ScriptManager> script_manager_;
 };
 
 Application* CreateApp();

@@ -67,12 +67,12 @@ Shader::Shader(ShaderProperties properties) : properties_(properties) {
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size() * 4;
   createInfo.pCode = code.data();
-  WIESEL_CHECK_VKRESULT(vkCreateShaderModule(Engine::GetRenderer()->GetLogicalDevice(), &createInfo,
+  WIESEL_CHECK_VKRESULT(vkCreateShaderModule(Engine::renderer()->GetLogicalDevice(), &createInfo,
                                              nullptr, &shader_module_));
 }
 
 Shader::~Shader() {
-  vkDestroyShaderModule(Engine::GetRenderer()->GetLogicalDevice(), shader_module_, nullptr);
+  vkDestroyShaderModule(Engine::renderer()->GetLogicalDevice(), shader_module_, nullptr);
 }
 
 }  // namespace Wiesel

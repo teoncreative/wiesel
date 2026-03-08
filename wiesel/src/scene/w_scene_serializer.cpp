@@ -91,7 +91,7 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     nlohmann::json model;
     if (m.model_handle.IsValid()) {
       model["asset_handle"] = m.model_handle.ToString();
-      const auto* meta = AssetManager::Get().GetMetadata(m.model_handle);
+      const auto* meta = Engine::asset_manager().GetMetadata(m.model_handle);
       if (meta) {
         model["asset_name"] = meta->name;
         model["asset_path"] = meta->virtual_source_path;
@@ -217,9 +217,9 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     if (!handle_str.empty()) {
       AssetHandle handle = AssetHandle::FromString(handle_str);
       // Re-register the asset if it doesn't exist yet
-      if (!AssetManager::Get().HasAsset(handle)) {
+      if (!Engine::asset_manager().HasAsset(handle)) {
         if (!asset_path.empty()) {
-          AssetManager::Get().Register(handle, asset_name, AssetType::Model,
+          Engine::asset_manager().Register(handle, asset_name, AssetType::Model,
                                        asset_path);
         }
       }

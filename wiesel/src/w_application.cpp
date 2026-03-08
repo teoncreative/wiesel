@@ -11,6 +11,7 @@
 
 #include "w_application.hpp"
 
+#include "asset/w_asset_manager.hpp"
 #include "input/w_input.hpp"
 #include "w_engine.hpp"
 
@@ -26,7 +27,7 @@ Application::Application(const WindowProperties&& window_props, const RendererPr
   is_minimized_ = false;
 
   Engine::InitWindow(std::move(window_props));
-  window_ = Engine::GetWindow();
+  window_ = Engine::window();
   window_->SetEventHandler(WIESEL_BIND_FN(Application::OnEvent));
 
   window_->GetWindowFramebufferSize(window_size_);
@@ -39,10 +40,19 @@ Application::Application(const WindowProperties&& window_props, const RendererPr
 
 Application::~Application() {
   LOG_DEBUG("Destroying Application");
+
+  // Wait for GPU to finish before destroying any resources.
+  Engine::renderer()->WaitForGPU();
+
   for (const auto& item : layers_) {
     item->OnDetach();
   }
   layers_.clear();
+
+  // Clear assets before renderer, models/textures hold Vulkan objects
+  // whose destructors need the device to still be alive.
+  Engine::CleanupAssets();
+
   window_ = nullptr;
   Engine::CleanupRenderer();
   Engine::CleanupWindow();
@@ -87,7 +97,7 @@ void Application::Run() {
   PROFILE_THREAD("Application Thread");
   previous_frame_ = Time::GetTime();
 
-  Ref<Renderer> renderer = Engine::GetRenderer();
+  Ref<Renderer> renderer = Engine::renderer();
   while (is_running_) {
     PROFILE_FRAME_MARK();
     float time = Time::GetTime();

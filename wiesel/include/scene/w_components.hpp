@@ -164,7 +164,7 @@ struct AnimatorComponent : public IComponent {
   std::vector<glm::mat4> bone_matrices;
   std::vector<glm::mat4> node_transforms;
 
-  // Bone overrides - applied after animation eval, before GPU upload
+  // Bone overrides, applied after animation eval, before GPU upload
   struct BoneOverride {
     std::string bone_name;
     glm::quat additional_rotation = glm::quat(1, 0, 0, 0);

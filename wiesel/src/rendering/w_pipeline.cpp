@@ -20,8 +20,8 @@ Pipeline::Pipeline(PipelineProperties properties)
 }
 
 Pipeline::~Pipeline() {
-  vkDestroyPipeline(Engine::GetRenderer()->GetLogicalDevice(), pipeline_, nullptr);
-  vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), layout_, nullptr);
+  vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_, nullptr);
+  vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_, nullptr);
   is_allocated_ = false;
 }
 
@@ -58,8 +58,8 @@ void Pipeline::SetVertexData(std::vector<VkVertexInputBindingDescription> i, std
 void Pipeline::Bake() {
   LOG_DEBUG("Creating pipeline with {} samples", (uint64_t)properties_.sampling_mode);
   if (is_allocated_) {
-    vkDestroyPipeline(Engine::GetRenderer()->GetLogicalDevice(), pipeline_, nullptr);
-    vkDestroyPipelineLayout(Engine::GetRenderer()->GetLogicalDevice(), layout_, nullptr);
+    vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_, nullptr);
+    vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_, nullptr);
     is_allocated_ = false;
   }
 
@@ -86,7 +86,7 @@ void Pipeline::Bake() {
   pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
 
   WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(
-      Engine::GetRenderer()->GetLogicalDevice(), &pipelineLayoutInfo, nullptr, &layout_));
+      Engine::renderer()->GetLogicalDevice(), &pipelineLayoutInfo, nullptr, &layout_));
 
   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
   std::vector<VkSpecializationInfo> specializationInfos;
@@ -201,7 +201,7 @@ void Pipeline::Bake() {
 
   std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
   for (const auto& item : render_pass_->attachments_) {
-    if (item.type != AttachmentTextureType::Color && item.type != AttachmentTextureType::Offscreen) {
+    if (item.type != AttachmentTextureType::Color && item.type != AttachmentTextureType::Offscreen && item.type != AttachmentTextureType::SwapChain) {
       continue;
     }
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
@@ -265,14 +265,14 @@ void Pipeline::Bake() {
   pipelineInfo.subpass = 0;
 
   WIESEL_CHECK_VKRESULT(
-      vkCreateGraphicsPipelines(Engine::GetRenderer()->GetLogicalDevice(), VK_NULL_HANDLE, 1,
+      vkCreateGraphicsPipelines(Engine::renderer()->GetLogicalDevice(), VK_NULL_HANDLE, 1,
                                 &pipelineInfo, nullptr, &pipeline_));
 
   is_allocated_ = true;
 }
 
 void Pipeline::Bind(PipelineBindPoint bind_point) {
-  auto renderer = Engine::GetRenderer();
+  auto renderer = Engine::renderer();
   vkCmdBindPipeline(renderer->GetCommandBuffer().handle_, ToVkPipelineBindPoint(bind_point),
                     pipeline_);
   for (const auto& item : push_constants_) {

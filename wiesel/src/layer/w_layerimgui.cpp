@@ -57,7 +57,7 @@ void ImGuiLayer::OnAttach() {
   pool_info.pPoolSizes = pool_sizes;
 
   WIESEL_CHECK_VKRESULT(
-      vkCreateDescriptorPool(Engine::GetRenderer()->logical_device_, &pool_info,
+      vkCreateDescriptorPool(Engine::renderer()->logical_device_, &pool_info,
                              nullptr, &m_ImGuiPool));
 
   // 2: initialize imgui library
@@ -79,29 +79,30 @@ void ImGuiLayer::OnAttach() {
     style.Colors[ImGuiCol_WindowBg].w = 1.0f;
   }
 
-  Engine::GetRenderer()->window_->ImGuiInit();
+  Engine::renderer()->window_->ImGuiInit();
 
   //this initializes imgui for Vulkan
   ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance = Engine::GetRenderer()->instance_;
-  init_info.PhysicalDevice = Engine::GetRenderer()->physical_device_;
-  init_info.Device = Engine::GetRenderer()->logical_device_;
-  init_info.Queue = Engine::GetRenderer()->graphics_queue_;
+  init_info.Instance = Engine::renderer()->instance_;
+  init_info.PhysicalDevice = Engine::renderer()->physical_device_;
+  init_info.Device = Engine::renderer()->logical_device_;
+  init_info.Queue = Engine::renderer()->graphics_queue_;
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.MSAASamples = ToVkSampleCountFlagBits(Engine::GetRenderer()->options().msaa_mode);
-  init_info.RenderPass = Engine::GetRenderer()->present_render_pass_->GetVulkanHandle();
+  init_info.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
+  init_info.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 }
 
 void ImGuiLayer::OnDetach() {
   LOG_DEBUG("Destroying imgui pool");
-  vkDeviceWaitIdle(Engine::GetRenderer()->logical_device_);
+  vkDeviceWaitIdle(Engine::renderer()->logical_device_);
   // Vulkan does this
-  /*vkDestroyDescriptorPool(Engine::GetRenderer()->m_LogicalDevice, m_ImGuiPool, nullptr);*/
   ImGui_ImplVulkan_Shutdown();
+  vkDestroyDescriptorPool(Engine::renderer()->logical_device_, m_ImGuiPool, nullptr);
+  m_ImGuiPool = VK_NULL_HANDLE;
 }
 
 void ImGuiLayer::OnUpdate(float_t deltaTime) {}
@@ -130,19 +131,19 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
 #endif
 
   // Reinitialize window backend (must be done before Vulkan backend)
-  Engine::GetRenderer()->window_->ImGuiInit();
+  Engine::renderer()->window_->ImGuiInit();
 
   // Reinitialize Vulkan backend with new settings
   ImGui_ImplVulkan_InitInfo init_info = {};
-  init_info.Instance = Engine::GetRenderer()->instance_;
-  init_info.PhysicalDevice = Engine::GetRenderer()->physical_device_;
-  init_info.Device = Engine::GetRenderer()->logical_device_;
-  init_info.Queue = Engine::GetRenderer()->graphics_queue_;
+  init_info.Instance = Engine::renderer()->instance_;
+  init_info.PhysicalDevice = Engine::renderer()->physical_device_;
+  init_info.Device = Engine::renderer()->logical_device_;
+  init_info.Queue = Engine::renderer()->graphics_queue_;
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.MSAASamples = ToVkSampleCountFlagBits(Engine::GetRenderer()->options().msaa_mode);
-  init_info.RenderPass = Engine::GetRenderer()->present_render_pass_->GetVulkanHandle();
+  init_info.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
+  init_info.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 
@@ -158,7 +159,7 @@ void ImGuiLayer::OnBeginPresent() {
   }
 
   ImGui_ImplVulkan_NewFrame();
-  Engine::GetRenderer()->window_->ImGuiNewFrame();
+  Engine::renderer()->window_->ImGuiNewFrame();
   ImGui::NewFrame();
   ImGuizmo::BeginFrame();
 }
@@ -168,7 +169,7 @@ void ImGuiLayer::OnPresent() {
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(
       ImGui::GetDrawData(),
-      Engine::GetRenderer()->command_buffer_->handle_);
+      Engine::renderer()->GetCommandBuffer().handle_);
   ImGuiIO& io = ImGui::GetIO();
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
     // move this to window handle!!

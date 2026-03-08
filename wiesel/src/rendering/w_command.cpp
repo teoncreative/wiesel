@@ -10,13 +10,13 @@ CommandPool::CommandPool() {
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = Engine::GetRenderer()->GetGraphicsQueueFamilyIndex();
+  poolInfo.queueFamilyIndex = Engine::renderer()->GetGraphicsQueueFamilyIndex();
   WIESEL_CHECK_VKRESULT(
-      vkCreateCommandPool(Engine::GetRenderer()->GetLogicalDevice(), &poolInfo, nullptr, &handle_));
+      vkCreateCommandPool(Engine::renderer()->GetLogicalDevice(), &poolInfo, nullptr, &handle_));
 }
 
 CommandPool::~CommandPool() {
-  vkDestroyCommandPool(Engine::GetRenderer()->GetLogicalDevice(), handle_, nullptr);
+  vkDestroyCommandPool(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
 Ref<CommandBuffer> CommandPool::CreateBuffer() {
@@ -33,7 +33,7 @@ Ref<CommandBuffer> CommandPool::CreateBuffer() {
 
   VkCommandBuffer buffer;
   WIESEL_CHECK_VKRESULT(
-      vkAllocateCommandBuffers(Engine::GetRenderer()->GetLogicalDevice(), &allocInfo, &buffer));
+      vkAllocateCommandBuffers(Engine::renderer()->GetLogicalDevice(), &allocInfo, &buffer));
   return CreateReference<CommandBuffer>(*this, buffer);
 }
 

@@ -11,6 +11,7 @@
 
 #include "rendering/w_render_feature.hpp"
 #include "rendering/w_renderer.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -48,6 +49,11 @@ bool CameraResourcePool::HasFramebuffer(const std::string& name) const {
 
 void CameraResourcePool::SetDescriptor(const std::string& name,
                                        Ref<DescriptorSet> ds) {
+  auto it = descriptors_.find(name);
+  if (it != descriptors_.end() && it->second) {
+    Ref<DescriptorSet> old = std::move(it->second);
+    Engine::renderer()->GetDeletionQueue().Push([old]() {});
+  }
   descriptors_[name] = std::move(ds);
 }
 

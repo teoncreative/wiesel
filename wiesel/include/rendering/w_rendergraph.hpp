@@ -37,6 +37,7 @@ enum class RGAccess {
   DepthStencilWrite,          // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
   DepthStencilReadOnly,       // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
   ShaderRead,                 // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+  StorageImageRead,           // VK_IMAGE_LAYOUT_GENERAL (imageLoad in shader)
   StorageImageWrite,          // VK_IMAGE_LAYOUT_GENERAL
   Present                     // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 };
@@ -127,6 +128,7 @@ class RenderGraph {
   // Configure pass inputs (resources the pass reads)
   void PassReadsTexture(uint32_t pass, RGResource resource);
   void PassReadsDepth(uint32_t pass, RGResource resource);
+  void PassReadsStorageImage(uint32_t pass, RGResource resource);
 
   // Read a resource from a previous frame (barrier only, no dependency edge).
   // Use this for frame-to-frame resources like TAA history that would create
@@ -188,13 +190,15 @@ class RenderGraph {
   std::vector<PassTimingResult> pass_timings_;
 
 #ifdef WIESEL_GPU_PROFILING
-  // Double-buffered query pools: write to current frame, read from previous
-  static constexpr uint32_t kTimingFrames = 2;
+  // Triple-buffered query pools so we always read from a frame guaranteed
+  // complete by the fence (needs kMaxFramesInFlight + 1 pools).
+  static constexpr uint32_t kTimingFrames = 3;
   VkQueryPool query_pools_[kTimingFrames] = {};
   uint32_t timing_frame_ = 0;
   uint32_t query_count_ = 0;  // Number of queries used in the current frame
   float timestamp_period_ = 0.0f;
-  std::vector<std::string> query_pass_names_;  // Maps query pair index to pass name
+  // Per-pool pass name lists so we read the correct names for each pool
+  std::vector<std::string> query_pass_names_[kTimingFrames];
   bool query_pool_created_ = false;
 #endif
 };
