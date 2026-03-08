@@ -14,6 +14,12 @@ namespace WieselEngine
         public extern static bool Input_GetKey(string key);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern static bool Input_GetKeyDown(string key);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public extern static bool Input_GetKeyUp(string key);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern static void Input_SetCursorMode(ushort cursorMode);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -402,6 +408,13 @@ namespace WieselEngine
         // Prefab
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Prefab_Instantiate(ulong scenePtr, string path);
+
+        // Scene
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong Scene_FindEntity(ulong scenePtr, string name);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Scene_DestroyEntity(ulong scenePtr, ulong entityId);
 
         // Console
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

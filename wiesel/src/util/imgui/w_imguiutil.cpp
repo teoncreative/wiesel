@@ -39,7 +39,7 @@ bool ClosableTreeNode(const char* label, bool* p_visible) {
   ImGuiTreeNodeFlags flags = 0;
   flags |= ImGuiTreeNodeFlags_Framed;
   if (p_visible)
-    flags |= ImGuiTreeNodeFlags_AllowItemOverlap |
+    flags |= ImGuiTreeNodeFlags_AllowOverlap |
              ImGuiTreeNodeFlags_ClipLabelForTrailingButton;
   bool open = ImGui::TreeNodeBehavior(id, flags, label);
   if (p_visible != NULL) {

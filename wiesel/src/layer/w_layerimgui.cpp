@@ -90,8 +90,8 @@ void ImGuiLayer::OnAttach() {
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.PipelineInfoMain.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
+  init_info.PipelineInfoMain.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 }
@@ -142,8 +142,8 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.PipelineInfoMain.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
+  init_info.PipelineInfoMain.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 

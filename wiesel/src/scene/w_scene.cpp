@@ -74,6 +74,15 @@ void Scene::RemoveEntity(Entity entity) {
                          }).begin());
 }
 
+entt::entity Scene::FindEntityByName(const std::string& name) {
+  for (auto entity : registry_.view<TagComponent>()) {
+    if (registry_.get<TagComponent>(entity).tag == name) {
+      return entity;
+    }
+  }
+  return entt::null;
+}
+
 void Scene::DestroyEntity(entt::entity handle) {
   registry_.destroy(handle);
 }

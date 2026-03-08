@@ -113,6 +113,7 @@ void Application::Run() {
       fps_timer_ = 0.0f;
     }
 
+    InputManager::Update();
     ExecuteQueue();
 
     if (!is_minimized_) {

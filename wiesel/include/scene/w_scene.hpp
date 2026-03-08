@@ -42,6 +42,7 @@ class Scene {
   Entity CreateEntityWithUUID(UUID uuid,
                               const std::string& name = std::string());
   void RemoveEntity(Entity entity);
+  entt::entity FindEntityByName(const std::string& name);
 
   void OnUpdate(float_t delta_time);
   void OnUpdateEditor(float_t delta_time);

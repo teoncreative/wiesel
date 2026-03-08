@@ -17,10 +17,11 @@
 
 namespace Wiesel {
 struct KeyData {
-  KeyData() { pressed = false; }
-  explicit KeyData(bool pressed) : pressed(pressed) { }
+  KeyData() : pressed(false), previous_pressed(false) {}
+  explicit KeyData(bool pressed) : pressed(pressed), previous_pressed(false) {}
 
   bool pressed;
+  bool previous_pressed;
 };
 
 enum InputMode { kInputModeKeyboardAndMouse, kInputModeGamepad };
@@ -28,6 +29,8 @@ enum InputMode { kInputModeKeyboardAndMouse, kInputModeGamepad };
 class InputManager {
  public:
   static bool GetKey(const std::string& key);
+  static bool GetKeyDown(const std::string& key);
+  static bool GetKeyUp(const std::string& key);
   static bool IsPressed(KeyCode keyCode);
   static float GetAxis(const std::string& axisName);
 
@@ -35,6 +38,7 @@ class InputManager {
   static int GetMouseY();
 
   static void Init();
+  static void Update();
   static void OnEvent(Event& event);
 
   // When disabled, GetKey/IsPressed/GetAxis return false/0 for scripts.
