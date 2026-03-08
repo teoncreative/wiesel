@@ -400,19 +400,21 @@ Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
               texture->device_memory_);
 
-  TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        texture->mip_levels_);
-  CopyBufferToImage(staging_buffer, texture->image_,
-                    static_cast<uint32_t>(texture->width_),
-                    static_cast<uint32_t>(texture->height_));
+  {
+    VkCommandBuffer cmd = BeginSingleTimeCommands();
+    TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                          texture->mip_levels_, cmd, 0, 1);
+    CopyBufferToImage(cmd, staging_buffer, texture->image_,
+                      static_cast<uint32_t>(texture->width_),
+                      static_cast<uint32_t>(texture->height_));
+    GenerateMipmaps(cmd, texture->image_, VK_FORMAT_R8G8B8A8_UNORM,
+                    texture->width_, texture->height_, texture->mip_levels_);
+    EndSingleTimeCommands(cmd);
+  }
 
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
-
-  // todo loading pregenerated mipmaps
-  GenerateMipmaps(texture->image_, VK_FORMAT_R8G8B8A8_UNORM, texture->width_,
-                  texture->height_, texture->mip_levels_);
 
   texture->sampler_ = CreateTextureSampler(1, sampler_props);
   texture->image_view_ = CreateImageView(
@@ -470,19 +472,22 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
               texture->device_memory_);
 
-  TransitionImageLayout(
-      texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_);
-  CopyBufferToImage(staging_buffer, texture->image_,
-                    static_cast<uint32_t>(texture->width_),
-                    static_cast<uint32_t>(texture->height_));
+  {
+    VkCommandBuffer cmd = BeginSingleTimeCommands();
+    TransitionImageLayout(
+        texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, cmd, 0, 1);
+    CopyBufferToImage(cmd, staging_buffer, texture->image_,
+                      static_cast<uint32_t>(texture->width_),
+                      static_cast<uint32_t>(texture->height_));
+    GenerateMipmaps(cmd, texture->image_, texture_props.image_format,
+                    texture->width_, texture->height_, texture->mip_levels_);
+    EndSingleTimeCommands(cmd);
+  }
 
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
-  // todo loading pregenerated mipmaps
-  GenerateMipmaps(texture->image_, texture_props.image_format, texture->width_,
-                  texture->height_, texture->mip_levels_);
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
   texture->image_view_ =
       CreateImageView(texture->image_, texture_props.image_format,
@@ -529,18 +534,21 @@ Ref<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
               texture->device_memory_);
 
-  TransitionImageLayout(
-      texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_);
-  CopyBufferToImage(staging_buffer, texture->image_, texture->width_,
-                    texture->height_);
+  {
+    VkCommandBuffer cmd = BeginSingleTimeCommands();
+    TransitionImageLayout(
+        texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, cmd, 0, 1);
+    CopyBufferToImage(cmd, staging_buffer, texture->image_, texture->width_,
+                      texture->height_);
+    GenerateMipmaps(cmd, texture->image_, texture_props.image_format,
+                    texture->width_, texture->height_, texture->mip_levels_);
+    EndSingleTimeCommands(cmd);
+  }
 
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 
-  // todo loading pregenerated mipmaps
-  GenerateMipmaps(texture->image_, texture_props.image_format, texture->width_,
-                  texture->height_, texture->mip_levels_);
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
   texture->image_view_ =
       CreateImageView(texture->image_, texture_props.image_format,
@@ -602,14 +610,26 @@ Ref<Texture> Renderer::CreateCubemapTexture(
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
               texture->device_memory_, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
 
-  for (uint32_t layer = 0; layer < 6; layer++) {
-    TransitionImageLayout(
-        texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, layer, 1);
-
-    CopyBufferToImage(
-        staging_buffer, texture->image_, static_cast<uint32_t>(texture->width_),
-        static_cast<uint32_t>(texture->height_), texture->size_ * layer, layer);
+  {
+    VkCommandBuffer cmd = BeginSingleTimeCommands();
+    for (uint32_t layer = 0; layer < 6; layer++) {
+      TransitionImageLayout(
+          texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, cmd,
+          layer, 1);
+      CopyBufferToImage(
+          cmd, staging_buffer, texture->image_,
+          static_cast<uint32_t>(texture->width_),
+          static_cast<uint32_t>(texture->height_), texture->size_ * layer,
+          layer);
+    }
+    for (uint32_t layer = 0; layer < 6; layer++) {
+      TransitionImageLayout(texture->image_, texture_props.image_format,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            texture->mip_levels_, cmd, layer, 1);
+    }
+    EndSingleTimeCommands(cmd);
   }
 
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
@@ -620,12 +640,6 @@ Ref<Texture> Renderer::CreateCubemapTexture(
   texture->image_view_ = CreateImageView(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
       texture->mip_levels_, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6);
-  for (uint32_t layer = 0; layer < 6; layer++) {
-    TransitionImageLayout(texture->image_, texture_props.image_format,
-                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          texture->mip_levels_, layer, 1);
-  }
   texture->is_allocated_ = true;
   return texture;
 }
@@ -2187,12 +2201,15 @@ void Renderer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
                           VkDeviceSize size) {
   PROFILE_ZONE_SCOPED();
   VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+  CopyBuffer(commandBuffer, srcBuffer, dstBuffer, size);
+  EndSingleTimeCommands(commandBuffer);
+}
 
+void Renderer::CopyBuffer(VkCommandBuffer cmd, VkBuffer srcBuffer,
+                           VkBuffer dstBuffer, VkDeviceSize size) {
   VkBufferCopy copyRegion{};
   copyRegion.size = size;
-  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-  EndSingleTimeCommands(commandBuffer);
+  vkCmdCopyBuffer(cmd, srcBuffer, dstBuffer, 1, &copyRegion);
 }
 
 void Renderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
@@ -2200,6 +2217,15 @@ void Renderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                                  uint32_t layer, uint32_t layer_count) {
   PROFILE_ZONE_SCOPED();
   VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+  CopyBufferToImage(commandBuffer, buffer, image, width, height, base_offset,
+                    layer, layer_count);
+  EndSingleTimeCommands(commandBuffer);
+}
+
+void Renderer::CopyBufferToImage(VkCommandBuffer cmd, VkBuffer buffer,
+                                 VkImage image, uint32_t width, uint32_t height,
+                                 VkDeviceSize base_offset, uint32_t layer,
+                                 uint32_t layer_count) {
   VkBufferImageCopy region{};
   region.bufferOffset = base_offset;
   region.bufferRowLength = 0;
@@ -2213,10 +2239,8 @@ void Renderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
   region.imageOffset = {0, 0, 0};
   region.imageExtent = {width, height, 1};
 
-  vkCmdCopyBufferToImage(commandBuffer, buffer, image,
+  vkCmdCopyBufferToImage(cmd, buffer, image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-  EndSingleTimeCommands(commandBuffer);
 }
 
 void Renderer::TransitionImageLayout(VkImage image, VkFormat format,
@@ -2640,6 +2664,87 @@ void Renderer::GenerateMipmaps(VkImage image, VkFormat imageFormat,
   EndSingleTimeCommands(commandBuffer);
 }
 
+void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
+                               VkFormat imageFormat, int32_t texWidth,
+                               int32_t texHeight, uint32_t mipLevels) {
+  VkFormatProperties formatProperties;
+  vkGetPhysicalDeviceFormatProperties(physical_device_, imageFormat,
+                                      &formatProperties);
+  if (!(formatProperties.optimalTilingFeatures &
+        VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    throw std::runtime_error(
+        "texture image format does not support linear blitting!");
+  }
+
+  VkImageMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.image = image;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+  barrier.subresourceRange.levelCount = 1;
+
+  int32_t mipWidth = texWidth;
+  int32_t mipHeight = texHeight;
+
+  for (uint32_t i = 1; i < mipLevels; i++) {
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+                         nullptr, 1, &barrier);
+
+    VkImageBlit blit{};
+    blit.srcOffsets[0] = {0, 0, 0};
+    blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.mipLevel = i - 1;
+    blit.srcSubresource.baseArrayLayer = 0;
+    blit.srcSubresource.layerCount = 1;
+    blit.dstOffsets[0] = {0, 0, 0};
+    blit.dstOffsets[1] = {mipWidth > 1 ? mipWidth / 2 : 1,
+                          mipHeight > 1 ? mipHeight / 2 : 1, 1};
+    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.dstSubresource.mipLevel = i;
+    blit.dstSubresource.baseArrayLayer = 0;
+    blit.dstSubresource.layerCount = 1;
+
+    vkCmdBlitImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+                   VK_FILTER_LINEAR);
+
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
+                         0, nullptr, 1, &barrier);
+
+    if (mipWidth > 1)
+      mipWidth /= 2;
+    if (mipHeight > 1)
+      mipHeight /= 2;
+  }
+
+  barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
+                       nullptr, 1, &barrier);
+}
+
 void Renderer::CreateTracy() {
   auto vk_get_physical_device_calibrateable_time_domains_ext =
       (PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT)vkGetInstanceProcAddr(
@@ -2834,7 +2939,10 @@ bool Renderer::BeginPresent() {
         render_order_semaphores_[current_frame_]};
     empty_submit.signalSemaphoreCount = 2;
     empty_submit.pSignalSemaphores = empty_signal;
-    vkQueueSubmit(graphics_queue_, 1, &empty_submit, fences_[current_frame_]);
+    {
+      std::lock_guard<std::mutex> lock(queue_submit_mutex_);
+      vkQueueSubmit(graphics_queue_, 1, &empty_submit, fences_[current_frame_]);
+    }
     frame_counter_++;
     current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
     return false;
@@ -2924,7 +3032,11 @@ void Renderer::EndPresent() {
   submitInfo.signalSemaphoreCount = 2;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo, fences_[current_frame_]));
+  VkResult result;
+  {
+    std::lock_guard<std::mutex> lock(queue_submit_mutex_);
+    WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo, fences_[current_frame_]));
+  }
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -2939,7 +3051,10 @@ void Renderer::EndPresent() {
   presentInfo.pImageIndices = &image_index_;
   presentInfo.pResults = nullptr;  // Optional
 
-  VkResult result = vkQueuePresentKHR(present_queue_, &presentInfo);
+  {
+    std::lock_guard<std::mutex> lock(queue_submit_mutex_);
+    result = vkQueuePresentKHR(present_queue_, &presentInfo);
+  }
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
     RecreateSwapChain();
   } else if (result != VK_SUCCESS) {
@@ -3515,11 +3630,35 @@ int32_t Renderer::RateDeviceSuitability(VkPhysicalDevice device) {
   return score;
 }
 
+VkCommandPool Renderer::CreateTransientCommandPool() {
+  VkCommandPoolCreateInfo poolInfo{};
+  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+  poolInfo.queueFamilyIndex = queue_family_indices_.graphicsFamily.value();
+  VkCommandPool pool;
+  WIESEL_CHECK_VKRESULT(
+      vkCreateCommandPool(logical_device_, &poolInfo, nullptr, &pool));
+  return pool;
+}
+
+thread_local VkCommandPool Renderer::tl_command_pool_ = VK_NULL_HANDLE;
+
+void Renderer::SetThreadCommandPool(VkCommandPool pool) {
+  tl_command_pool_ = pool;
+}
+
 VkCommandBuffer Renderer::BeginSingleTimeCommands() {
+  VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
+                            ? tl_command_pool_
+                            : command_pool_->handle_;
+  return BeginSingleTimeCommands(pool);
+}
+
+VkCommandBuffer Renderer::BeginSingleTimeCommands(VkCommandPool pool) {
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = command_pool_->handle_;
+  allocInfo.commandPool = pool;
   allocInfo.commandBufferCount = 1;
 
   VkCommandBuffer commandBuffer;
@@ -3535,6 +3674,14 @@ VkCommandBuffer Renderer::BeginSingleTimeCommands() {
 }
 
 void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
+  VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
+                            ? tl_command_pool_
+                            : command_pool_->handle_;
+  EndSingleTimeCommands(commandBuffer, pool);
+}
+
+void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
+                                     VkCommandPool pool) {
   vkEndCommandBuffer(commandBuffer);
 
   VkSubmitInfo submitInfo{};
@@ -3542,11 +3689,22 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer;
 
-  vkQueueSubmit(graphics_queue_, 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(graphics_queue_);
+  VkFenceCreateInfo fenceInfo{};
+  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  VkFence fence;
+  WIESEL_CHECK_VKRESULT(
+      vkCreateFence(logical_device_, &fenceInfo, nullptr, &fence));
 
-  vkFreeCommandBuffers(logical_device_, command_pool_->handle_, 1,
-                       &commandBuffer);
+  {
+    std::lock_guard<std::mutex> lock(queue_submit_mutex_);
+    WIESEL_CHECK_VKRESULT(
+        vkQueueSubmit(graphics_queue_, 1, &submitInfo, fence));
+  }
+
+  vkWaitForFences(logical_device_, 1, &fence, VK_TRUE, UINT64_MAX);
+  vkDestroyFence(logical_device_, fence, nullptr);
+
+  vkFreeCommandBuffers(logical_device_, pool, 1, &commandBuffer);
 }
 
 bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
