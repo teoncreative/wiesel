@@ -68,6 +68,41 @@ uint16_t Internals_Input_GetCursorMode() {
   return cursorMode;
 }
 
+bool Internals_Input_GetKeyDown(MonoString* str) {
+  const char* cstr = mono_string_to_utf8(str);
+  bool value = InputManager::GetKeyDown(cstr);
+  mono_free((void*)cstr);
+  return value;
+}
+
+bool Internals_Input_GetKeyUp(MonoString* str) {
+  const char* cstr = mono_string_to_utf8(str);
+  bool value = InputManager::GetKeyUp(cstr);
+  mono_free((void*)cstr);
+  return value;
+}
+
+uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  const char* cstr = mono_string_to_utf8(name);
+  entt::entity entity = scene->FindEntityByName(cstr);
+  mono_free((void*)cstr);
+  if (entity == entt::null) {
+    return UINT64_MAX;
+  }
+  return static_cast<uint64_t>(entity);
+}
+
+void Internals_Scene_DestroyEntity(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasEntity(handle)) {
+    return;
+  }
+  Entity entity{handle, scene};
+  scene->RemoveEntity(entity);
+}
+
 MonoObject* Internals_Behavior_GetComponent(Scene* scene, entt::entity entity,
                                             MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
@@ -1223,6 +1258,8 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Log_Info);
   WIESEL_ADD_INTERNAL_CALL(Input_GetAxis);
   WIESEL_ADD_INTERNAL_CALL(Input_GetKey);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetKeyDown);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetKeyUp);
   WIESEL_ADD_INTERNAL_CALL(Input_SetCursorMode);
   WIESEL_ADD_INTERNAL_CALL(Input_GetCursorMode);
   WIESEL_ADD_INTERNAL_CALL(Behavior_GetComponent);
@@ -1407,6 +1444,9 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScene);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScenePath);
   WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
+  // Scene
+  WIESEL_ADD_INTERNAL_CALL(Scene_FindEntity);
+  WIESEL_ADD_INTERNAL_CALL(Scene_DestroyEntity);
   // Console
   WIESEL_ADD_INTERNAL_CALL(Console_RegisterCommand);
   WIESEL_ADD_INTERNAL_CALL(Console_UnregisterCommand);

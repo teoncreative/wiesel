@@ -80,5 +80,22 @@ namespace WieselEngine
             return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
         }
 
+        public Entity FindEntity(string name)
+        {
+            ulong id = Internals.Scene_FindEntity(scenePtr, name);
+            if (id == ulong.MaxValue) return null;
+            return new Entity(scenePtr, id);
+        }
+
+        public void DestroyEntity(Entity entity)
+        {
+            Internals.Scene_DestroyEntity(scenePtr, entity.Id);
+        }
+
+        public void Destroy()
+        {
+            Internals.Scene_DestroyEntity(scenePtr, entityId);
+        }
+
     }
 }

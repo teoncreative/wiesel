@@ -136,6 +136,26 @@ bool InputManager::GetKey(const std::string& key) {
   return false;
 }
 
+bool InputManager::GetKeyDown(const std::string& key) {
+  if (!input_enabled_) return false;
+  for (const auto& code : keyboard_mapping_[key]) {
+    if (keys_[code].pressed && !keys_[code].previous_pressed) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool InputManager::GetKeyUp(const std::string& key) {
+  if (!input_enabled_) return false;
+  for (const auto& code : keyboard_mapping_[key]) {
+    if (!keys_[code].pressed && keys_[code].previous_pressed) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool InputManager::IsPressed(KeyCode code) {
   if (!input_enabled_) return false;
   return keys_[code].pressed;
@@ -143,6 +163,12 @@ bool InputManager::IsPressed(KeyCode code) {
 
 float InputManager::GetAxis(const std::string& axisName) {
   return axis_[axisName];
+}
+
+void InputManager::Update() {
+  for (auto& [code, data] : keys_) {
+    data.previous_pressed = data.pressed;
+  }
 }
 
 void InputManager::SetEnabled(bool enabled) {

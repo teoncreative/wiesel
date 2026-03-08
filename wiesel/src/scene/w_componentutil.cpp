@@ -1004,12 +1004,11 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
     const std::vector<std::string> scriptNames = Engine::script_manager().script_names();
     if (!scriptNames.empty()) {
       ImGui::Combo("Script Name", &currentScriptIndex,
-                   [](void* data, int idx, const char** out_text) {
+                   [](void* data, int idx) -> const char* {
                      const auto& names = *static_cast<const std::vector<std::string>*>(data);
-                     if (idx < 0 || idx >= static_cast<int>(names.size())) return false;
-                     *out_text = names[idx].c_str();
-                     return true;
-                   }, (void*)&scriptNames, scriptNames.size());
+                     if (idx < 0 || idx >= static_cast<int>(names.size())) return nullptr;
+                     return names[idx].c_str();
+                   }, (void*)&scriptNames, static_cast<int>(scriptNames.size()));
     } else {
       ImGui::TextDisabled("No scripts found.");
     }

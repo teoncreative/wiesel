@@ -149,6 +149,16 @@ namespace WieselEngine
             return Internals.Input_GetKey(keyName);
         }
 
+        public static bool GetKeyDown(string keyName)
+        {
+            return Internals.Input_GetKeyDown(keyName);
+        }
+
+        public static bool GetKeyUp(string keyName)
+        {
+            return Internals.Input_GetKeyUp(keyName);
+        }
+
         public static void SetCursorMode(CursorMode mode)
         {
             Internals.Input_SetCursorMode((ushort) mode);
