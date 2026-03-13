@@ -170,7 +170,12 @@ struct VertexSprite {
 struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat4 model_matrix;
   alignas(16) glm::mat3 normal_matrix;
+  // GLM_FORCE_DEFAULT_ALIGNED_GENTYPES makes glm::mat3 = 48 bytes (vec4-aligned columns)
+  // which matches std140 layout. entityId follows at offset 112.
   float entity_id = 0.0f;
+  float _pad1[3]{};  // pad to next vec4 boundary (offset 128)
+  alignas(16) glm::vec4 color_tint{1.0f, 1.0f, 1.0f, 1.0f};
+  alignas(16) glm::vec4 material_params{1.0f, 1.0f, 1.0f, 0.0f};  // x=roughness, y=metallic, z=specular (0-1 multipliers)
 };
 
 struct alignas(16) SpriteUniformData {

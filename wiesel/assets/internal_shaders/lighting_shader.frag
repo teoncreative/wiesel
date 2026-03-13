@@ -151,7 +151,15 @@ void main() {
     if (albedo.a < 0.5) {
         discard;
     }
-    vec3 material = texture(samplerMaterial, inUV).rgb; // specular, roughnes, metallic
+    vec3 material = texture(samplerMaterial, inUV).rgb; // specular, roughness, metallic
+    float matSpecular = material.r;
+    float matRoughness = material.g;
+    float matMetallic = material.b;
+
+    // Derive shininess from roughness: rough surfaces have broad, dim highlights
+    float shininess = max(2.0, pow(2.0, 10.0 * (1.0 - matRoughness)));
+
+    // Metallic surfaces tint specular with albedo color and reduce diffuse
     float ambientOcclusion;
     if (cam.enableSSAO != 0) {
         ambientOcclusion = texture(samplerSSAO, inUV).r;
@@ -167,6 +175,9 @@ void main() {
     uint rtMask = imageLoad(rtShadowMask, ivec2(gl_FragCoord.xy)).r;
     int rtLightIndex = 0;
 
+    vec3 diffuseColor = albedo.rgb * (1.0 - matMetallic);
+    vec3 specularColor = mix(vec3(matSpecular * 0.5), albedo.rgb, matMetallic);
+
     // Directional lights with per-light RT shadow
     vec3 dirResult = vec3(0.0);
     for (int i = 0; i < lights.directLightCount; i++) {
@@ -177,11 +188,11 @@ void main() {
         float spec = 0.0;
         if (diff > 0.0) {
             vec3 halfwayDir = normalize(lDir + viewDir);
-            spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular;
+            spec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
         }
 
-        vec3 ambient = light.base.ambient * albedo.rgb * ambientOcclusion * light.base.color * light.base.density;
-        vec3 diffSpec = (diff * albedo.rgb + spec * vec3(1.0)) * light.base.color * light.base.density;
+        vec3 ambient = light.base.ambient * diffuseColor * ambientOcclusion * light.base.color * light.base.density;
+        vec3 diffSpec = (diff * diffuseColor + spec * specularColor) * light.base.color * light.base.density;
 
         float shadow = float((rtMask >> rtLightIndex) & 1u);
         rtLightIndex++;
@@ -202,22 +213,29 @@ void main() {
         float pSpec = 0.0;
         if (pDiff > 0.0) {
             vec3 halfwayDir = normalize(pDir + viewDir);
-            pSpec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular * atten;
+            pSpec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular * atten;
         }
 
         float shadow = float((rtMask >> rtLightIndex) & 1u);
         rtLightIndex++;
 
-        vec3 ambient = pAmbient * albedo.rgb * ambientOcclusion;
-        vec3 diffSpec = pDiff * albedo.rgb + pSpec * vec3(1.0);
+        vec3 ambient = pAmbient * diffuseColor * ambientOcclusion;
+        vec3 diffSpec = pDiff * diffuseColor + pSpec * specularColor;
         pointResult += (ambient + diffSpec * shadow) * light.base.color * light.base.density;
     }
 
     vec3 finalColor = clamp(dirResult + pointResult, 0.0, 1.0);
 
+    if (cam.debugCascades == 2) {
+        finalColor = vec3(matRoughness, matMetallic, matSpecular);
+    }
+
     outFragColor = vec4(finalColor, albedo.a);
 #else
     // Cascaded shadow map path (shadow only on first directional light)
+    vec3 diffuseColor = albedo.rgb * (1.0 - matMetallic);
+    vec3 specularColor = mix(vec3(matSpecular * 0.5), albedo.rgb, matMetallic);
+
     vec3 sunAmbientContrib = vec3(0.0);
     vec3 sunDiffSpecContrib = vec3(0.0);
     float sunAmbient = 0.0;
@@ -232,11 +250,11 @@ void main() {
         float spec = 0.0;
         if (diff > 0.0) {
             vec3 halfwayDir = normalize(sunDir + viewDir);
-            spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular;
+            spec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
         }
 
-        sunAmbientContrib = sunAmbient * albedo.rgb * ambientOcclusion * light.base.color * light.base.density;
-        sunDiffSpecContrib = (diff * albedo.rgb + spec * vec3(1.0)) * light.base.color * light.base.density;
+        sunAmbientContrib = sunAmbient * diffuseColor * ambientOcclusion * light.base.color * light.base.density;
+        sunDiffSpecContrib = (diff * diffuseColor + spec * specularColor) * light.base.color * light.base.density;
         break;
     }
 
@@ -253,10 +271,10 @@ void main() {
         float pSpec = 0.0;
         if (pDiff > 0.0) {
             vec3 halfwayDir = normalize(pDir + viewDir);
-            pSpec = pow(max(dot(normal, halfwayDir), 0.0), 32.0) * light.base.specular * atten;
+            pSpec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular * atten;
         }
 
-        pointResult += (pAmbient * albedo.rgb * ambientOcclusion + pDiff * albedo.rgb + pSpec * vec3(1.0)) * light.base.color * light.base.density;
+        pointResult += (pAmbient * diffuseColor * ambientOcclusion + pDiff * diffuseColor + pSpec * specularColor) * light.base.color * light.base.density;
     }
 
     float shadow = 1.0;
@@ -297,7 +315,7 @@ void main() {
 
     vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult, 0.0, 1.0);
 
-    if (cam.debugCascades != 0) {
+    if (cam.debugCascades == 1) {
         const vec3 cascadeColors[4] = vec3[](
             vec3(1.0, 0.2, 0.2),  // red = cascade 0 (nearest)
             vec3(0.2, 1.0, 0.2),  // green = cascade 1
@@ -305,6 +323,9 @@ void main() {
             vec3(1.0, 1.0, 0.2)   // yellow = cascade 3 (farthest)
         );
         finalColor = mix(finalColor, cascadeColors[cascadeIndex], 0.35);
+    } else if (cam.debugCascades == 2) {
+        // Debug material G-buffer: R=roughness G=metallic B=specular
+        finalColor = vec3(matRoughness, matMetallic, matSpecular);
     }
 
     outFragColor = vec4(finalColor, albedo.a);

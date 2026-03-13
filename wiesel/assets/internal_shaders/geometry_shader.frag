@@ -37,6 +37,9 @@ layout (set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
     float entityId;
+    // implicit 12 bytes padding to vec4 boundary
+    vec4 colorTint;
+    vec4 materialParams; // x=roughness, y=metallic, z=specular
 };
 
 layout (set = 1, binding = 1, std140) uniform Camera {
@@ -104,30 +107,37 @@ void main() {
     vec4 baseColor;
     if ((inFlags & kVertexFlagHasTexture) > 0) {
         baseColor = texture(baseTexture, inUV);
+    } else if ((inFlags & kVertexFlagHasAlbedoMap) > 0) {
+        baseColor = texture(albedoMap, inUV);
     } else {
         baseColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
     }
+    baseColor *= colorTint;
+
     if (baseColor.a < 0.5) {
         discard;
     }
 
+    // materialParams: x=roughness, y=metallic, z=specular
+    // When a map exists: texture * param (param acts as multiplier)
+    // When no map exists: param used directly (acts as the value itself)
     float specular;
     if ((inFlags & kVertexFlagHasSpecularMap) > 0) {
-        specular = texture(specularMap, inUV).r;
+        specular = texture(specularMap, inUV).r * materialParams.z;
     } else {
-        specular = 0.0f;
+        specular = materialParams.z;
     }
     float roughness;
     if ((inFlags & kVertexFlagHasRoughnessMap) > 0) {
-        roughness = texture(roughnessMap, inUV).r;
+        roughness = texture(roughnessMap, inUV).r * materialParams.x;
     } else {
-        roughness = 0.0f;
+        roughness = materialParams.x;
     }
     float metallic;
     if ((inFlags & kVertexFlagHasMetallicMap) > 0) {
-        metallic = texture(metallicMap, inUV).r;
+        metallic = texture(metallicMap, inUV).r * materialParams.y;
     } else {
-        metallic = 0.0f;
+        metallic = materialParams.y;
     }
     vec3 normal = getSurfaceNormal();
 

@@ -65,6 +65,7 @@ class Engine {
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
   static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
                          aiTextureType type, const aiScene& scene);
+  static void PreDecodeTextures(Model& model, const aiScene& scene);
   static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex, TextureType type);
   static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width, int height);
   static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,

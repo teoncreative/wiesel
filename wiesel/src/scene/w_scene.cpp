@@ -491,7 +491,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
       camera.UpdateAll();
       camera.any_changed = false;
     }
-    if (lights.direct_light_count > 0) {
+    if (lights.direct_light_count > 0 && Engine::renderer()->options().shadows_enabled) {
       camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
     } else {
       camera.does_shadow_pass = false;
@@ -807,7 +807,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
 
   // Compute shadow cascades for external camera (same as ECS cameras)
   auto& lights = Engine::renderer()->lights_uniform_data_;
-  if (lights.direct_light_count > 0) {
+  if (lights.direct_light_count > 0 && renderer->options().shadows_enabled) {
     camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
   } else {
     camera.does_shadow_pass = false;

@@ -204,6 +204,11 @@ void Pipeline::Bake() {
     if (item.type != AttachmentTextureType::Color && item.type != AttachmentTextureType::Offscreen && item.type != AttachmentTextureType::SwapChain) {
       continue;
     }
+    // Skip resolve targets - they don't count as color attachments in the subpass
+    if (item.type == AttachmentTextureType::SwapChain || item.type == AttachmentTextureType::Resolve) {
+      bool used_as_resolve = item.msaa_mode > SamplingMode::DISABLED || item.type == AttachmentTextureType::Resolve;
+      if (used_as_resolve) continue;
+    }
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |

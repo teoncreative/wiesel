@@ -6,6 +6,9 @@ layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
     float entityId;
+    // implicit 12 bytes padding to vec4 boundary
+    vec4 colorTint;
+    vec4 materialParams; // x=roughness, y=metallic, z=specular
 };
 
 layout(set = 1, binding = 1, std140) uniform Camera {

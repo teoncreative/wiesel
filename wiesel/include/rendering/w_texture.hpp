@@ -182,6 +182,11 @@ class Texture {
 
   bool is_allocated_;
   std::string path_;
+
+  // Lazily-created ImGui descriptor for texture preview in editor UI.
+  // Automatically cleaned up in destructor.
+  VkDescriptorSet imgui_descriptor_ = nullptr;
+  VkDescriptorSet GetImGuiDescriptor();
 };
 
 enum class AttachmentTextureType {

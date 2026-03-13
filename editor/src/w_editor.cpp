@@ -14,6 +14,7 @@
 #include "imgui_internal.h"
 #include "physics/w_collider.hpp"
 #include "physics/w_physics_world.hpp"
+#include "rendering/w_material.hpp"
 #include "rendering/w_sprite.hpp"
 #include "rendering/w_texture.hpp"
 #include "util/w_dialogs.hpp"
@@ -441,11 +442,18 @@ void EditorLayer::OnBeginPresent() {
                     &settings.vsync);
     ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(),
                     &settings.only_ssao);
-    ImGui::Checkbox(PrefixLabel("Debug Cascades").c_str(),
-                    &settings.debug_cascades);
+    {
+      const char* debug_modes[] = {"Off", "Cascades", "Material"};
+      int debug_mode = settings.debug_cascades;
+      if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode, debug_modes, 3)) {
+        settings.debug_cascades = debug_mode;
+      }
+    }
     ImGui::Checkbox(PrefixLabel("Debug Colliders").c_str(),
                     &settings.debug_colliders);
-    if (renderer->IsRayTracingSupported()) {
+    ImGui::Checkbox(PrefixLabel("Shadows").c_str(),
+                    &settings.shadows_enabled);
+    if (settings.shadows_enabled && renderer->IsRayTracingSupported()) {
       ImGui::Checkbox(PrefixLabel("RT Shadows").c_str(),
                       &settings.rt_shadows_enabled);
     }
@@ -784,18 +792,51 @@ void EditorLayer::OnBeginPresent() {
 
       std::error_code ec;
       fs::create_directories(dest_dir, ec);
-      fs::path dest = dest_dir / abs.filename();
-      fs::copy_file(abs, dest, fs::copy_options::skip_existing, ec);
-      if (ec) {
-        LOG_ERROR("Failed to import '{}' to '{}': {}", file, dest.string(), ec.message());
-        return;
-      }
 
-      auto vfs_rel = fs::relative(dest, app_assets);
-      std::string vfs_path = "/app/" + vfs_rel.generic_string();
-      std::string name = abs.stem().string();
-      Engine::asset_manager().Register(name, type, vfs_path);
-      LOG_INFO("Imported {} to {}", name, vfs_path);
+      // For model files, copy all sibling files from the source directory
+      // (glTF needs .bin + textures, FBX may have companion files)
+      if (type == AssetType::Model) {
+        fs::path source_dir = abs.parent_path();
+        fs::path model_dest_dir = dest_dir / abs.stem();
+        fs::create_directories(model_dest_dir, ec);
+        // Copy all files from the source directory
+        for (const auto& entry : fs::directory_iterator(source_dir)) {
+          if (!entry.is_regular_file()) continue;
+          fs::path file_dest = model_dest_dir / entry.path().filename();
+          fs::copy_file(entry.path(), file_dest, fs::copy_options::skip_existing, ec);
+          if (ec) {
+            LOG_WARN("Failed to copy '{}': {}", entry.path().string(), ec.message());
+            ec.clear();
+          }
+        }
+        // Also copy subdirectories (some models have texture subfolders)
+        for (const auto& entry : fs::recursive_directory_iterator(source_dir)) {
+          if (entry.is_directory()) continue;
+          auto rel_to_source = fs::relative(entry.path(), source_dir);
+          fs::path file_dest = model_dest_dir / rel_to_source;
+          fs::create_directories(file_dest.parent_path(), ec);
+          fs::copy_file(entry.path(), file_dest, fs::copy_options::skip_existing, ec);
+          ec.clear();
+        }
+        // Register the main model file
+        auto vfs_rel = fs::relative(model_dest_dir / abs.filename(), app_assets);
+        std::string vfs_path = "/app/" + vfs_rel.generic_string();
+        std::string name = abs.stem().string();
+        Engine::asset_manager().Register(name, type, vfs_path);
+        LOG_INFO("Imported model directory {} to {}", name, vfs_path);
+      } else {
+        fs::path dest = dest_dir / abs.filename();
+        fs::copy_file(abs, dest, fs::copy_options::skip_existing, ec);
+        if (ec) {
+          LOG_ERROR("Failed to import '{}' to '{}': {}", file, dest.string(), ec.message());
+          return;
+        }
+        auto vfs_rel = fs::relative(dest, app_assets);
+        std::string vfs_path = "/app/" + vfs_rel.generic_string();
+        std::string name = abs.stem().string();
+        Engine::asset_manager().Register(name, type, vfs_path);
+        LOG_INFO("Imported {} to {}", name, vfs_path);
+      }
     };
 
     if (ImGui::BeginPopup("ImportAssetPopup")) {
@@ -1318,6 +1359,20 @@ void EditorLayer::OnBeginPresent() {
           : renderer->options().aa_mode == AntiAliasingMode::FXAA ? "FXAA" : "TAA");
       ImGui::Text("Swap Chain Images: %u", stats.swap_chain_images);
       ImGui::Text("Frames in Flight: %u", stats.frames_in_flight);
+
+      ImGui::SeparatorText("Assets");
+      auto asset_stats = Engine::asset_manager().GetStats();
+      ImGui::Text("Total: %zu", asset_stats.total);
+      ImGui::Text("Loaded: %zu", asset_stats.loaded);
+      if (asset_stats.loading > 0) {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Loading: %zu", asset_stats.loading);
+      } else {
+        ImGui::Text("Loading: %zu", asset_stats.loading);
+      }
+      ImGui::Text("Unloaded: %zu", asset_stats.unloaded);
+      if (asset_stats.failed > 0) {
+        ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Failed: %zu", asset_stats.failed);
+      }
 
       if (scene_) {
         ImGui::SeparatorText("Render Pipelines");
@@ -2062,8 +2117,20 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::EndMenu();
     }
 
-    // Right-aligned project/scene info
+    // Right-aligned status bar: asset stats + project info
     {
+      auto asset_stats = Engine::asset_manager().GetStats();
+
+      std::string status_text;
+      bool has_activity = asset_stats.loading > 0;
+      if (has_activity) {
+        status_text = std::format("Loading {} asset{}...",
+            asset_stats.loading, asset_stats.loading > 1 ? "s" : "");
+      } else if (asset_stats.failed > 0) {
+        status_text = std::format("{} failed", asset_stats.failed);
+      }
+      std::string asset_summary = std::format("[{}/{}]", asset_stats.loaded, asset_stats.total);
+
       std::string info;
       if (project_) {
         info = project_->GetSettings().name;
@@ -2076,8 +2143,26 @@ void EditorLayer::RenderMainMenuBar() {
       } else {
         info = "No Project";
       }
-      float text_width = ImGui::CalcTextSize(info.c_str()).x;
-      ImGui::SameLine(ImGui::GetWindowWidth() - text_width - 16.0f);
+
+      float spacing = 12.0f;
+      float info_width = ImGui::CalcTextSize(info.c_str()).x;
+      float summary_width = ImGui::CalcTextSize(asset_summary.c_str()).x;
+      float status_width = status_text.empty() ? 0.0f : ImGui::CalcTextSize(status_text.c_str()).x + spacing;
+      float total_right = status_width + summary_width + spacing + info_width + 16.0f;
+
+      ImGui::SameLine(ImGui::GetWindowWidth() - total_right);
+
+      if (!status_text.empty()) {
+        if (has_activity) {
+          ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "%s", status_text.c_str());
+        } else {
+          ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "%s", status_text.c_str());
+        }
+        ImGui::SameLine(0, spacing);
+      }
+
+      ImGui::TextDisabled("%s", asset_summary.c_str());
+      ImGui::SameLine(0, spacing);
       ImGui::TextDisabled("%s", info.c_str());
     }
 
@@ -2406,7 +2491,7 @@ void EditorLayer::ScanProjectAssets() {
   fs::path assets_dir = fs::absolute(project_->GetAssetsDirectory());
   if (!fs::exists(assets_dir)) return;
 
-  // Clear existing scene/prefab assets that might be stale
+  // Clear existing scene/prefab/material assets that might be stale
   std::vector<AssetHandle> to_remove;
   for (auto& h : mgr.GetAll()) {
     const auto* meta = mgr.GetMetadata(h);
@@ -2418,7 +2503,7 @@ void EditorLayer::ScanProjectAssets() {
     mgr.Unregister(h);
   }
 
-  // Scan the assets directory for .wscene and .wprefab files
+  // Scan the assets directory for known file types
   for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
     if (!entry.is_regular_file()) continue;
 
@@ -2426,13 +2511,33 @@ void EditorLayer::ScanProjectAssets() {
     AssetType type = AssetType::None;
     if (ext == ".wscene") type = AssetType::Scene;
     else if (ext == ".wprefab") type = AssetType::Prefab;
+    else if (ext == ".wmat") type = AssetType::Material;
     else continue;
 
     auto rel = fs::relative(entry.path(), assets_dir);
     std::string vfs_path = "/app/" + rel.generic_string();
     std::string name = entry.path().stem().string();
 
-    mgr.Register(name, type, vfs_path);
+    if (type == AssetType::Material) {
+      // Load .wmat file and register the material asset
+      auto vfs = Engine::vfs();
+      VfsFile file = vfs->Open(vfs_path);
+      if (file.Size() > 0) {
+        try {
+          std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                              std::istreambuf_iterator<char>());
+          auto j = nlohmann::json::parse(content);
+          auto mat = Material::Deserialize(j);
+          mat->name = name;
+          auto handle = mgr.RegisterAndStore<Material>(name, AssetType::Material, vfs_path, mat);
+          mat->asset_handle = handle;
+        } catch (const std::exception& e) {
+          LOG_ERROR("Failed to load material '{}': {}", vfs_path, e.what());
+        }
+      }
+    } else {
+      mgr.Register(name, type, vfs_path);
+    }
 
     if (type == AssetType::Scene) {
       SceneManager::Get().RegisterScene(name, entry.path());

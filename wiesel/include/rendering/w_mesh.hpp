@@ -16,6 +16,7 @@
 #include <assimp/scene.h>
 
 #include <assimp/Importer.hpp>
+#include <stb_image.h>
 
 #include "animation/w_animation.hpp"
 #include "asset/w_asset_handle.hpp"
@@ -38,14 +39,40 @@ struct Mesh {
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
   std::string model_path;
-  Ref<Material> mat;
-  int32_t node_index = -1;  // which node in the hierarchy this mesh belongs to
+  Ref<Material> mat;              // cached material pointer (set during import)
+  AssetHandle material_handle;    // asset handle for this mesh's material
+  int32_t node_index = -1;       // which node in the hierarchy this mesh belongs to
 
   // Shared GPU geometry (created once, used by all entities referencing this mesh)
   Ref<MemoryBuffer> vertex_buffer;
   Ref<IndexBuffer> index_buffer;
 
   bool allocated_;
+};
+
+// Pre-decoded texture data for parallel loading
+struct DecodedTextureData {
+  stbi_uc* pixels = nullptr;
+  int width = 0;
+  int height = 0;
+  int channels = 0;
+
+  ~DecodedTextureData() {
+    if (pixels) stbi_image_free(pixels);
+  }
+  DecodedTextureData() = default;
+  DecodedTextureData(DecodedTextureData&& o) noexcept
+      : pixels(o.pixels), width(o.width), height(o.height), channels(o.channels) {
+    o.pixels = nullptr;
+  }
+  DecodedTextureData& operator=(DecodedTextureData&& o) noexcept {
+    if (pixels) stbi_image_free(pixels);
+    pixels = o.pixels; width = o.width; height = o.height; channels = o.channels;
+    o.pixels = nullptr;
+    return *this;
+  }
+  DecodedTextureData(const DecodedTextureData&) = delete;
+  DecodedTextureData& operator=(const DecodedTextureData&) = delete;
 };
 
 struct Model {
@@ -57,12 +84,30 @@ struct Model {
   std::string textures_path;
   std::map<std::string, Ref<Texture>> textures;
 
+  // Pre-decoded texture cache (populated in parallel, consumed during ProcessNode)
+  std::map<std::string, std::shared_ptr<DecodedTextureData>> decoded_texture_cache;
+
+  // Pre-computed world transform per mesh (from node hierarchy)
+  // Used for static models to position each mesh correctly
+  std::vector<glm::mat4> mesh_node_transforms;
+
   // Animation data (shared across all entities using this model)
   Skeleton skeleton;
   NodeHierarchy node_hierarchy;
   std::vector<AnimationClip> animation_clips;
   bool has_skeleton = false;
   bool has_animations = false;
+
+  // Compute mesh_node_transforms from node hierarchy (call after ProcessNode)
+  void ComputeMeshNodeTransforms() {
+    mesh_node_transforms.resize(meshes.size(), glm::mat4(1.0f));
+    for (size_t i = 0; i < meshes.size(); i++) {
+      int32_t ni = meshes[i]->node_index;
+      if (ni >= 0) {
+        mesh_node_transforms[i] = node_hierarchy.GetWorldTransform(ni);
+      }
+    }
+  }
 };
 
 struct ModelComponent : public IComponent {
@@ -72,12 +117,29 @@ struct ModelComponent : public IComponent {
       : model_handle(other.model_handle),
         default_texture(other.default_texture),
         receive_shadows(other.receive_shadows),
-        enable_rendering(other.enable_rendering) {}
+        enable_rendering(other.enable_rendering),
+        material_slot_handles(other.material_slot_handles) {
+    // Deep copy material instances
+    material_instances.reserve(other.material_instances.size());
+    for (const auto& inst : other.material_instances) {
+      material_instances.push_back(
+          inst ? CreateReference<MaterialInstance>(*inst) : nullptr);
+    }
+  }
 
   AssetHandle model_handle;
   Ref<Texture> default_texture;  // fallback diffuse texture for meshes without one
   bool receive_shadows = true;
   bool enable_rendering = true;
+
+  // Per-slot material handles (overrides mesh defaults, e.g. via drag-drop in editor)
+  std::vector<AssetHandle> material_slot_handles;
+
+  // Per-mesh material overrides (one per mesh slot, lazily created)
+  std::vector<Ref<MaterialInstance>> material_instances;
+
+  // Cached material versions for descriptor invalidation
+  std::vector<uint32_t> material_versions;
 
   // Per-entity render data (lazily allocated by renderer)
   Ref<UniformBuffer> uniform_buffer;
