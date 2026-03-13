@@ -13,8 +13,6 @@
 
 #include "w_pch.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_STATIC
 #include <stb_image.h>
 
 #include "rendering/w_buffer.hpp"
@@ -105,8 +103,9 @@ struct RendererOptions {
   Setting<bool> bloom_enabled = false;
   Setting<bool> motion_blur_enabled = false;
   Setting<bool> only_ssao = false;
-  Setting<bool> debug_cascades = false;
+  Setting<int> debug_cascades = 0;  // 0=off, 1=cascades, 2=material
   Setting<bool> debug_colliders = false;
+  Setting<bool> shadows_enabled = true;
   Setting<bool> rt_shadows_enabled = true;
 
   // Requires pipeline recreation
@@ -364,8 +363,10 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadowPass, entt::entity entity_handle = entt::null);
-  void DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
-                Ref<DescriptorSet> bone_descriptors, bool shadowPass);
+  void DrawMeshCmd(VkCommandBuffer cmd, Ref<Mesh> mesh,
+                   Ref<DescriptorSet> mesh_descriptors,
+                   Ref<DescriptorSet> bone_descriptors,
+                   Ref<DescriptorSet> global_descriptors);
   void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawCanvasRect(const RectangleTransformComponent& rt,
@@ -493,12 +494,27 @@ class Renderer {
   // Create a transient command pool for background thread uploads.
   // Set it as active with SetThreadCommandPool() before doing GPU uploads
   // from a non-main thread, then clear it when done.
-  public:
+ public:
   VkCommandPool CreateTransientCommandPool();
   static void SetThreadCommandPool(VkCommandPool pool);
 
+  // Batch upload mode: all single-time commands are recorded into one command
+  // buffer and submitted together when EndBatchUpload is called.
+  // This avoids per-texture/per-mesh GPU sync during model loading.
+  // Staging buffers are deferred until the batch is flushed via DeferStagingCleanup.
+  void BeginBatchUpload();
+  void EndBatchUpload();
+  void DeferStagingCleanup(VkBuffer buffer, VkDeviceMemory memory);
+
  private:
+  struct StagingResource {
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+  };
   static thread_local VkCommandPool tl_command_pool_;
+  static thread_local VkCommandBuffer tl_batch_cmd_;
+  static thread_local bool tl_batch_active_;
+  static thread_local std::vector<StagingResource> tl_deferred_staging_;
   uint32_t FindMemoryType(uint32_t typeFilter,
                           VkMemoryPropertyFlags properties);
 
@@ -543,8 +559,6 @@ class Renderer {
   friend class CommandBuffer;
   friend class AccelerationStructureManager;
   friend class Application;
-
-  static Ref<Renderer> renderer_;
 
 #ifdef VULKAN_VALIDATION
   std::vector<const char*> validation_layers_;

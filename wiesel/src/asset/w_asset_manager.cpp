@@ -163,6 +163,20 @@ size_t AssetManager::GetAssetCount() const {
   return registry_.size();
 }
 
+AssetManager::AssetStats AssetManager::GetStats() const {
+  AssetStats stats;
+  stats.total = registry_.size();
+  for (const auto& [handle, entry] : registry_) {
+    switch (entry->metadata.load_state.load()) {
+      case AssetLoadState::Loaded:  stats.loaded++;  break;
+      case AssetLoadState::Loading: stats.loading++; break;
+      case AssetLoadState::Failed:  stats.failed++;  break;
+      default:                      stats.unloaded++; break;
+    }
+  }
+  return stats;
+}
+
 // Load state
 
 bool AssetManager::SetLoadState(AssetHandle handle, AssetLoadState expected, AssetLoadState new_state) {

@@ -26,6 +26,10 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_STATIC
+#include <stb_image.h>
+
 #include "animation/w_animation.hpp"
 #include "asset/w_asset_manager.hpp"
 #include "events/w_engineevents.hpp"
@@ -176,8 +180,12 @@ Ref<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertices) {
     memoryBuffer->device_address_ = vkGetBufferDeviceAddress(logical_device_, &addrInfo);
   }
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  if (tl_batch_active_) {
+    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+  } else {
+    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  }
   return memoryBuffer;
 }
 
@@ -237,8 +245,12 @@ Ref<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
     memoryBuffer->device_address_ = vkGetBufferDeviceAddress(logical_device_, &addrInfo);
   }
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  if (tl_batch_active_) {
+    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+  } else {
+    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  }
 
   return memoryBuffer;
 }
@@ -413,8 +425,12 @@ Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
     EndSingleTimeCommands(cmd);
   }
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  if (tl_batch_active_) {
+    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+  } else {
+    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  }
 
   texture->sampler_ = CreateTextureSampler(1, sampler_props);
   texture->image_view_ = CreateImageView(
@@ -485,8 +501,12 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
     EndSingleTimeCommands(cmd);
   }
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  if (tl_batch_active_) {
+    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+  } else {
+    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  }
 
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
   texture->image_view_ =
@@ -546,8 +566,12 @@ Ref<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
     EndSingleTimeCommands(cmd);
   }
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  if (tl_batch_active_) {
+    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+  } else {
+    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
+    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  }
 
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
   texture->image_view_ =
@@ -3093,19 +3117,67 @@ void Renderer::UpdateUniformData() {
 
 void Renderer::AllocateModelRenderData(ModelComponent& model,
                                        const Model& model_data) {
-  // Create one UBO per entity (shared across all meshes, same transform)
-  model.uniform_buffer = CreateUniformBuffer(sizeof(MatricesUniformData));
+  // Lazily create per-mesh material instances
+  if (model.material_instances.size() != model_data.meshes.size()) {
+    model.material_instances.resize(model_data.meshes.size());
+    model.material_slot_handles.resize(model_data.meshes.size());
+    model.material_versions.resize(model_data.meshes.size(), 0);
+  }
+  for (size_t i = 0; i < model_data.meshes.size(); i++) {
+    if (!model.material_instances[i]) {
+      auto inst = CreateReference<MaterialInstance>();
+      // Set material handle: use slot override if set, otherwise mesh default
+      AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
+          ? model.material_slot_handles[i]
+          : model_data.meshes[i]->material_handle;
+      if (mat_handle.IsValid()) {
+        inst->base_material_handle = mat_handle;
+      } else if (model_data.meshes[i]->mat) {
+        // Fallback: register an anonymous material if somehow no handle was set
+        auto fallback = model_data.meshes[i]->mat;
+        AssetHandle h = Engine::asset_manager().RegisterAndStore<Material>(
+            "Material_" + std::to_string(i), AssetType::Material, "", fallback);
+        inst->base_material_handle = h;
+      }
+      model.material_instances[i] = inst;
+    }
+  }
 
-  // Create per-mesh descriptor sets that bind this entity's UBO + mesh's material
+  // Create per-mesh UBOs (each mesh needs its own for per-mesh material data)
+  model.mesh_uniform_buffers_.clear();
+  model.mesh_uniform_buffers_.resize(model_data.meshes.size());
+  for (size_t i = 0; i < model_data.meshes.size(); i++) {
+    model.mesh_uniform_buffers_[i] =
+        CreateUniformBuffer(sizeof(MatricesUniformData));
+  }
+
+  // Keep a shared UBO for backward compat (single-mesh models, etc.)
+  if (!model.mesh_uniform_buffers_.empty()) {
+    model.uniform_buffer = model.mesh_uniform_buffers_[0];
+  } else {
+    model.uniform_buffer = CreateUniformBuffer(sizeof(MatricesUniformData));
+  }
+
+  // Create per-mesh descriptor sets, each bound to its own UBO
   model.geometry_descriptors.clear();
   model.shadow_descriptors.clear();
   model.geometry_descriptors.reserve(model_data.meshes.size());
   model.shadow_descriptors.reserve(model_data.meshes.size());
 
-  for (const auto& mesh : model_data.meshes) {
+  for (size_t i = 0; i < model_data.meshes.size(); i++) {
+    const auto& mesh = model_data.meshes[i];
+    // Resolve the effective material for this slot
+    Ref<Material> effective_mat = nullptr;
+    if (i < model.material_slot_handles.size() && model.material_slot_handles[i].IsValid()) {
+      effective_mat = Engine::asset_manager().Get<Material>(model.material_slot_handles[i]);
+    }
+    if (!effective_mat) {
+      effective_mat = mesh->mat;
+    }
+
     // Apply default texture to meshes that lack a diffuse texture
-    if (model.default_texture && mesh->mat && !mesh->mat->base_texture) {
-      mesh->mat->base_texture = model.default_texture;
+    if (model.default_texture && effective_mat && !effective_mat->base_texture) {
+      effective_mat->base_texture = model.default_texture;
       // Update vertex flags so the shader samples the texture
       for (auto& v : mesh->vertices) {
         v.Flags |= VertexFlagHasTexture;
@@ -3115,9 +3187,13 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
       mesh->Allocate();
     }
     model.geometry_descriptors.push_back(
-        CreateMeshDescriptors(model.uniform_buffer, mesh->mat));
+        CreateMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
     model.shadow_descriptors.push_back(
-        CreateShadowMeshDescriptors(model.uniform_buffer, mesh->mat));
+        CreateShadowMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
+    // Track material version for descriptor invalidation
+    if (effective_mat && i < model.material_versions.size()) {
+      model.material_versions[i] = effective_mat->version;
+    }
   }
 
   // Bone animation GPU resources
@@ -3136,16 +3212,6 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
     // Static model: share the identity bone descriptor
     model.bone_ubo_ = nullptr;
     model.bone_descriptor_ = identity_bone_descriptor_;
-  }
-
-  // Per-mesh UBOs for node animation (each mesh may have a different node transform)
-  model.mesh_uniform_buffers_.clear();
-  if (model_data.has_animations && model_data.node_hierarchy.nodes.size() > 1) {
-    model.mesh_uniform_buffers_.resize(model_data.meshes.size());
-    for (size_t i = 0; i < model_data.meshes.size(); i++) {
-      model.mesh_uniform_buffers_[i] =
-          CreateUniformBuffer(sizeof(MatricesUniformData));
-    }
   }
 
   model.render_model = model.model_handle;
@@ -3178,54 +3244,78 @@ void Renderer::DrawModel(ModelComponent& model,
       ? model.bone_descriptor_
       : identity_bone_descriptor_;
 
-  // Update this entity's transform UBO
-  MatricesUniformData matrices{};
-  matrices.model_matrix = transform.transform_matrix;
-  matrices.normal_matrix = transform.normal_matrix;
-  if (entity_handle != entt::null) {
-    matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
-  }
-  memcpy(model.uniform_buffer->data_, &matrices, sizeof(MatricesUniformData));
+  // Cache global descriptor and command buffer outside mesh loop
+  Ref<DescriptorSet> global_desc = shadowPass
+      ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
+      : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
 
   stats_.models++;
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
-    Ref<DescriptorSet> descriptors = shadowPass ? model.shadow_descriptors[i]
-                                                : model.geometry_descriptors[i];
-    DrawMesh(ptr->meshes[i], descriptors, bone_desc, shadowPass);
+    if (shadowPass) {
+      // Shadow pass: only model_matrix is needed by the shadow vertex shader.
+      // Skip normal_matrix inverse, material lookups, and entity_id.
+      glm::mat4 model_matrix;
+      if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
+        model_matrix = transform.transform_matrix * ptr->mesh_node_transforms[i];
+      } else {
+        model_matrix = transform.transform_matrix;
+      }
+      memcpy(model.mesh_uniform_buffers_[i]->data_, &model_matrix, sizeof(glm::mat4));
+    } else {
+      MatricesUniformData matrices{};
+      if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
+        glm::mat4 mesh_model = transform.transform_matrix * ptr->mesh_node_transforms[i];
+        matrices.model_matrix = mesh_model;
+        matrices.normal_matrix = glm::mat3(glm::transpose(glm::inverse(mesh_model)));
+      } else {
+        matrices.model_matrix = transform.transform_matrix;
+        matrices.normal_matrix = transform.normal_matrix;
+      }
+      if (entity_handle != entt::null) {
+        matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+      }
+
+      // Set per-mesh material properties
+      if (i < model.material_instances.size() && model.material_instances[i]) {
+        auto& inst = model.material_instances[i];
+        matrices.color_tint = inst->GetColorTint();
+        matrices.material_params = glm::vec4(
+            inst->GetRoughness(), inst->GetMetallic(),
+            inst->GetSpecular(), 0.0f);
+      }
+
+      memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
+    }
+
+    Ref<DescriptorSet> descriptors = model.geometry_descriptors[i];
+    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
   }
 }
 
-void Renderer::DrawMesh(Ref<Mesh> mesh, Ref<DescriptorSet> mesh_descriptors,
-                        Ref<DescriptorSet> bone_descriptors, bool shadowPass) {
-  PROFILE_ZONE_SCOPED();
+void Renderer::DrawMeshCmd(VkCommandBuffer cmd, Ref<Mesh> mesh,
+                           Ref<DescriptorSet> mesh_descriptors,
+                           Ref<DescriptorSet> bone_descriptors,
+                           Ref<DescriptorSet> global_descriptors) {
   if (!mesh->allocated_) {
     return;
   }
 
   VkBuffer vertexBuffers[] = {mesh->vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
-  static_assert(std::size(vertexBuffers) == std::size(offsets));
-  vkCmdBindVertexBuffers(command_buffers_[current_frame_]->handle_, 0, std::size(vertexBuffers),
-                         vertexBuffers, offsets);
-  vkCmdBindIndexBuffer(command_buffers_[current_frame_]->handle_,
-                       mesh->index_buffer->buffer_handle_, 0,
+  vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+  vkCmdBindIndexBuffer(cmd, mesh->index_buffer->buffer_handle_, 0,
                        mesh->index_buffer->index_type_);
 
-  VkPipelineLayout layout = bound_pipeline_->layout_;
-
-  auto global_desc = shadowPass
-      ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
-      : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkDescriptorSet sets[3] = {mesh_descriptors->descriptor_set_,
-                             global_desc->descriptor_set_,
+                             global_descriptors->descriptor_set_,
                              bone_descriptors->descriptor_set_};
 
-  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, 3, sets,
-                          0, nullptr);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          bound_pipeline_->layout_, 0, 3, sets, 0, nullptr);
 
   uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
-  vkCmdDrawIndexed(command_buffers_[current_frame_]->handle_, index_count, 1, 0, 0, 0);
+  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
   stats_.draw_calls++;
   stats_.meshes++;
   stats_.vertices += static_cast<uint32_t>(mesh->vertices.size());
@@ -3642,12 +3732,49 @@ VkCommandPool Renderer::CreateTransientCommandPool() {
 }
 
 thread_local VkCommandPool Renderer::tl_command_pool_ = VK_NULL_HANDLE;
+thread_local VkCommandBuffer Renderer::tl_batch_cmd_ = VK_NULL_HANDLE;
+thread_local bool Renderer::tl_batch_active_ = false;
+thread_local std::vector<Renderer::StagingResource> Renderer::tl_deferred_staging_;
 
 void Renderer::SetThreadCommandPool(VkCommandPool pool) {
   tl_command_pool_ = pool;
 }
 
+void Renderer::BeginBatchUpload() {
+  if (tl_batch_active_) return;
+  tl_batch_active_ = true;
+  tl_batch_cmd_ = BeginSingleTimeCommands();
+}
+
+void Renderer::EndBatchUpload() {
+  if (!tl_batch_active_) return;
+  tl_batch_active_ = false;
+  VkCommandBuffer cmd = tl_batch_cmd_;
+  tl_batch_cmd_ = VK_NULL_HANDLE;
+
+  // Submit all recorded commands in one go
+  VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
+                            ? tl_command_pool_
+                            : command_pool_->handle_;
+  EndSingleTimeCommands(cmd, pool);
+
+  // Now that GPU is done, free all deferred staging buffers
+  for (auto& staging : tl_deferred_staging_) {
+    vkDestroyBuffer(logical_device_, staging.buffer, nullptr);
+    vkFreeMemory(logical_device_, staging.memory, nullptr);
+  }
+  tl_deferred_staging_.clear();
+}
+
+void Renderer::DeferStagingCleanup(VkBuffer buffer, VkDeviceMemory memory) {
+  tl_deferred_staging_.push_back({buffer, memory});
+}
+
 VkCommandBuffer Renderer::BeginSingleTimeCommands() {
+  // In batch mode, return the shared command buffer
+  if (tl_batch_active_ && tl_batch_cmd_ != VK_NULL_HANDLE) {
+    return tl_batch_cmd_;
+  }
   VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
                             ? tl_command_pool_
                             : command_pool_->handle_;
@@ -3674,6 +3801,10 @@ VkCommandBuffer Renderer::BeginSingleTimeCommands(VkCommandPool pool) {
 }
 
 void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
+  // In batch mode, don't submit - the batch will be flushed by EndBatchUpload
+  if (tl_batch_active_ && commandBuffer == tl_batch_cmd_) {
+    return;
+  }
   VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
                             ? tl_command_pool_
                             : command_pool_->handle_;

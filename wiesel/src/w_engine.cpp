@@ -12,9 +12,13 @@
 #include "w_engine.hpp"
 
 #include <thread>
+#include <future>
+#include <fstream>
+#include <chrono>
 #include <assimp/IOSystem.hpp>
 #include <assimp/IOStream.hpp>
 #include "asset/w_asset_manager.hpp"
+#include "project/w_project.hpp"
 #include "input/w_input.hpp"
 #include "scene/w_componentutil.hpp"
 #include "scene/w_entity.hpp"
@@ -319,7 +323,6 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
   importer.SetIOHandler(new VfsAssimpIOSystem(vfs_, base_dir));
   importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
                               aiPrimitiveType_LINE | aiPrimitiveType_POINT);
-  importer.SetPropertyBool(AI_CONFIG_PP_PTV_NORMALIZE, true);
   uint32_t flags = aiProcess_Triangulate | aiProcess_CalcTangentSpace |
                    aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
                    aiProcess_LimitBoneWeights |
@@ -359,7 +362,14 @@ void Engine::LoadModelAsync(AssetHandle handle) {
 
   // Background thread: Assimp parsing + GPU uploads (using per-thread command pool)
   std::thread([path, handle, textures_dir]() {
+    using Clock = std::chrono::high_resolution_clock;
+    auto t0 = Clock::now();
+
     aiScene* assimp_scene = LoadAssimpModel(path);
+
+    auto t1 = Clock::now();
+    LOG_INFO("Model import (Assimp): {:.1f}s",
+             std::chrono::duration<double>(t1 - t0).count());
 
     if (!assimp_scene) {
       Engine::asset_manager().SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
@@ -378,14 +388,47 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     model->textures.clear();
     model->node_hierarchy.nodes.clear();
     model->node_hierarchy.node_name_to_index.clear();
+
+    // Pre-decode all textures in parallel (CPU-bound stbi_load)
+    auto t_predecode = Clock::now();
+    PreDecodeTextures(*model, *assimp_scene);
+    auto t_predecode_end = Clock::now();
+    LOG_INFO("Parallel texture decode: {:.1f}s ({} textures)",
+             std::chrono::duration<double>(t_predecode_end - t_predecode).count(),
+             model->decoded_texture_cache.size());
+
+    // Batch all GPU uploads (textures + vertex/index buffers) into a single
+    // command buffer submission to avoid per-resource GPU sync overhead.
+    renderer_->BeginBatchUpload();
+
+    auto t2 = Clock::now();
     ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
                 -1);
+    auto t3 = Clock::now();
+    LOG_INFO("ProcessNode (meshes + textures): {:.1f}s",
+             std::chrono::duration<double>(t3 - t2).count());
+
+    // Pre-compute per-mesh world transforms from node hierarchy
+    model->ComputeMeshNodeTransforms();
+
+    // Free pre-decoded pixel data now that GPU textures are created
+    model->decoded_texture_cache.clear();
+
     ExtractAnimations(*model, *assimp_scene);
     uint64_t vertices = 0;
     for (const std::shared_ptr<Mesh>& item : model->meshes) {
       item->Allocate();
       vertices += item->vertices.size();
     }
+    auto t4 = Clock::now();
+    LOG_INFO("Mesh allocation: {:.1f}s",
+             std::chrono::duration<double>(t4 - t3).count());
+
+    renderer_->EndBatchUpload();
+
+    auto t5 = Clock::now();
+    LOG_INFO("Batch GPU upload: {:.1f}s",
+             std::chrono::duration<double>(t5 - t4).count());
 
     Renderer::SetThreadCommandPool(VK_NULL_HANDLE);
     vkDestroyCommandPool(renderer_->GetLogicalDevice(), upload_pool, nullptr);
@@ -413,10 +456,180 @@ void Engine::LoadModelAsync(AssetHandle handle) {
             asset_manager_->RegisterAndStore<Texture>(texPath, AssetType::Texture,
                                              texPath, tex);
           }
+          // Register materials extracted from meshes as assets
+          // Derive the model's directory for saving .wmat files
+          std::string model_dir;
+          std::string model_stem;
+          {
+            size_t sl = model->model_path.rfind('/');
+            model_dir = (sl != std::string::npos) ? model->model_path.substr(0, sl) : "";
+            std::string filename = (sl != std::string::npos) ? model->model_path.substr(sl + 1) : model->model_path;
+            size_t dot = filename.rfind('.');
+            model_stem = (dot != std::string::npos) ? filename.substr(0, dot) : filename;
+          }
+
+          for (size_t i = 0; i < model->meshes.size(); i++) {
+            auto& mesh = model->meshes[i];
+            if (mesh->mat) {
+              std::string mat_name = mesh->mat->name.empty()
+                  ? "Material_" + std::to_string(i)
+                  : mesh->mat->name;
+
+              // VFS path for the .wmat file alongside the model
+              std::string wmat_vfs_path = model_dir + "/" + model_stem + "_" + mat_name + ".wmat";
+
+              // Check if already registered (re-import case)
+              AssetHandle existing = asset_manager_->FindBySourcePath(wmat_vfs_path);
+              if (existing.IsValid()) {
+                mesh->material_handle = existing;
+                mesh->mat->asset_handle = existing;
+                asset_manager_->Store<Material>(existing, mesh->mat);
+                asset_manager_->SetLoadState(existing, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+              } else {
+                AssetHandle mat_handle = asset_manager_->RegisterAndStore<Material>(
+                    mat_name, AssetType::Material, wmat_vfs_path, mesh->mat);
+                mesh->material_handle = mat_handle;
+                mesh->mat->asset_handle = mat_handle;
+              }
+
+              // Save .wmat file to project directory if a project is active
+              Project* project = Project::GetActive();
+              if (project && wmat_vfs_path.starts_with("/app/")) {
+                namespace fs = std::filesystem;
+                // Convert VFS path to physical: /app/... -> <assets_dir>/...
+                std::string rel = wmat_vfs_path.substr(5);  // strip "/app/"
+                fs::path wmat_path = fs::path(project->GetAssetsDirectory()) / rel;
+                if (!fs::exists(wmat_path)) {
+                  fs::create_directories(wmat_path.parent_path());
+                  nlohmann::json j = mesh->mat->Serialize();
+                  std::ofstream ofs(wmat_path);
+                  if (ofs.is_open()) {
+                    ofs << j.dump(2);
+                    LOG_INFO("Saved material: {}", wmat_path.string());
+                  }
+                }
+              }
+            }
+          }
           asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
           asset_manager_->Store(handle, model);
         });
   }).detach();
+}
+
+void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
+  // Collect all unique external texture paths from all materials
+  std::set<std::string> unique_paths;
+  const aiTextureType texture_types[] = {
+      aiTextureType_DIFFUSE, aiTextureType_NORMALS, aiTextureType_SPECULAR,
+      aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE_ROUGHNESS,
+      aiTextureType_METALNESS};
+
+  for (unsigned int m = 0; m < scene.mNumMaterials; m++) {
+    aiMaterial* mat = scene.mMaterials[m];
+    for (auto tex_type : texture_types) {
+      for (unsigned int i = 0; i < mat->GetTextureCount(tex_type); i++) {
+        aiString str;
+        mat->GetTexture(tex_type, i, &str);
+        std::string s = str.C_Str();
+        if (s.empty() || s[0] == '*') continue;  // skip embedded
+
+        // Normalize path the same way LoadTexture does
+        size_t last_sep = s.find_last_of("/\\");
+        if (last_sep != std::string::npos && (s.find(':') != std::string::npos || s[0] == '/')) {
+          s = s.substr(last_sep + 1);
+        }
+        unique_paths.insert(model.textures_path + "/" + s);
+      }
+    }
+  }
+
+  // Also collect embedded textures
+  struct EmbeddedTask {
+    int index;
+    std::string key;
+    aiTexture* tex;
+  };
+  std::vector<EmbeddedTask> embedded_tasks;
+  for (unsigned int m = 0; m < scene.mNumMaterials; m++) {
+    aiMaterial* mat = scene.mMaterials[m];
+    for (auto tex_type : texture_types) {
+      for (unsigned int i = 0; i < mat->GetTextureCount(tex_type); i++) {
+        aiString str;
+        mat->GetTexture(tex_type, i, &str);
+        std::string s = str.C_Str();
+        if (!s.empty() && s[0] == '*') {
+          int idx = std::atoi(s.c_str() + 1);
+          if (idx >= 0 && static_cast<unsigned>(idx) < scene.mNumTextures) {
+            std::string key = model.textures_path + "/embedded_" + std::to_string(idx);
+            if (!model.decoded_texture_cache.contains(key)) {
+              embedded_tasks.push_back({idx, key, scene.mTextures[idx]});
+              // Mark as pending to avoid duplicates
+              model.decoded_texture_cache[key] = nullptr;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (unique_paths.empty() && embedded_tasks.empty()) return;
+
+  // Decode external textures in parallel
+  std::vector<std::future<std::pair<std::string, std::shared_ptr<DecodedTextureData>>>> futures;
+
+  for (const auto& tex_path : unique_paths) {
+    futures.push_back(std::async(std::launch::async, [tex_path]()
+        -> std::pair<std::string, std::shared_ptr<DecodedTextureData>> {
+      auto decoded = std::make_shared<DecodedTextureData>();
+      VfsFile file = Engine::vfs()->Open(tex_path);
+      if (file.Size() == 0) return {tex_path, nullptr};
+
+      decoded->pixels = stbi_load_from_memory(
+          file.Data(), static_cast<int>(file.Size()),
+          &decoded->width, &decoded->height, &decoded->channels, STBI_rgb_alpha);
+
+      if (!decoded->pixels) return {tex_path, nullptr};
+      return {tex_path, decoded};
+    }));
+  }
+
+  // Decode embedded textures in parallel
+  for (auto& task : embedded_tasks) {
+    futures.push_back(std::async(std::launch::async, [task]()
+        -> std::pair<std::string, std::shared_ptr<DecodedTextureData>> {
+      auto decoded = std::make_shared<DecodedTextureData>();
+      if (task.tex->mHeight == 0) {
+        decoded->pixels = stbi_load_from_memory(
+            reinterpret_cast<unsigned char*>(task.tex->pcData),
+            task.tex->mWidth,
+            &decoded->width, &decoded->height, &decoded->channels, STBI_rgb_alpha);
+      } else {
+        decoded->width = task.tex->mWidth;
+        decoded->height = task.tex->mHeight;
+        decoded->channels = 4;
+        int size = decoded->width * decoded->height;
+        decoded->pixels = static_cast<stbi_uc*>(malloc(size * 4));
+        aiTexel* texels = reinterpret_cast<aiTexel*>(task.tex->pcData);
+        for (int i = 0; i < size; i++) {
+          decoded->pixels[i * 4 + 0] = texels[i].r;
+          decoded->pixels[i * 4 + 1] = texels[i].g;
+          decoded->pixels[i * 4 + 2] = texels[i].b;
+          decoded->pixels[i * 4 + 3] = texels[i].a;
+        }
+      }
+      if (!decoded->pixels) return {task.key, nullptr};
+      return {task.key, decoded};
+    }));
+  }
+
+  // Collect results
+  for (auto& f : futures) {
+    auto [key, data] = f.get();
+    if (data) {
+      model.decoded_texture_cache[key] = std::move(data);
+    }
+  }
 }
 
 bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
@@ -451,8 +664,22 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
           Material::Set(mesh->mat, model.textures[textureKey],
                         static_cast<TextureType>(type));
         } else {
-          std::shared_ptr<Texture> texture = CreateTextureFromEmbedded(
-              embeddedTex, static_cast<TextureType>(type));
+          std::shared_ptr<Texture> texture;
+          // Use pre-decoded cache if available (parallel decode)
+          auto cache_it = model.decoded_texture_cache.find(textureKey);
+          if (cache_it != model.decoded_texture_cache.end() && cache_it->second) {
+            auto& decoded = cache_it->second;
+            TextureProps props;
+            props.type = static_cast<TextureType>(type);
+            props.width = decoded->width;
+            props.height = decoded->height;
+            props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
+            props.generate_mipmaps = true;
+            texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
+          } else {
+            texture = CreateTextureFromEmbedded(
+                embeddedTex, static_cast<TextureType>(type));
+          }
           if (texture == nullptr) {
             continue;
           }
@@ -474,8 +701,22 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
         Material::Set(mesh->mat, model.textures[textureFullPath],
                       static_cast<TextureType>(type));
       } else {
-        std::shared_ptr<Texture> texture = renderer_->CreateTexture(
-            textureFullPath, {static_cast<TextureType>(type)}, {});
+        std::shared_ptr<Texture> texture;
+        // Use pre-decoded cache if available (parallel decode)
+        auto cache_it = model.decoded_texture_cache.find(textureFullPath);
+        if (cache_it != model.decoded_texture_cache.end() && cache_it->second) {
+          auto& decoded = cache_it->second;
+          TextureProps props;
+          props.type = static_cast<TextureType>(type);
+          props.width = decoded->width;
+          props.height = decoded->height;
+          props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
+          props.generate_mipmaps = true;
+          texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
+        } else {
+          texture = renderer_->CreateTexture(
+              textureFullPath, {static_cast<TextureType>(type)}, {});
+        }
         if (texture == nullptr) {
           continue;
         }
@@ -560,7 +801,13 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
   aiMaterial* material = aiScene.mMaterials[aiMesh->mMaterialIndex];
 
   std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
-  // todo handle materials properly within another class
+
+  // Extract material name from assimp
+  aiString ai_mat_name;
+  if (material->Get(AI_MATKEY_NAME, ai_mat_name) == AI_SUCCESS) {
+    mesh->mat->name = ai_mat_name.C_Str();
+  }
+
   uint32_t flags = 0;
   flags |= VertexFlagHasTexture *
            LoadTexture(model, mesh, material, aiTextureType_DIFFUSE, aiScene);
@@ -576,6 +823,28 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
                        aiScene);
   flags |= VertexFlagHasMetallicMap *
            LoadTexture(model, mesh, material, aiTextureType_METALNESS, aiScene);
+
+  // Read PBR material factors from assimp (glTF roughness/metallic workflow)
+  // When a map exists, the factor acts as a multiplier (default 1.0 = full texture).
+  // When no map exists, the factor IS the value directly.
+  float roughness_factor;
+  if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness_factor) != AI_SUCCESS) {
+    roughness_factor = (flags & VertexFlagHasRoughnessMap) ? 1.0f : 0.5f;
+  }
+  float metallic_factor;
+  if (material->Get(AI_MATKEY_METALLIC_FACTOR, metallic_factor) != AI_SUCCESS) {
+    metallic_factor = (flags & VertexFlagHasMetallicMap) ? 1.0f : 0.0f;
+  }
+  mesh->mat->SetProperty("roughness", roughness_factor);
+  mesh->mat->SetProperty("metallic", metallic_factor);
+
+  // Specular is engine-specific (not standard glTF PBR).
+  // With map: factor as multiplier (1.0). Without map: small dielectric F0.
+  float specular_factor;
+  if (material->Get(AI_MATKEY_SPECULAR_FACTOR, specular_factor) != AI_SUCCESS) {
+    specular_factor = (flags & VertexFlagHasSpecularMap) ? 1.0f : 0.08f;
+  }
+  mesh->mat->SetProperty("specular", specular_factor);
 
   bool has_unsupported_textures = false;
   for (size_t type = aiTextureType_NONE; type < AI_TEXTURE_TYPE_MAX; type++) {

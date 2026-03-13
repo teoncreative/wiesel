@@ -9,6 +9,7 @@ uint kVertexFlagHasRoughnessMap = 1 << 5;
 uint kVertexFlagHasMetallicMap = 1 << 6;
 
 layout(set = 0, binding = 1) uniform sampler2D baseTexture;
+layout(set = 0, binding = 5) uniform sampler2D albedoMap;
 
 layout(location = 0) in vec2 inUV;
 layout(location = 1) in flat uint inFlags;
@@ -18,6 +19,8 @@ void main()
     vec4 baseColor;
     if ((inFlags & kVertexFlagHasTexture) > 0) {
         baseColor = texture(baseTexture, inUV);
+    } else if ((inFlags & kVertexFlagHasAlbedoMap) > 0) {
+        baseColor = texture(albedoMap, inUV);
     } else {
         baseColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
     }

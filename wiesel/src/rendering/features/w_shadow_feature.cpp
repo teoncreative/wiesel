@@ -41,7 +41,7 @@ ShadowFeature::ShadowFeature(Ref<Renderer> renderer)
                            Vertex3D::GetAttributeDescriptions());
   push_constant_ = std::make_shared<ShadowPipelinePushConstant>();
   pipeline_->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT);
-  pipeline_->AddInputLayout(renderer_->GetShadowMeshDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetGeometryMeshDescriptorLayout());
   pipeline_->AddInputLayout(renderer_->GetGlobalShadowDescriptorLayout());
   pipeline_->AddInputLayout(renderer_->GetBoneDescriptorLayout());
   pipeline_->AddShader(vert);

@@ -29,10 +29,33 @@
 #include <typeindex>
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <backends/imgui_impl_vulkan.h>
 
 #include <ranges>
 
 namespace Wiesel {
+
+static void RenderTexturePreview(const char* label, Texture* tex) {
+  if (!tex) {
+    ImGui::TextDisabled("  %s: No", label);
+    return;
+  }
+  VkDescriptorSet desc = tex->GetImGuiDescriptor();
+  if (!desc) {
+    ImGui::TextDisabled("  %s: (loading)", label);
+    return;
+  }
+  ImGui::Text("  %s:", label);
+  ImGui::SameLine();
+  ImVec2 thumb_size(16, 16);
+  ImGui::Image(reinterpret_cast<ImTextureID>(desc), thumb_size);
+  if (ImGui::IsItemHovered()) {
+    ImGui::BeginTooltip();
+    ImVec2 preview_size(256, 256);
+    ImGui::Image(reinterpret_cast<ImTextureID>(desc), preview_size);
+    ImGui::EndTooltip();
+  }
+}
 
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Transform", nullptr)) {
@@ -131,6 +154,101 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
 
     ImGui::Checkbox("Receive Shadows", &model.receive_shadows);
     ImGui::Checkbox("Render", &model.enable_rendering);
+
+    // Per-mesh material slots
+    if (model.model_handle.IsValid()) {
+      const Ref<Model>& model_data = assets.GetOrLoad<Model>(model.model_handle);
+      if (model_data) {
+        // Ensure material instances match mesh count
+        if (model.material_instances.size() != model_data->meshes.size()) {
+          model.material_instances.resize(model_data->meshes.size());
+          model.material_slot_handles.resize(model_data->meshes.size());
+          model.material_versions.resize(model_data->meshes.size(), 0);
+        }
+        for (size_t i = 0; i < model_data->meshes.size(); i++) {
+          if (!model.material_instances[i]) {
+            auto inst = CreateReference<MaterialInstance>();
+            AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
+                ? model.material_slot_handles[i]
+                : model_data->meshes[i]->material_handle;
+            inst->base_material_handle = mat_handle;
+            model.material_instances[i] = inst;
+          }
+        }
+
+        if (ImGui::TreeNode("Materials")) {
+          for (size_t i = 0; i < model.material_instances.size(); i++) {
+            auto& inst = model.material_instances[i];
+            if (!inst) continue;
+
+            ImGui::PushID(static_cast<int>(i));
+
+            auto base = inst->GetBaseMaterial();
+            std::string slot_label = "Slot " + std::to_string(i);
+            if (base) {
+              if (!base->name.empty()) {
+                slot_label = base->name;
+              }
+              if (base->base_texture) slot_label += " (textured)";
+            }
+
+            if (ImGui::TreeNode(slot_label.c_str())) {
+              // Show material asset info
+              if (base && base->asset_handle.IsValid()) {
+                const auto* meta = assets.GetMetadata(base->asset_handle);
+                if (meta) {
+                  ImGui::TextDisabled("Asset: %s", meta->name.c_str());
+                }
+              }
+
+              glm::vec4 tint = inst->GetColorTint();
+              if (ImGui::ColorEdit4(PrefixLabel("Color Tint").c_str(), &tint.x)) {
+                inst->SetColorTint(tint);
+              }
+
+              float roughness = inst->GetRoughness();
+              if (ImGui::SliderFloat(PrefixLabel("Roughness").c_str(), &roughness, 0.0f, 1.0f)) {
+                inst->SetRoughness(roughness);
+              }
+
+              float metallic = inst->GetMetallic();
+              if (ImGui::SliderFloat(PrefixLabel("Metallic").c_str(), &metallic, 0.0f, 1.0f)) {
+                inst->SetMetallic(metallic);
+              }
+
+              float specular = inst->GetSpecular();
+              if (ImGui::SliderFloat(PrefixLabel("Specular").c_str(), &specular, 0.0f, 1.0f)) {
+                inst->SetSpecular(specular);
+              }
+
+              // Show base material texture previews
+              if (base) {
+                if (ImGui::TreeNode("Textures")) {
+                  RenderTexturePreview("Diffuse", base->base_texture.get());
+                  RenderTexturePreview("Normal", base->normal_map.get());
+                  RenderTexturePreview("Roughness", base->roughness_map.get());
+                  RenderTexturePreview("Metallic", base->metallic_map.get());
+                  RenderTexturePreview("Specular", base->specular_map.get());
+                  ImGui::TreePop();
+                }
+              }
+
+              if (inst->HasOverride("color_tint") || inst->HasOverride("roughness") ||
+                  inst->HasOverride("metallic") || inst->HasOverride("specular")) {
+                if (ImGui::Button("Reset to Default")) {
+                  inst->overrides.clear();
+                }
+              }
+
+              ImGui::TreePop();
+            }
+            ImGui::PopID();
+          }
+          ImGui::TreePop();
+        }
+      }
+    }
+
     ImGui::TreePop();
   }
   if (!visible) {

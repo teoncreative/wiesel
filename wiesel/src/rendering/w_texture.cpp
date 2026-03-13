@@ -11,6 +11,8 @@
 
 #include "rendering/w_texture.hpp"
 
+#include <backends/imgui_impl_vulkan.h>
+
 #include "w_engine.hpp"
 
 namespace Wiesel {
@@ -25,7 +27,20 @@ Texture::Texture(TextureType texture_type, const std::string& path)
 }
 
 Texture::~Texture() {
+  if (imgui_descriptor_) {
+    ImGui_ImplVulkan_RemoveTexture(imgui_descriptor_);
+    imgui_descriptor_ = nullptr;
+  }
   Engine::renderer()->DestroyTexture(*this);
+}
+
+VkDescriptorSet Texture::GetImGuiDescriptor() {
+  if (imgui_descriptor_) return imgui_descriptor_;
+  if (!is_allocated_ || !image_view_) return nullptr;
+  imgui_descriptor_ = ImGui_ImplVulkan_AddTexture(
+      sampler_, image_view_->handle_,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  return imgui_descriptor_;
 }
 
 AttachmentTexture::~AttachmentTexture() {

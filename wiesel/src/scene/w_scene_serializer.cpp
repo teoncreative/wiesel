@@ -99,6 +99,36 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     }
     model["receive_shadows"] = m.receive_shadows;
     model["enable_rendering"] = m.enable_rendering;
+
+    // Serialize per-slot material handles and overrides
+    if (!m.material_slot_handles.empty()) {
+      nlohmann::json slots = nlohmann::json::array();
+      for (size_t i = 0; i < m.material_slot_handles.size(); i++) {
+        nlohmann::json slot;
+        if (m.material_slot_handles[i].IsValid()) {
+          slot["material_handle"] = m.material_slot_handles[i].ToString();
+        }
+        // Save material instance overrides
+        if (i < m.material_instances.size() && m.material_instances[i] &&
+            !m.material_instances[i]->overrides.empty()) {
+          nlohmann::json overrides;
+          for (const auto& [key, val] : m.material_instances[i]->overrides) {
+            if (std::holds_alternative<float>(val)) {
+              overrides[key] = std::get<float>(val);
+            } else if (std::holds_alternative<glm::vec4>(val)) {
+              auto& v = std::get<glm::vec4>(val);
+              overrides[key] = {v.x, v.y, v.z, v.w};
+            }
+          }
+          if (!overrides.empty()) {
+            slot["overrides"] = overrides;
+          }
+        }
+        slots.push_back(slot);
+      }
+      model["material_slots"] = slots;
+    }
+
     j["Model"] = model;
   }
 
@@ -228,6 +258,37 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
 
     m.receive_shadows = mj.value("receive_shadows", true);
     m.enable_rendering = mj.value("enable_rendering", true);
+
+    // Restore per-slot material handles and overrides
+    if (mj.contains("material_slots") && mj["material_slots"].is_array()) {
+      for (size_t i = 0; i < mj["material_slots"].size(); i++) {
+        const auto& slot = mj["material_slots"][i];
+        // Resize vectors to fit
+        if (m.material_slot_handles.size() <= i) {
+          m.material_slot_handles.resize(i + 1);
+          m.material_instances.resize(i + 1);
+          m.material_versions.resize(i + 1, 0);
+        }
+        if (slot.contains("material_handle")) {
+          m.material_slot_handles[i] = AssetHandle::FromString(
+              slot["material_handle"].get<std::string>());
+        }
+        // Restore overrides
+        if (slot.contains("overrides")) {
+          if (!m.material_instances[i]) {
+            m.material_instances[i] = CreateReference<MaterialInstance>();
+          }
+          auto& inst = m.material_instances[i];
+          for (auto& [key, val] : slot["overrides"].items()) {
+            if (val.is_number()) {
+              inst->overrides[key] = val.get<float>();
+            } else if (val.is_array() && val.size() >= 4) {
+              inst->overrides[key] = glm::vec4(val[0], val[1], val[2], val[3]);
+            }
+          }
+        }
+      }
+    }
   }
 
   // Directional Light

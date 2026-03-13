@@ -45,6 +45,17 @@ struct NodeHierarchy {
     auto it = node_name_to_index.find(name);
     return it != node_name_to_index.end() ? it->second : -1;
   }
+
+  // Get accumulated world transform for a node by walking up the parent chain
+  glm::mat4 GetWorldTransform(int32_t node_index) const {
+    glm::mat4 transform = glm::mat4(1.0f);
+    int32_t idx = node_index;
+    while (idx >= 0 && idx < static_cast<int32_t>(nodes.size())) {
+      transform = nodes[idx].local_transform * transform;
+      idx = nodes[idx].parent_index;
+    }
+    return transform;
+  }
 };
 
 // ---- Animation Clips ----

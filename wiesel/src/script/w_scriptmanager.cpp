@@ -82,6 +82,106 @@ bool Internals_Input_GetKeyUp(MonoString* str) {
   return value;
 }
 
+// Helper: ensure MaterialInstance exists on a ModelComponent (mesh index 0)
+static Ref<MaterialInstance>& EnsureMaterialInstance(ModelComponent& model) {
+  if (model.material_instances.empty()) {
+    model.material_instances.resize(1);
+  }
+  if (!model.material_instances[0]) {
+    model.material_instances[0] = CreateReference<MaterialInstance>();
+    // Create a transient material if no handle is set
+    auto fallback = CreateReference<Material>();
+    AssetHandle h = Engine::asset_manager().RegisterAndStore<Material>(
+        "script_material", AssetType::Material, "", fallback);
+    model.material_instances[0]->base_material_handle = h;
+  }
+  return model.material_instances[0];
+}
+
+// ModelComponent material properties
+float Internals_ModelComponent_GetColorTintR(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetColorTint().r;
+}
+float Internals_ModelComponent_GetColorTintG(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetColorTint().g;
+}
+float Internals_ModelComponent_GetColorTintB(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetColorTint().b;
+}
+float Internals_ModelComponent_GetColorTintA(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetColorTint().a;
+}
+void Internals_ModelComponent_SetColorTintR(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  auto& inst = EnsureMaterialInstance(model);
+  auto tint = inst->GetColorTint();
+  tint.r = v;
+  inst->SetColorTint(tint);
+}
+void Internals_ModelComponent_SetColorTintG(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  auto& inst = EnsureMaterialInstance(model);
+  auto tint = inst->GetColorTint();
+  tint.g = v;
+  inst->SetColorTint(tint);
+}
+void Internals_ModelComponent_SetColorTintB(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  auto& inst = EnsureMaterialInstance(model);
+  auto tint = inst->GetColorTint();
+  tint.b = v;
+  inst->SetColorTint(tint);
+}
+void Internals_ModelComponent_SetColorTintA(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  auto& inst = EnsureMaterialInstance(model);
+  auto tint = inst->GetColorTint();
+  tint.a = v;
+  inst->SetColorTint(tint);
+}
+float Internals_ModelComponent_GetRoughness(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetRoughness();
+}
+void Internals_ModelComponent_SetRoughness(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  EnsureMaterialInstance(model)->SetRoughness(v);
+}
+float Internals_ModelComponent_GetMetallic(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetMetallic();
+}
+void Internals_ModelComponent_SetMetallic(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  EnsureMaterialInstance(model)->SetMetallic(v);
+}
+float Internals_ModelComponent_GetSpecular(uint64_t scene_ptr, uint64_t entity_id) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  return EnsureMaterialInstance(model)->GetSpecular();
+}
+void Internals_ModelComponent_SetSpecular(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
+  EnsureMaterialInstance(model)->SetSpecular(v);
+}
+
 uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   const char* cstr = mono_string_to_utf8(name);
@@ -1290,6 +1390,20 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetDown);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetEnableRendering);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetEnableRendering);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintR);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintG);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintB);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintA);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintR);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintG);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintB);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintA);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetRoughness);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetRoughness);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetMetallic);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetMetallic);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetSpecular);
+  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetSpecular);
   // BoxColliderComponent
   WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetX);
   WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetY);

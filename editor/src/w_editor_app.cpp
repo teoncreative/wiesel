@@ -15,7 +15,7 @@ using namespace Wiesel::Editor;
 class EditorApplication : public Application {
  public:
   EditorApplication()
-      : Application({"Wiesel Editor", {1600, 900}, true},s  {}) {}
+      : Application({"Wiesel Editor", {1600, 900}, true}, {}) {}
 
   ~EditorApplication() override = default;
 

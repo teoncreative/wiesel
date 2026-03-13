@@ -66,6 +66,7 @@ RTShadowFeature::RTShadowFeature(Ref<Renderer> renderer)
 
 bool RTShadowFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.renderer.IsRayTracingSupported() &&
+         ctx.renderer.options().shadows_enabled &&
          ctx.renderer.options().rt_shadows_enabled;
 }
 

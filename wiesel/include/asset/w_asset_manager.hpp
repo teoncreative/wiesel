@@ -51,6 +51,15 @@ class AssetManager {
   std::vector<AssetHandle> GetAll() const;
   size_t GetAssetCount() const;
 
+  struct AssetStats {
+    size_t total = 0;
+    size_t loaded = 0;
+    size_t loading = 0;
+    size_t unloaded = 0;
+    size_t failed = 0;
+  };
+  AssetStats GetStats() const;
+
   // Load state
   bool SetLoadState(AssetHandle handle, AssetLoadState expected, AssetLoadState new_state);
   AssetLoadState GetLoadState(AssetHandle handle) const;
@@ -132,6 +141,7 @@ AssetHandle AssetManager::RegisterAndStore(const std::string& name,
   AssetHandle handle = Register(name, type, virtual_source_path);
   if (handle.IsValid()) {
     Store<T>(handle, std::move(resource));
+    SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
   }
   return handle;
 }

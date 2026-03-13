@@ -198,15 +198,22 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
     const Ref<Model>& modelData = assets.GetOrLoad<Model>(model.model_handle);
     if (!modelData) continue;
 
-    for (const auto& mesh : modelData->meshes) {
+    for (size_t mi = 0; mi < modelData->meshes.size(); mi++) {
+      const auto& mesh = modelData->meshes[mi];
       if (!mesh->allocated_) continue;
 
       Ref<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
       if (!blas) continue;
 
+      // Apply per-mesh node transform for static models
+      glm::mat4 mesh_world = transform.transform_matrix;
+      if (!modelData->has_skeleton && mi < modelData->mesh_node_transforms.size()) {
+        mesh_world = mesh_world * modelData->mesh_node_transforms[mi];
+      }
+
       // Convert glm::mat4 to VkTransformMatrixKHR (3x4 row-major)
       VkTransformMatrixKHR transformMatrix{};
-      glm::mat4 t = glm::transpose(transform.transform_matrix);
+      glm::mat4 t = glm::transpose(mesh_world);
       memcpy(&transformMatrix, &t, sizeof(VkTransformMatrixKHR));
 
       VkAccelerationStructureInstanceKHR instance{};
