@@ -53,7 +53,7 @@ Scene::~Scene() {
 }
 
 Entity Scene::CreateEntity(const std::string& name) {
-  return CreateEntityWithUUID(UUID(), name);
+  return CreateEntityWithUUID(UUID::GenerateV4(), name);
 }
 
 Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
@@ -80,6 +80,14 @@ entt::entity Scene::FindEntityByName(const std::string& name) {
     if (registry_.get<TagComponent>(entity).tag == name) {
       return entity;
     }
+  }
+  return entt::null;
+}
+
+entt::entity Scene::FindEntityByUUID(const UUID& uuid) {
+  auto it = entities_.find(uuid);
+  if (it != entities_.end()) {
+    return it->second;
   }
   return entt::null;
 }

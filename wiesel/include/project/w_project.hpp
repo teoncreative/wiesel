@@ -8,12 +8,26 @@
 
 namespace Wiesel {
 
+struct RenderOptionsSerialized {
+  bool ssao_enabled = true;
+  bool bloom_enabled = false;
+  float bloom_threshold = 0.7f;
+  float bloom_intensity = 0.6f;
+  bool motion_blur_enabled = false;
+  float motion_blur_strength = 1.0f;
+  int motion_blur_samples = 8;
+  bool shadows_enabled = true;
+  bool vsync = false;
+  int aa_mode = 0;  // 0=None, 1=FXAA, 2=TAA
+};
+
 struct ProjectSettings {
   std::string name = "Untitled Project";
   int version = 1;
   std::string start_scene;   // scene used when running the game
   std::string last_scene;    // last scene the editor had open
   std::vector<std::string> scenes;
+  RenderOptionsSerialized render_options;
 };
 
 class Project {

@@ -699,7 +699,9 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
             props.type = static_cast<TextureType>(type);
             props.width = decoded->width;
             props.height = decoded->height;
-            props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
+            // Color textures (diffuse, albedo) use sRGB; data textures (normal, roughness, etc.) use linear
+            bool is_color = props.type == TextureTypeDiffuse || type == TextureTypeBaseColor;
+            props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
             props.generate_mipmaps = true;
             texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
           } else {
@@ -736,7 +738,9 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
           props.type = static_cast<TextureType>(type);
           props.width = decoded->width;
           props.height = decoded->height;
-          props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
+          // Color textures (diffuse, albedo) use sRGB; data textures (normal, roughness, etc.) use linear
+          bool is_color = type == aiTextureType_DIFFUSE || type == aiTextureType_BASE_COLOR;
+          props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
           props.generate_mipmaps = true;
           texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
         } else {
@@ -787,7 +791,8 @@ std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
   props.width = width;
   props.height = height;
   props.type = type;
-  props.image_format = VK_FORMAT_R8G8B8A8_SRGB;
+  bool is_color = type == TextureTypeDiffuse || type == TextureTypeBaseColor;
+  props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
   props.generate_mipmaps = true;
 
   auto texture = renderer_->CreateTexture(pixelData, 4, props, {});

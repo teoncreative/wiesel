@@ -94,6 +94,8 @@ struct TextComponent {
   // Per-glyph GPU resources (one UBO+descriptor per visible character)
   std::vector<TextGlyphGPU> glyph_gpu_;
   std::string prev_text_;
+  std::string prev_font_path_;
+  float prev_font_size_ = 0.0f;
   bool gpu_dirty_ = true;
 };
 

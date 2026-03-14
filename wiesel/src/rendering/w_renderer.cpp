@@ -3218,7 +3218,7 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
 }
 
 void Renderer::DrawModel(ModelComponent& model,
-                         const TransformComponent& transform, bool shadowPass,
+                         const TransformComponent& transform, bool shadow_pass,
                          entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = Engine::asset_manager();
@@ -3245,7 +3245,7 @@ void Renderer::DrawModel(ModelComponent& model,
       : identity_bone_descriptor_;
 
   // Cache global descriptor and command buffer outside mesh loop
-  Ref<DescriptorSet> global_desc = shadowPass
+  Ref<DescriptorSet> global_desc = shadow_pass
       ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
       : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
@@ -3253,8 +3253,8 @@ void Renderer::DrawModel(ModelComponent& model,
   stats_.models++;
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
     // Skip transparent meshes in geometry pass (they use the forward transparency pass)
-    if (!shadowPass && ptr->meshes[i]->has_transparency) continue;
-    if (shadowPass) {
+    if (!shadow_pass && ptr->meshes[i]->has_transparency) continue;
+    if (shadow_pass) {
       // Shadow pass: only model_matrix is needed by the shadow vertex shader.
       // Skip normal_matrix inverse, material lookups, and entity_id.
       glm::mat4 model_matrix;
@@ -3573,7 +3573,17 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
   float cursor_x = rt.computed_position.x;
   float cursor_y = rt.computed_position.y + font->GetAscent() * scale;
 
-  // Rebuild per-glyph GPU resources if text changed
+  // Detect font change (size or path) - requires full descriptor rebuild
+  // since the atlas texture is different
+  if (text.prev_font_path_ != text.font_path ||
+      text.prev_font_size_ != text.font_size) {
+    text.glyph_gpu_.clear();
+    text.gpu_dirty_ = true;
+    text.prev_font_path_ = text.font_path;
+    text.prev_font_size_ = text.font_size;
+  }
+
+  // Rebuild per-glyph GPU resources if text or font changed
   if (text.gpu_dirty_ || text.prev_text_ != text.text) {
     // Count visible glyphs via UTF-8 decoding
     size_t visible = 0;

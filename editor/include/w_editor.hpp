@@ -79,6 +79,14 @@ class EditorLayer : public Layer {
   int resolution_preset_index_ = 0;  // index into kResolutionPresets
   bool show_about_popup_ = false;
 
+  // Prefab editing
+  bool editing_prefab_ = false;
+  std::filesystem::path editing_prefab_path_;
+  std::filesystem::path prefab_return_scene_path_;
+  void OpenPrefabForEditing(const std::filesystem::path& path);
+  void SavePrefab();
+  void ClosePrefabEditor();
+
   // Scene snapshot for Play/Stop restore
   struct EntitySnapshot {
     glm::vec3 position, rotation, scale;

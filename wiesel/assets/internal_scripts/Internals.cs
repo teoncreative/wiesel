@@ -440,6 +440,9 @@ namespace WieselEngine
 
         // Scene
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong Scene_CreateEntity(ulong scenePtr, string name);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Scene_FindEntity(ulong scenePtr, string name);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

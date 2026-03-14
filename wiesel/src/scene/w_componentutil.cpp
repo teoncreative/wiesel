@@ -252,6 +252,25 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
     ImGui::TreePop();
   }
   if (!visible) {
+    // Defer GPU resource destruction - the GPU may still be reading these
+    // from in-flight frames. Move them into the deletion queue first.
+    auto& model = entity.GetComponent<ModelComponent>();
+    auto deferred_ubos = std::move(model.mesh_uniform_buffers_);
+    auto deferred_geo = std::move(model.geometry_descriptors);
+    auto deferred_shadow = std::move(model.shadow_descriptors);
+    auto deferred_bone_ubo = std::move(model.bone_ubo_);
+    auto deferred_bone_desc = std::move(model.bone_descriptor_);
+    auto deferred_uniform = std::move(model.uniform_buffer);
+    Engine::renderer()->GetDeletionQueue().Push([
+        ubos = std::move(deferred_ubos),
+        geo = std::move(deferred_geo),
+        shadow = std::move(deferred_shadow),
+        bone_ubo = std::move(deferred_bone_ubo),
+        bone_desc = std::move(deferred_bone_desc),
+        uniform = std::move(deferred_uniform)
+    ]() {
+      // Resources released when lambda is destroyed
+    });
     entity.RemoveComponent<ModelComponent>();
     visible = true;
   }
@@ -371,6 +390,21 @@ void RenderScriptVariables(ScriptInstance* instance) {
         MonoString* newVal =
             mono_string_new(Engine::script_manager().app_domain(), str.c_str());
         value.Set(instance->handle(), newVal);
+      }
+      // Accept asset drag-drop onto string fields (sets the VFS path)
+      if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload =
+                ImGui::AcceptDragDropPayload("AssetHandle")) {
+          AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
+          const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
+          if (meta && !meta->virtual_source_path.empty()) {
+            MonoString* newVal = mono_string_new(
+                Engine::script_manager().app_domain(),
+                meta->virtual_source_path.c_str());
+            value.Set(instance->handle(), newVal);
+          }
+        }
+        ImGui::EndDragDropTarget();
       }
     } else if (value.GetFieldType() == FieldType::Entity) {
       MonoObject* entity_obj = value.Get<MonoObject*>(instance->handle());
@@ -755,21 +789,30 @@ void RenderAddComponentImGui_RectangleTransformComponent(Entity entity) {
   }
 }
 
+static void EnsureRectangleTransform(Entity entity) {
+  if (!entity.HasComponent<RectangleTransformComponent>()) {
+    entity.AddComponent<RectangleTransformComponent>();
+  }
+}
+
 void RenderAddComponentImGui_CanvasRectComponent(Entity entity) {
   if (ImGui::MenuItem("Canvas Rect")) {
     entity.AddComponent<CanvasRectComponent>();
+    EnsureRectangleTransform(entity);
   }
 }
 
 void RenderAddComponentImGui_CanvasImageComponent(Entity entity) {
   if (ImGui::MenuItem("Canvas Image")) {
     entity.AddComponent<CanvasImageComponent>();
+    EnsureRectangleTransform(entity);
   }
 }
 
 void RenderAddComponentImGui_TextComponent(Entity entity) {
   if (ImGui::MenuItem("Text")) {
     entity.AddComponent<TextComponent>();
+    EnsureRectangleTransform(entity);
   }
 }
 
@@ -1154,6 +1197,8 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
 
 
 struct ComponentDesc {
+  std::string display_name;
+  std::string group;
   std::function<void(Entity)> RenderSelf;
   std::function<void(Entity)> RenderAdd;
   std::function<void(Entity)> RenderModal;
@@ -1164,12 +1209,16 @@ std::unordered_map<std::type_index, ComponentDesc> kRegistry;
 
 template<typename T>
 void RegisterComponentType(
+    const std::string& display_name,
+    const std::string& group,
     void (*renderSelf)(T&, Entity),
     void (*renderAdd)(Entity),
     void (*renderModal)(Entity)
 ) {
   auto ti = std::type_index(typeid(T));
   kRegistry[ti] = ComponentDesc{
+      display_name,
+      group,
       [renderSelf](Entity e) {
         if (renderSelf) {
           renderSelf(e.GetComponent<T>(), e);
@@ -1192,29 +1241,33 @@ void RegisterComponentType(
 }
 
 void InitializeComponents() {
-  RegisterComponentType<IdComponent>(nullptr, nullptr, nullptr);
-  RegisterComponentType<TagComponent>(nullptr, nullptr, nullptr);
-  RegisterComponentType<TransformComponent>(RenderComponentImGui, nullptr, nullptr);
-  RegisterComponentType<ModelComponent>(RenderComponentImGui, RenderAddComponentImGui_ModelComponent, nullptr);
-  RegisterComponentType<AnimatorComponent>(RenderComponentImGui, RenderAddComponentImGui_AnimatorComponent, nullptr);
-  RegisterComponentType<LightDirectComponent>(RenderComponentImGui, RenderAddComponentImGui_LightDirectComponent, nullptr);
-  RegisterComponentType<LightPointComponent>(RenderComponentImGui, RenderAddComponentImGui_LightPointComponent, nullptr);
-  RegisterComponentType<CameraComponent>(RenderComponentImGui, RenderAddComponentImGui_CameraComponent, nullptr);
-  RegisterComponentType<BehaviorsComponent>(RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
-  RegisterComponentType<BoxColliderComponent>(RenderComponentImGui, RenderAddComponentImGui_BoxColliderComponent, nullptr);
-  RegisterComponentType<SphereColliderComponent>(RenderComponentImGui, RenderAddComponentImGui_SphereColliderComponent, nullptr);
-  RegisterComponentType<RigidBodyComponent>(RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent, nullptr);
-  RegisterComponentType<RectangleTransformComponent>(RenderComponentImGui, RenderAddComponentImGui_RectangleTransformComponent, nullptr);
-  RegisterComponentType<CanvasComponent>(RenderComponentImGui, RenderAddComponentImGui_CanvasComponent, nullptr);
-  RegisterComponentType<CanvasRectComponent>(RenderComponentImGui, RenderAddComponentImGui_CanvasRectComponent, nullptr);
-  RegisterComponentType<CanvasImageComponent>(RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
-  RegisterComponentType<TextComponent>(RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
+  RegisterComponentType<IdComponent>("", "", nullptr, nullptr, nullptr);
+  RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
+  RegisterComponentType<TransformComponent>("Transform", "", RenderComponentImGui, nullptr, nullptr);
+  RegisterComponentType<ModelComponent>("Model", "Rendering", RenderComponentImGui, RenderAddComponentImGui_ModelComponent, nullptr);
+  RegisterComponentType<AnimatorComponent>("Animator", "Rendering", RenderComponentImGui, RenderAddComponentImGui_AnimatorComponent, nullptr);
+  RegisterComponentType<CameraComponent>("Camera", "Rendering", RenderComponentImGui, RenderAddComponentImGui_CameraComponent, nullptr);
+  RegisterComponentType<LightDirectComponent>("Directional Light", "Lighting", RenderComponentImGui, RenderAddComponentImGui_LightDirectComponent, nullptr);
+  RegisterComponentType<LightPointComponent>("Point Light", "Lighting", RenderComponentImGui, RenderAddComponentImGui_LightPointComponent, nullptr);
+  RegisterComponentType<BehaviorsComponent>("C# Script", "Scripting", RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
+  RegisterComponentType<BoxColliderComponent>("Box Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_BoxColliderComponent, nullptr);
+  RegisterComponentType<SphereColliderComponent>("Sphere Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_SphereColliderComponent, nullptr);
+  RegisterComponentType<RigidBodyComponent>("Rigid Body", "Physics", RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent, nullptr);
+  RegisterComponentType<RectangleTransformComponent>("Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
+  RegisterComponentType<CanvasComponent>("Canvas", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasComponent, nullptr);
+  RegisterComponentType<CanvasRectComponent>("Canvas Rect", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasRectComponent, nullptr);
+  RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
+  RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
 }
 
 void RenderExistingComponents(Entity entity) {
-  for (const auto& item : kRegistry) {
-    if (item.second.HasComponent(entity)) {
-      item.second.RenderSelf(entity);
+  bool has_rect_transform = entity.HasComponent<RectangleTransformComponent>();
+  auto transform_ti = std::type_index(typeid(TransformComponent));
+  for (const auto& [ti, desc] : kRegistry) {
+    // Hide TransformComponent when RectangleTransformComponent is present
+    if (has_rect_transform && ti == transform_ti) continue;
+    if (desc.HasComponent(entity)) {
+      desc.RenderSelf(entity);
     }
   }
 }
@@ -1226,8 +1279,61 @@ void RenderModals(Entity entity) {
 }
 
 void RenderAddPopup(Entity entity) {
-  for (const auto& item : kRegistry) {
-    item.second.RenderAdd(entity);
+  static char search_buf[128] = "";
+
+  ImGui::SetNextItemWidth(-1);
+  if (ImGui::IsWindowAppearing()) {
+    ImGui::SetKeyboardFocusHere();
+    search_buf[0] = '\0';
+  }
+  ImGui::InputTextWithHint("##component_search", "Search...", search_buf, sizeof(search_buf));
+
+  std::string filter(search_buf);
+  // Lowercase for case-insensitive matching
+  std::string filter_lower = filter;
+  for (auto& c : filter_lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+  bool has_filter = !filter_lower.empty();
+
+  // Collect groups in consistent order
+  static const std::vector<std::string> group_order = {
+      "Rendering", "Lighting", "Physics", "Canvas", "Scripting"
+  };
+
+  if (has_filter) {
+    // Flat filtered list (no groups)
+    for (const auto& [ti, desc] : kRegistry) {
+      if (!desc.RenderAdd || desc.display_name.empty()) continue;
+      std::string name_lower = desc.display_name;
+      for (auto& c : name_lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      std::string group_lower = desc.group;
+      for (auto& c : group_lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      if (name_lower.find(filter_lower) != std::string::npos ||
+          group_lower.find(filter_lower) != std::string::npos) {
+        desc.RenderAdd(entity);
+      }
+    }
+  } else {
+    // Grouped view
+    for (const auto& group : group_order) {
+      bool has_items = false;
+      for (const auto& [ti, desc] : kRegistry) {
+        if (desc.group == group && desc.RenderAdd) {
+          has_items = true;
+          break;
+        }
+      }
+      if (!has_items) continue;
+
+      if (ImGui::BeginMenu(group.c_str())) {
+        for (const auto& [ti, desc] : kRegistry) {
+          if (desc.group == group && desc.RenderAdd) {
+            desc.RenderAdd(entity);
+          }
+        }
+        ImGui::EndMenu();
+      }
+    }
   }
 }
 }  // namespace Wiesel

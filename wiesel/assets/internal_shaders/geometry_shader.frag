@@ -92,9 +92,8 @@ vec3 getSurfaceNormal() {
         vec3 localNormal = 2.0 * texture(normalMap, inUV).rgb - 1.0;
         normal = normalize(inTBN * localNormal);
     } else {
-        normal = inNormal;
+        normal = normalize(inNormal);
     }
-    //   vec3 normal = inVertexNormal;
     return normal;
 }
 
@@ -140,6 +139,9 @@ void main() {
         metallic = materialParams.y;
     }
     vec3 normal = getSurfaceNormal();
+
+    // Debug: force vertex normal only (skip normal map)
+    if (cam.debugCascades == 8) normal = normalize(inNormal);
 
     outViewPos = vec4(inViewPos, 1.0);
     outDepth = linearDepth(gl_FragCoord.z);
