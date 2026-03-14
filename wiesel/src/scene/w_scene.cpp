@@ -20,6 +20,7 @@
 #include "rendering/features/w_geometry_feature.hpp"
 #include "rendering/features/w_ssao_feature.hpp"
 #include "rendering/features/w_lighting_feature.hpp"
+#include "rendering/features/w_transparency_feature.hpp"
 #include "rendering/features/w_sprite_feature.hpp"
 #include "rendering/features/w_composite_feature.hpp"
 #include "rendering/features/w_taa_feature.hpp"
@@ -898,6 +899,7 @@ Ref<RenderPipeline> Scene::CreateDefaultPipeline(Ref<Renderer> renderer) {
   }
   pipeline->AddFeature<SSAOFeature>(renderer);
   pipeline->AddFeature<LightingFeature>(renderer);
+  pipeline->AddFeature<TransparencyFeature>(renderer);
   pipeline->AddFeature<SpriteFeature>(renderer);
   pipeline->AddFeature<CompositeFeature>(renderer);
   pipeline->AddFeature<TAAFeature>(renderer);

@@ -117,8 +117,9 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   RGResource composite_out =
       graph.ImportTexture("CompositeOut", composite_tex);
 
-  // Get references to lighting and sprite outputs from the registry
+  // Get references to lighting, transparency, and sprite outputs from the registry
   auto lighting_out = registry.Get("LightingOut");
+  auto transparency_out = registry.Has("TransparencyOut") ? registry.Get("TransparencyOut") : RGResource{};
   auto sprite_out = registry.Get("SpriteOut");
 
   // Composite pass (canvas is blended later by CanvasFeature)
@@ -133,12 +134,19 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
         } else {
           renderer->DrawFullscreen(pipeline,
               {pool->GetDescriptor("lighting.output")});
+          if (pool->HasDescriptor("transparency.output")) {
+            renderer->DrawFullscreen(pipeline,
+                {pool->GetDescriptor("transparency.output")});
+          }
           renderer->DrawFullscreen(pipeline,
               {pool->GetDescriptor("sprite.output")});
         }
       });
 
   graph.PassReadsTexture(composite, lighting_out);
+  if (transparency_out.IsValid()) {
+    graph.PassReadsTexture(composite, transparency_out);
+  }
   if (sprite_out.IsValid()) {
     graph.PassReadsTexture(composite, sprite_out);
   }
