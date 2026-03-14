@@ -47,6 +47,7 @@ struct Mesh {
   Ref<MemoryBuffer> vertex_buffer;
   Ref<IndexBuffer> index_buffer;
 
+  bool has_transparency = false;
   bool allocated_;
 };
 
@@ -57,17 +58,21 @@ struct DecodedTextureData {
   int height = 0;
   int channels = 0;
 
+  bool has_semi_transparency = false;
+
   ~DecodedTextureData() {
     if (pixels) stbi_image_free(pixels);
   }
   DecodedTextureData() = default;
   DecodedTextureData(DecodedTextureData&& o) noexcept
-      : pixels(o.pixels), width(o.width), height(o.height), channels(o.channels) {
+      : pixels(o.pixels), width(o.width), height(o.height), channels(o.channels),
+        has_semi_transparency(o.has_semi_transparency) {
     o.pixels = nullptr;
   }
   DecodedTextureData& operator=(DecodedTextureData&& o) noexcept {
     if (pixels) stbi_image_free(pixels);
     pixels = o.pixels; width = o.width; height = o.height; channels = o.channels;
+    has_semi_transparency = o.has_semi_transparency;
     o.pixels = nullptr;
     return *this;
   }
@@ -97,6 +102,7 @@ struct Model {
   std::vector<AnimationClip> animation_clips;
   bool has_skeleton = false;
   bool has_animations = false;
+  bool has_transparent_meshes = false;
 
   // Compute mesh_node_transforms from node hierarchy (call after ProcessNode)
   void ComputeMeshNodeTransforms() {

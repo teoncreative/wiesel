@@ -3252,6 +3252,8 @@ void Renderer::DrawModel(ModelComponent& model,
 
   stats_.models++;
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
+    // Skip transparent meshes in geometry pass (they use the forward transparency pass)
+    if (!shadowPass && ptr->meshes[i]->has_transparency) continue;
     if (shadowPass) {
       // Shadow pass: only model_matrix is needed by the shadow vertex shader.
       // Skip normal_matrix inverse, material lookups, and entity_id.
@@ -3287,6 +3289,59 @@ void Renderer::DrawModel(ModelComponent& model,
 
       memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
     }
+
+    Ref<DescriptorSet> descriptors = model.geometry_descriptors[i];
+    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
+  }
+}
+
+void Renderer::DrawModelTransparent(ModelComponent& model,
+                                    const TransformComponent& transform,
+                                    entt::entity entity_handle) {
+  PROFILE_ZONE_SCOPED();
+  AssetManager& assets = Engine::asset_manager();
+  const Ref<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
+  if (!ptr || !ptr->has_transparent_meshes) {
+    return;
+  }
+
+  if (model.render_model != model.model_handle || !model.uniform_buffer) {
+    AllocateModelRenderData(model, *ptr);
+  }
+
+  Ref<DescriptorSet> bone_desc = model.bone_descriptor_
+      ? model.bone_descriptor_
+      : identity_bone_descriptor_;
+
+  Ref<DescriptorSet> global_desc =
+      camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+
+  for (size_t i = 0; i < ptr->meshes.size(); i++) {
+    if (!ptr->meshes[i]->has_transparency) continue;
+
+    MatricesUniformData matrices{};
+    if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
+      glm::mat4 mesh_model = transform.transform_matrix * ptr->mesh_node_transforms[i];
+      matrices.model_matrix = mesh_model;
+      matrices.normal_matrix = glm::mat3(glm::transpose(glm::inverse(mesh_model)));
+    } else {
+      matrices.model_matrix = transform.transform_matrix;
+      matrices.normal_matrix = transform.normal_matrix;
+    }
+    if (entity_handle != entt::null) {
+      matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+    }
+
+    if (i < model.material_instances.size() && model.material_instances[i]) {
+      auto& inst = model.material_instances[i];
+      matrices.color_tint = inst->GetColorTint();
+      matrices.material_params = glm::vec4(
+          inst->GetRoughness(), inst->GetMetallic(),
+          inst->GetSpecular(), 0.0f);
+    }
+
+    memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
 
     Ref<DescriptorSet> descriptors = model.geometry_descriptors[i];
     DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);

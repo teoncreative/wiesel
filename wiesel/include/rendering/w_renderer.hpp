@@ -363,6 +363,8 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadowPass, entt::entity entity_handle = entt::null);
+  void DrawModelTransparent(ModelComponent& model, const TransformComponent& transform,
+                            entt::entity entity_handle = entt::null);
   void DrawMeshCmd(VkCommandBuffer cmd, Ref<Mesh> mesh,
                    Ref<DescriptorSet> mesh_descriptors,
                    Ref<DescriptorSet> bone_descriptors,

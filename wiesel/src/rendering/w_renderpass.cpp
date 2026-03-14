@@ -62,14 +62,15 @@ void RenderPass::Bake() {
   uint32_t index = 0;
   for (const auto& item : attachments_) {
     if (item.type == AttachmentTextureType::DepthStencil && depthAttachmentRefs.empty()) {
+      bool loads_depth = pass_type_ == PassType::Lighting || pass_type_ == PassType::ForwardTransparency;
       descriptions.push_back({
           .format = item.format,
           .samples = ToVkSampleCountFlagBits(item.msaa_mode),
-          .loadOp = pass_type_ == PassType::Lighting ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .loadOp = loads_depth ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR,
           .storeOp = pass_type_ == PassType::Geometry || pass_type_ == PassType::Shadow ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE,
           .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
           .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-          .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+          .initialLayout = loads_depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
           .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
       });
       depthAttachmentRefs.push_back({

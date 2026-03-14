@@ -411,6 +411,14 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     // Pre-compute per-mesh world transforms from node hierarchy
     model->ComputeMeshNodeTransforms();
 
+    // Check if any mesh has transparency
+    for (const auto& m : model->meshes) {
+      if (m->has_transparency) {
+        model->has_transparent_meshes = true;
+        break;
+      }
+    }
+
     // Free pre-decoded pixel data now that GPU textures are created
     model->decoded_texture_cache.clear();
 
@@ -590,6 +598,15 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
           &decoded->width, &decoded->height, &decoded->channels, STBI_rgb_alpha);
 
       if (!decoded->pixels) return {tex_path, nullptr};
+      // Scan alpha channel for semi-transparency
+      int pixel_count = decoded->width * decoded->height;
+      for (int p = 0; p < pixel_count; p++) {
+        uint8_t a = decoded->pixels[p * 4 + 3];
+        if (a > 0 && a < 255) {
+          decoded->has_semi_transparency = true;
+          break;
+        }
+      }
       return {tex_path, decoded};
     }));
   }
@@ -619,6 +636,15 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
         }
       }
       if (!decoded->pixels) return {task.key, nullptr};
+      // Scan alpha channel for semi-transparency
+      int pixel_count = decoded->width * decoded->height;
+      for (int p = 0; p < pixel_count; p++) {
+        uint8_t a = decoded->pixels[p * 4 + 3];
+        if (a > 0 && a < 255) {
+          decoded->has_semi_transparency = true;
+          break;
+        }
+      }
       return {task.key, decoded};
     }));
   }
@@ -823,6 +849,31 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
                        aiScene);
   flags |= VertexFlagHasMetallicMap *
            LoadTexture(model, mesh, material, aiTextureType_METALNESS, aiScene);
+
+  // Check base texture for semi-transparency (diffuse or albedo)
+  auto check_transparency = [&](aiTextureType type) {
+    if (material->GetTextureCount(type) == 0) return;
+    aiString str;
+    material->GetTexture(type, 0, &str);
+    std::string s = str.C_Str();
+    if (s.empty()) return;
+    std::string key;
+    if (s[0] == '*') {
+      int idx = std::atoi(s.c_str() + 1);
+      key = model.textures_path + "/embedded_" + std::to_string(idx);
+    } else {
+      size_t last_sep = s.find_last_of("/\\");
+      if (last_sep != std::string::npos && (s.find(':') != std::string::npos || s[0] == '/'))
+        s = s.substr(last_sep + 1);
+      key = model.textures_path + "/" + s;
+    }
+    auto it = model.decoded_texture_cache.find(key);
+    if (it != model.decoded_texture_cache.end() && it->second && it->second->has_semi_transparency) {
+      mesh->has_transparency = true;
+    }
+  };
+  check_transparency(aiTextureType_DIFFUSE);
+  check_transparency(aiTextureType_BASE_COLOR);
 
   // Read PBR material factors from assimp (glTF roughness/metallic workflow)
   // When a map exists, the factor acts as a multiplier (default 1.0 = full texture).

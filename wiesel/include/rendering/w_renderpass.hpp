@@ -26,6 +26,7 @@ enum class PassType {
   Geometry,
   PostProcess,
   Lighting,
+  ForwardTransparency,
   Shadow,
   Present
 };
