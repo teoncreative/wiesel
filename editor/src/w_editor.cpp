@@ -129,6 +129,22 @@ void EditorLayer::OnAttach() {
 
           ScanProjectAssets();
 
+          // Apply saved render options
+          {
+            auto& opts = project_->GetSettings().render_options;
+            auto& settings = Engine::renderer()->options();
+            settings.ssao_enabled = opts.ssao_enabled;
+            settings.bloom_enabled = opts.bloom_enabled;
+            settings.bloom_threshold = opts.bloom_threshold;
+            settings.bloom_intensity = opts.bloom_intensity;
+            settings.motion_blur_enabled = opts.motion_blur_enabled;
+            settings.motion_blur_strength = opts.motion_blur_strength;
+            settings.motion_blur_samples = opts.motion_blur_samples;
+            settings.shadows_enabled = opts.shadows_enabled;
+            settings.vsync = opts.vsync;
+            settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
+          }
+
           // Open last scene or start scene
           const auto& last = project_->GetSettings().last_scene;
           const auto& start = project_->GetSettings().start_scene;
@@ -443,9 +459,9 @@ void EditorLayer::OnBeginPresent() {
     ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(),
                     &settings.only_ssao);
     {
-      const char* debug_modes[] = {"Off", "Cascades", "Material"};
+      const char* debug_modes[] = {"Off", "Cascades", "Material", "Normals", "World Pos", "Raw Normal", "Albedo", "Depth", "Vertex Normal"};
       int debug_mode = settings.debug_cascades;
-      if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode, debug_modes, 3)) {
+      if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode, debug_modes, 9)) {
         settings.debug_cascades = debug_mode;
       }
     }
@@ -535,6 +551,23 @@ void EditorLayer::OnBeginPresent() {
   static bool sceneOpen = true;
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
     bool ignoreMenu = false;
+
+    // Prefab editing banner
+    if (editing_prefab_) {
+      ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
+      ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.6f, 0.9f, 1.0f));
+      float width = ImGui::GetContentRegionAvail().x;
+      ImGui::Text("Editing: %s", editing_prefab_path_.filename().string().c_str());
+      if (ImGui::Button("Save Prefab", ImVec2(width * 0.48f, 0))) {
+        SavePrefab();
+      }
+      ImGui::SameLine();
+      ImGui::PopStyleColor(2);
+      if (ImGui::Button("Close", ImVec2(width * 0.48f, 0))) {
+        ClosePrefabEditor();
+      }
+      ImGui::Separator();
+    }
 
     // Scene root node (always open, not collapsible)
     ImGuiTreeNodeFlags scene_flags = ImGuiTreeNodeFlags_DefaultOpen
@@ -1104,8 +1137,7 @@ void EditorLayer::OnBeginPresent() {
             if (fe.asset_type == AssetType::Scene) {
               OpenSceneFromPath(fe.physical_path);
             } else if (fe.asset_type == AssetType::Prefab) {
-              Prefab::InstantiateFromFile(scene_, fe.physical_path);
-              scene_dirty_ = true;
+              OpenPrefabForEditing(fe.physical_path);
             } else if (fe.asset_type == AssetType::Script) {
               OpenFileInDefaultEditor(fe.physical_path);
             }
@@ -2264,6 +2296,22 @@ void EditorLayer::OpenProject() {
 
         ScanProjectAssets();
 
+        // Apply saved render options
+        {
+          auto& opts = project_->GetSettings().render_options;
+          auto& settings = Engine::renderer()->options();
+          settings.ssao_enabled = opts.ssao_enabled;
+          settings.bloom_enabled = opts.bloom_enabled;
+          settings.bloom_threshold = opts.bloom_threshold;
+          settings.bloom_intensity = opts.bloom_intensity;
+          settings.motion_blur_enabled = opts.motion_blur_enabled;
+          settings.motion_blur_strength = opts.motion_blur_strength;
+          settings.motion_blur_samples = opts.motion_blur_samples;
+          settings.shadows_enabled = opts.shadows_enabled;
+          settings.vsync = opts.vsync;
+          settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
+        }
+
         // Open last scene or start scene
         ClearScene();
         const auto& last = project_->GetSettings().last_scene;
@@ -2283,6 +2331,20 @@ void EditorLayer::OpenProject() {
 
 void EditorLayer::SaveProject() {
   if (project_) {
+    // Capture current render options into project settings
+    auto& settings = Engine::renderer()->options();
+    auto& opts = project_->GetSettings().render_options;
+    opts.ssao_enabled = settings.ssao_enabled;
+    opts.bloom_enabled = settings.bloom_enabled;
+    opts.bloom_threshold = settings.bloom_threshold;
+    opts.bloom_intensity = settings.bloom_intensity;
+    opts.motion_blur_enabled = settings.motion_blur_enabled;
+    opts.motion_blur_strength = settings.motion_blur_strength;
+    opts.motion_blur_samples = settings.motion_blur_samples;
+    opts.shadows_enabled = settings.shadows_enabled;
+    opts.vsync = settings.vsync;
+    opts.aa_mode = static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
+
     project_->Save();
     LOG_INFO("Project saved");
   }
@@ -2443,7 +2505,9 @@ void EditorLayer::UpdateWindowTitle() {
   if (project_) {
     title += " - " + project_->GetSettings().name;
   }
-  if (!current_scene_path_.empty()) {
+  if (editing_prefab_) {
+    title += " - [Prefab] " + editing_prefab_path_.filename().string();
+  } else if (!current_scene_path_.empty()) {
     title += " - " + current_scene_path_.filename().string();
   }
   if (scene_dirty_) {
@@ -2473,6 +2537,73 @@ void EditorLayer::AutoSave() {
   }
 }
 
+void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
+  namespace fs = std::filesystem;
+
+  // Save current scene state
+  AutoSave();
+  prefab_return_scene_path_ = current_scene_path_;
+
+  // Clear scene and load prefab as a temporary scene
+  ClearScene();
+  Entity root = Prefab::InstantiateFromFile(scene_, path);
+  if (root.handle() == entt::null) {
+    LOG_ERROR("Failed to open prefab for editing: {}", path.string());
+    // Restore previous scene
+    if (!prefab_return_scene_path_.empty()) {
+      OpenSceneFromPath(prefab_return_scene_path_);
+    }
+    return;
+  }
+
+  editing_prefab_ = true;
+  editing_prefab_path_ = fs::absolute(path);
+  current_scene_path_.clear();
+  scene_dirty_ = false;
+  UpdateWindowTitle();
+  scene_->InvalidateRenderGraphs();
+
+  // Setup camera components
+  for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = scene_->GetComponent<CameraComponent>(entity);
+    Engine::renderer()->SetupCameraComponent(cam);
+  }
+
+  LOG_INFO("Editing prefab: {}", path.string());
+}
+
+void EditorLayer::SavePrefab() {
+  if (!editing_prefab_ || editing_prefab_path_.empty()) return;
+
+  // Find the root entity (first in hierarchy - the prefab root)
+  auto& hierarchy = scene_->GetSceneHierarchy();
+  if (hierarchy.empty()) {
+    LOG_ERROR("Cannot save prefab: scene is empty");
+    return;
+  }
+
+  Entity root = hierarchy[0];
+  if (Prefab::SaveToFile(root, editing_prefab_path_)) {
+    scene_dirty_ = false;
+    LOG_INFO("Prefab saved: {}", editing_prefab_path_.string());
+  }
+}
+
+void EditorLayer::ClosePrefabEditor() {
+  if (!editing_prefab_) return;
+
+  editing_prefab_ = false;
+  editing_prefab_path_.clear();
+
+  // Return to previous scene
+  if (!prefab_return_scene_path_.empty()) {
+    OpenSceneFromPath(prefab_return_scene_path_);
+    prefab_return_scene_path_.clear();
+  } else {
+    ClearScene();
+  }
+}
+
 void EditorLayer::ScanProjectAssets() {
   if (!project_) return;
 
@@ -2491,7 +2622,7 @@ void EditorLayer::ScanProjectAssets() {
   fs::path assets_dir = fs::absolute(project_->GetAssetsDirectory());
   if (!fs::exists(assets_dir)) return;
 
-  // Clear existing scene/prefab/material assets that might be stale
+  // Clear existing scene/prefab assets that might be stale
   std::vector<AssetHandle> to_remove;
   for (auto& h : mgr.GetAll()) {
     const auto* meta = mgr.GetMetadata(h);
@@ -2512,11 +2643,25 @@ void EditorLayer::ScanProjectAssets() {
     if (ext == ".wscene") type = AssetType::Scene;
     else if (ext == ".wprefab") type = AssetType::Prefab;
     else if (ext == ".wmat") type = AssetType::Material;
+    else if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") type = AssetType::Model;
+    else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp") type = AssetType::Texture;
+    else if (ext == ".ttf" || ext == ".otf") type = AssetType::Font;
     else continue;
 
     auto rel = fs::relative(entry.path(), assets_dir);
     std::string vfs_path = "/app/" + rel.generic_string();
     std::string name = entry.path().stem().string();
+
+    // Skip if already registered (models, textures, fonts persist across scans)
+    bool already_registered = false;
+    for (auto& h : mgr.GetAll()) {
+      const auto* m = mgr.GetMetadata(h);
+      if (m && m->virtual_source_path == vfs_path) {
+        already_registered = true;
+        break;
+      }
+    }
+    if (already_registered && type != AssetType::Scene && type != AssetType::Prefab) continue;
 
     if (type == AssetType::Material) {
       // Load .wmat file and register the material asset

@@ -168,6 +168,26 @@ void main() {
     }
     vec3 viewDir = normalize(cam.position - worldPos);
 
+    // Debug views (early out before lighting)
+    // 3=normals, 4=world pos, 5=raw G-buffer normal, 6=albedo, 7=depth
+    // 8=vertex normals only (no normal map, set in geometry shader)
+    if (cam.debugCascades >= 3 && cam.debugCascades <= 8) {
+        if (cam.debugCascades == 3 || cam.debugCascades == 8) {
+            outFragColor = vec4(normal * 0.5 + 0.5, 1.0);
+        } else if (cam.debugCascades == 4) {
+            outFragColor = vec4(fract(worldPos * 0.1), 1.0);
+        } else if (cam.debugCascades == 5) {
+            outFragColor = vec4(texture(samplerNormal, inUV).rgb, 1.0);
+        } else if (cam.debugCascades == 6) {
+            outFragColor = albedo;
+        } else if (cam.debugCascades == 7) {
+            float d = texture(samplerDepth, inUV).r;
+            float v = d / cam.far;
+            outFragColor = vec4(v, v, v, 1.0);
+        }
+        return;
+    }
+
 #ifdef USE_RT_SHADOWS
     // RT shadows: per-light shadow bitmask in r32ui image.
     // Bit i = 1 means light i is visible (lit), 0 means shadowed.

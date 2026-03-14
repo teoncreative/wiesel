@@ -193,6 +193,19 @@ uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
   return static_cast<uint64_t>(entity);
 }
 
+uint64_t Internals_Scene_CreateEntity(uint64_t scene_ptr, MonoString* name) {
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  auto shared_scene = SceneManager::Get().GetActiveScene();
+  if (!shared_scene) {
+    LOG_ERROR("Scene_CreateEntity: no active scene");
+    return 0;
+  }
+  const char* cstr = mono_string_to_utf8(name);
+  Entity entity = shared_scene->CreateEntity(cstr);
+  mono_free((void*)cstr);
+  return static_cast<uint64_t>(static_cast<uint32_t>(entity.handle()));
+}
+
 void Internals_Scene_DestroyEntity(uint64_t scene_ptr, uint64_t entity_id) {
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
@@ -1559,6 +1572,7 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScenePath);
   WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
   // Scene
+  WIESEL_ADD_INTERNAL_CALL(Scene_CreateEntity);
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntity);
   WIESEL_ADD_INTERNAL_CALL(Scene_DestroyEntity);
   // Console

@@ -80,6 +80,13 @@ namespace WieselEngine
             return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
         }
 
+        public Entity CreateEntity(string name)
+        {
+            ulong id = Internals.Scene_CreateEntity(scenePtr, name);
+            if (id == 0) return null;
+            return new Entity(scenePtr, id);
+        }
+
         public Entity FindEntity(string name)
         {
             ulong id = Internals.Scene_FindEntity(scenePtr, name);

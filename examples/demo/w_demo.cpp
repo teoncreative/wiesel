@@ -47,7 +47,7 @@ void GameLayer::OnAttach() {
   {
     Entity entity = scene_->CreateEntity("Sponza");
     auto& transform = entity.GetComponent<TransformComponent>();
-    transform.scale = {0.01f, 0.01f, 0.01f};
+    transform.scale = {1.0f, 1.0f, 1.0f};
     transform.position = {5.0f, 2.0f, 0.0f};
     auto& model = entity.AddComponent<ModelComponent>();
     model.model_handle = assets.Register("Sponza", AssetType::Model, "/app/models/sponza/sponza.gltf");
@@ -133,7 +133,7 @@ void GameLayer::OnAttach() {
   renderer_->options().bloom_enabled = true;
   renderer_->options().bloom_threshold = 0.5;
   renderer_->options().bloom_intensity = 0.8;
-  renderer_->options().motion_blur_enabled = true;
+  renderer_->options().motion_blur_enabled = false;
   renderer_->options().motion_blur_strength = 1;
   renderer_->options().aa_mode = AntiAliasingMode::FXAA;
   renderer_->options().msaa_mode = SamplingMode::DISABLED;

@@ -124,9 +124,10 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
 
   // Composite pass (canvas is blended later by CanvasFeature)
   auto pipeline = pipeline_;
+  bool has_transparency = transparency_out.IsValid();
   uint32_t composite = graph.AddPass(
       "Composite", render_pass_,
-      [pipeline, pool, renderer](VkCommandBuffer) {
+      [pipeline, pool, renderer, has_transparency](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
         if (renderer->options().only_ssao) {
           renderer->DrawFullscreen(pipeline,
@@ -134,7 +135,7 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
         } else {
           renderer->DrawFullscreen(pipeline,
               {pool->GetDescriptor("lighting.output")});
-          if (pool->HasDescriptor("transparency.output")) {
+          if (has_transparency) {
             renderer->DrawFullscreen(pipeline,
                 {pool->GetDescriptor("transparency.output")});
           }

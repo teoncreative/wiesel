@@ -80,6 +80,21 @@ std::unique_ptr<Project> Project::Load(
     }
   }
 
+  if (j.contains("render_options")) {
+    auto& ro = j["render_options"];
+    auto& opts = project->settings_.render_options;
+    opts.ssao_enabled = ro.value("ssao_enabled", true);
+    opts.bloom_enabled = ro.value("bloom_enabled", false);
+    opts.bloom_threshold = ro.value("bloom_threshold", 0.7f);
+    opts.bloom_intensity = ro.value("bloom_intensity", 0.6f);
+    opts.motion_blur_enabled = ro.value("motion_blur_enabled", false);
+    opts.motion_blur_strength = ro.value("motion_blur_strength", 1.0f);
+    opts.motion_blur_samples = ro.value("motion_blur_samples", 8);
+    opts.shadows_enabled = ro.value("shadows_enabled", true);
+    opts.vsync = ro.value("vsync", false);
+    opts.aa_mode = ro.value("aa_mode", 0);
+  }
+
   return project;
 }
 
@@ -90,6 +105,22 @@ bool Project::Save() const {
   j["start_scene"] = settings_.start_scene;
   j["last_scene"] = settings_.last_scene;
   j["scenes"] = settings_.scenes;
+
+  {
+    auto& opts = settings_.render_options;
+    j["render_options"] = {
+        {"ssao_enabled", opts.ssao_enabled},
+        {"bloom_enabled", opts.bloom_enabled},
+        {"bloom_threshold", opts.bloom_threshold},
+        {"bloom_intensity", opts.bloom_intensity},
+        {"motion_blur_enabled", opts.motion_blur_enabled},
+        {"motion_blur_strength", opts.motion_blur_strength},
+        {"motion_blur_samples", opts.motion_blur_samples},
+        {"shadows_enabled", opts.shadows_enabled},
+        {"vsync", opts.vsync},
+        {"aa_mode", opts.aa_mode},
+    };
+  }
 
   std::ofstream file(project_file_);
   if (!file.is_open()) {
