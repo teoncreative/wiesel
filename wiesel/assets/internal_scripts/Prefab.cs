@@ -1,14 +1,21 @@
 namespace WieselEngine
 {
-    public static class Prefab
+    public class Prefab
     {
-        /// <summary>
-        /// Instantiate a prefab from a file path into the current scene.
-        /// Returns the entity handle of the root entity, or 0 if failed.
-        /// </summary>
-        public static ulong Instantiate(ulong scenePtr, string path)
+        private string path = "";
+
+        public string Path
         {
-            return Internals.Prefab_Instantiate(scenePtr, path);
+            get { return path; }
+            set { path = value; }
+        }
+
+        public Entity Instantiate(ulong scenePtr)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            ulong id = Internals.Prefab_Instantiate(scenePtr, path);
+            if (id == 0) return null;
+            return new Entity(scenePtr, id);
         }
     }
 }

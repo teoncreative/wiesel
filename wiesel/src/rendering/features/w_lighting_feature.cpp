@@ -184,8 +184,11 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   RGResource ssao_blur_v = registry.Get("SSAOBlurV");
   RGResource shadow_depth = registry.Get("ShadowDepth");
 
-  // Check if RT shadow mask is available
-  bool use_rt_shadows = registry.Has("RTShadowMask") && rt_lighting_pipeline_
+  // Check if RT shadow mask is available and shadows are enabled
+  bool use_rt_shadows = renderer_->options().shadows_enabled
+                        && renderer_->options().rt_shadows_enabled
+                        && registry.Has("RTShadowMask")
+                        && rt_lighting_pipeline_
                         && pool->HasDescriptor("lighting.rt_shadow");
   RGResource rt_shadow_mask;
   if (use_rt_shadows) {

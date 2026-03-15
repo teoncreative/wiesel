@@ -62,7 +62,9 @@ class Scene {
   void SetPaused(bool paused) { is_paused_ = paused; }
 
   void SetSkybox(Ref<Skybox> skybox) { skybox_ = skybox; }
-  Ref<Skybox> GetSkybox() const { return skybox_; }
+  Ref<Skybox> GetSkybox();
+  void EnsureDefaultSkybox();
+  bool HasCustomSkybox() const { return skybox_ != nullptr; }
 
   void SetRenderResolution(glm::vec2 resolution) { render_resolution_ = resolution; }
   glm::vec2 GetRenderResolution() const { return render_resolution_; }
@@ -130,7 +132,7 @@ class Scene {
 
   void ProcessDestroyQueue();
   bool Render();
-  bool RenderFromExternal(CameraComponent& camera, TransformComponent& transform);
+  bool RenderFromExternal(CameraComponent& camera, TransformComponent& transform, bool show_grid = false);
   void BuildRenderGraph(entt::entity camera_entity);
   void InvalidateRenderGraphs();
 
@@ -194,6 +196,7 @@ class Scene {
   // this camera is used to render the scene to the current camera
   Ref<CameraData> current_camera_;
   Ref<Skybox> skybox_;
+  Ref<Skybox> default_skybox_;
   Ref<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, Ref<RenderGraph>> render_graphs_;
   Ref<RenderGraph> external_render_graph_;

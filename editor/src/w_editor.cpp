@@ -32,6 +32,92 @@
 
 namespace Wiesel::Editor {
 
+// --- RecentProjects ---
+
+std::filesystem::path RecentProjects::GetConfigPath() {
+  namespace fs = std::filesystem;
+#ifdef _WIN32
+  const char* appdata = std::getenv("APPDATA");
+  if (appdata) return fs::path(appdata) / "Wiesel" / "recent_projects.json";
+  return fs::path(".wiesel") / "recent_projects.json";
+#else
+  const char* home = std::getenv("HOME");
+  if (home) return fs::path(home) / ".wiesel" / "recent_projects.json";
+  return fs::path(".wiesel") / "recent_projects.json";
+#endif
+}
+
+std::vector<std::string> RecentProjects::Load() {
+  std::vector<std::string> result;
+  auto path = GetConfigPath();
+  if (!std::filesystem::exists(path)) return result;
+  std::ifstream file(path);
+  if (!file.is_open()) return result;
+  try {
+    nlohmann::json j;
+    file >> j;
+    if (j.is_array()) {
+      for (const auto& item : j) {
+        if (item.is_string()) result.push_back(item.get<std::string>());
+      }
+    }
+  } catch (...) {}
+  return result;
+}
+
+void RecentProjects::Save(const std::vector<std::string>& paths) {
+  auto config_path = GetConfigPath();
+  std::filesystem::create_directories(config_path.parent_path());
+  std::ofstream file(config_path);
+  if (!file.is_open()) return;
+  nlohmann::json j = paths;
+  file << j.dump(2);
+}
+
+void RecentProjects::Add(const std::string& path) {
+  auto recent = Load();
+  // Remove if already present
+  std::erase(recent, path);
+  // Add to front
+  recent.insert(recent.begin(), path);
+  // Trim to max
+  if (recent.size() > kMaxRecent) recent.resize(kMaxRecent);
+  Save(recent);
+}
+
+static AssetType ExtToAssetType(const std::string& ext) {
+  if (ext == ".wscene") return AssetType::Scene;
+  if (ext == ".wprefab") return AssetType::Prefab;
+  if (ext == ".wmat") return AssetType::Material;
+  if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") return AssetType::Model;
+  if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp") return AssetType::Texture;
+  if (ext == ".ttf" || ext == ".otf") return AssetType::Font;
+  return AssetType::None;
+}
+
+static std::string ReadMetaFile(const std::filesystem::path& meta_path) {
+  if (!std::filesystem::exists(meta_path)) return "";
+  std::ifstream file(meta_path);
+  if (!file.is_open()) return "";
+  try {
+    nlohmann::json j;
+    file >> j;
+    return j.value("handle", "");
+  } catch (...) {
+    return "";
+  }
+}
+
+static void WriteMetaFile(const std::filesystem::path& meta_path,
+                          const AssetHandle& handle) {
+  nlohmann::json j;
+  j["handle"] = handle.ToString();
+  std::ofstream file(meta_path);
+  if (file.is_open()) {
+    file << j.dump(2);
+  }
+}
+
 // Todo move these to the editor overlay instead
 static entt::entity selected_entity_;
 static bool has_selected_entity_ = false;
@@ -116,49 +202,7 @@ void EditorLayer::OnAttach() {
         }
       }
       if (fs::exists(pp) && pp.extension() == ".wiesel") {
-        auto proj = Project::Load(pp);
-        if (proj) {
-          project_ = std::move(proj);
-          Project::SetActive(project_.get());
-
-          auto* vfs = Engine::vfs().get();
-          if (fs::exists(project_->GetAssetsDirectory())) {
-            vfs->Unmount("/app");
-            vfs->Mount("/app", project_->GetAssetsDirectory().string());
-          }
-
-          ScanProjectAssets();
-
-          // Apply saved render options
-          {
-            auto& opts = project_->GetSettings().render_options;
-            auto& settings = Engine::renderer()->options();
-            settings.ssao_enabled = opts.ssao_enabled;
-            settings.bloom_enabled = opts.bloom_enabled;
-            settings.bloom_threshold = opts.bloom_threshold;
-            settings.bloom_intensity = opts.bloom_intensity;
-            settings.motion_blur_enabled = opts.motion_blur_enabled;
-            settings.motion_blur_strength = opts.motion_blur_strength;
-            settings.motion_blur_samples = opts.motion_blur_samples;
-            settings.shadows_enabled = opts.shadows_enabled;
-            settings.vsync = opts.vsync;
-            settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
-          }
-
-          // Open last scene or start scene
-          const auto& last = project_->GetSettings().last_scene;
-          const auto& start = project_->GetSettings().start_scene;
-          const auto& to_open = !last.empty() ? last : start;
-          if (!to_open.empty()) {
-            auto scene_path = project_->GetAssetsDirectory() / to_open;
-            if (fs::exists(scene_path)) {
-              OpenSceneFromPath(scene_path);
-            }
-          }
-
-          UpdateWindowTitle();
-          LOG_INFO("Loaded project from CLI: {}", project_->GetSettings().name);
-        }
+        LoadProjectFromPath(pp);
       }
     }
   }
@@ -182,8 +226,41 @@ void EditorLayer::OnDetach() {
   scene_->Cleanup();
 }
 
+void EditorLayer::ProcessDeferredActions() {
+  if (deferred_action_ == DeferredAction::None) return;
+
+  auto action = deferred_action_;
+  auto path = std::move(deferred_path_);
+  deferred_action_ = DeferredAction::None;
+  deferred_path_.clear();
+
+  switch (action) {
+    case DeferredAction::OpenScene:
+      OpenSceneFromPath(path);
+      break;
+    case DeferredAction::OpenPrefab:
+      OpenPrefabForEditing(path);
+      break;
+    case DeferredAction::ClosePrefab:
+      ClosePrefabEditor();
+      break;
+    case DeferredAction::OpenProject:
+      LoadProjectFromPath(path);
+      break;
+    default:
+      break;
+  }
+}
+
 void EditorLayer::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED_N("Editor::OnUpdate");
+
+  // Process deferred scene switches (safe point between frames)
+  ProcessDeferredActions();
+
+  // Poll async script compilation
+  Engine::script_manager().FinishReloadIfReady();
+
   // Only let scripts read input when the Game panel is focused during play
   InputManager::SetEnabled(editor_state_ == EditorState::Playing && game_panel_focused_);
 
@@ -213,7 +290,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
       if (script_watcher_.Poll()) {
         LOG_INFO("Script changes detected, reloading...");
         CleanupThumbnailCache();
-        Engine::script_manager().Reload();
+        Engine::script_manager().ReloadAsync();
       }
     }
   }
@@ -405,6 +482,13 @@ void EditorLayer::OnBeginPresent() {
 
   RenderMainMenuBar();
 
+  // Show startup dialog if no project loaded
+  if (!project_) {
+    ImGui::DockSpaceOverViewport();
+    RenderStartupDialog();
+    return;
+  }
+
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
 
   // Build initial layout once
@@ -435,8 +519,11 @@ void EditorLayer::OnBeginPresent() {
     // Dock windows
     ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left_top);
     ImGui::DockBuilderDockWindow("Components", dock_left_bottom);
-    ImGui::DockBuilderDockWindow("Scene", dock_center);
     ImGui::DockBuilderDockWindow("Game", dock_center);
+    ImGui::DockBuilderDockWindow("Scene", dock_center);
+    // Select Scene tab by default
+    ImGuiID scene_window_id = ImHashStr("Scene");
+    ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
     ImGui::DockBuilderDockWindow("Scene Properties", dock_right);
     ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
     ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
@@ -534,7 +621,7 @@ void EditorLayer::OnBeginPresent() {
       }
     }
     if (ImGui::Button("Reload Scripts")) {
-      Engine::script_manager().Reload();
+      Engine::script_manager().ReloadAsync();
     }
 
     ImGui::SeparatorText("Physics");
@@ -564,7 +651,7 @@ void EditorLayer::OnBeginPresent() {
       ImGui::SameLine();
       ImGui::PopStyleColor(2);
       if (ImGui::Button("Close", ImVec2(width * 0.48f, 0))) {
-        ClosePrefabEditor();
+        deferred_action_ = DeferredAction::ClosePrefab;
       }
       ImGui::Separator();
     }
@@ -692,6 +779,9 @@ void EditorLayer::OnBeginPresent() {
       fs::path browse_dir = fs::absolute(*physical_app) / current_dir;
       if (fs::exists(browse_dir) && fs::is_directory(browse_dir)) {
         for (auto& entry : fs::directory_iterator(browse_dir)) {
+          // Hide .meta files from the browser
+          if (entry.is_regular_file() && entry.path().extension() == ".meta") continue;
+
           FileEntry fe;
           fe.name = entry.path().filename().string();
           fe.is_dir = entry.is_directory();
@@ -700,25 +790,17 @@ void EditorLayer::OnBeginPresent() {
 
           if (!fe.is_dir) {
             auto ext = entry.path().extension().string();
-            if (ext == ".obj" || ext == ".gltf" || ext == ".glb" || ext == ".fbx")
-              fe.asset_type = AssetType::Model;
-            else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp")
-              fe.asset_type = AssetType::Texture;
-            else if (ext == ".cs")
-              fe.asset_type = AssetType::Script;
-            else if (ext == ".wscene")
-              fe.asset_type = AssetType::Scene;
-            else if (ext == ".wprefab")
-              fe.asset_type = AssetType::Prefab;
-            else if (ext == ".ttf" || ext == ".otf")
-              fe.asset_type = AssetType::Font;
+            fe.asset_type = ExtToAssetType(ext);
+            if (fe.asset_type == AssetType::None) {
+              if (ext == ".cs") fe.asset_type = AssetType::Script;
+            }
           }
 
           entries.push_back(fe);
         }
       }
       // Sort: directories first, then files, both alphabetically
-      std::sort(entries.begin(), entries.end(), [](const FileEntry& a, const FileEntry& b) {
+      std::ranges::sort(entries, [](const FileEntry& a, const FileEntry& b) {
         if (a.is_dir != b.is_dir) return a.is_dir > b.is_dir;
         return a.name < b.name;
       });
@@ -1099,6 +1181,9 @@ void EditorLayer::OnBeginPresent() {
         bool is_sel = selected_file == fe.name;
         bool dbl_clicked = false;
 
+        AssetHandle handle;
+        const AssetMetadata* meta = nullptr;
+
         if (fe.is_dir) {
           if (DrawTile(fe.name.c_str(), ImVec4(0.3f, 0.35f, 0.45f, 1.0f),
                        "DIR", is_sel, true, nullptr, nullptr, &dbl_clicked)) {
@@ -1110,8 +1195,6 @@ void EditorLayer::OnBeginPresent() {
         } else {
           // Look up asset in AssetManager for thumbnails
           std::string vfs_path = "/app/" + current_dir + fe.name;
-          AssetHandle handle;
-          const AssetMetadata* meta = nullptr;
           for (auto& h : mgr.GetAll()) {
             const auto* m = mgr.GetMetadata(h);
             if (m && m->virtual_source_path == vfs_path) {
@@ -1127,7 +1210,15 @@ void EditorLayer::OnBeginPresent() {
             thumbnail = thumb.texture_id;
           }
 
-          if (DrawTile(fe.name.c_str(), GetAssetColor(fe.asset_type),
+          bool is_imported = handle.IsValid();
+          ImVec4 tile_color = GetAssetColor(fe.asset_type);
+          if (!is_imported && fe.asset_type != AssetType::None) {
+            // Dim unimported assets
+            tile_color.x *= 0.4f;
+            tile_color.y *= 0.4f;
+            tile_color.z *= 0.4f;
+          }
+          if (DrawTile(fe.name.c_str(), tile_color,
                        GetAssetAbbrev(fe.asset_type), is_sel, false,
                        thumbnail, meta, &dbl_clicked)) {
             selected_file = fe.name;
@@ -1135,9 +1226,11 @@ void EditorLayer::OnBeginPresent() {
 
           if (dbl_clicked) {
             if (fe.asset_type == AssetType::Scene) {
-              OpenSceneFromPath(fe.physical_path);
+              deferred_action_ = DeferredAction::OpenScene;
+              deferred_path_ = fe.physical_path;
             } else if (fe.asset_type == AssetType::Prefab) {
-              OpenPrefabForEditing(fe.physical_path);
+              deferred_action_ = DeferredAction::OpenPrefab;
+              deferred_path_ = fe.physical_path;
             } else if (fe.asset_type == AssetType::Script) {
               OpenFileInDefaultEditor(fe.physical_path);
             }
@@ -1181,6 +1274,22 @@ void EditorLayer::OnBeginPresent() {
 
         // Right-click context menu for files and folders
         if (is_sel && ImGui::BeginPopupContextItem(("##ctx_" + fe.name).c_str())) {
+          // Import option for unimported files
+          if (!fe.is_dir && !handle.IsValid() && fe.asset_type != AssetType::None) {
+            if (ImGui::MenuItem("Import")) {
+              std::string import_vfs = "/app/" + current_dir + fe.name;
+              AssetHandle new_handle = mgr.Register(fe.name, fe.asset_type, import_vfs);
+              if (new_handle.IsValid()) {
+                namespace fs = std::filesystem;
+                fs::path meta_path = fe.physical_path.string() + ".meta";
+                WriteMetaFile(meta_path, new_handle);
+                if (fe.asset_type == AssetType::Prefab || fe.asset_type == AssetType::Scene) {
+                  mgr.SetLoadState(new_handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+                }
+              }
+            }
+            ImGui::Separator();
+          }
           if (ImGui::MenuItem("Rename")) {
             renaming_file = fe.name;
             auto stem = fe.physical_path.stem().string();
@@ -1584,20 +1693,29 @@ void EditorLayer::OnBeginPresent() {
     ImGui::SameLine();
     if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
     {
-      float comboWidth = 130.0f;
       float rightEdge = ImGui::GetWindowContentRegionMax().x;
-      ImGui::SameLine(rightEdge - comboWidth);
-      ImGui::SetNextItemWidth(comboWidth);
-      if (ImGui::BeginCombo("##SceneResolution", kResolutionPresets[resolution_preset_index_].label)) {
-        for (int i = 0; i < kResolutionPresetCount; i++) {
-          bool selected = (i == resolution_preset_index_);
-          if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
-            resolution_preset_index_ = i;
-            scene_->SetRenderResolution(kResolutionPresets[i].size);
+      ImGui::SameLine(rightEdge - 24.0f);
+      if (ImGui::Button("...##SceneSettings")) {
+        ImGui::OpenPopup("SceneCameraSettings");
+      }
+      if (ImGui::BeginPopup("SceneCameraSettings")) {
+        ImGui::SeparatorText("Camera");
+        ImGui::SetNextItemWidth(130.0f);
+        if (ImGui::BeginCombo("Resolution", kResolutionPresets[resolution_preset_index_].label)) {
+          for (int i = 0; i < kResolutionPresetCount; i++) {
+            bool selected = (i == resolution_preset_index_);
+            if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
+              resolution_preset_index_ = i;
+              scene_->SetRenderResolution(kResolutionPresets[i].size);
+            }
+            if (selected) ImGui::SetItemDefaultFocus();
           }
-          if (selected) ImGui::SetItemDefaultFocus();
+          ImGui::EndCombo();
         }
-        ImGui::EndCombo();
+        ImGui::DragFloat("Speed", &camera_speed_, 0.5f, 0.1f, 100.0f);
+        ImGui::DragFloat("Sensitivity", &mouse_sensitivity_, 1.0f, 10.0f, 500.0f);
+        ImGui::SeparatorText("Overlays");
+        ImGui::EndPopup();
       }
     }
 
@@ -1893,6 +2011,22 @@ void EditorLayer::OnBeginPresent() {
       }
 
       if (editor_state_ == EditorState::Playing) {
+        // Check if any camera exists
+        bool has_camera = false;
+        for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+          auto& cam = scene_->GetComponent<CameraComponent>(entity);
+          if (cam.enabled) { has_camera = true; break; }
+        }
+
+        if (!has_camera) {
+          ImVec2 avail = ImGui::GetContentRegionAvail();
+          const char* text = "No camera in scene";
+          ImVec2 textSize = ImGui::CalcTextSize(text);
+          ImGui::SetCursorPos(ImVec2(
+              ImGui::GetCursorPosX() + (avail.x - textSize.x) * 0.5f,
+              ImGui::GetCursorPosY() + (avail.y - textSize.y) * 0.5f));
+          ImGui::TextDisabled("%s", text);
+        } else {
         ImVec2 avail = ImGui::GetContentRegionAvail();
         if (scene_->GetRenderResolution().x <= 0) {
           // Free Aspect: game camera tracks panel size (old behavior)
@@ -1949,6 +2083,7 @@ void EditorLayer::OnBeginPresent() {
           ImVec2 resPos = ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
           ImGui::GetWindowDrawList()->AddText(resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
         }
+        } // has_camera
       } else {
         ImVec2 avail = ImGui::GetContentRegionAvail();
         const char* text = "Not Playing";
@@ -1980,26 +2115,28 @@ void EditorLayer::OnPostPresent() {
 }
 
 void EditorLayer::TakeSnapshot() {
-  scene_snapshot_.clear();
-  for (auto entity : scene_->GetAllEntitiesWith<TransformComponent>()) {
-    auto& t = scene_->GetComponent<TransformComponent>(entity);
-    scene_snapshot_[entity] = {t.position, t.rotation, t.scale};
-  }
+  SceneSerializer serializer(scene_);
+  play_mode_snapshot_ = serializer.SerializeToString();
 }
 
 void EditorLayer::RestoreSnapshot() {
-  // Restore transforms
-  for (auto& [entity, snap] : scene_snapshot_) {
-    if (!scene_->GetRegistry().valid(entity))
-      continue;
-    auto& t = scene_->GetComponent<TransformComponent>(entity);
-    t.position = snap.position;
-    t.rotation = snap.rotation;
-    t.scale = snap.scale;
-    t.is_changed = true;
+  Engine::renderer()->WaitForGPU();
+  has_selected_entity_ = false;
+
+  ClearScene();
+
+  SceneSerializer serializer(scene_);
+  serializer.DeserializeFromString(play_mode_snapshot_);
+  play_mode_snapshot_.clear();
+
+  scene_->InvalidateRenderGraphs();
+
+  // Setup camera components that were deserialized
+  for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = scene_->GetComponent<CameraComponent>(entity);
+    Engine::renderer()->SetupCameraComponent(cam);
   }
 
-  // Reset physics and scripts
   scene_->ResetPhysicsWorld();
   scene_->ResetScriptStates();
   scene_->ResetFirstUpdate();
@@ -2007,6 +2144,7 @@ void EditorLayer::RestoreSnapshot() {
 
 void EditorLayer::OnPrePresent() {
   PROFILE_ZONE_SCOPED_N("Editor::OnPrePresent");
+
   Renderer* renderer = Engine::renderer().get();
   VkCommandBuffer cmd = renderer->GetCommandBuffer().handle_;
 
@@ -2028,7 +2166,7 @@ void EditorLayer::OnPrePresent() {
       // Render editor camera
       PROFILE_PLOT("Scene Width", static_cast<double>(editor_camera_.viewport_size.x));
       PROFILE_PLOT("Scene Height", static_cast<double>(editor_camera_.viewport_size.y));
-      scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
+      scene_->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
       PROFILE_FRAME_MARK_NAMED("Scene");
 
       // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
@@ -2050,8 +2188,8 @@ void EditorLayer::OnPrePresent() {
     PROFILE_FRAME_MARK_NAMED("Scene");
     // EDIT MODE: Only editor camera renders.
     // camera_ will point to editor camera after RenderFromExternal.
-    // BeginPresent/EndPresent handle its transitions automatically.uti
-    scene_->RenderFromExternal(editor_camera_, editor_camera_transform_);
+    // BeginPresent/EndPresent handle its transitions automatically.
+    scene_->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
   }
 }
 
@@ -2097,6 +2235,22 @@ void EditorLayer::RenderMainMenuBar() {
         }
         if (ImGui::MenuItem("Save Project", nullptr, false, project_ != nullptr)) {
           SaveProject();
+        }
+        auto recent = RecentProjects::Load();
+        if (!recent.empty()) {
+          ImGui::Separator();
+          for (const auto& path : recent) {
+            std::string label = std::filesystem::path(path).stem().string();
+            if (ImGui::MenuItem(label.c_str())) {
+              if (std::filesystem::exists(path)) {
+                deferred_action_ = DeferredAction::OpenProject;
+                deferred_path_ = path;
+              }
+            }
+            if (ImGui::IsItemHovered()) {
+              ImGui::SetTooltip("%s", path.c_str());
+            }
+          }
         }
         ImGui::EndMenu();
       }
@@ -2154,8 +2308,10 @@ void EditorLayer::RenderMainMenuBar() {
       auto asset_stats = Engine::asset_manager().GetStats();
 
       std::string status_text;
-      bool has_activity = asset_stats.loading > 0;
-      if (has_activity) {
+      bool has_activity = asset_stats.loading > 0 || Engine::script_manager().IsCompiling();
+      if (Engine::script_manager().IsCompiling()) {
+        status_text = "Compiling scripts...";
+      } else if (asset_stats.loading > 0) {
         status_text = std::format("Loading {} asset{}...",
             asset_stats.loading, asset_stats.loading > 1 ? "s" : "");
       } else if (asset_stats.failed > 0) {
@@ -2271,6 +2427,8 @@ void EditorLayer::NewProject() {
         SaveScene();
 
         ScanProjectAssets();
+        Engine::script_manager().ReloadAsync();
+        RecentProjects::Add(std::filesystem::absolute(dir / (name + ".wiesel")).string());
         UpdateWindowTitle();
         LOG_INFO("Created project: {} at {}", name, folder);
       }
@@ -2282,50 +2440,7 @@ void EditorLayer::OpenProject() {
   Dialogs::OpenFileDialog(
       {{"Wiesel Project", "wiesel"}}, [this](const std::string& file) {
         if (file.empty()) return;
-
-        auto proj = Project::Load(file);
-        if (!proj) return;
-
-        project_ = std::move(proj);
-        Project::SetActive(project_.get());
-
-        // Mount project assets
-        auto* vfs = Engine::vfs().get();
-        vfs->Unmount("/app");
-        vfs->Mount("/app", project_->GetAssetsDirectory().string());
-
-        ScanProjectAssets();
-
-        // Apply saved render options
-        {
-          auto& opts = project_->GetSettings().render_options;
-          auto& settings = Engine::renderer()->options();
-          settings.ssao_enabled = opts.ssao_enabled;
-          settings.bloom_enabled = opts.bloom_enabled;
-          settings.bloom_threshold = opts.bloom_threshold;
-          settings.bloom_intensity = opts.bloom_intensity;
-          settings.motion_blur_enabled = opts.motion_blur_enabled;
-          settings.motion_blur_strength = opts.motion_blur_strength;
-          settings.motion_blur_samples = opts.motion_blur_samples;
-          settings.shadows_enabled = opts.shadows_enabled;
-          settings.vsync = opts.vsync;
-          settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
-        }
-
-        // Open last scene or start scene
-        ClearScene();
-        const auto& last = project_->GetSettings().last_scene;
-        const auto& start = project_->GetSettings().start_scene;
-        const auto& to_open = !last.empty() ? last : start;
-        if (!to_open.empty()) {
-          auto scene_path = project_->GetAssetsDirectory() / to_open;
-          if (std::filesystem::exists(scene_path)) {
-            OpenSceneFromPath(scene_path);
-          }
-        }
-
-        UpdateWindowTitle();
-        LOG_INFO("Opened project: {}", project_->GetSettings().name);
+        LoadProjectFromPath(file);
       });
 }
 
@@ -2483,6 +2598,9 @@ void EditorLayer::ClearScene() {
     editor_state_ = EditorState::Edit;
   }
 
+  // Wait for GPU to finish before destroying resources
+  Engine::renderer()->WaitForGPU();
+
   has_selected_entity_ = false;
   CleanupThumbnailCache();
 
@@ -2537,6 +2655,106 @@ void EditorLayer::AutoSave() {
   }
 }
 
+void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
+  namespace fs = std::filesystem;
+
+  std::unique_ptr<Project> proj = Project::Load(path);
+  if (!proj) return;
+
+  project_ = std::move(proj);
+  Project::SetActive(project_.get());
+
+  std::shared_ptr<VirtualFileSystem> vfs = Engine::vfs();
+  if (fs::exists(project_->GetAssetsDirectory())) {
+    vfs->Unmount("/app");
+    vfs->Mount("/app", project_->GetAssetsDirectory().string());
+  }
+
+  ScanProjectAssets();
+  Engine::script_manager().Reload();
+
+  // Apply saved render options
+  {
+    RenderOptionsSerialized& opts = project_->GetSettings().render_options;
+    RendererOptions& settings = Engine::renderer()->options();
+    settings.ssao_enabled = opts.ssao_enabled;
+    settings.bloom_enabled = opts.bloom_enabled;
+    settings.bloom_threshold = opts.bloom_threshold;
+    settings.bloom_intensity = opts.bloom_intensity;
+    settings.motion_blur_enabled = opts.motion_blur_enabled;
+    settings.motion_blur_strength = opts.motion_blur_strength;
+    settings.motion_blur_samples = opts.motion_blur_samples;
+    settings.shadows_enabled = opts.shadows_enabled;
+    settings.vsync = opts.vsync;
+    settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
+  }
+
+  // Open last scene or start scene
+  ClearScene();
+  const std::string& last = project_->GetSettings().last_scene;
+  const std::string& start = project_->GetSettings().start_scene;
+  const std::string& to_open = !last.empty() ? last : start;
+  if (!to_open.empty()) {
+    auto scene_path = project_->GetAssetsDirectory() / to_open;
+    if (fs::exists(scene_path)) {
+      OpenSceneFromPath(scene_path);
+    }
+  }
+
+  RecentProjects::Add(fs::absolute(path).string());
+  UpdateWindowTitle();
+  LOG_INFO("Opened project: {}", project_->GetSettings().name);
+}
+
+void EditorLayer::RenderStartupDialog() {
+  ImGuiViewport* viewport = ImGui::GetMainViewport();
+  ImVec2 center = ImVec2(viewport->Pos.x + viewport->Size.x * 0.5f,
+                         viewport->Pos.y + viewport->Size.y * 0.5f);
+
+  ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(420, 0));
+  ImGui::Begin("Welcome to Wiesel", nullptr,
+               ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+               ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking);
+
+  ImGui::Text("Get started:");
+  ImGui::Spacing();
+
+  float width = ImGui::GetContentRegionAvail().x;
+  if (ImGui::Button("New Project...", ImVec2(width, 30))) {
+    NewProject();
+  }
+  if (ImGui::Button("Open Project...", ImVec2(width, 30))) {
+    OpenProject();
+  }
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  auto recent = RecentProjects::Load();
+  if (!recent.empty()) {
+    ImGui::Text("Recent Projects:");
+    ImGui::Spacing();
+    for (const auto& path : recent) {
+      namespace fs = std::filesystem;
+      std::string name = fs::path(path).stem().string();
+      std::string dir = fs::path(path).parent_path().string();
+      std::string label = name + "  (" + dir + ")";
+      if (ImGui::Selectable(label.c_str())) {
+        if (fs::exists(path)) {
+          deferred_action_ = DeferredAction::OpenProject;
+          deferred_path_ = path;
+        }
+      }
+    }
+  } else {
+    ImGui::TextDisabled("No recent projects.");
+  }
+
+  ImGui::End();
+}
+
 void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
   namespace fs = std::filesystem;
 
@@ -2582,7 +2800,7 @@ void EditorLayer::SavePrefab() {
     return;
   }
 
-  Entity root = hierarchy[0];
+  Entity root = {hierarchy[0], scene_.get()};
   if (Prefab::SaveToFile(root, editing_prefab_path_)) {
     scene_dirty_ = false;
     LOG_INFO("Prefab saved: {}", editing_prefab_path_.string());
@@ -2608,85 +2826,107 @@ void EditorLayer::ScanProjectAssets() {
   if (!project_) return;
 
   namespace fs = std::filesystem;
-  auto& mgr = Engine::asset_manager();
-
-  // Register scenes with SceneManager and collect existing VFS paths
+  AssetManager& mgr = Engine::asset_manager();
   SceneManager::Get().ClearRegisteredScenes();
-
-  std::set<std::string> known_vfs;
-  for (auto& h : mgr.GetAll()) {
-    const auto* meta = mgr.GetMetadata(h);
-    if (meta) known_vfs.insert(meta->virtual_source_path);
-  }
 
   fs::path assets_dir = fs::absolute(project_->GetAssetsDirectory());
   if (!fs::exists(assets_dir)) return;
 
-  // Clear existing scene/prefab assets that might be stale
-  std::vector<AssetHandle> to_remove;
-  for (auto& h : mgr.GetAll()) {
-    const auto* meta = mgr.GetMetadata(h);
-    if (meta && (meta->type == AssetType::Scene || meta->type == AssetType::Prefab)) {
-      to_remove.push_back(h);
-    }
-  }
-  for (auto& h : to_remove) {
-    mgr.Unregister(h);
-  }
-
-  // Scan the assets directory for known file types
   for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
     if (!entry.is_regular_file()) continue;
 
-    auto ext = entry.path().extension().string();
-    AssetType type = AssetType::None;
-    if (ext == ".wscene") type = AssetType::Scene;
-    else if (ext == ".wprefab") type = AssetType::Prefab;
-    else if (ext == ".wmat") type = AssetType::Material;
-    else if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") type = AssetType::Model;
-    else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp") type = AssetType::Texture;
-    else if (ext == ".ttf" || ext == ".otf") type = AssetType::Font;
-    else continue;
+    std::string ext = entry.path().extension().string();
+
+    // Skip .meta files themselves
+    if (ext == ".meta") continue;
+
+    AssetType type = ExtToAssetType(ext);
+    if (type == AssetType::None) continue;
 
     auto rel = fs::relative(entry.path(), assets_dir);
     std::string vfs_path = "/app/" + rel.generic_string();
     std::string name = entry.path().stem().string();
 
-    // Skip if already registered (models, textures, fonts persist across scans)
-    bool already_registered = false;
-    for (auto& h : mgr.GetAll()) {
-      const auto* m = mgr.GetMetadata(h);
-      if (m && m->virtual_source_path == vfs_path) {
-        already_registered = true;
-        break;
-      }
-    }
-    if (already_registered && type != AssetType::Scene && type != AssetType::Prefab) continue;
+    // Check for .meta file
+    fs::path meta_path = entry.path().string() + ".meta";
+    std::string handle_str = ReadMetaFile(meta_path);
+    AssetHandle handle;
 
-    if (type == AssetType::Material) {
-      // Load .wmat file and register the material asset
-      auto vfs = Engine::vfs();
-      VfsFile file = vfs->Open(vfs_path);
-      if (file.Size() > 0) {
-        try {
-          std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                              std::istreambuf_iterator<char>());
-          auto j = nlohmann::json::parse(content);
-          auto mat = Material::Deserialize(j);
-          mat->name = name;
-          auto handle = mgr.RegisterAndStore<Material>(name, AssetType::Material, vfs_path, mat);
-          mat->asset_handle = handle;
-        } catch (const std::exception& e) {
-          LOG_ERROR("Failed to load material '{}': {}", vfs_path, e.what());
+    if (!handle_str.empty()) {
+      // Has .meta - use the saved handle
+      handle = AssetHandle::FromString(handle_str);
+      if (!mgr.HasAsset(handle)) {
+        if (type == AssetType::Material) {
+          VfsFile file = Engine::vfs()->Open(vfs_path);
+          if (file.Size() > 0) {
+            try {
+              std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                                  std::istreambuf_iterator<char>());
+              auto j = nlohmann::json::parse(content);
+              auto mat = Material::Deserialize(j);
+              mat->name = name;
+              mgr.Register(handle, name, AssetType::Material, vfs_path);
+              mgr.Store<Material>(handle, mat);
+              mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+              mat->asset_handle = handle;
+            } catch (const std::exception& e) {
+              LOG_ERROR("Failed to load material '{}': {}", vfs_path, e.what());
+              continue;
+            }
+          }
+        } else {
+          mgr.Register(handle, name, type, vfs_path);
         }
       }
     } else {
-      mgr.Register(name, type, vfs_path);
+      // No .meta - this is an unimported file, create .meta and register
+      if (type == AssetType::Material) {
+        VfsFile file = Engine::vfs()->Open(vfs_path);
+        if (file.Size() > 0) {
+          try {
+            std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                                std::istreambuf_iterator<char>());
+            auto j = nlohmann::json::parse(content);
+            auto mat = Material::Deserialize(j);
+            mat->name = name;
+            handle = mgr.RegisterAndStore<Material>(name, AssetType::Material, vfs_path, mat);
+            mat->asset_handle = handle;
+          } catch (const std::exception& e) {
+            LOG_ERROR("Failed to load material '{}': {}", vfs_path, e.what());
+            continue;
+          }
+        }
+      } else {
+        handle = mgr.Register(name, type, vfs_path);
+      }
+
+      if (handle.IsValid()) {
+        WriteMetaFile(meta_path, handle);
+      }
     }
 
+    if (!handle.IsValid()) continue;
+
+    // Post-registration setup
     if (type == AssetType::Scene) {
       SceneManager::Get().RegisterScene(name, entry.path());
       project_->AddScene(rel.generic_string());
+    }
+
+    if (type == AssetType::Prefab || type == AssetType::Scene) {
+      mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+    }
+  }
+
+  // Clean up orphaned .meta files (asset file was deleted)
+  for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
+    if (!entry.is_regular_file()) continue;
+    if (entry.path().extension() != ".meta") continue;
+    // The asset file path is the .meta path without the .meta extension
+    fs::path asset_path = entry.path().string().substr(0, entry.path().string().size() - 5);
+    if (!fs::exists(asset_path)) {
+      std::error_code ec;
+      fs::remove(entry.path(), ec);
     }
   }
 

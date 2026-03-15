@@ -14,6 +14,18 @@
 
 namespace Wiesel::Editor {
 
+class RecentProjects {
+ public:
+  static constexpr int kMaxRecent = 10;
+
+  static std::vector<std::string> Load();
+  static void Save(const std::vector<std::string>& paths);
+  static void Add(const std::string& path);
+
+ private:
+  static std::filesystem::path GetConfigPath();
+};
+
 enum class EditorState { Edit, Playing };
 
 class EditorLayer : public Layer {
@@ -48,6 +60,8 @@ class EditorLayer : public Layer {
   void SaveSceneAs();
   void ClearScene();
   void OpenSceneFromPath(const std::filesystem::path& path);
+  void LoadProjectFromPath(const std::filesystem::path& path);
+  void RenderStartupDialog();
   void UpdateWindowTitle();
   void AutoSave();
   void ScanProjectAssets();
@@ -78,6 +92,7 @@ class EditorLayer : public Layer {
   bool game_panel_visible_ = true;
   int resolution_preset_index_ = 0;  // index into kResolutionPresets
   bool show_about_popup_ = false;
+  bool show_grid_ = true;
 
   // Prefab editing
   bool editing_prefab_ = false;
@@ -87,11 +102,14 @@ class EditorLayer : public Layer {
   void SavePrefab();
   void ClosePrefabEditor();
 
-  // Scene snapshot for Play/Stop restore
-  struct EntitySnapshot {
-    glm::vec3 position, rotation, scale;
-  };
-  std::unordered_map<entt::entity, EntitySnapshot> scene_snapshot_;
+  // Deferred scene actions (executed between frames, not during rendering)
+  enum class DeferredAction { None, OpenScene, OpenPrefab, ClosePrefab, OpenProject };
+  DeferredAction deferred_action_ = DeferredAction::None;
+  std::filesystem::path deferred_path_;
+  void ProcessDeferredActions();
+
+  // Scene snapshot for Play/Stop restore (full scene JSON)
+  std::string play_mode_snapshot_;
 };
 }
 

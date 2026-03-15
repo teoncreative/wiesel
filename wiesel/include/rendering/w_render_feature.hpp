@@ -68,6 +68,7 @@ struct RenderContext {
   glm::vec2 viewport_size;
   bool use_msaa_resolve;
   bool is_external = false;
+  bool show_grid = false;
 };
 
 // Named render graph resource registry.

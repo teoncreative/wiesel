@@ -21,6 +21,7 @@
 #include "rendering/features/w_ssao_feature.hpp"
 #include "rendering/features/w_lighting_feature.hpp"
 #include "rendering/features/w_transparency_feature.hpp"
+#include "rendering/features/w_grid_feature.hpp"
 #include "rendering/features/w_sprite_feature.hpp"
 #include "rendering/features/w_composite_feature.hpp"
 #include "rendering/features/w_taa_feature.hpp"
@@ -52,11 +53,30 @@ Scene::~Scene() {
   Cleanup();
 }
 
+Ref<Skybox> Scene::GetSkybox() {
+  if (skybox_) return skybox_;
+  return default_skybox_;
+}
+
+void Scene::EnsureDefaultSkybox() {
+  if (default_skybox_) return;
+  auto renderer = Engine::renderer();
+  if (!renderer) return;
+  auto tex = renderer->CreateCubemapTextureFromSingle(
+      "/engine/internal_textures/default_skybox.png", {}, {});
+  if (tex) {
+    default_skybox_ = CreateReference<Skybox>(tex);
+  }
+}
+
 Entity Scene::CreateEntity(const std::string& name) {
   return CreateEntityWithUUID(UUID::GenerateV4(), name);
 }
 
 Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
+  if (uuid.IsNil()) {
+    uuid = UUID::GenerateV4();
+  }
   Entity entity = {registry_.create(), this};
   entity.AddComponent<IdComponent>(uuid);
   entity.AddComponent<TransformComponent>();
@@ -683,6 +703,7 @@ void Scene::Cleanup() {
   }
 
   skybox_ = nullptr;
+  default_skybox_ = nullptr;
   current_camera_ = nullptr;
 }
 
@@ -710,6 +731,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
 
 bool Scene::Render() {
   PROFILE_ZONE_SCOPED();
+  EnsureDefaultSkybox();
   bool hasCamera = false;
   Ref<Renderer> renderer = Engine::renderer();
 
@@ -774,7 +796,9 @@ bool Scene::Render() {
 }
 
 bool Scene::RenderFromExternal(CameraComponent& camera,
-                               TransformComponent& transform) {
+                               TransformComponent& transform,
+                               bool show_grid) {
+  EnsureDefaultSkybox();
   PROFILE_ZONE_SCOPED();
   Ref<Renderer> renderer = Engine::renderer();
 
@@ -827,7 +851,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
     vkDeviceWaitIdle(renderer->GetLogicalDevice());
     bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
     RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                      camera.viewport_size, use_resolve, true};
+                      camera.viewport_size, use_resolve, true, show_grid};
     auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
                                             : *default_pipeline_;
     pipeline.SetupResources(ctx);
@@ -847,7 +871,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   }
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
   RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                    camera.viewport_size, use_resolve, true};
+                    camera.viewport_size, use_resolve, true, show_grid};
   auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
                                           : *default_pipeline_;
   pipeline.BuildRenderGraph(*external_render_graph_, ctx);
@@ -908,6 +932,7 @@ Ref<RenderPipeline> Scene::CreateDefaultPipeline(Ref<Renderer> renderer) {
   pipeline->AddFeature<SSAOFeature>(renderer);
   pipeline->AddFeature<LightingFeature>(renderer);
   pipeline->AddFeature<TransparencyFeature>(renderer);
+  pipeline->AddFeature<GridFeature>(renderer);
   pipeline->AddFeature<SpriteFeature>(renderer);
   pipeline->AddFeature<CompositeFeature>(renderer);
   pipeline->AddFeature<TAAFeature>(renderer);
