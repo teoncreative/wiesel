@@ -117,17 +117,19 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   RGResource composite_out =
       graph.ImportTexture("CompositeOut", composite_tex);
 
-  // Get references to lighting, transparency, and sprite outputs from the registry
+  // Get references from registry
   auto lighting_out = registry.Get("LightingOut");
   auto transparency_out = registry.Has("TransparencyOut") ? registry.Get("TransparencyOut") : RGResource{};
   auto sprite_out = registry.Get("SpriteOut");
+  auto grid_out = registry.Has("GridOut") ? registry.Get("GridOut") : RGResource{};
 
   // Composite pass (canvas is blended later by CanvasFeature)
   auto pipeline = pipeline_;
   bool has_transparency = transparency_out.IsValid();
+  bool has_grid = grid_out.IsValid();
   uint32_t composite = graph.AddPass(
       "Composite", render_pass_,
-      [pipeline, pool, renderer, has_transparency](VkCommandBuffer) {
+      [pipeline, pool, renderer, has_transparency, has_grid](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
         if (renderer->options().only_ssao) {
           renderer->DrawFullscreen(pipeline,
@@ -135,6 +137,10 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
         } else {
           renderer->DrawFullscreen(pipeline,
               {pool->GetDescriptor("lighting.output")});
+          if (has_grid) {
+            renderer->DrawFullscreen(pipeline,
+                {pool->GetDescriptor("grid.output")});
+          }
           if (has_transparency) {
             renderer->DrawFullscreen(pipeline,
                 {pool->GetDescriptor("transparency.output")});
@@ -145,6 +151,9 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassReadsTexture(composite, lighting_out);
+  if (grid_out.IsValid()) {
+    graph.PassReadsTexture(composite, grid_out);
+  }
   if (transparency_out.IsValid()) {
     graph.PassReadsTexture(composite, transparency_out);
   }

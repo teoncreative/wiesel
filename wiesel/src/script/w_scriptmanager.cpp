@@ -831,6 +831,7 @@ ScriptInstance::~ScriptInstance() {
 
 void ScriptInstance::OnStart() {
   UpdateAttachments();
+  if (!script_data_->on_start_method()) return;
   mono_runtime_invoke(script_data_->on_start_method(), handle_, nullptr,
                       nullptr);
 }
@@ -842,6 +843,7 @@ void ScriptInstance::OnUpdate(float_t delta_time) {
     has_started_ = true;
   }
 
+  if (!script_data_->on_update_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   args[0] = &delta_time;
@@ -1058,7 +1060,10 @@ void ScriptManager::Reload() {
   }
 
   mono_domain_set(root_domain_, true);
-  mono_domain_unload(app_domain_);
+  if (app_domain_) {
+    mono_domain_unload(app_domain_);
+    app_domain_= nullptr;
+  }
 
   script_data_.clear();
   script_names_.clear();
@@ -1070,6 +1075,113 @@ void ScriptManager::Reload() {
 
   ScriptsReloadedEvent event{};
   Application::Get()->OnEvent(event);
+}
+
+void ScriptManager::ReloadAsync() {
+  if (compiling_) return;
+
+  if (!Engine::properties().dev_mode) {
+    Reload();
+    return;
+  }
+
+  std::optional<std::filesystem::path> physical = Engine::vfs()->GetPhysicalPath("/app/scripts");
+  if (!physical.has_value() || !std::filesystem::exists(*physical)) {
+    Reload();
+    return;
+  }
+
+  // Collect source files on the main thread (fast, no Mono calls)
+  std::vector<std::string> source_files;
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(*physical)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+      source_files.push_back(entry.path().string());
+    }
+  }
+
+  if (source_files.empty()) {
+    Reload();
+    return;
+  }
+
+  std::vector<std::string> link_libs;
+  if (std::filesystem::exists("obj")) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator("obj")) {
+      if (entry.is_regular_file() && entry.path().extension() == ".dll") {
+        link_libs.push_back(entry.path().string());
+      }
+    }
+  }
+
+  // Only compile on the background thread - do NOT touch Mono or unload anything.
+  // Old scripts keep running. Domain swap happens in FinishReloadIfReady.
+  LOG_INFO("Compiling scripts (async)...");
+  pending_dll_path_ = "obj/App.dll";
+  bool debug = enable_debugger_;
+  std::string dll_path = pending_dll_path_;
+
+  compiling_ = true;
+  compile_future_ = std::async(std::launch::async,
+      [dll_path, source_files, link_libs, debug]() {
+        return CompileToDLL(dll_path, source_files, "obj", link_libs, debug);
+      });
+}
+
+bool ScriptManager::FinishReloadIfReady() {
+  if (!compiling_) return false;
+  if (compile_future_.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) {
+    return false;  // still compiling
+  }
+
+  bool success = compile_future_.get();
+  compiling_ = false;
+
+  if (!success) {
+    LOG_ERROR("Script compilation failed");
+    return true;
+  }
+
+  // Compilation succeeded - now do the atomic domain swap on the main thread.
+  // Unregister old scripts, unload old domain, reload everything with new DLL.
+  AssetManager& mgr = Engine::asset_manager();
+  for (AssetHandle handle : mgr.GetAllOfType(AssetType::Script)) {
+    mgr.Unregister(handle);
+  }
+
+  mono_domain_set(root_domain_, true);
+  if (app_domain_) {
+    mono_domain_unload(app_domain_);
+    app_domain_ = nullptr;
+  }
+
+  script_data_.clear();
+  script_names_.clear();
+
+  RegisterComponents();
+  RegisterInternals();
+  LoadCore();
+
+  // Register script assets
+  std::optional<std::filesystem::path> physical = Engine::vfs()->GetPhysicalPath("/app/scripts");
+  if (physical.has_value() && std::filesystem::exists(*physical)) {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(*physical)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+        std::filesystem::path rel = std::filesystem::relative(entry.path(), *physical);
+        std::string vfs_path = "/app/scripts/" + rel.generic_string();
+        mgr.Register(entry.path().stem().string(), AssetType::Script, vfs_path);
+      }
+    }
+  }
+
+  // Load the compiled DLL (shared with LoadApp)
+  if (!LoadAppDll(pending_dll_path_)) {
+    return true;
+  }
+
+  LOG_INFO("Scripts compiled and loaded ({} scripts)", script_names_.size());
+  ScriptsReloadedEvent event{};
+  Application::Get()->OnEvent(event);
+  return true;
 }
 
 void ScriptManager::LoadCore() {
@@ -1135,6 +1247,8 @@ void ScriptManager::LoadCore() {
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
   entity_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Entity");
+  prefab_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "Prefab");
 }
 
 void ScriptManager::LoadApp() {
@@ -1181,86 +1295,70 @@ void ScriptManager::LoadApp() {
     LOG_INFO("Loading pre-compiled app scripts from {}", dll_path);
   }
 
+  LoadAppDll(dll_path);
+}
+
+bool ScriptManager::LoadAppDll(const std::string& dll_path) {
   app_domain_ = mono_domain_create_appdomain(const_cast<char*>("WieselApp"), nullptr);
   mono_domain_set(app_domain_, true);
   app_assembly_ = mono_domain_assembly_open(app_domain_, dll_path.c_str());
-  assert(app_assembly_);
+  if (!app_assembly_) {
+    LOG_ERROR("Failed to load app DLL: {}", dll_path);
+    return false;
+  }
 
   app_assembly_image_ = mono_assembly_get_image(app_assembly_);
 
-  const MonoTableInfo* tableInfo =
+  const MonoTableInfo* table_info =
       mono_image_get_table_info(app_assembly_image_, MONO_TABLE_TYPEDEF);
-  int rows = mono_table_info_get_rows(tableInfo);
+  int rows = mono_table_info_get_rows(table_info);
 
   for (int i = 0; i < rows; i++) {
     uint32_t cols[MONO_TYPEDEF_SIZE];
-    mono_metadata_decode_row(tableInfo, i, cols, MONO_TYPEDEF_SIZE);
-    std::string className =
+    mono_metadata_decode_row(table_info, i, cols, MONO_TYPEDEF_SIZE);
+    std::string class_name =
         mono_metadata_string_heap(app_assembly_image_, cols[MONO_TYPEDEF_NAME]);
-    if (className == "<Module>") {
-      continue;
-    }
-    std::string classNamespace = mono_metadata_string_heap(
-        app_assembly_image_, cols[MONO_TYPEDEF_NAMESPACE]);
-    // this is needed to load the class, facepalm Microsoft
-    mono_class_from_name(app_assembly_image_, classNamespace.c_str(),
-                         className.c_str());
+    if (class_name == "<Module>") continue;
 
-    LOG_INFO("Found class {} in namespace {}", className, classNamespace);
+    std::string class_namespace = mono_metadata_string_heap(
+        app_assembly_image_, cols[MONO_TYPEDEF_NAMESPACE]);
     MonoClass* klass = mono_class_from_name(
-        app_assembly_image_, classNamespace.c_str(), className.c_str());
-    if (!klass) {
-      LOG_ERROR("Class {} in namespace {} not found!", className,
-                classNamespace);
-      continue;
-    }
+        app_assembly_image_, class_namespace.c_str(), class_name.c_str());
+    if (!klass) continue;
+
     std::unordered_map<std::string, FieldData> fields;
     MonoClassField* field;
     void* iter = nullptr;
     while ((field = mono_class_get_fields(klass, &iter))) {
-      std::string fieldName = mono_field_get_name(field);
-      uint32_t fieldFlags = mono_field_get_flags(field);
-      // fieldFlags & FIELD_ATTRIBUTE_FIELD_ACCESS_MASK == FIELD_ATTRIBUTE_PUBLIC
-      if ((fieldFlags & 0x0007) != 0x0006) {
-        continue;
-      }
-      //LOG_INFO("Public field: {}, flags {}", fieldName, fieldFlags);
-      fields.insert(
-          std::pair(fieldName, FieldData(field, fieldName, fieldFlags)));
+      std::string field_name = mono_field_get_name(field);
+      uint32_t field_flags = mono_field_get_flags(field);
+      if ((field_flags & 0x0007) != 0x0006) continue;
+      fields.insert(std::pair(field_name, FieldData(field, field_name, field_flags)));
     }
-    MonoMethod* onStartMethod =
-        mono_class_get_method_from_name(klass, "OnStart", 0);
-    MonoMethod* onUpdateMethod =
-        mono_class_get_method_from_name(klass, "OnUpdate", 1);
-    MonoMethod* onKeyPressedMethod = mono_class_get_method_from_name(
-        klass, "OnKeyPressed", 2);  // KeyCode, bool isRepeat
-    MonoMethod* onKeyReleasedMethod =
-        mono_class_get_method_from_name(klass, "OnKeyReleased", 1);  // KeyCode
-    MonoMethod* onMouseMovedMethod = mono_class_get_method_from_name(
-        klass, "OnMouseMoved", 3);  // x, y, cursorMode
-    MonoMethod* onTriggerEnterMethod =
-        mono_class_get_method_from_name(klass, "OnTriggerEnter", 1);
-    MonoMethod* onTriggerStayMethod =
-        mono_class_get_method_from_name(klass, "OnTriggerStay", 1);
-    MonoMethod* onTriggerExitMethod =
-        mono_class_get_method_from_name(klass, "OnTriggerExit", 1);
-    MonoMethod* onCollisionEnterMethod =
-        mono_class_get_method_from_name(klass, "OnCollisionEnter", 1);
-    MonoMethod* onCollisionStayMethod =
-        mono_class_get_method_from_name(klass, "OnCollisionStay", 1);
-    MonoMethod* onCollisionExitMethod =
-        mono_class_get_method_from_name(klass, "OnCollisionExit", 1);
+
+    MonoMethod* on_start = mono_class_get_method_from_name(klass, "OnStart", 0);
+    MonoMethod* on_update = mono_class_get_method_from_name(klass, "OnUpdate", 1);
+    MonoMethod* on_key_pressed = mono_class_get_method_from_name(klass, "OnKeyPressed", 2);
+    MonoMethod* on_key_released = mono_class_get_method_from_name(klass, "OnKeyReleased", 1);
+    MonoMethod* on_mouse_moved = mono_class_get_method_from_name(klass, "OnMouseMoved", 3);
+    MonoMethod* on_trigger_enter = mono_class_get_method_from_name(klass, "OnTriggerEnter", 1);
+    MonoMethod* on_trigger_stay = mono_class_get_method_from_name(klass, "OnTriggerStay", 1);
+    MonoMethod* on_trigger_exit = mono_class_get_method_from_name(klass, "OnTriggerExit", 1);
+    MonoMethod* on_collision_enter = mono_class_get_method_from_name(klass, "OnCollisionEnter", 1);
+    MonoMethod* on_collision_stay = mono_class_get_method_from_name(klass, "OnCollisionStay", 1);
+    MonoMethod* on_collision_exit = mono_class_get_method_from_name(klass, "OnCollisionExit", 1);
+
     script_data_.insert(std::pair(
-        className,
-        std::make_shared<ScriptData>(klass, onStartMethod, onUpdateMethod, set_handle_method_,
-                       onKeyPressedMethod, onKeyReleasedMethod,
-                       onMouseMovedMethod,
-                       onTriggerEnterMethod, onTriggerStayMethod,
-                       onTriggerExitMethod,
-                       onCollisionEnterMethod, onCollisionStayMethod,
-                       onCollisionExitMethod, fields)));
-    script_names_.push_back(className);
+        class_name,
+        std::make_shared<ScriptData>(klass, on_start, on_update, set_handle_method_,
+                       on_key_pressed, on_key_released, on_mouse_moved,
+                       on_trigger_enter, on_trigger_stay, on_trigger_exit,
+                       on_collision_enter, on_collision_stay, on_collision_exit,
+                       fields)));
+    script_names_.push_back(class_name);
+    LOG_INFO("Registered script: {}", class_name);
   }
+  return true;
 }
 
 // SceneManager internal calls

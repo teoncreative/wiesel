@@ -118,6 +118,24 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   } else {
     LOG_INFO("Ray tracing extensions not supported - RT disabled");
   }
+
+#ifdef VULKAN_VALIDATION
+  // Enable device fault diagnostics if available (gives info instead of hard GPU crash)
+  {
+    uint32_t ext_count = 0;
+    vkEnumerateDeviceExtensionProperties(physical_device_, nullptr, &ext_count, nullptr);
+    std::vector<VkExtensionProperties> exts(ext_count);
+    vkEnumerateDeviceExtensionProperties(physical_device_, nullptr, &ext_count, exts.data());
+    for (const auto& ext : exts) {
+      if (std::string(ext.extensionName) == VK_EXT_DEVICE_FAULT_EXTENSION_NAME) {
+        device_extensions_.push_back(VK_EXT_DEVICE_FAULT_EXTENSION_NAME);
+        LOG_INFO("VK_EXT_device_fault enabled - GPU fault diagnostics available");
+        break;
+      }
+    }
+  }
+#endif
+
   CreateLogicalDevice();
   LoadDeviceExtensions();
   CreateGlobalUniformBuffers();
@@ -682,11 +700,13 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
     throw std::runtime_error("failed to load cubemap: " + virtual_path);
   }
   const bool is_horizontal_strip = (w % 6 == 0) && (h > 0) && (h == w / 6);
-
   const bool is_vertical_cross =
       (w % 4 == 0) && (h % 3 == 0) && (w / 4 == h / 3);
+  // Equirectangular: 2:1 aspect ratio (e.g. 2048x1024, 4096x2048)
+  const bool is_equirectangular = (w == h * 2) && !is_horizontal_strip;
 
-  if (!is_horizontal_strip && !is_vertical_cross) {
+  if (!is_horizontal_strip && !is_vertical_cross && !is_equirectangular) {
+    stbi_image_free(pixels);
     throw std::runtime_error("Unsupported cubemap layout: " + virtual_path);
   }
 
@@ -694,8 +714,10 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
 
   if (is_horizontal_strip)
     faceSize = w / 6;
-  else
+  else if (is_vertical_cross)
     faceSize = w / 4;
+  else
+    faceSize = h;  // equirectangular: full height for better quality
 
   texture->width_ = faceSize;
   texture->height_ = faceSize;
@@ -715,7 +737,63 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
     }
   };
 
-  if (is_horizontal_strip) {
+  if (is_equirectangular) {
+    // Project equirectangular panorama onto 6 cubemap faces
+    // Face order: +X, -X, +Y, -Y, +Z, -Z
+    auto sampleEquirect = [&](float x, float y, float z, stbi_uc* out) {
+      float theta = std::atan2(z, x);
+      float phi = std::asin(std::clamp(y, -1.0f, 1.0f));
+      float u = (theta / (2.0f * PI)) + 0.5f;
+      float v = 0.5f - (phi / PI);
+      // Bilinear interpolation
+      float fx = u * w - 0.5f;
+      float fy = v * h - 0.5f;
+      int x0 = static_cast<int>(std::floor(fx));
+      int y0 = static_cast<int>(std::floor(fy));
+      float sx = fx - x0;
+      float sy = fy - y0;
+      // Wrap X for seamless panorama, clamp Y
+      auto sample = [&](int px, int py) -> const stbi_uc* {
+        px = ((px % w) + w) % w;
+        py = std::clamp(py, 0, h - 1);
+        return pixels + (py * w + px) * 4;
+      };
+      const stbi_uc* p00 = sample(x0, y0);
+      const stbi_uc* p10 = sample(x0 + 1, y0);
+      const stbi_uc* p01 = sample(x0, y0 + 1);
+      const stbi_uc* p11 = sample(x0 + 1, y0 + 1);
+      for (int c = 0; c < 4; c++) {
+        float top = p00[c] * (1.0f - sx) + p10[c] * sx;
+        float bot = p01[c] * (1.0f - sx) + p11[c] * sx;
+        out[c] = static_cast<stbi_uc>(std::clamp(top * (1.0f - sy) + bot * sy, 0.0f, 255.0f));
+      }
+    };
+
+    for (uint32_t face = 0; face < 6; face++) {
+      for (uint32_t py = 0; py < faceSize; py++) {
+        for (uint32_t px = 0; px < faceSize; px++) {
+          // Map pixel to [-1, 1] on the face
+          float s = (2.0f * (px + 0.5f) / faceSize) - 1.0f;
+          float t = (2.0f * (py + 0.5f) / faceSize) - 1.0f;
+          float x = 0, y = 0, z = 0;
+          switch (face) {
+            case 0: x =  1; y = -t; z = -s; break;  // +X
+            case 1: x = -1; y = -t; z =  s; break;  // -X
+            case 2: x =  s; y =  1; z =  t; break;  // +Y
+            case 3: x =  s; y = -1; z = -t; break;  // -Y
+            case 4: x =  s; y = -t; z =  1; break;  // +Z
+            case 5: x = -s; y = -t; z = -1; break;  // -Z
+            default: break;
+          }
+          float len = std::sqrt(x*x + y*y + z*z);
+          x /= len; y /= len; z /= len;
+
+          uint32_t outIdx = face * faceSize * faceSize * 4 + (py * faceSize + px) * 4;
+          sampleEquirect(x, y, z, cubePixels.data() + outIdx);
+        }
+      }
+    }
+  } else if (is_horizontal_strip) {
     for (uint32_t face = 0; face < 6; face++) {
       copyFace(face, face, 0);
     }

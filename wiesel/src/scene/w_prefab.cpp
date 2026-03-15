@@ -10,6 +10,7 @@
 #include "physics/w_rigidbody.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
+#include "ui/w_canvas.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
 
@@ -149,6 +150,62 @@ static nlohmann::json SerializeSingleEntity(Entity entity) {
     j["SphereCollider"] = collider;
   }
 
+  // RectangleTransform
+  if (entity.HasComponent<RectangleTransformComponent>()) {
+    auto& rt = entity.GetComponent<RectangleTransformComponent>();
+    nlohmann::json rtj;
+    rtj["position"] = SerializeVec2(rt.position);
+    rtj["rotation"] = rt.rotation;
+    rtj["size"] = SerializeVec2(rt.size);
+    rtj["scale"] = SerializeVec2(rt.scale);
+    rtj["anchor"] = static_cast<int>(rt.anchor);
+    rtj["pivot"] = static_cast<int>(rt.pivot);
+    rtj["size_mode_x"] = static_cast<int>(rt.size_mode_x);
+    rtj["size_mode_y"] = static_cast<int>(rt.size_mode_y);
+    rtj["padding"] = {rt.padding.x, rt.padding.y, rt.padding.z, rt.padding.w};
+    j["RectangleTransform"] = rtj;
+  }
+
+  // Canvas
+  if (entity.HasComponent<CanvasComponent>()) {
+    auto& c = entity.GetComponent<CanvasComponent>();
+    nlohmann::json cj;
+    cj["type"] = static_cast<int>(c.type);
+    cj["direction"] = static_cast<int>(c.direction);
+    cj["alignment"] = static_cast<int>(c.alignment);
+    cj["spacing"] = c.spacing;
+    cj["sort_order"] = c.sort_order;
+    j["Canvas"] = cj;
+  }
+
+  // CanvasRect
+  if (entity.HasComponent<CanvasRectComponent>()) {
+    auto& cr = entity.GetComponent<CanvasRectComponent>();
+    nlohmann::json crj;
+    crj["color"] = {cr.color.x, cr.color.y, cr.color.z, cr.color.w};
+    j["CanvasRect"] = crj;
+  }
+
+  // CanvasImage
+  if (entity.HasComponent<CanvasImageComponent>()) {
+    auto& ci = entity.GetComponent<CanvasImageComponent>();
+    nlohmann::json cij;
+    cij["tint"] = {ci.tint.x, ci.tint.y, ci.tint.z, ci.tint.w};
+    cij["uv_rect"] = {ci.uv_rect.x, ci.uv_rect.y, ci.uv_rect.z, ci.uv_rect.w};
+    j["CanvasImage"] = cij;
+  }
+
+  // Text
+  if (entity.HasComponent<TextComponent>()) {
+    auto& t = entity.GetComponent<TextComponent>();
+    nlohmann::json tj;
+    tj["text"] = t.text;
+    tj["font_path"] = t.font_path;
+    tj["font_size"] = t.font_size;
+    tj["color"] = {t.color.x, t.color.y, t.color.z, t.color.w};
+    j["Text"] = tj;
+  }
+
   // Children
   if (entity.child_handles() && !entity.child_handles()->empty()) {
     nlohmann::json children = nlohmann::json::array();
@@ -285,6 +342,69 @@ static Entity DeserializeSingleEntity(Ref<Scene> scene,
     sc.radius = scj.value("radius", 0.5f);
     sc.is_trigger = scj.value("is_trigger", false);
     sc.collision_group = scj.value("collision_group", 1);
+  }
+
+  // RectangleTransform
+  if (j.contains("RectangleTransform")) {
+    auto& rt = entity.HasComponent<RectangleTransformComponent>()
+        ? entity.GetComponent<RectangleTransformComponent>()
+        : entity.AddComponent<RectangleTransformComponent>();
+    const auto& rtj = j["RectangleTransform"];
+    rt.position = DeserializeVec2(rtj.value("position", nlohmann::json::array()));
+    rt.rotation = rtj.value("rotation", 0.0f);
+    rt.size = DeserializeVec2(rtj.value("size", nlohmann::json::array()), {100, 100});
+    rt.scale = DeserializeVec2(rtj.value("scale", nlohmann::json::array()), {1, 1});
+    rt.anchor = static_cast<AnchorPreset>(rtj.value("anchor", 0));
+    rt.pivot = static_cast<AnchorPreset>(rtj.value("pivot", 0));
+    rt.size_mode_x = static_cast<SizeMode>(rtj.value("size_mode_x", 0));
+    rt.size_mode_y = static_cast<SizeMode>(rtj.value("size_mode_y", 0));
+    if (rtj.contains("padding") && rtj["padding"].is_array() && rtj["padding"].size() >= 4) {
+      rt.padding = {rtj["padding"][0], rtj["padding"][1], rtj["padding"][2], rtj["padding"][3]};
+    }
+  }
+
+  // Canvas
+  if (j.contains("Canvas")) {
+    auto& c = entity.AddComponent<CanvasComponent>();
+    const auto& cj = j["Canvas"];
+    c.type = static_cast<CanvasType>(cj.value("type", 0));
+    c.direction = static_cast<LayoutDirection>(cj.value("direction", 0));
+    c.alignment = static_cast<ChildAlignment>(cj.value("alignment", 0));
+    c.spacing = cj.value("spacing", 0.0f);
+    c.sort_order = cj.value("sort_order", 0);
+  }
+
+  // CanvasRect
+  if (j.contains("CanvasRect")) {
+    auto& cr = entity.AddComponent<CanvasRectComponent>();
+    const auto& crj = j["CanvasRect"];
+    if (crj.contains("color") && crj["color"].is_array() && crj["color"].size() >= 4) {
+      cr.color = {crj["color"][0], crj["color"][1], crj["color"][2], crj["color"][3]};
+    }
+  }
+
+  // CanvasImage
+  if (j.contains("CanvasImage")) {
+    auto& ci = entity.AddComponent<CanvasImageComponent>();
+    const auto& cij = j["CanvasImage"];
+    if (cij.contains("tint") && cij["tint"].is_array() && cij["tint"].size() >= 4) {
+      ci.tint = {cij["tint"][0], cij["tint"][1], cij["tint"][2], cij["tint"][3]};
+    }
+    if (cij.contains("uv_rect") && cij["uv_rect"].is_array() && cij["uv_rect"].size() >= 4) {
+      ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1], cij["uv_rect"][2], cij["uv_rect"][3]};
+    }
+  }
+
+  // Text
+  if (j.contains("Text")) {
+    auto& t = entity.AddComponent<TextComponent>();
+    const auto& tj = j["Text"];
+    t.text = tj.value("text", "");
+    t.font_path = tj.value("font_path", "/engine/fonts/default.ttf");
+    t.font_size = tj.value("font_size", 16.0f);
+    if (tj.contains("color") && tj["color"].is_array() && tj["color"].size() >= 4) {
+      t.color = {tj["color"][0], tj["color"][1], tj["color"][2], tj["color"][3]};
+    }
   }
 
   // Recurse into children

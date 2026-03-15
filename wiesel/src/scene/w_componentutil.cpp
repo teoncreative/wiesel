@@ -362,31 +362,31 @@ void RenderScriptVariables(ScriptInstance* instance) {
   }
   ScriptData& data = instance->script_data();
   for (FieldData& value : data.fields() | std::views::values) {
-    if (value.GetFieldType() == FieldType::Float) {
+    if (value.field_type() == FieldType::Float) {
       float_t val = value.Get<float_t>(instance->handle());
       if (ImGui::DragFloat(
-              PrefixLabel(value.GetFormattedName().c_str()).c_str(), &val,
+              PrefixLabel(value.formatted_name().c_str()).c_str(), &val,
               0.1f)) {
         value.Set(instance->handle(), &val);
       }
-    } else if (value.GetFieldType() == FieldType::Integer) {
+    } else if (value.field_type() == FieldType::Integer) {
       int32_t val = value.Get<int32_t>(instance->handle());
-      if (ImGui::DragInt(PrefixLabel(value.GetFormattedName().c_str()).c_str(),
+      if (ImGui::DragInt(PrefixLabel(value.formatted_name().c_str()).c_str(),
                          &val, 1)) {
         value.Set(instance->handle(), &val);
       }
-    } else if (value.GetFieldType() == FieldType::Boolean) {
+    } else if (value.field_type() == FieldType::Boolean) {
       bool val = value.Get<bool>(instance->handle());
-      if (ImGui::Checkbox(PrefixLabel(value.GetFormattedName().c_str()).c_str(),
+      if (ImGui::Checkbox(PrefixLabel(value.formatted_name().c_str()).c_str(),
                           &val)) {
         value.Set(instance->handle(), &val);
       }
-    } else if (value.GetFieldType() == FieldType::String) {
+    } else if (value.field_type() == FieldType::String) {
       MonoObject* val = value.Get<MonoObject*>(instance->handle());
       MonoObjectWrapper wrapper{val};
       std::string str = wrapper.AsString();
       if (ImGui::InputText(
-              PrefixLabel(value.GetFormattedName().c_str()).c_str(), &str)) {
+              PrefixLabel(value.formatted_name().c_str()).c_str(), &str)) {
         MonoString* newVal =
             mono_string_new(Engine::script_manager().app_domain(), str.c_str());
         value.Set(instance->handle(), newVal);
@@ -406,7 +406,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
         }
         ImGui::EndDragDropTarget();
       }
-    } else if (value.GetFieldType() == FieldType::Entity) {
+    } else if (value.field_type() == FieldType::Entity) {
       MonoObject* entity_obj = value.Get<MonoObject*>(instance->handle());
       std::string entity_label = "(None)";
       entt::entity current_entity_id = entt::null;
@@ -428,7 +428,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
         }
       }
 
-      std::string label = PrefixLabel(value.GetFormattedName().c_str());
+      std::string label = PrefixLabel(value.formatted_name().c_str());
       ImGui::InputText(label.c_str(), &entity_label,
                        ImGuiInputTextFlags_ReadOnly);
 
@@ -457,7 +457,87 @@ void RenderScriptVariables(ScriptInstance* instance) {
       // Clear button
       if (current_entity_id != entt::null) {
         ImGui::SameLine();
-        std::string clear_id = "X##clear_" + value.GetFieldName();
+        std::string clear_id = "X##clear_" + value.field_name();
+        if (ImGui::SmallButton(clear_id.c_str())) {
+          MonoObject* null_val = nullptr;
+          value.Set(instance->handle(), &null_val);
+        }
+      }
+    } else if (value.field_type() == FieldType::Prefab) {
+      MonoObject* prefab_obj = value.Get<MonoObject*>(instance->handle());
+      std::string prefab_label = "(None)";
+
+      if (prefab_obj) {
+        MonoClassField* path_field = mono_class_get_field_from_name(
+            Engine::script_manager().prefab_class(), "path");
+        if (path_field) {
+          MonoString* path_str = nullptr;
+          mono_field_get_value(prefab_obj, path_field, &path_str);
+          if (path_str) {
+            const char* cstr = mono_string_to_utf8(path_str);
+            if (cstr && cstr[0]) {
+              // Show just the filename
+              std::filesystem::path p(cstr);
+              prefab_label = p.stem().string();
+            }
+            mono_free((void*)cstr);
+          }
+        }
+      }
+
+      std::string label = PrefixLabel(value.formatted_name().c_str());
+      ImGui::InputText(label.c_str(), &prefab_label, ImGuiInputTextFlags_ReadOnly);
+
+      // Drag-drop target: accept prefab assets (AssetHandle or file path)
+      if (ImGui::BeginDragDropTarget()) {
+        std::string dropped_path;
+
+        if (const ImGuiPayload* payload =
+                ImGui::AcceptDragDropPayload("AssetHandle")) {
+          AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
+          const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
+          if (meta && meta->type == AssetType::Prefab) {
+            dropped_path = meta->virtual_source_path;
+          }
+        } else if (const ImGuiPayload* payload =
+                       ImGui::AcceptDragDropPayload("BrowserFile")) {
+          std::string file_path(static_cast<const char*>(payload->Data));
+          if (file_path.ends_with(".wprefab")) {
+            // Convert physical path to VFS path via /app mount
+            auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+            if (physical_app.has_value()) {
+              std::filesystem::path rel = std::filesystem::relative(
+                  file_path, *physical_app);
+              dropped_path = "/app/" + rel.generic_string();
+            }
+          }
+        }
+
+        if (!dropped_path.empty()) {
+          MonoObject* new_prefab = prefab_obj;
+          if (!new_prefab) {
+            new_prefab = mono_object_new(
+                Engine::script_manager().app_domain(),
+                Engine::script_manager().prefab_class());
+            mono_runtime_object_init(new_prefab);
+          }
+          MonoClassField* path_field = mono_class_get_field_from_name(
+              Engine::script_manager().prefab_class(), "path");
+          if (path_field) {
+            MonoString* path_val = mono_string_new(
+                Engine::script_manager().app_domain(),
+                dropped_path.c_str());
+            mono_field_set_value(new_prefab, path_field, path_val);
+          }
+          value.Set(instance->handle(), new_prefab);
+        }
+        ImGui::EndDragDropTarget();
+      }
+
+      // Clear button
+      if (prefab_label != "(None)") {
+        ImGui::SameLine();
+        std::string clear_id = "X##clear_" + value.field_name();
         if (ImGui::SmallButton(clear_id.c_str())) {
           MonoObject* null_val = nullptr;
           value.Set(instance->handle(), &null_val);

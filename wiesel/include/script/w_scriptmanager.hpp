@@ -17,6 +17,7 @@
 #include "events/w_keyevents.hpp"
 #include "events/w_mouseevents.hpp"
 #include "scene/w_entity.hpp"
+#include <future>
 #include <typeindex>
 
 namespace Wiesel {
@@ -33,93 +34,97 @@ enum class FieldType {
   UnsignedLong,
   String,
   Entity,
+  Prefab,
   Object
 };
 
 class FieldData {
  public:
   FieldData(MonoClassField* field, const std::string& fieldName,
-            uint32_t fieldFlags) : m_Field(field),
-        m_FieldName(fieldName),
-        m_FieldFlags(fieldFlags) {
-    std::string typeName = mono_type_get_name(mono_field_get_type(m_Field));
+            uint32_t fieldFlags) : field_(field),
+        field_name_(fieldName),
+        field_flags_(fieldFlags) {
+    std::string typeName = mono_type_get_name(mono_field_get_type(field_));
     if (typeName == "System.Boolean") {
-      m_FieldType = FieldType::Boolean;
+      field_type_ = FieldType::Boolean;
     } else if (typeName == "System.Single") {
-      m_FieldType = FieldType::Float;
+      field_type_ = FieldType::Float;
     } else if (typeName == "System.Double") {
-      m_FieldType = FieldType::Double;
+      field_type_ = FieldType::Double;
     } else if (typeName == "System.Int32") {
-      m_FieldType = FieldType::Integer;
+      field_type_ = FieldType::Integer;
     } else if (typeName == "System.Int64") {
-      m_FieldType = FieldType::Long;
+      field_type_ = FieldType::Long;
     } else if (typeName == "System.UInt32") {
-      m_FieldType = FieldType::UnsignedInteger;
+      field_type_ = FieldType::UnsignedInteger;
     } else if (typeName == "System.UInt64") {
-      m_FieldType = FieldType::UnsignedLong;
+      field_type_ = FieldType::UnsignedLong;
     } else if (typeName == "System.String") {
-      m_FieldType = FieldType::String;
+      field_type_ = FieldType::String;
     } else if (typeName == "WieselEngine.Entity") {
-      m_FieldType = FieldType::Entity;
+      field_type_ = FieldType::Entity;
+    } else if (typeName == "WieselEngine.Prefab") {
+      field_type_ = FieldType::Prefab;
     } else {
-      m_FieldType = FieldType::Object;
+      field_type_ = FieldType::Object;
+      LOG_WARN("Unknown script field type '{}' for field '{}'", typeName, fieldName);
     }
-    m_FormattedName = FormatVariableName(m_FieldName);
+    formatted_name_ = FormatVariableName(field_name_);
   }
 
   template <typename T>
   void Set(MonoObject* instance, T value) {
-    mono_field_set_value(instance, m_Field, value);
+    mono_field_set_value(instance, field_, value);
   }
 
   template <typename T>
   T Get(MonoObject* instance) const {
     T value;
-    mono_field_get_value(instance, m_Field, &value);
+    mono_field_get_value(instance, field_, &value);
     return value;
   }
 
-  MonoClassField* GetField() const { return m_Field; }
-  const std::string& GetFieldName() const { return m_FieldName; }
-  uint32_t GetFieldFlags() const { return m_FieldFlags; }
-  FieldType GetFieldType() const { return m_FieldType; }
-  const std::string& GetFormattedName() const { return m_FormattedName; }
+  MonoClassField* field() const { return field_; }
+  const std::string& field_name() const { return field_name_; }
+  uint32_t field_flags() const { return field_flags_; }
+  FieldType field_type() const { return field_type_; }
+  const std::string& formatted_name() const { return formatted_name_; }
 
  private:
-  MonoClassField* m_Field;
-  std::string m_FieldName;
-  std::string m_FormattedName;
-  uint32_t m_FieldFlags;
-  FieldType m_FieldType;
+  MonoClassField* field_;
+  std::string field_name_;
+  std::string formatted_name_;
+  uint32_t field_flags_;
+  FieldType field_type_;
 };
 
 class ScriptData {
  public:
-  ScriptData(MonoClass* klass, MonoMethod* onStartMethod,
-             MonoMethod* onUpdateMethod,
-             MonoMethod* setHandleMethod,
-             MonoMethod* keyPressedMethod,
-             MonoMethod* keyReleasedMethod,
-             MonoMethod* mouseMovedMethod,
-             MonoMethod* triggerEnterMethod,
-             MonoMethod* triggerStayMethod,
-             MonoMethod* triggerExitMethod,
-             MonoMethod* collisionEnterMethod,
-             MonoMethod* collisionStayMethod,
-             MonoMethod* collisionExitMethod,
+  ScriptData(MonoClass* klass, MonoMethod* on_start_method,
+             MonoMethod* on_update_method,
+             MonoMethod* set_handle_method,
+             MonoMethod* key_pressed_method,
+             MonoMethod* key_released_method,
+             MonoMethod* mouse_moved_method,
+             MonoMethod* trigger_enter_method,
+             MonoMethod* trigger_stay_method,
+             MonoMethod* trigger_exit_method,
+             MonoMethod* collision_enter_method,
+             MonoMethod* collision_stay_method,
+             MonoMethod* collision_exit_method,
              std::unordered_map<std::string, FieldData> fields) : mono_class_(klass),
-        on_update_method_(onUpdateMethod),
-        on_start_method_(onStartMethod),
-        set_handle_method_(setHandleMethod),
-        on_key_pressed_method_(keyPressedMethod),
-        on_key_released_method_(keyReleasedMethod),
-        on_mouse_moved_method_(mouseMovedMethod),
-        on_trigger_enter_method_(triggerEnterMethod),
-        on_trigger_stay_method_(triggerStayMethod),
-        on_trigger_exit_method_(triggerExitMethod),
-        on_collision_enter_method_(collisionEnterMethod),
-        on_collision_stay_method_(collisionStayMethod),
-        on_collision_exit_method_(collisionExitMethod),
+        on_update_method_(on_update_method),
+        on_start_method_(on_start_method),
+        set_handle_method_(set_handle_method),
+        on_key_pressed_method_(key_pressed_method),
+        on_key_released_method_(key_released_method),
+        on_mouse_moved_method_(mouse_moved_method),
+        on_trigger_enter_method_(trigger_enter_method),
+        on_trigger_stay_method_(trigger_stay_method),
+        on_trigger_exit_method_(trigger_exit_method),
+        on_collision_enter_method_(collision_enter_method),
+        on_collision_stay_method_(collision_stay_method),
+        on_collision_exit_method_(collision_exit_method),
         fields_(fields) {}
 
   MonoClass* mono_class() const { return mono_class_; }
@@ -212,9 +217,13 @@ class ScriptManager {
   void Init(const ScriptManagerProperties&& properties);
   void Destroy();
   void Reload();
+  void ReloadAsync();
+  bool IsCompiling() const { return compiling_; }
+  bool FinishReloadIfReady();
 
   void LoadCore();
   void LoadApp();
+  bool LoadAppDll(const std::string& dll_path);
   void RegisterInternals();
   void RegisterComponents();
 
@@ -222,6 +231,7 @@ class ScriptManager {
   MonoDomain* app_domain() { return app_domain_; }
   MonoClass* vector3f_class() { return vector3f_class_; }
   MonoClass* entity_class() { return entity_class_; }
+  MonoClass* prefab_class() { return prefab_class_; }
   MonoClass* behavior_class() { return behavior_class_; }
   const std::vector<std::string>& script_names() { return script_names_; }
 
@@ -255,6 +265,7 @@ class ScriptManager {
   MonoClass* animator_component_class_ = nullptr;
   MonoClass* vector3f_class_ = nullptr;
   MonoClass* entity_class_ = nullptr;
+  MonoClass* prefab_class_ = nullptr;
   MonoMethod* set_handle_method_ = nullptr;
   std::map<std::string, ComponentGetter> component_getters_;
   std::map<std::type_index, ComponentGetter> component_getters_by_type_;
@@ -262,6 +273,11 @@ class ScriptManager {
   std::map<std::string, std::shared_ptr<ScriptData>> script_data_;
   std::vector<std::string> script_names_;
   bool enable_debugger_ = false;
+
+  // Async compilation
+  bool compiling_ = false;
+  std::future<bool> compile_future_;
+  std::string pending_dll_path_;
 };
 
 }

@@ -11,7 +11,7 @@
 
 #pragma once
 
-#define PI 3.14
+#define PI 3.14159265358979f
 #define BIT(x) (1 << x)
 
 #include <glm/gtx/hash.hpp>

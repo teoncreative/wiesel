@@ -5,10 +5,14 @@
 #include "scene/w_scene_serializer.hpp"
 
 #include "asset/w_asset_manager.hpp"
+#include "behavior/w_behavior.hpp"
+#include "mono_util.h"
 #include "physics/w_collider.hpp"
 #include "physics/w_rigidbody.hpp"
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
+#include "script/mono/w_monobehavior.hpp"
+#include "ui/w_canvas.hpp"
 #include "util/w_logger.hpp"
 
 namespace Wiesel {
@@ -200,6 +204,139 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     j["SphereCollider"] = collider;
   }
 
+  // Behaviors (C# scripts) with field values
+  if (entity.HasComponent<BehaviorsComponent>()) {
+    auto& bc = entity.GetComponent<BehaviorsComponent>();
+    nlohmann::json scripts = nlohmann::json::array();
+    for (auto& [name, behavior] : bc.behaviors_) {
+      nlohmann::json script_json;
+      script_json["name"] = name;
+
+      // Serialize field values from the ScriptInstance
+      auto* mono_behavior = dynamic_cast<MonoBehavior*>(behavior);
+      if (mono_behavior && mono_behavior->script_instance()) {
+        auto* instance = mono_behavior->script_instance();
+        nlohmann::json fields_json;
+        for (auto& [field_name, field_data] : instance->script_data().fields()) {
+          if (field_data.field_type() == FieldType::Float) {
+            fields_json[field_name] = field_data.Get<float>(instance->handle());
+          } else if (field_data.field_type() == FieldType::Integer) {
+            fields_json[field_name] = field_data.Get<int32_t>(instance->handle());
+          } else if (field_data.field_type() == FieldType::Boolean) {
+            fields_json[field_name] = field_data.Get<bool>(instance->handle());
+          } else if (field_data.field_type() == FieldType::String) {
+            MonoObject* val = field_data.Get<MonoObject*>(instance->handle());
+            if (val) {
+              MonoObjectWrapper wrapper{val};
+              fields_json[field_name] = wrapper.AsString();
+            }
+          } else if (field_data.field_type() == FieldType::Prefab) {
+            MonoObject* prefab_obj = field_data.Get<MonoObject*>(instance->handle());
+            if (prefab_obj) {
+              MonoClassField* path_field = mono_class_get_field_from_name(
+                  Engine::script_manager().prefab_class(), "path");
+              if (path_field) {
+                MonoString* path_str = nullptr;
+                mono_field_get_value(prefab_obj, path_field, &path_str);
+                if (path_str) {
+                  const char* cstr = mono_string_to_utf8(path_str);
+                  if (cstr && cstr[0]) {
+                    nlohmann::json pj;
+                    pj["type"] = "Prefab";
+                    pj["path"] = cstr;
+                    fields_json[field_name] = pj;
+                  }
+                  mono_free((void*)cstr);
+                }
+              }
+            }
+          } else if (field_data.field_type() == FieldType::Entity) {
+            MonoObject* entity_obj = field_data.Get<MonoObject*>(instance->handle());
+            if (entity_obj) {
+              MonoClassField* id_field = mono_class_get_field_from_name(
+                  Engine::script_manager().entity_class(), "entityId");
+              if (id_field) {
+                uint64_t id_val = 0;
+                mono_field_get_value(entity_obj, id_field, &id_val);
+                entt::entity ent = static_cast<entt::entity>(id_val);
+                if (scene_->HasEntity(ent) && scene_->HasComponent<IdComponent>(ent)) {
+                  nlohmann::json ej;
+                  ej["type"] = "Entity";
+                  ej["uuid"] = scene_->GetComponent<IdComponent>(ent).Id.ToString();
+                  fields_json[field_name] = ej;
+                }
+              }
+            }
+          }
+        }
+        if (!fields_json.empty()) {
+          script_json["fields"] = fields_json;
+        }
+      }
+
+      scripts.push_back(script_json);
+    }
+    if (!scripts.empty()) {
+      j["Behaviors"] = scripts;
+    }
+  }
+
+  // RectangleTransform
+  if (entity.HasComponent<RectangleTransformComponent>()) {
+    auto& rt = entity.GetComponent<RectangleTransformComponent>();
+    nlohmann::json rtj;
+    rtj["position"] = SerializeVec2(rt.position);
+    rtj["rotation"] = rt.rotation;
+    rtj["size"] = SerializeVec2(rt.size);
+    rtj["scale"] = SerializeVec2(rt.scale);
+    rtj["anchor"] = static_cast<int>(rt.anchor);
+    rtj["pivot"] = static_cast<int>(rt.pivot);
+    rtj["size_mode_x"] = static_cast<int>(rt.size_mode_x);
+    rtj["size_mode_y"] = static_cast<int>(rt.size_mode_y);
+    rtj["padding"] = {rt.padding.x, rt.padding.y, rt.padding.z, rt.padding.w};
+    j["RectangleTransform"] = rtj;
+  }
+
+  // Canvas
+  if (entity.HasComponent<CanvasComponent>()) {
+    auto& c = entity.GetComponent<CanvasComponent>();
+    nlohmann::json cj;
+    cj["type"] = static_cast<int>(c.type);
+    cj["direction"] = static_cast<int>(c.direction);
+    cj["alignment"] = static_cast<int>(c.alignment);
+    cj["spacing"] = c.spacing;
+    cj["sort_order"] = c.sort_order;
+    j["Canvas"] = cj;
+  }
+
+  // CanvasRect
+  if (entity.HasComponent<CanvasRectComponent>()) {
+    auto& cr = entity.GetComponent<CanvasRectComponent>();
+    nlohmann::json crj;
+    crj["color"] = {cr.color.x, cr.color.y, cr.color.z, cr.color.w};
+    j["CanvasRect"] = crj;
+  }
+
+  // CanvasImage
+  if (entity.HasComponent<CanvasImageComponent>()) {
+    auto& ci = entity.GetComponent<CanvasImageComponent>();
+    nlohmann::json cij;
+    cij["tint"] = {ci.tint.x, ci.tint.y, ci.tint.z, ci.tint.w};
+    cij["uv_rect"] = {ci.uv_rect.x, ci.uv_rect.y, ci.uv_rect.z, ci.uv_rect.w};
+    j["CanvasImage"] = cij;
+  }
+
+  // Text
+  if (entity.HasComponent<TextComponent>()) {
+    auto& t = entity.GetComponent<TextComponent>();
+    nlohmann::json tj;
+    tj["text"] = t.text;
+    tj["font_path"] = t.font_path;
+    tj["font_size"] = t.font_size;
+    tj["color"] = {t.color.x, t.color.y, t.color.z, t.color.w};
+    j["Text"] = tj;
+  }
+
   return j;
 }
 
@@ -246,11 +383,20 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
 
     if (!handle_str.empty()) {
       AssetHandle handle = AssetHandle::FromString(handle_str);
-      // Re-register the asset if it doesn't exist yet
       if (!Engine::asset_manager().HasAsset(handle)) {
+        // Handle not found, check if registered under a different handle (from asset registry)
         if (!asset_path.empty()) {
-          Engine::asset_manager().Register(handle, asset_name, AssetType::Model,
-                                       asset_path);
+          for (auto& h : Engine::asset_manager().GetAll()) {
+            const auto* m2 = Engine::asset_manager().GetMetadata(h);
+            if (m2 && m2->virtual_source_path == asset_path && m2->type == AssetType::Model) {
+              handle = h;
+              break;
+            }
+          }
+        }
+        // Still not found, register with the scene file's handle as fallback
+        if (!Engine::asset_manager().HasAsset(handle) && !asset_path.empty()) {
+          Engine::asset_manager().Register(handle, asset_name, AssetType::Model, asset_path);
         }
       }
       m.model_handle = handle;
@@ -358,6 +504,156 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     sc.radius = scj.value("radius", 0.5f);
     sc.is_trigger = scj.value("is_trigger", false);
     sc.collision_group = scj.value("collision_group", 1);
+  }
+
+  // Behaviors (C# scripts) with field values
+  if (entity_json.contains("Behaviors") && entity_json["Behaviors"].is_array()) {
+    if (!entity.HasComponent<BehaviorsComponent>()) {
+      entity.AddComponent<BehaviorsComponent>();
+    }
+    auto& bc = entity.GetComponent<BehaviorsComponent>();
+    for (const auto& script_entry : entity_json["Behaviors"]) {
+      std::string script_name;
+      nlohmann::json fields_json;
+
+      if (script_entry.is_string()) {
+        // Old format: just a script name string
+        script_name = script_entry.get<std::string>();
+      } else if (script_entry.is_object()) {
+        // New format: {name, fields}
+        script_name = script_entry.value("name", "");
+        if (script_entry.contains("fields")) {
+          fields_json = script_entry["fields"];
+        }
+      }
+
+      if (script_name.empty()) continue;
+      auto& mono_beh = bc.AddBehavior<MonoBehavior>(entity, script_name);
+
+      // Restore field values
+      if (!fields_json.empty() && !mono_beh.script_instance()) {
+        LOG_WARN("Script '{}' has no instance - field values cannot be restored", script_name);
+      }
+      if (!fields_json.empty() && mono_beh.script_instance()) {
+        auto* instance = mono_beh.script_instance();
+        for (auto& [field_name, field_data] : instance->script_data().fields()) {
+          if (!fields_json.contains(field_name)) continue;
+          const auto& val = fields_json[field_name];
+
+          if (field_data.field_type() == FieldType::Float && val.is_number()) {
+            float v = val.get<float>();
+            field_data.Set(instance->handle(), &v);
+          } else if (field_data.field_type() == FieldType::Integer && val.is_number_integer()) {
+            int32_t v = val.get<int32_t>();
+            field_data.Set(instance->handle(), &v);
+          } else if (field_data.field_type() == FieldType::Boolean && val.is_boolean()) {
+            bool v = val.get<bool>();
+            field_data.Set(instance->handle(), &v);
+          } else if (field_data.field_type() == FieldType::String && val.is_string()) {
+            MonoString* str = mono_string_new(
+                Engine::script_manager().app_domain(), val.get<std::string>().c_str());
+            field_data.Set(instance->handle(), str);
+          } else if (field_data.field_type() == FieldType::Prefab && val.is_object()) {
+            std::string path = val.value("path", "");
+            if (!path.empty()) {
+              MonoObject* prefab = mono_object_new(
+                  Engine::script_manager().app_domain(),
+                  Engine::script_manager().prefab_class());
+              mono_runtime_object_init(prefab);
+              MonoClassField* path_field = mono_class_get_field_from_name(
+                  Engine::script_manager().prefab_class(), "path");
+              if (path_field) {
+                MonoString* path_val = mono_string_new(
+                    Engine::script_manager().app_domain(), path.c_str());
+                mono_field_set_value(prefab, path_field, path_val);
+              }
+              field_data.Set(instance->handle(), prefab);
+            }
+          } else if (field_data.field_type() == FieldType::Entity && val.is_object()) {
+            std::string uuid_str = val.value("uuid", "");
+            if (!uuid_str.empty()) {
+              UUID uuid = UUID::FromString(uuid_str);
+              entt::entity ent = scene_->FindEntityByUUID(uuid);
+              if (ent != entt::null) {
+                MonoObject* entity_obj = mono_object_new(
+                    Engine::script_manager().app_domain(),
+                    Engine::script_manager().entity_class());
+                MonoMethod* ctor = mono_class_get_method_from_name(
+                    Engine::script_manager().entity_class(), ".ctor", 2);
+                uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene_.get());
+                uint64_t entity_id = static_cast<uint64_t>(ent);
+                void* args[2] = {&scene_ptr, &entity_id};
+                mono_runtime_invoke(ctor, entity_obj, args, nullptr);
+                field_data.Set(instance->handle(), entity_obj);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // RectangleTransform
+  if (entity_json.contains("RectangleTransform")) {
+    auto& rt = entity.HasComponent<RectangleTransformComponent>()
+        ? entity.GetComponent<RectangleTransformComponent>()
+        : entity.AddComponent<RectangleTransformComponent>();
+    const auto& rtj = entity_json["RectangleTransform"];
+    rt.position = DeserializeVec2(rtj.value("position", nlohmann::json::array()));
+    rt.rotation = rtj.value("rotation", 0.0f);
+    rt.size = DeserializeVec2(rtj.value("size", nlohmann::json::array()), {100, 100});
+    rt.scale = DeserializeVec2(rtj.value("scale", nlohmann::json::array()), {1, 1});
+    rt.anchor = static_cast<AnchorPreset>(rtj.value("anchor", 0));
+    rt.pivot = static_cast<AnchorPreset>(rtj.value("pivot", 0));
+    rt.size_mode_x = static_cast<SizeMode>(rtj.value("size_mode_x", 0));
+    rt.size_mode_y = static_cast<SizeMode>(rtj.value("size_mode_y", 0));
+    if (rtj.contains("padding") && rtj["padding"].is_array() && rtj["padding"].size() >= 4) {
+      rt.padding = {rtj["padding"][0], rtj["padding"][1], rtj["padding"][2], rtj["padding"][3]};
+    }
+  }
+
+  // Canvas
+  if (entity_json.contains("Canvas")) {
+    auto& c = entity.AddComponent<CanvasComponent>();
+    const auto& cj = entity_json["Canvas"];
+    c.type = static_cast<CanvasType>(cj.value("type", 0));
+    c.direction = static_cast<LayoutDirection>(cj.value("direction", 0));
+    c.alignment = static_cast<ChildAlignment>(cj.value("alignment", 0));
+    c.spacing = cj.value("spacing", 0.0f);
+    c.sort_order = cj.value("sort_order", 0);
+  }
+
+  // CanvasRect
+  if (entity_json.contains("CanvasRect")) {
+    auto& cr = entity.AddComponent<CanvasRectComponent>();
+    const auto& crj = entity_json["CanvasRect"];
+    if (crj.contains("color") && crj["color"].is_array() && crj["color"].size() >= 4) {
+      cr.color = {crj["color"][0], crj["color"][1], crj["color"][2], crj["color"][3]};
+    }
+  }
+
+  // CanvasImage
+  if (entity_json.contains("CanvasImage")) {
+    auto& ci = entity.AddComponent<CanvasImageComponent>();
+    const auto& cij = entity_json["CanvasImage"];
+    if (cij.contains("tint") && cij["tint"].is_array() && cij["tint"].size() >= 4) {
+      ci.tint = {cij["tint"][0], cij["tint"][1], cij["tint"][2], cij["tint"][3]};
+    }
+    if (cij.contains("uv_rect") && cij["uv_rect"].is_array() && cij["uv_rect"].size() >= 4) {
+      ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1], cij["uv_rect"][2], cij["uv_rect"][3]};
+    }
+  }
+
+  // Text
+  if (entity_json.contains("Text")) {
+    auto& t = entity.AddComponent<TextComponent>();
+    const auto& tj = entity_json["Text"];
+    t.text = tj.value("text", "");
+    t.font_path = tj.value("font_path", "/engine/fonts/default.ttf");
+    t.font_size = tj.value("font_size", 16.0f);
+    if (tj.contains("color") && tj["color"].is_array() && tj["color"].size() >= 4) {
+      t.color = {tj["color"][0], tj["color"][1], tj["color"][2], tj["color"][3]};
+    }
   }
 }
 
