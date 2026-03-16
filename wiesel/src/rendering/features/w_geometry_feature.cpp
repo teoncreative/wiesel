@@ -75,10 +75,10 @@ GeometryFeature::GeometryFeature(Ref<Renderer> renderer)
 
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/geometry_shader.vert"});
+       "/engine/shaders/geometry_shader.vert"});
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/geometry_shader.frag"});
+       "/engine/shaders/geometry_shader.frag"});
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeBack,
       renderer_->options().wireframe_enabled, false});

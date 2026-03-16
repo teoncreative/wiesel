@@ -31,10 +31,10 @@ FXAAFeature::FXAAFeature(Ref<Renderer> renderer)
   push_constants_ = std::make_shared<FxaaPushConstants>();
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fxaa.frag"});
+       "/engine/shaders/fxaa.frag"});
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);

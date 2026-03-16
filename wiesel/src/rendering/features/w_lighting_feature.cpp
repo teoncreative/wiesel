@@ -36,10 +36,10 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
 
   auto skybox_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/skybox_shader.vert"});
+       "/engine/shaders/skybox_shader.vert"});
   auto skybox_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/skybox_shader.frag"});
+       "/engine/shaders/skybox_shader.frag"});
   skybox_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, false, true,
       false});
@@ -53,10 +53,10 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
   // Lighting pipeline
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
   auto lighting_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/lighting_shader.frag"});
+       "/engine/shaders/lighting_shader.frag"});
   lighting_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, true, true,
       false});
@@ -75,7 +75,7 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
   if (renderer_->IsRayTracingSupported()) {
     auto rt_lighting_frag = renderer_->CreateShader(
         {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-         "/engine/internal_shaders/lighting_shader.frag",
+         "/engine/shaders/lighting_shader.frag",
          {"USE_RT_SHADOWS"}});
 
     rt_shadow_desc_layout_ = CreateReference<DescriptorSetLayout>();

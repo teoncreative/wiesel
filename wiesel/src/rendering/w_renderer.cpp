@@ -101,6 +101,12 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   options_.wireframe_enabled.SetHook(&recreate_pipeline_);
   options_.msaa_mode.SetHook(&recreate_swap_chain_);
   options_.vsync.SetHook(&recreate_swap_chain_);
+  // Feature toggles need resource recreation (SetupResources re-runs)
+  options_.ssao_enabled.SetHook(&recreate_resources_);
+  options_.bloom_enabled.SetHook(&recreate_resources_);
+  options_.motion_blur_enabled.SetHook(&recreate_resources_);
+  options_.shadows_enabled.SetHook(&recreate_resources_);
+  options_.aa_mode.SetHook(&recreate_resources_);
   CreateVulkanInstance();
   LoadInstanceExtensions();
 #ifdef VULKAN_VALIDATION
@@ -2240,10 +2246,10 @@ void Renderer::CreateSwapChain() {
 void Renderer::CreatePresentGraphicsPipelines() {
   auto present_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
   auto present_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/quad_shader.frag"});
+       "/engine/shaders/quad_shader.frag"});
   present_pipeline_ = CreateReference<Pipeline>(
       PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
   present_pipeline_->SetRenderPass(present_render_pass_);
@@ -3009,6 +3015,7 @@ void Renderer::BeginRender() {
     RecreateSwapChain();
     recreate_swap_chain_ = false;
     recreate_pipeline_ = false;  // Already handled in RecreateSwapChain
+    recreate_resources_ = true;  // Features need resource rebuild for new MSAA/format
   }
   if (recreate_pipeline_) {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate Pipeline");
@@ -3760,6 +3767,10 @@ void Renderer::DrawFullscreen(
       continue;
     }
     sets.push_back(item->descriptor_set_);
+  }
+  if (sets.empty()) {
+    LOG_WARN("DrawFullscreen called with no valid descriptors, skipping");
+    return;
   }
   vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                           VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout_, 0,

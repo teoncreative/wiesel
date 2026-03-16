@@ -6,6 +6,8 @@
 
 #include "asset/w_asset_manager.hpp"
 #include "behavior/w_behavior.hpp"
+#include "behavior/w_native_behavior.hpp"
+#include "w_engine.hpp"
 #include "mono_util.h"
 #include "physics/w_collider.hpp"
 #include "physics/w_rigidbody.hpp"
@@ -528,6 +530,17 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
       }
 
       if (script_name.empty()) continue;
+
+      // Check native behavior registry first, then fall back to C# MonoBehavior
+      auto& native_registry = Engine::behavior_registry();
+      if (native_registry.Has(script_name)) {
+        NativeBehavior* native = native_registry.Create(script_name, entity);
+        if (native) {
+          bc.behaviors_.insert(std::pair(script_name, native));
+        }
+        continue;  // native behaviors don't have C# field serialization
+      }
+
       auto& mono_beh = bc.AddBehavior<MonoBehavior>(entity, script_name);
 
       // Restore field values

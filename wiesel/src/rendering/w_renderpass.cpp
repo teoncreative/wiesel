@@ -240,13 +240,13 @@ void RenderPass::Bake() {
 }
 
 void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) {
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = render_pass_;
-  renderPassInfo.framebuffer = framebuffer->handle_;
-  renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent.width = framebuffer->extent_.x;
-  renderPassInfo.renderArea.extent.height = framebuffer->extent_.y;
+  VkRenderPassBeginInfo render_pass_info{};
+  render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  render_pass_info.renderPass = render_pass_;
+  render_pass_info.framebuffer = framebuffer->handle_;
+  render_pass_info.renderArea.offset = {0, 0};
+  render_pass_info.renderArea.extent.width = framebuffer->extent_.x;
+  render_pass_info.renderArea.extent.height = framebuffer->extent_.y;
 
   std::vector<VkClearValue> clearValues{};
   for (const auto& item : attachments_) {
@@ -261,9 +261,9 @@ void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) 
       });
     }
   }
-  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-  renderPassInfo.pClearValues = clearValues.data();
-  vkCmdBeginRenderPass(Engine::renderer()->GetCommandBuffer().handle_, &renderPassInfo,
+  render_pass_info.clearValueCount = static_cast<uint32_t>(clearValues.size());
+  render_pass_info.pClearValues = clearValues.data();
+  vkCmdBeginRenderPass(Engine::renderer()->GetCommandBuffer().handle_, &render_pass_info,
                        VK_SUBPASS_CONTENTS_INLINE);
 }
 

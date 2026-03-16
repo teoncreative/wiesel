@@ -21,6 +21,10 @@ namespace Wiesel {
 class Scene;
 class AssetManager;
 class ScriptManager;
+class NativeBehaviorRegistry;
+#ifdef WIESEL_DISCORD_RPC
+class DiscordRPC;
+#endif
 
 struct EngineProperties {
     bool editor_enabled = false;
@@ -51,6 +55,10 @@ class Engine {
   WIESEL_GETTER_FN static DeveloperConsole& console() { return console_; }
   WIESEL_GETTER_FN static AssetManager& asset_manager() { return *asset_manager_; }
   WIESEL_GETTER_FN static ScriptManager& script_manager() { return *script_manager_; }
+  WIESEL_GETTER_FN static NativeBehaviorRegistry& behavior_registry() { return *behavior_registry_; }
+#ifdef WIESEL_DISCORD_RPC
+  WIESEL_GETTER_FN static DiscordRPC& discord_rpc() { return *discord_rpc_; }
+#endif
   WIESEL_GETTER_FN static const EngineProperties& properties() {
     return properties_;
   }
@@ -85,6 +93,10 @@ class Engine {
   static DeveloperConsole console_;
   static std::shared_ptr<AssetManager> asset_manager_;
   static std::shared_ptr<ScriptManager> script_manager_;
+  static std::shared_ptr<NativeBehaviorRegistry> behavior_registry_;
+#ifdef WIESEL_DISCORD_RPC
+  static std::shared_ptr<DiscordRPC> discord_rpc_;
+#endif
 };
 
 Application* CreateApp();

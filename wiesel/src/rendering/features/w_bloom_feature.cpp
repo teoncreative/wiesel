@@ -32,12 +32,12 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
 
   // Bloom extract pipeline
   auto extract_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_extract.frag"});
+       "/engine/shaders/bloom_extract.frag"});
   extract_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   extract_pipeline_->SetRenderPass(render_pass_);
@@ -51,7 +51,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   // Bloom blur H pipeline
   auto blur_h_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_blur.frag"});
+       "/engine/shaders/bloom_blur.frag"});
   blur_h_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_h_pipeline_->SetRenderPass(render_pass_);
@@ -63,7 +63,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   // Bloom blur V pipeline (with BLUR_VERTICAL define)
   auto blur_v_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_blur.frag", {"BLUR_VERTICAL"}});
+       "/engine/shaders/bloom_blur.frag", {"BLUR_VERTICAL"}});
   blur_v_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_v_pipeline_->SetRenderPass(render_pass_);
@@ -75,7 +75,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   // Bloom composite pipeline (2 inputs: scene + blurred bloom)
   auto composite_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/bloom_composite.frag"});
+       "/engine/shaders/bloom_composite.frag"});
   composite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   composite_pipeline_->SetRenderPass(render_pass_);

@@ -144,7 +144,29 @@ file(
         "${VENDOR_DIR}/glslang/SPIRV/*.cpp"
 )
 
-add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${IMGUI_FILES} ${IMGUIZMO_FILES} ${GLSLANG_FILES})
+# Discord RPC (optional)
+option(WIESEL_DISCORD_RPC "Enable Discord Rich Presence" ON)
+set(DISCORD_RPC_SRC "")
+if(WIESEL_DISCORD_RPC)
+    set(DISCORD_RPC_SRC
+        "${VENDOR_DIR}/discord-rpc/src/discord_rpc.cpp"
+        "${VENDOR_DIR}/discord-rpc/src/rpc_connection.cpp"
+        "${VENDOR_DIR}/discord-rpc/src/serialization.cpp"
+    )
+    if(WIN32)
+        list(APPEND DISCORD_RPC_SRC
+            "${VENDOR_DIR}/discord-rpc/src/connection_win.cpp"
+            "${VENDOR_DIR}/discord-rpc/src/discord_register_win.cpp"
+        )
+    else()
+        list(APPEND DISCORD_RPC_SRC
+            "${VENDOR_DIR}/discord-rpc/src/connection_unix.cpp"
+            "${VENDOR_DIR}/discord-rpc/src/discord_register_linux.cpp"
+        )
+    endif()
+endif()
+
+add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${IMGUI_FILES} ${IMGUIZMO_FILES} ${GLSLANG_FILES} ${DISCORD_RPC_SRC})
 
 if (MSVC)
     target_compile_options(wiesel PRIVATE
@@ -214,6 +236,12 @@ endif (VULKAN_FOUND)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
+if(WIESEL_DISCORD_RPC)
+    target_compile_definitions(wiesel PUBLIC WIESEL_DISCORD_RPC=1)
+    target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/discord-rpc/include)
+    target_include_directories(wiesel PRIVATE ${VENDOR_DIR}/discord-rpc/src)
+    target_include_directories(wiesel PRIVATE ${VENDOR_DIR}/discord-rpc/thirdparty/rapidjson/include)
+endif()
 target_link_libraries(wiesel PUBLIC assimp)
 target_link_libraries(wiesel PUBLIC freetype)
 target_link_libraries(wiesel PUBLIC EnTT)

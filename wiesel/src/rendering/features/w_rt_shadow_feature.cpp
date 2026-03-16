@@ -47,13 +47,13 @@ RTShadowFeature::RTShadowFeature(Ref<Renderer> renderer)
   // Compile RT shaders
   auto raygen = renderer_->CreateShader(
       {ShaderTypeRayGen, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/rt_shadow.rgen"});
+       "/engine/shaders/rt_shadow.rgen"});
   auto miss = renderer_->CreateShader(
       {ShaderTypeMiss, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/rt_shadow.rmiss"});
+       "/engine/shaders/rt_shadow.rmiss"});
   auto closesthit = renderer_->CreateShader(
       {ShaderTypeClosestHit, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/rt_shadow.rchit"});
+       "/engine/shaders/rt_shadow.rchit"});
 
   // Build RT pipeline
   rt_pipeline_ = CreateReference<RTPipeline>(renderer_);

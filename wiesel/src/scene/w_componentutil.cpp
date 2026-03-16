@@ -15,6 +15,7 @@
 #include "asset/w_asset_manager.hpp"
 #include "ui/w_canvas.hpp"
 #include "behavior/w_behavior.hpp"
+#include "behavior/w_native_behavior.hpp"
 #include "physics/w_collider.hpp"
 #include "physics/w_rigidbody.hpp"
 #include "rendering/w_mesh.hpp"
@@ -1224,7 +1225,7 @@ static entt::entity addMonoScriptEntityId = entt::null;
 static bool shouldOpenMonoScriptPopup = false;
 
 void RenderAddComponentImGui_BehaviorsComponent(Entity entity) {
-  if (ImGui::MenuItem("C# Script")) {
+  if (ImGui::MenuItem("Script")) {
     addMonoScriptEntityId = entity.handle();
     shouldOpenMonoScriptPopup = true;
   }
@@ -1235,30 +1236,56 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
     return;
 
   if (shouldOpenMonoScriptPopup) {
-    ImGui::OpenPopup("Add C# Script");
+    ImGui::OpenPopup("Add Script");
     shouldOpenMonoScriptPopup = false;
   }
 
   static int currentScriptIndex = 0;
   bool open = true;
-  if (ImGui::BeginPopupModal("Add C# Script", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
-    const std::vector<std::string> scriptNames = Engine::script_manager().script_names();
-    if (!scriptNames.empty()) {
-      ImGui::Combo("Script Name", &currentScriptIndex,
+  if (ImGui::BeginPopupModal("Add Script", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
+    // Build combined list: native behaviors + C# scripts
+    std::vector<std::string> all_scripts;
+    std::vector<bool> is_native;
+
+    const auto& native_names = Engine::behavior_registry().GetNames();
+    for (const auto& name : native_names) {
+      all_scripts.push_back(name + " (C++)");
+      is_native.push_back(true);
+    }
+    const std::vector<std::string>& cs_names = Engine::script_manager().script_names();
+    for (const auto& name : cs_names) {
+      all_scripts.push_back(name + " (C#)");
+      is_native.push_back(false);
+    }
+
+    if (!all_scripts.empty()) {
+      if (currentScriptIndex >= static_cast<int>(all_scripts.size()))
+        currentScriptIndex = 0;
+      ImGui::Combo("Script", &currentScriptIndex,
                    [](void* data, int idx) -> const char* {
                      const auto& names = *static_cast<const std::vector<std::string>*>(data);
                      if (idx < 0 || idx >= static_cast<int>(names.size())) return nullptr;
                      return names[idx].c_str();
-                   }, (void*)&scriptNames, static_cast<int>(scriptNames.size()));
+                   }, (void*)&all_scripts, static_cast<int>(all_scripts.size()));
     } else {
       ImGui::TextDisabled("No scripts found.");
     }
 
-    if (ImGui::Button("Add") && !scriptNames.empty()) {
+    if (ImGui::Button("Add") && !all_scripts.empty()) {
       if (!entity.HasComponent<BehaviorsComponent>())
         entity.AddComponent<BehaviorsComponent>();
 
-      entity.GetComponent<BehaviorsComponent>().AddBehavior<MonoBehavior>(entity, scriptNames[currentScriptIndex]);
+      auto& bc = entity.GetComponent<BehaviorsComponent>();
+      if (is_native[currentScriptIndex]) {
+        const std::string& name = native_names[currentScriptIndex];
+        NativeBehavior* native = Engine::behavior_registry().Create(name, entity);
+        if (native) {
+          bc.behaviors_.insert(std::pair(name, native));
+        }
+      } else {
+        int cs_idx = currentScriptIndex - static_cast<int>(native_names.size());
+        bc.AddBehavior<MonoBehavior>(entity, cs_names[cs_idx]);
+      }
       ImGui::CloseCurrentPopup();
     }
 

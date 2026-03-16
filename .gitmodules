@@ -37,3 +37,6 @@
 [submodule "vendor/recastnavigation"]
 	path = vendor/recastnavigation
 	url = https://github.com/recastnavigation/recastnavigation.git
+[submodule "vendor/discord-rpc"]
+	path = vendor/discord-rpc
+	url = https://github.com/discord/discord-rpc.git

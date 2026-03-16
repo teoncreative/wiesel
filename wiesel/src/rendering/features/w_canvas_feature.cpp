@@ -49,16 +49,16 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
   // Shaders
   auto canvas_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/canvas_shader.vert"});
+       "/engine/shaders/canvas_shader.vert"});
   auto rect_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/canvas_rect.frag"});
+       "/engine/shaders/canvas_rect.frag"});
   auto image_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/canvas_image.frag"});
+       "/engine/shaders/canvas_image.frag"});
   auto text_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/canvas_text.frag"});
+       "/engine/shaders/canvas_text.frag"});
 
   // Push constant for screen size
   screen_size_push_ = CreateReference<CanvasScreenPushConstant>();
@@ -108,10 +108,10 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
   auto quad_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/quad_shader.frag"});
+       "/engine/shaders/quad_shader.frag"});
   comp_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, true, true, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);

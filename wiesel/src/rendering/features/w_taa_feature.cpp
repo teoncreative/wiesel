@@ -30,12 +30,12 @@ TAAFeature::TAAFeature(Ref<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
 
   // TAA pipeline (3 inputs: current frame, history, depth)
   auto taa_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/taa.frag"});
+       "/engine/shaders/taa.frag"});
   taa_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   taa_pipeline_->SetRenderPass(render_pass_);
@@ -48,7 +48,7 @@ TAAFeature::TAAFeature(Ref<Renderer> renderer)
   // Copy pipeline (passthrough for history copy)
   auto copy_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/quad_shader.frag"});
+       "/engine/shaders/quad_shader.frag"});
   copy_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   copy_pipeline_->SetRenderPass(render_pass_);

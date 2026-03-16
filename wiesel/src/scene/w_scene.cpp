@@ -63,7 +63,7 @@ void Scene::EnsureDefaultSkybox() {
   auto renderer = Engine::renderer();
   if (!renderer) return;
   auto tex = renderer->CreateCubemapTextureFromSingle(
-      "/engine/internal_textures/default_skybox.png", {}, {});
+      "/engine/textures/default_skybox.png", {}, {});
   if (tex) {
     default_skybox_ = CreateReference<Skybox>(tex);
   }
@@ -732,12 +732,24 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
 bool Scene::Render() {
   PROFILE_ZONE_SCOPED();
   EnsureDefaultSkybox();
-  bool hasCamera = false;
+  bool has_camera = false;
   Ref<Renderer> renderer = Engine::renderer();
 
   // Ensure we have a default pipeline
   if (!default_pipeline_) {
     default_pipeline_ = CreateDefaultPipeline(renderer);
+  }
+
+  // Check if feature toggles or MSAA changed - rebuild pipeline and dirty cameras
+  if (renderer->NeedsRecreateResources()) {
+    renderer->ClearRecreateResources();
+    // Recreate the full pipeline (render passes + pipelines depend on MSAA mode)
+    default_pipeline_ = CreateDefaultPipeline(renderer);
+    for (const auto& e : GetAllEntitiesWith<CameraComponent>()) {
+      auto& cam = registry_.get<CameraComponent>(e);
+      cam.render_pipeline = nullptr;  // force re-assignment of new pipeline
+      cam.resources_dirty = true;
+    }
   }
 
   for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
@@ -790,9 +802,9 @@ bool Scene::Render() {
     // Store current VP for next frame's motion blur
     camera.prev_view_projection = camera.projection * camera.view_matrix;
 
-    hasCamera = true;
+    has_camera = true;
   }
-  return hasCamera;
+  return has_camera;
 }
 
 bool Scene::RenderFromExternal(CameraComponent& camera,
@@ -804,6 +816,15 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
 
   if (!default_pipeline_) {
     default_pipeline_ = CreateDefaultPipeline(renderer);
+  }
+
+  // Check if feature toggles or MSAA changed - rebuild pipeline and dirty editor camera
+  if (renderer->NeedsRecreateResources()) {
+    renderer->ClearRecreateResources();
+    default_pipeline_ = CreateDefaultPipeline(renderer);
+    camera.render_pipeline = nullptr;
+    camera.resources_dirty = true;
+    external_render_graph_ = nullptr;
   }
 
   // Apply scene render resolution if set
