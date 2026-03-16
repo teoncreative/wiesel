@@ -31,10 +31,10 @@ SpriteFeature::SpriteFeature(Ref<Renderer> renderer)
 
   auto sprite_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/sprite_shader.vert"});
+       "/engine/shaders/sprite_shader.vert"});
   auto sprite_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/sprite_shader.frag"});
+       "/engine/shaders/sprite_shader.frag"});
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, true, false, false});
   pipeline_->SetVertexData(VertexSprite::GetBindingDescriptions(),

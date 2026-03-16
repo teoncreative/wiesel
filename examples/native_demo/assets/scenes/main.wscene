@@ -1,0 +1,344 @@
+{
+  "asset_handle": "0f804f0a-4b5f-4d68-861d-dae30cacfabb",
+  "entities": [
+    {
+      "LightDirect": {
+        "ambient": 0.15000000596046448,
+        "color": [
+          1.0,
+          0.9800000190734863,
+          0.949999988079071
+        ],
+        "density": 1.0,
+        "diffuse": 1.0,
+        "specular": 0.5
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          55.0,
+          30.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Sun",
+      "uuid": "9523341b-0517-421e-92c9-fccae5e86b36"
+    },
+    {
+      "LightPoint": {
+        "ambient": 0.05000000074505806,
+        "color": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "constant": 1.0,
+        "density": 1.5,
+        "diffuse": 1.2000000476837158,
+        "exp": 0.01600000075995922,
+        "linear": 0.04500000178813934,
+        "specular": 0.800000011920929
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          2.0,
+          3.0,
+          0.4000000059604645
+        ],
+        "rotation": [
+          0.0,
+          -0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Light Red",
+      "uuid": "8a4ef327-194f-45cf-bbb7-09c25abb0c47"
+    },
+    {
+      "LightPoint": {
+        "ambient": 0.05000000074505806,
+        "color": [
+          0.0,
+          1.0,
+          0.0
+        ],
+        "constant": 1.0,
+        "density": 1.5,
+        "diffuse": 1.2000000476837158,
+        "exp": 0.01600000075995922,
+        "linear": 0.04500000178813934,
+        "specular": 0.800000011920929
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          5.0,
+          2.5,
+          0.4000000059604645
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Light Green",
+      "uuid": "73a2beb6-a343-4c8e-8842-65b89e7cd614"
+    },
+    {
+      "LightPoint": {
+        "ambient": 0.05000000074505806,
+        "color": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "constant": 1.0,
+        "density": 1.5,
+        "diffuse": 1.2000000476837158,
+        "exp": 0.01600000075995922,
+        "linear": 0.04500000178813934,
+        "specular": 0.800000011920929
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          8.0,
+          2.5,
+          0.4000000059604645
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Light Blue",
+      "uuid": "60a0ab95-96e5-404c-985b-6e7f8fa1435d"
+    },
+    {
+      "Behaviors": [
+        {
+          "fields": {
+            "CameraMoveSpeed": 8.0
+          },
+          "name": "CameraScript"
+        }
+      ],
+      "Camera": {
+        "enabled": true,
+        "far_plane": 1000.0,
+        "field_of_view": 60.0,
+        "near_plane": 0.009999999776482582,
+        "viewport_size": [
+          2560.0,
+          1440.0
+        ]
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          -0.7664726376533508,
+          12.156858444213867,
+          0.4581071734428406
+        ],
+        "rotation": [
+          -61.0000114440918,
+          -95.94990539550781,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Camera",
+      "uuid": "213275da-f5f1-48db-96af-49016e725da3"
+    },
+    {
+      "Model": {
+        "asset_handle": "391a3b6b-eda1-4a71-bc5f-f20449a85d0f",
+        "asset_name": "Sponza",
+        "asset_path": "/app/models/sponza/Sponza.gltf",
+        "enable_rendering": true,
+        "material_slots": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "receive_shadows": true
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          5.0,
+          2.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          -0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Sponza",
+      "uuid": "6853db37-ee7a-4e52-983e-41f06cbbf00b"
+    }
+  ]
+}

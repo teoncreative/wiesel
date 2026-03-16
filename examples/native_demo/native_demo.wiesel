@@ -1,0 +1,21 @@
+{
+  "last_scene": "scenes/main.wscene",
+  "name": "demo",
+  "render_options": {
+    "aa_mode": 1,
+    "bloom_enabled": false,
+    "bloom_intensity": 0.800000011920929,
+    "bloom_threshold": 0.5,
+    "motion_blur_enabled": false,
+    "motion_blur_samples": 8,
+    "motion_blur_strength": 1.0,
+    "shadows_enabled": true,
+    "ssao_enabled": true,
+    "vsync": false
+  },
+  "scenes": [
+    "scenes/main.wscene"
+  ],
+  "start_scene": "scenes/main.wscene",
+  "version": 1
+}

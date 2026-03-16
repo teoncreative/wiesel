@@ -220,6 +220,8 @@ class Renderer {
   WIESEL_GETTER_FN RendererOptions& options() { return options_; }
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
   WIESEL_GETTER_FN bool IsRecreatePipeline() const { return recreate_pipeline_; }
+  WIESEL_GETTER_FN bool NeedsRecreateResources() const { return recreate_resources_; }
+  void ClearRecreateResources() { recreate_resources_ = false; }
 
   Ref<DescriptorSet> GetFinalOutputDescriptor() const;
   Ref<AttachmentTexture> GetFinalOutputImage() const;
@@ -614,6 +616,7 @@ class Renderer {
   RendererOptions options_;
   bool recreate_pipeline_;
   bool recreate_swap_chain_;
+  bool recreate_resources_ = false;
 
   Ref<CameraData> camera_;
   glm::vec2 viewport_size_;

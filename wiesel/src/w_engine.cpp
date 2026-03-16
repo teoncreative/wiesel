@@ -10,6 +10,8 @@
 //
 
 #include "w_engine.hpp"
+#include "behavior/w_native_behavior.hpp"
+#include "util/w_discord_rpc.hpp"
 
 #include <thread>
 #include <future>
@@ -236,6 +238,10 @@ std::shared_ptr<VirtualFileSystem> Engine::vfs_;
 DeveloperConsole Engine::console_;
 std::shared_ptr<AssetManager> Engine::asset_manager_;
 std::shared_ptr<ScriptManager> Engine::script_manager_;
+std::shared_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
+#ifdef WIESEL_DISCORD_RPC
+std::shared_ptr<DiscordRPC> Engine::discord_rpc_;
+#endif
 
 void Engine::InitEngine(const EngineProperties& props) {
   properties_ = props;
@@ -252,8 +258,12 @@ void Engine::InitEngine(const EngineProperties& props) {
   InitializeVfs();
   InitializeComponents();
   InputManager::Init();
+  behavior_registry_ = std::make_shared<NativeBehaviorRegistry>();
   script_manager_ = std::make_shared<ScriptManager>();
   script_manager_->Init({.EnableDebugger = true});
+#ifdef WIESEL_DISCORD_RPC
+  discord_rpc_ = std::make_shared<DiscordRPC>();
+#endif
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
@@ -304,7 +314,11 @@ void Engine::CleanupWindow() {
 }
 
 void Engine::CleanupEngine() {
+#ifdef WIESEL_DISCORD_RPC
+  discord_rpc_ = nullptr;
+#endif
   script_manager_ = nullptr;
+  behavior_registry_ = nullptr;
 }
 
 

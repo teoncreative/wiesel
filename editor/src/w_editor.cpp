@@ -3,6 +3,7 @@
 //
 
 #include "w_editor.hpp"
+#include "util/w_discord_rpc.hpp"
 
 #include <imgui.h>
 #include "util/w_tracy.hpp"
@@ -22,6 +23,7 @@
 #include "util/w_platform.hpp"
 #include "layer/w_layerscene.hpp"
 #include "scene/w_componentutil.hpp"
+#include "project/w_project_loader.hpp"
 #include "scene/w_scene_serializer.hpp"
 #include "scene/w_scene_manager.hpp"
 #include "scene/w_prefab.hpp"
@@ -85,39 +87,6 @@ void RecentProjects::Add(const std::string& path) {
   Save(recent);
 }
 
-static AssetType ExtToAssetType(const std::string& ext) {
-  if (ext == ".wscene") return AssetType::Scene;
-  if (ext == ".wprefab") return AssetType::Prefab;
-  if (ext == ".wmat") return AssetType::Material;
-  if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") return AssetType::Model;
-  if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp") return AssetType::Texture;
-  if (ext == ".ttf" || ext == ".otf") return AssetType::Font;
-  return AssetType::None;
-}
-
-static std::string ReadMetaFile(const std::filesystem::path& meta_path) {
-  if (!std::filesystem::exists(meta_path)) return "";
-  std::ifstream file(meta_path);
-  if (!file.is_open()) return "";
-  try {
-    nlohmann::json j;
-    file >> j;
-    return j.value("handle", "");
-  } catch (...) {
-    return "";
-  }
-}
-
-static void WriteMetaFile(const std::filesystem::path& meta_path,
-                          const AssetHandle& handle) {
-  nlohmann::json j;
-  j["handle"] = handle.ToString();
-  std::ofstream file(meta_path);
-  if (file.is_open()) {
-    file << j.dump(2);
-  }
-}
-
 // Todo move these to the editor overlay instead
 static entt::entity selected_entity_;
 static bool has_selected_entity_ = false;
@@ -169,6 +138,11 @@ EditorLayer::~EditorLayer() = default;
 
 void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
+
+#ifdef WIESEL_DISCORD_RPC
+  Engine::discord_rpc().Initialize("1483104533247688866");
+  Engine::discord_rpc().SetPresence("Wiesel Editor", "Idle", "wiesel_logo", "Wiesel Engine");
+#endif
 
   // Initialize editor free camera
   editor_camera_transform_.position = glm::vec3(0.0f, 5.0f, -10.0f);
@@ -257,6 +231,10 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
   // Process deferred scene switches (safe point between frames)
   ProcessDeferredActions();
+
+#ifdef WIESEL_DISCORD_RPC
+  Engine::discord_rpc().RunCallbacks();
+#endif
 
   // Poll async script compilation
   Engine::script_manager().FinishReloadIfReady();
@@ -790,7 +768,7 @@ void EditorLayer::OnBeginPresent() {
 
           if (!fe.is_dir) {
             auto ext = entry.path().extension().string();
-            fe.asset_type = ExtToAssetType(ext);
+            fe.asset_type = ProjectLoader::ExtToAssetType(ext);
             if (fe.asset_type == AssetType::None) {
               if (ext == ".cs") fe.asset_type = AssetType::Script;
             }
@@ -1282,7 +1260,7 @@ void EditorLayer::OnBeginPresent() {
               if (new_handle.IsValid()) {
                 namespace fs = std::filesystem;
                 fs::path meta_path = fe.physical_path.string() + ".meta";
-                WriteMetaFile(meta_path, new_handle);
+                ProjectLoader::WriteMetaFile(meta_path, new_handle);
                 if (fe.asset_type == AssetType::Prefab || fe.asset_type == AssetType::Scene) {
                   mgr.SetLoadState(new_handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
                 }
@@ -2658,42 +2636,21 @@ void EditorLayer::AutoSave() {
 void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   namespace fs = std::filesystem;
 
-  std::unique_ptr<Project> proj = Project::Load(path);
+  auto proj = Project::Load(path);
   if (!proj) return;
 
   project_ = std::move(proj);
   Project::SetActive(project_.get());
 
-  std::shared_ptr<VirtualFileSystem> vfs = Engine::vfs();
-  if (fs::exists(project_->GetAssetsDirectory())) {
-    vfs->Unmount("/app");
-    vfs->Mount("/app", project_->GetAssetsDirectory().string());
-  }
-
-  ScanProjectAssets();
+  ProjectLoader::MountProject(*project_);
+  ProjectLoader::ScanAssets(*project_);
   Engine::script_manager().Reload();
-
-  // Apply saved render options
-  {
-    RenderOptionsSerialized& opts = project_->GetSettings().render_options;
-    RendererOptions& settings = Engine::renderer()->options();
-    settings.ssao_enabled = opts.ssao_enabled;
-    settings.bloom_enabled = opts.bloom_enabled;
-    settings.bloom_threshold = opts.bloom_threshold;
-    settings.bloom_intensity = opts.bloom_intensity;
-    settings.motion_blur_enabled = opts.motion_blur_enabled;
-    settings.motion_blur_strength = opts.motion_blur_strength;
-    settings.motion_blur_samples = opts.motion_blur_samples;
-    settings.shadows_enabled = opts.shadows_enabled;
-    settings.vsync = opts.vsync;
-    settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
-  }
+  ProjectLoader::ApplyRenderOptions(*project_);
 
   // Open last scene or start scene
-  ClearScene();
-  const std::string& last = project_->GetSettings().last_scene;
-  const std::string& start = project_->GetSettings().start_scene;
-  const std::string& to_open = !last.empty() ? last : start;
+  const auto& last = project_->GetSettings().last_scene;
+  const auto& start = project_->GetSettings().start_scene;
+  const auto& to_open = !last.empty() ? last : start;
   if (!to_open.empty()) {
     auto scene_path = project_->GetAssetsDirectory() / to_open;
     if (fs::exists(scene_path)) {
@@ -2703,7 +2660,19 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
 
   RecentProjects::Add(fs::absolute(path).string());
   UpdateWindowTitle();
+#ifdef WIESEL_DISCORD_RPC
+  Engine::discord_rpc().SetPresence(
+      "Working on " + project_->GetSettings().name, "Editing",
+      "wiesel_logo", "Wiesel Engine");
+#endif
   LOG_INFO("Opened project: {}", project_->GetSettings().name);
+}
+
+void EditorLayer::ScanProjectAssets() {
+  if (project_) {
+    ProjectLoader::ScanAssets(*project_);
+    project_->Save();
+  }
 }
 
 void EditorLayer::RenderStartupDialog() {
@@ -2820,117 +2789,6 @@ void EditorLayer::ClosePrefabEditor() {
   } else {
     ClearScene();
   }
-}
-
-void EditorLayer::ScanProjectAssets() {
-  if (!project_) return;
-
-  namespace fs = std::filesystem;
-  AssetManager& mgr = Engine::asset_manager();
-  SceneManager::Get().ClearRegisteredScenes();
-
-  fs::path assets_dir = fs::absolute(project_->GetAssetsDirectory());
-  if (!fs::exists(assets_dir)) return;
-
-  for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
-    if (!entry.is_regular_file()) continue;
-
-    std::string ext = entry.path().extension().string();
-
-    // Skip .meta files themselves
-    if (ext == ".meta") continue;
-
-    AssetType type = ExtToAssetType(ext);
-    if (type == AssetType::None) continue;
-
-    auto rel = fs::relative(entry.path(), assets_dir);
-    std::string vfs_path = "/app/" + rel.generic_string();
-    std::string name = entry.path().stem().string();
-
-    // Check for .meta file
-    fs::path meta_path = entry.path().string() + ".meta";
-    std::string handle_str = ReadMetaFile(meta_path);
-    AssetHandle handle;
-
-    if (!handle_str.empty()) {
-      // Has .meta - use the saved handle
-      handle = AssetHandle::FromString(handle_str);
-      if (!mgr.HasAsset(handle)) {
-        if (type == AssetType::Material) {
-          VfsFile file = Engine::vfs()->Open(vfs_path);
-          if (file.Size() > 0) {
-            try {
-              std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                                  std::istreambuf_iterator<char>());
-              auto j = nlohmann::json::parse(content);
-              auto mat = Material::Deserialize(j);
-              mat->name = name;
-              mgr.Register(handle, name, AssetType::Material, vfs_path);
-              mgr.Store<Material>(handle, mat);
-              mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
-              mat->asset_handle = handle;
-            } catch (const std::exception& e) {
-              LOG_ERROR("Failed to load material '{}': {}", vfs_path, e.what());
-              continue;
-            }
-          }
-        } else {
-          mgr.Register(handle, name, type, vfs_path);
-        }
-      }
-    } else {
-      // No .meta - this is an unimported file, create .meta and register
-      if (type == AssetType::Material) {
-        VfsFile file = Engine::vfs()->Open(vfs_path);
-        if (file.Size() > 0) {
-          try {
-            std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                                std::istreambuf_iterator<char>());
-            auto j = nlohmann::json::parse(content);
-            auto mat = Material::Deserialize(j);
-            mat->name = name;
-            handle = mgr.RegisterAndStore<Material>(name, AssetType::Material, vfs_path, mat);
-            mat->asset_handle = handle;
-          } catch (const std::exception& e) {
-            LOG_ERROR("Failed to load material '{}': {}", vfs_path, e.what());
-            continue;
-          }
-        }
-      } else {
-        handle = mgr.Register(name, type, vfs_path);
-      }
-
-      if (handle.IsValid()) {
-        WriteMetaFile(meta_path, handle);
-      }
-    }
-
-    if (!handle.IsValid()) continue;
-
-    // Post-registration setup
-    if (type == AssetType::Scene) {
-      SceneManager::Get().RegisterScene(name, entry.path());
-      project_->AddScene(rel.generic_string());
-    }
-
-    if (type == AssetType::Prefab || type == AssetType::Scene) {
-      mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
-    }
-  }
-
-  // Clean up orphaned .meta files (asset file was deleted)
-  for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
-    if (!entry.is_regular_file()) continue;
-    if (entry.path().extension() != ".meta") continue;
-    // The asset file path is the .meta path without the .meta extension
-    fs::path asset_path = entry.path().string().substr(0, entry.path().string().size() - 5);
-    if (!fs::exists(asset_path)) {
-      std::error_code ec;
-      fs::remove(entry.path(), ec);
-    }
-  }
-
-  project_->Save();
 }
 
 }

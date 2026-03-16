@@ -30,10 +30,10 @@ ShadowFeature::ShadowFeature(Ref<Renderer> renderer)
 
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/shadow_shader.vert"});
+       "/engine/shaders/shadow_shader.vert"});
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/shadow_shader.frag"});
+       "/engine/shaders/shadow_shader.frag"});
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, true, true});
   pipeline_->SetRenderPass(render_pass_);

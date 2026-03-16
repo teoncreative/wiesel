@@ -36,10 +36,10 @@ CompositeFeature::CompositeFeature(Ref<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
   auto composite_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/quad_shader.frag"});
+       "/engine/shaders/quad_shader.frag"});
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
   pipeline_->SetRenderPass(render_pass_);

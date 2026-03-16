@@ -33,10 +33,10 @@ GridFeature::GridFeature(Ref<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
   auto grid_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/editor_grid.frag"});
+       "/engine/shaders/editor_grid.frag"});
 
   // Pipeline: no alpha blend, depth test on, depth write off (read-only depth)
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{

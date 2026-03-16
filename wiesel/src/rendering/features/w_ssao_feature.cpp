@@ -47,12 +47,12 @@ SSAOFeature::SSAOFeature(Ref<Renderer> renderer)
   // Pipelines (all fullscreen quad)
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/fullscreen_shader.vert"});
+       "/engine/shaders/fullscreen_shader.vert"});
 
   // Gen pipeline
   auto ssao_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/ssao_gen_shader.frag"});
+       "/engine/shaders/ssao_gen_shader.frag"});
   gen_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   gen_pipeline_->SetRenderPass(gen_render_pass_);
@@ -65,7 +65,7 @@ SSAOFeature::SSAOFeature(Ref<Renderer> renderer)
   // Blur H pipeline
   auto blur_h_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/ssao_blur_shader.frag"});
+       "/engine/shaders/ssao_blur_shader.frag"});
   blur_horz_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_horz_pipeline_->SetRenderPass(blur_horz_render_pass_);
@@ -78,7 +78,7 @@ SSAOFeature::SSAOFeature(Ref<Renderer> renderer)
   // Blur V pipeline (with BLUR_VERTICAL define)
   auto blur_v_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/ssao_blur_shader.frag",
+       "/engine/shaders/ssao_blur_shader.frag",
        {"BLUR_VERTICAL"}});
   blur_vert_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});

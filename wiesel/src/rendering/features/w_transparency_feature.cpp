@@ -36,10 +36,10 @@ TransparencyFeature::TransparencyFeature(Ref<Renderer> renderer)
   // Pipeline: alpha blend on, depth test on, depth write off, no culling
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/geometry_shader.vert"});
+       "/engine/shaders/geometry_shader.vert"});
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/internal_shaders/transparency_shader.frag"});
+       "/engine/shaders/transparency_shader.frag"});
   pipeline_ = CreateReference<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, true, true, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),

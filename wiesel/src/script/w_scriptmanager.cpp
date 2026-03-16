@@ -1190,7 +1190,7 @@ void ScriptManager::LoadCore() {
   if (Engine::properties().dev_mode) {
     LOG_INFO("Compiling core scripts...");
     std::vector<std::string> sourceFiles;
-    std::optional<std::filesystem::path> physical = Engine::vfs()->GetPhysicalPath("/engine/internal_scripts");
+    std::optional<std::filesystem::path> physical = Engine::vfs()->GetPhysicalPath("/engine/scripts");
     assert(physical.has_value());
     for (const auto& entry : std::filesystem::recursive_directory_iterator(*physical)) {
       if (entry.is_regular_file() && entry.path().extension() == ".cs") {
@@ -1199,7 +1199,7 @@ void ScriptManager::LoadCore() {
         sourceFiles.push_back(name);
 
         std::filesystem::path rel = std::filesystem::relative(entry.path(), *physical);
-        std::string vfs_path = "/engine/internal_scripts/" + rel.generic_string();
+        std::string vfs_path = "/engine/scripts/" + rel.generic_string();
         std::string script_name = entry.path().stem().string();
         Engine::asset_manager().Register(script_name, AssetType::Script, vfs_path);
       }
