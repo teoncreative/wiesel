@@ -43,8 +43,9 @@ namespace Wiesel {
 
 // Wraps mono_runtime_invoke with exception handling.
 // Logs to both terminal and developer console.
+// Returns the result. Sets *had_exception to true if an exception occurred.
 static MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj,
-                               void** args) {
+                               void** args, bool* had_exception = nullptr) {
   MonoObject* exception = nullptr;
   MonoObject* result = mono_runtime_invoke(method, obj, args, &exception);
   if (exception) {
@@ -54,6 +55,9 @@ static MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj,
       LOG_ERROR("C# Exception: {}", cstr);
       Engine::console().LogError(cstr);
       mono_free((void*)cstr);
+    }
+    if (had_exception) {
+      *had_exception = true;
     }
     return nullptr;
   }
@@ -1024,55 +1028,69 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data, MonoBehavior* b
 }
 
 ScriptInstance::~ScriptInstance() {
+  if (!errored_) {
+    OnDestroy();
+  }
   mono_gchandle_free(gc_handle_);
 }
 
 void ScriptInstance::OnStart() {
   UpdateAttachments();
   if (!script_data_->on_start_method()) return;
-  InvokeSafe(script_data_->on_start_method(), handle_, nullptr);
+  InvokeSafe(script_data_->on_start_method(), handle_, nullptr, &errored_);
+  if (errored_) {
+    OnDisable();
+  }
 }
 
 void ScriptInstance::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED_N("ScriptInstance::OnUpdate");
+  if (errored_) return;
+
   if (!has_started_) {
     OnStart();
     has_started_ = true;
+    if (errored_) return;
   }
 
   if (!script_data_->on_update_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   args[0] = &delta_time;
-  InvokeSafe(script_data_->on_update_method(), handle_, args);
+  InvokeSafe(script_data_->on_update_method(), handle_, args, &errored_);
+  if (errored_) {
+    OnDisable();
+  }
 }
 
 bool ScriptInstance::OnKeyPressed(KeyPressedEvent& event) {
-  if (!script_data_->on_key_pressed_method()) return false;
+  if (errored_ || !script_data_->on_key_pressed_method()) return false;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[2];
   int32_t keyCode = event.GetKeyCode();
   bool repeat = event.IsRepeat();
   args[0] = &keyCode;
   args[1] = &repeat;
-  MonoObject* data = InvokeSafe(script_data_->on_key_pressed_method(), handle_, args);
+  MonoObject* data = InvokeSafe(script_data_->on_key_pressed_method(),
+                                 handle_, args, &errored_);
   if (!data) return false;
   return *(bool*)mono_object_unbox(data);
 }
 
 bool ScriptInstance::OnKeyReleased(KeyReleasedEvent& event) {
-  if (!script_data_->on_key_released_method()) return false;
+  if (errored_ || !script_data_->on_key_released_method()) return false;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   int32_t keyCode = event.GetKeyCode();
   args[0] = &keyCode;
-  MonoObject* data = InvokeSafe(script_data_->on_key_released_method(), handle_, args);
+  MonoObject* data = InvokeSafe(script_data_->on_key_released_method(),
+                                 handle_, args, &errored_);
   if (!data) return false;
   return *(bool*)mono_object_unbox(data);
 }
 
 bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
-  if (!script_data_->on_mouse_moved_method()) return false;
+  if (errored_ || !script_data_->on_mouse_moved_method()) return false;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[3];
   float x = event.GetX();
@@ -1081,63 +1099,76 @@ bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
   args[0] = &x;
   args[1] = &y;
   args[2] = &cursorMode;
-  MonoObject* data = InvokeSafe(script_data_->on_mouse_moved_method(), handle_, args);
+  MonoObject* data = InvokeSafe(script_data_->on_mouse_moved_method(),
+                                 handle_, args, &errored_);
   if (!data) return false;
   return *(bool*)mono_object_unbox(data);
 }
 
 void ScriptInstance::OnTriggerEnter(entt::entity other) {
-  if (!script_data_->on_trigger_enter_method()) return;
+  if (errored_ || !script_data_->on_trigger_enter_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  InvokeSafe(script_data_->on_trigger_enter_method(), handle_, args);
+  InvokeSafe(script_data_->on_trigger_enter_method(), handle_, args, &errored_);
 }
 
 void ScriptInstance::OnTriggerStay(entt::entity other) {
-  if (!script_data_->on_trigger_stay_method()) return;
+  if (errored_ || !script_data_->on_trigger_stay_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  InvokeSafe(script_data_->on_trigger_stay_method(), handle_, args);
+  InvokeSafe(script_data_->on_trigger_stay_method(), handle_, args, &errored_);
 }
 
 void ScriptInstance::OnTriggerExit(entt::entity other) {
-  if (!script_data_->on_trigger_exit_method()) return;
+  if (errored_ || !script_data_->on_trigger_exit_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  InvokeSafe(script_data_->on_trigger_exit_method(), handle_, args);
+  InvokeSafe(script_data_->on_trigger_exit_method(), handle_, args, &errored_);
 }
 
 void ScriptInstance::OnCollisionEnter(entt::entity other) {
-  if (!script_data_->on_collision_enter_method()) return;
+  if (errored_ || !script_data_->on_collision_enter_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  InvokeSafe(script_data_->on_collision_enter_method(), handle_, args);
+  InvokeSafe(script_data_->on_collision_enter_method(), handle_, args, &errored_);
 }
 
 void ScriptInstance::OnCollisionStay(entt::entity other) {
-  if (!script_data_->on_collision_stay_method()) return;
+  if (errored_ || !script_data_->on_collision_stay_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  InvokeSafe(script_data_->on_collision_stay_method(), handle_, args);
+  InvokeSafe(script_data_->on_collision_stay_method(), handle_, args, &errored_);
 }
 
 void ScriptInstance::OnCollisionExit(entt::entity other) {
-  if (!script_data_->on_collision_exit_method()) return;
+  if (errored_ || !script_data_->on_collision_exit_method()) return;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  InvokeSafe(script_data_->on_collision_exit_method(), handle_, args);
+  InvokeSafe(script_data_->on_collision_exit_method(), handle_, args, &errored_);
+}
+
+void ScriptInstance::OnDisable() {
+  if (!script_data_->on_disable_method()) return;
+  // Don't pass errored_ - OnDisable is a best-effort cleanup,
+  // we don't want a failure here to block OnDestroy.
+  InvokeSafe(script_data_->on_disable_method(), handle_, nullptr);
+}
+
+void ScriptInstance::OnDestroy() {
+  if (!script_data_->on_destroy_method()) return;
+  InvokeSafe(script_data_->on_destroy_method(), handle_, nullptr);
 }
 
 // explicitly instantiate needed types, this is required:
@@ -1175,6 +1206,14 @@ ScriptManager::~ScriptManager() { Destroy(); }
 
 MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
                                               const std::string& name) {
+  // Check if the component exists first
+  auto checker_it = component_checkers_.find(name);
+  if (checker_it != component_checkers_.end() && checker_it->second) {
+    if (!checker_it->second(scene, entity)) {
+      return nullptr;  // returns null to C#
+    }
+  }
+
   auto& fn = component_getters_[name];
   if (fn == nullptr) {
     return nullptr;
@@ -1532,6 +1571,8 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
     MonoMethod* on_collision_enter = mono_class_get_method_from_name(klass, "OnCollisionEnter", 1);
     MonoMethod* on_collision_stay = mono_class_get_method_from_name(klass, "OnCollisionStay", 1);
     MonoMethod* on_collision_exit = mono_class_get_method_from_name(klass, "OnCollisionExit", 1);
+    MonoMethod* on_disable = mono_class_get_method_from_name(klass, "OnDisable", 0);
+    MonoMethod* on_destroy = mono_class_get_method_from_name(klass, "OnDestroy", 0);
 
     script_data_.insert(std::pair(
         class_name,
@@ -1539,6 +1580,7 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
                        on_key_pressed, on_key_released, on_mouse_moved,
                        on_trigger_enter, on_trigger_stay, on_trigger_exit,
                        on_collision_enter, on_collision_stay, on_collision_exit,
+                       on_disable, on_destroy,
                        fields)));
     script_names_.push_back(class_name);
     LOG_INFO("Registered script: {}", class_name);

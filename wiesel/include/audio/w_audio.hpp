@@ -100,6 +100,10 @@ class AudioManager {
   void SetListenerPosition(const glm::vec3& position);
   void SetListenerDirection(const glm::vec3& forward, const glm::vec3& up);
 
+  // Reverb (delay-based)
+  void SetReverb(float delay_ms, float decay, float wet);
+  void ClearReverb();
+
   void Update();
 
  private:
@@ -141,6 +145,18 @@ struct AudioSourceComponent {
     p.max_distance = max_distance;
     return p;
   }
+};
+
+// ECS component - defines a zone where reverb/echo is applied.
+// Uses the entity's transform position + radius to define the area.
+struct ReverbZoneComponent {
+  float radius = 10.0f;          // zone radius
+  float delay_ms = 150.0f;       // echo delay in milliseconds
+  float decay = 0.4f;            // how much each echo repeats (0-1)
+  float wet = 0.5f;              // wet/dry mix when fully inside (0 = dry, 1 = full reverb)
+
+  // Runtime
+  bool active_ = false;
 };
 
 }  // namespace Wiesel

@@ -10,6 +10,7 @@
 //
 
 #include "rendering/w_renderer.hpp"
+#include "rendering/features/w_debug_collider_feature.hpp"
 #include "rendering/w_acceleration_structure.hpp"
 #include "rendering/w_perf_marker.hpp"
 #include "rendering/w_sampler.hpp"
@@ -224,6 +225,9 @@ template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<VertexSprite
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
     std::vector<glm::vec3>);
+
+template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<DebugColliderFeature::OverlayVertex>(
+    std::vector<DebugColliderFeature::OverlayVertex>);
 
 void Renderer::DestroyVertexBuffer(MemoryBuffer& buffer) {
   vkDestroyBuffer(logical_device_, buffer.buffer_handle_, nullptr);
@@ -1874,6 +1878,7 @@ void Renderer::CreateLogicalDevice() {
   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
   deviceFeatures2.features.fillModeNonSolid = true;
   deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
+  deviceFeatures2.features.wideLines = VK_TRUE;
 
   VkPhysicalDeviceVulkan12Features vulkan12Features{};
   vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;

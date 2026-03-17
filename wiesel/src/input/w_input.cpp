@@ -281,24 +281,23 @@ bool InputManager::GetActionUp(int player, const std::string& action) {
   if (!input_enabled_) return false;
   if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
 
-  auto* ctx = GetPlayerContext(player);
-  auto* act = FindAction(ctx, action);
+  const InputContext* ctx = GetPlayerContext(player);
+  const InputAction* act = FindAction(ctx, action);
   return IsActionActive(players_[player], act, RawKeyUp, RawBtnUp);
 }
 
 float InputManager::GetAxis(int player, const std::string& axis_name) {
-  if (!input_enabled_) return 0.0f;
   if (player < 0 || player >= kMaxPlayers || !players_[player].active) return 0.0f;
 
   // Mouse axes are always available for keyboard players
-  auto& slot = players_[player];
+  PlayerSlot& slot = players_[player];
   if (slot.gamepad_index < 0) {
     if (axis_name == "Mouse X") return mouse_axis_x_;
     if (axis_name == "Mouse Y") return mouse_axis_y_;
   }
 
-  auto* ctx = GetPlayerContext(player);
-  auto* mapping = FindAxis(ctx, axis_name);
+  const InputContext* ctx = GetPlayerContext(player);
+  const InputAxisMapping* mapping = FindAxis(ctx, axis_name);
   if (!mapping) return 0.0f;
 
   // Gamepad analog axis (takes priority if player has a gamepad)
@@ -312,11 +311,17 @@ float InputManager::GetAxis(int player, const std::string& axis_name) {
   // Digital keyboard axis
   if (slot.gamepad_index < 0) {
     bool pos = false, neg = false;
-    for (auto code : mapping->positive_keys) {
-      if (keys_[code].pressed) { pos = true; break; }
+    for (int32_t code : mapping->positive_keys) {
+      if (keys_[code].pressed) {
+        pos = true;
+        break;
+      }
     }
-    for (auto code : mapping->negative_keys) {
-      if (keys_[code].pressed) { neg = true; break; }
+    for (int32_t code : mapping->negative_keys) {
+      if (keys_[code].pressed) {
+        neg = true;
+        break;
+      }
     }
     if (pos && !neg) return 1.0f;
     if (neg && !pos) return -1.0f;

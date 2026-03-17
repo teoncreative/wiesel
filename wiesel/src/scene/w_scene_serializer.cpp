@@ -357,6 +357,17 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     j["AudioSource"] = aj;
   }
 
+  // Reverb Zone
+  if (entity.HasComponent<ReverbZoneComponent>()) {
+    auto& r = entity.GetComponent<ReverbZoneComponent>();
+    nlohmann::json rj;
+    rj["radius"] = r.radius;
+    rj["delay_ms"] = r.delay_ms;
+    rj["decay"] = r.decay;
+    rj["wet"] = r.wet;
+    j["ReverbZone"] = rj;
+  }
+
   return j;
 }
 
@@ -702,6 +713,16 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     a.spatial_blend = aj.value("spatial_blend", 0.0f);
     a.min_distance = aj.value("min_distance", 1.0f);
     a.max_distance = aj.value("max_distance", 100.0f);
+  }
+
+  // Reverb Zone
+  if (entity_json.contains("ReverbZone")) {
+    auto& r = entity.AddComponent<ReverbZoneComponent>();
+    const auto& rj = entity_json["ReverbZone"];
+    r.radius = rj.value("radius", 10.0f);
+    r.delay_ms = rj.value("delay_ms", 150.0f);
+    r.decay = rj.value("decay", 0.4f);
+    r.wet = rj.value("wet", 0.5f);
   }
 }
 

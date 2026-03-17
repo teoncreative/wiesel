@@ -33,6 +33,7 @@ struct PipelineProperties {
   bool enable_depth_test = true;
   bool enable_depth_write = true;
   PrimitiveTopology topology = PrimitiveTopology::TriangleList;
+  float line_width = 1.0f;
 };
 
 struct PushConstant {

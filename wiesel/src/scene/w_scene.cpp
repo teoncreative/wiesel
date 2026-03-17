@@ -28,6 +28,7 @@
 #include "rendering/features/w_bloom_feature.hpp"
 #include "rendering/features/w_motion_blur_feature.hpp"
 #include "rendering/features/w_canvas_feature.hpp"
+#include "rendering/features/w_debug_collider_feature.hpp"
 #include "rendering/features/w_fxaa_feature.hpp"
 #include "rendering/features/w_rt_shadow_feature.hpp"
 #include "animation/w_animation.hpp"
@@ -119,6 +120,45 @@ void Scene::DestroyEntity(entt::entity handle) {
 
 void Scene::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
+
+  // Audio listener: update every frame (including first) so spatial audio
+  // is correct before any script plays a sound.
+  {
+    auto& audio = Engine::audio();
+    for (auto entity : registry_.view<CameraComponent, TransformComponent>()) {
+      auto& cam = registry_.get<CameraComponent>(entity);
+      if (!cam.enabled) continue;
+      auto& transform = registry_.get<TransformComponent>(entity);
+      audio.SetListenerPosition(transform.position);
+      glm::vec3 forward = -glm::vec3(cam.inv_view_matrix[2]);
+      glm::vec3 up = glm::vec3(cam.inv_view_matrix[1]);
+      audio.SetListenerDirection(glm::normalize(forward), glm::normalize(up));
+
+      // Check reverb zones against listener position
+      bool in_reverb = false;
+      for (auto zone_entity : registry_.view<ReverbZoneComponent, TransformComponent>()) {
+        auto& zone = registry_.get<ReverbZoneComponent>(zone_entity);
+        auto& zone_transform = registry_.get<TransformComponent>(zone_entity);
+        float dist = glm::distance(transform.position, zone_transform.position);
+        if (dist < zone.radius) {
+          // Blend wet amount based on how deep inside the zone we are
+          float blend = 1.0f - (dist / zone.radius);
+          audio.SetReverb(zone.delay_ms, zone.decay, zone.wet * blend);
+          zone.active_ = true;
+          in_reverb = true;
+          break;  // use the closest/first zone
+        } else {
+          zone.active_ = false;
+        }
+      }
+      if (!in_reverb) {
+        audio.ClearReverb();
+      }
+
+      break;
+    }
+  }
+
   if (!first_update_) [[likely]] {
     // Create bodies for new entities before scripts run
     physics_world_->EnsureBodiesExist();
@@ -147,23 +187,9 @@ void Scene::OnUpdate(float_t delta_time) {
       }
     }
 
-    // Audio: update listener from active camera, tick audio sources
+    // Audio: tick audio source components
     {
       auto& audio = Engine::audio();
-      // Update listener position from active camera
-      for (auto entity : registry_.view<CameraComponent, TransformComponent>()) {
-        auto& cam = registry_.get<CameraComponent>(entity);
-        if (!cam.enabled) continue;
-        auto& transform = registry_.get<TransformComponent>(entity);
-        audio.SetListenerPosition(transform.position);
-        // Forward = -Z column of inverse view (camera's world-space forward)
-        glm::vec3 forward = -glm::vec3(cam.inv_view_matrix[2]);
-        glm::vec3 up = glm::vec3(cam.inv_view_matrix[1]);
-        audio.SetListenerDirection(glm::normalize(forward), glm::normalize(up));
-        break;
-      }
-
-      // Tick AudioSourceComponents
       for (auto entity : registry_.view<AudioSourceComponent, TransformComponent>()) {
         auto& src = registry_.get<AudioSourceComponent>(entity);
         auto& transform = registry_.get<TransformComponent>(entity);
@@ -1004,6 +1030,7 @@ std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(std::shared_ptr<Ren
   pipeline->AddFeature<MotionBlurFeature>(renderer);
   pipeline->AddFeature<FXAAFeature>(renderer);
   pipeline->AddFeature<CanvasFeature>(renderer);
+  pipeline->AddFeature<DebugColliderFeature>(renderer);
   return pipeline;
 }
 

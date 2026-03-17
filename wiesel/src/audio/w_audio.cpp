@@ -153,6 +153,10 @@ struct AudioManager::Impl {
   std::vector<ActiveSound> active_sounds;
   SoundHandle current_music;
 
+  // Reverb (delay node)
+  ma_delay_node* delay_node = nullptr;
+  bool reverb_active = false;
+
   float GetBusVolume(AudioBus bus) const {
     float base = master_volume;
     switch (bus) {
@@ -195,6 +199,11 @@ void AudioManager::Shutdown() {
   if (!impl_ || !impl_->initialized) return;
 
   StopAll();
+  if (impl_->delay_node) {
+    ma_delay_node_uninit(impl_->delay_node, nullptr);
+    delete impl_->delay_node;
+    impl_->delay_node = nullptr;
+  }
   ma_engine_uninit(&impl_->engine);
   impl_->initialized = false;
   LOG_INFO("Audio engine shut down");
@@ -390,6 +399,48 @@ void AudioManager::SetListenerDirection(const glm::vec3& forward, const glm::vec
   if (!impl_->initialized) return;
   ma_engine_listener_set_direction(&impl_->engine, 0, forward.x, forward.y, forward.z);
   ma_engine_listener_set_world_up(&impl_->engine, 0, up.x, up.y, up.z);
+}
+
+void AudioManager::SetReverb(float delay_ms, float decay, float wet) {
+  if (!impl_->initialized) return;
+
+  ma_engine* engine = &impl_->engine;
+  ma_uint32 channels = ma_engine_get_channels(engine);
+  ma_uint32 sample_rate = ma_engine_get_sample_rate(engine);
+  ma_uint32 delay_frames = static_cast<ma_uint32>(
+      (delay_ms / 1000.0f) * static_cast<float>(sample_rate));
+
+  if (!impl_->delay_node) {
+    impl_->delay_node = new ma_delay_node;
+    ma_delay_node_config config = ma_delay_node_config_init(
+        channels, sample_rate, delay_frames, decay);
+    ma_result result = ma_delay_node_init(
+        ma_engine_get_node_graph(engine), &config, nullptr, impl_->delay_node);
+    if (result != MA_SUCCESS) {
+      LOG_ERROR("Failed to create delay node: {}", (int)result);
+      delete impl_->delay_node;
+      impl_->delay_node = nullptr;
+      return;
+    }
+
+    // Insert into the graph: endpoint -> delay_node -> endpoint
+    ma_node* endpoint = ma_engine_get_endpoint(engine);
+    ma_node_attach_output_bus(impl_->delay_node, 0, endpoint, 0);
+    ma_node_attach_output_bus(endpoint, 0, impl_->delay_node, 0);
+  }
+
+  ma_delay_node_set_decay(impl_->delay_node, decay);
+  ma_delay_node_set_wet(impl_->delay_node, wet);
+  ma_delay_node_set_dry(impl_->delay_node, 1.0f - wet);
+  impl_->reverb_active = true;
+}
+
+void AudioManager::ClearReverb() {
+  if (!impl_->delay_node) return;
+
+  ma_delay_node_set_wet(impl_->delay_node, 0.0f);
+  ma_delay_node_set_dry(impl_->delay_node, 1.0f);
+  impl_->reverb_active = false;
 }
 
 void AudioManager::Update() {
