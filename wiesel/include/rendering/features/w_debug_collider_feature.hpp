@@ -13,11 +13,15 @@
 
 #include "rendering/w_render_feature.hpp"
 #include "rendering/w_buffer.hpp"
+#include "rendering/w_descriptor.hpp"
+#include "rendering/w_descriptorlayout.hpp"
+#include "rendering/w_texture.hpp"
 
 namespace Wiesel {
 
 struct DebugColliderPushConstant {
   glm::mat4 mvp;
+  glm::mat4 model;
   glm::vec4 color;
 };
 
@@ -35,6 +39,8 @@ class DebugColliderFeature : public RenderFeature {
  private:
   void GenerateBoxGeometry();
   void GenerateSphereGeometry();
+  void GenerateFilledBoxGeometry();
+  void GenerateFilledSphereGeometry();
 
   static inline std::string name_ = "DebugColliders";
   std::shared_ptr<Renderer> renderer_;
@@ -42,6 +48,7 @@ class DebugColliderFeature : public RenderFeature {
   // Wireframe rendering
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline> filled_pipeline_;  // translucent filled
   std::shared_ptr<DebugColliderPushConstant> push_constant_;
 
   // Compositing onto PipelineOutput
@@ -57,6 +64,25 @@ class DebugColliderFeature : public RenderFeature {
   std::shared_ptr<MemoryBuffer> sphere_vertex_buffer_;
   std::shared_ptr<IndexBuffer> sphere_index_buffer_;
   uint32_t sphere_index_count_ = 0;
+
+  // Filled geometry (triangle lists for translucent overlays, with UVs)
+  struct OverlayVertex {
+    glm::vec3 position;
+    glm::vec2 uv;
+  };
+  std::shared_ptr<MemoryBuffer> filled_box_vb_;
+  std::shared_ptr<IndexBuffer> filled_box_ib_;
+  uint32_t filled_box_ic_ = 0;
+  std::shared_ptr<MemoryBuffer> filled_sphere_vb_;
+  std::shared_ptr<IndexBuffer> filled_sphere_ib_;
+  uint32_t filled_sphere_ic_ = 0;
+
+  // Label textures + descriptors (cached by name)
+  std::shared_ptr<DescriptorSetLayout> overlay_desc_layout_;
+  std::unordered_map<std::string, std::shared_ptr<DescriptorSet>> label_descriptors_;
+  std::shared_ptr<DescriptorSet> GetOrCreateLabelDescriptor(const std::string& label,
+                                                             const glm::vec4& bg_color,
+                                                             const glm::vec4& text_color);
 
   // Cached heightfield debug geometry
   struct HeightfieldDebugData {

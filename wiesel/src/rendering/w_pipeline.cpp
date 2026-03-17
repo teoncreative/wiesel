@@ -174,7 +174,7 @@ void Pipeline::Bake() {
   } else {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
   }
-  rasterizer.lineWidth = 1.0f;
+  rasterizer.lineWidth = properties_.line_width;
   switch (properties_.cull_mode) {
     case CullModeNone:
       rasterizer.cullMode = VK_CULL_MODE_NONE;

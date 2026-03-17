@@ -10,7 +10,12 @@
 //
 
 #include "rendering/features/w_debug_collider_feature.hpp"
+#include "audio/w_audio.hpp"
+#include "util/w_label_texture.hpp"
 #include "physics/w_collider.hpp"
+#include "physics/w_rigidbody.hpp"
+#include "rendering/w_descriptor.hpp"
+#include "rendering/w_descriptorlayout.hpp"
 #include "rendering/w_pipeline.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
@@ -21,12 +26,16 @@ namespace Wiesel {
 
 DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Wireframe render pass: 1 color attachment, no depth
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
+  // Render pass: 1 color + depth (load existing depth for occlusion)
+  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
                                              "DebugCollider RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = renderer_->GetSwapChainImageFormat(),
+       .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput(
+      {.type = AttachmentTextureType::DepthStencil,
+       .format = renderer_->FindDepthFormat(),
        .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
@@ -38,10 +47,19 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/debug_collider.frag"});
 
-  // Wireframe pipeline: line-list, no depth, no alpha blending
-  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeNone, false, false, false, false,
-      PrimitiveTopology::LineList});
+  // Wireframe pipeline: line-list, depth test (no write), no alpha blending
+  {
+    PipelineProperties wire_props{};
+    wire_props.sampling_mode = SamplingMode::DISABLED;
+    wire_props.cull_mode = CullModeNone;
+    wire_props.enable_wireframe = false;
+    wire_props.enable_alpha_blending = false;
+    wire_props.enable_depth_test = true;
+    wire_props.enable_depth_write = false;
+    wire_props.topology = PrimitiveTopology::LineList;
+    wire_props.line_width = 2.5f;
+    pipeline_ = std::make_shared<Pipeline>(wire_props);
+  }
 
   // Vertex data: just vec3 position
   VkVertexInputBindingDescription binding{};
@@ -66,6 +84,49 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
+
+  // Textured filled pipeline: triangle-list, no depth write, alpha blend
+  auto overlay_vert = renderer_->CreateShader(
+      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
+       "/engine/shaders/debug_overlay.vert"});
+  auto overlay_frag = renderer_->CreateShader(
+      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+       "/engine/shaders/debug_overlay.frag"});
+
+  // Overlay vertex: vec3 position + vec2 uv
+  VkVertexInputBindingDescription overlay_binding{};
+  overlay_binding.binding = 0;
+  overlay_binding.stride = sizeof(OverlayVertex);
+  overlay_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+  std::vector<VkVertexInputAttributeDescription> overlay_attrs(2);
+  overlay_attrs[0].binding = 0;
+  overlay_attrs[0].location = 0;
+  overlay_attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+  overlay_attrs[0].offset = offsetof(OverlayVertex, position);
+  overlay_attrs[1].binding = 0;
+  overlay_attrs[1].location = 1;
+  overlay_attrs[1].format = VK_FORMAT_R32G32_SFLOAT;
+  overlay_attrs[1].offset = offsetof(OverlayVertex, uv);
+
+  // Descriptor layout for label texture sampler
+  overlay_desc_layout_ = std::make_shared<DescriptorSetLayout>();
+  overlay_desc_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                    VK_SHADER_STAGE_FRAGMENT_BIT);
+  overlay_desc_layout_->Bake();
+
+  filled_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
+      SamplingMode::DISABLED, CullModeNone, false, true, true, false,
+      PrimitiveTopology::TriangleList});
+  filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
+  filled_pipeline_->SetRenderPass(render_pass_);
+  filled_pipeline_->AddPushConstant(push_constant_,
+                                     VK_SHADER_STAGE_VERTEX_BIT |
+                                         VK_SHADER_STAGE_FRAGMENT_BIT);
+  filled_pipeline_->AddInputLayout(overlay_desc_layout_);
+  filled_pipeline_->AddShader(overlay_vert);
+  filled_pipeline_->AddShader(overlay_frag);
+  filled_pipeline_->Bake();
 
   // Composite render pass: blend debug overlay onto PipelineOutput
   comp_render_pass_ = std::make_shared<RenderPass>(
@@ -94,6 +155,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   // Generate wireframe geometry
   GenerateBoxGeometry();
   GenerateSphereGeometry();
+  GenerateFilledBoxGeometry();
+  GenerateFilledSphereGeometry();
 }
 
 void DebugColliderFeature::GenerateBoxGeometry() {
@@ -153,6 +216,119 @@ void DebugColliderFeature::GenerateSphereGeometry() {
   sphere_index_count_ = static_cast<uint32_t>(indices.size());
 }
 
+void DebugColliderFeature::GenerateFilledBoxGeometry() {
+  // Each face has its own 4 vertices with UVs so the texture maps per face
+  std::vector<OverlayVertex> vertices = {
+      // Front face (-Z)
+      {{-0.5f, -0.5f, -0.5f}, {0, 1}},
+      {{ 0.5f, -0.5f, -0.5f}, {1, 1}},
+      {{ 0.5f,  0.5f, -0.5f}, {1, 0}},
+      {{-0.5f,  0.5f, -0.5f}, {0, 0}},
+      // Back face (+Z)
+      {{ 0.5f, -0.5f,  0.5f}, {0, 1}},
+      {{-0.5f, -0.5f,  0.5f}, {1, 1}},
+      {{-0.5f,  0.5f,  0.5f}, {1, 0}},
+      {{ 0.5f,  0.5f,  0.5f}, {0, 0}},
+      // Left face (-X)
+      {{-0.5f, -0.5f,  0.5f}, {0, 1}},
+      {{-0.5f, -0.5f, -0.5f}, {1, 1}},
+      {{-0.5f,  0.5f, -0.5f}, {1, 0}},
+      {{-0.5f,  0.5f,  0.5f}, {0, 0}},
+      // Right face (+X)
+      {{ 0.5f, -0.5f, -0.5f}, {0, 1}},
+      {{ 0.5f, -0.5f,  0.5f}, {1, 1}},
+      {{ 0.5f,  0.5f,  0.5f}, {1, 0}},
+      {{ 0.5f,  0.5f, -0.5f}, {0, 0}},
+      // Top face (+Y)
+      {{-0.5f,  0.5f, -0.5f}, {0, 1}},
+      {{ 0.5f,  0.5f, -0.5f}, {1, 1}},
+      {{ 0.5f,  0.5f,  0.5f}, {1, 0}},
+      {{-0.5f,  0.5f,  0.5f}, {0, 0}},
+      // Bottom face (-Y)
+      {{-0.5f, -0.5f,  0.5f}, {0, 1}},
+      {{ 0.5f, -0.5f,  0.5f}, {1, 1}},
+      {{ 0.5f, -0.5f, -0.5f}, {1, 0}},
+      {{-0.5f, -0.5f, -0.5f}, {0, 0}},
+  };
+
+  std::vector<Index> indices;
+  for (uint32_t face = 0; face < 6; face++) {
+    uint32_t base = face * 4;
+    indices.push_back(base + 0);
+    indices.push_back(base + 1);
+    indices.push_back(base + 2);
+    indices.push_back(base + 2);
+    indices.push_back(base + 3);
+    indices.push_back(base + 0);
+  }
+
+  filled_box_vb_ = renderer_->CreateVertexBuffer(vertices);
+  filled_box_ib_ = renderer_->CreateIndexBuffer(indices);
+  filled_box_ic_ = static_cast<uint32_t>(indices.size());
+}
+
+void DebugColliderFeature::GenerateFilledSphereGeometry() {
+  constexpr int stacks = 12;
+  constexpr int slices = 16;
+  std::vector<OverlayVertex> vertices;
+  std::vector<Index> indices;
+
+  for (int i = 0; i <= stacks; i++) {
+    float phi = glm::pi<float>() * static_cast<float>(i) / static_cast<float>(stacks);
+    float v = static_cast<float>(i) / static_cast<float>(stacks);
+    for (int j = 0; j <= slices; j++) {
+      float theta = glm::two_pi<float>() * static_cast<float>(j) / static_cast<float>(slices);
+      float u = static_cast<float>(j) / static_cast<float>(slices);
+      OverlayVertex vert;
+      vert.position.x = sinf(phi) * cosf(theta) * 0.5f;
+      vert.position.y = cosf(phi) * 0.5f;
+      vert.position.z = sinf(phi) * sinf(theta) * 0.5f;
+      vert.uv = {u, v};
+      vertices.push_back(vert);
+    }
+  }
+
+  for (int i = 0; i < stacks; i++) {
+    for (int j = 0; j < slices; j++) {
+      uint32_t a = i * (slices + 1) + j;
+      uint32_t b = a + slices + 1;
+      indices.push_back(a);
+      indices.push_back(b);
+      indices.push_back(a + 1);
+      indices.push_back(a + 1);
+      indices.push_back(b);
+      indices.push_back(b + 1);
+    }
+  }
+
+  filled_sphere_vb_ = renderer_->CreateVertexBuffer(vertices);
+  filled_sphere_ib_ = renderer_->CreateIndexBuffer(indices);
+  filled_sphere_ic_ = static_cast<uint32_t>(indices.size());
+}
+
+std::shared_ptr<DescriptorSet> DebugColliderFeature::GetOrCreateLabelDescriptor(
+    const std::string& label,
+    const glm::vec4& bg_color,
+    const glm::vec4& text_color) {
+  auto it = label_descriptors_.find(label);
+  if (it != label_descriptors_.end()) {
+    return it->second;
+  }
+
+  auto texture = GetOrCreateLabelTexture(label, label, bg_color, text_color);
+  if (!texture) return nullptr;
+
+  auto desc = std::make_shared<DescriptorSet>();
+  desc->SetLayout(overlay_desc_layout_);
+  desc->AddCombinedImageSampler(
+      0, texture->image_view_,
+      renderer_->GetDefaultLinearSampler());
+  desc->Bake();
+
+  label_descriptors_[label] = desc;
+  return desc;
+}
+
 void DebugColliderFeature::SetupResources(RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("DebugColliderFeature::SetupResources");
   auto& pool = ctx.resources;
@@ -167,8 +343,9 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
                        renderer.GetSwapChainImageFormat(),
                        SamplingMode::DISABLED, true}));
 
-  std::array<AttachmentTexture*, 1> attachments{
-      pool.GetTexture("debug_collider.color").get()};
+  std::array<AttachmentTexture*, 2> attachments{
+      pool.GetTexture("debug_collider.color").get(),
+      pool.GetTexture("geometry.depth_stencil").get()};
   pool.SetFramebuffer("debug_collider",
       render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
@@ -223,6 +400,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   auto renderer = renderer_;
   auto* scene = &ctx.scene;
   auto pipeline = pipeline_;
+  auto filled_pipe = filled_pipeline_;
   auto push_constant = push_constant_;
   auto box_vb = box_vertex_buffer_;
   auto box_ib = box_index_buffer_;
@@ -230,13 +408,27 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   auto sphere_vb = sphere_vertex_buffer_;
   auto sphere_ib = sphere_index_buffer_;
   auto sphere_ic = sphere_index_count_;
-  bool enabled = renderer_->options().debug_colliders;
+  auto fbox_vb = filled_box_vb_;
+  auto fbox_ib = filled_box_ib_;
+  auto fbox_ic = filled_box_ic_;
+  auto fsphere_vb = filled_sphere_vb_;
+  auto fsphere_ib = filled_sphere_ib_;
+  auto fsphere_ic = filled_sphere_ic_;
+  bool show_colliders = renderer_->options().show_colliders;
+  bool show_triggers = renderer_->options().show_triggers;
+  bool show_reverb = renderer_->options().show_reverb_zones;
+
+  // Pre-create label descriptors
+  auto trigger_desc = show_triggers ?
+      GetOrCreateLabelDescriptor("TRIGGER", {0.8f, 0.4f, 0, 0.4f}, {1, 1, 1, 1}) : nullptr;
+  auto reverb_desc = show_reverb ?
+      GetOrCreateLabelDescriptor("REVERB ZONE", {0.4f, 0.15f, 0.6f, 0.4f}, {1, 1, 1, 1}) : nullptr;
 
   // Compute VP matrix from camera
   glm::mat4 vp = ctx.camera.projection * ctx.camera.view_matrix;
 
   // Build heightfield debug geometry once (cached)
-  if (enabled && !hf_cache_valid_) {
+  if (show_colliders && !hf_cache_valid_) {
     hf_cache_.clear();
     for (const auto& entity :
          scene->GetAllEntitiesWith<HeightfieldColliderComponent,
@@ -282,7 +474,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
     }
     hf_cache_valid_ = true;
   }
-  if (!enabled) {
+  if (!show_colliders) {
     hf_cache_.clear();
     hf_cache_valid_ = false;
   }
@@ -296,17 +488,20 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Wireframe draw pass
   uint32_t draw_pass = graph.AddPass(
       "DebugColliders", render_pass_,
-      [pipeline, push_constant, scene, renderer, vp, enabled,
+      [pipeline, filled_pipe, push_constant, scene, renderer, vp,
+       show_colliders, show_triggers, show_reverb,
        box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
+       fbox_vb, fbox_ib, fbox_ic, fsphere_vb, fsphere_ib, fsphere_ic,
+       trigger_desc, reverb_desc,
        &hf_data](
           VkCommandBuffer cmd) {
-        if (!enabled) return;
-        pipeline->Bind(PipelineBindPointGraphics);
+        if (!show_colliders && !show_triggers && !show_reverb) return;
 
         auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb, std::shared_ptr<IndexBuffer> ib,
                                   uint32_t index_count, const glm::mat4& model,
                                   const glm::vec4& color) {
           push_constant->mvp = vp * model;
+          push_constant->model = model;
           push_constant->color = color;
           vkCmdPushConstants(cmd, pipeline->layout_,
                              VK_SHADER_STAGE_VERTEX_BIT |
@@ -322,48 +517,143 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
         };
 
-        const glm::vec4 solid_color(0.0f, 1.0f, 0.0f, 1.0f);
-        const glm::vec4 trigger_color(1.0f, 1.0f, 0.0f, 1.0f);
-        const glm::vec4 terrain_color(0.0f, 1.0f, 1.0f, 1.0f);
+        auto draw_filled = [&](std::shared_ptr<MemoryBuffer> vb, std::shared_ptr<IndexBuffer> ib,
+                               uint32_t index_count, const glm::mat4& model,
+                               const glm::vec4& color,
+                               std::shared_ptr<DescriptorSet> label_desc) {
+          filled_pipe->Bind(PipelineBindPointGraphics);
+          push_constant->mvp = vp * model;
+          push_constant->model = model;
+          push_constant->color = color;
+          vkCmdPushConstants(cmd, filled_pipe->layout_,
+                             VK_SHADER_STAGE_VERTEX_BIT |
+                                 VK_SHADER_STAGE_FRAGMENT_BIT,
+                             0, sizeof(DebugColliderPushConstant),
+                             push_constant.get());
 
-        // Draw box colliders
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<BoxColliderComponent,
-                                        TransformComponent>()) {
-          auto& box = scene->GetComponent<BoxColliderComponent>(entity);
-          auto& tc = scene->GetComponent<TransformComponent>(entity);
+          if (label_desc) {
+            VkDescriptorSet ds = label_desc->descriptor_set_;
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                     filled_pipe->layout_, 0, 1, &ds, 0, nullptr);
+          }
 
-          // Model = translate(position + offset) * scale(half_extents * 2)
-          glm::mat4 model = glm::translate(glm::mat4(1.0f),
-                                            tc.position + box.offset) *
-                            glm::scale(glm::mat4(1.0f),
-                                       box.half_extents * 2.0f);
+          VkBuffer buffers[] = {vb->buffer_handle_};
+          VkDeviceSize offsets[] = {0};
+          vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
+          vkCmdBindIndexBuffer(cmd, ib->buffer_handle_, 0, ib->index_type_);
+          vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
+        };
 
-          draw_wireframe(box_vb, box_ib, box_ic, model,
-                         box.is_trigger ? trigger_color : solid_color);
+        // Colliders and triggers share the same component types,
+        // differentiated by is_trigger flag.
+        if (show_colliders || show_triggers) {
+          const glm::vec4 static_wire(0.0f, 1.0f, 0.0f, 1.0f);      // green: static collider
+          const glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f, 1.0f);     // blue: has rigidbody
+          const glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f, 1.0f);   // yellow: kinematic
+          const glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
+          const glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
+          const glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
+
+          // Helper: pick wireframe color based on rigidbody state
+          auto get_collider_color = [&](entt::entity entity) -> glm::vec4 {
+            if (!scene->HasComponent<RigidBodyComponent>(entity)) {
+              return static_wire;
+            }
+            auto& rb = scene->GetComponent<RigidBodyComponent>(entity);
+            if (rb.type == RigidBodyType::Kinematic) {
+              return kinematic_wire;
+            }
+            return dynamic_wire;
+          };
+
+          // Box colliders/triggers
+          for (const auto& entity :
+               scene->GetAllEntitiesWith<BoxColliderComponent,
+                                          TransformComponent>()) {
+            auto& box = scene->GetComponent<BoxColliderComponent>(entity);
+            auto& tc = scene->GetComponent<TransformComponent>(entity);
+
+            if (box.is_trigger && !show_triggers) continue;
+            if (!box.is_trigger && !show_colliders) continue;
+
+            glm::mat4 model = glm::translate(glm::mat4(1.0f),
+                                              tc.position + box.offset) *
+                              glm::scale(glm::mat4(1.0f),
+                                         box.half_extents * 2.0f);
+
+            if (box.is_trigger) {
+              draw_filled(fbox_vb, fbox_ib, fbox_ic, model,
+                          trigger_fill, trigger_desc);
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(box_vb, box_ib, box_ic, model, trigger_wire);
+            } else {
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(box_vb, box_ib, box_ic, model, get_collider_color(entity));
+            }
+          }
+
+          // Sphere colliders/triggers
+          for (const auto& entity :
+               scene->GetAllEntitiesWith<SphereColliderComponent,
+                                          TransformComponent>()) {
+            auto& sphere =
+                scene->GetComponent<SphereColliderComponent>(entity);
+            auto& tc = scene->GetComponent<TransformComponent>(entity);
+
+            if (sphere.is_trigger && !show_triggers) continue;
+            if (!sphere.is_trigger && !show_colliders) continue;
+
+            glm::mat4 model =
+                glm::translate(glm::mat4(1.0f), tc.position + sphere.offset) *
+                glm::scale(glm::mat4(1.0f),
+                           glm::vec3(sphere.radius * 2.0f));
+
+            if (sphere.is_trigger) {
+              draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
+                          trigger_fill, trigger_desc);
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, trigger_wire);
+            } else {
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, get_collider_color(entity));
+            }
+          }
+
+          // Heightfield colliders: wireframe only
+          if (show_colliders) {
+            pipeline->Bind(PipelineBindPointGraphics);
+            for (const auto& hf : hf_data) {
+              draw_wireframe(hf.vb, hf.ib, hf.index_count, hf.model,
+                             terrain_wire);
+            }
+          }
         }
 
-        // Draw sphere colliders
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<SphereColliderComponent,
-                                        TransformComponent>()) {
-          auto& sphere =
-              scene->GetComponent<SphereColliderComponent>(entity);
-          auto& tc = scene->GetComponent<TransformComponent>(entity);
+        // Reverb zones: filled + wireframe
+        if (show_reverb) {
+          const glm::vec4 reverb_fill(0.5f, 0.2f, 0.8f, 0.12f);
+          const glm::vec4 reverb_wire(0.6f, 0.3f, 0.9f, 1.0f);
+          const glm::vec4 reverb_active_fill(0.7f, 0.3f, 1.0f, 0.2f);
+          const glm::vec4 reverb_active_wire(0.9f, 0.5f, 1.0f, 1.0f);
 
-          glm::mat4 model =
-              glm::translate(glm::mat4(1.0f), tc.position + sphere.offset) *
-              glm::scale(glm::mat4(1.0f),
-                         glm::vec3(sphere.radius * 2.0f));
+          for (const auto& entity :
+               scene->GetAllEntitiesWith<ReverbZoneComponent,
+                                          TransformComponent>()) {
+            auto& zone = scene->GetComponent<ReverbZoneComponent>(entity);
+            auto& tc = scene->GetComponent<TransformComponent>(entity);
 
-          draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
-                         sphere.is_trigger ? trigger_color : solid_color);
-        }
+            glm::mat4 model =
+                glm::translate(glm::mat4(1.0f), tc.position) *
+                glm::scale(glm::mat4(1.0f),
+                           glm::vec3(zone.radius * 2.0f));
 
-        // Draw heightfield colliders
-        for (const auto& hf : hf_data) {
-          draw_wireframe(hf.vb, hf.ib, hf.index_count, hf.model,
-                         terrain_color);
+            draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
+                        zone.active_ ? reverb_active_fill : reverb_fill,
+                        reverb_desc);
+            pipeline->Bind(PipelineBindPointGraphics);
+            draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
+                           zone.active_ ? reverb_active_wire : reverb_wire);
+          }
         }
       });
 

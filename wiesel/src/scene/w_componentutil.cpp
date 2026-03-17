@@ -1535,6 +1535,34 @@ void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
   }
 }
 
+void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Reverb Zone", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<ReverbZoneComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.5f, 0.1f, 1000.0f);
+  ImGui::DragFloat(PrefixLabel("Delay (ms)").c_str(), &component.delay_ms, 5.0f, 10.0f, 2000.0f);
+  ImGui::SliderFloat(PrefixLabel("Decay").c_str(), &component.decay, 0.0f, 1.0f);
+  ImGui::SliderFloat(PrefixLabel("Wet").c_str(), &component.wet, 0.0f, 1.0f);
+
+  if (component.active_) {
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Active");
+  }
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_ReverbZoneComponent(Entity entity) {
+  if (ImGui::MenuItem("Reverb Zone") && !entity.HasComponent<ReverbZoneComponent>()) {
+    entity.AddComponent<ReverbZoneComponent>();
+  }
+}
+
 void InitializeComponents() {
   RegisterComponentType<IdComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
@@ -1554,6 +1582,7 @@ void InitializeComponents() {
   RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
   RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
   RegisterComponentType<AudioSourceComponent>("Audio Source", "Audio", RenderComponentImGui, RenderAddComponentImGui_AudioSourceComponent, nullptr);
+  RegisterComponentType<ReverbZoneComponent>("Reverb Zone", "Audio", RenderComponentImGui, RenderAddComponentImGui_ReverbZoneComponent, nullptr);
 }
 
 void RenderExistingComponents(Entity entity) {

@@ -115,6 +115,8 @@ class ScriptData {
              MonoMethod* collision_enter_method,
              MonoMethod* collision_stay_method,
              MonoMethod* collision_exit_method,
+             MonoMethod* on_disable_method,
+             MonoMethod* on_destroy_method,
              std::unordered_map<std::string, FieldData> fields) : mono_class_(klass),
         on_update_method_(on_update_method),
         on_start_method_(on_start_method),
@@ -128,6 +130,8 @@ class ScriptData {
         on_collision_enter_method_(collision_enter_method),
         on_collision_stay_method_(collision_stay_method),
         on_collision_exit_method_(collision_exit_method),
+        on_disable_method_(on_disable_method),
+        on_destroy_method_(on_destroy_method),
         fields_(fields) {}
 
   MonoClass* mono_class() const { return mono_class_; }
@@ -143,6 +147,8 @@ class ScriptData {
   MonoMethod* on_collision_enter_method() const { return on_collision_enter_method_; }
   MonoMethod* on_collision_stay_method() const { return on_collision_stay_method_; }
   MonoMethod* on_collision_exit_method() const { return on_collision_exit_method_; }
+  MonoMethod* on_disable_method() const { return on_disable_method_; }
+  MonoMethod* on_destroy_method() const { return on_destroy_method_; }
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
  private:
@@ -159,6 +165,8 @@ class ScriptData {
   MonoMethod* on_collision_enter_method_;
   MonoMethod* on_collision_stay_method_;
   MonoMethod* on_collision_exit_method_;
+  MonoMethod* on_disable_method_;
+  MonoMethod* on_destroy_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
 };
@@ -175,7 +183,14 @@ class ScriptInstance {
 
   void OnStart();
   void OnUpdate(float_t delta_time);
-  void ResetStartState() { has_started_ = false; }
+  void ResetStartState() {
+    has_started_ = false;
+    errored_ = false;
+  }
+
+  bool HasErrored() const {
+    return errored_;
+  }
 
   bool OnKeyPressed(KeyPressedEvent& event);
   bool OnKeyReleased(KeyReleasedEvent& event);
@@ -189,6 +204,9 @@ class ScriptInstance {
   void OnCollisionStay(entt::entity other);
   void OnCollisionExit(entt::entity other);
 
+  void OnDisable();
+  void OnDestroy();
+
   template<class T>
   void AttachExternComponent(std::string variable, entt::entity entity);
 
@@ -198,6 +216,7 @@ class ScriptInstance {
   friend class MonoBehavior;
 
   bool has_started_ = false;
+  bool errored_ = false;
   MonoObject* handle_;
   MonoBehavior* behavior_;
   std::shared_ptr<ScriptData> script_data_;

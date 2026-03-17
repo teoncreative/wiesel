@@ -31,6 +31,14 @@ namespace WieselEngine
         {
         }
 
+        public virtual void OnDisable()
+        {
+        }
+
+        public virtual void OnDestroy()
+        {
+        }
+
         public virtual bool OnKeyPressed(KeyCode keyCode, bool repeat)
         {
             return false;

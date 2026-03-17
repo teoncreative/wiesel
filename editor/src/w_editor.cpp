@@ -530,7 +530,9 @@ void EditorLayer::OnBeginPresent() {
         settings.debug_cascades = debug_mode;
       }
     }
-    ImGui::Checkbox(PrefixLabel("Debug Colliders").c_str(), &settings.debug_colliders);
+    ImGui::Checkbox(PrefixLabel("Colliders").c_str(), &settings.show_colliders);
+    ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
+    ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(), &settings.show_reverb_zones);
 
     ImGui::SeparatorText("Shadow Cascades");
     auto cam = renderer->GetCameraData();

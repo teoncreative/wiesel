@@ -108,7 +108,9 @@ struct RendererOptions {
   Setting<bool> motion_blur_enabled = false;
   Setting<bool> only_ssao = false;
   Setting<int> debug_cascades = 0;  // 0=off, 1=cascades, 2=material
-  Setting<bool> debug_colliders = false;
+  Setting<bool> show_colliders = false;
+  Setting<bool> show_triggers = false;
+  Setting<bool> show_reverb_zones = false;
   Setting<bool> shadows_enabled = true;
   Setting<bool> rt_shadows_enabled = true;
 
