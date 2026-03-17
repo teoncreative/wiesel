@@ -705,7 +705,23 @@ std::string SceneSerializer::SerializeToString() const {
 }
 
 bool SceneSerializer::Serialize(const std::filesystem::path& path) const {
-  std::string json_str = SerializeToString();
+  // Preserve asset_handle from the existing file (if any)
+  std::string existing_handle;
+  {
+    std::ifstream existing(path);
+    if (existing.is_open()) {
+      try {
+        nlohmann::json old_json;
+        existing >> old_json;
+        existing_handle = old_json.value("asset_handle", "");
+      } catch (...) {}
+    }
+  }
+
+  nlohmann::json root = nlohmann::json::parse(SerializeToString());
+  if (!existing_handle.empty()) {
+    root["asset_handle"] = existing_handle;
+  }
 
   std::ofstream file(path);
   if (!file.is_open()) {
@@ -713,7 +729,7 @@ bool SceneSerializer::Serialize(const std::filesystem::path& path) const {
     return false;
   }
 
-  file << json_str;
+  file << root.dump(2);
   LOG_INFO("Scene saved to: {}", path.string());
   return true;
 }

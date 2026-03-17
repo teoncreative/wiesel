@@ -10,107 +10,206 @@
 //
 
 #include "input/w_input.hpp"
+#include "project/w_project.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-std::map<std::string, std::vector<KeyCode>> keyboard_mapping_;
-std::map<KeyCode, KeyData> keys_;
-std::map<MouseCode, KeyData> mouse_buttons_;
-std::map<std::string, float> axis_;
-int mouse_x_ = 0;
-int mouse_y_ = 0;
-float mouse_axis_sens_x_ = 80.0f;
-float mouse_axis_sens_y_ = 80.0f;
-InputMode input_mode_ = kInputModeKeyboardAndMouse;
-float mouse_axis_limit_y_ = 75.0f;
-bool input_enabled_ = true;
+// --- Global state ---
 
-static void UpdateKeyboardAxis() {
-  bool right = InputManager::GetKey("Right");
-  bool left = InputManager::GetKey("Left");
-  bool up = InputManager::GetKey("Up");
-  bool down = InputManager::GetKey("Down");
+// Keyboard
+static std::map<KeyCode, KeyData> keys_;
+static int mouse_x_ = 0;
+static int mouse_y_ = 0;
+static float mouse_axis_x_ = 0.0f;
+static float mouse_axis_y_ = 0.0f;
+static float mouse_axis_sens_x_ = 80.0f;
+static float mouse_axis_sens_y_ = 80.0f;
+static float mouse_axis_limit_y_ = 75.0f;
 
-  if (right && !left) {
-    axis_["Horizontal"] = 1;
-  } else if (!right && left) {
-    axis_["Horizontal"] = -1;
-  } else {
-    axis_["Horizontal"] = 0;
-  }
+// Gamepads
+static constexpr int kMaxGamepads = 16;
+static GamepadState gamepads_[kMaxGamepads];
 
-  if (up && !down) {
-    axis_["Vertical"] = 1;
-  } else if (!up && down) {
-    axis_["Vertical"] = -1;
-  } else {
-    axis_["Vertical"] = 0;
-  }
+// Players
+static PlayerSlot players_[kMaxPlayers];
+
+// Contexts (loaded from project settings)
+static std::map<std::string, InputContext> contexts_;
+
+static bool input_enabled_ = true;
+
+// --- Helpers ---
+
+static const InputContext* GetContext(const std::string& name) {
+  auto it = contexts_.find(name);
+  return it != contexts_.end() ? &it->second : nullptr;
 }
 
+static const InputContext* GetPlayerContext(int player) {
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return nullptr;
+  return GetContext(players_[player].context_name);
+}
+
+static const InputAction* FindAction(const InputContext* ctx, const std::string& name) {
+  if (!ctx) return nullptr;
+  for (auto& a : ctx->actions) {
+    if (a.name == name) return &a;
+  }
+  return nullptr;
+}
+
+static const InputAxisMapping* FindAxis(const InputContext* ctx, const std::string& name) {
+  if (!ctx) return nullptr;
+  for (auto& a : ctx->axes) {
+    if (a.name == name) return &a;
+  }
+  return nullptr;
+}
+
+// Check if action is pressed for a given player slot
+static bool IsActionActive(const PlayerSlot& slot, const InputAction* action,
+                           bool (*check_key)(KeyCode),
+                           bool (*check_btn)(int, GamepadButton)) {
+  if (!action) return false;
+
+  // Keyboard keys (only if player is not bound to a specific gamepad)
+  if (slot.gamepad_index < 0) {
+    for (auto code : action->keys) {
+      if (check_key(code)) return true;
+    }
+  }
+
+  // Gamepad buttons
+  if (slot.gamepad_index >= 0) {
+    for (auto btn : action->buttons) {
+      if (check_btn(slot.gamepad_index, btn)) return true;
+    }
+  }
+
+  return false;
+}
+
+// --- Event handlers ---
+
 static bool OnKeyPressed(KeyPressedEvent& event) {
-  input_mode_ = kInputModeKeyboardAndMouse;
   keys_[event.GetKeyCode()].pressed = true;
-  UpdateKeyboardAxis();
   return false;
 }
 
 static bool OnKeyReleased(KeyReleasedEvent& event) {
   keys_[event.GetKeyCode()].pressed = false;
-  UpdateKeyboardAxis();
   return false;
 }
 
 static bool OnMouseMoved(MouseMovedEvent& event) {
-  input_mode_ = kInputModeKeyboardAndMouse;
   mouse_x_ = event.GetX();
   mouse_y_ = event.GetY();
   if (event.GetCursorMode() == CursorModeRelative) {
-    axis_["Mouse X"] -= mouse_axis_sens_x_ * event.GetDeltaX();
-    axis_["Mouse Y"] -= mouse_axis_sens_y_ * event.GetDeltaY();
-    axis_["Mouse Y"] = std::clamp(
-        axis_["Mouse Y"], -mouse_axis_limit_y_,
-        mouse_axis_limit_y_);
+    mouse_axis_x_ -= mouse_axis_sens_x_ * event.GetDeltaX();
+    mouse_axis_y_ -= mouse_axis_sens_y_ * event.GetDeltaY();
+    mouse_axis_y_ = std::clamp(mouse_axis_y_, -mouse_axis_limit_y_, mouse_axis_limit_y_);
   }
   return false;
 }
 
 static bool OnJoystickConnect(JoystickConnectedEvent& event) {
+  int jid = event.GetJoystickId();
+  if (jid >= 0 && jid < kMaxGamepads) {
+    gamepads_[jid].connected = true;
+    gamepads_[jid].jid = jid;
+    gamepads_[jid].name = event.GetJoystickName();
+    LOG_INFO("Gamepad connected: {} (slot {})", event.GetJoystickName(), jid);
+  }
   return false;
 }
 
 static bool OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
+  int jid = event.GetJoystickId();
+  if (jid >= 0 && jid < kMaxGamepads) {
+    gamepads_[jid] = {};
+    LOG_INFO("Gamepad disconnected: slot {}", jid);
+  }
   return false;
 }
 
 static bool OnJoystickButtonPressed(JoystickButtonPressedEvent& event) {
+  int jid = event.GetJoystickId();
+  int btn = event.GetButton();
+  if (jid >= 0 && jid < kMaxGamepads && btn >= 0 && btn < GamepadButtonCount) {
+    gamepads_[jid].buttons[btn].pressed = true;
+  }
   return false;
 }
 
 static bool OnJoystickButtonReleased(JoystickButtonReleasedEvent& event) {
+  int jid = event.GetJoystickId();
+  int btn = event.GetButton();
+  if (jid >= 0 && jid < kMaxGamepads && btn >= 0 && btn < GamepadButtonCount) {
+    gamepads_[jid].buttons[btn].pressed = false;
+  }
   return false;
 }
 
-static bool OnJoystickButtonAxisMoved(JoystickAxisMovedEvent& event) {
+static bool OnJoystickAxisMoved(JoystickAxisMovedEvent& event) {
+  int jid = event.GetJoystickId();
+  int axis = event.GetAxis();
+  if (jid >= 0 && jid < kMaxGamepads && axis >= 0 && axis < GamepadAxisCount) {
+    gamepads_[jid].axes[axis] = event.GetValue();
+  }
   return false;
 }
+
+// --- Raw key checks ---
+
+static bool RawKeyPressed(KeyCode code) {
+  return keys_[code].pressed;
+}
+
+static bool RawKeyDown(KeyCode code) {
+  auto& kd = keys_[code];
+  return kd.pressed && !kd.previous_pressed;
+}
+
+static bool RawKeyUp(KeyCode code) {
+  auto& kd = keys_[code];
+  return !kd.pressed && kd.previous_pressed;
+}
+
+static bool RawBtnPressed(int gp, GamepadButton btn) {
+  if (gp < 0 || gp >= kMaxGamepads) return false;
+  return gamepads_[gp].buttons[btn].pressed;
+}
+
+static bool RawBtnDown(int gp, GamepadButton btn) {
+  if (gp < 0 || gp >= kMaxGamepads) return false;
+  auto& bd = gamepads_[gp].buttons[btn];
+  return bd.pressed && !bd.previous_pressed;
+}
+
+static bool RawBtnUp(int gp, GamepadButton btn) {
+  if (gp < 0 || gp >= kMaxGamepads) return false;
+  auto& bd = gamepads_[gp].buttons[btn];
+  return !bd.pressed && bd.previous_pressed;
+}
+
+// --- InputManager ---
 
 void InputManager::Init() {
-  keyboard_mapping_["Up"] = {KeyArrowUp, KeyW};
-  keyboard_mapping_["Down"] = {KeyArrowDown, KeyS};
-  keyboard_mapping_["Left"] = {KeyArrowLeft, KeyA};
-  keyboard_mapping_["Right"] = {KeyArrowRight, KeyD};
-  keyboard_mapping_["Jump"] = {KeySpace};
-  keyboard_mapping_["Enter"] = {KeyEnter};
-  keyboard_mapping_["Left Shift"] = {KeyLeftShift};
-  keyboard_mapping_["Right Shift"] = {KeyRightShift};
-  keyboard_mapping_["Shift"] = {KeyLeftShift, KeyRightShift};
-  keyboard_mapping_["Left Control"] = {KeyLeftControl};
-  keyboard_mapping_["Right Control"] = {KeyRightControl};
-  keyboard_mapping_["Control"] = {KeyLeftControl, KeyRightControl};
-  keyboard_mapping_["Tab"] = {KeyTab};
-  keyboard_mapping_["Return"] = {KeyBackspace};
+  // Default: player 0 uses "keyboard" context with no gamepad
+  players_[0].active = true;
+  players_[0].context_name = "keyboard";
+  players_[0].gamepad_index = -1;
+}
+
+void InputManager::LoadFromSettings(const InputSettings& settings) {
+  contexts_ = settings.contexts;
+
+  mouse_axis_sens_x_ = settings.mouse_sensitivity_x;
+  mouse_axis_sens_y_ = settings.mouse_sensitivity_y;
+  mouse_axis_limit_y_ = settings.mouse_axis_limit_y;
+
+  LOG_INFO("Input: loaded {} contexts", contexts_.size());
 }
 
 void InputManager::OnEvent(Event& event) {
@@ -123,52 +222,167 @@ void InputManager::OnEvent(Event& event) {
   dispatcher.Dispatch<JoystickDisconnectedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickDisconnect));
   dispatcher.Dispatch<JoystickButtonPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickButtonPressed));
   dispatcher.Dispatch<JoystickButtonReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickButtonReleased));
-  dispatcher.Dispatch<JoystickAxisMovedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickButtonAxisMoved));
+  dispatcher.Dispatch<JoystickAxisMovedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickAxisMoved));
 }
 
-bool InputManager::GetKey(const std::string& key) {
-  if (!input_enabled_) return false;
-  for (const auto& code : keyboard_mapping_[key]) {
-    if (keys_[code].pressed) {
-      return true;
+void InputManager::Update() {
+  // Update previous_pressed for keyboard
+  for (auto& [code, data] : keys_) {
+    data.previous_pressed = data.pressed;
+  }
+  // Update previous_pressed for gamepad buttons
+  for (int i = 0; i < kMaxGamepads; i++) {
+    if (!gamepads_[i].connected) continue;
+    for (int b = 0; b < GamepadButtonCount; b++) {
+      gamepads_[i].buttons[b].previous_pressed = gamepads_[i].buttons[b].pressed;
     }
   }
-  return false;
 }
 
-bool InputManager::GetKeyDown(const std::string& key) {
+// --- Single-player convenience (player 0) ---
+
+bool InputManager::GetAction(const std::string& action) {
+  return GetAction(0, action);
+}
+
+bool InputManager::GetActionDown(const std::string& action) {
+  return GetActionDown(0, action);
+}
+
+bool InputManager::GetActionUp(const std::string& action) {
+  return GetActionUp(0, action);
+}
+
+float InputManager::GetAxis(const std::string& axis_name) {
+  return GetAxis(0, axis_name);
+}
+
+// --- Multi-player ---
+
+bool InputManager::GetAction(int player, const std::string& action) {
   if (!input_enabled_) return false;
-  for (const auto& code : keyboard_mapping_[key]) {
-    if (keys_[code].pressed && !keys_[code].previous_pressed) {
-      return true;
-    }
-  }
-  return false;
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
+
+  auto* ctx = GetPlayerContext(player);
+  auto* act = FindAction(ctx, action);
+  return IsActionActive(players_[player], act, RawKeyPressed, RawBtnPressed);
 }
 
-bool InputManager::GetKeyUp(const std::string& key) {
+bool InputManager::GetActionDown(int player, const std::string& action) {
   if (!input_enabled_) return false;
-  for (const auto& code : keyboard_mapping_[key]) {
-    if (!keys_[code].pressed && keys_[code].previous_pressed) {
-      return true;
-    }
-  }
-  return false;
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
+
+  auto* ctx = GetPlayerContext(player);
+  auto* act = FindAction(ctx, action);
+  return IsActionActive(players_[player], act, RawKeyDown, RawBtnDown);
 }
 
-bool InputManager::IsPressed(KeyCode code) {
+bool InputManager::GetActionUp(int player, const std::string& action) {
+  if (!input_enabled_) return false;
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
+
+  auto* ctx = GetPlayerContext(player);
+  auto* act = FindAction(ctx, action);
+  return IsActionActive(players_[player], act, RawKeyUp, RawBtnUp);
+}
+
+float InputManager::GetAxis(int player, const std::string& axis_name) {
+  if (!input_enabled_) return 0.0f;
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return 0.0f;
+
+  // Mouse axes are always available for keyboard players
+  auto& slot = players_[player];
+  if (slot.gamepad_index < 0) {
+    if (axis_name == "Mouse X") return mouse_axis_x_;
+    if (axis_name == "Mouse Y") return mouse_axis_y_;
+  }
+
+  auto* ctx = GetPlayerContext(player);
+  auto* mapping = FindAxis(ctx, axis_name);
+  if (!mapping) return 0.0f;
+
+  // Gamepad analog axis (takes priority if player has a gamepad)
+  if (slot.gamepad_index >= 0 && mapping->gamepad_axis >= 0) {
+    float val = GetGamepadAxis(slot.gamepad_index, mapping->gamepad_axis);
+    if (mapping->invert_axis) val = -val;
+    if (std::abs(val) < mapping->dead_zone) val = 0.0f;
+    return val;
+  }
+
+  // Digital keyboard axis
+  if (slot.gamepad_index < 0) {
+    bool pos = false, neg = false;
+    for (auto code : mapping->positive_keys) {
+      if (keys_[code].pressed) { pos = true; break; }
+    }
+    for (auto code : mapping->negative_keys) {
+      if (keys_[code].pressed) { neg = true; break; }
+    }
+    if (pos && !neg) return 1.0f;
+    if (neg && !pos) return -1.0f;
+  }
+
+  // Digital gamepad axis (DPad buttons as axis)
+  // Not yet implemented - gamepad axes should cover this
+
+  return 0.0f;
+}
+
+// --- Player management ---
+
+void InputManager::AssignPlayer(int player, const std::string& context, int gamepad_index) {
+  if (player < 0 || player >= kMaxPlayers) return;
+  players_[player].active = true;
+  players_[player].context_name = context;
+  players_[player].gamepad_index = gamepad_index;
+  LOG_INFO("Player {} assigned to context '{}' (gamepad: {})", player, context, gamepad_index);
+}
+
+void InputManager::UnassignPlayer(int player) {
+  if (player < 0 || player >= kMaxPlayers) return;
+  players_[player] = {};
+}
+
+const PlayerSlot& InputManager::GetPlayerSlot(int player) {
+  static PlayerSlot empty;
+  if (player < 0 || player >= kMaxPlayers) return empty;
+  return players_[player];
+}
+
+// --- Raw queries ---
+
+bool InputManager::IsKeyPressed(KeyCode code) {
   if (!input_enabled_) return false;
   return keys_[code].pressed;
 }
 
-float InputManager::GetAxis(const std::string& axisName) {
-  return axis_[axisName];
+bool InputManager::IsGamepadButtonPressed(int gamepad_index, GamepadButton button) {
+  if (gamepad_index < 0 || gamepad_index >= kMaxGamepads) return false;
+  if (button < 0 || button >= GamepadButtonCount) return false;
+  return gamepads_[gamepad_index].buttons[button].pressed;
 }
 
-void InputManager::Update() {
-  for (auto& [code, data] : keys_) {
-    data.previous_pressed = data.pressed;
+float InputManager::GetGamepadAxis(int gamepad_index, GamepadAxis axis) {
+  if (gamepad_index < 0 || gamepad_index >= kMaxGamepads) return 0.0f;
+  if (axis < 0 || axis >= GamepadAxisCount) return 0.0f;
+  return gamepads_[gamepad_index].axes[axis];
+}
+
+int InputManager::GetMouseX() { return mouse_x_; }
+int InputManager::GetMouseY() { return mouse_y_; }
+
+int InputManager::GetConnectedGamepadCount() {
+  int count = 0;
+  for (int i = 0; i < kMaxGamepads; i++) {
+    if (gamepads_[i].connected) count++;
   }
+  return count;
+}
+
+const GamepadState& InputManager::GetGamepadState(int index) {
+  static GamepadState empty;
+  if (index < 0 || index >= kMaxGamepads) return empty;
+  return gamepads_[index];
 }
 
 void InputManager::SetEnabled(bool enabled) {
@@ -178,6 +392,5 @@ void InputManager::SetEnabled(bool enabled) {
 bool InputManager::IsEnabled() {
   return input_enabled_;
 }
-
 
 }  // namespace Wiesel

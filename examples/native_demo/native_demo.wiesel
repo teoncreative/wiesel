@@ -1,4 +1,140 @@
 {
+  "input": {
+    "contexts": {
+      "gamepad": {
+        "actions": [
+          {
+            "buttons": [
+              "A"
+            ],
+            "keys": [],
+            "name": "Jump"
+          },
+          {
+            "buttons": [
+              "Start"
+            ],
+            "keys": [],
+            "name": "Enter"
+          }
+        ],
+        "axes": [
+          {
+            "gravity": 3.0,
+            "name": "Horizontal",
+            "negative_keys": [],
+            "positive_keys": [],
+            "sensitivity": 3.0,
+            "stick": "LeftStickX"
+          },
+          {
+            "gravity": 3.0,
+            "invert": true,
+            "name": "Vertical",
+            "negative_keys": [],
+            "positive_keys": [],
+            "sensitivity": 3.0,
+            "stick": "LeftStickY"
+          }
+        ]
+      },
+      "keyboard": {
+        "actions": [
+          {
+            "keys": [
+              "Up",
+              "W"
+            ],
+            "name": "Up"
+          },
+          {
+            "keys": [
+              "Down",
+              "S"
+            ],
+            "name": "Down"
+          },
+          {
+            "keys": [
+              "Left",
+              "A"
+            ],
+            "name": "Left"
+          },
+          {
+            "keys": [
+              "Right",
+              "D"
+            ],
+            "name": "Right"
+          },
+          {
+            "keys": [
+              "Space"
+            ],
+            "name": "Jump"
+          },
+          {
+            "keys": [
+              "Enter"
+            ],
+            "name": "Enter"
+          },
+          {
+            "keys": [
+              "Left Shift",
+              "Right Shift"
+            ],
+            "name": "Shift"
+          },
+          {
+            "keys": [
+              "Left Ctrl",
+              "Right Ctrl"
+            ],
+            "name": "Control"
+          },
+          {
+            "keys": [
+              "Tab"
+            ],
+            "name": "Tab"
+          }
+        ],
+        "axes": [
+          {
+            "gravity": 3.0,
+            "name": "Horizontal",
+            "negative_keys": [
+              "Left",
+              "A"
+            ],
+            "positive_keys": [
+              "Right",
+              "D"
+            ],
+            "sensitivity": 3.0
+          },
+          {
+            "gravity": 3.0,
+            "name": "Vertical",
+            "negative_keys": [
+              "Down",
+              "S"
+            ],
+            "positive_keys": [
+              "Up",
+              "W"
+            ],
+            "sensitivity": 3.0
+          }
+        ]
+      }
+    },
+    "mouse_axis_limit_y": 75.0,
+    "mouse_sensitivity_x": 80.0,
+    "mouse_sensitivity_y": 80.0
+  },
   "last_scene": "scenes/main.wscene",
   "name": "demo",
   "render_options": {
@@ -9,6 +145,7 @@
     "motion_blur_enabled": false,
     "motion_blur_samples": 8,
     "motion_blur_strength": 1.0,
+    "msaa_mode": 0,
     "shadows_enabled": true,
     "ssao_enabled": true,
     "vsync": false

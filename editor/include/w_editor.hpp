@@ -52,6 +52,7 @@ class EditorLayer : public Layer {
 
   // Toolbar / Menu
   void RenderMainMenuBar();
+  void RenderProjectSettingsPopup();
   void NewProject();
   void OpenProject();
   void SaveProject();
@@ -92,6 +93,10 @@ class EditorLayer : public Layer {
   bool game_panel_visible_ = true;
   int resolution_preset_index_ = 0;  // index into kResolutionPresets
   bool show_about_popup_ = false;
+  bool show_project_settings_ = false;
+  int project_settings_category_ = 0;
+  std::string selected_input_context_;
+  int selected_input_item_ = -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
 
   // Prefab editing

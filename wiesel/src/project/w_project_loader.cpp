@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 #include "asset/w_asset_manager.hpp"
+#include "input/w_input.hpp"
 #include "rendering/w_material.hpp"
 #include "rendering/w_renderer.hpp"
 #include "scene/w_scene_manager.hpp"
@@ -189,6 +190,14 @@ void ProjectLoader::ApplyRenderOptions(Project& project) {
   settings.shadows_enabled = opts.shadows_enabled;
   settings.vsync = opts.vsync;
   settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
+  settings.msaa_mode = static_cast<SamplingMode>(opts.msaa_mode);
+}
+
+void ProjectLoader::ApplyInputSettings(Project& project) {
+  auto& input = project.GetSettings().input;
+  if (!input.contexts.empty()) {
+    InputManager::LoadFromSettings(input);
+  }
 }
 
 bool ProjectLoader::LoadStartScene(Project& project, Ref<Scene> scene) {
@@ -217,6 +226,7 @@ bool ProjectLoader::LoadAll(Project& project, Ref<Scene> scene) {
   ScanAssets(project);
   Engine::script_manager().Reload();
   ApplyRenderOptions(project);
+  ApplyInputSettings(project);
   LoadStartScene(project, scene);
 
   return true;
