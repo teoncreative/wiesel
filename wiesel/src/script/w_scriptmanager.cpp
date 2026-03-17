@@ -54,7 +54,7 @@ float Internals_Input_GetAxis(MonoString* str) {
 
 bool Internals_Input_GetKey(MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
-  bool value = InputManager::GetKey(cstr);
+  bool value = InputManager::GetAction(cstr);
   mono_free((void*)cstr);
   return value;
 }
@@ -70,14 +70,14 @@ uint16_t Internals_Input_GetCursorMode() {
 
 bool Internals_Input_GetKeyDown(MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
-  bool value = InputManager::GetKeyDown(cstr);
+  bool value = InputManager::GetActionDown(cstr);
   mono_free((void*)cstr);
   return value;
 }
 
 bool Internals_Input_GetKeyUp(MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
-  bool value = InputManager::GetKeyUp(cstr);
+  bool value = InputManager::GetActionUp(cstr);
   mono_free((void*)cstr);
   return value;
 }

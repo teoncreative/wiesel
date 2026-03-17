@@ -19,6 +19,40 @@ struct RenderOptionsSerialized {
   bool shadows_enabled = true;
   bool vsync = false;
   int aa_mode = 0;  // 0=None, 1=FXAA, 2=TAA
+  int msaa_mode = 0;  // SamplingMode enum value
+};
+
+// Input action: a named action mapped to keyboard keys and/or gamepad buttons
+struct InputAction {
+  std::string name;                      // e.g. "Jump", "Fire"
+  std::vector<int32_t> keys;             // KeyCode values
+  std::vector<int32_t> buttons;          // GamepadButton values
+};
+
+// Input axis: mapped to keys (digital) and/or a gamepad stick/trigger (analog)
+struct InputAxisMapping {
+  std::string name;                      // e.g. "Horizontal", "Vertical"
+  std::vector<int32_t> positive_keys;    // Keys that push toward +1
+  std::vector<int32_t> negative_keys;    // Keys that push toward -1
+  int32_t gamepad_axis = -1;             // GamepadAxis (-1 = none)
+  bool invert_axis = false;              // Flip gamepad axis direction
+  float dead_zone = 0.15f;
+  float gravity = 3.0f;                  // How fast digital axis returns to 0
+  float sensitivity = 3.0f;              // How fast digital axis reaches 1/-1
+};
+
+// A named set of input bindings (e.g. "keyboard", "gamepad", "keyboard_p2")
+struct InputContext {
+  std::string name;
+  std::vector<InputAction> actions;
+  std::vector<InputAxisMapping> axes;
+};
+
+struct InputSettings {
+  std::map<std::string, InputContext> contexts;  // name -> context
+  float mouse_sensitivity_x = 80.0f;
+  float mouse_sensitivity_y = 80.0f;
+  float mouse_axis_limit_y = 75.0f;
 };
 
 struct ProjectSettings {
@@ -28,6 +62,7 @@ struct ProjectSettings {
   std::string last_scene;    // last scene the editor had open
   std::vector<std::string> scenes;
   RenderOptionsSerialized render_options;
+  InputSettings input;
 };
 
 class Project {

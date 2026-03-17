@@ -28,6 +28,9 @@ class ProjectLoader {
   // Apply saved render options from the project.
   static void ApplyRenderOptions(Project& project);
 
+  // Apply input mappings from the project.
+  static void ApplyInputSettings(Project& project);
+
   // Load the project's start scene into the given scene object.
   static bool LoadStartScene(Project& project, Ref<Scene> scene);
 

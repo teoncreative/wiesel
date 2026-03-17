@@ -53,6 +53,10 @@ public:
     change_hook = ptr;
   }
 
+  T Get() {
+    return value;
+  }
+
   Setting& operator=(const T& new_val) {
     SetValue(new_val);
     return *this;

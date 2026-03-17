@@ -30,6 +30,7 @@
 #include "script/w_scriptmanager.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "input/w_input.hpp"
+#include "util/w_gamepadcodes.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel::Editor {
@@ -511,18 +512,12 @@ void EditorLayer::OnBeginPresent() {
   }
 
   static bool scenePropertiesOpen = true;
-  //ImGui::ShowDemoWindow(&scenePropertiesOpen);
   if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
-    ImGui::SeparatorText("Controls");
     auto& settings = renderer->options();
-    ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
-                        &settings.wireframe_enabled);
-    ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
-                    &settings.ssao_enabled);
-    ImGui::Checkbox(PrefixLabel("Enable Vsync").c_str(),
-                    &settings.vsync);
-    ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(),
-                    &settings.only_ssao);
+
+    ImGui::SeparatorText("Debug");
+    ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(), &settings.wireframe_enabled);
+    ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(), &settings.only_ssao);
     {
       const char* debug_modes[] = {"Off", "Cascades", "Material", "Normals", "World Pos", "Raw Normal", "Albedo", "Depth", "Vertex Normal"};
       int debug_mode = settings.debug_cascades;
@@ -530,64 +525,7 @@ void EditorLayer::OnBeginPresent() {
         settings.debug_cascades = debug_mode;
       }
     }
-    ImGui::Checkbox(PrefixLabel("Debug Colliders").c_str(),
-                    &settings.debug_colliders);
-    ImGui::Checkbox(PrefixLabel("Shadows").c_str(),
-                    &settings.shadows_enabled);
-    if (settings.shadows_enabled && renderer->IsRayTracingSupported()) {
-      ImGui::Checkbox(PrefixLabel("RT Shadows").c_str(),
-                      &settings.rt_shadows_enabled);
-    }
-    ImGui::SeparatorText("Post Processing");
-    ImGui::Checkbox(PrefixLabel("Enable Bloom").c_str(),
-                    &settings.bloom_enabled);
-    if (settings.bloom_enabled) {
-      ImGui::SliderFloat(PrefixLabel("Bloom Threshold").c_str(),
-                         &settings.bloom_threshold, 0.0f, 1.0f);
-      ImGui::SliderFloat(PrefixLabel("Bloom Intensity").c_str(),
-                         &settings.bloom_intensity, 0.0f, 2.0f);
-    }
-    ImGui::Checkbox(PrefixLabel("Enable Motion Blur").c_str(),
-                    &settings.motion_blur_enabled);
-    if (settings.motion_blur_enabled) {
-      ImGui::SliderFloat(PrefixLabel("MB Strength").c_str(),
-                         &settings.motion_blur_strength, 0.0f, 3.0f);
-      ImGui::SliderInt(PrefixLabel("MB Samples").c_str(),
-                       &settings.motion_blur_samples, 2, 16);
-    }
-
-    {
-      const char* aa_labels[] = {"None", "FXAA", "TAA"};
-      int aa_current = static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
-      if (ImGui::Combo(PrefixLabel("Anti-Aliasing").c_str(), &aa_current, aa_labels, IM_ARRAYSIZE(aa_labels))) {
-        settings.aa_mode = static_cast<AntiAliasingMode>(aa_current);
-      }
-    }
-
-    std::vector<SamplingMode> supported_values =
-        renderer->GetSupportedSamplingModes();
-    std::vector<const char*> labels;
-
-    // Find current selection
-    SamplingMode current_mode = renderer->options().msaa_mode;
-    int selected_index = 0;
-
-    for (size_t i = 0; i < supported_values.size(); i++) {
-      labels.push_back(ToString(supported_values[i]));
-
-      if (supported_values[i] == current_mode) {
-        selected_index = static_cast<int>(i);
-      }
-    }
-
-    if (ImGui::Combo("MSAA Samples", &selected_index, labels.data(),
-                     labels.size())) {
-      renderer->options().msaa_mode = supported_values[selected_index];
-    }
-
-    if (ImGui::Button("Recreate Pipeline")) {
-      renderer->SetRecreatePipeline(true);
-    }
+    ImGui::Checkbox(PrefixLabel("Debug Colliders").c_str(), &settings.debug_colliders);
 
     ImGui::SeparatorText("Shadow Cascades");
     auto cam = renderer->GetCameraData();
@@ -598,20 +536,18 @@ void EditorLayer::OnBeginPresent() {
                     cam->shadow_map_cascades[i].SplitDepth);
       }
     }
+
+    ImGui::Separator();
     if (ImGui::Button("Reload Scripts")) {
       Engine::script_manager().ReloadAsync();
     }
-
-    ImGui::SeparatorText("Physics");
-    {
-      auto& physics = scene_->GetPhysicsWorld();
-      glm::vec3 gravity = physics.GetGravity();
-      if (ImGui::DragFloat3(PrefixLabel("Gravity").c_str(), &gravity.x, 0.1f)) {
-        physics.SetGravity(gravity);
-      }
+    if (ImGui::Button("Recreate Pipeline")) {
+      renderer->SetRecreatePipeline(true);
     }
   }
   ImGui::End();
+
+  RenderProjectSettingsPopup();
 
   static bool sceneOpen = true;
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
@@ -2201,6 +2137,464 @@ void EditorLayer::UpdateHierarchyOrder() {
 // Main Menu Bar & Project/Scene Management
 // ============================================================================
 
+void EditorLayer::RenderProjectSettingsPopup() {
+  if (!project_) return;
+
+  if (show_project_settings_) {
+    ImGui::OpenPopup("Project Settings");
+    show_project_settings_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(720, 500), ImGuiCond_Appearing);
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Project Settings", &popup_open,
+                              ImGuiWindowFlags_NoScrollbar)) {
+    auto& proj_settings = project_->GetSettings();
+    bool changed = false;
+
+    const char* categories[] = {"Scene", "Rendering", "Input"};
+    constexpr int kCategoryCount = 3;
+
+    // Left panel: category list
+    ImGui::BeginChild("##categories", ImVec2(140, 0), ImGuiChildFlags_Borders);
+    for (int i = 0; i < kCategoryCount; i++) {
+      if (ImGui::Selectable(categories[i], project_settings_category_ == i)) {
+        project_settings_category_ = i;
+      }
+    }
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right panel: settings
+    ImGui::BeginChild("##settings", ImVec2(0, 0));
+
+    if (project_settings_category_ == 0) {
+      // ---- Scene ----
+      ImGui::SeparatorText("Project");
+      char name_buf[128];
+      strncpy(name_buf, proj_settings.name.c_str(), sizeof(name_buf) - 1);
+      name_buf[sizeof(name_buf) - 1] = '\0';
+      if (ImGui::InputText(PrefixLabel("Project Name").c_str(), name_buf, sizeof(name_buf))) {
+        proj_settings.name = name_buf;
+        changed = true;
+      }
+
+      // Start scene selector
+      if (ImGui::BeginCombo(PrefixLabel("Start Scene").c_str(),
+                             proj_settings.start_scene.empty()
+                                 ? "(none)" : proj_settings.start_scene.c_str())) {
+        for (const auto& scene_rel : proj_settings.scenes) {
+          bool selected = (scene_rel == proj_settings.start_scene);
+          if (ImGui::Selectable(scene_rel.c_str(), selected)) {
+            proj_settings.start_scene = scene_rel;
+            changed = true;
+          }
+        }
+        ImGui::EndCombo();
+      }
+
+      ImGui::SeparatorText("Physics");
+      {
+        auto& physics = scene_->GetPhysicsWorld();
+        glm::vec3 gravity = physics.GetGravity();
+        if (ImGui::DragFloat3(PrefixLabel("Gravity").c_str(), &gravity.x, 0.1f)) {
+          physics.SetGravity(gravity);
+        }
+      }
+
+    } else if (project_settings_category_ == 1) {
+      // ---- Rendering ----
+      Renderer* renderer = Engine::renderer().get();
+      auto& settings = renderer->options();
+
+      ImGui::SeparatorText("General");
+      ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(), &settings.ssao_enabled);
+      ImGui::Checkbox(PrefixLabel("Enable Vsync").c_str(), &settings.vsync);
+      ImGui::Checkbox(PrefixLabel("Shadows").c_str(), &settings.shadows_enabled);
+      if (settings.shadows_enabled && renderer->IsRayTracingSupported()) {
+        ImGui::Checkbox(PrefixLabel("RT Shadows").c_str(), &settings.rt_shadows_enabled);
+      }
+
+      {
+        const char* aa_labels[] = {"None", "FXAA", "TAA"};
+        int aa_current = static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
+        if (ImGui::Combo(PrefixLabel("Anti-Aliasing").c_str(), &aa_current, aa_labels, IM_ARRAYSIZE(aa_labels))) {
+          settings.aa_mode = static_cast<AntiAliasingMode>(aa_current);
+        }
+      }
+
+      {
+        std::vector<SamplingMode> supported_values = renderer->GetSupportedSamplingModes();
+        std::vector<const char*> labels;
+        SamplingMode current_mode = settings.msaa_mode;
+        int selected_index = 0;
+        for (size_t i = 0; i < supported_values.size(); i++) {
+          labels.push_back(ToString(supported_values[i]));
+          if (supported_values[i] == current_mode) selected_index = static_cast<int>(i);
+        }
+        if (ImGui::Combo(PrefixLabel("MSAA Samples").c_str(), &selected_index,
+                          labels.data(), labels.size())) {
+          settings.msaa_mode = supported_values[selected_index];
+        }
+      }
+
+      ImGui::SeparatorText("Post Processing");
+      ImGui::Checkbox(PrefixLabel("Enable Bloom").c_str(), &settings.bloom_enabled);
+      if (settings.bloom_enabled) {
+        ImGui::SliderFloat(PrefixLabel("Bloom Threshold").c_str(),
+                           &settings.bloom_threshold, 0.0f, 1.0f);
+        ImGui::SliderFloat(PrefixLabel("Bloom Intensity").c_str(),
+                           &settings.bloom_intensity, 0.0f, 2.0f);
+      }
+      ImGui::Checkbox(PrefixLabel("Enable Motion Blur").c_str(), &settings.motion_blur_enabled);
+      if (settings.motion_blur_enabled) {
+        ImGui::SliderFloat(PrefixLabel("MB Strength").c_str(),
+                           &settings.motion_blur_strength, 0.0f, 3.0f);
+        ImGui::SliderInt(PrefixLabel("MB Samples").c_str(),
+                         &settings.motion_blur_samples, 2, 16);
+      }
+
+      // Sync live renderer options back to project for saving
+      auto& ro = proj_settings.render_options;
+      ro.ssao_enabled = settings.ssao_enabled;
+      ro.bloom_enabled = settings.bloom_enabled;
+      ro.bloom_threshold = settings.bloom_threshold;
+      ro.bloom_intensity = settings.bloom_intensity;
+      ro.motion_blur_enabled = settings.motion_blur_enabled;
+      ro.motion_blur_strength = settings.motion_blur_strength;
+      ro.motion_blur_samples = settings.motion_blur_samples;
+      ro.shadows_enabled = settings.shadows_enabled;
+      ro.vsync = settings.vsync;
+      ro.aa_mode = static_cast<int>(settings.aa_mode.Get());
+      ro.msaa_mode = static_cast<int>(settings.msaa_mode.Get());
+      changed = true;
+
+    } else if (project_settings_category_ == 2) {
+      // ---- Input ----
+      auto& input = proj_settings.input;
+      bool input_changed = false;
+
+      ImGui::SeparatorText("Mouse");
+      input_changed |= ImGui::DragFloat(PrefixLabel("Sensitivity X").c_str(),
+                                         &input.mouse_sensitivity_x, 1.0f, 1.0f, 500.0f);
+      input_changed |= ImGui::DragFloat(PrefixLabel("Sensitivity Y").c_str(),
+                                         &input.mouse_sensitivity_y, 1.0f, 1.0f, 500.0f);
+      input_changed |= ImGui::DragFloat(PrefixLabel("Y Axis Limit").c_str(),
+                                         &input.mouse_axis_limit_y, 1.0f, 1.0f, 90.0f);
+
+      int gp_count = InputManager::GetConnectedGamepadCount();
+      if (gp_count > 0) {
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Gamepads: %d connected", gp_count);
+      }
+
+      ImGui::SeparatorText("Contexts");
+
+      // Validate selected context still exists
+      if (!selected_input_context_.empty() &&
+          input.contexts.find(selected_input_context_) == input.contexts.end()) {
+        selected_input_context_.clear();
+        selected_input_item_ = -1;
+      }
+
+      // Left: context list
+      ImGui::BeginChild("##ctx_list", ImVec2(130, 0), ImGuiChildFlags_Borders);
+      for (auto& [ctx_name, ctx] : input.contexts) {
+        if (ImGui::Selectable(ctx_name.c_str(), selected_input_context_ == ctx_name)) {
+          selected_input_context_ = ctx_name;
+          selected_input_item_ = -1;
+        }
+      }
+      ImGui::Spacing();
+      static char new_ctx_name[64] = "";
+      ImGui::SetNextItemWidth(-1);
+      ImGui::InputTextWithHint("##newctx", "new context...", new_ctx_name, sizeof(new_ctx_name));
+      if (ImGui::Button("Add", ImVec2(-1, 0)) && new_ctx_name[0] != '\0') {
+        std::string cname = new_ctx_name;
+        if (input.contexts.find(cname) == input.contexts.end()) {
+          InputContext nc;
+          nc.name = cname;
+          input.contexts[cname] = std::move(nc);
+          selected_input_context_ = cname;
+          input_changed = true;
+          new_ctx_name[0] = '\0';
+        }
+      }
+      ImGui::EndChild();
+
+      ImGui::SameLine();
+
+      // Right: selected context content
+      ImGui::BeginChild("##ctx_content", ImVec2(0, 0));
+      if (!selected_input_context_.empty() &&
+          input.contexts.find(selected_input_context_) != input.contexts.end()) {
+        auto& ctx = input.contexts[selected_input_context_];
+
+        // Context header with delete
+        ImGui::Text("Context: %s", selected_input_context_.c_str());
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 80);
+        if (ImGui::SmallButton("Delete")) {
+          input.contexts.erase(selected_input_context_);
+          selected_input_context_.clear();
+          selected_input_item_ = -1;
+          input_changed = true;
+          // Skip rendering rest since ctx is gone
+          ImGui::EndChild();
+          if (input_changed) { InputManager::LoadFromSettings(input); changed = true; }
+          // Early out handled below
+          goto input_done;
+        }
+        ImGui::Separator();
+
+        static int input_tab = 0;  // 0 = Actions, 1 = Axes
+        if (ImGui::BeginTabBar("##input_tabs")) {
+          if (ImGui::BeginTabItem("Actions")) {
+            input_tab = 0;
+
+            // Table: Name | Keys | Buttons | Delete
+            if (ImGui::BeginTable("##actions_table", 4,
+                ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+              ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 100);
+              ImGui::TableSetupColumn("Keys");
+              ImGui::TableSetupColumn("Buttons");
+              ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
+              ImGui::TableHeadersRow();
+
+              int action_to_remove = -1;
+              for (int i = 0; i < (int)ctx.actions.size(); i++) {
+                ImGui::PushID(i);
+                auto& action = ctx.actions[i];
+
+                ImGui::TableNextRow();
+
+                // Name
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth(-1);
+                char abuf[128];
+                strncpy(abuf, action.name.c_str(), sizeof(abuf) - 1);
+                abuf[sizeof(abuf) - 1] = '\0';
+                if (ImGui::InputText("##name", abuf, sizeof(abuf))) {
+                  action.name = abuf;
+                  input_changed = true;
+                }
+
+                // Keys (tags + add combo)
+                ImGui::TableNextColumn();
+                int key_rm = -1;
+                for (int k = 0; k < (int)action.keys.size(); k++) {
+                  if (k > 0) ImGui::SameLine();
+                  ImGui::PushID(k);
+                  ImGui::SmallButton(KeyCodeToString(action.keys[k]));
+                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) key_rm = k;
+                  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Right-click to remove");
+                  ImGui::PopID();
+                }
+                if (key_rm >= 0) { action.keys.erase(action.keys.begin() + key_rm); input_changed = true; }
+                if (!action.keys.empty()) ImGui::SameLine();
+                ImGui::PushID("addkey");
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::BeginCombo("##addkey", "+", ImGuiComboFlags_NoPreview)) {
+                  for (auto code : GetAllKeyCodes()) {
+                    if (ImGui::Selectable(KeyCodeToString(code))) {
+                      action.keys.push_back(code); input_changed = true;
+                    }
+                  }
+                  ImGui::EndCombo();
+                }
+                ImGui::PopID();
+
+                // Buttons (tags + add combo)
+                ImGui::TableNextColumn();
+                int btn_rm = -1;
+                for (int b = 0; b < (int)action.buttons.size(); b++) {
+                  if (b > 0) ImGui::SameLine();
+                  ImGui::PushID(b + 200);
+                  ImGui::SmallButton(GamepadButtonToString(action.buttons[b]));
+                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) btn_rm = b;
+                  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Right-click to remove");
+                  ImGui::PopID();
+                }
+                if (btn_rm >= 0) { action.buttons.erase(action.buttons.begin() + btn_rm); input_changed = true; }
+                if (!action.buttons.empty()) ImGui::SameLine();
+                ImGui::PushID("addbtn");
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::BeginCombo("##addbtn", "+", ImGuiComboFlags_NoPreview)) {
+                  for (auto btn : GetAllGamepadButtons()) {
+                    if (ImGui::Selectable(GamepadButtonToString(btn))) {
+                      action.buttons.push_back(btn); input_changed = true;
+                    }
+                  }
+                  ImGui::EndCombo();
+                }
+                ImGui::PopID();
+
+                // Delete
+                ImGui::TableNextColumn();
+                if (ImGui::SmallButton("X")) action_to_remove = i;
+
+                ImGui::PopID();
+              }
+              ImGui::EndTable();
+
+              if (action_to_remove >= 0) {
+                ctx.actions.erase(ctx.actions.begin() + action_to_remove);
+                input_changed = true;
+              }
+            }
+            if (ImGui::Button("+ Add Action")) {
+              ctx.actions.push_back({"New Action", {}, {}});
+              input_changed = true;
+            }
+
+            ImGui::EndTabItem();
+          }
+
+          if (ImGui::BeginTabItem("Axes")) {
+            input_tab = 1;
+
+            // Table: Name | +Keys | -Keys | Stick | Delete
+            if (ImGui::BeginTable("##axes_table", 5,
+                ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+              ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 90);
+              ImGui::TableSetupColumn("+Keys");
+              ImGui::TableSetupColumn("-Keys");
+              ImGui::TableSetupColumn("Stick", ImGuiTableColumnFlags_WidthFixed, 100);
+              ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
+              ImGui::TableHeadersRow();
+
+              int axis_to_remove = -1;
+              for (int i = 0; i < (int)ctx.axes.size(); i++) {
+                ImGui::PushID(i + 1000);
+                auto& axis = ctx.axes[i];
+
+                ImGui::TableNextRow();
+
+                // Name
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth(-1);
+                char abuf[128];
+                strncpy(abuf, axis.name.c_str(), sizeof(abuf) - 1);
+                abuf[sizeof(abuf) - 1] = '\0';
+                if (ImGui::InputText("##name", abuf, sizeof(abuf))) {
+                  axis.name = abuf; input_changed = true;
+                }
+
+                // Positive keys
+                ImGui::TableNextColumn();
+                int pk_rm = -1;
+                for (int k = 0; k < (int)axis.positive_keys.size(); k++) {
+                  if (k > 0) ImGui::SameLine();
+                  ImGui::PushID(k);
+                  ImGui::SmallButton(KeyCodeToString(axis.positive_keys[k]));
+                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) pk_rm = k;
+                  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Right-click to remove");
+                  ImGui::PopID();
+                }
+                if (pk_rm >= 0) { axis.positive_keys.erase(axis.positive_keys.begin() + pk_rm); input_changed = true; }
+                if (!axis.positive_keys.empty()) ImGui::SameLine();
+                ImGui::PushID("addpos");
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::BeginCombo("##addpos", "+", ImGuiComboFlags_NoPreview)) {
+                  for (auto code : GetAllKeyCodes()) {
+                    if (ImGui::Selectable(KeyCodeToString(code))) {
+                      axis.positive_keys.push_back(code); input_changed = true;
+                    }
+                  }
+                  ImGui::EndCombo();
+                }
+                ImGui::PopID();
+
+                // Negative keys
+                ImGui::TableNextColumn();
+                int nk_rm = -1;
+                for (int k = 0; k < (int)axis.negative_keys.size(); k++) {
+                  if (k > 0) ImGui::SameLine();
+                  ImGui::PushID(k + 500);
+                  ImGui::SmallButton(KeyCodeToString(axis.negative_keys[k]));
+                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) nk_rm = k;
+                  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Right-click to remove");
+                  ImGui::PopID();
+                }
+                if (nk_rm >= 0) { axis.negative_keys.erase(axis.negative_keys.begin() + nk_rm); input_changed = true; }
+                if (!axis.negative_keys.empty()) ImGui::SameLine();
+                ImGui::PushID("addneg");
+                ImGui::SetNextItemWidth(50);
+                if (ImGui::BeginCombo("##addneg", "+", ImGuiComboFlags_NoPreview)) {
+                  for (auto code : GetAllKeyCodes()) {
+                    if (ImGui::Selectable(KeyCodeToString(code))) {
+                      axis.negative_keys.push_back(code); input_changed = true;
+                    }
+                  }
+                  ImGui::EndCombo();
+                }
+                ImGui::PopID();
+
+                // Stick
+                ImGui::TableNextColumn();
+                const char* stick_label = axis.gamepad_axis >= 0
+                    ? GamepadAxisToString(axis.gamepad_axis) : "None";
+                ImGui::SetNextItemWidth(-1);
+                ImGui::PushID("gpaxis");
+                if (ImGui::BeginCombo("##stick", stick_label)) {
+                  if (ImGui::Selectable("None", axis.gamepad_axis < 0)) {
+                    axis.gamepad_axis = -1; input_changed = true;
+                  }
+                  for (auto ga : GetAllGamepadAxes()) {
+                    if (ImGui::Selectable(GamepadAxisToString(ga), axis.gamepad_axis == ga)) {
+                      axis.gamepad_axis = ga; input_changed = true;
+                    }
+                  }
+                  ImGui::EndCombo();
+                }
+                ImGui::PopID();
+
+                // Delete
+                ImGui::TableNextColumn();
+                if (ImGui::SmallButton("X")) axis_to_remove = i;
+
+                ImGui::PopID();
+              }
+              ImGui::EndTable();
+
+              if (axis_to_remove >= 0) {
+                ctx.axes.erase(ctx.axes.begin() + axis_to_remove);
+                input_changed = true;
+              }
+            }
+            if (ImGui::Button("+ Add Axis")) {
+              ctx.axes.push_back({"New Axis", {}, {}});
+              input_changed = true;
+            }
+
+            ImGui::EndTabItem();
+          }
+          ImGui::EndTabBar();
+        }
+      } else {
+        ImGui::TextDisabled("Select a context from the list");
+      }
+      ImGui::EndChild();
+
+      input_done:
+      if (input_changed) {
+        InputManager::LoadFromSettings(input);
+        changed = true;
+      }
+    }
+
+    ImGui::EndChild();
+
+    if (changed) {
+      project_->Save();
+    }
+
+    ImGui::EndPopup();
+  }
+}
+
 void EditorLayer::RenderMainMenuBar() {
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("File")) {
@@ -2254,22 +2648,8 @@ void EditorLayer::RenderMainMenuBar() {
       if (ImGui::MenuItem("Clear Scene")) {
         ClearScene();
       }
-      ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Project Settings", project_ != nullptr)) {
-      // Start scene selector
-      auto& settings = project_->GetSettings();
-      if (ImGui::BeginCombo("Start Scene", settings.start_scene.empty()
-                            ? "(none)" : settings.start_scene.c_str())) {
-        for (const auto& scene_rel : settings.scenes) {
-          bool selected = (scene_rel == settings.start_scene);
-          if (ImGui::Selectable(scene_rel.c_str(), selected)) {
-            settings.start_scene = scene_rel;
-            project_->Save();
-          }
-        }
-        ImGui::EndCombo();
+      if (ImGui::MenuItem("Project Settings", nullptr, false, project_ != nullptr)) {
+        show_project_settings_ = true;
       }
       ImGui::EndMenu();
     }
@@ -2646,6 +3026,7 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   ProjectLoader::ScanAssets(*project_);
   Engine::script_manager().Reload();
   ProjectLoader::ApplyRenderOptions(*project_);
+  ProjectLoader::ApplyInputSettings(*project_);
 
   // Open last scene or start scene
   const auto& last = project_->GetSettings().last_scene;

@@ -13,6 +13,7 @@
 
 #include "util/w_keycodes.hpp"
 #include "util/w_mousecodes.hpp"
+#include "util/w_gamepadcodes.hpp"
 #include "events/w_events.hpp"
 
 namespace Wiesel {
@@ -26,26 +27,68 @@ struct KeyData {
 
 enum InputMode { kInputModeKeyboardAndMouse, kInputModeGamepad };
 
+struct InputSettings;
+struct InputContext;
+
+// Max players supported
+constexpr int kMaxPlayers = 4;
+
+// Per-gamepad state
+struct GamepadState {
+  bool connected = false;
+  int jid = -1;                                  // GLFW joystick ID
+  std::string name;
+  KeyData buttons[GamepadButtonCount] = {};
+  float axes[GamepadAxisCount] = {};
+};
+
+// Per-player assignment
+struct PlayerSlot {
+  bool active = false;
+  std::string context_name;   // which InputContext this player uses
+  int gamepad_index = -1;     // index into gamepads_ array (-1 = keyboard/mouse)
+};
+
 class InputManager {
  public:
-  static bool GetKey(const std::string& key);
-  static bool GetKeyDown(const std::string& key);
-  static bool GetKeyUp(const std::string& key);
-  static bool IsPressed(KeyCode keyCode);
-  static float GetAxis(const std::string& axisName);
+  // --- Single-player convenience (player 0) ---
+  static bool GetAction(const std::string& action);
+  static bool GetActionDown(const std::string& action);
+  static bool GetActionUp(const std::string& action);
+  static float GetAxis(const std::string& axis_name);
 
+  // --- Multi-player ---
+  static bool GetAction(int player, const std::string& action);
+  static bool GetActionDown(int player, const std::string& action);
+  static bool GetActionUp(int player, const std::string& action);
+  static float GetAxis(int player, const std::string& axis_name);
+
+  // --- Player management ---
+  static void AssignPlayer(int player, const std::string& context, int gamepad_index = -1);
+  static void UnassignPlayer(int player);
+  static const PlayerSlot& GetPlayerSlot(int player);
+
+  // --- Raw key queries (not context-aware) ---
+  static bool IsKeyPressed(KeyCode code);
+  static bool IsGamepadButtonPressed(int gamepad_index, GamepadButton button);
+  static float GetGamepadAxis(int gamepad_index, GamepadAxis axis);
+
+  // --- Mouse ---
   static int GetMouseX();
   static int GetMouseY();
 
+  // --- Gamepad info ---
+  static int GetConnectedGamepadCount();
+  static const GamepadState& GetGamepadState(int index);
+
+  // --- System ---
   static void Init();
   static void Update();
   static void OnEvent(Event& event);
+  static void LoadFromSettings(const InputSettings& settings);
 
-  // When disabled, GetKey/IsPressed/GetAxis return false/0 for scripts.
-  // The underlying key state still updates so nothing is lost on re-enable.
   static void SetEnabled(bool enabled);
   static bool IsEnabled();
-
 };
 
 }  // namespace Wiesel
