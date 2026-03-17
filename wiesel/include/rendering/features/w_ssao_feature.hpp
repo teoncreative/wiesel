@@ -17,7 +17,7 @@ namespace Wiesel {
 
 class SSAOFeature : public RenderFeature {
  public:
-  explicit SSAOFeature(Ref<Renderer> renderer);
+  explicit SSAOFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -27,13 +27,13 @@ class SSAOFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "SSAO";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> gen_render_pass_;
-  Ref<Pipeline> gen_pipeline_;
-  Ref<RenderPass> blur_horz_render_pass_;
-  Ref<Pipeline> blur_horz_pipeline_;
-  Ref<RenderPass> blur_vert_render_pass_;
-  Ref<Pipeline> blur_vert_pipeline_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> gen_render_pass_;
+  std::shared_ptr<Pipeline> gen_pipeline_;
+  std::shared_ptr<RenderPass> blur_horz_render_pass_;
+  std::shared_ptr<Pipeline> blur_horz_pipeline_;
+  std::shared_ptr<RenderPass> blur_vert_render_pass_;
+  std::shared_ptr<Pipeline> blur_vert_pipeline_;
 };
 
 }  // namespace Wiesel

@@ -45,7 +45,7 @@ void SceneManager::LoadSceneFromPath(const std::filesystem::path& path) {
   LOG_INFO("Queued scene load from path: {}", path.string());
 }
 
-bool SceneManager::ProcessPendingLoad(Ref<Scene> scene) {
+bool SceneManager::ProcessPendingLoad(std::shared_ptr<Scene> scene) {
   if (pending_scene_path_.empty()) {
     return false;
   }

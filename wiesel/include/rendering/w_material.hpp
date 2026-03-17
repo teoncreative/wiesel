@@ -159,7 +159,7 @@ struct Material {
 
   // Serialize/deserialize to/from JSON
   nlohmann::json Serialize() const;
-  static Ref<Material> Deserialize(const nlohmann::json& j);
+  static std::shared_ptr<Material> Deserialize(const nlohmann::json& j);
 
   static void Set(std::shared_ptr<Material> material, std::shared_ptr<Texture> texture,
                   TextureType type);
@@ -173,7 +173,7 @@ struct MaterialInstance {
   std::unordered_map<std::string, MaterialPropertyValue> overrides;
 
   // Resolve the base material from AssetManager
-  Ref<Material> GetBaseMaterial() const;
+  std::shared_ptr<Material> GetBaseMaterial() const;
 
   MaterialPropertyValue GetEffectiveProperty(const std::string& name) const;
   float GetEffectiveFloat(const std::string& name) const;

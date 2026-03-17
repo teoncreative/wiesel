@@ -17,7 +17,7 @@ namespace Wiesel {
 
 class TransparencyFeature : public RenderFeature {
  public:
-  explicit TransparencyFeature(Ref<Renderer> renderer);
+  explicit TransparencyFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -27,9 +27,9 @@ class TransparencyFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "Transparency";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
 };
 
 }  // namespace Wiesel

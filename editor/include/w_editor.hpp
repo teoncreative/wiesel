@@ -30,7 +30,7 @@ enum class EditorState { Edit, Playing };
 
 class EditorLayer : public Layer {
  public:
-  explicit EditorLayer(Application& app, Ref<Scene> scene);
+  explicit EditorLayer(Application& app, std::shared_ptr<Scene> scene);
   ~EditorLayer() override;
 
   void OnAttach() override;
@@ -68,7 +68,7 @@ class EditorLayer : public Layer {
   void ScanProjectAssets();
 
   Application& app_;
-  Ref<Scene> scene_;
+  std::shared_ptr<Scene> scene_;
 
   // Project
   std::unique_ptr<Project> project_;
@@ -108,7 +108,7 @@ class EditorLayer : public Layer {
   void ClosePrefabEditor();
 
   // Deferred scene actions (executed between frames, not during rendering)
-  enum class DeferredAction { None, OpenScene, OpenPrefab, ClosePrefab, OpenProject };
+  enum class DeferredAction { None, OpenScene, OpenPrefab, ClosePrefab, OpenProject, StopPlaying };
   DeferredAction deferred_action_ = DeferredAction::None;
   std::filesystem::path deferred_path_;
   void ProcessDeferredActions();

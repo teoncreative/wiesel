@@ -12,6 +12,7 @@
 #include "w_application.hpp"
 
 #include "asset/w_asset_manager.hpp"
+#include "audio/w_audio.hpp"
 #include "input/w_input.hpp"
 #include "w_engine.hpp"
 
@@ -83,13 +84,13 @@ void Application::OnEvent(Event& event) {
   }
 }
 
-void Application::PushLayer(const Ref<Layer>& layer) {
+void Application::PushLayer(const std::shared_ptr<Layer>& layer) {
   layers_.push_back(layer);
   layer->id_ = layer_counter_++;
   layer->OnAttach();
 }
 
-void Application::RemoveLayer(const Ref<Layer>& layer) {
+void Application::RemoveLayer(const std::shared_ptr<Layer>& layer) {
   // todo
 }
 
@@ -97,7 +98,7 @@ void Application::Run() {
   PROFILE_THREAD("Application Thread");
   previous_frame_ = Time::GetTime();
 
-  Ref<Renderer> renderer = Engine::renderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
   while (is_running_) {
     PROFILE_FRAME_MARK();
     float time = Time::GetTime();
@@ -114,6 +115,7 @@ void Application::Run() {
     }
 
     InputManager::Update();
+    Engine::audio().Update();
     ExecuteQueue();
 
     if (!is_minimized_) {
@@ -180,7 +182,7 @@ bool Application::OnWindowResize(WindowResizeEvent& event) {
   return false;
 }
 
-Ref<AppWindow> Application::GetWindow() {
+std::shared_ptr<AppWindow> Application::GetWindow() {
   return window_;
 }
 

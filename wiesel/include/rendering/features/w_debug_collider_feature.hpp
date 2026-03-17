@@ -23,7 +23,7 @@ struct DebugColliderPushConstant {
 
 class DebugColliderFeature : public RenderFeature {
  public:
-  explicit DebugColliderFeature(Ref<Renderer> renderer);
+  explicit DebugColliderFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -37,31 +37,31 @@ class DebugColliderFeature : public RenderFeature {
   void GenerateSphereGeometry();
 
   static inline std::string name_ = "DebugColliders";
-  Ref<Renderer> renderer_;
+  std::shared_ptr<Renderer> renderer_;
 
   // Wireframe rendering
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<DebugColliderPushConstant> push_constant_;
 
   // Compositing onto PipelineOutput
-  Ref<RenderPass> comp_render_pass_;
-  Ref<Pipeline> comp_pipeline_;
+  std::shared_ptr<RenderPass> comp_render_pass_;
+  std::shared_ptr<Pipeline> comp_pipeline_;
 
   // Box wireframe geometry
-  Ref<MemoryBuffer> box_vertex_buffer_;
-  Ref<IndexBuffer> box_index_buffer_;
+  std::shared_ptr<MemoryBuffer> box_vertex_buffer_;
+  std::shared_ptr<IndexBuffer> box_index_buffer_;
   uint32_t box_index_count_ = 0;
 
   // Sphere wireframe geometry
-  Ref<MemoryBuffer> sphere_vertex_buffer_;
-  Ref<IndexBuffer> sphere_index_buffer_;
+  std::shared_ptr<MemoryBuffer> sphere_vertex_buffer_;
+  std::shared_ptr<IndexBuffer> sphere_index_buffer_;
   uint32_t sphere_index_count_ = 0;
 
   // Cached heightfield debug geometry
   struct HeightfieldDebugData {
-    Ref<MemoryBuffer> vb;
-    Ref<IndexBuffer> ib;
+    std::shared_ptr<MemoryBuffer> vb;
+    std::shared_ptr<IndexBuffer> ib;
     uint32_t index_count = 0;
     glm::mat4 model = glm::mat4(1.0f);
   };

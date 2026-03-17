@@ -35,6 +35,7 @@ enum class FieldType {
   String,
   Entity,
   Prefab,
+  AudioClip,
   Object
 };
 
@@ -65,6 +66,8 @@ class FieldData {
       field_type_ = FieldType::Entity;
     } else if (typeName == "WieselEngine.Prefab") {
       field_type_ = FieldType::Prefab;
+    } else if (typeName == "WieselEngine.AudioClip") {
+      field_type_ = FieldType::AudioClip;
     } else {
       field_type_ = FieldType::Object;
       LOG_WARN("Unknown script field type '{}' for field '{}'", typeName, fieldName);
@@ -232,6 +235,7 @@ class ScriptManager {
   MonoClass* vector3f_class() { return vector3f_class_; }
   MonoClass* entity_class() { return entity_class_; }
   MonoClass* prefab_class() { return prefab_class_; }
+  MonoClass* audio_clip_class() { return audio_clip_class_; }
   MonoClass* behavior_class() { return behavior_class_; }
   const std::vector<std::string>& script_names() { return script_names_; }
 
@@ -263,9 +267,11 @@ class ScriptManager {
   MonoClass* canvas_image_class_ = nullptr;
   MonoClass* text_component_class_ = nullptr;
   MonoClass* animator_component_class_ = nullptr;
+  MonoClass* audio_source_class_ = nullptr;
   MonoClass* vector3f_class_ = nullptr;
   MonoClass* entity_class_ = nullptr;
   MonoClass* prefab_class_ = nullptr;
+  MonoClass* audio_clip_class_ = nullptr;
   MonoMethod* set_handle_method_ = nullptr;
   std::map<std::string, ComponentGetter> component_getters_;
   std::map<std::type_index, ComponentGetter> component_getters_by_type_;

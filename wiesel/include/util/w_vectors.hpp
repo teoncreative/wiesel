@@ -21,7 +21,7 @@ namespace Wiesel {
 class Vector3 {
  public:
   Vector3();
-  Vector3(Ref<glm::vec3> backingVector);
+  Vector3(std::shared_ptr<glm::vec3> backingVector);
   ~Vector3();
 
   bool operator<(const Vector3& rhs) const {
@@ -49,22 +49,22 @@ class Vector3 {
   }
 
   Vector3 operator+(const Vector3& rhs) const {
-    return {CreateReference<glm::vec3>((*m_BackingVector) +
+    return {std::make_shared<glm::vec3>((*m_BackingVector) +
                                        (*rhs.m_BackingVector))};
   }
 
   Vector3 operator-(const Vector3& rhs) const {
-    return {CreateReference<glm::vec3>((*m_BackingVector) -
+    return {std::make_shared<glm::vec3>((*m_BackingVector) -
                                        (*rhs.m_BackingVector))};
   }
 
   Vector3 operator/(const Vector3& rhs) const {
-    return {CreateReference<glm::vec3>((*m_BackingVector) /
+    return {std::make_shared<glm::vec3>((*m_BackingVector) /
                                        (*rhs.m_BackingVector))};
   }
 
   Vector3 operator*(const Vector3& rhs) const {
-    return {CreateReference<glm::vec3>((*m_BackingVector) *
+    return {std::make_shared<glm::vec3>((*m_BackingVector) *
                                        (*rhs.m_BackingVector))};
   }
 
@@ -72,11 +72,11 @@ class Vector3 {
     return *m_BackingVector;
   }
 
-  operator Ref<glm::vec3>() {  // NOLINT(google-explicit-constructor)
+  operator std::shared_ptr<glm::vec3>() {  // NOLINT(google-explicit-constructor)
     return m_BackingVector;
   }
 
  private:
-  Ref<glm::vec3> m_BackingVector;
+  std::shared_ptr<glm::vec3> m_BackingVector;
 };
 }  // namespace Wiesel

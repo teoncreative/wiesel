@@ -179,7 +179,7 @@ void Font::RasterizeGlyph(uint32_t codepoint) {
 
 void Font::UploadAtlas() {
   PROFILE_ZONE_SCOPED_N("Font::UploadAtlas");
-  Ref<Renderer> renderer = Engine::renderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
   TextureProps props{};
   props.type = TextureTypeNone;
   props.generate_mipmaps = false;

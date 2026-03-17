@@ -25,11 +25,11 @@ Pipeline::~Pipeline() {
   is_allocated_ = false;
 }
 
-void Pipeline::SetRenderPass(Ref<RenderPass> pass) {
+void Pipeline::SetRenderPass(std::shared_ptr<RenderPass> pass) {
   render_pass_ = pass;
 }
 
-void Pipeline::AddInputLayout(Ref<DescriptorSetLayout> layout) {
+void Pipeline::AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout) {
   descriptor_layouts_.push_back(layout);
 }
 
@@ -37,7 +37,7 @@ void Pipeline::AddDynamicState(VkDynamicState state) {
   dynamic_states_.push_back(state);
 }
 
-void Pipeline::AddShader(Ref<Shader> shader) {
+void Pipeline::AddShader(std::shared_ptr<Shader> shader) {
   shaders_.push_back({
       .shader = shader
   });

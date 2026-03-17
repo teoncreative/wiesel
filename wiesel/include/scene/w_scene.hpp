@@ -61,8 +61,8 @@ class Scene {
 
   void SetPaused(bool paused) { is_paused_ = paused; }
 
-  void SetSkybox(Ref<Skybox> skybox) { skybox_ = skybox; }
-  Ref<Skybox> GetSkybox();
+  void SetSkybox(std::shared_ptr<Skybox> skybox) { skybox_ = skybox; }
+  std::shared_ptr<Skybox> GetSkybox();
   void EnsureDefaultSkybox();
   bool HasCustomSkybox() const { return skybox_ != nullptr; }
 
@@ -70,13 +70,13 @@ class Scene {
   glm::vec2 GetRenderResolution() const { return render_resolution_; }
 
   // Set the default render pipeline for all cameras without a per-camera override.
-  void SetRenderPipeline(Ref<RenderPipeline> pipeline);
+  void SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline);
   // Set a per-camera render pipeline override.
-  void SetRenderPipeline(entt::entity camera, Ref<RenderPipeline> pipeline);
+  void SetRenderPipeline(entt::entity camera, std::shared_ptr<RenderPipeline> pipeline);
   // Create a default pipeline with all built-in features.
-  static Ref<RenderPipeline> CreateDefaultPipeline(Ref<Renderer> renderer);
+  static std::shared_ptr<RenderPipeline> CreateDefaultPipeline(std::shared_ptr<Renderer> renderer);
 
-  Ref<RenderPipeline> GetDefaultPipeline() const { return default_pipeline_; }
+  std::shared_ptr<RenderPipeline> GetDefaultPipeline() const { return default_pipeline_; }
 
   template <typename T, typename... Args>
   T& AddComponent(entt::entity handle, Args&&... args) {
@@ -140,12 +140,12 @@ class Scene {
   // Must be called before vkDestroyDevice.
   void Cleanup();
 
-  Ref<RenderGraph> GetRenderGraph(entt::entity camera_entity) const {
+  std::shared_ptr<RenderGraph> GetRenderGraph(entt::entity camera_entity) const {
     auto it = render_graphs_.find(camera_entity);
     return it != render_graphs_.end() ? it->second : nullptr;
   }
 
-  Ref<RenderGraph> GetExternalRenderGraph() const {
+  std::shared_ptr<RenderGraph> GetExternalRenderGraph() const {
     return external_render_graph_;
   }
 
@@ -194,12 +194,12 @@ class Scene {
   std::vector<entt::entity> scene_hierarchy_;
   std::vector<entt::entity> destroy_queue_;
   // this camera is used to render the scene to the current camera
-  Ref<CameraData> current_camera_;
-  Ref<Skybox> skybox_;
-  Ref<Skybox> default_skybox_;
-  Ref<RenderPipeline> default_pipeline_;
-  std::unordered_map<entt::entity, Ref<RenderGraph>> render_graphs_;
-  Ref<RenderGraph> external_render_graph_;
+  std::shared_ptr<CameraData> current_camera_;
+  std::shared_ptr<Skybox> skybox_;
+  std::shared_ptr<Skybox> default_skybox_;
+  std::shared_ptr<RenderPipeline> default_pipeline_;
+  std::unordered_map<entt::entity, std::shared_ptr<RenderGraph>> render_graphs_;
+  std::shared_ptr<RenderGraph> external_render_graph_;
   std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
   std::unique_ptr<PhysicsWorld> physics_world_;
   glm::vec2 render_resolution_{0.0f, 0.0f};

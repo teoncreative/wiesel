@@ -31,7 +31,7 @@ struct RTShadowLightUBO {
 
 class RTShadowFeature : public RenderFeature {
  public:
-  explicit RTShadowFeature(Ref<Renderer> renderer);
+  explicit RTShadowFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -41,10 +41,10 @@ class RTShadowFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "RTShadow";
-  Ref<Renderer> renderer_;
-  Ref<RTPipeline> rt_pipeline_;
-  Ref<DescriptorSetLayout> rt_descriptor_layout_;
-  Ref<UniformBuffer> shadow_lights_ubo_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RTPipeline> rt_pipeline_;
+  std::shared_ptr<DescriptorSetLayout> rt_descriptor_layout_;
+  std::shared_ptr<UniformBuffer> shadow_lights_ubo_;
   uint32_t mask_width_ = 0;
   uint32_t mask_height_ = 0;
 };

@@ -171,7 +171,7 @@ class Texture {
   VkImage image_;
   VkFormat format_;
   VkDeviceMemory device_memory_;
-  Ref<ImageView> image_view_;
+  std::shared_ptr<ImageView> image_view_;
   VkSampler sampler_;
   uint32_t mip_levels_;
 
@@ -229,8 +229,8 @@ class AttachmentTexture {
 
   AttachmentTextureType type_;
   std::vector<VkImage> images_;
-  std::vector<Ref<ImageView>> image_views_;
-  Ref<Sampler> sampler_;
+  std::vector<std::shared_ptr<ImageView>> image_views_;
+  std::shared_ptr<Sampler> sampler_;
   std::vector<VkDeviceMemory> device_memories_;
   VkFormat format_;
   uint32_t width_;

@@ -127,7 +127,7 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
     if (scene.HasComponent<TextComponent>(child)) {
       auto& text = scene.GetComponent<TextComponent>(child);
       if (!text.text.empty()) {
-        Ref<Font> font = FontCache::Get(text.font_path, text.font_size);
+        std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
         if (font && font->IsLoaded()) {
           resolved_size = font->MeasureText(text.text, text.font_size);
         } else {

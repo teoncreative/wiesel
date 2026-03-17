@@ -23,7 +23,7 @@ struct ToonPushConstants {
 
 class ToonFeature : public RenderFeature {
  public:
-  explicit ToonFeature(Ref<Renderer> renderer);
+  explicit ToonFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -35,11 +35,11 @@ class ToonFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "Toon";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<DescriptorSetLayout> toon_input_layout_;
-  Ref<Pipeline> pipeline_;
-  Ref<ToonPushConstants> push_constants_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<DescriptorSetLayout> toon_input_layout_;
+  std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<ToonPushConstants> push_constants_;
 };
 
 }  // namespace Wiesel

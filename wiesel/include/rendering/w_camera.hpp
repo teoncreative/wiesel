@@ -55,7 +55,7 @@ struct CameraComponent {
   CameraResourcePool resource_pool;
 
   // Per-camera pipeline override (nullptr = use scene default)
-  Ref<RenderPipeline> render_pipeline;
+  std::shared_ptr<RenderPipeline> render_pipeline;
 
   // Shadow cascade data (structural, kept separate from pool)
   bool does_shadow_pass = false;

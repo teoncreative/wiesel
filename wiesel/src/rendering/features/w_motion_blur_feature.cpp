@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-MotionBlurFeature::MotionBlurFeature(Ref<Renderer> renderer)
+MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "PostProcess RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -36,7 +36,7 @@ MotionBlurFeature::MotionBlurFeature(Ref<Renderer> renderer)
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/motion_blur.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(
@@ -68,7 +68,7 @@ void MotionBlurFeature::SetupResources(RenderContext& ctx) {
           0, {pool.GetTexture("motion_blur.color").get()}, {rw, rh}));
 
   // Motion blur input: reads PipelineOutput + geometry world pos (2 inputs)
-  auto motion_blur_input_desc = CreateReference<DescriptorSet>();
+  auto motion_blur_input_desc = std::make_shared<DescriptorSet>();
   motion_blur_input_desc->SetLayout(
       renderer.GetPostprocess2InputDescriptorLayout());
   motion_blur_input_desc->AddCombinedImageSampler(
@@ -81,7 +81,7 @@ void MotionBlurFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("motion_blur.input", motion_blur_input_desc);
 
   // Motion blur output descriptor: reads motion_blur.color
-  auto motion_blur_output_desc = CreateReference<DescriptorSet>();
+  auto motion_blur_output_desc = std::make_shared<DescriptorSet>();
   motion_blur_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   motion_blur_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("motion_blur.color")->image_views_[0],

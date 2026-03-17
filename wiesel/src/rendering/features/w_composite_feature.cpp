@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-CompositeFeature::CompositeFeature(Ref<Renderer> renderer)
+CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass (1 color + optional resolve for MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "Composite RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -40,7 +40,7 @@ CompositeFeature::CompositeFeature(Ref<Renderer> renderer)
   auto composite_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/quad_shader.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
@@ -87,7 +87,7 @@ void CompositeFeature::SetupResources(RenderContext& ctx) {
   }
 
   // Composite output descriptor: reads resolved composite color, linear sampler
-  auto composite_output_desc = CreateReference<DescriptorSet>();
+  auto composite_output_desc = std::make_shared<DescriptorSet>();
   composite_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   composite_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("composite.color_resolve")->image_views_[0],

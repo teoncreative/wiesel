@@ -25,7 +25,7 @@ struct GridUniformData {
 
 class GridFeature : public RenderFeature {
  public:
-  explicit GridFeature(Ref<Renderer> renderer);
+  explicit GridFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -35,9 +35,9 @@ class GridFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "Grid";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
 };
 
 }  // namespace Wiesel

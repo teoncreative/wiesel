@@ -37,6 +37,7 @@
 #include "scene/w_entity.hpp"
 #include "systems/w_canvas_system.hpp"
 #include "ai/w_agent_controller.hpp"
+#include "audio/w_audio.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "w_engine.hpp"
 
@@ -44,7 +45,7 @@ namespace Wiesel {
 class PipelineRecreatedEvent;
 
 Scene::Scene() {
-  current_camera_ = CreateReference<CameraData>();
+  current_camera_ = std::make_shared<CameraData>();
   physics_world_ = std::make_unique<PhysicsWorld>(this);
 }
 
@@ -53,7 +54,7 @@ Scene::~Scene() {
   Cleanup();
 }
 
-Ref<Skybox> Scene::GetSkybox() {
+std::shared_ptr<Skybox> Scene::GetSkybox() {
   if (skybox_) return skybox_;
   return default_skybox_;
 }
@@ -65,7 +66,7 @@ void Scene::EnsureDefaultSkybox() {
   auto tex = renderer->CreateCubemapTextureFromSingle(
       "/engine/textures/default_skybox.png", {}, {});
   if (tex) {
-    default_skybox_ = CreateReference<Skybox>(tex);
+    default_skybox_ = std::make_shared<Skybox>(tex);
   }
 }
 
@@ -146,6 +147,48 @@ void Scene::OnUpdate(float_t delta_time) {
       }
     }
 
+    // Audio: update listener from active camera, tick audio sources
+    {
+      auto& audio = Engine::audio();
+      // Update listener position from active camera
+      for (auto entity : registry_.view<CameraComponent, TransformComponent>()) {
+        auto& cam = registry_.get<CameraComponent>(entity);
+        if (!cam.enabled) continue;
+        auto& transform = registry_.get<TransformComponent>(entity);
+        audio.SetListenerPosition(transform.position);
+        // Forward = -Z column of inverse view (camera's world-space forward)
+        glm::vec3 forward = -glm::vec3(cam.inv_view_matrix[2]);
+        glm::vec3 up = glm::vec3(cam.inv_view_matrix[1]);
+        audio.SetListenerDirection(glm::normalize(forward), glm::normalize(up));
+        break;
+      }
+
+      // Tick AudioSourceComponents
+      for (auto entity : registry_.view<AudioSourceComponent, TransformComponent>()) {
+        auto& src = registry_.get<AudioSourceComponent>(entity);
+        auto& transform = registry_.get<TransformComponent>(entity);
+
+        if (src.mute) {
+          if (src.playing_handle_.IsValid()) {
+            audio.Stop(src.playing_handle_);
+            src.playing_handle_ = {};
+          }
+          continue;
+        }
+
+        // Play on start (first frame only)
+        if (src.play_on_start && !src.started_ && src.clip.IsValid()) {
+          src.playing_handle_ = audio.Play(src.clip, src.MakeParams(transform.position));
+          src.started_ = true;
+        }
+
+        // Update position for spatial sounds
+        if (src.playing_handle_.IsValid() && src.spatial_blend > 0.0f) {
+          audio.SetSoundPosition(src.playing_handle_, transform.position);
+        }
+      }
+    }
+
     // Physics step
     physics_world_->SyncTransformsFromECS();
     physics_world_->StepSimulation(delta_time);
@@ -203,7 +246,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
       continue;
     }
 
-    const Ref<Model>& model_data =
+    const std::shared_ptr<Model>& model_data =
         Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
     if (!model_data || model_data->animation_clips.empty()) {
       continue;
@@ -709,12 +752,12 @@ void Scene::Cleanup() {
 
 void Scene::BuildRenderGraph(entt::entity camera_entity) {
   PROFILE_ZONE_SCOPED_N("Scene::BuildRenderGraph");
-  Ref<Renderer> renderer = Engine::renderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
   auto& camera = registry_.get<CameraComponent>(camera_entity);
 
   std::shared_ptr<RenderGraph>& graph = render_graphs_[camera_entity];
   if (!graph) {
-    graph = CreateReference<RenderGraph>(*renderer);
+    graph = std::make_shared<RenderGraph>(*renderer);
   } else {
     graph->Clear();
   }
@@ -733,7 +776,7 @@ bool Scene::Render() {
   PROFILE_ZONE_SCOPED();
   EnsureDefaultSkybox();
   bool has_camera = false;
-  Ref<Renderer> renderer = Engine::renderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
 
   // Ensure we have a default pipeline
   if (!default_pipeline_) {
@@ -812,7 +855,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
                                bool show_grid) {
   EnsureDefaultSkybox();
   PROFILE_ZONE_SCOPED();
-  Ref<Renderer> renderer = Engine::renderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
 
   if (!default_pipeline_) {
     default_pipeline_ = CreateDefaultPipeline(renderer);
@@ -886,7 +929,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
 
   // Build and execute render graph
   if (!external_render_graph_) {
-    external_render_graph_ = CreateReference<RenderGraph>(*renderer);
+    external_render_graph_ = std::make_shared<RenderGraph>(*renderer);
   } else {
     external_render_graph_->Clear();
   }
@@ -923,7 +966,7 @@ void Scene::ResetScriptStates() {
   }
 }
 
-void Scene::SetRenderPipeline(Ref<RenderPipeline> pipeline) {
+void Scene::SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline) {
   default_pipeline_ = std::move(pipeline);
   // Invalidate all camera resources so they get rebuilt with the new pipeline
   for (const auto& entity : registry_.view<CameraComponent>()) {
@@ -936,15 +979,15 @@ void Scene::SetRenderPipeline(Ref<RenderPipeline> pipeline) {
 }
 
 void Scene::SetRenderPipeline(entt::entity camera_entity,
-                              Ref<RenderPipeline> pipeline) {
+                              std::shared_ptr<RenderPipeline> pipeline) {
   auto& camera = registry_.get<CameraComponent>(camera_entity);
   camera.render_pipeline = std::move(pipeline);
   camera.resource_pool.Clear();
   camera.resources_dirty = true;
 }
 
-Ref<RenderPipeline> Scene::CreateDefaultPipeline(Ref<Renderer> renderer) {
-  auto pipeline = CreateReference<RenderPipeline>(renderer);
+std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(std::shared_ptr<Renderer> renderer) {
+  auto pipeline = std::make_shared<RenderPipeline>(renderer);
   pipeline->AddFeature<ShadowFeature>(renderer);
   pipeline->AddFeature<GeometryFeature>(renderer);
   if (renderer->IsRayTracingSupported()) {

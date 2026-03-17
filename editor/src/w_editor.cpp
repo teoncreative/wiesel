@@ -132,7 +132,7 @@ static void CleanupThumbnailCache() {
   thumbnail_cache_.clear();
 }
 
-EditorLayer::EditorLayer(Application& app, Ref<Scene> scene)
+EditorLayer::EditorLayer(Application& app, std::shared_ptr<Scene> scene)
     : app_(app), scene_(scene), Layer("Demo Overlay") {}
 
 EditorLayer::~EditorLayer() = default;
@@ -221,6 +221,11 @@ void EditorLayer::ProcessDeferredActions() {
       break;
     case DeferredAction::OpenProject:
       LoadProjectFromPath(path);
+      break;
+    case DeferredAction::StopPlaying:
+      editor_state_ = EditorState::Edit;
+      RestoreSnapshot();
+      ImGui::SetWindowFocus("Scene");
       break;
     default:
       break;
@@ -321,7 +326,7 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
   AssetManager& mgr = Engine::asset_manager();
 
   if (meta.type == AssetType::Texture || meta.type == AssetType::Skybox) {
-    Ref<Texture> texture = mgr.Get<Texture>(handle);
+    std::shared_ptr<Texture> texture = mgr.Get<Texture>(handle);
     if (!texture || !texture->is_allocated_ || !texture->image_view_) {
       return entry;  // Not loaded yet, retry next frame
     }
@@ -330,7 +335,7 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     entry.attempted = true;
   } else if (meta.type == AssetType::Sprite) {
-    Ref<SpriteAsset> sprite = mgr.Get<SpriteAsset>(handle);
+    std::shared_ptr<SpriteAsset> sprite = mgr.Get<SpriteAsset>(handle);
     if (!sprite || !sprite->IsAllocated() || sprite->GetFrames().empty()) {
       return entry;
     }
@@ -1029,6 +1034,7 @@ void EditorLayer::OnBeginPresent() {
           case AssetType::Script:   return {0.55f, 0.70f, 0.30f, 1.0f};
           case AssetType::Scene:    return {0.72f, 0.35f, 0.35f, 1.0f};
           case AssetType::Prefab:   return {0.45f, 0.55f, 0.72f, 1.0f};
+          case AssetType::Audio:    return {0.72f, 0.45f, 0.60f, 1.0f};
           default:                  return {0.40f, 0.40f, 0.40f, 1.0f};
         }
       };
@@ -1045,6 +1051,7 @@ void EditorLayer::OnBeginPresent() {
           case AssetType::Script:   return "CS";
           case AssetType::Scene:    return "SCN";
           case AssetType::Prefab:   return "PFB";
+          case AssetType::Audio:    return "SND";
           default:                  return "?";
         }
       };
@@ -1579,9 +1586,7 @@ void EditorLayer::OnBeginPresent() {
       }
     } else {
       if (ImGui::Button("Stop")) {
-        editor_state_ = EditorState::Edit;
-        RestoreSnapshot();
-        ImGui::SetWindowFocus("Scene");
+        deferred_action_ = DeferredAction::StopPlaying;
         changed = true;
       }
     }

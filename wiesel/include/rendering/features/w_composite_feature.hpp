@@ -17,7 +17,7 @@ namespace Wiesel {
 
 class CompositeFeature : public RenderFeature {
  public:
-  explicit CompositeFeature(Ref<Renderer> renderer);
+  explicit CompositeFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -26,9 +26,9 @@ class CompositeFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "Composite";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
 };
 
 }  // namespace Wiesel

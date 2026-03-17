@@ -219,7 +219,7 @@ static nlohmann::json SerializeSingleEntity(Entity entity) {
   return j;
 }
 
-static Entity DeserializeSingleEntity(Ref<Scene> scene,
+static Entity DeserializeSingleEntity(std::shared_ptr<Scene> scene,
                                       const nlohmann::json& j,
                                       entt::entity parent = entt::null) {
   std::string name = j.value("name", "Entity");
@@ -442,7 +442,7 @@ bool Prefab::SaveToFile(Entity entity, const std::filesystem::path& path) {
   return true;
 }
 
-Entity Prefab::DeserializeEntityTree(Ref<Scene> scene,
+Entity Prefab::DeserializeEntityTree(std::shared_ptr<Scene> scene,
                                      const nlohmann::json& json) {
   if (!json.contains("root")) {
     LOG_ERROR("Prefab JSON missing 'root'");
@@ -452,7 +452,7 @@ Entity Prefab::DeserializeEntityTree(Ref<Scene> scene,
   return DeserializeSingleEntity(scene, json["root"]);
 }
 
-Entity Prefab::InstantiateFromFile(Ref<Scene> scene,
+Entity Prefab::InstantiateFromFile(std::shared_ptr<Scene> scene,
                                    const std::filesystem::path& path) {
   std::ifstream file(path);
   if (!file.is_open()) {

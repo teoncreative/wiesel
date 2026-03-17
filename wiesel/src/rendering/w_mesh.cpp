@@ -17,12 +17,12 @@
 namespace Wiesel {
 
 Mesh::Mesh() {
-  mat = CreateReference<Material>();
+  mat = std::make_shared<Material>();
   allocated_ = false;
 }
 
 Mesh::Mesh(const std::vector<Vertex3D>& vertices, const std::vector<Index>& indices) : vertices(vertices), indices(indices) {
-  mat = CreateReference<Material>();
+  mat = std::make_shared<Material>();
   allocated_ = false;
 }
 

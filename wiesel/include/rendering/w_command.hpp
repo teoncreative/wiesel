@@ -17,7 +17,7 @@ class CommandPool {
   CommandPool();
   ~CommandPool();
 
-  Ref<CommandBuffer> CreateBuffer();
+  std::shared_ptr<CommandBuffer> CreateBuffer();
 
   VkCommandPool handle_{};
  private:

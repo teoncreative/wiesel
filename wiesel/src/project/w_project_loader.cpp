@@ -32,6 +32,7 @@ AssetType ProjectLoader::ExtToAssetType(const std::string& ext) {
   if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp") return AssetType::Texture;
   if (ext == ".ttf" || ext == ".otf") return AssetType::Font;
   if (ext == ".cs") return AssetType::Script;
+  if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") return AssetType::Audio;
   return AssetType::None;
 }
 
@@ -200,7 +201,7 @@ void ProjectLoader::ApplyInputSettings(Project& project) {
   }
 }
 
-bool ProjectLoader::LoadStartScene(Project& project, Ref<Scene> scene) {
+bool ProjectLoader::LoadStartScene(Project& project, std::shared_ptr<Scene> scene) {
   namespace fs = std::filesystem;
   const auto& start = project.GetSettings().start_scene;
   if (start.empty()) return false;
@@ -220,7 +221,7 @@ bool ProjectLoader::LoadStartScene(Project& project, Ref<Scene> scene) {
   return true;
 }
 
-bool ProjectLoader::LoadAll(Project& project, Ref<Scene> scene) {
+bool ProjectLoader::LoadAll(Project& project, std::shared_ptr<Scene> scene) {
   if (!MountProject(project)) return false;
 
   ScanAssets(project);

@@ -153,7 +153,7 @@ nlohmann::json Material::Serialize() const {
   // Serialize texture references as asset paths
   nlohmann::json textures;
   auto& mgr = Engine::asset_manager();
-  auto serialize_tex = [&](const char* key, const Ref<Texture>& tex) {
+  auto serialize_tex = [&](const char* key, const std::shared_ptr<Texture>& tex) {
     if (tex && !tex->path_.empty()) {
       textures[key] = tex->path_;
     }
@@ -179,8 +179,8 @@ nlohmann::json Material::Serialize() const {
   return j;
 }
 
-Ref<Material> Material::Deserialize(const nlohmann::json& j) {
-  auto mat = CreateReference<Material>();
+std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
+  auto mat = std::make_shared<Material>();
   mat->name = j.value("name", "");
 
   if (j.contains("color_tint") && j["color_tint"].is_array() && j["color_tint"].size() >= 4) {
@@ -203,7 +203,7 @@ Ref<Material> Material::Deserialize(const nlohmann::json& j) {
   return mat;
 }
 
-void Material::Set(Ref<Material> material, Ref<Texture> texture,
+void Material::Set(std::shared_ptr<Material> material, std::shared_ptr<Texture> texture,
                    TextureType type) {
   switch (type) {
     case TextureTypeNone:
@@ -262,7 +262,7 @@ void Material::Set(Ref<Material> material, Ref<Texture> texture,
 
 // --- MaterialInstance ---
 
-Ref<Material> MaterialInstance::GetBaseMaterial() const {
+std::shared_ptr<Material> MaterialInstance::GetBaseMaterial() const {
   if (!base_material_handle.IsValid()) {
     return nullptr;
   }

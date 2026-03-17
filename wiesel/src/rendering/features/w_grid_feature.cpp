@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-GridFeature::GridFeature(Ref<Renderer> renderer)
+GridFeature::GridFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   render_pass_ =
-      CreateReference<RenderPass>(PassType::ForwardTransparency, "Grid RenderPass");
+      std::make_shared<RenderPass>(PassType::ForwardTransparency, "Grid RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = renderer_->GetSwapChainImageFormat(),
@@ -39,12 +39,12 @@ GridFeature::GridFeature(Ref<Renderer> renderer)
        "/engine/shaders/editor_grid.frag"});
 
   // Pipeline: no alpha blend, depth test on, depth write off (read-only depth)
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, false, true, false});
   pipeline_->SetRenderPass(render_pass_);
 
   // Layout: set 0 = one UBO (GridUniformData)
-  auto layout = CreateReference<DescriptorSetLayout>();
+  auto layout = std::make_shared<DescriptorSetLayout>();
   layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                      VK_SHADER_STAGE_FRAGMENT_BIT);
   layout->Bake();
@@ -74,7 +74,7 @@ void GridFeature::SetupResources(RenderContext& ctx) {
       render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   // Grid output descriptor for composite
-  auto output_desc = CreateReference<DescriptorSet>();
+  auto output_desc = std::make_shared<DescriptorSet>();
   output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("grid.color")->image_views_[0],
@@ -87,8 +87,8 @@ void GridFeature::SetupResources(RenderContext& ctx) {
       renderer.CreateUniformBuffer(sizeof(GridUniformData)));
 
   // Grid draw descriptor (UBO for the grid shader)
-  auto grid_desc = CreateReference<DescriptorSet>();
-  auto ubo_layout = CreateReference<DescriptorSetLayout>();
+  auto grid_desc = std::make_shared<DescriptorSet>();
+  auto ubo_layout = std::make_shared<DescriptorSetLayout>();
   ubo_layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                          VK_SHADER_STAGE_FRAGMENT_BIT);
   ubo_layout->Bake();

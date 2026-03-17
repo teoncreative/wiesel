@@ -22,6 +22,7 @@ class Scene;
 class AssetManager;
 class ScriptManager;
 class NativeBehaviorRegistry;
+class AudioManager;
 #ifdef WIESEL_DISCORD_RPC
 class DiscordRPC;
 #endif
@@ -49,13 +50,14 @@ class Engine {
   static void CleanupWindow();
   static void CleanupEngine();
 
-  WIESEL_GETTER_FN static Ref<Renderer> renderer() { return renderer_; }
-  WIESEL_GETTER_FN static Ref<AppWindow> window() { return window_; }
-  WIESEL_GETTER_FN static Ref<VirtualFileSystem> vfs() { return vfs_; }
+  WIESEL_GETTER_FN static std::shared_ptr<Renderer> renderer() { return renderer_; }
+  WIESEL_GETTER_FN static std::shared_ptr<AppWindow> window() { return window_; }
+  WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> vfs() { return vfs_; }
   WIESEL_GETTER_FN static DeveloperConsole& console() { return console_; }
   WIESEL_GETTER_FN static AssetManager& asset_manager() { return *asset_manager_; }
   WIESEL_GETTER_FN static ScriptManager& script_manager() { return *script_manager_; }
   WIESEL_GETTER_FN static NativeBehaviorRegistry& behavior_registry() { return *behavior_registry_; }
+  WIESEL_GETTER_FN static AudioManager& audio() { return *audio_manager_; }
 #ifdef WIESEL_DISCORD_RPC
   WIESEL_GETTER_FN static DiscordRPC& discord_rpc() { return *discord_rpc_; }
 #endif
@@ -94,6 +96,7 @@ class Engine {
   static std::shared_ptr<AssetManager> asset_manager_;
   static std::shared_ptr<ScriptManager> script_manager_;
   static std::shared_ptr<NativeBehaviorRegistry> behavior_registry_;
+  static std::shared_ptr<AudioManager> audio_manager_;
 #ifdef WIESEL_DISCORD_RPC
   static std::shared_ptr<DiscordRPC> discord_rpc_;
 #endif

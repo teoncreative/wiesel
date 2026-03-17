@@ -21,11 +21,11 @@
 
 namespace Wiesel {
 
-CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
+CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass: single offscreen RGBA attachment, no MSAA
   render_pass_ =
-      CreateReference<RenderPass>(PassType::PostProcess, "Canvas RenderPass");
+      std::make_shared<RenderPass>(PassType::PostProcess, "Canvas RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = renderer_->GetSwapChainImageFormat(),
@@ -33,12 +33,12 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
   render_pass_->Bake();
 
   // Descriptor layouts
-  canvas_element_layout_ = CreateReference<DescriptorSetLayout>();
+  canvas_element_layout_ = std::make_shared<DescriptorSetLayout>();
   canvas_element_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                      VK_SHADER_STAGE_VERTEX_BIT);
   canvas_element_layout_->Bake();
 
-  canvas_textured_layout_ = CreateReference<DescriptorSetLayout>();
+  canvas_textured_layout_ = std::make_shared<DescriptorSetLayout>();
   canvas_textured_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                       VK_SHADER_STAGE_VERTEX_BIT);
   canvas_textured_layout_->AddBinding(
@@ -61,14 +61,14 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
        "/engine/shaders/canvas_text.frag"});
 
   // Push constant for screen size
-  screen_size_push_ = CreateReference<CanvasScreenPushConstant>();
+  screen_size_push_ = std::make_shared<CanvasScreenPushConstant>();
 
   // Pipeline properties: alpha blending, no depth, no culling, no vertex input
   PipelineProperties props{SamplingMode::DISABLED, CullModeNone, false, true,
                            false, false};
 
   // Rect pipeline (UBO only)
-  rect_pipeline_ = CreateReference<Pipeline>(props);
+  rect_pipeline_ = std::make_shared<Pipeline>(props);
   rect_pipeline_->SetRenderPass(render_pass_);
   rect_pipeline_->AddInputLayout(canvas_element_layout_);
   rect_pipeline_->AddShader(canvas_vert);
@@ -78,7 +78,7 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
   rect_pipeline_->Bake();
 
   // Image pipeline (UBO + texture sampler)
-  image_pipeline_ = CreateReference<Pipeline>(props);
+  image_pipeline_ = std::make_shared<Pipeline>(props);
   image_pipeline_->SetRenderPass(render_pass_);
   image_pipeline_->AddInputLayout(canvas_textured_layout_);
   image_pipeline_->AddShader(canvas_vert);
@@ -88,7 +88,7 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
   image_pipeline_->Bake();
 
   // Text pipeline (UBO + font atlas sampler)
-  text_pipeline_ = CreateReference<Pipeline>(props);
+  text_pipeline_ = std::make_shared<Pipeline>(props);
   text_pipeline_->SetRenderPass(render_pass_);
   text_pipeline_->AddInputLayout(canvas_textured_layout_);
   text_pipeline_->AddShader(canvas_vert);
@@ -98,7 +98,7 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
   text_pipeline_->Bake();
 
   // Composite pass: blends canvas offscreen onto PipelineOutput
-  comp_render_pass_ = CreateReference<RenderPass>(
+  comp_render_pass_ = std::make_shared<RenderPass>(
       PassType::PostProcess, "CanvasComposite RenderPass");
   comp_render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -112,7 +112,7 @@ CanvasFeature::CanvasFeature(Ref<Renderer> renderer)
   auto quad_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/quad_shader.frag"});
-  comp_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, true, true, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
   comp_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
@@ -139,7 +139,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   pool.SetFramebuffer(
       "canvas", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
-  auto canvas_output_desc = CreateReference<DescriptorSet>();
+  auto canvas_output_desc = std::make_shared<DescriptorSet>();
   canvas_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   canvas_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("canvas.color")->image_views_[0],
@@ -160,7 +160,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
       comp_render_pass_->CreateFramebuffer(0, comp_attachments, {rw, rh}));
 
   // Descriptor to read previous PipelineOutput
-  auto comp_input_desc = CreateReference<DescriptorSet>();
+  auto comp_input_desc = std::make_shared<DescriptorSet>();
   comp_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   comp_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
@@ -169,7 +169,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("canvas_comp.input", comp_input_desc);
 
   // Update PipelineOutput for downstream features
-  auto comp_output_desc = CreateReference<DescriptorSet>();
+  auto comp_output_desc = std::make_shared<DescriptorSet>();
   comp_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   comp_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("canvas_comp.color")->image_views_[0],
@@ -201,7 +201,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   //
   // Phase 1: Touch all codepoints across all text entities so any
   // on-demand rasterization happens now.  Collect unique fonts.
-  std::unordered_map<Font*, Ref<Font>> unique_fonts;
+  std::unordered_map<Font*, std::shared_ptr<Font>> unique_fonts;
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<TextComponent,
                                      RectangleTransformComponent>()) {
@@ -209,7 +209,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     if (text.text.empty()) {
       continue;
     }
-    Ref<Font> font = FontCache::Get(text.font_path, text.font_size);
+    std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
     if (!font || !font->IsLoaded()) {
       continue;
     }
@@ -235,7 +235,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
          ctx.scene.GetAllEntitiesWith<TextComponent,
                                        RectangleTransformComponent>()) {
       auto& text = ctx.scene.GetComponent<TextComponent>(entity);
-      Ref<Font> font = FontCache::Get(text.font_path, text.font_size);
+      std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
       if (font && flushed_fonts.contains(font.get())) {
         text.glyph_gpu_.clear();
       }

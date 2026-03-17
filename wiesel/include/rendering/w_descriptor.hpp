@@ -26,11 +26,11 @@ class DescriptorSet {
   DescriptorSet();
   ~DescriptorSet();
 
-  void SetLayout(Ref<DescriptorSetLayout> layout) {
+  void SetLayout(std::shared_ptr<DescriptorSetLayout> layout) {
     layout_ = layout;
   }
 
-  void AddCombinedImageSampler(uint32_t dst_binding, Ref<ImageView> view, Ref<Sampler> sampler) {
+  void AddCombinedImageSampler(uint32_t dst_binding, std::shared_ptr<ImageView> view, std::shared_ptr<Sampler> sampler) {
     combined_image_samplers_.push_back({
         .dst_binding = dst_binding,
         .image_view = view,
@@ -38,21 +38,21 @@ class DescriptorSet {
     });
   }
 
-  void AddUniformBuffer(uint32_t dst_binding, Ref<UniformBuffer> ubo) {
+  void AddUniformBuffer(uint32_t dst_binding, std::shared_ptr<UniformBuffer> ubo) {
     uniform_buffer_data_.push_back({
         .dst_binding = dst_binding,
         .ubo = ubo
     });
   }
 
-  void AddStorageBuffer(uint32_t dst_binding, Ref<UniformBuffer> buffer) {
+  void AddStorageBuffer(uint32_t dst_binding, std::shared_ptr<UniformBuffer> buffer) {
     storage_buffer_data_.push_back({
         .dst_binding = dst_binding,
         .buffer = buffer
     });
   }
 
-  void AddStorageImage(uint32_t dst_binding, Ref<ImageView> view) {
+  void AddStorageImage(uint32_t dst_binding, std::shared_ptr<ImageView> view) {
     storage_image_data_.push_back({
         .dst_binding = dst_binding,
         .image_view = view
@@ -80,23 +80,23 @@ class DescriptorSet {
   VkDescriptorPool descriptor_pool_;
   VkDescriptorSet descriptor_set_;
  private:
-  Ref<DescriptorSetLayout> layout_;
+  std::shared_ptr<DescriptorSetLayout> layout_;
   struct CombinedImageSamplerData {
     uint32_t dst_binding;
-    Ref<ImageView> image_view;
-    Ref<Sampler> sampler;
+    std::shared_ptr<ImageView> image_view;
+    std::shared_ptr<Sampler> sampler;
   };
   struct UniformBufferData {
     uint32_t dst_binding;
-    Ref<UniformBuffer> ubo;
+    std::shared_ptr<UniformBuffer> ubo;
   };
   struct StorageBufferData {
     uint32_t dst_binding;
-    Ref<UniformBuffer> buffer;
+    std::shared_ptr<UniformBuffer> buffer;
   };
   struct StorageImageData {
     uint32_t dst_binding;
-    Ref<ImageView> image_view;
+    std::shared_ptr<ImageView> image_view;
   };
   struct AccelerationStructureData {
     uint32_t dst_binding;

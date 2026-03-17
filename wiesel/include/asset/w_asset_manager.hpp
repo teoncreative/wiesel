@@ -67,13 +67,13 @@ class AssetManager {
   // Resource storage (type-erased)
 
   template <typename T>
-  void Store(AssetHandle handle, Ref<T> resource);
+  void Store(AssetHandle handle, std::shared_ptr<T> resource);
 
   template <typename T>
-  Ref<T> Get(AssetHandle handle) const;
+  std::shared_ptr<T> Get(AssetHandle handle) const;
 
   template <typename T>
-  Ref<T> GetOrLoad(AssetHandle handle) const;
+  std::shared_ptr<T> GetOrLoad(AssetHandle handle) const;
 
   bool IsLoaded(AssetHandle handle) const;
   void Unload(AssetHandle handle);
@@ -81,7 +81,7 @@ class AssetManager {
 
   template <typename T>
   AssetHandle RegisterAndStore(const std::string& name, AssetType type,
-                               const std::string& virtual_source_path, Ref<T> resource);
+                               const std::string& virtual_source_path, std::shared_ptr<T> resource);
 
   // Lifecycle
 
@@ -101,7 +101,7 @@ class AssetManager {
 // Template implementations
 
 template <typename T>
-void AssetManager::Store(AssetHandle handle, Ref<T> resource) {
+void AssetManager::Store(AssetHandle handle, std::shared_ptr<T> resource) {
   auto it = registry_.find(handle);
   if (it == registry_.end()) {
     LOG_ERROR("AssetManager::Store called with unregistered handle {}",
@@ -112,7 +112,7 @@ void AssetManager::Store(AssetHandle handle, Ref<T> resource) {
 }
 
 template <typename T>
-Ref<T> AssetManager::Get(AssetHandle handle) const {
+std::shared_ptr<T> AssetManager::Get(AssetHandle handle) const {
   auto it = registry_.find(handle);
   if (it == registry_.end() || !it->second->resource) {
     return nullptr;
@@ -121,7 +121,7 @@ Ref<T> AssetManager::Get(AssetHandle handle) const {
 }
 
 template <typename T>
-Ref<T> AssetManager::GetOrLoad(AssetHandle handle) const {
+std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
   auto it = registry_.find(handle);
   if (it == registry_.end()) {
     return nullptr;
@@ -137,7 +137,7 @@ template <typename T>
 AssetHandle AssetManager::RegisterAndStore(const std::string& name,
                                            AssetType type,
                                            const std::string& virtual_source_path,
-                                           Ref<T> resource) {
+                                           std::shared_ptr<T> resource) {
   AssetHandle handle = Register(name, type, virtual_source_path);
   if (handle.IsValid()) {
     Store<T>(handle, std::move(resource));

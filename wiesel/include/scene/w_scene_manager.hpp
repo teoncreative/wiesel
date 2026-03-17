@@ -38,14 +38,14 @@ class SceneManager {
 
   // Called by the game loop to process pending scene loads
   // Returns true if a scene was loaded
-  bool ProcessPendingLoad(Ref<Scene> scene);
+  bool ProcessPendingLoad(std::shared_ptr<Scene> scene);
 
   // Clear pending load (e.g. if editor cancels)
   void ClearPending() { pending_scene_path_.clear(); }
 
   // Active scene tracking for the editor
-  void SetActiveScene(Ref<Scene> scene) { active_scene_ = scene; }
-  Ref<Scene> GetActiveScene() const { return active_scene_.lock(); }
+  void SetActiveScene(std::shared_ptr<Scene> scene) { active_scene_ = scene; }
+  std::shared_ptr<Scene> GetActiveScene() const { return active_scene_.lock(); }
 
  private:
   SceneManager() = default;

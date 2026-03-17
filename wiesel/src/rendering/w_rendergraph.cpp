@@ -55,7 +55,7 @@ RenderGraph::~RenderGraph() {
 }
 
 RGResource RenderGraph::ImportTexture(const std::string& name,
-                                      Ref<AttachmentTexture> texture,
+                                      std::shared_ptr<AttachmentTexture> texture,
                                       VkImageLayout initial_layout) {
   RGResource handle;
   handle.index = static_cast<uint32_t>(resources_.size());
@@ -95,7 +95,7 @@ RGResource RenderGraph::DeclareTransient(const RGTextureDesc& desc) {
 }
 
 uint32_t RenderGraph::AddPass(const std::string& name,
-                              Ref<RenderPass> render_pass,
+                              std::shared_ptr<RenderPass> render_pass,
                               RGExecuteFn execute) {
   uint32_t index = static_cast<uint32_t>(passes_.size());
 
@@ -150,7 +150,7 @@ void RenderGraph::PassPresents(uint32_t pass, RGResource resource) {
   compiled_ = false;
 }
 
-void RenderGraph::SetPassFramebuffer(uint32_t pass, Ref<Framebuffer> fb) {
+void RenderGraph::SetPassFramebuffer(uint32_t pass, std::shared_ptr<Framebuffer> fb) {
   passes_[pass].framebuffer_ = fb;
 }
 
@@ -175,7 +175,7 @@ void RenderGraph::Clear() {
   resources_.clear();
 
   // Defer destruction of old passes, their execute lambdas may capture
-  // Ref<> resources still referenced by in-flight command buffers.
+  // std::shared_ptr<> resources still referenced by in-flight command buffers.
   if (!passes_.empty()) {
     auto old_passes = std::make_shared<std::vector<RenderGraphPass>>(
         std::move(passes_));
@@ -470,7 +470,7 @@ void RenderGraph::MarkDirty() {
   dirty_ = true;
 }
 
-Ref<AttachmentTexture> RenderGraph::GetTexture(RGResource handle) const {
+std::shared_ptr<AttachmentTexture> RenderGraph::GetTexture(RGResource handle) const {
   if (!handle.IsValid() || handle.index >= resources_.size()) {
     return nullptr;
   }

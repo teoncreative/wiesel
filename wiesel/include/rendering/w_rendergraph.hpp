@@ -61,7 +61,7 @@ struct RGResourceData {
   std::string name;
   bool is_transient = false;
   RGTextureDesc desc;
-  Ref<AttachmentTexture> texture;
+  std::shared_ptr<AttachmentTexture> texture;
   VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
   VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
@@ -81,8 +81,8 @@ class RenderGraphPass {
 
   std::string name_;
   uint32_t index_ = 0;
-  Ref<RenderPass> render_pass_;
-  Ref<Framebuffer> framebuffer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Framebuffer> framebuffer_;
   std::vector<RGResourceRef> inputs_;
   std::vector<RGResourceRef> outputs_;
   RGExecuteFn execute_fn_;
@@ -114,7 +114,7 @@ class RenderGraph {
 
   // Import an external resource into the graph
   RGResource ImportTexture(const std::string& name,
-                           Ref<AttachmentTexture> texture,
+                           std::shared_ptr<AttachmentTexture> texture,
                            VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED);
 
   // Declare a transient resource (created by graph during Compile)
@@ -122,7 +122,7 @@ class RenderGraph {
 
   // Add a render pass. Returns the pass index for further configuration.
   uint32_t AddPass(const std::string& name,
-                   Ref<RenderPass> render_pass,
+                   std::shared_ptr<RenderPass> render_pass,
                    RGExecuteFn execute);
 
   // Configure pass inputs (resources the pass reads)
@@ -142,7 +142,7 @@ class RenderGraph {
   void PassPresents(uint32_t pass, RGResource resource);
 
   // Configure pass properties
-  void SetPassFramebuffer(uint32_t pass, Ref<Framebuffer> fb);
+  void SetPassFramebuffer(uint32_t pass, std::shared_ptr<Framebuffer> fb);
   void SetPassViewport(uint32_t pass, glm::vec2 size);
   void SetPassClearColor(uint32_t pass, const Colorf& color);
   void SetPassEnabled(uint32_t pass, bool enabled);
@@ -160,7 +160,7 @@ class RenderGraph {
   bool IsCompiled() const { return compiled_; }
 
   // Access a resource's texture (valid after Compile)
-  Ref<AttachmentTexture> GetTexture(RGResource handle) const;
+  std::shared_ptr<AttachmentTexture> GetTexture(RGResource handle) const;
 
   // Get a pass by index
   RenderGraphPass& GetPass(uint32_t index);

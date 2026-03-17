@@ -37,13 +37,13 @@ class Application {
 
   void OnEvent(Event& event);
 
-  void PushLayer(const Ref<Layer>& layer);
-  void RemoveLayer(const Ref<Layer>& layer);
+  void PushLayer(const std::shared_ptr<Layer>& layer);
+  void RemoveLayer(const std::shared_ptr<Layer>& layer);
 
   bool OnWindowClose(WindowCloseEvent& event);
   bool OnWindowResize(WindowResizeEvent& event);
 
-  WIESEL_GETTER_FN Ref<AppWindow> GetWindow();
+  WIESEL_GETTER_FN std::shared_ptr<AppWindow> GetWindow();
   WIESEL_GETTER_FN float_t GetFPS() const { return fps_; }
   WIESEL_GETTER_FN float_t GetDeltaTime() const { return delta_time_; }
 
@@ -73,10 +73,10 @@ class Application {
   bool window_resized_;
   WindowSize window_size_;
   // proper layer stack
-  std::vector<Ref<Layer>> layers_;
-  Ref<ImGuiLayer> imgui_layer_;
+  std::vector<std::shared_ptr<Layer>> layers_;
+  std::shared_ptr<ImGuiLayer> imgui_layer_;
   uint32_t layer_counter_;
-  Ref<AppWindow> window_;
+  std::shared_ptr<AppWindow> window_;
   float_t previous_frame_ = 0.0;
   float_t delta_time_ = 0.0;
 

@@ -19,10 +19,10 @@
 
 namespace Wiesel {
 
-DebugColliderFeature::DebugColliderFeature(Ref<Renderer> renderer)
+DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Wireframe render pass: 1 color attachment, no depth
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "DebugCollider RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -39,7 +39,7 @@ DebugColliderFeature::DebugColliderFeature(Ref<Renderer> renderer)
        "/engine/shaders/debug_collider.frag"});
 
   // Wireframe pipeline: line-list, no depth, no alpha blending
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, false, false, false,
       PrimitiveTopology::LineList});
 
@@ -68,7 +68,7 @@ DebugColliderFeature::DebugColliderFeature(Ref<Renderer> renderer)
   pipeline_->Bake();
 
   // Composite render pass: blend debug overlay onto PipelineOutput
-  comp_render_pass_ = CreateReference<RenderPass>(
+  comp_render_pass_ = std::make_shared<RenderPass>(
       PassType::PostProcess, "DebugColliderComposite RenderPass");
   comp_render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -83,7 +83,7 @@ DebugColliderFeature::DebugColliderFeature(Ref<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/quad_shader.frag"});
 
-  comp_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, true, false, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
   comp_pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
@@ -173,7 +173,7 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
       render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   // Descriptor to read wireframe output
-  auto debug_output_desc = CreateReference<DescriptorSet>();
+  auto debug_output_desc = std::make_shared<DescriptorSet>();
   debug_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   debug_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("debug_collider.color")->image_views_[0],
@@ -194,7 +194,7 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
       comp_render_pass_->CreateFramebuffer(0, comp_attachments, {rw, rh}));
 
   // Descriptor to read previous PipelineOutput
-  auto comp_input_desc = CreateReference<DescriptorSet>();
+  auto comp_input_desc = std::make_shared<DescriptorSet>();
   comp_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   comp_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
@@ -203,7 +203,7 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("debug_collider_comp.input", comp_input_desc);
 
   // Update PipelineOutput for downstream features
-  auto comp_output_desc = CreateReference<DescriptorSet>();
+  auto comp_output_desc = std::make_shared<DescriptorSet>();
   comp_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   comp_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("debug_collider_comp.color")->image_views_[0],
@@ -303,7 +303,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         if (!enabled) return;
         pipeline->Bind(PipelineBindPointGraphics);
 
-        auto draw_wireframe = [&](Ref<MemoryBuffer> vb, Ref<IndexBuffer> ib,
+        auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb, std::shared_ptr<IndexBuffer> ib,
                                   uint32_t index_count, const glm::mat4& model,
                                   const glm::vec4& color) {
           push_constant->mvp = vp * model;

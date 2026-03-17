@@ -35,7 +35,7 @@ class Font {
 
   bool IsLoaded() const { return loaded_; }
   const GlyphInfo* GetGlyph(uint32_t codepoint);
-  Ref<ImageView> GetAtlasImageView() const { return atlas_image_view_; }
+  std::shared_ptr<ImageView> GetAtlasImageView() const { return atlas_image_view_; }
   float GetLineHeight() const { return line_height_; }
   float GetAscent() const { return ascent_; }
   float GetDescent() const { return descent_; }
@@ -72,18 +72,18 @@ class Font {
   // Persistent font file data (FreeType needs it to stay alive)
   std::vector<uint8_t> font_data_;
 
-  Ref<Texture> atlas_texture_;
-  Ref<ImageView> atlas_image_view_;
+  std::shared_ptr<Texture> atlas_texture_;
+  std::shared_ptr<ImageView> atlas_image_view_;
   bool loaded_ = false;
   bool atlas_dirty_ = false;
 };
 
 class FontCache {
  public:
-  static Ref<Font> Get(const std::string& path, float size);
+  static std::shared_ptr<Font> Get(const std::string& path, float size);
 
  private:
-  static std::unordered_map<std::string, Ref<Font>> cache_;
+  static std::unordered_map<std::string, std::shared_ptr<Font>> cache_;
 };
 
 }  // namespace Wiesel

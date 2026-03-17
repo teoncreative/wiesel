@@ -19,22 +19,22 @@ struct ShadowPipelinePushConstant;
 
 class ShadowFeature : public RenderFeature {
  public:
-  explicit ShadowFeature(Ref<Renderer> renderer);
+  explicit ShadowFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  Ref<RenderPass> GetRenderPass() const { return render_pass_; }
-  Ref<Pipeline> GetPipeline() const { return pipeline_; }
+  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
+  std::shared_ptr<Pipeline> GetPipeline() const { return pipeline_; }
 
  private:
   static inline std::string name_ = "Shadow";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
-  Ref<ShadowPipelinePushConstant> push_constant_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<ShadowPipelinePushConstant> push_constant_;
 };
 
 }  // namespace Wiesel

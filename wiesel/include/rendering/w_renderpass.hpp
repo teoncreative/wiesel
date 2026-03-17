@@ -48,19 +48,19 @@ class RenderPass {
   RenderPass(PassType pass_type, const std::string& debug_name);
   ~RenderPass();
 
-  void AttachOutput(Ref<AttachmentTexture> ref);
+  void AttachOutput(std::shared_ptr<AttachmentTexture> ref);
   void AttachOutput(AttachmentTextureInfo&& info);
 
   void Bake();
 
-  void Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color);
+  void Begin(std::shared_ptr<Framebuffer> framebuffer, const Colorf& clear_color);
   void End();
 
-  Ref<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture* const> output_attachments, glm::vec2 extent);
-  Ref<Framebuffer> CreateFramebuffer(std::span<ImageView*> output_views, glm::vec2 extent);
-  Ref<Framebuffer> CreateFramebuffer(std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent);
+  std::shared_ptr<Framebuffer> CreateFramebuffer(uint32_t index, std::span<AttachmentTexture* const> output_attachments, glm::vec2 extent);
+  std::shared_ptr<Framebuffer> CreateFramebuffer(std::span<ImageView*> output_views, glm::vec2 extent);
+  std::shared_ptr<Framebuffer> CreateFramebuffer(std::initializer_list<std::shared_ptr<ImageView>> output_views, glm::vec2 extent);
 
-  Ref<Framebuffer> CreateFramebuffer(
+  std::shared_ptr<Framebuffer> CreateFramebuffer(
       uint32_t index,
       std::initializer_list<AttachmentTexture* const> output_attachments,
       glm::vec2 extent

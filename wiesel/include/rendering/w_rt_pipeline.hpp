@@ -22,9 +22,9 @@ namespace Wiesel {
 class Renderer;
 
 struct RTHitGroup {
-  Ref<Shader> closest_hit;
-  Ref<Shader> any_hit;
-  Ref<Shader> intersection;
+  std::shared_ptr<Shader> closest_hit;
+  std::shared_ptr<Shader> any_hit;
+  std::shared_ptr<Shader> intersection;
 };
 
 struct RTPushConstant {
@@ -36,15 +36,15 @@ struct RTPushConstant {
 
 class RTPipeline {
  public:
-  explicit RTPipeline(Ref<Renderer> renderer);
+  explicit RTPipeline(std::shared_ptr<Renderer> renderer);
   ~RTPipeline();
 
-  void AddRayGenShader(Ref<Shader> shader);
-  void AddMissShader(Ref<Shader> shader);
-  void AddHitGroup(Ref<Shader> closest_hit,
-                   Ref<Shader> any_hit = nullptr,
-                   Ref<Shader> intersection = nullptr);
-  void AddInputLayout(Ref<DescriptorSetLayout> layout);
+  void AddRayGenShader(std::shared_ptr<Shader> shader);
+  void AddMissShader(std::shared_ptr<Shader> shader);
+  void AddHitGroup(std::shared_ptr<Shader> closest_hit,
+                   std::shared_ptr<Shader> any_hit = nullptr,
+                   std::shared_ptr<Shader> intersection = nullptr);
+  void AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout);
 
   template <typename T>
   void AddPushConstant(std::shared_ptr<T> ptr, VkShaderStageFlags flags) {
@@ -70,11 +70,11 @@ class RTPipeline {
  private:
   void CreateSBT();
 
-  Ref<Renderer> renderer_;
-  std::vector<Ref<Shader>> raygen_shaders_;
-  std::vector<Ref<Shader>> miss_shaders_;
+  std::shared_ptr<Renderer> renderer_;
+  std::vector<std::shared_ptr<Shader>> raygen_shaders_;
+  std::vector<std::shared_ptr<Shader>> miss_shaders_;
   std::vector<RTHitGroup> hit_groups_;
-  std::vector<Ref<DescriptorSetLayout>> descriptor_layouts_;
+  std::vector<std::shared_ptr<DescriptorSetLayout>> descriptor_layouts_;
   std::vector<RTPushConstant> push_constants_;
 
   VkPipeline pipeline_ = VK_NULL_HANDLE;

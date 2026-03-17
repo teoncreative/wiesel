@@ -15,10 +15,10 @@
 
 namespace Wiesel {
 
-RTShadowFeature::RTShadowFeature(Ref<Renderer> renderer)
+RTShadowFeature::RTShadowFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Descriptor layout for the RT shadow pass
-  rt_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  rt_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   // binding 0: TLAS
   rt_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -56,7 +56,7 @@ RTShadowFeature::RTShadowFeature(Ref<Renderer> renderer)
        "/engine/shaders/rt_shadow.rchit"});
 
   // Build RT pipeline
-  rt_pipeline_ = CreateReference<RTPipeline>(renderer_);
+  rt_pipeline_ = std::make_shared<RTPipeline>(renderer_);
   rt_pipeline_->AddRayGenShader(raygen);
   rt_pipeline_->AddMissShader(miss);
   rt_pipeline_->AddHitGroup(closesthit);
@@ -96,11 +96,11 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
                                 RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("RTShadowFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
-  Ref<Renderer> renderer = renderer_;
+  std::shared_ptr<Renderer> renderer = renderer_;
   Scene* scene = &ctx.scene;
-  Ref<RTPipeline> rt_pipeline = rt_pipeline_;
-  Ref<DescriptorSetLayout> rt_layout = rt_descriptor_layout_;
-  Ref<UniformBuffer> lights_ubo = shadow_lights_ubo_;
+  std::shared_ptr<RTPipeline> rt_pipeline = rt_pipeline_;
+  std::shared_ptr<DescriptorSetLayout> rt_layout = rt_descriptor_layout_;
+  std::shared_ptr<UniformBuffer> lights_ubo = shadow_lights_ubo_;
   uint32_t trace_width = mask_width_;
   uint32_t trace_height = mask_height_;
 
@@ -161,7 +161,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
 
         // New descriptor each frame (TLAS handle changes); old one is deferred
         // by SetDescriptor via the DeletionQueue for safe multi-frame-in-flight.
-        auto desc = CreateReference<DescriptorSet>();
+        auto desc = std::make_shared<DescriptorSet>();
         desc->SetLayout(rt_layout);
         desc->AddAccelerationStructure(0, as_manager->GetTLAS());
         desc->AddStorageImage(1, pool->GetTexture("rt_shadow.mask")->image_views_[0]);
