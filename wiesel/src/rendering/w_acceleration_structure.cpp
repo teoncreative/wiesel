@@ -17,7 +17,7 @@
 
 namespace Wiesel {
 
-AccelerationStructureManager::AccelerationStructureManager(Ref<Renderer> renderer)
+AccelerationStructureManager::AccelerationStructureManager(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
 AccelerationStructureManager::~AccelerationStructureManager() {
@@ -68,8 +68,8 @@ VkBuffer AccelerationStructureManager::CreateScratchBuffer(
   return buffer;
 }
 
-Ref<AccelerationStructure> AccelerationStructureManager::GetOrBuildBLAS(
-    Ref<Mesh> mesh) {
+std::shared_ptr<AccelerationStructure> AccelerationStructureManager::GetOrBuildBLAS(
+    std::shared_ptr<Mesh> mesh) {
   auto it = blas_cache_.find(mesh.get());
   if (it != blas_cache_.end()) {
     return it->second;
@@ -121,7 +121,7 @@ Ref<AccelerationStructure> AccelerationStructureManager::GetOrBuildBLAS(
       &primitiveCount, &sizeInfo);
 
   // Create AS buffer
-  auto blas = CreateReference<AccelerationStructure>();
+  auto blas = std::make_shared<AccelerationStructure>();
   renderer_->CreateBuffer(
       sizeInfo.accelerationStructureSize,
       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
@@ -195,14 +195,14 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
 
     if (!model.enable_rendering || !model.model_handle) continue;
 
-    const Ref<Model>& modelData = assets.GetOrLoad<Model>(model.model_handle);
+    const std::shared_ptr<Model>& modelData = assets.GetOrLoad<Model>(model.model_handle);
     if (!modelData) continue;
 
     for (size_t mi = 0; mi < modelData->meshes.size(); mi++) {
       const auto& mesh = modelData->meshes[mi];
       if (!mesh->allocated_) continue;
 
-      Ref<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
+      std::shared_ptr<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
       if (!blas) continue;
 
       // Apply per-mesh node transform for static models
@@ -231,8 +231,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   if (instances.empty()) {
     // No geometry to trace against, defer destruction of existing TLAS
     if (tlas_ && tlas_->handle != VK_NULL_HANDLE) {
-      Ref<AccelerationStructure> old_tlas = tlas_;
-      Ref<Renderer> renderer_ref = renderer_;
+      std::shared_ptr<AccelerationStructure> old_tlas = tlas_;
+      std::shared_ptr<Renderer> renderer_ref = renderer_;
       renderer_->GetDeletionQueue().Push([old_tlas, renderer_ref]() {
         VkDevice device = renderer_ref->GetLogicalDevice();
         if (old_tlas->handle != VK_NULL_HANDLE) {
@@ -311,8 +311,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
 
   // Defer destruction of old TLAS so in-flight frames can still reference it
   if (tlas_ && tlas_->handle != VK_NULL_HANDLE) {
-    Ref<AccelerationStructure> old_tlas = tlas_;
-    Ref<Renderer> renderer_ref = renderer_;
+    std::shared_ptr<AccelerationStructure> old_tlas = tlas_;
+    std::shared_ptr<Renderer> renderer_ref = renderer_;
     renderer_->GetDeletionQueue().Push([old_tlas, renderer_ref]() {
       VkDevice device = renderer_ref->GetLogicalDevice();
       if (old_tlas->handle != VK_NULL_HANDLE) {
@@ -324,7 +324,7 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
       }
     });
   }
-  tlas_ = CreateReference<AccelerationStructure>();
+  tlas_ = std::make_shared<AccelerationStructure>();
 
   renderer_->CreateBuffer(
       sizeInfo.accelerationStructureSize,

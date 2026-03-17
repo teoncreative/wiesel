@@ -28,34 +28,34 @@ struct alignas(16) CanvasElementUniformData {
 
 class CanvasFeature : public RenderFeature {
  public:
-  explicit CanvasFeature(Ref<Renderer> renderer);
+  explicit CanvasFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  Ref<DescriptorSetLayout> GetElementLayout() const {
+  std::shared_ptr<DescriptorSetLayout> GetElementLayout() const {
     return canvas_element_layout_;
   }
-  Ref<DescriptorSetLayout> GetTexturedLayout() const {
+  std::shared_ptr<DescriptorSetLayout> GetTexturedLayout() const {
     return canvas_textured_layout_;
   }
 
  private:
   static inline std::string name_ = "Canvas";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> rect_pipeline_;
-  Ref<Pipeline> image_pipeline_;
-  Ref<Pipeline> text_pipeline_;
-  Ref<DescriptorSetLayout> canvas_element_layout_;
-  Ref<DescriptorSetLayout> canvas_textured_layout_;
-  Ref<CanvasScreenPushConstant> screen_size_push_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> rect_pipeline_;
+  std::shared_ptr<Pipeline> image_pipeline_;
+  std::shared_ptr<Pipeline> text_pipeline_;
+  std::shared_ptr<DescriptorSetLayout> canvas_element_layout_;
+  std::shared_ptr<DescriptorSetLayout> canvas_textured_layout_;
+  std::shared_ptr<CanvasScreenPushConstant> screen_size_push_;
 
   // Second pass: composite canvas onto final PipelineOutput
-  Ref<RenderPass> comp_render_pass_;
-  Ref<Pipeline> comp_pipeline_;
+  std::shared_ptr<RenderPass> comp_render_pass_;
+  std::shared_ptr<Pipeline> comp_pipeline_;
 };
 
 }  // namespace Wiesel

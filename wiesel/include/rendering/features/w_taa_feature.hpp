@@ -17,7 +17,7 @@ namespace Wiesel {
 
 class TAAFeature : public RenderFeature {
  public:
-  explicit TAAFeature(Ref<Renderer> renderer);
+  explicit TAAFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -27,10 +27,10 @@ class TAAFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "TAA";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> taa_pipeline_;
-  Ref<Pipeline> copy_pipeline_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> taa_pipeline_;
+  std::shared_ptr<Pipeline> copy_pipeline_;
 };
 
 }  // namespace Wiesel

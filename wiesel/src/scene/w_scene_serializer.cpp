@@ -14,12 +14,13 @@
 #include "rendering/w_mesh.hpp"
 #include "scene/w_lights.hpp"
 #include "script/mono/w_monobehavior.hpp"
+#include "audio/w_audio.hpp"
 #include "ui/w_canvas.hpp"
 #include "util/w_logger.hpp"
 
 namespace Wiesel {
 
-SceneSerializer::SceneSerializer(Ref<Scene> scene) : scene_(std::move(scene)) {}
+SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene) : scene_(std::move(scene)) {}
 
 // --- Vector helpers ---
 
@@ -339,6 +340,23 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     j["Text"] = tj;
   }
 
+  // Audio Source
+  if (entity.HasComponent<AudioSourceComponent>()) {
+    auto& a = entity.GetComponent<AudioSourceComponent>();
+    nlohmann::json aj;
+    if (a.clip.IsValid()) aj["clip"] = a.clip.ToString();
+    aj["bus"] = static_cast<int>(a.bus);
+    aj["volume"] = a.volume;
+    aj["pitch"] = a.pitch;
+    aj["loop"] = a.loop;
+    aj["play_on_start"] = a.play_on_start;
+    aj["mute"] = a.mute;
+    aj["spatial_blend"] = a.spatial_blend;
+    aj["min_distance"] = a.min_distance;
+    aj["max_distance"] = a.max_distance;
+    j["AudioSource"] = aj;
+  }
+
   return j;
 }
 
@@ -424,7 +442,7 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
         // Restore overrides
         if (slot.contains("overrides")) {
           if (!m.material_instances[i]) {
-            m.material_instances[i] = CreateReference<MaterialInstance>();
+            m.material_instances[i] = std::make_shared<MaterialInstance>();
           }
           auto& inst = m.material_instances[i];
           for (auto& [key, val] : slot["overrides"].items()) {
@@ -667,6 +685,23 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     if (tj.contains("color") && tj["color"].is_array() && tj["color"].size() >= 4) {
       t.color = {tj["color"][0], tj["color"][1], tj["color"][2], tj["color"][3]};
     }
+  }
+
+  // Audio Source
+  if (entity_json.contains("AudioSource")) {
+    auto& a = entity.AddComponent<AudioSourceComponent>();
+    const auto& aj = entity_json["AudioSource"];
+    std::string clip_str = aj.value("clip", "");
+    if (!clip_str.empty()) a.clip = AssetHandle::FromString(clip_str);
+    a.bus = static_cast<AudioBus>(aj.value("bus", 1));
+    a.volume = aj.value("volume", 1.0f);
+    a.pitch = aj.value("pitch", 1.0f);
+    a.loop = aj.value("loop", false);
+    a.play_on_start = aj.value("play_on_start", false);
+    a.mute = aj.value("mute", false);
+    a.spatial_blend = aj.value("spatial_blend", 0.0f);
+    a.min_distance = aj.value("min_distance", 1.0f);
+    a.max_distance = aj.value("max_distance", 100.0f);
   }
 }
 

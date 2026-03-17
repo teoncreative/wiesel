@@ -175,7 +175,7 @@ struct AnimatorComponent : public IComponent {
   std::vector<BoneOverride> bone_overrides;
 
   // GPU resources (per-entity, allocated lazily)
-  Ref<UniformBuffer> bone_ubo;
+  std::shared_ptr<UniformBuffer> bone_ubo;
 
   // --- Parameter API ---
   void SetBool(const std::string& name, bool value);

@@ -30,10 +30,10 @@ struct AccelerationStructure {
 
 class AccelerationStructureManager {
  public:
-  explicit AccelerationStructureManager(Ref<Renderer> renderer);
+  explicit AccelerationStructureManager(std::shared_ptr<Renderer> renderer);
   ~AccelerationStructureManager();
 
-  Ref<AccelerationStructure> GetOrBuildBLAS(Ref<Mesh> mesh);
+  std::shared_ptr<AccelerationStructure> GetOrBuildBLAS(std::shared_ptr<Mesh> mesh);
   void BuildTLAS(VkCommandBuffer cmd, Scene& scene);
 
   VkAccelerationStructureKHR GetTLAS() const;
@@ -43,9 +43,9 @@ class AccelerationStructureManager {
   void DestroyAS(AccelerationStructure& as);
   VkBuffer CreateScratchBuffer(VkDeviceSize size, VkDeviceMemory& memory);
 
-  Ref<Renderer> renderer_;
-  std::unordered_map<Mesh*, Ref<AccelerationStructure>> blas_cache_;
-  Ref<AccelerationStructure> tlas_;
+  std::shared_ptr<Renderer> renderer_;
+  std::unordered_map<Mesh*, std::shared_ptr<AccelerationStructure>> blas_cache_;
+  std::shared_ptr<AccelerationStructure> tlas_;
 
   VkBuffer tlas_instance_buffer_ = VK_NULL_HANDLE;
   VkDeviceMemory tlas_instance_memory_ = VK_NULL_HANDLE;

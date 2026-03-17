@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-ToonFeature::ToonFeature(Ref<Renderer> renderer)
+ToonFeature::ToonFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "Toon RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -29,7 +29,7 @@ ToonFeature::ToonFeature(Ref<Renderer> renderer)
   render_pass_->Bake();
 
   // 3-sampler descriptor layout (scene color + normals + depth)
-  toon_input_layout_ = CreateReference<DescriptorSetLayout>();
+  toon_input_layout_ = std::make_shared<DescriptorSetLayout>();
   toon_input_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                  VK_SHADER_STAGE_FRAGMENT_BIT);
   toon_input_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -46,7 +46,7 @@ ToonFeature::ToonFeature(Ref<Renderer> renderer)
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/toon_shader.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(toon_input_layout_);
@@ -83,7 +83,7 @@ void ToonFeature::SetupResources(RenderContext& ctx) {
   // Descriptors
 
   // Toon input: reads PipelineOutput + geometry normals + geometry depth
-  auto toon_input_desc = CreateReference<DescriptorSet>();
+  auto toon_input_desc = std::make_shared<DescriptorSet>();
   toon_input_desc->SetLayout(toon_input_layout_);
   toon_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
@@ -98,7 +98,7 @@ void ToonFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("toon.input", toon_input_desc);
 
   // Toon output descriptor: reads toon.color
-  auto toon_output_desc = CreateReference<DescriptorSet>();
+  auto toon_output_desc = std::make_shared<DescriptorSet>();
   toon_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   toon_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("toon.color")->image_views_[0],

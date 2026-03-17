@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-TAAFeature::TAAFeature(Ref<Renderer> renderer)
+TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "PostProcess RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -36,7 +36,7 @@ TAAFeature::TAAFeature(Ref<Renderer> renderer)
   auto taa_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/taa.frag"});
-  taa_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  taa_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   taa_pipeline_->SetRenderPass(render_pass_);
   taa_pipeline_->AddInputLayout(renderer_->GetTAADescriptorLayout());
@@ -49,7 +49,7 @@ TAAFeature::TAAFeature(Ref<Renderer> renderer)
   auto copy_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/quad_shader.frag"});
-  copy_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  copy_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   copy_pipeline_->SetRenderPass(render_pass_);
   copy_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
@@ -98,7 +98,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
   // Descriptors
 
   // TAA input: reads PipelineOutput + history + geometry depth (3 inputs)
-  auto taa_input_desc = CreateReference<DescriptorSet>();
+  auto taa_input_desc = std::make_shared<DescriptorSet>();
   taa_input_desc->SetLayout(renderer.GetTAADescriptorLayout());
   taa_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
@@ -113,7 +113,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("taa.input", taa_input_desc);
 
   // TAA copy input: reads taa.output for copying into history
-  auto taa_copy_input_desc = CreateReference<DescriptorSet>();
+  auto taa_copy_input_desc = std::make_shared<DescriptorSet>();
   taa_copy_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   taa_copy_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("taa.output")->image_views_[0],
@@ -122,7 +122,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("taa.copy_input", taa_copy_input_desc);
 
   // TAA output descriptor: reads taa.output
-  auto taa_output_desc = CreateReference<DescriptorSet>();
+  auto taa_output_desc = std::make_shared<DescriptorSet>();
   taa_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   taa_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("taa.output")->image_views_[0],

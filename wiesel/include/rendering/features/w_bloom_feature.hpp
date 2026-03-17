@@ -22,7 +22,7 @@ struct BloomPushConstants {
 
 class BloomFeature : public RenderFeature {
  public:
-  explicit BloomFeature(Ref<Renderer> renderer);
+  explicit BloomFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -32,13 +32,13 @@ class BloomFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "Bloom";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;  // shared postprocess render pass
-  Ref<Pipeline> extract_pipeline_;
-  Ref<Pipeline> blur_h_pipeline_;
-  Ref<Pipeline> blur_v_pipeline_;
-  Ref<Pipeline> composite_pipeline_;
-  Ref<BloomPushConstants> push_constants_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;  // shared postprocess render pass
+  std::shared_ptr<Pipeline> extract_pipeline_;
+  std::shared_ptr<Pipeline> blur_h_pipeline_;
+  std::shared_ptr<Pipeline> blur_v_pipeline_;
+  std::shared_ptr<Pipeline> composite_pipeline_;
+  std::shared_ptr<BloomPushConstants> push_constants_;
 };
 
 }  // namespace Wiesel

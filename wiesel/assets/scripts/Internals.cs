@@ -448,6 +448,65 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Scene_DestroyEntity(ulong scenePtr, ulong entityId);
 
+        // AudioSourceComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_Play(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_PlayClip(ulong scenePtr, ulong entityId, string clipHandle);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_Stop(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool AudioSource_GetIsPlaying(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float AudioSource_GetVolume(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_SetVolume(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float AudioSource_GetPitch(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_SetPitch(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool AudioSource_GetLoop(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_SetLoop(ulong scenePtr, ulong entityId, bool v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool AudioSource_GetMute(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_SetMute(ulong scenePtr, ulong entityId, bool v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float AudioSource_GetSpatialBlend(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void AudioSource_SetSpatialBlend(ulong scenePtr, ulong entityId, float v);
+
+        // Audio (path-based)
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_PlayPath(string path, int bus, float volume, float pitch, bool loop);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_PlayAtPath(string path, float x, float y, float z, int bus, float volume, float minDist, float maxDist);
+        // Audio (clip/handle-based)
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_PlayClip(string handle, int bus, float volume, float pitch, bool loop);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_PlayAtClip(string handle, float x, float y, float z, int bus, float volume, float minDist, float maxDist);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_PlayMusic(string path, float volume);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_PlayMusicClip(string handle, float volume);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_StopMusic();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_SetMasterVolume(float volume);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Audio_GetMasterVolume();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_SetSFXVolume(float volume);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Audio_GetSFXVolume();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Audio_SetMusicVolume(float volume);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Audio_GetMusicVolume();
+
         // Console
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Console_RegisterCommand(string name, string description, System.Action<string[]> callback);

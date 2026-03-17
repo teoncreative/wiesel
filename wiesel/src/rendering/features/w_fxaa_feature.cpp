@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-FXAAFeature::FXAAFeature(Ref<Renderer> renderer)
+FXAAFeature::FXAAFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "PostProcess RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -35,7 +35,7 @@ FXAAFeature::FXAAFeature(Ref<Renderer> renderer)
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/fxaa.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
@@ -68,7 +68,7 @@ void FXAAFeature::SetupResources(RenderContext& ctx) {
   }
 
   // FXAA input: reads PipelineOutput (whatever the previous feature set)
-  auto fxaa_input_desc = CreateReference<DescriptorSet>();
+  auto fxaa_input_desc = std::make_shared<DescriptorSet>();
   fxaa_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   fxaa_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
@@ -77,7 +77,7 @@ void FXAAFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("fxaa.input", fxaa_input_desc);
 
   // FXAA output descriptor: reads fxaa.color
-  auto fxaa_output_desc = CreateReference<DescriptorSet>();
+  auto fxaa_output_desc = std::make_shared<DescriptorSet>();
   fxaa_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   fxaa_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("fxaa.color")->image_views_[0],

@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-LightingFeature::LightingFeature(Ref<Renderer> renderer)
+LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass (1 color + optional resolve for MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::Lighting,
+  render_pass_ = std::make_shared<RenderPass>(PassType::Lighting,
                                              "Deferred Lightning RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -40,7 +40,7 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
   auto skybox_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/skybox_shader.frag"});
-  skybox_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  skybox_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, false, true,
       false});
   skybox_pipeline_->SetRenderPass(render_pass_);
@@ -57,7 +57,7 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
   auto lighting_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/lighting_shader.frag"});
-  lighting_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, true, true,
       false});
   lighting_pipeline_->SetRenderPass(render_pass_);
@@ -78,13 +78,13 @@ LightingFeature::LightingFeature(Ref<Renderer> renderer)
          "/engine/shaders/lighting_shader.frag",
          {"USE_RT_SHADOWS"}});
 
-    rt_shadow_desc_layout_ = CreateReference<DescriptorSetLayout>();
+    rt_shadow_desc_layout_ = std::make_shared<DescriptorSetLayout>();
     rt_shadow_desc_layout_->AddBinding(
         VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
         VK_SHADER_STAGE_FRAGMENT_BIT);
     rt_shadow_desc_layout_->Bake();
 
-    rt_lighting_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+    rt_lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
         renderer_->options().msaa_mode, CullModeFront, false, true, true,
         false});
     rt_lighting_pipeline_->SetRenderPass(render_pass_);
@@ -140,7 +140,7 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
 
   // Descriptors
   // Lighting output descriptor: reads resolved lighting color, linear sampler
-  auto lighting_output_desc = CreateReference<DescriptorSet>();
+  auto lighting_output_desc = std::make_shared<DescriptorSet>();
   lighting_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   lighting_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("lighting.color_resolve")->image_views_[0],
@@ -150,7 +150,7 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
 
   // RT shadow descriptor for reading the shadow mask in the lighting shader
   if (rt_shadow_desc_layout_ && pool.HasTexture("rt_shadow.mask")) {
-    auto rt_shadow_desc = CreateReference<DescriptorSet>();
+    auto rt_shadow_desc = std::make_shared<DescriptorSet>();
     rt_shadow_desc->SetLayout(rt_shadow_desc_layout_);
     rt_shadow_desc->AddStorageImage(
         0, pool.GetTexture("rt_shadow.mask")->image_views_[0]);

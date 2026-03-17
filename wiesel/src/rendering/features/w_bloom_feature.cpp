@@ -17,10 +17,10 @@
 
 namespace Wiesel {
 
-BloomFeature::BloomFeature(Ref<Renderer> renderer)
+BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Shared postprocess render pass (1 color, no MSAA)
-  render_pass_ = CreateReference<RenderPass>(PassType::PostProcess,
+  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
                                              "PostProcess RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -38,7 +38,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   auto extract_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/bloom_extract.frag"});
-  extract_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  extract_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   extract_pipeline_->SetRenderPass(render_pass_);
   extract_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
@@ -52,7 +52,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   auto blur_h_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/bloom_blur.frag"});
-  blur_h_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  blur_h_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_h_pipeline_->SetRenderPass(render_pass_);
   blur_h_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
@@ -64,7 +64,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   auto blur_v_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/bloom_blur.frag", {"BLUR_VERTICAL"}});
-  blur_v_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  blur_v_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_v_pipeline_->SetRenderPass(render_pass_);
   blur_v_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
@@ -76,7 +76,7 @@ BloomFeature::BloomFeature(Ref<Renderer> renderer)
   auto composite_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/bloom_composite.frag"});
-  composite_pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  composite_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   composite_pipeline_->SetRenderPass(render_pass_);
   composite_pipeline_->AddInputLayout(
@@ -134,7 +134,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
   // Descriptors
 
   // Bloom extract input: reads PipelineOutput (whatever the previous feature set)
-  auto extract_input_desc = CreateReference<DescriptorSet>();
+  auto extract_input_desc = std::make_shared<DescriptorSet>();
   extract_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   extract_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
@@ -143,7 +143,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("bloom.extract_input", extract_input_desc);
 
   // Bloom blur H input: reads bloom extract output
-  auto blur_h_input_desc = CreateReference<DescriptorSet>();
+  auto blur_h_input_desc = std::make_shared<DescriptorSet>();
   blur_h_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   blur_h_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("bloom.extract")->image_views_[0],
@@ -152,7 +152,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("bloom.blur_h_input", blur_h_input_desc);
 
   // Bloom blur V input: reads bloom blur H output
-  auto blur_v_input_desc = CreateReference<DescriptorSet>();
+  auto blur_v_input_desc = std::make_shared<DescriptorSet>();
   blur_v_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   blur_v_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("bloom.blur_h")->image_views_[0],
@@ -161,7 +161,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("bloom.blur_v_input", blur_v_input_desc);
 
   // Bloom composite input: reads PipelineOutput + bloom blur V (2 inputs)
-  auto composite_input_desc = CreateReference<DescriptorSet>();
+  auto composite_input_desc = std::make_shared<DescriptorSet>();
   composite_input_desc->SetLayout(
       renderer.GetPostprocess2InputDescriptorLayout());
   composite_input_desc->AddCombinedImageSampler(
@@ -174,7 +174,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("bloom.composite_input", composite_input_desc);
 
   // Bloom output descriptor: reads bloom composite result
-  auto bloom_output_desc = CreateReference<DescriptorSet>();
+  auto bloom_output_desc = std::make_shared<DescriptorSet>();
   bloom_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   bloom_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("bloom.composite")->image_views_[0],

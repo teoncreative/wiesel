@@ -10,6 +10,7 @@
 //
 
 #include "w_engine.hpp"
+#include "audio/w_audio.hpp"
 #include "behavior/w_native_behavior.hpp"
 #include "util/w_discord_rpc.hpp"
 
@@ -239,6 +240,7 @@ DeveloperConsole Engine::console_;
 std::shared_ptr<AssetManager> Engine::asset_manager_;
 std::shared_ptr<ScriptManager> Engine::script_manager_;
 std::shared_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
+std::shared_ptr<AudioManager> Engine::audio_manager_;
 #ifdef WIESEL_DISCORD_RPC
 std::shared_ptr<DiscordRPC> Engine::discord_rpc_;
 #endif
@@ -259,6 +261,8 @@ void Engine::InitEngine(const EngineProperties& props) {
   InitializeComponents();
   InputManager::Init();
   behavior_registry_ = std::make_shared<NativeBehaviorRegistry>();
+  audio_manager_ = std::make_shared<AudioManager>();
+  audio_manager_->Init();
   script_manager_ = std::make_shared<ScriptManager>();
   script_manager_->Init({.EnableDebugger = true});
 #ifdef WIESEL_DISCORD_RPC
@@ -268,9 +272,9 @@ void Engine::InitEngine(const EngineProperties& props) {
 
 void Engine::InitWindow(const WindowProperties&& props) {
 #ifdef WIESEL_BACKEND_SDL3
-  window_ = CreateReference<SdlAppWindow>(std::move(props));
+  window_ = std::make_shared<SdlAppWindow>(std::move(props));
 #else
-  window_ = CreateReference<GlfwAppWindow>(std::move(props));
+  window_ = std::make_shared<GlfwAppWindow>(std::move(props));
 #endif
   Dialogs::Init();
 }
@@ -280,7 +284,7 @@ void Engine::InitRenderer(const RendererProperties&& props) {
     LOG_ERROR("Window should be initialized before renderer!");
     abort();
   }
-  renderer_ = CreateReference<Renderer>(window_);
+  renderer_ = std::make_shared<Renderer>(window_);
   renderer_->Initialize(std::move(props));
 }
 
@@ -319,6 +323,10 @@ void Engine::CleanupEngine() {
 #endif
   script_manager_ = nullptr;
   behavior_registry_ = nullptr;
+  if (audio_manager_) {
+    audio_manager_->Shutdown();
+    audio_manager_ = nullptr;
+  }
 }
 
 
@@ -1055,7 +1063,7 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
 }
 
 void Engine::ProcessNode(Model& model, aiNode* node, const aiScene& scene,
-                         std::vector<Ref<Mesh>>& meshes,
+                         std::vector<std::shared_ptr<Mesh>>& meshes,
                          int32_t parent_node_index) {
   int32_t node_index = static_cast<int32_t>(model.node_hierarchy.nodes.size());
 
@@ -1070,7 +1078,7 @@ void Engine::ProcessNode(Model& model, aiNode* node, const aiScene& scene,
   for (uint32_t i = 0; i < node->mNumMeshes; i++) {
     int32_t mesh_index = static_cast<int32_t>(meshes.size());
     aiMesh* mesh_ptr = scene.mMeshes[node->mMeshes[i]];
-    Ref<Mesh> mesh = ProcessMesh(model, mesh_ptr, scene);
+    std::shared_ptr<Mesh> mesh = ProcessMesh(model, mesh_ptr, scene);
     if (mesh == nullptr) {
       continue;
     }

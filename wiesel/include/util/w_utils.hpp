@@ -226,7 +226,7 @@ struct SSAOSpecializationData {
   }
 };
 
-template <typename T>
+/*template <typename T>
 using Weak = std::weak_ptr<T>;
 
 template <typename T>
@@ -238,13 +238,12 @@ constexpr Scope<T> CreateScope(Args&&... args) {
 }
 
 template <typename T>
-
 using Ref = std::shared_ptr<T>;
 
 template <typename T, typename... Args>
-constexpr Ref<T> CreateReference(Args&&... args) {
+constexpr std::shared_ptr<T> CreateReference(Args&&... args) {
   return std::make_shared<T>(std::forward<Args>(args)...);
-}
+}*/
 
 template <typename A, typename B>
 using Pair = std::pair<A, B>;

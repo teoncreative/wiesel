@@ -12,6 +12,7 @@
 #include "scene/w_componentutil.hpp"
 
 #include "animation/w_animation.hpp"
+#include "audio/w_audio.hpp"
 #include "asset/w_asset_manager.hpp"
 #include "ui/w_canvas.hpp"
 #include "behavior/w_behavior.hpp"
@@ -34,7 +35,48 @@
 
 #include <ranges>
 
+#include "project/w_project_loader.hpp"
+
 namespace Wiesel {
+
+// Shared drag-drop handler: accepts AssetHandle or BrowserFile payloads,
+// auto-imports if needed, returns a valid handle or null.
+static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
+  AssetHandle result;
+  if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
+    AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
+    const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
+    if (meta && meta->type == required_type) {
+      result = dropped;
+    }
+  } else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("BrowserFile")) {
+    std::string file_path(static_cast<const char*>(payload->Data));
+    std::string ext = std::filesystem::path(file_path).extension().string();
+    if (ProjectLoader::ExtToAssetType(ext) == required_type) {
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      if (physical_app.has_value()) {
+        auto rel = std::filesystem::relative(file_path, *physical_app);
+        std::string vfs_path = "/app/" + rel.generic_string();
+        std::string name = std::filesystem::path(file_path).stem().string();
+
+        // Check existing .meta
+        std::filesystem::path meta_path = file_path + ".meta";
+        std::string handle_str = ProjectLoader::ReadMetaFile(meta_path);
+        if (!handle_str.empty()) {
+          result = AssetHandle::FromString(handle_str);
+        }
+        // Auto-import if not registered
+        if (!result.IsValid()) {
+          result = Engine::asset_manager().Register(name, required_type, vfs_path);
+          if (result.IsValid()) {
+            ProjectLoader::WriteMetaFile(meta_path, result);
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
 
 static void RenderTexturePreview(const char* label, Texture* tex) {
   if (!tex) {
@@ -158,7 +200,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
 
     // Per-mesh material slots
     if (model.model_handle.IsValid()) {
-      const Ref<Model>& model_data = assets.GetOrLoad<Model>(model.model_handle);
+      const std::shared_ptr<Model>& model_data = assets.GetOrLoad<Model>(model.model_handle);
       if (model_data) {
         // Ensure material instances match mesh count
         if (model.material_instances.size() != model_data->meshes.size()) {
@@ -168,7 +210,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
         }
         for (size_t i = 0; i < model_data->meshes.size(); i++) {
           if (!model.material_instances[i]) {
-            auto inst = CreateReference<MaterialInstance>();
+            auto inst = std::make_shared<MaterialInstance>();
             AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
                 ? model.material_slot_handles[i]
                 : model_data->meshes[i]->material_handle;
@@ -544,6 +586,68 @@ void RenderScriptVariables(ScriptInstance* instance) {
           value.Set(instance->handle(), &null_val);
         }
       }
+    } else if (value.field_type() == FieldType::AudioClip) {
+      // AudioClip object with a "handle" field (asset handle UUID string)
+      MonoObject* clip_obj = value.Get<MonoObject*>(instance->handle());
+      std::string current_handle_str;
+      std::string display = "(None)";
+
+      if (clip_obj) {
+        MonoClassField* handle_field = mono_class_get_field_from_name(
+            mono_object_get_class(clip_obj), "handle");
+        if (handle_field) {
+          MonoString* h_str = nullptr;
+          mono_field_get_value(clip_obj, handle_field, &h_str);
+          if (h_str) {
+            const char* cstr = mono_string_to_utf8(h_str);
+            if (cstr && cstr[0]) {
+              current_handle_str = cstr;
+              AssetHandle h = AssetHandle::FromString(current_handle_str);
+              const auto* meta = Engine::asset_manager().GetMetadata(h);
+              if (meta) display = meta->name;
+            }
+            mono_free((void*)cstr);
+          }
+        }
+      }
+
+      std::string label = PrefixLabel(value.formatted_name().c_str());
+      ImGui::InputText(label.c_str(), &display, ImGuiInputTextFlags_ReadOnly);
+
+      if (ImGui::BeginDragDropTarget()) {
+        AssetHandle dropped_handle = AcceptAssetDragDrop(AssetType::Audio);
+        if (dropped_handle.IsValid()) {
+          // Create or update AudioClip object
+          MonoObject* obj = clip_obj;
+          if (!obj) {
+            obj = mono_object_new(
+                Engine::script_manager().app_domain(),
+                Engine::script_manager().audio_clip_class());
+            mono_runtime_object_init(obj);
+          }
+          if (obj) {
+            MonoClassField* handle_field = mono_class_get_field_from_name(
+                mono_object_get_class(obj), "handle");
+            if (handle_field) {
+              MonoString* h_val = mono_string_new(
+                  Engine::script_manager().app_domain(),
+                  dropped_handle.ToString().c_str());
+              mono_field_set_value(obj, handle_field, h_val);
+            }
+            value.Set(instance->handle(), obj);
+          }
+        }
+        ImGui::EndDragDropTarget();
+      }
+
+      if (!current_handle_str.empty()) {
+        ImGui::SameLine();
+        std::string clear_id = "X##clear_" + value.field_name();
+        if (ImGui::SmallButton(clear_id.c_str())) {
+          MonoObject* null_val = nullptr;
+          value.Set(instance->handle(), &null_val);
+        }
+      }
     }
     // todo objects, long and unsigned numbers
   }
@@ -574,7 +678,7 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                 if (entity.HasComponent<BehaviorsComponent>()) {
                   auto& component = entity.GetComponent<BehaviorsComponent>();
                   component.m_Behaviors.erase(name);
-                  auto newBehavior = CreateReference<LuaBehavior>(entity, file);
+                  auto newBehavior = std::make_shared<LuaBehavior>(entity, file);
                   component.m_Behaviors[newBehavior->GetName()] = newBehavior;
                 }
               });
@@ -1347,6 +1451,90 @@ void RegisterComponentType(
   };
 }
 
+void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Audio Source", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<AudioSourceComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  // Default clip (asset handle, drag-drop)
+  std::string display = "(None)";
+  if (component.clip.IsValid()) {
+    const auto* meta = Engine::asset_manager().GetMetadata(component.clip);
+    if (meta) display = meta->name;
+  }
+  ImGui::InputText(PrefixLabel("Clip").c_str(), &display, ImGuiInputTextFlags_ReadOnly);
+
+  if (ImGui::BeginDragDropTarget()) {
+    AssetHandle dropped = AcceptAssetDragDrop(AssetType::Audio);
+    if (dropped.IsValid()) component.clip = dropped;
+    ImGui::EndDragDropTarget();
+  }
+
+  if (component.clip.IsValid()) {
+    ImGui::SameLine();
+    if (ImGui::SmallButton("X##clearclip")) {
+      if (component.playing_handle_.IsValid()) {
+        Engine::audio().Stop(component.playing_handle_);
+        component.playing_handle_ = {};
+      }
+      component.clip = {};
+    }
+  }
+
+  // Bus
+  const char* bus_names[] = {"Master", "SFX", "Music"};
+  int bus_idx = static_cast<int>(component.bus);
+  if (ImGui::Combo(PrefixLabel("Bus").c_str(), &bus_idx, bus_names, 3)) {
+    component.bus = static_cast<AudioBus>(bus_idx);
+  }
+
+  ImGui::SliderFloat(PrefixLabel("Volume").c_str(), &component.volume, 0.0f, 1.0f);
+  ImGui::SliderFloat(PrefixLabel("Pitch").c_str(), &component.pitch, 0.1f, 3.0f);
+  ImGui::SliderFloat(PrefixLabel("Spatial Blend").c_str(), &component.spatial_blend, 0.0f, 1.0f,
+                      component.spatial_blend < 0.01f ? "2D" : (component.spatial_blend > 0.99f ? "3D" : "%.2f"));
+  ImGui::Checkbox(PrefixLabel("Loop").c_str(), &component.loop);
+  ImGui::Checkbox(PrefixLabel("Play On Start").c_str(), &component.play_on_start);
+  ImGui::Checkbox(PrefixLabel("Mute").c_str(), &component.mute);
+
+  if (component.spatial_blend > 0.0f) {
+    ImGui::DragFloat(PrefixLabel("Min Distance").c_str(), &component.min_distance, 0.1f, 0.0f, 1000.0f);
+    ImGui::DragFloat(PrefixLabel("Max Distance").c_str(), &component.max_distance, 1.0f, 0.0f, 10000.0f);
+  }
+
+  // Preview buttons
+  if (component.clip.IsValid()) {
+    if (component.playing_handle_.IsValid()) {
+      if (ImGui::Button("Stop")) {
+        Engine::audio().Stop(component.playing_handle_);
+        component.playing_handle_ = {};
+      }
+    } else {
+      if (ImGui::Button("Preview")) {
+        SoundParams params;
+        params.bus = component.bus;
+        params.volume = component.volume;
+        params.pitch = component.pitch;
+        params.loop = component.loop;
+        params.spatial_blend = 0.0f;  // preview always 2D
+        component.playing_handle_ = Engine::audio().Play(component.clip, params);
+      }
+    }
+  }
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
+  if (ImGui::MenuItem("Audio Source") && !entity.HasComponent<AudioSourceComponent>()) {
+    entity.AddComponent<AudioSourceComponent>();
+  }
+}
+
 void InitializeComponents() {
   RegisterComponentType<IdComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
@@ -1359,12 +1547,13 @@ void InitializeComponents() {
   RegisterComponentType<BehaviorsComponent>("C# Script", "Scripting", RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
   RegisterComponentType<BoxColliderComponent>("Box Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_BoxColliderComponent, nullptr);
   RegisterComponentType<SphereColliderComponent>("Sphere Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_SphereColliderComponent, nullptr);
-  RegisterComponentType<RigidBodyComponent>("Rigid Body", "Physics", RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent, nullptr);
+  RegisterComponentType<RigidBodyComponent>("Rigid Body", "Physics", RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent,  nullptr);
   RegisterComponentType<RectangleTransformComponent>("Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
   RegisterComponentType<CanvasComponent>("Canvas", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasComponent, nullptr);
   RegisterComponentType<CanvasRectComponent>("Canvas Rect", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasRectComponent, nullptr);
   RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
   RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
+  RegisterComponentType<AudioSourceComponent>("Audio Source", "Audio", RenderComponentImGui, RenderAddComponentImGui_AudioSourceComponent, nullptr);
 }
 
 void RenderExistingComponents(Entity entity) {
@@ -1404,7 +1593,7 @@ void RenderAddPopup(Entity entity) {
 
   // Collect groups in consistent order
   static const std::vector<std::string> group_order = {
-      "Rendering", "Lighting", "Physics", "Canvas", "Scripting"
+      "Rendering", "Lighting", "Audio", "Physics", "Canvas", "Scripting"
   };
 
   if (has_filter) {

@@ -14,7 +14,7 @@
 
 namespace Wiesel {
 
-RTPipeline::RTPipeline(Ref<Renderer> renderer)
+RTPipeline::RTPipeline(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
 RTPipeline::~RTPipeline() {
@@ -32,21 +32,21 @@ RTPipeline::~RTPipeline() {
   }
 }
 
-void RTPipeline::AddRayGenShader(Ref<Shader> shader) {
+void RTPipeline::AddRayGenShader(std::shared_ptr<Shader> shader) {
   raygen_shaders_.push_back(std::move(shader));
 }
 
-void RTPipeline::AddMissShader(Ref<Shader> shader) {
+void RTPipeline::AddMissShader(std::shared_ptr<Shader> shader) {
   miss_shaders_.push_back(std::move(shader));
 }
 
-void RTPipeline::AddHitGroup(Ref<Shader> closest_hit, Ref<Shader> any_hit,
-                             Ref<Shader> intersection) {
+void RTPipeline::AddHitGroup(std::shared_ptr<Shader> closest_hit, std::shared_ptr<Shader> any_hit,
+                             std::shared_ptr<Shader> intersection) {
   hit_groups_.push_back({std::move(closest_hit), std::move(any_hit),
                          std::move(intersection)});
 }
 
-void RTPipeline::AddInputLayout(Ref<DescriptorSetLayout> layout) {
+void RTPipeline::AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout) {
   descriptor_layouts_.push_back(std::move(layout));
 }
 

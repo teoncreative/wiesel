@@ -14,8 +14,8 @@ SpriteAsset::~SpriteAsset() {
 
 }
 
-Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
-  Ref<SpriteTexture> texture = CreateReference<SpriteTexture>();
+std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
+  std::shared_ptr<SpriteTexture> texture = std::make_shared<SpriteTexture>();
 
   struct ImageEntry {
     int w, h, channels;
@@ -60,7 +60,7 @@ Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
   }
   list.clear();
 
-  Ref<Renderer> renderer = Engine::renderer();
+  std::shared_ptr<Renderer> renderer = Engine::renderer();
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   renderer->CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -132,14 +132,14 @@ AddFrameResult SpriteBuilder::AddFrame(float_t duration_seconds, glm::vec2 uv_po
   return AddFrameResult::Success;
 }
 
-Ref<SpriteAsset> SpriteBuilder::Build() {
-  Ref<SpriteAsset> asset = CreateReference<SpriteAsset>();
+std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
+  std::shared_ptr<SpriteAsset> asset = std::make_shared<SpriteAsset>();
   asset->type_ = SpriteTypeAtlas;
   asset->frames_ = frames_;
   asset->atlas_size_ = atlas_size_;
   asset->texture_ = LoadSpriteTexture({virtual_atlas_path_});
   asset->sampler_ = sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
-  Ref<ImageView> view = Engine::renderer()->CreateImageView(
+  std::shared_ptr<ImageView> view = Engine::renderer()->CreateImageView(
       asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,
       1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
   for (SpriteAsset::Frame& item : asset->frames_) {
@@ -168,7 +168,7 @@ Ref<SpriteAsset> SpriteBuilder::Build() {
     item.vertex_buffer = Engine::renderer()->CreateVertexBuffer(uvs);
     item.uniform_buffer = Engine::renderer()->CreateUniformBuffer(
         sizeof(SpriteUniformData));
-    item.descriptor = CreateReference<DescriptorSet>();
+    item.descriptor = std::make_shared<DescriptorSet>();
     item.descriptor->SetLayout(Engine::renderer()->GetSpriteDrawDescriptorLayout());
     item.descriptor->AddCombinedImageSampler(0, view, asset->sampler_);
     item.descriptor->AddUniformBuffer(1, item.uniform_buffer);

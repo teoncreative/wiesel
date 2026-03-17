@@ -18,11 +18,11 @@
 
 namespace Wiesel {
 
-GeometryFeature::GeometryFeature(Ref<Renderer> renderer)
+GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass
   render_pass_ =
-      CreateReference<RenderPass>(PassType::Geometry, "Geometry RenderPass");
+      std::make_shared<RenderPass>(PassType::Geometry, "Geometry RenderPass");
   render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                               .format = VK_FORMAT_R32G32B32A32_SFLOAT,
                               .msaa_mode = renderer_->options().msaa_mode});
@@ -79,7 +79,7 @@ GeometryFeature::GeometryFeature(Ref<Renderer> renderer)
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/geometry_shader.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeBack,
       renderer_->options().wireframe_enabled, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
@@ -210,7 +210,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
   }
 
   // Geometry output descriptor (6 bindings, one per resolved G-buffer image)
-  auto geo_output_desc = CreateReference<DescriptorSet>();
+  auto geo_output_desc = std::make_shared<DescriptorSet>();
   geo_output_desc->SetLayout(renderer.GetGeometryOutputDescriptorLayout());
   geo_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("geometry.view_pos_resolve")->image_views_[0],

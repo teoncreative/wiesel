@@ -22,7 +22,7 @@ struct MotionBlurPushConstants {
 
 class MotionBlurFeature : public RenderFeature {
  public:
-  explicit MotionBlurFeature(Ref<Renderer> renderer);
+  explicit MotionBlurFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -32,10 +32,10 @@ class MotionBlurFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "MotionBlur";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
-  Ref<MotionBlurPushConstants> push_constants_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<MotionBlurPushConstants> push_constants_;
 };
 
 }  // namespace Wiesel

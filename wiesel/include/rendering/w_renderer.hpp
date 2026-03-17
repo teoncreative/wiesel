@@ -152,70 +152,70 @@ struct RenderStats {
 
 class Renderer {
  public:
-  explicit Renderer(Ref<AppWindow> window);
+  explicit Renderer(std::shared_ptr<AppWindow> window);
   ~Renderer();
 
   void Initialize(const RendererProperties&& props);
 
   template<typename T>
-  Ref<MemoryBuffer> CreateVertexBuffer(std::vector<T> vertices);
+  std::shared_ptr<MemoryBuffer> CreateVertexBuffer(std::vector<T> vertices);
 
   void DestroyVertexBuffer(MemoryBuffer& buffer);
 
-  Ref<IndexBuffer> CreateIndexBuffer(std::vector<Index> indices);
+  std::shared_ptr<IndexBuffer> CreateIndexBuffer(std::vector<Index> indices);
   void DestroyIndexBuffer(MemoryBuffer& buffer);
 
-  Ref<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
-  Ref<UniformBuffer> CreateStorageBuffer(VkDeviceSize size);
+  std::shared_ptr<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
+  std::shared_ptr<UniformBuffer> CreateStorageBuffer(VkDeviceSize size);
   void DestroyUniformBuffer(UniformBuffer& buffer);
 
   void SetupCameraComponent(CameraComponent& component);
 
-  Ref<Texture> CreateBlankTexture();
-  Ref<Texture> CreateBlankTexture(const TextureProps& texture_props,
+  std::shared_ptr<Texture> CreateBlankTexture();
+  std::shared_ptr<Texture> CreateBlankTexture(const TextureProps& texture_props,
                                   const SamplerProps& sampler_props);
-  Ref<Texture> CreateTexture(const std::string& path,
+  std::shared_ptr<Texture> CreateTexture(const std::string& path,
                              const TextureProps& texture_props,
                              const SamplerProps& sampler_props);
-  Ref<Texture> CreateTexture(void* buffer,
+  std::shared_ptr<Texture> CreateTexture(void* buffer,
                              size_t size_per_pixel,
                              const TextureProps& texture_props,
                              const SamplerProps& sampler_props);
-  Ref<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
+  std::shared_ptr<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
                                     const TextureProps& texture_props,
                                     const SamplerProps& sampler_props);
-  Ref<Texture> CreateCubemapTextureFromSingle(const std::string& virtual_path,
+  std::shared_ptr<Texture> CreateCubemapTextureFromSingle(const std::string& virtual_path,
                                     const TextureProps& texture_props,
                                     const SamplerProps& sampler_props);
   void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mip_levels, const SamplerProps& props);
 
-  Ref<AttachmentTexture> CreateAttachmentTexture(
+  std::shared_ptr<AttachmentTexture> CreateAttachmentTexture(
       const AttachmentTextureProps& props);
 
-  void SetAttachmentTextureBuffer(Ref<AttachmentTexture> texture, void* buffer,
+  void SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> texture, void* buffer,
                                   size_t size_per_pixel);
 
   void DestroyAttachmentTexture(AttachmentTexture& texture);
 
-  Ref<DescriptorSet> CreateMeshDescriptors(Ref<UniformBuffer> uniform_buffer,
-                                            Ref<Material> material);
+  std::shared_ptr<DescriptorSet> CreateMeshDescriptors(std::shared_ptr<UniformBuffer> uniform_buffer,
+                                            std::shared_ptr<Material> material);
 
-  Ref<DescriptorSet> CreateShadowMeshDescriptors(
-      Ref<UniformBuffer> uniformBuffer, Ref<Material> material);
+  std::shared_ptr<DescriptorSet> CreateShadowMeshDescriptors(
+      std::shared_ptr<UniformBuffer> uniformBuffer, std::shared_ptr<Material> material);
 
-  Ref<DescriptorSet> CreateGlobalDescriptors(CameraComponent& camera);
-  Ref<DescriptorSet> CreateShadowGlobalDescriptors(CameraComponent& camera);
-  Ref<DescriptorSet> CreateBoneDescriptors(Ref<UniformBuffer> bone_ubo);
+  std::shared_ptr<DescriptorSet> CreateGlobalDescriptors(CameraComponent& camera);
+  std::shared_ptr<DescriptorSet> CreateShadowGlobalDescriptors(CameraComponent& camera);
+  std::shared_ptr<DescriptorSet> CreateBoneDescriptors(std::shared_ptr<UniformBuffer> bone_ubo);
 
-  Ref<DescriptorSet> CreateDescriptors(Ref<AttachmentTexture> texture);
-  Ref<DescriptorSet> CreateSkyboxDescriptors(Ref<Texture> texture);
+  std::shared_ptr<DescriptorSet> CreateDescriptors(std::shared_ptr<AttachmentTexture> texture);
+  std::shared_ptr<DescriptorSet> CreateSkyboxDescriptors(std::shared_ptr<Texture> texture);
 
   void DestroyDescriptorLayout(DescriptorSetLayout& layout);
 
-  void RecreatePipeline(Ref<Pipeline> pipeline);
+  void RecreatePipeline(std::shared_ptr<Pipeline> pipeline);
 
-  Ref<Shader> CreateShader(ShaderProperties properties);
+  std::shared_ptr<Shader> CreateShader(ShaderProperties properties);
 
   void SetClearColor(float r, float g, float b, float a = 1.0f);
   void SetClearColor(const Colorf& color);
@@ -227,8 +227,8 @@ class Renderer {
   WIESEL_GETTER_FN bool NeedsRecreateResources() const { return recreate_resources_; }
   void ClearRecreateResources() { recreate_resources_ = false; }
 
-  Ref<DescriptorSet> GetFinalOutputDescriptor() const;
-  Ref<AttachmentTexture> GetFinalOutputImage() const;
+  std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor() const;
+  std::shared_ptr<AttachmentTexture> GetFinalOutputImage() const;
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
   WIESEL_GETTER_FN float GetAspectRatio() const { return aspect_ratio_; }
@@ -251,7 +251,7 @@ class Renderer {
     return swap_chain_image_format_;
   }
 
-  WIESEL_GETTER_FN const Ref<CameraData> GetCameraData()
+  WIESEL_GETTER_FN const std::shared_ptr<CameraData> GetCameraData()
       const {
     return camera_;
   }
@@ -282,84 +282,84 @@ class Renderer {
   PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR() const { return pfn_vkGetRayTracingShaderGroupHandlesKHR_; }
   PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR() const { return pfn_vkCmdTraceRaysKHR_; }
 
-  WIESEL_GETTER_FN Ref<AccelerationStructureManager> GetASManager() const { return as_manager_; }
+  WIESEL_GETTER_FN std::shared_ptr<AccelerationStructureManager> GetASManager() const { return as_manager_; }
 
-  WIESEL_GETTER_FN const Ref<Pipeline> GetPresentPipeline() const {
+  WIESEL_GETTER_FN const std::shared_ptr<Pipeline> GetPresentPipeline() const {
     return present_pipeline_;
   }
 
-  WIESEL_GETTER_FN const Ref<Sampler> GetDefaultLinearSampler() const {
+  WIESEL_GETTER_FN const std::shared_ptr<Sampler> GetDefaultLinearSampler() const {
     return default_linear_sampler_;
   }
 
-  WIESEL_GETTER_FN const Ref<Sampler> GetDefaultNearestSampler() const {
+  WIESEL_GETTER_FN const std::shared_ptr<Sampler> GetDefaultNearestSampler() const {
     return default_nearest_sampler_;
   }
 
-  WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadIndexBuffer() const {
+  WIESEL_GETTER_FN const std::shared_ptr<MemoryBuffer> GetQuadIndexBuffer() const {
     return quad_index_buffer_;
   }
 
-  WIESEL_GETTER_FN const Ref<MemoryBuffer> GetQuadVertexBuffer() const {
+  WIESEL_GETTER_FN const std::shared_ptr<MemoryBuffer> GetQuadVertexBuffer() const {
     return quad_vertex_buffer_;
   }
 
-  WIESEL_GETTER_FN const Ref<DescriptorSetLayout> GetSpriteDrawDescriptorLayout() const {
+  WIESEL_GETTER_FN const std::shared_ptr<DescriptorSetLayout> GetSpriteDrawDescriptorLayout() const {
     return sprite_draw_descriptor_layout_;
   }
 
   // Descriptor layout getters (used by RenderFeatures)
 
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGeometryMeshDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGeometryMeshDescriptorLayout() const {
     return geometry_mesh_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetShadowMeshDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetShadowMeshDescriptorLayout() const {
     return shadow_mesh_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGlobalDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGlobalDescriptorLayout() const {
     return global_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGlobalShadowDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGlobalShadowDescriptorLayout() const {
     return global_shadow_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSSAOGenDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSSAOGenDescriptorLayout() const {
     return ssao_gen_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSSAOBlurDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSSAOBlurDescriptorLayout() const {
     return ssao_blur_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSSAOOutputDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSSAOOutputDescriptorLayout() const {
     return ssao_output_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetGeometryOutputDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGeometryOutputDescriptorLayout() const {
     return geometry_output_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetSkyboxDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSkyboxDescriptorLayout() const {
     return skybox_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetPresentDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetPresentDescriptorLayout() const {
     return present_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetPostprocess2InputDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetPostprocess2InputDescriptorLayout() const {
     return postprocess_2input_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetTAADescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetTAADescriptorLayout() const {
     return taa_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSetLayout> GetBoneDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetBoneDescriptorLayout() const {
     return bone_descriptor_layout_;
   }
-  WIESEL_GETTER_FN Ref<DescriptorSet> GetIdentityBoneDescriptor() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSet> GetIdentityBoneDescriptor() const {
     return identity_bone_descriptor_;
   }
 
   // Shared resource getters (used by RenderFeatures)
 
-  WIESEL_GETTER_FN Ref<AttachmentTexture> GetSSAONoise() const { return ssao_noise_; }
-  WIESEL_GETTER_FN Ref<UniformBuffer> GetSSAOKernelUniformBuffer() const { return ssao_kernel_uniform_buffer_; }
-  WIESEL_GETTER_FN Ref<UniformBuffer> GetCameraUniformBuffer() const { return camera_uniform_buffer_; }
-  WIESEL_GETTER_FN Ref<UniformBuffer> GetLightsUniformBuffer() const { return lights_uniform_buffer_; }
-  WIESEL_GETTER_FN Ref<UniformBuffer> GetShadowCameraUniformBuffer() const { return shadow_camera_uniform_buffer_; }
+  WIESEL_GETTER_FN std::shared_ptr<AttachmentTexture> GetSSAONoise() const { return ssao_noise_; }
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetSSAOKernelUniformBuffer() const { return ssao_kernel_uniform_buffer_; }
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetCameraUniformBuffer() const { return camera_uniform_buffer_; }
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetLightsUniformBuffer() const { return lights_uniform_buffer_; }
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetShadowCameraUniformBuffer() const { return shadow_camera_uniform_buffer_; }
   ShadowMapMatricesUniformData& GetShadowCameraUniformData() { return shadow_camera_uniform_data_; }
 
   VkFormat FindDepthFormat();
@@ -371,25 +371,25 @@ class Renderer {
                  bool shadow_pass, entt::entity entity_handle = entt::null);
   void DrawModelTransparent(ModelComponent& model, const TransformComponent& transform,
                             entt::entity entity_handle = entt::null);
-  void DrawMeshCmd(VkCommandBuffer cmd, Ref<Mesh> mesh,
-                   Ref<DescriptorSet> mesh_descriptors,
-                   Ref<DescriptorSet> bone_descriptors,
-                   Ref<DescriptorSet> global_descriptors);
+  void DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
+                   std::shared_ptr<DescriptorSet> mesh_descriptors,
+                   std::shared_ptr<DescriptorSet> bone_descriptors,
+                   std::shared_ptr<DescriptorSet> global_descriptors);
   void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawCanvasRect(const RectangleTransformComponent& rt,
                       CanvasRectComponent& rect,
-                      Ref<DescriptorSetLayout> layout);
+                      std::shared_ptr<DescriptorSetLayout> layout);
   void DrawCanvasImage(const RectangleTransformComponent& rt,
                        CanvasImageComponent& img,
-                       Ref<DescriptorSetLayout> layout);
+                       std::shared_ptr<DescriptorSetLayout> layout);
   void DrawCanvasText(const RectangleTransformComponent& rt,
                       TextComponent& text,
-                      Ref<DescriptorSetLayout> layout);
+                      std::shared_ptr<DescriptorSetLayout> layout);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
   void RequestEntityPick(uint32_t x, uint32_t y,
-                         Ref<AttachmentTexture> entity_id_texture);
+                         std::shared_ptr<AttachmentTexture> entity_id_texture);
   bool ExecuteEntityPick(entt::entity& out_entity);
 
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
@@ -405,7 +405,7 @@ class Renderer {
   bool BeginPresent();
   void EndPresent();
 
-  void SetCameraData(Ref<CameraData> camera);
+  void SetCameraData(std::shared_ptr<CameraData> camera);
 
   void RecreateSwapChain();
 
@@ -447,13 +447,13 @@ class Renderer {
                    VkDeviceMemory& imageMemory, VkImageCreateFlags flags = 0,
                    uint32_t arrayLayers = 1);
 
-  Ref<ImageView> CreateImageView(
+  std::shared_ptr<ImageView> CreateImageView(
       VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
       uint32_t mipLevels, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
       uint32_t layer = 0, uint32_t layerCount = 1);
 
-  Ref<ImageView> CreateImageView(
-      Ref<AttachmentTexture> image,
+  std::shared_ptr<ImageView> CreateImageView(
+      std::shared_ptr<AttachmentTexture> image,
       VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
       uint32_t layerCount = 1);
 
@@ -575,7 +575,7 @@ class Renderer {
   std::vector<const char*> device_extensions_;
 
   bool initialized_;
-  Ref<AppWindow> window_;
+  std::shared_ptr<AppWindow> window_;
   VkInstance instance_{};
   VkPhysicalDevice physical_device_ = VK_NULL_HANDLE;
   VkDevice logical_device_{};
@@ -588,7 +588,7 @@ class Renderer {
 
   uint32_t image_index_;
   VkFormat swap_chain_image_format_;
-  Ref<AttachmentTexture> swap_chain_texture_;
+  std::shared_ptr<AttachmentTexture> swap_chain_texture_;
 
   VkExtent2D extent_{};
 
@@ -596,8 +596,8 @@ class Renderer {
   uint32_t current_frame_ = 0;
   uint64_t frame_counter_ = 0;
 
-  Ref<CommandPool> command_pool_;
-  std::vector<Ref<CommandBuffer>> command_buffers_;
+  std::shared_ptr<CommandPool> command_pool_;
+  std::vector<std::shared_ptr<CommandBuffer>> command_buffers_;
 
   std::vector<VkSemaphore> image_available_semaphores_;
   std::vector<VkSemaphore> render_finished_semaphores_;
@@ -607,11 +607,11 @@ class Renderer {
   float_t aspect_ratio_;
   WindowSize window_size_;
   Colorf clear_color_;
-  Ref<UniformBuffer> lights_uniform_buffer_;
+  std::shared_ptr<UniformBuffer> lights_uniform_buffer_;
   LightsUniformData lights_uniform_data_;
-  Ref<UniformBuffer> camera_uniform_buffer_;
-  Ref<UniformBuffer> shadow_camera_uniform_buffer_;
-  Ref<UniformBuffer> ssao_kernel_uniform_buffer_;
+  std::shared_ptr<UniformBuffer> camera_uniform_buffer_;
+  std::shared_ptr<UniformBuffer> shadow_camera_uniform_buffer_;
+  std::shared_ptr<UniformBuffer> ssao_kernel_uniform_buffer_;
   CameraUniformData camera_uniform_data_;
   ShadowMapMatricesUniformData shadow_camera_uniform_data_;
   SSAOKernelUniformData ssao_kernel_uniform_data_;
@@ -622,18 +622,18 @@ class Renderer {
   bool recreate_swap_chain_;
   bool recreate_resources_ = false;
 
-  Ref<CameraData> camera_;
+  std::shared_ptr<CameraData> camera_;
   glm::vec2 viewport_size_;
 
-  Ref<DescriptorSetLayout> geometry_mesh_descriptor_layout_;
-  Ref<DescriptorSetLayout> shadow_mesh_descriptor_layout_;
-  Ref<DescriptorSetLayout> global_descriptor_layout_;
-  Ref<DescriptorSetLayout> global_shadow_descriptor_layout_;
-  Ref<DescriptorSetLayout> ssao_gen_descriptor_layout_;
-  Ref<DescriptorSetLayout> ssao_blur_descriptor_layout_;
-  Ref<DescriptorSetLayout> ssao_output_descriptor_layout_;
-  Ref<DescriptorSetLayout> geometry_output_descriptor_layout_;
-  Ref<DescriptorSetLayout> sprite_draw_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> geometry_mesh_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> shadow_mesh_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> global_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> global_shadow_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> ssao_gen_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> ssao_blur_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> ssao_output_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> geometry_output_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> sprite_draw_descriptor_layout_;
 
   // Entity picking readback
   VkBuffer pick_staging_buffer_ = VK_NULL_HANDLE;
@@ -643,32 +643,32 @@ class Renderer {
   RenderStats stats_;
   uint32_t pick_x_ = 0;
   uint32_t pick_y_ = 0;
-  Ref<AttachmentTexture> pick_entity_id_image_;
+  std::shared_ptr<AttachmentTexture> pick_entity_id_image_;
 
-  Ref<DescriptorSetLayout> skybox_descriptor_layout_;
-  Ref<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
-  Ref<DescriptorSetLayout> taa_descriptor_layout_;
-  Ref<DescriptorSetLayout> bone_descriptor_layout_;
-  Ref<UniformBuffer> identity_bone_ubo_;
-  Ref<DescriptorSet> identity_bone_descriptor_;
+  std::shared_ptr<DescriptorSetLayout> skybox_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> taa_descriptor_layout_;
+  std::shared_ptr<DescriptorSetLayout> bone_descriptor_layout_;
+  std::shared_ptr<UniformBuffer> identity_bone_ubo_;
+  std::shared_ptr<DescriptorSet> identity_bone_descriptor_;
 
   // Currently bound pipeline, set by Pipeline::Bind(), used by Draw*
   Pipeline* bound_pipeline_ = nullptr;
 
-  Ref<RenderPass> present_render_pass_;
-  Ref<DescriptorSetLayout> present_descriptor_layout_;
-  Ref<Pipeline> present_pipeline_;
-  Ref<AttachmentTexture> present_color_image_;
-  Ref<AttachmentTexture> present_depth_stencil_;
-  std::vector<Ref<Framebuffer>> present_framebuffers_;
+  std::shared_ptr<RenderPass> present_render_pass_;
+  std::shared_ptr<DescriptorSetLayout> present_descriptor_layout_;
+  std::shared_ptr<Pipeline> present_pipeline_;
+  std::shared_ptr<AttachmentTexture> present_color_image_;
+  std::shared_ptr<AttachmentTexture> present_depth_stencil_;
+  std::vector<std::shared_ptr<Framebuffer>> present_framebuffers_;
 
-  Ref<Sampler> default_linear_sampler_;
-  Ref<Sampler> default_nearest_sampler_;
-  Ref<Sampler> shadow_sampler_;
-  Ref<Texture> blank_texture_;
-  Ref<MemoryBuffer> quad_vertex_buffer_;
-  Ref<IndexBuffer> quad_index_buffer_;
-  Ref<AttachmentTexture> ssao_noise_;
+  std::shared_ptr<Sampler> default_linear_sampler_;
+  std::shared_ptr<Sampler> default_nearest_sampler_;
+  std::shared_ptr<Sampler> shadow_sampler_;
+  std::shared_ptr<Texture> blank_texture_;
+  std::shared_ptr<MemoryBuffer> quad_vertex_buffer_;
+  std::shared_ptr<IndexBuffer> quad_index_buffer_;
+  std::shared_ptr<AttachmentTexture> ssao_noise_;
 
   QueueFamilyIndices queue_family_indices_;
   SwapChainSupportDetails swap_chain_details_;
@@ -687,7 +687,7 @@ class Renderer {
   DeletionQueue deletion_queue_;
 
   // Ray tracing support
-  Ref<AccelerationStructureManager> as_manager_;
+  std::shared_ptr<AccelerationStructureManager> as_manager_;
   bool rt_supported_ = false;
   VkPhysicalDeviceRayTracingPipelinePropertiesKHR rt_pipeline_properties_{};
   VkPhysicalDeviceAccelerationStructurePropertiesKHR rt_as_properties_{};

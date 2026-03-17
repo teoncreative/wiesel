@@ -18,11 +18,11 @@
 
 namespace Wiesel {
 
-SpriteFeature::SpriteFeature(Ref<Renderer> renderer)
+SpriteFeature::SpriteFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass (single swap-chain-format attachment, no MSAA)
   render_pass_ =
-      CreateReference<RenderPass>(PassType::PostProcess, "Sprite RenderPass");
+      std::make_shared<RenderPass>(PassType::PostProcess, "Sprite RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = renderer_->GetSwapChainImageFormat(),
@@ -35,7 +35,7 @@ SpriteFeature::SpriteFeature(Ref<Renderer> renderer)
   auto sprite_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/sprite_shader.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, true, false, false});
   pipeline_->SetVertexData(VertexSprite::GetBindingDescriptions(),
                            VertexSprite::GetAttributeDescriptions());
@@ -64,7 +64,7 @@ void SpriteFeature::SetupResources(RenderContext& ctx) {
       render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   // Sprite output descriptor: reads sprite.color, linear sampler
-  auto sprite_output_desc = CreateReference<DescriptorSet>();
+  auto sprite_output_desc = std::make_shared<DescriptorSet>();
   sprite_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   sprite_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("sprite.color")->image_views_[0],

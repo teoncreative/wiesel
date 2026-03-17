@@ -33,7 +33,7 @@ class GameApplication : public Application {
 
   // Load a project and its start scene (convenience for non-editor mode).
   bool LoadProjectAndScene(const std::filesystem::path& project_path,
-                           Ref<Scene> scene);
+                           std::shared_ptr<Scene> scene);
 
   Project* GetProject() const { return project_.get(); }
 

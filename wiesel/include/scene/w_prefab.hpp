@@ -19,7 +19,7 @@ class Prefab {
   static bool SaveToFile(Entity entity, const std::filesystem::path& path);
 
   // Instantiate a prefab into a scene, returns the root entity
-  static Entity InstantiateFromFile(Ref<Scene> scene,
+  static Entity InstantiateFromFile(std::shared_ptr<Scene> scene,
                                     const std::filesystem::path& path);
 
   // Serialize an entity subtree to JSON (used internally and by the editor)
@@ -27,7 +27,7 @@ class Prefab {
 
   // Deserialize an entity subtree from JSON into a scene
   // Generates new UUIDs so each instance is unique
-  static Entity DeserializeEntityTree(Ref<Scene> scene,
+  static Entity DeserializeEntityTree(std::shared_ptr<Scene> scene,
                                       const nlohmann::json& json);
 };
 

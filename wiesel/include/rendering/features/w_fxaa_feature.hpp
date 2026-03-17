@@ -21,7 +21,7 @@ struct FxaaPushConstants {
 
 class FXAAFeature : public RenderFeature {
  public:
-  explicit FXAAFeature(Ref<Renderer> renderer);
+  explicit FXAAFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
@@ -31,10 +31,10 @@ class FXAAFeature : public RenderFeature {
 
  private:
   static inline std::string name_ = "FXAA";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
-  Ref<FxaaPushConstants> push_constants_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<FxaaPushConstants> push_constants_;
 };
 
 }  // namespace Wiesel

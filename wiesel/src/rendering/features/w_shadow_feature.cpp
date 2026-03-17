@@ -18,10 +18,10 @@
 
 namespace Wiesel {
 
-ShadowFeature::ShadowFeature(Ref<Renderer> renderer)
+ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   render_pass_ =
-      CreateReference<RenderPass>(PassType::Shadow, "Shadow RenderPass");
+      std::make_shared<RenderPass>(PassType::Shadow, "Shadow RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::DepthStencil,
        .format = renderer_->FindDepthFormat(),
@@ -34,7 +34,7 @@ ShadowFeature::ShadowFeature(Ref<Renderer> renderer)
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/shadow_shader.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, true, true});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),

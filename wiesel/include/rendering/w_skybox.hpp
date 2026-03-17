@@ -13,11 +13,11 @@ namespace Wiesel {
 
 class Skybox {
  public:
-  Skybox(Ref<Texture> texture);
+  Skybox(std::shared_ptr<Texture> texture);
   ~Skybox();
 
-  Ref<Texture> texture_;
-  Ref<DescriptorSet> descriptors_;
+  std::shared_ptr<Texture> texture_;
+  std::shared_ptr<DescriptorSet> descriptors_;
 };
 
 }

@@ -17,21 +17,21 @@ namespace Wiesel {
 
 class GeometryFeature : public RenderFeature {
  public:
-  explicit GeometryFeature(Ref<Renderer> renderer);
+  explicit GeometryFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  Ref<RenderPass> GetRenderPass() const { return render_pass_; }
-  Ref<Pipeline> GetPipeline() const { return pipeline_; }
+  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
+  std::shared_ptr<Pipeline> GetPipeline() const { return pipeline_; }
 
  private:
   static inline std::string name_ = "Geometry";
-  Ref<Renderer> renderer_;
-  Ref<RenderPass> render_pass_;
-  Ref<Pipeline> pipeline_;
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<Pipeline> pipeline_;
 };
 
 }  // namespace Wiesel

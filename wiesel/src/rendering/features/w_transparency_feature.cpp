@@ -18,10 +18,10 @@
 
 namespace Wiesel {
 
-TransparencyFeature::TransparencyFeature(Ref<Renderer> renderer)
+TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass: 1 color + depth stencil (read-only)
-  render_pass_ = CreateReference<RenderPass>(PassType::ForwardTransparency,
+  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
                                              "Transparency RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
@@ -40,7 +40,7 @@ TransparencyFeature::TransparencyFeature(Ref<Renderer> renderer)
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/transparency_shader.frag"});
-  pipeline_ = CreateReference<Pipeline>(PipelineProperties{
+  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, true, true, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
@@ -72,7 +72,7 @@ void TransparencyFeature::SetupResources(RenderContext& ctx) {
       render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   // Output descriptor for composite
-  auto output_desc = CreateReference<DescriptorSet>();
+  auto output_desc = std::make_shared<DescriptorSet>();
   output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
   output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("transparency.color")->image_views_[0],

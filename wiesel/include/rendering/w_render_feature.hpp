@@ -29,34 +29,34 @@ class RenderPipeline;
 // Resources are stored by name and looked up at runtime.
 class CameraResourcePool {
  public:
-  void SetTexture(const std::string& name, Ref<AttachmentTexture> tex);
-  Ref<AttachmentTexture> GetTexture(const std::string& name) const;
+  void SetTexture(const std::string& name, std::shared_ptr<AttachmentTexture> tex);
+  std::shared_ptr<AttachmentTexture> GetTexture(const std::string& name) const;
   bool HasTexture(const std::string& name) const;
 
-  void SetFramebuffer(const std::string& name, Ref<Framebuffer> fb);
-  Ref<Framebuffer> GetFramebuffer(const std::string& name) const;
+  void SetFramebuffer(const std::string& name, std::shared_ptr<Framebuffer> fb);
+  std::shared_ptr<Framebuffer> GetFramebuffer(const std::string& name) const;
   bool HasFramebuffer(const std::string& name) const;
 
-  void SetDescriptor(const std::string& name, Ref<DescriptorSet> ds);
-  Ref<DescriptorSet> GetDescriptor(const std::string& name) const;
+  void SetDescriptor(const std::string& name, std::shared_ptr<DescriptorSet> ds);
+  std::shared_ptr<DescriptorSet> GetDescriptor(const std::string& name) const;
   bool HasDescriptor(const std::string& name) const;
 
-  void SetImageView(const std::string& name, Ref<ImageView> view);
-  Ref<ImageView> GetImageView(const std::string& name) const;
+  void SetImageView(const std::string& name, std::shared_ptr<ImageView> view);
+  std::shared_ptr<ImageView> GetImageView(const std::string& name) const;
   bool HasImageView(const std::string& name) const;
 
-  void SetBuffer(const std::string& name, Ref<UniformBuffer> buf);
-  Ref<UniformBuffer> GetBuffer(const std::string& name) const;
+  void SetBuffer(const std::string& name, std::shared_ptr<UniformBuffer> buf);
+  std::shared_ptr<UniformBuffer> GetBuffer(const std::string& name) const;
   bool HasBuffer(const std::string& name) const;
 
   void Clear();
 
  private:
-  std::unordered_map<std::string, Ref<AttachmentTexture>> textures_;
-  std::unordered_map<std::string, Ref<Framebuffer>> framebuffers_;
-  std::unordered_map<std::string, Ref<DescriptorSet>> descriptors_;
-  std::unordered_map<std::string, Ref<ImageView>> image_views_;
-  std::unordered_map<std::string, Ref<UniformBuffer>> buffers_;
+  std::unordered_map<std::string, std::shared_ptr<AttachmentTexture>> textures_;
+  std::unordered_map<std::string, std::shared_ptr<Framebuffer>> framebuffers_;
+  std::unordered_map<std::string, std::shared_ptr<DescriptorSet>> descriptors_;
+  std::unordered_map<std::string, std::shared_ptr<ImageView>> image_views_;
+  std::unordered_map<std::string, std::shared_ptr<UniformBuffer>> buffers_;
 };
 
 // Context passed to features during resource setup and pass building.
@@ -111,11 +111,11 @@ class RenderFeature {
 // it to the scene or to individual cameras.
 class RenderPipeline {
  public:
-  explicit RenderPipeline(Ref<Renderer> renderer);
+  explicit RenderPipeline(std::shared_ptr<Renderer> renderer);
 
   template <typename T, typename... Args>
   T& AddFeature(Args&&... args) {
-    auto feature = CreateReference<T>(std::forward<Args>(args)...);
+    auto feature = std::make_shared<T>(std::forward<Args>(args)...);
     T& ref = *feature;
     features_.push_back(std::move(feature));
     return ref;
@@ -130,18 +130,18 @@ class RenderPipeline {
   void BuildRenderGraph(RenderGraph& graph, RenderContext& ctx);
 
   // Get the final output from the "PipelineOutput" convention.
-  Ref<DescriptorSet> GetFinalOutputDescriptor(CameraResourcePool& pool) const;
-  Ref<AttachmentTexture> GetFinalOutputImage(CameraResourcePool& pool) const;
+  std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor(CameraResourcePool& pool) const;
+  std::shared_ptr<AttachmentTexture> GetFinalOutputImage(CameraResourcePool& pool) const;
 
-  const std::vector<Ref<RenderFeature>>& GetFeatures() const {
+  const std::vector<std::shared_ptr<RenderFeature>>& GetFeatures() const {
     return features_;
   }
 
-  Ref<Renderer> GetRenderer() const { return renderer_; }
+  std::shared_ptr<Renderer> GetRenderer() const { return renderer_; }
 
  private:
-  Ref<Renderer> renderer_;
-  std::vector<Ref<RenderFeature>> features_;
+  std::shared_ptr<Renderer> renderer_;
+  std::vector<std::shared_ptr<RenderFeature>> features_;
 };
 
 }  // namespace Wiesel

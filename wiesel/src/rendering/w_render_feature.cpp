@@ -16,11 +16,11 @@
 namespace Wiesel {
 
 void CameraResourcePool::SetTexture(const std::string& name,
-                                    Ref<AttachmentTexture> tex) {
+                                    std::shared_ptr<AttachmentTexture> tex) {
   textures_[name] = std::move(tex);
 }
 
-Ref<AttachmentTexture> CameraResourcePool::GetTexture(
+std::shared_ptr<AttachmentTexture> CameraResourcePool::GetTexture(
     const std::string& name) const {
   auto it = textures_.find(name);
   if (it != textures_.end()) return it->second;
@@ -32,11 +32,11 @@ bool CameraResourcePool::HasTexture(const std::string& name) const {
 }
 
 void CameraResourcePool::SetFramebuffer(const std::string& name,
-                                        Ref<Framebuffer> fb) {
+                                        std::shared_ptr<Framebuffer> fb) {
   framebuffers_[name] = std::move(fb);
 }
 
-Ref<Framebuffer> CameraResourcePool::GetFramebuffer(
+std::shared_ptr<Framebuffer> CameraResourcePool::GetFramebuffer(
     const std::string& name) const {
   auto it = framebuffers_.find(name);
   if (it != framebuffers_.end()) return it->second;
@@ -48,16 +48,16 @@ bool CameraResourcePool::HasFramebuffer(const std::string& name) const {
 }
 
 void CameraResourcePool::SetDescriptor(const std::string& name,
-                                       Ref<DescriptorSet> ds) {
+                                       std::shared_ptr<DescriptorSet> ds) {
   auto it = descriptors_.find(name);
   if (it != descriptors_.end() && it->second) {
-    Ref<DescriptorSet> old = std::move(it->second);
+    std::shared_ptr<DescriptorSet> old = std::move(it->second);
     Engine::renderer()->GetDeletionQueue().Push([old]() {});
   }
   descriptors_[name] = std::move(ds);
 }
 
-Ref<DescriptorSet> CameraResourcePool::GetDescriptor(
+std::shared_ptr<DescriptorSet> CameraResourcePool::GetDescriptor(
     const std::string& name) const {
   auto it = descriptors_.find(name);
   if (it != descriptors_.end()) return it->second;
@@ -69,11 +69,11 @@ bool CameraResourcePool::HasDescriptor(const std::string& name) const {
 }
 
 void CameraResourcePool::SetImageView(const std::string& name,
-                                      Ref<ImageView> view) {
+                                      std::shared_ptr<ImageView> view) {
   image_views_[name] = std::move(view);
 }
 
-Ref<ImageView> CameraResourcePool::GetImageView(
+std::shared_ptr<ImageView> CameraResourcePool::GetImageView(
     const std::string& name) const {
   auto it = image_views_.find(name);
   if (it != image_views_.end()) return it->second;
@@ -85,11 +85,11 @@ bool CameraResourcePool::HasImageView(const std::string& name) const {
 }
 
 void CameraResourcePool::SetBuffer(const std::string& name,
-                                    Ref<UniformBuffer> buf) {
+                                    std::shared_ptr<UniformBuffer> buf) {
   buffers_[name] = std::move(buf);
 }
 
-Ref<UniformBuffer> CameraResourcePool::GetBuffer(
+std::shared_ptr<UniformBuffer> CameraResourcePool::GetBuffer(
     const std::string& name) const {
   auto it = buffers_.find(name);
   if (it != buffers_.end()) return it->second;
@@ -123,13 +123,13 @@ bool RenderResourceRegistry::Has(const std::string& name) const {
   return resources_.count(name) > 0;
 }
 
-RenderPipeline::RenderPipeline(Ref<Renderer> renderer)
+RenderPipeline::RenderPipeline(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
 void RenderPipeline::RemoveFeature(const std::string& name) {
   features_.erase(
       std::remove_if(features_.begin(), features_.end(),
-                     [&name](const Ref<RenderFeature>& f) {
+                     [&name](const std::shared_ptr<RenderFeature>& f) {
                        return f->GetName() == name;
                      }),
       features_.end());
@@ -155,12 +155,12 @@ void RenderPipeline::BuildRenderGraph(RenderGraph& graph,
   }
 }
 
-Ref<DescriptorSet> RenderPipeline::GetFinalOutputDescriptor(
+std::shared_ptr<DescriptorSet> RenderPipeline::GetFinalOutputDescriptor(
     CameraResourcePool& pool) const {
   return pool.GetDescriptor("PipelineOutputDescriptor");
 }
 
-Ref<AttachmentTexture> RenderPipeline::GetFinalOutputImage(
+std::shared_ptr<AttachmentTexture> RenderPipeline::GetFinalOutputImage(
     CameraResourcePool& pool) const {
   return pool.GetTexture("PipelineOutput");
 }

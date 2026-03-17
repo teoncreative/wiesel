@@ -28,6 +28,7 @@ enum class AssetType : uint8_t {
   Script,
   Scene,
   Prefab,
+  Audio,
   Count
 };
 

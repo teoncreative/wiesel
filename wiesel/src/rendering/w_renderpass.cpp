@@ -41,7 +41,7 @@ RenderPass::~RenderPass() {
   //Engine::renderer()->DestroyRenderPass(*this);
 }
 
-void RenderPass::AttachOutput(Ref<AttachmentTexture> attachment) {
+void RenderPass::AttachOutput(std::shared_ptr<AttachmentTexture> attachment) {
   attachments_.push_back({
       .type = attachment->type_,
       .format = attachment->format_,
@@ -239,7 +239,7 @@ void RenderPass::Bake() {
                                        debug_name.c_str());
 }
 
-void RenderPass::Begin(Ref<Framebuffer> framebuffer, const Colorf& clear_color) {
+void RenderPass::Begin(std::shared_ptr<Framebuffer> framebuffer, const Colorf& clear_color) {
   VkRenderPassBeginInfo render_pass_info{};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   render_pass_info.renderPass = render_pass_;
@@ -271,8 +271,8 @@ void RenderPass::End() {
   vkCmdEndRenderPass(Engine::renderer()->GetCommandBuffer().handle_);
 }
 
-// Change these to take span of Ref<ImageView> instead.
-Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture* const> output_attachments, glm::vec2 extent) {
+// Change these to take span of std::shared_ptr<ImageView> instead.
+std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<AttachmentTexture* const> output_attachments, glm::vec2 extent) {
   bool has_depth = false;
   std::vector<VkImageView> views;
   for (const auto& item : output_attachments) {
@@ -285,24 +285,24 @@ Ref<Framebuffer> RenderPass::CreateFramebuffer(uint32_t index, std::span<Attachm
     }
   }
   // TODO check if views match the expected framebuffer attachment size
-  return CreateReference<Framebuffer>(views, extent, *this);
+  return std::make_shared<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(std::span<ImageView*> output_views, glm::vec2 extent) {
+std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(std::span<ImageView*> output_views, glm::vec2 extent) {
   std::vector<VkImageView> views;
   for (const auto& item : output_views) {
     views.push_back(item->handle_);
   }
   // TODO check if views match the expected framebuffer attachment size
-  return CreateReference<Framebuffer>(views, extent, *this);
+  return std::make_shared<Framebuffer>(views, extent, *this);
 }
 
-Ref<Framebuffer> RenderPass::CreateFramebuffer(std::initializer_list<Ref<ImageView>> output_views, glm::vec2 extent) {
+std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(std::initializer_list<std::shared_ptr<ImageView>> output_views, glm::vec2 extent) {
   std::vector<VkImageView> views;
   for (const auto& item : output_views) {
     views.push_back(item->handle_);
   }
   // TODO check if views match the expected framebuffer attachment size
-  return CreateReference<Framebuffer>(views, extent, *this);
+  return std::make_shared<Framebuffer>(views, extent, *this);
 }
 }  // namespace Wiesel

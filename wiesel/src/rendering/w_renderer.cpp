@@ -71,7 +71,7 @@ SamplingMode FindHighestSamplingMode(const std::vector<SamplingMode>& modes) {
   return static_cast<SamplingMode>(highest);
 }
 
-Renderer::Renderer(Ref<AppWindow> window) : window_(window) {
+Renderer::Renderer(std::shared_ptr<AppWindow> window) : window_(window) {
   Spirv::Init();
 #ifdef VULKAN_VALIDATION
   validation_layers_.push_back("VK_LAYER_KHRONOS_validation");
@@ -148,7 +148,7 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   // ---
   CreateCommandPools();
   if (rt_supported_) {
-    as_manager_ = CreateReference<AccelerationStructureManager>(
+    as_manager_ = std::make_shared<AccelerationStructureManager>(
         Engine::renderer());
   }
   CreateDescriptorLayouts();
@@ -166,9 +166,9 @@ VkDevice Renderer::GetLogicalDevice() {
 }
 
 template <typename T>
-Ref<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertices) {
-  Ref<MemoryBuffer> memoryBuffer =
-      CreateReference<MemoryBuffer>(MemoryTypeVertexBuffer);
+std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertices) {
+  std::shared_ptr<MemoryBuffer> memoryBuffer =
+      std::make_shared<MemoryBuffer>(MemoryTypeVertexBuffer);
 
   memoryBuffer->size_ = vertices.size();
 
@@ -213,16 +213,16 @@ Ref<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertices) {
   return memoryBuffer;
 }
 
-template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex3D>(
+template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex3D>(
     std::vector<Vertex3D>);
 
-template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex2DNoColor>(
+template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex2DNoColor>(
     std::vector<Vertex2DNoColor>);
 
-template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<VertexSprite>(
+template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<VertexSprite>(
     std::vector<VertexSprite>);
 
-template Ref<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
+template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
     std::vector<glm::vec3>);
 
 void Renderer::DestroyVertexBuffer(MemoryBuffer& buffer) {
@@ -230,8 +230,8 @@ void Renderer::DestroyVertexBuffer(MemoryBuffer& buffer) {
   vkFreeMemory(logical_device_, buffer.memory_handle_, nullptr);
 }
 
-Ref<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
-  Ref<IndexBuffer> memoryBuffer = CreateReference<IndexBuffer>();
+std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
+  std::shared_ptr<IndexBuffer> memoryBuffer = std::make_shared<IndexBuffer>();
 
   static_assert(sizeof(Index) == sizeof(uint32_t));
   memoryBuffer->index_type_ = VK_INDEX_TYPE_UINT32;
@@ -279,8 +279,8 @@ Ref<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
   return memoryBuffer;
 }
 
-Ref<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
-  Ref<UniformBuffer> uniformBuffer = CreateReference<UniformBuffer>();
+std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
+  std::shared_ptr<UniformBuffer> uniformBuffer = std::make_shared<UniformBuffer>();
 
   uniformBuffer->data_ = malloc(size);
   uniformBuffer->size_ = size;
@@ -302,8 +302,8 @@ Ref<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
   return uniformBuffer;
 }
 
-Ref<UniformBuffer> Renderer::CreateStorageBuffer(VkDeviceSize size) {
-  Ref<UniformBuffer> buffer = CreateReference<UniformBuffer>();
+std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(VkDeviceSize size) {
+  std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
   buffer->data_ = malloc(size);
   buffer->size_ = size;
   CreateBuffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
@@ -345,8 +345,8 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.pos_changed = true;
 }
 
-Ref<Texture> Renderer::CreateBlankTexture() {
-  Ref<Texture> texture = CreateReference<Texture>(TextureTypeDiffuse, "");
+std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>(TextureTypeDiffuse, "");
 
   stbi_uc pixels[] = {255, 255, 255, 255};  // full white
   texture->width_ = 1;
@@ -401,9 +401,9 @@ Ref<Texture> Renderer::CreateBlankTexture() {
   return texture;
 }
 
-Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
+std::shared_ptr<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
                                           const SamplerProps& sampler_props) {
-  Ref<Texture> texture = CreateReference<Texture>(TextureTypeDiffuse, "");
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>(TextureTypeDiffuse, "");
 
   texture->width_ = texture_props.width;
   texture->height_ = texture_props.height;
@@ -464,10 +464,10 @@ Ref<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
   return texture;
 }
 
-Ref<Texture> Renderer::CreateTexture(const std::string& path,
+std::shared_ptr<Texture> Renderer::CreateTexture(const std::string& path,
                                      const TextureProps& texture_props,
                                      const SamplerProps& sampler_props) {
-  Ref<Texture> texture = CreateReference<Texture>(texture_props.type, path);
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, path);
 
   VfsFile vfs_file = Engine::vfs()->Open(path);
   stbi_uc* pixels =
@@ -541,10 +541,10 @@ Ref<Texture> Renderer::CreateTexture(const std::string& path,
   return texture;
 }
 
-Ref<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
+std::shared_ptr<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
                                      const TextureProps& texture_props,
                                      const SamplerProps& sampler_props) {
-  Ref<Texture> texture = CreateReference<Texture>(texture_props.type, "");
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
   texture->width_ = texture_props.width;
   texture->height_ = texture_props.height;
   texture->size_ = texture->width_ * texture->height_ * size_per_pixel;
@@ -606,10 +606,10 @@ Ref<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
   return texture;
 }
 
-Ref<Texture> Renderer::CreateCubemapTexture(
+std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     const std::array<std::string, 6>& paths, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
-  Ref<Texture> texture = CreateReference<Texture>(texture_props.type, "");
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
   VkDeviceSize totalSize;
   stbi_uc* allPixels;
   for (size_t i = 0; i < 6; ++i) {
@@ -692,10 +692,10 @@ Ref<Texture> Renderer::CreateCubemapTexture(
   return texture;
 }
 
-Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
+std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
     const std::string& virtual_path, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
-  Ref<Texture> texture = CreateReference<Texture>(texture_props.type, "");
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
 
   int w, h, channels;
   VfsFile vfs_cubemap = Engine::vfs()->Open(virtual_path);
@@ -868,13 +868,13 @@ Ref<Texture> Renderer::CreateCubemapTextureFromSingle(
   return texture;
 }
 
-Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
+std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
     const AttachmentTextureProps& props) {
   if (props.type == AttachmentTextureType::SwapChain) {
     throw new std::runtime_error(
         "AttachmentTextureType::SwapChain cannot be created!");
   }
-  Ref<AttachmentTexture> texture = CreateReference<AttachmentTexture>();
+  std::shared_ptr<AttachmentTexture> texture = std::make_shared<AttachmentTexture>();
   texture->type_ = props.type;
   texture->format_ = props.image_format;
   texture->width_ = props.width;
@@ -949,7 +949,7 @@ Ref<AttachmentTexture> Renderer::CreateAttachmentTexture(
   return texture;
 }
 
-void Renderer::SetAttachmentTextureBuffer(Ref<AttachmentTexture> texture,
+void Renderer::SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> texture,
                                           void* buffer, size_t sizePerPixel) {
   VkBuffer staging_buffer;
   VkDeviceMemory staging_buffer_memory;
@@ -1043,9 +1043,9 @@ void Renderer::DestroyAttachmentTexture(AttachmentTexture& texture) {
   texture.is_allocated_ = false;
 }
 
-Ref<DescriptorSet> Renderer::CreateMeshDescriptors(
-    Ref<UniformBuffer> uniform_buffer, Ref<Material> material) {
-  Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
+std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
+    std::shared_ptr<UniformBuffer> uniform_buffer, std::shared_ptr<Material> material) {
+  std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize poolSizes[] = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
@@ -1270,9 +1270,9 @@ Ref<DescriptorSet> Renderer::CreateMeshDescriptors(
   return object;
 }
 
-Ref<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
-    Ref<UniformBuffer> uniformBuffer, Ref<Material> material) {
-  Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
+std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
+    std::shared_ptr<UniformBuffer> uniformBuffer, std::shared_ptr<Material> material) {
+  std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize poolSizes[] = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
@@ -1354,8 +1354,8 @@ Ref<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
   return object;
 }
 
-Ref<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
-  Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
+std::shared_ptr<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
+  std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize poolSizes[] = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
@@ -1480,9 +1480,9 @@ Ref<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
   return object;
 }
 
-Ref<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
+std::shared_ptr<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
     CameraComponent& camera) {
-  Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
+  std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize poolSizes[] = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}};
 
@@ -1537,16 +1537,16 @@ Ref<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
   return object;
 }
 
-Ref<DescriptorSet> Renderer::CreateBoneDescriptors(Ref<UniformBuffer> bone_ubo) {
-  auto desc = CreateReference<DescriptorSet>();
+std::shared_ptr<DescriptorSet> Renderer::CreateBoneDescriptors(std::shared_ptr<UniformBuffer> bone_ubo) {
+  auto desc = std::make_shared<DescriptorSet>();
   desc->SetLayout(bone_descriptor_layout_);
   desc->AddUniformBuffer(0, bone_ubo);
   desc->Bake();
   return desc;
 }
 
-Ref<DescriptorSet> Renderer::CreateDescriptors(Ref<AttachmentTexture> texture) {
-  Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
+std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(std::shared_ptr<AttachmentTexture> texture) {
+  std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize poolSizes[] = {
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
@@ -1597,8 +1597,8 @@ Ref<DescriptorSet> Renderer::CreateDescriptors(Ref<AttachmentTexture> texture) {
   return object;
 }
 
-Ref<DescriptorSet> Renderer::CreateSkyboxDescriptors(Ref<Texture> texture) {
-  Ref<DescriptorSet> object = CreateReference<DescriptorSet>();
+std::shared_ptr<DescriptorSet> Renderer::CreateSkyboxDescriptors(std::shared_ptr<Texture> texture) {
+  std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize poolSizes[] = {
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
@@ -1981,7 +1981,7 @@ bool Renderer::CheckRayTracingSupport(VkPhysicalDevice device) {
 }
 
 void Renderer::CreateDescriptorLayouts() {
-  geometry_mesh_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  geometry_mesh_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   geometry_mesh_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -1993,19 +1993,19 @@ void Renderer::CreateDescriptorLayouts() {
   }
   geometry_mesh_descriptor_layout_->Bake();
 
-  shadow_mesh_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  shadow_mesh_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   shadow_mesh_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                              VK_SHADER_STAGE_VERTEX_BIT);
   shadow_mesh_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   shadow_mesh_descriptor_layout_->Bake();
 
-  global_shadow_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  global_shadow_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   global_shadow_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
   global_shadow_descriptor_layout_->Bake();
 
-  global_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  global_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   global_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -2019,17 +2019,17 @@ void Renderer::CreateDescriptorLayouts() {
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   global_descriptor_layout_->Bake();
 
-  present_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  present_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   present_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   present_descriptor_layout_->Bake();
 
-  skybox_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  skybox_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   skybox_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   skybox_descriptor_layout_->Bake();
 
-  ssao_gen_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  ssao_gen_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   ssao_gen_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   ssao_gen_descriptor_layout_->AddBinding(
@@ -2042,7 +2042,7 @@ void Renderer::CreateDescriptorLayouts() {
                                           VK_SHADER_STAGE_FRAGMENT_BIT);
   ssao_gen_descriptor_layout_->Bake();
 
-  ssao_output_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  ssao_output_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   ssao_output_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerSSAO
@@ -2051,7 +2051,7 @@ void Renderer::CreateDescriptorLayouts() {
       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerDepth
   ssao_output_descriptor_layout_->Bake();
 
-  ssao_blur_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  ssao_blur_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   ssao_blur_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerSSAO
@@ -2060,7 +2060,7 @@ void Renderer::CreateDescriptorLayouts() {
       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerDepth
   ssao_blur_descriptor_layout_->Bake();
 
-  geometry_output_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  geometry_output_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   geometry_output_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   geometry_output_descriptor_layout_->AddBinding(
@@ -2075,7 +2075,7 @@ void Renderer::CreateDescriptorLayouts() {
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   geometry_output_descriptor_layout_->Bake();
 
-  sprite_draw_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  sprite_draw_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   sprite_draw_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   sprite_draw_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -2084,14 +2084,14 @@ void Renderer::CreateDescriptorLayouts() {
 
   // 2-sampler layout for bloom composite and motion blur
   postprocess_2input_descriptor_layout_ =
-      CreateReference<DescriptorSetLayout>();
+      std::make_shared<DescriptorSetLayout>();
   postprocess_2input_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   postprocess_2input_descriptor_layout_->AddBinding(
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
   postprocess_2input_descriptor_layout_->Bake();
 
-  taa_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  taa_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                      VK_SHADER_STAGE_FRAGMENT_BIT);
   taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -2101,7 +2101,7 @@ void Renderer::CreateDescriptorLayouts() {
   taa_descriptor_layout_->Bake();
 
   // Bone matrices UBO layout (set 2 for geometry and shadow passes)
-  bone_descriptor_layout_ = CreateReference<DescriptorSetLayout>();
+  bone_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   bone_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                       VK_SHADER_STAGE_VERTEX_BIT);
   bone_descriptor_layout_->Bake();
@@ -2179,7 +2179,7 @@ void Renderer::CreateSwapChain() {
   stats_.swap_chain_images = imageCount;
   stats_.frames_in_flight = kMaxFramesInFlight;
 
-  Ref<AttachmentTexture> texture = CreateReference<AttachmentTexture>();
+  std::shared_ptr<AttachmentTexture> texture = std::make_shared<AttachmentTexture>();
   texture->format_ = surfaceFormat.format;
   texture->width_ = extent_.width;
   texture->height_ = extent_.height;
@@ -2206,7 +2206,7 @@ void Renderer::CreateSwapChain() {
        options_.msaa_mode});
 
   present_render_pass_ =
-      CreateReference<RenderPass>(PassType::Present, "Present RenderPass");
+      std::make_shared<RenderPass>(PassType::Present, "Present RenderPass");
   present_framebuffers_.resize(swap_chain_images.size());
 
   if (options_.msaa_mode > SamplingMode::DISABLED) {
@@ -2250,7 +2250,7 @@ void Renderer::CreatePresentGraphicsPipelines() {
   auto present_fragment_shader = CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/quad_shader.frag"});
-  present_pipeline_ = CreateReference<Pipeline>(
+  present_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
   present_pipeline_->SetRenderPass(present_render_pass_);
   present_pipeline_->AddInputLayout(present_descriptor_layout_);
@@ -2259,15 +2259,15 @@ void Renderer::CreatePresentGraphicsPipelines() {
   present_pipeline_->Bake();
 }
 
-void Renderer::RecreatePipeline(Ref<Pipeline> pipeline) {
+void Renderer::RecreatePipeline(std::shared_ptr<Pipeline> pipeline) {
   pipeline->Bake();
 }
 
-Ref<Shader> Renderer::CreateShader(ShaderProperties properties) {
+std::shared_ptr<Shader> Renderer::CreateShader(ShaderProperties properties) {
   for (const auto& item : shader_features_) {
     properties.defines.push_back(item);
   }
-  return CreateReference<Shader>(properties);
+  return std::make_shared<Shader>(properties);
 }
 
 void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -2469,7 +2469,7 @@ void Renderer::TransitionImageLayout(VkImage image, VkFormat format,
 }
 
 void Renderer::CreateCommandPools() {
-  command_pool_ = CreateReference<CommandPool>();
+  command_pool_ = std::make_shared<CommandPool>();
 }
 
 void Renderer::CreateCommandBuffers() {
@@ -2494,10 +2494,10 @@ void Renderer::CreatePermanentResources() {
 
   quad_vertex_buffer_ = Engine::renderer()->CreateVertexBuffer(quadVertices);
 
-  default_linear_sampler_ = CreateReference<Sampler>(1, SamplerProps{});
-  default_nearest_sampler_ = CreateReference<Sampler>(
+  default_linear_sampler_ = std::make_shared<Sampler>(1, SamplerProps{});
+  default_nearest_sampler_ = std::make_shared<Sampler>(
       1, SamplerProps{VK_FILTER_NEAREST, VK_FILTER_NEAREST, -1.0f});
-  shadow_sampler_ = CreateReference<Sampler>(1, SamplerProps{
+  shadow_sampler_ = std::make_shared<Sampler>(1, SamplerProps{
       VK_FILTER_LINEAR, VK_FILTER_LINEAR, -1.0f,
       VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
       VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
@@ -2607,13 +2607,13 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
   vkBindImageMemory(logical_device_, image, imageMemory, 0);
 }
 
-Ref<ImageView> Renderer::CreateImageView(VkImage image, VkFormat format,
+std::shared_ptr<ImageView> Renderer::CreateImageView(VkImage image, VkFormat format,
                                          VkImageAspectFlags aspectFlags,
                                          uint32_t mipLevels,
                                          VkImageViewType viewType,
                                          uint32_t layer, uint32_t layerCount) {
   PROFILE_ZONE_SCOPED();
-  Ref<ImageView> view = CreateReference<ImageView>();
+  std::shared_ptr<ImageView> view = std::make_shared<ImageView>();
   view->layer_ = layer;
   view->layer_count_ = layerCount;
 
@@ -2647,7 +2647,7 @@ void Renderer::SetObjectName(VkObjectType type, uint64_t handle,
   pfn_set_debug_utils_object_name_ext_(logical_device_, &nameInfo);
 }
 
-Ref<ImageView> Renderer::CreateImageView(Ref<AttachmentTexture> image,
+std::shared_ptr<ImageView> Renderer::CreateImageView(std::shared_ptr<AttachmentTexture> image,
                                          VkImageViewType viewType,
                                          uint32_t layer, uint32_t layerCount) {
   return CreateImageView(image->images_[0], image->format_,
@@ -3210,7 +3210,7 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
   }
   for (size_t i = 0; i < model_data.meshes.size(); i++) {
     if (!model.material_instances[i]) {
-      auto inst = CreateReference<MaterialInstance>();
+      auto inst = std::make_shared<MaterialInstance>();
       // Set material handle: use slot override if set, otherwise mesh default
       AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
           ? model.material_slot_handles[i]
@@ -3252,7 +3252,7 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
   for (size_t i = 0; i < model_data.meshes.size(); i++) {
     const auto& mesh = model_data.meshes[i];
     // Resolve the effective material for this slot
-    Ref<Material> effective_mat = nullptr;
+    std::shared_ptr<Material> effective_mat = nullptr;
     if (i < model.material_slot_handles.size() && model.material_slot_handles[i].IsValid()) {
       effective_mat = Engine::asset_manager().Get<Material>(model.material_slot_handles[i]);
     }
@@ -3307,7 +3307,7 @@ void Renderer::DrawModel(ModelComponent& model,
                          entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = Engine::asset_manager();
-  const Ref<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
+  const std::shared_ptr<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
   if (!ptr) {
     return;
   }
@@ -3325,12 +3325,12 @@ void Renderer::DrawModel(ModelComponent& model,
   }
 
   // Determine the bone descriptor to bind
-  Ref<DescriptorSet> bone_desc = model.bone_descriptor_
+  std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
       ? model.bone_descriptor_
       : identity_bone_descriptor_;
 
   // Cache global descriptor and command buffer outside mesh loop
-  Ref<DescriptorSet> global_desc = shadow_pass
+  std::shared_ptr<DescriptorSet> global_desc = shadow_pass
       ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
       : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
@@ -3375,7 +3375,7 @@ void Renderer::DrawModel(ModelComponent& model,
       memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
     }
 
-    Ref<DescriptorSet> descriptors = model.geometry_descriptors[i];
+    std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
     DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
   }
 }
@@ -3385,7 +3385,7 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
                                     entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = Engine::asset_manager();
-  const Ref<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
+  const std::shared_ptr<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
   if (!ptr || !ptr->has_transparent_meshes) {
     return;
   }
@@ -3394,11 +3394,11 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
     AllocateModelRenderData(model, *ptr);
   }
 
-  Ref<DescriptorSet> bone_desc = model.bone_descriptor_
+  std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
       ? model.bone_descriptor_
       : identity_bone_descriptor_;
 
-  Ref<DescriptorSet> global_desc =
+  std::shared_ptr<DescriptorSet> global_desc =
       camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
 
@@ -3428,15 +3428,15 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
 
     memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
 
-    Ref<DescriptorSet> descriptors = model.geometry_descriptors[i];
+    std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
     DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
   }
 }
 
-void Renderer::DrawMeshCmd(VkCommandBuffer cmd, Ref<Mesh> mesh,
-                           Ref<DescriptorSet> mesh_descriptors,
-                           Ref<DescriptorSet> bone_descriptors,
-                           Ref<DescriptorSet> global_descriptors) {
+void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
+                           std::shared_ptr<DescriptorSet> mesh_descriptors,
+                           std::shared_ptr<DescriptorSet> bone_descriptors,
+                           std::shared_ptr<DescriptorSet> global_descriptors) {
   if (!mesh->allocated_) {
     return;
   }
@@ -3463,7 +3463,7 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, Ref<Mesh> mesh,
 }
 
 void Renderer::RequestEntityPick(uint32_t x, uint32_t y,
-                                 Ref<AttachmentTexture> entity_id_texture) {
+                                 std::shared_ptr<AttachmentTexture> entity_id_texture) {
   pick_x_ = x;
   pick_y_ = y;
   pick_entity_id_image_ = entity_id_texture;
@@ -3561,7 +3561,7 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
   const SpriteAsset::Frame& frame =
       sprite.asset_handle_->frames_[sprite.current_frame_];
 
-  Ref<MemoryBuffer> vertexBuffer = Engine::renderer()->GetQuadVertexBuffer();
+  std::shared_ptr<MemoryBuffer> vertexBuffer = Engine::renderer()->GetQuadVertexBuffer();
   VkBuffer buffers[] = {frame.vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
   static_assert(std::size(buffers) == std::size(offsets));
@@ -3580,11 +3580,11 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
 
 void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
                               CanvasRectComponent& rect,
-                              Ref<DescriptorSetLayout> layout) {
+                              std::shared_ptr<DescriptorSetLayout> layout) {
   // Lazily allocate GPU resources
   if (!rect.ubo_) {
     rect.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
-    rect.descriptor_ = CreateReference<DescriptorSet>();
+    rect.descriptor_ = std::make_shared<DescriptorSet>();
     rect.descriptor_->SetLayout(layout);
     rect.descriptor_->AddUniformBuffer(0, rect.ubo_);
     rect.descriptor_->Bake();
@@ -3608,7 +3608,7 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
 
 void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
                                CanvasImageComponent& img,
-                               Ref<DescriptorSetLayout> layout) {
+                               std::shared_ptr<DescriptorSetLayout> layout) {
   if (!img.texture || !img.texture->is_allocated_) {
     return;
   }
@@ -3618,7 +3618,7 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
     if (!img.ubo_) {
       img.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
     }
-    img.descriptor_ = CreateReference<DescriptorSet>();
+    img.descriptor_ = std::make_shared<DescriptorSet>();
     img.descriptor_->SetLayout(layout);
     img.descriptor_->AddUniformBuffer(0, img.ubo_);
     img.descriptor_->AddCombinedImageSampler(1, img.texture->image_view_,
@@ -3644,12 +3644,12 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
 
 void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
                               TextComponent& text,
-                              Ref<DescriptorSetLayout> layout) {
+                              std::shared_ptr<DescriptorSetLayout> layout) {
   if (text.text.empty()) {
     return;
   }
 
-  Ref<Font> font = FontCache::Get(text.font_path, text.font_size);
+  std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
   if (!font || !font->IsLoaded()) {
     return;
   }
@@ -3684,7 +3684,7 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
     while (text.glyph_gpu_.size() < visible) {
       TextGlyphGPU gpu;
       gpu.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
-      gpu.descriptor = CreateReference<DescriptorSet>();
+      gpu.descriptor = std::make_shared<DescriptorSet>();
       gpu.descriptor->SetLayout(layout);
       gpu.descriptor->AddUniformBuffer(0, gpu.ubo);
       gpu.descriptor->AddCombinedImageSampler(
@@ -3738,7 +3738,7 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
   }
 }
 
-void Renderer::DrawSkybox(Ref<Skybox> skybox) {
+void Renderer::DrawSkybox(std::shared_ptr<Skybox> skybox) {
   std::array<VkDescriptorSet, 2> sets{
       skybox->descriptors_->descriptor_set_,
       camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
@@ -3752,8 +3752,8 @@ void Renderer::DrawSkybox(Ref<Skybox> skybox) {
 }
 
 void Renderer::DrawFullscreen(
-    Ref<Pipeline> pipeline,
-    std::initializer_list<Ref<DescriptorSet>> descriptors) {
+    std::shared_ptr<Pipeline> pipeline,
+    std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors) {
   /*if (!texture->m_Descriptors) {
     texture->m_Descriptors = CreateDescriptors(texture);
   }
@@ -3792,7 +3792,7 @@ static float Halton(int index, int base) {
   return result;
 }
 
-void Renderer::SetCameraData(Ref<CameraData> camera_data) {
+void Renderer::SetCameraData(std::shared_ptr<CameraData> camera_data) {
   camera_ = camera_data;
   viewport_size_ = camera_data->viewport_size;
   camera_uniform_data_.Position = camera_data->position;
@@ -3832,13 +3832,13 @@ void Renderer::SetCameraData(Ref<CameraData> camera_data) {
   }
 }
 
-Ref<DescriptorSet> Renderer::GetFinalOutputDescriptor() const {
+std::shared_ptr<DescriptorSet> Renderer::GetFinalOutputDescriptor() const {
   if (!camera_ || !camera_->resource_pool)
     return nullptr;
   return camera_->resource_pool->GetDescriptor("PipelineOutputDescriptor");
 }
 
-Ref<AttachmentTexture> Renderer::GetFinalOutputImage() const {
+std::shared_ptr<AttachmentTexture> Renderer::GetFinalOutputImage() const {
   if (!camera_ || !camera_->resource_pool)
     return nullptr;
   return camera_->resource_pool->GetTexture("PipelineOutput");

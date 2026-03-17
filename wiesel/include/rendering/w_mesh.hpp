@@ -39,13 +39,13 @@ struct Mesh {
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
   std::string model_path;
-  Ref<Material> mat;              // cached material pointer (set during import)
+  std::shared_ptr<Material> mat;              // cached material pointer (set during import)
   AssetHandle material_handle;    // asset handle for this mesh's material
   int32_t node_index = -1;       // which node in the hierarchy this mesh belongs to
 
   // Shared GPU geometry (created once, used by all entities referencing this mesh)
-  Ref<MemoryBuffer> vertex_buffer;
-  Ref<IndexBuffer> index_buffer;
+  std::shared_ptr<MemoryBuffer> vertex_buffer;
+  std::shared_ptr<IndexBuffer> index_buffer;
 
   bool has_transparency = false;
   bool allocated_;
@@ -84,10 +84,10 @@ struct Model {
   Model() = default;
   ~Model() = default;
 
-  std::vector<Ref<Mesh>> meshes;
+  std::vector<std::shared_ptr<Mesh>> meshes;
   std::string model_path;
   std::string textures_path;
-  std::map<std::string, Ref<Texture>> textures;
+  std::map<std::string, std::shared_ptr<Texture>> textures;
 
   // Pre-decoded texture cache (populated in parallel, consumed during ProcessNode)
   std::map<std::string, std::shared_ptr<DecodedTextureData>> decoded_texture_cache;
@@ -129,12 +129,12 @@ struct ModelComponent : public IComponent {
     material_instances.reserve(other.material_instances.size());
     for (const auto& inst : other.material_instances) {
       material_instances.push_back(
-          inst ? CreateReference<MaterialInstance>(*inst) : nullptr);
+          inst ? std::make_shared<MaterialInstance>(*inst) : nullptr);
     }
   }
 
   AssetHandle model_handle;
-  Ref<Texture> default_texture;  // fallback diffuse texture for meshes without one
+  std::shared_ptr<Texture> default_texture;  // fallback diffuse texture for meshes without one
   bool receive_shadows = true;
   bool enable_rendering = true;
 
@@ -142,22 +142,22 @@ struct ModelComponent : public IComponent {
   std::vector<AssetHandle> material_slot_handles;
 
   // Per-mesh material overrides (one per mesh slot, lazily created)
-  std::vector<Ref<MaterialInstance>> material_instances;
+  std::vector<std::shared_ptr<MaterialInstance>> material_instances;
 
   // Cached material versions for descriptor invalidation
   std::vector<uint32_t> material_versions;
 
   // Per-entity render data (lazily allocated by renderer)
-  Ref<UniformBuffer> uniform_buffer;
-  std::vector<Ref<DescriptorSet>> geometry_descriptors;  // one per mesh
-  std::vector<Ref<DescriptorSet>> shadow_descriptors;    // one per mesh
+  std::shared_ptr<UniformBuffer> uniform_buffer;
+  std::vector<std::shared_ptr<DescriptorSet>> geometry_descriptors;  // one per mesh
+  std::vector<std::shared_ptr<DescriptorSet>> shadow_descriptors;    // one per mesh
   AssetHandle render_model;  // tracks which model render data was built for
 
   // Bone animation GPU data (per-entity)
-  Ref<UniformBuffer> bone_ubo_;
-  Ref<DescriptorSet> bone_descriptor_;
+  std::shared_ptr<UniformBuffer> bone_ubo_;
+  std::shared_ptr<DescriptorSet> bone_descriptor_;
 
   // Per-mesh UBOs for node animation (only allocated for animated models)
-  std::vector<Ref<UniformBuffer>> mesh_uniform_buffers_;
+  std::vector<std::shared_ptr<UniformBuffer>> mesh_uniform_buffers_;
 };
 }  // namespace Wiesel

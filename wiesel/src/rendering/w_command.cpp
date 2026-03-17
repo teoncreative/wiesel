@@ -19,11 +19,11 @@ CommandPool::~CommandPool() {
   vkDestroyCommandPool(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
-Ref<CommandBuffer> CommandPool::CreateBuffer() {
+std::shared_ptr<CommandBuffer> CommandPool::CreateBuffer() {
   if (!free_buffers_.empty()) {
     VkCommandBuffer buffer = free_buffers_.front();
     free_buffers_.pop_front();
-    return CreateReference<CommandBuffer>(*this, buffer);
+    return std::make_shared<CommandBuffer>(*this, buffer);
   }
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -34,7 +34,7 @@ Ref<CommandBuffer> CommandPool::CreateBuffer() {
   VkCommandBuffer buffer;
   WIESEL_CHECK_VKRESULT(
       vkAllocateCommandBuffers(Engine::renderer()->GetLogicalDevice(), &allocInfo, &buffer));
-  return CreateReference<CommandBuffer>(*this, buffer);
+  return std::make_shared<CommandBuffer>(*this, buffer);
 }
 
 void CommandPool::ReturnBuffer(VkCommandBuffer buffer) {

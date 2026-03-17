@@ -15,7 +15,7 @@
 namespace Wiesel {
 
 bool GameApplication::LoadProjectAndScene(const std::filesystem::path& project_path,
-                                          Ref<Scene> scene) {
+                                          std::shared_ptr<Scene> scene) {
   auto proj = Project::Load(project_path);
   if (!proj) {
     LOG_ERROR("Failed to load project: {}", project_path.string());

@@ -64,25 +64,25 @@ struct CanvasRectComponent {
   glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 
   // GPU resources (allocated lazily)
-  Ref<UniformBuffer> ubo_;
-  Ref<DescriptorSet> descriptor_;
+  std::shared_ptr<UniformBuffer> ubo_;
+  std::shared_ptr<DescriptorSet> descriptor_;
   bool gpu_dirty_ = true;
 };
 
 struct CanvasImageComponent {
-  Ref<Texture> texture;
+  std::shared_ptr<Texture> texture;
   glm::vec4 tint = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 uv_rect = {0.0f, 0.0f, 1.0f, 1.0f};
 
   // GPU resources (allocated lazily)
-  Ref<UniformBuffer> ubo_;
-  Ref<DescriptorSet> descriptor_;
+  std::shared_ptr<UniformBuffer> ubo_;
+  std::shared_ptr<DescriptorSet> descriptor_;
   bool gpu_dirty_ = true;
 };
 
 struct TextGlyphGPU {
-  Ref<UniformBuffer> ubo;
-  Ref<DescriptorSet> descriptor;
+  std::shared_ptr<UniformBuffer> ubo;
+  std::shared_ptr<DescriptorSet> descriptor;
 };
 
 struct TextComponent {

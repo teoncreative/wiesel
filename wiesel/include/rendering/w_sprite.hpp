@@ -26,7 +26,7 @@ struct SpriteTexture {
   ~SpriteTexture();
 };
 
-Ref<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths);
+std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths);
 
 enum SpriteType {
   SpriteTypeAtlas,
@@ -44,16 +44,16 @@ class SpriteAsset {
     glm::vec4 uv_rect;
     uint32_t instance_id;
     float_t duration;
-    Ref<ImageView> view;
-    Ref<DescriptorSet> descriptor;
-    Ref<MemoryBuffer> vertex_buffer;
-    Ref<UniformBuffer> uniform_buffer;
+    std::shared_ptr<ImageView> view;
+    std::shared_ptr<DescriptorSet> descriptor;
+    std::shared_ptr<MemoryBuffer> vertex_buffer;
+    std::shared_ptr<UniformBuffer> uniform_buffer;
 
     Frame(const glm::vec4 &uv, float_t d = 0.0f) : uv_rect(uv), duration(d) {}
   };
 
-  const Ref<SpriteTexture>& GetTexture() const { return texture_; }
-  const Ref<Sampler>& GetSampler() const { return sampler_; }
+  const std::shared_ptr<SpriteTexture>& GetTexture() const { return texture_; }
+  const std::shared_ptr<Sampler>& GetSampler() const { return sampler_; }
   const std::vector<Frame>& GetFrames() const { return frames_; }
   bool IsAllocated() const { return is_allocated_; }
 
@@ -63,8 +63,8 @@ class SpriteAsset {
 
   SpriteType type_;
   glm::vec2 atlas_size_;
-  Ref<SpriteTexture> texture_;
-  Ref<Sampler> sampler_;
+  std::shared_ptr<SpriteTexture> texture_;
+  std::shared_ptr<Sampler> sampler_;
   std::vector<Frame> frames_;
   bool is_allocated_ = false;
 };
@@ -87,24 +87,24 @@ class SpriteBuilder {
 
   AddFrameResult AddFrame(float_t duration_seconds, glm::vec2 uv_pos, glm::vec2 uv_size = {0, 0});
 
-  void SetSampler(Ref<Sampler> sampler) {
+  void SetSampler(std::shared_ptr<Sampler> sampler) {
       sampler_ = sampler;
   }
 
-  Ref<SpriteAsset> Build();
+  std::shared_ptr<SpriteAsset> Build();
  private:
   bool fixed_size_ = false;
   std::string virtual_atlas_path_;
   glm::vec2 atlas_size_;
   glm::vec2 fixed_uv_size_;
-  Ref<Sampler> sampler_;
+  std::shared_ptr<Sampler> sampler_;
   std::vector<SpriteAsset::Frame> frames_;
 };
 
 class SpriteComponent {
  public:
   friend class Renderer;
-  Ref<SpriteAsset> asset_handle_;
+  std::shared_ptr<SpriteAsset> asset_handle_;
   // TODO
   glm::vec2 pivot_;
   glm::vec4 tint_;

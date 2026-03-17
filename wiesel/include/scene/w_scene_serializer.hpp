@@ -13,7 +13,7 @@ namespace Wiesel {
 
 class SceneSerializer {
  public:
-  explicit SceneSerializer(Ref<Scene> scene);
+  explicit SceneSerializer(std::shared_ptr<Scene> scene);
 
   bool Serialize(const std::filesystem::path& path) const;
   bool Deserialize(const std::filesystem::path& path);
@@ -32,7 +32,7 @@ class SceneSerializer {
   static glm::vec4 DeserializeVec4(const nlohmann::json& v, glm::vec4 fallback = {0, 0, 0, 0});
   static glm::vec2 DeserializeVec2(const nlohmann::json& v, glm::vec2 fallback = {0, 0});
 
-  Ref<Scene> scene_;
+  std::shared_ptr<Scene> scene_;
 };
 
 }  // namespace Wiesel

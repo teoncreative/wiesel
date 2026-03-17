@@ -29,16 +29,37 @@
 #include "ui/w_canvas.hpp"
 #include "scene/w_scene_manager.hpp"
 #include "scene/w_prefab.hpp"
+#include "audio/w_audio.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
+// todo move these bindings to script glue
+
 #define WIESEL_ADD_INTERNAL_CALL(name)                     \
   mono_add_internal_call("WieselEngine.Internals::" #name, \
                          reinterpret_cast<void*>(Internals_##name))
 
-// todo move these bindings to script glue
+// Wraps mono_runtime_invoke with exception handling.
+// Logs to both terminal and developer console.
+static MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj,
+                               void** args) {
+  MonoObject* exception = nullptr;
+  MonoObject* result = mono_runtime_invoke(method, obj, args, &exception);
+  if (exception) {
+    MonoString* exc_str = mono_object_to_string(exception, nullptr);
+    if (exc_str) {
+      const char* cstr = mono_string_to_utf8(exc_str);
+      LOG_ERROR("C# Exception: {}", cstr);
+      Engine::console().LogError(cstr);
+      mono_free((void*)cstr);
+    }
+    return nullptr;
+  }
+  return result;
+}
+
 void Internals_Log_Info(MonoString* str) {
   const char* cstr = mono_string_to_utf8(str);
   LOG_INFO("{}", cstr);
@@ -64,8 +85,8 @@ void Internals_Input_SetCursorMode(uint16_t mode) {
 }
 
 uint16_t Internals_Input_GetCursorMode() {
-  uint16_t cursorMode = Engine::window()->GetCursorMode();
-  return cursorMode;
+  uint16_t cursor_mode = Engine::window()->GetCursorMode();
+  return cursor_mode;
 }
 
 bool Internals_Input_GetKeyDown(MonoString* str) {
@@ -82,15 +103,192 @@ bool Internals_Input_GetKeyUp(MonoString* str) {
   return value;
 }
 
+// --- AudioSourceComponent bindings ---
+
+#define GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, retval) \
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr); \
+  entt::entity handle = static_cast<entt::entity>(entity_id); \
+  if (!scene->HasComponent<AudioSourceComponent>(handle)) return retval; \
+  auto& src = scene->GetComponent<AudioSourceComponent>(handle)
+
+void Internals_AudioSource_Play(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  if (src.playing_handle_.IsValid()) Engine::audio().Stop(src.playing_handle_);
+  auto& transform = scene->GetComponent<TransformComponent>(handle);
+  src.playing_handle_ = Engine::audio().Play(src.clip, src.MakeParams(transform.position));
+}
+
+void Internals_AudioSource_PlayClip(uint64_t scene_ptr, uint64_t entity_id, MonoString* clip_handle) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  const char* cstr = mono_string_to_utf8(clip_handle);
+  AssetHandle clip = AssetHandle::FromString(cstr);
+  mono_free((void*)cstr);
+  if (src.playing_handle_.IsValid()) Engine::audio().Stop(src.playing_handle_);
+  auto& transform = scene->GetComponent<TransformComponent>(handle);
+  src.playing_handle_ = Engine::audio().Play(clip, src.MakeParams(transform.position));
+}
+
+void Internals_AudioSource_Stop(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  if (src.playing_handle_.IsValid()) {
+    Engine::audio().Stop(src.playing_handle_);
+    src.playing_handle_ = {};
+  }
+}
+
+bool Internals_AudioSource_GetIsPlaying(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, false);
+  return src.playing_handle_.IsValid();
+}
+
+float Internals_AudioSource_GetVolume(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, 0.0f);
+  return src.volume;
+}
+void Internals_AudioSource_SetVolume(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  src.volume = v;
+  if (src.playing_handle_.IsValid()) {
+    Engine::audio().SetSoundVolume(src.playing_handle_, v);
+  }
+}
+
+float Internals_AudioSource_GetPitch(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, 1.0f);
+  return src.pitch;
+}
+void Internals_AudioSource_SetPitch(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  src.pitch = v;
+}
+
+bool Internals_AudioSource_GetLoop(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, false);
+  return src.loop;
+}
+void Internals_AudioSource_SetLoop(uint64_t scene_ptr, uint64_t entity_id, bool v) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  src.loop = v;
+}
+
+bool Internals_AudioSource_GetMute(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, false);
+  return src.mute;
+}
+void Internals_AudioSource_SetMute(uint64_t scene_ptr, uint64_t entity_id, bool v) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  src.mute = v;
+}
+
+float Internals_AudioSource_GetSpatialBlend(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, 0.0f);
+  return src.spatial_blend;
+}
+void Internals_AudioSource_SetSpatialBlend(uint64_t scene_ptr, uint64_t entity_id, float v) {
+  GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
+  src.spatial_blend = v;
+}
+
+#undef GET_AUDIO_SRC
+
+// --- Audio bindings ---
+
+void Internals_Audio_PlayPath(MonoString* path, int bus, float volume, float pitch, bool loop) {
+  const char* cstr = mono_string_to_utf8(path);
+  SoundParams params;
+  params.bus = static_cast<AudioBus>(bus);
+  params.volume = volume;
+  params.pitch = pitch;
+  params.loop = loop;
+  Engine::audio().Play(cstr, params);
+  mono_free((void*)cstr);
+}
+
+void Internals_Audio_PlayAtPath(MonoString* path, float x, float y, float z,
+                                 int bus, float volume, float minDist, float maxDist) {
+  const char* cstr = mono_string_to_utf8(path);
+  SoundParams params;
+  params.bus = static_cast<AudioBus>(bus);
+  params.volume = volume;
+  params.spatial_blend = 1.0f;
+  params.position = {x, y, z};
+  params.min_distance = minDist;
+  params.max_distance = maxDist;
+  Engine::audio().Play(cstr, params);
+  mono_free((void*)cstr);
+}
+
+void Internals_Audio_PlayClip(MonoString* handle_str, int bus, float volume, float pitch, bool loop) {
+  const char* cstr = mono_string_to_utf8(handle_str);
+  AssetHandle clip = AssetHandle::FromString(cstr);
+  mono_free((void*)cstr);
+  SoundParams params;
+  params.bus = static_cast<AudioBus>(bus);
+  params.volume = volume;
+  params.pitch = pitch;
+  params.loop = loop;
+  Engine::audio().Play(clip, params);
+}
+
+void Internals_Audio_PlayAtClip(MonoString* handle_str, float x, float y, float z,
+                                 int bus, float volume, float minDist, float maxDist) {
+  const char* cstr = mono_string_to_utf8(handle_str);
+  AssetHandle clip = AssetHandle::FromString(cstr);
+  mono_free((void*)cstr);
+  Engine::audio().PlaySoundAt(clip, {x, y, z}, static_cast<AudioBus>(bus),
+                               volume, minDist, maxDist);
+}
+
+void Internals_Audio_PlayMusic(MonoString* path, float volume) {
+  const char* cstr = mono_string_to_utf8(path);
+  Engine::audio().PlayMusic(cstr, volume);
+  mono_free((void*)cstr);
+}
+
+void Internals_Audio_PlayMusicClip(MonoString* handle_str, float volume) {
+  const char* cstr = mono_string_to_utf8(handle_str);
+  AssetHandle clip = AssetHandle::FromString(cstr);
+  mono_free((void*)cstr);
+  Engine::audio().PlayMusic(clip, volume);
+}
+
+void Internals_Audio_StopMusic() {
+  Engine::audio().StopMusic();
+}
+
+void Internals_Audio_SetMasterVolume(float volume) {
+  Engine::audio().SetMasterVolume(volume);
+}
+
+float Internals_Audio_GetMasterVolume() {
+  return Engine::audio().GetMasterVolume();
+}
+
+void Internals_Audio_SetSFXVolume(float volume) {
+  Engine::audio().SetSFXVolume(volume);
+}
+
+float Internals_Audio_GetSFXVolume() {
+  return Engine::audio().GetSFXVolume();
+}
+
+void Internals_Audio_SetMusicVolume(float volume) {
+  Engine::audio().SetMusicVolume(volume);
+}
+
+float Internals_Audio_GetMusicVolume() {
+  return Engine::audio().GetMusicVolume();
+}
+
 // Helper: ensure MaterialInstance exists on a ModelComponent (mesh index 0)
-static Ref<MaterialInstance>& EnsureMaterialInstance(ModelComponent& model) {
+static std::shared_ptr<MaterialInstance>& EnsureMaterialInstance(ModelComponent& model) {
   if (model.material_instances.empty()) {
     model.material_instances.resize(1);
   }
   if (!model.material_instances[0]) {
-    model.material_instances[0] = CreateReference<MaterialInstance>();
+    model.material_instances[0] = std::make_shared<MaterialInstance>();
     // Create a transient material if no handle is set
-    auto fallback = CreateReference<Material>();
+    std::shared_ptr<Material> fallback = std::make_shared<Material>();
     AssetHandle h = Engine::asset_manager().RegisterAndStore<Material>(
         "script_material", AssetType::Material, "", fallback);
     model.material_instances[0]->base_material_handle = h;
@@ -146,8 +344,8 @@ void Internals_ModelComponent_SetColorTintB(uint64_t scene_ptr, uint64_t entity_
 void Internals_ModelComponent_SetColorTintA(uint64_t scene_ptr, uint64_t entity_id, float v) {
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model = scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  auto& inst = EnsureMaterialInstance(model);
-  auto tint = inst->GetColorTint();
+  std::shared_ptr<MaterialInstance>& inst = EnsureMaterialInstance(model);
+  glm::vec4 tint = inst->GetColorTint();
   tint.a = v;
   inst->SetColorTint(tint);
 }
@@ -195,7 +393,7 @@ uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
 
 uint64_t Internals_Scene_CreateEntity(uint64_t scene_ptr, MonoString* name) {
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto shared_scene = SceneManager::Get().GetActiveScene();
+  std::shared_ptr<Scene> shared_scene = SceneManager::Get().GetActiveScene();
   if (!shared_scene) {
     LOG_ERROR("Scene_CreateEntity: no active scene");
     return 0;
@@ -598,7 +796,7 @@ MonoObject* CreateVector3fWithValues(float x, float y, float z) {
   args[2] = &z;
   MonoMethod* method = mono_class_get_method_from_name(
       Engine::script_manager().vector3f_class(), ".ctor", 3);
-  mono_runtime_invoke(method, obj, args, nullptr);
+  InvokeSafe(method, obj, args);
   return obj;
 }
 
@@ -832,8 +1030,7 @@ ScriptInstance::~ScriptInstance() {
 void ScriptInstance::OnStart() {
   UpdateAttachments();
   if (!script_data_->on_start_method()) return;
-  mono_runtime_invoke(script_data_->on_start_method(), handle_, nullptr,
-                      nullptr);
+  InvokeSafe(script_data_->on_start_method(), handle_, nullptr);
 }
 
 void ScriptInstance::OnUpdate(float_t delta_time) {
@@ -847,44 +1044,35 @@ void ScriptInstance::OnUpdate(float_t delta_time) {
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   args[0] = &delta_time;
-  mono_runtime_invoke(script_data_->on_update_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_update_method(), handle_, args);
 }
 
 bool ScriptInstance::OnKeyPressed(KeyPressedEvent& event) {
-  if (!script_data_->on_key_pressed_method()) {
-    return false;
-  }
+  if (!script_data_->on_key_pressed_method()) return false;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[2];
   int32_t keyCode = event.GetKeyCode();
   bool repeat = event.IsRepeat();
   args[0] = &keyCode;
   args[1] = &repeat;
-  MonoObject* data = mono_runtime_invoke(script_data_->on_key_pressed_method(),
-                                         handle_, args, nullptr);
-  bool value = *(bool*)mono_object_unbox(data);
-  return value;
+  MonoObject* data = InvokeSafe(script_data_->on_key_pressed_method(), handle_, args);
+  if (!data) return false;
+  return *(bool*)mono_object_unbox(data);
 }
 
 bool ScriptInstance::OnKeyReleased(KeyReleasedEvent& event) {
-  if (!script_data_->on_key_released_method()) {
-    return false;
-  }
+  if (!script_data_->on_key_released_method()) return false;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[1];
   int32_t keyCode = event.GetKeyCode();
   args[0] = &keyCode;
-  MonoObject* data = mono_runtime_invoke(script_data_->on_key_released_method(),
-                                         handle_, args, nullptr);
-  bool value = *(bool*)mono_object_unbox(data);
-  return value;
+  MonoObject* data = InvokeSafe(script_data_->on_key_released_method(), handle_, args);
+  if (!data) return false;
+  return *(bool*)mono_object_unbox(data);
 }
 
 bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
-  if (!script_data_->on_mouse_moved_method()) {
-    return false;
-  }
+  if (!script_data_->on_mouse_moved_method()) return false;
   mono_domain_set(Engine::script_manager().app_domain(), true);
   void* args[3];
   float x = event.GetX();
@@ -893,10 +1081,9 @@ bool ScriptInstance::OnMouseMoved(MouseMovedEvent& event) {
   args[0] = &x;
   args[1] = &y;
   args[2] = &cursorMode;
-  MonoObject* data = mono_runtime_invoke(script_data_->on_mouse_moved_method(),
-                                         handle_, args, nullptr);
-  bool value = *(bool*)mono_object_unbox(data);
-  return value;
+  MonoObject* data = InvokeSafe(script_data_->on_mouse_moved_method(), handle_, args);
+  if (!data) return false;
+  return *(bool*)mono_object_unbox(data);
 }
 
 void ScriptInstance::OnTriggerEnter(entt::entity other) {
@@ -905,8 +1092,7 @@ void ScriptInstance::OnTriggerEnter(entt::entity other) {
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  mono_runtime_invoke(script_data_->on_trigger_enter_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_trigger_enter_method(), handle_, args);
 }
 
 void ScriptInstance::OnTriggerStay(entt::entity other) {
@@ -915,8 +1101,7 @@ void ScriptInstance::OnTriggerStay(entt::entity other) {
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  mono_runtime_invoke(script_data_->on_trigger_stay_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_trigger_stay_method(), handle_, args);
 }
 
 void ScriptInstance::OnTriggerExit(entt::entity other) {
@@ -925,8 +1110,7 @@ void ScriptInstance::OnTriggerExit(entt::entity other) {
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  mono_runtime_invoke(script_data_->on_trigger_exit_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_trigger_exit_method(), handle_, args);
 }
 
 void ScriptInstance::OnCollisionEnter(entt::entity other) {
@@ -935,8 +1119,7 @@ void ScriptInstance::OnCollisionEnter(entt::entity other) {
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  mono_runtime_invoke(script_data_->on_collision_enter_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_collision_enter_method(), handle_, args);
 }
 
 void ScriptInstance::OnCollisionStay(entt::entity other) {
@@ -945,8 +1128,7 @@ void ScriptInstance::OnCollisionStay(entt::entity other) {
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  mono_runtime_invoke(script_data_->on_collision_stay_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_collision_stay_method(), handle_, args);
 }
 
 void ScriptInstance::OnCollisionExit(entt::entity other) {
@@ -955,8 +1137,7 @@ void ScriptInstance::OnCollisionExit(entt::entity other) {
   void* args[1];
   uint64_t otherId = (uint64_t)other;
   args[0] = &otherId;
-  mono_runtime_invoke(script_data_->on_collision_exit_method(), handle_, args,
-                      nullptr);
+  InvokeSafe(script_data_->on_collision_exit_method(), handle_, args);
 }
 
 // explicitly instantiate needed types, this is required:
@@ -1243,12 +1424,16 @@ void ScriptManager::LoadCore() {
       core_assembly_image_, "WieselEngine", "TextComponent");
   animator_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "AnimatorComponent");
+  audio_source_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "AudioSourceComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
   entity_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Entity");
   prefab_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Prefab");
+  audio_clip_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "AudioClip");
 }
 
 void ScriptManager::LoadApp() {
@@ -1674,6 +1859,35 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntity);
   WIESEL_ADD_INTERNAL_CALL(Scene_DestroyEntity);
   // Console
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_Play);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_PlayClip);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_Stop);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_GetIsPlaying);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_GetVolume);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_SetVolume);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_GetPitch);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_SetPitch);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_GetLoop);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_SetLoop);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_GetMute);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_SetMute);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_GetSpatialBlend);
+  WIESEL_ADD_INTERNAL_CALL(AudioSource_SetSpatialBlend);
+
+  WIESEL_ADD_INTERNAL_CALL(Audio_PlayPath);
+  WIESEL_ADD_INTERNAL_CALL(Audio_PlayAtPath);
+  WIESEL_ADD_INTERNAL_CALL(Audio_PlayClip);
+  WIESEL_ADD_INTERNAL_CALL(Audio_PlayAtClip);
+  WIESEL_ADD_INTERNAL_CALL(Audio_PlayMusic);
+  WIESEL_ADD_INTERNAL_CALL(Audio_PlayMusicClip);
+  WIESEL_ADD_INTERNAL_CALL(Audio_StopMusic);
+  WIESEL_ADD_INTERNAL_CALL(Audio_SetMasterVolume);
+  WIESEL_ADD_INTERNAL_CALL(Audio_GetMasterVolume);
+  WIESEL_ADD_INTERNAL_CALL(Audio_SetSFXVolume);
+  WIESEL_ADD_INTERNAL_CALL(Audio_GetSFXVolume);
+  WIESEL_ADD_INTERNAL_CALL(Audio_SetMusicVolume);
+  WIESEL_ADD_INTERNAL_CALL(Audio_GetMusicVolume);
+
   WIESEL_ADD_INTERNAL_CALL(Console_RegisterCommand);
   WIESEL_ADD_INTERNAL_CALL(Console_UnregisterCommand);
   WIESEL_ADD_INTERNAL_CALL(Console_Execute);
@@ -1699,7 +1913,7 @@ void ScriptManager::RegisterComponents() {
 
         MonoMethod* method = mono_class_get_method_from_name(
             transform_component_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1719,7 +1933,7 @@ void ScriptManager::RegisterComponents() {
 
         MonoMethod* method = mono_class_get_method_from_name(
             model_component_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1739,7 +1953,7 @@ void ScriptManager::RegisterComponents() {
 
         MonoMethod* method = mono_class_get_method_from_name(
             box_collider_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1759,7 +1973,7 @@ void ScriptManager::RegisterComponents() {
 
         MonoMethod* method = mono_class_get_method_from_name(
             sphere_collider_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1779,7 +1993,7 @@ void ScriptManager::RegisterComponents() {
 
         MonoMethod* method = mono_class_get_method_from_name(
             rigidbody_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1797,7 +2011,7 @@ void ScriptManager::RegisterComponents() {
         args[1] = &entityId;
         MonoMethod* method = mono_class_get_method_from_name(
             rect_transform_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1815,7 +2029,7 @@ void ScriptManager::RegisterComponents() {
         args[1] = &entityId;
         MonoMethod* method = mono_class_get_method_from_name(
             canvas_component_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1833,7 +2047,7 @@ void ScriptManager::RegisterComponents() {
         args[1] = &entityId;
         MonoMethod* method = mono_class_get_method_from_name(
             canvas_rect_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1851,7 +2065,7 @@ void ScriptManager::RegisterComponents() {
         args[1] = &entityId;
         MonoMethod* method = mono_class_get_method_from_name(
             canvas_image_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1869,7 +2083,7 @@ void ScriptManager::RegisterComponents() {
         args[1] = &entityId;
         MonoMethod* method = mono_class_get_method_from_name(
             text_component_class_, ".ctor", 2);
-        mono_runtime_invoke(method, obj, args, nullptr);
+        InvokeSafe(method, obj, args);
         return obj;
       },
       [](Scene* scene, entt::entity entity) -> bool {
@@ -1889,11 +2103,32 @@ void ScriptManager::RegisterComponents() {
           args[1] = &entityId;
           MonoMethod* method = mono_class_get_method_from_name(
               animator_component_class_, ".ctor", 2);
-          mono_runtime_invoke(method, obj, args, nullptr);
+          InvokeSafe(method, obj, args);
           return obj;
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<AnimatorComponent>(entity);
+        });
+  }
+
+  if (audio_source_class_) {
+    RegisterComponent<AudioSourceComponent>(
+        "AudioSourceComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          MonoObject* obj =
+              mono_object_new(app_domain_, audio_source_class_);
+          void* args[2];
+          uint64_t scenePtr = (uint64_t)scene;
+          uint64_t entityId = (uint64_t)entity;
+          args[0] = &scenePtr;
+          args[1] = &entityId;
+          MonoMethod* method = mono_class_get_method_from_name(
+              audio_source_class_, ".ctor", 2);
+          InvokeSafe(method, obj, args);
+          return obj;
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<AudioSourceComponent>(entity);
         });
   }
 }
