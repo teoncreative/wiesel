@@ -13,6 +13,8 @@
 
 #include "animation/w_animation.hpp"
 #include "audio/w_audio.hpp"
+#include "rendering/w_sprite.hpp"
+#include "rendering/w_sprite_loader.hpp"
 #include "asset/w_asset_manager.hpp"
 #include "ui/w_canvas.hpp"
 #include "behavior/w_behavior.hpp"
@@ -1552,6 +1554,67 @@ void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
   }
 }
 
+void RenderComponentImGui(SpriteComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Sprite", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<SpriteComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  // Animation asset (drag-drop)
+  static AssetHandle anim_handle;
+  std::string display = "(None)";
+  if (component.asset_handle_) {
+    display = "Loaded";
+    // Try to find the anim handle from asset manager
+  }
+
+  if (ImGui::BeginDragDropTarget()) {
+    AssetHandle dropped = AcceptAssetDragDrop(AssetType::SpriteAnim);
+    if (dropped.IsValid()) {
+      LoadSpriteAnim(dropped, component);
+    }
+    ImGui::EndDragDropTarget();
+  }
+
+  // Clips info
+  if (!component.clips.empty()) {
+    ImGui::Text("Clips: %d", static_cast<int>(component.clips.size()));
+    for (auto& clip : component.clips) {
+      ImGui::BulletText("%s (frames %d-%d, %.2fs, %s)",
+                         clip.name.c_str(),
+                         clip.start_frame,
+                         clip.start_frame + clip.frame_count - 1,
+                         clip.frame_duration,
+                         clip.loop ? "loop" : "once");
+    }
+  }
+
+  // Playback
+  ImGui::Separator();
+  ImGui::Text("Frame: %d", component.current_frame_);
+  ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing_);
+  ImGui::Checkbox(PrefixLabel("Flip X").c_str(), &component.flip_x_);
+  ImGui::Checkbox(PrefixLabel("Flip Y").c_str(), &component.flip_y_);
+  ImGui::ColorEdit4(PrefixLabel("Tint").c_str(), &component.tint_.r);
+
+  int sort = component.sort_layer_;
+  if (ImGui::InputInt(PrefixLabel("Sort Layer").c_str(), &sort)) {
+    component.sort_layer_ = static_cast<uint8_t>(std::clamp(sort, 0, 255));
+  }
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_SpriteComponent(Entity entity) {
+  if (ImGui::MenuItem("Sprite") && !entity.HasComponent<SpriteComponent>()) {
+    entity.AddComponent<SpriteComponent>();
+  }
+}
+
 void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
   static bool visible = true;
   if (!ImGui::ClosableTreeNode("Reverb Zone", &visible)) {
@@ -1599,6 +1662,7 @@ void InitializeComponents() {
   RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
   RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
   RegisterComponentType<AudioSourceComponent>("Audio Source", "Audio", RenderComponentImGui, RenderAddComponentImGui_AudioSourceComponent, nullptr);
+  RegisterComponentType<SpriteComponent>("Sprite", "Rendering", RenderComponentImGui, RenderAddComponentImGui_SpriteComponent, nullptr);
   RegisterComponentType<ReverbZoneComponent>("Reverb Zone", "Audio", RenderComponentImGui, RenderAddComponentImGui_ReverbZoneComponent, nullptr);
 }
 

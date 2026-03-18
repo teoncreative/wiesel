@@ -114,6 +114,43 @@ void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix) {
   }
 }
 
+void SpriteComponent::Play(const std::string& clip_name, bool restart) {
+  if (!restart && direct_clip_ == clip_name && playing_) return;
+  direct_clip_ = clip_name;
+  frame_timer_ = 0.0f;
+  playing_ = true;
+  const SpriteClip* clip = FindClip(clip_name);
+  if (clip) {
+    current_frame_ = clip->start_frame;
+  }
+}
+
+void SpriteComponent::Stop() {
+  playing_ = false;
+}
+
+const SpriteClip* SpriteComponent::FindClip(const std::string& name) const {
+  for (auto& c : clips) {
+    if (c.name == name) return &c;
+  }
+  return nullptr;
+}
+
+const SpriteClip* SpriteComponent::GetActiveClip() const {
+  // State machine takes priority
+  if (!state_machine.controller.IsEmpty()) {
+    const auto* state = state_machine.GetCurrentState();
+    if (state) {
+      return FindClip(state->clip_name);
+    }
+  }
+  // Direct play
+  if (!direct_clip_.empty()) {
+    return FindClip(direct_clip_);
+  }
+  return nullptr;
+}
+
 AddFrameResult SpriteBuilder::AddFrame(float_t duration_seconds, glm::vec2 uv_pos, glm::vec2 uv_size) {
   if (fixed_size_) {
     uv_size = fixed_uv_size_;
@@ -130,6 +167,25 @@ AddFrameResult SpriteBuilder::AddFrame(float_t duration_seconds, glm::vec2 uv_po
   );
 
   return AddFrameResult::Success;
+}
+
+void SpriteBuilder::AddGridFrames(glm::ivec2 cell_size, int start_col, int start_row,
+                                   int count, float frame_duration) {
+  int cols_per_row = static_cast<int>(atlas_size_.x) / cell_size.x;
+  int col = start_col;
+  int row = start_row;
+
+  for (int i = 0; i < count; i++) {
+    glm::vec2 pos(col * cell_size.x, row * cell_size.y);
+    glm::vec2 size(cell_size.x, cell_size.y);
+    AddFrame(frame_duration, pos, size);
+
+    col++;
+    if (col >= cols_per_row) {
+      col = 0;
+      row++;
+    }
+  }
 }
 
 std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {

@@ -641,6 +641,8 @@ void EditorLayer::OnBeginPresent() {
 
   RenderProjectSettingsPopup();
   RenderCreateSkyboxPopup();
+  RenderCreateSpriteSheetPopup();
+  RenderCreateSpriteAnimPopup();
 
   static bool sceneOpen = true;
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
@@ -1125,7 +1127,9 @@ void EditorLayer::OnBeginPresent() {
           case AssetType::Script:   return {0.55f, 0.70f, 0.30f, 1.0f};
           case AssetType::Scene:    return {0.72f, 0.35f, 0.35f, 1.0f};
           case AssetType::Prefab:   return {0.45f, 0.55f, 0.72f, 1.0f};
-          case AssetType::Audio:    return {0.72f, 0.45f, 0.60f, 1.0f};
+          case AssetType::Audio:       return {0.72f, 0.45f, 0.60f, 1.0f};
+          case AssetType::SpriteSheet: return {0.20f, 0.65f, 0.55f, 1.0f};
+          case AssetType::SpriteAnim:  return {0.30f, 0.70f, 0.45f, 1.0f};
           default:                  return {0.40f, 0.40f, 0.40f, 1.0f};
         }
       };
@@ -1142,7 +1146,9 @@ void EditorLayer::OnBeginPresent() {
           case AssetType::Script:   return "CS";
           case AssetType::Scene:    return "SCN";
           case AssetType::Prefab:   return "PFB";
-          case AssetType::Audio:    return "SND";
+          case AssetType::Audio:       return "SND";
+          case AssetType::SpriteSheet: return "SPR";
+          case AssetType::SpriteAnim:  return "ANM";
           default:                  return "?";
         }
       };
@@ -1394,6 +1400,14 @@ void EditorLayer::OnBeginPresent() {
           }
           if (ImGui::MenuItem("Skybox")) {
             show_create_skybox_ = true;
+            ImGui::CloseCurrentPopup();
+          }
+          if (ImGui::MenuItem("Sprite Sheet")) {
+            show_create_spritesheet_ = true;
+            ImGui::CloseCurrentPopup();
+          }
+          if (ImGui::MenuItem("Sprite Animation")) {
+            show_create_spriteanim_ = true;
             ImGui::CloseCurrentPopup();
           }
           ImGui::EndMenu();
@@ -2235,9 +2249,7 @@ void EditorLayer::UpdateHierarchyOrder() {
   hierarchy_data_.move_to = entt::null;
 }
 
-// ============================================================================
 // Main Menu Bar & Project/Scene Management
-// ============================================================================
 
 void EditorLayer::RenderCreateSkyboxPopup() {
   if (show_create_skybox_) {
@@ -2351,6 +2363,212 @@ void EditorLayer::RenderCreateSkyboxPopup() {
       name_buf[0] = '\0';
       source_handle = {};
       face_handles = {};
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+}
+
+void EditorLayer::RenderCreateSpriteSheetPopup() {
+  if (show_create_spritesheet_) {
+    ImGui::OpenPopup("Create Sprite Sheet");
+    show_create_spritesheet_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Create Sprite Sheet", &popup_open,
+                              ImGuiWindowFlags_AlwaysAutoResize)) {
+    static char name_buf[128] = "spritesheet";
+    static AssetHandle texture_handle;
+    static int cell_w = 64;
+    static int cell_h = 64;
+    static int frame_count = 0;
+
+    ImGui::InputText("Name", name_buf, sizeof(name_buf));
+    AssetCombo("Texture", AssetType::Texture, texture_handle, false);
+    ImGui::InputInt("Cell Width", &cell_w);
+    ImGui::InputInt("Cell Height", &cell_h);
+    ImGui::InputInt("Frame Count (0 = auto)", &frame_count);
+
+    if (cell_w < 1) cell_w = 1;
+    if (cell_h < 1) cell_h = 1;
+    if (frame_count < 0) frame_count = 0;
+
+    ImGui::Separator();
+
+    bool can_create = name_buf[0] != '\0' && texture_handle.IsValid();
+    if (ImGui::Button("Create") && can_create) {
+      const auto* meta = Engine::asset_manager().GetMetadata(texture_handle);
+      nlohmann::json j;
+      j["asset_handle"] = AssetHandle::Generate().ToString();
+      j["texture"] = meta ? meta->virtual_source_path : "";
+      j["cell_size"] = {cell_w, cell_h};
+      j["frame_count"] = frame_count;
+
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      if (physical_app.has_value()) {
+        namespace fs = std::filesystem;
+        fs::path base = fs::absolute(*physical_app);
+        if (!browser_current_dir_.empty()) {
+          base = base / browser_current_dir_;
+        }
+        fs::path file_path = base / (std::string(name_buf) + ".wspritesheet");
+        std::ofstream out(file_path);
+        if (out.is_open()) {
+          out << j.dump(2);
+          ScanProjectAssets();
+        }
+      }
+
+      name_buf[0] = '\0';
+      texture_handle = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      name_buf[0] = '\0';
+      texture_handle = {};
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+}
+
+void EditorLayer::RenderCreateSpriteAnimPopup() {
+  if (show_create_spriteanim_) {
+    ImGui::OpenPopup("Create Sprite Animation");
+    show_create_spriteanim_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_Appearing);
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Create Sprite Animation", &popup_open,
+                              ImGuiWindowFlags_NoScrollbar)) {
+    static char name_buf[128] = "animation";
+    static AssetHandle sheet_handle;
+    static std::string default_state;
+
+    struct ClipEntry {
+      char name[64] = "";
+      int start = 0;
+      int count = 1;
+      float duration = 0.1f;
+      bool loop = true;
+    };
+    static std::vector<ClipEntry> clip_entries;
+
+    ImGui::InputText("Name", name_buf, sizeof(name_buf));
+    AssetCombo("Sprite Sheet", AssetType::SpriteSheet, sheet_handle, false);
+
+    ImGui::SeparatorText("Clips");
+
+    if (ImGui::BeginTable("##clips", 6,
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+      ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 100);
+      ImGui::TableSetupColumn("Start");
+      ImGui::TableSetupColumn("Count");
+      ImGui::TableSetupColumn("Duration");
+      ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 40);
+      ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
+      ImGui::TableHeadersRow();
+
+      int to_remove = -1;
+      for (int i = 0; i < static_cast<int>(clip_entries.size()); i++) {
+        ImGui::PushID(i);
+        auto& clip = clip_entries[i];
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##name", clip.name, sizeof(clip.name));
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputInt("##start", &clip.start);
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputInt("##count", &clip.count);
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputFloat("##dur", &clip.duration, 0.01f);
+
+        ImGui::TableNextColumn();
+        ImGui::Checkbox("##loop", &clip.loop);
+
+        ImGui::TableNextColumn();
+        if (ImGui::SmallButton("X")) {
+          to_remove = i;
+        }
+
+        ImGui::PopID();
+      }
+      ImGui::EndTable();
+
+      if (to_remove >= 0) {
+        clip_entries.erase(clip_entries.begin() + to_remove);
+      }
+    }
+
+    if (ImGui::Button("+ Add Clip")) {
+      clip_entries.push_back({});
+    }
+
+    ImGui::Separator();
+
+    bool can_create = name_buf[0] != '\0' && sheet_handle.IsValid() && !clip_entries.empty();
+    if (ImGui::Button("Create") && can_create) {
+      nlohmann::json j;
+      j["asset_handle"] = AssetHandle::Generate().ToString();
+      j["sprite_sheet"] = sheet_handle.ToString();
+
+      nlohmann::json clips_json = nlohmann::json::array();
+      for (auto& clip : clip_entries) {
+        if (clip.name[0] == '\0') continue;
+        nlohmann::json cj;
+        cj["name"] = clip.name;
+        cj["start"] = clip.start;
+        cj["count"] = clip.count;
+        cj["duration"] = clip.duration;
+        cj["loop"] = clip.loop;
+        clips_json.push_back(cj);
+      }
+      j["clips"] = clips_json;
+
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      if (physical_app.has_value()) {
+        namespace fs = std::filesystem;
+        fs::path base = fs::absolute(*physical_app);
+        if (!browser_current_dir_.empty()) {
+          base = base / browser_current_dir_;
+        }
+        fs::path file_path = base / (std::string(name_buf) + ".wspriteanim");
+        std::ofstream out(file_path);
+        if (out.is_open()) {
+          out << j.dump(2);
+          ScanProjectAssets();
+        }
+      }
+
+      name_buf[0] = '\0';
+      sheet_handle = {};
+      clip_entries.clear();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      name_buf[0] = '\0';
+      sheet_handle = {};
+      clip_entries.clear();
       ImGui::CloseCurrentPopup();
     }
 
