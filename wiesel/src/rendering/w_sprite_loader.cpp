@@ -38,11 +38,8 @@ static nlohmann::json LoadJsonAsset(const AssetHandle& handle) {
   const auto* meta = Engine::asset_manager().GetMetadata(handle);
   if (!meta) return {};
 
-  auto vfs = Engine::vfs();
-  if (!vfs->FileExists(meta->virtual_source_path)) return {};
-
-  VfsFile file = vfs->Open(meta->virtual_source_path);
-  if (file.Size() == 0) return {};
+  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
+  if (!file) return {};
 
   try {
     std::string content((std::istreambuf_iterator<char>(file.Stream())),
@@ -70,13 +67,11 @@ std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
   int frame_count = j.value("frame_count", 0);
 
   // Load texture to get dimensions
-  auto vfs = Engine::vfs();
-  if (!vfs->FileExists(texture_path)) {
+  VfsFile tex_file = Engine::vfs()->Open(texture_path);
+  if (!tex_file) {
     LOG_ERROR("SpriteSheet: texture not found: {}", texture_path);
     return nullptr;
   }
-
-  VfsFile tex_file = vfs->Open(texture_path);
   int tex_w, tex_h, tex_ch;
   stbi_uc* pixels = stbi_load_from_memory(
       tex_file.Data(), static_cast<int>(tex_file.Size()),

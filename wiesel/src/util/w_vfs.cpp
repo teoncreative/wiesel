@@ -3,6 +3,7 @@
 //
 
 #include "util/w_vfs.hpp"
+#include "util/w_logger.hpp"
 
 namespace Wiesel {
 
@@ -160,7 +161,8 @@ VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
         }
     }
 
-    throw std::runtime_error("File not found: " + virtual_path);
+    LOG_WARN("VFS: file not found: {}", virtual_path);
+    return {};
 }
 
 bool VirtualFileSystem::FileExists(const std::string& virtual_path) {

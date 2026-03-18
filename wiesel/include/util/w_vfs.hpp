@@ -24,7 +24,13 @@ namespace Wiesel {
 
 class VfsFile {
 public:
+  VfsFile() = default;
   VfsFile(std::vector<uint8_t> data, std::string path);
+
+  // Returns true if the file was opened successfully (has data)
+  explicit operator bool() const {
+    return !data_.empty();
+  }
 
   // Stream-like reading
   template<typename T>

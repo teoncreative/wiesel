@@ -71,11 +71,8 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
   const auto* meta = mgr.GetMetadata(handle);
   if (!meta || meta->type != AssetType::Skybox) return;
 
-  auto vfs = Engine::vfs();
-  if (!vfs->FileExists(meta->virtual_source_path)) return;
-
-  VfsFile file = vfs->Open(meta->virtual_source_path);
-  if (file.Size() == 0) return;
+  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
+  if (!file) return;
 
   try {
     std::string content((std::istreambuf_iterator<char>(file.Stream())),

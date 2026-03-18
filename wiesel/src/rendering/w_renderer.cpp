@@ -457,6 +457,10 @@ std::shared_ptr<Texture> Renderer::CreateTexture(const std::string& path,
   std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, path);
 
   VfsFile vfs_file = Engine::vfs()->Open(path);
+  if (!vfs_file) {
+    LOG_WARN("Attempted to load a texture that does not exist {}", path);
+    return nullptr;
+  }
   stbi_uc* pixels =
       stbi_load_from_memory(vfs_file.Data(), static_cast<int>(vfs_file.Size()),
                             reinterpret_cast<int*>(&texture->width_),
@@ -597,16 +601,25 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     const std::array<std::string, 6>& paths, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
   std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
-  VkDeviceSize totalSize;
-  stbi_uc* allPixels;
+  VkDeviceSize total_size = 0;
+  stbi_uc* all_pixels = nullptr;
+
+  // Load all 6 faces
   for (size_t i = 0; i < 6; ++i) {
     int w, h, channels;
     VfsFile vfs_face = Engine::vfs()->Open(paths[i]);
+    if (!vfs_face) {
+      LOG_ERROR("Cubemap face not found: {}", paths[i]);
+      delete[] all_pixels;
+      return nullptr;
+    }
     stbi_uc* pixels = stbi_load_from_memory(vfs_face.Data(),
                                             static_cast<int>(vfs_face.Size()),
                                             &w, &h, &channels, STBI_rgb_alpha);
     if (!pixels) {
-      throw std::runtime_error("failed to load texture image: " + paths[i]);
+      LOG_ERROR("Failed to load cubemap face: {}", paths[i]);
+      delete[] all_pixels;
+      return nullptr;
     }
 
     if (i == 0) {
@@ -614,27 +627,32 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
       texture->height_ = h;
       texture->size_ = texture->width_ * texture->height_ * STBI_rgb_alpha;
       texture->mip_levels_ = 1;
-      totalSize = texture->size_ * 6;
-      allPixels = new stbi_uc[totalSize];
+      total_size = texture->size_ * 6;
+      all_pixels = new stbi_uc[total_size];
     }
 
-    if (w != texture->width_ || h != texture->height_) {
-      throw std::runtime_error("cubemap face size mismatch!");
+    if (w != static_cast<int>(texture->width_) ||
+        h != static_cast<int>(texture->height_)) {
+      LOG_ERROR("Cubemap face size mismatch: {} (expected {}x{}, got {}x{})",
+                paths[i], texture->width_, texture->height_, w, h);
+      stbi_image_free(pixels);
+      delete[] all_pixels;
+      return nullptr;
     }
 
-    memcpy(allPixels + i * texture->size_, pixels, texture->size_);
+    memcpy(all_pixels + i * texture->size_, pixels, texture->size_);
     stbi_image_free(pixels);
   }
   VkBuffer staging_buffer;
   VkDeviceMemory staging_buffer_memory;
-  CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  CreateBuffer(total_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, totalSize, 0, &data);
-  memcpy(data, allPixels, static_cast<size_t>(totalSize));
+  vkMapMemory(logical_device_, staging_buffer_memory, 0, total_size, 0, &data);
+  memcpy(data, all_pixels, static_cast<size_t>(total_size));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
@@ -669,7 +687,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
 
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
-  delete[] allPixels;
+  delete[] all_pixels;
 
   texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
   texture->image_view_ = CreateImageView(
@@ -686,11 +704,16 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
 
   int w, h, channels;
   VfsFile vfs_cubemap = Engine::vfs()->Open(virtual_path);
+  if (!vfs_cubemap) {
+    LOG_ERROR("Cubemap file not found: {}", virtual_path);
+    return nullptr;
+  }
   stbi_uc* pixels = stbi_load_from_memory(vfs_cubemap.Data(),
                                           static_cast<int>(vfs_cubemap.Size()),
                                           &w, &h, &channels, STBI_rgb_alpha);
   if (!pixels) {
-    throw std::runtime_error("failed to load cubemap: " + virtual_path);
+    LOG_ERROR("Failed to load cubemap image: {}", virtual_path);
+    return nullptr;
   }
   const bool is_horizontal_strip = (w % 6 == 0) && (h > 0) && (h == w / 6);
   const bool is_vertical_cross =
@@ -717,14 +740,14 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
   texture->size_ = faceSize * faceSize * 4;
   texture->mip_levels_ = 1;
 
-  VkDeviceSize totalSize = texture->size_ * 6;
+  VkDeviceSize total_size = texture->size_ * 6;
 
-  std::vector<stbi_uc> cubePixels(totalSize);
+  std::vector<stbi_uc> cube_pixels(total_size);
 
-  auto copyFace = [&](uint32_t faceIndex, uint32_t gridX, uint32_t gridY) {
+  auto copy_face = [&](uint32_t faceIndex, uint32_t gridX, uint32_t gridY) {
     for (uint32_t row = 0; row < faceSize; row++) {
       memcpy(
-          cubePixels.data() + faceIndex * texture->size_ + row * faceSize * 4,
+          cube_pixels.data() + faceIndex * texture->size_ + row * faceSize * 4,
           pixels + ((gridY * faceSize + row) * w + gridX * faceSize) * 4,
           faceSize * 4);
     }
@@ -782,13 +805,13 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
           x /= len; y /= len; z /= len;
 
           uint32_t outIdx = face * faceSize * faceSize * 4 + (py * faceSize + px) * 4;
-          sampleEquirect(x, y, z, cubePixels.data() + outIdx);
+          sampleEquirect(x, y, z, cube_pixels.data() + outIdx);
         }
       }
     }
   } else if (is_horizontal_strip) {
     for (uint32_t face = 0; face < 6; face++) {
-      copyFace(face, face, 0);
+      copy_face(face, face, 0);
     }
   } else {
     // Vertical cross (4x3 fold layout)
@@ -797,12 +820,12 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
     // -X +Z +X -Z     (0,1)(1,1)(2,1)(3,1)
     //       -Y        (1,2)
 
-    copyFace(0, 2, 1);  // +X
-    copyFace(1, 0, 1);  // -X
-    copyFace(2, 1, 0);  // +Y
-    copyFace(3, 1, 2);  // -Y
-    copyFace(4, 1, 1);  // +Z
-    copyFace(5, 3, 1);  // -Z
+    copy_face(0, 2, 1);  // +X
+    copy_face(1, 0, 1);  // -X
+    copy_face(2, 1, 0);  // +Y
+    copy_face(3, 1, 2);  // -Y
+    copy_face(4, 1, 1);  // +Z
+    copy_face(5, 3, 1);  // -Z
   }
 
   stbi_image_free(pixels);
@@ -811,14 +834,14 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
   VkBuffer staging_buffer;
   VkDeviceMemory stagingMemory;
 
-  CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  CreateBuffer(total_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                staging_buffer, stagingMemory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingMemory, 0, totalSize, 0, &data);
-  memcpy(data, cubePixels.data(), totalSize);
+  vkMapMemory(logical_device_, stagingMemory, 0, total_size, 0, &data);
+  memcpy(data, cube_pixels.data(), total_size);
   vkUnmapMemory(logical_device_, stagingMemory);
 
   // Create cube image
@@ -969,33 +992,33 @@ void Renderer::SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> tex
 
 VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
                                          const SamplerProps& props) {
-  VkSamplerCreateInfo samplerInfo{};
-  samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = props.MagFilter;
-  samplerInfo.minFilter = props.MinFilter;
-  samplerInfo.addressModeU = props.AddressMode;
-  samplerInfo.addressModeV = props.AddressMode;
-  samplerInfo.addressModeW = props.AddressMode;
+  VkSamplerCreateInfo sampler_info{};
+  sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  sampler_info.magFilter = props.MagFilter;
+  sampler_info.minFilter = props.MinFilter;
+  sampler_info.addressModeU = props.AddressMode;
+  sampler_info.addressModeV = props.AddressMode;
+  sampler_info.addressModeW = props.AddressMode;
 
   if (props.MaxAnisotropy <= 0) {
-    samplerInfo.anisotropyEnable = VK_FALSE;
+    sampler_info.anisotropyEnable = VK_FALSE;
   } else {
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy =
+    sampler_info.anisotropyEnable = VK_TRUE;
+    sampler_info.maxAnisotropy =
         std::min(props.MaxAnisotropy,
                  physical_device_properties_.limits.maxSamplerAnisotropy);
   }
-  samplerInfo.borderColor = props.BorderColor;
-  samplerInfo.unnormalizedCoordinates = VK_FALSE;
-  samplerInfo.compareEnable = props.CompareEnable;
-  samplerInfo.compareOp = props.CompareOp;
+  sampler_info.borderColor = props.BorderColor;
+  sampler_info.unnormalizedCoordinates = VK_FALSE;
+  sampler_info.compareEnable = props.CompareEnable;
+  sampler_info.compareOp = props.CompareOp;
 
-  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  samplerInfo.maxLod = static_cast<float>(mip_levels);
+  sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampler_info.maxLod = static_cast<float>(mip_levels);
 
   VkSampler sampler;
   WIESEL_CHECK_VKRESULT(
-      vkCreateSampler(logical_device_, &samplerInfo, nullptr, &sampler));
+      vkCreateSampler(logical_device_, &sampler_info, nullptr, &sampler));
   return sampler;
 }
 
@@ -1003,18 +1026,18 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     std::shared_ptr<UniformBuffer> uniform_buffer, std::shared_ptr<Material> material) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
-  VkDescriptorPoolSize poolSizes[] = {
+  VkDescriptorPoolSize pool_sizes[] = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaterialTextureCount}};
 
-  VkDescriptorPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  poolInfo.poolSizeCount = std::size(poolSizes);
-  poolInfo.pPoolSizes = poolSizes;
-  poolInfo.maxSets = 1;
+  VkDescriptorPoolCreateInfo pool_info{};
+  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  pool_info.poolSizeCount = std::size(pool_sizes);
+  pool_info.pPoolSizes = pool_sizes;
+  pool_info.maxSets = 1;
   // Allocate pool
   WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
-      logical_device_, &poolInfo, nullptr, &object->descriptor_pool_));
+      logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts(
       1, geometry_mesh_descriptor_layout_->layout_);
@@ -1028,13 +1051,13 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 
   std::vector<VkWriteDescriptorSet> writes;
   writes.reserve(8);
-  std::vector<VkDescriptorBufferInfo> bufferInfos;
-  bufferInfos.reserve(1);
-  std::vector<VkDescriptorImageInfo> imageInfos;
-  imageInfos.reserve(7);
+  std::vector<VkDescriptorBufferInfo> buffer_infos;
+  buffer_infos.reserve(1);
+  std::vector<VkDescriptorImageInfo> image_infos;
+  image_infos.reserve(7);
 
   {
-    bufferInfos.push_back({
+    buffer_infos.push_back({
         .buffer = uniform_buffer->buffer_handle_,
         .offset = 0,
         .range = sizeof(MatricesUniformData),
@@ -1046,22 +1069,22 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     set.descriptorCount = 1;
-    set.pBufferInfo = &bufferInfos.back();
+    set.pBufferInfo = &buffer_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
 
   {  // base texture
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkDescriptorImageInfo image_info;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->base_texture == nullptr) {
-      imageInfo.imageView = blank_texture_->image_view_->handle_;
-      imageInfo.sampler = blank_texture_->sampler_;
+      image_info.imageView = blank_texture_->image_view_->handle_;
+      image_info.sampler = blank_texture_->sampler_;
     } else {
-      imageInfo.imageView = material->base_texture->image_view_->handle_;
-      imageInfo.sampler = material->base_texture->sampler_;
+      image_info.imageView = material->base_texture->image_view_->handle_;
+      image_info.sampler = material->base_texture->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(image_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1070,22 +1093,22 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
 
   {  // normal texture
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkDescriptorImageInfo image_info;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->normal_map == nullptr) {
-      imageInfo.imageView = blank_texture_->image_view_->handle_;
-      imageInfo.sampler = blank_texture_->sampler_;
+      image_info.imageView = blank_texture_->image_view_->handle_;
+      image_info.sampler = blank_texture_->sampler_;
     } else {
-      imageInfo.imageView = material->normal_map->image_view_->handle_;
-      imageInfo.sampler = material->normal_map->sampler_;
+      image_info.imageView = material->normal_map->image_view_->handle_;
+      image_info.sampler = material->normal_map->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(image_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1094,22 +1117,22 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
 
   {  // specular texture
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkDescriptorImageInfo image_info;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->specular_map == nullptr) {
-      imageInfo.imageView = blank_texture_->image_view_->handle_;
-      imageInfo.sampler = blank_texture_->sampler_;
+      image_info.imageView = blank_texture_->image_view_->handle_;
+      image_info.sampler = blank_texture_->sampler_;
     } else {
-      imageInfo.imageView = material->specular_map->image_view_->handle_;
-      imageInfo.sampler = material->specular_map->sampler_;
+      image_info.imageView = material->specular_map->image_view_->handle_;
+      image_info.sampler = material->specular_map->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(image_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1118,22 +1141,22 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
 
   {  // height texture
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkDescriptorImageInfo image_info;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->height_map == nullptr) {
-      imageInfo.imageView = blank_texture_->image_view_->handle_;
-      imageInfo.sampler = blank_texture_->sampler_;
+      image_info.imageView = blank_texture_->image_view_->handle_;
+      image_info.sampler = blank_texture_->sampler_;
     } else {
-      imageInfo.imageView = material->height_map->image_view_->handle_;
-      imageInfo.sampler = material->height_map->sampler_;
+      image_info.imageView = material->height_map->image_view_->handle_;
+      image_info.sampler = material->height_map->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(image_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1142,22 +1165,22 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
 
   {  // albedo texture
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkDescriptorImageInfo image_info;
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->albedo_map == nullptr) {
-      imageInfo.imageView = blank_texture_->image_view_->handle_;
-      imageInfo.sampler = blank_texture_->sampler_;
+      image_info.imageView = blank_texture_->image_view_->handle_;
+      image_info.sampler = blank_texture_->sampler_;
     } else {
-      imageInfo.imageView = material->albedo_map->image_view_->handle_;
-      imageInfo.sampler = material->albedo_map->sampler_;
+      image_info.imageView = material->albedo_map->image_view_->handle_;
+      image_info.sampler = material->albedo_map->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(image_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1166,7 +1189,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
@@ -1181,7 +1204,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
       imageInfo.imageView = material->roughness_map->image_view_->handle_;
       imageInfo.sampler = material->roughness_map->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(imageInfo);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1190,7 +1213,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
@@ -1205,7 +1228,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
       imageInfo.imageView = material->metallic_map->image_view_->handle_;
       imageInfo.sampler = material->metallic_map->sampler_;
     }
-    imageInfos.emplace_back(imageInfo);
+    image_infos.emplace_back(imageInfo);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1214,7 +1237,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
-    set.pImageInfo = &imageInfos.back();
+    set.pImageInfo = &image_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }

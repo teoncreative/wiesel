@@ -331,7 +331,7 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
   ThumbnailEntry entry;
   AssetManager& mgr = Engine::asset_manager();
 
-  if (meta.type == AssetType::Texture || meta.type == AssetType::Skybox) {
+  if (meta.type == AssetType::Texture) {
     std::shared_ptr<Texture> texture = mgr.Get<Texture>(handle);
     if (!texture && !meta.virtual_source_path.empty()) {
       // Load on demand for editor preview
@@ -2338,18 +2338,20 @@ void EditorLayer::RenderCreateSkyboxPopup() {
           base = base / browser_current_dir_;
         }
         fs::path file_path = base / (std::string(name_buf) + ".wskybox");
-        std::ofstream out(file_path);
-        if (out.is_open()) {
-          out << j.dump(2);
-          ScanProjectAssets();
-
-          // Auto-select the new skybox on the scene
-          std::string handle_str = j["asset_handle"].get<std::string>();
-          AssetHandle new_handle = AssetHandle::FromString(handle_str);
-          if (new_handle.IsValid()) {
-            scene_->SetSkyboxAsset(new_handle);
-            scene_dirty_ = true;
+        {
+          std::ofstream out(file_path);
+          if (out.is_open()) {
+            out << j.dump(2);
           }
+        }
+        ScanProjectAssets();
+
+        // Auto-select the new skybox on the scene
+        std::string handle_str = j["asset_handle"].get<std::string>();
+        AssetHandle new_handle = AssetHandle::FromString(handle_str);
+        if (new_handle.IsValid()) {
+          scene_->SetSkyboxAsset(new_handle);
+          scene_dirty_ = true;
         }
       }
 
@@ -2417,11 +2419,13 @@ void EditorLayer::RenderCreateSpriteSheetPopup() {
           base = base / browser_current_dir_;
         }
         fs::path file_path = base / (std::string(name_buf) + ".wspritesheet");
-        std::ofstream out(file_path);
-        if (out.is_open()) {
-          out << j.dump(2);
-          ScanProjectAssets();
+        {
+          std::ofstream out(file_path);
+          if (out.is_open()) {
+            out << j.dump(2);
+          }
         }
+        ScanProjectAssets();
       }
 
       name_buf[0] = '\0';
@@ -2552,11 +2556,13 @@ void EditorLayer::RenderCreateSpriteAnimPopup() {
           base = base / browser_current_dir_;
         }
         fs::path file_path = base / (std::string(name_buf) + ".wspriteanim");
-        std::ofstream out(file_path);
-        if (out.is_open()) {
-          out << j.dump(2);
-          ScanProjectAssets();
+        {
+          std::ofstream out(file_path);
+          if (out.is_open()) {
+            out << j.dump(2);
+          }
         }
+        ScanProjectAssets();
       }
 
       name_buf[0] = '\0';
@@ -3504,6 +3510,24 @@ void EditorLayer::ScanProjectAssets() {
   if (project_) {
     ProjectLoader::ScanAssets(*project_);
     project_->Save();
+
+    // Remove thumbnail cache entries for assets that no longer exist
+    for (auto it = thumbnail_cache_.begin(); it != thumbnail_cache_.end();) {
+      if (!Engine::asset_manager().HasAsset(it->first)) {
+        if (it->second.texture_id) {
+          ImGui_ImplVulkan_RemoveTexture(it->second.texture_id);
+        }
+        it = thumbnail_cache_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+
+    // Clear stale skybox reference if its asset was deleted
+    AssetHandle sky = scene_->GetSkyboxAsset();
+    if (sky.IsValid() && !Engine::asset_manager().HasAsset(sky)) {
+      scene_->SetSkyboxAsset({});
+    }
   }
 }
 
