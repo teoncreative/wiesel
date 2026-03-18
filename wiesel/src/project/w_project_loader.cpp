@@ -33,6 +33,8 @@ AssetType ProjectLoader::ExtToAssetType(const std::string& ext) {
   if (ext == ".ttf" || ext == ".otf") return AssetType::Font;
   if (ext == ".cs") return AssetType::Script;
   if (ext == ".wskybox") return AssetType::Skybox;
+  if (ext == ".wspritesheet") return AssetType::SpriteSheet;
+  if (ext == ".wspriteanim") return AssetType::SpriteAnim;
   if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") return AssetType::Audio;
   return AssetType::None;
 }
@@ -95,7 +97,8 @@ void ProjectLoader::ScanAssets(Project& project) {
 
     // Types that store their handle inside their own JSON (no .meta needed)
     bool is_json_asset = (type == AssetType::Scene || type == AssetType::Prefab
-                          || type == AssetType::Material || type == AssetType::Skybox);
+                          || type == AssetType::Material || type == AssetType::Skybox
+                          || type == AssetType::SpriteSheet || type == AssetType::SpriteAnim);
     AssetHandle handle;
 
     if (is_json_asset) {

@@ -6,6 +6,7 @@
 #define WIESEL_SPRITE_H
 
 #include "w_pch.hpp"
+#include "animation/w_state_machine.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_buffer.hpp"
 #include "util/w_utils.hpp"
@@ -87,6 +88,11 @@ class SpriteBuilder {
 
   AddFrameResult AddFrame(float_t duration_seconds, glm::vec2 uv_pos, glm::vec2 uv_size = {0, 0});
 
+  // Auto-slice a grid: adds count frames starting from (start_col, start_row),
+  // scanning left-to-right, top-to-bottom. cell_size is in pixels.
+  void AddGridFrames(glm::ivec2 cell_size, int start_col, int start_row,
+                     int count, float frame_duration);
+
   void SetSampler(std::shared_ptr<Sampler> sampler) {
       sampler_ = sampler;
   }
@@ -101,18 +107,53 @@ class SpriteBuilder {
   std::vector<SpriteAsset::Frame> frames_;
 };
 
+// A named range of frames within a SpriteAsset.
+// Each clip maps to an AnimationState in the state machine via clip_name.
+struct SpriteClip {
+  std::string name;           // matches AnimationState::clip_name
+  uint32_t start_frame = 0;
+  uint32_t frame_count = 1;
+  float frame_duration = 0.1f;
+  bool loop = true;
+};
+
 class SpriteComponent {
  public:
   friend class Renderer;
+
+  // The sprite sheet asset
   std::shared_ptr<SpriteAsset> asset_handle_;
-  // TODO
-  glm::vec2 pivot_;
-  glm::vec4 tint_;
-  uint32_t current_frame_ = 0;
-  float_t frame_timer_ = 0.0f;
-  bool flip_x_ = false, flip_y_ = false;
+
+  // Visual properties
+  glm::vec2 pivot_ = {0.5f, 0.5f};
+  glm::vec4 tint_ = {1, 1, 1, 1};
+  bool flip_x_ = false;
+  bool flip_y_ = false;
   uint8_t sort_layer_ = 0;
 
+  // Animation clips (frame ranges)
+  std::vector<SpriteClip> clips;
+
+  // State machine (optional - if empty, just plays clips directly)
+  StateMachineRuntime state_machine;
+
+  // Playback state
+  uint32_t current_frame_ = 0;
+  float_t frame_timer_ = 0.0f;
+  bool playing_ = true;
+
+  // Play a clip by name directly (bypasses state machine)
+  void Play(const std::string& clip_name, bool restart = true);
+  void Stop();
+
+  // Get clip by name
+  const SpriteClip* FindClip(const std::string& name) const;
+
+  // Get the currently active clip (from state machine or direct play)
+  const SpriteClip* GetActiveClip() const;
+
+ private:
+  std::string direct_clip_;  // set by Play() when not using state machine
 };
 
 

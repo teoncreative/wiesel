@@ -32,12 +32,12 @@ Texture::~Texture() {
   if (!renderer) return;
 
   VkImage image = image_;
-  VkDeviceMemory memory = image_memory_;
+  VkDeviceMemory memory = device_memory_;
   VkSampler sampler = sampler_;
   VkDescriptorSet imgui_desc = imgui_descriptor_;
 
   image_ = VK_NULL_HANDLE;
-  image_memory_ = VK_NULL_HANDLE;
+  device_memory_ = VK_NULL_HANDLE;
   sampler_ = VK_NULL_HANDLE;
   imgui_descriptor_ = nullptr;
   // image_view_ shared_ptr will destruct on its own and defer via ImageView::~ImageView

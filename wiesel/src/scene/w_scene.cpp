@@ -321,6 +321,63 @@ void Scene::UpdateSceneState(float_t delta_time) {
     UpdateLight(lights, light.light_data, transform);
   }
 
+  // Sprite animation
+  for (auto entity : registry_.view<SpriteComponent>()) {
+    auto& spr = registry_.get<SpriteComponent>(entity);
+    if (!spr.asset_handle_) continue;
+
+    // Evaluate state machine transitions (if controller is set up)
+    if (!spr.state_machine.controller.IsEmpty()) {
+      spr.state_machine.EnsureDefaultState();
+      std::string new_state = spr.state_machine.EvaluateTransitions();
+      if (!new_state.empty()) {
+        // State changed - reset frame to clip start
+        const SpriteClip* clip = spr.FindClip(
+            spr.state_machine.GetCurrentState()->clip_name);
+        if (clip) {
+          spr.current_frame_ = clip->start_frame;
+          spr.frame_timer_ = 0.0f;
+          spr.playing_ = true;
+        }
+      }
+    }
+
+    if (!spr.playing_) continue;
+
+    const SpriteClip* clip = spr.GetActiveClip();
+    if (!clip) {
+      // No clip - animate through all frames using per-frame duration
+      auto& frames = spr.asset_handle_->GetFrames();
+      if (frames.size() <= 1) continue;
+      float duration = frames[spr.current_frame_].duration;
+      if (duration <= 0.0f) continue;
+      spr.frame_timer_ += delta_time;
+      if (spr.frame_timer_ >= duration) {
+        spr.frame_timer_ -= duration;
+        spr.current_frame_ = (spr.current_frame_ + 1) %
+                              static_cast<uint32_t>(frames.size());
+      }
+      continue;
+    }
+
+    // Named clip animation
+    spr.frame_timer_ += delta_time;
+    if (spr.frame_timer_ >= clip->frame_duration) {
+      spr.frame_timer_ -= clip->frame_duration;
+      uint32_t local_frame = spr.current_frame_ - clip->start_frame;
+      local_frame++;
+      if (local_frame >= clip->frame_count) {
+        if (clip->loop) {
+          local_frame = 0;
+        } else {
+          local_frame = clip->frame_count - 1;
+          spr.playing_ = false;
+        }
+      }
+      spr.current_frame_ = clip->start_frame + local_frame;
+    }
+  }
+
   // Animation evaluation
   {
   PROFILE_ZONE_SCOPED_N("Animation Evaluation");

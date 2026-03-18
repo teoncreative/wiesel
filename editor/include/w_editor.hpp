@@ -54,6 +54,8 @@ class EditorLayer : public Layer {
   void RenderMainMenuBar();
   void RenderProjectSettingsPopup();
   void RenderCreateSkyboxPopup();
+  void RenderCreateSpriteSheetPopup();
+  void RenderCreateSpriteAnimPopup();
   void NewProject();
   void OpenProject();
   void SaveProject();
@@ -100,6 +102,8 @@ class EditorLayer : public Layer {
   int selected_input_item_ = -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
   bool show_create_skybox_ = false;
+  bool show_create_spritesheet_ = false;
+  bool show_create_spriteanim_ = false;
   std::string browser_current_dir_;  // current asset browser directory relative to /app
 
   // Prefab editing
