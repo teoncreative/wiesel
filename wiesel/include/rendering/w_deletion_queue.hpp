@@ -25,24 +25,32 @@ class DeletionQueue {
 
   // Call once per frame after presenting. Ticks down all counters and
   // executes deletions whose wait has expired.
+  // Safe against re-entrant Push() calls from within fn().
   void Flush() {
-    for (auto it = entries_.begin(); it != entries_.end();) {
-      if (it->frames_remaining == 0) {
-        it->fn();
-        it = entries_.erase(it);
+    // Swap out so new entries pushed during execution don't invalidate iteration
+    std::vector<Entry> current;
+    std::swap(current, entries_);
+
+    for (auto& entry : current) {
+      if (entry.frames_remaining == 0) {
+        entry.fn();
       } else {
-        --it->frames_remaining;
-        ++it;
+        --entry.frames_remaining;
+        entries_.push_back(std::move(entry));
       }
     }
   }
 
   // Force-delete everything immediately (e.g. on shutdown).
+  // Keeps flushing until empty since deletions can cascade.
   void FlushAll() {
-    for (auto& entry : entries_) {
-      entry.fn();
+    while (!entries_.empty()) {
+      std::vector<Entry> current;
+      std::swap(current, entries_);
+      for (auto& entry : current) {
+        entry.fn();
+      }
     }
-    entries_.clear();
   }
 
  private:
