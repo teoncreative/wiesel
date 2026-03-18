@@ -23,11 +23,17 @@ DescriptorSet::DescriptorSet() {
 }
 
 DescriptorSet::~DescriptorSet() {
-  if (!allocated_) {
-    return;
-  }
-  vkDestroyDescriptorPool(Engine::renderer()->GetLogicalDevice(), descriptor_pool_,
-                          nullptr);
+  if (!allocated_) return;
+  auto renderer = Engine::renderer();
+  if (!renderer) return;
+
+  VkDescriptorPool pool = descriptor_pool_;
+  descriptor_pool_ = VK_NULL_HANDLE;
+  allocated_ = false;
+
+  renderer->GetDeletionQueue().Push([renderer, pool]() {
+    vkDestroyDescriptorPool(renderer->GetLogicalDevice(), pool, nullptr);
+  });
 }
 
 void DescriptorSet::Bake() {

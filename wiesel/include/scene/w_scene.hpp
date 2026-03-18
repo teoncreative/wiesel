@@ -13,6 +13,7 @@
 
 #include <entt/entt.hpp>
 
+#include "asset/w_asset_handle.hpp"
 #include "events/w_appevents.hpp"
 #include "events/w_engineevents.hpp"
 #include "events/w_events.hpp"
@@ -61,10 +62,18 @@ class Scene {
 
   void SetPaused(bool paused) { is_paused_ = paused; }
 
-  void SetSkybox(std::shared_ptr<Skybox> skybox) { skybox_ = skybox; }
+  void SetSkybox(std::shared_ptr<Skybox> skybox) {
+    skybox_ = skybox;
+  }
+  void SetSkyboxAsset(AssetHandle handle);
+  AssetHandle GetSkyboxAsset() const {
+    return skybox_asset_;
+  }
   std::shared_ptr<Skybox> GetSkybox();
   void EnsureDefaultSkybox();
-  bool HasCustomSkybox() const { return skybox_ != nullptr; }
+  bool HasCustomSkybox() const {
+    return skybox_ != nullptr;
+  }
 
   void SetRenderResolution(glm::vec2 resolution) { render_resolution_ = resolution; }
   glm::vec2 GetRenderResolution() const { return render_resolution_; }
@@ -197,6 +206,7 @@ class Scene {
   std::shared_ptr<CameraData> current_camera_;
   std::shared_ptr<Skybox> skybox_;
   std::shared_ptr<Skybox> default_skybox_;
+  AssetHandle skybox_asset_;
   std::shared_ptr<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, std::shared_ptr<RenderGraph>> render_graphs_;
   std::shared_ptr<RenderGraph> external_render_graph_;

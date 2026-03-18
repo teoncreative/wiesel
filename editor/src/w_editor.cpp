@@ -140,6 +140,12 @@ EditorLayer::~EditorLayer() = default;
 void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
 
+  // Editor idle throttling
+  app_.SetIdleMaxFPS(15.0f);
+  app_.SetIdleTimeout(120.0f);
+  // Cap FPS until a project is loaded
+  app_.SetMaxFPS(60.0f);
+
 #ifdef WIESEL_DISCORD_RPC
   Engine::discord_rpc().Initialize("1483104533247688866");
   Engine::discord_rpc().SetPresence("Wiesel Editor", "Idle", "wiesel_logo", "Wiesel Engine");
@@ -327,8 +333,17 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
 
   if (meta.type == AssetType::Texture || meta.type == AssetType::Skybox) {
     std::shared_ptr<Texture> texture = mgr.Get<Texture>(handle);
+    if (!texture && !meta.virtual_source_path.empty()) {
+      // Load on demand for editor preview
+      texture = Engine::renderer()->CreateTexture(
+          meta.virtual_source_path, {}, {});
+      if (texture) {
+        mgr.Store<Texture>(handle, texture);
+        mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+      }
+    }
     if (!texture || !texture->is_allocated_ || !texture->image_view_) {
-      return entry;  // Not loaded yet, retry next frame
+      return entry;
     }
     entry.texture_id = ImGui_ImplVulkan_AddTexture(
         texture->sampler_, texture->image_view_->handle_,
@@ -353,6 +368,76 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
     thumbnail_cache_[handle] = entry;
   }
   return entry;
+}
+
+// Reusable asset picker combo. Shows all assets of the given type with
+// thumbnail previews on hover. Returns true if selection changed.
+// `selected` is updated to the chosen handle (or null if "(None)" picked).
+// `allow_none` adds a "(None)" option at the top.
+static bool AssetCombo(const char* label, AssetType type, AssetHandle& selected,
+                        bool allow_none = true,
+                        const char* none_label = "(None)") {
+  bool changed = false;
+  std::string display;
+
+  if (selected.IsValid()) {
+    const auto* meta = Engine::asset_manager().GetMetadata(selected);
+    display = meta ? meta->name : "(Unknown)";
+  } else {
+    display = allow_none ? none_label : "(Select...)";
+  }
+
+  if (ImGui::BeginCombo(label, display.c_str())) {
+    if (allow_none) {
+      if (ImGui::Selectable(none_label, !selected.IsValid())) {
+        selected = {};
+        changed = true;
+      }
+    }
+
+    auto assets = Engine::asset_manager().GetAllOfType(type);
+    for (const auto& handle : assets) {
+      const auto* meta = Engine::asset_manager().GetMetadata(handle);
+      if (!meta) continue;
+
+      bool is_selected = (handle == selected);
+      if (ImGui::Selectable(meta->name.c_str(), is_selected)) {
+        selected = handle;
+        changed = true;
+      }
+
+      // Thumbnail preview on hover
+      if (ImGui::IsItemHovered()) {
+        ThumbnailEntry thumb = GetOrCreateThumbnail(handle, *meta);
+        if (thumb.texture_id) {
+          ImGui::BeginTooltip();
+          ImGui::Image(reinterpret_cast<ImTextureID>(thumb.texture_id),
+                       ImVec2(128, 128));
+          ImGui::EndTooltip();
+        }
+      }
+
+      if (is_selected) {
+        ImGui::SetItemDefaultFocus();
+      }
+    }
+    ImGui::EndCombo();
+  }
+
+  // Also show thumbnail next to the combo for the current selection
+  if (selected.IsValid()) {
+    const auto* meta = Engine::asset_manager().GetMetadata(selected);
+    if (meta) {
+      ThumbnailEntry thumb = GetOrCreateThumbnail(selected, *meta);
+      if (thumb.texture_id) {
+        ImGui::SameLine();
+        ImGui::Image(reinterpret_cast<ImTextureID>(thumb.texture_id),
+                     ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
+      }
+    }
+  }
+
+  return changed;
 }
 
 void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
@@ -555,6 +640,7 @@ void EditorLayer::OnBeginPresent() {
   ImGui::End();
 
   RenderProjectSettingsPopup();
+  RenderCreateSkyboxPopup();
 
   static bool sceneOpen = true;
   if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
@@ -682,6 +768,7 @@ void EditorLayer::OnBeginPresent() {
     auto& mgr = Engine::asset_manager();
 
     static std::string current_dir;  // relative to assets dir, e.g. "" or "models/" or "scenes/"
+    browser_current_dir_ = current_dir;
     static std::string selected_file;
     static float tile_size = 80.0f;
 
@@ -802,6 +889,8 @@ void EditorLayer::OnBeginPresent() {
       }
       ImGui::EndPopup();
     }
+    // Create skybox popup
+
     // Import file into the current asset browser directory
     auto ImportFileToCurrentDir = [](const std::string& file,
                                      AssetType type) {
@@ -1296,12 +1385,18 @@ void EditorLayer::OnBeginPresent() {
 
       // Right-click on empty space
       if (ImGui::BeginPopupContextWindow("##browser_ctx", ImGuiPopupFlags_NoOpenOverItems)) {
-        if (ImGui::MenuItem("New Scene")) {
-          NewScene();
-        }
-        if (ImGui::MenuItem("New Folder")) {
-          ImGui::CloseCurrentPopup();
-          // Will be handled by the NewFolderPopup
+        if (ImGui::BeginMenu("Create")) {
+          if (ImGui::MenuItem("Scene")) {
+            NewScene();
+          }
+          if (ImGui::MenuItem("Folder")) {
+            ImGui::CloseCurrentPopup();
+          }
+          if (ImGui::MenuItem("Skybox")) {
+            show_create_skybox_ = true;
+            ImGui::CloseCurrentPopup();
+          }
+          ImGui::EndMenu();
         }
         ImGui::EndPopup();
       }
@@ -2144,6 +2239,125 @@ void EditorLayer::UpdateHierarchyOrder() {
 // Main Menu Bar & Project/Scene Management
 // ============================================================================
 
+void EditorLayer::RenderCreateSkyboxPopup() {
+  if (show_create_skybox_) {
+    ImGui::OpenPopup("Create Skybox");
+    show_create_skybox_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Create Skybox", &popup_open,
+                              ImGuiWindowFlags_AlwaysAutoResize)) {
+    static char name_buf[128] = "skybox";
+    static int skybox_type = 0;
+    static AssetHandle source_handle;
+    static std::array<AssetHandle, 6> face_handles;
+
+    ImGui::InputText("Name", name_buf, sizeof(name_buf));
+
+    const char* type_names[] = {"Panorama (2:1)", "Cubemap (6 faces)", "Cross (4x3)"};
+    ImGui::Combo("Type", &skybox_type, type_names, 3);
+
+    if (skybox_type == 0 || skybox_type == 2) {
+      AssetCombo("Source Image", AssetType::Texture, source_handle);
+    } else {
+      const char* face_labels[] = {
+          "Right (+X)", "Left (-X)", "Top (+Y)",
+          "Bottom (-Y)", "Front (+Z)", "Back (-Z)"
+      };
+      for (int i = 0; i < 6; i++) {
+        ImGui::PushID(i);
+        AssetCombo(face_labels[i], AssetType::Texture, face_handles[i]);
+        ImGui::PopID();
+      }
+    }
+
+    ImGui::Separator();
+
+    // Resolve handle to VFS path
+    auto resolve = [](const AssetHandle& h) -> std::string {
+      if (!h.IsValid()) return "";
+      const auto* meta = Engine::asset_manager().GetMetadata(h);
+      return meta ? meta->virtual_source_path : "";
+    };
+
+    bool can_create = name_buf[0] != '\0';
+    if (skybox_type == 0 || skybox_type == 2) {
+      can_create = can_create && source_handle.IsValid();
+    } else {
+      for (int i = 0; i < 6; i++) {
+        if (!face_handles[i].IsValid()) {
+          can_create = false;
+          break;
+        }
+      }
+    }
+
+    if (ImGui::Button("Create") && can_create) {
+      nlohmann::json j;
+      j["asset_handle"] = AssetHandle::Generate().ToString();
+
+      if (skybox_type == 0) {
+        j["type"] = "panorama";
+        j["source"] = resolve(source_handle);
+      } else if (skybox_type == 1) {
+        j["type"] = "cubemap";
+        j["faces"] = {
+            {"right", resolve(face_handles[0])},
+            {"left", resolve(face_handles[1])},
+            {"top", resolve(face_handles[2])},
+            {"bottom", resolve(face_handles[3])},
+            {"front", resolve(face_handles[4])},
+            {"back", resolve(face_handles[5])},
+        };
+      } else {
+        j["type"] = "cross";
+        j["source"] = resolve(source_handle);
+      }
+
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      if (physical_app.has_value()) {
+        namespace fs = std::filesystem;
+        fs::path base = fs::absolute(*physical_app);
+        if (!browser_current_dir_.empty()) {
+          base = base / browser_current_dir_;
+        }
+        fs::path file_path = base / (std::string(name_buf) + ".wskybox");
+        std::ofstream out(file_path);
+        if (out.is_open()) {
+          out << j.dump(2);
+          ScanProjectAssets();
+
+          // Auto-select the new skybox on the scene
+          std::string handle_str = j["asset_handle"].get<std::string>();
+          AssetHandle new_handle = AssetHandle::FromString(handle_str);
+          if (new_handle.IsValid()) {
+            scene_->SetSkyboxAsset(new_handle);
+            scene_dirty_ = true;
+          }
+        }
+      }
+
+      name_buf[0] = '\0';
+      source_handle = {};
+      face_handles = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      name_buf[0] = '\0';
+      source_handle = {};
+      face_handles = {};
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+}
+
 void EditorLayer::RenderProjectSettingsPopup() {
   if (!project_) return;
 
@@ -2202,6 +2416,15 @@ void EditorLayer::RenderProjectSettingsPopup() {
           }
         }
         ImGui::EndCombo();
+      }
+
+      ImGui::SeparatorText("Skybox");
+      {
+        AssetHandle skybox_handle = scene_->GetSkyboxAsset();
+        if (AssetCombo(PrefixLabel("Skybox").c_str(), AssetType::Skybox, skybox_handle, true, "(Default)")) {
+          scene_->SetSkyboxAsset(skybox_handle);
+          scene_dirty_ = true;
+        }
       }
 
       ImGui::SeparatorText("Physics");
@@ -3028,6 +3251,9 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
 
   project_ = std::move(proj);
   Project::SetActive(project_.get());
+
+  // Remove startup FPS cap now that a project is loaded
+  app_.SetMaxFPS(0.0f);
 
   ProjectLoader::MountProject(*project_);
   ProjectLoader::ScanAssets(*project_);

@@ -14,10 +14,17 @@
 namespace Wiesel {
 
 void CameraComponent::UpdateProjection() {
-  projection = glm::perspective(glm::radians(field_of_view), aspect_ratio,
-                                near_plane, far_plane);
-  projection[1][1] *=
-      -1;  // glm is originally designed for OpenGL, which Y coords where flipped
+  if (projection_mode == ProjectionMode::Orthographic) {
+    float half_h = ortho_size;
+    float half_w = half_h * aspect_ratio;
+    projection = glm::ortho(-half_w, half_w, -half_h, half_h,
+                             near_plane, far_plane);
+  } else {
+    projection = glm::perspective(glm::radians(field_of_view), aspect_ratio,
+                                  near_plane, far_plane);
+  }
+  // GLM is designed for OpenGL where Y is flipped compared to Vulkan
+  projection[1][1] *= -1;
   inv_projection = glm::inverse(projection);
   any_changed = true;
 }

@@ -229,11 +229,6 @@ template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<DebugColliderFeature::OverlayVertex>(
     std::vector<DebugColliderFeature::OverlayVertex>);
 
-void Renderer::DestroyVertexBuffer(MemoryBuffer& buffer) {
-  vkDestroyBuffer(logical_device_, buffer.buffer_handle_, nullptr);
-  vkFreeMemory(logical_device_, buffer.memory_handle_, nullptr);
-}
-
 std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
   std::shared_ptr<IndexBuffer> memoryBuffer = std::make_shared<IndexBuffer>();
 
@@ -320,18 +315,6 @@ std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(VkDeviceSize size) 
                                     &buffer->data_));
   memset(buffer->data_, 0, size);
   return buffer;
-}
-
-void Renderer::DestroyIndexBuffer(MemoryBuffer& buffer) {
-  vkDeviceWaitIdle(logical_device_);
-  vkDestroyBuffer(logical_device_, buffer.buffer_handle_, nullptr);
-  vkFreeMemory(logical_device_, buffer.memory_handle_, nullptr);
-}
-
-void Renderer::DestroyUniformBuffer(UniformBuffer& buffer) {
-  vkDeviceWaitIdle(logical_device_);
-  vkDestroyBuffer(logical_device_, buffer.buffer_handle_, nullptr);
-  vkFreeMemory(logical_device_, buffer.memory_handle_, nullptr);
 }
 
 void Renderer::SetupCameraComponent(CameraComponent& component) {
@@ -984,20 +967,6 @@ void Renderer::SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> tex
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
 }
 
-void Renderer::DestroyTexture(Texture& texture) {
-  if (!texture.is_allocated_) {
-    return;
-  }
-
-  texture.image_view_ = nullptr;
-  vkDeviceWaitIdle(logical_device_);
-  vkDestroySampler(logical_device_, texture.sampler_, nullptr);
-  vkDestroyImage(logical_device_, texture.image_, nullptr);
-  vkFreeMemory(logical_device_, texture.device_memory_, nullptr);
-
-  texture.is_allocated_ = false;
-}
-
 VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
                                          const SamplerProps& props) {
   VkSamplerCreateInfo samplerInfo{};
@@ -1028,23 +997,6 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
   WIESEL_CHECK_VKRESULT(
       vkCreateSampler(logical_device_, &samplerInfo, nullptr, &sampler));
   return sampler;
-}
-
-void Renderer::DestroyAttachmentTexture(AttachmentTexture& texture) {
-  if (!texture.is_allocated_) {
-    return;
-  }
-  vkDeviceWaitIdle(logical_device_);
-  texture.image_views_.clear();
-  if (texture.type_ != AttachmentTextureType::SwapChain) {
-    for (VkImage& image : texture.images_) {
-      vkDestroyImage(logical_device_, image, nullptr);
-    }
-    for (VkDeviceMemory& memory : texture.device_memories_) {
-      vkFreeMemory(logical_device_, memory, nullptr);
-    }
-  }
-  texture.is_allocated_ = false;
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(

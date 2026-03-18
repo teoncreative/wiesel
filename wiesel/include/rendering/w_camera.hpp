@@ -30,16 +30,24 @@ struct Cascade {
   glm::mat4 ViewProjMatrix;
 };
 
+enum class ProjectionMode : int {
+  Perspective = 0,
+  Orthographic = 1,
+};
+
 struct CameraComponent {
   CameraComponent() = default;
   CameraComponent(const CameraComponent&) = default;
   ~CameraComponent() = default;
 
   // Camera parameters
-  float field_of_view = 60;
+  ProjectionMode projection_mode = ProjectionMode::Perspective;
+  float field_of_view = 60;       // perspective only
+  float ortho_size = 5.0f;        // orthographic only: half-height in world units
   float near_plane = 0.01f;
   float far_plane = 1000.0f;
   float aspect_ratio = 0.0;
+  glm::vec4 background_color = {0.0f, 0.0f, 0.0f, 1.0f};  // used in ortho mode instead of skybox
 
   glm::mat4 view_matrix;
   glm::mat4 projection;

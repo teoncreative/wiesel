@@ -18,17 +18,25 @@ namespace Wiesel {
 MemoryBuffer::MemoryBuffer(MemoryType type) : type_(type) {}
 
 MemoryBuffer::~MemoryBuffer() {
-  switch (type_) {
-    case MemoryTypeVertexBuffer:
-      Engine::renderer()->DestroyVertexBuffer(*this);
-      break;
-    case MemoryTypeIndexBuffer:
-      Engine::renderer()->DestroyIndexBuffer(*this);
-      break;
-    case MemoryTypeUniformBuffer:
-      // this is handled by the object
-      break;
-  }
+  if (type_ == MemoryTypeUniformBuffer) return;
+  if (!buffer_handle_) return;
+  auto renderer = Engine::renderer();
+  if (!renderer) return;
+
+  VkBuffer buffer = buffer_handle_;
+  VkDeviceMemory memory = memory_handle_;
+  buffer_handle_ = VK_NULL_HANDLE;
+  memory_handle_ = VK_NULL_HANDLE;
+
+  renderer->GetDeletionQueue().Push([renderer, buffer, memory]() {
+    VkDevice device = renderer->GetLogicalDevice();
+    if (buffer) {
+      vkDestroyBuffer(device, buffer, nullptr);
+    }
+    if (memory) {
+      vkFreeMemory(device, memory, nullptr);
+    }
+  });
 }
 
 UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {
@@ -36,7 +44,24 @@ UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {
 }
 
 UniformBuffer::~UniformBuffer() {
-  Engine::renderer()->DestroyUniformBuffer(*this);
+  if (!buffer_handle_) return;
+  auto renderer = Engine::renderer();
+  if (!renderer) return;
+
+  VkBuffer buffer = buffer_handle_;
+  VkDeviceMemory memory = memory_handle_;
+  buffer_handle_ = VK_NULL_HANDLE;
+  memory_handle_ = VK_NULL_HANDLE;
+
+  renderer->GetDeletionQueue().Push([renderer, buffer, memory]() {
+    VkDevice device = renderer->GetLogicalDevice();
+    if (buffer) {
+      vkDestroyBuffer(device, buffer, nullptr);
+    }
+    if (memory) {
+      vkFreeMemory(device, memory, nullptr);
+    }
+  });
 }
 
 }  // namespace Wiesel

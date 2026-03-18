@@ -53,6 +53,7 @@ class EditorLayer : public Layer {
   // Toolbar / Menu
   void RenderMainMenuBar();
   void RenderProjectSettingsPopup();
+  void RenderCreateSkyboxPopup();
   void NewProject();
   void OpenProject();
   void SaveProject();
@@ -98,6 +99,8 @@ class EditorLayer : public Layer {
   std::string selected_input_context_;
   int selected_input_item_ = -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
+  bool show_create_skybox_ = false;
+  std::string browser_current_dir_;  // current asset browser directory relative to /app
 
   // Prefab editing
   bool editing_prefab_ = false;

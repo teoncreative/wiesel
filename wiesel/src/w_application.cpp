@@ -11,6 +11,10 @@
 
 #include "w_application.hpp"
 
+#include <chrono>
+#include <imgui.h>
+#include <thread>
+
 #include "asset/w_asset_manager.hpp"
 #include "audio/w_audio.hpp"
 #include "input/w_input.hpp"
@@ -112,6 +116,56 @@ void Application::Run() {
       fps_ = static_cast<float>(frame_count_) / fps_timer_;
       frame_count_ = 0;
       fps_timer_ = 0.0f;
+    }
+
+    // Idle detection: check if any input happened this frame
+    ImGuiIO& io = ImGui::GetIO();
+    bool has_input = io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f ||
+                     io.MouseWheel != 0.0f;
+    for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++) {
+      if (io.MouseDown[i]) {
+        has_input = true;
+        break;
+      }
+    }
+    if (!has_input) {
+      for (int i = 0; i < io.InputQueueCharacters.Size; i++) {
+        has_input = true;
+        break;
+      }
+    }
+    for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_NamedKey_END && !has_input; i++) {
+      if (ImGui::IsKeyDown(static_cast<ImGuiKey>(i))) {
+        has_input = true;
+      }
+    }
+
+    if (has_input) {
+      idle_timer_ = 0.0f;
+      if (is_idle_) {
+        is_idle_ = false;
+        LOG_DEBUG("Idle mode disabled");
+      }
+    } else {
+      idle_timer_ += delta_time_;
+      if (idle_timer_ >= idle_timeout_ && !is_idle_) {
+        is_idle_ = true;
+        LOG_DEBUG("Idle mode enabled ({}fps)", idle_max_fps_);
+      }
+    }
+
+    // FPS cap
+    float_t target_fps = is_idle_ ? idle_max_fps_ : max_fps_;
+    if (target_fps > 0.0f) {
+      float_t target_frame_time = 1.0f / target_fps;
+      float_t elapsed = Time::GetTime() - previous_frame_ + delta_time_;
+      if (elapsed < target_frame_time) {
+        float_t sleep_ms = (target_frame_time - elapsed) * 1000.0f;
+        if (sleep_ms > 0.5f) {
+          std::this_thread::sleep_for(
+              std::chrono::milliseconds(static_cast<int>(sleep_ms)));
+        }
+      }
     }
 
     InputManager::Update();

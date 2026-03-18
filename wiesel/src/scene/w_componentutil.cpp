@@ -41,7 +41,7 @@ namespace Wiesel {
 
 // Shared drag-drop handler: accepts AssetHandle or BrowserFile payloads,
 // auto-imports if needed, returns a valid handle or null.
-static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
+AssetHandle AcceptAssetDragDrop(AssetType required_type) {
   AssetHandle result;
   if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
     AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
@@ -375,12 +375,29 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Camera", &visible)) {
     bool changed = false;
-    changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
-                                &component.field_of_view, 1.0f);
+
+    const char* proj_modes[] = {"Perspective", "Orthographic"};
+    int proj_idx = static_cast<int>(component.projection_mode);
+    if (ImGui::Combo(PrefixLabel("Projection").c_str(), &proj_idx, proj_modes, 2)) {
+      component.projection_mode = static_cast<ProjectionMode>(proj_idx);
+      changed = true;
+    }
+
+    if (component.projection_mode == ProjectionMode::Perspective) {
+      changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
+                                  &component.field_of_view, 1.0f, 1.0f, 179.0f);
+    } else {
+      changed |= ImGui::DragFloat(PrefixLabel("Size").c_str(),
+                                  &component.ortho_size, 0.1f, 0.01f, 1000.0f);
+      ImGui::ColorEdit4(PrefixLabel("Background").c_str(),
+                        &component.background_color.r);
+    }
+
     changed |= ImGui::DragFloat(PrefixLabel("Near Plane").c_str(),
                                 &component.near_plane, 0.1f);
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
                                 &component.far_plane, 0.1f);
+    ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &component.enabled);
     ImGui::Text("Viewport: %dx%d",
         static_cast<int>(component.viewport_size.x),
         static_cast<int>(component.viewport_size.y));
