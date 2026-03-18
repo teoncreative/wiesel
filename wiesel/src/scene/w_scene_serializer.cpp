@@ -84,7 +84,11 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
   if (entity.HasComponent<CameraComponent>()) {
     auto& c = entity.GetComponent<CameraComponent>();
     nlohmann::json cam;
+    cam["projection_mode"] = static_cast<int>(c.projection_mode);
     cam["field_of_view"] = c.field_of_view;
+    cam["ortho_size"] = c.ortho_size;
+    cam["background_color"] = {c.background_color.r, c.background_color.g,
+                                c.background_color.b, c.background_color.a};
     cam["near_plane"] = c.near_plane;
     cam["far_plane"] = c.far_plane;
     cam["viewport_size"] = SerializeVec2(c.viewport_size);
@@ -394,7 +398,14 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
   if (entity_json.contains("Camera")) {
     auto& c = entity.AddComponent<CameraComponent>();
     const auto& cj = entity_json["Camera"];
+    c.projection_mode = static_cast<ProjectionMode>(cj.value("projection_mode", 0));
     c.field_of_view = cj.value("field_of_view", 60.0f);
+    c.ortho_size = cj.value("ortho_size", 5.0f);
+    if (cj.contains("background_color") && cj["background_color"].is_array() &&
+        cj["background_color"].size() >= 4) {
+      auto& bg = cj["background_color"];
+      c.background_color = {bg[0], bg[1], bg[2], bg[3]};
+    }
     c.near_plane = cj.value("near_plane", 0.01f);
     c.far_plane = cj.value("far_plane", 1000.0f);
     c.viewport_size =
@@ -757,6 +768,11 @@ std::string SceneSerializer::SerializeToString() const {
 
   root["entities"] = entities;
 
+  // Scene-level properties
+  if (scene_->GetSkyboxAsset().IsValid()) {
+    root["skybox"] = scene_->GetSkyboxAsset().ToString();
+  }
+
   return root.dump(2);
 }
 
@@ -802,6 +818,14 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
   if (!root.contains("entities") || !root["entities"].is_array()) {
     LOG_ERROR("Scene file missing 'entities' array");
     return false;
+  }
+
+  // Scene-level properties
+  if (root.contains("skybox") && root["skybox"].is_string()) {
+    std::string skybox_str = root["skybox"].get<std::string>();
+    if (!skybox_str.empty()) {
+      scene_->SetSkyboxAsset(AssetHandle::FromString(skybox_str));
+    }
   }
 
   // First pass: create all entities

@@ -162,14 +162,10 @@ class Renderer {
   template<typename T>
   std::shared_ptr<MemoryBuffer> CreateVertexBuffer(std::vector<T> vertices);
 
-  void DestroyVertexBuffer(MemoryBuffer& buffer);
-
   std::shared_ptr<IndexBuffer> CreateIndexBuffer(std::vector<Index> indices);
-  void DestroyIndexBuffer(MemoryBuffer& buffer);
 
   std::shared_ptr<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
   std::shared_ptr<UniformBuffer> CreateStorageBuffer(VkDeviceSize size);
-  void DestroyUniformBuffer(UniformBuffer& buffer);
 
   void SetupCameraComponent(CameraComponent& component);
 
@@ -189,7 +185,6 @@ class Renderer {
   std::shared_ptr<Texture> CreateCubemapTextureFromSingle(const std::string& virtual_path,
                                     const TextureProps& texture_props,
                                     const SamplerProps& sampler_props);
-  void DestroyTexture(Texture& texture);
   VkSampler CreateTextureSampler(uint32_t mip_levels, const SamplerProps& props);
 
   std::shared_ptr<AttachmentTexture> CreateAttachmentTexture(
@@ -197,8 +192,6 @@ class Renderer {
 
   void SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> texture, void* buffer,
                                   size_t size_per_pixel);
-
-  void DestroyAttachmentTexture(AttachmentTexture& texture);
 
   std::shared_ptr<DescriptorSet> CreateMeshDescriptors(std::shared_ptr<UniformBuffer> uniform_buffer,
                                             std::shared_ptr<Material> material);

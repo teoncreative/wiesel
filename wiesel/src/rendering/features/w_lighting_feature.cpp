@@ -199,14 +199,17 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   std::shared_ptr<Pipeline> skybox_pipeline = skybox_pipeline_;
   std::shared_ptr<Pipeline> lighting_pipeline =
       use_rt_shadows ? rt_lighting_pipeline_ : lighting_pipeline_;
+  bool is_ortho = ctx.camera.projection_mode == ProjectionMode::Orthographic;
   uint32_t lighting = graph.AddPass(
       "Lighting", render_pass_,
       [pool, renderer, scene, skybox_pipeline,
-       lighting_pipeline, use_rt_shadows](VkCommandBuffer) {
-        skybox_pipeline->Bind(PipelineBindPointGraphics);
-        auto skybox = scene->GetSkybox();
-        if (skybox) {
-          renderer->DrawSkybox(skybox);
+       lighting_pipeline, use_rt_shadows, is_ortho](VkCommandBuffer) {
+        if (!is_ortho) {
+          skybox_pipeline->Bind(PipelineBindPointGraphics);
+          auto skybox = scene->GetSkybox();
+          if (skybox) {
+            renderer->DrawSkybox(skybox);
+          }
         }
         lighting_pipeline->Bind(PipelineBindPointGraphics);
         if (use_rt_shadows) {
@@ -240,7 +243,12 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   graph.PassWritesColor(lighting, lighting_out);
   graph.SetPassFramebuffer(lighting, pool->GetFramebuffer("lighting"));
   graph.SetPassViewport(lighting, ctx.viewport_size);
-  graph.SetPassClearColor(lighting, renderer->GetClearColor());
+  if (is_ortho) {
+    auto& bg = ctx.camera.background_color;
+    graph.SetPassClearColor(lighting, {bg.r, bg.g, bg.b, bg.a});
+  } else {
+    graph.SetPassClearColor(lighting, renderer->GetClearColor());
+  }
 
   // Register output for downstream features (e.g. Composite)
   registry.Register("LightingOut", lighting_out);

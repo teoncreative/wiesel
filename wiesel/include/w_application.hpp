@@ -47,8 +47,19 @@ class Application {
   WIESEL_GETTER_FN float_t GetFPS() const { return fps_; }
   WIESEL_GETTER_FN float_t GetDeltaTime() const { return delta_time_; }
 
-  void SetMaxFPS(float_t max_fps) { max_fps_ = max_fps; }
-  WIESEL_GETTER_FN float_t GetMaxFPS() const { return max_fps_; }
+  void SetMaxFPS(float_t max_fps) {
+    max_fps_ = max_fps;
+  }
+  WIESEL_GETTER_FN float_t GetMaxFPS() const {
+    return max_fps_;
+  }
+
+  void SetIdleMaxFPS(float_t fps) {
+    idle_max_fps_ = fps;
+  }
+  void SetIdleTimeout(float_t seconds) {
+    idle_timeout_ = seconds;
+  }
 
   void SetTimeScale(float_t time_scale) { time_scale_ = time_scale; }
   WIESEL_GETTER_FN float_t GetTimeScale() const { return time_scale_; }
@@ -83,7 +94,11 @@ class Application {
   float_t fps_timer_ = 0.0f;
   uint32_t frame_count_ = 0;
   float_t fps_ = 0.0f;
-  float_t max_fps_ = 0.0f;  // 0 = unlimited
+  float_t max_fps_ = 0.0f;        // 0 = unlimited
+  float_t idle_max_fps_ = 15.0f;   // FPS when idle (no input)
+  float_t idle_timeout_ = 3.0f;    // seconds of no input before idle mode
+  float_t idle_timer_ = 0.0f;
+  bool is_idle_ = false;
   float_t time_scale_ = 1.0f;
 
 

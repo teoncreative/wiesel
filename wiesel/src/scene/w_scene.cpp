@@ -10,6 +10,7 @@
 
 #include "scene/w_scene.hpp"
 
+#include <nlohmann/json.hpp>
 #include <ranges>
 #include <rendering/w_sprite.hpp>
 
@@ -58,6 +59,65 @@ Scene::~Scene() {
 std::shared_ptr<Skybox> Scene::GetSkybox() {
   if (skybox_) return skybox_;
   return default_skybox_;
+}
+
+void Scene::SetSkyboxAsset(AssetHandle handle) {
+  skybox_asset_ = handle;
+  skybox_ = nullptr;
+
+  if (!handle.IsValid()) return;
+
+  auto& mgr = Engine::asset_manager();
+  const auto* meta = mgr.GetMetadata(handle);
+  if (!meta || meta->type != AssetType::Skybox) return;
+
+  auto vfs = Engine::vfs();
+  if (!vfs->FileExists(meta->virtual_source_path)) return;
+
+  VfsFile file = vfs->Open(meta->virtual_source_path);
+  if (file.Size() == 0) return;
+
+  try {
+    std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                        std::istreambuf_iterator<char>());
+    auto j = nlohmann::json::parse(content);
+
+    std::string type = j.value("type", "");
+    auto renderer = Engine::renderer();
+    std::shared_ptr<Texture> tex;
+
+    if (type == "panorama") {
+      std::string source = j.value("source", "");
+      if (!source.empty()) {
+        tex = renderer->CreateCubemapTextureFromSingle(source, {}, {});
+      }
+    } else if (type == "cubemap") {
+      if (j.contains("faces") && j["faces"].is_object()) {
+        auto& f = j["faces"];
+        std::array<std::string, 6> paths = {
+            f.value("right", ""),
+            f.value("left", ""),
+            f.value("top", ""),
+            f.value("bottom", ""),
+            f.value("front", ""),
+            f.value("back", ""),
+        };
+        tex = renderer->CreateCubemapTexture(paths, {}, {});
+      }
+    } else if (type == "cross") {
+      std::string source = j.value("source", "");
+      if (!source.empty()) {
+        tex = renderer->CreateCubemapTextureFromSingle(source, {}, {});
+      }
+    }
+
+    if (tex) {
+      skybox_ = std::make_shared<Skybox>(tex);
+      LOG_INFO("Loaded skybox asset: {}", meta->name);
+    }
+  } catch (const std::exception& e) {
+    LOG_ERROR("Failed to load skybox asset: {}", e.what());
+  }
 }
 
 void Scene::EnsureDefaultSkybox() {

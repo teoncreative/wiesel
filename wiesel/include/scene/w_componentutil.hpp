@@ -11,11 +11,15 @@
 
 #pragma once
 
+#include "asset/w_asset_handle.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_entity.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
+
+// Shared drag-drop handler for asset fields (accepts AssetHandle + BrowserFile payloads)
+AssetHandle AcceptAssetDragDrop(AssetType required_type);
 
 void InitializeComponents();
 
