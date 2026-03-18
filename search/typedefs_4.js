@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['pair_0',['Pair',['../namespaceWiesel.html#acc234c8a575ffd4d5311189784d9eee3',1,'Wiesel']]]
+  ['index_0',['Index',['../namespaceWiesel.html#ad29bec122d477febf047e8b178a0f213',1,'Wiesel']]]
 ];

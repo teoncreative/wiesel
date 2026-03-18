@@ -1,5 +1,6 @@
 var w__componentutil_8hpp =
 [
+    [ "AcceptAssetDragDrop", "w__componentutil_8hpp.html#a0f2dad2499a346ca8f8e376b5f2d6554", null ],
     [ "InitializeComponents", "w__componentutil_8hpp.html#af979501456eca6a1c1e080bd4d56e0ec", null ],
     [ "RenderAddPopup", "w__componentutil_8hpp.html#ad6a81a5164b4c0204e6a59cd87e14917", null ],
     [ "RenderExistingComponents", "w__componentutil_8hpp.html#a0bec7af3cb5ad6d151410da1a0dfaee9", null ],

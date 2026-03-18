@@ -1,0 +1,7 @@
+<map id="Wiesel::AssetMetadata" name="Wiesel::AssetMetadata">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,181,177,207"/>
+<area shape="rect" id="Node000002" href="$structWiesel_1_1AssetHandle.html" title=" " alt="" coords="13,93,169,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="94,133,94,181,89,181,89,133"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1UUID.html" title=" " alt="" coords="37,5,145,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="94,45,94,93,89,93,89,45"/>
+</map>

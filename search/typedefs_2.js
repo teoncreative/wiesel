@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['index_0',['Index',['../namespaceWiesel.html#ad29bec122d477febf047e8b178a0f213',1,'Wiesel']]]
+  ['deletefn_0',['DeleteFn',['../classWiesel_1_1DeletionQueue.html#a7c71f1641f5426ee9923de44e2a381a7',1,'Wiesel::DeletionQueue']]]
 ];

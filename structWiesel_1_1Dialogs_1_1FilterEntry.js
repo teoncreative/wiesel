@@ -1,6 +1,5 @@
 var structWiesel_1_1Dialogs_1_1FilterEntry =
 [
-    [ "FilterEntry", "structWiesel_1_1Dialogs_1_1FilterEntry.html#a8ff857fcee07d4ccbac1f264d6e1f312", null ],
-    [ "name", "structWiesel_1_1Dialogs_1_1FilterEntry.html#a005e4a55aceee0d15a9b75bb62501b29", null ],
-    [ "spec", "structWiesel_1_1Dialogs_1_1FilterEntry.html#aeb8ae4b0c2105cb869829c338c04eaa3", null ]
+    [ "name", "structWiesel_1_1Dialogs_1_1FilterEntry.html#ab095763eb41ed803b601768ef9e1d7d2", null ],
+    [ "spec", "structWiesel_1_1Dialogs_1_1FilterEntry.html#a4e79ee9cdd171359b00f9e96f63e0292", null ]
 ];

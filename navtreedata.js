@@ -33,7 +33,7 @@ var NAVTREE =
         [ "Variables", "namespacemembers_vars.html", null ],
         [ "Typedefs", "namespacemembers_type.html", null ],
         [ "Enumerations", "namespacemembers_enum.html", null ],
-        [ "Enumerator", "namespacemembers_eval.html", null ]
+        [ "Enumerator", "namespacemembers_eval.html", "namespacemembers_eval" ]
       ] ]
     ] ],
     [ "Classes", "annotated.html", [
@@ -62,17 +62,28 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classWiesel_1_1Editor_1_1EditorLayer.html#a79ce830da25204d88cc2667ee945bf34",
-"classWiesel_1_1JoystickDisconnectedEvent.html",
-"classWiesel_1_1Renderer.html#a5dbb12cd248dcbbc0810a07e0be2d45e",
-"classWiesel_1_1ScriptInstance.html#a4ccc52bd70af5dc6a0459f8fa9e4c495",
-"functions_m.html",
-"namespaceWiesel.html#a1360723dc71bd3de668e5ba281014b33",
-"structWiesel_1_1CameraComponent.html#a40d11a63640db03592ffb2637309342d",
-"structWiesel_1_1Color.html",
-"structWiesel_1_1Pipeline.html#a54897bcd8e7269d64c09e277ff6fe75c",
-"structWiesel_1_1TransformComponent.html#ae2da348dc025ccb709df6476849fa387",
-"w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2e"
+"classWiesel_1_1AssetManager.html#aed12f7388947f8ede0c000d8439828c3",
+"classWiesel_1_1DescriptorSet.html#a16bc39fd017e2e64c550f6cc27dc2568",
+"classWiesel_1_1GeometryFeature.html",
+"classWiesel_1_1LightingFeature.html#a03506c8eae5fb1a3f83a254cfe9af8cd",
+"classWiesel_1_1RenderGraph.html#a09ba4291b4f780869f98bd73924a722d",
+"classWiesel_1_1Renderer.html#a7f258456e7f73bb0e754fdc5150f3256",
+"classWiesel_1_1Scene.html#acb7e9d3d1a0855591b77dfcde4dec6bc",
+"classWiesel_1_1SdlAppWindow.html#ab9611e98a75cf60b1eba4c79afbac8d7",
+"classWiesel_1_1UniformBuffer.html#a08e43e06772140cc620168e7dcf2418a",
+"imgui__spectrum_8hpp.html#a86fe7af8ce668460d24bc42091465e5d",
+"namespaceWiesel.html#a65148833b3227b9832b41ada3b87cf26",
+"namespacemembers_eval_g.html",
+"structWiesel_1_1AssetHandle.html",
+"structWiesel_1_1CameraUniformData.html#a4ffcbeb69c382702b8624aeab23b2720",
+"structWiesel_1_1GridUniformData.html#aa1b90f111295a25e609e46136cb36672",
+"structWiesel_1_1MaterialInstance.html",
+"structWiesel_1_1Pipeline.html#af7cb5a1016abeaab17faf890088edbd3",
+"structWiesel_1_1RenderStats.html#a7ebbd7addadb9257ca6d46268dda827a",
+"structWiesel_1_1SpriteAsset_1_1Frame.html#a87bc8ac3f90ed946ed73ed6e80f4da1a",
+"structWiesel_1_1VertexSprite.html#a56896e8ac32c79b31b71dd9a212ce5f5",
+"w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfafda311b9d480b046457d0c8f8067c4e7",
+"w__spirv_8hpp.html#aaefe32c5e2a6d5951ad769f3e54658bd"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

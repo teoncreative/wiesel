@@ -4,6 +4,7 @@ var w__tracy_8hpp =
     [ "PROFILE_ALLOC", "w__tracy_8hpp.html#a7efb7368d8f9ca0cc3fff52da8ea3b89", null ],
     [ "PROFILE_ALLOC_NAMED", "w__tracy_8hpp.html#a07432e450ad8a1ab8cfc7925e17e9d32", null ],
     [ "PROFILE_FRAME_MARK", "w__tracy_8hpp.html#add633b181c87eb83b881ae6e22a86ec5", null ],
+    [ "PROFILE_FRAME_MARK_NAMED", "w__tracy_8hpp.html#ab4704fdde760504c47e05b38d1b04c77", null ],
     [ "PROFILE_FREE", "w__tracy_8hpp.html#a08862b866a3d67bc2f086bf64e7ba614", null ],
     [ "PROFILE_FREE", "w__tracy_8hpp.html#a08862b866a3d67bc2f086bf64e7ba614", null ],
     [ "PROFILE_FREE_NAMED", "w__tracy_8hpp.html#a08df7380adb18b3c9c60d8b546ff0c0c", null ],

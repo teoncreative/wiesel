@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['kernelsize_0',['kernelSize',['../structWiesel_1_1SSAOSpecializationData.html#ab3693cf06d5838e2e7a2f18291527f30',1,'Wiesel::SSAOSpecializationData']]]
+  ['jid_0',['jid',['../structWiesel_1_1GamepadState.html#aaa14685fdccbcc0abcddc93c8021995d',1,'Wiesel::GamepadState']]]
 ];

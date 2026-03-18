@@ -6,6 +6,7 @@ var w__events_8hpp =
     [ "EVENT_CLASS_TYPE", "w__events_8hpp.html#a80d534fc4d69a68eefd1573fd0ac2f44", null ],
     [ "EventCategory", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759", [
       [ "kEventCategoryApp", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a77a164228b79f4281abac7b9809a585d", null ],
+      [ "kEventCategoryEngine", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a13b149492a538c76e3394f425b45894f", null ],
       [ "kEventCategoryInput", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a439d641768a2ac15dce1a47b794aa2db", null ],
       [ "kEventCategoryKeyboard", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759af78b6d3870a1cd344a46075ea22320f0", null ],
       [ "kEventCategoryMouse", "w__events_8hpp.html#a625aae2dac4b4f17becee01730823759a0fecc79df51cdf5478dd2e8f2d42d7dd", null ],
@@ -28,6 +29,7 @@ var w__events_8hpp =
       [ "JoystickButtonPressed", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfac6a617a5278e3aaec658cac0f7ae263c", null ],
       [ "JoystickButtonReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa98913a905aad67c179f13e65d0b534ad", null ],
       [ "JoystickAxisMoved", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa11783af6be768504300caada41bca2d9", null ],
-      [ "JoystickHatChanged", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa234f5a67f7c3d14c6ffe80119141584f", null ]
+      [ "JoystickHatChanged", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa234f5a67f7c3d14c6ffe80119141584f", null ],
+      [ "PipelineRecreated", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfaf3dfa69eb8efe783aabcd02a0f83fcb3", null ]
     ] ]
 ];

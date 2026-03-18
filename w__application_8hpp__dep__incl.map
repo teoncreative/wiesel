@@ -1,9 +1,14 @@
 <map id="w_application.hpp" name="w_application.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="53,5,193,31"/>
-<area shape="rect" id="Node000002" href="$w__editor_8hpp.html" title=" " alt="" coords="5,79,111,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="105,43,71,80,67,77,101,39"/>
-<area shape="rect" id="Node000003" href="$w__engine_8hpp.html" title=" " alt="" coords="134,79,246,104"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="146,39,181,77,177,80,142,43"/>
-<area shape="rect" id="Node000004" href="$w__entrypoint_8hpp.html" title=" " alt="" coords="123,152,257,177"/>
-<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="193,118,193,152,187,152,187,118"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="216,5,356,31"/>
+<area shape="rect" id="Node000002" href="$w__editor_8hpp.html" title=" " alt="" coords="101,79,207,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="254,39,177,81,174,76,252,35"/>
+<area shape="rect" id="Node000003" href="$w__engine_8hpp.html" title=" " alt="" coords="230,79,342,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="289,44,289,79,283,79,283,44"/>
+<area shape="rect" id="Node000006" href="$w__game__application_8hpp.html" title=" " alt="" coords="355,152,539,177"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="311,38,356,77,437,150,433,154,352,81,308,42"/>
+<area shape="rect" id="Node000004" href="$w__asset__manager_8hpp.html" title=" " alt="" coords="5,152,172,177"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="242,111,122,154,120,149,241,106"/>
+<area shape="rect" id="Node000005" href="$w__entrypoint_8hpp.html" title=" " alt="" coords="196,152,331,177"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="281,118,270,153,264,151,276,117"/>
+<area shape="poly" id="edge5_Node000003_Node000006" title=" " alt="" coords="325,107,422,149,420,154,323,112"/>
 </map>

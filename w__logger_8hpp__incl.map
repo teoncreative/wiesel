@@ -1,7 +1,9 @@
 <map id="w_logger.hpp" name="w_logger.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="53,5,161,31"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,95,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="100,33,70,70,66,66,96,29"/>
-<area shape="rect" id="Node000003" href="$w__pch_8hpp.html" title=" " alt="" coords="119,79,210,104"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="119,29,149,66,145,70,115,33"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="69,5,177,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,72,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="111,33,65,72,61,67,107,29"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="97,79,149,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="125,31,125,65,120,65,120,31"/>
+<area shape="rect" id="Node000004" href="$w__pch_8hpp.html" title=" " alt="" coords="173,79,264,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="140,29,193,68,190,72,137,33"/>
 </map>

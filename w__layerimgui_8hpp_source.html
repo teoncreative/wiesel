@@ -129,16 +129,20 @@ $(document).ready(function(){initNavTree('w__layerimgui_8hpp_source.html',''); i
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno"><a class="line" href="classWiesel_1_1ImGuiLayer.html#a98ae63c0ab89137a821b6109645f18d8">   28</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1ImGuiLayer.html#a98ae63c0ab89137a821b6109645f18d8">OnBeginPresent</a>() <span class="keyword">override</span>;</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="classWiesel_1_1ImGuiLayer.html#ac73d22e5883d2dc034a690b9569502fd">   29</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1ImGuiLayer.html#ac73d22e5883d2dc034a690b9569502fd">OnPresent</a>() <span class="keyword">override</span>;</div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>  VkDescriptorPool m_ImGuiPool;</div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span> </div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span> </div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>};</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno"><a class="line" href="classWiesel_1_1ImGuiLayer.html#a214737ab22c96f304c49bcc23031b274">   31</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1ImGuiLayer.html#a214737ab22c96f304c49bcc23031b274">ReinitializeImGuiVulkan</a>();</div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span> <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>  VkDescriptorPool m_ImGuiPool;</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>  <span class="keywordtype">bool</span> needs_reinitialization_ = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span> </div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>};</div>
 </div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>}  <span class="comment">// namespace Wiesel</span></div>
-<div class="ttc" id="aclassWiesel_1_1Event_html"><div class="ttname"><a href="classWiesel_1_1Event.html">Wiesel::Event</a></div><div class="ttdef"><b>Definition</b> w_events.hpp:50</div></div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>}  <span class="comment">// namespace Wiesel</span></div>
+<div class="ttc" id="aclassWiesel_1_1Event_html"><div class="ttname"><a href="classWiesel_1_1Event.html">Wiesel::Event</a></div><div class="ttdef"><b>Definition</b> w_events.hpp:52</div></div>
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html">Wiesel::ImGuiLayer</a></div><div class="ttdef"><b>Definition</b> w_layerimgui.hpp:18</div></div>
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_a1125a5fe6be9a218aabc376f559ff5ea"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#a1125a5fe6be9a218aabc376f559ff5ea">Wiesel::ImGuiLayer::OnEvent</a></div><div class="ttdeci">void OnEvent(Event &amp;event) override</div></div>
+<div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_a214737ab22c96f304c49bcc23031b274"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#a214737ab22c96f304c49bcc23031b274">Wiesel::ImGuiLayer::ReinitializeImGuiVulkan</a></div><div class="ttdeci">void ReinitializeImGuiVulkan()</div></div>
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_a2618008fe8dd002c7731673b361e0076"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#a2618008fe8dd002c7731673b361e0076">Wiesel::ImGuiLayer::ImGuiLayer</a></div><div class="ttdeci">ImGuiLayer()</div></div>
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_a2f9ca421542358030a99b460bef97b0a"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#a2f9ca421542358030a99b460bef97b0a">Wiesel::ImGuiLayer::OnDetach</a></div><div class="ttdeci">void OnDetach() override</div></div>
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_a98ae63c0ab89137a821b6109645f18d8"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#a98ae63c0ab89137a821b6109645f18d8">Wiesel::ImGuiLayer::OnBeginPresent</a></div><div class="ttdeci">void OnBeginPresent() override</div></div>
@@ -147,7 +151,7 @@ $(document).ready(function(){initNavTree('w__layerimgui_8hpp_source.html',''); i
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_ae9cc19d01fa2e87337e4e426fe4b392d"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#ae9cc19d01fa2e87337e4e426fe4b392d">Wiesel::ImGuiLayer::OnAttach</a></div><div class="ttdeci">void OnAttach() override</div></div>
 <div class="ttc" id="aclassWiesel_1_1ImGuiLayer_html_af4fd64e1fb1b34800d8c02254bb15978"><div class="ttname"><a href="classWiesel_1_1ImGuiLayer.html#af4fd64e1fb1b34800d8c02254bb15978">Wiesel::ImGuiLayer::OnUpdate</a></div><div class="ttdeci">void OnUpdate(float_t deltaTime) override</div></div>
 <div class="ttc" id="aclassWiesel_1_1Layer_html"><div class="ttname"><a href="classWiesel_1_1Layer.html">Wiesel::Layer</a></div><div class="ttdef"><b>Definition</b> w_layer.hpp:19</div></div>
-<div class="ttc" id="anamespaceWiesel_html"><div class="ttname"><a href="namespaceWiesel.html">Wiesel</a></div><div class="ttdef"><b>Definition</b> w_behavior.hpp:20</div></div>
+<div class="ttc" id="anamespaceWiesel_html"><div class="ttname"><a href="namespaceWiesel.html">Wiesel</a></div><div class="ttdef"><b>Definition</b> w_agent_controller.hpp:8</div></div>
 <div class="ttc" id="aw__layer_8hpp_html"><div class="ttname"><a href="w__layer_8hpp.html">w_layer.hpp</a></div></div>
 <div class="ttc" id="aw__pch_8hpp_html"><div class="ttname"><a href="w__pch_8hpp.html">w_pch.hpp</a></div></div>
 </div><!-- fragment --></div><!-- contents -->

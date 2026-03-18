@@ -5,6 +5,7 @@ var w__renderpass_8hpp =
       [ "Geometry", "w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2ead9c6333623e6357515fcbf17be806273", null ],
       [ "PostProcess", "w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2ea98fc75810211c3727af6e79b639514d8", null ],
       [ "Lighting", "w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2ea2e4b97fde8cf63085ec969fcc7e490c0", null ],
+      [ "ForwardTransparency", "w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2ead93fb59ec490b30692f063e228830b05", null ],
       [ "Shadow", "w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2ea3f39588bb19e28051d9aedfbb170025c", null ],
       [ "Present", "w__renderpass_8hpp.html#a3a4dc529a9c91e974ef506984adfda2eadd058df87f5c88e3285a28ad7406a3c6", null ]
     ] ],

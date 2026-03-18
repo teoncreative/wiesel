@@ -92,11 +92,17 @@ $(document).ready(function(){initNavTree('w__material_8hpp.html',''); initResiza
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
-<a href="#namespaces">Namespaces</a>  </div>
+<a href="#namespaces">Namespaces</a> &#124;
+<a href="#typedef-members">Typedefs</a> &#124;
+<a href="#enum-members">Enumerations</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">w_material.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &quot;<a class="el" href="w__texture_8hpp_source.html">rendering/w_texture.hpp</a>&quot;</code><br />
+<div class="textblock"><code>#include &lt;variant&gt;</code><br />
+<code>#include &lt;nlohmann/json.hpp&gt;</code><br />
+<code>#include &quot;<a class="el" href="w__asset__handle_8hpp_source.html">asset/w_asset_handle.hpp</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__texture_8hpp_source.html">rendering/w_texture.hpp</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__color_8hpp_source.html">util/w_color.hpp</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__utils_8hpp_source.html">util/w_utils.hpp</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__pch_8hpp_source.html">w_pch.hpp</a>&quot;</code><br />
@@ -105,23 +111,33 @@ Include dependency graph for w_material.hpp:</div>
 <div class="dyncontent">
 <div class="center"><img src="w__material_8hpp__incl.png" border="0" usemap="#aw__material_8hpp" alt=""/></div>
 <map name="aw__material_8hpp" id="aw__material_8hpp">
-<area shape="rect" title=" " alt="" coords="231,5,354,31"/>
-<area shape="rect" href="w__texture_8hpp.html" title=" " alt="" coords="138,79,319,104"/>
-<area shape="poly" title=" " alt="" coords="284,33,250,70,246,67,280,29"/>
-<area shape="rect" href="w__utils_8hpp.html" title=" " alt="" coords="12,152,133,177"/>
-<area shape="poly" title=" " alt="" coords="233,33,179,51,152,64,128,81,102,110,85,141,80,138,98,106,124,77,149,60,177,46,231,28"/>
-<area shape="rect" href="w__pch_8hpp.html" title=" " alt="" coords="194,225,285,251"/>
-<area shape="poly" title=" " alt="" coords="304,29,323,57,342,94,352,137,351,158,343,179,320,204,291,222,288,217,317,200,338,176,346,157,347,137,337,96,319,59,300,32"/>
-<area shape="rect" href="w__color_8hpp.html" title=" " alt="" coords="404,79,528,104"/>
-<area shape="poly" title=" " alt="" coords="322,28,426,71,424,76,320,33"/>
-<area shape="poly" title=" " alt="" coords="205,106,112,149,110,144,203,102"/>
-<area shape="poly" title=" " alt="" coords="221,105,203,138,197,157,199,177,208,196,221,213,217,217,204,199,194,178,192,157,198,136,217,103"/>
-<area shape="rect" href="w__sampler_8hpp.html" title=" " alt="" coords="209,152,329,177"/>
-<area shape="poly" title=" " alt="" coords="238,103,258,139,253,141,233,106"/>
-<area shape="rect" title=" " alt="" coords="5,225,140,251"/>
-<area shape="poly" title=" " alt="" coords="75,178,75,212,70,212,70,178"/>
-<area shape="poly" title=" " alt="" coords="100,175,201,217,199,222,98,180"/>
-<area shape="poly" title=" " alt="" coords="266,179,252,214,247,212,261,177"/>
+<area shape="rect" title=" " alt="" coords="439,5,562,31"/>
+<area shape="rect" title=" " alt="" coords="5,79,73,104"/>
+<area shape="poly" title=" " alt="" coords="440,29,284,49,87,81,86,76,283,44,439,24"/>
+<area shape="rect" title=" " alt="" coords="98,79,245,104"/>
+<area shape="poly" title=" " alt="" coords="448,33,238,78,237,73,447,28"/>
+<area shape="rect" href="w__asset__handle_8hpp.html" title=" " alt="" coords="269,79,463,104"/>
+<area shape="poly" title=" " alt="" coords="480,33,401,74,399,70,478,28"/>
+<area shape="rect" href="w__pch_8hpp.html" title=" " alt="" coords="481,225,571,251"/>
+<area shape="poly" title=" " alt="" coords="505,31,526,211,520,211,499,31"/>
+<area shape="rect" href="w__texture_8hpp.html" title=" " alt="" coords="538,79,719,104"/>
+<area shape="poly" title=" " alt="" coords="523,28,597,69,594,74,520,33"/>
+<area shape="rect" href="w__utils_8hpp.html" title=" " alt="" coords="733,152,855,177"/>
+<area shape="poly" title=" " alt="" coords="563,21,647,38,691,54,733,77,763,106,784,138,780,141,759,109,730,81,689,59,645,43,562,26"/>
+<area shape="rect" href="w__color_8hpp.html" title=" " alt="" coords="795,79,919,104"/>
+<area shape="poly" title=" " alt="" coords="558,28,786,73,785,79,557,33"/>
+<area shape="poly" title=" " alt="" coords="356,106,342,121,331,140,326,159,331,176,359,202,393,219,431,229,467,234,467,239,430,234,391,224,356,206,326,179,320,159,326,138,338,118,352,103"/>
+<area shape="rect" href="w__uuid_8hpp.html" title=" " alt="" coords="341,152,463,177"/>
+<area shape="poly" title=" " alt="" coords="374,103,392,138,388,141,370,106"/>
+<area shape="poly" title=" " alt="" coords="423,175,495,216,493,221,421,180"/>
+<area shape="poly" title=" " alt="" coords="619,106,579,154,541,215,536,212,575,150,615,103"/>
+<area shape="poly" title=" " alt="" coords="656,102,756,144,753,149,654,106"/>
+<area shape="rect" href="w__sampler_8hpp.html" title=" " alt="" coords="589,152,709,177"/>
+<area shape="poly" title=" " alt="" coords="635,104,644,138,639,140,629,105"/>
+<area shape="poly" title=" " alt="" coords="752,180,583,224,582,219,750,175"/>
+<area shape="rect" title=" " alt="" coords="727,225,861,251"/>
+<area shape="poly" title=" " alt="" coords="797,178,797,212,791,212,791,178"/>
+<area shape="poly" title=" " alt="" coords="630,180,559,221,556,216,628,175"/>
 </map>
 </div>
 </div><div class="textblock"><div class="dynheader">
@@ -129,28 +145,39 @@ This graph shows which files directly or indirectly include this file:</div>
 <div class="dyncontent">
 <div class="center"><img src="w__material_8hpp__dep__incl.png" border="0" usemap="#aw__material_8hppdep" alt=""/></div>
 <map name="aw__material_8hppdep" id="aw__material_8hppdep">
-<area shape="rect" title=" " alt="" coords="196,5,319,31"/>
-<area shape="rect" href="w__mesh_8hpp.html" title=" " alt="" coords="206,79,310,104"/>
-<area shape="poly" title=" " alt="" coords="260,44,260,79,255,79,255,44"/>
-<area shape="rect" href="w__renderer_8hpp.html" title=" " alt="" coords="196,152,319,177"/>
-<area shape="poly" title=" " alt="" coords="260,118,260,152,255,152,255,118"/>
-<area shape="rect" href="w__application_8hpp.html" title=" " alt="" coords="233,372,373,397"/>
-<area shape="poly" title=" " alt="" coords="285,185,322,224,347,258,362,298,364,312,362,325,343,353,321,374,318,370,339,350,357,323,359,312,357,299,342,261,318,227,281,188"/>
-<area shape="rect" href="w__engine_8hpp.html" title=" " alt="" coords="54,445,166,471"/>
-<area shape="poly" title=" " alt="" coords="194,184,147,200,97,225,52,257,32,277,16,300,9,320,10,341,18,361,30,381,63,417,95,443,92,447,60,421,26,385,13,364,5,342,4,319,11,297,28,274,48,253,95,220,145,195,192,179"/>
-<area shape="rect" href="w__layer_8hpp.html" title=" " alt="" coords="208,225,308,251"/>
-<area shape="poly" title=" " alt="" coords="260,191,260,225,255,225,255,191"/>
-<area shape="rect" href="w__editor_8hpp.html" title=" " alt="" coords="250,445,356,471"/>
-<area shape="poly" title=" " alt="" coords="306,411,306,445,300,445,300,411"/>
-<area shape="poly" title=" " alt="" coords="260,404,142,448,140,443,259,399"/>
-<area shape="rect" href="w__entrypoint_8hpp.html" title=" " alt="" coords="42,519,177,544"/>
-<area shape="poly" title=" " alt="" coords="112,484,112,519,107,519,107,484"/>
-<area shape="poly" title=" " alt="" coords="298,255,322,273,342,298,345,319,340,340,317,373,312,370,335,337,340,318,337,300,319,277,295,260"/>
-<area shape="rect" href="w__layerimgui_8hpp.html" title=" " alt="" coords="26,299,164,324"/>
-<area shape="poly" title=" " alt="" coords="220,259,123,301,121,296,218,254"/>
-<area shape="rect" href="w__layerscene_8hpp.html" title=" " alt="" coords="188,299,327,324"/>
-<area shape="poly" title=" " alt="" coords="260,264,260,299,255,299,255,264"/>
-<area shape="poly" title=" " alt="" coords="142,326,270,369,269,374,141,331"/>
+<area shape="rect" title=" " alt="" coords="245,5,368,31"/>
+<area shape="rect" href="w__mesh_8hpp.html" title=" " alt="" coords="255,79,359,104"/>
+<area shape="poly" title=" " alt="" coords="309,44,309,79,304,79,304,44"/>
+<area shape="rect" href="w__acceleration__structure_8hpp.html" title=" " alt="" coords="104,152,317,177"/>
+<area shape="poly" title=" " alt="" coords="282,114,228,154,225,150,279,110"/>
+<area shape="rect" href="w__renderer_8hpp.html" title=" " alt="" coords="397,152,520,177"/>
+<area shape="poly" title=" " alt="" coords="344,107,435,149,433,154,342,112"/>
+<area shape="rect" href="w__rt__shadow__feature_8hpp.html" title=" " alt="" coords="5,225,195,251"/>
+<area shape="poly" title=" " alt="" coords="183,187,120,227,117,223,180,183"/>
+<area shape="rect" href="w__application_8hpp.html" title=" " alt="" coords="469,372,609,397"/>
+<area shape="poly" title=" " alt="" coords="534,171,598,184,667,207,700,224,732,244,760,268,784,297,793,321,787,340,770,355,745,366,679,380,609,385,609,380,678,375,743,361,767,351,783,337,787,321,779,300,756,272,729,248,698,228,665,212,596,189,533,176"/>
+<area shape="rect" href="w__engine_8hpp.html" title=" " alt="" coords="217,445,329,471"/>
+<area shape="poly" title=" " alt="" coords="411,185,371,203,329,228,290,260,260,300,252,319,249,339,251,380,260,417,270,444,265,446,255,418,246,380,244,338,247,317,255,297,286,256,326,223,369,198,409,180"/>
+<area shape="rect" href="w__layer_8hpp.html" title=" " alt="" coords="465,225,565,251"/>
+<area shape="poly" title=" " alt="" coords="479,187,508,224,504,227,474,190"/>
+<area shape="rect" href="w__editor_8hpp.html" title=" " alt="" coords="511,445,617,471"/>
+<area shape="poly" title=" " alt="" coords="550,409,562,444,557,446,545,411"/>
+<area shape="poly" title=" " alt="" coords="483,403,317,448,316,443,482,398"/>
+<area shape="rect" href="w__game__application_8hpp.html" title=" " alt="" coords="381,519,565,544"/>
+<area shape="poly" title=" " alt="" coords="524,410,502,446,488,486,479,519,473,517,483,484,498,444,520,407"/>
+<area shape="rect" href="w__asset__manager_8hpp.html" title=" " alt="" coords="190,519,357,544"/>
+<area shape="poly" title=" " alt="" coords="276,484,276,519,271,519,271,484"/>
+<area shape="rect" href="w__entrypoint_8hpp.html" title=" " alt="" coords="31,519,166,544"/>
+<area shape="poly" title=" " alt="" coords="234,478,128,521,126,516,232,473"/>
+<area shape="poly" title=" " alt="" coords="319,473,442,516,440,521,318,478"/>
+<area shape="poly" title=" " alt="" coords="579,243,685,262,731,277,749,286,761,297,771,317,767,335,753,349,731,360,673,375,609,382,609,377,672,369,729,355,750,345,762,332,765,318,757,300,746,291,729,282,684,267,578,249"/>
+<area shape="rect" href="w__layerconsole_8hpp.html" title=" " alt="" coords="270,299,421,324"/>
+<area shape="poly" title=" " alt="" coords="476,258,374,301,372,296,474,254"/>
+<area shape="rect" href="w__layerimgui_8hpp.html" title=" " alt="" coords="445,299,584,324"/>
+<area shape="poly" title=" " alt="" coords="517,264,517,299,512,299,512,264"/>
+<area shape="rect" href="w__layerscene_8hpp.html" title=" " alt="" coords="608,299,747,324"/>
+<area shape="poly" title=" " alt="" coords="554,254,652,296,650,301,552,259"/>
+<area shape="poly" title=" " alt="" coords="525,336,537,371,532,373,520,338"/>
 </map>
 </div>
 </div>
@@ -158,13 +185,48 @@ This graph shows which files directly or indirectly include this file:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1MaterialProperty.html">Wiesel::MaterialProperty</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1MaterialFeature.html">Wiesel::MaterialFeature</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Material.html">Wiesel::Material</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1MaterialInstance.html">Wiesel::MaterialInstance</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:namespaceWiesel" id="r_namespaceWiesel"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html">Wiesel</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:namespaceWiesel_1_1MaterialFeatures" id="r_namespaceWiesel_1_1MaterialFeatures"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel_1_1MaterialFeatures.html">Wiesel::MaterialFeatures</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
+Typedefs</h2></td></tr>
+<tr class="memitem:a8c5d24dbde06d1b08bfa18857029f7a3" id="r_a8c5d24dbde06d1b08bfa18857029f7a3"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html#a8c5d24dbde06d1b08bfa18857029f7a3">Wiesel::MaterialPropertyValue</a> = std::variant&lt; float, glm::vec2, glm::vec3, glm::vec4, std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Texture.html">Texture</a> &gt;, bool, int32_t &gt;</td></tr>
+<tr class="separator:a8c5d24dbde06d1b08bfa18857029f7a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
+Enumerations</h2></td></tr>
+<tr class="memitem:a7a75552f6d02f275e7f61864f6942fa5" id="r_a7a75552f6d02f275e7f61864f6942fa5"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5">Wiesel::MaterialPropertyType</a> { <br />
+&#160;&#160;<a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5a22ae0e2b89e5e3d477f988cc36d3272b">Wiesel::Float</a>
+, <a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5afe98032d4f1c52a2f0b617f9205d5f80">Wiesel::Vec2</a>
+, <a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5a01b2dc1a2922d9be9e12ef0709600977">Wiesel::Vec3</a>
+, <a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5af67402842935c0240e8109e7312def66">Wiesel::Vec4</a>
+, <br />
+&#160;&#160;<a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5aa3e8ae43188ae76d38f414b2bdb0077b">Wiesel::Texture</a>
+, <a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5ac26f15e86e3de4c398a8273272aba034">Wiesel::Bool</a>
+, <a class="el" href="namespaceWiesel.html#a7a75552f6d02f275e7f61864f6942fa5a1686a6c336b71b36d77354cea19a8b52">Wiesel::Int</a>
+<br />
+ }</td></tr>
+<tr class="separator:a7a75552f6d02f275e7f61864f6942fa5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:a16bc8852396a1db8283cd4fad57a8999" id="r_a16bc8852396a1db8283cd4fad57a8999"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structWiesel_1_1MaterialFeature.html">MaterialFeature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel_1_1MaterialFeatures.html#a16bc8852396a1db8283cd4fad57a8999">Wiesel::MaterialFeatures::Emission</a> ()</td></tr>
+<tr class="separator:a16bc8852396a1db8283cd4fad57a8999"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a50acbf77e888b96c0674ab99fc77f0e7" id="r_a50acbf77e888b96c0674ab99fc77f0e7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structWiesel_1_1MaterialFeature.html">MaterialFeature</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel_1_1MaterialFeatures.html#a50acbf77e888b96c0674ab99fc77f0e7">Wiesel::MaterialFeatures::AlphaClip</a> ()</td></tr>
+<tr class="separator:a50acbf77e888b96c0674ab99fc77f0e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 </div><!-- doc-content -->

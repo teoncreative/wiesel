@@ -14,6 +14,9 @@ var w__scriptmanager_8hpp =
       [ "UnsignedInteger", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469a83147e7fef151fb803ff9a23e13cbc5c", null ],
       [ "UnsignedLong", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469a0c72cf9e88a9782dbad0fde761ae9352", null ],
       [ "String", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469a27118326006d3829667a400ad23d5d98", null ],
+      [ "Entity", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469a1a434befae3f49ae09347ded52032f6f", null ],
+      [ "Prefab", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469afc149351d98dcbf17361c6a449e6355e", null ],
+      [ "AudioClip", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469aa8a27cf2fdd442d8dcde6fc373d9152a", null ],
       [ "Object", "w__scriptmanager_8hpp.html#af5bdb823ed0d6baa76d7954eee8df469a497031794414a552435f90151ac3b54b", null ]
     ] ]
 ];

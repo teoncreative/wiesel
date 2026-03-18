@@ -92,7 +92,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1ScriptManager.html','')
 <div class="header">
   <div class="summary">
 <a href="#pub-types">Public Types</a> &#124;
-<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
+<a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="classWiesel_1_1ScriptManager-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">Wiesel::ScriptManager Class Reference</div></div>
 </div><!--header-->
@@ -102,49 +102,67 @@ $(document).ready(function(){initNavTree('classWiesel_1_1ScriptManager.html','')
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:aea4768142ff9e11cece5303effd18895" id="r_aea4768142ff9e11cece5303effd18895"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">using</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aea4768142ff9e11cece5303effd18895">ComponentGetter</a> = std::function&lt; <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoObject</a> *(<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *, entt::entity)&gt;</td></tr>
+<tr class="memitem:aea4768142ff9e11cece5303effd18895" id="r_aea4768142ff9e11cece5303effd18895"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aea4768142ff9e11cece5303effd18895">ComponentGetter</a> = std::function&lt; MonoObject *(<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *, entt::entity)&gt;</td></tr>
 <tr class="separator:aea4768142ff9e11cece5303effd18895"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a669918894a9490637cf7a7aadd4d1e8e" id="r_a669918894a9490637cf7a7aadd4d1e8e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">using</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a669918894a9490637cf7a7aadd4d1e8e">ComponentChecker</a> = std::function&lt; <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">bool</a>(<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *, entt::entity)&gt;</td></tr>
+<tr class="memitem:a669918894a9490637cf7a7aadd4d1e8e" id="r_a669918894a9490637cf7a7aadd4d1e8e"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a669918894a9490637cf7a7aadd4d1e8e">ComponentChecker</a> = std::function&lt; bool(<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *, entt::entity)&gt;</td></tr>
 <tr class="separator:a669918894a9490637cf7a7aadd4d1e8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
-Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a2ab8895a3f348f7b70d1750c0ef07f3e" id="r_a2ab8895a3f348f7b70d1750c0ef07f3e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a2ab8895a3f348f7b70d1750c0ef07f3e">Init</a> (<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> <a class="el" href="structWiesel_1_1ScriptManagerProperties.html">ScriptManagerProperties</a> &amp;&amp;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">properties</a>)</td></tr>
-<tr class="separator:a2ab8895a3f348f7b70d1750c0ef07f3e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a687ad7ac9631b43e6a319493af89661e" id="r_a687ad7ac9631b43e6a319493af89661e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a687ad7ac9631b43e6a319493af89661e">Destroy</a> ()</td></tr>
-<tr class="separator:a687ad7ac9631b43e6a319493af89661e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a970eeb625b51e6b23d48b4ab6768cdff" id="r_a970eeb625b51e6b23d48b4ab6768cdff"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a970eeb625b51e6b23d48b4ab6768cdff">Reload</a> ()</td></tr>
-<tr class="separator:a970eeb625b51e6b23d48b4ab6768cdff"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abdc7757b343de167614c6c7088a39603" id="r_abdc7757b343de167614c6c7088a39603"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#abdc7757b343de167614c6c7088a39603">LoadCore</a> ()</td></tr>
-<tr class="separator:abdc7757b343de167614c6c7088a39603"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a72b078ffcc072c7872b45ca30f3f9e77" id="r_a72b078ffcc072c7872b45ca30f3f9e77"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a72b078ffcc072c7872b45ca30f3f9e77">LoadApp</a> ()</td></tr>
-<tr class="separator:a72b078ffcc072c7872b45ca30f3f9e77"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a35eece08145bee6dad7bea2efe63fbe9" id="r_a35eece08145bee6dad7bea2efe63fbe9"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a35eece08145bee6dad7bea2efe63fbe9">RegisterInternals</a> ()</td></tr>
-<tr class="separator:a35eece08145bee6dad7bea2efe63fbe9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8a0e37cf291a929adc41541a49332f71" id="r_a8a0e37cf291a929adc41541a49332f71"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a8a0e37cf291a929adc41541a49332f71">RegisterComponents</a> ()</td></tr>
-<tr class="separator:a8a0e37cf291a929adc41541a49332f71"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac89153b21257de50cf2a2dd5409abeef" id="r_ac89153b21257de50cf2a2dd5409abeef"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoDomain</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#ac89153b21257de50cf2a2dd5409abeef">root_domain</a> ()</td></tr>
-<tr class="separator:ac89153b21257de50cf2a2dd5409abeef"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a632d8257ee645e409398f56a9ac5855b" id="r_a632d8257ee645e409398f56a9ac5855b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoDomain</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a632d8257ee645e409398f56a9ac5855b">app_domain</a> ()</td></tr>
-<tr class="separator:a632d8257ee645e409398f56a9ac5855b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7c3b0f293367afde345616d3cde0e0e5" id="r_a7c3b0f293367afde345616d3cde0e0e5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoClass</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a7c3b0f293367afde345616d3cde0e0e5">vector3f_class</a> ()</td></tr>
-<tr class="separator:a7c3b0f293367afde345616d3cde0e0e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a71673aaa1a6495b6982d51b432e3c1d4" id="r_a71673aaa1a6495b6982d51b432e3c1d4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoClass</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a71673aaa1a6495b6982d51b432e3c1d4">behavior_class</a> ()</td></tr>
-<tr class="separator:a71673aaa1a6495b6982d51b432e3c1d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aee6da2bf12cefc7605feac3ccdf31776" id="r_aee6da2bf12cefc7605feac3ccdf31776"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> std::vector&lt; std::string &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aee6da2bf12cefc7605feac3ccdf31776">script_names</a> ()</td></tr>
-<tr class="separator:aee6da2bf12cefc7605feac3ccdf31776"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a54e18a0185e53ba9043d6c3462b6b280" id="r_a54e18a0185e53ba9043d6c3462b6b280"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoObject</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a54e18a0185e53ba9043d6c3462b6b280">GetComponentByName</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *scene, entt::entity entity, <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> std::string &amp;name)</td></tr>
-<tr class="separator:a54e18a0185e53ba9043d6c3462b6b280"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a30f17b4f0ecb352e4615d44224069ef8" id="r_a30f17b4f0ecb352e4615d44224069ef8"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">class</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">T</a> &gt; </td></tr>
-<tr class="memitem:a30f17b4f0ecb352e4615d44224069ef8"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoObject</a> *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a30f17b4f0ecb352e4615d44224069ef8">GetComponent</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *scene, entt::entity entity)</td></tr>
-<tr class="separator:a30f17b4f0ecb352e4615d44224069ef8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6ad178ea8c6d8cd23af14200d6c9178d" id="r_a6ad178ea8c6d8cd23af14200d6c9178d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a6ad178ea8c6d8cd23af14200d6c9178d">HasComponentByName</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *scene, entt::entity entity, <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> std::string &amp;name)</td></tr>
-<tr class="separator:a6ad178ea8c6d8cd23af14200d6c9178d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae0dc4b7464a9f4457f385033b156c2fb" id="r_ae0dc4b7464a9f4457f385033b156c2fb"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> std::unique_ptr&lt; <a class="el" href="classWiesel_1_1ScriptInstance.html">ScriptInstance</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#ae0dc4b7464a9f4457f385033b156c2fb">CreateScriptInstance</a> (<a class="el" href="classWiesel_1_1MonoBehavior.html">MonoBehavior</a> *behavior)</td></tr>
-<tr class="separator:ae0dc4b7464a9f4457f385033b156c2fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aadbd19b699ff43b7eea0ec9e9cfc9010" id="r_aadbd19b699ff43b7eea0ec9e9cfc9010"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">class</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">T</a> &gt; </td></tr>
-<tr class="memitem:aadbd19b699ff43b7eea0ec9e9cfc9010"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aadbd19b699ff43b7eea0ec9e9cfc9010">RegisterComponent</a> (std::string name, <a class="el" href="classWiesel_1_1ScriptManager.html#aea4768142ff9e11cece5303effd18895">ComponentGetter</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">getter</a>, <a class="el" href="classWiesel_1_1ScriptManager.html#a669918894a9490637cf7a7aadd4d1e8e">ComponentChecker</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">checker</a>)</td></tr>
-<tr class="separator:aadbd19b699ff43b7eea0ec9e9cfc9010"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
+Public Member Functions</h2></td></tr>
+<tr class="memitem:aafc3a287051d963c30bd82cbd4d46f80" id="r_aafc3a287051d963c30bd82cbd4d46f80"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aafc3a287051d963c30bd82cbd4d46f80">ScriptManager</a> ()=default</td></tr>
+<tr class="separator:aafc3a287051d963c30bd82cbd4d46f80"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7341d2034ecf571ba41fb460bb77f7a4" id="r_a7341d2034ecf571ba41fb460bb77f7a4"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a7341d2034ecf571ba41fb460bb77f7a4">~ScriptManager</a> ()</td></tr>
+<tr class="separator:a7341d2034ecf571ba41fb460bb77f7a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abe57f966f2d873563cdd70f445982245" id="r_abe57f966f2d873563cdd70f445982245"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#abe57f966f2d873563cdd70f445982245">Init</a> (const <a class="el" href="structWiesel_1_1ScriptManagerProperties.html">ScriptManagerProperties</a> &amp;&amp;properties)</td></tr>
+<tr class="separator:abe57f966f2d873563cdd70f445982245"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1ed17a04a57963fb9b824062e76ad458" id="r_a1ed17a04a57963fb9b824062e76ad458"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a1ed17a04a57963fb9b824062e76ad458">Destroy</a> ()</td></tr>
+<tr class="separator:a1ed17a04a57963fb9b824062e76ad458"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a026a3e1700cbd72c6408ba36480872a8" id="r_a026a3e1700cbd72c6408ba36480872a8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a026a3e1700cbd72c6408ba36480872a8">Reload</a> ()</td></tr>
+<tr class="separator:a026a3e1700cbd72c6408ba36480872a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8f7763b142af93a9f54aa7a1ee0fefe3" id="r_a8f7763b142af93a9f54aa7a1ee0fefe3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a8f7763b142af93a9f54aa7a1ee0fefe3">ReloadAsync</a> ()</td></tr>
+<tr class="separator:a8f7763b142af93a9f54aa7a1ee0fefe3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a89b4e015544e2758cfdb06d4cf526e0a" id="r_a89b4e015544e2758cfdb06d4cf526e0a"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a89b4e015544e2758cfdb06d4cf526e0a">IsCompiling</a> () const</td></tr>
+<tr class="separator:a89b4e015544e2758cfdb06d4cf526e0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1a75f6a6a745f302561815d49f6214d7" id="r_a1a75f6a6a745f302561815d49f6214d7"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a1a75f6a6a745f302561815d49f6214d7">FinishReloadIfReady</a> ()</td></tr>
+<tr class="separator:a1a75f6a6a745f302561815d49f6214d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48a4d5aedab6f0bf744cd5c0b80a533c" id="r_a48a4d5aedab6f0bf744cd5c0b80a533c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a48a4d5aedab6f0bf744cd5c0b80a533c">LoadCore</a> ()</td></tr>
+<tr class="separator:a48a4d5aedab6f0bf744cd5c0b80a533c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0830dbc221099d3fa85ca8aff79a4ea4" id="r_a0830dbc221099d3fa85ca8aff79a4ea4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a0830dbc221099d3fa85ca8aff79a4ea4">LoadApp</a> ()</td></tr>
+<tr class="separator:a0830dbc221099d3fa85ca8aff79a4ea4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3bc3919e4bdd6dfb26c32eb55759d877" id="r_a3bc3919e4bdd6dfb26c32eb55759d877"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a3bc3919e4bdd6dfb26c32eb55759d877">LoadAppDll</a> (const std::string &amp;dll_path)</td></tr>
+<tr class="separator:a3bc3919e4bdd6dfb26c32eb55759d877"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af251e6317befa1c942ee553d7a167c83" id="r_af251e6317befa1c942ee553d7a167c83"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#af251e6317befa1c942ee553d7a167c83">RegisterInternals</a> ()</td></tr>
+<tr class="separator:af251e6317befa1c942ee553d7a167c83"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a44e4286931bc096c0cda0ad3e4060a81" id="r_a44e4286931bc096c0cda0ad3e4060a81"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a44e4286931bc096c0cda0ad3e4060a81">RegisterComponents</a> ()</td></tr>
+<tr class="separator:a44e4286931bc096c0cda0ad3e4060a81"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2f0051911ba3819274e1cfcb04527763" id="r_a2f0051911ba3819274e1cfcb04527763"><td class="memItemLeft" align="right" valign="top">MonoDomain *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a2f0051911ba3819274e1cfcb04527763">root_domain</a> ()</td></tr>
+<tr class="separator:a2f0051911ba3819274e1cfcb04527763"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a845001760288039bbcab3ac66f51e230" id="r_a845001760288039bbcab3ac66f51e230"><td class="memItemLeft" align="right" valign="top">MonoDomain *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a845001760288039bbcab3ac66f51e230">app_domain</a> ()</td></tr>
+<tr class="separator:a845001760288039bbcab3ac66f51e230"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8ecbb9f7d065b2e140173a49adc35754" id="r_a8ecbb9f7d065b2e140173a49adc35754"><td class="memItemLeft" align="right" valign="top">MonoClass *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a8ecbb9f7d065b2e140173a49adc35754">vector3f_class</a> ()</td></tr>
+<tr class="separator:a8ecbb9f7d065b2e140173a49adc35754"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa9dcf8471062014878af8c86ca1cefb8" id="r_aa9dcf8471062014878af8c86ca1cefb8"><td class="memItemLeft" align="right" valign="top">MonoClass *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aa9dcf8471062014878af8c86ca1cefb8">entity_class</a> ()</td></tr>
+<tr class="separator:aa9dcf8471062014878af8c86ca1cefb8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a54b2a525ec2c5748366d4cb420bc1fc7" id="r_a54b2a525ec2c5748366d4cb420bc1fc7"><td class="memItemLeft" align="right" valign="top">MonoClass *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a54b2a525ec2c5748366d4cb420bc1fc7">prefab_class</a> ()</td></tr>
+<tr class="separator:a54b2a525ec2c5748366d4cb420bc1fc7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a744bc220f768a44c6bf2b36dd853496a" id="r_a744bc220f768a44c6bf2b36dd853496a"><td class="memItemLeft" align="right" valign="top">MonoClass *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a744bc220f768a44c6bf2b36dd853496a">audio_clip_class</a> ()</td></tr>
+<tr class="separator:a744bc220f768a44c6bf2b36dd853496a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab6b71c9d55a7d491e59200cbfa6363ed" id="r_ab6b71c9d55a7d491e59200cbfa6363ed"><td class="memItemLeft" align="right" valign="top">MonoClass *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#ab6b71c9d55a7d491e59200cbfa6363ed">behavior_class</a> ()</td></tr>
+<tr class="separator:ab6b71c9d55a7d491e59200cbfa6363ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1649d7e64ce88f42ee9ac5bf11dcdc1b" id="r_a1649d7e64ce88f42ee9ac5bf11dcdc1b"><td class="memItemLeft" align="right" valign="top">const std::vector&lt; std::string &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a1649d7e64ce88f42ee9ac5bf11dcdc1b">script_names</a> ()</td></tr>
+<tr class="separator:a1649d7e64ce88f42ee9ac5bf11dcdc1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aeefd3c17fec332e00940b84216f95381" id="r_aeefd3c17fec332e00940b84216f95381"><td class="memItemLeft" align="right" valign="top">MonoObject *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#aeefd3c17fec332e00940b84216f95381">GetComponentByName</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *scene, entt::entity entity, const std::string &amp;name)</td></tr>
+<tr class="separator:aeefd3c17fec332e00940b84216f95381"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5721edcf6c37d1d7d5c36f789c47c08c" id="r_a5721edcf6c37d1d7d5c36f789c47c08c"><td class="memTemplParams" colspan="2">template&lt;class T &gt; </td></tr>
+<tr class="memitem:a5721edcf6c37d1d7d5c36f789c47c08c"><td class="memTemplItemLeft" align="right" valign="top">MonoObject *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a5721edcf6c37d1d7d5c36f789c47c08c">GetComponent</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *scene, entt::entity entity)</td></tr>
+<tr class="separator:a5721edcf6c37d1d7d5c36f789c47c08c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a30c123a0e0caf1b4befc104045a8c69d" id="r_a30c123a0e0caf1b4befc104045a8c69d"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a30c123a0e0caf1b4befc104045a8c69d">HasComponentByName</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> *scene, entt::entity entity, const std::string &amp;name)</td></tr>
+<tr class="separator:a30c123a0e0caf1b4befc104045a8c69d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3e314cada1b86f3d8ce6e0a1e5e7b7be" id="r_a3e314cada1b86f3d8ce6e0a1e5e7b7be"><td class="memItemLeft" align="right" valign="top">std::unique_ptr&lt; <a class="el" href="classWiesel_1_1ScriptInstance.html">ScriptInstance</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a3e314cada1b86f3d8ce6e0a1e5e7b7be">CreateScriptInstance</a> (<a class="el" href="classWiesel_1_1MonoBehavior.html">MonoBehavior</a> *behavior)</td></tr>
+<tr class="separator:a3e314cada1b86f3d8ce6e0a1e5e7b7be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0b13b091566ad8adf8a6ce7bc7029004" id="r_a0b13b091566ad8adf8a6ce7bc7029004"><td class="memTemplParams" colspan="2">template&lt;class T &gt; </td></tr>
+<tr class="memitem:a0b13b091566ad8adf8a6ce7bc7029004"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1ScriptManager.html#a0b13b091566ad8adf8a6ce7bc7029004">RegisterComponent</a> (std::string name, <a class="el" href="classWiesel_1_1ScriptManager.html#aea4768142ff9e11cece5303effd18895">ComponentGetter</a> getter, <a class="el" href="classWiesel_1_1ScriptManager.html#a669918894a9490637cf7a7aadd4d1e8e">ComponentChecker</a> checker)</td></tr>
+<tr class="separator:a0b13b091566ad8adf8a6ce7bc7029004"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Typedef Documentation</h2>
 <a id="a669918894a9490637cf7a7aadd4d1e8e" name="a669918894a9490637cf7a7aadd4d1e8e"></a>
@@ -154,7 +172,7 @@ Static Public Member Functions</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">using</a> <a class="el" href="classWiesel_1_1ScriptManager.html#a669918894a9490637cf7a7aadd4d1e8e">Wiesel::ScriptManager::ComponentChecker</a> =  std::function&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">bool</a>(<a class="el" href="classWiesel_1_1Scene.html">Scene</a>*, entt::entity)&gt;</td>
+          <td class="memname">using <a class="el" href="classWiesel_1_1ScriptManager.html#a669918894a9490637cf7a7aadd4d1e8e">Wiesel::ScriptManager::ComponentChecker</a> =  std::function&lt;bool(<a class="el" href="classWiesel_1_1Scene.html">Scene</a>*, entt::entity)&gt;</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -168,7 +186,50 @@ Static Public Member Functions</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">using</a> <a class="el" href="classWiesel_1_1ScriptManager.html#aea4768142ff9e11cece5303effd18895">Wiesel::ScriptManager::ComponentGetter</a> =  std::function&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoObject</a>*(<a class="el" href="classWiesel_1_1Scene.html">Scene</a>*, entt::entity)&gt;</td>
+          <td class="memname">using <a class="el" href="classWiesel_1_1ScriptManager.html#aea4768142ff9e11cece5303effd18895">Wiesel::ScriptManager::ComponentGetter</a> =  std::function&lt;MonoObject*(<a class="el" href="classWiesel_1_1Scene.html">Scene</a>*, entt::entity)&gt;</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="aafc3a287051d963c30bd82cbd4d46f80" name="aafc3a287051d963c30bd82cbd4d46f80"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aafc3a287051d963c30bd82cbd4d46f80">&#9670;&#160;</a></span>ScriptManager()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">Wiesel::ScriptManager::ScriptManager </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">default</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7341d2034ecf571ba41fb460bb77f7a4" name="a7341d2034ecf571ba41fb460bb77f7a4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7341d2034ecf571ba41fb460bb77f7a4">&#9670;&#160;</a></span>~ScriptManager()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">Wiesel::ScriptManager::~ScriptManager </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -176,8 +237,8 @@ Static Public Member Functions</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="a632d8257ee645e409398f56a9ac5855b" name="a632d8257ee645e409398f56a9ac5855b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a632d8257ee645e409398f56a9ac5855b">&#9670;&#160;</a></span>app_domain()</h2>
+<a id="a845001760288039bbcab3ac66f51e230" name="a845001760288039bbcab3ac66f51e230"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a845001760288039bbcab3ac66f51e230">&#9670;&#160;</a></span>app_domain()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -186,7 +247,7 @@ Static Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoDomain</a> * Wiesel::ScriptManager::app_domain </td>
+          <td class="memname">MonoDomain * Wiesel::ScriptManager::app_domain </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -194,15 +255,15 @@ Static Public Member Functions</h2></td></tr>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a71673aaa1a6495b6982d51b432e3c1d4" name="a71673aaa1a6495b6982d51b432e3c1d4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a71673aaa1a6495b6982d51b432e3c1d4">&#9670;&#160;</a></span>behavior_class()</h2>
+<a id="a744bc220f768a44c6bf2b36dd853496a" name="a744bc220f768a44c6bf2b36dd853496a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a744bc220f768a44c6bf2b36dd853496a">&#9670;&#160;</a></span>audio_clip_class()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -211,7 +272,7 @@ Static Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoClass</a> * Wiesel::ScriptManager::behavior_class </td>
+          <td class="memname">MonoClass * Wiesel::ScriptManager::audio_clip_class </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -219,15 +280,15 @@ Static Public Member Functions</h2></td></tr>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="ae0dc4b7464a9f4457f385033b156c2fb" name="ae0dc4b7464a9f4457f385033b156c2fb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae0dc4b7464a9f4457f385033b156c2fb">&#9670;&#160;</a></span>CreateScriptInstance()</h2>
+<a id="ab6b71c9d55a7d491e59200cbfa6363ed" name="ab6b71c9d55a7d491e59200cbfa6363ed"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab6b71c9d55a7d491e59200cbfa6363ed">&#9670;&#160;</a></span>behavior_class()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -236,24 +297,58 @@ Static Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> std::unique_ptr&lt; <a class="el" href="classWiesel_1_1ScriptInstance.html">ScriptInstance</a> &gt; Wiesel::ScriptManager::CreateScriptInstance </td>
+          <td class="memname">MonoClass * Wiesel::ScriptManager::behavior_class </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a3e314cada1b86f3d8ce6e0a1e5e7b7be" name="a3e314cada1b86f3d8ce6e0a1e5e7b7be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3e314cada1b86f3d8ce6e0a1e5e7b7be">&#9670;&#160;</a></span>CreateScriptInstance()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::unique_ptr&lt; <a class="el" href="classWiesel_1_1ScriptInstance.html">ScriptInstance</a> &gt; Wiesel::ScriptManager::CreateScriptInstance </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classWiesel_1_1MonoBehavior.html">MonoBehavior</a> *&#160;</td>
           <td class="paramname"><em>behavior</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a687ad7ac9631b43e6a319493af89661e" name="a687ad7ac9631b43e6a319493af89661e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a687ad7ac9631b43e6a319493af89661e">&#9670;&#160;</a></span>Destroy()</h2>
+<a id="a1ed17a04a57963fb9b824062e76ad458" name="a1ed17a04a57963fb9b824062e76ad458"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1ed17a04a57963fb9b824062e76ad458">&#9670;&#160;</a></span>Destroy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::Destroy </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aa9dcf8471062014878af8c86ca1cefb8" name="aa9dcf8471062014878af8c86ca1cefb8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa9dcf8471062014878af8c86ca1cefb8">&#9670;&#160;</a></span>entity_class()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -262,7 +357,7 @@ Static Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::Destroy </td>
+          <td class="memname">MonoClass * Wiesel::ScriptManager::entity_class </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -270,26 +365,40 @@ Static Public Member Functions</h2></td></tr>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a30f17b4f0ecb352e4615d44224069ef8" name="a30f17b4f0ecb352e4615d44224069ef8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a30f17b4f0ecb352e4615d44224069ef8">&#9670;&#160;</a></span>GetComponent()</h2>
+<a id="a1a75f6a6a745f302561815d49f6214d7" name="a1a75f6a6a745f302561815d49f6214d7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1a75f6a6a745f302561815d49f6214d7">&#9670;&#160;</a></span>FinishReloadIfReady()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::ScriptManager::FinishReloadIfReady </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a5721edcf6c37d1d7d5c36f789c47c08c" name="a5721edcf6c37d1d7d5c36f789c47c08c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5721edcf6c37d1d7d5c36f789c47c08c">&#9670;&#160;</a></span>GetComponent()</h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">class</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">T</a> &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
+template&lt;class T &gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoObject</a> * Wiesel::ScriptManager::GetComponent </td>
+          <td class="memname">MonoObject * Wiesel::ScriptManager::GetComponent </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> *&#160;</td>
           <td class="paramname"><em>scene</em>, </td>
@@ -306,26 +415,18 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a54e18a0185e53ba9043d6c3462b6b280" name="a54e18a0185e53ba9043d6c3462b6b280"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a54e18a0185e53ba9043d6c3462b6b280">&#9670;&#160;</a></span>GetComponentByName()</h2>
+<a id="aeefd3c17fec332e00940b84216f95381" name="aeefd3c17fec332e00940b84216f95381"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aeefd3c17fec332e00940b84216f95381">&#9670;&#160;</a></span>GetComponentByName()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoObject</a> * Wiesel::ScriptManager::GetComponentByName </td>
+          <td class="memname">MonoObject * Wiesel::ScriptManager::GetComponentByName </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> *&#160;</td>
           <td class="paramname"><em>scene</em>, </td>
@@ -339,7 +440,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> std::string &amp;&#160;</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
           <td class="paramname"><em>name</em>&#160;</td>
         </tr>
         <tr>
@@ -348,26 +449,18 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a6ad178ea8c6d8cd23af14200d6c9178d" name="a6ad178ea8c6d8cd23af14200d6c9178d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6ad178ea8c6d8cd23af14200d6c9178d">&#9670;&#160;</a></span>HasComponentByName()</h2>
+<a id="a30c123a0e0caf1b4befc104045a8c69d" name="a30c123a0e0caf1b4befc104045a8c69d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a30c123a0e0caf1b4befc104045a8c69d">&#9670;&#160;</a></span>HasComponentByName()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">bool</a> Wiesel::ScriptManager::HasComponentByName </td>
+          <td class="memname">bool Wiesel::ScriptManager::HasComponentByName </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> *&#160;</td>
           <td class="paramname"><em>scene</em>, </td>
@@ -381,7 +474,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> std::string &amp;&#160;</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
           <td class="paramname"><em>name</em>&#160;</td>
         </tr>
         <tr>
@@ -390,43 +483,30 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a2ab8895a3f348f7b70d1750c0ef07f3e" name="a2ab8895a3f348f7b70d1750c0ef07f3e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2ab8895a3f348f7b70d1750c0ef07f3e">&#9670;&#160;</a></span>Init()</h2>
+<a id="abe57f966f2d873563cdd70f445982245" name="abe57f966f2d873563cdd70f445982245"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abe57f966f2d873563cdd70f445982245">&#9670;&#160;</a></span>Init()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::Init </td>
+          <td class="memname">void Wiesel::ScriptManager::Init </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> <a class="el" href="structWiesel_1_1ScriptManagerProperties.html">ScriptManagerProperties</a> &amp;&amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="structWiesel_1_1ScriptManagerProperties.html">ScriptManagerProperties</a> &amp;&amp;&#160;</td>
           <td class="paramname"><em>properties</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a72b078ffcc072c7872b45ca30f3f9e77" name="a72b078ffcc072c7872b45ca30f3f9e77"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a72b078ffcc072c7872b45ca30f3f9e77">&#9670;&#160;</a></span>LoadApp()</h2>
+<a id="a89b4e015544e2758cfdb06d4cf526e0a" name="a89b4e015544e2758cfdb06d4cf526e0a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a89b4e015544e2758cfdb06d4cf526e0a">&#9670;&#160;</a></span>IsCompiling()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -435,23 +515,75 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::LoadApp </td>
+          <td class="memname">bool Wiesel::ScriptManager::IsCompiling </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="abdc7757b343de167614c6c7088a39603" name="abdc7757b343de167614c6c7088a39603"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#abdc7757b343de167614c6c7088a39603">&#9670;&#160;</a></span>LoadCore()</h2>
+<a id="a0830dbc221099d3fa85ca8aff79a4ea4" name="a0830dbc221099d3fa85ca8aff79a4ea4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0830dbc221099d3fa85ca8aff79a4ea4">&#9670;&#160;</a></span>LoadApp()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::LoadApp </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a3bc3919e4bdd6dfb26c32eb55759d877" name="a3bc3919e4bdd6dfb26c32eb55759d877"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3bc3919e4bdd6dfb26c32eb55759d877">&#9670;&#160;</a></span>LoadAppDll()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::ScriptManager::LoadAppDll </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>dll_path</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a48a4d5aedab6f0bf744cd5c0b80a533c" name="a48a4d5aedab6f0bf744cd5c0b80a533c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a48a4d5aedab6f0bf744cd5c0b80a533c">&#9670;&#160;</a></span>LoadCore()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::LoadCore </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a54b2a525ec2c5748366d4cb420bc1fc7" name="a54b2a525ec2c5748366d4cb420bc1fc7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a54b2a525ec2c5748366d4cb420bc1fc7">&#9670;&#160;</a></span>prefab_class()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -460,7 +592,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::LoadCore </td>
+          <td class="memname">MonoClass * Wiesel::ScriptManager::prefab_class </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -468,26 +600,23 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="aadbd19b699ff43b7eea0ec9e9cfc9010" name="aadbd19b699ff43b7eea0ec9e9cfc9010"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aadbd19b699ff43b7eea0ec9e9cfc9010">&#9670;&#160;</a></span>RegisterComponent()</h2>
+<a id="a0b13b091566ad8adf8a6ce7bc7029004" name="a0b13b091566ad8adf8a6ce7bc7029004"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0b13b091566ad8adf8a6ce7bc7029004">&#9670;&#160;</a></span>RegisterComponent()</h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">class</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">T</a> &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
+template&lt;class T &gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::RegisterComponent </td>
+          <td class="memname">void Wiesel::ScriptManager::RegisterComponent </td>
           <td>(</td>
           <td class="paramtype">std::string&#160;</td>
           <td class="paramname"><em>name</em>, </td>
@@ -510,17 +639,80 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a8a0e37cf291a929adc41541a49332f71" name="a8a0e37cf291a929adc41541a49332f71"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8a0e37cf291a929adc41541a49332f71">&#9670;&#160;</a></span>RegisterComponents()</h2>
+<a id="a44e4286931bc096c0cda0ad3e4060a81" name="a44e4286931bc096c0cda0ad3e4060a81"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a44e4286931bc096c0cda0ad3e4060a81">&#9670;&#160;</a></span>RegisterComponents()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::RegisterComponents </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="af251e6317befa1c942ee553d7a167c83" name="af251e6317befa1c942ee553d7a167c83"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af251e6317befa1c942ee553d7a167c83">&#9670;&#160;</a></span>RegisterInternals()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::RegisterInternals </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a026a3e1700cbd72c6408ba36480872a8" name="a026a3e1700cbd72c6408ba36480872a8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a026a3e1700cbd72c6408ba36480872a8">&#9670;&#160;</a></span>Reload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::Reload </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a8f7763b142af93a9f54aa7a1ee0fefe3" name="a8f7763b142af93a9f54aa7a1ee0fefe3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8f7763b142af93a9f54aa7a1ee0fefe3">&#9670;&#160;</a></span>ReloadAsync()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::ScriptManager::ReloadAsync </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a2f0051911ba3819274e1cfcb04527763" name="a2f0051911ba3819274e1cfcb04527763"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2f0051911ba3819274e1cfcb04527763">&#9670;&#160;</a></span>root_domain()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -529,7 +721,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::RegisterComponents </td>
+          <td class="memname">MonoDomain * Wiesel::ScriptManager::root_domain </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -537,15 +729,15 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a35eece08145bee6dad7bea2efe63fbe9" name="a35eece08145bee6dad7bea2efe63fbe9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a35eece08145bee6dad7bea2efe63fbe9">&#9670;&#160;</a></span>RegisterInternals()</h2>
+<a id="a1649d7e64ce88f42ee9ac5bf11dcdc1b" name="a1649d7e64ce88f42ee9ac5bf11dcdc1b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1649d7e64ce88f42ee9ac5bf11dcdc1b">&#9670;&#160;</a></span>script_names()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -554,7 +746,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::RegisterInternals </td>
+          <td class="memname">const std::vector&lt; std::string &gt; &amp; Wiesel::ScriptManager::script_names </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -562,15 +754,15 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
 </div>
 </div>
-<a id="a970eeb625b51e6b23d48b4ab6768cdff" name="a970eeb625b51e6b23d48b4ab6768cdff"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a970eeb625b51e6b23d48b4ab6768cdff">&#9670;&#160;</a></span>Reload()</h2>
+<a id="a8ecbb9f7d065b2e140173a49adc35754" name="a8ecbb9f7d065b2e140173a49adc35754"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8ecbb9f7d065b2e140173a49adc35754">&#9670;&#160;</a></span>vector3f_class()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -579,7 +771,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">void</a> Wiesel::ScriptManager::Reload </td>
+          <td class="memname">MonoClass * Wiesel::ScriptManager::vector3f_class </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -587,82 +779,7 @@ template&lt;<a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d44888
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="ac89153b21257de50cf2a2dd5409abeef" name="ac89153b21257de50cf2a2dd5409abeef"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac89153b21257de50cf2a2dd5409abeef">&#9670;&#160;</a></span>root_domain()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoDomain</a> * Wiesel::ScriptManager::root_domain </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="aee6da2bf12cefc7605feac3ccdf31776" name="aee6da2bf12cefc7605feac3ccdf31776"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aee6da2bf12cefc7605feac3ccdf31776">&#9670;&#160;</a></span>script_names()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">const</a> std::vector&lt; std::string &gt; &amp; Wiesel::ScriptManager::script_names </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a7c3b0f293367afde345616d3cde0e0e5" name="a7c3b0f293367afde345616d3cde0e0e5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7c3b0f293367afde345616d3cde0e0e5">&#9670;&#160;</a></span>vector3f_class()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">static</a> <a class="el" href="namespaceWiesel.html#ac5b18ae341ef9bc5cfd8d448889d65b5">MonoClass</a> * Wiesel::ScriptManager::vector3f_class </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">

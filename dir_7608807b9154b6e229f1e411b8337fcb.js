@@ -1,8 +1,11 @@
 var dir_7608807b9154b6e229f1e411b8337fcb =
 [
+    [ "features", "dir_cfe3c5e2ca8c482914e8f9f148e2e681.html", "dir_cfe3c5e2ca8c482914e8f9f148e2e681" ],
+    [ "w_acceleration_structure.hpp", "w__acceleration__structure_8hpp.html", "w__acceleration__structure_8hpp" ],
     [ "w_buffer.hpp", "w__buffer_8hpp.html", "w__buffer_8hpp" ],
     [ "w_camera.hpp", "w__camera_8hpp.html", "w__camera_8hpp" ],
-    [ "w_command.hpp", "w__command_8hpp.html", "w__command_8hpp" ],
+    [ "w_command.hpp", "rendering_2w__command_8hpp.html", "rendering_2w__command_8hpp" ],
+    [ "w_deletion_queue.hpp", "w__deletion__queue_8hpp.html", "w__deletion__queue_8hpp" ],
     [ "w_descriptor.hpp", "w__descriptor_8hpp.html", "w__descriptor_8hpp" ],
     [ "w_descriptorlayout.hpp", "w__descriptorlayout_8hpp.html", "w__descriptorlayout_8hpp" ],
     [ "w_framebuffer.hpp", "w__framebuffer_8hpp.html", "w__framebuffer_8hpp" ],
@@ -11,11 +14,16 @@ var dir_7608807b9154b6e229f1e411b8337fcb =
     [ "w_mesh.hpp", "w__mesh_8hpp.html", "w__mesh_8hpp" ],
     [ "w_perf_marker.hpp", "w__perf__marker_8hpp.html", "w__perf__marker_8hpp" ],
     [ "w_pipeline.hpp", "w__pipeline_8hpp.html", "w__pipeline_8hpp" ],
+    [ "w_render_feature.hpp", "w__render__feature_8hpp.html", "w__render__feature_8hpp" ],
     [ "w_renderer.hpp", "w__renderer_8hpp.html", "w__renderer_8hpp" ],
+    [ "w_rendergraph.hpp", "w__rendergraph_8hpp.html", "w__rendergraph_8hpp" ],
     [ "w_renderpass.hpp", "w__renderpass_8hpp.html", "w__renderpass_8hpp" ],
+    [ "w_resource_manager.h", "w__resource__manager_8h.html", "w__resource__manager_8h" ],
+    [ "w_rt_pipeline.hpp", "w__rt__pipeline_8hpp.html", "w__rt__pipeline_8hpp" ],
     [ "w_sampler.hpp", "w__sampler_8hpp.html", "w__sampler_8hpp" ],
     [ "w_shader.hpp", "w__shader_8hpp.html", "w__shader_8hpp" ],
     [ "w_skybox.hpp", "w__skybox_8hpp.html", "w__skybox_8hpp" ],
     [ "w_sprite.hpp", "w__sprite_8hpp.html", "w__sprite_8hpp" ],
+    [ "w_sprite_loader.hpp", "w__sprite__loader_8hpp.html", "w__sprite__loader_8hpp" ],
     [ "w_texture.hpp", "w__texture_8hpp.html", "w__texture_8hpp" ]
 ];

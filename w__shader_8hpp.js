@@ -12,7 +12,13 @@ var w__shader_8hpp =
     ] ],
     [ "ShaderType", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578", [
       [ "ShaderTypeVertex", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578a5152c4203de6ef3ada604154ffac3a66", null ],
-      [ "ShaderTypeFragment", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578a4d09976369ca3b4de4031ce14330e66f", null ]
+      [ "ShaderTypeFragment", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578a4d09976369ca3b4de4031ce14330e66f", null ],
+      [ "ShaderTypeRayGen", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578acac80d5c18e1050f7dd317be8cc6f6b5", null ],
+      [ "ShaderTypeClosestHit", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578a7fb37a1993f0143c06c751dbfe9b3727", null ],
+      [ "ShaderTypeMiss", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578a2f1b961b2bcecf4233e533e49d15a245", null ],
+      [ "ShaderTypeAnyHit", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578ae5a084f2a80900a3db3e267cb5e895b3", null ],
+      [ "ShaderTypeIntersection", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578a44a3d78eb2ac1b156ac6b6d3974e78f6", null ],
+      [ "ShaderTypeCallable", "w__shader_8hpp.html#af4fd58557a282cbb0bead938e9c38578ab06ed053cdae18049e5f336196b93bc9", null ]
     ] ],
     [ "GetShaderFlagBitsByType", "w__shader_8hpp.html#a1360723dc71bd3de668e5ba281014b33", null ]
 ];

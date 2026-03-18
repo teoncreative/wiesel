@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['keycode_0',['KeyCode',['../namespaceWiesel.html#af49c8c5545def5e3fe27890a04f552ce',1,'Wiesel']]]
+  ['gamepadaxis_0',['GamepadAxis',['../namespaceWiesel.html#a488fdd1a0ad17c07f357588591aba857',1,'Wiesel']]],
+  ['gamepadbutton_1',['GamepadButton',['../namespaceWiesel.html#ac055cf12f229c1126968aca93ca1079a',1,'Wiesel']]]
 ];

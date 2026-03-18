@@ -1,15 +1,14 @@
 var searchData=
 [
-  ['vertex_5fattribute_5fdescriptions_5f_0',['vertex_attribute_descriptions_',['../structWiesel_1_1Pipeline.html#a130c8ec199ae9b57a5e0296cb79a8607',1,'Wiesel::Pipeline']]],
-  ['vertex_5fbuffer_1',['vertex_buffer',['../structWiesel_1_1Mesh.html#a2c5d05519699dba813f2e0498de06e89',1,'Wiesel::Mesh']]],
-  ['vertex_5finput_5fbinding_5fdescriptions_5f_2',['vertex_input_binding_descriptions_',['../structWiesel_1_1Pipeline.html#a93ddf47dee6dd41bee7e78aa4ed9a223',1,'Wiesel::Pipeline']]],
-  ['vertices_3',['vertices',['../structWiesel_1_1Mesh.html#ae49c47b13b2a4e7ecc36c32328ed844e',1,'Wiesel::Mesh']]],
-  ['view_5fchanged_4',['view_changed',['../structWiesel_1_1CameraComponent.html#a6a912715fe452853b4ad0cc485a834ca',1,'Wiesel::CameraComponent']]],
-  ['view_5fmatrix_5',['view_matrix',['../structWiesel_1_1CameraComponent.html#ad539fe88761041242903017a65d43767',1,'Wiesel::CameraComponent::view_matrix'],['../structWiesel_1_1CameraData.html#aaabbd1c93d93e7dc29945221e6881b66',1,'Wiesel::CameraData::view_matrix']]],
-  ['viewmatrix_6',['ViewMatrix',['../structWiesel_1_1CameraUniformData.html#a3ee50eafa8a5de97d024ca0d0d477864',1,'Wiesel::CameraUniformData']]],
-  ['viewport_5fsize_7',['viewport_size',['../structWiesel_1_1CameraComponent.html#affdf9652dbea21577c99672d5dc48ca7',1,'Wiesel::CameraComponent::viewport_size'],['../structWiesel_1_1CameraData.html#a6d820509ebfed5a8f86db02fefea5732',1,'Wiesel::CameraData::viewport_size']]],
-  ['viewprojectionmatrix_8',['ViewProjectionMatrix',['../structWiesel_1_1ShadowMapMatricesUniformData.html#a57dc7ed7a909bce71c9ecf174992ef16',1,'Wiesel::ShadowMapMatricesUniformData']]],
-  ['viewprojmatrix_9',['ViewProjMatrix',['../structWiesel_1_1Cascade.html#ad80231cfcb28eeacd4c592093aa1ccc3',1,'Wiesel::Cascade']]],
-  ['vkcmdbegindebugutilslabelext_10',['vkCmdBeginDebugUtilsLabelEXT',['../classWiesel_1_1PerfMarker.html#a7cec0ce65ad3217cde848954909780a0',1,'Wiesel::PerfMarker']]],
-  ['vkcmdenddebugutilslabelext_11',['vkCmdEndDebugUtilsLabelEXT',['../classWiesel_1_1PerfMarker.html#a60ae3ae85e07554419dc6255494b974f',1,'Wiesel::PerfMarker']]]
+  ['ubo_0',['ubo',['../structWiesel_1_1TextGlyphGPU.html#a9ae9b17d99228c85ad6b08a8a4699179',1,'Wiesel::TextGlyphGPU']]],
+  ['ubo_5f_1',['ubo_',['../structWiesel_1_1CanvasRectComponent.html#af1725fa33cd80b65b1b0f4746865292b',1,'Wiesel::CanvasRectComponent::ubo_'],['../structWiesel_1_1CanvasImageComponent.html#a0deaa769338e7f9b87e32cfc0e91e3e1',1,'Wiesel::CanvasImageComponent::ubo_']]],
+  ['uniform_5fbuffer_2',['uniform_buffer',['../structWiesel_1_1ModelComponent.html#a2e53a925faf1d875046db83602f7e7c6',1,'Wiesel::ModelComponent::uniform_buffer'],['../structWiesel_1_1SpriteAsset_1_1Frame.html#a52e9c899b8f09204047057bcf9049147',1,'Wiesel::SpriteAsset::Frame::uniform_buffer']]],
+  ['unloaded_3',['unloaded',['../structWiesel_1_1AssetManager_1_1AssetStats.html#a28af57b50a59938c4e56a0eb25aa1e9c',1,'Wiesel::AssetManager::AssetStats']]],
+  ['unset_5f_4',['unset_',['../classWiesel_1_1IBehavior.html#a03f09ebd87efbe5186e776d43f224335',1,'Wiesel::IBehavior']]],
+  ['use_5fmsaa_5fresolve_5',['use_msaa_resolve',['../structWiesel_1_1RenderContext.html#afa11d71f75d3eb9e9a0300542246da9b',1,'Wiesel::RenderContext']]],
+  ['user_5fdata_5fpath_6',['user_data_path',['../structWiesel_1_1EngineProperties.html#a686ba56fb23e582494752e00ad229357',1,'Wiesel::EngineProperties']]],
+  ['uv_7',['uv',['../structWiesel_1_1Vertex3D.html#a9ad6b3e2ae55e9e45629aa0da8e41f07',1,'Wiesel::Vertex3D::UV'],['../structWiesel_1_1Vertex2DNoColor.html#a816e99c68cbde21a7510dd5d5134558d',1,'Wiesel::Vertex2DNoColor::UV'],['../structWiesel_1_1VertexSprite.html#a56896e8ac32c79b31b71dd9a212ce5f5',1,'Wiesel::VertexSprite::UV']]],
+  ['uv_5fmax_8',['uv_max',['../structWiesel_1_1GlyphInfo.html#a4bb6bc45b004eca3f7b316dc63480eca',1,'Wiesel::GlyphInfo']]],
+  ['uv_5fmin_9',['uv_min',['../structWiesel_1_1GlyphInfo.html#ae6c06aa73d51085e1c5ade0bbc8a66a1',1,'Wiesel::GlyphInfo']]],
+  ['uv_5frect_10',['uv_rect',['../structWiesel_1_1CanvasElementUniformData.html#a3831efc94ccd71865a05139e3dc703c5',1,'Wiesel::CanvasElementUniformData::uv_rect'],['../structWiesel_1_1SpriteAsset_1_1Frame.html#ae3717088219266583838f6286518866e',1,'Wiesel::SpriteAsset::Frame::uv_rect'],['../structWiesel_1_1CanvasImageComponent.html#abae219e6b685dce2543c8a58e24f1eb6',1,'Wiesel::CanvasImageComponent::uv_rect']]]
 ];

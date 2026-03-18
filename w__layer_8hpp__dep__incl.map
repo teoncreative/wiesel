@@ -1,16 +1,23 @@
 <map id="w_layer.hpp" name="w_layer.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="127,5,227,31"/>
-<area shape="rect" id="Node000002" href="$w__application_8hpp.html" title=" " alt="" coords="53,152,193,177"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="139,40,116,57,98,80,94,98,98,117,116,151,112,153,93,119,89,98,93,78,112,53,136,35"/>
-<area shape="rect" id="Node000006" href="$w__layerimgui_8hpp.html" title=" " alt="" coords="107,79,246,104"/>
-<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="179,44,179,79,174,79,174,44"/>
-<area shape="rect" id="Node000007" href="$w__layerscene_8hpp.html" title=" " alt="" coords="270,79,409,104"/>
-<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="216,34,314,76,312,81,214,39"/>
-<area shape="rect" id="Node000003" href="$w__editor_8hpp.html" title=" " alt="" coords="5,225,111,251"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="105,189,71,227,67,223,101,186"/>
-<area shape="rect" id="Node000004" href="$w__engine_8hpp.html" title=" " alt="" coords="134,225,246,251"/>
-<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="146,186,181,223,177,227,142,190"/>
-<area shape="rect" id="Node000005" href="$w__entrypoint_8hpp.html" title=" " alt="" coords="123,299,257,324"/>
-<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="193,264,193,299,187,299,187,264"/>
-<area shape="poly" id="edge6_Node000006_Node000002" title=" " alt="" coords="162,117,134,153,130,150,158,113"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="292,5,392,31"/>
+<area shape="rect" id="Node000002" href="$w__application_8hpp.html" title=" " alt="" coords="216,152,356,177"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="279,26,249,33,220,43,193,59,172,80,167,91,168,102,174,111,184,121,213,137,245,149,244,154,211,142,181,125,170,115,163,103,162,91,168,77,190,54,218,38,248,27,277,21"/>
+<area shape="rect" id="Node000008" href="$w__layerconsole_8hpp.html" title=" " alt="" coords="183,79,333,104"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="320,42,273,80,270,76,316,38"/>
+<area shape="rect" id="Node000009" href="$w__layerimgui_8hpp.html" title=" " alt="" coords="358,79,497,104"/>
+<area shape="poly" id="edge9_Node000001_Node000009" title=" " alt="" coords="368,37,415,76,412,80,364,41"/>
+<area shape="rect" id="Node000010" href="$w__layerscene_8hpp.html" title=" " alt="" coords="521,79,659,104"/>
+<area shape="poly" id="edge11_Node000001_Node000010" title=" " alt="" coords="396,32,551,76,549,81,394,37"/>
+<area shape="rect" id="Node000003" href="$w__editor_8hpp.html" title=" " alt="" coords="101,225,207,251"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="254,186,177,227,174,223,252,181"/>
+<area shape="rect" id="Node000004" href="$w__engine_8hpp.html" title=" " alt="" coords="230,225,342,251"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="289,191,289,225,283,225,283,191"/>
+<area shape="rect" id="Node000007" href="$w__game__application_8hpp.html" title=" " alt="" coords="355,299,539,324"/>
+<area shape="poly" id="edge7_Node000002_Node000007" title=" " alt="" coords="311,184,356,223,437,296,433,300,352,227,308,188"/>
+<area shape="rect" id="Node000005" href="$w__asset__manager_8hpp.html" title=" " alt="" coords="5,299,172,324"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="242,258,122,301,120,296,241,253"/>
+<area shape="rect" id="Node000006" href="$w__entrypoint_8hpp.html" title=" " alt="" coords="196,299,331,324"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="281,265,270,299,264,298,276,263"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="325,254,422,296,420,301,323,259"/>
+<area shape="poly" id="edge10_Node000009_Node000002" title=" " alt="" coords="394,112,310,154,308,149,391,108"/>
 </map>

@@ -22,17 +22,29 @@ var w__utils_8hpp =
     [ "WIESEL_CONCAT_IMPL", "w__utils_8hpp.html#afe71b99b05ad79967e4550436d8bf9ca", null ],
     [ "WIESEL_SHADOW_CASCADE_COUNT", "w__utils_8hpp.html#afe70aaa0b411d18fc20ed7c8ab9d0956", null ],
     [ "WIESEL_SHADOWMAP_DIM", "w__utils_8hpp.html#aecb2d455cb26f50157141485c9865398", null ],
+    [ "WIESEL_SSAO_BIAS", "w__utils_8hpp.html#a10535a2fec19db1a80083e08d804c4e0", null ],
     [ "WIESEL_SSAO_KERNEL_SIZE", "w__utils_8hpp.html#ab2ee4d87e5284c3e74681db03fb60f67", null ],
     [ "WIESEL_SSAO_NOISE_DIM", "w__utils_8hpp.html#ac1853b55f370ebb1d1ca65cfe6ddad36", null ],
     [ "WIESEL_SSAO_RADIUS", "w__utils_8hpp.html#aaf252a41811d4e1247031ffff13b7e46", null ],
     [ "WIESEL_UNIQUE_NAME", "w__utils_8hpp.html#ac964bd3c4c3938e6339b968be7966248", null ],
     [ "Index", "w__utils_8hpp.html#ad29bec122d477febf047e8b178a0f213", null ],
     [ "Pair", "w__utils_8hpp.html#acc234c8a575ffd4d5311189784d9eee3", null ],
-    [ "Ref", "w__utils_8hpp.html#ac5b18ae341ef9bc5cfd8d448889d65b5", null ],
-    [ "Scope", "w__utils_8hpp.html#aa07ffc025a8f1cb363724e424754c5bf", null ],
-    [ "Weak", "w__utils_8hpp.html#af1520737d7864b553cca40b90a79b71a", null ],
+    [ "AntiAliasingMode", "w__utils_8hpp.html#a9b7ef1c67f49942f9526eaa989c71a24", [
+      [ "None", "w__utils_8hpp.html#a9b7ef1c67f49942f9526eaa989c71a24a6adf97f83acf6453d4a6a4b1070f3754", null ],
+      [ "FXAA", "w__utils_8hpp.html#a9b7ef1c67f49942f9526eaa989c71a24aaa9ebfd80da9bf23f763a63c052a452a", null ],
+      [ "TAA", "w__utils_8hpp.html#a9b7ef1c67f49942f9526eaa989c71a24a88a337f4479ce258e968e00de1de7483", null ]
+    ] ],
     [ "BakeResult", "w__utils_8hpp.html#a1269e98138085e8c52861afee5815d03", [
       [ "SUCCESS", "w__utils_8hpp.html#a1269e98138085e8c52861afee5815d03a1b669465913a55f5f1339ec5e123359d", null ]
+    ] ],
+    [ "SamplingMode", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6", [
+      [ "DISABLED", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6a055c1a591abb0e8cd86dc969727bcc0b", null ],
+      [ "X2", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6a54105bddbfe3f639d49cbe8f5182c958", null ],
+      [ "X4", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6a7d71ed2af4cc5c6a8380324d9bc4a45f", null ],
+      [ "X8", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6ab8295fda5d2245c683e47e1137656c78", null ],
+      [ "X16", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6a8566d518618cc93194d9e7688e2dafa2", null ],
+      [ "X32", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6aaebf1ebe049feaa907e785eeb955ae32", null ],
+      [ "X64", "w__utils_8hpp.html#aa1c45abe55496d4d69b39aba218a03d6af0851da0e02bf22830828822f578dc8f", null ]
     ] ],
     [ "Vertex3DFlag", "w__utils_8hpp.html#a74bcb5e873d456ca267408c368a348c2", [
       [ "VertexFlagHasTexture", "w__utils_8hpp.html#a74bcb5e873d456ca267408c368a348c2a47636f98f73c9fcb5acde69c3e2d8a05", null ],
@@ -43,11 +55,11 @@ var w__utils_8hpp =
       [ "VertexFlagHasRoughnessMap", "w__utils_8hpp.html#a74bcb5e873d456ca267408c368a348c2a63799a371407035a97b5e059f20d9299", null ],
       [ "VertexFlagHasMetallicMap", "w__utils_8hpp.html#a74bcb5e873d456ca267408c368a348c2a605213bc964d24e992a44e99f3ec104d", null ]
     ] ],
-    [ "CreateReference", "w__utils_8hpp.html#aa0015856c9eee83d21811f116ee6a7d2", null ],
-    [ "CreateScope", "w__utils_8hpp.html#ac8aa39bcd5773c549d4ea63c491f98e0", null ],
     [ "FormatVariableName", "w__utils_8hpp.html#a7eeeed252d2944f5a68e764e2e6cff33", null ],
     [ "GetNameFromVulkanResult", "w__utils_8hpp.html#a07bd33629b6b0043e9fa1ada27f9bf48", null ],
-    [ "ReadFile", "w__utils_8hpp.html#a3340294b72175da4b3941555dd2405d5", null ],
-    [ "ReadFileUint32", "w__utils_8hpp.html#a2c40ae1af2e89d03c1c53e2075d37ce0", null ],
+    [ "ReadVirtualFile", "w__utils_8hpp.html#a7f1f564a526029fee12cae8fc33c4cbb", null ],
+    [ "ReadVirtualFileUint32", "w__utils_8hpp.html#ad3bc018b25e60fb94a02dcf797ea8e3b", null ],
+    [ "ToString", "w__utils_8hpp.html#a9463206f0afa4ad5eafee7c604571088", null ],
+    [ "ToVkSampleCountFlagBits", "w__utils_8hpp.html#a705228e498ca4016e2caa34c3076748c", null ],
     [ "TrimLeft", "w__utils_8hpp.html#a3c59bbc69adffe21c19da9479123a87a", null ]
 ];

@@ -1,11 +1,16 @@
 <map id="w_layerimgui.hpp" name="w_layerimgui.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="54,5,193,31"/>
-<area shape="rect" id="Node000002" href="$w__application_8hpp.html" title=" " alt="" coords="53,79,193,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="126,44,126,79,121,79,121,44"/>
-<area shape="rect" id="Node000003" href="$w__editor_8hpp.html" title=" " alt="" coords="5,152,111,177"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="105,116,71,154,67,150,101,113"/>
-<area shape="rect" id="Node000004" href="$w__engine_8hpp.html" title=" " alt="" coords="134,152,246,177"/>
-<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="146,113,181,150,177,154,142,116"/>
-<area shape="rect" id="Node000005" href="$w__entrypoint_8hpp.html" title=" " alt="" coords="123,225,257,251"/>
-<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="193,191,193,225,187,225,187,191"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="217,5,355,31"/>
+<area shape="rect" id="Node000002" href="$w__application_8hpp.html" title=" " alt="" coords="216,79,356,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="289,44,289,79,283,79,283,44"/>
+<area shape="rect" id="Node000003" href="$w__editor_8hpp.html" title=" " alt="" coords="101,152,207,177"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="254,113,177,154,174,149,252,108"/>
+<area shape="rect" id="Node000004" href="$w__engine_8hpp.html" title=" " alt="" coords="230,152,342,177"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="289,118,289,152,283,152,283,118"/>
+<area shape="rect" id="Node000007" href="$w__game__application_8hpp.html" title=" " alt="" coords="355,225,539,251"/>
+<area shape="poly" id="edge7_Node000002_Node000007" title=" " alt="" coords="311,111,356,150,437,223,433,227,352,154,308,115"/>
+<area shape="rect" id="Node000005" href="$w__asset__manager_8hpp.html" title=" " alt="" coords="5,225,172,251"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="242,184,122,228,120,223,241,179"/>
+<area shape="rect" id="Node000006" href="$w__entrypoint_8hpp.html" title=" " alt="" coords="196,225,331,251"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="281,192,270,226,264,224,276,190"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="325,180,422,223,420,228,323,185"/>
 </map>

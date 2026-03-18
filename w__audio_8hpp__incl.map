@@ -1,0 +1,11 @@
+<map id="w_audio.hpp" name="w_audio.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="117,5,221,31"/>
+<area shape="rect" id="Node000002" href="$w__asset__handle_8hpp.html" title=" " alt="" coords="5,79,199,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="160,33,124,70,120,67,156,29"/>
+<area shape="rect" id="Node000003" href="$w__pch_8hpp.html" title=" " alt="" coords="93,225,183,251"/>
+<area shape="poly" id="edge5_Node000001_Node000003" title=" " alt="" coords="182,29,199,51,212,78,221,106,225,129,222,152,212,179,195,202,174,220,170,216,191,199,208,176,217,150,219,129,216,107,208,80,194,53,178,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="92,106,70,138,64,157,67,176,83,198,105,216,102,220,80,202,62,178,59,157,65,136,88,103"/>
+<area shape="rect" id="Node000004" href="$w__uuid_8hpp.html" title=" " alt="" coords="77,152,199,177"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="110,103,128,138,124,141,106,106"/>
+<area shape="poly" id="edge4_Node000004_Node000003" title=" " alt="" coords="141,178,141,212,135,212,135,178"/>
+</map>

@@ -1,9 +1,11 @@
 <map id="Wiesel::Layer" name="Wiesel::Layer">
-<area shape="rect" id="Node000001" title=" " alt="" coords="243,5,354,31"/>
-<area shape="rect" id="Node000002" href="$classWiesel_1_1Editor_1_1EditorLayer.html" title=" " alt="" coords="5,79,200,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="255,38,136,81,134,76,254,33"/>
-<area shape="rect" id="Node000003" href="$classWiesel_1_1ImGuiLayer.html" title=" " alt="" coords="224,79,373,104"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="301,44,301,79,296,79,296,44"/>
-<area shape="rect" id="Node000004" href="$classWiesel_1_1SceneLayer.html" title=" " alt="" coords="397,79,547,104"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="340,33,445,76,443,81,338,38"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,80,116,105"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1ConsoleLayer.html" title=" " alt="" coords="180,5,343,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="95,71,163,40,200,28,201,33,165,44,97,76"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1Editor_1_1EditorLayer.html" title=" " alt="" coords="164,55,359,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="129,81,163,77,164,82,130,87"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1ImGuiLayer.html" title=" " alt="" coords="187,104,336,129"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="130,98,187,105,186,110,129,104"/>
+<area shape="rect" id="Node000005" href="$classWiesel_1_1SceneLayer.html" title=" " alt="" coords="187,153,336,179"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="99,109,165,138,205,151,204,156,163,143,97,114"/>
 </map>

@@ -7,5 +7,6 @@ var classWiesel_1_1ImGuiLayer =
     [ "OnDetach", "classWiesel_1_1ImGuiLayer.html#a2f9ca421542358030a99b460bef97b0a", null ],
     [ "OnEvent", "classWiesel_1_1ImGuiLayer.html#a1125a5fe6be9a218aabc376f559ff5ea", null ],
     [ "OnPresent", "classWiesel_1_1ImGuiLayer.html#ac73d22e5883d2dc034a690b9569502fd", null ],
-    [ "OnUpdate", "classWiesel_1_1ImGuiLayer.html#af4fd64e1fb1b34800d8c02254bb15978", null ]
+    [ "OnUpdate", "classWiesel_1_1ImGuiLayer.html#af4fd64e1fb1b34800d8c02254bb15978", null ],
+    [ "ReinitializeImGuiVulkan", "classWiesel_1_1ImGuiLayer.html#a214737ab22c96f304c49bcc23031b274", null ]
 ];
