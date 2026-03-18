@@ -197,7 +197,7 @@ class Renderer {
                                             std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateShadowMeshDescriptors(
-      std::shared_ptr<UniformBuffer> uniformBuffer, std::shared_ptr<Material> material);
+      std::shared_ptr<UniformBuffer> uniform_buffer, std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateGlobalDescriptors(CameraComponent& camera);
   std::shared_ptr<DescriptorSet> CreateShadowGlobalDescriptors(CameraComponent& camera);
@@ -414,8 +414,8 @@ class Renderer {
                     VkMemoryPropertyFlags properties, VkBuffer& buffer,
                     VkDeviceMemory& bufferMemory);
 
-  void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-  void CopyBuffer(VkCommandBuffer cmd, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+  void CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+  void CopyBuffer(VkCommandBuffer cmd, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
   void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                          uint32_t height, VkDeviceSize base_offset = 0,
                          uint32_t layer = 0,
@@ -432,7 +432,7 @@ class Renderer {
 
   void TransitionImageLayout(VkImage image, VkFormat format,
                              VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels, VkCommandBuffer commandBuffer,
+                             uint32_t mipLevels, VkCommandBuffer command_buffer,
                              uint32_t baseLayer, uint32_t layerCount);
 
   void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
@@ -450,7 +450,7 @@ class Renderer {
   std::shared_ptr<ImageView> CreateImageView(
       std::shared_ptr<AttachmentTexture> image,
       VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
-      uint32_t layerCount = 1);
+      uint32_t layer_count = 1);
 
   void SetObjectName(VkObjectType type, uint64_t handle, const char* name);
 
@@ -528,10 +528,10 @@ class Renderer {
                                VkImageTiling tiling,
                                VkFormatFeatureFlags features);
   bool HasStencilComponent(VkFormat format);
-  void GenerateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth,
-                       int32_t texHeight, uint32_t mipLevels);
-  void GenerateMipmaps(VkCommandBuffer cmd, VkImage image, VkFormat imageFormat,
-                       int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+  void GenerateMipmaps(VkImage image, VkFormat image_format, int32_t tex_width,
+                       int32_t tex_height, uint32_t mip_levels);
+  void GenerateMipmaps(VkCommandBuffer cmd, VkImage image, VkFormat image_format,
+                       int32_t tex_width, int32_t tex_height, uint32_t mip_levels);
 
 #ifdef VULKAN_VALIDATION
   bool CheckValidationLayerSupport();
