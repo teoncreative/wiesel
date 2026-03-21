@@ -21,8 +21,11 @@ namespace Wiesel {
 class Scene;
 class AssetManager;
 class ScriptManager;
+class SceneManager;
 class NativeBehaviorRegistry;
 class AudioManager;
+class ThreadPool;
+class Project;
 #ifdef WIESEL_DISCORD_RPC
 class DiscordRPC;
 #endif
@@ -57,7 +60,11 @@ class Engine {
   WIESEL_GETTER_FN static AssetManager& asset_manager() { return *asset_manager_; }
   WIESEL_GETTER_FN static ScriptManager& script_manager() { return *script_manager_; }
   WIESEL_GETTER_FN static NativeBehaviorRegistry& behavior_registry() { return *behavior_registry_; }
+  WIESEL_GETTER_FN static ThreadPool& thread_pool() { return *thread_pool_; }
   WIESEL_GETTER_FN static AudioManager& audio() { return *audio_manager_; }
+  WIESEL_GETTER_FN static SceneManager& scene_manager() { return *scene_manager_; }
+  WIESEL_GETTER_FN static std::shared_ptr<Project> project() { return project_; }
+  static void SetProject(std::shared_ptr<Project> project);
 #ifdef WIESEL_DISCORD_RPC
   WIESEL_GETTER_FN static DiscordRPC& discord_rpc() { return *discord_rpc_; }
 #endif
@@ -67,6 +74,10 @@ class Engine {
 
   static aiScene* LoadAssimpModel(const std::string& path,
                                   bool convert_to_left_handed = true);
+
+  // Load a model asset (sync, can be called from any thread).
+  // Handles Assimp import, texture decode, GPU upload.
+  static bool LoadModel(AssetHandle handle);
 
   static void LoadModelAsync(AssetHandle handle);
 
@@ -96,7 +107,10 @@ class Engine {
   static std::shared_ptr<AssetManager> asset_manager_;
   static std::shared_ptr<ScriptManager> script_manager_;
   static std::shared_ptr<NativeBehaviorRegistry> behavior_registry_;
+  static std::shared_ptr<ThreadPool> thread_pool_;
   static std::shared_ptr<AudioManager> audio_manager_;
+  static std::shared_ptr<SceneManager> scene_manager_;
+  static std::shared_ptr<Project> project_;
 #ifdef WIESEL_DISCORD_RPC
   static std::shared_ptr<DiscordRPC> discord_rpc_;
 #endif

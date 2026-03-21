@@ -36,6 +36,14 @@
 
 namespace Wiesel::Editor {
 
+std::shared_ptr<Wiesel::Scene> scene() {
+  return Wiesel::Engine::scene_manager().GetActiveScene();
+}
+
+std::shared_ptr<Wiesel::Project> project() {
+  return Wiesel::Engine::project();
+}
+
 // --- RecentProjects ---
 
 std::filesystem::path RecentProjects::GetConfigPath() {
@@ -133,8 +141,9 @@ static void CleanupThumbnailCache() {
   thumbnail_cache_.clear();
 }
 
-EditorLayer::EditorLayer(Application& app, std::shared_ptr<Scene> scene)
-    : app_(app), scene_(scene), Layer("Demo Overlay") {}
+EditorLayer::EditorLayer(Application& app) : Layer("Demo Overlay"), app_(app) {
+
+}
 
 EditorLayer::~EditorLayer() = default;
 
@@ -163,10 +172,8 @@ void EditorLayer::OnAttach() {
   editor_camera_.far_plane = 500.0f;
   editor_camera_.field_of_view = 60.0f;
   Engine::renderer()->SetupCameraComponent(editor_camera_);
-  scene_->SetRenderResolution(kResolutionPresets[resolution_preset_index_].size);
-
-  // Register this scene as the active scene for SceneManager
-  SceneManager::Get().SetActiveScene(scene_);
+  Engine::scene_manager().CreateScene();
+  scene()->SetRenderResolution(kResolutionPresets[resolution_preset_index_].size);
 
   // Auto-load project if --project was passed on command line
   {
@@ -205,7 +212,7 @@ void EditorLayer::OnDetach() {
   CleanupThumbnailCache();
   editor_camera_.resource_pool.Clear();
   editor_camera_.render_pipeline = nullptr;
-  scene_->Cleanup();
+  Engine::scene_manager().Cleanup();
 }
 
 void EditorLayer::ProcessDeferredActions() {
@@ -257,12 +264,13 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
   if (editor_state_ == EditorState::Playing) {
     // Process pending scene loads from scripts
-    if (SceneManager::Get().HasPendingSceneLoad()) {
-      SceneManager::Get().ProcessPendingLoad(scene_);
+    if (Engine::scene_manager().BeginFrame()) {
+      has_selected_entity_ = false;
+      piloting_camera_ = entt::null;
     }
-    scene_->OnUpdate(delta_time);
+    scene()->OnUpdate(delta_time);
   } else {
-    scene_->OnUpdateEditor(delta_time);
+    scene()->OnUpdateEditor(delta_time);
 
     // Auto-save in edit mode
     if (scene_dirty_ && !current_scene_path_.empty()) {
@@ -322,12 +330,12 @@ void EditorLayer::OnEvent(Event& event) {
         return;
       }
     }
-    scene_->OnEvent(event);
+    scene()->OnEvent(event);
   } else {
     auto type = event.GetEventType();
     if (type == WindowResizeEvent::GetStaticType() ||
         type == PipelineRecreatedEvent::GetStaticType()) {
-      scene_->OnEvent(event);
+      scene()->OnEvent(event);
     }
   }
 }
@@ -526,9 +534,12 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
     selected_entity_ = entity_id;
     has_selected_entity_ = true;
     if (ImGui::MenuItem("Add Child")) {
-      Entity child = scene_->CreateEntity();
-      scene_->LinkEntities(entity_id, child);
-      scene_dirty_ = true;
+      entt::entity parent_id = entity_id;
+      app_.SubmitToMainThread([this, parent_id]() {
+        Entity child = scene()->CreateEntity();
+        scene()->LinkEntities(parent_id, child);
+        scene_dirty_ = true;
+      });
     }
     if (ImGui::MenuItem("Save as Prefab...")) {
       Dialogs::SaveFileDialog(
@@ -539,13 +550,13 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
             if (path.extension() != ".wprefab") {
               path += ".wprefab";
             }
-            Entity ent{entity_id, scene_.get()};
+            Entity ent{entity_id, scene().get()};
             Prefab::SaveToFile(ent, path);
           });
     }
     ImGui::Separator();
     if (ImGui::MenuItem("Delete")) {
-      scene_->RemoveEntity(entity);
+      scene()->RemoveEntity(entity);
       has_selected_entity_ = false;
       scene_dirty_ = true;
     }
@@ -556,7 +567,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
   // Recurse into children if the tree node is open
   if (has_children && node_open) {
     for (const auto& child_entity_id : *entity.child_handles()) {
-      Entity child = {child_entity_id, scene_.get()};
+      Entity child = {child_entity_id, scene().get()};
       RenderEntity(child, child_entity_id, depth + 1, ignore_menu);
     }
     ImGui::TreePop();
@@ -570,7 +581,7 @@ void EditorLayer::OnBeginPresent() {
   RenderMainMenuBar();
 
   // Show startup dialog if no project loaded
-  if (!project_) {
+  if (!project()) {
     ImGui::DockSpaceOverViewport();
     RenderStartupDialog();
     return;
@@ -689,12 +700,16 @@ void EditorLayer::OnBeginPresent() {
         | ImGuiTreeNodeFlags_SpanAvailWidth
         | ImGuiTreeNodeFlags_FramePadding
         | ImGuiTreeNodeFlags_Framed;
-    bool scene_open = ImGui::TreeNodeEx("##SceneRoot", scene_flags, "Scene");
+    std::string scene_label = "Scene";
+    if (!current_scene_path_.empty()) {
+      scene_label = current_scene_path_.stem().string();
+    }
+    bool scene_open = ImGui::TreeNodeEx("##SceneRoot", scene_flags, "%s", scene_label.c_str());
 
     // Right-click on scene root to add entities
     if (ImGui::BeginPopupContextItem("scene_root_context")) {
       if (ImGui::MenuItem("Add Empty Entity")) {
-        scene_->CreateEntity();
+        scene()->CreateEntity();
         scene_dirty_ = true;
       }
       ImGui::EndPopup();
@@ -702,8 +717,8 @@ void EditorLayer::OnBeginPresent() {
     }
 
     if (scene_open) {
-      for (const auto& entityId : scene_->GetSceneHierarchy()) {
-        Entity entity = {entityId, scene_.get()};
+      for (const auto& entityId : scene()->GetSceneHierarchy()) {
+        Entity entity = {entityId, scene().get()};
         if (entity.GetParent()) {
           continue;
         }
@@ -721,9 +736,9 @@ void EditorLayer::OnBeginPresent() {
       if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
           entt::entity dropped = *static_cast<entt::entity*>(payload->Data);
-          Entity dropped_entity = {dropped, scene_.get()};
+          Entity dropped_entity = {dropped, scene().get()};
           if (dropped_entity.parent_handle() != entt::null) {
-            scene_->UnlinkEntities(dropped_entity.parent_handle(), dropped);
+            scene()->UnlinkEntities(dropped_entity.parent_handle(), dropped);
             scene_dirty_ = true;
           }
         }
@@ -750,7 +765,7 @@ void EditorLayer::OnBeginPresent() {
 
     if (ImGui::BeginPopup("right_click_hierarchy")) {
       if (ImGui::MenuItem("Add Empty Entity")) {
-        scene_->CreateEntity();
+        scene()->CreateEntity();
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
@@ -760,7 +775,7 @@ void EditorLayer::OnBeginPresent() {
 
   static bool componentsOpen = true;
   if (ImGui::Begin("Components", &componentsOpen) && has_selected_entity_) {
-    Entity entity = {selected_entity_, scene_.get()};
+    Entity entity = {selected_entity_, scene().get()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
     if (ImGui::InputText("##", &tag.name, ImGuiInputTextFlags_AutoSelectAll)) {
       if (tag.name[0] == ' ') {
@@ -947,6 +962,7 @@ void EditorLayer::OnBeginPresent() {
       }
       ImGui::EndPopup();
     }
+
     // Create skybox popup
 
     // Import file into the current asset browser directory
@@ -1046,6 +1062,8 @@ void EditorLayer::OnBeginPresent() {
     ImGui::SliderFloat("##tilesize", &tile_size, 48.0f, 128.0f, "");
 
     ImGui::Separator();
+
+    static bool open_script_popup = false;
 
     // Content area
     if (ImGui::BeginChild("asset_content", ImVec2(0, 0), ImGuiChildFlags_None)) {
@@ -1446,12 +1464,18 @@ void EditorLayer::OnBeginPresent() {
       }
 
       // Right-click on empty space
+      static bool open_folder_popup = false;
       if (ImGui::BeginPopupContextWindow("##browser_ctx", ImGuiPopupFlags_NoOpenOverItems)) {
         if (ImGui::BeginMenu("Create")) {
           if (ImGui::MenuItem("Scene")) {
             NewScene();
           }
           if (ImGui::MenuItem("Folder")) {
+            open_folder_popup = true;
+            ImGui::CloseCurrentPopup();
+          }
+          if (ImGui::MenuItem("C# Script")) {
+            open_script_popup = true;
             ImGui::CloseCurrentPopup();
           }
           if (ImGui::MenuItem("Skybox")) {
@@ -1470,8 +1494,62 @@ void EditorLayer::OnBeginPresent() {
         }
         ImGui::EndPopup();
       }
+      if (open_folder_popup) {
+        ImGui::OpenPopup("NewFolderPopup");
+        open_folder_popup = false;
+      }
     }
     ImGui::EndChild();
+
+    // New C# script popup (must be in same scope as OpenPopup)
+    if (open_script_popup) {
+      ImGui::OpenPopup("NewScriptPopup");
+      open_script_popup = false;
+    }
+    static char new_script_name[128] = "NewScript";
+    if (ImGui::BeginPopup("NewScriptPopup")) {
+      ImGui::Text("Script name:");
+      ImGui::InputText("##scriptname", new_script_name, sizeof(new_script_name));
+      if (ImGui::Button("Create") && new_script_name[0] != '\0') {
+        namespace fs = std::filesystem;
+        auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+        if (physical_app.has_value()) {
+          fs::path base = fs::absolute(*physical_app);
+          if (!browser_current_dir_.empty()) {
+            base = base / browser_current_dir_;
+          }
+          fs::path script_path = base / (std::string(new_script_name) + ".cs");
+          if (!fs::exists(script_path)) {
+            VfsFile tmpl = Engine::vfs()->Open("/engine/templates/script.cs.template");
+            std::string content;
+            if (tmpl) {
+              content = std::string(reinterpret_cast<const char*>(tmpl.Data()), tmpl.Size());
+            } else {
+              content = "using WieselEngine;\n\npublic class {{CLASS_NAME}} : MonoBehavior\n{\n}\n";
+            }
+            std::string class_name = new_script_name;
+            size_t pos = 0;
+            while ((pos = content.find("{{CLASS_NAME}}", pos)) != std::string::npos) {
+              content.replace(pos, 14, class_name);
+              pos += class_name.length();
+            }
+            std::ofstream out(script_path);
+            if (out.is_open()) {
+              out << content;
+            }
+            ScanProjectAssets();
+          }
+        }
+        new_script_name[0] = '\0';
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel")) {
+        new_script_name[0] = '\0';
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
   }
   ImGui::End();
 
@@ -1603,7 +1681,7 @@ void EditorLayer::OnBeginPresent() {
         ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Failed: %zu", asset_stats.failed);
       }
 
-      if (scene_) {
+      if (scene()) {
         ImGui::SeparatorText("Render Pipelines");
 
         // Collect unique pipelines and their cameras
@@ -1614,14 +1692,14 @@ void EditorLayer::OnBeginPresent() {
         };
         std::map<RenderPipeline*, PipelineInfo> pipeline_map;
 
-        auto default_pipeline = scene_->GetDefaultPipeline();
+        auto default_pipeline = scene()->GetDefaultPipeline();
         if (default_pipeline) {
           pipeline_map[default_pipeline.get()] = {default_pipeline.get(), {}, true};
         }
 
-        for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent, TagComponent>()) {
-          auto& cam = scene_->GetComponent<CameraComponent>(entity);
-          auto& tag = scene_->GetComponent<TagComponent>(entity);
+        for (const auto& entity : scene()->GetAllEntitiesWith<CameraComponent, TagComponent>()) {
+          auto& cam = scene()->GetComponent<CameraComponent>(entity);
+          auto& tag = scene()->GetComponent<TagComponent>(entity);
           RenderPipeline* pl = cam.render_pipeline
               ? cam.render_pipeline.get()
               : default_pipeline.get();
@@ -1657,19 +1735,19 @@ void EditorLayer::OnBeginPresent() {
             // in edit mode since ECS camera graphs may have stale data.
             std::vector<PassTimingResult> timings;
             if (editor_state_ == EditorState::Edit) {
-              auto ext_graph = scene_->GetExternalRenderGraph();
+              auto ext_graph = scene()->GetExternalRenderGraph();
               if (ext_graph) {
                 timings = ext_graph->GetPassTimings();
               }
             } else {
-              for (const auto& entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-                auto& cam = scene_->GetComponent<CameraComponent>(entity);
+              for (const auto& entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+                auto& cam = scene()->GetComponent<CameraComponent>(entity);
                 RenderPipeline* cam_pl = cam.render_pipeline
                     ? cam.render_pipeline.get()
                     : default_pipeline.get();
                 if (cam_pl != ptr) continue;
 
-                auto graph = scene_->GetRenderGraph(entity);
+                auto graph = scene()->GetRenderGraph(entity);
                 if (graph) {
                   timings = graph->GetPassTimings();
                 }
@@ -1677,7 +1755,7 @@ void EditorLayer::OnBeginPresent() {
               }
               // Fallback to external render graph if no ECS camera graph found
               if (timings.empty()) {
-                auto ext_graph = scene_->GetExternalRenderGraph();
+                auto ext_graph = scene()->GetExternalRenderGraph();
                 if (ext_graph) {
                   timings = ext_graph->GetPassTimings();
                 }
@@ -1747,7 +1825,7 @@ void EditorLayer::OnBeginPresent() {
         AutoSave();
         TakeSnapshot();
         editor_state_ = EditorState::Playing;
-        scene_->ResetFirstUpdate();
+        scene()->ResetFirstUpdate();
         ImGui::SetWindowFocus("Game");
         changed = true;
       }
@@ -1823,7 +1901,7 @@ void EditorLayer::OnBeginPresent() {
             bool selected = (i == resolution_preset_index_);
             if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
               resolution_preset_index_ = i;
-              scene_->SetRenderResolution(kResolutionPresets[i].size);
+              scene()->SetRenderResolution(kResolutionPresets[i].size);
             }
             if (selected) ImGui::SetItemDefaultFocus();
           }
@@ -1837,12 +1915,12 @@ void EditorLayer::OnBeginPresent() {
         }
 
         ImGui::SeparatorText("Snap to Camera");
-        for (auto entity : scene_->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
-          auto& tag = scene_->GetComponent<TagComponent>(entity);
+        for (auto entity : scene()->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
+          auto& tag = scene()->GetComponent<TagComponent>(entity);
           bool is_piloting = (piloting_camera_ == entity);
           if (ImGui::Selectable(tag.name.c_str(), is_piloting)) {
-            auto& cam = scene_->GetComponent<CameraComponent>(entity);
-            auto& tc = scene_->GetComponent<TransformComponent>(entity);
+            auto& cam = scene()->GetComponent<CameraComponent>(entity);
+            auto& tc = scene()->GetComponent<TransformComponent>(entity);
 
             // Snap editor camera to this entity
             editor_camera_transform_.SetPosition(tc.GetPosition());
@@ -1887,7 +1965,7 @@ void EditorLayer::OnBeginPresent() {
 
     // Handle viewport resize
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    if (scene_->GetRenderResolution().x <= 0) {
+    if (scene()->GetRenderResolution().x <= 0) {
       // Free Aspect: editor camera tracks panel size (old behavior)
       uint32_t newW = static_cast<uint32_t>(avail.x);
       uint32_t newH = static_cast<uint32_t>(avail.y);
@@ -1992,7 +2070,7 @@ void EditorLayer::OnBeginPresent() {
             editor_camera_transform_.Move(cam_right * speed);
           }
           if (ImGui::IsKeyDown(ImGuiKey_A)) {
-            editor_camera_transform_.Move(cam_right * speed);
+            editor_camera_transform_.Move(-cam_right * speed);
           }
           if (ImGui::IsKeyDown(ImGuiKey_E)) {
             editor_camera_transform_.Move(0, speed, 0);
@@ -2024,14 +2102,14 @@ void EditorLayer::OnBeginPresent() {
       }
 
       // Follow piloted camera (read-only — editor follows entity, doesn't modify it)
-      if (piloting_camera_ != entt::null && scene_->HasEntity(piloting_camera_)) {
-        auto& tc = scene_->GetComponent<TransformComponent>(piloting_camera_);
+      if (piloting_camera_ != entt::null && scene()->HasEntity(piloting_camera_)) {
+        auto& tc = scene()->GetComponent<TransformComponent>(piloting_camera_);
         editor_camera_transform_.SetPosition(tc.GetPosition());
         editor_camera_transform_.SetRotation(tc.GetRotation());
         editor_yaw_ = tc.GetRotation().y;
         editor_pitch_ = tc.GetRotation().x;
 
-        auto& cam = scene_->GetComponent<CameraComponent>(piloting_camera_);
+        auto& cam = scene()->GetComponent<CameraComponent>(piloting_camera_);
         editor_camera_.background_color = cam.background_color;
         editor_camera_.near_plane = cam.near_plane;
         editor_camera_.far_plane = cam.far_plane;
@@ -2060,7 +2138,7 @@ void EditorLayer::OnBeginPresent() {
         glm::mat4 view = editor_camera_.view_matrix;
         glm::mat4 proj = editor_camera_.projection;
         proj[1][1] *= -1;
-        TransformComponent& transform = scene_->GetComponent<TransformComponent>(selected_entity_);
+        TransformComponent& transform = scene()->GetComponent<TransformComponent>(selected_entity_);
         glm::mat4 model = transform.GetTransformMatrix();
         ImGuizmo::SetOrthographic(false);
         ImGuizmo::SetDrawlist();
@@ -2103,8 +2181,8 @@ void EditorLayer::OnBeginPresent() {
           drawList->AddLine(sa, sb, color, 1.5f);
         };
 
-        if (scene_->HasComponent<BoxColliderComponent>(selected_entity_)) {
-          auto& box = scene_->GetComponent<BoxColliderComponent>(selected_entity_);
+        if (scene()->HasComponent<BoxColliderComponent>(selected_entity_)) {
+          auto& box = scene()->GetComponent<BoxColliderComponent>(selected_entity_);
           glm::vec3 center = transform.GetPosition() + box.offset;
           glm::vec3 h = box.half_extents;
           glm::vec3 corners[8] = {
@@ -2132,8 +2210,8 @@ void EditorLayer::OnBeginPresent() {
           drawLine3D(corners[3], corners[7], col);
         }
 
-        if (scene_->HasComponent<SphereColliderComponent>(selected_entity_)) {
-          auto& sphere = scene_->GetComponent<SphereColliderComponent>(selected_entity_);
+        if (scene()->HasComponent<SphereColliderComponent>(selected_entity_)) {
+          auto& sphere = scene()->GetComponent<SphereColliderComponent>(selected_entity_);
           glm::vec3 center = transform.GetPosition() + sphere.offset;
           float r = sphere.radius;
           ImU32 col = IM_COL32(0, 255, 0, 200);
@@ -2161,8 +2239,8 @@ void EditorLayer::OnBeginPresent() {
 
       // 2D canvas element selection highlight
       if (has_selected_entity_ &&
-          scene_->HasComponent<RectangleTransformComponent>(selected_entity_)) {
-        auto& rt = scene_->GetComponent<RectangleTransformComponent>(selected_entity_);
+          scene()->HasComponent<RectangleTransformComponent>(selected_entity_)) {
+        auto& rt = scene()->GetComponent<RectangleTransformComponent>(selected_entity_);
         float renderW = static_cast<float>(editorImage->width_);
         float renderH = static_cast<float>(editorImage->height_);
         float scaleX = drawSize.x / renderW;
@@ -2240,7 +2318,7 @@ void EditorLayer::OnBeginPresent() {
             bool selected = (i == resolution_preset_index_);
             if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
               resolution_preset_index_ = i;
-              scene_->SetRenderResolution(kResolutionPresets[i].size);
+              scene()->SetRenderResolution(kResolutionPresets[i].size);
             }
             if (selected) ImGui::SetItemDefaultFocus();
           }
@@ -2251,8 +2329,8 @@ void EditorLayer::OnBeginPresent() {
       if (editor_state_ == EditorState::Playing) {
         // Check if any camera exists
         bool has_camera = false;
-        for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-          auto& cam = scene_->GetComponent<CameraComponent>(entity);
+        for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+          auto& cam = scene()->GetComponent<CameraComponent>(entity);
           if (cam.enabled) { has_camera = true; break; }
         }
 
@@ -2266,10 +2344,10 @@ void EditorLayer::OnBeginPresent() {
           ImGui::TextDisabled("%s", text);
         } else {
         ImVec2 avail = ImGui::GetContentRegionAvail();
-        if (scene_->GetRenderResolution().x <= 0) {
+        if (scene()->GetRenderResolution().x <= 0) {
           // Free Aspect: game camera tracks panel size (old behavior)
-          for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-            auto& cam = scene_->GetComponent<CameraComponent>(entity);
+          for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+            auto& cam = scene()->GetComponent<CameraComponent>(entity);
             if (!cam.enabled) continue;
             uint32_t w = static_cast<uint32_t>(avail.x);
             uint32_t h = static_cast<uint32_t>(avail.y);
@@ -2341,7 +2419,7 @@ void EditorLayer::OnPostPresent() {
   Renderer* renderer = Engine::renderer().get();
   entt::entity picked;
   if (renderer->ExecuteEntityPick(picked)) {
-    if (picked != entt::null && scene_->GetRegistry().valid(picked)) {
+    if (picked != entt::null && scene()->GetRegistry().valid(picked)) {
       selected_entity_ = picked;
       has_selected_entity_ = true;
     } else if (pending_pick_ndc_.x >= -1.0f) {
@@ -2353,8 +2431,8 @@ void EditorLayer::OnPostPresent() {
       entt::entity best = entt::null;
       float best_depth = std::numeric_limits<float>::max();
 
-      for (auto entity : scene_->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
-        auto& tc = scene_->GetComponent<TransformComponent>(entity);
+      for (auto entity : scene()->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
+        auto& tc = scene()->GetComponent<TransformComponent>(entity);
         glm::vec4 clip = vp * glm::vec4(tc.GetPosition(), 1.0f);
         if (clip.w <= 0.0f) continue;
         glm::vec3 ndc = glm::vec3(clip) / clip.w;
@@ -2389,11 +2467,11 @@ void EditorLayer::OnPostPresent() {
     pending_pick_ndc_ = {-2, -2};  // reset
   }
 
-  scene_->ProcessDestroyQueue();
+  Engine::scene_manager().EndFrame();
 }
 
 void EditorLayer::TakeSnapshot() {
-  SceneSerializer serializer(scene_);
+  SceneSerializer serializer(scene());
   play_mode_snapshot_ = serializer.SerializeToString();
 }
 
@@ -2403,21 +2481,21 @@ void EditorLayer::RestoreSnapshot() {
 
   ClearScene();
 
-  SceneSerializer serializer(scene_);
+  SceneSerializer serializer(scene());
   serializer.DeserializeFromString(play_mode_snapshot_);
   play_mode_snapshot_.clear();
 
-  scene_->InvalidateRenderGraphs();
+  scene()->InvalidateRenderGraphs();
 
   // Setup camera components that were deserialized
-  for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-    auto& cam = scene_->GetComponent<CameraComponent>(entity);
+  for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = scene()->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
-  scene_->ResetPhysicsWorld();
-  scene_->ResetScriptStates();
-  scene_->ResetFirstUpdate();
+  scene()->ResetPhysicsWorld();
+  scene()->ResetScriptStates();
+  scene()->ResetFirstUpdate();
 }
 
 void EditorLayer::OnPrePresent() {
@@ -2444,7 +2522,7 @@ void EditorLayer::OnPrePresent() {
       // Render editor camera
       PROFILE_PLOT("Scene Width", static_cast<double>(editor_camera_.viewport_size.x));
       PROFILE_PLOT("Scene Height", static_cast<double>(editor_camera_.viewport_size.y));
-      scene_->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
+      scene()->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
       PROFILE_FRAME_MARK_NAMED("Scene");
 
       // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
@@ -2460,14 +2538,14 @@ void EditorLayer::OnPrePresent() {
     if (game_panel_visible_) {
       PROFILE_FRAME_MARK_NAMED("Game");
       // Render ECS cameras (sets camera_ to ECS camera for BeginPresent)
-      scene_->Render();
+      scene()->Render();
     }
   } else {
     PROFILE_FRAME_MARK_NAMED("Scene");
     // EDIT MODE: Only editor camera renders.
     // camera_ will point to editor camera after RenderFromExternal.
     // BeginPresent/EndPresent handle its transitions automatically.
-    scene_->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
+    scene()->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
   }
 }
 
@@ -2475,13 +2553,13 @@ void EditorLayer::UpdateHierarchyOrder() {
   if (hierarchy_data_.move_from == entt::null || hierarchy_data_.move_to == entt::null) {
     return;
   }
-  Entity from_entity = {hierarchy_data_.move_from, scene_.get()};
-  Entity to_entity = {hierarchy_data_.move_to, scene_.get()};
-  auto& hierarchy = scene_->GetSceneHierarchy();
+  Entity from_entity = {hierarchy_data_.move_from, scene().get()};
+  Entity to_entity = {hierarchy_data_.move_to, scene().get()};
+  auto& hierarchy = scene()->GetSceneHierarchy();
   if (hierarchy_data_.bottom_part) {
     // todo move hierarchy order on childs
     if (from_entity.parent_handle() != entt::null) {
-      scene_->UnlinkEntities(from_entity.parent_handle(), hierarchy_data_.move_from);
+      scene()->UnlinkEntities(from_entity.parent_handle(), hierarchy_data_.move_from);
     }
     std::erase(hierarchy, hierarchy_data_.move_from);
     auto insert_pos = std::ranges::find(hierarchy, hierarchy_data_.move_to) + 1;
@@ -2491,7 +2569,7 @@ void EditorLayer::UpdateHierarchyOrder() {
       hierarchy.insert(insert_pos, hierarchy_data_.move_from);
     }
   } else {
-    scene_->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);
+    scene()->LinkEntities(hierarchy_data_.move_to, hierarchy_data_.move_from);
   }
   hierarchy_data_.move_from = entt::null;
   hierarchy_data_.move_to = entt::null;
@@ -2598,7 +2676,7 @@ void EditorLayer::RenderCreateSkyboxPopup() {
         std::string handle_str = j["asset_handle"].get<std::string>();
         AssetHandle new_handle = AssetHandle::FromString(handle_str);
         if (new_handle.IsValid()) {
-          scene_->SetSkyboxAsset(new_handle);
+          scene()->SetSkyboxAsset(new_handle);
           scene_dirty_ = true;
         }
       }
@@ -2888,7 +2966,7 @@ void EditorLayer::RenderCreateSpriteAnimPopup() {
 }
 
 void EditorLayer::RenderProjectSettingsPopup() {
-  if (!project_) return;
+  if (!project()) return;
 
   if (show_project_settings_) {
     ImGui::OpenPopup("Project Settings");
@@ -2902,7 +2980,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
   bool popup_open = true;
   if (ImGui::BeginPopupModal("Project Settings", &popup_open,
                               ImGuiWindowFlags_NoScrollbar)) {
-    auto& proj_settings = project_->GetSettings();
+    auto& proj_settings = project()->GetSettings();
     bool changed = false;
 
     const char* categories[] = {"Scene", "Rendering", "Input"};
@@ -2954,16 +3032,16 @@ void EditorLayer::RenderProjectSettingsPopup() {
 
       ImGui::SeparatorText("Skybox");
       {
-        AssetHandle skybox_handle = scene_->GetSkyboxAsset();
+        AssetHandle skybox_handle = scene()->GetSkyboxAsset();
         if (AssetCombo(PrefixLabel("Skybox").c_str(), AssetType::Skybox, skybox_handle, true, "(Default)")) {
-          scene_->SetSkyboxAsset(skybox_handle);
+          scene()->SetSkyboxAsset(skybox_handle);
           scene_dirty_ = true;
         }
       }
 
       ImGui::SeparatorText("Physics");
       {
-        auto& physics = scene_->GetPhysicsWorld();
+        auto& physics = scene()->GetPhysicsWorld();
         glm::vec3 gravity = physics.GetGravity();
         if (ImGui::DragFloat3(PrefixLabel("Gravity").c_str(), &gravity.x, 0.1f)) {
           physics.SetGravity(gravity);
@@ -3352,7 +3430,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
     ImGui::EndChild();
 
     if (changed) {
-      project_->Save();
+      project()->Save();
     }
 
     ImGui::EndPopup();
@@ -3369,7 +3447,7 @@ void EditorLayer::RenderMainMenuBar() {
         if (ImGui::MenuItem("Open Project...")) {
           OpenProject();
         }
-        if (ImGui::MenuItem("Save Project", nullptr, false, project_ != nullptr)) {
+        if (ImGui::MenuItem("Save Project", nullptr, false, project() != nullptr)) {
           SaveProject();
         }
         auto recent = RecentProjects::Load();
@@ -3393,7 +3471,7 @@ void EditorLayer::RenderMainMenuBar() {
 
       ImGui::Separator();
 
-      if (ImGui::MenuItem("New Scene", nullptr, false, project_ != nullptr)) {
+      if (ImGui::MenuItem("New Scene", nullptr, false, project() != nullptr)) {
         NewScene();
       }
       if (ImGui::MenuItem("Save Scene", "Ctrl+S", false,
@@ -3412,7 +3490,7 @@ void EditorLayer::RenderMainMenuBar() {
       if (ImGui::MenuItem("Clear Scene")) {
         ClearScene();
       }
-      if (ImGui::MenuItem("Project Settings", nullptr, false, project_ != nullptr)) {
+      if (ImGui::MenuItem("Project Settings", nullptr, false, project() != nullptr)) {
         show_project_settings_ = true;
       }
       ImGui::EndMenu();
@@ -3442,8 +3520,8 @@ void EditorLayer::RenderMainMenuBar() {
       std::string asset_summary = std::format("[{}/{}]", asset_stats.loaded, asset_stats.total);
 
       std::string info;
-      if (project_) {
-        info = project_->GetSettings().name;
+      if (project()) {
+        info = project()->GetSettings().name;
         if (!current_scene_path_.empty()) {
           info += " - " + current_scene_path_.filename().string();
         }
@@ -3535,17 +3613,17 @@ void EditorLayer::NewProject() {
     if (Project::Create(dir, name)) {
       auto proj = Project::Load(dir / (name + ".wiesel"));
       if (proj) {
-        project_ = std::move(proj);
-        Project::SetActive(project_.get());
+        Engine::SetProject(std::move(proj));
+        auto project = Engine::project();
 
         // Mount project assets
         auto* vfs = Engine::vfs().get();
         vfs->Unmount("/app");
-        vfs->Mount("/app", project_->GetAssetsDirectory().string());
+        vfs->Mount("/app", project->GetAssetsDirectory().string());
 
         // Create the default scene file
         ClearScene();
-        current_scene_path_ = project_->GetScenesDirectory() / "main.wscene";
+        current_scene_path_ = project->GetScenesDirectory() / "main.wscene";
         SaveScene();
 
         ScanProjectAssets();
@@ -3567,10 +3645,11 @@ void EditorLayer::OpenProject() {
 }
 
 void EditorLayer::SaveProject() {
-  if (project_) {
+  auto project = Engine::project();
+  if (project) {
     // Capture current render options into project settings
     auto& settings = Engine::renderer()->options();
-    auto& opts = project_->GetSettings().render_options;
+    auto& opts = project->GetSettings().render_options;
     opts.ssao_enabled = settings.ssao_enabled;
     opts.bloom_enabled = settings.bloom_enabled;
     opts.bloom_threshold = settings.bloom_threshold;
@@ -3583,7 +3662,7 @@ void EditorLayer::SaveProject() {
     opts.aa_mode = static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
 
     // Save editor camera state
-    auto& ec = project_->GetSettings().editor_camera;
+    auto& ec = project->GetSettings().editor_camera;
     ec.position = editor_camera_transform_.GetPosition();
     ec.yaw = editor_yaw_;
     ec.pitch = editor_pitch_;
@@ -3593,20 +3672,21 @@ void EditorLayer::SaveProject() {
     ec.zoom_2d = editor_2d_zoom_;
     ec.fov = editor_camera_.field_of_view;
 
-    project_->Save();
+    project->Save();
     LOG_INFO("Project saved");
   }
 }
 
 void EditorLayer::NewScene() {
-  if (!project_) return;
+  auto project = Engine::project();
+  if (!project) return;
 
   // Auto-save current scene before creating new one
   AutoSave();
 
   // Generate a unique name
   namespace fs = std::filesystem;
-  fs::path scenes_dir = project_->GetScenesDirectory();
+  fs::path scenes_dir = project->GetScenesDirectory();
   fs::create_directories(scenes_dir);
 
   std::string base_name = "new_scene";
@@ -3629,25 +3709,26 @@ void EditorLayer::OpenSceneFromPath(const std::filesystem::path& path) {
 
   ClearScene();
 
-  SceneSerializer serializer(scene_);
+  SceneSerializer serializer(scene());
   if (serializer.Deserialize(path)) {
     current_scene_path_ = std::filesystem::absolute(path);
     scene_dirty_ = false;
-    scene_->InvalidateRenderGraphs();
+    scene()->InvalidateRenderGraphs();
 
     // Setup camera components that were deserialized
-    auto view = scene_->GetAllEntitiesWith<CameraComponent>();
+    auto view = scene()->GetAllEntitiesWith<CameraComponent>();
     for (auto entity : view) {
-      auto& cam = scene_->GetComponent<CameraComponent>(entity);
+      auto& cam = scene()->GetComponent<CameraComponent>(entity);
       Engine::renderer()->SetupCameraComponent(cam);
     }
 
     // Track last opened scene in project
-    if (project_) {
+    auto project = Engine::project();
+    if (project) {
       auto rel = std::filesystem::relative(current_scene_path_,
-                                           project_->GetAssetsDirectory());
-      project_->GetSettings().last_scene = rel.generic_string();
-      project_->Save();
+                                           project->GetAssetsDirectory());
+      project->GetSettings().last_scene = rel.generic_string();
+      project->Save();
     }
 
     UpdateWindowTitle();
@@ -3664,7 +3745,7 @@ void EditorLayer::SaveScene() {
   // Ensure parent directory exists
   std::filesystem::create_directories(current_scene_path_.parent_path());
 
-  SceneSerializer serializer(scene_);
+  SceneSerializer serializer(scene());
   if (serializer.Serialize(current_scene_path_)) {
     scene_dirty_ = false;
     UpdateWindowTitle();
@@ -3672,15 +3753,16 @@ void EditorLayer::SaveScene() {
     auto_save_timer_ = 0.0f;
 
     // Add to project scene list and register with SceneManager
-    if (project_) {
+    auto project = Engine::project();
+    if (project) {
       auto rel = std::filesystem::relative(current_scene_path_,
-                                           project_->GetAssetsDirectory());
-      project_->AddScene(rel.generic_string());
-      project_->GetSettings().last_scene = rel.generic_string();
-      project_->Save();
+                                           project->GetAssetsDirectory());
+      project->AddScene(rel.generic_string());
+      project->GetSettings().last_scene = rel.generic_string();
+      project->Save();
 
       std::string scene_name = current_scene_path_.stem().string();
-      SceneManager::Get().RegisterScene(scene_name, current_scene_path_);
+      Engine::scene_manager().RegisterScene(scene_name, current_scene_path_);
 
       // Register scene asset if not already in asset browser
       auto vfs_path = "/app/" + rel.generic_string();
@@ -3708,14 +3790,15 @@ void EditorLayer::SaveSceneAs() {
         }
 
         // If a project is open, ensure the scene is saved inside the assets dir
-        if (project_) {
+        auto project = Engine::project();
+        if (project) {
           namespace fs = std::filesystem;
           fs::path abs = fs::absolute(path);
-          fs::path assets = fs::absolute(project_->GetAssetsDirectory());
+          fs::path assets = fs::absolute(project->GetAssetsDirectory());
           auto rel = fs::relative(abs, assets);
           if (rel.string().find("..") != std::string::npos) {
             // Outside project assets - redirect into assets/scenes/
-            path = project_->GetScenesDirectory() / path.filename();
+            path = project->GetScenesDirectory() / path.filename();
           }
         }
 
@@ -3738,23 +3821,24 @@ void EditorLayer::ClearScene() {
   CleanupThumbnailCache();
 
   // Remove all entities
-  auto& hierarchy = scene_->GetSceneHierarchy();
+  auto& hierarchy = scene()->GetSceneHierarchy();
   std::vector<entt::entity> to_remove(hierarchy.begin(), hierarchy.end());
   for (auto entity_id : to_remove) {
-    Entity entity{entity_id, scene_.get()};
-    scene_->RemoveEntity(entity);
+    Entity entity{entity_id, scene().get()};
+    scene()->RemoveEntity(entity);
   }
-  scene_->ProcessDestroyQueue();
+  scene()->ProcessDestroyQueue();
 
-  scene_->ResetPhysicsWorld();
-  scene_->InvalidateRenderGraphs();
+  scene()->ResetPhysicsWorld();
+  scene()->InvalidateRenderGraphs();
   scene_dirty_ = false;
 }
 
 void EditorLayer::UpdateWindowTitle() {
   std::string title = "Wiesel Editor";
-  if (project_) {
-    title += " - " + project_->GetSettings().name;
+  auto project = Engine::project();
+  if (project) {
+    title += " - " + project->GetSettings().name;
   }
   if (editing_prefab_) {
     title += " - [Prefab] " + editing_prefab_path_.filename().string();
@@ -3770,18 +3854,19 @@ void EditorLayer::UpdateWindowTitle() {
 void EditorLayer::AutoSave() {
   if (!scene_dirty_ || current_scene_path_.empty()) return;
 
-  SceneSerializer serializer(scene_);
+  SceneSerializer serializer(scene());
   if (serializer.Serialize(current_scene_path_)) {
     scene_dirty_ = false;
     auto_save_timer_ = 0.0f;
     UpdateWindowTitle();
 
-    if (project_) {
-      auto rel = std::filesystem::relative(current_scene_path_,
-                                           project_->GetAssetsDirectory());
-      project_->AddScene(rel.generic_string());
-      project_->GetSettings().last_scene = rel.generic_string();
-      project_->Save();
+    auto project = Engine::project();
+    if (project) {
+      std::filesystem::path rel = std::filesystem::relative(
+          current_scene_path_, project->GetAssetsDirectory());
+      project->AddScene(rel.generic_string());
+      project->GetSettings().last_scene = rel.generic_string();
+      project->Save();
     }
 
     LOG_DEBUG("Auto-saved scene: {}", current_scene_path_.filename().string());
@@ -3794,24 +3879,24 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   auto proj = Project::Load(path);
   if (!proj) return;
 
-  project_ = std::move(proj);
-  Project::SetActive(project_.get());
+  Engine::SetProject(std::move(proj));
+  auto project = Engine::project();
 
   // Remove startup FPS cap now that a project is loaded
   app_.SetMaxFPS(0.0f);
 
-  ProjectLoader::MountProject(*project_);
-  ProjectLoader::ScanAssets(*project_);
+  ProjectLoader::MountProject(*project);
+  ProjectLoader::ScanAssets(*project);
   Engine::script_manager().Reload();
-  ProjectLoader::ApplyRenderOptions(*project_);
-  ProjectLoader::ApplyInputSettings(*project_);
+  ProjectLoader::ApplyRenderOptions(*project);
+  ProjectLoader::ApplyInputSettings(*project);
 
   // Open last scene or start scene
-  const auto& last = project_->GetSettings().last_scene;
-  const auto& start = project_->GetSettings().start_scene;
-  const auto& to_open = !last.empty() ? last : start;
+  const std::string& last = project->GetSettings().last_scene;
+  const std::string& start = project->GetSettings().start_scene;
+  const std::string& to_open = !last.empty() ? last : start;
   if (!to_open.empty()) {
-    auto scene_path = project_->GetAssetsDirectory() / to_open;
+    auto scene_path = project->GetAssetsDirectory() / to_open;
     if (fs::exists(scene_path)) {
       OpenSceneFromPath(scene_path);
     }
@@ -3819,7 +3904,8 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
 
   // Restore editor camera state
   {
-    auto& ec = project_->GetSettings().editor_camera;
+    ProjectSettings::EditorCameraState& ec =
+        project->GetSettings().editor_camera;
     editor_camera_transform_.SetPosition(ec.position);
     editor_camera_transform_.SetRotation(ec.pitch, ec.yaw, 0.0f);
     editor_yaw_ = ec.yaw;
@@ -3845,16 +3931,17 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   UpdateWindowTitle();
 #ifdef WIESEL_DISCORD_RPC
   Engine::discord_rpc().SetPresence(
-      "Working on " + project_->GetSettings().name, "Editing",
+      "Working on " + project->GetSettings().name, "Editing",
       "wiesel_logo", "Wiesel Engine");
 #endif
-  LOG_INFO("Opened project: {}", project_->GetSettings().name);
+  LOG_INFO("Opened project: {}", project->GetSettings().name);
 }
 
 void EditorLayer::ScanProjectAssets() {
-  if (project_) {
-    ProjectLoader::ScanAssets(*project_);
-    project_->Save();
+  auto project = Engine::project();
+  if (project) {
+    ProjectLoader::ScanAssets(*project);
+    project->Save();
 
     // Remove thumbnail cache entries for assets that no longer exist
     for (auto it = thumbnail_cache_.begin(); it != thumbnail_cache_.end();) {
@@ -3869,9 +3956,9 @@ void EditorLayer::ScanProjectAssets() {
     }
 
     // Clear stale skybox reference if its asset was deleted
-    AssetHandle sky = scene_->GetSkyboxAsset();
+    AssetHandle sky = scene()->GetSkyboxAsset();
     if (sky.IsValid() && !Engine::asset_manager().HasAsset(sky)) {
-      scene_->SetSkyboxAsset({});
+      scene()->SetSkyboxAsset({});
     }
   }
 }
@@ -3902,11 +3989,11 @@ void EditorLayer::RenderStartupDialog() {
   ImGui::Separator();
   ImGui::Spacing();
 
-  auto recent = RecentProjects::Load();
+  std::vector<std::string> recent = RecentProjects::Load();
   if (!recent.empty()) {
     ImGui::Text("Recent Projects:");
     ImGui::Spacing();
-    for (const auto& path : recent) {
+    for (const std::string& path : recent) {
       namespace fs = std::filesystem;
       std::string name = fs::path(path).stem().string();
       std::string dir = fs::path(path).parent_path().string();
@@ -3934,7 +4021,7 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
 
   // Clear scene and load prefab as a temporary scene
   ClearScene();
-  Entity root = Prefab::InstantiateFromFile(scene_, path);
+  Entity root = Prefab::InstantiateFromFile(scene(), path);
   if (root.handle() == entt::null) {
     LOG_ERROR("Failed to open prefab for editing: {}", path.string());
     // Restore previous scene
@@ -3949,11 +4036,11 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
   current_scene_path_.clear();
   scene_dirty_ = false;
   UpdateWindowTitle();
-  scene_->InvalidateRenderGraphs();
+  scene()->InvalidateRenderGraphs();
 
   // Setup camera components
-  for (auto entity : scene_->GetAllEntitiesWith<CameraComponent>()) {
-    auto& cam = scene_->GetComponent<CameraComponent>(entity);
+  for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = scene()->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
@@ -3964,13 +4051,13 @@ void EditorLayer::SavePrefab() {
   if (!editing_prefab_ || editing_prefab_path_.empty()) return;
 
   // Find the root entity (first in hierarchy - the prefab root)
-  auto& hierarchy = scene_->GetSceneHierarchy();
+  auto& hierarchy = scene()->GetSceneHierarchy();
   if (hierarchy.empty()) {
     LOG_ERROR("Cannot save prefab: scene is empty");
     return;
   }
 
-  Entity root = {hierarchy[0], scene_.get()};
+  Entity root = {hierarchy[0], scene().get()};
   if (Prefab::SaveToFile(root, editing_prefab_path_)) {
     scene_dirty_ = false;
     LOG_INFO("Prefab saved: {}", editing_prefab_path_.string());

@@ -36,19 +36,17 @@ void DemoApplication::Init() {
   // Register native C++ behaviors
   RegisterNativeBehavior<NativeLightBob>("NativeLightBob");
 
-  std::shared_ptr<Scene> scene = std::make_shared<Scene>();
   if (enable_editor_) {
     PushLayer(std::make_shared<ImGuiLayer>());
     PushLayer(std::make_shared<ConsoleLayer>());
-    PushLayer(std::make_shared<EditorLayer>(*this, scene));
+    PushLayer(std::make_shared<EditorLayer>(*this));
   } else {
     // Dev/release mode: load project from CLI arg, then run
     const auto& project_path = Engine::properties().project_path;
     if (!project_path.empty()) {
-      LoadProjectAndScene(project_path, scene);
+      LoadProjectAndScene(project_path);
     }
-    SceneManager::Get().SetActiveScene(scene);
-    PushLayer(std::make_shared<SceneLayer>(scene));
+    PushLayer(std::make_shared<SceneLayer>());
     PushLayer(std::make_shared<ImGuiLayer>());
     PushLayer(std::make_shared<ConsoleLayer>());
   }

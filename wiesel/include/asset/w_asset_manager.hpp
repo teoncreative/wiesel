@@ -5,9 +5,9 @@
 #pragma once
 
 #include "asset/w_asset_handle.hpp"
+#include "asset/w_asset_loader.hpp"
 #include "util/w_logger.hpp"
 #include "util/w_utils.hpp"
-#include "w_engine.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
@@ -19,6 +19,7 @@ struct AssetMetadata {
   std::string virtual_source_path;
 
   std::atomic<AssetLoadState> load_state = AssetLoadState::Unloaded;
+  mutable std::atomic<float> load_progress{0.0f};  // 0.0-1.0 sub-progress within a single asset
 
   bool IsValid() const {
     return handle.IsValid() && type != AssetType::None;
@@ -83,6 +84,18 @@ class AssetManager {
   AssetHandle RegisterAndStore(const std::string& name, AssetType type,
                                const std::string& virtual_source_path, std::shared_ptr<T> resource);
 
+  // Asset loaders -/ register per-type loaders for sync/async loading
+  void RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader);
+  IAssetLoader* GetLoader(AssetType type) const;
+
+  // Unified loading API
+  // Sync: blocks until loaded. Async: returns immediately, loads in background.
+  bool LoadSync(AssetHandle handle);
+  void LoadAsync(AssetHandle handle);
+
+  // Load all assets of a given type
+  void LoadAllOfType(AssetType type, bool async = false);
+
   // Lifecycle
 
   void Clear();
@@ -96,6 +109,7 @@ class AssetManager {
   std::unordered_map<AssetHandle, std::unique_ptr<AssetEntry>> registry_;
   std::unordered_map<std::string, AssetHandle> path_index_;
   std::unordered_map<std::string, AssetHandle> name_index_;
+  std::unordered_map<AssetType, std::shared_ptr<IAssetLoader>> loaders_;
 };
 
 // Template implementations
@@ -127,7 +141,8 @@ std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
     return nullptr;
   }
   if (!it->second->resource) {
-    Engine::LoadModelAsync(handle);
+    // Trigger async load via the registered loader
+    const_cast<AssetManager*>(this)->LoadAsync(handle);
     return nullptr;
   }
   return std::static_pointer_cast<T>(it->second->resource);

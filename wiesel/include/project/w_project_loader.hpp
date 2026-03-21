@@ -31,11 +31,11 @@ class ProjectLoader {
   // Apply input mappings from the project.
   static void ApplyInputSettings(Project& project);
 
-  // Load the project's start scene into the given scene object.
-  static bool LoadStartScene(Project& project, std::shared_ptr<Scene> scene);
+  // Load the project's start scene into the active scene.
+  static bool LoadStartScene(Project& project);
 
   // Convenience: do everything (mount, scan, scripts, options, start scene).
-  static bool LoadAll(Project& project, std::shared_ptr<Scene> scene);
+  static bool LoadAll(Project& project);
 
   // Utilities (used by editor for import/browser)
   static AssetType ExtToAssetType(const std::string& ext);

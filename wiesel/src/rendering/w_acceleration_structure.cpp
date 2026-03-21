@@ -10,10 +10,12 @@
 //
 
 #include "rendering/w_acceleration_structure.hpp"
+
+#include "asset/w_asset_manager.hpp"
 #include "rendering/w_deletion_queue.hpp"
 #include "rendering/w_renderer.hpp"
 #include "scene/w_scene.hpp"
-#include "asset/w_asset_manager.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 

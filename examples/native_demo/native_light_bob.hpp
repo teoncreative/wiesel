@@ -39,7 +39,7 @@ class NativeLightBob : public Wiesel::NativeBehavior {
 
     auto& transform = GetComponent<Wiesel::TransformComponent>();
     transform.position = {x, y, z};
-    transform.is_changed = true;
+    transform.MarkChanged();
   }
 
  private:

@@ -4,6 +4,9 @@
 
 #include "asset/w_asset_manager.hpp"
 
+#include "util/w_thread_pool.hpp"
+#include "w_engine.hpp"
+
 namespace Wiesel {
 
 const char* AssetTypeToString(AssetType type) {
@@ -225,6 +228,89 @@ void AssetManager::Clear() {
   registry_.clear();
   path_index_.clear();
   name_index_.clear();
+}
+
+void AssetManager::RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader) {
+  loaders_[type] = std::move(loader);
+}
+
+IAssetLoader* AssetManager::GetLoader(AssetType type) const {
+  auto it = loaders_.find(type);
+  if (it != loaders_.end()) {
+    return it->second.get();
+  }
+  return nullptr;
+}
+
+bool AssetManager::LoadSync(AssetHandle handle) {
+  auto it = registry_.find(handle);
+  if (it == registry_.end()) {
+    return false;
+  }
+  auto& meta = it->second->metadata;
+  if (meta.load_state == AssetLoadState::Loaded) {
+    return true;
+  }
+  auto* loader = GetLoader(meta.type);
+  if (!loader) {
+    LOG_WARN("No loader registered for asset type: {}",
+             AssetTypeToString(meta.type));
+    return false;
+  }
+  if (!SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+    return false;
+  }
+  bool success = loader->Load(handle);
+  if (success) {
+    SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
+  } else {
+    SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+  }
+  return success;
+}
+
+void AssetManager::LoadAsync(AssetHandle handle) {
+  auto it = registry_.find(handle);
+  if (it == registry_.end()) {
+    return;
+  }
+  auto& meta = it->second->metadata;
+  if (meta.load_state == AssetLoadState::Loaded ||
+      meta.load_state == AssetLoadState::Loading) {
+    return;
+  }
+  auto* loader = GetLoader(meta.type);
+  if (!loader) {
+    LOG_WARN("No loader registered for asset type: {}",
+             AssetTypeToString(meta.type));
+    return;
+  }
+  if (!SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+    return;
+  }
+
+  auto loader_ptr = loaders_[meta.type];
+  Engine::thread_pool().Submit([this, handle, loader_ptr]() {
+    bool success = loader_ptr->Load(handle);
+    if (success) {
+      SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
+    } else {
+      SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+    }
+  });
+}
+
+void AssetManager::LoadAllOfType(AssetType type, bool async) {
+  for (auto& [handle, entry] : registry_) {
+    if (entry->metadata.type == type &&
+        entry->metadata.load_state == AssetLoadState::Unloaded) {
+      if (async) {
+        LoadAsync(handle);
+      } else {
+        LoadSync(handle);
+      }
+    }
+  }
 }
 
 }  // namespace Wiesel

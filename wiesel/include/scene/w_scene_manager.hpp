@@ -11,7 +11,12 @@ namespace Wiesel {
 
 class SceneManager {
  public:
-  static SceneManager& Get();
+  SceneManager() = default;
+
+  // Scene ownership - SceneManager is the single authority
+  std::shared_ptr<Scene> CreateScene();
+  void SetActiveScene(std::shared_ptr<Scene> scene) { active_scene_ = scene; }
+  std::shared_ptr<Scene> GetActiveScene() const { return active_scene_; }
 
   // Register a scene file path with a name (e.g. "MainMenu", "Level1")
   void RegisterScene(const std::string& name,
@@ -53,35 +58,35 @@ class SceneManager {
     return pending_scene_path_;
   }
 
-  // Called by the game loop to process pending scene loads
-  // Returns true if a scene was loaded
-  bool ProcessPendingLoad(std::shared_ptr<Scene> scene);
+  // Per-frame lifecycle - layers call these
+  // BeginFrame: processes pending scene loads. Returns true if a scene was switched.
+  bool BeginFrame();
+  // EndFrame: processes entity destroy queue
+  void EndFrame();
+  // Cleanup: called on shutdown, cleans up the active scene
+  void Cleanup();
 
   // Clear pending load (e.g. if editor cancels)
   void ClearPending() {
     pending_scene_path_.clear();
     target_scene_path_.clear();
+    target_scene_.reset();
     scene_ready_ = false;
     load_progress_ = 0.0f;
+    auto_activate_ = false;
   }
 
-  // Active scene tracking for the editor
-  void SetActiveScene(std::shared_ptr<Scene> scene) { active_scene_ = scene; }
-  std::shared_ptr<Scene> GetActiveScene() const { return active_scene_.lock(); }
-
  private:
-  SceneManager() = default;
-
-  static SceneManager instance_;
-
+  std::shared_ptr<Scene> active_scene_;
   std::map<std::string, std::filesystem::path> registered_scenes_;
   std::filesystem::path pending_scene_path_;
-  std::weak_ptr<Scene> active_scene_;
 
   // Async loading state
   std::filesystem::path target_scene_path_;
+  std::shared_ptr<Scene> target_scene_;
   float load_progress_ = 0.0f;
   bool scene_ready_ = false;
+  bool auto_activate_ = false;
 };
 
 }  // namespace Wiesel

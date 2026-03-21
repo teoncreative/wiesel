@@ -5,14 +5,13 @@
 #ifndef W_LAYERSCENE_H
 #define W_LAYERSCENE_H
 
-
 #include "layer/w_layer.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
 class SceneLayer : public Layer {
-public:
-  SceneLayer(std::shared_ptr<Scene> scene);
+ public:
+  SceneLayer();
   ~SceneLayer() override;
 
   void OnAttach() override;
@@ -24,9 +23,6 @@ public:
   void OnBeginPresent() override;
   void OnPresent() override;
   void OnPostPresent() override;
-private:
-  std::shared_ptr<Scene> scene_;
-
 };
 }  // namespace Wiesel
 

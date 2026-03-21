@@ -20,10 +20,13 @@
 #include <chrono>
 #include <assimp/IOSystem.hpp>
 #include <assimp/IOStream.hpp>
+#include "asset/w_asset_loader.hpp"
+#include "util/w_thread_pool.hpp"
 #include "asset/w_asset_manager.hpp"
 #include "project/w_project.hpp"
 #include "input/w_input.hpp"
 #include "scene/w_componentutil.hpp"
+#include "scene/w_scene_manager.hpp"
 #include "scene/w_entity.hpp"
 #include "scene/w_lights.hpp"
 #include "script/w_scriptmanager.hpp"
@@ -240,7 +243,10 @@ DeveloperConsole Engine::console_;
 std::shared_ptr<AssetManager> Engine::asset_manager_;
 std::shared_ptr<ScriptManager> Engine::script_manager_;
 std::shared_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
+std::shared_ptr<ThreadPool> Engine::thread_pool_;
 std::shared_ptr<AudioManager> Engine::audio_manager_;
+std::shared_ptr<SceneManager> Engine::scene_manager_;
+std::shared_ptr<Project> Engine::project_;
 #ifdef WIESEL_DISCORD_RPC
 std::shared_ptr<DiscordRPC> Engine::discord_rpc_;
 #endif
@@ -257,10 +263,26 @@ void Engine::InitEngine(const EngineProperties& props) {
   LOG_INFO(" - user_data_path: {}", props.user_data_path.string());
   LOG_INFO(" - dev_mode: {}", props.dev_mode);
   asset_manager_ = std::make_shared<AssetManager>();
+
+  // Register asset loaders
+  asset_manager_->RegisterLoader(AssetType::Model,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) { return LoadModel(handle); },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
   InitializeVfs();
   InitializeComponents();
   InputManager::Init();
   behavior_registry_ = std::make_shared<NativeBehaviorRegistry>();
+
+  // Thread pool for async asset loading: min(cpu_cores, 8)
+  uint32_t pool_size = std::min(std::thread::hardware_concurrency(), 8u);
+  if (pool_size == 0) {
+    pool_size = 4;
+  }
+  thread_pool_ = std::make_shared<ThreadPool>(pool_size);
+  LOG_INFO("Asset thread pool: {} workers", pool_size);
+  scene_manager_ = std::make_shared<SceneManager>();
   audio_manager_ = std::make_shared<AudioManager>();
   audio_manager_->Init();
   script_manager_ = std::make_shared<ScriptManager>();
@@ -318,15 +340,23 @@ void Engine::CleanupWindow() {
 }
 
 void Engine::CleanupEngine() {
+  // Shut down thread pool first (waits for pending tasks)
+  thread_pool_ = nullptr;
 #ifdef WIESEL_DISCORD_RPC
   discord_rpc_ = nullptr;
 #endif
+  scene_manager_ = nullptr;
+  project_ = nullptr;
   script_manager_ = nullptr;
   behavior_registry_ = nullptr;
   if (audio_manager_) {
     audio_manager_->Shutdown();
     audio_manager_ = nullptr;
   }
+}
+
+void Engine::SetProject(std::shared_ptr<Project> project) {
+  project_ = std::move(project);
 }
 
 
@@ -364,30 +394,28 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
   return scene;
 }
 
-void Engine::LoadModelAsync(AssetHandle handle) {
+bool Engine::LoadModel(AssetHandle handle) {
   const AssetMetadata* meta = asset_manager_->GetMetadata(handle);
   if (!meta) {
-    LOG_ERROR("LoadModelAsync: invalid model_handle");
-    return;
+    LOG_ERROR("LoadModel: invalid handle");
+    return false;
   }
-  if (!asset_manager_->SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
-    return;
-  }
-  std::string path = meta->virtual_source_path;
 
-  // Derive VFS directory for relative texture resolution
+  std::string path = meta->virtual_source_path;
   std::string textures_dir = path;
   size_t last_slash = textures_dir.rfind('/');
   if (last_slash != std::string::npos) {
     textures_dir = textures_dir.substr(0, last_slash);
   }
 
-  // Background thread: Assimp parsing + GPU uploads (using per-thread command pool)
-  std::thread([path, handle, textures_dir]() {
+  // This function does the actual model loading work.
+  // Safe to call from any thread — uses a per-thread command pool for GPU uploads.
+  {
     using Clock = std::chrono::high_resolution_clock;
     auto t0 = Clock::now();
 
     aiScene* assimp_scene = LoadAssimpModel(path);
+    meta->load_progress.store(0.2f);
 
     auto t1 = Clock::now();
     LOG_INFO("Model import (Assimp): {:.1f}s",
@@ -395,7 +423,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
 
     if (!assimp_scene) {
       Engine::asset_manager().SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
-      return;
+      return false;
     }
 
     // All GPU work happens here on the background thread using a dedicated
@@ -418,6 +446,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     LOG_INFO("Parallel texture decode: {:.1f}s ({} textures)",
              std::chrono::duration<double>(t_predecode_end - t_predecode).count(),
              model->decoded_texture_cache.size());
+    meta->load_progress.store(0.5f);
 
     // Batch all GPU uploads (textures + vertex/index buffers) into a single
     // command buffer submission to avoid per-resource GPU sync overhead.
@@ -429,6 +458,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     auto t3 = Clock::now();
     LOG_INFO("ProcessNode (meshes + textures): {:.1f}s",
              std::chrono::duration<double>(t3 - t2).count());
+    meta->load_progress.store(0.8f);
 
     // Pre-compute per-mesh world transforms from node hierarchy
     model->ComputeMeshNodeTransforms();
@@ -459,6 +489,7 @@ void Engine::LoadModelAsync(AssetHandle handle) {
     auto t5 = Clock::now();
     LOG_INFO("Batch GPU upload: {:.1f}s",
              std::chrono::duration<double>(t5 - t4).count());
+    meta->load_progress.store(0.95f);
 
     Renderer::SetThreadCommandPool(VK_NULL_HANDLE);
     vkDestroyCommandPool(renderer_->GetLogicalDevice(), upload_pool, nullptr);
@@ -523,12 +554,11 @@ void Engine::LoadModelAsync(AssetHandle handle) {
               }
 
               // Save .wmat file to project directory if a project is active
-              Project* project = Project::GetActive();
-              if (project && wmat_vfs_path.starts_with("/app/")) {
+              if (project_ && wmat_vfs_path.starts_with("/app/")) {
                 namespace fs = std::filesystem;
                 // Convert VFS path to physical: /app/... -> <assets_dir>/...
                 std::string rel = wmat_vfs_path.substr(5);  // strip "/app/"
-                fs::path wmat_path = fs::path(project->GetAssetsDirectory()) / rel;
+                fs::path wmat_path = fs::path(project_->GetAssetsDirectory()) / rel;
                 if (!fs::exists(wmat_path)) {
                   fs::create_directories(wmat_path.parent_path());
                   nlohmann::json j = mesh->mat->Serialize();
@@ -544,7 +574,19 @@ void Engine::LoadModelAsync(AssetHandle handle) {
           asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
           asset_manager_->Store(handle, model);
         });
-  }).detach();
+  }
+  return true;
+}
+
+void Engine::LoadModelAsync(AssetHandle handle) {
+  if (!asset_manager_->SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+    return;
+  }
+  thread_pool_->Submit([handle]() {
+    if (!LoadModel(handle)) {
+      asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+    }
+  });
 }
 
 void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {

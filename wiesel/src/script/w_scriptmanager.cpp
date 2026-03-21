@@ -109,11 +109,18 @@ bool Internals_Input_GetKeyUp(MonoString* str) {
   return value;
 }
 
+// Common guard: validates scene pointer before dereferencing.
+// Prevents crashes when C# code calls internal methods before entity is set up.
+#define VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval)  \
+  if (scene_ptr == 0) return retval;                            \
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);           \
+  entt::entity handle = static_cast<entt::entity>(entity_id);   \
+  if (!scene->GetRegistry().valid(handle)) return retval
+
 // --- AudioSourceComponent bindings ---
 
 #define GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, retval) \
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);         \
-  entt::entity handle = static_cast<entt::entity>(entity_id); \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);     \
   if (!scene->HasComponent<AudioSourceComponent>(handle))     \
     return retval;                                            \
   auto& src = scene->GetComponent<AudioSourceComponent>(handle)
@@ -218,8 +225,7 @@ void Internals_AudioSource_SetSpatialBlend(uint64_t scene_ptr,
 // --- LightDirect bindings ---
 
 #define GET_LDIR_OR_RETURN(sp, eid, retval)               \
-  Scene* scene = reinterpret_cast<Scene*>(sp);            \
-  entt::entity handle = static_cast<entt::entity>(eid);   \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);              \
   if (!scene->HasComponent<LightDirectComponent>(handle)) \
     return retval;                                        \
   auto& light = scene->GetComponent<LightDirectComponent>(handle)
@@ -299,8 +305,7 @@ void Internals_LightDirect_SetDensity(uint64_t sp, uint64_t eid, float v) {
 // --- LightPoint bindings ---
 
 #define GET_LPOINT_OR_RETURN(sp, eid, retval)            \
-  Scene* scene = reinterpret_cast<Scene*>(sp);           \
-  entt::entity handle = static_cast<entt::entity>(eid);  \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);             \
   if (!scene->HasComponent<LightPointComponent>(handle)) \
     return retval;                                       \
   auto& light = scene->GetComponent<LightPointComponent>(handle)
@@ -411,6 +416,7 @@ void Internals_LightPoint_SetExp(uint64_t sp, uint64_t eid, float v) {
 
 void Internals_Entity_AddComponent(uint64_t scene_ptr, uint64_t entity_id,
                                    MonoString* name) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasEntity(handle))
@@ -422,6 +428,7 @@ void Internals_Entity_AddComponent(uint64_t scene_ptr, uint64_t entity_id,
 
 void Internals_Entity_RemoveComponent(uint64_t scene_ptr, uint64_t entity_id,
                                       MonoString* name) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasEntity(handle))
@@ -457,6 +464,7 @@ bool Internals_Input_GetMouseButtonUp(int button) {
 
 bool Internals_Entity_HasTag(uint64_t scene_ptr, uint64_t entity_id,
                              MonoString* tag) {
+  if (scene_ptr == 0) return false;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasComponent<TagComponent>(handle))
@@ -469,6 +477,7 @@ bool Internals_Entity_HasTag(uint64_t scene_ptr, uint64_t entity_id,
 
 void Internals_Entity_AddTag(uint64_t scene_ptr, uint64_t entity_id,
                              MonoString* tag) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasComponent<TagComponent>(handle))
@@ -480,6 +489,7 @@ void Internals_Entity_AddTag(uint64_t scene_ptr, uint64_t entity_id,
 
 void Internals_Entity_RemoveTag(uint64_t scene_ptr, uint64_t entity_id,
                                 MonoString* tag) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasComponent<TagComponent>(handle))
@@ -491,6 +501,7 @@ void Internals_Entity_RemoveTag(uint64_t scene_ptr, uint64_t entity_id,
 
 MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
                                              MonoString* tag) {
+  if (scene_ptr == 0) return nullptr;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   const char* cstr = mono_string_to_utf8(tag);
   auto entities = scene->FindEntitiesByTag(cstr);
@@ -507,8 +518,7 @@ MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
 // --- CameraComponent bindings ---
 
 #define GET_CAM_OR_RETURN(scene_ptr, entity_id, retval)       \
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);         \
-  entt::entity handle = static_cast<entt::entity>(entity_id); \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);     \
   if (!scene->HasComponent<CameraComponent>(handle))          \
     return retval;                                            \
   auto& cam = scene->GetComponent<CameraComponent>(handle)
@@ -623,8 +633,7 @@ void Internals_Camera_SetBgColorA(uint64_t sp, uint64_t eid, float v) {
 // --- SpriteComponent bindings ---
 
 #define GET_SPRITE_OR_RETURN(scene_ptr, entity_id, retval)    \
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);         \
-  entt::entity handle = static_cast<entt::entity>(entity_id); \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);     \
   if (!scene->HasComponent<SpriteComponent>(handle))          \
     return retval;                                            \
   auto& spr = scene->GetComponent<SpriteComponent>(handle)
@@ -900,6 +909,7 @@ static std::shared_ptr<MaterialInstance>& EnsureMaterialInstance(
 // ModelComponent material properties
 float Internals_ModelComponent_GetColorTintR(uint64_t scene_ptr,
                                              uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -908,6 +918,7 @@ float Internals_ModelComponent_GetColorTintR(uint64_t scene_ptr,
 
 float Internals_ModelComponent_GetColorTintG(uint64_t scene_ptr,
                                              uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -916,6 +927,7 @@ float Internals_ModelComponent_GetColorTintG(uint64_t scene_ptr,
 
 float Internals_ModelComponent_GetColorTintB(uint64_t scene_ptr,
                                              uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -924,6 +936,7 @@ float Internals_ModelComponent_GetColorTintB(uint64_t scene_ptr,
 
 float Internals_ModelComponent_GetColorTintA(uint64_t scene_ptr,
                                              uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -932,6 +945,7 @@ float Internals_ModelComponent_GetColorTintA(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetColorTintR(uint64_t scene_ptr,
                                             uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -943,6 +957,7 @@ void Internals_ModelComponent_SetColorTintR(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetColorTintG(uint64_t scene_ptr,
                                             uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -954,6 +969,7 @@ void Internals_ModelComponent_SetColorTintG(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetColorTintB(uint64_t scene_ptr,
                                             uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -965,6 +981,7 @@ void Internals_ModelComponent_SetColorTintB(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetColorTintA(uint64_t scene_ptr,
                                             uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -976,6 +993,7 @@ void Internals_ModelComponent_SetColorTintA(uint64_t scene_ptr,
 
 float Internals_ModelComponent_GetRoughness(uint64_t scene_ptr,
                                             uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -984,6 +1002,7 @@ float Internals_ModelComponent_GetRoughness(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetRoughness(uint64_t scene_ptr,
                                            uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -992,6 +1011,7 @@ void Internals_ModelComponent_SetRoughness(uint64_t scene_ptr,
 
 float Internals_ModelComponent_GetMetallic(uint64_t scene_ptr,
                                            uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -1000,6 +1020,7 @@ float Internals_ModelComponent_GetMetallic(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetMetallic(uint64_t scene_ptr,
                                           uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -1008,6 +1029,7 @@ void Internals_ModelComponent_SetMetallic(uint64_t scene_ptr,
 
 float Internals_ModelComponent_GetSpecular(uint64_t scene_ptr,
                                            uint64_t entity_id) {
+  if (scene_ptr == 0) return {};
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -1016,6 +1038,7 @@ float Internals_ModelComponent_GetSpecular(uint64_t scene_ptr,
 
 void Internals_ModelComponent_SetSpecular(uint64_t scene_ptr,
                                           uint64_t entity_id, float v) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   auto& model =
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
@@ -1023,6 +1046,7 @@ void Internals_ModelComponent_SetSpecular(uint64_t scene_ptr,
 }
 
 uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
+  if (scene_ptr == 0) return UINT64_MAX;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   const char* cstr = mono_string_to_utf8(name);
   entt::entity entity = scene->FindEntityByName(cstr);
@@ -1034,19 +1058,20 @@ uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
 }
 
 uint64_t Internals_Scene_CreateEntity(uint64_t scene_ptr, MonoString* name) {
+  if (scene_ptr == 0) return 0;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  std::shared_ptr<Scene> shared_scene = SceneManager::Get().GetActiveScene();
-  if (!shared_scene) {
+  if (!scene) {
     LOG_ERROR("Scene_CreateEntity: no active scene");
     return 0;
   }
   const char* cstr = mono_string_to_utf8(name);
-  Entity entity = shared_scene->CreateEntity(cstr);
+  Entity entity = scene->CreateEntity(cstr);
   mono_free((void*)cstr);
-  return static_cast<uint64_t>(static_cast<uint32_t>(entity.handle()));
+  return static_cast<uint32_t>(entity.handle());
 }
 
 void Internals_Scene_DestroyEntity(uint64_t scene_ptr, uint64_t entity_id) {
+  if (scene_ptr == 0) return;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasEntity(handle)) {
@@ -2019,8 +2044,9 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data,
   script_data_ = data;
   handle_ = mono_object_new(Engine::script_manager().app_domain(),
                             data->mono_class());
-  mono_runtime_object_init(handle_);
 
+  // Set entity/scene fields BEFORE calling the constructor, so that
+  // GetComponent etc. work if called from the C# constructor.
   uint64_t behaviorPtr = (uint64_t)behavior;
   uint64_t scenePtr = (uint64_t)behavior->scene();
   uint64_t entityId = (uint64_t)behavior->handle();
@@ -2032,6 +2058,8 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data,
   mono_field_set_value(handle_, field, &scenePtr);
   field = mono_class_get_field_from_name(baseClass, "entityId");
   mono_field_set_value(handle_, field, &entityId);
+
+  mono_runtime_object_init(handle_);
   gc_handle_ = mono_gchandle_new(handle_, true);
 }
 
@@ -2285,6 +2313,9 @@ ScriptManager::~ScriptManager() {
 
 MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
                                               const std::string& name) {
+  if (!scene || entity == entt::null) {
+    return nullptr;
+  }
   // Check if the component exists first
   auto checker_it = component_checkers_.find(name);
   if (checker_it != component_checkers_.end() && checker_it->second) {
@@ -2725,37 +2756,38 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
 // SceneManager internal calls
 void Internals_SceneManager_LoadScene(MonoString* name) {
   const char* cstr = mono_string_to_utf8(name);
-  SceneManager::Get().LoadScene(cstr);
+  Engine::scene_manager().LoadScene(cstr);
   mono_free((void*)cstr);
 }
 
 void Internals_SceneManager_LoadScenePath(MonoString* path) {
   const char* cstr = mono_string_to_utf8(path);
-  SceneManager::Get().LoadSceneFromPath(cstr);
+  Engine::scene_manager().LoadSceneFromPath(cstr);
   mono_free((void*)cstr);
 }
 
 void Internals_SceneManager_LoadSceneWithLoading(MonoString* target, MonoString* loading) {
   const char* t = mono_string_to_utf8(target);
   const char* l = mono_string_to_utf8(loading);
-  SceneManager::Get().LoadSceneWithLoading(t, l);
+  Engine::scene_manager().LoadSceneWithLoading(t, l);
   mono_free((void*)t);
   mono_free((void*)l);
 }
 
 float Internals_SceneManager_GetLoadProgress() {
-  return SceneManager::Get().GetLoadProgress();
+  return Engine::scene_manager().GetLoadProgress();
 }
 
 bool Internals_SceneManager_IsSceneReady() {
-  return SceneManager::Get().IsSceneReady();
+  return Engine::scene_manager().IsSceneReady();
 }
 
 void Internals_SceneManager_ActivateLoadedScene() {
-  SceneManager::Get().ActivateLoadedScene();
+  Engine::scene_manager().ActivateLoadedScene();
 }
 
 uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
+  if (scene_ptr == 0) return 0;
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   const char* cstr = mono_string_to_utf8(path);
 
@@ -2769,7 +2801,7 @@ uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
   }
   mono_free((void*)cstr);
 
-  auto shared_scene = SceneManager::Get().GetActiveScene();
+  auto shared_scene = Engine::scene_manager().GetActiveScene();
   if (!shared_scene) {
     LOG_ERROR("Prefab_Instantiate: no active scene");
     return 0;

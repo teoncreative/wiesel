@@ -96,14 +96,9 @@ class Project {
   void AddScene(const std::string& relative_path);
   void RemoveScene(const std::string& relative_path);
 
-  static Project* GetActive() { return active_; }
-  static void SetActive(Project* project) { active_ = project; }
-
  private:
   std::filesystem::path project_file_;
   ProjectSettings settings_;
-
-  static Project* active_;
 };
 
 }  // namespace Wiesel

@@ -4,22 +4,15 @@
 
 #include "scene/w_scene_manager.hpp"
 
-#include <fstream>
-#include <nlohmann/json.hpp>
-#include <thread>
-
-#include "asset/w_asset_manager.hpp"
-#include "rendering/w_mesh.hpp"
 #include "scene/w_scene_serializer.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-SceneManager SceneManager::instance_;
-
-SceneManager& SceneManager::Get() {
-  return instance_;
+std::shared_ptr<Scene> SceneManager::CreateScene() {
+  active_scene_ = std::make_shared<Scene>();
+  return active_scene_;
 }
 
 void SceneManager::RegisterScene(const std::string& name,
@@ -51,7 +44,27 @@ void SceneManager::LoadSceneFromPath(const std::filesystem::path& path) {
   LOG_INFO("Queued scene load from path: {}", path.string());
 }
 
-bool SceneManager::ProcessPendingLoad(std::shared_ptr<Scene> scene) {
+bool SceneManager::BeginFrame() {
+  auto scene = active_scene_;
+  if (!scene) {
+    return false;
+  }
+
+  // Poll async asset loading progress via target scene's own tracking
+  if (target_scene_ && !scene_ready_) {
+    load_progress_ = target_scene_->GetAssetLoadProgress();
+    if (target_scene_->AreAssetsReady()) {
+      scene_ready_ = true;
+      target_scene_.reset();
+      LOG_INFO("Target scene assets pre-loaded");
+    }
+  }
+
+  // Auto-activate target scene when pre-loading is done
+  if (auto_activate_ && scene_ready_ && !target_scene_path_.empty()) {
+    ActivateLoadedScene();
+  }
+
   if (pending_scene_path_.empty()) {
     return false;
   }
@@ -115,86 +128,40 @@ void SceneManager::LoadSceneWithLoadingPath(const std::filesystem::path& target_
     return;
   }
 
-  // Store the target for async loading
   target_scene_path_ = std::filesystem::absolute(target_path);
   load_progress_ = 0.0f;
   scene_ready_ = false;
+  auto_activate_ = true;
 
-  // Immediately switch to the loading scene
+  // Switch to loading scene immediately
   pending_scene_path_ = std::filesystem::absolute(loading_path);
   LOG_INFO("Loading via intermediate scene: {} -> {}",
            loading_path.string(), target_path.string());
 
-  // Pre-load target scene's assets in background
-  auto target = target_scene_path_;
-  std::thread([this, target]() {
-    // Parse the scene JSON to find referenced assets
-    std::ifstream file(target);
-    if (!file.is_open()) {
-      LOG_ERROR("Failed to open target scene for pre-loading: {}", target.string());
-      load_progress_ = 1.0f;
-      scene_ready_ = true;
-      return;
-    }
-
-    try {
-      nlohmann::json root;
-      file >> root;
-      file.close();
-
-      if (!root.contains("entities") || !root["entities"].is_array()) {
-        load_progress_ = 1.0f;
-        scene_ready_ = true;
-        return;
-      }
-
-      // Collect model asset handles that need loading
-      std::vector<AssetHandle> models_to_load;
-      for (auto& ej : root["entities"]) {
-        if (ej.contains("Model")) {
-          std::string handle_str = ej["Model"].value("asset_handle", "");
-          if (!handle_str.empty()) {
-            AssetHandle h = AssetHandle::FromString(handle_str);
-            if (h.IsValid() && !Engine::asset_manager().Get<Model>(h)) {
-              models_to_load.push_back(h);
-            }
-          }
-        }
-      }
-
-      // Kick off async model loads
-      int total = static_cast<int>(models_to_load.size());
-      if (total == 0) {
-        load_progress_ = 1.0f;
-        scene_ready_ = true;
-        return;
-      }
-
-      for (auto& handle : models_to_load) {
-        Engine::LoadModelAsync(handle);
-      }
-
-      // Poll until all models are loaded
-      while (true) {
-        int loaded = 0;
-        for (auto& handle : models_to_load) {
-          auto state = Engine::asset_manager().GetLoadState(handle);
-          if (state == AssetLoadState::Loaded || state == AssetLoadState::Failed) {
-            loaded++;
-          }
-        }
-        load_progress_ = static_cast<float>(loaded) / static_cast<float>(total);
-        if (loaded >= total) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-      }
-    } catch (const std::exception& e) {
-      LOG_ERROR("Error pre-loading scene assets: {}", e.what());
-    }
-
+  // Deserialize the target scene into a temporary scene to discover and
+  // kick off async loads for all asset dependencies. RequestAsset() is
+  // called during deserialization for every asset handle, so we don't
+  // need to manually scan the JSON for specific component types.
+  target_scene_ = std::make_shared<Scene>();
+  SceneSerializer serializer(target_scene_);
+  if (!serializer.Deserialize(target_scene_path_)) {
+    LOG_ERROR("Failed to pre-parse target scene: {}", target_scene_path_.string());
+    target_scene_.reset();
     load_progress_ = 1.0f;
     scene_ready_ = true;
-    LOG_INFO("Target scene assets pre-loaded");
-  }).detach();
+    return;
+  }
+
+  if (target_scene_->AreAssetsReady()) {
+    // All assets already loaded (or no async assets)
+    target_scene_.reset();
+    load_progress_ = 1.0f;
+    scene_ready_ = true;
+    return;
+  }
+
+  LOG_INFO("Pre-loading assets for target scene (progress: {:.0f}%)",
+           target_scene_->GetAssetLoadProgress() * 100.0f);
 }
 
 void SceneManager::ActivateLoadedScene() {
@@ -207,7 +174,21 @@ void SceneManager::ActivateLoadedScene() {
   target_scene_path_.clear();
   load_progress_ = 0.0f;
   scene_ready_ = false;
+  auto_activate_ = false;
   LOG_INFO("Activating loaded scene");
+}
+
+void SceneManager::EndFrame() {
+  if (active_scene_) {
+    active_scene_->ProcessDestroyQueue();
+  }
+}
+
+void SceneManager::Cleanup() {
+  if (active_scene_) {
+    active_scene_->Cleanup();
+    active_scene_.reset();
+  }
 }
 
 }  // namespace Wiesel

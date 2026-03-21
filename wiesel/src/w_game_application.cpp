@@ -11,21 +11,25 @@
 
 #include "w_game_application.hpp"
 #include "project/w_project_loader.hpp"
+#include "scene/w_scene_manager.hpp"
 
 namespace Wiesel {
 
-bool GameApplication::LoadProjectAndScene(const std::filesystem::path& project_path,
-                                          std::shared_ptr<Scene> scene) {
+bool GameApplication::LoadProjectAndScene(const std::filesystem::path& project_path) {
   auto proj = Project::Load(project_path);
   if (!proj) {
     LOG_ERROR("Failed to load project: {}", project_path.string());
     return false;
   }
 
-  project_ = std::move(proj);
-  Project::SetActive(project_.get());
+  Engine::SetProject(std::move(proj));
 
-  return ProjectLoader::LoadAll(*project_, scene);
+  SceneManager& sm = Engine::scene_manager();
+  if (!sm.GetActiveScene()) {
+    sm.CreateScene();
+  }
+
+  return ProjectLoader::LoadAll(*Engine::project());
 }
 
 }  // namespace Wiesel

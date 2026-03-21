@@ -168,10 +168,18 @@
         }
       ],
       "Camera": {
+        "background_color": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612,
+          1.0
+        ],
         "enabled": true,
         "far_plane": 1000.0,
         "field_of_view": 60.0,
         "near_plane": 0.009999999776482582,
+        "ortho_size": 5.0,
+        "projection_mode": 0,
         "viewport_size": [
           2560.0,
           1440.0
@@ -184,13 +192,13 @@
           0.0
         ],
         "position": [
-          -0.7664726376533508,
-          12.156858444213867,
-          0.4581071734428406
+          0.0,
+          5.0,
+          0.0
         ],
         "rotation": [
-          -61.0000114440918,
-          -95.94990539550781,
+          0.0,
+          0.0,
           0.0
         ],
         "scale": [
@@ -203,6 +211,32 @@
       "uuid": "213275da-f5f1-48db-96af-49016e725da3"
     },
     {
+      "AudioSource": {
+        "bus": 1,
+        "clip": "50f3e0f9-509a-47c8-a57e-414952a70902",
+        "loop": false,
+        "max_distance": 100.0,
+        "min_distance": 1.0,
+        "mute": false,
+        "pitch": 1.0,
+        "play_on_start": true,
+        "spatial_blend": 1.0,
+        "volume": 1.0
+      },
+      "BoxCollider": {
+        "collision_group": 1,
+        "half_extents": [
+          0.5,
+          1.149999976158142,
+          2.4000000953674316
+        ],
+        "is_trigger": false,
+        "offset": [
+          0.0,
+          1.2000000476837158,
+          0.0
+        ]
+      },
       "Model": {
         "asset_handle": "391a3b6b-eda1-4a71-bc5f-f20449a85d0f",
         "asset_name": "Sponza",
@@ -315,6 +349,12 @@
         ],
         "receive_shadows": true
       },
+      "ReverbZone": {
+        "decay": 0.4000000059604645,
+        "delay_ms": 150.0,
+        "radius": 10.0,
+        "wet": 0.5
+      },
       "Transform": {
         "pivot": [
           0.0,
@@ -323,7 +363,7 @@
         ],
         "position": [
           5.0,
-          2.0,
+          2.015507936477661,
           0.0
         ],
         "rotation": [

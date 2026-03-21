@@ -20,10 +20,8 @@ class EditorApplication : public Application {
   ~EditorApplication() override = default;
 
   void Init() override {
-    auto scene = std::make_shared<Scene>();
-
     PushLayer(std::make_shared<ImGuiLayer>());
-    PushLayer(std::make_shared<EditorLayer>(*this, scene));
+    PushLayer(std::make_shared<EditorLayer>(*this));
   }
 };
 

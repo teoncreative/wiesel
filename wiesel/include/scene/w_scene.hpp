@@ -48,6 +48,12 @@ class Scene {
   entt::entity FindEntityByUUID(const UUID& uuid);
   std::vector<entt::entity> FindEntitiesByTag(const std::string& tag);
 
+  // Asset dependency tracking — called during deserialization
+  void RequestAsset(AssetHandle handle);
+  bool AreAssetsReady() const;
+  float GetAssetLoadProgress() const;
+  void ClearRequestedAssets();
+
   void OnUpdate(float_t delta_time);
   void OnUpdateEditor(float_t delta_time);
   void OnEvent(Event& event);
@@ -210,6 +216,7 @@ class Scene {
   std::shared_ptr<Skybox> default_skybox_;
   AssetHandle skybox_asset_;
   UIEventSystem ui_event_system_;
+  std::vector<AssetHandle> requested_assets_;
   std::shared_ptr<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, std::shared_ptr<RenderGraph>> render_graphs_;
   std::shared_ptr<RenderGraph> external_render_graph_;

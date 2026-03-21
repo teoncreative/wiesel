@@ -1,4 +1,18 @@
 {
+  "editor_camera": {
+    "fov": 60.0,
+    "mode": 0,
+    "pitch": -15.0,
+    "position": [
+      0.0,
+      5.0,
+      -10.0
+    ],
+    "sensitivity": 160.0,
+    "speed": 10.0,
+    "yaw": 180.0,
+    "zoom_2d": 5.0
+  },
   "input": {
     "contexts": {
       "gamepad": {

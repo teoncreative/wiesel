@@ -1,0 +1,12 @@
+using WieselEngine;
+
+public class {{CLASS_NAME}} : MonoBehavior
+{
+    public override void OnStart()
+    {
+    }
+
+    public override void OnUpdate(float deltaTime)
+    {
+    }
+}

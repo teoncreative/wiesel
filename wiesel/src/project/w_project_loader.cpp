@@ -77,7 +77,7 @@ bool ProjectLoader::MountProject(Project& project) {
 void ProjectLoader::ScanAssets(Project& project) {
   namespace fs = std::filesystem;
   AssetManager& mgr = Engine::asset_manager();
-  SceneManager::Get().ClearRegisteredScenes();
+  Engine::scene_manager().ClearRegisteredScenes();
 
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
   if (!fs::exists(assets_dir)) return;
@@ -161,7 +161,7 @@ void ProjectLoader::ScanAssets(Project& project) {
     if (!handle.IsValid()) continue;
 
     if (type == AssetType::Scene) {
-      SceneManager::Get().RegisterScene(name, entry.path());
+      Engine::scene_manager().RegisterScene(name, entry.path());
       project.AddScene(rel.generic_string());
     }
 
@@ -205,13 +205,16 @@ void ProjectLoader::ApplyInputSettings(Project& project) {
   }
 }
 
-bool ProjectLoader::LoadStartScene(Project& project, std::shared_ptr<Scene> scene) {
+bool ProjectLoader::LoadStartScene(Project& project) {
   namespace fs = std::filesystem;
   const auto& start = project.GetSettings().start_scene;
   if (start.empty()) return false;
 
   auto scene_path = project.GetAssetsDirectory() / start;
   if (!fs::exists(scene_path)) return false;
+
+  auto scene = Engine::scene_manager().GetActiveScene();
+  if (!scene) return false;
 
   SceneSerializer serializer(scene);
   if (!serializer.Deserialize(scene_path)) return false;
@@ -225,14 +228,14 @@ bool ProjectLoader::LoadStartScene(Project& project, std::shared_ptr<Scene> scen
   return true;
 }
 
-bool ProjectLoader::LoadAll(Project& project, std::shared_ptr<Scene> scene) {
+bool ProjectLoader::LoadAll(Project& project) {
   if (!MountProject(project)) return false;
 
   ScanAssets(project);
   Engine::script_manager().Reload();
   ApplyRenderOptions(project);
   ApplyInputSettings(project);
-  LoadStartScene(project, scene);
+  LoadStartScene(project);
 
   return true;
 }

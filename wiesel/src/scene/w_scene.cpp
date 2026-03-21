@@ -183,6 +183,54 @@ std::vector<entt::entity> Scene::FindEntitiesByTag(const std::string& tag) {
   return result;
 }
 
+void Scene::RequestAsset(AssetHandle handle) {
+  if (!handle.IsValid()) return;
+  if (!Engine::asset_manager().HasAsset(handle)) return;
+  // Only track assets that have a loader and aren't loaded yet
+  auto state = Engine::asset_manager().GetLoadState(handle);
+  if (state == AssetLoadState::Loaded) return;
+  auto* meta = Engine::asset_manager().GetMetadata(handle);
+  if (!meta || !Engine::asset_manager().GetLoader(meta->type)) return;
+  // Avoid duplicates
+  for (auto& h : requested_assets_) {
+    if (h == handle) return;
+  }
+  requested_assets_.push_back(handle);
+  Engine::asset_manager().LoadAsync(handle);
+}
+
+bool Scene::AreAssetsReady() const {
+  for (auto& handle : requested_assets_) {
+    auto state = Engine::asset_manager().GetLoadState(handle);
+    if (state != AssetLoadState::Loaded && state != AssetLoadState::Failed) {
+      return false;
+    }
+  }
+  return true;
+}
+
+float Scene::GetAssetLoadProgress() const {
+  if (requested_assets_.empty()) return 1.0f;
+  float total = 0.0f;
+  for (auto& handle : requested_assets_) {
+    auto state = Engine::asset_manager().GetLoadState(handle);
+    if (state == AssetLoadState::Loaded || state == AssetLoadState::Failed) {
+      total += 1.0f;
+    } else {
+      // Use sub-progress for assets currently loading
+      const auto* meta = Engine::asset_manager().GetMetadata(handle);
+      if (meta) {
+        total += meta->load_progress.load();
+      }
+    }
+  }
+  return total / static_cast<float>(requested_assets_.size());
+}
+
+void Scene::ClearRequestedAssets() {
+  requested_assets_.clear();
+}
+
 void Scene::DestroyEntity(entt::entity handle) {
   registry_.destroy(handle);
 }
@@ -211,7 +259,7 @@ void Scene::OnUpdate(float_t delta_time) {
         float dist = glm::distance(transform.GetPosition(), zone_transform.GetPosition());
         if (dist < zone.radius) {
           // Blend wet amount based on how deep inside the zone we are
-          float blend = 1.0f - (dist / zone.radius);
+          float blend = 1.0f - dist / zone.radius;
           audio.SetReverb(zone.delay_ms, zone.decay, zone.wet * blend);
           zone.active_ = true;
           in_reverb = true;

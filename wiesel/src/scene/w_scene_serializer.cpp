@@ -568,6 +568,7 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
         }
       }
       m.model_handle = handle;
+      scene_->RequestAsset(handle);
     }
 
     m.receive_shadows = mj.value("receive_shadows", true);
@@ -586,6 +587,7 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
         if (slot.contains("material_handle")) {
           m.material_slot_handles[i] = AssetHandle::FromString(
               slot["material_handle"].get<std::string>());
+          scene_->RequestAsset(m.material_slot_handles[i]);
         }
         // Restore overrides
         if (slot.contains("overrides")) {
@@ -855,7 +857,10 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     auto& a = entity.AddComponent<AudioSourceComponent>();
     const auto& aj = entity_json["AudioSource"];
     std::string clip_str = aj.value("clip", "");
-    if (!clip_str.empty()) a.clip = AssetHandle::FromString(clip_str);
+    if (!clip_str.empty()) {
+      a.clip = AssetHandle::FromString(clip_str);
+      scene_->RequestAsset(a.clip);
+    }
     a.bus = static_cast<AudioBus>(aj.value("bus", 1));
     a.volume = aj.value("volume", 1.0f);
     a.pitch = aj.value("pitch", 1.0f);
@@ -908,6 +913,7 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     std::string handle_str = sj.value("asset_handle", "");
     if (!handle_str.empty()) {
       s.asset_handle_ = AssetHandle::FromString(handle_str);
+      scene_->RequestAsset(s.asset_handle_);
       const auto* meta = Engine::asset_manager().GetMetadata(s.asset_handle_);
       if (meta) {
         if (meta->type == AssetType::SpriteAnim) {
@@ -1016,6 +1022,12 @@ std::string SceneSerializer::SerializeToString() const {
   nlohmann::json entities = nlohmann::json::array();
   for (auto entity_id : scene_->GetSceneHierarchy()) {
     Entity entity{entity_id, scene_.get()};
+
+    // Skip children — they're serialized recursively from their parent
+    if (entity.GetParent()) {
+      continue;
+    }
+
     entities.push_back(SerializeEntity(entity));
 
     // Also serialize children recursively
@@ -1094,7 +1106,9 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
   if (root.contains("skybox") && root["skybox"].is_string()) {
     std::string skybox_str = root["skybox"].get<std::string>();
     if (!skybox_str.empty()) {
-      scene_->SetSkyboxAsset(AssetHandle::FromString(skybox_str));
+      auto skybox_handle = AssetHandle::FromString(skybox_str);
+      scene_->RequestAsset(skybox_handle);
+      scene_->SetSkyboxAsset(skybox_handle);
     }
   }
 

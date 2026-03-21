@@ -14,7 +14,6 @@
 #include "w_application.hpp"
 #include "w_engine.hpp"
 #include "behavior/w_native_behavior.hpp"
-#include "project/w_project.hpp"
 
 namespace Wiesel {
 
@@ -31,14 +30,8 @@ class GameApplication : public Application {
     Engine::behavior_registry().Register<T>(name);
   }
 
-  // Load a project and its start scene (convenience for non-editor mode).
-  bool LoadProjectAndScene(const std::filesystem::path& project_path,
-                           std::shared_ptr<Scene> scene);
-
-  Project* GetProject() const { return project_.get(); }
-
- protected:
-  std::unique_ptr<Project> project_;
+  // Load a project and its start scene into the active scene.
+  bool LoadProjectAndScene(const std::filesystem::path& project_path);
 };
 
 }  // namespace Wiesel

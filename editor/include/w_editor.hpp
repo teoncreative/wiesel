@@ -30,7 +30,7 @@ enum class EditorState { Edit, Playing };
 
 class EditorLayer : public Layer {
  public:
-  explicit EditorLayer(Application& app, std::shared_ptr<Scene> scene);
+  explicit EditorLayer(Application& app);
   ~EditorLayer() override;
 
   void OnAttach() override;
@@ -71,10 +71,8 @@ class EditorLayer : public Layer {
   void ScanProjectAssets();
 
   Application& app_;
-  std::shared_ptr<Scene> scene_;
 
   // Project
-  std::unique_ptr<Project> project_;
   std::filesystem::path current_scene_path_;
   bool scene_dirty_ = false;
   float auto_save_timer_ = 0.0f;

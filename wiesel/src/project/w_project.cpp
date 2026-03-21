@@ -12,8 +12,6 @@
 
 namespace Wiesel {
 
-Project* Project::active_ = nullptr;
-
 // --- Serialization helpers ---
 
 static nlohmann::json SerializeAction(const InputAction& action) {
