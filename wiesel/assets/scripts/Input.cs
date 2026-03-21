@@ -168,5 +168,35 @@ namespace WieselEngine
         {
             return (CursorMode) Internals.Input_GetCursorMode();
         }
+
+        public static int MouseX
+        {
+            get { return Internals.Input_GetMouseX(); }
+        }
+
+        public static int MouseY
+        {
+            get { return Internals.Input_GetMouseY(); }
+        }
+
+        public static Vector2f MousePosition
+        {
+            get { return new Vector2f(Internals.Input_GetMouseX(), Internals.Input_GetMouseY()); }
+        }
+
+        public static bool GetMouseButton(int button)
+        {
+            return Internals.Input_GetMouseButton(button);
+        }
+
+        public static bool GetMouseButtonDown(int button)
+        {
+            return Internals.Input_GetMouseButtonDown(button);
+        }
+
+        public static bool GetMouseButtonUp(int button)
+        {
+            return Internals.Input_GetMouseButtonUp(button);
+        }
     }
 }

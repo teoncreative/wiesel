@@ -14,6 +14,9 @@
 namespace Wiesel {
 
 void CameraComponent::UpdateProjection() {
+  if (aspect_ratio <= 0.0f) {
+    aspect_ratio = 16.0f / 9.0f;
+  }
   if (projection_mode == ProjectionMode::Orthographic) {
     float half_h = ortho_size;
     float half_w = half_h * aspect_ratio;

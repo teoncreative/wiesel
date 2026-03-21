@@ -15,6 +15,9 @@
 #include "scene/w_lights.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "audio/w_audio.hpp"
+#include "ui/w_interactable.hpp"
+#include "rendering/w_sprite.hpp"
+#include "rendering/w_sprite_loader.hpp"
 #include "ui/w_canvas.hpp"
 #include "util/w_logger.hpp"
 
@@ -63,6 +66,12 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
   j["uuid"] = entity.GetUUID().ToString();
   j["name"] = entity.GetName();
 
+  // Game tags
+  auto& tag_comp = entity.GetComponent<TagComponent>();
+  if (!tag_comp.tags.empty()) {
+    j["tags"] = tag_comp.tags;
+  }
+
   // Parent reference
   auto parent = entity.GetParent();
   if (parent) {
@@ -73,10 +82,10 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
   if (entity.HasComponent<TransformComponent>()) {
     auto& t = entity.GetComponent<TransformComponent>();
     nlohmann::json transform;
-    transform["position"] = SerializeVec3(t.position);
-    transform["rotation"] = SerializeVec3(t.rotation);
-    transform["scale"] = SerializeVec3(t.scale);
-    transform["pivot"] = SerializeVec3(t.pivot);
+    transform["position"] = SerializeVec3(t.GetPosition());
+    transform["rotation"] = SerializeVec3(t.GetRotation());
+    transform["scale"] = SerializeVec3(t.GetScale());
+    transform["pivot"] = SerializeVec3(t.GetPivot());
     j["Transform"] = transform;
   }
 
@@ -211,6 +220,18 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     j["SphereCollider"] = collider;
   }
 
+  if (entity.HasComponent<CapsuleColliderComponent>()) {
+    auto& cc = entity.GetComponent<CapsuleColliderComponent>();
+    nlohmann::json collider;
+    collider["offset"] = SerializeVec3(cc.offset);
+    collider["radius"] = cc.radius;
+    collider["height"] = cc.height;
+    collider["axis"] = static_cast<int>(cc.axis);
+    collider["is_trigger"] = cc.is_trigger;
+    collider["collision_group"] = cc.collision_group;
+    j["CapsuleCollider"] = collider;
+  }
+
   // Behaviors (C# scripts) with field values
   if (entity.HasComponent<BehaviorsComponent>()) {
     auto& bc = entity.GetComponent<BehaviorsComponent>();
@@ -330,6 +351,10 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     nlohmann::json cij;
     cij["tint"] = {ci.tint.x, ci.tint.y, ci.tint.z, ci.tint.w};
     cij["uv_rect"] = {ci.uv_rect.x, ci.uv_rect.y, ci.uv_rect.z, ci.uv_rect.w};
+    if (ci.IsSliced()) {
+      cij["slice_border"] = {ci.slice_border.x, ci.slice_border.y,
+                              ci.slice_border.z, ci.slice_border.w};
+    }
     j["CanvasImage"] = cij;
   }
 
@@ -372,6 +397,100 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     j["ReverbZone"] = rj;
   }
 
+  if (entity.HasComponent<ButtonComponent>()) {
+    auto& btn = entity.GetComponent<ButtonComponent>();
+    nlohmann::json bj;
+    bj["normal_color"] = {btn.normal_color.r, btn.normal_color.g, btn.normal_color.b, btn.normal_color.a};
+    bj["hovered_color"] = {btn.hovered_color.r, btn.hovered_color.g, btn.hovered_color.b, btn.hovered_color.a};
+    bj["pressed_color"] = {btn.pressed_color.r, btn.pressed_color.g, btn.pressed_color.b, btn.pressed_color.a};
+    bj["disabled_color"] = {btn.disabled_color.r, btn.disabled_color.g, btn.disabled_color.b, btn.disabled_color.a};
+    j["Button"] = bj;
+  }
+
+  if (entity.HasComponent<InteractableComponent>()) {
+    auto& ic = entity.GetComponent<InteractableComponent>();
+    nlohmann::json ij;
+    ij["enabled"] = ic.enabled;
+    ij["blocks_raycast"] = ic.blocks_raycast;
+    j["Interactable"] = ij;
+  }
+
+  // Sprite
+  if (entity.HasComponent<SpriteComponent>()) {
+    auto& s = entity.GetComponent<SpriteComponent>();
+    nlohmann::json sj;
+
+    if (s.asset_handle_.IsValid()) {
+      sj["asset_handle"] = s.asset_handle_.ToString();
+    }
+    sj["flip_x"] = s.flip_x_;
+    sj["flip_y"] = s.flip_y_;
+    sj["tint"] = {s.tint_.r, s.tint_.g, s.tint_.b, s.tint_.a};
+    sj["sort_layer"] = s.sort_layer_;
+    sj["playing"] = s.playing_;
+
+    // Clips
+    nlohmann::json clips_arr = nlohmann::json::array();
+    for (auto& clip : s.clips) {
+      nlohmann::json cj;
+      cj["name"] = clip.name;
+      cj["start"] = clip.start_frame;
+      cj["count"] = clip.frame_count;
+      cj["duration"] = clip.frame_duration;
+      cj["loop"] = clip.loop;
+      clips_arr.push_back(cj);
+    }
+    sj["clips"] = clips_arr;
+
+    // State machine controller
+    if (!s.state_machine.controller.IsEmpty()) {
+      nlohmann::json ctrl;
+      ctrl["default_state"] = s.state_machine.controller.default_state;
+
+      nlohmann::json states_arr = nlohmann::json::array();
+      for (auto& state : s.state_machine.controller.states) {
+        nlohmann::json st;
+        st["name"] = state.name;
+        st["clip_name"] = state.clip_name;
+        st["speed"] = state.speed;
+        st["looping"] = state.looping;
+        states_arr.push_back(st);
+      }
+      ctrl["states"] = states_arr;
+
+      nlohmann::json trans_arr = nlohmann::json::array();
+      for (auto& trans : s.state_machine.controller.transitions) {
+        nlohmann::json tj;
+        tj["from"] = trans.from_state;
+        tj["to"] = trans.to_state;
+        tj["blend"] = trans.blend_duration;
+
+        nlohmann::json conds_arr = nlohmann::json::array();
+        for (auto& cond : trans.conditions) {
+          nlohmann::json condj;
+          condj["param"] = cond.param_name;
+          condj["op"] = static_cast<int>(cond.op);
+          condj["type"] = static_cast<int>(cond.param_type);
+          if (cond.param_type == AnimParamType::Float) {
+            condj["value"] = cond.value.f;
+          } else if (cond.param_type == AnimParamType::Int) {
+            condj["value"] = cond.value.i;
+          } else {
+            condj["value"] = cond.value.b;
+          }
+          conds_arr.push_back(condj);
+        }
+        tj["conditions"] = conds_arr;
+        trans_arr.push_back(tj);
+      }
+      ctrl["transitions"] = trans_arr;
+
+      sj["controller"] = ctrl;
+    }
+
+    j["Sprite"] = sj;
+  }
+
   return j;
 }
 
@@ -382,16 +501,23 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
   UUID uuid = UUID::FromString(uuid_str);
   Entity entity = scene_->CreateEntityWithUUID(uuid, name);
 
+  // Game tags
+  if (entity_json.contains("tags") && entity_json["tags"].is_array()) {
+    auto& tag_comp = entity.GetComponent<TagComponent>();
+    for (auto& t : entity_json["tags"]) {
+      tag_comp.AddTag(t.get<std::string>());
+    }
+  }
+
   // Transform
   if (entity_json.contains("Transform")) {
     auto& t = entity.GetComponent<TransformComponent>();
     const auto& tj = entity_json["Transform"];
-    t.position = DeserializeVec3(tj.value("position", nlohmann::json::array()));
-    t.rotation = DeserializeVec3(tj.value("rotation", nlohmann::json::array()));
-    t.scale = DeserializeVec3(tj.value("scale", nlohmann::json::array()),
-                              {1, 1, 1});
-    t.pivot = DeserializeVec3(tj.value("pivot", nlohmann::json::array()));
-    t.is_changed = true;
+    t.SetPosition(DeserializeVec3(tj.value("position", nlohmann::json::array())));
+    t.SetRotation(DeserializeVec3(tj.value("rotation", nlohmann::json::array())));
+    t.SetScale(DeserializeVec3(tj.value("scale", nlohmann::json::array()),
+                              {1, 1, 1}));
+    t.SetPivot(DeserializeVec3(tj.value("pivot", nlohmann::json::array())));
   }
 
   // Camera
@@ -548,6 +674,17 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     sc.collision_group = scj.value("collision_group", 1);
   }
 
+  if (entity_json.contains("CapsuleCollider")) {
+    auto& cc = entity.AddComponent<CapsuleColliderComponent>();
+    const auto& ccj = entity_json["CapsuleCollider"];
+    cc.offset = DeserializeVec3(ccj.value("offset", nlohmann::json::array()));
+    cc.radius = ccj.value("radius", 0.3f);
+    cc.height = ccj.value("height", 1.0f);
+    cc.axis = static_cast<CapsuleAxis>(ccj.value("axis", 1));
+    cc.is_trigger = ccj.value("is_trigger", false);
+    cc.collision_group = ccj.value("collision_group", 1);
+  }
+
   // Behaviors (C# scripts) with field values
   if (entity_json.contains("Behaviors") && entity_json["Behaviors"].is_array()) {
     if (!entity.HasComponent<BehaviorsComponent>()) {
@@ -695,6 +832,10 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     if (cij.contains("uv_rect") && cij["uv_rect"].is_array() && cij["uv_rect"].size() >= 4) {
       ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1], cij["uv_rect"][2], cij["uv_rect"][3]};
     }
+    if (cij.contains("slice_border") && cij["slice_border"].is_array() && cij["slice_border"].size() >= 4) {
+      ci.slice_border = {cij["slice_border"][0], cij["slice_border"][1],
+                          cij["slice_border"][2], cij["slice_border"][3]};
+    }
   }
 
   // Text
@@ -734,6 +875,135 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     r.delay_ms = rj.value("delay_ms", 150.0f);
     r.decay = rj.value("decay", 0.4f);
     r.wet = rj.value("wet", 0.5f);
+  }
+
+  if (entity_json.contains("Button")) {
+    auto& btn = entity.AddComponent<ButtonComponent>();
+    const auto& bj = entity_json["Button"];
+    auto load_color = [](const nlohmann::json& j, const std::string& key, glm::vec4 def) -> glm::vec4 {
+      if (j.contains(key) && j[key].is_array() && j[key].size() >= 4) {
+        return {j[key][0], j[key][1], j[key][2], j[key][3]};
+      }
+      return def;
+    };
+    btn.normal_color = load_color(bj, "normal_color", {1, 1, 1, 1});
+    btn.hovered_color = load_color(bj, "hovered_color", {0.9f, 0.9f, 0.9f, 1});
+    btn.pressed_color = load_color(bj, "pressed_color", {0.7f, 0.7f, 0.7f, 1});
+    btn.disabled_color = load_color(bj, "disabled_color", {0.5f, 0.5f, 0.5f, 0.5f});
+  }
+
+  if (entity_json.contains("Interactable")) {
+    auto& ic = entity.AddComponent<InteractableComponent>();
+    const auto& ij = entity_json["Interactable"];
+    ic.enabled = ij.value("enabled", true);
+    ic.blocks_raycast = ij.value("blocks_raycast", true);
+  }
+
+  // Sprite
+  if (entity_json.contains("Sprite")) {
+    auto& s = entity.AddComponent<SpriteComponent>();
+    const auto& sj = entity_json["Sprite"];
+
+    // Load the sprite asset
+    std::string handle_str = sj.value("asset_handle", "");
+    if (!handle_str.empty()) {
+      s.asset_handle_ = AssetHandle::FromString(handle_str);
+      const auto* meta = Engine::asset_manager().GetMetadata(s.asset_handle_);
+      if (meta) {
+        if (meta->type == AssetType::SpriteAnim) {
+          LoadSpriteAnim(s.asset_handle_, s);
+        } else if (meta->type == AssetType::SpriteSheet) {
+          s.asset_ = LoadSpriteSheet(s.asset_handle_);
+        }
+      }
+    }
+
+    s.flip_x_ = sj.value("flip_x", false);
+    s.flip_y_ = sj.value("flip_y", false);
+    if (sj.contains("tint") && sj["tint"].is_array() && sj["tint"].size() >= 4) {
+      s.tint_ = {sj["tint"][0], sj["tint"][1], sj["tint"][2], sj["tint"][3]};
+    }
+    s.sort_layer_ = sj.value("sort_layer", 0);
+    s.playing_ = sj.value("playing", true);
+
+    // Clips
+    if (sj.contains("clips") && sj["clips"].is_array()) {
+      for (auto& cj : sj["clips"]) {
+        SpriteClip clip;
+        clip.name = cj.value("name", "");
+        clip.start_frame = cj.value("start", 0);
+        clip.frame_count = cj.value("count", 1);
+        clip.frame_duration = cj.value("duration", 0.1f);
+        clip.loop = cj.value("loop", true);
+        if (!clip.name.empty()) {
+          s.clips.push_back(std::move(clip));
+        }
+      }
+    }
+
+    // State machine controller
+    if (sj.contains("controller") && sj["controller"].is_object()) {
+      auto& ctrl_json = sj["controller"];
+      auto& ctrl = s.state_machine.controller;
+
+      ctrl.default_state = ctrl_json.value("default_state", "");
+
+      if (ctrl_json.contains("states") && ctrl_json["states"].is_array()) {
+        for (auto& st : ctrl_json["states"]) {
+          AnimationState state;
+          state.name = st.value("name", "");
+          state.clip_name = st.value("clip_name", "");
+          state.speed = st.value("speed", 1.0f);
+          state.looping = st.value("looping", true);
+          if (!state.name.empty()) {
+            ctrl.states.push_back(std::move(state));
+          }
+        }
+      }
+
+      if (ctrl_json.contains("transitions") && ctrl_json["transitions"].is_array()) {
+        for (auto& tj : ctrl_json["transitions"]) {
+          AnimationTransition trans;
+          trans.from_state = tj.value("from", "");
+          trans.to_state = tj.value("to", "");
+          trans.blend_duration = tj.value("blend", 0.0f);
+
+          if (tj.contains("conditions") && tj["conditions"].is_array()) {
+            for (auto& condj : tj["conditions"]) {
+              TransitionCondition cond;
+              cond.param_name = condj.value("param", "");
+              cond.op = static_cast<ConditionOp>(condj.value("op", 0));
+              cond.param_type = static_cast<AnimParamType>(condj.value("type", 0));
+
+              if (cond.param_type == AnimParamType::Float) {
+                cond.value.f = condj.value("value", 0.0f);
+              } else if (cond.param_type == AnimParamType::Int) {
+                cond.value.i = condj.value("value", 0);
+              } else {
+                cond.value.b = condj.value("value", false);
+              }
+
+              if (!cond.param_name.empty()) {
+                trans.conditions.push_back(std::move(cond));
+              }
+            }
+          }
+
+          if (!trans.to_state.empty()) {
+            ctrl.transitions.push_back(std::move(trans));
+          }
+        }
+      }
+    }
+
+    // Auto-play first clip if available
+    if (!s.clips.empty() && s.playing_) {
+      if (!s.state_machine.controller.IsEmpty()) {
+        s.state_machine.EnsureDefaultState();
+      } else {
+        s.Play(s.clips[0].name);
+      }
+    }
   }
 }
 

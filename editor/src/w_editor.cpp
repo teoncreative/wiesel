@@ -30,6 +30,7 @@
 #include "script/w_scriptmanager.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "input/w_input.hpp"
+#include "util/w_natural_sort.hpp"
 #include "util/w_gamepadcodes.hpp"
 #include "w_engine.hpp"
 
@@ -152,11 +153,11 @@ void EditorLayer::OnAttach() {
 #endif
 
   // Initialize editor free camera
-  editor_camera_transform_.position = glm::vec3(0.0f, 5.0f, -10.0f);
-  editor_camera_transform_.scale = glm::vec3(1.0f);
+  editor_camera_transform_.SetPosition(glm::vec3(0.0f, 5.0f, -10.0f));
+  editor_camera_transform_.SetScale(glm::vec3(1.0f));
+  editor_camera_transform_.SetRotation(glm::vec3(editor_pitch_, editor_yaw_, 0.0f));
   editor_yaw_ = 180.0f;  // facing +Z (quat look = -sin(y),-cos(y) so 180 gives +Z)
   editor_pitch_ = -15.0f; // slightly looking down
-  editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
 
   editor_camera_.viewport_size = {1920, 1080};
   editor_camera_.far_plane = 500.0f;
@@ -288,10 +289,19 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
 bool EditorLayer::OnMouseMoved(MouseMovedEvent& event) {
   if (event.GetCursorMode() == CursorModeRelative) {
-    editor_yaw_ -= event.GetDeltaX() * mouse_sensitivity_;
-    editor_pitch_ -= event.GetDeltaY() * mouse_sensitivity_;
-    editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
-    editor_camera_transform_.rotation = glm::vec3(editor_pitch_, editor_yaw_, 0.0f);
+    if (editor_camera_mode_ == EditorCameraMode::Mode2D) {
+      // 2D mode: right-click drag = pan
+      float pan_speed = editor_2d_zoom_ * 0.003f;
+      editor_camera_transform_.Move(event.GetDeltaX() * pan_speed, 0, 0);
+      editor_camera_transform_.Move(0, -event.GetDeltaX() * pan_speed, 0);
+      editor_camera_transform_.MarkChanged();
+    } else {
+      // Free mode: right-click drag = look
+      editor_yaw_ -= event.GetDeltaX() * mouse_sensitivity_;
+      editor_pitch_ -= event.GetDeltaY() * mouse_sensitivity_;
+      editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
+      editor_camera_transform_.SetRotation(editor_pitch_, editor_yaw_, 0.0f);
+    }
   }
   return false;
 }
@@ -396,6 +406,13 @@ static bool AssetCombo(const char* label, AssetType type, AssetHandle& selected,
     }
 
     auto assets = Engine::asset_manager().GetAllOfType(type);
+    // Sort by name naturally
+    std::sort(assets.begin(), assets.end(), [](const AssetHandle& a, const AssetHandle& b) {
+      const auto* ma = Engine::asset_manager().GetMetadata(a);
+      const auto* mb = Engine::asset_manager().GetMetadata(b);
+      if (!ma || !mb) return false;
+      return NaturalLess(ma->name, mb->name);
+    });
     for (const auto& handle : assets) {
       const auto* meta = Engine::asset_manager().GetMetadata(handle);
       if (!meta) continue;
@@ -446,11 +463,12 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
   bool is_selected = has_selected_entity_ && selected_entity_ == entity_id;
 
   // Build unique label
-  std::string label = tag_component.tag + "##" + std::to_string(static_cast<uint32_t>(entity_id));
+  std::string label = tag_component.name + "##" + std::to_string(static_cast<uint32_t>(entity_id));
 
   ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
       | ImGuiTreeNodeFlags_SpanAvailWidth
-      | ImGuiTreeNodeFlags_FramePadding;
+      | ImGuiTreeNodeFlags_FramePadding
+      | ImGuiTreeNodeFlags_Framed;
   if (is_selected) {
     flags |= ImGuiTreeNodeFlags_Selected;
   }
@@ -470,7 +488,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
   // Drag & drop source
   ImGuiDragDropFlags src_flags = ImGuiDragDropFlags_SourceNoDisableHover;
   if (ImGui::BeginDragDropSource(src_flags)) {
-    ImGui::Text("%s", tag_component.tag.c_str());
+    ImGui::Text("%s", tag_component.name.c_str());
     ImGui::SetDragDropPayload("SceneHierarchy Entity", &entity_id, sizeof(entt::entity));
     ImGui::EndDragDropSource();
   }
@@ -744,15 +762,53 @@ void EditorLayer::OnBeginPresent() {
   if (ImGui::Begin("Components", &componentsOpen) && has_selected_entity_) {
     Entity entity = {selected_entity_, scene_.get()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
-    if (ImGui::InputText("##", &tag.tag, ImGuiInputTextFlags_AutoSelectAll)) {
-      if (tag.tag[0] == ' ') {
-        TrimLeft(tag.tag);
+    if (ImGui::InputText("##", &tag.name, ImGuiInputTextFlags_AutoSelectAll)) {
+      if (tag.name[0] == ' ') {
+        TrimLeft(tag.name);
       }
 
-      if (tag.tag.empty()) {
-        tag.tag = "Entity";
+      if (tag.name.empty()) {
+        tag.name = "Entity";
       }
     }
+    // Game tags
+    {
+      std::string tags_display;
+      for (size_t i = 0; i < tag.tags.size(); i++) {
+        if (i > 0) tags_display += ", ";
+        tags_display += tag.tags[i];
+      }
+      if (tags_display.empty()) tags_display = "(no tags)";
+      ImGui::TextDisabled("Tags: %s", tags_display.c_str());
+      ImGui::SameLine();
+      if (ImGui::SmallButton("+##addtag")) {
+        ImGui::OpenPopup("add_tag_popup");
+      }
+      if (ImGui::BeginPopup("add_tag_popup")) {
+        static char tag_buf[64] = "";
+        ImGui::InputText("##tagname", tag_buf, sizeof(tag_buf));
+        ImGui::SameLine();
+        if (ImGui::Button("Add") && tag_buf[0] != '\0') {
+          tag.AddTag(tag_buf);
+          tag_buf[0] = '\0';
+          ImGui::CloseCurrentPopup();
+        }
+        // Show existing tags with remove buttons
+        for (size_t i = 0; i < tag.tags.size(); i++) {
+          ImGui::PushID(static_cast<int>(i));
+          ImGui::Text("%s", tag.tags[i].c_str());
+          ImGui::SameLine();
+          if (ImGui::SmallButton("X")) {
+            tag.RemoveTag(tag.tags[i]);
+            ImGui::PopID();
+            break;
+          }
+          ImGui::PopID();
+        }
+        ImGui::EndPopup();
+      }
+    }
+
     ImGui::SameLine();
     if (ImGui::Button("Add")) {
       ImGui::OpenPopup("add_component_popup");
@@ -812,7 +868,7 @@ void EditorLayer::OnBeginPresent() {
       // Sort: directories first, then files, both alphabetically
       std::ranges::sort(entries, [](const FileEntry& a, const FileEntry& b) {
         if (a.is_dir != b.is_dir) return a.is_dir > b.is_dir;
-        return a.name < b.name;
+        return NaturalLess(a.name, b.name);
       });
     }
 
@@ -1572,7 +1628,7 @@ void EditorLayer::OnBeginPresent() {
           if (pl) {
             auto& info = pipeline_map[pl];
             info.pipeline = pl;
-            info.cameras.push_back(tag.tag);
+            info.cameras.push_back(tag.name);
             if (pl == default_pipeline.get()) {
               info.is_default = true;
             }
@@ -1717,11 +1773,42 @@ void EditorLayer::OnBeginPresent() {
     ImGui::SameLine();
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
     ImGui::SameLine();
-    if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) current_op_ = ImGuizmo::TRANSLATE;
+    if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) {
+      current_op_ = ImGuizmo::TRANSLATE;
+    }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Rotate",    current_op_ == ImGuizmo::ROTATE))    current_op_ = ImGuizmo::ROTATE;
+    if (ImGui::RadioButton("Rotate", current_op_ == ImGuizmo::ROTATE)) {
+      current_op_ = ImGuizmo::ROTATE;
+    }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Scale",     current_op_ == ImGuizmo::SCALE))     current_op_ = ImGuizmo::SCALE;
+    if (ImGui::RadioButton("Scale", current_op_ == ImGuizmo::SCALE)) {
+      current_op_ = ImGuizmo::SCALE;
+    }
+    ImGui::SameLine();
+    ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Free", editor_camera_mode_ == EditorCameraMode::Free)) {
+      editor_camera_mode_ = EditorCameraMode::Free;
+      editor_camera_.projection_mode = ProjectionMode::Perspective;
+      editor_camera_.view_changed = true;
+      editor_camera_.resources_dirty = true;
+      piloting_camera_ = entt::null;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("2D", editor_camera_mode_ == EditorCameraMode::Mode2D)) {
+      editor_camera_mode_ = EditorCameraMode::Mode2D;
+      editor_camera_.projection_mode = ProjectionMode::Orthographic;
+      editor_camera_.ortho_size = editor_2d_zoom_;
+      // Look straight down -Z, position Z behind sprites
+      editor_pitch_ = 0.0f;
+      editor_yaw_ = 180.0f;
+      editor_camera_transform_.SetPosition(glm::vec3(0.0f, 180.0f, 5.0f));
+      editor_camera_transform_.SetRotation(glm::vec3(0.0f, 180.0f, 0.0f));
+      editor_camera_transform_.MarkChanged();
+      editor_camera_.view_changed = true;
+      editor_camera_.resources_dirty = true;
+      piloting_camera_ = entt::null;
+    }
     {
       float rightEdge = ImGui::GetWindowContentRegionMax().x;
       ImGui::SameLine(rightEdge - 24.0f);
@@ -1744,6 +1831,51 @@ void EditorLayer::OnBeginPresent() {
         }
         ImGui::DragFloat("Speed", &camera_speed_, 0.5f, 0.1f, 100.0f);
         ImGui::DragFloat("Sensitivity", &mouse_sensitivity_, 1.0f, 10.0f, 500.0f);
+
+        if (editor_camera_mode_ == EditorCameraMode::Free) {
+          ImGui::DragFloat("FOV", &editor_camera_.field_of_view, 1.0f, 1.0f, 179.0f);
+        }
+
+        ImGui::SeparatorText("Snap to Camera");
+        for (auto entity : scene_->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
+          auto& tag = scene_->GetComponent<TagComponent>(entity);
+          bool is_piloting = (piloting_camera_ == entity);
+          if (ImGui::Selectable(tag.name.c_str(), is_piloting)) {
+            auto& cam = scene_->GetComponent<CameraComponent>(entity);
+            auto& tc = scene_->GetComponent<TransformComponent>(entity);
+
+            // Snap editor camera to this entity
+            editor_camera_transform_.SetPosition(tc.GetPosition());
+            editor_camera_transform_.SetRotation(tc.GetRotation());
+            editor_yaw_ = tc.GetRotation().y;
+            editor_pitch_ = tc.GetRotation().x;
+
+            // Match projection
+            if (cam.projection_mode == ProjectionMode::Orthographic) {
+              editor_camera_mode_ = EditorCameraMode::Mode2D;
+              editor_camera_.projection_mode = ProjectionMode::Orthographic;
+              editor_camera_.ortho_size = cam.ortho_size;
+              editor_2d_zoom_ = cam.ortho_size;
+            } else {
+              editor_camera_mode_ = EditorCameraMode::Free;
+              editor_camera_.projection_mode = ProjectionMode::Perspective;
+              editor_camera_.field_of_view = cam.field_of_view;
+            }
+            editor_camera_.near_plane = cam.near_plane;
+            editor_camera_.far_plane = cam.far_plane;
+            editor_camera_.background_color = cam.background_color;
+            editor_camera_.view_changed = true;
+            editor_camera_.resources_dirty = true;
+
+            piloting_camera_ = is_piloting ? entt::null : entity;
+          }
+        }
+        if (piloting_camera_ != entt::null) {
+          if (ImGui::Button("Stop Piloting")) {
+            piloting_camera_ = entt::null;
+          }
+        }
+
         ImGui::SeparatorText("Overlays");
         ImGui::EndPopup();
       }
@@ -1819,37 +1951,108 @@ void EditorLayer::OnBeginPresent() {
 
       // Mouse look is handled in OnMouseMoved via the event system
 
-      // WASD camera movement (works when scene panel is focused or right-click dragging)
+      // Camera movement
       if (scene_focused || scene_right_active) {
         ImGui::GetIO().WantCaptureKeyboard = false;
         ImGuiIO& io = ImGui::GetIO();
         float dt = io.DeltaTime;
-
-        glm::quat q = glm::quat(glm::radians(editor_camera_transform_.rotation));
-        glm::mat4 R = glm::toMat4(q);
-        glm::vec3 cam_right   =  glm::vec3(R[0]); // local +X
-        glm::vec3 cam_forward = -glm::vec3(R[2]); // local -Z = look direction
-
         float speed = camera_speed_ * dt;
-        if (io.KeyShift) speed *= 3.0f;
+        if (io.KeyShift) {
+          speed *= 3.0f;
+        }
 
-        if (ImGui::IsKeyDown(ImGuiKey_W)) editor_camera_transform_.position += cam_forward * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_S)) editor_camera_transform_.position -= cam_forward * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_D)) editor_camera_transform_.position += cam_right * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_A)) editor_camera_transform_.position -= cam_right * speed;
-        if (ImGui::IsKeyDown(ImGuiKey_E)) editor_camera_transform_.position.y += speed;
-        if (ImGui::IsKeyDown(ImGuiKey_Q)) editor_camera_transform_.position.y -= speed;
+        if (editor_camera_mode_ == EditorCameraMode::Mode2D) {
+          // 2D: WASD = pan on XY plane
+          if (ImGui::IsKeyDown(ImGuiKey_W)) {
+            editor_camera_transform_.Move(0, speed, 0);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_S)) {
+            editor_camera_transform_.Move(0, -speed, 0);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_D)) {
+            editor_camera_transform_.Move(speed, 0, 0);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_A)) {
+            editor_camera_transform_.Move(-speed, 0, 0);
+          }
+        } else {
+          // Free: WASD + QE = 3D fly camera
+          glm::quat q = glm::quat(glm::radians(editor_camera_transform_.GetRotation()));
+          glm::mat4 R = glm::toMat4(q);
+          glm::vec3 cam_right = glm::vec3(R[0]);
+          glm::vec3 cam_forward = -glm::vec3(R[2]);
+
+          if (ImGui::IsKeyDown(ImGuiKey_W)) {
+            editor_camera_transform_.Move(cam_forward * speed);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_S)) {
+            editor_camera_transform_.Move(-cam_forward * speed);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_D)) {
+            editor_camera_transform_.Move(cam_right * speed);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_A)) {
+            editor_camera_transform_.Move(cam_right * speed);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_E)) {
+            editor_camera_transform_.Move(0, speed, 0);
+          }
+          if (ImGui::IsKeyDown(ImGuiKey_Q)) {
+            editor_camera_transform_.Move(0, -speed, 0);
+          }
+        }
       }
 
-      // Scroll to zoom (even without right-click)
+      // Scroll to zoom
       if (scene_hovered) {
         float scroll = ImGui::GetIO().MouseWheel;
         if (std::abs(scroll) > 0.01f) {
-          glm::quat q = glm::quat(glm::radians(editor_camera_transform_.rotation));
-          glm::mat4 R = glm::toMat4(q);
-          glm::vec3 cam_forward = -glm::vec3(R[2]);
-          editor_camera_transform_.position += cam_forward * scroll * camera_speed_ * 0.3f;
+          if (editor_camera_mode_ == EditorCameraMode::Mode2D) {
+            // 2D: scroll = zoom (adjust ortho size)
+            editor_2d_zoom_ -= scroll * editor_2d_zoom_ * 0.1f;
+            editor_2d_zoom_ = glm::clamp(editor_2d_zoom_, 0.1f, 1000.0f);
+            editor_camera_.ortho_size = editor_2d_zoom_;
+            editor_camera_.view_changed = true;
+          } else {
+            // Free: scroll = dolly forward/back
+            glm::quat q = glm::quat(glm::radians(editor_camera_transform_.GetRotation()));
+            glm::mat4 R = glm::toMat4(q);
+            glm::vec3 cam_forward = -glm::vec3(R[2]);
+            editor_camera_transform_.Move(cam_forward * scroll * camera_speed_ * 0.3f);
+          }
         }
+      }
+
+      // Follow piloted camera (read-only — editor follows entity, doesn't modify it)
+      if (piloting_camera_ != entt::null && scene_->HasEntity(piloting_camera_)) {
+        auto& tc = scene_->GetComponent<TransformComponent>(piloting_camera_);
+        editor_camera_transform_.SetPosition(tc.GetPosition());
+        editor_camera_transform_.SetRotation(tc.GetRotation());
+        editor_yaw_ = tc.GetRotation().y;
+        editor_pitch_ = tc.GetRotation().x;
+
+        auto& cam = scene_->GetComponent<CameraComponent>(piloting_camera_);
+        editor_camera_.background_color = cam.background_color;
+        editor_camera_.near_plane = cam.near_plane;
+        editor_camera_.far_plane = cam.far_plane;
+
+        if (cam.projection_mode != editor_camera_.projection_mode) {
+          editor_camera_.projection_mode = cam.projection_mode;
+          if (cam.projection_mode == ProjectionMode::Orthographic) {
+            editor_camera_mode_ = EditorCameraMode::Mode2D;
+          } else {
+            editor_camera_mode_ = EditorCameraMode::Free;
+          }
+          editor_camera_.resources_dirty = true;
+        }
+
+        if (cam.projection_mode == ProjectionMode::Orthographic) {
+          editor_camera_.ortho_size = cam.ortho_size;
+          editor_2d_zoom_ = cam.ortho_size;
+        } else {
+          editor_camera_.field_of_view = cam.field_of_view;
+        }
+        editor_camera_.view_changed = true;
       }
 
       // ImGuizmo (uses editor camera matrices, disabled during right-click camera)
@@ -1858,7 +2061,7 @@ void EditorLayer::OnBeginPresent() {
         glm::mat4 proj = editor_camera_.projection;
         proj[1][1] *= -1;
         TransformComponent& transform = scene_->GetComponent<TransformComponent>(selected_entity_);
-        glm::mat4& model = transform.transform_matrix;
+        glm::mat4 model = transform.GetTransformMatrix();
         ImGuizmo::SetOrthographic(false);
         ImGuizmo::SetDrawlist();
         ImGuizmo::SetRect(imageMin.x, imageMin.y, drawSize.x, drawSize.y);
@@ -1875,9 +2078,9 @@ void EditorLayer::OnBeginPresent() {
               glm::value_ptr(rotation),
               glm::value_ptr(scale));
 
-          transform.position = translation;
-          transform.rotation = rotation;
-          transform.scale = scale;
+          transform.SetPosition(translation);
+          transform.SetRotation(rotation);
+          transform.SetScale(scale);
           scene_dirty_ = true;
         }
 
@@ -1902,7 +2105,7 @@ void EditorLayer::OnBeginPresent() {
 
         if (scene_->HasComponent<BoxColliderComponent>(selected_entity_)) {
           auto& box = scene_->GetComponent<BoxColliderComponent>(selected_entity_);
-          glm::vec3 center = transform.position + box.offset;
+          glm::vec3 center = transform.GetPosition() + box.offset;
           glm::vec3 h = box.half_extents;
           glm::vec3 corners[8] = {
               center + glm::vec3(-h.x, -h.y, -h.z),
@@ -1931,7 +2134,7 @@ void EditorLayer::OnBeginPresent() {
 
         if (scene_->HasComponent<SphereColliderComponent>(selected_entity_)) {
           auto& sphere = scene_->GetComponent<SphereColliderComponent>(selected_entity_);
-          glm::vec3 center = transform.position + sphere.offset;
+          glm::vec3 center = transform.GetPosition() + sphere.offset;
           float r = sphere.radius;
           ImU32 col = IM_COL32(0, 255, 0, 200);
           constexpr int segments = 32;
@@ -2008,6 +2211,11 @@ void EditorLayer::OnBeginPresent() {
           if (entity_id_tex) {
             renderer->RequestEntityPick(px, py, entity_id_tex);
           }
+          // Store NDC for fallback sprite/canvas picking
+          pending_pick_ndc_ = {
+              (relX / drawSize.x) * 2.0f - 1.0f,
+              1.0f - (relY / drawSize.y) * 2.0f  // flip Y
+          };
         }
       }
     }
@@ -2136,9 +2344,49 @@ void EditorLayer::OnPostPresent() {
     if (picked != entt::null && scene_->GetRegistry().valid(picked)) {
       selected_entity_ = picked;
       has_selected_entity_ = true;
+    } else if (pending_pick_ndc_.x >= -1.0f) {
+      // GPU pick missed — fallback: check sprites by projecting to screen
+      glm::mat4 vp = editor_camera_.projection * editor_camera_.view_matrix;
+      // Vulkan flips Y in projection, undo for NDC comparison
+      vp[1][1] *= -1.0f;
+
+      entt::entity best = entt::null;
+      float best_depth = std::numeric_limits<float>::max();
+
+      for (auto entity : scene_->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
+        auto& tc = scene_->GetComponent<TransformComponent>(entity);
+        glm::vec4 clip = vp * glm::vec4(tc.GetPosition(), 1.0f);
+        if (clip.w <= 0.0f) continue;
+        glm::vec3 ndc = glm::vec3(clip) / clip.w;
+
+        // Approximate sprite screen size from scale
+        float half_w = tc.GetScale().x * 0.5f;
+        float half_h = tc.GetScale().y * 0.5f;
+        glm::vec4 corner = vp * glm::vec4(tc.GetPosition() + glm::vec3(half_w, half_h, 0), 1.0f);
+        if (corner.w <= 0.0f) continue;
+        glm::vec3 corner_ndc = glm::vec3(corner) / corner.w;
+        float extent_x = std::abs(corner_ndc.x - ndc.x);
+        float extent_y = std::abs(corner_ndc.y - ndc.y);
+
+        if (std::abs(pending_pick_ndc_.x - ndc.x) <= extent_x &&
+            std::abs(pending_pick_ndc_.y - ndc.y) <= extent_y) {
+          if (ndc.z < best_depth) {
+            best = entity;
+            best_depth = ndc.z;
+          }
+        }
+      }
+
+      if (best != entt::null) {
+        selected_entity_ = best;
+        has_selected_entity_ = true;
+      } else {
+        has_selected_entity_ = false;
+      }
     } else {
       has_selected_entity_ = false;
     }
+    pending_pick_ndc_ = {-2, -2};  // reset
   }
 
   scene_->ProcessDestroyQueue();
@@ -2385,31 +2633,86 @@ void EditorLayer::RenderCreateSpriteSheetPopup() {
   if (ImGui::BeginPopupModal("Create Sprite Sheet", &popup_open,
                               ImGuiWindowFlags_AlwaysAutoResize)) {
     static char name_buf[128] = "spritesheet";
+    static int sheet_mode = 0;  // 0 = single atlas, 1 = multiple images
     static AssetHandle texture_handle;
     static int cell_w = 64;
     static int cell_h = 64;
     static int frame_count = 0;
+    static std::vector<AssetHandle> multi_textures;
+    static float multi_duration = 0.1f;
 
     ImGui::InputText("Name", name_buf, sizeof(name_buf));
-    AssetCombo("Texture", AssetType::Texture, texture_handle, false);
-    ImGui::InputInt("Cell Width", &cell_w);
-    ImGui::InputInt("Cell Height", &cell_h);
-    ImGui::InputInt("Frame Count (0 = auto)", &frame_count);
 
-    if (cell_w < 1) cell_w = 1;
-    if (cell_h < 1) cell_h = 1;
-    if (frame_count < 0) frame_count = 0;
+    const char* mode_names[] = {"Single Atlas", "Multiple Images"};
+    ImGui::Combo("Mode", &sheet_mode, mode_names, 2);
+
+    if (sheet_mode == 0) {
+      AssetCombo("Texture", AssetType::Texture, texture_handle, false);
+      ImGui::InputInt("Cell Width", &cell_w);
+      ImGui::InputInt("Cell Height", &cell_h);
+      ImGui::InputInt("Frame Count (0 = auto)", &frame_count);
+
+      if (cell_w < 1) cell_w = 1;
+      if (cell_h < 1) cell_h = 1;
+      if (frame_count < 0) frame_count = 0;
+    } else {
+      ImGui::InputFloat("Frame Duration", &multi_duration, 0.01f);
+      ImGui::Text("Frames: %d", static_cast<int>(multi_textures.size()));
+
+      int to_remove = -1;
+      for (int i = 0; i < static_cast<int>(multi_textures.size()); i++) {
+        ImGui::PushID(i);
+        const auto* meta = Engine::asset_manager().GetMetadata(multi_textures[i]);
+        std::string label = meta ? meta->name : "(Unknown)";
+        ImGui::Text("%d: %s", i, label.c_str());
+        ImGui::SameLine();
+        if (ImGui::SmallButton("X")) {
+          to_remove = i;
+        }
+        ImGui::PopID();
+      }
+      if (to_remove >= 0) {
+        multi_textures.erase(multi_textures.begin() + to_remove);
+      }
+
+      // Add texture button
+      static AssetHandle add_tex;
+      AssetCombo("Add Frame", AssetType::Texture, add_tex);
+      if (add_tex.IsValid()) {
+        multi_textures.push_back(add_tex);
+        add_tex = {};
+      }
+    }
 
     ImGui::Separator();
 
-    bool can_create = name_buf[0] != '\0' && texture_handle.IsValid();
+    bool can_create = name_buf[0] != '\0';
+    if (sheet_mode == 0) {
+      can_create = can_create && texture_handle.IsValid();
+    } else {
+      can_create = can_create && !multi_textures.empty();
+    }
+
     if (ImGui::Button("Create") && can_create) {
-      const auto* meta = Engine::asset_manager().GetMetadata(texture_handle);
       nlohmann::json j;
       j["asset_handle"] = AssetHandle::Generate().ToString();
-      j["texture"] = meta ? meta->virtual_source_path : "";
-      j["cell_size"] = {cell_w, cell_h};
-      j["frame_count"] = frame_count;
+
+      if (sheet_mode == 0) {
+        const auto* meta = Engine::asset_manager().GetMetadata(texture_handle);
+        j["texture"] = meta ? meta->virtual_source_path : "";
+        j["cell_size"] = {cell_w, cell_h};
+        j["frame_count"] = frame_count;
+      } else {
+        nlohmann::json tex_arr = nlohmann::json::array();
+        for (auto& h : multi_textures) {
+          const auto* meta = Engine::asset_manager().GetMetadata(h);
+          if (meta) {
+            tex_arr.push_back(meta->virtual_source_path);
+          }
+        }
+        j["textures"] = tex_arr;
+        j["frame_duration"] = multi_duration;
+      }
 
       auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
       if (physical_app.has_value()) {
@@ -2430,12 +2733,14 @@ void EditorLayer::RenderCreateSpriteSheetPopup() {
 
       name_buf[0] = '\0';
       texture_handle = {};
+      multi_textures.clear();
       ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
     if (ImGui::Button("Cancel")) {
       name_buf[0] = '\0';
       texture_handle = {};
+      multi_textures.clear();
       ImGui::CloseCurrentPopup();
     }
 
@@ -2604,7 +2909,12 @@ void EditorLayer::RenderProjectSettingsPopup() {
     constexpr int kCategoryCount = 3;
 
     // Left panel: category list
+    // ItemSpacing.x = 2*WindowPadding so selectable highlight extends to child edges,
+    // while text remains indented by WindowPadding (the cursor offset).
+    float pad = ImGui::GetStyle().WindowPadding.x;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(pad * 2.0f, ImGui::GetStyle().ItemSpacing.y));
     ImGui::BeginChild("##categories", ImVec2(140, 0), ImGuiChildFlags_Borders);
+    ImGui::PopStyleVar();
     for (int i = 0; i < kCategoryCount; i++) {
       if (ImGui::Selectable(categories[i], project_settings_category_ == i)) {
         project_settings_category_ = i;
@@ -2615,7 +2925,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
     ImGui::SameLine();
 
     // Right panel: settings
-    ImGui::BeginChild("##settings", ImVec2(0, 0));
+    ImGui::BeginChild("##settings", ImVec2(0, 0), ImGuiChildFlags_Borders);
 
     if (project_settings_category_ == 0) {
       // ---- Scene ----
@@ -3272,6 +3582,17 @@ void EditorLayer::SaveProject() {
     opts.vsync = settings.vsync;
     opts.aa_mode = static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
 
+    // Save editor camera state
+    auto& ec = project_->GetSettings().editor_camera;
+    ec.position = editor_camera_transform_.GetPosition();
+    ec.yaw = editor_yaw_;
+    ec.pitch = editor_pitch_;
+    ec.speed = camera_speed_;
+    ec.sensitivity = mouse_sensitivity_;
+    ec.mode = (editor_camera_mode_ == EditorCameraMode::Mode2D) ? 1 : 0;
+    ec.zoom_2d = editor_2d_zoom_;
+    ec.fov = editor_camera_.field_of_view;
+
     project_->Save();
     LOG_INFO("Project saved");
   }
@@ -3494,6 +3815,30 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
     if (fs::exists(scene_path)) {
       OpenSceneFromPath(scene_path);
     }
+  }
+
+  // Restore editor camera state
+  {
+    auto& ec = project_->GetSettings().editor_camera;
+    editor_camera_transform_.SetPosition(ec.position);
+    editor_camera_transform_.SetRotation(ec.pitch, ec.yaw, 0.0f);
+    editor_yaw_ = ec.yaw;
+    editor_pitch_ = ec.pitch;
+    camera_speed_ = ec.speed;
+    mouse_sensitivity_ = ec.sensitivity;
+    editor_camera_.field_of_view = ec.fov;
+    editor_2d_zoom_ = ec.zoom_2d;
+
+    if (ec.mode == 1) {
+      editor_camera_mode_ = EditorCameraMode::Mode2D;
+      editor_camera_.projection_mode = ProjectionMode::Orthographic;
+      editor_camera_.ortho_size = ec.zoom_2d;
+    } else {
+      editor_camera_mode_ = EditorCameraMode::Free;
+      editor_camera_.projection_mode = ProjectionMode::Perspective;
+    }
+    editor_camera_.view_changed = true;
+    editor_camera_.resources_dirty = true;
   }
 
   RecentProjects::Add(fs::absolute(path).string());

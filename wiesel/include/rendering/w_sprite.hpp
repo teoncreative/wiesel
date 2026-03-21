@@ -5,14 +5,15 @@
 #ifndef WIESEL_SPRITE_H
 #define WIESEL_SPRITE_H
 
-#include "w_pch.hpp"
 #include "animation/w_state_machine.hpp"
-#include "rendering/w_descriptor.hpp"
+#include "asset/w_asset_handle.hpp"
 #include "rendering/w_buffer.hpp"
+#include "rendering/w_descriptor.hpp"
+#include "scene/w_components.hpp"
 #include "util/w_utils.hpp"
+#include "w_pch.hpp"
 #include "w_sampler.hpp"
 #include "w_texture.hpp"
-#include "scene/w_components.hpp"
 
 namespace Wiesel {
 
@@ -40,6 +41,10 @@ class SpriteAsset {
   ~SpriteAsset();
 
   void UpdateTransform(glm::mat4 transform_matrix);
+  void UpdateTransform(glm::mat4 transform_matrix,
+                       const glm::vec4& tint,
+                       bool flip_x, bool flip_y,
+                       int frame_index = -1);
 
   struct Frame {
     glm::vec4 uv_rect;
@@ -56,6 +61,7 @@ class SpriteAsset {
   const std::shared_ptr<SpriteTexture>& GetTexture() const { return texture_; }
   const std::shared_ptr<Sampler>& GetSampler() const { return sampler_; }
   const std::vector<Frame>& GetFrames() const { return frames_; }
+  std::vector<Frame>& GetFrames() { return frames_; }
   bool IsAllocated() const { return is_allocated_; }
 
  private:
@@ -77,8 +83,14 @@ enum class AddFrameResult {
 
 class SpriteBuilder {
  public:
-  SpriteBuilder(const std::string& virtual_atlas_path, glm::vec2 atlas_size) : virtual_atlas_path_(virtual_atlas_path), atlas_size_(atlas_size) {
+  // Single atlas image with known size
+  SpriteBuilder(const std::string& virtual_atlas_path, glm::vec2 atlas_size)
+      : virtual_atlas_path_(virtual_atlas_path), atlas_size_(atlas_size) {
+  }
 
+  // Multiple individual images — will be stitched into a horizontal strip atlas
+  SpriteBuilder(const std::vector<std::string>& frame_paths)
+      : multi_frame_paths_(frame_paths) {
   }
 
   void SetFixedSize(glm::vec2 size) {
@@ -105,6 +117,7 @@ class SpriteBuilder {
   glm::vec2 fixed_uv_size_;
   std::shared_ptr<Sampler> sampler_;
   std::vector<SpriteAsset::Frame> frames_;
+  std::vector<std::string> multi_frame_paths_;  // for multi-image stitching
 };
 
 // A named range of frames within a SpriteAsset.
@@ -122,7 +135,8 @@ class SpriteComponent {
   friend class Renderer;
 
   // The sprite sheet asset
-  std::shared_ptr<SpriteAsset> asset_handle_;
+  std::shared_ptr<SpriteAsset> asset_;
+  AssetHandle asset_handle_;  // handle to .wspritesheet or .wspriteanim
 
   // Visual properties
   glm::vec2 pivot_ = {0.5f, 0.5f};

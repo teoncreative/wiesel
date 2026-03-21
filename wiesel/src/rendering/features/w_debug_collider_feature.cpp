@@ -469,7 +469,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       data.vb = renderer_->CreateVertexBuffer(vertices);
       data.ib = renderer_->CreateIndexBuffer(indices);
       data.index_count = static_cast<uint32_t>(indices.size());
-      data.model = glm::translate(glm::mat4(1.0f), tc.position);
+      data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
       hf_cache_.push_back(std::move(data));
     }
     hf_cache_valid_ = true;
@@ -577,7 +577,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             if (!box.is_trigger && !show_colliders) continue;
 
             glm::mat4 model = glm::translate(glm::mat4(1.0f),
-                                              tc.position + box.offset) *
+                                              tc.GetPosition() + box.offset) *
                               glm::scale(glm::mat4(1.0f),
                                          box.half_extents * 2.0f);
 
@@ -604,11 +604,50 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             if (!sphere.is_trigger && !show_colliders) continue;
 
             glm::mat4 model =
-                glm::translate(glm::mat4(1.0f), tc.position + sphere.offset) *
+                glm::translate(glm::mat4(1.0f), tc.GetPosition() + sphere.offset) *
                 glm::scale(glm::mat4(1.0f),
                            glm::vec3(sphere.radius * 2.0f));
 
             if (sphere.is_trigger) {
+              draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
+                          trigger_fill, trigger_desc);
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, trigger_wire);
+            } else {
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, get_collider_color(entity));
+            }
+          }
+
+          // Capsule colliders/triggers (approximated as elongated spheres)
+          for (const auto& entity :
+               scene->GetAllEntitiesWith<CapsuleColliderComponent,
+                                          TransformComponent>()) {
+            auto& cap = scene->GetComponent<CapsuleColliderComponent>(entity);
+            auto& tc = scene->GetComponent<TransformComponent>(entity);
+
+            if (cap.is_trigger && !show_triggers) continue;
+            if (!cap.is_trigger && !show_colliders) continue;
+
+            float total_h = cap.height + cap.radius * 2.0f;
+            glm::vec3 scale_vec;
+            switch (cap.axis) {
+              case CapsuleAxis::X:
+                scale_vec = {total_h, cap.radius * 2.0f, cap.radius * 2.0f};
+                break;
+              case CapsuleAxis::Y:
+                scale_vec = {cap.radius * 2.0f, total_h, cap.radius * 2.0f};
+                break;
+              case CapsuleAxis::Z:
+                scale_vec = {cap.radius * 2.0f, cap.radius * 2.0f, total_h};
+                break;
+            }
+
+            glm::mat4 model =
+                glm::translate(glm::mat4(1.0f), tc.GetPosition() + cap.offset) *
+                glm::scale(glm::mat4(1.0f), scale_vec);
+
+            if (cap.is_trigger) {
               draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
                           trigger_fill, trigger_desc);
               pipeline->Bind(PipelineBindPointGraphics);
@@ -643,7 +682,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             auto& tc = scene->GetComponent<TransformComponent>(entity);
 
             glm::mat4 model =
-                glm::translate(glm::mat4(1.0f), tc.position) *
+                glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
                 glm::scale(glm::mat4(1.0f),
                            glm::vec3(zone.radius * 2.0f));
 

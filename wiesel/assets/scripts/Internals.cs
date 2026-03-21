@@ -434,6 +434,15 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void SceneManager_LoadScenePath(string path);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_LoadSceneWithLoading(string targetScene, string loadingScene);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float SceneManager_GetLoadProgress();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool SceneManager_IsSceneReady();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_ActivateLoadedScene();
+
         // Prefab
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Prefab_Instantiate(ulong scenePtr, string path);
@@ -447,6 +456,102 @@ namespace WieselEngine
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Scene_DestroyEntity(ulong scenePtr, ulong entityId);
+
+        // CameraComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Camera_GetProjectionMode(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetProjectionMode(ulong scenePtr, ulong entityId, int mode);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetFOV(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetFOV(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetOrthoSize(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetOrthoSize(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetNearPlane(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetNearPlane(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetFarPlane(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetFarPlane(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Camera_GetEnabled(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetEnabled(ulong scenePtr, ulong entityId, bool v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetBgColorR(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetBgColorG(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetBgColorB(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Camera_GetBgColorA(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetBgColorR(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetBgColorG(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetBgColorB(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Camera_SetBgColorA(ulong scenePtr, ulong entityId, float v);
+
+        // SpriteComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_Play(ulong scenePtr, ulong entityId, string clipName, bool restart);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_Stop(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Sprite_GetIsPlaying(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string Sprite_GetCurrentClip(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Sprite_GetCurrentFrame(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetBool(ulong scenePtr, ulong entityId, string name, bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetInt(ulong scenePtr, ulong entityId, string name, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetFloat(ulong scenePtr, ulong entityId, string name, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetTrigger(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Sprite_GetBool(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Sprite_GetInt(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Sprite_GetFloat(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Sprite_GetFlipX(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetFlipX(ulong scenePtr, ulong entityId, bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Sprite_GetFlipY(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetFlipY(ulong scenePtr, ulong entityId, bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Sprite_GetTintR(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Sprite_GetTintG(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Sprite_GetTintB(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Sprite_GetTintA(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetTintR(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetTintG(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetTintB(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetTintA(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Sprite_GetSortLayer(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Sprite_SetSortLayer(ulong scenePtr, ulong entityId, int value);
 
         // AudioSourceComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -506,6 +611,106 @@ namespace WieselEngine
         public static extern void Audio_SetMusicVolume(float volume);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float Audio_GetMusicVolume();
+
+        // LightDirectComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetColorR(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetColorG(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetColorB(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetColorR(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetColorG(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetColorB(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetAmbient(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetAmbient(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetDiffuse(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetDiffuse(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetSpecular(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetSpecular(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightDirect_GetDensity(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightDirect_SetDensity(ulong scenePtr, ulong entityId, float v);
+
+        // LightPointComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetColorR(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetColorG(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetColorB(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetColorR(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetColorG(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetColorB(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetAmbient(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetAmbient(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetDiffuse(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetDiffuse(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetSpecular(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetSpecular(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetDensity(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetDensity(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetConstant(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetConstant(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetLinear(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetLinear(ulong scenePtr, ulong entityId, float v);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float LightPoint_GetExp(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void LightPoint_SetExp(ulong scenePtr, ulong entityId, float v);
+
+        // Entity components
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Entity_AddComponent(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Entity_RemoveComponent(ulong scenePtr, ulong entityId, string name);
+
+        // Mouse
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Input_GetMouseX();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Input_GetMouseY();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Input_GetMouseButton(int button);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Input_GetMouseButtonDown(int button);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Input_GetMouseButtonUp(int button);
+
+        // Entity tags
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Entity_HasTag(ulong scenePtr, ulong entityId, string tag);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Entity_AddTag(ulong scenePtr, ulong entityId, string tag);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Entity_RemoveTag(ulong scenePtr, ulong entityId, string tag);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong[] Scene_FindEntitiesByTag(ulong scenePtr, string tag);
 
         // Console
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

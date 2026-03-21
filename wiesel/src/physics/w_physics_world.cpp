@@ -83,8 +83,8 @@ btTransform PhysicsWorld::MakeBtTransform(entt::entity entity,
   auto& tc = scene_->GetComponent<TransformComponent>(entity);
   btTransform tf;
   tf.setIdentity();
-  tf.setOrigin(ToBt(tc.position + offset));
-  glm::quat q = glm::quat(glm::radians(tc.rotation));
+  tf.setOrigin(ToBt(tc.GetPosition() + offset));
+  glm::quat q = glm::quat(glm::radians(tc.GetRotation()));
   tf.setRotation(btQuaternion(q.x, q.y, q.z, q.w));
   return tf;
 }
@@ -95,14 +95,14 @@ void PhysicsWorld::WriteBtTransform(const btTransform& bt_tf,
                                     bool skip_rotation) {
   auto& tc = scene_->GetComponent<TransformComponent>(entity);
   btVector3 pos = bt_tf.getOrigin();
-  tc.position = ToGlm(pos) - offset;
+  tc.SetPosition(ToGlm(pos) - offset);
 
   if (!skip_rotation) {
     btQuaternion rot = bt_tf.getRotation();
     glm::quat q(rot.w(), rot.x(), rot.y(), rot.z());
-    tc.rotation = glm::degrees(glm::eulerAngles(q));
+    tc.SetRotation(glm::degrees(glm::eulerAngles(q)));
   }
-  tc.is_changed = true;
+  tc.MarkChanged();
 }
 
 btCollisionShape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) {
@@ -114,6 +114,17 @@ btCollisionShape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) {
   if (registry.any_of<SphereColliderComponent>(entity)) {
     auto& sphere = registry.get<SphereColliderComponent>(entity);
     return new btSphereShape(sphere.radius);
+  }
+  if (registry.any_of<CapsuleColliderComponent>(entity)) {
+    auto& cap = registry.get<CapsuleColliderComponent>(entity);
+    switch (cap.axis) {
+      case CapsuleAxis::X:
+        return new btCapsuleShapeX(cap.radius, cap.height);
+      case CapsuleAxis::Y:
+        return new btCapsuleShape(cap.radius, cap.height);
+      case CapsuleAxis::Z:
+        return new btCapsuleShapeZ(cap.radius, cap.height);
+    }
   }
   if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
@@ -146,6 +157,10 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     auto& sphere = registry.get<SphereColliderComponent>(entity);
     offset = sphere.offset;
     collision_group = sphere.collision_group;
+  } else if (registry.any_of<CapsuleColliderComponent>(entity)) {
+    auto& cap = registry.get<CapsuleColliderComponent>(entity);
+    offset = cap.offset;
+    collision_group = cap.collision_group;
   } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
     // Bullet centers the heightfield AABB, so offset Y by (min+max)/2
@@ -159,6 +174,8 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     is_trigger = registry.get<BoxColliderComponent>(entity).is_trigger;
   else if (registry.any_of<SphereColliderComponent>(entity))
     is_trigger = registry.get<SphereColliderComponent>(entity).is_trigger;
+  else if (registry.any_of<CapsuleColliderComponent>(entity))
+    is_trigger = registry.get<CapsuleColliderComponent>(entity).is_trigger;
 
   btTransform start_tf = MakeBtTransform(entity, offset);
 
@@ -314,6 +331,8 @@ void PhysicsWorld::SyncTransformsFromECS() {
       offset = registry.get<BoxColliderComponent>(entity).offset;
     else if (registry.any_of<SphereColliderComponent>(entity))
       offset = registry.get<SphereColliderComponent>(entity).offset;
+    else if (registry.any_of<CapsuleColliderComponent>(entity))
+      offset = registry.get<CapsuleColliderComponent>(entity).offset;
     else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
       auto& hf = registry.get<HeightfieldColliderComponent>(entity);
       offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
@@ -364,6 +383,8 @@ void PhysicsWorld::SyncTransformsToECS() {
       offset = registry.get<BoxColliderComponent>(entity).offset;
     else if (registry.any_of<SphereColliderComponent>(entity))
       offset = registry.get<SphereColliderComponent>(entity).offset;
+    else if (registry.any_of<CapsuleColliderComponent>(entity))
+      offset = registry.get<CapsuleColliderComponent>(entity).offset;
     else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
       auto& hf = registry.get<HeightfieldColliderComponent>(entity);
       offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);

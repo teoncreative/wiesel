@@ -90,10 +90,26 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
       "Sprite", render_pass_,
       [pipeline, scene, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
+
+        // Collect and sort sprites by sort_layer
+        struct SpriteEntry {
+          entt::entity entity;
+          uint8_t layer;
+        };
+        std::vector<SpriteEntry> sorted;
         for (const auto& entity :
              scene->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
           auto& spr = scene->GetComponent<SpriteComponent>(entity);
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
+          sorted.push_back({entity, spr.sort_layer_});
+        }
+        std::sort(sorted.begin(), sorted.end(),
+                  [](const SpriteEntry& a, const SpriteEntry& b) {
+                    return a.layer < b.layer;
+                  });
+
+        for (auto& entry : sorted) {
+          auto& spr = scene->GetComponent<SpriteComponent>(entry.entity);
+          auto& transform = scene->GetComponent<TransformComponent>(entry.entity);
           renderer->DrawSprite(spr, transform);
         }
       });

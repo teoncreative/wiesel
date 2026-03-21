@@ -117,6 +117,11 @@ class ScriptData {
              MonoMethod* collision_exit_method,
              MonoMethod* on_disable_method,
              MonoMethod* on_destroy_method,
+             MonoMethod* on_pointer_click_method,
+             MonoMethod* on_pointer_down_method,
+             MonoMethod* on_pointer_up_method,
+             MonoMethod* on_pointer_enter_method,
+             MonoMethod* on_pointer_exit_method,
              std::unordered_map<std::string, FieldData> fields) : mono_class_(klass),
         on_update_method_(on_update_method),
         on_start_method_(on_start_method),
@@ -132,6 +137,11 @@ class ScriptData {
         on_collision_exit_method_(collision_exit_method),
         on_disable_method_(on_disable_method),
         on_destroy_method_(on_destroy_method),
+        on_pointer_click_method_(on_pointer_click_method),
+        on_pointer_down_method_(on_pointer_down_method),
+        on_pointer_up_method_(on_pointer_up_method),
+        on_pointer_enter_method_(on_pointer_enter_method),
+        on_pointer_exit_method_(on_pointer_exit_method),
         fields_(fields) {}
 
   MonoClass* mono_class() const { return mono_class_; }
@@ -149,6 +159,11 @@ class ScriptData {
   MonoMethod* on_collision_exit_method() const { return on_collision_exit_method_; }
   MonoMethod* on_disable_method() const { return on_disable_method_; }
   MonoMethod* on_destroy_method() const { return on_destroy_method_; }
+  MonoMethod* on_pointer_click_method() const { return on_pointer_click_method_; }
+  MonoMethod* on_pointer_down_method() const { return on_pointer_down_method_; }
+  MonoMethod* on_pointer_up_method() const { return on_pointer_up_method_; }
+  MonoMethod* on_pointer_enter_method() const { return on_pointer_enter_method_; }
+  MonoMethod* on_pointer_exit_method() const { return on_pointer_exit_method_; }
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
  private:
@@ -167,6 +182,11 @@ class ScriptData {
   MonoMethod* on_collision_exit_method_;
   MonoMethod* on_disable_method_;
   MonoMethod* on_destroy_method_;
+  MonoMethod* on_pointer_click_method_;
+  MonoMethod* on_pointer_down_method_;
+  MonoMethod* on_pointer_up_method_;
+  MonoMethod* on_pointer_enter_method_;
+  MonoMethod* on_pointer_exit_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
 };
@@ -207,6 +227,12 @@ class ScriptInstance {
   void OnDisable();
   void OnDestroy();
 
+  bool OnPointerClick(float x, float y);
+  bool OnPointerDown(float x, float y);
+  bool OnPointerUp(float x, float y);
+  void OnPointerEnter();
+  void OnPointerExit();
+
   template<class T>
   void AttachExternComponent(std::string variable, entt::entity entity);
 
@@ -232,6 +258,8 @@ class ScriptManager {
  public:
   using ComponentGetter = std::function<MonoObject*(Scene*, entt::entity)>;
   using ComponentChecker = std::function<bool(Scene*, entt::entity)>;
+  using ComponentAdder = std::function<void(Scene*, entt::entity)>;
+  using ComponentRemover = std::function<void(Scene*, entt::entity)>;
 
   ScriptManager() = default;
   ~ScriptManager();
@@ -262,10 +290,13 @@ class ScriptManager {
   template<class T>
   MonoObject* GetComponent(Scene* scene, entt::entity entity);
   bool HasComponentByName(Scene* scene, entt::entity entity, const std::string& name);
+  void AddComponentByName(Scene* scene, entt::entity entity, const std::string& name);
+  void RemoveComponentByName(Scene* scene, entt::entity entity, const std::string& name);
   std::unique_ptr<ScriptInstance> CreateScriptInstance(MonoBehavior* behavior);
 
   template<class T>
-  void RegisterComponent(std::string name, ComponentGetter getter, ComponentChecker checker);
+  void RegisterComponent(std::string name, ComponentGetter getter, ComponentChecker checker,
+                         ComponentAdder adder = nullptr, ComponentRemover remover = nullptr);
  private:
   MonoDomain* root_domain_ = nullptr;
   MonoAssembly* core_assembly_ = nullptr;
@@ -287,6 +318,10 @@ class ScriptManager {
   MonoClass* text_component_class_ = nullptr;
   MonoClass* animator_component_class_ = nullptr;
   MonoClass* audio_source_class_ = nullptr;
+  MonoClass* sprite_class_ = nullptr;
+  MonoClass* camera_class_ = nullptr;
+  MonoClass* light_direct_class_ = nullptr;
+  MonoClass* light_point_class_ = nullptr;
   MonoClass* vector3f_class_ = nullptr;
   MonoClass* entity_class_ = nullptr;
   MonoClass* prefab_class_ = nullptr;
@@ -295,6 +330,8 @@ class ScriptManager {
   std::map<std::string, ComponentGetter> component_getters_;
   std::map<std::type_index, ComponentGetter> component_getters_by_type_;
   std::map<std::string, ComponentChecker> component_checkers_;
+  std::map<std::string, ComponentAdder> component_adders_;
+  std::map<std::string, ComponentRemover> component_removers_;
   std::map<std::string, std::shared_ptr<ScriptData>> script_data_;
   std::vector<std::string> script_names_;
   bool enable_debugger_ = false;

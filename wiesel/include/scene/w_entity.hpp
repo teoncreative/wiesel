@@ -48,7 +48,7 @@ class Entity {
 
   UUID GetUUID() { return GetComponent<IdComponent>().Id; }
 
-  const std::string& GetName() { return GetComponent<TagComponent>().tag; }
+  const std::string& GetName() { return GetComponent<TagComponent>().name; }
 
   Entity GetParent() const { return {parent_handle_, scene_}; }
   entt::entity parent_handle() const { return parent_handle_; }

@@ -66,6 +66,30 @@ namespace WieselEngine
         {
         }
 
+        // Pointer events (requires InteractableComponent on the entity)
+        public virtual bool OnPointerClick(float x, float y)
+        {
+            return false;
+        }
+
+        public virtual bool OnPointerDown(float x, float y)
+        {
+            return false;
+        }
+
+        public virtual bool OnPointerUp(float x, float y)
+        {
+            return false;
+        }
+
+        public virtual void OnPointerEnter()
+        {
+        }
+
+        public virtual void OnPointerExit()
+        {
+        }
+
         public virtual void OnCollisionEnter(ulong otherEntityId)
         {
         }
@@ -86,6 +110,16 @@ namespace WieselEngine
         public bool HasComponent<T>()
         {
             return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
+        }
+
+        public void AddComponent<T>()
+        {
+            Internals.Entity_AddComponent(scenePtr, entityId, typeof(T).Name);
+        }
+
+        public void RemoveComponent<T>()
+        {
+            Internals.Entity_RemoveComponent(scenePtr, entityId, typeof(T).Name);
         }
 
         public Entity CreateEntity(string name)
@@ -110,6 +144,18 @@ namespace WieselEngine
         public void Destroy()
         {
             Internals.Scene_DestroyEntity(scenePtr, entityId);
+        }
+
+        public Entity[] FindEntitiesByTag(string tag)
+        {
+            ulong[] ids = Internals.Scene_FindEntitiesByTag(scenePtr, tag);
+            if (ids == null || ids.Length == 0) return new Entity[0];
+            Entity[] result = new Entity[ids.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                result[i] = new Entity(scenePtr, ids[i]);
+            }
+            return result;
         }
 
     }

@@ -55,48 +55,79 @@ std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
   auto j = LoadJsonAsset(handle);
   if (j.is_null()) return nullptr;
 
-  std::string texture_ref = j.value("texture", "");
-  std::string texture_path = ResolveAssetPath(texture_ref);
-  if (texture_path.empty()) {
-    LOG_ERROR("SpriteSheet: missing texture");
-    return nullptr;
+  // Check if it's multi-image ("textures" array) or single-image ("texture" string)
+  bool is_multi = j.contains("textures") && j["textures"].is_array();
+
+  std::shared_ptr<SpriteAsset> asset;
+
+  if (is_multi) {
+    // Multi-image mode: stitch individual frames
+    std::vector<std::string> frame_paths;
+    for (auto& t : j["textures"]) {
+      std::string path = ResolveAssetPath(t.get<std::string>());
+      if (!path.empty()) {
+        frame_paths.push_back(path);
+      }
+    }
+    if (frame_paths.empty()) {
+      LOG_ERROR("SpriteSheet: no valid textures in array");
+      return nullptr;
+    }
+
+    float frame_duration = j.value("frame_duration", 0.1f);
+    SpriteBuilder builder(frame_paths);
+    // Frame duration can be overridden; frames are auto-added by Build()
+    asset = builder.Build();
+
+    // Override durations if specified
+    if (asset) {
+      for (auto& frame : asset->GetFrames()) {
+        frame.duration = frame_duration;
+      }
+    }
+  } else {
+    // Single atlas mode
+    std::string texture_ref = j.value("texture", "");
+    std::string texture_path = ResolveAssetPath(texture_ref);
+    if (texture_path.empty()) {
+      LOG_ERROR("SpriteSheet: missing texture");
+      return nullptr;
+    }
+
+    auto cell_size_arr = j.value("cell_size", nlohmann::json::array({64, 64}));
+    glm::ivec2 cell_size(cell_size_arr[0].get<int>(), cell_size_arr[1].get<int>());
+    int frame_count = j.value("frame_count", 0);
+
+    VfsFile tex_file = Engine::vfs()->Open(texture_path);
+    if (!tex_file) {
+      LOG_ERROR("SpriteSheet: texture not found: {}", texture_path);
+      return nullptr;
+    }
+    int tex_w, tex_h, tex_ch;
+    stbi_uc* pixels = stbi_load_from_memory(
+        tex_file.Data(), static_cast<int>(tex_file.Size()),
+        &tex_w, &tex_h, &tex_ch, STBI_rgb_alpha);
+    if (!pixels) {
+      LOG_ERROR("SpriteSheet: failed to load texture: {}", texture_path);
+      return nullptr;
+    }
+    stbi_image_free(pixels);
+
+    glm::vec2 atlas_size(tex_w, tex_h);
+    int cols = tex_w / cell_size.x;
+    int rows = tex_h / cell_size.y;
+    int total_frames = frame_count > 0 ? frame_count : (cols * rows);
+
+    SpriteBuilder builder(texture_path, atlas_size);
+    builder.SetFixedSize(glm::vec2(cell_size));
+    builder.AddGridFrames(cell_size, 0, 0, total_frames, 0.1f);
+    asset = builder.Build();
   }
 
-  auto cell_size_arr = j.value("cell_size", nlohmann::json::array({64, 64}));
-  glm::ivec2 cell_size(cell_size_arr[0].get<int>(), cell_size_arr[1].get<int>());
-  int frame_count = j.value("frame_count", 0);
-
-  // Load texture to get dimensions
-  VfsFile tex_file = Engine::vfs()->Open(texture_path);
-  if (!tex_file) {
-    LOG_ERROR("SpriteSheet: texture not found: {}", texture_path);
-    return nullptr;
-  }
-  int tex_w, tex_h, tex_ch;
-  stbi_uc* pixels = stbi_load_from_memory(
-      tex_file.Data(), static_cast<int>(tex_file.Size()),
-      &tex_w, &tex_h, &tex_ch, STBI_rgb_alpha);
-  if (!pixels) {
-    LOG_ERROR("SpriteSheet: failed to load texture: {}", texture_path);
-    return nullptr;
-  }
-  stbi_image_free(pixels);
-
-  glm::vec2 atlas_size(tex_w, tex_h);
-  int cols = tex_w / cell_size.x;
-  int rows = tex_h / cell_size.y;
-  int total_frames = frame_count > 0 ? frame_count : (cols * rows);
-
-  SpriteBuilder builder(texture_path, atlas_size);
-  builder.SetFixedSize(glm::vec2(cell_size));
-  builder.AddGridFrames(cell_size, 0, 0, total_frames, 0.1f);
-
-  auto asset = builder.Build();
   if (asset) {
     Engine::asset_manager().Store<SpriteAsset>(handle, asset);
     Engine::asset_manager().SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
-    LOG_INFO("Loaded sprite sheet: {} ({} frames, {}x{} cells)",
-             texture_path, total_frames, cell_size.x, cell_size.y);
+    LOG_INFO("Loaded sprite sheet: {} frames", asset->GetFrames().size());
   }
   return asset;
 }
@@ -127,7 +158,7 @@ bool LoadSpriteAnim(const AssetHandle& handle, SpriteComponent& out) {
     return false;
   }
 
-  out.asset_handle_ = sprite_asset;
+  out.asset_ = sprite_asset;
   out.clips.clear();
 
   // Load clips

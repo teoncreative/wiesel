@@ -132,7 +132,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
           if (ubo_data.count >= kMaxRTShadowLights) break;
           auto& transform = scene->GetComponent<TransformComponent>(entity);
           glm::vec3 worldDir = glm::normalize(
-              glm::vec3(transform.transform_matrix * glm::vec4(0, 0, -1, 0)));
+              glm::vec3(transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
           ubo_data.lights[ubo_data.count].pos_or_dir = glm::vec4(worldDir, 0.0f);
           ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
           ubo_data.count++;
@@ -142,7 +142,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
              scene->GetAllEntitiesWith<LightPointComponent, TransformComponent>()) {
           if (ubo_data.count >= kMaxRTShadowLights) break;
           auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldPos = glm::vec3(transform.transform_matrix[3]);
+          glm::vec3 worldPos = glm::vec3(transform.GetTransformMatrix()[3]);
           ubo_data.lights[ubo_data.count].pos_or_dir = glm::vec4(worldPos, 1.0f);
           ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
           ubo_data.count++;

@@ -70,7 +70,7 @@ std::vector<ColliderEntry> CollectColliderEntries(entt::registry& registry) {
     auto& box = box_view.get<BoxColliderComponent>(handle);
     entries.push_back({
         handle, ColliderShape::Box,
-        transform.position + box.offset,
+        transform.GetPosition() + box.offset,
         box.half_extents, 0.0f});
   }
 
@@ -81,7 +81,7 @@ std::vector<ColliderEntry> CollectColliderEntries(entt::registry& registry) {
     auto& sphere = sphere_view.get<SphereColliderComponent>(handle);
     entries.push_back({
         handle, ColliderShape::Sphere,
-        transform.position + sphere.offset,
+        transform.GetPosition() + sphere.offset,
         glm::vec3(0.0f), sphere.radius});
   }
 
@@ -118,7 +118,7 @@ std::vector<entt::entity> QueryOverlapSphere(entt::registry& registry,
 }
 
 void CollisionSystem::Update(entt::registry& registry) {
-  auto entries = CollectColliderEntries(registry);
+  std::vector<ColliderEntry> entries = CollectColliderEntries(registry);
 
   // Test all pairs
   std::set<CollisionPair> current_overlaps;
@@ -168,7 +168,7 @@ void CollisionSystem::DispatchCallbacks(
                     void (ScriptInstance::*method)(entt::entity)) {
     if (!registry.any_of<BehaviorsComponent>(entity)) return;
     auto& behaviors = registry.get<BehaviorsComponent>(entity);
-    for (auto& [name, behavior] : behaviors.behaviors_) {
+    for (auto& behavior : behaviors.behaviors_ | std::views::values) {
       auto* mono = dynamic_cast<MonoBehavior*>(behavior);
       if (!mono || !mono->script_instance()) continue;
       (mono->script_instance()->*method)(other);

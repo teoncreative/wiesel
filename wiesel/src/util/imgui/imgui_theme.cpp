@@ -1,8 +1,8 @@
-#include "util/imgui/imgui_spectrum.hpp"
+#include "util/imgui/imgui_theme.hpp"
 #include <imgui.h>
 
 namespace ImGui {
-  namespace Spectrum {
+  namespace Moonlight {
     extern const unsigned int SourceSansProRegular_compressed_size = 149392;
     extern const unsigned int SourceSansProRegular_compressed_data[]; // defined later in the file
 
@@ -13,7 +13,7 @@ namespace ImGui {
           0x00e7, 0x00e7, // ç
           0x011e, 0x011e, // Ğ
           0x011f, 0x011f, // ğ
-          0x0130, 0x0130,// İ
+          0x0130, 0x0130, // İ
           0x0131, 0x0131, // ı
           0x00d6, 0x00d6, // Ö
           0x00f6, 0x00f6, // ö
@@ -31,57 +31,86 @@ namespace ImGui {
       io.FontDefault = font;
     }
 
-    void StyleColorsSpectrum() {
-      ImGuiStyle* style = &ImGui::GetStyle();
-      style->GrabRounding = 4.0f;
-      style->WindowRounding = 8.0f;
-      style->FramePadding = {2.0f, 2.0f};
-      style->WindowPadding = {5.0f, 5.0f};
+    void StyleColorsMoonlight() {
+      ImGuiStyle& style = ImGui::GetStyle();
 
-      ImVec4* colors = style->Colors;
-      colors[ImGuiCol_Text] = ColorConvertU32ToFloat4(Spectrum::GRAY900); // text on hovered controls is gray900
-      colors[ImGuiCol_TextDisabled] = ColorConvertU32ToFloat4(Spectrum::GRAY800);
-      colors[ImGuiCol_WindowBg] = ColorConvertU32ToFloat4(Spectrum::GRAY10);
-      colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-      colors[ImGuiCol_PopupBg] = ColorConvertU32ToFloat4(Spectrum::GRAY50); // not sure about this. Note: applies to tooltips too.
-      colors[ImGuiCol_Border] = ColorConvertU32ToFloat4(Spectrum::GRAY300);
-      colors[ImGuiCol_BorderShadow] = ColorConvertU32ToFloat4(Spectrum::Static::NONE); // We don't want shadows. Ever.
-      colors[ImGuiCol_FrameBg] = ColorConvertU32ToFloat4(Spectrum::GRAY20); // this isnt right, spectrum does not do this, but it's a good fallback
-      colors[ImGuiCol_FrameBgHovered] = ColorConvertU32ToFloat4(Spectrum::GRAY50);
-      colors[ImGuiCol_FrameBgActive] = ColorConvertU32ToFloat4(Spectrum::GRAY200);
-      colors[ImGuiCol_TitleBg] = ColorConvertU32ToFloat4(Spectrum::GRAY300); // those titlebar values are totally made up, spectrum does not have this.
-      colors[ImGuiCol_TitleBgActive] = ColorConvertU32ToFloat4(Spectrum::GRAY200);
-      colors[ImGuiCol_TitleBgCollapsed] = ColorConvertU32ToFloat4(Spectrum::GRAY400);
-      colors[ImGuiCol_MenuBarBg] = ColorConvertU32ToFloat4(Spectrum::GRAY75);
-      colors[ImGuiCol_ScrollbarBg] = ColorConvertU32ToFloat4(Spectrum::GRAY75); // same as regular background
-      colors[ImGuiCol_ScrollbarGrab] = ColorConvertU32ToFloat4(Spectrum::GRAY400);
-      colors[ImGuiCol_ScrollbarGrabHovered] = ColorConvertU32ToFloat4(Spectrum::GRAY600);
-      colors[ImGuiCol_ScrollbarGrabActive] = ColorConvertU32ToFloat4(Spectrum::GRAY700);
-      colors[ImGuiCol_CheckMark] = ColorConvertU32ToFloat4(Spectrum::BLUE500);
-      colors[ImGuiCol_SliderGrab] = ColorConvertU32ToFloat4(Spectrum::GRAY700);
-      colors[ImGuiCol_SliderGrabActive] = ColorConvertU32ToFloat4(Spectrum::GRAY800);
-      colors[ImGuiCol_Button] = ColorConvertU32ToFloat4(Spectrum::GRAY50); // match default button to Spectrum's 'Action Button'.
-      colors[ImGuiCol_ButtonHovered] = ColorConvertU32ToFloat4(Spectrum::GRAY20);
-      colors[ImGuiCol_ButtonActive] = ColorConvertU32ToFloat4(Spectrum::GRAY200);
-      colors[ImGuiCol_Header] = ColorConvertU32ToFloat4(Spectrum::BLUE200);
-      colors[ImGuiCol_HeaderHovered] = ColorConvertU32ToFloat4(Spectrum::BLUE200);
-      colors[ImGuiCol_HeaderActive] = ColorConvertU32ToFloat4(Spectrum::BLUE600);
-      colors[ImGuiCol_Separator] = ColorConvertU32ToFloat4(Spectrum::BLUE200);
-      colors[ImGuiCol_SeparatorHovered] = ColorConvertU32ToFloat4(Spectrum::GRAY600);
-      colors[ImGuiCol_SeparatorActive] = ColorConvertU32ToFloat4(Spectrum::GRAY700);
-      colors[ImGuiCol_ResizeGrip] = ColorConvertU32ToFloat4(Spectrum::BLUE200);
-      colors[ImGuiCol_ResizeGripHovered] = ColorConvertU32ToFloat4(Spectrum::GRAY600);
-      colors[ImGuiCol_ResizeGripActive] = ColorConvertU32ToFloat4(Spectrum::GRAY700);
-      colors[ImGuiCol_PlotLines] = ColorConvertU32ToFloat4(Spectrum::BLUE200);
-      colors[ImGuiCol_PlotLinesHovered] = ColorConvertU32ToFloat4(Spectrum::BLUE600);
-      colors[ImGuiCol_PlotHistogram] = ColorConvertU32ToFloat4(Spectrum::BLUE200);
-      colors[ImGuiCol_PlotHistogramHovered] = ColorConvertU32ToFloat4(Spectrum::BLUE600);
-      colors[ImGuiCol_TextSelectedBg] = ColorConvertU32ToFloat4((Spectrum::BLUE100 & 0x00FFFFFF) | 0x33000000);
-      colors[ImGuiCol_DragDropTarget] = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
-      colors[ImGuiCol_NavHighlight] = ColorConvertU32ToFloat4((Spectrum::GRAY900 & 0x00FFFFFF) | 0x0A000000);
-      colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-      colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-      colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+      // Rounding: base 4px, half for smaller elements, double for containers
+      style.WindowRounding = 8.0f;
+      style.ChildRounding = 8.0f;
+      style.PopupRounding = 8.0f;
+      style.FrameRounding = 4.0f;
+      style.GrabRounding = 4.0f;
+      style.TabRounding = 4.0f;
+      style.ScrollbarRounding = 4.0f;
+
+      // Padding: 8px container, 4px frame, 4px spacing
+      style.WindowPadding = {8.0f, 8.0f};
+      style.FramePadding = {4.0f, 3.0f};
+      style.CellPadding = {4.0f, 4.0f};
+      style.ItemSpacing = {4.0f, 4.0f};
+      style.ItemInnerSpacing = {4.0f, 4.0f};
+
+      // Borders and sizes
+      style.WindowBorderSize = 0.0f;
+      style.FrameBorderSize = 0.0f;
+      style.TabBorderSize = 0.0f;
+      style.ScrollbarSize = 12.0f;
+      style.GrabMinSize = 8.0f;
+
+      ImVec4* colors = style.Colors;
+      colors[ImGuiCol_Text] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+      colors[ImGuiCol_TextDisabled] = ImVec4(0.2745f, 0.3176f, 0.4510f, 1.0f);
+      colors[ImGuiCol_WindowBg] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_ChildBg] = ImVec4(0.0925f, 0.1003f, 0.1159f, 1.0f);
+      colors[ImGuiCol_PopupBg] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_Border] = ImVec4(0.1569f, 0.1686f, 0.1922f, 1.0f);
+      colors[ImGuiCol_BorderShadow] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_FrameBg] = ImVec4(0.1121f, 0.1262f, 0.1545f, 1.0f);
+      colors[ImGuiCol_FrameBgHovered] = ImVec4(0.1569f, 0.1686f, 0.1922f, 1.0f);
+      colors[ImGuiCol_FrameBgActive] = ImVec4(0.1569f, 0.1686f, 0.1922f, 1.0f);
+      colors[ImGuiCol_TitleBg] = ImVec4(0.0471f, 0.0549f, 0.0706f, 1.0f);
+      colors[ImGuiCol_TitleBgActive] = ImVec4(0.0471f, 0.0549f, 0.0706f, 1.0f);
+      colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_MenuBarBg] = ImVec4(0.0980f, 0.1059f, 0.1216f, 1.0f);
+      colors[ImGuiCol_ScrollbarBg] = ImVec4(0.0471f, 0.0549f, 0.0706f, 1.0f);
+      colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.1176f, 0.1333f, 0.1490f, 1.0f);
+      colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.1569f, 0.1686f, 0.1922f, 1.0f);
+      colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.1176f, 0.1333f, 0.1490f, 1.0f);
+      colors[ImGuiCol_CheckMark] = ImVec4(0.9725f, 1.0f, 0.4980f, 1.0f);
+      colors[ImGuiCol_SliderGrab] = ImVec4(0.9720f, 1.0f, 0.4980f, 1.0f);
+      colors[ImGuiCol_SliderGrabActive] = ImVec4(1.0f, 0.7953f, 0.4980f, 1.0f);
+      colors[ImGuiCol_Button] = ImVec4(0.1176f, 0.1333f, 0.1490f, 1.0f);
+      colors[ImGuiCol_ButtonHovered] = ImVec4(0.1822f, 0.1898f, 0.1974f, 1.0f);
+      colors[ImGuiCol_ButtonActive] = ImVec4(0.1545f, 0.1545f, 0.1545f, 1.0f);
+      colors[ImGuiCol_Header] = ImVec4(0.1415f, 0.1630f, 0.2060f, 1.0f);
+      colors[ImGuiCol_HeaderHovered] = ImVec4(0.1073f, 0.1073f, 0.1073f, 1.0f);
+      colors[ImGuiCol_HeaderActive] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_Separator] = ImVec4(0.1293f, 0.1479f, 0.1931f, 1.0f);
+      colors[ImGuiCol_SeparatorHovered] = ImVec4(0.1569f, 0.1843f, 0.2510f, 1.0f);
+      colors[ImGuiCol_SeparatorActive] = ImVec4(0.1569f, 0.1843f, 0.2510f, 1.0f);
+      colors[ImGuiCol_ResizeGrip] = ImVec4(0.1459f, 0.1459f, 0.1459f, 1.0f);
+      colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.9725f, 1.0f, 0.4980f, 1.0f);
+      colors[ImGuiCol_ResizeGripActive] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+      colors[ImGuiCol_Tab] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_TabHovered] = ImVec4(0.1176f, 0.1333f, 0.1490f, 1.0f);
+      colors[ImGuiCol_TabSelected] = ImVec4(0.1176f, 0.1333f, 0.1490f, 1.0f);
+      colors[ImGuiCol_TabDimmed] = ImVec4(0.0784f, 0.0863f, 0.1020f, 1.0f);
+      colors[ImGuiCol_TabDimmedSelected] = ImVec4(0.1249f, 0.2736f, 0.5708f, 1.0f);
+      colors[ImGuiCol_PlotLines] = ImVec4(0.5216f, 0.6000f, 0.7020f, 1.0f);
+      colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.0392f, 0.9804f, 0.9804f, 1.0f);
+      colors[ImGuiCol_PlotHistogram] = ImVec4(0.8841f, 0.7941f, 0.5616f, 1.0f);
+      colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.9571f, 0.9571f, 0.9571f, 1.0f);
+      colors[ImGuiCol_TableHeaderBg] = ImVec4(0.0471f, 0.0549f, 0.0706f, 1.0f);
+      colors[ImGuiCol_TableBorderStrong] = ImVec4(0.0471f, 0.0549f, 0.0706f, 1.0f);
+      colors[ImGuiCol_TableBorderLight] = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+      colors[ImGuiCol_TableRowBg] = ImVec4(0.1176f, 0.1333f, 0.1490f, 1.0f);
+      colors[ImGuiCol_TableRowBgAlt] = ImVec4(0.0980f, 0.1059f, 0.1216f, 1.0f);
+      colors[ImGuiCol_TextSelectedBg] = ImVec4(0.9356f, 0.9356f, 0.9356f, 1.0f);
+      colors[ImGuiCol_DragDropTarget] = ImVec4(0.4980f, 0.5137f, 1.0f, 1.0f);
+      colors[ImGuiCol_NavHighlight] = ImVec4(0.2661f, 0.2890f, 1.0f, 1.0f);
+      colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.4980f, 0.5137f, 1.0f, 1.0f);
+      colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.1961f, 0.1765f, 0.5451f, 0.5020f);
+      colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.1961f, 0.1765f, 0.5451f, 0.5020f);
     }
 
     const unsigned int SourceSansProRegular_compressed_data[149392 / 4] =
@@ -3201,5 +3230,5 @@ namespace ImGui {
             0x00000100, 0x00000100, 0xfa050000, 0x0353aa07,
         };
 
-  }
-}
+  }  // namespace Moonlight
+}  // namespace ImGui

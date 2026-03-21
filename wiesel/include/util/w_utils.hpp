@@ -180,6 +180,9 @@ struct alignas(16) MatricesUniformData {
 
 struct alignas(16) SpriteUniformData {
   alignas(16) glm::mat4 ModelMatrix;
+  alignas(16) glm::vec4 Tint;
+  alignas(4) int FlipX;
+  alignas(4) int FlipY;
 };
 
 struct alignas(16) CameraUniformData {

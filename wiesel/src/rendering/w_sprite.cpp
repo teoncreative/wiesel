@@ -103,14 +103,36 @@ std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>&
 }
 
 void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix) {
-  if (!is_allocated_) { [[unlikely]]
+  UpdateTransform(transform_matrix, {1, 1, 1, 1}, false, false, -1);
+}
+
+void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix,
+                                   const glm::vec4& tint,
+                                   bool flip_x, bool flip_y,
+                                   int frame_index) {
+  if (!is_allocated_) {
     return;
   }
 
-  for (const auto& item : frames_) {
-    SpriteUniformData matrices{};
-    matrices.ModelMatrix = transform_matrix;
-    memcpy(item.uniform_buffer->data_, &matrices, sizeof(SpriteUniformData));
+  if (frame_index >= 0 && frame_index < static_cast<int>(frames_.size())) {
+    // Update only the specified frame
+    auto& item = frames_[frame_index];
+    SpriteUniformData data{};
+    data.ModelMatrix = transform_matrix;
+    data.Tint = tint;
+    data.FlipX = flip_x ? 1 : 0;
+    data.FlipY = flip_y ? 1 : 0;
+    memcpy(item.uniform_buffer->data_, &data, sizeof(SpriteUniformData));
+  } else {
+    // Update all frames (legacy path)
+    for (auto& item : frames_) {
+      SpriteUniformData data{};
+      data.ModelMatrix = transform_matrix;
+      data.Tint = tint;
+      data.FlipX = flip_x ? 1 : 0;
+      data.FlipY = flip_y ? 1 : 0;
+      memcpy(item.uniform_buffer->data_, &data, sizeof(SpriteUniformData));
+    }
   }
 }
 
@@ -191,9 +213,99 @@ void SpriteBuilder::AddGridFrames(glm::ivec2 cell_size, int start_col, int start
 std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
   std::shared_ptr<SpriteAsset> asset = std::make_shared<SpriteAsset>();
   asset->type_ = SpriteTypeAtlas;
+
+  // Multi-image mode: stitch individual frames into a horizontal strip
+  if (!multi_frame_paths_.empty()) {
+    // Load all images to get dimensions
+    struct FrameImage {
+      stbi_uc* pixels;
+      int w, h;
+    };
+    std::vector<FrameImage> images;
+    int max_h = 0;
+    int total_w = 0;
+
+    for (auto& path : multi_frame_paths_) {
+      VfsFile file = Engine::vfs()->Open(path);
+      if (!file) {
+        LOG_ERROR("SpriteBuilder: failed to open frame image: {}", path);
+        for (auto& img : images) stbi_image_free(img.pixels);
+        return nullptr;
+      }
+      int w, h, ch;
+      stbi_uc* px = stbi_load_from_memory(
+          file.Data(), static_cast<int>(file.Size()),
+          &w, &h, &ch, STBI_rgb_alpha);
+      if (!px) {
+        LOG_ERROR("SpriteBuilder: failed to load frame image: {}", path);
+        for (auto& img : images) stbi_image_free(img.pixels);
+        return nullptr;
+      }
+      images.push_back({px, w, h});
+      total_w += w;
+      if (h > max_h) max_h = h;
+    }
+
+    // Create stitched atlas (horizontal strip)
+    atlas_size_ = {static_cast<float>(total_w), static_cast<float>(max_h)};
+    std::vector<uint8_t> atlas_data(total_w * max_h * 4, 0);
+
+    int x_offset = 0;
+    for (size_t i = 0; i < images.size(); i++) {
+      auto& img = images[i];
+      // Copy rows into atlas
+      for (int row = 0; row < img.h; row++) {
+        memcpy(atlas_data.data() + (row * total_w + x_offset) * 4,
+               img.pixels + row * img.w * 4,
+               img.w * 4);
+      }
+
+      // Auto-add frame for this image
+      frames_.emplace_back(
+          glm::vec4{static_cast<float>(x_offset), 0.0f,
+                    static_cast<float>(img.w), static_cast<float>(img.h)},
+          0.1f);
+
+      x_offset += img.w;
+      stbi_image_free(img.pixels);
+    }
+
+    // Upload stitched atlas to GPU
+    TextureProps props;
+    props.type = TextureTypeDiffuse;
+    props.generate_mipmaps = false;
+    props.image_format = VK_FORMAT_R8G8B8A8_UNORM;
+    props.width = total_w;
+    props.height = max_h;
+
+    auto tex = Engine::renderer()->CreateTexture(
+        atlas_data.data(), 4, props, {});
+    if (!tex) {
+      LOG_ERROR("SpriteBuilder: failed to create stitched atlas texture");
+      return nullptr;
+    }
+
+    // Wrap in a SpriteTexture-like structure
+    // We'll use the texture directly and create the image view from it
+    asset->texture_ = std::make_shared<SpriteTexture>();
+    asset->texture_->Image = tex->image_;
+    asset->texture_->DeviceMemory = tex->device_memory_;
+    asset->texture_->Size = {total_w, max_h};
+    asset->texture_->Format = VK_FORMAT_R8G8B8A8_UNORM;
+
+    // Prevent the Texture destructor from freeing these (SpriteTexture owns them now)
+    tex->image_ = VK_NULL_HANDLE;
+    tex->device_memory_ = VK_NULL_HANDLE;
+    tex->is_allocated_ = false;
+
+    asset->sampler_ = sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
+  } else {
+    // Single atlas mode (original path)
+    asset->texture_ = LoadSpriteTexture({virtual_atlas_path_});
+  }
+
   asset->frames_ = frames_;
   asset->atlas_size_ = atlas_size_;
-  asset->texture_ = LoadSpriteTexture({virtual_atlas_path_});
   asset->sampler_ = sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
   std::shared_ptr<ImageView> view = Engine::renderer()->CreateImageView(
       asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,

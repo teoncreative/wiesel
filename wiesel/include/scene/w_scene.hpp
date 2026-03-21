@@ -15,6 +15,7 @@
 
 #include "asset/w_asset_handle.hpp"
 #include "events/w_appevents.hpp"
+#include "ui/w_ui_event_system.hpp"
 #include "events/w_engineevents.hpp"
 #include "events/w_events.hpp"
 #include "rendering/w_camera.hpp"
@@ -45,6 +46,7 @@ class Scene {
   void RemoveEntity(Entity entity);
   entt::entity FindEntityByName(const std::string& name);
   entt::entity FindEntityByUUID(const UUID& uuid);
+  std::vector<entt::entity> FindEntitiesByTag(const std::string& tag);
 
   void OnUpdate(float_t delta_time);
   void OnUpdateEditor(float_t delta_time);
@@ -62,7 +64,7 @@ class Scene {
 
   void SetPaused(bool paused) { is_paused_ = paused; }
 
-  void SetSkybox(std::shared_ptr<Skybox> skybox) {
+  void SetSkybox(const std::shared_ptr<Skybox>& skybox) {
     skybox_ = skybox;
   }
   void SetSkyboxAsset(AssetHandle handle);
@@ -197,16 +199,17 @@ class Scene {
  private:
   std::unordered_map<UUID, entt::entity> entities_;
   entt::registry registry_;
-  bool is_running_ = false;
-  bool is_paused_ = false;
-  bool first_update_ = true;
+  bool is_running_{false};
+  bool is_paused_{false};
+  bool first_update_{true};
   std::vector<entt::entity> scene_hierarchy_;
   std::vector<entt::entity> destroy_queue_;
-  // this camera is used to render the scene to the current camera
+  // This camera is used to render the scene to the current camera
   std::shared_ptr<CameraData> current_camera_;
   std::shared_ptr<Skybox> skybox_;
   std::shared_ptr<Skybox> default_skybox_;
   AssetHandle skybox_asset_;
+  UIEventSystem ui_event_system_;
   std::shared_ptr<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, std::shared_ptr<RenderGraph>> render_graphs_;
   std::shared_ptr<RenderGraph> external_render_graph_;

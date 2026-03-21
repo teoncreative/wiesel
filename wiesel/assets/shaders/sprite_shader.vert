@@ -4,6 +4,9 @@ layout(location = 0) in vec2 inUV;
 
 layout (set = 0, binding = 1, std140) uniform Matrices {
     mat4 modelMatrix;
+    vec4 tint;
+    int flipX;
+    int flipY;
 };
 
 layout(set = 1, binding = 1, std140) uniform Camera {
@@ -22,20 +25,30 @@ layout(set = 1, binding = 1, std140) uniform Camera {
 } cam;
 
 layout(location = 0) out vec2 outUV;
+layout(location = 1) out vec4 outTint;
 
 const vec2 quadPos[6] = vec2[6](
-vec2(-.5,-.5),  // 0: bottom-left
-vec2( .5,-.5),  // 1: bottom-right
-vec2( .5, .5),  // 2: top-right
-
-vec2(-.5,-.5),  // 3: bottom-left
-vec2( .5, .5),  // 4: top-right
-vec2(-.5, .5)   // 5: top-left
+    vec2(-.5,-.5),
+    vec2( .5,-.5),
+    vec2( .5, .5),
+    vec2(-.5,-.5),
+    vec2( .5, .5),
+    vec2(-.5, .5)
 );
 
 void main() {
     vec2 localPos = quadPos[gl_VertexIndex];
-    outUV = -inUV;
-    gl_Position = cam.projection * cam.viewMatrix
-    * modelMatrix * vec4(localPos,0,1);
+    vec2 uv = -inUV;
+
+    // Apply flip
+    if (flipX != 0) {
+        uv.x = 1.0 - uv.x;
+    }
+    if (flipY != 0) {
+        uv.y = 1.0 - uv.y;
+    }
+
+    outUV = uv;
+    outTint = tint;
+    gl_Position = cam.projection * cam.viewMatrix * modelMatrix * vec4(localPos, 0, 1);
 }

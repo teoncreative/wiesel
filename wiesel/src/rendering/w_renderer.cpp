@@ -17,7 +17,7 @@
 #include "rendering/features/w_canvas_feature.hpp"
 #include "ui/w_font.hpp"
 
-#include "util/imgui/imgui_spectrum.hpp"
+#include "util/imgui/imgui_theme.hpp"
 #include "util/w_spirv.hpp"
 #include "util/w_vectors.hpp"
 #include "w_engine.hpp"
@@ -3320,20 +3320,20 @@ void Renderer::DrawModel(ModelComponent& model,
       // Skip normal_matrix inverse, material lookups, and entity_id.
       glm::mat4 model_matrix;
       if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        model_matrix = transform.transform_matrix * ptr->mesh_node_transforms[i];
+        model_matrix = transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
       } else {
-        model_matrix = transform.transform_matrix;
+        model_matrix = transform.GetTransformMatrix();
       }
       memcpy(model.mesh_uniform_buffers_[i]->data_, &model_matrix, sizeof(glm::mat4));
     } else {
       MatricesUniformData matrices{};
       if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        glm::mat4 mesh_model = transform.transform_matrix * ptr->mesh_node_transforms[i];
+        glm::mat4 mesh_model = transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
         matrices.model_matrix = mesh_model;
         matrices.normal_matrix = glm::mat3(glm::transpose(glm::inverse(mesh_model)));
       } else {
-        matrices.model_matrix = transform.transform_matrix;
-        matrices.normal_matrix = transform.normal_matrix;
+        matrices.model_matrix = transform.GetTransformMatrix();
+        matrices.normal_matrix = transform.GetNormalMatrix();
       }
       if (entity_handle != entt::null) {
         matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
@@ -3383,12 +3383,12 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
 
     MatricesUniformData matrices{};
     if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-      glm::mat4 mesh_model = transform.transform_matrix * ptr->mesh_node_transforms[i];
+      glm::mat4 mesh_model = transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
       matrices.model_matrix = mesh_model;
       matrices.normal_matrix = glm::mat3(glm::transpose(glm::inverse(mesh_model)));
     } else {
-      matrices.model_matrix = transform.transform_matrix;
-      matrices.normal_matrix = transform.normal_matrix;
+      matrices.model_matrix = transform.GetTransformMatrix();
+      matrices.normal_matrix = transform.GetNormalMatrix();
     }
     if (entity_handle != entt::null) {
       matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
@@ -3529,13 +3529,18 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 void Renderer::DrawSprite(SpriteComponent& sprite,
                           const TransformComponent& transform) {
   PROFILE_ZONE_SCOPED();
-  if (!sprite.asset_handle_->is_allocated_) {
+  if (!sprite.asset_ || !sprite.asset_->is_allocated_) {
     return;
   }
-  sprite.asset_handle_->UpdateTransform(transform.transform_matrix);
+  sprite.asset_->UpdateTransform(
+      transform.GetTransformMatrix(),
+      sprite.tint_,
+      sprite.flip_x_,
+      sprite.flip_y_,
+      static_cast<int>(sprite.current_frame_));
   // TODO: In the feature, we can use instanced sprites for atlas sprites
   const SpriteAsset::Frame& frame =
-      sprite.asset_handle_->frames_[sprite.current_frame_];
+      sprite.asset_->frames_[sprite.current_frame_];
 
   std::shared_ptr<MemoryBuffer> vertexBuffer = Engine::renderer()->GetQuadVertexBuffer();
   VkBuffer buffers[] = {frame.vertex_buffer->buffer_handle_};
@@ -3603,19 +3608,100 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
     img.gpu_dirty_ = false;
   }
 
-  // Update UBO
-  CanvasElementUniformData data{};
-  data.position = rt.computed_position;
-  data.size = rt.computed_size;
-  data.color = img.tint;
-  data.uv_rect = img.uv_rect;
-  memcpy(img.ubo_->data_, &data, sizeof(CanvasElementUniformData));
+  if (!img.IsSliced()) {
+    // Normal image: single quad
+    CanvasElementUniformData data{};
+    data.position = rt.computed_position;
+    data.size = rt.computed_size;
+    data.color = img.tint;
+    data.uv_rect = img.uv_rect;
+    memcpy(img.ubo_->data_, &data, sizeof(CanvasElementUniformData));
 
-  VkDescriptorSet sets[] = {img.descriptor_->descriptor_set_};
-  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+    VkDescriptorSet sets[] = {img.descriptor_->descriptor_set_};
+    vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
+    vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+  } else {
+    // 9-slice rendering
+    float bL = img.slice_border.x;  // left border px
+    float bT = img.slice_border.y;  // top border px
+    float bR = img.slice_border.z;  // right border px
+    float bB = img.slice_border.w;  // bottom border px
+
+    float tw = static_cast<float>(img.texture->width_);
+    float th = static_cast<float>(img.texture->height_);
+
+    // UV borders (normalized)
+    float uL = bL / tw;
+    float uR = 1.0f - bR / tw;
+    float vT = bT / th;
+    float vB = 1.0f - bB / th;
+
+    // Screen positions
+    float x0 = rt.computed_position.x;
+    float y0 = rt.computed_position.y;
+    float x3 = x0 + rt.computed_size.x;
+    float y3 = y0 + rt.computed_size.y;
+    float x1 = x0 + bL;
+    float x2 = x3 - bR;
+    float y1 = y0 + bT;
+    float y2 = y3 - bB;
+
+    // 9 regions: position, size, uv_rect(x, y, w, h)
+    struct SliceRegion {
+      glm::vec2 pos;
+      glm::vec2 size;
+      glm::vec4 uv;
+    };
+    SliceRegion regions[9] = {
+      // Top row
+      {{x0, y0}, {bL, bT}, {0, 0, uL, vT}},              // top-left
+      {{x1, y0}, {x2-x1, bT}, {uL, 0, uR-uL, vT}},       // top-center
+      {{x2, y0}, {bR, bT}, {uR, 0, 1-uR, vT}},            // top-right
+      // Middle row
+      {{x0, y1}, {bL, y2-y1}, {0, vT, uL, vB-vT}},        // middle-left
+      {{x1, y1}, {x2-x1, y2-y1}, {uL, vT, uR-uL, vB-vT}}, // center
+      {{x2, y1}, {bR, y2-y1}, {uR, vT, 1-uR, vB-vT}},     // middle-right
+      // Bottom row
+      {{x0, y2}, {bL, bB}, {0, vB, uL, 1-vB}},             // bottom-left
+      {{x1, y2}, {x2-x1, bB}, {uL, vB, uR-uL, 1-vB}},     // bottom-center
+      {{x2, y2}, {bR, bB}, {uR, vB, 1-uR, 1-vB}},          // bottom-right
+    };
+
+    // Allocate extra UBOs/descriptors if needed
+    if (img.slice_ubos_.size() < 9) {
+      img.slice_ubos_.resize(9);
+      img.slice_descriptors_.resize(9);
+      for (int i = 0; i < 9; i++) {
+        img.slice_ubos_[i] = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+        img.slice_descriptors_[i] = std::make_shared<DescriptorSet>();
+        img.slice_descriptors_[i]->SetLayout(layout);
+        img.slice_descriptors_[i]->AddUniformBuffer(0, img.slice_ubos_[i]);
+        img.slice_descriptors_[i]->AddCombinedImageSampler(
+            1, img.texture->image_view_, GetDefaultLinearSampler());
+        img.slice_descriptors_[i]->Bake();
+      }
+    }
+
+    for (int i = 0; i < 9; i++) {
+      auto& r = regions[i];
+      if (r.size.x <= 0 || r.size.y <= 0) continue;
+
+      CanvasElementUniformData data{};
+      data.position = r.pos;
+      data.size = r.size;
+      data.color = img.tint;
+      data.uv_rect = r.uv;
+      memcpy(img.slice_ubos_[i]->data_, &data, sizeof(CanvasElementUniformData));
+
+      VkDescriptorSet sets[] = {img.slice_descriptors_[i]->descriptor_set_};
+      vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
+                              VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
+      vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+    }
+  }
 }
 
 void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,

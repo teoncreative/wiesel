@@ -37,6 +37,26 @@ class MonoBehavior : public IBehavior {
   }
 
   ScriptInstance* script_instance() const { return script_instance_.get(); }
+
+  bool OnPointerClick(float x, float y) override {
+    if (script_instance_) return script_instance_->OnPointerClick(x, y);
+    return false;
+  }
+  bool OnPointerDown(float x, float y) override {
+    if (script_instance_) return script_instance_->OnPointerDown(x, y);
+    return false;
+  }
+  bool OnPointerUp(float x, float y) override {
+    if (script_instance_) return script_instance_->OnPointerUp(x, y);
+    return false;
+  }
+  void OnPointerEnter() override {
+    if (script_instance_) script_instance_->OnPointerEnter();
+  }
+  void OnPointerExit() override {
+    if (script_instance_) script_instance_->OnPointerExit();
+  }
+
  private:
   void InstantiateScript();
   bool OnReloadScripts(ScriptsReloadedEvent& event);

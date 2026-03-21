@@ -23,6 +23,31 @@ namespace WieselEngine
             return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
         }
 
+        public bool HasTag(string tag)
+        {
+            return Internals.Entity_HasTag(scenePtr, entityId, tag);
+        }
+
+        public void AddTag(string tag)
+        {
+            Internals.Entity_AddTag(scenePtr, entityId, tag);
+        }
+
+        public void RemoveTag(string tag)
+        {
+            Internals.Entity_RemoveTag(scenePtr, entityId, tag);
+        }
+
+        public void AddComponent<T>()
+        {
+            Internals.Entity_AddComponent(scenePtr, entityId, typeof(T).Name);
+        }
+
+        public void RemoveComponent<T>()
+        {
+            Internals.Entity_RemoveComponent(scenePtr, entityId, typeof(T).Name);
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is Entity other)

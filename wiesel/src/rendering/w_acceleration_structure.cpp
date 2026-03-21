@@ -206,7 +206,7 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
       if (!blas) continue;
 
       // Apply per-mesh node transform for static models
-      glm::mat4 mesh_world = transform.transform_matrix;
+      glm::mat4 mesh_world = transform.GetTransformMatrix();
       if (!modelData->has_skeleton && mi < modelData->mesh_node_transforms.size()) {
         mesh_world = mesh_world * modelData->mesh_node_transforms[mi];
       }

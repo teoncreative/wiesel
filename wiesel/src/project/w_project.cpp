@@ -269,6 +269,22 @@ std::unique_ptr<Project> Project::Load(
     }
   }
 
+  // Editor camera state
+  if (j.contains("editor_camera")) {
+    auto& ecj = j["editor_camera"];
+    auto& ec = project->settings_.editor_camera;
+    if (ecj.contains("position") && ecj["position"].is_array() && ecj["position"].size() >= 3) {
+      ec.position = {ecj["position"][0], ecj["position"][1], ecj["position"][2]};
+    }
+    ec.yaw = ecj.value("yaw", 180.0f);
+    ec.pitch = ecj.value("pitch", -15.0f);
+    ec.speed = ecj.value("speed", 10.0f);
+    ec.sensitivity = ecj.value("sensitivity", 160.0f);
+    ec.mode = ecj.value("mode", 0);
+    ec.zoom_2d = ecj.value("zoom_2d", 5.0f);
+    ec.fov = ecj.value("fov", 60.0f);
+  }
+
   return project;
 }
 
@@ -326,6 +342,21 @@ bool Project::Save() const {
     ij["contexts"] = contexts_json;
 
     j["input"] = ij;
+  }
+
+  // Editor camera state
+  {
+    auto& ec = settings_.editor_camera;
+    nlohmann::json ecj;
+    ecj["position"] = {ec.position.x, ec.position.y, ec.position.z};
+    ecj["yaw"] = ec.yaw;
+    ecj["pitch"] = ec.pitch;
+    ecj["speed"] = ec.speed;
+    ecj["sensitivity"] = ec.sensitivity;
+    ecj["mode"] = ec.mode;
+    ecj["zoom_2d"] = ec.zoom_2d;
+    ecj["fov"] = ec.fov;
+    j["editor_camera"] = ecj;
   }
 
   std::ofstream file(project_file_);

@@ -69,14 +69,48 @@ struct CanvasRectComponent {
   bool gpu_dirty_ = true;
 };
 
+enum class ButtonState : int {
+  Normal = 0,
+  Hovered = 1,
+  Pressed = 2,
+  Disabled = 3,
+};
+
+// Button component — provides automatic visual state management.
+// Works with a sibling CanvasImageComponent or CanvasRectComponent.
+// Requires InteractableComponent for hit detection.
+// Click handling is done via OnPointerClick in scripts.
+struct ButtonComponent {
+  // Colors for each state (applied to sibling CanvasImage tint or CanvasRect color)
+  glm::vec4 normal_color = {1.0f, 1.0f, 1.0f, 1.0f};
+  glm::vec4 hovered_color = {0.9f, 0.9f, 0.9f, 1.0f};
+  glm::vec4 pressed_color = {0.7f, 0.7f, 0.7f, 1.0f};
+  glm::vec4 disabled_color = {0.5f, 0.5f, 0.5f, 0.5f};
+
+  // Runtime state (not serialized)
+  ButtonState state_ = ButtonState::Normal;
+};
+
 struct CanvasImageComponent {
   std::shared_ptr<Texture> texture;
   glm::vec4 tint = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 uv_rect = {0.0f, 0.0f, 1.0f, 1.0f};
 
+  // 9-slice: border sizes in pixels (left, top, right, bottom)
+  // When all zeros, renders as a normal stretched image.
+  glm::vec4 slice_border = {0.0f, 0.0f, 0.0f, 0.0f};
+
+  bool IsSliced() const {
+    return slice_border.x > 0 || slice_border.y > 0 ||
+           slice_border.z > 0 || slice_border.w > 0;
+  }
+
   // GPU resources (allocated lazily)
   std::shared_ptr<UniformBuffer> ubo_;
   std::shared_ptr<DescriptorSet> descriptor_;
+  // 9-slice needs 9 quads — center reuses ubo_/descriptor_, 8 borders get their own
+  std::vector<std::shared_ptr<UniformBuffer>> slice_ubos_;
+  std::vector<std::shared_ptr<DescriptorSet>> slice_descriptors_;
   bool gpu_dirty_ = true;
 };
 

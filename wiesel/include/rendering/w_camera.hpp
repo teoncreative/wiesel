@@ -113,7 +113,7 @@ struct CameraData {
   glm::mat4 prev_view_projection{1.0f};
 
   void TransferFrom(CameraComponent& camera, TransformComponent& transform) {
-    position = transform.position;
+    position = transform.GetPosition();
     view_matrix = camera.view_matrix;
     projection = camera.projection;
     inv_projection = camera.inv_projection;

@@ -10,6 +10,7 @@
 
 #include "scene/w_scene.hpp"
 
+#include <imgui.h>
 #include <nlohmann/json.hpp>
 #include <ranges>
 #include <rendering/w_sprite.hpp>
@@ -40,6 +41,7 @@
 #include "systems/w_canvas_system.hpp"
 #include "ai/w_agent_controller.hpp"
 #include "audio/w_audio.hpp"
+#include "ui/w_interactable.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "w_engine.hpp"
 
@@ -156,7 +158,7 @@ void Scene::RemoveEntity(Entity entity) {
 
 entt::entity Scene::FindEntityByName(const std::string& name) {
   for (auto entity : registry_.view<TagComponent>()) {
-    if (registry_.get<TagComponent>(entity).tag == name) {
+    if (registry_.get<TagComponent>(entity).name == name) {
       return entity;
     }
   }
@@ -169,6 +171,16 @@ entt::entity Scene::FindEntityByUUID(const UUID& uuid) {
     return it->second;
   }
   return entt::null;
+}
+
+std::vector<entt::entity> Scene::FindEntitiesByTag(const std::string& tag) {
+  std::vector<entt::entity> result;
+  for (auto entity : registry_.view<TagComponent>()) {
+    if (registry_.get<TagComponent>(entity).HasTag(tag)) {
+      result.push_back(entity);
+    }
+  }
+  return result;
 }
 
 void Scene::DestroyEntity(entt::entity handle) {
@@ -186,7 +198,7 @@ void Scene::OnUpdate(float_t delta_time) {
       auto& cam = registry_.get<CameraComponent>(entity);
       if (!cam.enabled) continue;
       auto& transform = registry_.get<TransformComponent>(entity);
-      audio.SetListenerPosition(transform.position);
+      audio.SetListenerPosition(transform.GetPosition());
       glm::vec3 forward = -glm::vec3(cam.inv_view_matrix[2]);
       glm::vec3 up = glm::vec3(cam.inv_view_matrix[1]);
       audio.SetListenerDirection(glm::normalize(forward), glm::normalize(up));
@@ -196,7 +208,7 @@ void Scene::OnUpdate(float_t delta_time) {
       for (auto zone_entity : registry_.view<ReverbZoneComponent, TransformComponent>()) {
         auto& zone = registry_.get<ReverbZoneComponent>(zone_entity);
         auto& zone_transform = registry_.get<TransformComponent>(zone_entity);
-        float dist = glm::distance(transform.position, zone_transform.position);
+        float dist = glm::distance(transform.GetPosition(), zone_transform.GetPosition());
         if (dist < zone.radius) {
           // Blend wet amount based on how deep inside the zone we are
           float blend = 1.0f - (dist / zone.radius);
@@ -244,6 +256,17 @@ void Scene::OnUpdate(float_t delta_time) {
       }
     }
 
+    // UI pointer events
+    {
+      ImGuiIO& io = ImGui::GetIO();
+      float mx = io.MousePos.x;
+      float my = io.MousePos.y;
+      bool down = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+      bool up = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
+      bool held = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+      ui_event_system_.Update(*this, mx, my, down, up, held);
+    }
+
     // Audio: tick audio source components
     {
       auto& audio = Engine::audio();
@@ -261,13 +284,13 @@ void Scene::OnUpdate(float_t delta_time) {
 
         // Play on start (first frame only)
         if (src.play_on_start && !src.started_ && src.clip.IsValid()) {
-          src.playing_handle_ = audio.Play(src.clip, src.MakeParams(transform.position));
+          src.playing_handle_ = audio.Play(src.clip, src.MakeParams(transform.GetPosition()));
           src.started_ = true;
         }
 
         // Update position for spatial sounds
         if (src.playing_handle_.IsValid() && src.spatial_blend > 0.0f) {
-          audio.SetSoundPosition(src.playing_handle_, transform.position);
+          audio.SetSoundPosition(src.playing_handle_, transform.GetPosition());
         }
       }
     }
@@ -293,9 +316,9 @@ void Scene::UpdateSceneState(float_t delta_time) {
   PROFILE_ZONE_SCOPED_N("Scene::UpdateSceneState");
   for (const auto& entity : registry_.view<TransformComponent>()) {
     auto& transform = registry_.get<TransformComponent>(entity);
-    if (transform.is_changed) {
+    if (transform.IsChanged()) {
       UpdateMatrices(entity);
-      transform.is_changed = false;
+      transform.ClearChanged();
       // todo this is a bit hacky
       // set the camera as changed if transform has changed
       if (registry_.any_of<CameraComponent>(entity)) {
@@ -321,7 +344,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
   // Sprite animation
   for (auto entity : registry_.view<SpriteComponent>()) {
     auto& spr = registry_.get<SpriteComponent>(entity);
-    if (!spr.asset_handle_) continue;
+    if (!spr.asset_) continue;
 
     // Evaluate state machine transitions (if controller is set up)
     if (!spr.state_machine.controller.IsEmpty()) {
@@ -344,7 +367,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
     const SpriteClip* clip = spr.GetActiveClip();
     if (!clip) {
       // No clip - animate through all frames using per-frame duration
-      auto& frames = spr.asset_handle_->GetFrames();
+      auto& frames = spr.asset_->GetFrames();
       if (frames.size() <= 1) continue;
       float duration = frames[spr.current_frame_].duration;
       if (duration <= 0.0f) continue;
@@ -696,7 +719,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
       camera.view_changed = false;
     }
     if (camera.pos_changed) {
-      camera.UpdateView(transform.transform_matrix);
+      camera.UpdateView(transform.GetTransformMatrix());
       camera.pos_changed = false;
     }
     if (camera.any_changed) {
@@ -745,12 +768,11 @@ void Scene::LinkEntities(entt::entity parent, entt::entity child) {
   child_tree.parent = parent;
   auto& child_transform = registry_.get<TransformComponent>(child);
   auto& parent_transform = registry_.get<TransformComponent>(parent);
-  glm::vec3 posDiff = child_transform.position - parent_transform.position;
-  glm::vec3 rotDiff = child_transform.rotation - parent_transform.rotation;
+  glm::vec3 posDiff = child_transform.GetPosition() - parent_transform.GetPosition();
+  glm::vec3 rotDiff = child_transform.GetRotation() - parent_transform.GetRotation();
 
-  child_transform.position = posDiff;
-  child_transform.rotation = rotDiff;
-  child_transform.is_changed = true;
+  child_transform.SetPosition(posDiff);
+  child_transform.SetRotation(rotDiff);
 }
 
 void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
@@ -765,12 +787,11 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
   child_tree.parent = entt::null;
   auto& child_transform = registry_.get<TransformComponent>(child);
   auto& parent_transform = registry_.get<TransformComponent>(parent);
-  glm::vec3 pos_diff = child_transform.position + parent_transform.position;
-  glm::vec3 rot_diff = child_transform.rotation + parent_transform.rotation;
+  glm::vec3 pos_diff = child_transform.GetPosition() + parent_transform.GetPosition();
+  glm::vec3 rot_diff = child_transform.GetRotation() + parent_transform.GetRotation();
 
-  child_transform.position = pos_diff;
-  child_transform.rotation = rot_diff;
-  child_transform.is_changed = true;
+  child_transform.SetPosition(pos_diff);
+  child_transform.SetRotation(rot_diff);
 }
 
 void Scene::ProcessDestroyQueue() {
@@ -807,12 +828,12 @@ bool Scene::OnPipelineRecreatedEvent(PipelineRecreatedEvent& event) {
 
 glm::mat4 Scene::MakeLocal(const TransformComponent& t) {
   PROFILE_ZONE_SCOPED();
-  glm::vec3 rotRad = glm::radians(t.rotation);
+  glm::vec3 rotRad = glm::radians(t.GetRotation());
   glm::mat4 R = glm::toMat4(glm::quat(rotRad));
-  glm::mat4 T = glm::translate(glm::mat4(1.0f), t.position);
-  glm::mat4 Tp = glm::translate(glm::mat4(1.0f), t.pivot);
-  glm::mat4 Tn = glm::translate(glm::mat4(1.0f), -t.pivot);
-  glm::mat4 S = glm::scale(glm::mat4(1.0f), t.scale);
+  glm::mat4 T = glm::translate(glm::mat4(1.0f), t.GetPosition());
+  glm::mat4 Tp = glm::translate(glm::mat4(1.0f), t.GetPivot());
+  glm::mat4 Tn = glm::translate(glm::mat4(1.0f), -t.GetPivot());
+  glm::mat4 S = glm::scale(glm::mat4(1.0f), t.GetScale());
 
   // move to Position, shift to Pivot, rotate+scale, shift back
   return T * Tp * R * S * Tn;
@@ -833,8 +854,7 @@ glm::mat4 Scene::GetWorldMatrix(entt::entity entity) {
 void Scene::UpdateMatrices(entt::entity entity) {
   PROFILE_ZONE_SCOPED();
   auto& tc = registry_.get<TransformComponent>(entity);
-  tc.transform_matrix = GetWorldMatrix(entity);
-  tc.normal_matrix = glm::inverseTranspose(glm::mat3(tc.transform_matrix));
+  tc.SetTransformMatrix(GetWorldMatrix(entity));
 }
 
 void Scene::InvalidateRenderGraphs() {
@@ -858,7 +878,7 @@ void Scene::Cleanup() {
   }
 
   // Clear per-entity render data (descriptor sets, uniform buffers).
-  for (auto entity : registry_.view<ModelComponent>()) {
+  for (entt::entity entity : registry_.view<ModelComponent>()) {
     auto& model = registry_.get<ModelComponent>(entity);
     model.geometry_descriptors.clear();
     model.shadow_descriptors.clear();
@@ -868,19 +888,19 @@ void Scene::Cleanup() {
     model.mesh_uniform_buffers_.clear();
   }
 
-  for (auto entity : registry_.view<CanvasRectComponent>()) {
+  for (entt::entity entity : registry_.view<CanvasRectComponent>()) {
     auto& rect = registry_.get<CanvasRectComponent>(entity);
     rect.descriptor_ = nullptr;
     rect.ubo_ = nullptr;
   }
 
-  for (auto entity : registry_.view<CanvasImageComponent>()) {
+  for (entt::entity entity : registry_.view<CanvasImageComponent>()) {
     auto& img = registry_.get<CanvasImageComponent>(entity);
     img.descriptor_ = nullptr;
     img.ubo_ = nullptr;
   }
 
-  for (auto entity : registry_.view<TextComponent>()) {
+  for (entt::entity entity : registry_.view<TextComponent>()) {
     auto& text = registry_.get<TextComponent>(entity);
     text.glyph_gpu_.clear();
   }
@@ -1028,18 +1048,18 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   }
 
   // Compute transform matrix (no entity hierarchy for external camera)
-  glm::vec3 rotRad = glm::radians(transform.rotation);
+  glm::vec3 rotRad = glm::radians(transform.GetRotation());
   glm::mat4 R = glm::toMat4(glm::quat(rotRad));
-  glm::mat4 T = glm::translate(glm::mat4(1.0f), transform.position);
-  glm::mat4 S = glm::scale(glm::mat4(1.0f), transform.scale);
-  transform.transform_matrix = T * R * S;
+  glm::mat4 T = glm::translate(glm::mat4(1.0f), transform.GetPosition());
+  glm::mat4 S = glm::scale(glm::mat4(1.0f), transform.GetScale());
+  transform.SetTransformMatrix(T * R * S);
 
   // Update camera matrices
   if (camera.view_changed) {
     camera.UpdateProjection();
     camera.view_changed = false;
   }
-  camera.UpdateView(transform.transform_matrix);
+  camera.UpdateView(transform.GetTransformMatrix());
   camera.UpdateAll();
 
   // Compute shadow cascades for external camera (same as ECS cameras)

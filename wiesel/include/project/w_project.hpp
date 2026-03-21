@@ -63,6 +63,18 @@ struct ProjectSettings {
   std::vector<std::string> scenes;
   RenderOptionsSerialized render_options;
   InputSettings input;
+
+  // Editor state (persisted but only used by editor)
+  struct EditorCameraState {
+    glm::vec3 position = {0, 5, -10};
+    float yaw = 180.0f;
+    float pitch = -15.0f;
+    float speed = 10.0f;
+    float sensitivity = 160.0f;
+    int mode = 0;  // 0 = Free, 1 = 2D
+    float zoom_2d = 5.0f;
+    float fov = 60.0f;
+  } editor_camera;
 };
 
 class Project {

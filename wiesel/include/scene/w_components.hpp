@@ -49,17 +49,33 @@ struct TreeComponent : public IComponent {
 };
 
 struct TagComponent : public IComponent {
-  TagComponent(const std::string& tag) : tag(tag) {}
+  TagComponent(const std::string& name) : name(name) {}
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
 
-  std::string tag;
+  std::string name;  // entity name
+  std::vector<std::string> tags;  // game tags ("Enemy", "Player", etc.)
+
+  bool HasTag(const std::string& tag) const {
+    return std::find(tags.begin(), tags.end(), tag) != tags.end();
+  }
+
+  void AddTag(const std::string& tag) {
+    if (!HasTag(tag)) {
+      tags.push_back(tag);
+    }
+  }
+
+  void RemoveTag(const std::string& tag) {
+    tags.erase(std::ranges::remove(tags, tag).begin(), tags.end());
+  }
 };
 
 struct TransformComponent : public IComponent {
   TransformComponent() = default;
   TransformComponent(const TransformComponent&) = default;
 
+  // Direction vectors (from cached transform matrix)
   glm::vec3 GetForward();
   glm::vec3 GetBackward();
   glm::vec3 GetLeft();
@@ -67,39 +83,95 @@ struct TransformComponent : public IComponent {
   glm::vec3 GetUp();
   glm::vec3 GetDown();
 
-  void Move(float dx, float dy, float dz);
+  // Getters (read-only, no dirty flag)
+  const glm::vec3& GetPosition() const { return position_; }
+  const glm::vec3& GetRotation() const { return rotation_; }
+  const glm::vec3& GetScale() const { return scale_; }
+  const glm::vec3& GetPivot() const { return pivot_; }
+  bool IsChanged() const { return is_changed_; }
+  const glm::mat4& GetTransformMatrix() const { return transform_matrix_; }
+  const glm::mat3& GetNormalMatrix() const { return normal_matrix_; }
 
-  void Move(const glm::vec3& delta) { Move(delta.x, delta.y, delta.z); }
+  // Setters (mark dirty automatically)
+  void SetPosition(const glm::vec3& pos) {
+    position_ = pos;
+    is_changed_ = true;
+  }
+  void SetPosition(float x, float y, float z) {
+    position_ = {x, y, z};
+    is_changed_ = true;
+  }
 
-  void SetPosition(float x, float y, float z);
+  void SetRotation(const glm::vec3& rot) {
+    rotation_ = rot;
+    is_changed_ = true;
+  }
+  void SetRotation(float x, float y, float z) {
+    rotation_ = {x, y, z};
+    is_changed_ = true;
+  }
 
-  void SetPosition(const glm::vec3& pos) { SetPosition(pos.x, pos.y, pos.z); }
+  void SetScale(const glm::vec3& scale) {
+    scale_ = scale;
+    is_changed_ = true;
+  }
+  void SetScale(float x, float y, float z) {
+    scale_ = {x, y, z};
+    is_changed_ = true;
+  }
 
-  void Rotate(float dx, float dy, float dz);
+  void SetPivot(const glm::vec3& pivot) {
+    pivot_ = pivot;
+    is_changed_ = true;
+  }
 
-  void Rotate(const glm::vec3& delta) { Rotate(delta.x, delta.y, delta.z); }
+  // Relative modifiers
+  void Move(const glm::vec3& delta) {
+    position_ += delta;
+    is_changed_ = true;
+  }
+  void Move(float dx, float dy, float dz) {
+    Move({dx, dy, dz});
+  }
 
-  void SetRotation(float x, float y, float z);
+  void Rotate(const glm::vec3& delta) {
+    rotation_ += delta;
+    is_changed_ = true;
+  }
+  void Rotate(float dx, float dy, float dz) {
+    Rotate({dx, dy, dz});
+  }
 
-  void SetRotation(const glm::vec3& rot) { SetRotation(rot.x, rot.y, rot.z); }
+  void Resize(const glm::vec3& delta) {
+    scale_ += delta;
+    is_changed_ = true;
+  }
+  void Resize(float dx, float dy, float dz) {
+    Resize({dx, dy, dz});
+  }
 
-  void Resize(float dx, float dy, float dz);
+  // Internal: used by scene to update cached matrices and reset flag
+  void SetTransformMatrix(const glm::mat4& mat) {
+    transform_matrix_ = mat;
+    normal_matrix_ = glm::mat3(mat);
+  }
+  void ClearChanged() { is_changed_ = false; }
+  void MarkChanged() { is_changed_ = true; }
 
-  void Resize(const glm::vec3& delta) { Resize(delta.x, delta.y, delta.z); }
+  // Direct mutable access (for serialization, physics sync, editor inspector)
+  glm::vec3& PositionMut() { return position_; }
+  glm::vec3& RotationMut() { return rotation_; }
+  glm::vec3& ScaleMut() { return scale_; }
+  glm::vec3& PivotMut() { return pivot_; }
 
-  void SetScale(float x, float y, float z);
-
-  void SetScale(const glm::vec3& scale) { SetScale(scale.x, scale.y, scale.z); }
-
-  glm::vec3 position = {0.0f, 0.0f, 0.0f};
-  // rotation in degrees
-  glm::vec3 rotation = {0.0f, 0.0f, 0.0f};
-  glm::vec3 scale = {1.0f, 1.0f, 1.0f};
-  glm::vec3 pivot = {0.0f, 0.0f, 0.0f};
-
-  bool is_changed = true;
-  glm::mat4 transform_matrix = {};
-  glm::mat3 normal_matrix = {};
+ private:
+  glm::vec3 position_ = {0.0f, 0.0f, 0.0f};
+  glm::vec3 rotation_ = {0.0f, 0.0f, 0.0f};  // in degrees
+  glm::vec3 scale_ = {1.0f, 1.0f, 1.0f};
+  glm::vec3 pivot_ = {0.0f, 0.0f, 0.0f};
+  bool is_changed_ = true;
+  glm::mat4 transform_matrix_ = {};
+  glm::mat3 normal_matrix_ = {};
 };
 
 struct RectangleTransformComponent : public IComponent {
@@ -118,8 +190,7 @@ struct RectangleTransformComponent : public IComponent {
   glm::vec2 computed_size = {0.0f, 0.0f};
   int32_t draw_order = 0;  // tree-traversal order for correct z-ordering
 
-  bool is_changed = true;
-  bool is_driven = true;
+  void MarkChanged() { /* no op for now */ }
 };
 
 // Animation playback state (per-entity)

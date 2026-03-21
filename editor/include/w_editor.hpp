@@ -83,14 +83,23 @@ class EditorLayer : public Layer {
   // Play/Stop state
   EditorState editor_state_ = EditorState::Edit;
 
-  // Editor free camera (not in the scene's ECS)
+  // Editor camera
+  enum class EditorCameraMode {
+    Free,
+    Mode2D,
+  };
+
   CameraComponent editor_camera_;
   TransformComponent editor_camera_transform_;
+  EditorCameraMode editor_camera_mode_ = EditorCameraMode::Free;
   float editor_yaw_ = 0.0f;
   float editor_pitch_ = 0.0f;
   float camera_speed_ = 10.0f;
   float mouse_sensitivity_ = 160.0f;
+  float editor_2d_zoom_ = 5.0f;  // ortho size in 2D mode
   bool cursor_captured_ = false;
+  entt::entity piloting_camera_ = entt::null;  // entity whose camera we're piloting
+  glm::vec2 pending_pick_ndc_ = {-1, -1};  // NDC coords for fallback sprite picking
   bool game_panel_focused_ = false;
   bool scene_panel_visible_ = true;
   bool game_panel_visible_ = true;

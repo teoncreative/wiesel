@@ -23,7 +23,7 @@
 #endif
 #include "events/w_engineevents.hpp"
 #include "rendering/w_renderer.hpp"
-#include "util/imgui/imgui_spectrum.hpp"
+#include "util/imgui/imgui_theme.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
@@ -66,8 +66,8 @@ void ImGuiLayer::OnAttach() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   //ImGui::StyleColorsDark(&ImGui::GetStyle());
-  ImGui::Spectrum::StyleColorsSpectrum();
-  ImGui::Spectrum::LoadFont();
+  ImGui::Moonlight::StyleColorsMoonlight();
+  ImGui::Moonlight::LoadFont();
 
   auto& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

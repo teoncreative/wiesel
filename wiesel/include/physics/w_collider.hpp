@@ -44,6 +44,24 @@ struct SphereColliderComponent : public IComponent {
   uint16_t collision_group = CollisionGroupDefault;
 };
 
+enum class CapsuleAxis : int {
+  X = 0,
+  Y = 1,
+  Z = 2,
+};
+
+struct CapsuleColliderComponent : public IComponent {
+  CapsuleColliderComponent() = default;
+  CapsuleColliderComponent(const CapsuleColliderComponent&) = default;
+
+  glm::vec3 offset = {0.0f, 0.0f, 0.0f};
+  float radius = 0.3f;
+  float height = 1.0f;   // height of the cylindrical section (total = height + 2*radius)
+  CapsuleAxis axis = CapsuleAxis::Y;
+  bool is_trigger = false;
+  uint16_t collision_group = CollisionGroupDefault;
+};
+
 struct HeightfieldColliderComponent : public IComponent {
   HeightfieldColliderComponent() = default;
   HeightfieldColliderComponent(const HeightfieldColliderComponent&) = default;

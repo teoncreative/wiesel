@@ -13,6 +13,7 @@
 
 #include "animation/w_animation.hpp"
 #include "audio/w_audio.hpp"
+#include "ui/w_interactable.hpp"
 #include "rendering/w_sprite.hpp"
 #include "rendering/w_sprite_loader.hpp"
 #include "asset/w_asset_manager.hpp"
@@ -107,15 +108,15 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
     bool changed = false;
     changed |=
         ImGui::DragFloat3(PrefixLabel("Position").c_str(),
-                          reinterpret_cast<float*>(&component.position), 0.1f);
+                          reinterpret_cast<float*>(&component.PositionMut()), 0.1f);
     changed |=
         ImGui::DragFloat3(PrefixLabel("Rotation").c_str(),
-                          reinterpret_cast<float*>(&component.rotation), 0.1f);
+                          reinterpret_cast<float*>(&component.RotationMut()), 0.1f);
     changed |=
         ImGui::DragFloat3(PrefixLabel("Scale").c_str(),
-                          reinterpret_cast<float*>(&component.scale), 0.1f);
+                          reinterpret_cast<float*>(&component.ScaleMut()), 0.1f);
     if (changed) {
-      component.is_changed = true;
+      component.MarkChanged();
     }
     ImGui::TreePop();
   }
@@ -483,7 +484,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
           Scene* scene = instance->behavior()->scene();
           if (scene && scene->HasEntity(current_entity_id) &&
               scene->HasComponent<TagComponent>(current_entity_id)) {
-            entity_label = scene->GetComponent<TagComponent>(current_entity_id).tag;
+            entity_label = scene->GetComponent<TagComponent>(current_entity_id).name;
           } else {
             entity_label = "(Invalid)";
           }
@@ -785,6 +786,34 @@ void RenderAddComponentImGui_SphereColliderComponent(Entity entity) {
   }
 }
 
+void RenderComponentImGui(CapsuleColliderComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Capsule Collider", &visible)) {
+    ImGui::DragFloat3(PrefixLabel("Offset").c_str(), &component.offset.x, 0.01f);
+    ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.01f, 0.01f, 100.0f);
+    ImGui::DragFloat(PrefixLabel("Height").c_str(), &component.height, 0.01f, 0.01f, 100.0f);
+
+    const char* axis_names[] = {"X", "Y", "Z"};
+    int axis_idx = static_cast<int>(component.axis);
+    if (ImGui::Combo(PrefixLabel("Axis").c_str(), &axis_idx, axis_names, 3)) {
+      component.axis = static_cast<CapsuleAxis>(axis_idx);
+    }
+
+    ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<CapsuleColliderComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_CapsuleColliderComponent(Entity entity) {
+  if (ImGui::MenuItem("Capsule Collider") && !entity.HasComponent<CapsuleColliderComponent>()) {
+    entity.AddComponent<CapsuleColliderComponent>();
+  }
+}
+
 void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Rigid Body", &visible)) {
@@ -816,18 +845,22 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
                          &component.angular_damping, 0.01f, 0.0f, 1.0f)) {
       component.is_dirty = true;
     }
-    ImGui::Checkbox(PrefixLabel("Lock Position X").c_str(),
-                    &component.lock_position_x);
-    ImGui::Checkbox(PrefixLabel("Lock Position Y").c_str(),
-                    &component.lock_position_y);
-    ImGui::Checkbox(PrefixLabel("Lock Position Z").c_str(),
-                    &component.lock_position_z);
-    ImGui::Checkbox(PrefixLabel("Lock Rotation X").c_str(),
-                    &component.lock_rotation_x);
-    ImGui::Checkbox(PrefixLabel("Lock Rotation Y").c_str(),
-                    &component.lock_rotation_y);
-    ImGui::Checkbox(PrefixLabel("Lock Rotation Z").c_str(),
-                    &component.lock_rotation_z);
+    ImGui::Text("Freeze Position");
+    ImGui::SameLine();
+    ImGui::Checkbox("X##fp", &component.lock_position_x);
+    ImGui::SameLine();
+    ImGui::Checkbox("Y##fp", &component.lock_position_y);
+    ImGui::SameLine();
+    ImGui::Checkbox("Z##fp", &component.lock_position_z);
+
+    ImGui::Text("Freeze Rotation");
+    ImGui::SameLine();
+    ImGui::Checkbox("X##fr", &component.lock_rotation_x);
+    ImGui::SameLine();
+    ImGui::Checkbox("Y##fr", &component.lock_rotation_y);
+    ImGui::SameLine();
+    ImGui::Checkbox("Z##fr", &component.lock_rotation_z);
+
     ImGui::TreePop();
   }
   if (!visible) {
@@ -892,9 +925,9 @@ void RenderComponentImGui(RectangleTransformComponent& component, Entity entity)
                         component.computed_position.x, component.computed_position.y,
                         component.computed_size.x, component.computed_size.y);
 
-    if (changed) {
+    /*if (changed) {
       component.is_changed = true;
-    }
+    }*/
     ImGui::TreePop();
   }
 }
@@ -948,6 +981,14 @@ void RenderComponentImGui(CanvasImageComponent& component, Entity entity) {
     }
     ImGui::DragFloat4(PrefixLabel("UV Rect").c_str(),
                       reinterpret_cast<float*>(&component.uv_rect), 0.01f);
+
+    ImGui::SeparatorText("9-Slice");
+    ImGui::DragFloat4(PrefixLabel("Border (L,T,R,B)").c_str(),
+                      reinterpret_cast<float*>(&component.slice_border), 1.0f, 0.0f, 500.0f);
+    if (component.IsSliced()) {
+      ImGui::TextDisabled("9-slice active");
+    }
+
     ImGui::TreePop();
   }
   if (!visible) {
@@ -1341,6 +1382,8 @@ void RenderAddComponentImGui_LightDirectComponent(Entity entity) {
 void RenderAddComponentImGui_CameraComponent(Entity entity) {
   if (ImGui::MenuItem("Camera")) {
     auto& component = entity.AddComponent<CameraComponent>();
+    component.viewport_size = {1920, 1080};
+    component.aspect_ratio = 1920.0f / 1080.0f;
     Engine::renderer()->SetupCameraComponent(component);
   }
 }
@@ -1565,45 +1608,386 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
   }
 
   // Animation asset (drag-drop)
-  static AssetHandle anim_handle;
   std::string display = "(None)";
-  if (component.asset_handle_) {
-    display = "Loaded";
-    // Try to find the anim handle from asset manager
+  if (component.asset_handle_.IsValid()) {
+    const auto* meta = Engine::asset_manager().GetMetadata(component.asset_handle_);
+    if (meta) {
+      display = meta->name;
+    }
   }
-
+  ImGui::InputText(PrefixLabel("Animation").c_str(), &display, ImGuiInputTextFlags_ReadOnly);
   if (ImGui::BeginDragDropTarget()) {
     AssetHandle dropped = AcceptAssetDragDrop(AssetType::SpriteAnim);
     if (dropped.IsValid()) {
       LoadSpriteAnim(dropped, component);
+      component.asset_handle_ = dropped;
+    } else {
+      dropped = AcceptAssetDragDrop(AssetType::SpriteSheet);
+      if (dropped.IsValid()) {
+        auto sheet = LoadSpriteSheet(dropped);
+        if (sheet) {
+          component.asset_ = sheet;
+          component.asset_handle_ = dropped;
+          component.clips.clear();
+        }
+      }
     }
     ImGui::EndDragDropTarget();
   }
 
-  // Clips info
-  if (!component.clips.empty()) {
-    ImGui::Text("Clips: %d", static_cast<int>(component.clips.size()));
-    for (auto& clip : component.clips) {
-      ImGui::BulletText("%s (frames %d-%d, %.2fs, %s)",
-                         clip.name.c_str(),
-                         clip.start_frame,
-                         clip.start_frame + clip.frame_count - 1,
-                         clip.frame_duration,
-                         clip.loop ? "loop" : "once");
-    }
-  }
-
-  // Playback
-  ImGui::Separator();
-  ImGui::Text("Frame: %d", component.current_frame_);
-  ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing_);
+  // Visual properties
   ImGui::Checkbox(PrefixLabel("Flip X").c_str(), &component.flip_x_);
-  ImGui::Checkbox(PrefixLabel("Flip Y").c_str(), &component.flip_y_);
+  ImGui::SameLine();
+  ImGui::Checkbox("Flip Y", &component.flip_y_);
   ImGui::ColorEdit4(PrefixLabel("Tint").c_str(), &component.tint_.r);
-
   int sort = component.sort_layer_;
   if (ImGui::InputInt(PrefixLabel("Sort Layer").c_str(), &sort)) {
     component.sort_layer_ = static_cast<uint8_t>(std::clamp(sort, 0, 255));
+  }
+
+  // Playback
+  ImGui::SeparatorText("Playback");
+  ImGui::Text("Frame: %d", component.current_frame_);
+  ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing_);
+
+  // Clips table
+  if (ImGui::TreeNode("Clips")) {
+    if (ImGui::BeginTable("##clips", 6,
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+      ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 80);
+      ImGui::TableSetupColumn("Start", ImGuiTableColumnFlags_WidthFixed, 50);
+      ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 50);
+      ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthFixed, 60);
+      ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 35);
+      ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
+      ImGui::TableHeadersRow();
+
+      int to_remove = -1;
+      for (int i = 0; i < static_cast<int>(component.clips.size()); i++) {
+        ImGui::PushID(i);
+        auto& clip = component.clips[i];
+        ImGui::TableNextRow();
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        char nbuf[64];
+        strncpy(nbuf, clip.name.c_str(), sizeof(nbuf) - 1);
+        nbuf[sizeof(nbuf) - 1] = '\0';
+        if (ImGui::InputText("##n", nbuf, sizeof(nbuf))) {
+          clip.name = nbuf;
+        }
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        int start = static_cast<int>(clip.start_frame);
+        if (ImGui::InputInt("##s", &start)) {
+          clip.start_frame = std::max(0, start);
+        }
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        int count = static_cast<int>(clip.frame_count);
+        if (ImGui::InputInt("##c", &count)) {
+          clip.frame_count = std::max(1, count);
+        }
+
+        ImGui::TableNextColumn();
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputFloat("##d", &clip.frame_duration, 0.01f);
+
+        ImGui::TableNextColumn();
+        ImGui::Checkbox("##l", &clip.loop);
+
+        ImGui::TableNextColumn();
+        if (ImGui::SmallButton("X")) {
+          to_remove = i;
+        }
+
+        ImGui::PopID();
+      }
+      ImGui::EndTable();
+
+      if (to_remove >= 0) {
+        component.clips.erase(component.clips.begin() + to_remove);
+      }
+    }
+    if (ImGui::Button("+ Add Clip")) {
+      SpriteClip clip;
+      clip.name = "clip" + std::to_string(component.clips.size());
+      component.clips.push_back(clip);
+    }
+    ImGui::TreePop();
+  }
+
+  // State machine controller
+  auto& ctrl = component.state_machine.controller;
+  if (ImGui::TreeNode("Controller")) {
+    // Default state
+    if (ImGui::BeginCombo("Default State",
+                           ctrl.default_state.empty() ? "(None)" : ctrl.default_state.c_str())) {
+      if (ImGui::Selectable("(None)", ctrl.default_state.empty())) {
+        ctrl.default_state.clear();
+      }
+      for (auto& state : ctrl.states) {
+        if (ImGui::Selectable(state.name.c_str(), ctrl.default_state == state.name)) {
+          ctrl.default_state = state.name;
+        }
+      }
+      ImGui::EndCombo();
+    }
+
+    // States table
+    if (ImGui::TreeNode("States")) {
+      if (ImGui::BeginTable("##states", 5,
+          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("Clip", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn("Speed", ImGuiTableColumnFlags_WidthFixed, 50);
+        ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 35);
+        ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
+        ImGui::TableHeadersRow();
+
+        int to_remove = -1;
+        for (int i = 0; i < static_cast<int>(ctrl.states.size()); i++) {
+          ImGui::PushID(i + 2000);
+          auto& state = ctrl.states[i];
+          ImGui::TableNextRow();
+
+          ImGui::TableNextColumn();
+          ImGui::SetNextItemWidth(-1);
+          char sbuf[64];
+          strncpy(sbuf, state.name.c_str(), sizeof(sbuf) - 1);
+          sbuf[sizeof(sbuf) - 1] = '\0';
+          if (ImGui::InputText("##sn", sbuf, sizeof(sbuf))) {
+            state.name = sbuf;
+          }
+
+          ImGui::TableNextColumn();
+          ImGui::SetNextItemWidth(-1);
+          if (ImGui::BeginCombo("##sc", state.clip_name.empty() ? "(None)" : state.clip_name.c_str())) {
+            for (auto& clip : component.clips) {
+              if (ImGui::Selectable(clip.name.c_str(), state.clip_name == clip.name)) {
+                state.clip_name = clip.name;
+              }
+            }
+            ImGui::EndCombo();
+          }
+
+          ImGui::TableNextColumn();
+          ImGui::SetNextItemWidth(-1);
+          ImGui::InputFloat("##sp", &state.speed, 0.1f);
+
+          ImGui::TableNextColumn();
+          ImGui::Checkbox("##sl", &state.looping);
+
+          ImGui::TableNextColumn();
+          if (ImGui::SmallButton("X")) {
+            to_remove = i;
+          }
+
+          ImGui::PopID();
+        }
+        ImGui::EndTable();
+
+        if (to_remove >= 0) {
+          ctrl.states.erase(ctrl.states.begin() + to_remove);
+        }
+      }
+      if (ImGui::Button("+ Add State")) {
+        AnimationState state;
+        state.name = "state" + std::to_string(ctrl.states.size());
+        ctrl.states.push_back(state);
+      }
+      ImGui::TreePop();
+    }
+
+    // Parameters
+    if (ImGui::TreeNode("Parameters")) {
+      auto& params = component.state_machine.parameters;
+      std::string param_to_remove;
+      for (auto& [name, param] : params) {
+        ImGui::PushID(name.c_str());
+        ImGui::Text("%s", name.c_str());
+        ImGui::SameLine(120);
+        switch (param.type) {
+          case AnimParamType::Bool:
+            ImGui::Checkbox("##v", &param.b);
+            break;
+          case AnimParamType::Int:
+            ImGui::SetNextItemWidth(80);
+            ImGui::InputInt("##v", &param.i);
+            break;
+          case AnimParamType::Float:
+            ImGui::SetNextItemWidth(80);
+            ImGui::InputFloat("##v", &param.f, 0.1f);
+            break;
+          case AnimParamType::Trigger:
+            if (ImGui::SmallButton("Fire")) {
+              param.b = true;
+            }
+            break;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("X")) {
+          param_to_remove = name;
+        }
+        ImGui::PopID();
+      }
+      if (!param_to_remove.empty()) {
+        params.erase(param_to_remove);
+      }
+
+      // Add parameter
+      static char param_name[64] = "";
+      static int param_type = 0;
+      ImGui::InputText("##pn", param_name, sizeof(param_name));
+      ImGui::SameLine();
+      const char* ptypes[] = {"Bool", "Int", "Float", "Trigger"};
+      ImGui::SetNextItemWidth(80);
+      ImGui::Combo("##pt", &param_type, ptypes, 4);
+      ImGui::SameLine();
+      if (ImGui::Button("+ Param") && param_name[0] != '\0') {
+        switch (param_type) {
+          case 0:
+            params[param_name] = AnimParam::MakeBool(false);
+            break;
+          case 1:
+            params[param_name] = AnimParam::MakeInt(0);
+            break;
+          case 2:
+            params[param_name] = AnimParam::MakeFloat(0.0f);
+            break;
+          case 3:
+            params[param_name] = AnimParam::MakeTrigger();
+            break;
+        }
+        param_name[0] = '\0';
+      }
+      ImGui::TreePop();
+    }
+
+    // Transitions
+    if (ImGui::TreeNode("Transitions")) {
+      int to_remove = -1;
+      for (int i = 0; i < static_cast<int>(ctrl.transitions.size()); i++) {
+        ImGui::PushID(i + 3000);
+        auto& trans = ctrl.transitions[i];
+
+        // From -> To header
+        std::string header = (trans.from_state.empty() ? "Any" : trans.from_state) +
+                             " -> " + trans.to_state;
+        bool open = ImGui::TreeNodeEx("##t", ImGuiTreeNodeFlags_AllowOverlap, "%s", header.c_str());
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 20);
+        if (ImGui::SmallButton("X")) {
+          to_remove = i;
+        }
+
+        if (open) {
+          // From state
+          if (ImGui::BeginCombo("From", trans.from_state.empty() ? "(Any)" : trans.from_state.c_str())) {
+            if (ImGui::Selectable("(Any)", trans.from_state.empty())) {
+              trans.from_state.clear();
+            }
+            for (auto& state : ctrl.states) {
+              if (ImGui::Selectable(state.name.c_str(), trans.from_state == state.name)) {
+                trans.from_state = state.name;
+              }
+            }
+            ImGui::EndCombo();
+          }
+
+          // To state
+          if (ImGui::BeginCombo("To", trans.to_state.empty() ? "(None)" : trans.to_state.c_str())) {
+            for (auto& state : ctrl.states) {
+              if (ImGui::Selectable(state.name.c_str(), trans.to_state == state.name)) {
+                trans.to_state = state.name;
+              }
+            }
+            ImGui::EndCombo();
+          }
+
+          ImGui::InputFloat("Blend", &trans.blend_duration, 0.01f);
+
+          // Conditions
+          ImGui::Text("Conditions:");
+          int cond_remove = -1;
+          for (int c = 0; c < static_cast<int>(trans.conditions.size()); c++) {
+            ImGui::PushID(c + 4000);
+            auto& cond = trans.conditions[c];
+
+            // Parameter name combo
+            ImGui::SetNextItemWidth(80);
+            if (ImGui::BeginCombo("##cp", cond.param_name.c_str())) {
+              for (auto& [pname, pparam] : component.state_machine.parameters) {
+                if (ImGui::Selectable(pname.c_str(), cond.param_name == pname)) {
+                  cond.param_name = pname;
+                  cond.param_type = pparam.type;
+                }
+              }
+              ImGui::EndCombo();
+            }
+
+            ImGui::SameLine();
+            // Operator combo
+            const char* ops[] = {"==", "!=", ">", "<"};
+            ImGui::SetNextItemWidth(45);
+            int op_idx = static_cast<int>(cond.op);
+            if (ImGui::Combo("##co", &op_idx, ops, 4)) {
+              cond.op = static_cast<ConditionOp>(op_idx);
+            }
+
+            ImGui::SameLine();
+            // Value
+            ImGui::SetNextItemWidth(60);
+            if (cond.param_type == AnimParamType::Bool || cond.param_type == AnimParamType::Trigger) {
+              ImGui::Checkbox("##cv", &cond.value.b);
+            } else if (cond.param_type == AnimParamType::Int) {
+              ImGui::InputInt("##cv", &cond.value.i);
+            } else {
+              ImGui::InputFloat("##cv", &cond.value.f, 0.1f);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::SmallButton("X##cd")) {
+              cond_remove = c;
+            }
+            ImGui::PopID();
+          }
+          if (cond_remove >= 0) {
+            trans.conditions.erase(trans.conditions.begin() + cond_remove);
+          }
+
+          if (ImGui::SmallButton("+ Condition")) {
+            TransitionCondition cond;
+            if (!component.state_machine.parameters.empty()) {
+              auto& first = *component.state_machine.parameters.begin();
+              cond.param_name = first.first;
+              cond.param_type = first.second.type;
+            }
+            trans.conditions.push_back(cond);
+          }
+
+          ImGui::TreePop();
+        }
+        ImGui::PopID();
+      }
+
+      if (to_remove >= 0) {
+        ctrl.transitions.erase(ctrl.transitions.begin() + to_remove);
+      }
+
+      if (ImGui::Button("+ Add Transition")) {
+        AnimationTransition trans;
+        if (ctrl.states.size() >= 2) {
+          trans.from_state = ctrl.states[0].name;
+          trans.to_state = ctrl.states[1].name;
+        }
+        ctrl.transitions.push_back(trans);
+      }
+      ImGui::TreePop();
+    }
+
+    ImGui::TreePop();
   }
 
   ImGui::TreePop();
@@ -1612,6 +1996,71 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
 void RenderAddComponentImGui_SpriteComponent(Entity entity) {
   if (ImGui::MenuItem("Sprite") && !entity.HasComponent<SpriteComponent>()) {
     entity.AddComponent<SpriteComponent>();
+  }
+}
+
+void RenderComponentImGui(ButtonComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Button", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<ButtonComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  ImGui::ColorEdit4(PrefixLabel("Normal").c_str(), &component.normal_color.r);
+  ImGui::ColorEdit4(PrefixLabel("Hovered").c_str(), &component.hovered_color.r);
+  ImGui::ColorEdit4(PrefixLabel("Pressed").c_str(), &component.pressed_color.r);
+  ImGui::ColorEdit4(PrefixLabel("Disabled").c_str(), &component.disabled_color.r);
+
+  const char* state_names[] = {"Normal", "Hovered", "Pressed", "Disabled"};
+  ImGui::TextDisabled("State: %s", state_names[static_cast<int>(component.state_)]);
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_ButtonComponent(Entity entity) {
+  if (ImGui::MenuItem("Button") && !entity.HasComponent<ButtonComponent>()) {
+    entity.AddComponent<ButtonComponent>();
+    // Auto-add InteractableComponent if missing
+    if (!entity.HasComponent<InteractableComponent>()) {
+      entity.AddComponent<InteractableComponent>();
+    }
+    // Auto-add RectangleTransformComponent if missing (needed for hit testing)
+    if (!entity.HasComponent<RectangleTransformComponent>()) {
+      entity.AddComponent<RectangleTransformComponent>();
+    }
+  }
+}
+
+void RenderComponentImGui(InteractableComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Interactable", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<InteractableComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &component.enabled);
+  ImGui::Checkbox(PrefixLabel("Blocks Raycast").c_str(), &component.blocks_raycast);
+
+  if (component.hovered_) {
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Hovered");
+  }
+  if (component.pressed_) {
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Pressed");
+  }
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_InteractableComponent(Entity entity) {
+  if (ImGui::MenuItem("Interactable") && !entity.HasComponent<InteractableComponent>()) {
+    entity.AddComponent<InteractableComponent>();
   }
 }
 
@@ -1655,12 +2104,15 @@ void InitializeComponents() {
   RegisterComponentType<BehaviorsComponent>("C# Script", "Scripting", RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
   RegisterComponentType<BoxColliderComponent>("Box Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_BoxColliderComponent, nullptr);
   RegisterComponentType<SphereColliderComponent>("Sphere Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_SphereColliderComponent, nullptr);
+  RegisterComponentType<CapsuleColliderComponent>("Capsule Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_CapsuleColliderComponent, nullptr);
   RegisterComponentType<RigidBodyComponent>("Rigid Body", "Physics", RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent,  nullptr);
   RegisterComponentType<RectangleTransformComponent>("Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
   RegisterComponentType<CanvasComponent>("Canvas", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasComponent, nullptr);
   RegisterComponentType<CanvasRectComponent>("Canvas Rect", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasRectComponent, nullptr);
   RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
   RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
+  RegisterComponentType<ButtonComponent>("Button", "UI", RenderComponentImGui, RenderAddComponentImGui_ButtonComponent, nullptr);
+  RegisterComponentType<InteractableComponent>("Interactable", "UI", RenderComponentImGui, RenderAddComponentImGui_InteractableComponent, nullptr);
   RegisterComponentType<AudioSourceComponent>("Audio Source", "Audio", RenderComponentImGui, RenderAddComponentImGui_AudioSourceComponent, nullptr);
   RegisterComponentType<SpriteComponent>("Sprite", "Rendering", RenderComponentImGui, RenderAddComponentImGui_SpriteComponent, nullptr);
   RegisterComponentType<ReverbZoneComponent>("Reverb Zone", "Audio", RenderComponentImGui, RenderAddComponentImGui_ReverbZoneComponent, nullptr);
@@ -1703,7 +2155,7 @@ void RenderAddPopup(Entity entity) {
 
   // Collect groups in consistent order
   static const std::vector<std::string> group_order = {
-      "Rendering", "Lighting", "Audio", "Physics", "Canvas", "Scripting"
+      "Rendering", "Lighting", "Audio", "Physics", "UI", "Canvas", "Scripting"
   };
 
   if (has_filter) {

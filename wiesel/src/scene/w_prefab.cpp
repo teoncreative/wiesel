@@ -46,10 +46,10 @@ static nlohmann::json SerializeSingleEntity(Entity entity) {
   if (entity.HasComponent<TransformComponent>()) {
     auto& t = entity.GetComponent<TransformComponent>();
     nlohmann::json transform;
-    transform["position"] = SerializeVec3(t.position);
-    transform["rotation"] = SerializeVec3(t.rotation);
-    transform["scale"] = SerializeVec3(t.scale);
-    transform["pivot"] = SerializeVec3(t.pivot);
+    transform["position"] = SerializeVec3(t.GetPosition());
+    transform["rotation"] = SerializeVec3(t.GetRotation());
+    transform["scale"] = SerializeVec3(t.GetScale());
+    transform["pivot"] = SerializeVec3(t.GetPivot());
     j["Transform"] = transform;
   }
 
@@ -233,14 +233,11 @@ static Entity DeserializeSingleEntity(std::shared_ptr<Scene> scene,
   if (j.contains("Transform")) {
     auto& t = entity.GetComponent<TransformComponent>();
     const auto& tj = j["Transform"];
-    t.position =
-        DeserializeVec3(tj.value("position", nlohmann::json::array()));
-    t.rotation =
-        DeserializeVec3(tj.value("rotation", nlohmann::json::array()));
-    t.scale = DeserializeVec3(tj.value("scale", nlohmann::json::array()),
-                              {1, 1, 1});
-    t.pivot = DeserializeVec3(tj.value("pivot", nlohmann::json::array()));
-    t.is_changed = true;
+    t.SetPosition(DeserializeVec3(tj.value("position", nlohmann::json::array())));
+    t.SetRotation(DeserializeVec3(tj.value("rotation", nlohmann::json::array())));
+    t.SetScale(DeserializeVec3(tj.value("scale", nlohmann::json::array()),
+                              {1, 1, 1}));
+    t.SetPivot(DeserializeVec3(tj.value("pivot", nlohmann::json::array())));
   }
 
   // Camera
