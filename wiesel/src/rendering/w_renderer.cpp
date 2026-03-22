@@ -10,6 +10,7 @@
 //
 
 #include "rendering/w_renderer.hpp"
+#include "asset/w_asset_properties.hpp"
 #include "rendering/features/w_debug_collider_feature.hpp"
 #include "rendering/w_acceleration_structure.hpp"
 #include "rendering/w_perf_marker.hpp"
@@ -380,7 +381,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
                   texture->height_, texture->mip_levels_);
 
   texture->format_ = format;
-  texture->sampler_ = CreateTextureSampler(texture->mip_levels_, {});
+  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, SamplerProps{});
   texture->image_view_ = CreateImageView(
       texture->image_, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
@@ -443,7 +444,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(const TextureProps& textur
     vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   }
 
-  texture->sampler_ = CreateTextureSampler(1, sampler_props);
+  texture->sampler_ = std::make_shared<Sampler>(1, sampler_props);
   texture->image_view_ = CreateImageView(
       texture->image_, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
@@ -523,7 +524,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(const std::string& path,
     vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   }
 
-  texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
+  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
   texture->image_view_ =
       CreateImageView(texture->image_, texture_props.image_format,
                       VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
@@ -588,7 +589,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_p
     vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   }
 
-  texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
+  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
   texture->image_view_ =
       CreateImageView(texture->image_, texture_props.image_format,
                       VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
@@ -689,7 +690,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   delete[] all_pixels;
 
-  texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
+  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
   texture->image_view_ = CreateImageView(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
       texture->mip_levels_, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6);
@@ -868,7 +869,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, stagingMemory, nullptr);
 
-  texture->sampler_ = CreateTextureSampler(texture->mip_levels_, sampler_props);
+  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
 
   texture->image_view_ = CreateImageView(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1079,10 +1080,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->base_texture == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->base_texture->image_view_->handle_;
-      image_info.sampler = material->base_texture->sampler_;
+      image_info.sampler = material->base_texture->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1103,10 +1104,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->normal_map == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->normal_map->image_view_->handle_;
-      image_info.sampler = material->normal_map->sampler_;
+      image_info.sampler = material->normal_map->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1127,10 +1128,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->specular_map == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->specular_map->image_view_->handle_;
-      image_info.sampler = material->specular_map->sampler_;
+      image_info.sampler = material->specular_map->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1151,10 +1152,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->height_map == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->height_map->image_view_->handle_;
-      image_info.sampler = material->height_map->sampler_;
+      image_info.sampler = material->height_map->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1175,10 +1176,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->albedo_map == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->albedo_map->image_view_->handle_;
-      image_info.sampler = material->albedo_map->sampler_;
+      image_info.sampler = material->albedo_map->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1199,10 +1200,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->roughness_map == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->roughness_map->image_view_->handle_;
-      image_info.sampler = material->roughness_map->sampler_;
+      image_info.sampler = material->roughness_map->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1223,10 +1224,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->metallic_map == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->metallic_map->image_view_->handle_;
-      image_info.sampler = material->metallic_map->sampler_;
+      image_info.sampler = material->metallic_map->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1307,10 +1308,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (material->base_texture == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = material->base_texture->image_view_->handle_;
-      image_info.sampler = material->base_texture->sampler_;
+      image_info.sampler = material->base_texture->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -1432,10 +1433,10 @@ std::shared_ptr<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent
     auto shadow_view = camera.resource_pool.GetImageView("ShadowDepthViewArray");
     if (shadow_view == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_;
+      image_info.sampler = blank_texture_->sampler_->handle();
     } else {
       image_info.imageView = shadow_view->handle_;
-      image_info.sampler = shadow_sampler_->sampler_;
+      image_info.sampler = shadow_sampler_->handle_;
     }
     image_infos.emplace_back(image_info);
 
@@ -1555,8 +1556,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(std::shared_ptr<Attac
   VkDescriptorImageInfo image_info;
   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   image_info.imageView = texture->image_views_[0]->handle_;
-  image_info.sampler = texture->sampler_ ? texture->sampler_->sampler_
-                                        : default_linear_sampler_->sampler_;
+  image_info.sampler = texture->sampler_ ? texture->sampler_->handle_
+                                        : default_linear_sampler_->handle_;
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
   set.dstSet = object->descriptor_set_;
@@ -1608,7 +1609,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateSkyboxDescriptors(std::shared_ptr
   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   image_info.imageView = texture->image_view_->handle_;
   image_info.sampler =
-      texture->sampler_ ? texture->sampler_ : default_linear_sampler_->sampler_;
+      texture->sampler_ ? texture->sampler_->handle() : default_linear_sampler_->handle();
 
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -2977,6 +2978,7 @@ void Renderer::SetViewport(glm::vec2 extent) {
 void Renderer::BeginRender() {
   PROFILE_ZONE_SCOPED();
   stats_.Reset();
+  slice_pool_used_[current_frame_] = 0;
 
   // Wait for this frame slot's previous work to complete
   vkWaitForFences(logical_device_, 1, &fences_[current_frame_], VK_TRUE, UINT64_MAX);
@@ -3589,37 +3591,72 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
   stats_.draw_calls++;
 }
 
-void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
-                               CanvasImageComponent& img,
-                               std::shared_ptr<DescriptorSetLayout> layout) {
-  if (!img.texture || !img.texture->is_allocated_) {
+Renderer::SliceDrawResource& Renderer::AcquireSliceResource(
+    std::shared_ptr<Texture> texture,
+    std::shared_ptr<DescriptorSetLayout> layout) {
+  auto& pool = slice_pool_[current_frame_];
+  uint32_t idx = slice_pool_used_[current_frame_]++;
+  if (idx >= pool.size()) {
+    pool.emplace_back();
+  }
+  auto& res = pool[idx];
+  if (!res.ubo) {
+    res.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+  }
+  VkImageView view = texture->image_view_->handle_;
+  VkSampler sampler = texture->sampler_ ? texture->sampler_->handle()
+                                        : VK_NULL_HANDLE;
+  if (!res.descriptor || res.bound_texture != view ||
+      res.bound_sampler != sampler) {
+    res.descriptor = std::make_shared<DescriptorSet>();
+    res.descriptor->SetLayout(layout);
+    res.descriptor->AddUniformBuffer(0, res.ubo);
+    res.descriptor->AddCombinedImageSampler(1, texture->image_view_,
+                                            texture->sampler_);
+    res.descriptor->Bake();
+    res.bound_texture = view;
+    res.bound_sampler = sampler;
+  }
+  return res;
+}
+
+void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
+                                std::shared_ptr<Texture> texture,
+                                glm::vec4 tint, glm::vec4 uv_rect,
+                                std::shared_ptr<DescriptorSetLayout> layout) {
+  if (!texture || !texture->is_allocated_) {
     return;
   }
 
-  // Lazily allocate GPU resources
-  if (!img.ubo_ || img.gpu_dirty_) {
-    if (!img.ubo_) {
-      img.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+  // Look up 9-slice borders from texture asset properties
+  glm::vec4 slice_border{0};
+  if (!texture->path_.empty()) {
+    auto handle = Engine::asset_manager().FindBySourcePath(texture->path_);
+    if (handle.IsValid()) {
+      const auto* meta = Engine::asset_manager().GetMetadata(handle);
+      if (meta) {
+        const auto* props = meta->GetProperties<TextureAssetProperties>();
+        if (props) {
+          slice_border = props->slice_border;
+        }
+      }
     }
-    img.descriptor_ = std::make_shared<DescriptorSet>();
-    img.descriptor_->SetLayout(layout);
-    img.descriptor_->AddUniformBuffer(0, img.ubo_);
-    img.descriptor_->AddCombinedImageSampler(1, img.texture->image_view_,
-                                             GetDefaultLinearSampler());
-    img.descriptor_->Bake();
-    img.gpu_dirty_ = false;
   }
 
-  if (!img.IsSliced()) {
-    // Normal image: single quad
-    CanvasElementUniformData data{};
-    data.position = rt.computed_position;
-    data.size = rt.computed_size;
-    data.color = img.tint;
-    data.uv_rect = img.uv_rect;
-    memcpy(img.ubo_->data_, &data, sizeof(CanvasElementUniformData));
+  bool sliced = slice_border.x > 0 || slice_border.y > 0 ||
+                slice_border.z > 0 || slice_border.w > 0;
 
-    VkDescriptorSet sets[] = {img.descriptor_->descriptor_set_};
+  if (!sliced) {
+    // Single quad
+    auto& res = AcquireSliceResource(texture, layout);
+    CanvasElementUniformData data{};
+    data.position = position;
+    data.size = size;
+    data.color = tint;
+    data.uv_rect = uv_rect;
+    memcpy(res.ubo->data_, &data, sizeof(CanvasElementUniformData));
+
+    VkDescriptorSet sets[] = {res.descriptor->descriptor_set_};
     vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                             VK_PIPELINE_BIND_POINT_GRAPHICS,
                             bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
@@ -3627,13 +3664,13 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
     stats_.draw_calls++;
   } else {
     // 9-slice rendering
-    float bL = img.slice_border.x;  // left border px
-    float bT = img.slice_border.y;  // top border px
-    float bR = img.slice_border.z;  // right border px
-    float bB = img.slice_border.w;  // bottom border px
+    float bL = slice_border.x;
+    float bT = slice_border.y;
+    float bR = slice_border.z;
+    float bB = slice_border.w;
 
-    float tw = static_cast<float>(img.texture->width_);
-    float th = static_cast<float>(img.texture->height_);
+    float tw = static_cast<float>(texture->width_);
+    float th = static_cast<float>(texture->height_);
 
     // UV borders (normalized)
     float uL = bL / tw;
@@ -3642,63 +3679,51 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
     float vB = 1.0f - bB / th;
 
     // Screen positions
-    float x0 = rt.computed_position.x;
-    float y0 = rt.computed_position.y;
-    float x3 = x0 + rt.computed_size.x;
-    float y3 = y0 + rt.computed_size.y;
+    float x0 = position.x;
+    float y0 = position.y;
+    float x3 = x0 + size.x;
+    float y3 = y0 + size.y;
     float x1 = x0 + bL;
     float x2 = x3 - bR;
     float y1 = y0 + bT;
     float y2 = y3 - bB;
 
-    // 9 regions: position, size, uv_rect(x, y, w, h)
+    // 9 regions: position, size, uv_rect(startU, startV, endU, endV)
     struct SliceRegion {
       glm::vec2 pos;
       glm::vec2 size;
       glm::vec4 uv;
     };
     SliceRegion regions[9] = {
-      // Top row
-      {{x0, y0}, {bL, bT}, {0, 0, uL, vT}},              // top-left
-      {{x1, y0}, {x2-x1, bT}, {uL, 0, uR-uL, vT}},       // top-center
-      {{x2, y0}, {bR, bT}, {uR, 0, 1-uR, vT}},            // top-right
-      // Middle row
-      {{x0, y1}, {bL, y2-y1}, {0, vT, uL, vB-vT}},        // middle-left
-      {{x1, y1}, {x2-x1, y2-y1}, {uL, vT, uR-uL, vB-vT}}, // center
-      {{x2, y1}, {bR, y2-y1}, {uR, vT, 1-uR, vB-vT}},     // middle-right
-      // Bottom row
-      {{x0, y2}, {bL, bB}, {0, vB, uL, 1-vB}},             // bottom-left
-      {{x1, y2}, {x2-x1, bB}, {uL, vB, uR-uL, 1-vB}},     // bottom-center
-      {{x2, y2}, {bR, bB}, {uR, vB, 1-uR, 1-vB}},          // bottom-right
+        // Top row
+        {{x0, y0}, {bL, bT}, {0, 0, uL, vT}},
+        {{x1, y0}, {x2 - x1, bT}, {uL, 0, uR, vT}},
+        {{x2, y0}, {bR, bT}, {uR, 0, 1, vT}},
+        // Middle row
+        {{x0, y1}, {bL, y2 - y1}, {0, vT, uL, vB}},
+        {{x1, y1}, {x2 - x1, y2 - y1}, {uL, vT, uR, vB}},
+        {{x2, y1}, {bR, y2 - y1}, {uR, vT, 1, vB}},
+        // Bottom row
+        {{x0, y2}, {bL, bB}, {0, vB, uL, 1}},
+        {{x1, y2}, {x2 - x1, bB}, {uL, vB, uR, 1}},
+        {{x2, y2}, {bR, bB}, {uR, vB, 1, 1}},
     };
-
-    // Allocate extra UBOs/descriptors if needed
-    if (img.slice_ubos_.size() < 9) {
-      img.slice_ubos_.resize(9);
-      img.slice_descriptors_.resize(9);
-      for (int i = 0; i < 9; i++) {
-        img.slice_ubos_[i] = CreateUniformBuffer(sizeof(CanvasElementUniformData));
-        img.slice_descriptors_[i] = std::make_shared<DescriptorSet>();
-        img.slice_descriptors_[i]->SetLayout(layout);
-        img.slice_descriptors_[i]->AddUniformBuffer(0, img.slice_ubos_[i]);
-        img.slice_descriptors_[i]->AddCombinedImageSampler(
-            1, img.texture->image_view_, GetDefaultLinearSampler());
-        img.slice_descriptors_[i]->Bake();
-      }
-    }
 
     for (int i = 0; i < 9; i++) {
       auto& r = regions[i];
-      if (r.size.x <= 0 || r.size.y <= 0) continue;
+      if (r.size.x <= 0 || r.size.y <= 0) {
+        continue;
+      }
 
+      auto& res = AcquireSliceResource(texture, layout);
       CanvasElementUniformData data{};
       data.position = r.pos;
       data.size = r.size;
-      data.color = img.tint;
+      data.color = tint;
       data.uv_rect = r.uv;
-      memcpy(img.slice_ubos_[i]->data_, &data, sizeof(CanvasElementUniformData));
+      memcpy(res.ubo->data_, &data, sizeof(CanvasElementUniformData));
 
-      VkDescriptorSet sets[] = {img.slice_descriptors_[i]->descriptor_set_};
+      VkDescriptorSet sets[] = {res.descriptor->descriptor_set_};
       vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                               VK_PIPELINE_BIND_POINT_GRAPHICS,
                               bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
@@ -3715,22 +3740,20 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
     return;
   }
 
-  std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
+  std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
   if (!font || !font->IsLoaded()) {
     return;
   }
 
   float scale = text.font_size / font->GetNativeSize();
-  float cursor_x = rt.computed_position.x;
-  float cursor_y = rt.computed_position.y + font->GetAscent() * scale;
 
   // Detect font change (size or path) - requires full descriptor rebuild
   // since the atlas texture is different
-  if (text.prev_font_path_ != text.font_path ||
+  if (text.prev_font_handle_ != text.font_handle ||
       text.prev_font_size_ != text.font_size) {
     text.glyph_gpu_.clear();
     text.gpu_dirty_ = true;
-    text.prev_font_path_ = text.font_path;
+    text.prev_font_handle_ = text.font_handle;
     text.prev_font_size_ = text.font_size;
   }
 
@@ -3746,8 +3769,11 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
       }
     }
 
+    // Shadow needs a second set of glyph resources
+    size_t total_needed = text.shadow ? visible * 2 : visible;
+
     // Grow pool if needed, reuse existing allocations
-    while (text.glyph_gpu_.size() < visible) {
+    while (text.glyph_gpu_.size() < total_needed) {
       TextGlyphGPU gpu;
       gpu.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
       gpu.descriptor = std::make_shared<DescriptorSet>();
@@ -3762,47 +3788,63 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
     text.gpu_dirty_ = false;
   }
 
-  // Update UBOs and draw each glyph
+  // Helper: render one pass of all glyphs at given origin with given color
   size_t glyph_idx = 0;
-  for (size_t i = 0; i < text.text.size();) {
-    uint32_t cp = Font::DecodeUTF8(text.text, i);
-    const GlyphInfo* glyph = font->GetGlyph(cp);
-    if (!glyph || glyph->size.x == 0 || glyph->size.y == 0) {
-      if (glyph) {
-        cursor_x += std::round((glyph->advance >> 6) * scale);
+  auto render_pass = [&](float origin_x, float origin_y, const glm::vec4& color) {
+    float cursor_x = origin_x;
+    float cursor_y = origin_y + font->GetAscent() * scale;
+
+    for (size_t i = 0; i < text.text.size();) {
+      uint32_t cp = Font::DecodeUTF8(text.text, i);
+      const GlyphInfo* glyph = font->GetGlyph(cp);
+      if (!glyph || glyph->size.x == 0 || glyph->size.y == 0) {
+        if (glyph) {
+          cursor_x += std::round((glyph->advance >> 6) * scale);
+        }
+        continue;
       }
-      continue;
+
+      if (glyph_idx >= text.glyph_gpu_.size()) {
+        break;
+      }
+
+      float x = std::round(cursor_x + glyph->bearing.x * scale);
+      float y = std::round(cursor_y - glyph->bearing.y * scale);
+      float w = std::round(glyph->size.x * scale);
+      float h = std::round(glyph->size.y * scale);
+
+      auto& gpu = text.glyph_gpu_[glyph_idx];
+
+      CanvasElementUniformData data{};
+      data.position = {x, y};
+      data.size = {w, h};
+      data.color = color;
+      data.uv_rect = {glyph->uv_min.x, glyph->uv_min.y, glyph->uv_max.x,
+                      glyph->uv_max.y};
+      memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
+
+      VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
+      vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
+                              VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              bound_pipeline_->layout_, 0, 1, sets, 0,
+                              nullptr);
+      vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+      stats_.draw_calls++;
+
+      glyph_idx++;
+      cursor_x += std::round((glyph->advance >> 6) * scale);
     }
+  };
 
-    if (glyph_idx >= text.glyph_gpu_.size()) {
-      break;
-    }
-
-    float x = std::round(cursor_x + glyph->bearing.x * scale);
-    float y = std::round(cursor_y - glyph->bearing.y * scale);
-    float w = std::round(glyph->size.x * scale);
-    float h = std::round(glyph->size.y * scale);
-
-    auto& gpu = text.glyph_gpu_[glyph_idx];
-
-    CanvasElementUniformData data{};
-    data.position = {x, y};
-    data.size = {w, h};
-    data.color = text.color;
-    data.uv_rect = {glyph->uv_min.x, glyph->uv_min.y, glyph->uv_max.x,
-                    glyph->uv_max.y};
-    memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
-
-    VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
-    vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                            VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-    vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
-    stats_.draw_calls++;
-
-    glyph_idx++;
-    cursor_x += std::round((glyph->advance >> 6) * scale);
+  // Shadow pass (rendered first, behind text)
+  if (text.shadow) {
+    render_pass(rt.computed_position.x + text.shadow_offset.x,
+                rt.computed_position.y + text.shadow_offset.y,
+                text.shadow_color);
   }
+
+  // Normal text pass
+  render_pass(rt.computed_position.x, rt.computed_position.y, text.color);
 }
 
 void Renderer::DrawSkybox(std::shared_ptr<Skybox> skybox) {

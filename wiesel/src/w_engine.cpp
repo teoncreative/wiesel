@@ -25,7 +25,11 @@
 #include "asset/w_asset_manager.hpp"
 #include "project/w_project.hpp"
 #include "input/w_input.hpp"
+#include "scene/w_component_serializer.hpp"
 #include "scene/w_componentutil.hpp"
+#include "asset/w_asset_properties.hpp"
+#include "ui/w_font.hpp"
+#include "asset/w_asset_property_registry.hpp"
 #include "scene/w_scene_manager.hpp"
 #include "scene/w_entity.hpp"
 #include "scene/w_lights.hpp"
@@ -275,9 +279,36 @@ void Engine::InitEngine(const EngineProperties& props) {
           [](AssetHandle handle) { return LoadTextureAsset(handle); },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
+  // Font loader: reads font file, creates FT_Face, stores FontAsset.
+  // Size-specific rasterization happens lazily in FontCache::Get.
+  asset_manager_->RegisterLoader(AssetType::Font,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) {
+            const auto* meta = asset_manager_->GetMetadata(handle);
+            if (!meta) {
+              return false;
+            }
+            auto asset = std::make_shared<FontAsset>(meta->virtual_source_path);
+            if (!asset->IsLoaded()) {
+              return false;
+            }
+            const auto* props = meta->GetProperties<FontAssetProperties>();
+            if (props) {
+              asset->SetAAMode(props->aa_mode);
+            }
+            asset_manager_->Store<FontAsset>(handle, asset);
+            return true;
+          },
+          [](AssetHandle handle) {
+            FontCache::Invalidate(handle);
+            asset_manager_->Unload(handle);
+          }));
+
   InitializeVfs();
   InitializeComponents();
+  InitializeComponentSerializers();
   InputManager::Init();
+  InitializeAssetProperties();
   behavior_registry_ = std::make_shared<NativeBehaviorRegistry>();
 
   // Thread pool for async asset loading: min(cpu_cores, 8)
@@ -424,28 +455,44 @@ bool Engine::LoadTextureAsset(AssetHandle handle) {
 
   meta->load_progress.store(0.5f);
 
-  // Determine format from filename: normal/roughness/metallic/height maps use UNORM
-  std::string name_lower = meta->name;
-  std::ranges::transform(name_lower, name_lower.begin(), ::tolower);
-  bool is_data_texture = name_lower.find("normal") != std::string::npos
-      || name_lower.find("roughness") != std::string::npos
-      || name_lower.find("metallic") != std::string::npos
-      || name_lower.find("metalness") != std::string::npos
-      || name_lower.find("height") != std::string::npos
-      || name_lower.find("ao") != std::string::npos;
+  // Read asset properties (filtering, mipmaps, etc.)
+  const auto* tex_props = meta->GetProperties<TextureAssetProperties>();
+  TextureAssetProperties defaults;
+  const auto& ap = tex_props ? *tex_props : defaults;
 
   VkCommandPool pool = renderer_->CreateTransientCommandPool();
   Renderer::SetThreadCommandPool(pool);
   renderer_->BeginBatchUpload();
 
+  bool use_srgb = ap.asset_type == TextureAssetType::Default;
+
   TextureProps props;
   props.width = w;
   props.height = h;
-  props.image_format = is_data_texture ? VK_FORMAT_R8G8B8A8_UNORM
-                                       : VK_FORMAT_R8G8B8A8_SRGB;
-  props.generate_mipmaps = true;
+  props.image_format = use_srgb ? VK_FORMAT_R8G8B8A8_SRGB
+                                : VK_FORMAT_R8G8B8A8_UNORM;
+  props.generate_mipmaps = ap.generate_mipmaps;
 
-  auto texture = renderer_->CreateTexture(pixels, 4, props, {});
+  VkFilter vk_filter = (ap.filter_mode == TextureFilterMode::Nearest)
+      ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
+  VkSamplerAddressMode vk_wrap;
+  switch (ap.wrap_mode) {
+    case TextureWrapMode::Clamp:
+      vk_wrap = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      break;
+    case TextureWrapMode::Mirror:
+      vk_wrap = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+      break;
+    default:
+      vk_wrap = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+      break;
+  }
+  SamplerProps sampler;
+  sampler.MagFilter = vk_filter;
+  sampler.MinFilter = vk_filter;
+  sampler.AddressMode = vk_wrap;
+
+  auto texture = renderer_->CreateTexture(pixels, 4, props, sampler);
   stbi_image_free(pixels);
 
   renderer_->EndBatchUpload();

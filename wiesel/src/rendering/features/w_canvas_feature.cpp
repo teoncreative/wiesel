@@ -12,12 +12,14 @@
 #include "rendering/features/w_canvas_feature.hpp"
 #include <algorithm>
 #include <unordered_set>
+#include "asset/w_asset_manager.hpp"
 #include "rendering/w_pipeline.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 #include "ui/w_canvas.hpp"
 #include "ui/w_font.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -224,7 +226,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     if (text.text.empty()) {
       continue;
     }
-    std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
+    std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
     if (!font || !font->IsLoaded()) {
       continue;
     }
@@ -250,7 +252,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
          ctx.scene.GetAllEntitiesWith<TextComponent,
                                        RectangleTransformComponent>()) {
       auto& text = ctx.scene.GetComponent<TextComponent>(entity);
-      std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
+      std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
       if (font && flushed_fonts.contains(font.get())) {
         text.glyph_gpu_.clear();
       }
@@ -262,7 +264,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   // Collect all canvas-drawable entities and sort by draw_order so children
   // render on top of parents regardless of component type.
-  enum class CanvasElementType { Rect, Image, Text };
+  enum class CanvasElementType { Rect, Image, Button, Text };
   struct CanvasDrawEntry {
     entt::entity entity;
     CanvasElementType type;
@@ -281,6 +283,12 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                                      RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
     draw_list.push_back({entity, CanvasElementType::Image, rt.draw_order});
+  }
+  for (const auto& entity :
+       ctx.scene.GetAllEntitiesWith<ButtonComponent,
+                                     RectangleTransformComponent>()) {
+    auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
+    draw_list.push_back({entity, CanvasElementType::Button, rt.draw_order});
   }
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<TextComponent,
@@ -314,6 +322,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                 rect_pipeline->Bind(PipelineBindPointGraphics);
                 break;
               case CanvasElementType::Image:
+              case CanvasElementType::Button:
                 image_pipeline->Bind(PipelineBindPointGraphics);
                 break;
               case CanvasElementType::Text:
@@ -338,7 +347,52 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                   scene->GetComponent<CanvasImageComponent>(entry.entity);
               auto& rt = scene->GetComponent<RectangleTransformComponent>(
                   entry.entity);
-              renderer->DrawCanvasImage(rt, img, textured_layout);
+              renderer->DrawTexturedRect(rt.computed_position,
+                                         rt.computed_size, img.texture,
+                                         img.tint, img.uv_rect,
+                                         textured_layout);
+              break;
+            }
+            case CanvasElementType::Button: {
+              auto& btn =
+                  scene->GetComponent<ButtonComponent>(entry.entity);
+              auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                  entry.entity);
+              // Pick texture and tint for current state, fall back to normal
+              AssetHandle tex_handle;
+              glm::vec4 tint;
+              switch (btn.state_) {
+                case ButtonState::Hovered:
+                  tex_handle = btn.hovered_texture.IsValid()
+                                   ? btn.hovered_texture
+                                   : btn.normal_texture;
+                  tint = btn.hovered_color;
+                  break;
+                case ButtonState::Pressed:
+                  tex_handle = btn.pressed_texture.IsValid()
+                                   ? btn.pressed_texture
+                                   : btn.normal_texture;
+                  tint = btn.pressed_color;
+                  break;
+                case ButtonState::Disabled:
+                  tex_handle = btn.disabled_texture.IsValid()
+                                   ? btn.disabled_texture
+                                   : btn.normal_texture;
+                  tint = btn.disabled_color;
+                  break;
+                default:
+                  tex_handle = btn.normal_texture;
+                  tint = btn.normal_color;
+                  break;
+              }
+              if (tex_handle.IsValid()) {
+                auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
+                if (tex) {
+                  renderer->DrawTexturedRect(rt.computed_position,
+                                             rt.computed_size, tex, tint,
+                                             {0, 0, 1, 1}, textured_layout);
+                }
+              }
               break;
             }
             case CanvasElementType::Text: {

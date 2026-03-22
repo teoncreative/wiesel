@@ -379,10 +379,6 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Text_SetText(ulong scenePtr, ulong entityId, string v);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern string Text_GetFontPath(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetFontPath(ulong scenePtr, ulong entityId, string v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float Text_GetFontSize(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Text_SetFontSize(ulong scenePtr, ulong entityId, float v);

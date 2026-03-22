@@ -29,13 +29,13 @@ class Sampler {
   Sampler(uint32_t mipLevels, const SamplerProps& props);
   ~Sampler();
 
-  VkSampler GetHandle() const { return sampler_; }
+  VkSampler handle() const { return handle_; }
 
  private:
   friend class Renderer;
   friend class DescriptorSet;
 
-  VkSampler sampler_;
+  VkSampler handle_;
   uint32_t mip_levels_;
   VkFilter mag_filter_;
   VkFilter min_filter_;

@@ -117,7 +117,7 @@ void ImGuiLayer::OnEvent(Event& event) {
 }
 
 void ImGuiLayer::ReinitializeImGuiVulkan() {
-  LOG_INFO("Reinitializing ImGui backends for MSAA change");
+  LOG_INFO("Reinitializing ImGui backends");
 
   // No need for vkDeviceWaitIdle here - RecreateSwapChain already did that
   // and we're between frames, so it's safe to reinitialize

@@ -25,13 +25,6 @@ class SceneSerializer {
   nlohmann::json SerializeEntity(Entity entity) const;
   void DeserializeEntity(const nlohmann::json& entity_json);
 
-  static nlohmann::json SerializeVec3(const glm::vec3& v);
-  static nlohmann::json SerializeVec4(const glm::vec4& v);
-  static nlohmann::json SerializeVec2(const glm::vec2& v);
-  static glm::vec3 DeserializeVec3(const nlohmann::json& v, glm::vec3 fallback = {0, 0, 0});
-  static glm::vec4 DeserializeVec4(const nlohmann::json& v, glm::vec4 fallback = {0, 0, 0, 0});
-  static glm::vec2 DeserializeVec2(const nlohmann::json& v, glm::vec2 fallback = {0, 0});
-
   std::shared_ptr<Scene> scene_;
 };
 

@@ -138,27 +138,24 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
     }
     auto& rt = scene.GetComponent<RectangleTransformComponent>(child);
 
-    // Resolve size - auto-size from text if present
+    // Resolve size - auto-size from text only when size is zero (auto)
     glm::vec2 resolved_size;
-    if (scene.HasComponent<TextComponent>(child)) {
+    resolved_size.x = rt.size_mode_x == SizeMode::Percent
+                          ? rt.size.x * content_size.x
+                          : rt.size.x;
+    resolved_size.y = rt.size_mode_y == SizeMode::Percent
+                          ? rt.size.y * content_size.y
+                          : rt.size.y;
+
+    if (scene.HasComponent<TextComponent>(child) &&
+        resolved_size.x == 0 && resolved_size.y == 0) {
       auto& text = scene.GetComponent<TextComponent>(child);
       if (!text.text.empty()) {
-        std::shared_ptr<Font> font = FontCache::Get(text.font_path, text.font_size);
+        std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
         if (font && font->IsLoaded()) {
           resolved_size = font->MeasureText(text.text, text.font_size);
-        } else {
-          resolved_size = rt.size;
         }
-      } else {
-        resolved_size = {0, 0};
       }
-    } else {
-      resolved_size.x = rt.size_mode_x == SizeMode::Percent
-                            ? rt.size.x * content_size.x
-                            : rt.size.x;
-      resolved_size.y = rt.size_mode_y == SizeMode::Percent
-                            ? rt.size.y * content_size.y
-                            : rt.size.y;
     }
     rt.computed_size = resolved_size * rt.scale;
 
@@ -209,13 +206,24 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
 
     rt.draw_order = draw_order++;
 
+    // Apply button state offset to children's parent position
+    glm::vec2 child_origin = rt.computed_position;
+    if (scene.HasComponent<ButtonComponent>(child)) {
+      auto& btn = scene.GetComponent<ButtonComponent>(child);
+      if (btn.state_ == ButtonState::Pressed) {
+        child_origin += btn.pressed_offset;
+      } else if (btn.state_ == ButtonState::Hovered) {
+        child_origin += btn.hovered_offset;
+      }
+    }
+
     // Recurse into children. If child has its own CanvasComponent,
     // use its layout settings; otherwise inherit parent's.
     const CanvasComponent* child_canvas = nullptr;
     if (scene.HasComponent<CanvasComponent>(child)) {
       child_canvas = &scene.GetComponent<CanvasComponent>(child);
     }
-    LayoutChildren(scene, child, rt.computed_position, rt.computed_size,
+    LayoutChildren(scene, child, child_origin, rt.computed_size,
                    child_canvas, draw_order);
   }
 }

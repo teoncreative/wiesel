@@ -86,9 +86,10 @@ static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
 
         // Check existing .meta
         std::filesystem::path meta_path = file_path + ".meta";
-        std::string handle_str = ProjectLoader::ReadMetaFile(meta_path);
-        if (!handle_str.empty()) {
-          result = AssetHandle::FromString(handle_str);
+        ProjectLoader::MetaFileData meta =
+            ProjectLoader::ReadMetaFile(meta_path);
+        if (meta.handle.IsValid()) {
+          result = meta.handle;
         }
         // Auto-import if not registered
         if (!result.IsValid()) {
@@ -116,8 +117,8 @@ static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle
   }
   return false;
 }
-// Renders a texture asset drag-drop field. Returns true if changed.
-static bool TextureDropField(const char* label, AssetHandle& handle) {
+// Renders an asset drag-drop field for a given type. Returns true if changed.
+static bool AssetDropField(const char* label, AssetType type, AssetHandle& handle) {
   std::string name = "(None)";
   if (handle.IsValid()) {
     const auto* meta = Engine::asset_manager().GetMetadata(handle);
@@ -128,11 +129,11 @@ static bool TextureDropField(const char* label, AssetHandle& handle) {
 
   ImGui::Text("%s", label);
   ImGui::SameLine();
-  std::string btn_id = name + "##texdrop_" + label;
+  std::string btn_id = name + "##assetdrop_" + label;
   ImGui::Button(btn_id.c_str(), ImVec2(-1, 0));
 
   AssetHandle dropped;
-  if (AcceptAssetDragDrop(AssetType::Texture, dropped)) {
+  if (AcceptAssetDragDrop(type, dropped)) {
     handle = dropped;
     return true;
   }
@@ -144,6 +145,10 @@ static bool TextureDropField(const char* label, AssetHandle& handle) {
   }
 
   return false;
+}
+
+static bool TextureDropField(const char* label, AssetHandle& handle) {
+  return AssetDropField(label, AssetType::Texture, handle);
 }
 
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
@@ -1049,28 +1054,17 @@ void RenderComponentImGui(CanvasImageComponent& component, Entity entity) {
           auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
           if (tex) {
             component.texture = tex;
-            component.gpu_dirty_ = true;
           }
         } else {
           component.texture = nullptr;
-          component.gpu_dirty_ = true;
         }
       }
     }
 
-    if (ImGui::ColorEdit4(PrefixLabel("Tint").c_str(),
-                          reinterpret_cast<float*>(&component.tint))) {
-      component.gpu_dirty_ = true;
-    }
+    ImGui::ColorEdit4(PrefixLabel("Tint").c_str(),
+                      reinterpret_cast<float*>(&component.tint));
     ImGui::DragFloat4(PrefixLabel("UV Rect").c_str(),
                       reinterpret_cast<float*>(&component.uv_rect), 0.01f);
-
-    ImGui::SeparatorText("9-Slice");
-    ImGui::DragFloat4(PrefixLabel("Border (L,T,R,B)").c_str(),
-                      reinterpret_cast<float*>(&component.slice_border), 1.0f, 0.0f, 500.0f);
-    if (component.IsSliced()) {
-      ImGui::TextDisabled("9-slice active");
-    }
 
     ImGui::TreePop();
   }
@@ -1086,7 +1080,7 @@ void RenderComponentImGui(TextComponent& component, Entity entity) {
     if (ImGui::InputText(PrefixLabel("Text").c_str(), &component.text)) {
       component.gpu_dirty_ = true;
     }
-    if (ImGui::InputText(PrefixLabel("Font").c_str(), &component.font_path)) {
+    if (AssetDropField("Font", AssetType::Font, component.font_handle)) {
       component.gpu_dirty_ = true;
     }
     if (ImGui::DragFloat(PrefixLabel("Font Size").c_str(), &component.font_size,
@@ -1097,6 +1091,19 @@ void RenderComponentImGui(TextComponent& component, Entity entity) {
                           reinterpret_cast<float*>(&component.color))) {
       component.gpu_dirty_ = true;
     }
+
+    ImGui::SeparatorText("Shadow");
+    if (ImGui::Checkbox(PrefixLabel("Shadow").c_str(), &component.shadow)) {
+      component.gpu_dirty_ = true;
+    }
+    if (component.shadow) {
+      ImGui::DragFloat2(PrefixLabel("Offset").c_str(),
+                        reinterpret_cast<float*>(&component.shadow_offset),
+                        0.5f);
+      ImGui::ColorEdit4(PrefixLabel("Shadow Color").c_str(),
+                        reinterpret_cast<float*>(&component.shadow_color));
+    }
+
     ImGui::TreePop();
   }
   if (!visible) {
@@ -2138,6 +2145,12 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
   TextureDropField("Hovered", component.hovered_texture);
   TextureDropField("Pressed", component.pressed_texture);
   TextureDropField("Disabled", component.disabled_texture);
+
+  ImGui::SeparatorText("Child Offsets");
+  ImGui::DragFloat2(PrefixLabel("Hovered Offset").c_str(),
+                    reinterpret_cast<float*>(&component.hovered_offset), 0.5f);
+  ImGui::DragFloat2(PrefixLabel("Pressed Offset").c_str(),
+                    reinterpret_cast<float*>(&component.pressed_offset), 0.5f);
 
   const char* state_names[] = {"Normal", "Hovered", "Pressed", "Disabled"};
   ImGui::TextDisabled("State: %s", state_names[static_cast<int>(component.state_)]);

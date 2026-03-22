@@ -375,9 +375,13 @@ class Renderer {
   void DrawCanvasRect(const RectangleTransformComponent& rt,
                       CanvasRectComponent& rect,
                       std::shared_ptr<DescriptorSetLayout> layout);
-  void DrawCanvasImage(const RectangleTransformComponent& rt,
-                       CanvasImageComponent& img,
-                       std::shared_ptr<DescriptorSetLayout> layout);
+  // Draw a textured rect with automatic 9-slice support.
+  // Reads slice_border from the texture's asset properties; if non-zero,
+  // renders as 9-slice, otherwise a single quad.
+  void DrawTexturedRect(glm::vec2 position, glm::vec2 size,
+                        std::shared_ptr<Texture> texture, glm::vec4 tint,
+                        glm::vec4 uv_rect,
+                        std::shared_ptr<DescriptorSetLayout> layout);
   void DrawCanvasText(const RectangleTransformComponent& rt,
                       TextComponent& text,
                       std::shared_ptr<DescriptorSetLayout> layout);
@@ -680,6 +684,19 @@ class Renderer {
   PFN_vkDestroyDebugUtilsMessengerEXT pfn_destroy_debug_utils_messenger_ext_ = nullptr;
 
   DeletionQueue deletion_queue_;
+
+  // Transient UBO+descriptor pool for textured rect draws (double-buffered per FIF)
+  struct SliceDrawResource {
+    std::shared_ptr<UniformBuffer> ubo;
+    std::shared_ptr<DescriptorSet> descriptor;
+    VkImageView bound_texture = VK_NULL_HANDLE;
+    VkSampler bound_sampler = VK_NULL_HANDLE;
+  };
+  std::vector<SliceDrawResource> slice_pool_[kMaxFramesInFlight];
+  uint32_t slice_pool_used_[kMaxFramesInFlight] = {};
+  SliceDrawResource& AcquireSliceResource(
+      std::shared_ptr<Texture> texture,
+      std::shared_ptr<DescriptorSetLayout> layout);
 
   // Ray tracing support
   std::shared_ptr<AccelerationStructureManager> as_manager_;

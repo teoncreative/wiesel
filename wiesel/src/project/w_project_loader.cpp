@@ -12,8 +12,10 @@
 #include "project/w_project_loader.hpp"
 
 #include <nlohmann/json.hpp>
+#include "asset/w_asset_properties.hpp"
 
 #include "asset/w_asset_manager.hpp"
+#include "asset/w_asset_property_registry.hpp"
 #include "input/w_input.hpp"
 #include "rendering/w_material.hpp"
 #include "rendering/w_renderer.hpp"
@@ -39,23 +41,38 @@ AssetType ProjectLoader::ExtToAssetType(const std::string& ext) {
   return AssetType::None;
 }
 
-std::string ProjectLoader::ReadMetaFile(const std::filesystem::path& meta_path) {
-  if (!std::filesystem::exists(meta_path)) return "";
+ProjectLoader::MetaFileData ProjectLoader::ReadMetaFile(const std::filesystem::path& meta_path) {
+  MetaFileData result;
+  if (!std::filesystem::exists(meta_path)) {
+    return result;
+  }
   std::ifstream file(meta_path);
-  if (!file.is_open()) return "";
+  if (!file.is_open()) {
+    return result;
+  }
   try {
     nlohmann::json j;
     file >> j;
-    return j.value("handle", "");
-  } catch (...) {
-    return "";
-  }
+    result.handle = AssetHandle::FromString(j.value("handle", ""));
+    if (j.contains("properties") && j["properties"].is_object()) {
+      result.properties = j["properties"];
+    }
+  } catch (...) {}
+  return result;
 }
 
 void ProjectLoader::WriteMetaFile(const std::filesystem::path& meta_path,
-                                  const AssetHandle& handle) {
+                                  const AssetHandle& handle,
+                                  AssetType type,
+                                  const void* properties) {
   nlohmann::json j;
   j["handle"] = handle.ToString();
+  if (properties) {
+    const auto* desc = AssetPropertyRegistry::Get(type);
+    if (desc) {
+      j["properties"] = desc->Serialize(properties);
+    }
+  }
   std::ofstream file(meta_path);
   if (file.is_open()) {
     file << j.dump(2);
@@ -148,17 +165,47 @@ void ProjectLoader::ScanAssets(Project& project) {
     } else {
       // Models, textures, fonts, scripts: use .meta for stable handles
       fs::path meta_path = entry.path().string() + ".meta";
-      std::string handle_str = ReadMetaFile(meta_path);
+      MetaFileData meta_data = ReadMetaFile(meta_path);
 
-      if (!handle_str.empty()) {
-        handle = AssetHandle::FromString(handle_str);
+      if (meta_data.handle.IsValid()) {
+        handle = meta_data.handle;
         if (!mgr.HasAsset(handle)) {
           mgr.Register(handle, name, type, vfs_path);
         }
       } else {
         handle = mgr.Register(name, type, vfs_path);
         if (handle.IsValid()) {
-          WriteMetaFile(meta_path, handle);
+          WriteMetaFile(meta_path, handle, type);
+        }
+      }
+
+      // Populate asset properties from meta file
+      if (handle.IsValid()) {
+        auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
+        if (metadata) {
+          const auto* desc = AssetPropertyRegistry::Get(type);
+          if (desc) {
+            if (!meta_data.properties.empty()) {
+              metadata->properties = desc->Deserialize(meta_data.properties);
+            } else {
+              metadata->properties = desc->Create();
+              // Auto-detect texture type from filename on first import
+              if (type == AssetType::Texture) {
+                auto* tp = static_cast<TextureAssetProperties*>(
+                    metadata->properties.get());
+                std::string nl = name;
+                std::ranges::transform(nl, nl.begin(), ::tolower);
+                if (nl.find("normal") != std::string::npos ||
+                    nl.find("roughness") != std::string::npos ||
+                    nl.find("metallic") != std::string::npos ||
+                    nl.find("metalness") != std::string::npos ||
+                    nl.find("height") != std::string::npos ||
+                    nl.find("ao") != std::string::npos) {
+                  tp->asset_type = TextureAssetType::NormalMap;
+                }
+              }
+            }
+          }
         }
       }
     }

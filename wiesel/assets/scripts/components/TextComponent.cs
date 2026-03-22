@@ -14,12 +14,6 @@ namespace WieselEngine
             set { Internals.Text_SetText(scenePtr, entityId, value); }
         }
 
-        public string FontPath
-        {
-            get { return Internals.Text_GetFontPath(scenePtr, entityId); }
-            set { Internals.Text_SetFontPath(scenePtr, entityId, value); }
-        }
-
         public float FontSize
         {
             get { return Internals.Text_GetFontSize(scenePtr, entityId); }

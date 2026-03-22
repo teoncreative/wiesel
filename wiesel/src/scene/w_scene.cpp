@@ -10,7 +10,7 @@
 
 #include "scene/w_scene.hpp"
 
-#include <imgui.h>
+#include "input/w_input.hpp"
 #include <nlohmann/json.hpp>
 #include <ranges>
 #include <rendering/w_sprite.hpp>
@@ -331,12 +331,11 @@ void Scene::OnUpdate(float_t delta_time) {
 
     // UI pointer events
     {
-      ImGuiIO& io = ImGui::GetIO();
-      float mx = io.MousePos.x;
-      float my = io.MousePos.y;
-      bool down = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-      bool up = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
-      bool held = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+      float mx = static_cast<float>(InputManager::GetMouseX()) - viewport_origin_.x;
+      float my = static_cast<float>(InputManager::GetMouseY()) - viewport_origin_.y;
+      bool down = InputManager::IsMouseButtonDown(MouseCode::kMouseButtonLeft);
+      bool up = InputManager::IsMouseButtonUp(MouseCode::kMouseButtonLeft);
+      bool held = InputManager::IsMouseButtonPressed(MouseCode::kMouseButtonLeft);
       ui_event_system_.Update(*this, mx, my, down, up, held);
     }
 
@@ -1087,11 +1086,8 @@ void Scene::Cleanup() {
     rect.ubo_ = nullptr;
   }
 
-  for (entt::entity entity : registry_.view<CanvasImageComponent>()) {
-    auto& img = registry_.get<CanvasImageComponent>(entity);
-    img.descriptor_ = nullptr;
-    img.ubo_ = nullptr;
-  }
+  // CanvasImageComponent has no per-component GPU resources;
+  // rendering uses the Renderer's transient slice pool.
 
   for (entt::entity entity : registry_.view<TextComponent>()) {
     auto& text = registry_.get<TextComponent>(entity);

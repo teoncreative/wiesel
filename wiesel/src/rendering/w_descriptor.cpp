@@ -107,7 +107,7 @@ void DescriptorSet::Bake() {
     VkDescriptorImageInfo imageInfo;
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = item.image_view->handle_;
-    imageInfo.sampler = item.sampler->sampler_;
+    imageInfo.sampler = item.sampler->handle_;
     imageInfos.emplace_back(imageInfo);
 
     VkWriteDescriptorSet set{};

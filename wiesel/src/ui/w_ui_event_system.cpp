@@ -31,6 +31,43 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
                             bool mouse_down, bool mouse_up, bool mouse_held) {
   auto& registry = scene.GetRegistry();
 
+  // Transform mouse from viewport-pixel space to canvas space.
+  // mouse_x/y are already relative to the viewport origin.
+  // Step 1: viewport display pixels -> render resolution pixels
+  // Step 2: render resolution pixels -> canvas reference resolution
+  glm::vec2 display_size = scene.GetViewportDisplaySize();
+  glm::vec2 render_res = scene.GetRenderResolution();
+
+  // If render_res is zero (Free Aspect), use display size as render res
+  if (render_res.x <= 0 || render_res.y <= 0) {
+    render_res = display_size;
+  }
+
+  float canvas_mx = mouse_x;
+  float canvas_my = mouse_y;
+
+  // Scale from display pixels to render pixels
+  if (display_size.x > 0 && display_size.y > 0 &&
+      render_res.x > 0 && render_res.y > 0) {
+    canvas_mx = mouse_x * (render_res.x / display_size.x);
+    canvas_my = mouse_y * (render_res.y / display_size.y);
+  }
+
+  // Scale from render pixels to canvas reference resolution
+  for (auto e : registry.view<CanvasComponent, CanvasScalerComponent>()) {
+    auto& scaler = registry.get<CanvasScalerComponent>(e);
+    if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize &&
+        render_res.x > 0 && render_res.y > 0) {
+      float scale_w = render_res.x / scaler.reference_resolution.x;
+      float scale_h = render_res.y / scaler.reference_resolution.y;
+      float t = scaler.match_width_or_height;
+      float scale_factor = scale_w * (1.0f - t) + scale_h * t;
+      canvas_mx /= scale_factor;
+      canvas_my /= scale_factor;
+      break;
+    }
+  }
+
   // Collect all interactable entities sorted by draw order (front to back)
   struct HitCandidate {
     entt::entity entity;
@@ -40,10 +77,12 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
 
   for (auto entity : registry.view<InteractableComponent, RectangleTransformComponent>()) {
     auto& interactable = registry.get<InteractableComponent>(entity);
-    if (!interactable.enabled) continue;
+    if (!interactable.enabled) {
+      continue;
+    }
 
     auto& rt = registry.get<RectangleTransformComponent>(entity);
-    if (PointInRect(mouse_x, mouse_y, rt.computed_position, rt.computed_size)) {
+    if (PointInRect(canvas_mx, canvas_my, rt.computed_position, rt.computed_size)) {
       candidates.push_back({entity, rt.draw_order});
     }
   }
@@ -157,64 +196,19 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
     pressed_entity_ = entt::null;
   }
 
-  // Update ButtonComponent visual states
+  // Update ButtonComponent state from InteractableComponent
   for (auto entity : registry.view<ButtonComponent, InteractableComponent>()) {
     auto& btn = registry.get<ButtonComponent>(entity);
     auto& interactable = registry.get<InteractableComponent>(entity);
 
-    // Determine state
-    ButtonState new_state;
     if (!interactable.enabled) {
-      new_state = ButtonState::Disabled;
+      btn.state_ = ButtonState::Disabled;
     } else if (interactable.pressed_) {
-      new_state = ButtonState::Pressed;
+      btn.state_ = ButtonState::Pressed;
     } else if (interactable.hovered_) {
-      new_state = ButtonState::Hovered;
+      btn.state_ = ButtonState::Hovered;
     } else {
-      new_state = ButtonState::Normal;
-    }
-
-    if (new_state != btn.state_) {
-      btn.state_ = new_state;
-
-      // Pick color and texture for current state
-      glm::vec4 color;
-      AssetHandle tex_handle;
-      switch (btn.state_) {
-        case ButtonState::Hovered:
-          color = btn.hovered_color;
-          tex_handle = btn.hovered_texture;
-          break;
-        case ButtonState::Pressed:
-          color = btn.pressed_color;
-          tex_handle = btn.pressed_texture;
-          break;
-        case ButtonState::Disabled:
-          color = btn.disabled_color;
-          tex_handle = btn.disabled_texture;
-          break;
-        default:
-          color = btn.normal_color;
-          tex_handle = btn.normal_texture;
-          break;
-      }
-
-      // Apply color to sibling CanvasImage or CanvasRect
-      if (registry.any_of<CanvasImageComponent>(entity)) {
-        auto& img = registry.get<CanvasImageComponent>(entity);
-        img.tint = color;
-
-        // Swap texture if one is set for this state
-        if (tex_handle.IsValid()) {
-          auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
-          if (tex) {
-            img.texture = tex;
-            img.gpu_dirty_ = true;
-          }
-        }
-      } else if (registry.any_of<CanvasRectComponent>(entity)) {
-        registry.get<CanvasRectComponent>(entity).color = color;
-      }
+      btn.state_ = ButtonState::Normal;
     }
   }
 }

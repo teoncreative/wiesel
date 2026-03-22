@@ -21,6 +21,8 @@ namespace Wiesel {
 static std::map<KeyCode, KeyData> keys_;
 static int mouse_x_ = 0;
 static int mouse_y_ = 0;
+static constexpr int kMaxMouseButtons = 8;
+static KeyData mouse_buttons_[kMaxMouseButtons] = {};
 static float mouse_axis_x_ = 0.0f;
 static float mouse_axis_y_ = 0.0f;
 static float mouse_axis_sens_x_ = 80.0f;
@@ -109,6 +111,22 @@ static bool OnMouseMoved(MouseMovedEvent& event) {
     mouse_axis_x_ -= mouse_axis_sens_x_ * event.GetDeltaX();
     mouse_axis_y_ -= mouse_axis_sens_y_ * event.GetDeltaY();
     mouse_axis_y_ = std::clamp(mouse_axis_y_, -mouse_axis_limit_y_, mouse_axis_limit_y_);
+  }
+  return false;
+}
+
+static bool OnMouseButtonPressed(MouseButtonPressedEvent& event) {
+  int btn = static_cast<int>(event.GetMouseButton());
+  if (btn >= 0 && btn < kMaxMouseButtons) {
+    mouse_buttons_[btn].pressed = true;
+  }
+  return false;
+}
+
+static bool OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
+  int btn = static_cast<int>(event.GetMouseButton());
+  if (btn >= 0 && btn < kMaxMouseButtons) {
+    mouse_buttons_[btn].pressed = false;
   }
   return false;
 }
@@ -218,6 +236,8 @@ void InputManager::OnEvent(Event& event) {
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnKeyPressed));
   dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnKeyReleased));
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseMoved));
+  dispatcher.Dispatch<MouseButtonPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseButtonPressed));
+  dispatcher.Dispatch<MouseButtonReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseButtonReleased));
   dispatcher.Dispatch<JoystickConnectedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickConnect));
   dispatcher.Dispatch<JoystickDisconnectedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickDisconnect));
   dispatcher.Dispatch<JoystickButtonPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickButtonPressed));
@@ -229,6 +249,10 @@ void InputManager::Update() {
   // Update previous_pressed for keyboard
   for (auto& [code, data] : keys_) {
     data.previous_pressed = data.pressed;
+  }
+  // Update previous_pressed for mouse buttons
+  for (int i = 0; i < kMaxMouseButtons; i++) {
+    mouse_buttons_[i].previous_pressed = mouse_buttons_[i].pressed;
   }
   // Update previous_pressed for gamepad buttons
   for (int i = 0; i < kMaxGamepads; i++) {
@@ -375,6 +399,30 @@ float InputManager::GetGamepadAxis(int gamepad_index, GamepadAxis axis) {
 
 int InputManager::GetMouseX() { return mouse_x_; }
 int InputManager::GetMouseY() { return mouse_y_; }
+
+bool InputManager::IsMouseButtonPressed(MouseCode button) {
+  int b = static_cast<int>(button);
+  if (b < 0 || b >= kMaxMouseButtons) {
+    return false;
+  }
+  return mouse_buttons_[b].pressed;
+}
+
+bool InputManager::IsMouseButtonDown(MouseCode button) {
+  int b = static_cast<int>(button);
+  if (b < 0 || b >= kMaxMouseButtons) {
+    return false;
+  }
+  return mouse_buttons_[b].pressed && !mouse_buttons_[b].previous_pressed;
+}
+
+bool InputManager::IsMouseButtonUp(MouseCode button) {
+  int b = static_cast<int>(button);
+  if (b < 0 || b >= kMaxMouseButtons) {
+    return false;
+  }
+  return !mouse_buttons_[b].pressed && mouse_buttons_[b].previous_pressed;
+}
 
 int InputManager::GetConnectedGamepadCount() {
   int count = 0;

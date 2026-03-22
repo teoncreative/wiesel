@@ -33,23 +33,22 @@ Texture::~Texture() {
 
   VkImage image = image_;
   VkDeviceMemory memory = device_memory_;
-  VkSampler sampler = sampler_;
   VkDescriptorSet imgui_desc = imgui_descriptor_;
+  // Capture shared_ptrs so Vulkan resources stay alive until deletion queue fires
+  auto sampler = std::move(sampler_);
+  auto image_view = std::move(image_view_);
 
   image_ = VK_NULL_HANDLE;
   device_memory_ = VK_NULL_HANDLE;
-  sampler_ = VK_NULL_HANDLE;
   imgui_descriptor_ = nullptr;
-  // image_view_ shared_ptr will destruct on its own and defer via ImageView::~ImageView
 
-  renderer->GetDeletionQueue().Push([renderer, image, memory, sampler, imgui_desc]() {
+  renderer->GetDeletionQueue().Push([renderer, image, memory, imgui_desc,
+                                     sampler, image_view]() {
     VkDevice device = renderer->GetLogicalDevice();
     if (imgui_desc) {
       ImGui_ImplVulkan_RemoveTexture(imgui_desc);
     }
-    if (sampler) {
-      vkDestroySampler(device, sampler, nullptr);
-    }
+    // sampler and image_view shared_ptrs release here, triggering their destructors
     if (image) {
       vkDestroyImage(device, image, nullptr);
     }
@@ -61,9 +60,9 @@ Texture::~Texture() {
 
 VkDescriptorSet Texture::GetImGuiDescriptor() {
   if (imgui_descriptor_) return imgui_descriptor_;
-  if (!is_allocated_ || !image_view_) return nullptr;
+  if (!is_allocated_ || !image_view_ || !sampler_) return nullptr;
   imgui_descriptor_ = ImGui_ImplVulkan_AddTexture(
-      sampler_, image_view_->handle_,
+      sampler_->handle(), image_view_->handle_,
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   return imgui_descriptor_;
 }

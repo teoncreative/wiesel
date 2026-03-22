@@ -12,6 +12,8 @@
 #include <ImGuizmo.h>
 
 #include "asset/w_asset_manager.hpp"
+#include "asset/w_asset_property_registry.hpp"
+#include "ui/w_font.hpp"
 #include "imgui_internal.h"
 #include "physics/w_collider.hpp"
 #include "physics/w_physics_world.hpp"
@@ -361,11 +363,12 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
         mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
       }
     }
-    if (!texture || !texture->is_allocated_ || !texture->image_view_) {
+    if (!texture || !texture->is_allocated_ || !texture->image_view_ ||
+        !texture->sampler_) {
       return entry;
     }
     entry.texture_id = ImGui_ImplVulkan_AddTexture(
-        texture->sampler_, texture->image_view_->handle_,
+        texture->sampler_->handle(), texture->image_view_->handle_,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     entry.attempted = true;
   } else if (meta.type == AssetType::Sprite) {
@@ -378,7 +381,7 @@ static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle, const AssetMetada
       return entry;
     }
     entry.texture_id = ImGui_ImplVulkan_AddTexture(
-        sprite->GetSampler()->GetHandle(), frame.view->handle_,
+        sprite->GetSampler()->handle(), frame.view->handle_,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     entry.attempted = true;
   }
@@ -670,6 +673,7 @@ void EditorLayer::OnBeginPresent() {
   ImGui::End();
 
   RenderProjectSettingsPopup();
+  RenderAssetPropertiesPanel();
   RenderCreateSkyboxPopup();
   RenderCreateSpriteSheetPopup();
   RenderCreateSpriteAnimPopup();
@@ -1413,6 +1417,14 @@ void EditorLayer::OnBeginPresent() {
             fs::copy(fe.physical_path, copy_path, fs::copy_options::recursive, ec);
             if (!ec) ScanProjectAssets();
           }
+          if (!fe.is_dir && handle.IsValid()
+              && AssetPropertyRegistry::HasProperties(fe.asset_type)) {
+            if (ImGui::MenuItem("Properties")) {
+              properties_asset_handle_ = handle;
+              show_asset_properties_ = true;
+            }
+          }
+          ImGui::Separator();
           if (ImGui::MenuItem("Delete")) {
             namespace fs = std::filesystem;
             std::error_code ec;
@@ -2401,8 +2413,11 @@ void EditorLayer::OnBeginPresent() {
           ImGui::Image(gameDesc, drawSize);
 
           ImVec2 imageMin = ImGui::GetItemRectMin();
-
           ImVec2 imageMax = ImGui::GetItemRectMax();
+
+          // Set viewport origin and display size for UI hit testing
+          scene()->SetViewportOrigin({imageMin.x, imageMin.y});
+          scene()->SetViewportDisplaySize({drawSize.x, drawSize.y});
 
           // FPS overlay (top-left)
           ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
@@ -3972,6 +3987,97 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
       "wiesel_logo", "Wiesel Engine");
 #endif
   LOG_INFO("Opened project: {}", project->GetSettings().name);
+}
+
+void EditorLayer::RenderAssetPropertiesPanel() {
+  if (!show_asset_properties_) {
+    return;
+  }
+
+  const auto* meta = Engine::asset_manager().GetMetadata(properties_asset_handle_);
+  if (!meta) {
+    show_asset_properties_ = false;
+    return;
+  }
+
+  ImGui::SetNextWindowSize(ImVec2(350, 0), ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Asset Properties", &show_asset_properties_)) {
+    ImGui::Text("Name: %s", meta->name.c_str());
+    ImGui::TextDisabled("Path: %s", meta->virtual_source_path.c_str());
+    ImGui::Separator();
+
+    const auto* desc = AssetPropertyRegistry::Get(meta->type);
+    if (desc && meta->properties) {
+      bool changed = desc->RenderImGui(meta->properties.get());
+      if (changed) {
+        // Write properties back to .meta file
+        auto physical = Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
+        if (physical.has_value()) {
+          std::filesystem::path meta_path = physical->string() + ".meta";
+          ProjectLoader::WriteMetaFile(meta_path, meta->handle, meta->type,
+                                       meta->properties.get());
+        }
+      }
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("Reimport")) {
+      // Wait for GPU so no in-flight frames reference the old resources
+      Engine::renderer()->WaitForGPU();
+
+      if (meta->type == AssetType::Font) {
+        FontCache::Invalidate(properties_asset_handle_);
+        auto s = scene();
+        if (s) {
+          for (auto e : s->GetAllEntitiesWith<TextComponent>()) {
+            auto& tc = s->GetComponent<TextComponent>(e);
+            if (tc.font_handle == properties_asset_handle_) {
+              tc.gpu_dirty_ = true;
+              tc.glyph_gpu_.clear();
+            }
+          }
+        }
+      }
+
+      // Invalidate thumbnail cache before unloading so the stale ImGui
+      // descriptor is freed while the old Vulkan resources are still valid.
+      {
+        auto thumb_it = thumbnail_cache_.find(properties_asset_handle_);
+        if (thumb_it != thumbnail_cache_.end()) {
+          if (thumb_it->second.texture_id) {
+            ImGui_ImplVulkan_RemoveTexture(thumb_it->second.texture_id);
+          }
+          thumbnail_cache_.erase(thumb_it);
+        }
+      }
+
+      Engine::asset_manager().Unload(properties_asset_handle_);
+      // Use sync load since we already waited for GPU
+      Engine::asset_manager().LoadSync(properties_asset_handle_);
+
+      if (meta->type == AssetType::Texture) {
+        // Update all CanvasImage components that were using the old texture
+        auto new_tex = Engine::asset_manager().Get<Texture>(properties_asset_handle_);
+        auto s = scene();
+        if (s && new_tex) {
+          std::string path = meta->virtual_source_path;
+          for (auto e : s->GetAllEntitiesWith<CanvasImageComponent>()) {
+            auto& img = s->GetComponent<CanvasImageComponent>(e);
+            if (img.texture && img.texture->path_ == path) {
+              img.texture = new_tex;
+            }
+          }
+        }
+      }
+
+      // Rebuild render graphs with new resources
+      scene()->InvalidateRenderGraphs();
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetTooltip("Reload this asset with the current properties.");
+    }
+  }
+  ImGui::End();
 }
 
 void EditorLayer::ScanProjectAssets() {

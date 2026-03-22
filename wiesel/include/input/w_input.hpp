@@ -76,6 +76,9 @@ class InputManager {
   // --- Mouse ---
   static int GetMouseX();
   static int GetMouseY();
+  static bool IsMouseButtonPressed(MouseCode button);
+  static bool IsMouseButtonDown(MouseCode button);
+  static bool IsMouseButtonUp(MouseCode button);
 
   // --- Gamepad info ---
   static int GetConnectedGamepadCount();

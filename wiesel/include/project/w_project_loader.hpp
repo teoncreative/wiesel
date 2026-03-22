@@ -15,6 +15,8 @@
 #include "project/w_project.hpp"
 #include "scene/w_scene.hpp"
 
+#include <nlohmann/json.hpp>
+
 namespace Wiesel {
 
 class ProjectLoader {
@@ -39,9 +41,15 @@ class ProjectLoader {
 
   // Utilities (used by editor for import/browser)
   static AssetType ExtToAssetType(const std::string& ext);
-  static std::string ReadMetaFile(const std::filesystem::path& meta_path);
+  struct MetaFileData {
+    AssetHandle handle;
+    nlohmann::json properties;  // empty if none
+  };
+  static MetaFileData ReadMetaFile(const std::filesystem::path& meta_path);
   static void WriteMetaFile(const std::filesystem::path& meta_path,
-                            const AssetHandle& handle);
+                            const AssetHandle& handle,
+                            AssetType type = AssetType::None,
+                            const void* properties = nullptr);
 };
 
 }  // namespace Wiesel

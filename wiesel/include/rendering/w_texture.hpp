@@ -172,7 +172,7 @@ class Texture {
   VkFormat format_;
   VkDeviceMemory device_memory_;
   std::shared_ptr<ImageView> image_view_;
-  VkSampler sampler_;
+  std::shared_ptr<Sampler> sampler_;
   uint32_t mip_levels_;
 
   uint32_t width_;

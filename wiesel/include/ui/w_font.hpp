@@ -14,6 +14,8 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include "asset/w_asset_handle.hpp"
+#include "asset/w_asset_properties.hpp"
 #include "rendering/w_texture.hpp"
 #include "util/w_utils.hpp"
 #include "w_pch.hpp"
@@ -28,9 +30,30 @@ struct GlyphInfo {
   int32_t advance = 0;
 };
 
+// FontAsset: loaded font file stored in AssetManager.
+// Holds the raw data and FreeType face. One per font file.
+class FontAsset {
+ public:
+  FontAsset(const std::string& vfs_path);
+  ~FontAsset();
+
+  bool IsLoaded() const { return ft_face_ != nullptr; }
+  FT_Face GetFace() const { return ft_face_; }
+  FontAAMode GetAAMode() const { return aa_mode_; }
+  void SetAAMode(FontAAMode mode) { aa_mode_ = mode; }
+
+ private:
+  FT_Library ft_library_ = nullptr;
+  FT_Face ft_face_ = nullptr;
+  FontAAMode aa_mode_ = FontAAMode::Grayscale;
+  std::vector<uint8_t> font_data_;
+};
+
+// Font: size-specific rasterized instance created from a FontAsset.
+// Holds the glyph atlas for a specific pixel size.
 class Font {
  public:
-  Font(const std::string& vfs_path, float size_px = 32.0f);
+  Font(std::shared_ptr<FontAsset> asset, float size_px);
   ~Font();
 
   bool IsLoaded() const { return loaded_; }
@@ -42,19 +65,16 @@ class Font {
   float GetNativeSize() const { return native_size_; }
   glm::vec2 MeasureText(const std::string& text, float font_size);
 
-  // Decode one UTF-8 codepoint from a string, advancing the index.
   static uint32_t DecodeUTF8(const std::string& str, size_t& i);
 
-  // Re-upload atlas GPU texture if new glyphs were rasterized on demand.
-  // Returns true if the atlas was re-uploaded (descriptors need rebuilding).
+  // Re-upload atlas if new glyphs were rasterized on demand.
   bool FlushAtlas();
 
  private:
   void RasterizeGlyph(uint32_t codepoint);
   void UploadAtlas();
 
-  FT_Library ft_library_ = nullptr;
-  FT_Face ft_face_ = nullptr;
+  std::shared_ptr<FontAsset> asset_;
   float native_size_ = 0;
   float line_height_ = 0;
   float ascent_ = 0;
@@ -69,20 +89,22 @@ class Font {
   uint32_t row_height_ = 0;
   std::vector<uint8_t> atlas_pixels_;
 
-  // Persistent font file data (FreeType needs it to stay alive)
-  std::vector<uint8_t> font_data_;
-
   std::shared_ptr<Texture> atlas_texture_;
   std::shared_ptr<ImageView> atlas_image_view_;
   bool loaded_ = false;
   bool atlas_dirty_ = false;
 };
 
+// FontCache: manages size-specific Font instances.
+// Gets FontAsset from AssetManager, creates Font at requested size.
 class FontCache {
  public:
-  static std::shared_ptr<Font> Get(const std::string& path, float size);
+  static std::shared_ptr<Font> Get(AssetHandle font_handle, float size);
+  static void Invalidate(AssetHandle font_handle);
+  static void Clear();
 
  private:
+  // Key: "handle_string_size" -> Font
   static std::unordered_map<std::string, std::shared_ptr<Font>> cache_;
 };
 

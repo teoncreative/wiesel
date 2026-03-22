@@ -92,22 +92,25 @@ enum class ButtonState : int {
   Disabled = 3,
 };
 
-// Button component — provides automatic visual state management.
-// Works with a sibling CanvasImageComponent or CanvasRectComponent.
+// Button component - self-rendering canvas element with per-state textures.
 // Requires InteractableComponent for hit detection.
 // Click handling is done via OnPointerClick in scripts.
 struct ButtonComponent {
-  // Colors for each state (applied to sibling CanvasImage tint or CanvasRect color)
+  // Tint per state
   glm::vec4 normal_color = {1.0f, 1.0f, 1.0f, 1.0f};
-  glm::vec4 hovered_color = {0.9f, 0.9f, 0.9f, 1.0f};
-  glm::vec4 pressed_color = {0.7f, 0.7f, 0.7f, 1.0f};
+  glm::vec4 hovered_color = {1.0f, 1.0f, 1.0f, 1.0f};
+  glm::vec4 pressed_color = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 disabled_color = {0.5f, 0.5f, 0.5f, 0.5f};
 
-  // Optional texture per state (if set, swaps CanvasImage texture on state change)
+  // Texture per state (normal is required, others fall back to normal)
   AssetHandle normal_texture;
   AssetHandle hovered_texture;
   AssetHandle pressed_texture;
   AssetHandle disabled_texture;
+
+  // Child offset applied per state (pixels, affects children positioning)
+  glm::vec2 hovered_offset = {0.0f, 0.0f};
+  glm::vec2 pressed_offset = {0.0f, 0.0f};
 
   // Runtime state (not serialized)
   ButtonState state_ = ButtonState::Normal;
@@ -117,23 +120,6 @@ struct CanvasImageComponent {
   std::shared_ptr<Texture> texture;
   glm::vec4 tint = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 uv_rect = {0.0f, 0.0f, 1.0f, 1.0f};
-
-  // 9-slice: border sizes in pixels (left, top, right, bottom)
-  // When all zeros, renders as a normal stretched image.
-  glm::vec4 slice_border = {0.0f, 0.0f, 0.0f, 0.0f};
-
-  bool IsSliced() const {
-    return slice_border.x > 0 || slice_border.y > 0 ||
-           slice_border.z > 0 || slice_border.w > 0;
-  }
-
-  // GPU resources (allocated lazily)
-  std::shared_ptr<UniformBuffer> ubo_;
-  std::shared_ptr<DescriptorSet> descriptor_;
-  // 9-slice needs 9 quads — center reuses ubo_/descriptor_, 8 borders get their own
-  std::vector<std::shared_ptr<UniformBuffer>> slice_ubos_;
-  std::vector<std::shared_ptr<DescriptorSet>> slice_descriptors_;
-  bool gpu_dirty_ = true;
 };
 
 struct TextGlyphGPU {
@@ -143,14 +129,19 @@ struct TextGlyphGPU {
 
 struct TextComponent {
   std::string text;
-  std::string font_path = "/engine/fonts/default.ttf";
+  AssetHandle font_handle;  // font asset (empty = default engine font)
   float font_size = 16.0f;
   glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
+
+  // Shadow
+  bool shadow = false;
+  glm::vec2 shadow_offset = {1.0f, 1.0f};
+  glm::vec4 shadow_color = {0.0f, 0.0f, 0.0f, 0.5f};
 
   // Per-glyph GPU resources (one UBO+descriptor per visible character)
   std::vector<TextGlyphGPU> glyph_gpu_;
   std::string prev_text_;
-  std::string prev_font_path_;
+  AssetHandle prev_font_handle_;
   float prev_font_size_ = 0.0f;
   bool gpu_dirty_ = true;
 };

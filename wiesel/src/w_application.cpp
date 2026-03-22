@@ -168,7 +168,11 @@ void Application::Run() {
       }
     }
 
+    // Save previous input state, then poll OS events so single-frame
+    // transitions (Down/Up) are visible during this frame's update.
     InputManager::Update();
+    window_->OnUpdate();
+
     Engine::audio().Update();
     ExecuteQueue();
 
@@ -196,8 +200,6 @@ void Application::Run() {
         layer->OnPostPresent();
       }
     }
-
-    window_->OnUpdate();
 
     if (window_resized_) {
       window_->GetWindowFramebufferSize(window_size_);

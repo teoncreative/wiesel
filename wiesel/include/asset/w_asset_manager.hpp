@@ -21,6 +21,22 @@ struct AssetMetadata {
   std::atomic<AssetLoadState> load_state = AssetLoadState::Unloaded;
   mutable std::atomic<float> load_progress{0.0f};  // 0.0-1.0 sub-progress within a single asset
 
+  // Per-asset properties (type-erased, set during ScanAssets)
+  std::shared_ptr<void> properties;
+
+  template <typename T>
+  T* GetProperties() const {
+    return static_cast<T*>(properties.get());
+  }
+
+  template <typename T>
+  T& GetOrCreateProperties() {
+    if (!properties) {
+      properties = std::make_shared<T>();
+    }
+    return *static_cast<T*>(properties.get());
+  }
+
   bool IsValid() const {
     return handle.IsValid() && type != AssetType::None;
   }

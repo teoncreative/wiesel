@@ -116,6 +116,11 @@ class EditorLayer : public Layer {
   bool show_create_spriteanim_ = false;
   std::string browser_current_dir_;  // current asset browser directory relative to /app
 
+  // Asset properties panel
+  bool show_asset_properties_ = false;
+  AssetHandle properties_asset_handle_;
+  void RenderAssetPropertiesPanel();
+
   // Prefab editing
   bool editing_prefab_ = false;
   std::filesystem::path editing_prefab_path_;

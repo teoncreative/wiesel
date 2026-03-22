@@ -1841,22 +1841,18 @@ float Internals_CanvasImage_GetTintA(Scene* s, entt::entity e) {
 
 void Internals_CanvasImage_SetTintR(Scene* s, entt::entity e, float v) {
   s->GetComponent<CanvasImageComponent>(e).tint.r = v;
-  s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true;
 }
 
 void Internals_CanvasImage_SetTintG(Scene* s, entt::entity e, float v) {
   s->GetComponent<CanvasImageComponent>(e).tint.g = v;
-  s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true;
 }
 
 void Internals_CanvasImage_SetTintB(Scene* s, entt::entity e, float v) {
   s->GetComponent<CanvasImageComponent>(e).tint.b = v;
-  s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true;
 }
 
 void Internals_CanvasImage_SetTintA(Scene* s, entt::entity e, float v) {
   s->GetComponent<CanvasImageComponent>(e).tint.a = v;
-  s->GetComponent<CanvasImageComponent>(e).gpu_dirty_ = true;
 }
 
 float Internals_CanvasImage_GetUVRectX(Scene* s, entt::entity e) {
@@ -1905,18 +1901,6 @@ void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
   mono_free((void*)str);
 }
 
-MonoString* Internals_Text_GetFontPath(Scene* s, entt::entity e) {
-  return mono_string_new(Engine::script_manager().app_domain(),
-                         s->GetComponent<TextComponent>(e).font_path.c_str());
-}
-
-void Internals_Text_SetFontPath(Scene* s, entt::entity e, MonoString* v) {
-  const char* str = mono_string_to_utf8(v);
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.font_path = str;
-  c.gpu_dirty_ = true;
-  mono_free((void*)str);
-}
 
 float Internals_Text_GetFontSize(Scene* s, entt::entity e) {
   return s->GetComponent<TextComponent>(e).font_size;
@@ -3061,8 +3045,6 @@ void ScriptManager::RegisterInternals() {
   // TextComponent
   WIESEL_ADD_INTERNAL_CALL(Text_GetText);
   WIESEL_ADD_INTERNAL_CALL(Text_SetText);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetFontPath);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetFontPath);
   WIESEL_ADD_INTERNAL_CALL(Text_GetFontSize);
   WIESEL_ADD_INTERNAL_CALL(Text_SetFontSize);
   WIESEL_ADD_INTERNAL_CALL(Text_GetColorR);

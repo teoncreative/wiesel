@@ -93,6 +93,12 @@ class Scene {
   void SetRenderResolution(glm::vec2 resolution) { render_resolution_ = resolution; }
   glm::vec2 GetRenderResolution() const { return render_resolution_; }
 
+  void SetViewportOrigin(glm::vec2 origin) { viewport_origin_ = origin; }
+  glm::vec2 GetViewportOrigin() const { return viewport_origin_; }
+
+  void SetViewportDisplaySize(glm::vec2 size) { viewport_display_size_ = size; }
+  glm::vec2 GetViewportDisplaySize() const { return viewport_display_size_; }
+
   // Set the default render pipeline for all cameras without a per-camera override.
   void SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline);
   // Set a per-camera render pipeline override.
@@ -231,6 +237,8 @@ class Scene {
   std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
   std::unique_ptr<PhysicsWorld> physics_world_;
   glm::vec2 render_resolution_{0.0f, 0.0f};
+  glm::vec2 viewport_origin_{0.0f, 0.0f};
+  glm::vec2 viewport_display_size_{0.0f, 0.0f};
 
   void UpdateSceneState(float_t delta_time);
 };
