@@ -75,17 +75,17 @@ class Engine {
   static aiScene* LoadAssimpModel(const std::string& path,
                                   bool convert_to_left_handed = true);
 
-  // Load a model asset (sync, can be called from any thread).
-  // Handles Assimp import, texture decode, GPU upload.
+  static bool LoadTextureAsset(AssetHandle handle);
   static bool LoadModel(AssetHandle handle);
-
   static void LoadModelAsync(AssetHandle handle);
-
-
  private:
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
   static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
                          aiTextureType type, const aiScene& scene);
+  static std::shared_ptr<Texture> LoadEmbeddedTexture(
+      Model& model, int tex_index, TextureType tex_type, const aiScene& scene);
+  static std::shared_ptr<Texture> LoadExternalTexture(
+      Model& model, const std::string& texture_path, TextureType tex_type);
   static void PreDecodeTextures(Model& model, const aiScene& scene);
   static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex, TextureType type);
   static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width, int height);

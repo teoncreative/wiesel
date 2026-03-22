@@ -270,6 +270,11 @@ void Engine::InitEngine(const EngineProperties& props) {
           [](AssetHandle handle) { return LoadModel(handle); },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
+  asset_manager_->RegisterLoader(AssetType::Texture,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) { return LoadTextureAsset(handle); },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
   InitializeVfs();
   InitializeComponents();
   InputManager::Init();
@@ -392,6 +397,68 @@ aiScene* Engine::LoadAssimpModel(const std::string& path,
   }
 
   return scene;
+}
+
+bool Engine::LoadTextureAsset(AssetHandle handle) {
+  const AssetMetadata* meta = asset_manager_->GetMetadata(handle);
+  if (!meta) {
+    return false;
+  }
+
+  VfsFile file = vfs_->Open(meta->virtual_source_path);
+  if (!file) {
+    LOG_ERROR("LoadTexture: file not found: {}", meta->virtual_source_path);
+    return false;
+  }
+
+  meta->load_progress.store(0.1f);
+
+  int w, h, channels;
+  stbi_uc* pixels = stbi_load_from_memory(
+      file.Data(), static_cast<int>(file.Size()),
+      &w, &h, &channels, STBI_rgb_alpha);
+  if (!pixels) {
+    LOG_ERROR("LoadTexture: decode failed: {}", meta->virtual_source_path);
+    return false;
+  }
+
+  meta->load_progress.store(0.5f);
+
+  // Determine format from filename: normal/roughness/metallic/height maps use UNORM
+  std::string name_lower = meta->name;
+  std::ranges::transform(name_lower, name_lower.begin(), ::tolower);
+  bool is_data_texture = name_lower.find("normal") != std::string::npos
+      || name_lower.find("roughness") != std::string::npos
+      || name_lower.find("metallic") != std::string::npos
+      || name_lower.find("metalness") != std::string::npos
+      || name_lower.find("height") != std::string::npos
+      || name_lower.find("ao") != std::string::npos;
+
+  VkCommandPool pool = renderer_->CreateTransientCommandPool();
+  Renderer::SetThreadCommandPool(pool);
+  renderer_->BeginBatchUpload();
+
+  TextureProps props;
+  props.width = w;
+  props.height = h;
+  props.image_format = is_data_texture ? VK_FORMAT_R8G8B8A8_UNORM
+                                       : VK_FORMAT_R8G8B8A8_SRGB;
+  props.generate_mipmaps = true;
+
+  auto texture = renderer_->CreateTexture(pixels, 4, props, {});
+  stbi_image_free(pixels);
+
+  renderer_->EndBatchUpload();
+  Renderer::SetThreadCommandPool(VK_NULL_HANDLE);
+  vkDestroyCommandPool(renderer_->GetLogicalDevice(), pool, nullptr);
+
+  if (!texture) {
+    return false;
+  }
+
+  meta->load_progress.store(0.95f);
+  asset_manager_->Store<Texture>(handle, texture);
+  return true;
 }
 
 bool Engine::LoadModel(AssetHandle handle) {
@@ -590,33 +657,13 @@ void Engine::LoadModelAsync(AssetHandle handle) {
 }
 
 void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
-  // Collect all unique external texture paths from all materials
-  std::set<std::string> unique_paths;
+  // Only pre-decode embedded textures. External textures are loaded as
+  // standalone assets via LoadTextureAsset or on-demand in LoadTexture.
   const aiTextureType texture_types[] = {
       aiTextureType_DIFFUSE, aiTextureType_NORMALS, aiTextureType_SPECULAR,
       aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE_ROUGHNESS,
       aiTextureType_METALNESS};
 
-  for (unsigned int m = 0; m < scene.mNumMaterials; m++) {
-    aiMaterial* mat = scene.mMaterials[m];
-    for (auto tex_type : texture_types) {
-      for (unsigned int i = 0; i < mat->GetTextureCount(tex_type); i++) {
-        aiString str;
-        mat->GetTexture(tex_type, i, &str);
-        std::string s = str.C_Str();
-        if (s.empty() || s[0] == '*') continue;  // skip embedded
-
-        // Normalize path the same way LoadTexture does
-        size_t last_sep = s.find_last_of("/\\");
-        if (last_sep != std::string::npos && (s.find(':') != std::string::npos || s[0] == '/')) {
-          s = s.substr(last_sep + 1);
-        }
-        unique_paths.insert(model.textures_path + "/" + s);
-      }
-    }
-  }
-
-  // Also collect embedded textures
   struct EmbeddedTask {
     int index;
     std::string key;
@@ -630,52 +677,26 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
         aiString str;
         mat->GetTexture(tex_type, i, &str);
         std::string s = str.C_Str();
-        if (!s.empty() && s[0] == '*') {
-          int idx = std::atoi(s.c_str() + 1);
-          if (idx >= 0 && static_cast<unsigned>(idx) < scene.mNumTextures) {
-            std::string key = model.textures_path + "/embedded_" + std::to_string(idx);
-            if (!model.decoded_texture_cache.contains(key)) {
-              embedded_tasks.push_back({idx, key, scene.mTextures[idx]});
-              // Mark as pending to avoid duplicates
-              model.decoded_texture_cache[key] = nullptr;
-            }
-          }
+        if (s.empty() || s[0] != '*') {
+          continue;
         }
+        int idx = std::atoi(s.c_str() + 1);
+        if (idx < 0 || static_cast<unsigned>(idx) >= scene.mNumTextures) {
+          continue;
+        }
+        std::string key = model.textures_path + "/embedded_" + std::to_string(idx);
+        if (model.decoded_texture_cache.contains(key)) {
+          continue;
+        }
+        embedded_tasks.push_back({idx, key, scene.mTextures[idx]});
+        model.decoded_texture_cache[key] = nullptr;
       }
     }
   }
 
-  if (unique_paths.empty() && embedded_tasks.empty()) return;
+  if (embedded_tasks.empty()) return;
 
-  // Decode external textures in parallel
   std::vector<std::future<std::pair<std::string, std::shared_ptr<DecodedTextureData>>>> futures;
-
-  for (const auto& tex_path : unique_paths) {
-    futures.push_back(std::async(std::launch::async, [tex_path]()
-        -> std::pair<std::string, std::shared_ptr<DecodedTextureData>> {
-      auto decoded = std::make_shared<DecodedTextureData>();
-      VfsFile file = Engine::vfs()->Open(tex_path);
-      if (file.Size() == 0) return {tex_path, nullptr};
-
-      decoded->pixels = stbi_load_from_memory(
-          file.Data(), static_cast<int>(file.Size()),
-          &decoded->width, &decoded->height, &decoded->channels, STBI_rgb_alpha);
-
-      if (!decoded->pixels) return {tex_path, nullptr};
-      // Scan alpha channel for semi-transparency
-      int pixel_count = decoded->width * decoded->height;
-      for (int p = 0; p < pixel_count; p++) {
-        uint8_t a = decoded->pixels[p * 4 + 3];
-        if (a > 0 && a < 255) {
-          decoded->has_semi_transparency = true;
-          break;
-        }
-      }
-      return {tex_path, decoded};
-    }));
-  }
-
-  // Decode embedded textures in parallel
   for (auto& task : embedded_tasks) {
     futures.push_back(std::async(std::launch::async, [task]()
         -> std::pair<std::string, std::shared_ptr<DecodedTextureData>> {
@@ -691,7 +712,7 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
         decoded->channels = 4;
         int size = decoded->width * decoded->height;
         decoded->pixels = static_cast<stbi_uc*>(malloc(size * 4));
-        aiTexel* texels = reinterpret_cast<aiTexel*>(task.tex->pcData);
+        aiTexel* texels = task.tex->pcData;
         for (int i = 0; i < size; i++) {
           decoded->pixels[i * 4 + 0] = texels[i].r;
           decoded->pixels[i * 4 + 1] = texels[i].g;
@@ -700,7 +721,6 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
         }
       }
       if (!decoded->pixels) return {task.key, nullptr};
-      // Scan alpha channel for semi-transparency
       int pixel_count = decoded->width * decoded->height;
       for (int p = 0; p < pixel_count; p++) {
         uint8_t a = decoded->pixels[p * 4 + 3];
@@ -713,13 +733,91 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
     }));
   }
 
-  // Collect results
   for (auto& f : futures) {
     auto [key, data] = f.get();
     if (data) {
       model.decoded_texture_cache[key] = std::move(data);
     }
   }
+}
+
+// Resolve an embedded texture from the pre-decoded cache or by direct decode.
+std::shared_ptr<Texture> Engine::LoadEmbeddedTexture(
+    Model& model, int tex_index, TextureType tex_type,
+    const aiScene& scene) {
+  std::string key =
+      model.textures_path + "/embedded_" + std::to_string(tex_index);
+
+  // Reuse if already loaded for another mesh in this model
+  auto existing = model.textures.find(key);
+  if (existing != model.textures.end()) {
+    return existing->second;
+  }
+
+  // Try pre-decoded cache from PreDecodeTextures
+  std::shared_ptr<Texture> texture;
+  auto cache_it = model.decoded_texture_cache.find(key);
+  if (cache_it != model.decoded_texture_cache.end() && cache_it->second) {
+    auto& decoded = cache_it->second;
+    bool is_color = tex_type == TextureTypeDiffuse
+        || tex_type == TextureTypeBaseColor;
+    TextureProps props;
+    props.type = tex_type;
+    props.width = decoded->width;
+    props.height = decoded->height;
+    props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB
+                                  : VK_FORMAT_R8G8B8A8_UNORM;
+    props.generate_mipmaps = true;
+    texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
+  } else {
+    texture = CreateTextureFromEmbedded(scene.mTextures[tex_index], tex_type);
+  }
+
+  if (texture) {
+    model.textures.insert({key, texture});
+  }
+  return texture;
+}
+
+// Resolve an external texture from AssetManager or by loading from VFS.
+std::shared_ptr<Texture> Engine::LoadExternalTexture(
+    Model& model, const std::string& texture_path, TextureType tex_type) {
+  // Reuse if already loaded for another mesh in this model
+  auto existing = model.textures.find(texture_path);
+  if (existing != model.textures.end()) {
+    return existing->second;
+  }
+
+  std::shared_ptr<Texture> texture;
+
+  // Check if already loaded as a standalone asset
+  AssetHandle tex_handle = asset_manager_->FindBySourcePath(texture_path);
+  if (tex_handle.IsValid()
+      && asset_manager_->GetLoadState(tex_handle) == AssetLoadState::Loaded) {
+    texture = asset_manager_->Get<Texture>(tex_handle);
+  }
+
+  // Fallback: load directly from VFS
+  if (!texture) {
+    texture = renderer_->CreateTexture(texture_path, {tex_type}, {});
+  }
+
+  if (texture) {
+    model.textures.insert({texture_path, texture});
+  }
+  return texture;
+}
+
+// Normalize an Assimp texture path to a VFS-relative filename.
+static std::string NormalizeTexturePath(const std::string& raw,
+                                        const std::string& textures_dir) {
+  std::string s = raw;
+  size_t last_sep = s.find_last_of("/\\");
+  if (last_sep != std::string::npos
+      && (s.find(':') != std::string::npos || s[0] == '/')) {
+    s = s.substr(last_sep + 1);
+  }
+  return textures_dir + "/" + s;
 }
 
 bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
@@ -730,6 +828,9 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
     LOG_WARN("Mesh has more than one texture for type {}",
              std::to_string(type));
   }
+
+  TextureType tex_type = static_cast<TextureType>(type);
+
   for (unsigned int i = 0; i < count; i++) {
     aiString str;
     mat->GetTexture(type, i, &str);
@@ -738,87 +839,26 @@ bool Engine::LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
       continue;
     }
 
-    // Check if texture is embedded (starts with '*')
+    std::shared_ptr<Texture> texture;
+
     if (s[0] == '*') {
-      // Extract embedded texture index
-      int texIndex = std::atoi(s.c_str() + 1);
-
-      if (texIndex >= 0 && texIndex < scene.mNumTextures) {
-        aiTexture* embeddedTex = scene.mTextures[texIndex];
-
-        // Create unique identifier for embedded texture
-        std::string textureKey =
-            model.textures_path + "/embedded_" + std::to_string(texIndex);
-
-        if (model.textures.contains(textureKey)) {
-          Material::Set(mesh->mat, model.textures[textureKey],
-                        static_cast<TextureType>(type));
-        } else {
-          std::shared_ptr<Texture> texture;
-          // Use pre-decoded cache if available (parallel decode)
-          auto cache_it = model.decoded_texture_cache.find(textureKey);
-          if (cache_it != model.decoded_texture_cache.end() && cache_it->second) {
-            auto& decoded = cache_it->second;
-            TextureProps props;
-            props.type = static_cast<TextureType>(type);
-            props.width = decoded->width;
-            props.height = decoded->height;
-            // Color textures (diffuse, albedo) use sRGB; data textures (normal, roughness, etc.) use linear
-            bool is_color = props.type == TextureTypeDiffuse || type == TextureTypeBaseColor;
-            props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
-            props.generate_mipmaps = true;
-            texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
-          } else {
-            texture = CreateTextureFromEmbedded(
-                embeddedTex, static_cast<TextureType>(type));
-          }
-          if (texture == nullptr) {
-            continue;
-          }
-          Material::Set(mesh->mat, texture, static_cast<TextureType>(type));
-          model.textures.insert(std::pair(textureKey, texture));
-        }
-        return true;
+      // Embedded texture
+      int tex_index = std::atoi(s.c_str() + 1);
+      if (tex_index < 0 || tex_index >= static_cast<int>(scene.mNumTextures)) {
+        continue;
       }
+      texture = LoadEmbeddedTexture(model, tex_index, tex_type, scene);
     } else {
-      // Handle external texture file
-      // Strip absolute paths (e.g. "C:/Users/.../texture.png") to just filename
-      // so we resolve relative to the model's directory
-      size_t last_sep = s.find_last_of("/\\");
-      if (last_sep != std::string::npos && (s.find(':') != std::string::npos || s[0] == '/')) {
-        s = s.substr(last_sep + 1);
-      }
-      std::string textureFullPath = model.textures_path + "/" + s;
-      if (model.textures.contains(textureFullPath)) {
-        Material::Set(mesh->mat, model.textures[textureFullPath],
-                      static_cast<TextureType>(type));
-      } else {
-        std::shared_ptr<Texture> texture;
-        // Use pre-decoded cache if available (parallel decode)
-        auto cache_it = model.decoded_texture_cache.find(textureFullPath);
-        if (cache_it != model.decoded_texture_cache.end() && cache_it->second) {
-          auto& decoded = cache_it->second;
-          TextureProps props;
-          props.type = static_cast<TextureType>(type);
-          props.width = decoded->width;
-          props.height = decoded->height;
-          // Color textures (diffuse, albedo) use sRGB; data textures (normal, roughness, etc.) use linear
-          bool is_color = type == aiTextureType_DIFFUSE || type == aiTextureType_BASE_COLOR;
-          props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
-          props.generate_mipmaps = true;
-          texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
-        } else {
-          texture = renderer_->CreateTexture(
-              textureFullPath, {static_cast<TextureType>(type)}, {});
-        }
-        if (texture == nullptr) {
-          continue;
-        }
-        Material::Set(mesh->mat, texture, static_cast<TextureType>(type));
-        model.textures.insert(std::pair(textureFullPath, texture));
-      }
-      return true;
+      // External texture file
+      std::string path = NormalizeTexturePath(s, model.textures_path);
+      texture = LoadExternalTexture(model, path, tex_type);
     }
+
+    if (!texture) {
+      continue;
+    }
+    Material::Set(mesh->mat, texture, tex_type);
+    return true;
   }
   return false;
 }

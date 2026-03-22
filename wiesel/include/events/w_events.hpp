@@ -37,7 +37,9 @@ enum class EventType {
   JoystickButtonReleased,
   JoystickAxisMoved,
   JoystickHatChanged,
-  PipelineRecreated
+  PipelineRecreated,
+  WindowFocusGained,
+  WindowFocusLost
 };
 
 enum EventCategory {

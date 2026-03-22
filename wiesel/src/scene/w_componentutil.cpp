@@ -42,9 +42,31 @@
 
 namespace Wiesel {
 
+static void RenderTexturePreview(const char* label, Texture* tex) {
+  if (!tex) {
+    ImGui::TextDisabled("  %s: No", label);
+    return;
+  }
+  VkDescriptorSet desc = tex->GetImGuiDescriptor();
+  if (!desc) {
+    ImGui::TextDisabled("  %s: (loading)", label);
+    return;
+  }
+  ImGui::Text("  %s:", label);
+  ImGui::SameLine();
+  ImVec2 thumb_size(16, 16);
+  ImGui::Image(reinterpret_cast<ImTextureID>(desc), thumb_size);
+  if (ImGui::IsItemHovered()) {
+    ImGui::BeginTooltip();
+    ImVec2 preview_size(256, 256);
+    ImGui::Image(reinterpret_cast<ImTextureID>(desc), preview_size);
+    ImGui::EndTooltip();
+  }
+}
+
 // Shared drag-drop handler: accepts AssetHandle or BrowserFile payloads,
 // auto-imports if needed, returns a valid handle or null.
-AssetHandle AcceptAssetDragDrop(AssetType required_type) {
+static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
   AssetHandle result;
   if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
     AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
@@ -81,26 +103,47 @@ AssetHandle AcceptAssetDragDrop(AssetType required_type) {
   return result;
 }
 
-static void RenderTexturePreview(const char* label, Texture* tex) {
-  if (!tex) {
-    ImGui::TextDisabled("  %s: No", label);
-    return;
+// Accepts an AssetHandle drag-drop payload, filtered by type.
+// Returns true and writes the handle if accepted; false otherwise.
+static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle) {
+  if (ImGui::BeginDragDropTarget()) {
+    AssetHandle result = AcceptAssetDragDrop(required_type);
+    ImGui::EndDragDropTarget();
+    if (result.IsValid()) {
+      out_handle = result;
+      return true;
+    }
   }
-  VkDescriptorSet desc = tex->GetImGuiDescriptor();
-  if (!desc) {
-    ImGui::TextDisabled("  %s: (loading)", label);
-    return;
+  return false;
+}
+// Renders a texture asset drag-drop field. Returns true if changed.
+static bool TextureDropField(const char* label, AssetHandle& handle) {
+  std::string name = "(None)";
+  if (handle.IsValid()) {
+    const auto* meta = Engine::asset_manager().GetMetadata(handle);
+    if (meta) {
+      name = meta->name;
+    }
   }
-  ImGui::Text("  %s:", label);
+
+  ImGui::Text("%s", label);
   ImGui::SameLine();
-  ImVec2 thumb_size(16, 16);
-  ImGui::Image(reinterpret_cast<ImTextureID>(desc), thumb_size);
-  if (ImGui::IsItemHovered()) {
-    ImGui::BeginTooltip();
-    ImVec2 preview_size(256, 256);
-    ImGui::Image(reinterpret_cast<ImTextureID>(desc), preview_size);
-    ImGui::EndTooltip();
+  std::string btn_id = name + "##texdrop_" + label;
+  ImGui::Button(btn_id.c_str(), ImVec2(-1, 0));
+
+  AssetHandle dropped;
+  if (AcceptAssetDragDrop(AssetType::Texture, dropped)) {
+    handle = dropped;
+    return true;
   }
+
+  // Right-click to clear
+  if (handle.IsValid() && ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+    handle = {};
+    return true;
+  }
+
+  return false;
 }
 
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
@@ -120,24 +163,6 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
     }
     ImGui::TreePop();
   }
-}
-
-// Accepts an AssetHandle drag-drop payload, filtered by type.
-// Returns true and writes the handle if accepted; false otherwise.
-static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle) {
-  if (ImGui::BeginDragDropTarget()) {
-    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
-      AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-      const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
-      if (meta && meta->type == required_type) {
-        out_handle = dropped;
-        ImGui::EndDragDropTarget();
-        return true;
-      }
-    }
-    ImGui::EndDragDropTarget();
-  }
-  return false;
 }
 
 void RenderComponentImGui(ModelComponent& component, Entity entity) {
@@ -878,7 +903,8 @@ void RenderAddComponentImGui_RigidBodyComponent(Entity entity) {
 // Canvas / UI components
 
 void RenderComponentImGui(RectangleTransformComponent& component, Entity entity) {
-  if (ImGui::ClosableTreeNode("Rectangle Transform", nullptr)) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Rectangle Transform", &visible)) {
     bool changed = false;
     changed |= ImGui::DragFloat2(PrefixLabel("Position").c_str(),
                                   reinterpret_cast<float*>(&component.position), 0.5f);
@@ -920,6 +946,8 @@ void RenderComponentImGui(RectangleTransformComponent& component, Entity entity)
 
     changed |= ImGui::DragFloat4(PrefixLabel("Padding").c_str(),
                                   reinterpret_cast<float*>(&component.padding), 0.5f);
+    changed |= ImGui::DragFloat4(PrefixLabel("Margin").c_str(),
+                                  reinterpret_cast<float*>(&component.margin), 0.5f);
 
     ImGui::TextDisabled("Computed: (%.0f, %.0f) %.0fx%.0f",
                         component.computed_position.x, component.computed_position.y,
@@ -929,6 +957,10 @@ void RenderComponentImGui(RectangleTransformComponent& component, Entity entity)
       component.is_changed = true;
     }*/
     ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<RectangleTransformComponent>();
+    visible = true;
   }
 }
 
@@ -948,12 +980,43 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
     }
 
     ImGui::DragFloat(PrefixLabel("Spacing").c_str(), &component.spacing, 0.5f);
+    ImGui::DragFloat(PrefixLabel("Start Spacing").c_str(), &component.start_spacing, 0.5f);
+    ImGui::DragFloat(PrefixLabel("End Spacing").c_str(), &component.end_spacing, 0.5f);
     ImGui::InputInt(PrefixLabel("Sort Order").c_str(), &component.sort_order);
     ImGui::TreePop();
   }
   if (!visible) {
     entity.RemoveComponent<CanvasComponent>();
     visible = true;
+  }
+}
+
+void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Canvas Scaler", &visible)) {
+    const char* modes[] = {"Constant Pixel Size", "Scale With Screen Size"};
+    int mode = static_cast<int>(component.scale_mode);
+    if (ImGui::Combo(PrefixLabel("Scale Mode").c_str(), &mode, modes, 2)) {
+      component.scale_mode = static_cast<ScaleMode>(mode);
+    }
+    if (component.scale_mode == ScaleMode::ScaleWithScreenSize) {
+      ImGui::DragFloat2(PrefixLabel("Reference Resolution").c_str(),
+                        reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
+      ImGui::SliderFloat(PrefixLabel("Match").c_str(),
+                         &component.match_width_or_height, 0.0f, 1.0f,
+                         "Width %.2f Height");
+    }
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<CanvasScalerComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_CanvasScalerComponent(Entity entity) {
+  if (ImGui::MenuItem("Canvas Scaler")) {
+    entity.AddComponent<CanvasScalerComponent>();
   }
 }
 
@@ -975,6 +1038,26 @@ void RenderComponentImGui(CanvasRectComponent& component, Entity entity) {
 void RenderComponentImGui(CanvasImageComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Canvas Image", &visible)) {
+    // Texture field - drag a texture asset from the asset browser
+    {
+      AssetHandle tex_handle;
+      if (component.texture && !component.texture->path_.empty()) {
+        tex_handle = Engine::asset_manager().FindBySourcePath(component.texture->path_);
+      }
+      if (TextureDropField("Texture", tex_handle)) {
+        if (tex_handle.IsValid()) {
+          auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
+          if (tex) {
+            component.texture = tex;
+            component.gpu_dirty_ = true;
+          }
+        } else {
+          component.texture = nullptr;
+          component.gpu_dirty_ = true;
+        }
+      }
+    }
+
     if (ImGui::ColorEdit4(PrefixLabel("Tint").c_str(),
                           reinterpret_cast<float*>(&component.tint))) {
       component.gpu_dirty_ = true;
@@ -1058,6 +1141,41 @@ void RenderAddComponentImGui_TextComponent(Entity entity) {
   if (ImGui::MenuItem("Text")) {
     entity.AddComponent<TextComponent>();
     EnsureRectangleTransform(entity);
+  }
+}
+
+void RenderComponentImGui(TextInputComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Text Input", &visible)) {
+    char buf[256];
+    strncpy(buf, component.placeholder.c_str(), sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    if (ImGui::InputText(PrefixLabel("Placeholder").c_str(), buf, sizeof(buf))) {
+      component.placeholder = buf;
+    }
+    ImGui::InputInt(PrefixLabel("Max Length").c_str(), &component.max_length);
+    ImGui::ColorEdit4(PrefixLabel("Cursor Color").c_str(),
+                      reinterpret_cast<float*>(&component.cursor_color));
+    ImGui::ColorEdit4(PrefixLabel("Placeholder Color").c_str(),
+                      reinterpret_cast<float*>(&component.placeholder_color));
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<TextInputComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_TextInputComponent(Entity entity) {
+  if (ImGui::MenuItem("Text Input")) {
+    entity.AddComponent<TextInputComponent>();
+    EnsureRectangleTransform(entity);
+    if (!entity.HasComponent<TextComponent>()) {
+      entity.AddComponent<TextComponent>();
+    }
+    if (!entity.HasComponent<InteractableComponent>()) {
+      entity.AddComponent<InteractableComponent>();
+    }
   }
 }
 
@@ -2009,10 +2127,17 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
     return;
   }
 
+  ImGui::SeparatorText("Colors");
   ImGui::ColorEdit4(PrefixLabel("Normal").c_str(), &component.normal_color.r);
   ImGui::ColorEdit4(PrefixLabel("Hovered").c_str(), &component.hovered_color.r);
   ImGui::ColorEdit4(PrefixLabel("Pressed").c_str(), &component.pressed_color.r);
   ImGui::ColorEdit4(PrefixLabel("Disabled").c_str(), &component.disabled_color.r);
+
+  ImGui::SeparatorText("Textures (optional)");
+  TextureDropField("Normal", component.normal_texture);
+  TextureDropField("Hovered", component.hovered_texture);
+  TextureDropField("Pressed", component.pressed_texture);
+  TextureDropField("Disabled", component.disabled_texture);
 
   const char* state_names[] = {"Normal", "Hovered", "Pressed", "Disabled"};
   ImGui::TextDisabled("State: %s", state_names[static_cast<int>(component.state_)]);
@@ -2108,9 +2233,11 @@ void InitializeComponents() {
   RegisterComponentType<RigidBodyComponent>("Rigid Body", "Physics", RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent,  nullptr);
   RegisterComponentType<RectangleTransformComponent>("Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
   RegisterComponentType<CanvasComponent>("Canvas", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasComponent, nullptr);
+  RegisterComponentType<CanvasScalerComponent>("Canvas Scaler", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasScalerComponent, nullptr);
   RegisterComponentType<CanvasRectComponent>("Canvas Rect", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasRectComponent, nullptr);
   RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
   RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
+  RegisterComponentType<TextInputComponent>("Text Input", "UI", RenderComponentImGui, RenderAddComponentImGui_TextInputComponent, nullptr);
   RegisterComponentType<ButtonComponent>("Button", "UI", RenderComponentImGui, RenderAddComponentImGui_ButtonComponent, nullptr);
   RegisterComponentType<InteractableComponent>("Interactable", "UI", RenderComponentImGui, RenderAddComponentImGui_InteractableComponent, nullptr);
   RegisterComponentType<AudioSourceComponent>("Audio Source", "Audio", RenderComponentImGui, RenderAddComponentImGui_AudioSourceComponent, nullptr);
@@ -2119,11 +2246,7 @@ void InitializeComponents() {
 }
 
 void RenderExistingComponents(Entity entity) {
-  bool has_rect_transform = entity.HasComponent<RectangleTransformComponent>();
-  auto transform_ti = std::type_index(typeid(TransformComponent));
   for (const auto& [ti, desc] : kRegistry) {
-    // Hide TransformComponent when RectangleTransformComponent is present
-    if (has_rect_transform && ti == transform_ti) continue;
     if (desc.HasComponent(entity)) {
       desc.RenderSelf(entity);
     }

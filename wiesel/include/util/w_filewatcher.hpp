@@ -4,27 +4,38 @@
 
 #pragma once
 
-#include "w_pch.hpp"
+#include <efsw/efsw.hpp>
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <filesystem>
 
 namespace Wiesel {
 
-class FileWatcher {
+class FileWatcher : public efsw::FileWatchListener {
  public:
-  FileWatcher() = default;
+  FileWatcher();
+  ~FileWatcher() override;
 
   void Watch(const std::filesystem::path& directory, bool recursive = true);
+  void Stop();
 
-  // Returns true if any watched files have changed since the last poll.
+  // Returns true if any changes occurred since last call, then resets the flag.
   bool Poll();
 
-  bool IsWatching() const { return !watch_dir_.empty(); }
+  bool IsWatching() const { return watching_; }
+
+  // efsw::FileWatchListener callback
+  void handleFileAction(efsw::WatchID watch_id, const std::string& dir,
+                        const std::string& filename, efsw::Action action,
+                        std::string old_filename) override;
 
  private:
-  void ScanFiles();
-
-  std::filesystem::path watch_dir_;
-  bool recursive_ = true;
-  std::unordered_map<std::string, std::filesystem::file_time_type> file_times_;
+  std::unique_ptr<efsw::FileWatcher> watcher_;
+  efsw::WatchID watch_id_ = -1;
+  bool watching_ = false;
+  std::atomic<bool> changed_{false};
 };
 
 }  // namespace Wiesel

@@ -215,6 +215,8 @@ void AssetManager::Unload(AssetHandle handle) {
   auto it = registry_.find(handle);
   if (it != registry_.end()) {
     it->second->resource.reset();
+    it->second->metadata.load_state.store(AssetLoadState::Unloaded);
+    it->second->metadata.load_progress.store(0.0f);
   }
 }
 

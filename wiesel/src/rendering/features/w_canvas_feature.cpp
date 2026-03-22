@@ -191,9 +191,24 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   auto image_pipeline = image_pipeline_;
   auto text_pipeline = text_pipeline_;
   auto screen_push = screen_size_push_;
-  auto viewport = ctx.viewport_size;
   auto element_layout = canvas_element_layout_;
   auto textured_layout = canvas_textured_layout_;
+
+  // Compute effective screen size for canvas rendering.
+  // If any canvas has a scaler, use its reference resolution.
+  glm::vec2 effective_screen = ctx.viewport_size;
+  for (const auto& e : ctx.scene.GetAllEntitiesWith<CanvasComponent, CanvasScalerComponent>()) {
+    auto& scaler = ctx.scene.GetComponent<CanvasScalerComponent>(e);
+    if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
+      float scale_w = ctx.viewport_size.x / scaler.reference_resolution.x;
+      float scale_h = ctx.viewport_size.y / scaler.reference_resolution.y;
+      float t = scaler.match_width_or_height;
+      float scale_factor = scale_w * (1.0f - t) + scale_h * t;
+      effective_screen = ctx.viewport_size / scale_factor;
+      break;
+    }
+  }
+  auto viewport = effective_screen;
 
   // Pre-process text: load fonts, rasterize any new glyphs, and upload
   // atlases BEFORE command recording begins.  GPU resource creation

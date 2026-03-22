@@ -4,6 +4,7 @@
 
 #include "scene/w_scene_manager.hpp"
 
+#include "asset/w_asset_manager.hpp"
 #include "scene/w_scene_serializer.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
@@ -72,6 +73,13 @@ bool SceneManager::BeginFrame() {
   std::filesystem::path path = pending_scene_path_;
   pending_scene_path_.clear();
 
+  // Save old scene's asset list and keep-loaded flag before clearing
+  std::vector<AssetHandle> old_assets = scene->GetRequestedAssets();
+  bool old_keep_loaded = scene->GetKeepAssetsLoaded();
+
+  // Wait for GPU to finish before destroying resources
+  Engine::renderer()->WaitForGPU();
+
   // Clear the current scene
   auto& hierarchy = scene->GetSceneHierarchy();
   std::vector<entt::entity> to_remove(hierarchy.begin(), hierarchy.end());
@@ -82,12 +90,19 @@ bool SceneManager::BeginFrame() {
   scene->ProcessDestroyQueue();
   scene->ResetPhysicsWorld();
   scene->InvalidateRenderGraphs();
+  scene->ClearRequestedAssets();
 
-  // Load the new scene
+  // Load the new scene (populates requested_assets_ via RequestAsset)
   SceneSerializer serializer(scene);
   if (!serializer.Deserialize(path)) {
     LOG_ERROR("Failed to load scene: {}", path.string());
     return false;
+  }
+
+  // Unload assets the old scene used but the new scene doesn't,
+  // unless the old scene had keep_assets_loaded set
+  if (!old_keep_loaded) {
+    UnloadUnusedAssets(old_assets, scene->GetRequestedAssets());
   }
 
   // Setup cameras
@@ -188,6 +203,34 @@ void SceneManager::Cleanup() {
   if (active_scene_) {
     active_scene_->Cleanup();
     active_scene_.reset();
+  }
+}
+
+void SceneManager::UnloadUnusedAssets(const std::vector<AssetHandle>& old_assets,
+                                      const std::vector<AssetHandle>& new_assets) {
+  int unloaded = 0;
+  for (const auto& old_handle : old_assets) {
+    // Check if new scene still needs this asset
+    bool still_needed = false;
+    for (const auto& new_handle : new_assets) {
+      if (old_handle == new_handle) {
+        still_needed = true;
+        break;
+      }
+    }
+    if (still_needed) {
+      continue;
+    }
+
+    // Only unload if actually loaded
+    auto state = Engine::asset_manager().GetLoadState(old_handle);
+    if (state == AssetLoadState::Loaded) {
+      Engine::asset_manager().Unload(old_handle);
+      unloaded++;
+    }
+  }
+  if (unloaded > 0) {
+    LOG_INFO("Unloaded {} unused assets from previous scene", unloaded);
   }
 }
 

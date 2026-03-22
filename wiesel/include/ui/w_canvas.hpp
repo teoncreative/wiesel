@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "asset/w_asset_handle.hpp"
 #include "events/w_events.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_descriptor.hpp"
@@ -52,12 +53,27 @@ enum class ChildAlignment {
 
 enum CanvasType { CanvasTypeScreenSpace };
 
+enum class ScaleMode {
+  ConstantPixelSize,   // 1:1 pixel mapping, no scaling
+  ScaleWithScreenSize  // scale relative to a reference resolution
+};
+
 struct CanvasComponent {
   CanvasType type = CanvasTypeScreenSpace;
   LayoutDirection direction = LayoutDirection::None;
   ChildAlignment alignment = ChildAlignment::Start;
   float spacing = 0.0f;
+  float start_spacing = 0.0f;  // space before first child
+  float end_spacing = 0.0f;    // space after last child
   int sort_order = 0;
+};
+
+struct CanvasScalerComponent {
+  ScaleMode scale_mode = ScaleMode::ConstantPixelSize;
+  glm::vec2 reference_resolution = {1920.0f, 1080.0f};
+
+  // 0 = match width, 1 = match height, 0.5 = blend both
+  float match_width_or_height = 0.5f;
 };
 
 struct CanvasRectComponent {
@@ -86,6 +102,12 @@ struct ButtonComponent {
   glm::vec4 hovered_color = {0.9f, 0.9f, 0.9f, 1.0f};
   glm::vec4 pressed_color = {0.7f, 0.7f, 0.7f, 1.0f};
   glm::vec4 disabled_color = {0.5f, 0.5f, 0.5f, 0.5f};
+
+  // Optional texture per state (if set, swaps CanvasImage texture on state change)
+  AssetHandle normal_texture;
+  AssetHandle hovered_texture;
+  AssetHandle pressed_texture;
+  AssetHandle disabled_texture;
 
   // Runtime state (not serialized)
   ButtonState state_ = ButtonState::Normal;
@@ -131,6 +153,20 @@ struct TextComponent {
   std::string prev_font_path_;
   float prev_font_size_ = 0.0f;
   bool gpu_dirty_ = true;
+};
+
+struct TextInputComponent {
+  std::string text;
+  std::string placeholder = "Enter text...";
+  int max_length = 0;  // 0 = unlimited
+  glm::vec4 cursor_color = {1.0f, 1.0f, 1.0f, 1.0f};
+  glm::vec4 placeholder_color = {0.5f, 0.5f, 0.5f, 1.0f};
+
+  // Runtime state (not serialized)
+  int cursor_pos_ = 0;
+  bool focused_ = false;
+  float cursor_timer_ = 0.0f;
+  bool cursor_visible_ = true;
 };
 
 }  // namespace Wiesel

@@ -321,6 +321,18 @@ void SdlAppWindow::OnUpdate() {
           break;
         }
 
+        case SDL_EVENT_WINDOW_FOCUS_GAINED: {
+          WindowFocusGainedEvent event;
+          GetEventHandler()(event);
+          break;
+        }
+
+        case SDL_EVENT_WINDOW_FOCUS_LOST: {
+          WindowFocusLostEvent event;
+          GetEventHandler()(event);
+          break;
+        }
+
         default:
           break;
       }

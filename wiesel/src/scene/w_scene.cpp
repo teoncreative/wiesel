@@ -41,6 +41,7 @@
 #include "systems/w_canvas_system.hpp"
 #include "ai/w_agent_controller.hpp"
 #include "audio/w_audio.hpp"
+#include "events/w_keyevents.hpp"
 #include "ui/w_interactable.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "w_engine.hpp"
@@ -149,15 +150,29 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
 }
 
 void Scene::RemoveEntity(Entity entity) {
-  entities_.erase(entity.GetUUID());
-  destroy_queue_.push_back(entity.handle());
-  scene_hierarchy_.erase(std::ranges::remove_if(scene_hierarchy_, [&](auto& e) {
-                           return e == entity;
-                         }).begin());
+  entt::entity handle = entity.handle();
+
+  // Skip if already queued
+  for (entt::entity& queued : destroy_queue_) {
+    if (queued == handle) {
+      return;
+    }
+  }
+
+  // Queue children recursively
+  if (registry_.any_of<TreeComponent>(handle)) {
+    auto& tree = registry_.get<TreeComponent>(handle);
+    std::vector<entt::entity> children = tree.childs;
+    for (auto child : children) {
+      RemoveEntity(Entity{child, this});
+    }
+  }
+
+  destroy_queue_.push_back(handle);
 }
 
 entt::entity Scene::FindEntityByName(const std::string& name) {
-  for (auto entity : registry_.view<TagComponent>()) {
+  for (entt::entity entity : registry_.view<TagComponent>()) {
     if (registry_.get<TagComponent>(entity).name == name) {
       return entity;
     }
@@ -175,7 +190,7 @@ entt::entity Scene::FindEntityByUUID(const UUID& uuid) {
 
 std::vector<entt::entity> Scene::FindEntitiesByTag(const std::string& tag) {
   std::vector<entt::entity> result;
-  for (auto entity : registry_.view<TagComponent>()) {
+  for (entt::entity entity : registry_.view<TagComponent>()) {
     if (registry_.get<TagComponent>(entity).HasTag(tag)) {
       result.push_back(entity);
     }
@@ -184,19 +199,32 @@ std::vector<entt::entity> Scene::FindEntitiesByTag(const std::string& tag) {
 }
 
 void Scene::RequestAsset(AssetHandle handle) {
-  if (!handle.IsValid()) return;
-  if (!Engine::asset_manager().HasAsset(handle)) return;
-  // Only track assets that have a loader and aren't loaded yet
-  auto state = Engine::asset_manager().GetLoadState(handle);
-  if (state == AssetLoadState::Loaded) return;
-  auto* meta = Engine::asset_manager().GetMetadata(handle);
-  if (!meta || !Engine::asset_manager().GetLoader(meta->type)) return;
+  if (!handle.IsValid()) {
+    return;
+  }
+  if (!Engine::asset_manager().HasAsset(handle)) {
+    return;
+  }
+
+  // Only track asset types that have a registered loader
+  const AssetMetadata* meta = Engine::asset_manager().GetMetadata(handle);
+  if (!meta || !Engine::asset_manager().GetLoader(meta->type)) {
+    return;
+  }
+
   // Avoid duplicates
-  for (auto& h : requested_assets_) {
-    if (h == handle) return;
+  for (AssetHandle& h : requested_assets_) {
+    if (h == handle) {
+      return;
+    }
   }
   requested_assets_.push_back(handle);
-  Engine::asset_manager().LoadAsync(handle);
+
+  // Kick off async load if not already loaded
+  auto state = Engine::asset_manager().GetLoadState(handle);
+  if (state != AssetLoadState::Loaded && state != AssetLoadState::Loading) {
+    Engine::asset_manager().LoadAsync(handle);
+  }
 }
 
 bool Scene::AreAssetsReady() const {
@@ -231,9 +259,6 @@ void Scene::ClearRequestedAssets() {
   requested_assets_.clear();
 }
 
-void Scene::DestroyEntity(entt::entity handle) {
-  registry_.destroy(handle);
-}
 
 void Scene::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
@@ -313,6 +338,32 @@ void Scene::OnUpdate(float_t delta_time) {
       bool up = ImGui::IsMouseReleased(ImGuiMouseButton_Left);
       bool held = ImGui::IsMouseDown(ImGuiMouseButton_Left);
       ui_event_system_.Update(*this, mx, my, down, up, held);
+    }
+
+    // Text input: cursor blink and sync to TextComponent
+    {
+      entt::entity focused = ui_event_system_.GetFocusedEntity();
+      if (focused != entt::null && registry_.valid(focused)
+          && registry_.any_of<TextInputComponent>(focused)) {
+        auto& input = registry_.get<TextInputComponent>(focused);
+        input.cursor_timer_ += delta_time;
+        if (input.cursor_timer_ >= 0.5f) {
+          input.cursor_visible_ = !input.cursor_visible_;
+          input.cursor_timer_ = 0.0f;
+        }
+      }
+
+      // Sync all TextInput text to sibling TextComponent
+      for (auto entity : registry_.view<TextInputComponent, TextComponent>()) {
+        auto& input = registry_.get<TextInputComponent>(entity);
+        auto& text = registry_.get<TextComponent>(entity);
+        if (input.text.empty() && !input.focused_) {
+          text.text = input.placeholder;
+          text.color = input.placeholder_color;
+        } else {
+          text.text = input.text;
+        }
+      }
     }
 
     // Audio: tick audio source components
@@ -789,6 +840,73 @@ void Scene::OnEvent(Event& event) {
   dispatcher.Dispatch<PipelineRecreatedEvent>(
       WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
+  // Route keyboard input to focused text input
+  entt::entity focused = ui_event_system_.GetFocusedEntity();
+  if (focused != entt::null && registry_.valid(focused)
+      && registry_.any_of<TextInputComponent>(focused)) {
+    auto& input = registry_.get<TextInputComponent>(focused);
+
+    if (event.GetEventType() == KeyTypedEvent::GetStaticType()) {
+      auto& typed = static_cast<KeyTypedEvent&>(event);
+      uint32_t codepoint = static_cast<uint32_t>(typed.GetKeyCode());
+      if (codepoint >= 32) {
+        if (input.max_length <= 0
+            || static_cast<int>(input.text.size()) < input.max_length) {
+          input.text.insert(input.text.begin() + input.cursor_pos_,
+                            static_cast<char>(codepoint));
+          input.cursor_pos_++;
+          input.cursor_visible_ = true;
+          input.cursor_timer_ = 0.0f;
+        }
+      }
+      event.m_Handled = true;
+      return;
+    }
+
+    if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
+      auto& key = static_cast<KeyPressedEvent&>(event);
+      bool handled = true;
+      switch (key.GetKeyCode()) {
+        case KeyBackspace:
+          if (input.cursor_pos_ > 0) {
+            input.text.erase(input.cursor_pos_ - 1, 1);
+            input.cursor_pos_--;
+          }
+          break;
+        case KeyDelete:
+          if (input.cursor_pos_ < static_cast<int>(input.text.size())) {
+            input.text.erase(input.cursor_pos_, 1);
+          }
+          break;
+        case KeyArrowLeft:
+          if (input.cursor_pos_ > 0) {
+            input.cursor_pos_--;
+          }
+          break;
+        case KeyArrowRight:
+          if (input.cursor_pos_ < static_cast<int>(input.text.size())) {
+            input.cursor_pos_++;
+          }
+          break;
+        case KeyHome:
+          input.cursor_pos_ = 0;
+          break;
+        case KeyEnd:
+          input.cursor_pos_ = static_cast<int>(input.text.size());
+          break;
+        default:
+          handled = false;
+          break;
+      }
+      if (handled) {
+        input.cursor_visible_ = true;
+        input.cursor_timer_ = 0.0f;
+        event.m_Handled = true;
+        return;
+      }
+    }
+  }
+
   for (const auto& entity : registry_.view<BehaviorsComponent>()) {
     auto& component = registry_.get<BehaviorsComponent>(entity);
     component.OnEvent(event);
@@ -844,11 +962,38 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
 
 void Scene::ProcessDestroyQueue() {
   PROFILE_ZONE_SCOPED();
-  for (const auto& item : destroy_queue_) {
-    physics_world_->DestroyBody(item);
-    DestroyEntity(item);
+  if (destroy_queue_.empty()) {
+    return;
   }
-  destroy_queue_.clear();
+
+  // Swap to local copy so new removals during cleanup don't corrupt iteration
+  std::vector<entt::entity> queue;
+  queue.swap(destroy_queue_);
+
+  for (entt::entity handle : queue) {
+    if (!registry_.valid(handle)) {
+      continue;
+    }
+
+    // Unlink from parent
+    if (registry_.any_of<TreeComponent>(handle)) {
+      auto& tree = registry_.get<TreeComponent>(handle);
+      if (tree.parent != entt::null && registry_.valid(tree.parent)
+          && registry_.any_of<TreeComponent>(tree.parent)) {
+        auto& parent_tree = registry_.get<TreeComponent>(tree.parent);
+        std::erase(parent_tree.childs, handle);
+      }
+    }
+
+    // Remove from UUID map and hierarchy
+    if (registry_.any_of<IdComponent>(handle)) {
+      entities_.erase(registry_.get<IdComponent>(handle).Id);
+    }
+    std::erase(scene_hierarchy_, handle);
+
+    physics_world_->DestroyBody(handle);
+    registry_.destroy(handle);
+  }
 }
 
 bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
@@ -919,7 +1064,7 @@ void Scene::Cleanup() {
   // Clear camera resource pools so their descriptor sets are freed.
   auto camera_view = registry_.view<CameraComponent>();
   LOG_DEBUG("Scene::Cleanup - cameras: {}", camera_view.size());
-  for (auto entity : camera_view) {
+  for (entt::entity entity : camera_view) {
     auto& camera = registry_.get<CameraComponent>(entity);
     camera.resource_pool.Clear();
     camera.render_pipeline = nullptr;

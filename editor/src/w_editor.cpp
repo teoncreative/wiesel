@@ -108,8 +108,8 @@ static struct SceneHierarchyData {
 } hierarchy_data_;
 
 static FileWatcher script_watcher_;
-static float script_watch_timer_ = 0.0f;
-static constexpr float kScriptWatchInterval = 1.0f;
+static bool script_reload_pending_ = false;
+static bool window_focused_ = true;
 
 struct ResolutionPreset {
   const char* label;
@@ -196,15 +196,6 @@ void EditorLayer::OnAttach() {
     }
   }
 
-  // Start watching app scripts directory for hot reload
-  if (Engine::properties().dev_mode) {
-    std::optional<std::filesystem::path> scripts_dir =
-        Engine::vfs()->GetPhysicalPath("/app/scripts");
-    if (scripts_dir.has_value() && std::filesystem::exists(*scripts_dir)) {
-      script_watcher_.Watch(*scripts_dir, true);
-      LOG_INFO("Watching scripts directory: {}", scripts_dir->string());
-    }
-  }
 }
 
 void EditorLayer::OnDetach() {
@@ -262,12 +253,13 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   // Only let scripts read input when the Game panel is focused during play
   InputManager::SetEnabled(editor_state_ == EditorState::Playing && game_panel_focused_);
 
+  // Process pending scene loads (both edit and play mode)
+  if (Engine::scene_manager().BeginFrame()) {
+    has_selected_entity_ = false;
+    piloting_camera_ = entt::null;
+  }
+
   if (editor_state_ == EditorState::Playing) {
-    // Process pending scene loads from scripts
-    if (Engine::scene_manager().BeginFrame()) {
-      has_selected_entity_ = false;
-      piloting_camera_ = entt::null;
-    }
     scene()->OnUpdate(delta_time);
   } else {
     scene()->OnUpdateEditor(delta_time);
@@ -281,17 +273,14 @@ void EditorLayer::OnUpdate(float_t delta_time) {
     }
   }
 
-  // Poll script file watcher for hot reload
-  if (script_watcher_.IsWatching()) {
-    script_watch_timer_ += delta_time;
-    if (script_watch_timer_ >= kScriptWatchInterval) {
-      script_watch_timer_ = 0.0f;
-      if (script_watcher_.Poll()) {
-        LOG_INFO("Script changes detected, reloading...");
-        CleanupThumbnailCache();
-        Engine::script_manager().ReloadAsync();
-      }
-    }
+  // Script hot reload: efsw detects changes in background, we reload when focused
+  if (script_watcher_.Poll()) {
+    script_reload_pending_ = true;
+  }
+  if (script_reload_pending_ && window_focused_) {
+    script_reload_pending_ = false;
+    LOG_INFO("Script changes detected, reloading...");
+    Engine::script_manager().ReloadAsync();
   }
 }
 
@@ -314,9 +303,21 @@ bool EditorLayer::OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
+bool EditorLayer::OnWindowFocusGained(WindowFocusGainedEvent& event) {
+  window_focused_ = true;
+  return false;
+}
+
+bool EditorLayer::OnWindowFocusLost(WindowFocusLostEvent& event) {
+  window_focused_ = false;
+  return false;
+}
+
 void EditorLayer::OnEvent(Event& event) {
   EventDispatcher dispatcher(event);
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
+  dispatcher.Dispatch<WindowFocusGainedEvent>(WIESEL_BIND_FN(OnWindowFocusGained));
+  dispatcher.Dispatch<WindowFocusLostEvent>(WIESEL_BIND_FN(OnWindowFocusLost));
 
   if (editor_state_ == EditorState::Playing) {
     bool is_input = event.IsInCategory(EventCategory::kEventCategoryInput);
@@ -1960,13 +1961,13 @@ void EditorLayer::OnBeginPresent() {
     }
 
     // Editor camera output from its own resource pool
-    auto editorDesc = editor_camera_.resource_pool.GetDescriptor("PipelineOutputDescriptor");
-    auto editorImage = editor_camera_.resource_pool.GetTexture("PipelineOutput");
+    auto editor_desc = editor_camera_.resource_pool.GetDescriptor("PipelineOutputDescriptor");
+    auto editor_image = editor_camera_.resource_pool.GetTexture("PipelineOutput");
 
     // Handle viewport resize
     ImVec2 avail = ImGui::GetContentRegionAvail();
     if (scene()->GetRenderResolution().x <= 0) {
-      // Free Aspect: editor camera tracks panel size (old behavior)
+      // Free Aspect: editor camera tracks panel size
       uint32_t newW = static_cast<uint32_t>(avail.x);
       uint32_t newH = static_cast<uint32_t>(avail.y);
       if (newW > 0 && newH > 0 &&
@@ -1977,40 +1978,40 @@ void EditorLayer::OnBeginPresent() {
         editor_camera_.resources_dirty = true;
       }
     }
+
     // When a preset is active, RenderFromExternal applies render_resolution_ automatically
-
-    if (editorDesc && editorImage) {
+    if (editor_desc && editor_image) {
       ImTextureID desc =
-          reinterpret_cast<ImTextureID>(editorDesc->descriptor_set_);
+          reinterpret_cast<ImTextureID>(editor_desc->descriptor_set_);
 
-      float imageAspect = (float)editorImage->width_ / (float)editorImage->height_;
-      float availAspect = avail.x / avail.y;
+      float image_aspect = (float)editor_image->width_ / (float)editor_image->height_;
+      float avail_aspect = avail.x / avail.y;
 
-      ImVec2 drawSize;
-      if (availAspect > imageAspect) {
-        drawSize.y = avail.y;
-        drawSize.x = drawSize.y * imageAspect;
+      ImVec2 image_size;
+      if (avail_aspect > image_aspect) {
+        image_size.y = avail.y;
+        image_size.x = image_size.y * image_aspect;
       } else {
-        drawSize.x = avail.x;
-        drawSize.y = drawSize.x / imageAspect;
+        image_size.x = avail.x;
+        image_size.y = image_size.x / image_aspect;
       }
 
-      ImGui::Image(desc, drawSize);
+      ImGui::Image(desc, image_size);
 
-      ImVec2 imageMin = ImGui::GetItemRectMin();
-      ImVec2 imageMax = ImGui::GetItemRectMax();
+      ImVec2 image_min = ImGui::GetItemRectMin();
+      ImVec2 image_max = ImGui::GetItemRectMax();
       bool scene_hovered = ImGui::IsItemHovered();
 
       // FPS overlay (top-left)
-      ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
-      std::string fpsStr = std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
-      ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+      ImVec2 text_pos = ImVec2(image_min.x + 6, image_min.y + 6);
+      std::string fps_str = std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
+      ImGui::GetWindowDrawList()->AddText(text_pos, IM_COL32(0, 255, 0, 255), fps_str.c_str());
 
       // Resolution overlay (top-right)
-      std::string resStr = std::format("{}x{}", (int)editor_camera_.viewport_size.x, (int)editor_camera_.viewport_size.y);
-      ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
-      ImVec2 resPos = ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
-      ImGui::GetWindowDrawList()->AddText(resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
+      std::string res_str = std::format("{}x{}", (int)editor_camera_.viewport_size.x, (int)editor_camera_.viewport_size.y);
+      ImVec2 res_text_size = ImGui::CalcTextSize(res_str.c_str());
+      ImVec2 res_pos = ImVec2(image_max.x - res_text_size.x - 6, image_min.y + 6);
+      ImGui::GetWindowDrawList()->AddText(res_pos, IM_COL32(0, 255, 0, 255), res_str.c_str());
 
       // Right-click mouse look
       static bool scene_right_active = false;
@@ -2142,7 +2143,7 @@ void EditorLayer::OnBeginPresent() {
         glm::mat4 model = transform.GetTransformMatrix();
         ImGuizmo::SetOrthographic(false);
         ImGuizmo::SetDrawlist();
-        ImGuizmo::SetRect(imageMin.x, imageMin.y, drawSize.x, drawSize.y);
+        ImGuizmo::SetRect(image_min.x, image_min.y, image_size.x, image_size.y);
         if (ImGuizmo::Manipulate(
                 glm::value_ptr(view),
                 glm::value_ptr(proj),
@@ -2171,8 +2172,8 @@ void EditorLayer::OnBeginPresent() {
           if (clip.w <= 0.001f) return ImVec2(-9999, -9999);
           glm::vec3 ndc = glm::vec3(clip) / clip.w;
           return ImVec2(
-              imageMin.x + (ndc.x * 0.5f + 0.5f) * drawSize.x,
-              imageMin.y + (-ndc.y * 0.5f + 0.5f) * drawSize.y);
+              image_min.x + (ndc.x * 0.5f + 0.5f) * image_size.x,
+              image_min.y + (-ndc.y * 0.5f + 0.5f) * image_size.y);
         };
 
         auto drawLine3D = [&](glm::vec3 a, glm::vec3 b, ImU32 color) {
@@ -2241,15 +2242,30 @@ void EditorLayer::OnBeginPresent() {
       if (has_selected_entity_ &&
           scene()->HasComponent<RectangleTransformComponent>(selected_entity_)) {
         auto& rt = scene()->GetComponent<RectangleTransformComponent>(selected_entity_);
-        float renderW = static_cast<float>(editorImage->width_);
-        float renderH = static_cast<float>(editorImage->height_);
-        float scaleX = drawSize.x / renderW;
-        float scaleY = drawSize.y / renderH;
+        float render_w = static_cast<float>(editor_image->width_);
+        float render_h = static_cast<float>(editor_image->height_);
 
-        ImVec2 rMin(imageMin.x + rt.computed_position.x * scaleX,
-                    imageMin.y + rt.computed_position.y * scaleY);
-        ImVec2 rMax(imageMin.x + (rt.computed_position.x + rt.computed_size.x) * scaleX,
-                    imageMin.y + (rt.computed_position.y + rt.computed_size.y) * scaleY);
+        // Account for canvas scaler: computed values are in reference-resolution
+        // units, so we need to find the scale factor to convert to actual pixels.
+        float canvas_scale = 1.0f;
+        for (auto e : scene()->GetAllEntitiesWith<CanvasComponent, CanvasScalerComponent>()) {
+          auto& scaler = scene()->GetComponent<CanvasScalerComponent>(e);
+          if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
+            float sw = render_w / scaler.reference_resolution.x;
+            float sh = render_h / scaler.reference_resolution.y;
+            float t = scaler.match_width_or_height;
+            canvas_scale = sw * (1.0f - t) + sh * t;
+            break;
+          }
+        }
+
+        float scaleX = image_size.x / render_w * canvas_scale;
+        float scaleY = image_size.y / render_h * canvas_scale;
+
+        ImVec2 rMin(image_min.x + rt.computed_position.x * scaleX,
+                    image_min.y + rt.computed_position.y * scaleY);
+        ImVec2 rMax(image_min.x + (rt.computed_position.x + rt.computed_size.x) * scaleX,
+                    image_min.y + (rt.computed_position.y + rt.computed_size.y) * scaleY);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         ImU32 outlineCol = IM_COL32(50, 150, 255, 230);
@@ -2277,13 +2293,13 @@ void EditorLayer::OnBeginPresent() {
       if (!scene_right_active && ImGui::IsMouseClicked(0) && scene_hovered &&
           !ImGuizmo::IsUsing() && !ImGuizmo::IsOver()) {
         ImVec2 mouse = ImGui::GetIO().MousePos;
-        float relX = mouse.x - imageMin.x;
-        float relY = mouse.y - imageMin.y;
-        if (relX >= 0 && relY >= 0 && relX < drawSize.x && relY < drawSize.y) {
-          uint32_t renderW = editorImage->width_;
-          uint32_t renderH = editorImage->height_;
-          uint32_t px = static_cast<uint32_t>(relX * renderW / drawSize.x);
-          uint32_t py = static_cast<uint32_t>(relY * renderH / drawSize.y);
+        float relX = mouse.x - image_min.x;
+        float relY = mouse.y - image_min.y;
+        if (relX >= 0 && relY >= 0 && relX < image_size.x && relY < image_size.y) {
+          uint32_t renderW = editor_image->width_;
+          uint32_t renderH = editor_image->height_;
+          uint32_t px = static_cast<uint32_t>(relX * renderW / image_size.x);
+          uint32_t py = static_cast<uint32_t>(relY * renderH / image_size.y);
           auto entity_id_tex = editor_camera_.resource_pool.GetTexture(
               "geometry.entity_id_resolve");
           if (entity_id_tex) {
@@ -2291,8 +2307,8 @@ void EditorLayer::OnBeginPresent() {
           }
           // Store NDC for fallback sprite/canvas picking
           pending_pick_ndc_ = {
-              (relX / drawSize.x) * 2.0f - 1.0f,
-              1.0f - (relY / drawSize.y) * 2.0f  // flip Y
+              (relX / image_size.x) * 2.0f - 1.0f,
+              1.0f - (relY / image_size.y) * 2.0f  // flip Y
           };
         }
       }
@@ -3039,6 +3055,30 @@ void EditorLayer::RenderProjectSettingsPopup() {
         }
       }
 
+      ImGui::SeparatorText("Asset Loading");
+      {
+        bool keep_loaded = scene()->GetKeepAssetsLoaded();
+        if (ImGui::Checkbox(PrefixLabel("Keep Assets Loaded").c_str(), &keep_loaded)) {
+          scene()->SetKeepAssetsLoaded(keep_loaded);
+          scene_dirty_ = true;
+        }
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetTooltip("When enabled, assets from this scene are not unloaded\n"
+                            "when switching to another scene. Useful for loading screens.");
+        }
+
+        bool preload = scene()->GetPreloadAssets();
+        if (ImGui::Checkbox(PrefixLabel("Preload Assets").c_str(), &preload)) {
+          scene()->SetPreloadAssets(preload);
+          scene_dirty_ = true;
+        }
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetTooltip("When enabled, assets for this scene are loaded\n"
+                            "when the project opens, even if the scene is not active.\n"
+                            "Useful for scenes that need instant transitions.");
+        }
+      }
+
       ImGui::SeparatorText("Physics");
       {
         auto& physics = scene()->GetPhysicsWorld();
@@ -3707,33 +3747,23 @@ void EditorLayer::OpenSceneFromPath(const std::filesystem::path& path) {
   // Auto-save current scene before switching
   AutoSave();
 
-  ClearScene();
+  // Queue scene load - SceneManager::BeginFrame handles clearing,
+  // deserializing, camera setup, and asset unloading.
+  Engine::scene_manager().LoadSceneFromPath(path);
 
-  SceneSerializer serializer(scene());
-  if (serializer.Deserialize(path)) {
-    current_scene_path_ = std::filesystem::absolute(path);
-    scene_dirty_ = false;
-    scene()->InvalidateRenderGraphs();
+  // Editor-specific state updated after BeginFrame processes the load
+  current_scene_path_ = std::filesystem::absolute(path);
+  scene_dirty_ = false;
 
-    // Setup camera components that were deserialized
-    auto view = scene()->GetAllEntitiesWith<CameraComponent>();
-    for (auto entity : view) {
-      auto& cam = scene()->GetComponent<CameraComponent>(entity);
-      Engine::renderer()->SetupCameraComponent(cam);
-    }
-
-    // Track last opened scene in project
-    auto project = Engine::project();
-    if (project) {
-      auto rel = std::filesystem::relative(current_scene_path_,
-                                           project->GetAssetsDirectory());
-      project->GetSettings().last_scene = rel.generic_string();
-      project->Save();
-    }
-
-    UpdateWindowTitle();
-    LOG_INFO("Scene loaded: {}", path.string());
+  // Track last opened scene in project
+  if (auto p = project()) {
+    auto rel = std::filesystem::relative(current_scene_path_,
+                                         p->GetAssetsDirectory());
+    p->GetSettings().last_scene = rel.generic_string();
+    p->Save();
   }
+
+  UpdateWindowTitle();
 }
 
 void EditorLayer::SaveScene() {
@@ -3891,6 +3921,13 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   ProjectLoader::ApplyRenderOptions(*project);
   ProjectLoader::ApplyInputSettings(*project);
 
+  // Start watching scripts directory for hot reload
+  auto scripts_dir = Engine::vfs()->GetPhysicalPath("/app/scripts");
+  if (scripts_dir.has_value()) {
+    fs::create_directories(*scripts_dir);
+    script_watcher_.Watch(*scripts_dir, true);
+  }
+
   // Open last scene or start scene
   const std::string& last = project->GetSettings().last_scene;
   const std::string& start = project->GetSettings().start_scene;
@@ -3960,6 +3997,9 @@ void EditorLayer::ScanProjectAssets() {
     if (sky.IsValid() && !Engine::asset_manager().HasAsset(sky)) {
       scene()->SetSkyboxAsset({});
     }
+
+    // Recompile scripts if any .cs files changed
+    Engine::script_manager().ReloadAsync();
   }
 }
 

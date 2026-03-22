@@ -78,6 +78,7 @@ void ProjectLoader::ScanAssets(Project& project) {
   namespace fs = std::filesystem;
   AssetManager& mgr = Engine::asset_manager();
   Engine::scene_manager().ClearRegisteredScenes();
+  std::vector<fs::path> scenes_to_preload;
 
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
   if (!fs::exists(assets_dir)) return;
@@ -135,6 +136,10 @@ void ProjectLoader::ScanAssets(Project& project) {
           } else {
             mgr.Register(handle, name, type, vfs_path);
           }
+
+          if (type == AssetType::Scene && j.value("preload_assets", false)) {
+            scenes_to_preload.push_back(entry.path());
+          }
         } catch (const std::exception& e) {
           LOG_ERROR("Failed to load '{}': {}", vfs_path, e.what());
           continue;
@@ -172,13 +177,29 @@ void ProjectLoader::ScanAssets(Project& project) {
 
   // Clean up orphaned .meta files
   for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
-    if (!entry.is_regular_file()) continue;
-    if (entry.path().extension() != ".meta") continue;
+    if (!entry.is_regular_file()) {
+      continue;
+    }
+    if (entry.path().extension() != ".meta") {
+      continue;
+    }
     fs::path asset_path = entry.path().string().substr(0, entry.path().string().size() - 5);
     if (!fs::exists(asset_path)) {
       std::error_code ec;
       fs::remove(entry.path(), ec);
     }
+  }
+
+  // Preload assets for scenes that have preload_assets enabled.
+  // Deserialize each scene into a temporary Scene to discover dependencies
+  // via RequestAsset, which kicks off async loads on the thread pool.
+  for (const auto& scene_path : scenes_to_preload) {
+    auto temp_scene = std::make_shared<Scene>();
+    SceneSerializer serializer(temp_scene);
+    if (serializer.Deserialize(scene_path)) {
+      LOG_INFO("Preloading assets for scene: {}", scene_path.filename().string());
+    }
+    // temp_scene is discarded but async loads are already in flight
   }
 }
 

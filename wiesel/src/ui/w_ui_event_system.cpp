@@ -11,12 +11,14 @@
 
 #include "ui/w_ui_event_system.hpp"
 
+#include "asset/w_asset_manager.hpp"
 #include "behavior/w_behavior.hpp"
 #include "scene/w_components.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "ui/w_canvas.hpp"
 #include "ui/w_interactable.hpp"
 #include "util/w_logger.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -90,15 +92,41 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
   }
 
   // Pointer down
-  if (mouse_down && hit_entity != entt::null) {
-    auto& interactable = registry.get<InteractableComponent>(hit_entity);
-    interactable.pressed_ = true;
-    pressed_entity_ = hit_entity;
+  if (mouse_down) {
+    // Update text input focus
+    entt::entity new_focus = entt::null;
+    if (hit_entity != entt::null && registry.any_of<TextInputComponent>(hit_entity)) {
+      new_focus = hit_entity;
+    }
+    if (new_focus != focused_entity_) {
+      // Unfocus old
+      if (focused_entity_ != entt::null && registry.valid(focused_entity_)
+          && registry.any_of<TextInputComponent>(focused_entity_)) {
+        registry.get<TextInputComponent>(focused_entity_).focused_ = false;
+      }
+      // Focus new
+      if (new_focus != entt::null) {
+        auto& input = registry.get<TextInputComponent>(new_focus);
+        input.focused_ = true;
+        input.cursor_pos_ = static_cast<int>(input.text.size());
+        input.cursor_visible_ = true;
+        input.cursor_timer_ = 0.0f;
+      }
+      focused_entity_ = new_focus;
+    }
 
-    if (registry.any_of<BehaviorsComponent>(hit_entity)) {
-      auto& bc = registry.get<BehaviorsComponent>(hit_entity);
-      for (auto& [name, behavior] : bc.behaviors_) {
-        if (behavior->OnPointerDown(mouse_x, mouse_y)) break;
+    if (hit_entity != entt::null) {
+      auto& interactable = registry.get<InteractableComponent>(hit_entity);
+      interactable.pressed_ = true;
+      pressed_entity_ = hit_entity;
+
+      if (registry.any_of<BehaviorsComponent>(hit_entity)) {
+        auto& bc = registry.get<BehaviorsComponent>(hit_entity);
+        for (auto& [name, behavior] : bc.behaviors_) {
+          if (behavior->OnPointerDown(mouse_x, mouse_y)) {
+            break;
+          }
+        }
       }
     }
   }
@@ -149,26 +177,41 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
     if (new_state != btn.state_) {
       btn.state_ = new_state;
 
-      // Pick color for current state
+      // Pick color and texture for current state
       glm::vec4 color;
+      AssetHandle tex_handle;
       switch (btn.state_) {
         case ButtonState::Hovered:
           color = btn.hovered_color;
+          tex_handle = btn.hovered_texture;
           break;
         case ButtonState::Pressed:
           color = btn.pressed_color;
+          tex_handle = btn.pressed_texture;
           break;
         case ButtonState::Disabled:
           color = btn.disabled_color;
+          tex_handle = btn.disabled_texture;
           break;
         default:
           color = btn.normal_color;
+          tex_handle = btn.normal_texture;
           break;
       }
 
-      // Apply to sibling CanvasImage or CanvasRect
+      // Apply color to sibling CanvasImage or CanvasRect
       if (registry.any_of<CanvasImageComponent>(entity)) {
-        registry.get<CanvasImageComponent>(entity).tint = color;
+        auto& img = registry.get<CanvasImageComponent>(entity);
+        img.tint = color;
+
+        // Swap texture if one is set for this state
+        if (tex_handle.IsValid()) {
+          auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
+          if (tex) {
+            img.texture = tex;
+            img.gpu_dirty_ = true;
+          }
+        }
       } else if (registry.any_of<CanvasRectComponent>(entity)) {
         registry.get<CanvasRectComponent>(entity).color = color;
       }

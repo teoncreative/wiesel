@@ -3557,6 +3557,7 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
       bound_pipeline_->layout_, 0, std::size(sets), sets, 0, nullptr);
 
   vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+  stats_.draw_calls++;
 }
 
 void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
@@ -3585,6 +3586,7 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
                           VK_PIPELINE_BIND_POINT_GRAPHICS,
                           bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
   vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+  stats_.draw_calls++;
 }
 
 void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
@@ -3622,6 +3624,7 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
                             VK_PIPELINE_BIND_POINT_GRAPHICS,
                             bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
     vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+    stats_.draw_calls++;
   } else {
     // 9-slice rendering
     float bL = img.slice_border.x;  // left border px
@@ -3700,6 +3703,7 @@ void Renderer::DrawCanvasImage(const RectangleTransformComponent& rt,
                               VK_PIPELINE_BIND_POINT_GRAPHICS,
                               bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
       vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+      stats_.draw_calls++;
     }
   }
 }
@@ -3794,6 +3798,7 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
                             VK_PIPELINE_BIND_POINT_GRAPHICS,
                             bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
     vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+    stats_.draw_calls++;
 
     glyph_idx++;
     cursor_x += std::round((glyph->advance >> 6) * scale);

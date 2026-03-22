@@ -76,6 +76,10 @@ class SceneManager {
     auto_activate_ = false;
   }
 
+  // Unload assets that were used by the old scene but not the new one.
+  void UnloadUnusedAssets(const std::vector<AssetHandle>& old_assets,
+                          const std::vector<AssetHandle>& new_assets);
+
  private:
   std::shared_ptr<Scene> active_scene_;
   std::map<std::string, std::filesystem::path> registered_scenes_;

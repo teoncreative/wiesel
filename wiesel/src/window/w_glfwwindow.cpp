@@ -125,6 +125,18 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
         MouseScrolledEvent event((float)xOffset, (float)yOffset);
         app_window.GetEventHandler()(event);
       });
+
+  glfwSetWindowFocusCallback(handle_, [](GLFWwindow* window, int focused) {
+    GlfwAppWindow& app_window =
+        *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
+    if (focused) {
+      WindowFocusGainedEvent event;
+      app_window.GetEventHandler()(event);
+    } else {
+      WindowFocusLostEvent event;
+      app_window.GetEventHandler()(event);
+    }
+  });
 }
 
 GlfwAppWindow::~GlfwAppWindow() {

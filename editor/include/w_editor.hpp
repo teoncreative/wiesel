@@ -6,6 +6,7 @@
 #define WIESEL_PARENT_W_EDITOR_H
 
 #include "behavior/w_behavior.hpp"
+#include "events/w_appevents.hpp"
 #include "events/w_mouseevents.hpp"
 #include "project/w_project.hpp"
 #include "rendering/w_camera.hpp"
@@ -38,6 +39,8 @@ class EditorLayer : public Layer {
   void OnUpdate(float_t delta_time) override;
   void OnEvent(Event& event) override;
   bool OnMouseMoved(MouseMovedEvent& event);
+  bool OnWindowFocusGained(WindowFocusGainedEvent& event);
+  bool OnWindowFocusLost(WindowFocusLostEvent& event);
 
   void RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu);
   void UpdateHierarchyOrder();

@@ -23,6 +23,29 @@
 
 namespace Wiesel {
 
+// Request async load for all textures referenced by a material's .wmat file.
+static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
+  const auto* meta = Engine::asset_manager().GetMetadata(material_handle);
+  if (!meta || meta->virtual_source_path.empty()) return;
+
+  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
+  if (!file) return;
+
+  try {
+    std::string content(reinterpret_cast<const char*>(file.Data()), file.Size());
+    auto j = nlohmann::json::parse(content);
+    if (!j.contains("textures") || !j["textures"].is_object()) return;
+
+    for (auto& [key, val] : j["textures"].items()) {
+      if (!val.is_string()) continue;
+      AssetHandle th = Engine::asset_manager().FindBySourcePath(val.get<std::string>());
+      if (th.IsValid()) {
+        scene->RequestAsset(th);
+      }
+    }
+  } catch (...) {}
+}
+
 SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene) : scene_(std::move(scene)) {}
 
 // --- Vector helpers ---
@@ -322,6 +345,9 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     rtj["size_mode_x"] = static_cast<int>(rt.size_mode_x);
     rtj["size_mode_y"] = static_cast<int>(rt.size_mode_y);
     rtj["padding"] = {rt.padding.x, rt.padding.y, rt.padding.z, rt.padding.w};
+    if (rt.margin.x != 0 || rt.margin.y != 0 || rt.margin.z != 0 || rt.margin.w != 0) {
+      rtj["margin"] = {rt.margin.x, rt.margin.y, rt.margin.z, rt.margin.w};
+    }
     j["RectangleTransform"] = rtj;
   }
 
@@ -333,8 +359,20 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     cj["direction"] = static_cast<int>(c.direction);
     cj["alignment"] = static_cast<int>(c.alignment);
     cj["spacing"] = c.spacing;
+    cj["start_spacing"] = c.start_spacing;
+    cj["end_spacing"] = c.end_spacing;
     cj["sort_order"] = c.sort_order;
     j["Canvas"] = cj;
+  }
+
+  // CanvasScaler
+  if (entity.HasComponent<CanvasScalerComponent>()) {
+    auto& cs = entity.GetComponent<CanvasScalerComponent>();
+    nlohmann::json csj;
+    csj["scale_mode"] = static_cast<int>(cs.scale_mode);
+    csj["reference_resolution"] = {cs.reference_resolution.x, cs.reference_resolution.y};
+    csj["match_width_or_height"] = cs.match_width_or_height;
+    j["CanvasScaler"] = csj;
   }
 
   // CanvasRect
@@ -367,6 +405,20 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     tj["font_size"] = t.font_size;
     tj["color"] = {t.color.x, t.color.y, t.color.z, t.color.w};
     j["Text"] = tj;
+  }
+
+  // TextInput
+  if (entity.HasComponent<TextInputComponent>()) {
+    auto& ti = entity.GetComponent<TextInputComponent>();
+    nlohmann::json tij;
+    tij["text"] = ti.text;
+    tij["placeholder"] = ti.placeholder;
+    tij["max_length"] = ti.max_length;
+    tij["cursor_color"] = {ti.cursor_color.x, ti.cursor_color.y,
+                           ti.cursor_color.z, ti.cursor_color.w};
+    tij["placeholder_color"] = {ti.placeholder_color.x, ti.placeholder_color.y,
+                                ti.placeholder_color.z, ti.placeholder_color.w};
+    j["TextInput"] = tij;
   }
 
   // Audio Source
@@ -404,6 +456,18 @@ nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
     bj["hovered_color"] = {btn.hovered_color.r, btn.hovered_color.g, btn.hovered_color.b, btn.hovered_color.a};
     bj["pressed_color"] = {btn.pressed_color.r, btn.pressed_color.g, btn.pressed_color.b, btn.pressed_color.a};
     bj["disabled_color"] = {btn.disabled_color.r, btn.disabled_color.g, btn.disabled_color.b, btn.disabled_color.a};
+    if (btn.normal_texture.IsValid()) {
+      bj["normal_texture"] = btn.normal_texture.ToString();
+    }
+    if (btn.hovered_texture.IsValid()) {
+      bj["hovered_texture"] = btn.hovered_texture.ToString();
+    }
+    if (btn.pressed_texture.IsValid()) {
+      bj["pressed_texture"] = btn.pressed_texture.ToString();
+    }
+    if (btn.disabled_texture.IsValid()) {
+      bj["disabled_texture"] = btn.disabled_texture.ToString();
+    }
     j["Button"] = bj;
   }
 
@@ -588,6 +652,8 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
           m.material_slot_handles[i] = AssetHandle::FromString(
               slot["material_handle"].get<std::string>());
           scene_->RequestAsset(m.material_slot_handles[i]);
+
+          RequestMaterialTextures(scene_.get(), m.material_slot_handles[i]);
         }
         // Restore overrides
         if (slot.contains("overrides")) {
@@ -802,6 +868,9 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     if (rtj.contains("padding") && rtj["padding"].is_array() && rtj["padding"].size() >= 4) {
       rt.padding = {rtj["padding"][0], rtj["padding"][1], rtj["padding"][2], rtj["padding"][3]};
     }
+    if (rtj.contains("margin") && rtj["margin"].is_array() && rtj["margin"].size() >= 4) {
+      rt.margin = {rtj["margin"][0], rtj["margin"][1], rtj["margin"][2], rtj["margin"][3]};
+    }
   }
 
   // Canvas
@@ -812,7 +881,21 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     c.direction = static_cast<LayoutDirection>(cj.value("direction", 0));
     c.alignment = static_cast<ChildAlignment>(cj.value("alignment", 0));
     c.spacing = cj.value("spacing", 0.0f);
+    c.start_spacing = cj.value("start_spacing", 0.0f);
+    c.end_spacing = cj.value("end_spacing", 0.0f);
     c.sort_order = cj.value("sort_order", 0);
+  }
+
+  // CanvasScaler
+  if (entity_json.contains("CanvasScaler")) {
+    auto& cs = entity.AddComponent<CanvasScalerComponent>();
+    const auto& csj = entity_json["CanvasScaler"];
+    cs.scale_mode = static_cast<ScaleMode>(csj.value("scale_mode", 0));
+    if (csj.contains("reference_resolution") && csj["reference_resolution"].is_array()
+        && csj["reference_resolution"].size() >= 2) {
+      cs.reference_resolution = {csj["reference_resolution"][0], csj["reference_resolution"][1]};
+    }
+    cs.match_width_or_height = csj.value("match_width_or_height", 0.5f);
   }
 
   // CanvasRect
@@ -849,6 +932,25 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     t.font_size = tj.value("font_size", 16.0f);
     if (tj.contains("color") && tj["color"].is_array() && tj["color"].size() >= 4) {
       t.color = {tj["color"][0], tj["color"][1], tj["color"][2], tj["color"][3]};
+    }
+  }
+
+  // TextInput
+  if (entity_json.contains("TextInput")) {
+    auto& ti = entity.AddComponent<TextInputComponent>();
+    const auto& tij = entity_json["TextInput"];
+    ti.text = tij.value("text", "");
+    ti.placeholder = tij.value("placeholder", "Enter text...");
+    ti.max_length = tij.value("max_length", 0);
+    if (tij.contains("cursor_color") && tij["cursor_color"].is_array()
+        && tij["cursor_color"].size() >= 4) {
+      ti.cursor_color = {tij["cursor_color"][0], tij["cursor_color"][1],
+                         tij["cursor_color"][2], tij["cursor_color"][3]};
+    }
+    if (tij.contains("placeholder_color") && tij["placeholder_color"].is_array()
+        && tij["placeholder_color"].size() >= 4) {
+      ti.placeholder_color = {tij["placeholder_color"][0], tij["placeholder_color"][1],
+                              tij["placeholder_color"][2], tij["placeholder_color"][3]};
     }
   }
 
@@ -895,6 +997,17 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
     btn.hovered_color = load_color(bj, "hovered_color", {0.9f, 0.9f, 0.9f, 1});
     btn.pressed_color = load_color(bj, "pressed_color", {0.7f, 0.7f, 0.7f, 1});
     btn.disabled_color = load_color(bj, "disabled_color", {0.5f, 0.5f, 0.5f, 0.5f});
+
+    auto load_handle = [](const nlohmann::json& j, const std::string& key) -> AssetHandle {
+      if (j.contains(key) && j[key].is_string()) {
+        return AssetHandle::FromString(j[key].get<std::string>());
+      }
+      return {};
+    };
+    btn.normal_texture = load_handle(bj, "normal_texture");
+    btn.hovered_texture = load_handle(bj, "hovered_texture");
+    btn.pressed_texture = load_handle(bj, "pressed_texture");
+    btn.disabled_texture = load_handle(bj, "disabled_texture");
   }
 
   if (entity_json.contains("Interactable")) {
@@ -1054,6 +1167,12 @@ std::string SceneSerializer::SerializeToString() const {
   if (scene_->GetSkyboxAsset().IsValid()) {
     root["skybox"] = scene_->GetSkyboxAsset().ToString();
   }
+  if (scene_->GetKeepAssetsLoaded()) {
+    root["keep_assets_loaded"] = true;
+  }
+  if (scene_->GetPreloadAssets()) {
+    root["preload_assets"] = true;
+  }
 
   return root.dump(2);
 }
@@ -1111,6 +1230,8 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
       scene_->SetSkyboxAsset(skybox_handle);
     }
   }
+  scene_->SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));
+  scene_->SetPreloadAssets(root.value("preload_assets", false));
 
   // First pass: create all entities
   for (const auto& entity_json : root["entities"]) {

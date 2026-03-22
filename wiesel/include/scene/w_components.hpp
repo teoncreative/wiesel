@@ -183,7 +183,8 @@ struct RectangleTransformComponent : public IComponent {
   AnchorPreset pivot = AnchorPreset::TopLeft;       // point on self
   SizeMode size_mode_x = SizeMode::Fixed;
   SizeMode size_mode_y = SizeMode::Fixed;
-  glm::vec4 padding = {0.0f, 0.0f, 0.0f, 0.0f};
+  glm::vec4 padding = {0.0f, 0.0f, 0.0f, 0.0f};   // inner padding (left, top, right, bottom)
+  glm::vec4 margin = {0.0f, 0.0f, 0.0f, 0.0f};    // outer margin (left, top, right, bottom)
 
   // Computed by layout system (screen-space pixels)
   glm::vec2 computed_position = {0.0f, 0.0f};

@@ -34,21 +34,36 @@ void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
     Entity entity{handle, &scene};
     auto& canvas = entity.GetComponent<CanvasComponent>();
 
-    // Canvas root uses the full screen as its rect
+    // Compute effective screen size based on canvas scaler
+    glm::vec2 effective_size = screen_size;
+    if (entity.HasComponent<CanvasScalerComponent>()) {
+      auto& scaler = entity.GetComponent<CanvasScalerComponent>();
+      if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
+        // Compute scale factor by blending width and height ratios
+        float scale_w = screen_size.x / scaler.reference_resolution.x;
+        float scale_h = screen_size.y / scaler.reference_resolution.y;
+        float t = scaler.match_width_or_height;
+        float scale_factor = scale_w * (1.0f - t) + scale_h * t;
+        // Express screen in reference-resolution units
+        effective_size = screen_size / scale_factor;
+      }
+    }
+
+    // Canvas root rect
     glm::vec2 parent_pos = {0, 0};
-    glm::vec2 parent_size = screen_size;
+    glm::vec2 parent_size = effective_size;
 
     // If the canvas root itself has a RectangleTransformComponent, apply it
     if (entity.HasComponent<RectangleTransformComponent>()) {
       auto& rt = entity.GetComponent<RectangleTransformComponent>();
       glm::vec2 anchor_origin =
-          ComputeAnchorOrigin(rt.anchor, screen_size);
+          ComputeAnchorOrigin(rt.anchor, effective_size);
       glm::vec2 resolved_size;
       resolved_size.x = rt.size_mode_x == SizeMode::Percent
-                            ? rt.size.x * screen_size.x
+                            ? rt.size.x * effective_size.x
                             : rt.size.x;
       resolved_size.y = rt.size_mode_y == SizeMode::Percent
-                            ? rt.size.y * screen_size.y
+                            ? rt.size.y * effective_size.y
                             : rt.size.y;
       rt.computed_size = resolved_size * rt.scale;
       glm::vec2 pivot_offset =
@@ -114,7 +129,8 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
     content_size.y -= parent_rt.padding.y + parent_rt.padding.w;  // top+bottom
   }
 
-  float cursor = 0;
+  // Initialize cursor with start spacing
+  float cursor = (canvas ? canvas->start_spacing : 0.0f);
 
   for (entt::entity child : tree.childs) {
     if (!scene.HasComponent<RectangleTransformComponent>(child)) {
@@ -153,13 +169,14 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
       glm::vec2 pivot_offset =
           ComputeAnchorOrigin(rt.pivot, rt.computed_size);
       rt.computed_position =
-          content_pos + anchor_origin - pivot_offset + rt.position;
+          content_pos + anchor_origin - pivot_offset + rt.position
+          + glm::vec2(rt.margin.x, rt.margin.y);
     } else if (canvas->direction == LayoutDirection::Row) {
+      cursor += rt.margin.x;  // left margin
       rt.computed_position.x = content_pos.x + cursor;
-      // Apply cross-axis alignment
       switch (canvas->alignment) {
         case ChildAlignment::Start:
-          rt.computed_position.y = content_pos.y;
+          rt.computed_position.y = content_pos.y + rt.margin.y;
           break;
         case ChildAlignment::Center:
           rt.computed_position.y =
@@ -167,16 +184,16 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
           break;
         case ChildAlignment::End:
           rt.computed_position.y =
-              content_pos.y + content_size.y - rt.computed_size.y;
+              content_pos.y + content_size.y - rt.computed_size.y - rt.margin.w;
           break;
       }
-      cursor += rt.computed_size.x + canvas->spacing;
+      cursor += rt.computed_size.x + rt.margin.z + canvas->spacing;
     } else if (canvas->direction == LayoutDirection::Column) {
+      cursor += rt.margin.y;  // top margin
       rt.computed_position.y = content_pos.y + cursor;
-      // Apply cross-axis alignment
       switch (canvas->alignment) {
         case ChildAlignment::Start:
-          rt.computed_position.x = content_pos.x;
+          rt.computed_position.x = content_pos.x + rt.margin.x;
           break;
         case ChildAlignment::Center:
           rt.computed_position.x =
@@ -184,10 +201,10 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
           break;
         case ChildAlignment::End:
           rt.computed_position.x =
-              content_pos.x + content_size.x - rt.computed_size.x;
+              content_pos.x + content_size.x - rt.computed_size.x - rt.margin.z;
           break;
       }
-      cursor += rt.computed_size.y + canvas->spacing;
+      cursor += rt.computed_size.y + rt.margin.w + canvas->spacing;
     }
 
     rt.draw_order = draw_order++;

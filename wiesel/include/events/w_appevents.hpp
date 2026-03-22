@@ -42,6 +42,24 @@ class WindowResizeEvent : public Event {
   float_t aspect_ratio_;
 };
 
+class WindowFocusGainedEvent : public Event {
+public:
+  WindowFocusGainedEvent() {}
+
+  EVENT_CLASS_TYPE(WindowFocusGained)
+  EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
+ private:
+};
+
+class WindowFocusLostEvent : public Event {
+public:
+  WindowFocusLostEvent() {}
+
+  EVENT_CLASS_TYPE(WindowFocusLost)
+  EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
+ private:
+};
+
 class AppRecreateSwapChainsEvent : public Event {
  public:
   AppRecreateSwapChainsEvent(WindowSize window_size, float_t aspect_ratio)

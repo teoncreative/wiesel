@@ -254,6 +254,8 @@ target_link_libraries(wiesel PUBLIC GPUOpen::VulkanMemoryAllocator)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/bullet3/src)
 target_link_libraries(wiesel PUBLIC BulletDynamics BulletCollision LinearMath)
 target_link_libraries(wiesel PUBLIC Recast Detour)
+target_link_libraries(wiesel PUBLIC efsw-static)
+target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/efsw/include)
 target_link_libraries(wiesel PUBLIC nlohmann_json::nlohmann_json)
 
 if (WIN32)

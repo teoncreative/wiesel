@@ -52,7 +52,14 @@ class Scene {
   void RequestAsset(AssetHandle handle);
   bool AreAssetsReady() const;
   float GetAssetLoadProgress() const;
+  const std::vector<AssetHandle>& GetRequestedAssets() const { return requested_assets_; }
   void ClearRequestedAssets();
+
+  bool GetKeepAssetsLoaded() const { return keep_assets_loaded_; }
+  void SetKeepAssetsLoaded(bool keep) { keep_assets_loaded_ = keep; }
+
+  bool GetPreloadAssets() const { return preload_assets_; }
+  void SetPreloadAssets(bool preload) { preload_assets_ = preload; }
 
   void OnUpdate(float_t delta_time);
   void OnUpdateEditor(float_t delta_time);
@@ -200,7 +207,6 @@ class Scene {
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
   void UpdateMatrices(entt::entity entity);
-  void DestroyEntity(entt::entity handle);
 
  private:
   std::unordered_map<UUID, entt::entity> entities_;
@@ -215,6 +221,8 @@ class Scene {
   std::shared_ptr<Skybox> skybox_;
   std::shared_ptr<Skybox> default_skybox_;
   AssetHandle skybox_asset_;
+  bool keep_assets_loaded_ = false;  // If true, assets are never unloaded on scene switch
+  bool preload_assets_ = false;      // If true, assets are loaded when the project opens
   UIEventSystem ui_event_system_;
   std::vector<AssetHandle> requested_assets_;
   std::shared_ptr<RenderPipeline> default_pipeline_;
