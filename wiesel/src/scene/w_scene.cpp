@@ -410,6 +410,19 @@ void Scene::OnUpdateEditor(float_t delta_time) {
   UpdateSceneState(delta_time);
 }
 
+void Scene::MarkChildrenDirty(entt::entity entity) {
+  if (!registry_.any_of<TreeComponent>(entity)) {
+    return;
+  }
+  auto& tree = registry_.get<TreeComponent>(entity);
+  for (auto child : tree.childs) {
+    if (registry_.any_of<TransformComponent>(child)) {
+      registry_.get<TransformComponent>(child).MarkChanged();
+    }
+    MarkChildrenDirty(child);
+  }
+}
+
 void Scene::UpdateSceneState(float_t delta_time) {
   PROFILE_ZONE_SCOPED_N("Scene::UpdateSceneState");
   for (const auto& entity : registry_.view<TransformComponent>()) {
@@ -417,8 +430,8 @@ void Scene::UpdateSceneState(float_t delta_time) {
     if (transform.IsChanged()) {
       UpdateMatrices(entity);
       transform.ClearChanged();
-      // todo this is a bit hacky
-      // set the camera as changed if transform has changed
+      // Propagate dirty to all descendants
+      MarkChildrenDirty(entity);
       if (registry_.any_of<CameraComponent>(entity)) {
         auto& camera = registry_.get<CameraComponent>(entity);
         camera.pos_changed = true;
@@ -1113,7 +1126,7 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
 
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
   RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                    camera.viewport_size, use_resolve};
+                    camera.viewport_size, use_resolve, false, false, camera_entity};
 
   auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
                                           : *default_pipeline_;
@@ -1172,7 +1185,7 @@ bool Scene::Render() {
       vkDeviceWaitIdle(renderer->GetLogicalDevice());
       bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
       RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                        camera.viewport_size, use_resolve};
+                        camera.viewport_size, use_resolve, false, false, cameraEntity};
       auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
                                               : *default_pipeline_;
       pipeline.SetupResources(ctx);

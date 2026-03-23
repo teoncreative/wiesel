@@ -3441,10 +3441,12 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
 }
 
 void Renderer::RequestEntityPick(uint32_t x, uint32_t y,
-                                 std::shared_ptr<AttachmentTexture> entity_id_texture) {
+                                 std::shared_ptr<AttachmentTexture> entity_id_texture,
+                                 std::shared_ptr<AttachmentTexture> fallback_entity_id_texture) {
   pick_x_ = x;
   pick_y_ = y;
   pick_entity_id_image_ = entity_id_texture;
+  pick_fallback_image_ = fallback_entity_id_texture;
   pick_pending_ = true;
 }
 
@@ -3521,6 +3523,53 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 
   pick_entity_id_image_ = nullptr;
 
+  // If primary texture had no hit, try fallback (canvas entity IDs)
+  if (value < 0.5f && pick_fallback_image_) {
+    auto fallback = pick_fallback_image_;
+    pick_fallback_image_ = nullptr;
+
+    VkImage fb_image = fallback->images_[0];
+    VkCommandBuffer cmd2 = BeginSingleTimeCommands();
+
+    VkImageMemoryBarrier fb_barrier{};
+    fb_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    fb_barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fb_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    fb_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    fb_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    fb_barrier.image = fb_image;
+    fb_barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    fb_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    fb_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
+                         nullptr, 1, &fb_barrier);
+
+    VkBufferImageCopy fb_region{};
+    fb_region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    fb_region.imageOffset = {static_cast<int32_t>(pick_x_),
+                             static_cast<int32_t>(pick_y_), 0};
+    fb_region.imageExtent = {1, 1, 1};
+    vkCmdCopyImageToBuffer(cmd2, fb_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                           pick_staging_buffer_, 1, &fb_region);
+
+    fb_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    fb_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fb_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    fb_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
+                         nullptr, 1, &fb_barrier);
+
+    EndSingleTimeCommands(cmd2);
+
+    vkMapMemory(logical_device_, pick_staging_memory_, 0, sizeof(float), 0, &data);
+    value = *static_cast<float*>(data);
+    vkUnmapMemory(logical_device_, pick_staging_memory_);
+  } else {
+    pick_fallback_image_ = nullptr;
+  }
+
   if (value > 0.5f) {
     uint32_t id = static_cast<uint32_t>(value) - 1;
     out_entity = static_cast<entt::entity>(id);
@@ -3564,7 +3613,8 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
 
 void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
                               CanvasRectComponent& rect,
-                              std::shared_ptr<DescriptorSetLayout> layout) {
+                              std::shared_ptr<DescriptorSetLayout> layout,
+                              float entity_id) {
   // Lazily allocate GPU resources
   if (!rect.ubo_) {
     rect.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
@@ -3581,6 +3631,7 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
   data.size = rt.computed_size;
   data.color = rect.color;
   data.uv_rect = {0, 0, 1, 1};
+  data.entity_id = entity_id;
   memcpy(rect.ubo_->data_, &data, sizeof(CanvasElementUniformData));
 
   VkDescriptorSet sets[] = {rect.descriptor_->descriptor_set_};
@@ -3623,7 +3674,8 @@ Renderer::SliceDrawResource& Renderer::AcquireSliceResource(
 void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                                 std::shared_ptr<Texture> texture,
                                 glm::vec4 tint, glm::vec4 uv_rect,
-                                std::shared_ptr<DescriptorSetLayout> layout) {
+                                std::shared_ptr<DescriptorSetLayout> layout,
+                                float entity_id) {
   if (!texture || !texture->is_allocated_) {
     return;
   }
@@ -3654,6 +3706,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
     data.size = size;
     data.color = tint;
     data.uv_rect = uv_rect;
+    data.entity_id = entity_id;
     memcpy(res.ubo->data_, &data, sizeof(CanvasElementUniformData));
 
     VkDescriptorSet sets[] = {res.descriptor->descriptor_set_};
@@ -3721,6 +3774,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
       data.size = r.size;
       data.color = tint;
       data.uv_rect = r.uv;
+      data.entity_id = entity_id;
       memcpy(res.ubo->data_, &data, sizeof(CanvasElementUniformData));
 
       VkDescriptorSet sets[] = {res.descriptor->descriptor_set_};
@@ -3735,7 +3789,8 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
 
 void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
                               TextComponent& text,
-                              std::shared_ptr<DescriptorSetLayout> layout) {
+                              std::shared_ptr<DescriptorSetLayout> layout,
+                              float entity_id) {
   if (text.text.empty()) {
     return;
   }
@@ -3821,6 +3876,7 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
       data.color = color;
       data.uv_rect = {glyph->uv_min.x, glyph->uv_min.y, glyph->uv_max.x,
                       glyph->uv_max.y};
+      data.entity_id = entity_id;
       memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
 
       VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};

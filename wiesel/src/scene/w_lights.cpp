@@ -23,10 +23,9 @@ glm::vec3 EulerToDirection(glm::vec3 euler) {
 void UpdateLight(LightsUniformData& lights, const LightDirect& light,
                  const TransformComponent& transform) {
   // world position is the 4th column
-  glm::vec3 worldPos = glm::vec3(transform.GetTransformMatrix()[3]);
+  glm::vec3 worldPos = transform.GetWorldPosition();
 
-  glm::vec3 worldDir = glm::normalize(
-      glm::vec3(transform.GetTransformMatrix() * glm::vec4(0,0,-1,0)));
+  glm::vec3 worldDir = transform.LocalToWorldDirection({0, 0, -1});
 
   LightDirect& dst = lights.direct_lights[lights.direct_light_count++];
   dst.direction                    = worldDir;
@@ -40,7 +39,7 @@ void UpdateLight(LightsUniformData& lights, const LightDirect& light,
 
 void UpdateLight(LightsUniformData& lights, const LightPoint& light,
                  const TransformComponent& transform) {
-  glm::vec3 worldPos = glm::vec3(transform.GetTransformMatrix()[3]);
+  glm::vec3 worldPos = transform.GetWorldPosition();
 
   LightPoint& dst = lights.point_lights[lights.point_light_count++];
   dst.base.position = worldPos;

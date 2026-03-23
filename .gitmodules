@@ -40,3 +40,6 @@
 [submodule "vendor/discord-rpc"]
 	path = vendor/discord-rpc
 	url = https://github.com/discord/discord-rpc.git
+[submodule "vendor/efsw"]
+	path = vendor/efsw
+	url = https://github.com/SpartanJ/efsw.git

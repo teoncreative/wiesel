@@ -651,6 +651,7 @@ void EditorLayer::OnBeginPresent() {
     ImGui::Checkbox(PrefixLabel("Colliders").c_str(), &settings.show_colliders);
     ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
     ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(), &settings.show_reverb_zones);
+    ImGui::Checkbox(PrefixLabel("Cameras").c_str(), &settings.show_cameras);
 
     ImGui::SeparatorText("Shadow Cascades");
     auto cam = renderer->GetCameraData();
@@ -2162,6 +2163,15 @@ void EditorLayer::OnBeginPresent() {
                 current_op_,
                 ImGuizmo::WORLD,
                 glm::value_ptr(model))) {
+          // ImGuizmo returns a world-space matrix. If the entity has a parent,
+          // convert back to local space before setting position/rotation/scale.
+          Entity selected{selected_entity_, scene().get()};
+          Entity parent = selected.GetParent();
+          if (parent && parent.HasComponent<TransformComponent>()) {
+            glm::mat4 parent_world = parent.GetComponent<TransformComponent>().GetTransformMatrix();
+            model = glm::inverse(parent_world) * model;
+          }
+
           glm::vec3 translation, rotation, scale;
           ImGuizmo::DecomposeMatrixToComponents(
               glm::value_ptr(model),
@@ -2179,7 +2189,7 @@ void EditorLayer::OnBeginPresent() {
         glm::mat4 vp = proj * view;
         ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-        auto projectPoint = [&](glm::vec3 worldPos) -> ImVec2 {
+        auto ProjectPoint = [&](glm::vec3 worldPos) -> ImVec2 {
           glm::vec4 clip = vp * glm::vec4(worldPos, 1.0f);
           if (clip.w <= 0.001f) return ImVec2(-9999, -9999);
           glm::vec3 ndc = glm::vec3(clip) / clip.w;
@@ -2188,15 +2198,15 @@ void EditorLayer::OnBeginPresent() {
               image_min.y + (-ndc.y * 0.5f + 0.5f) * image_size.y);
         };
 
-        auto drawLine3D = [&](glm::vec3 a, glm::vec3 b, ImU32 color) {
-          ImVec2 sa = projectPoint(a);
-          ImVec2 sb = projectPoint(b);
+        auto DrawLine3D = [&](glm::vec3 a, glm::vec3 b, ImU32 color) {
+          ImVec2 sa = ProjectPoint(a);
+          ImVec2 sb = ProjectPoint(b);
           drawList->AddLine(sa, sb, color, 1.5f);
         };
 
         if (scene()->HasComponent<BoxColliderComponent>(selected_entity_)) {
           auto& box = scene()->GetComponent<BoxColliderComponent>(selected_entity_);
-          glm::vec3 center = transform.GetPosition() + box.offset;
+          glm::vec3 center = transform.GetWorldPosition() + box.offset;
           glm::vec3 h = box.half_extents;
           glm::vec3 corners[8] = {
               center + glm::vec3(-h.x, -h.y, -h.z),
@@ -2209,23 +2219,23 @@ void EditorLayer::OnBeginPresent() {
               center + glm::vec3(-h.x,  h.y,  h.z),
           };
           ImU32 col = IM_COL32(0, 255, 0, 200);
-          drawLine3D(corners[0], corners[1], col);
-          drawLine3D(corners[1], corners[2], col);
-          drawLine3D(corners[2], corners[3], col);
-          drawLine3D(corners[3], corners[0], col);
-          drawLine3D(corners[4], corners[5], col);
-          drawLine3D(corners[5], corners[6], col);
-          drawLine3D(corners[6], corners[7], col);
-          drawLine3D(corners[7], corners[4], col);
-          drawLine3D(corners[0], corners[4], col);
-          drawLine3D(corners[1], corners[5], col);
-          drawLine3D(corners[2], corners[6], col);
-          drawLine3D(corners[3], corners[7], col);
+          DrawLine3D(corners[0], corners[1], col);
+          DrawLine3D(corners[1], corners[2], col);
+          DrawLine3D(corners[2], corners[3], col);
+          DrawLine3D(corners[3], corners[0], col);
+          DrawLine3D(corners[4], corners[5], col);
+          DrawLine3D(corners[5], corners[6], col);
+          DrawLine3D(corners[6], corners[7], col);
+          DrawLine3D(corners[7], corners[4], col);
+          DrawLine3D(corners[0], corners[4], col);
+          DrawLine3D(corners[1], corners[5], col);
+          DrawLine3D(corners[2], corners[6], col);
+          DrawLine3D(corners[3], corners[7], col);
         }
 
         if (scene()->HasComponent<SphereColliderComponent>(selected_entity_)) {
           auto& sphere = scene()->GetComponent<SphereColliderComponent>(selected_entity_);
-          glm::vec3 center = transform.GetPosition() + sphere.offset;
+          glm::vec3 center = transform.GetWorldPosition() + sphere.offset;
           float r = sphere.radius;
           ImU32 col = IM_COL32(0, 255, 0, 200);
           constexpr int segments = 32;
@@ -2244,83 +2254,38 @@ void EditorLayer::OnBeginPresent() {
                 p0 = center + glm::vec3(0, cosf(a0), sinf(a0)) * r;
                 p1 = center + glm::vec3(0, cosf(a1), sinf(a1)) * r;
               }
-              drawLine3D(p0, p1, col);
+              DrawLine3D(p0, p1, col);
             }
           }
         }
-      }
 
-      // 2D canvas element selection highlight
-      if (has_selected_entity_ &&
-          scene()->HasComponent<RectangleTransformComponent>(selected_entity_)) {
-        auto& rt = scene()->GetComponent<RectangleTransformComponent>(selected_entity_);
-        float render_w = static_cast<float>(editor_image->width_);
-        float render_h = static_cast<float>(editor_image->height_);
+      }  // end has_selected_entity_
 
-        // Account for canvas scaler: computed values are in reference-resolution
-        // units, so we need to find the scale factor to convert to actual pixels.
-        float canvas_scale = 1.0f;
-        for (auto e : scene()->GetAllEntitiesWith<CanvasComponent, CanvasScalerComponent>()) {
-          auto& scaler = scene()->GetComponent<CanvasScalerComponent>(e);
-          if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
-            float sw = render_w / scaler.reference_resolution.x;
-            float sh = render_h / scaler.reference_resolution.y;
-            float t = scaler.match_width_or_height;
-            canvas_scale = sw * (1.0f - t) + sh * t;
-            break;
-          }
-        }
-
-        float scaleX = image_size.x / render_w * canvas_scale;
-        float scaleY = image_size.y / render_h * canvas_scale;
-
-        ImVec2 rMin(image_min.x + rt.computed_position.x * scaleX,
-                    image_min.y + rt.computed_position.y * scaleY);
-        ImVec2 rMax(image_min.x + (rt.computed_position.x + rt.computed_size.x) * scaleX,
-                    image_min.y + (rt.computed_position.y + rt.computed_size.y) * scaleY);
-
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImU32 outlineCol = IM_COL32(50, 150, 255, 230);
-        ImU32 fillCol = IM_COL32(50, 150, 255, 30);
-        drawList->AddRectFilled(rMin, rMax, fillCol);
-        drawList->AddRect(rMin, rMax, outlineCol, 0.0f, 0, 2.0f);
-
-        // Corner handles
-        float handleSize = 4.0f;
-        ImU32 handleCol = IM_COL32(255, 255, 255, 255);
-        ImVec2 corners[4] = {rMin, {rMax.x, rMin.y}, rMax, {rMin.x, rMax.y}};
-        for (auto& c : corners) {
-          drawList->AddRectFilled(
-              ImVec2(c.x - handleSize, c.y - handleSize),
-              ImVec2(c.x + handleSize, c.y + handleSize),
-              handleCol);
-          drawList->AddRect(
-              ImVec2(c.x - handleSize, c.y - handleSize),
-              ImVec2(c.x + handleSize, c.y + handleSize),
-              outlineCol, 0.0f, 0, 1.0f);
-        }
-      }
+      // Canvas borders drawn by canvas render feature.
+      // Camera frustums drawn by debug collider render feature.
 
       // Entity picking: click on Scene panel to select (only when not right-clicking)
       if (!scene_right_active && ImGui::IsMouseClicked(0) && scene_hovered &&
           !ImGuizmo::IsUsing() && !ImGuizmo::IsOver()) {
         ImVec2 mouse = ImGui::GetIO().MousePos;
-        float relX = mouse.x - image_min.x;
-        float relY = mouse.y - image_min.y;
-        if (relX >= 0 && relY >= 0 && relX < image_size.x && relY < image_size.y) {
-          uint32_t renderW = editor_image->width_;
-          uint32_t renderH = editor_image->height_;
-          uint32_t px = static_cast<uint32_t>(relX * renderW / image_size.x);
-          uint32_t py = static_cast<uint32_t>(relY * renderH / image_size.y);
+        float rel_x = mouse.x - image_min.x;
+        float rel_y = mouse.y - image_min.y;
+        if (rel_x >= 0 && rel_y >= 0 && rel_x < image_size.x && rel_y < image_size.y) {
+          uint32_t render_w = editor_image->width_;
+          uint32_t render_h = editor_image->height_;
+          uint32_t px = static_cast<uint32_t>(rel_x * render_w / image_size.x);
+          uint32_t py = static_cast<uint32_t>(rel_y * render_h / image_size.y);
           auto entity_id_tex = editor_camera_.resource_pool.GetTexture(
               "geometry.entity_id_resolve");
+          auto canvas_entity_id_tex = editor_camera_.resource_pool.GetTexture(
+              "canvas_world.entity_id");
           if (entity_id_tex) {
-            renderer->RequestEntityPick(px, py, entity_id_tex);
+            renderer->RequestEntityPick(px, py, entity_id_tex, canvas_entity_id_tex);
           }
           // Store NDC for fallback sprite/canvas picking
           pending_pick_ndc_ = {
-              (relX / image_size.x) * 2.0f - 1.0f,
-              1.0f - (relY / image_size.y) * 2.0f  // flip Y
+              (rel_x / image_size.x) * 2.0f - 1.0f,
+              1.0f - (rel_y / image_size.y) * 2.0f  // flip Y
           };
         }
       }
@@ -2354,12 +2319,15 @@ void EditorLayer::OnBeginPresent() {
         }
       }
 
-      if (editor_state_ == EditorState::Playing) {
+      {
         // Check if any camera exists
         bool has_camera = false;
         for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
           auto& cam = scene()->GetComponent<CameraComponent>(entity);
-          if (cam.enabled) { has_camera = true; break; }
+          if (cam.enabled) {
+            has_camera = true;
+            break;
+          }
         }
 
         if (!has_camera) {
@@ -2371,74 +2339,67 @@ void EditorLayer::OnBeginPresent() {
               ImGui::GetCursorPosY() + (avail.y - textSize.y) * 0.5f));
           ImGui::TextDisabled("%s", text);
         } else {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        if (scene()->GetRenderResolution().x <= 0) {
-          // Free Aspect: game camera tracks panel size (old behavior)
-          for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
-            auto& cam = scene()->GetComponent<CameraComponent>(entity);
-            if (!cam.enabled) continue;
-            uint32_t w = static_cast<uint32_t>(avail.x);
-            uint32_t h = static_cast<uint32_t>(avail.y);
-            if (w > 0 && h > 0 &&
-                (w != static_cast<uint32_t>(cam.viewport_size.x) ||
-                 h != static_cast<uint32_t>(cam.viewport_size.y))) {
-              cam.viewport_size = {w, h};
-              cam.aspect_ratio = static_cast<float>(w) / static_cast<float>(h);
-              cam.view_changed = true;
-              cam.resources_dirty = true;
+          ImVec2 avail = ImGui::GetContentRegionAvail();
+          if (scene()->GetRenderResolution().x <= 0) {
+            // Free Aspect: game camera tracks panel size
+            for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+              auto& cam = scene()->GetComponent<CameraComponent>(entity);
+              if (!cam.enabled) {
+                continue;
+              }
+              uint32_t w = static_cast<uint32_t>(avail.x);
+              uint32_t h = static_cast<uint32_t>(avail.y);
+              if (w > 0 && h > 0 &&
+                  (w != static_cast<uint32_t>(cam.viewport_size.x) ||
+                   h != static_cast<uint32_t>(cam.viewport_size.y))) {
+                cam.viewport_size = {w, h};
+                cam.aspect_ratio = static_cast<float>(w) / static_cast<float>(h);
+                cam.view_changed = true;
+                cam.resources_dirty = true;
+              }
+              break;
             }
-            break;  // only first enabled camera
+          }
+
+          auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
+          auto finalOutputImage = renderer->GetFinalOutputImage();
+          if (finalOutputDesc && finalOutputImage) {
+            ImTextureID gameDesc =
+                reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
+
+            float imageAspect = static_cast<float>(finalOutputImage->width_) /
+                                static_cast<float>(finalOutputImage->height_);
+            float availAspect = avail.x / avail.y;
+
+            ImVec2 drawSize;
+            if (availAspect > imageAspect) {
+              drawSize.y = avail.y;
+              drawSize.x = drawSize.y * imageAspect;
+            } else {
+              drawSize.x = avail.x;
+              drawSize.y = drawSize.x / imageAspect;
+            }
+            ImGui::Image(gameDesc, drawSize);
+
+            ImVec2 imageMin = ImGui::GetItemRectMin();
+            ImVec2 imageMax = ImGui::GetItemRectMax();
+
+            // Set viewport origin and display size for UI hit testing
+            scene()->SetViewportOrigin({imageMin.x, imageMin.y});
+            scene()->SetViewportDisplaySize({drawSize.x, drawSize.y});
+
+            // FPS overlay (top-left)
+            ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
+            std::string fpsStr = std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
+            ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+
+            // Resolution overlay (top-right)
+            std::string resStr = std::format("{}x{}", finalOutputImage->width_, finalOutputImage->height_);
+            ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
+            ImVec2 resPos = ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
+            ImGui::GetWindowDrawList()->AddText(resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
           }
         }
-        // When a preset is active, Scene::Render() applies render_resolution_ automatically
-
-        auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
-        auto finalOutputImage = renderer->GetFinalOutputImage();
-        if (finalOutputDesc && finalOutputImage) {
-          ImTextureID gameDesc =
-              reinterpret_cast<ImTextureID>(finalOutputDesc->descriptor_set_);
-
-          float imageAspect = static_cast<float>(finalOutputImage->width_) /
-                              static_cast<float>(finalOutputImage->height_);
-          float availAspect = avail.x / avail.y;
-
-          ImVec2 drawSize;
-          if (availAspect > imageAspect) {
-            drawSize.y = avail.y;
-            drawSize.x = drawSize.y * imageAspect;
-          } else {
-            drawSize.x = avail.x;
-            drawSize.y = drawSize.x / imageAspect;
-          }
-          ImGui::Image(gameDesc, drawSize);
-
-          ImVec2 imageMin = ImGui::GetItemRectMin();
-          ImVec2 imageMax = ImGui::GetItemRectMax();
-
-          // Set viewport origin and display size for UI hit testing
-          scene()->SetViewportOrigin({imageMin.x, imageMin.y});
-          scene()->SetViewportDisplaySize({drawSize.x, drawSize.y});
-
-          // FPS overlay (top-left)
-          ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
-          std::string fpsStr = std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
-          ImGui::GetWindowDrawList()->AddText(textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
-
-          // Resolution overlay (top-right)
-          std::string resStr = std::format("{}x{}", finalOutputImage->width_, finalOutputImage->height_);
-          ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
-          ImVec2 resPos = ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
-          ImGui::GetWindowDrawList()->AddText(resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
-        }
-        } // has_camera
-      } else {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        const char* text = "Not Playing";
-        ImVec2 textSize = ImGui::CalcTextSize(text);
-        ImGui::SetCursorPos(ImVec2(
-            ImGui::GetCursorPosX() + (avail.x - textSize.x) * 0.5f,
-            ImGui::GetCursorPosY() + (avail.y - textSize.y) * 0.5f));
-        ImGui::TextDisabled("%s", text);
       }
     }
     ImGui::End();
@@ -2464,14 +2425,16 @@ void EditorLayer::OnPostPresent() {
 
       for (auto entity : scene()->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
         auto& tc = scene()->GetComponent<TransformComponent>(entity);
-        glm::vec4 clip = vp * glm::vec4(tc.GetPosition(), 1.0f);
+        glm::vec3 world_pos = tc.GetWorldPosition();
+        glm::vec4 clip = vp * glm::vec4(world_pos, 1.0f);
         if (clip.w <= 0.0f) continue;
         glm::vec3 ndc = glm::vec3(clip) / clip.w;
 
         // Approximate sprite screen size from scale
-        float half_w = tc.GetScale().x * 0.5f;
-        float half_h = tc.GetScale().y * 0.5f;
-        glm::vec4 corner = vp * glm::vec4(tc.GetPosition() + glm::vec3(half_w, half_h, 0), 1.0f);
+        glm::vec3 world_scale = tc.GetWorldScale();
+        float half_w = world_scale.x * 0.5f;
+        float half_h = world_scale.y * 0.5f;
+        glm::vec4 corner = vp * glm::vec4(world_pos + glm::vec3(half_w, half_h, 0), 1.0f);
         if (corner.w <= 0.0f) continue;
         glm::vec3 corner_ndc = glm::vec3(corner) / corner.w;
         float extent_x = std::abs(corner_ndc.x - ndc.x);
@@ -2572,11 +2535,16 @@ void EditorLayer::OnPrePresent() {
       scene()->Render();
     }
   } else {
-    PROFILE_FRAME_MARK_NAMED("Scene");
-    // EDIT MODE: Only editor camera renders.
-    // camera_ will point to editor camera after RenderFromExternal.
-    // BeginPresent/EndPresent handle its transitions automatically.
-    scene()->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
+    // EDIT MODE: only render viewports that are visible.
+    if (scene_panel_visible_) {
+      PROFILE_FRAME_MARK_NAMED("Scene");
+      scene()->RenderFromExternal(editor_camera_, editor_camera_transform_, show_grid_);
+    }
+
+    if (game_panel_visible_) {
+      PROFILE_FRAME_MARK_NAMED("Game");
+      scene()->Render();
+    }
   }
 }
 

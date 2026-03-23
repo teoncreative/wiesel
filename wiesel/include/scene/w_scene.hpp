@@ -213,6 +213,7 @@ class Scene {
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
   void UpdateMatrices(entt::entity entity);
+  void MarkChildrenDirty(entt::entity entity);
 
  private:
   std::unordered_map<UUID, entt::entity> entities_;

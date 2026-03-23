@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <entt/entt.hpp>
 #include "w_pch.hpp"
 #include "util/w_utils.hpp"
 #include "w_rendergraph.hpp"
@@ -69,6 +70,7 @@ struct RenderContext {
   bool use_msaa_resolve;
   bool is_external = false;
   bool show_grid = false;
+  entt::entity camera_entity = entt::null;
 };
 
 // Named render graph resource registry.

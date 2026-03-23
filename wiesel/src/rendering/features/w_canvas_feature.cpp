@@ -13,9 +13,11 @@
 #include <algorithm>
 #include <unordered_set>
 #include "asset/w_asset_manager.hpp"
+#include "rendering/w_camera.hpp"
 #include "rendering/w_pipeline.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
+#include "scene/w_components.hpp"
 #include "scene/w_scene.hpp"
 #include "ui/w_canvas.hpp"
 #include "ui/w_font.hpp"
@@ -25,12 +27,16 @@ namespace Wiesel {
 
 CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass: single offscreen RGBA attachment, no MSAA
+  // Render pass: RGBA color + R32F entity ID, no MSAA
   render_pass_ =
       std::make_shared<RenderPass>(PassType::PostProcess, "Canvas RenderPass");
   render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = renderer_->GetSwapChainImageFormat(),
+       .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput(
+      {.type = AttachmentTextureType::Offscreen,
+       .format = VK_FORMAT_R32_SFLOAT,
        .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
@@ -99,6 +105,58 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
                                   VK_SHADER_STAGE_VERTEX_BIT);
   text_pipeline_->Bake();
 
+  // World-space canvas pipelines (for WorldSpace and ScreenSpaceCamera modes)
+  auto canvas_world_vert = renderer_->CreateShader(
+      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
+       "/engine/shaders/canvas_world.vert"});
+
+  world_push_ = std::make_shared<CanvasWorldPushConstant>();
+
+  world_render_pass_ = std::make_shared<RenderPass>(
+      PassType::PostProcess, "CanvasWorld RenderPass");
+  world_render_pass_->AttachOutput(
+      {.type = AttachmentTextureType::Offscreen,
+       .format = renderer_->GetSwapChainImageFormat(),
+       .msaa_mode = SamplingMode::DISABLED});
+  world_render_pass_->AttachOutput(
+      {.type = AttachmentTextureType::Offscreen,
+       .format = VK_FORMAT_R32_SFLOAT,
+       .msaa_mode = SamplingMode::DISABLED});
+  world_render_pass_->Bake();
+
+  // World rect pipeline
+  world_rect_pipeline_ = std::make_shared<Pipeline>(props);
+  world_rect_pipeline_->SetRenderPass(world_render_pass_);
+  world_rect_pipeline_->AddInputLayout(canvas_element_layout_);
+  world_rect_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  world_rect_pipeline_->AddShader(canvas_world_vert);
+  world_rect_pipeline_->AddShader(rect_frag);
+  world_rect_pipeline_->AddPushConstant(world_push_,
+                                        VK_SHADER_STAGE_VERTEX_BIT);
+  world_rect_pipeline_->Bake();
+
+  // World image pipeline
+  world_image_pipeline_ = std::make_shared<Pipeline>(props);
+  world_image_pipeline_->SetRenderPass(world_render_pass_);
+  world_image_pipeline_->AddInputLayout(canvas_textured_layout_);
+  world_image_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  world_image_pipeline_->AddShader(canvas_world_vert);
+  world_image_pipeline_->AddShader(image_frag);
+  world_image_pipeline_->AddPushConstant(world_push_,
+                                         VK_SHADER_STAGE_VERTEX_BIT);
+  world_image_pipeline_->Bake();
+
+  // World text pipeline
+  world_text_pipeline_ = std::make_shared<Pipeline>(props);
+  world_text_pipeline_->SetRenderPass(world_render_pass_);
+  world_text_pipeline_->AddInputLayout(canvas_textured_layout_);
+  world_text_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  world_text_pipeline_->AddShader(canvas_world_vert);
+  world_text_pipeline_->AddShader(text_frag);
+  world_text_pipeline_->AddPushConstant(world_push_,
+                                        VK_SHADER_STAGE_VERTEX_BIT);
+  world_text_pipeline_->Bake();
+
   // Composite pass: blends canvas offscreen onto PipelineOutput
   comp_render_pass_ = std::make_shared<RenderPass>(
       PassType::PostProcess, "CanvasComposite RenderPass");
@@ -130,14 +188,21 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
+  // Overlay canvas offscreen
   pool.SetTexture("canvas.color",
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
                        renderer.GetSwapChainImageFormat(),
                        SamplingMode::DISABLED, true}));
+  pool.SetTexture("canvas.entity_id",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32_SFLOAT,
+                       SamplingMode::DISABLED, true}));
 
-  std::array<AttachmentTexture*, 1> attachments{
-      pool.GetTexture("canvas.color").get()};
+  std::array<AttachmentTexture*, 2> attachments{
+      pool.GetTexture("canvas.color").get(),
+      pool.GetTexture("canvas.entity_id").get()};
   pool.SetFramebuffer(
       "canvas", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
@@ -148,6 +213,59 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
       renderer.GetDefaultLinearSampler());
   canvas_output_desc->Bake();
   pool.SetDescriptor("canvas.output", canvas_output_desc);
+
+  // World-space canvas offscreen
+  pool.SetTexture("canvas_world.color",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       renderer.GetSwapChainImageFormat(),
+                       SamplingMode::DISABLED, true}));
+  pool.SetTexture("canvas_world.entity_id",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32_SFLOAT,
+                       SamplingMode::DISABLED, true}));
+
+  std::array<AttachmentTexture*, 2> world_attachments{
+      pool.GetTexture("canvas_world.color").get(),
+      pool.GetTexture("canvas_world.entity_id").get()};
+  pool.SetFramebuffer("canvas_world",
+      world_render_pass_->CreateFramebuffer(0, world_attachments, {rw, rh}));
+
+  // Descriptor for compositing world canvas
+  auto world_canvas_desc = std::make_shared<DescriptorSet>();
+  world_canvas_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  world_canvas_desc->AddCombinedImageSampler(
+      0, pool.GetTexture("canvas_world.color")->image_views_[0],
+      renderer.GetDefaultLinearSampler());
+  world_canvas_desc->Bake();
+  pool.SetDescriptor("canvas_world.output", world_canvas_desc);
+
+  // Per-canvas camera quad offscreen (for ScreenSpaceCamera / external overlay)
+  pool.SetTexture("canvas_camera.color",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       renderer.GetSwapChainImageFormat(),
+                       SamplingMode::DISABLED, true}));
+  pool.SetTexture("canvas_camera.entity_id",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32_SFLOAT,
+                       SamplingMode::DISABLED, true}));
+
+  std::array<AttachmentTexture*, 2> camera_attachments{
+      pool.GetTexture("canvas_camera.color").get(),
+      pool.GetTexture("canvas_camera.entity_id").get()};
+  pool.SetFramebuffer("canvas_camera",
+      world_render_pass_->CreateFramebuffer(0, camera_attachments, {rw, rh}));
+
+  auto camera_canvas_desc = std::make_shared<DescriptorSet>();
+  camera_canvas_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  camera_canvas_desc->AddCombinedImageSampler(
+      0, pool.GetTexture("canvas_camera.color")->image_views_[0],
+      renderer.GetDefaultLinearSampler());
+  camera_canvas_desc->Bake();
+  pool.SetDescriptor("canvas_camera.output", camera_canvas_desc);
 
   // Canvas composite: blend canvas onto PipelineOutput
   pool.SetTexture("canvas_comp.color",
@@ -180,6 +298,9 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   pool.SetTexture("PipelineOutput",
                   pool.GetTexture("canvas_comp.color"));
   pool.SetDescriptor("PipelineOutputDescriptor", comp_output_desc);
+
+  // Clear per-canvas resources on resize (they will be recreated lazily)
+  per_canvas_resources_.clear();
 }
 
 void CanvasFeature::AddPasses(RenderGraph& graph,
@@ -195,6 +316,11 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   auto screen_push = screen_size_push_;
   auto element_layout = canvas_element_layout_;
   auto textured_layout = canvas_textured_layout_;
+
+  auto world_rect_pipeline = world_rect_pipeline_;
+  auto world_image_pipeline = world_image_pipeline_;
+  auto world_text_pipeline = world_text_pipeline_;
+  auto world_push = world_push_;
 
   // Compute effective screen size for canvas rendering.
   // If any canvas has a scaler, use its reference resolution.
@@ -259,63 +385,901 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     }
   }
 
-  RGResource canvas_out =
-      graph.ImportTexture("CanvasOut", pool->GetTexture("canvas.color"));
-
   // Collect all canvas-drawable entities and sort by draw_order so children
   // render on top of parents regardless of component type.
   enum class CanvasElementType { Rect, Image, Button, Text };
   struct CanvasDrawEntry {
     entt::entity entity;
+    entt::entity canvas_root;
     CanvasElementType type;
     int32_t draw_order;
   };
-  std::vector<CanvasDrawEntry> draw_list;
+
+  // Build a cache from entity -> canvas root (nearest ancestor with CanvasComponent)
+  std::unordered_map<entt::entity, entt::entity> canvas_root_cache;
+
+  auto find_canvas_root = [scene, &canvas_root_cache](entt::entity entity) -> entt::entity {
+    // Check cache first
+    auto cache_it = canvas_root_cache.find(entity);
+    if (cache_it != canvas_root_cache.end()) {
+      return cache_it->second;
+    }
+
+    // Walk up the tree to find the nearest CanvasComponent ancestor
+    entt::entity current = entity;
+    while (current != entt::null) {
+      if (scene->HasComponent<CanvasComponent>(current)) {
+        canvas_root_cache[entity] = current;
+        return current;
+      }
+      if (!scene->HasComponent<TreeComponent>(current)) {
+        break;
+      }
+      auto& tree = scene->GetComponent<TreeComponent>(current);
+      current = tree.parent;
+    }
+
+    // No canvas root found
+    canvas_root_cache[entity] = entt::null;
+    return entt::null;
+  };
+
+  bool is_external = ctx.is_external;
+
+  // Three categories:
+  //   overlay_list - rendered to shared overlay offscreen (screen-space, game view only)
+  //   world_list   - rendered per-element as 3D geometry (WorldSpace canvases)
+  //   camera_list  - rendered to per-canvas offscreen texture, then drawn as 3D quad
+  //                  (ScreenSpaceCamera canvases, and overlay canvases when is_external)
+  std::vector<CanvasDrawEntry> overlay_list;
+  std::vector<CanvasDrawEntry> world_list;
+  std::vector<CanvasDrawEntry> camera_list;
+
+  entt::entity current_camera_entity = ctx.camera_entity;
+
+  auto classify_entry = [scene, &find_canvas_root, &overlay_list, &world_list,
+                         &camera_list, is_external, current_camera_entity](
+      entt::entity entity, CanvasElementType type, int32_t draw_order) {
+    entt::entity canvas_root = find_canvas_root(entity);
+    if (canvas_root == entt::null) {
+      overlay_list.push_back({entity, entt::null, type, draw_order});
+      return;
+    }
+
+    auto& canvas = scene->GetComponent<CanvasComponent>(canvas_root);
+    if (canvas.render_mode == CanvasRenderMode::ScreenSpaceOverlay) {
+      if (is_external) {
+        camera_list.push_back({entity, canvas_root, type, draw_order});
+      } else {
+        overlay_list.push_back({entity, canvas_root, type, draw_order});
+      }
+    } else if (canvas.render_mode == CanvasRenderMode::ScreenSpaceCamera) {
+      if (is_external) {
+        // Editor: show as 3D quad at entity's Transform position
+        camera_list.push_back({entity, canvas_root, type, draw_order});
+      } else if (canvas.camera_entity == current_camera_entity) {
+        // Game: render as screen-space overlay for the assigned camera
+        overlay_list.push_back({entity, canvas_root, type, draw_order});
+      }
+    } else {
+      world_list.push_back({entity, canvas_root, type, draw_order});
+    }
+  };
 
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<CanvasRectComponent,
                                      RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
-    draw_list.push_back({entity, CanvasElementType::Rect, rt.draw_order});
+    classify_entry(entity, CanvasElementType::Rect, rt.draw_order);
   }
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<CanvasImageComponent,
                                      RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
-    draw_list.push_back({entity, CanvasElementType::Image, rt.draw_order});
+    classify_entry(entity, CanvasElementType::Image, rt.draw_order);
   }
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<ButtonComponent,
                                      RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
-    draw_list.push_back({entity, CanvasElementType::Button, rt.draw_order});
+    classify_entry(entity, CanvasElementType::Button, rt.draw_order);
   }
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<TextComponent,
                                      RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
-    draw_list.push_back({entity, CanvasElementType::Text, rt.draw_order});
+    classify_entry(entity, CanvasElementType::Text, rt.draw_order);
   }
-  std::sort(draw_list.begin(), draw_list.end(),
+
+  std::sort(overlay_list.begin(), overlay_list.end(),
+            [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
+              return a.draw_order < b.draw_order;
+            });
+  std::sort(world_list.begin(), world_list.end(),
+            [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
+              return a.draw_order < b.draw_order;
+            });
+  std::sort(camera_list.begin(), camera_list.end(),
             [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
               return a.draw_order < b.draw_order;
             });
 
-  auto sorted_list = std::make_shared<std::vector<CanvasDrawEntry>>(
-      std::move(draw_list));
+  auto sorted_overlay = std::make_shared<std::vector<CanvasDrawEntry>>(
+      std::move(overlay_list));
+  auto sorted_world = std::make_shared<std::vector<CanvasDrawEntry>>(
+      std::move(world_list));
+  auto sorted_camera = std::make_shared<std::vector<CanvasDrawEntry>>(
+      std::move(camera_list));
+
+  // ---- Unified per-canvas info computation ----
+  // Compute ALL per-canvas info once. Every consumer references this single map.
+  struct CanvasRenderInfo {
+    entt::entity entity;
+    CanvasRenderMode render_mode;
+    glm::mat4 model_matrix;
+    glm::vec2 canvas_size;      // reference resolution for layout/shader
+    glm::vec2 world_size;       // auto-computed with aspect correction
+    glm::vec2 texture_size;     // offscreen texture resolution (for camera/overlay-in-editor)
+    float plane_distance;
+    std::shared_ptr<PerCanvasResources> per_canvas_res;
+  };
+
+  // Collect ALL unique canvas roots from all three lists
+  std::unordered_set<entt::entity> all_canvas_roots;
+  for (const auto& e : *sorted_overlay) {
+    if (e.canvas_root != entt::null) {
+      all_canvas_roots.insert(e.canvas_root);
+    }
+  }
+  for (const auto& e : *sorted_world) {
+    if (e.canvas_root != entt::null) {
+      all_canvas_roots.insert(e.canvas_root);
+    }
+  }
+  for (const auto& e : *sorted_camera) {
+    if (e.canvas_root != entt::null) {
+      all_canvas_roots.insert(e.canvas_root);
+    }
+  }
+
+  // Also include all CanvasComponent entities for border drawing in editor
+  if (is_external) {
+    for (auto ce : ctx.scene.GetAllEntitiesWith<CanvasComponent>()) {
+      all_canvas_roots.insert(ce);
+    }
+  }
+
+  auto canvas_infos = std::make_shared<
+      std::unordered_map<entt::entity, CanvasRenderInfo>>();
+
+  // Ordered list of camera canvas roots (preserving first-seen order from sorted_camera)
+  std::vector<entt::entity> camera_canvas_roots;
+  {
+    std::unordered_set<entt::entity> seen;
+    for (const auto& entry : *sorted_camera) {
+      if (entry.canvas_root != entt::null && !seen.contains(entry.canvas_root)) {
+        seen.insert(entry.canvas_root);
+        camera_canvas_roots.push_back(entry.canvas_root);
+      }
+    }
+  }
+
+  auto camera_data = renderer_->GetCameraData();
+
+  for (entt::entity ce : all_canvas_roots) {
+    auto& canvas = ctx.scene.GetComponent<CanvasComponent>(ce);
+    auto& canvas_rt = ctx.scene.GetComponent<RectangleTransformComponent>(ce);
+
+    CanvasRenderInfo info{};
+    info.entity = ce;
+    info.render_mode = canvas.render_mode;
+    info.plane_distance = canvas.plane_distance;
+
+    // canvas_size: scaler reference_resolution if available, else RectTransform computed_size
+    if (ctx.scene.HasComponent<CanvasScalerComponent>(ce)) {
+      auto& scaler = ctx.scene.GetComponent<CanvasScalerComponent>(ce);
+      if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
+        info.canvas_size = scaler.reference_resolution;
+      } else {
+        info.canvas_size = canvas_rt.computed_size;
+      }
+    } else {
+      info.canvas_size = canvas_rt.computed_size;
+    }
+
+    // world_size: derived from canvas_size and reference_pixels_per_unit
+    if (info.render_mode == CanvasRenderMode::WorldSpace) {
+      float ppu = 100.0f;
+      if (ctx.scene.HasComponent<CanvasScalerComponent>(ce)) {
+        ppu = std::max(1.0f, ctx.scene.GetComponent<CanvasScalerComponent>(ce).reference_pixels_per_unit);
+      }
+      info.world_size = info.canvas_size / ppu;
+    } else {
+      // For overlay/camera in editor: use a fixed 5.0 height for preview
+      float aspect = info.canvas_size.x / std::max(1.0f, info.canvas_size.y);
+      info.world_size = {5.0f * aspect, 5.0f};
+    }
+
+    // texture_size: for offscreen rendering of camera/overlay-in-editor canvases.
+    // Use scaler reference resolution if available, otherwise viewport.
+    if (info.render_mode != CanvasRenderMode::WorldSpace) {
+      if (ctx.scene.HasComponent<CanvasScalerComponent>(ce)) {
+        auto& scaler = ctx.scene.GetComponent<CanvasScalerComponent>(ce);
+        if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
+          info.texture_size = scaler.reference_resolution;
+        } else {
+          info.texture_size = ctx.viewport_size;
+        }
+      } else {
+        info.texture_size = ctx.viewport_size;
+      }
+    }
+
+    // model_matrix depends on mode + is_external
+    if (is_external || info.render_mode == CanvasRenderMode::WorldSpace) {
+      // Editor: all modes use entity Transform
+      // Game WorldSpace: uses entity Transform
+      if (ctx.scene.HasComponent<TransformComponent>(ce)) {
+        info.model_matrix = ctx.scene.GetComponent<TransformComponent>(ce)
+                                .GetTransformMatrix();
+      } else {
+        info.model_matrix = glm::mat4(1.0f);
+      }
+    } else if (info.render_mode == CanvasRenderMode::ScreenSpaceCamera &&
+               !is_external) {
+      // Game ScreenSpaceCamera: billboard in front of assigned camera
+      if (canvas.camera_entity != entt::null &&
+          ctx.scene.HasComponent<CameraComponent>(canvas.camera_entity) &&
+          ctx.scene.HasComponent<TransformComponent>(canvas.camera_entity)) {
+        auto& cam = ctx.scene.GetComponent<CameraComponent>(canvas.camera_entity);
+        auto& cam_transform = ctx.scene.GetComponent<TransformComponent>(
+            canvas.camera_entity);
+
+        float fov_rad = glm::radians(cam.field_of_view * 0.5f);
+        float tex_aspect = info.texture_size.x / std::max(1.0f, info.texture_size.y);
+        float world_h = 2.0f * canvas.plane_distance * std::tan(fov_rad);
+        float world_w = world_h * tex_aspect;
+        info.world_size = {world_w, world_h};
+
+        glm::mat4 cam_world = cam_transform.GetTransformMatrix();
+        glm::vec3 cam_pos = glm::vec3(cam_world[3]);
+        glm::vec3 cam_right = glm::normalize(glm::vec3(cam_world[0]));
+        glm::vec3 cam_up = glm::normalize(glm::vec3(cam_world[1]));
+        glm::vec3 cam_forward = -glm::normalize(glm::vec3(cam_world[2]));
+        glm::vec3 center = cam_pos + cam_forward * canvas.plane_distance;
+
+        info.model_matrix = glm::mat4(1.0f);
+        info.model_matrix[0] = glm::vec4(cam_right, 0.0f);
+        info.model_matrix[1] = glm::vec4(cam_up, 0.0f);
+        info.model_matrix[2] = glm::vec4(-cam_forward, 0.0f);
+        info.model_matrix[3] = glm::vec4(center, 1.0f);
+      } else {
+        info.model_matrix = glm::mat4(1.0f);
+      }
+    } else {
+      info.model_matrix = glm::mat4(1.0f);
+    }
+
+    // Per-canvas offscreen resources (for camera_list canvases)
+    bool needs_offscreen =
+        (is_external && info.render_mode != CanvasRenderMode::WorldSpace) ||
+        (!is_external && info.render_mode == CanvasRenderMode::ScreenSpaceCamera);
+    if (needs_offscreen) {
+      uint32_t tw = static_cast<uint32_t>(std::max(1.0f, info.texture_size.x));
+      uint32_t th = static_cast<uint32_t>(std::max(1.0f, info.texture_size.y));
+
+      auto& res = per_canvas_resources_[ce];
+      if (!res.texture || res.width != tw || res.height != th) {
+        res.texture = renderer_->CreateAttachmentTexture(
+            {tw, th, AttachmentTextureType::Offscreen, 1,
+             renderer_->GetSwapChainImageFormat(),
+             SamplingMode::DISABLED, true});
+        res.entity_id_texture = renderer_->CreateAttachmentTexture(
+            {tw, th, AttachmentTextureType::Offscreen, 1,
+             VK_FORMAT_R32_SFLOAT,
+             SamplingMode::DISABLED, true});
+
+        std::array<AttachmentTexture*, 2> att{
+            res.texture.get(),
+            res.entity_id_texture.get()};
+        res.framebuffer = render_pass_->CreateFramebuffer(0, att, {tw, th});
+
+        res.output_descriptor = std::make_shared<DescriptorSet>();
+        res.output_descriptor->SetLayout(renderer_->GetPresentDescriptorLayout());
+        res.output_descriptor->AddCombinedImageSampler(
+            0, res.texture->image_views_[0],
+            renderer_->GetDefaultLinearSampler());
+        res.output_descriptor->Bake();
+
+        res.width = tw;
+        res.height = th;
+      }
+
+      info.per_canvas_res = std::make_shared<PerCanvasResources>(res);
+    }
+
+    (*canvas_infos)[ce] = info;
+  }
+
+  // Get camera global descriptor for world-space rendering
+  std::shared_ptr<DescriptorSet> global_descriptor;
+  if (!sorted_world->empty() || !sorted_camera->empty()) {
+    if (pool->HasDescriptor("GlobalDescriptor")) {
+      global_descriptor = pool->GetDescriptor("GlobalDescriptor");
+    }
+  }
+
+  // ---- World-space canvas pass (renders BEFORE overlay) ----
+  RGResource canvas_world_out =
+      graph.ImportTexture("CanvasWorldOut",
+                          pool->GetTexture("canvas_world.color"));
+
+  // Build canvas border data for editor scene view
+  struct CanvasBorderInfo {
+    entt::entity canvas_entity;
+    std::shared_ptr<UniformBuffer> edge_ubos[4];
+    std::shared_ptr<DescriptorSet> edge_descriptors[4];
+  };
+  auto canvas_borders = std::make_shared<std::vector<CanvasBorderInfo>>();
+
+  if (is_external) {
+    for (auto canvas_entity : ctx.scene.GetAllEntitiesWith<CanvasComponent>()) {
+      auto info_it = canvas_infos->find(canvas_entity);
+      if (info_it == canvas_infos->end()) {
+        continue;
+      }
+      const auto& ci = info_it->second;
+
+      float bw = 2.0f;
+      struct EdgeRect { glm::vec2 pos; glm::vec2 size; };
+      EdgeRect edges[4] = {
+        {{0, 0}, {ci.canvas_size.x, bw}},                       // top
+        {{0, ci.canvas_size.y - bw}, {ci.canvas_size.x, bw}},   // bottom
+        {{0, 0}, {bw, ci.canvas_size.y}},                       // left
+        {{ci.canvas_size.x - bw, 0}, {bw, ci.canvas_size.y}},   // right
+      };
+
+      CanvasBorderInfo border{};
+      border.canvas_entity = canvas_entity;
+
+      for (int ei = 0; ei < 4; ei++) {
+        border.edge_ubos[ei] = renderer_->CreateUniformBuffer(
+            sizeof(CanvasElementUniformData));
+        CanvasElementUniformData data{};
+        data.position = edges[ei].pos;
+        data.size = edges[ei].size;
+        data.color = {1.0f, 1.0f, 1.0f, 0.5f};
+        data.uv_rect = {0, 0, 1, 1};
+        memcpy(border.edge_ubos[ei]->data_, &data,
+               sizeof(CanvasElementUniformData));
+
+        border.edge_descriptors[ei] = std::make_shared<DescriptorSet>();
+        border.edge_descriptors[ei]->SetLayout(canvas_element_layout_);
+        border.edge_descriptors[ei]->AddUniformBuffer(0, border.edge_ubos[ei]);
+        border.edge_descriptors[ei]->Bake();
+      }
+
+      canvas_borders->push_back(std::move(border));
+    }
+  }
+
+  // Pre-build quad draw data for camera canvases that need to render
+  // as 3D quads in the world pass (editor scene view + ScreenSpaceCamera).
+  struct CameraQuadDraw {
+    entt::entity canvas_entity;
+    std::shared_ptr<UniformBuffer> ubo;
+    std::shared_ptr<DescriptorSet> descriptor;
+  };
+  auto camera_quad_draws = std::make_shared<std::vector<CameraQuadDraw>>();
+
+  uint32_t world_canvas_pass = graph.AddPass(
+      "CanvasWorld", world_render_pass_,
+      [world_rect_pipeline, world_image_pipeline, world_text_pipeline,
+       scene, renderer, pool, world_push, element_layout, textured_layout,
+       sorted_world, canvas_infos, global_descriptor,
+       viewport, camera_quad_draws, canvas_borders](VkCommandBuffer) {
+        if (sorted_world->empty() && camera_quad_draws->empty() &&
+            canvas_borders->empty()) {
+          return;
+        }
+        if (!global_descriptor) {
+          return;
+        }
+
+        CanvasElementType bound_type = CanvasElementType::Rect;
+        bool first = true;
+        entt::entity current_canvas = entt::null;
+
+        for (const auto& entry : *sorted_world) {
+          // When the canvas root changes, update push constants
+          if (entry.canvas_root != current_canvas) {
+            current_canvas = entry.canvas_root;
+
+            auto info_it = canvas_infos->find(current_canvas);
+            if (info_it == canvas_infos->end()) {
+              continue;
+            }
+            const auto& ci = info_it->second;
+
+            world_push->model_matrix = ci.model_matrix;
+            world_push->canvas_size = ci.canvas_size;
+            world_push->world_size = ci.world_size;
+
+            // Force pipeline rebind to push new constants
+            first = true;
+          }
+
+          // Rebind pipeline when element type changes or canvas changed
+          if (first || entry.type != bound_type) {
+            switch (entry.type) {
+              case CanvasElementType::Rect:
+                world_rect_pipeline->Bind(PipelineBindPointGraphics);
+                break;
+              case CanvasElementType::Image:
+              case CanvasElementType::Button:
+                world_image_pipeline->Bind(PipelineBindPointGraphics);
+                break;
+              case CanvasElementType::Text:
+                world_text_pipeline->Bind(PipelineBindPointGraphics);
+                break;
+            }
+            bound_type = entry.type;
+            first = false;
+
+            // Bind the camera global descriptor at set 1
+            VkDescriptorSet global_set = global_descriptor->descriptor_set_;
+            auto* bound = renderer->GetBoundPipeline();
+            if (bound) {
+              vkCmdBindDescriptorSets(
+                  renderer->GetCommandBuffer().handle_,
+                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                  bound->layout_, 1, 1, &global_set, 0, nullptr);
+            }
+          }
+
+          float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
+
+          switch (entry.type) {
+            case CanvasElementType::Rect: {
+              auto& rect =
+                  scene->GetComponent<CanvasRectComponent>(entry.entity);
+              auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                  entry.entity);
+              renderer->DrawCanvasRect(rt, rect, element_layout, eid);
+              break;
+            }
+            case CanvasElementType::Image: {
+              auto& img =
+                  scene->GetComponent<CanvasImageComponent>(entry.entity);
+              auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                  entry.entity);
+              renderer->DrawTexturedRect(rt.computed_position,
+                                         rt.computed_size, img.texture,
+                                         img.tint, img.uv_rect,
+                                         textured_layout, eid);
+              break;
+            }
+            case CanvasElementType::Button: {
+              auto& btn =
+                  scene->GetComponent<ButtonComponent>(entry.entity);
+              auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                  entry.entity);
+              AssetHandle tex_handle;
+              glm::vec4 tint;
+              switch (btn.state_) {
+                case ButtonState::Hovered:
+                  tex_handle = btn.hovered_texture.IsValid()
+                                   ? btn.hovered_texture
+                                   : btn.normal_texture;
+                  tint = btn.hovered_color;
+                  break;
+                case ButtonState::Pressed:
+                  tex_handle = btn.pressed_texture.IsValid()
+                                   ? btn.pressed_texture
+                                   : btn.normal_texture;
+                  tint = btn.pressed_color;
+                  break;
+                case ButtonState::Disabled:
+                  tex_handle = btn.disabled_texture.IsValid()
+                                   ? btn.disabled_texture
+                                   : btn.normal_texture;
+                  tint = btn.disabled_color;
+                  break;
+                default:
+                  tex_handle = btn.normal_texture;
+                  tint = btn.normal_color;
+                  break;
+              }
+              if (tex_handle.IsValid()) {
+                auto tex = Engine::asset_manager().GetOrLoad<Texture>(
+                    tex_handle);
+                if (tex) {
+                  renderer->DrawTexturedRect(rt.computed_position,
+                                             rt.computed_size, tex, tint,
+                                             {0, 0, 1, 1}, textured_layout,
+                                             eid);
+                }
+              }
+              break;
+            }
+            case CanvasElementType::Text: {
+              auto& text = scene->GetComponent<TextComponent>(entry.entity);
+              auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                  entry.entity);
+              renderer->DrawCanvasText(rt, text, textured_layout, eid);
+              break;
+            }
+          }
+        }
+
+        // Draw per-canvas textures as 3D quads (camera canvases in editor)
+        for (const auto& qd : *camera_quad_draws) {
+          auto ci_it = canvas_infos->find(qd.canvas_entity);
+          if (ci_it == canvas_infos->end()) {
+            continue;
+          }
+          const auto& ci = ci_it->second;
+
+          world_push->model_matrix = ci.model_matrix;
+          world_push->canvas_size = ci.canvas_size;
+          world_push->world_size = ci.world_size;
+
+          world_image_pipeline->Bind(PipelineBindPointGraphics);
+
+          VkDescriptorSet global_set = global_descriptor->descriptor_set_;
+          auto* bound = renderer->GetBoundPipeline();
+          if (bound) {
+            vkCmdBindDescriptorSets(
+                renderer->GetCommandBuffer().handle_,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                bound->layout_, 1, 1, &global_set, 0, nullptr);
+          }
+
+          VkDescriptorSet sets[] = {qd.descriptor->descriptor_set_};
+          vkCmdBindDescriptorSets(
+              renderer->GetCommandBuffer().handle_,
+              VK_PIPELINE_BIND_POINT_GRAPHICS,
+              renderer->GetBoundPipeline()->layout_,
+              0, 1, sets, 0, nullptr);
+          vkCmdDraw(renderer->GetCommandBuffer().handle_, 6, 1, 0, 0);
+        }
+
+        // Draw canvas borders in editor scene view
+        for (const auto& border : *canvas_borders) {
+          auto ci_it = canvas_infos->find(border.canvas_entity);
+          if (ci_it == canvas_infos->end()) {
+            continue;
+          }
+          const auto& ci = ci_it->second;
+
+          world_push->model_matrix = ci.model_matrix;
+          world_push->canvas_size = ci.canvas_size;
+          world_push->world_size = ci.world_size;
+
+          world_rect_pipeline->Bind(PipelineBindPointGraphics);
+
+          VkDescriptorSet global_set = global_descriptor->descriptor_set_;
+          auto* bound = renderer->GetBoundPipeline();
+          if (bound) {
+            vkCmdBindDescriptorSets(
+                renderer->GetCommandBuffer().handle_,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                bound->layout_, 1, 1, &global_set, 0, nullptr);
+          }
+
+          // Draw 4 thin rects as border edges - each needs its own UBO
+          // since the GPU reads them later during execution.
+          for (int ei = 0; ei < 4; ei++) {
+            auto& edge_ubo = border.edge_ubos[ei];
+            auto& edge_desc = border.edge_descriptors[ei];
+
+            VkDescriptorSet sets[] = {edge_desc->descriptor_set_};
+            vkCmdBindDescriptorSets(
+                renderer->GetCommandBuffer().handle_,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                renderer->GetBoundPipeline()->layout_,
+                0, 1, sets, 0, nullptr);
+            vkCmdDraw(renderer->GetCommandBuffer().handle_, 6, 1, 0, 0);
+          }
+        }
+      });
+
+  graph.PassWritesColor(world_canvas_pass, canvas_world_out);
+  graph.SetPassFramebuffer(world_canvas_pass,
+                           pool->GetFramebuffer("canvas_world"));
+  graph.SetPassViewport(world_canvas_pass, ctx.viewport_size);
+  graph.SetPassClearColor(world_canvas_pass, {0, 0, 0, 0});
+
+  registry.Register("CanvasWorldOut", canvas_world_out);
+
+  // ---- Per-canvas offscreen passes (render elements to per-canvas textures) ----
+  // For each unique canvas root in camera_list, render its elements to its own
+  // offscreen texture using the screen-space pipelines (same as overlay).
+  struct PerCanvasPassInfo {
+    entt::entity canvas_entity;
+    RGResource rg_resource;
+  };
+  auto per_canvas_pass_infos = std::make_shared<std::vector<PerCanvasPassInfo>>();
+
+  for (entt::entity canvas_entity : camera_canvas_roots) {
+    auto ci_it = canvas_infos->find(canvas_entity);
+    if (ci_it == canvas_infos->end()) {
+      continue;
+    }
+    const auto& ci = ci_it->second;
+    if (!ci.per_canvas_res || !ci.per_canvas_res->texture) {
+      continue;
+    }
+
+    // Collect elements belonging to this canvas
+    auto canvas_elements = std::make_shared<std::vector<CanvasDrawEntry>>();
+    for (const auto& entry : *sorted_camera) {
+      if (entry.canvas_root == canvas_entity) {
+        canvas_elements->push_back(entry);
+      }
+    }
+
+    if (canvas_elements->empty()) {
+      continue;
+    }
+
+    glm::vec2 canvas_viewport = ci.texture_size;
+    auto canvas_res = ci.per_canvas_res;
+    std::string pass_name = "CanvasPerCanvas_" + std::to_string(
+        static_cast<uint32_t>(canvas_entity));
+
+    RGResource canvas_tex_rg = graph.ImportTexture(
+        pass_name, canvas_res->texture);
+
+    uint32_t per_canvas_pass = graph.AddPass(
+        pass_name, render_pass_,
+        [rect_pipeline, image_pipeline, text_pipeline, scene, renderer,
+         screen_push, canvas_viewport, element_layout,
+         textured_layout, canvas_elements](VkCommandBuffer) {
+          screen_push->screen_size = canvas_viewport;
+
+          CanvasElementType bound_type = CanvasElementType::Rect;
+          bool first = true;
+
+          for (const auto& entry : *canvas_elements) {
+            if (first || entry.type != bound_type) {
+              switch (entry.type) {
+                case CanvasElementType::Rect:
+                  rect_pipeline->Bind(PipelineBindPointGraphics);
+                  break;
+                case CanvasElementType::Image:
+                case CanvasElementType::Button:
+                  image_pipeline->Bind(PipelineBindPointGraphics);
+                  break;
+                case CanvasElementType::Text:
+                  text_pipeline->Bind(PipelineBindPointGraphics);
+                  break;
+              }
+              bound_type = entry.type;
+              first = false;
+            }
+
+            float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
+
+            switch (entry.type) {
+              case CanvasElementType::Rect: {
+                auto& rect =
+                    scene->GetComponent<CanvasRectComponent>(entry.entity);
+                auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                    entry.entity);
+                renderer->DrawCanvasRect(rt, rect, element_layout, eid);
+                break;
+              }
+              case CanvasElementType::Image: {
+                auto& img =
+                    scene->GetComponent<CanvasImageComponent>(entry.entity);
+                auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                    entry.entity);
+                renderer->DrawTexturedRect(rt.computed_position,
+                                           rt.computed_size, img.texture,
+                                           img.tint, img.uv_rect,
+                                           textured_layout, eid);
+                break;
+              }
+              case CanvasElementType::Button: {
+                auto& btn =
+                    scene->GetComponent<ButtonComponent>(entry.entity);
+                auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                    entry.entity);
+                AssetHandle tex_handle;
+                glm::vec4 tint;
+                switch (btn.state_) {
+                  case ButtonState::Hovered:
+                    tex_handle = btn.hovered_texture.IsValid()
+                                     ? btn.hovered_texture
+                                     : btn.normal_texture;
+                    tint = btn.hovered_color;
+                    break;
+                  case ButtonState::Pressed:
+                    tex_handle = btn.pressed_texture.IsValid()
+                                     ? btn.pressed_texture
+                                     : btn.normal_texture;
+                    tint = btn.pressed_color;
+                    break;
+                  case ButtonState::Disabled:
+                    tex_handle = btn.disabled_texture.IsValid()
+                                     ? btn.disabled_texture
+                                     : btn.normal_texture;
+                    tint = btn.disabled_color;
+                    break;
+                  default:
+                    tex_handle = btn.normal_texture;
+                    tint = btn.normal_color;
+                    break;
+                }
+                if (tex_handle.IsValid()) {
+                  auto tex = Engine::asset_manager().GetOrLoad<Texture>(
+                      tex_handle);
+                  if (tex) {
+                    renderer->DrawTexturedRect(rt.computed_position,
+                                               rt.computed_size, tex, tint,
+                                               {0, 0, 1, 1}, textured_layout,
+                                               eid);
+                  }
+                }
+                break;
+              }
+              case CanvasElementType::Text: {
+                auto& text =
+                    scene->GetComponent<TextComponent>(entry.entity);
+                auto& rt = scene->GetComponent<RectangleTransformComponent>(
+                    entry.entity);
+                renderer->DrawCanvasText(rt, text, textured_layout, eid);
+                break;
+              }
+            }
+          }
+        });
+
+    graph.PassWritesColor(per_canvas_pass, canvas_tex_rg);
+    graph.SetPassFramebuffer(per_canvas_pass, canvas_res->framebuffer);
+    graph.SetPassViewport(per_canvas_pass, canvas_viewport);
+    graph.SetPassClearColor(per_canvas_pass, {0, 0, 0, 0});
+
+    per_canvas_pass_infos->push_back({canvas_entity, canvas_tex_rg});
+  }
+
+  // ---- Per-canvas 3D quad pass ----
+  // Draws each per-canvas offscreen texture as a textured quad in 3D,
+  // rendered into a separate offscreen buffer that gets composited later.
+  RGResource canvas_camera_out =
+      graph.ImportTexture("CanvasCameraOut",
+                          pool->GetTexture("canvas_camera.color"));
+  bool camera_pass_added = !per_canvas_pass_infos->empty() && global_descriptor;
+  // Pre-build per-canvas quad draw resources (UBO + descriptor) outside the
+  // lambda so they are captured by shared_ptr and stay alive until the
+  // render graph pass is destroyed (deferred via DeletionQueue).
+  struct CanvasQuadDrawData {
+    entt::entity canvas_entity;
+    std::shared_ptr<UniformBuffer> ubo;
+    std::shared_ptr<DescriptorSet> descriptor;
+  };
+  auto quad_draw_datas = std::make_shared<std::vector<CanvasQuadDrawData>>();
+
+  if (camera_pass_added) {
+    for (const auto& pass_info : *per_canvas_pass_infos) {
+      auto ci_it = canvas_infos->find(pass_info.canvas_entity);
+      if (ci_it == canvas_infos->end()) {
+        continue;
+      }
+      const auto& ci = ci_it->second;
+      if (!ci.per_canvas_res || !ci.per_canvas_res->texture) {
+        continue;
+      }
+
+      auto ubo = renderer_->CreateUniformBuffer(
+          sizeof(CanvasElementUniformData));
+      CanvasElementUniformData data{};
+      data.position = {0.0f, 0.0f};
+      data.size = ci.canvas_size;
+      data.color = {1.0f, 1.0f, 1.0f, 1.0f};
+      data.uv_rect = {0.0f, 0.0f, 1.0f, 1.0f};
+      memcpy(ubo->data_, &data, sizeof(CanvasElementUniformData));
+
+      auto desc = std::make_shared<DescriptorSet>();
+      desc->SetLayout(canvas_textured_layout_);
+      desc->AddUniformBuffer(0, ubo);
+      desc->AddCombinedImageSampler(
+          1, ci.per_canvas_res->texture->image_views_[0],
+          renderer_->GetDefaultLinearSampler());
+      desc->Bake();
+
+      quad_draw_datas->push_back({pass_info.canvas_entity, ubo, desc});
+
+      // When in editor scene view, also add to the world pass draw list
+      if (is_external) {
+        camera_quad_draws->push_back({pass_info.canvas_entity, ubo, desc});
+      }
+    }
+  }
+
+  uint32_t camera_quad_pass = graph.AddPass(
+      "CanvasCameraQuad", world_render_pass_,
+      [world_image_pipeline, renderer, world_push,
+       global_descriptor, camera_pass_added, canvas_infos,
+       quad_draw_datas](VkCommandBuffer) {
+        if (!camera_pass_added || !global_descriptor ||
+            quad_draw_datas->empty()) {
+          return;
+        }
+
+        world_image_pipeline->Bind(PipelineBindPointGraphics);
+
+        // Bind the camera global descriptor at set 1
+        VkDescriptorSet global_set = global_descriptor->descriptor_set_;
+        auto* bound = renderer->GetBoundPipeline();
+        if (bound) {
+          vkCmdBindDescriptorSets(
+              renderer->GetCommandBuffer().handle_,
+              VK_PIPELINE_BIND_POINT_GRAPHICS,
+              bound->layout_, 1, 1, &global_set, 0, nullptr);
+        }
+
+        for (const auto& qd : *quad_draw_datas) {
+          auto ci_it = canvas_infos->find(qd.canvas_entity);
+          if (ci_it == canvas_infos->end()) {
+            continue;
+          }
+          const auto& ci = ci_it->second;
+
+          // Update push constants for this canvas quad
+          world_push->model_matrix = ci.model_matrix;
+          world_push->canvas_size = ci.canvas_size;
+          world_push->world_size = ci.world_size;
+
+          // Rebind pipeline to push new constants
+          world_image_pipeline->Bind(PipelineBindPointGraphics);
+
+          // Re-bind global descriptor after pipeline rebind
+          bound = renderer->GetBoundPipeline();
+          if (bound) {
+            vkCmdBindDescriptorSets(
+                renderer->GetCommandBuffer().handle_,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                bound->layout_, 1, 1, &global_set, 0, nullptr);
+          }
+
+          // Draw the full-canvas quad textured with the per-canvas offscreen
+          VkDescriptorSet sets[] = {qd.descriptor->descriptor_set_};
+          vkCmdBindDescriptorSets(
+              renderer->GetCommandBuffer().handle_,
+              VK_PIPELINE_BIND_POINT_GRAPHICS,
+              renderer->GetBoundPipeline()->layout_,
+              0, 1, sets, 0, nullptr);
+          vkCmdDraw(renderer->GetCommandBuffer().handle_, 6, 1, 0, 0);
+        }
+      });
+
+  // The quad pass reads from each per-canvas texture
+  for (const auto& pass_info : *per_canvas_pass_infos) {
+    graph.PassReadsTexture(camera_quad_pass, pass_info.rg_resource);
+  }
+  graph.PassWritesColor(camera_quad_pass, canvas_camera_out);
+  graph.SetPassFramebuffer(camera_quad_pass,
+                           pool->GetFramebuffer("canvas_camera"));
+  graph.SetPassViewport(camera_quad_pass, ctx.viewport_size);
+  graph.SetPassClearColor(camera_quad_pass, {0, 0, 0, 0});
+
+  // ---- Overlay canvas pass ----
+  RGResource canvas_out =
+      graph.ImportTexture("CanvasOut", pool->GetTexture("canvas.color"));
 
   uint32_t canvas_pass = graph.AddPass(
       "Canvas", render_pass_,
       [rect_pipeline, image_pipeline, text_pipeline, scene, renderer, pool,
        screen_push, viewport, element_layout, textured_layout,
-       sorted_list](VkCommandBuffer) {
+       sorted_overlay](VkCommandBuffer) {
         screen_push->screen_size = viewport;
 
         CanvasElementType bound_type = CanvasElementType::Rect;
         bool first = true;
 
-        for (const auto& entry : *sorted_list) {
-          // Rebind pipeline when element type changes
+        for (const auto& entry : *sorted_overlay) {
           if (first || entry.type != bound_type) {
             switch (entry.type) {
               case CanvasElementType::Rect:
@@ -333,13 +1297,15 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             first = false;
           }
 
+          float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
+
           switch (entry.type) {
             case CanvasElementType::Rect: {
               auto& rect =
                   scene->GetComponent<CanvasRectComponent>(entry.entity);
               auto& rt = scene->GetComponent<RectangleTransformComponent>(
                   entry.entity);
-              renderer->DrawCanvasRect(rt, rect, element_layout);
+              renderer->DrawCanvasRect(rt, rect, element_layout, eid);
               break;
             }
             case CanvasElementType::Image: {
@@ -350,7 +1316,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
               renderer->DrawTexturedRect(rt.computed_position,
                                          rt.computed_size, img.texture,
                                          img.tint, img.uv_rect,
-                                         textured_layout);
+                                         textured_layout, eid);
               break;
             }
             case CanvasElementType::Button: {
@@ -358,7 +1324,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                   scene->GetComponent<ButtonComponent>(entry.entity);
               auto& rt = scene->GetComponent<RectangleTransformComponent>(
                   entry.entity);
-              // Pick texture and tint for current state, fall back to normal
               AssetHandle tex_handle;
               glm::vec4 tint;
               switch (btn.state_) {
@@ -390,7 +1355,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                 if (tex) {
                   renderer->DrawTexturedRect(rt.computed_position,
                                              rt.computed_size, tex, tint,
-                                             {0, 0, 1, 1}, textured_layout);
+                                             {0, 0, 1, 1}, textured_layout,
+                                             eid);
                 }
               }
               break;
@@ -399,7 +1365,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
               auto& text = scene->GetComponent<TextComponent>(entry.entity);
               auto& rt = scene->GetComponent<RectangleTransformComponent>(
                   entry.entity);
-              renderer->DrawCanvasText(rt, text, textured_layout);
+              renderer->DrawCanvasText(rt, text, textured_layout, eid);
               break;
             }
           }
@@ -413,7 +1379,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   registry.Register("CanvasOut", canvas_out);
 
-  // Second pass: composite canvas onto PipelineOutput (after all post-processing)
+  // ---- Composite pass: blend all canvas layers onto PipelineOutput ----
   RGResource canvas_comp_out =
       graph.ImportTexture("CanvasComp", pool->GetTexture("canvas_comp.color"));
   auto pipeline_input = registry.Get("PipelineOutput");
@@ -421,17 +1387,28 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   uint32_t canvas_comp = graph.AddPass(
       "CanvasComposite", comp_render_pass_,
-      [comp_pipeline, pool, renderer](VkCommandBuffer) {
+      [comp_pipeline, pool, renderer, is_external](VkCommandBuffer) {
         comp_pipeline->Bind(PipelineBindPointGraphics);
         // Draw scene (previous PipelineOutput)
         renderer->DrawFullscreen(comp_pipeline,
             {pool->GetDescriptor("canvas_comp.input")});
-        // Draw canvas on top (alpha blended)
+        // Draw world canvas on top (alpha blended)
         renderer->DrawFullscreen(comp_pipeline,
-            {pool->GetDescriptor("canvas.output")});
+            {pool->GetDescriptor("canvas_world.output")});
+        if (!is_external) {
+          // Per-canvas camera quads as fullscreen (game view only;
+          // in editor they're drawn as 3D quads in the world pass)
+          renderer->DrawFullscreen(comp_pipeline,
+              {pool->GetDescriptor("canvas_camera.output")});
+          // Overlay canvas (game view only; in editor it's in camera_list)
+          renderer->DrawFullscreen(comp_pipeline,
+              {pool->GetDescriptor("canvas.output")});
+        }
       });
 
   graph.PassReadsTexture(canvas_comp, pipeline_input);
+  graph.PassReadsTexture(canvas_comp, canvas_world_out);
+  graph.PassReadsTexture(canvas_comp, canvas_camera_out);
   graph.PassReadsTexture(canvas_comp, canvas_out);
   graph.PassWritesColor(canvas_comp, canvas_comp_out);
   graph.SetPassFramebuffer(canvas_comp, pool->GetFramebuffer("canvas_comp"));

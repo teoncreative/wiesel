@@ -36,15 +36,28 @@ void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
 
     // Compute effective screen size based on canvas scaler
     glm::vec2 effective_size = screen_size;
-    if (entity.HasComponent<CanvasScalerComponent>()) {
+    if (canvas.render_mode == CanvasRenderMode::WorldSpace) {
+      // World-space canvases use their own RectTransform size as the layout area,
+      // not the camera viewport. The scaler's reference_resolution defines the
+      // canvas coordinate space.
+      if (entity.HasComponent<CanvasScalerComponent>()) {
+        auto& scaler = entity.GetComponent<CanvasScalerComponent>();
+        if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
+          effective_size = scaler.reference_resolution;
+        }
+      } else if (entity.HasComponent<RectangleTransformComponent>()) {
+        auto& rt = entity.GetComponent<RectangleTransformComponent>();
+        if (rt.size.x > 0 && rt.size.y > 0) {
+          effective_size = rt.size;
+        }
+      }
+    } else if (entity.HasComponent<CanvasScalerComponent>()) {
       auto& scaler = entity.GetComponent<CanvasScalerComponent>();
       if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
-        // Compute scale factor by blending width and height ratios
         float scale_w = screen_size.x / scaler.reference_resolution.x;
         float scale_h = screen_size.y / scaler.reference_resolution.y;
         float t = scaler.match_width_or_height;
         float scale_factor = scale_w * (1.0f - t) + scale_h * t;
-        // Express screen in reference-resolution units
         effective_size = screen_size / scale_factor;
       }
     }

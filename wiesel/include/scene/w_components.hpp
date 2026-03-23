@@ -125,6 +125,37 @@ struct TransformComponent : public IComponent {
     is_changed_ = true;
   }
 
+  // World-space getters (from cached transform matrix)
+  glm::vec3 GetWorldPosition() const {
+    return glm::vec3(transform_matrix_[3]);
+  }
+
+  glm::vec3 GetWorldScale() const {
+    return {
+        glm::length(glm::vec3(transform_matrix_[0])),
+        glm::length(glm::vec3(transform_matrix_[1])),
+        glm::length(glm::vec3(transform_matrix_[2]))
+    };
+  }
+
+  // Direction conversion between local and world space
+  glm::vec3 LocalToWorldDirection(const glm::vec3& dir) const {
+    return glm::normalize(glm::mat3(transform_matrix_) * dir);
+  }
+  glm::vec3 WorldToLocalDirection(const glm::vec3& dir) const {
+    return glm::normalize(glm::inverse(glm::mat3(transform_matrix_)) * dir);
+  }
+
+  // Point conversion between local and world space
+  glm::vec3 LocalToWorldPoint(const glm::vec3& point) const {
+    return glm::vec3(transform_matrix_ * glm::vec4(point, 1.0f));
+  }
+  glm::vec3 WorldToLocalPoint(const glm::vec3& point) const {
+    return glm::vec3(glm::inverse(transform_matrix_) * glm::vec4(point, 1.0f));
+  }
+
+  enum class Space { Local, World };
+
   // Relative modifiers
   void Move(const glm::vec3& delta) {
     position_ += delta;
@@ -132,6 +163,19 @@ struct TransformComponent : public IComponent {
   }
   void Move(float dx, float dy, float dz) {
     Move({dx, dy, dz});
+  }
+
+  // Translate with space selection
+  void Translate(const glm::vec3& delta, Space space = Space::Local) {
+    if (space == Space::World) {
+      // Convert world-space delta to local space
+      glm::mat3 world_rot = glm::mat3(transform_matrix_);
+      glm::mat3 inv_rot = glm::inverse(world_rot);
+      position_ += inv_rot * delta;
+    } else {
+      position_ += delta;
+    }
+    is_changed_ = true;
   }
 
   void Rotate(const glm::vec3& delta) {

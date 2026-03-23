@@ -862,19 +862,34 @@ void InitializeComponentSerializers() {
       [](Entity& entity) -> json {
         auto& c = entity.GetComponent<CanvasComponent>();
         json cj;
-        cj["type"] = static_cast<int>(c.type);
+        cj["render_mode"] = static_cast<int>(c.render_mode);
         cj["direction"] = static_cast<int>(c.direction);
         cj["alignment"] = static_cast<int>(c.alignment);
         cj["spacing"] = c.spacing;
         cj["start_spacing"] = c.start_spacing;
         cj["end_spacing"] = c.end_spacing;
         cj["sort_order"] = c.sort_order;
+        if (c.render_mode == CanvasRenderMode::ScreenSpaceCamera) {
+          cj["plane_distance"] = c.plane_distance;
+          // Serialize camera reference as UUID
+          if (c.camera_entity != entt::null) {
+            Scene* s = entity.GetScene();
+            if (s && s->HasComponent<IdComponent>(c.camera_entity)) {
+              cj["camera_uuid"] = s->GetComponent<IdComponent>(
+                  c.camera_entity).Id.ToString();
+            }
+          }
+        }
+        // WorldSpace no longer has per-canvas size fields;
+        // world size is derived from CanvasScaler.reference_pixels_per_unit
         return cj;
       },
       // Deserialize
-      [](Entity& entity, const json& cj, Scene* /*scene*/) {
+      [](Entity& entity, const json& cj, Scene* scene) {
         auto& c = entity.AddComponent<CanvasComponent>();
-        c.type = static_cast<CanvasType>(cj.value("type", 0));
+        c.render_mode =
+            static_cast<CanvasRenderMode>(cj.value("render_mode",
+                cj.value("type", 0)));  // fallback to old "type" field
         c.direction =
             static_cast<LayoutDirection>(cj.value("direction", 0));
         c.alignment =
@@ -883,6 +898,12 @@ void InitializeComponentSerializers() {
         c.start_spacing = cj.value("start_spacing", 0.0f);
         c.end_spacing = cj.value("end_spacing", 0.0f);
         c.sort_order = cj.value("sort_order", 0);
+        c.plane_distance = cj.value("plane_distance", 10.0f);
+        if (cj.contains("camera_uuid") && cj["camera_uuid"].is_string() && scene) {
+          UUID cam_uuid = UUID::FromString(cj["camera_uuid"].get<std::string>());
+          c.camera_entity = scene->FindEntityByUUID(cam_uuid);
+        }
+        // pixels_per_unit moved to CanvasScalerComponent
       },
   });
 
@@ -903,6 +924,7 @@ void InitializeComponentSerializers() {
         csj["reference_resolution"] = {cs.reference_resolution.x,
                                        cs.reference_resolution.y};
         csj["match_width_or_height"] = cs.match_width_or_height;
+        csj["reference_pixels_per_unit"] = cs.reference_pixels_per_unit;
         return csj;
       },
       // Deserialize
@@ -918,6 +940,8 @@ void InitializeComponentSerializers() {
         }
         cs.match_width_or_height =
             csj.value("match_width_or_height", 0.5f);
+        cs.reference_pixels_per_unit =
+            csj.value("reference_pixels_per_unit", 100.0f);
       },
   });
 

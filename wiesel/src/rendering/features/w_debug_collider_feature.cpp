@@ -17,8 +17,10 @@
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_descriptorlayout.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_camera.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
+#include "scene/w_components.hpp"
 #include "scene/w_scene.hpp"
 #include "w_engine.hpp"
 
@@ -417,6 +419,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   bool show_colliders = renderer_->options().show_colliders;
   bool show_triggers = renderer_->options().show_triggers;
   bool show_reverb = renderer_->options().show_reverb_zones;
+  bool show_cameras = renderer_->options().show_cameras && ctx.is_external;
 
   // Pre-create label descriptors
   auto trigger_desc = show_triggers ?
@@ -489,13 +492,15 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   uint32_t draw_pass = graph.AddPass(
       "DebugColliders", render_pass_,
       [pipeline, filled_pipe, push_constant, scene, renderer, vp,
-       show_colliders, show_triggers, show_reverb,
+       show_colliders, show_triggers, show_reverb, show_cameras,
        box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
        fbox_vb, fbox_ib, fbox_ic, fsphere_vb, fsphere_ib, fsphere_ic,
        trigger_desc, reverb_desc,
        &hf_data](
           VkCommandBuffer cmd) {
-        if (!show_colliders && !show_triggers && !show_reverb) return;
+        if (!show_colliders && !show_triggers && !show_reverb && !show_cameras) {
+          return;
+        }
 
         auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb, std::shared_ptr<IndexBuffer> ib,
                                   uint32_t index_count, const glm::mat4& model,
@@ -692,6 +697,52 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             pipeline->Bind(PipelineBindPointGraphics);
             draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
                            zone.active_ ? reverb_active_wire : reverb_wire);
+          }
+        }
+
+        // Camera frustum wireframes (editor scene view only)
+        if (show_cameras) {
+          pipeline->Bind(PipelineBindPointGraphics);
+          glm::vec4 cam_color = {1.0f, 1.0f, 1.0f, 0.6f};
+          glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
+
+          for (auto cam_entity : scene->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
+            auto& cam = scene->GetComponent<CameraComponent>(cam_entity);
+            auto& cam_transform = scene->GetComponent<TransformComponent>(cam_entity);
+
+            // Build a matrix that maps the unit box [-0.5, 0.5] to the
+            // frustum in world space. The box represents NDC [-1,1] scaled
+            // by 0.5, so we scale by 2 then apply inverse projection to
+            // get view-space frustum, then camera world transform.
+            //
+            // For visualization we clamp the far plane to a reasonable distance.
+            float vis_far = std::min(cam.far_plane, 50.0f);
+
+            glm::mat4 cam_proj;
+            float aspect = cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
+            if (cam.projection_mode == ProjectionMode::Perspective) {
+              cam_proj = glm::perspective(
+                  glm::radians(cam.field_of_view), aspect,
+                  cam.near_plane, vis_far);
+            } else {
+              float size = cam.ortho_size;
+              cam_proj = glm::ortho(
+                  -size * aspect, size * aspect,
+                  -size, size,
+                  cam.near_plane, vis_far);
+            }
+            // Vulkan clip Y flip
+            cam_proj[1][1] *= -1.0f;
+
+            glm::mat4 inv_proj = glm::inverse(cam_proj);
+            glm::mat4 cam_world = cam_transform.GetTransformMatrix();
+
+            // Unit box [-0.5, 0.5] -> NDC [-1, 1] -> view space -> world space
+            glm::mat4 scale2 = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
+            glm::mat4 frustum_model = cam_world * inv_proj * scale2;
+
+            draw_wireframe(box_vb, box_ib, box_ic, frustum_model,
+                           cam.enabled ? cam_color : cam_disabled_color);
           }
         }
       });

@@ -972,6 +972,43 @@ void RenderComponentImGui(RectangleTransformComponent& component, Entity entity)
 void RenderComponentImGui(CanvasComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Canvas", &visible)) {
+    const char* render_modes[] = {"Screen Space - Overlay", "Screen Space - Camera", "World Space"};
+    int rm = static_cast<int>(component.render_mode);
+    if (ImGui::Combo(PrefixLabel("Render Mode").c_str(), &rm, render_modes, 3)) {
+      component.render_mode = static_cast<CanvasRenderMode>(rm);
+    }
+
+    if (component.render_mode == CanvasRenderMode::ScreenSpaceCamera) {
+      ImGui::DragFloat(PrefixLabel("Plane Distance").c_str(), &component.plane_distance, 0.1f, 0.1f, 1000.0f);
+
+      // Camera entity picker - show combo of all entities with CameraComponent
+      {
+        Scene* s = entity.GetScene();
+        std::string current_name = "(None)";
+        if (component.camera_entity != entt::null && s &&
+            s->HasComponent<TagComponent>(component.camera_entity)) {
+          current_name = s->GetComponent<TagComponent>(component.camera_entity).name;
+        }
+        if (ImGui::BeginCombo(PrefixLabel("Camera").c_str(), current_name.c_str())) {
+          if (ImGui::Selectable("(None)", component.camera_entity == entt::null)) {
+            component.camera_entity = entt::null;
+          }
+          if (s) {
+            for (auto cam_entity : s->GetAllEntitiesWith<CameraComponent>()) {
+              auto& tag = s->GetComponent<TagComponent>(cam_entity);
+              bool selected = (cam_entity == component.camera_entity);
+              if (ImGui::Selectable(tag.name.c_str(), selected)) {
+                component.camera_entity = cam_entity;
+              }
+            }
+          }
+          ImGui::EndCombo();
+        }
+      }
+    }
+    // WorldSpace size is controlled by CanvasScaler.reference_pixels_per_unit
+
+    ImGui::SeparatorText("Layout");
     const char* directions[] = {"None", "Row", "Column"};
     int dir = static_cast<int>(component.direction);
     if (ImGui::Combo(PrefixLabel("Direction").c_str(), &dir, directions, 3)) {
@@ -999,17 +1036,32 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
 void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Canvas Scaler", &visible)) {
-    const char* modes[] = {"Constant Pixel Size", "Scale With Screen Size"};
-    int mode = static_cast<int>(component.scale_mode);
-    if (ImGui::Combo(PrefixLabel("Scale Mode").c_str(), &mode, modes, 2)) {
-      component.scale_mode = static_cast<ScaleMode>(mode);
+    // Check if the parent canvas is WorldSpace
+    bool is_world_space = false;
+    if (entity.HasComponent<CanvasComponent>()) {
+      is_world_space = entity.GetComponent<CanvasComponent>().render_mode ==
+                       CanvasRenderMode::WorldSpace;
     }
-    if (component.scale_mode == ScaleMode::ScaleWithScreenSize) {
+
+    if (is_world_space) {
+      // WorldSpace mode: show pixels-per-unit instead of scale mode
       ImGui::DragFloat2(PrefixLabel("Reference Resolution").c_str(),
                         reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
-      ImGui::SliderFloat(PrefixLabel("Match").c_str(),
-                         &component.match_width_or_height, 0.0f, 1.0f,
-                         "Width %.2f Height");
+      ImGui::DragFloat(PrefixLabel("Ref Pixels Per Unit").c_str(),
+                       &component.reference_pixels_per_unit, 1.0f, 1.0f, 1000.0f);
+    } else {
+      const char* modes[] = {"Constant Pixel Size", "Scale With Screen Size"};
+      int mode = static_cast<int>(component.scale_mode);
+      if (ImGui::Combo(PrefixLabel("Scale Mode").c_str(), &mode, modes, 2)) {
+        component.scale_mode = static_cast<ScaleMode>(mode);
+      }
+      if (component.scale_mode == ScaleMode::ScaleWithScreenSize) {
+        ImGui::DragFloat2(PrefixLabel("Reference Resolution").c_str(),
+                          reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
+        ImGui::SliderFloat(PrefixLabel("Match").c_str(),
+                           &component.match_width_or_height, 0.0f, 1.0f,
+                           "Width %.2f Height");
+      }
     }
     ImGui::TreePop();
   }

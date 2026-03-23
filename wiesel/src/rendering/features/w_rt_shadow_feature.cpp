@@ -142,7 +142,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
              scene->GetAllEntitiesWith<LightPointComponent, TransformComponent>()) {
           if (ubo_data.count >= kMaxRTShadowLights) break;
           auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldPos = glm::vec3(transform.GetTransformMatrix()[3]);
+          glm::vec3 worldPos = transform.GetWorldPosition();
           ubo_data.lights[ubo_data.count].pos_or_dir = glm::vec4(worldPos, 1.0f);
           ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
           ubo_data.count++;

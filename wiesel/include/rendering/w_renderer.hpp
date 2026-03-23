@@ -111,6 +111,7 @@ struct RendererOptions {
   Setting<bool> show_colliders = false;
   Setting<bool> show_triggers = false;
   Setting<bool> show_reverb_zones = false;
+  Setting<bool> show_cameras = true;
   Setting<bool> shadows_enabled = true;
   Setting<bool> rt_shadows_enabled = true;
 
@@ -374,21 +375,22 @@ class Renderer {
   void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
   void DrawCanvasRect(const RectangleTransformComponent& rt,
                       CanvasRectComponent& rect,
-                      std::shared_ptr<DescriptorSetLayout> layout);
-  // Draw a textured rect with automatic 9-slice support.
-  // Reads slice_border from the texture's asset properties; if non-zero,
-  // renders as 9-slice, otherwise a single quad.
+                      std::shared_ptr<DescriptorSetLayout> layout,
+                      float entity_id = 0);
   void DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                         std::shared_ptr<Texture> texture, glm::vec4 tint,
                         glm::vec4 uv_rect,
-                        std::shared_ptr<DescriptorSetLayout> layout);
+                        std::shared_ptr<DescriptorSetLayout> layout,
+                        float entity_id = 0);
   void DrawCanvasText(const RectangleTransformComponent& rt,
                       TextComponent& text,
-                      std::shared_ptr<DescriptorSetLayout> layout);
+                      std::shared_ptr<DescriptorSetLayout> layout,
+                      float entity_id = 0);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
   void RequestEntityPick(uint32_t x, uint32_t y,
-                         std::shared_ptr<AttachmentTexture> entity_id_texture);
+                         std::shared_ptr<AttachmentTexture> entity_id_texture,
+                         std::shared_ptr<AttachmentTexture> fallback_entity_id_texture = nullptr);
   bool ExecuteEntityPick(entt::entity& out_entity);
 
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
@@ -643,6 +645,7 @@ class Renderer {
   uint32_t pick_x_ = 0;
   uint32_t pick_y_ = 0;
   std::shared_ptr<AttachmentTexture> pick_entity_id_image_;
+  std::shared_ptr<AttachmentTexture> pick_fallback_image_;
 
   std::shared_ptr<DescriptorSetLayout> skybox_descriptor_layout_;
   std::shared_ptr<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
