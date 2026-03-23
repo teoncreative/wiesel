@@ -1636,6 +1636,55 @@ MonoObject* Internals_TransformComponent_GetDown(Scene* scene,
   return CreateVector3fWithValues(val.x, val.y, val.z);
 }
 
+MonoObject* Internals_TransformComponent_GetWorldPosition(Scene* scene,
+                                                          entt::entity entity) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  glm::vec3 val = c.GetWorldPosition();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_GetWorldScale(Scene* scene,
+                                                       entt::entity entity) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  glm::vec3 val = c.GetWorldScale();
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_LocalToWorldDirection(
+    Scene* scene, entt::entity entity, float x, float y, float z) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  glm::vec3 val = c.LocalToWorldDirection({x, y, z});
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_WorldToLocalDirection(
+    Scene* scene, entt::entity entity, float x, float y, float z) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  glm::vec3 val = c.WorldToLocalDirection({x, y, z});
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_LocalToWorldPoint(
+    Scene* scene, entt::entity entity, float x, float y, float z) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  glm::vec3 val = c.LocalToWorldPoint({x, y, z});
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+MonoObject* Internals_TransformComponent_WorldToLocalPoint(
+    Scene* scene, entt::entity entity, float x, float y, float z) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  glm::vec3 val = c.WorldToLocalPoint({x, y, z});
+  return CreateVector3fWithValues(val.x, val.y, val.z);
+}
+
+void Internals_TransformComponent_Translate(Scene* scene, entt::entity entity,
+                                            float x, float y, float z,
+                                            int space) {
+  auto& c = scene->GetComponent<TransformComponent>(entity);
+  c.Translate({x, y, z}, static_cast<TransformComponent::Space>(space));
+}
+
 // --- RectangleTransformComponent ---
 float Internals_RectTransform_GetPositionX(Scene* s, entt::entity e) {
   return s->GetComponent<RectangleTransformComponent>(e).position.x;
@@ -2992,6 +3041,13 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetRight);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetUp);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetDown);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetWorldPosition);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_GetWorldScale);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_LocalToWorldDirection);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_WorldToLocalDirection);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_LocalToWorldPoint);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_WorldToLocalPoint);
+  WIESEL_ADD_INTERNAL_CALL(TransformComponent_Translate);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetEnableRendering);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetEnableRendering);
   WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintR);

@@ -85,6 +85,20 @@ namespace WieselEngine
         public static extern Vector3f TransformComponent_GetUp(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern Vector3f TransformComponent_GetDown(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Vector3f TransformComponent_GetWorldPosition(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Vector3f TransformComponent_GetWorldScale(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Vector3f TransformComponent_LocalToWorldDirection(ulong scenePtr, ulong entityId, float x, float y, float z);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Vector3f TransformComponent_WorldToLocalDirection(ulong scenePtr, ulong entityId, float x, float y, float z);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Vector3f TransformComponent_LocalToWorldPoint(ulong scenePtr, ulong entityId, float x, float y, float z);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Vector3f TransformComponent_WorldToLocalPoint(ulong scenePtr, ulong entityId, float x, float y, float z);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void TransformComponent_Translate(ulong scenePtr, ulong entityId, float x, float y, float z, int space);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool ModelComponent_GetEnableRendering(ulong scenePtr, ulong entityId);

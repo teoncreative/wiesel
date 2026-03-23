@@ -4,6 +4,12 @@ using System;
 
 namespace WieselEngine
 {
+    public enum Space
+    {
+        Local = 0,
+        World = 1
+    }
+
     public class TransformComponent
     {
         private ulong scenePtr;
@@ -85,6 +91,34 @@ namespace WieselEngine
 
         public Vector3f GetDown() {
             return (Vector3f) Internals.TransformComponent_GetDown(scenePtr, entityId);
+        }
+
+        public Vector3f GetWorldPosition() {
+            return (Vector3f) Internals.TransformComponent_GetWorldPosition(scenePtr, entityId);
+        }
+
+        public Vector3f GetWorldScale() {
+            return (Vector3f) Internals.TransformComponent_GetWorldScale(scenePtr, entityId);
+        }
+
+        public Vector3f LocalToWorldDirection(Vector3f dir) {
+            return (Vector3f) Internals.TransformComponent_LocalToWorldDirection(scenePtr, entityId, dir.X, dir.Y, dir.Z);
+        }
+
+        public Vector3f WorldToLocalDirection(Vector3f dir) {
+            return (Vector3f) Internals.TransformComponent_WorldToLocalDirection(scenePtr, entityId, dir.X, dir.Y, dir.Z);
+        }
+
+        public Vector3f LocalToWorldPoint(Vector3f point) {
+            return (Vector3f) Internals.TransformComponent_LocalToWorldPoint(scenePtr, entityId, point.X, point.Y, point.Z);
+        }
+
+        public Vector3f WorldToLocalPoint(Vector3f point) {
+            return (Vector3f) Internals.TransformComponent_WorldToLocalPoint(scenePtr, entityId, point.X, point.Y, point.Z);
+        }
+
+        public void Translate(Vector3f delta, Space space = Space.Local) {
+            Internals.TransformComponent_Translate(scenePtr, entityId, delta.X, delta.Y, delta.Z, (int)space);
         }
 
         private float GetPositionX()
