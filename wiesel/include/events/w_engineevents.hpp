@@ -19,12 +19,12 @@
 namespace Wiesel {
 
 class PipelineRecreatedEvent : public Event {
-public:
+ public:
   PipelineRecreatedEvent() {}
 
   EVENT_CLASS_TYPE(PipelineRecreated)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
-private:
+ private:
 };
 
 }  // namespace Wiesel

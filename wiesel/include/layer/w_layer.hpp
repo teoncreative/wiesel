@@ -19,16 +19,23 @@ namespace Wiesel {
 class Layer {
  public:
   explicit Layer(const std::string& layer_name) : layer_name_(layer_name) {}
+
   virtual ~Layer() {}
 
   virtual void OnAttach() {}
+
   virtual void OnDetach() {}
+
   virtual void OnUpdate(float_t delta_time) {}
+
   virtual void OnEvent(Event& event) {}
 
   virtual void OnPrePresent() {}
+
   virtual void OnBeginPresent() {}
+
   virtual void OnPresent() {}
+
   virtual void OnPostPresent() {}
 
  protected:

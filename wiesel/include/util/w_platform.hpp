@@ -8,12 +8,14 @@
 namespace Wiesel {
 
 std::filesystem::path GetExecutableDirectory();
-std::filesystem::path GetUserDataDirectory(const std::string& app_name = "Wiesel");
+std::filesystem::path GetUserDataDirectory(
+    const std::string& app_name = "Wiesel");
 // Get cache directory (for temporary data, thumbnails, etc.)
-std::filesystem::path GetUserCacheDirectory(const std::string& app_name = "Wiesel");
+std::filesystem::path GetUserCacheDirectory(
+    const std::string& app_name = "Wiesel");
 
 void OpenFileInDefaultEditor(const std::filesystem::path& path);
 
-}
+}  // namespace Wiesel
 
 #endif  //WIESEL_PARENT_W_PLATFORM_HPP

@@ -35,9 +35,9 @@ FontAsset::FontAsset(const std::string& vfs_path) {
   VfsFile file = vfs->Open(vfs_path);
   font_data_.assign(file.Data(), file.Data() + file.Size());
 
-  error = FT_New_Memory_Face(ft_library_, font_data_.data(),
-                             static_cast<FT_Long>(font_data_.size()), 0,
-                             &ft_face_);
+  error =
+      FT_New_Memory_Face(ft_library_, font_data_.data(),
+                         static_cast<FT_Long>(font_data_.size()), 0, &ft_face_);
   if (error) {
     LOG_ERROR("Failed to load font face: {}", vfs_path);
     FT_Done_FreeType(ft_library_);
@@ -142,7 +142,8 @@ glm::vec2 Font::MeasureText(const std::string& text, float font_size) {
 
   float width;
   if (last_visible) {
-    width = (last_cursor + last_visible->bearing.x + last_visible->size.x) * scale;
+    width =
+        (last_cursor + last_visible->bearing.x + last_visible->size.x) * scale;
   } else {
     width = cursor * scale;
   }
@@ -194,8 +195,9 @@ void Font::RasterizeGlyph(uint32_t codepoint) {
   info.advance = static_cast<int32_t>(g->advance.x);
   info.uv_min = {static_cast<float>(cursor_x_) / atlas_width_,
                  static_cast<float>(cursor_y_) / atlas_height_};
-  info.uv_max = {static_cast<float>(cursor_x_ + g->bitmap.width) / atlas_width_,
-                 static_cast<float>(cursor_y_ + g->bitmap.rows) / atlas_height_};
+  info.uv_max = {
+      static_cast<float>(cursor_x_ + g->bitmap.width) / atlas_width_,
+      static_cast<float>(cursor_y_ + g->bitmap.rows) / atlas_height_};
   glyphs_[codepoint] = info;
 
   row_height_ = std::max(row_height_, g->bitmap.rows);
@@ -217,7 +219,8 @@ void Font::UploadAtlas() {
   sampler.MinFilter = VK_FILTER_LINEAR;
   sampler.AddressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
-  atlas_texture_ = renderer->CreateTexture(atlas_pixels_.data(), 1, props, sampler);
+  atlas_texture_ =
+      renderer->CreateTexture(atlas_pixels_.data(), 1, props, sampler);
   atlas_image_view_ = atlas_texture_->image_view_;
 }
 
@@ -269,10 +272,10 @@ std::unordered_map<std::string, std::shared_ptr<Font>> FontCache::cache_;
 
 std::shared_ptr<Font> FontCache::Get(AssetHandle font_handle, float size) {
   float raster_size = std::ceil(size);
-  std::string handle_str = font_handle.IsValid()
-      ? font_handle.ToString()
-      : "default";
-  std::string key = handle_str + "_" + std::to_string(static_cast<int>(raster_size));
+  std::string handle_str =
+      font_handle.IsValid() ? font_handle.ToString() : "default";
+  std::string key =
+      handle_str + "_" + std::to_string(static_cast<int>(raster_size));
 
   auto it = cache_.find(key);
   if (it != cache_.end()) {
@@ -315,9 +318,8 @@ std::shared_ptr<Font> FontCache::Get(AssetHandle font_handle, float size) {
 }
 
 void FontCache::Invalidate(AssetHandle font_handle) {
-  std::string prefix = font_handle.IsValid()
-      ? font_handle.ToString()
-      : "default";
+  std::string prefix =
+      font_handle.IsValid() ? font_handle.ToString() : "default";
   for (auto it = cache_.begin(); it != cache_.end();) {
     if (it->first.find(prefix) == 0) {
       it = cache_.erase(it);

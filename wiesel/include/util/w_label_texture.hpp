@@ -19,11 +19,10 @@ namespace Wiesel {
 // Generates a small RGBA texture with text rendered onto a colored background.
 // Uses FreeType to rasterize the text. Result is cached by key.
 // Returns a shared_ptr to the texture (cached, do not destroy).
-std::shared_ptr<Texture> GetOrCreateLabelTexture(
-    const std::string& key,
-    const std::string& text,
-    const glm::vec4& bg_color,
-    const glm::vec4& text_color,
-    int font_size = 24);
+std::shared_ptr<Texture> GetOrCreateLabelTexture(const std::string& key,
+                                                 const std::string& text,
+                                                 const glm::vec4& bg_color,
+                                                 const glm::vec4& text_color,
+                                                 int font_size = 24);
 
 }  // namespace Wiesel

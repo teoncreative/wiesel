@@ -17,14 +17,15 @@ Sampler::Sampler(uint32_t mipLevels, const Wiesel::SamplerProps& props) {
   samplerInfo.addressModeV = props.AddressMode;
   samplerInfo.addressModeW = props.AddressMode;
 
-  const VkPhysicalDeviceProperties& properties = Engine::renderer()->GetPhysicalDeviceProperties();
+  const VkPhysicalDeviceProperties& properties =
+      Engine::renderer()->GetPhysicalDeviceProperties();
 
   if (props.MaxAnisotropy <= 0) {
     samplerInfo.anisotropyEnable = VK_FALSE;
   } else {
     samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = std::min(
-        props.MaxAnisotropy, properties.limits.maxSamplerAnisotropy);
+    samplerInfo.maxAnisotropy =
+        std::min(props.MaxAnisotropy, properties.limits.maxSamplerAnisotropy);
   }
   samplerInfo.borderColor = props.BorderColor;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
@@ -34,12 +35,12 @@ Sampler::Sampler(uint32_t mipLevels, const Wiesel::SamplerProps& props) {
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.maxLod = static_cast<float>(mipLevels);
 
-  WIESEL_CHECK_VKRESULT(
-      vkCreateSampler(Engine::renderer()->GetLogicalDevice(), &samplerInfo, nullptr, &handle_));
+  WIESEL_CHECK_VKRESULT(vkCreateSampler(Engine::renderer()->GetLogicalDevice(),
+                                        &samplerInfo, nullptr, &handle_));
 }
 
 Sampler::~Sampler() {
   vkDestroySampler(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
 }
 
-}
+}  // namespace Wiesel

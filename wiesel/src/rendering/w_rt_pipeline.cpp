@@ -18,7 +18,9 @@ RTPipeline::RTPipeline(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
 RTPipeline::~RTPipeline() {
-  if (!is_allocated_) return;
+  if (!is_allocated_) {
+    return;
+  }
   VkDevice device = renderer_->GetLogicalDevice();
   if (pipeline_ != VK_NULL_HANDLE) {
     vkDestroyPipeline(device, pipeline_, nullptr);
@@ -40,10 +42,11 @@ void RTPipeline::AddMissShader(std::shared_ptr<Shader> shader) {
   miss_shaders_.push_back(std::move(shader));
 }
 
-void RTPipeline::AddHitGroup(std::shared_ptr<Shader> closest_hit, std::shared_ptr<Shader> any_hit,
+void RTPipeline::AddHitGroup(std::shared_ptr<Shader> closest_hit,
+                             std::shared_ptr<Shader> any_hit,
                              std::shared_ptr<Shader> intersection) {
-  hit_groups_.push_back({std::move(closest_hit), std::move(any_hit),
-                         std::move(intersection)});
+  hit_groups_.push_back(
+      {std::move(closest_hit), std::move(any_hit), std::move(intersection)});
 }
 
 void RTPipeline::AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout) {
@@ -171,8 +174,7 @@ void RTPipeline::Bake() {
   rtInfo.layout = layout_;
 
   WIESEL_CHECK_VKRESULT(renderer_->vkCreateRayTracingPipelinesKHR()(
-      device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rtInfo, nullptr,
-      &pipeline_));
+      device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rtInfo, nullptr, &pipeline_));
 
   CreateSBT();
   is_allocated_ = true;
@@ -212,13 +214,12 @@ void RTPipeline::CreateSBT() {
   uint32_t sbtSize = raygenSize + missSize + hitSize;
 
   // Create SBT buffer
-  renderer_->CreateBuffer(
-      sbtSize,
-      VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
-          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      sbt_buffer_, sbt_memory_);
+  renderer_->CreateBuffer(sbtSize,
+                          VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
+                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          sbt_buffer_, sbt_memory_);
 
   // Map and fill
   void* mapped = nullptr;
@@ -276,14 +277,15 @@ void RTPipeline::Bind(VkCommandBuffer cmd) {
 
   // Push constants
   for (const auto& pc : push_constants_) {
-    vkCmdPushConstants(cmd, layout_, pc.flags, pc.offset, pc.size, pc.ptr.get());
+    vkCmdPushConstants(cmd, layout_, pc.flags, pc.offset, pc.size,
+                       pc.ptr.get());
   }
 }
 
 void RTPipeline::BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet set,
                                    uint32_t index) {
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                          layout_, index, 1, &set, 0, nullptr);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, layout_,
+                          index, 1, &set, 0, nullptr);
 }
 
 }  // namespace Wiesel

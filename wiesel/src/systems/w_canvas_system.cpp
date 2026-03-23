@@ -25,8 +25,8 @@ void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
   }
   std::sort(canvas_roots.begin(), canvas_roots.end(),
             [&scene](entt::entity a, entt::entity b) {
-              return scene.GetComponent<CanvasComponent>(a).sort_order
-                   < scene.GetComponent<CanvasComponent>(b).sort_order;
+              return scene.GetComponent<CanvasComponent>(a).sort_order <
+                     scene.GetComponent<CanvasComponent>(b).sort_order;
             });
 
   int32_t draw_order = 0;
@@ -69,8 +69,7 @@ void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
     // If the canvas root itself has a RectangleTransformComponent, apply it
     if (entity.HasComponent<RectangleTransformComponent>()) {
       auto& rt = entity.GetComponent<RectangleTransformComponent>();
-      glm::vec2 anchor_origin =
-          ComputeAnchorOrigin(rt.anchor, effective_size);
+      glm::vec2 anchor_origin = ComputeAnchorOrigin(rt.anchor, effective_size);
       glm::vec2 resolved_size;
       resolved_size.x = rt.size_mode_x == SizeMode::Percent
                             ? rt.size.x * effective_size.x
@@ -79,21 +78,19 @@ void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
                             ? rt.size.y * effective_size.y
                             : rt.size.y;
       rt.computed_size = resolved_size * rt.scale;
-      glm::vec2 pivot_offset =
-          ComputeAnchorOrigin(rt.pivot, rt.computed_size);
+      glm::vec2 pivot_offset = ComputeAnchorOrigin(rt.pivot, rt.computed_size);
       rt.computed_position = anchor_origin - pivot_offset + rt.position;
       rt.draw_order = draw_order++;
       parent_pos = rt.computed_position;
       parent_size = rt.computed_size;
     }
 
-    LayoutChildren(scene, handle, parent_pos, parent_size, &canvas,
-                   draw_order);
+    LayoutChildren(scene, handle, parent_pos, parent_size, &canvas, draw_order);
   }
 }
 
 glm::vec2 CanvasSystem::ComputeAnchorOrigin(AnchorPreset anchor,
-                                             glm::vec2 parent_size) {
+                                            glm::vec2 parent_size) {
   switch (anchor) {
     case AnchorPreset::TopLeft:
       return {0, 0};
@@ -121,8 +118,7 @@ glm::vec2 CanvasSystem::ComputeAnchorOrigin(AnchorPreset anchor,
 }
 
 void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
-                                  glm::vec2 parent_pos,
-                                  glm::vec2 parent_size,
+                                  glm::vec2 parent_pos, glm::vec2 parent_size,
                                   const CanvasComponent* canvas,
                                   int32_t& draw_order) {
   if (!scene.HasComponent<TreeComponent>(parent)) {
@@ -134,10 +130,9 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
   glm::vec2 content_pos = parent_pos;
   glm::vec2 content_size = parent_size;
   if (scene.HasComponent<RectangleTransformComponent>(parent)) {
-    auto& parent_rt =
-        scene.GetComponent<RectangleTransformComponent>(parent);
-    content_pos.x += parent_rt.padding.x;   // left
-    content_pos.y += parent_rt.padding.y;   // top
+    auto& parent_rt = scene.GetComponent<RectangleTransformComponent>(parent);
+    content_pos.x += parent_rt.padding.x;                         // left
+    content_pos.y += parent_rt.padding.y;                         // top
     content_size.x -= parent_rt.padding.x + parent_rt.padding.z;  // left+right
     content_size.y -= parent_rt.padding.y + parent_rt.padding.w;  // top+bottom
   }
@@ -160,11 +155,12 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
                           ? rt.size.y * content_size.y
                           : rt.size.y;
 
-    if (scene.HasComponent<TextComponent>(child) &&
-        resolved_size.x == 0 && resolved_size.y == 0) {
+    if (scene.HasComponent<TextComponent>(child) && resolved_size.x == 0 &&
+        resolved_size.y == 0) {
       auto& text = scene.GetComponent<TextComponent>(child);
       if (!text.text.empty()) {
-        std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
+        std::shared_ptr<Font> font =
+            FontCache::Get(text.font_handle, text.font_size);
         if (font && font->IsLoaded()) {
           resolved_size = font->MeasureText(text.text, text.font_size);
         }
@@ -174,13 +170,10 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
 
     if (!canvas || canvas->direction == LayoutDirection::None) {
       // Free positioning: anchor on parent - pivot on self + offset
-      glm::vec2 anchor_origin =
-          ComputeAnchorOrigin(rt.anchor, content_size);
-      glm::vec2 pivot_offset =
-          ComputeAnchorOrigin(rt.pivot, rt.computed_size);
-      rt.computed_position =
-          content_pos + anchor_origin - pivot_offset + rt.position
-          + glm::vec2(rt.margin.x, rt.margin.y);
+      glm::vec2 anchor_origin = ComputeAnchorOrigin(rt.anchor, content_size);
+      glm::vec2 pivot_offset = ComputeAnchorOrigin(rt.pivot, rt.computed_size);
+      rt.computed_position = content_pos + anchor_origin - pivot_offset +
+                             rt.position + glm::vec2(rt.margin.x, rt.margin.y);
     } else if (canvas->direction == LayoutDirection::Row) {
       cursor += rt.margin.x;  // left margin
       rt.computed_position.x = content_pos.x + cursor;
@@ -236,8 +229,8 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
     if (scene.HasComponent<CanvasComponent>(child)) {
       child_canvas = &scene.GetComponent<CanvasComponent>(child);
     }
-    LayoutChildren(scene, child, child_origin, rt.computed_size,
-                   child_canvas, draw_order);
+    LayoutChildren(scene, child, child_origin, rt.computed_size, child_canvas,
+                   draw_order);
   }
 }
 

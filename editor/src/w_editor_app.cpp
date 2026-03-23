@@ -14,8 +14,7 @@ using namespace Wiesel::Editor;
 
 class EditorApplication : public Application {
  public:
-  EditorApplication()
-      : Application({"Wiesel Editor", {1600, 900}, true}, {}) {}
+  EditorApplication() : Application({"Wiesel Editor", {1600, 900}, true}, {}) {}
 
   ~EditorApplication() override = default;
 
@@ -27,8 +26,7 @@ class EditorApplication : public Application {
 
 Application* Wiesel::CreateApp() {
   // Force editor mode when running standalone
-  auto& props =
-      const_cast<EngineProperties&>(Engine::properties());
+  auto& props = const_cast<EngineProperties&>(Engine::properties());
   props.editor_enabled = true;
 
   return new EditorApplication();

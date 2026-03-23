@@ -11,10 +11,10 @@
 
 #pragma once
 
-#include "rendering/w_render_feature.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_descriptorlayout.hpp"
+#include "rendering/w_render_feature.hpp"
 #include "rendering/w_texture.hpp"
 
 namespace Wiesel {
@@ -30,6 +30,7 @@ class DebugColliderFeature : public RenderFeature {
   explicit DebugColliderFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
+
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
@@ -70,6 +71,7 @@ class DebugColliderFeature : public RenderFeature {
     glm::vec3 position;
     glm::vec2 uv;
   };
+
   std::shared_ptr<MemoryBuffer> filled_box_vb_;
   std::shared_ptr<IndexBuffer> filled_box_ib_;
   uint32_t filled_box_ic_ = 0;
@@ -79,10 +81,11 @@ class DebugColliderFeature : public RenderFeature {
 
   // Label textures + descriptors (cached by name)
   std::shared_ptr<DescriptorSetLayout> overlay_desc_layout_;
-  std::unordered_map<std::string, std::shared_ptr<DescriptorSet>> label_descriptors_;
-  std::shared_ptr<DescriptorSet> GetOrCreateLabelDescriptor(const std::string& label,
-                                                             const glm::vec4& bg_color,
-                                                             const glm::vec4& text_color);
+  std::unordered_map<std::string, std::shared_ptr<DescriptorSet>>
+      label_descriptors_;
+  std::shared_ptr<DescriptorSet> GetOrCreateLabelDescriptor(
+      const std::string& label, const glm::vec4& bg_color,
+      const glm::vec4& text_color);
 
   // Cached heightfield debug geometry
   struct HeightfieldDebugData {
@@ -91,6 +94,7 @@ class DebugColliderFeature : public RenderFeature {
     uint32_t index_count = 0;
     glm::mat4 model = glm::mat4(1.0f);
   };
+
   std::vector<HeightfieldDebugData> hf_cache_;
   bool hf_cache_valid_ = false;
 };

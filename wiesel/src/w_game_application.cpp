@@ -15,7 +15,8 @@
 
 namespace Wiesel {
 
-bool GameApplication::LoadProjectAndScene(const std::filesystem::path& project_path) {
+bool GameApplication::LoadProjectAndScene(
+    const std::filesystem::path& project_path) {
   auto proj = Project::Load(project_path);
   if (!proj) {
     LOG_ERROR("Failed to load project: {}", project_path.string());

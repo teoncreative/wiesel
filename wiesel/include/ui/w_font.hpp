@@ -38,8 +38,11 @@ class FontAsset {
   ~FontAsset();
 
   bool IsLoaded() const { return ft_face_ != nullptr; }
+
   FT_Face GetFace() const { return ft_face_; }
+
   FontAAMode GetAAMode() const { return aa_mode_; }
+
   void SetAAMode(FontAAMode mode) { aa_mode_ = mode; }
 
  private:
@@ -57,12 +60,21 @@ class Font {
   ~Font();
 
   bool IsLoaded() const { return loaded_; }
+
   const GlyphInfo* GetGlyph(uint32_t codepoint);
-  std::shared_ptr<ImageView> GetAtlasImageView() const { return atlas_image_view_; }
+
+  std::shared_ptr<ImageView> GetAtlasImageView() const {
+    return atlas_image_view_;
+  }
+
   float GetLineHeight() const { return line_height_; }
+
   float GetAscent() const { return ascent_; }
+
   float GetDescent() const { return descent_; }
+
   float GetNativeSize() const { return native_size_; }
+
   glm::vec2 MeasureText(const std::string& text, float font_size);
 
   static uint32_t DecodeUTF8(const std::string& str, size_t& i);

@@ -42,12 +42,13 @@ struct CameraComponent {
 
   // Camera parameters
   ProjectionMode projection_mode = ProjectionMode::Perspective;
-  float field_of_view = 60;       // perspective only
-  float ortho_size = 5.0f;        // orthographic only: half-height in world units
+  float field_of_view = 60;  // perspective only
+  float ortho_size = 5.0f;   // orthographic only: half-height in world units
   float near_plane = 0.01f;
   float far_plane = 1000.0f;
   float aspect_ratio = 0.0;
-  glm::vec4 background_color = {0.0f, 0.0f, 0.0f, 1.0f};  // used in ortho mode instead of skybox
+  glm::vec4 background_color = {0.0f, 0.0f, 0.0f,
+                                1.0f};  // used in ortho mode instead of skybox
 
   glm::mat4 view_matrix;
   glm::mat4 projection;
@@ -88,8 +89,10 @@ struct CameraComponent {
 
 struct CameraData {
   CameraData() = default;
+
   CameraData(glm::vec3 position, glm::mat4 view_matrix, glm::mat4 projection)
-      : position(position), view_matrix(view_matrix), projection(projection){}
+      : position(position), view_matrix(view_matrix), projection(projection) {}
+
   CameraData(const CameraData&) = default;
   ~CameraData() = default;
 

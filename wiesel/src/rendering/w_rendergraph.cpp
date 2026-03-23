@@ -11,9 +11,9 @@
 
 #include "rendering/w_rendergraph.hpp"
 #include "rendering/w_deletion_queue.hpp"
+#include "rendering/w_framebuffer.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
-#include "rendering/w_framebuffer.hpp"
 
 #include <algorithm>
 #include <queue>
@@ -43,7 +43,8 @@ VkImageLayout RGAccessToLayout(RGAccess access) {
 
 RenderGraph::RenderGraph(Renderer& renderer) : renderer_(renderer) {
 #ifdef WIESEL_GPU_PROFILING
-  timestamp_period_ = renderer_.GetPhysicalDeviceProperties().limits.timestampPeriod;
+  timestamp_period_ =
+      renderer_.GetPhysicalDeviceProperties().limits.timestampPeriod;
 #endif
 }
 
@@ -54,9 +55,9 @@ RenderGraph::~RenderGraph() {
 #endif
 }
 
-RGResource RenderGraph::ImportTexture(const std::string& name,
-                                      std::shared_ptr<AttachmentTexture> texture,
-                                      VkImageLayout initial_layout) {
+RGResource RenderGraph::ImportTexture(
+    const std::string& name, std::shared_ptr<AttachmentTexture> texture,
+    VkImageLayout initial_layout) {
   RGResource handle;
   handle.index = static_cast<uint32_t>(resources_.size());
 
@@ -150,7 +151,8 @@ void RenderGraph::PassPresents(uint32_t pass, RGResource resource) {
   compiled_ = false;
 }
 
-void RenderGraph::SetPassFramebuffer(uint32_t pass, std::shared_ptr<Framebuffer> fb) {
+void RenderGraph::SetPassFramebuffer(uint32_t pass,
+                                     std::shared_ptr<Framebuffer> fb) {
   passes_[pass].framebuffer_ = fb;
 }
 
@@ -177,8 +179,8 @@ void RenderGraph::Clear() {
   // Defer destruction of old passes, their execute lambdas may capture
   // std::shared_ptr<> resources still referenced by in-flight command buffers.
   if (!passes_.empty()) {
-    auto old_passes = std::make_shared<std::vector<RenderGraphPass>>(
-        std::move(passes_));
+    auto old_passes =
+        std::make_shared<std::vector<RenderGraphPass>>(std::move(passes_));
     renderer_.GetDeletionQueue().Push([old_passes]() {
       // old_passes released here, destroying lambdas and their captures
     });
@@ -203,7 +205,8 @@ void RenderGraph::TopologicalSort() {
 
   // Build adjacency list: for each resource, track which pass writes it
   // and which passes read it. Writers must execute before readers.
-  std::unordered_map<uint32_t, uint32_t> resource_writer;  // resource index -> pass index
+  std::unordered_map<uint32_t, uint32_t>
+      resource_writer;  // resource index -> pass index
   std::vector<std::vector<uint32_t>> adj(pass_count);
   std::vector<uint32_t> in_degree(pass_count, 0);
 
@@ -217,7 +220,9 @@ void RenderGraph::TopologicalSort() {
   // Second pass: create edges from writers to readers
   for (uint32_t i = 0; i < pass_count; i++) {
     for (const auto& input : passes_[i].inputs_) {
-      if (input.skip_dependency) continue;  // External/cross-frame reads
+      if (input.skip_dependency) {
+        continue;  // External/cross-frame reads
+      }
       auto it = resource_writer.find(input.resource.index);
       if (it != resource_writer.end() && it->second != i) {
         adj[it->second].push_back(i);
@@ -251,15 +256,21 @@ void RenderGraph::TopologicalSort() {
   }
 
   if (sorted_order_.size() != pass_count) {
-    LOG_ERROR("RenderGraph: Cycle detected in pass dependencies! "
-              "Sorted {} of {} passes.", sorted_order_.size(), pass_count);
+    LOG_ERROR(
+        "RenderGraph: Cycle detected in pass dependencies! "
+        "Sorted {} of {} passes.",
+        sorted_order_.size(), pass_count);
   }
 }
 
 void RenderGraph::CreateTransientResources() {
   for (auto& resource : resources_) {
-    if (!resource.is_transient) continue;
-    if (resource.texture) continue;  // Already created
+    if (!resource.is_transient) {
+      continue;
+    }
+    if (resource.texture) {
+      continue;  // Already created
+    }
 
     AttachmentTextureProps props;
     props.width = resource.desc.width;
@@ -294,7 +305,9 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
   // Ensure query pool is large enough for all passes (2 timestamps per pass)
   uint32_t enabled_count = 0;
   for (uint32_t idx : sorted_order_) {
-    if (passes_[idx].enabled_) enabled_count++;
+    if (passes_[idx].enabled_) {
+      enabled_count++;
+    }
   }
   uint32_t required_queries = enabled_count * 2;
 
@@ -314,10 +327,8 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     uint32_t num_queries = static_cast<uint32_t>(read_names.size()) * 2;
     std::vector<uint64_t> timestamps(num_queries);
     VkResult result = vkGetQueryPoolResults(
-        renderer_.GetLogicalDevice(), query_pools_[read_frame],
-        0, num_queries,
-        num_queries * sizeof(uint64_t), timestamps.data(),
-        sizeof(uint64_t),
+        renderer_.GetLogicalDevice(), query_pools_[read_frame], 0, num_queries,
+        num_queries * sizeof(uint64_t), timestamps.data(), sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT);
 
     if (result == VK_SUCCESS) {
@@ -325,7 +336,8 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
       for (size_t i = 0; i < read_names.size(); i++) {
         uint64_t begin_ts = timestamps[i * 2];
         uint64_t end_ts = timestamps[i * 2 + 1];
-        gpu_timings_cache[i] = static_cast<float>(end_ts - begin_ts) * timestamp_period_ / 1e6f;
+        gpu_timings_cache[i] =
+            static_cast<float>(end_ts - begin_ts) * timestamp_period_ / 1e6f;
       }
     }
   }
@@ -344,7 +356,9 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
 
   for (uint32_t idx : sorted_order_) {
     auto& pass = passes_[idx];
-    if (!pass.enabled_) continue;
+    if (!pass.enabled_) {
+      continue;
+    }
 
     PROFILE_ZONE_SCOPED_N("RenderPass");
     ZoneText(pass.name_.c_str(), pass.name_.size());
@@ -378,7 +392,8 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     }
 
     auto cpu_end = std::chrono::high_resolution_clock::now();
-    float cpu_ms = std::chrono::duration<float, std::milli>(cpu_end - cpu_start).count();
+    float cpu_ms =
+        std::chrono::duration<float, std::milli>(cpu_end - cpu_start).count();
 
     PassTimingResult timing;
     timing.name = pass.name_;
@@ -406,33 +421,35 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
 #endif
 }
 
-void RenderGraph::TransitionResource(VkCommandBuffer cmd, RGResourceData& resource, VkImageLayout required) {
-  if (resource.current_layout == required) return;
-  if (!resource.texture) return;
+void RenderGraph::TransitionResource(VkCommandBuffer cmd,
+                                     RGResourceData& resource,
+                                     VkImageLayout required) {
+  if (resource.current_layout == required) {
+    return;
+  }
+  if (!resource.texture) {
+    return;
+  }
 
   // Determine layer count from the texture or the desc
   uint32_t layer_count = 1;
   if (resource.is_transient && resource.desc.layer_count > 1) {
     layer_count = resource.desc.layer_count;
-  } else if (!resource.is_transient && !resource.texture->image_views_.empty()) {
+  } else if (!resource.is_transient &&
+             !resource.texture->image_views_.empty()) {
     layer_count = resource.texture->image_views_[0]->layer_count_;
   }
 
   renderer_.TransitionImageLayout(
-      resource.texture->images_[0],
-      resource.texture->format_,
-      resource.current_layout,
-      required,
-      1,
-      cmd,
-      0,
-      layer_count);
+      resource.texture->images_[0], resource.texture->format_,
+      resource.current_layout, required, 1, cmd, 0, layer_count);
 
   resource.current_layout = required;
   resource.texture->current_layout_ = required;
 }
 
-void RenderGraph::InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pass) {
+void RenderGraph::InsertBarriers(VkCommandBuffer cmd,
+                                 const RenderGraphPass& pass) {
   // Transition inputs to their required read layouts
   for (const auto& input : pass.inputs_) {
     auto& resource = resources_[input.resource.index];
@@ -446,7 +463,8 @@ void RenderGraph::InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pas
   for (const auto& output : pass.outputs_) {
     if (output.access == RGAccess::ColorAttachmentWrite) {
       auto& resource = resources_[output.resource.index];
-      TransitionResource(cmd, resource, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+      TransitionResource(cmd, resource,
+                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     } else if (output.access == RGAccess::StorageImageWrite) {
       auto& resource = resources_[output.resource.index];
       TransitionResource(cmd, resource, VK_IMAGE_LAYOUT_GENERAL);
@@ -470,7 +488,8 @@ void RenderGraph::MarkDirty() {
   dirty_ = true;
 }
 
-std::shared_ptr<AttachmentTexture> RenderGraph::GetTexture(RGResource handle) const {
+std::shared_ptr<AttachmentTexture> RenderGraph::GetTexture(
+    RGResource handle) const {
   if (!handle.IsValid() || handle.index >= resources_.size()) {
     return nullptr;
   }
@@ -500,7 +519,9 @@ void RenderGraph::CreateQueryPool() {
 }
 
 void RenderGraph::DestroyQueryPool() {
-  if (!query_pool_created_) return;
+  if (!query_pool_created_) {
+    return;
+  }
   VkDevice device = renderer_.GetLogicalDevice();
   vkDeviceWaitIdle(device);
   for (uint32_t i = 0; i < kTimingFrames; i++) {

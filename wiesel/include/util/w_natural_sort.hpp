@@ -29,8 +29,12 @@ inline bool NaturalLess(const std::string& a, const std::string& b) {
       // Skip leading zeros
       size_t a_start = i;
       size_t b_start = j;
-      while (i < a.size() && std::isdigit(static_cast<unsigned char>(a[i]))) i++;
-      while (j < b.size() && std::isdigit(static_cast<unsigned char>(b[j]))) j++;
+      while (i < a.size() && std::isdigit(static_cast<unsigned char>(a[i]))) {
+        i++;
+      }
+      while (j < b.size() && std::isdigit(static_cast<unsigned char>(b[j]))) {
+        j++;
+      }
 
       size_t a_len = i - a_start;
       size_t b_len = j - b_start;
@@ -46,8 +50,10 @@ inline bool NaturalLess(const std::string& a, const std::string& b) {
       }
     } else {
       // Compare characters case-insensitively
-      char ca = static_cast<char>(std::tolower(static_cast<unsigned char>(a[i])));
-      char cb = static_cast<char>(std::tolower(static_cast<unsigned char>(b[j])));
+      char ca =
+          static_cast<char>(std::tolower(static_cast<unsigned char>(a[i])));
+      char cb =
+          static_cast<char>(std::tolower(static_cast<unsigned char>(b[j])));
       if (ca != cb) {
         return ca < cb;
       }

@@ -53,15 +53,17 @@ void ConsoleLayer::OnBeginPresent() {
   ImGuiIO& io = ImGui::GetIO();
 
   // Set initial size/position only once
-  ImGui::SetNextWindowSizeConstraints(ImVec2(400, 200), ImVec2(FLT_MAX, FLT_MAX));
+  ImGui::SetNextWindowSizeConstraints(ImVec2(400, 200),
+                                      ImVec2(FLT_MAX, FLT_MAX));
   if (!initialized_) {
-    ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.6f, io.DisplaySize.y * 0.4f));
+    ImGui::SetNextWindowSize(
+        ImVec2(io.DisplaySize.x * 0.6f, io.DisplaySize.y * 0.4f));
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.2f, 20.0f));
     initialized_ = true;
   }
 
-  ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings
-      | ImGuiWindowFlags_NoDocking;
+  ImGuiWindowFlags flags =
+      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
 
   ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.12f, 0.92f));
 
@@ -77,8 +79,8 @@ void ConsoleLayer::OnBeginPresent() {
     ImGui::Separator();
 
     // Log output
-    float footer_height = ImGui::GetStyle().ItemSpacing.y
-        + ImGui::GetFrameHeightWithSpacing();
+    float footer_height =
+        ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
     if (ImGui::BeginChild("##ConsoleLog", ImVec2(0, -footer_height),
                           ImGuiChildFlags_None,
                           ImGuiWindowFlags_HorizontalScrollbar)) {
@@ -115,12 +117,15 @@ void ConsoleLayer::OnBeginPresent() {
       std::vector<std::string>* history;
       int* pos;
     };
+
     HistoryData hist_data{&history_, &history_pos_};
 
     auto HistoryCallbackFn = [](ImGuiInputTextCallbackData* data) -> int {
       auto* hd = static_cast<HistoryData*>(data->UserData);
       if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
-        if (hd->history->empty()) return 0;
+        if (hd->history->empty()) {
+          return 0;
+        }
         if (data->EventKey == ImGuiKey_UpArrow) {
           if (*hd->pos == -1) {
             *hd->pos = static_cast<int>(hd->history->size()) - 1;
@@ -135,8 +140,8 @@ void ConsoleLayer::OnBeginPresent() {
             }
           }
         }
-        const char* text = (*hd->pos >= 0)
-            ? (*hd->history)[*hd->pos].c_str() : "";
+        const char* text =
+            (*hd->pos >= 0) ? (*hd->history)[*hd->pos].c_str() : "";
         data->DeleteChars(0, data->BufTextLen);
         data->InsertChars(0, text);
       }
@@ -144,8 +149,8 @@ void ConsoleLayer::OnBeginPresent() {
     };
 
     // Input line
-    ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue
-        | ImGuiInputTextFlags_CallbackHistory;
+    ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue |
+                                      ImGuiInputTextFlags_CallbackHistory;
     ImGui::PushItemWidth(-1);
     if (focus_input_) {
       ImGui::SetKeyboardFocusHere();

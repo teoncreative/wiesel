@@ -41,10 +41,12 @@ class ProjectLoader {
 
   // Utilities (used by editor for import/browser)
   static AssetType ExtToAssetType(const std::string& ext);
+
   struct MetaFileData {
     AssetHandle handle;
     nlohmann::json properties;  // empty if none
   };
+
   static MetaFileData ReadMetaFile(const std::filesystem::path& meta_path);
   static void WriteMetaFile(const std::filesystem::path& meta_path,
                             const AssetHandle& handle,

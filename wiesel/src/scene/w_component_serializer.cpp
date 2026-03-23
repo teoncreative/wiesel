@@ -85,8 +85,7 @@ void ComponentSerializerRegistry::SerializeAll(Entity& entity, json& out) {
   }
 }
 
-void ComponentSerializerRegistry::DeserializeAll(Entity& entity,
-                                                 const json& in,
+void ComponentSerializerRegistry::DeserializeAll(Entity& entity, const json& in,
                                                  Scene* scene) {
   for (auto& desc : Registry()) {
     if (in.contains(desc.json_key)) {
@@ -99,8 +98,7 @@ void ComponentSerializerRegistry::DeserializeAll(Entity& entity,
 // Helper: request async load for all textures referenced by a material
 // ---------------------------------------------------------------------------
 
-static void RequestMaterialTextures(Scene* scene,
-                                    AssetHandle material_handle) {
+static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
   const auto* meta = Engine::asset_manager().GetMetadata(material_handle);
   if (!meta || meta->virtual_source_path.empty()) {
     return;
@@ -129,8 +127,7 @@ static void RequestMaterialTextures(Scene* scene,
         scene->RequestAsset(th);
       }
     }
-  } catch (...) {
-  }
+  } catch (...) {}
 }
 
 // ---------------------------------------------------------------------------
@@ -160,12 +157,10 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& j, Scene* /*scene*/) {
         auto& t = entity.GetComponent<TransformComponent>();
-        t.SetPosition(
-            SerializeUtil::Vec3(j.value("position", json::array())));
-        t.SetRotation(
-            SerializeUtil::Vec3(j.value("rotation", json::array())));
-        t.SetScale(SerializeUtil::Vec3(j.value("scale", json::array()),
-                                       {1, 1, 1}));
+        t.SetPosition(SerializeUtil::Vec3(j.value("position", json::array())));
+        t.SetRotation(SerializeUtil::Vec3(j.value("rotation", json::array())));
+        t.SetScale(
+            SerializeUtil::Vec3(j.value("scale", json::array()), {1, 1, 1}));
         t.SetPivot(SerializeUtil::Vec3(j.value("pivot", json::array())));
       },
   });
@@ -186,10 +181,8 @@ void InitializeComponentSerializers() {
         cam["projection_mode"] = static_cast<int>(c.projection_mode);
         cam["field_of_view"] = c.field_of_view;
         cam["ortho_size"] = c.ortho_size;
-        cam["background_color"] = {c.background_color.r,
-                                   c.background_color.g,
-                                   c.background_color.b,
-                                   c.background_color.a};
+        cam["background_color"] = {c.background_color.r, c.background_color.g,
+                                   c.background_color.b, c.background_color.a};
         cam["near_plane"] = c.near_plane;
         cam["far_plane"] = c.far_plane;
         cam["viewport_size"] = SerializeUtil::Vec2(c.viewport_size);
@@ -248,12 +241,10 @@ void InitializeComponentSerializers() {
           for (size_t i = 0; i < m.material_slot_handles.size(); i++) {
             json slot;
             if (m.material_slot_handles[i].IsValid()) {
-              slot["material_handle"] =
-                  m.material_slot_handles[i].ToString();
+              slot["material_handle"] = m.material_slot_handles[i].ToString();
             }
             // Save material instance overrides
-            if (i < m.material_instances.size() &&
-                m.material_instances[i] &&
+            if (i < m.material_instances.size() && m.material_instances[i] &&
                 !m.material_instances[i]->overrides.empty()) {
               json overrides;
               for (const auto& [key, val] :
@@ -304,7 +295,7 @@ void InitializeComponentSerializers() {
             if (!Engine::asset_manager().HasAsset(handle) &&
                 !asset_path.empty()) {
               Engine::asset_manager().Register(handle, asset_name,
-                                              AssetType::Model, asset_path);
+                                               AssetType::Model, asset_path);
             }
           }
           m.model_handle = handle;
@@ -317,8 +308,7 @@ void InitializeComponentSerializers() {
         m.enable_rendering = mj.value("enable_rendering", true);
 
         // Restore per-slot material handles and overrides
-        if (mj.contains("material_slots") &&
-            mj["material_slots"].is_array()) {
+        if (mj.contains("material_slots") && mj["material_slots"].is_array()) {
           for (size_t i = 0; i < mj["material_slots"].size(); i++) {
             const auto& slot = mj["material_slots"][i];
             // Resize vectors to fit
@@ -338,8 +328,7 @@ void InitializeComponentSerializers() {
             // Restore overrides
             if (slot.contains("overrides")) {
               if (!m.material_instances[i]) {
-                m.material_instances[i] =
-                    std::make_shared<MaterialInstance>();
+                m.material_instances[i] = std::make_shared<MaterialInstance>();
               }
               auto& inst = m.material_instances[i];
               for (auto& [key, val] : slot["overrides"].items()) {
@@ -379,8 +368,8 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& lj, Scene* /*scene*/) {
         auto& l = entity.AddComponent<LightDirectComponent>();
-        l.light_data.base.color = SerializeUtil::Vec3(
-            lj.value("color", json::array()), {1, 1, 1});
+        l.light_data.base.color =
+            SerializeUtil::Vec3(lj.value("color", json::array()), {1, 1, 1});
         l.light_data.base.ambient = lj.value("ambient", 0.2f);
         l.light_data.base.diffuse = lj.value("diffuse", 1.0f);
         l.light_data.base.specular = lj.value("specular", 0.85f);
@@ -414,8 +403,8 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& lj, Scene* /*scene*/) {
         auto& l = entity.AddComponent<LightPointComponent>();
-        l.light_data.base.color = SerializeUtil::Vec3(
-            lj.value("color", json::array()), {1, 1, 1});
+        l.light_data.base.color =
+            SerializeUtil::Vec3(lj.value("color", json::array()), {1, 1, 1});
         l.light_data.base.ambient = lj.value("ambient", 0.2f);
         l.light_data.base.diffuse = lj.value("diffuse", 1.0f);
         l.light_data.base.specular = lj.value("specular", 0.85f);
@@ -493,11 +482,9 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& bcj, Scene* /*scene*/) {
         auto& bc = entity.AddComponent<BoxColliderComponent>();
-        bc.offset =
-            SerializeUtil::Vec3(bcj.value("offset", json::array()));
+        bc.offset = SerializeUtil::Vec3(bcj.value("offset", json::array()));
         bc.half_extents = SerializeUtil::Vec3(
-            bcj.value("half_extents", json::array()),
-            {0.5f, 0.5f, 0.5f});
+            bcj.value("half_extents", json::array()), {0.5f, 0.5f, 0.5f});
         bc.is_trigger = bcj.value("is_trigger", false);
         bc.collision_group = bcj.value("collision_group", 1);
       },
@@ -525,8 +512,7 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& scj, Scene* /*scene*/) {
         auto& sc = entity.AddComponent<SphereColliderComponent>();
-        sc.offset =
-            SerializeUtil::Vec3(scj.value("offset", json::array()));
+        sc.offset = SerializeUtil::Vec3(scj.value("offset", json::array()));
         sc.radius = scj.value("radius", 0.5f);
         sc.is_trigger = scj.value("is_trigger", false);
         sc.collision_group = scj.value("collision_group", 1);
@@ -557,8 +543,7 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& ccj, Scene* /*scene*/) {
         auto& cc = entity.AddComponent<CapsuleColliderComponent>();
-        cc.offset =
-            SerializeUtil::Vec3(ccj.value("offset", json::array()));
+        cc.offset = SerializeUtil::Vec3(ccj.value("offset", json::array()));
         cc.radius = ccj.value("radius", 0.3f);
         cc.height = ccj.value("height", 1.0f);
         cc.axis = static_cast<CapsuleAxis>(ccj.value("axis", 1));
@@ -612,9 +597,8 @@ void InitializeComponentSerializers() {
                 MonoObject* prefab_obj =
                     field_data.Get<MonoObject*>(instance->handle());
                 if (prefab_obj) {
-                  MonoClassField* path_field =
-                      mono_class_get_field_from_name(
-                          Engine::script_manager().prefab_class(), "path");
+                  MonoClassField* path_field = mono_class_get_field_from_name(
+                      Engine::script_manager().prefab_class(), "path");
                   if (path_field) {
                     MonoString* path_str = nullptr;
                     mono_field_get_value(prefab_obj, path_field, &path_str);
@@ -634,10 +618,8 @@ void InitializeComponentSerializers() {
                 MonoObject* entity_obj =
                     field_data.Get<MonoObject*>(instance->handle());
                 if (entity_obj) {
-                  MonoClassField* id_field =
-                      mono_class_get_field_from_name(
-                          Engine::script_manager().entity_class(),
-                          "entityId");
+                  MonoClassField* id_field = mono_class_get_field_from_name(
+                      Engine::script_manager().entity_class(), "entityId");
                   if (id_field) {
                     uint64_t id_val = 0;
                     mono_field_get_value(entity_obj, id_field, &id_val);
@@ -647,8 +629,7 @@ void InitializeComponentSerializers() {
                       json ej;
                       ej["type"] = "Entity";
                       ej["uuid"] =
-                          scene->GetComponent<IdComponent>(ent)
-                              .Id.ToString();
+                          scene->GetComponent<IdComponent>(ent).Id.ToString();
                       fields_json[field_name] = ej;
                     }
                   }
@@ -704,8 +685,7 @@ void InitializeComponentSerializers() {
             continue;  // native behaviors don't have C# field serialization
           }
 
-          auto& mono_beh =
-              bc.AddBehavior<MonoBehavior>(entity, script_name);
+          auto& mono_beh = bc.AddBehavior<MonoBehavior>(entity, script_name);
 
           // Restore field values
           if (!fields_json.empty() && !mono_beh.script_instance()) {
@@ -737,25 +717,23 @@ void InitializeComponentSerializers() {
                 field_data.Set(instance->handle(), &v);
               } else if (field_data.field_type() == FieldType::String &&
                          val.is_string()) {
-                MonoString* str = mono_string_new(
-                    Engine::script_manager().app_domain(),
-                    val.get<std::string>().c_str());
+                MonoString* str =
+                    mono_string_new(Engine::script_manager().app_domain(),
+                                    val.get<std::string>().c_str());
                 field_data.Set(instance->handle(), str);
               } else if (field_data.field_type() == FieldType::Prefab &&
                          val.is_object()) {
                 std::string path = val.value("path", "");
                 if (!path.empty()) {
-                  MonoObject* prefab = mono_object_new(
-                      Engine::script_manager().app_domain(),
-                      Engine::script_manager().prefab_class());
+                  MonoObject* prefab =
+                      mono_object_new(Engine::script_manager().app_domain(),
+                                      Engine::script_manager().prefab_class());
                   mono_runtime_object_init(prefab);
-                  MonoClassField* path_field =
-                      mono_class_get_field_from_name(
-                          Engine::script_manager().prefab_class(), "path");
+                  MonoClassField* path_field = mono_class_get_field_from_name(
+                      Engine::script_manager().prefab_class(), "path");
                   if (path_field) {
                     MonoString* path_val = mono_string_new(
-                        Engine::script_manager().app_domain(),
-                        path.c_str());
+                        Engine::script_manager().app_domain(), path.c_str());
                     mono_field_set_value(prefab, path_field, path_val);
                   }
                   field_data.Set(instance->handle(), prefab);
@@ -771,10 +749,8 @@ void InitializeComponentSerializers() {
                         Engine::script_manager().app_domain(),
                         Engine::script_manager().entity_class());
                     MonoMethod* ctor = mono_class_get_method_from_name(
-                        Engine::script_manager().entity_class(), ".ctor",
-                        2);
-                    uint64_t scene_ptr =
-                        reinterpret_cast<uint64_t>(scene);
+                        Engine::script_manager().entity_class(), ".ctor", 2);
+                    uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
                     uint64_t entity_id = static_cast<uint64_t>(ent);
                     void* args[2] = {&scene_ptr, &entity_id};
                     mono_runtime_invoke(ctor, entity_obj, args, nullptr);
@@ -813,8 +789,7 @@ void InitializeComponentSerializers() {
                           rt.padding.w};
         if (rt.margin.x != 0 || rt.margin.y != 0 || rt.margin.z != 0 ||
             rt.margin.w != 0) {
-          rtj["margin"] = {rt.margin.x, rt.margin.y, rt.margin.z,
-                           rt.margin.w};
+          rtj["margin"] = {rt.margin.x, rt.margin.y, rt.margin.z, rt.margin.w};
         }
         return rtj;
       },
@@ -823,28 +798,25 @@ void InitializeComponentSerializers() {
         auto& rt = entity.HasComponent<RectangleTransformComponent>()
                        ? entity.GetComponent<RectangleTransformComponent>()
                        : entity.AddComponent<RectangleTransformComponent>();
-        rt.position =
-            SerializeUtil::Vec2(rtj.value("position", json::array()));
+        rt.position = SerializeUtil::Vec2(rtj.value("position", json::array()));
         rt.rotation = rtj.value("rotation", 0.0f);
-        rt.size = SerializeUtil::Vec2(rtj.value("size", json::array()),
-                                      {100, 100});
-        rt.scale = SerializeUtil::Vec2(rtj.value("scale", json::array()),
-                                       {1, 1});
+        rt.size =
+            SerializeUtil::Vec2(rtj.value("size", json::array()), {100, 100});
+        rt.scale =
+            SerializeUtil::Vec2(rtj.value("scale", json::array()), {1, 1});
         rt.anchor = static_cast<AnchorPreset>(rtj.value("anchor", 0));
         rt.pivot = static_cast<AnchorPreset>(rtj.value("pivot", 0));
-        rt.size_mode_x =
-            static_cast<SizeMode>(rtj.value("size_mode_x", 0));
-        rt.size_mode_y =
-            static_cast<SizeMode>(rtj.value("size_mode_y", 0));
+        rt.size_mode_x = static_cast<SizeMode>(rtj.value("size_mode_x", 0));
+        rt.size_mode_y = static_cast<SizeMode>(rtj.value("size_mode_y", 0));
         if (rtj.contains("padding") && rtj["padding"].is_array() &&
             rtj["padding"].size() >= 4) {
-          rt.padding = {rtj["padding"][0], rtj["padding"][1],
-                        rtj["padding"][2], rtj["padding"][3]};
+          rt.padding = {rtj["padding"][0], rtj["padding"][1], rtj["padding"][2],
+                        rtj["padding"][3]};
         }
         if (rtj.contains("margin") && rtj["margin"].is_array() &&
             rtj["margin"].size() >= 4) {
-          rt.margin = {rtj["margin"][0], rtj["margin"][1],
-                       rtj["margin"][2], rtj["margin"][3]};
+          rt.margin = {rtj["margin"][0], rtj["margin"][1], rtj["margin"][2],
+                       rtj["margin"][3]};
         }
       },
   });
@@ -875,8 +847,8 @@ void InitializeComponentSerializers() {
           if (c.camera_entity != entt::null) {
             Scene* s = entity.GetScene();
             if (s && s->HasComponent<IdComponent>(c.camera_entity)) {
-              cj["camera_uuid"] = s->GetComponent<IdComponent>(
-                  c.camera_entity).Id.ToString();
+              cj["camera_uuid"] =
+                  s->GetComponent<IdComponent>(c.camera_entity).Id.ToString();
             }
           }
         }
@@ -887,20 +859,20 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& cj, Scene* scene) {
         auto& c = entity.AddComponent<CanvasComponent>();
-        c.render_mode =
-            static_cast<CanvasRenderMode>(cj.value("render_mode",
-                cj.value("type", 0)));  // fallback to old "type" field
-        c.direction =
-            static_cast<LayoutDirection>(cj.value("direction", 0));
-        c.alignment =
-            static_cast<ChildAlignment>(cj.value("alignment", 0));
+        c.render_mode = static_cast<CanvasRenderMode>(
+            cj.value("render_mode",
+                     cj.value("type", 0)));  // fallback to old "type" field
+        c.direction = static_cast<LayoutDirection>(cj.value("direction", 0));
+        c.alignment = static_cast<ChildAlignment>(cj.value("alignment", 0));
         c.spacing = cj.value("spacing", 0.0f);
         c.start_spacing = cj.value("start_spacing", 0.0f);
         c.end_spacing = cj.value("end_spacing", 0.0f);
         c.sort_order = cj.value("sort_order", 0);
         c.plane_distance = cj.value("plane_distance", 10.0f);
-        if (cj.contains("camera_uuid") && cj["camera_uuid"].is_string() && scene) {
-          UUID cam_uuid = UUID::FromString(cj["camera_uuid"].get<std::string>());
+        if (cj.contains("camera_uuid") && cj["camera_uuid"].is_string() &&
+            scene) {
+          UUID cam_uuid =
+              UUID::FromString(cj["camera_uuid"].get<std::string>());
           c.camera_entity = scene->FindEntityByUUID(cam_uuid);
         }
         // pixels_per_unit moved to CanvasScalerComponent
@@ -930,16 +902,14 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& csj, Scene* /*scene*/) {
         auto& cs = entity.AddComponent<CanvasScalerComponent>();
-        cs.scale_mode =
-            static_cast<ScaleMode>(csj.value("scale_mode", 0));
+        cs.scale_mode = static_cast<ScaleMode>(csj.value("scale_mode", 0));
         if (csj.contains("reference_resolution") &&
             csj["reference_resolution"].is_array() &&
             csj["reference_resolution"].size() >= 2) {
           cs.reference_resolution = {csj["reference_resolution"][0],
                                      csj["reference_resolution"][1]};
         }
-        cs.match_width_or_height =
-            csj.value("match_width_or_height", 0.5f);
+        cs.match_width_or_height = csj.value("match_width_or_height", 0.5f);
         cs.reference_pixels_per_unit =
             csj.value("reference_pixels_per_unit", 100.0f);
       },
@@ -1000,8 +970,8 @@ void InitializeComponentSerializers() {
         }
         if (cij.contains("uv_rect") && cij["uv_rect"].is_array() &&
             cij["uv_rect"].size() >= 4) {
-          ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1],
-                        cij["uv_rect"][2], cij["uv_rect"][3]};
+          ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1], cij["uv_rect"][2],
+                        cij["uv_rect"][3]};
         }
       },
   });
@@ -1038,8 +1008,8 @@ void InitializeComponentSerializers() {
         auto& t = entity.AddComponent<TextComponent>();
         t.text = tj.value("text", "");
         if (tj.contains("font_handle") && tj["font_handle"].is_string()) {
-          t.font_handle = AssetHandle::FromString(
-              tj["font_handle"].get<std::string>());
+          t.font_handle =
+              AssetHandle::FromString(tj["font_handle"].get<std::string>());
           if (scene) {
             scene->RequestAsset(t.font_handle);
           }
@@ -1080,10 +1050,9 @@ void InitializeComponentSerializers() {
         tij["max_length"] = ti.max_length;
         tij["cursor_color"] = {ti.cursor_color.x, ti.cursor_color.y,
                                ti.cursor_color.z, ti.cursor_color.w};
-        tij["placeholder_color"] = {ti.placeholder_color.x,
-                                    ti.placeholder_color.y,
-                                    ti.placeholder_color.z,
-                                    ti.placeholder_color.w};
+        tij["placeholder_color"] = {
+            ti.placeholder_color.x, ti.placeholder_color.y,
+            ti.placeholder_color.z, ti.placeholder_color.w};
         return tij;
       },
       // Deserialize
@@ -1092,21 +1061,17 @@ void InitializeComponentSerializers() {
         ti.text = tij.value("text", "");
         ti.placeholder = tij.value("placeholder", "Enter text...");
         ti.max_length = tij.value("max_length", 0);
-        if (tij.contains("cursor_color") &&
-            tij["cursor_color"].is_array() &&
+        if (tij.contains("cursor_color") && tij["cursor_color"].is_array() &&
             tij["cursor_color"].size() >= 4) {
-          ti.cursor_color = {tij["cursor_color"][0],
-                             tij["cursor_color"][1],
-                             tij["cursor_color"][2],
-                             tij["cursor_color"][3]};
+          ti.cursor_color = {tij["cursor_color"][0], tij["cursor_color"][1],
+                             tij["cursor_color"][2], tij["cursor_color"][3]};
         }
         if (tij.contains("placeholder_color") &&
             tij["placeholder_color"].is_array() &&
             tij["placeholder_color"].size() >= 4) {
-          ti.placeholder_color = {tij["placeholder_color"][0],
-                                  tij["placeholder_color"][1],
-                                  tij["placeholder_color"][2],
-                                  tij["placeholder_color"][3]};
+          ti.placeholder_color = {
+              tij["placeholder_color"][0], tij["placeholder_color"][1],
+              tij["placeholder_color"][2], tij["placeholder_color"][3]};
         }
       },
   });
@@ -1208,10 +1173,8 @@ void InitializeComponentSerializers() {
                                btn.hovered_color.b, btn.hovered_color.a};
         bj["pressed_color"] = {btn.pressed_color.r, btn.pressed_color.g,
                                btn.pressed_color.b, btn.pressed_color.a};
-        bj["disabled_color"] = {btn.disabled_color.r,
-                                btn.disabled_color.g,
-                                btn.disabled_color.b,
-                                btn.disabled_color.a};
+        bj["disabled_color"] = {btn.disabled_color.r, btn.disabled_color.g,
+                                btn.disabled_color.b, btn.disabled_color.a};
         if (btn.normal_texture.IsValid()) {
           bj["normal_texture"] = btn.normal_texture.ToString();
         }
@@ -1237,14 +1200,12 @@ void InitializeComponentSerializers() {
         auto& btn = entity.AddComponent<ButtonComponent>();
         auto load_color = [](const json& j, const std::string& key,
                              glm::vec4 def) -> glm::vec4 {
-          if (j.contains(key) && j[key].is_array() &&
-              j[key].size() >= 4) {
+          if (j.contains(key) && j[key].is_array() && j[key].size() >= 4) {
             return {j[key][0], j[key][1], j[key][2], j[key][3]};
           }
           return def;
         };
-        btn.normal_color =
-            load_color(bj, "normal_color", {1, 1, 1, 1});
+        btn.normal_color = load_color(bj, "normal_color", {1, 1, 1, 1});
         btn.hovered_color =
             load_color(bj, "hovered_color", {0.9f, 0.9f, 0.9f, 1});
         btn.pressed_color =
@@ -1336,8 +1297,7 @@ void InitializeComponentSerializers() {
         // State machine controller
         if (!s.state_machine.controller.IsEmpty()) {
           json ctrl;
-          ctrl["default_state"] =
-              s.state_machine.controller.default_state;
+          ctrl["default_state"] = s.state_machine.controller.default_state;
 
           json states_arr = json::array();
           for (auto& state : s.state_machine.controller.states) {
@@ -1430,16 +1390,13 @@ void InitializeComponentSerializers() {
         }
 
         // State machine controller
-        if (sj.contains("controller") &&
-            sj["controller"].is_object()) {
+        if (sj.contains("controller") && sj["controller"].is_object()) {
           auto& ctrl_json = sj["controller"];
           auto& ctrl = s.state_machine.controller;
 
-          ctrl.default_state =
-              ctrl_json.value("default_state", "");
+          ctrl.default_state = ctrl_json.value("default_state", "");
 
-          if (ctrl_json.contains("states") &&
-              ctrl_json["states"].is_array()) {
+          if (ctrl_json.contains("states") && ctrl_json["states"].is_array()) {
             for (auto& st : ctrl_json["states"]) {
               AnimationState state;
               state.name = st.value("name", "");
@@ -1460,15 +1417,13 @@ void InitializeComponentSerializers() {
               trans.to_state = tj.value("to", "");
               trans.blend_duration = tj.value("blend", 0.0f);
 
-              if (tj.contains("conditions") &&
-                  tj["conditions"].is_array()) {
+              if (tj.contains("conditions") && tj["conditions"].is_array()) {
                 for (auto& condj : tj["conditions"]) {
                   TransitionCondition cond;
                   cond.param_name = condj.value("param", "");
-                  cond.op = static_cast<ConditionOp>(
-                      condj.value("op", 0));
-                  cond.param_type = static_cast<AnimParamType>(
-                      condj.value("type", 0));
+                  cond.op = static_cast<ConditionOp>(condj.value("op", 0));
+                  cond.param_type =
+                      static_cast<AnimParamType>(condj.value("type", 0));
 
                   if (cond.param_type == AnimParamType::Float) {
                     cond.value.f = condj.value("value", 0.0f);

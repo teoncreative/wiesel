@@ -27,9 +27,13 @@ Texture::Texture(TextureType texture_type, const std::string& path)
 }
 
 Texture::~Texture() {
-  if (!is_allocated_) return;
+  if (!is_allocated_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   VkImage image = image_;
   VkDeviceMemory memory = device_memory_;
@@ -42,35 +46,43 @@ Texture::~Texture() {
   device_memory_ = VK_NULL_HANDLE;
   imgui_descriptor_ = nullptr;
 
-  renderer->GetDeletionQueue().Push([renderer, image, memory, imgui_desc,
-                                     sampler, image_view]() {
-    VkDevice device = renderer->GetLogicalDevice();
-    if (imgui_desc) {
-      ImGui_ImplVulkan_RemoveTexture(imgui_desc);
-    }
-    // sampler and image_view shared_ptrs release here, triggering their destructors
-    if (image) {
-      vkDestroyImage(device, image, nullptr);
-    }
-    if (memory) {
-      vkFreeMemory(device, memory, nullptr);
-    }
-  });
+  renderer->GetDeletionQueue().Push(
+      [renderer, image, memory, imgui_desc, sampler, image_view]() {
+        VkDevice device = renderer->GetLogicalDevice();
+        if (imgui_desc) {
+          ImGui_ImplVulkan_RemoveTexture(imgui_desc);
+        }
+        // sampler and image_view shared_ptrs release here, triggering their destructors
+        if (image) {
+          vkDestroyImage(device, image, nullptr);
+        }
+        if (memory) {
+          vkFreeMemory(device, memory, nullptr);
+        }
+      });
 }
 
 VkDescriptorSet Texture::GetImGuiDescriptor() {
-  if (imgui_descriptor_) return imgui_descriptor_;
-  if (!is_allocated_ || !image_view_ || !sampler_) return nullptr;
-  imgui_descriptor_ = ImGui_ImplVulkan_AddTexture(
-      sampler_->handle(), image_view_->handle_,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  if (imgui_descriptor_) {
+    return imgui_descriptor_;
+  }
+  if (!is_allocated_ || !image_view_ || !sampler_) {
+    return nullptr;
+  }
+  imgui_descriptor_ =
+      ImGui_ImplVulkan_AddTexture(sampler_->handle(), image_view_->handle_,
+                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   return imgui_descriptor_;
 }
 
 AttachmentTexture::~AttachmentTexture() {
-  if (!is_allocated_) return;
+  if (!is_allocated_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   // image_views_ contains shared_ptr<ImageView> which self-defer
   auto views = std::move(image_views_);
@@ -79,26 +91,31 @@ AttachmentTexture::~AttachmentTexture() {
   auto type = type_;
   is_allocated_ = false;
 
-  renderer->GetDeletionQueue().Push([renderer, views, images, memories, type]() {
-    VkDevice device = renderer->GetLogicalDevice();
-    // views will be destroyed when this lambda's captures are freed,
-    // triggering ImageView::~ImageView which also defers - but that's fine,
-    // the inner defer will execute next flush.
-    if (type != AttachmentTextureType::SwapChain) {
-      for (VkImage image : images) {
-        vkDestroyImage(device, image, nullptr);
-      }
-      for (VkDeviceMemory memory : memories) {
-        vkFreeMemory(device, memory, nullptr);
-      }
-    }
-  });
+  renderer->GetDeletionQueue().Push(
+      [renderer, views, images, memories, type]() {
+        VkDevice device = renderer->GetLogicalDevice();
+        // views will be destroyed when this lambda's captures are freed,
+        // triggering ImageView::~ImageView which also defers - but that's fine,
+        // the inner defer will execute next flush.
+        if (type != AttachmentTextureType::SwapChain) {
+          for (VkImage image : images) {
+            vkDestroyImage(device, image, nullptr);
+          }
+          for (VkDeviceMemory memory : memories) {
+            vkFreeMemory(device, memory, nullptr);
+          }
+        }
+      });
 }
 
 ImageView::~ImageView() {
-  if (!handle_) return;
+  if (!handle_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   VkImageView view = handle_;
   handle_ = VK_NULL_HANDLE;

@@ -153,7 +153,6 @@ enum TextureType {
   TextureTypeTransmission = 21
 };
 
-
 struct TextureProps {
   TextureType type = TextureTypeDiffuse;
   bool generate_mipmaps = true;

@@ -24,6 +24,7 @@ class FXAAFeature : public RenderFeature {
   explicit FXAAFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
+
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;

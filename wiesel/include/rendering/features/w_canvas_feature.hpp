@@ -41,7 +41,8 @@ struct PerCanvasResources {
   std::shared_ptr<AttachmentTexture> texture;
   std::shared_ptr<AttachmentTexture> entity_id_texture;
   std::shared_ptr<Framebuffer> framebuffer;
-  std::shared_ptr<DescriptorSet> output_descriptor;  // for sampling in 3D quad pass
+  std::shared_ptr<DescriptorSet>
+      output_descriptor;  // for sampling in 3D quad pass
   uint32_t width = 0;
   uint32_t height = 0;
 };
@@ -51,6 +52,7 @@ class CanvasFeature : public RenderFeature {
   explicit CanvasFeature(std::shared_ptr<Renderer> renderer);
 
   const std::string& GetName() const override { return name_; }
+
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
@@ -58,6 +60,7 @@ class CanvasFeature : public RenderFeature {
   std::shared_ptr<DescriptorSetLayout> GetElementLayout() const {
     return canvas_element_layout_;
   }
+
   std::shared_ptr<DescriptorSetLayout> GetTexturedLayout() const {
     return canvas_textured_layout_;
   }

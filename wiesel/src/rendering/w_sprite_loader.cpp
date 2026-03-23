@@ -27,7 +27,9 @@ static std::string ResolveAssetPath(const std::string& ref) {
     AssetHandle h = AssetHandle::FromString(ref);
     if (h.IsValid()) {
       const auto* meta = Engine::asset_manager().GetMetadata(h);
-      if (meta) return meta->virtual_source_path;
+      if (meta) {
+        return meta->virtual_source_path;
+      }
     }
   }
   // Otherwise treat as VFS path
@@ -36,10 +38,14 @@ static std::string ResolveAssetPath(const std::string& ref) {
 
 static nlohmann::json LoadJsonAsset(const AssetHandle& handle) {
   const auto* meta = Engine::asset_manager().GetMetadata(handle);
-  if (!meta) return {};
+  if (!meta) {
+    return {};
+  }
 
   VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
-  if (!file) return {};
+  if (!file) {
+    return {};
+  }
 
   try {
     std::string content((std::istreambuf_iterator<char>(file.Stream())),
@@ -53,7 +59,9 @@ static nlohmann::json LoadJsonAsset(const AssetHandle& handle) {
 
 std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
   auto j = LoadJsonAsset(handle);
-  if (j.is_null()) return nullptr;
+  if (j.is_null()) {
+    return nullptr;
+  }
 
   // Check if it's multi-image ("textures" array) or single-image ("texture" string)
   bool is_multi = j.contains("textures") && j["textures"].is_array();
@@ -95,7 +103,8 @@ std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
     }
 
     auto cell_size_arr = j.value("cell_size", nlohmann::json::array({64, 64}));
-    glm::ivec2 cell_size(cell_size_arr[0].get<int>(), cell_size_arr[1].get<int>());
+    glm::ivec2 cell_size(cell_size_arr[0].get<int>(),
+                         cell_size_arr[1].get<int>());
     int frame_count = j.value("frame_count", 0);
 
     VfsFile tex_file = Engine::vfs()->Open(texture_path);
@@ -105,8 +114,8 @@ std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
     }
     int tex_w, tex_h, tex_ch;
     stbi_uc* pixels = stbi_load_from_memory(
-        tex_file.Data(), static_cast<int>(tex_file.Size()),
-        &tex_w, &tex_h, &tex_ch, STBI_rgb_alpha);
+        tex_file.Data(), static_cast<int>(tex_file.Size()), &tex_w, &tex_h,
+        &tex_ch, STBI_rgb_alpha);
     if (!pixels) {
       LOG_ERROR("SpriteSheet: failed to load texture: {}", texture_path);
       return nullptr;
@@ -126,7 +135,8 @@ std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
 
   if (asset) {
     Engine::asset_manager().Store<SpriteAsset>(handle, asset);
-    Engine::asset_manager().SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+    Engine::asset_manager().SetLoadState(handle, AssetLoadState::Unloaded,
+                                         AssetLoadState::Loaded);
     LOG_INFO("Loaded sprite sheet: {} frames", asset->GetFrames().size());
   }
   return asset;
@@ -134,7 +144,9 @@ std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
 
 bool LoadSpriteAnim(const AssetHandle& handle, SpriteComponent& out) {
   auto j = LoadJsonAsset(handle);
-  if (j.is_null()) return false;
+  if (j.is_null()) {
+    return false;
+  }
 
   // Load the referenced sprite sheet
   std::string sheet_ref = j.value("sprite_sheet", "");
@@ -266,8 +278,8 @@ bool LoadSpriteAnim(const AssetHandle& handle, SpriteComponent& out) {
     out.Play(out.clips[0].name);
   }
 
-  LOG_INFO("Loaded sprite anim: {} clips, {} states",
-           out.clips.size(), out.state_machine.controller.states.size());
+  LOG_INFO("Loaded sprite anim: {} clips, {} states", out.clips.size(),
+           out.state_machine.controller.states.size());
   return true;
 }
 

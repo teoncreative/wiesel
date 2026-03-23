@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_taa_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -21,11 +21,10 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
   render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                             "PostProcess RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+                                              "PostProcess RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   auto fullscreen_vert = renderer_->CreateShader(
@@ -33,9 +32,9 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
        "/engine/shaders/fullscreen_shader.vert"});
 
   // TAA pipeline (3 inputs: current frame, history, depth)
-  auto taa_frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/taa.frag"});
+  auto taa_frag =
+      renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
+                               ShaderSourceSource, "/engine/shaders/taa.frag"});
   taa_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   taa_pipeline_->SetRenderPass(render_pass_);
@@ -71,28 +70,29 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
 
   // Textures
   pool.SetTexture("taa.output", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+                                    {rw, rh, AttachmentTextureType::Offscreen,
+                                     1, renderer.GetSwapChainImageFormat(),
+                                     SamplingMode::DISABLED, true}));
 
   // TAA history persists across frames; only create if not already present
   if (!pool.HasTexture("taa.history")) {
-    pool.SetTexture("taa.history", renderer.CreateAttachmentTexture(
-        {rw, rh, AttachmentTextureType::Offscreen, 1,
-         renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+    pool.SetTexture("taa.history",
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Offscreen, 1,
+                         renderer.GetSwapChainImageFormat(),
+                         SamplingMode::DISABLED, true}));
   }
 
   // Framebuffers
   {
-    std::array<AttachmentTexture*, 1> att{
-        pool.GetTexture("taa.output").get()};
+    std::array<AttachmentTexture*, 1> att{pool.GetTexture("taa.output").get()};
     pool.SetFramebuffer("taa",
-        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
+                        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
   }
   {
-    std::array<AttachmentTexture*, 1> att{
-        pool.GetTexture("taa.history").get()};
+    std::array<AttachmentTexture*, 1> att{pool.GetTexture("taa.history").get()};
     pool.SetFramebuffer("taa.history",
-        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
+                        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
   }
 
   // Descriptors
@@ -135,8 +135,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("PipelineOutputDescriptor", taa_output_desc);
 }
 
-void TAAFeature::AddPasses(RenderGraph& graph,
-                           RenderResourceRegistry& registry,
+void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                            RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("TAAFeature::AddPasses");
   auto* pool = &ctx.resources;
@@ -155,12 +154,11 @@ void TAAFeature::AddPasses(RenderGraph& graph,
   // TAA pass
   auto taa_pipeline = taa_pipeline_;
   uint32_t taa_pass = graph.AddPass(
-      "TAA", render_pass_,
-      [pool, renderer, taa_pipeline](VkCommandBuffer) {
+      "TAA", render_pass_, [pool, renderer, taa_pipeline](VkCommandBuffer) {
         taa_pipeline->Bind(PipelineBindPointGraphics);
         renderer->DrawFullscreen(taa_pipeline,
-            {pool->GetDescriptor("taa.input"),
-             pool->GetDescriptor("GlobalDescriptor")});
+                                 {pool->GetDescriptor("taa.input"),
+                                  pool->GetDescriptor("GlobalDescriptor")});
       });
 
   graph.PassReadsTexture(taa_pass, pipeline_input);
@@ -180,7 +178,7 @@ void TAAFeature::AddPasses(RenderGraph& graph,
       [pool, renderer, copy_pipeline](VkCommandBuffer) {
         copy_pipeline->Bind(PipelineBindPointGraphics);
         renderer->DrawFullscreen(copy_pipeline,
-            {pool->GetDescriptor("taa.copy_input")});
+                                 {pool->GetDescriptor("taa.copy_input")});
       });
 
   graph.PassReadsTexture(taa_copy, taa_out);

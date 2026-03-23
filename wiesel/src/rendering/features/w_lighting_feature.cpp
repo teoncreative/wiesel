@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_lighting_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -21,16 +21,14 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass (1 color + optional resolve for MSAA)
   render_pass_ = std::make_shared<RenderPass>(PassType::Lighting,
-                                             "Deferred Lightning RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = renderer_->options().msaa_mode});
+                                              "Deferred Lightning RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = renderer_->options().msaa_mode});
   if (renderer_->options().msaa_mode > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = renderer_->GetSwapChainImageFormat(),
-         .msaa_mode = SamplingMode::DISABLED});
+    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                .format = renderer_->GetSwapChainImageFormat(),
+                                .msaa_mode = SamplingMode::DISABLED});
   }
   render_pass_->Bake();
 
@@ -40,9 +38,9 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
   auto skybox_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/skybox_shader.frag"});
-  skybox_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      renderer_->options().msaa_mode, CullModeFront, false, false, true,
-      false});
+  skybox_pipeline_ = std::make_shared<Pipeline>(
+      PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+                         false, true, false});
   skybox_pipeline_->SetRenderPass(render_pass_);
   skybox_pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
   skybox_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
@@ -58,8 +56,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/lighting_shader.frag"});
   lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      renderer_->options().msaa_mode, CullModeFront, false, true, true,
-      false});
+      renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
   lighting_pipeline_->SetRenderPass(render_pass_);
   lighting_pipeline_->AddInputLayout(
       renderer_->GetGeometryOutputDescriptorLayout());
@@ -73,20 +70,22 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
 
   // RT shadow variant: same pipeline but with USE_RT_SHADOWS define and extra descriptor set
   if (renderer_->IsRayTracingSupported()) {
-    auto rt_lighting_frag = renderer_->CreateShader(
-        {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-         "/engine/shaders/lighting_shader.frag",
-         {"USE_RT_SHADOWS"}});
+    auto rt_lighting_frag =
+        renderer_->CreateShader({ShaderTypeFragment,
+                                 ShaderLangGLSL,
+                                 "main",
+                                 ShaderSourceSource,
+                                 "/engine/shaders/lighting_shader.frag",
+                                 {"USE_RT_SHADOWS"}});
 
     rt_shadow_desc_layout_ = std::make_shared<DescriptorSetLayout>();
-    rt_shadow_desc_layout_->AddBinding(
-        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-        VK_SHADER_STAGE_FRAGMENT_BIT);
+    rt_shadow_desc_layout_->AddBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                       VK_SHADER_STAGE_FRAGMENT_BIT);
     rt_shadow_desc_layout_->Bake();
 
-    rt_lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-        renderer_->options().msaa_mode, CullModeFront, false, true, true,
-        false});
+    rt_lighting_pipeline_ = std::make_shared<Pipeline>(
+        PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+                           true, true, false});
     rt_lighting_pipeline_->SetRenderPass(render_pass_);
     rt_lighting_pipeline_->AddInputLayout(
         renderer_->GetGeometryOutputDescriptorLayout());
@@ -111,23 +110,24 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
   bool use_msaa = msaa > SamplingMode::DISABLED;
 
   // Textures
-  pool.SetTexture("lighting.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), msaa,
-       msaa == SamplingMode::DISABLED}));
+  pool.SetTexture("lighting.color",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       renderer.GetSwapChainImageFormat(), msaa,
+                       msaa == SamplingMode::DISABLED}));
 
   if (use_msaa) {
     pool.SetTexture("lighting.color_resolve",
-        renderer.CreateAttachmentTexture(
-            {rw, rh, AttachmentTextureType::Resolve, 1,
-             renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED,
-             true}));
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Resolve, 1,
+                         renderer.GetSwapChainImageFormat(),
+                         SamplingMode::DISABLED, true}));
 
     std::array<AttachmentTexture*, 2> textures{
         pool.GetTexture("lighting.color").get(),
         pool.GetTexture("lighting.color_resolve").get()};
     pool.SetFramebuffer("lighting",
-        render_pass_->CreateFramebuffer(0, textures, {rw, rh}));
+                        render_pass_->CreateFramebuffer(0, textures, {rw, rh}));
   } else {
     pool.SetTexture("lighting.color_resolve",
                     pool.GetTexture("lighting.color"));
@@ -135,7 +135,7 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
     std::array<AttachmentTexture*, 1> textures{
         pool.GetTexture("lighting.color").get()};
     pool.SetFramebuffer("lighting",
-        render_pass_->CreateFramebuffer(0, textures, {rw, rh}));
+                        render_pass_->CreateFramebuffer(0, textures, {rw, rh}));
   }
 
   // Descriptors
@@ -172,8 +172,7 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   std::shared_ptr<AttachmentTexture> lighting_tex =
       use_resolve ? pool->GetTexture("lighting.color_resolve")
                   : pool->GetTexture("lighting.color");
-  RGResource lighting_out =
-      graph.ImportTexture("LightingOut", lighting_tex);
+  RGResource lighting_out = graph.ImportTexture("LightingOut", lighting_tex);
 
   // Get references to geometry and SSAO outputs from the registry
   RGResource geo_view_pos = registry.Get("GeoViewPos");
@@ -185,11 +184,10 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   RGResource shadow_depth = registry.Get("ShadowDepth");
 
   // Check if RT shadow mask is available and shadows are enabled
-  bool use_rt_shadows = renderer_->options().shadows_enabled
-                        && renderer_->options().rt_shadows_enabled
-                        && registry.Has("RTShadowMask")
-                        && rt_lighting_pipeline_
-                        && pool->HasDescriptor("lighting.rt_shadow");
+  bool use_rt_shadows = renderer_->options().shadows_enabled &&
+                        renderer_->options().rt_shadows_enabled &&
+                        registry.Has("RTShadowMask") && rt_lighting_pipeline_ &&
+                        pool->HasDescriptor("lighting.rt_shadow");
   RGResource rt_shadow_mask;
   if (use_rt_shadows) {
     rt_shadow_mask = registry.Get("RTShadowMask");
@@ -202,8 +200,8 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   bool is_ortho = ctx.camera.projection_mode == ProjectionMode::Orthographic;
   uint32_t lighting = graph.AddPass(
       "Lighting", render_pass_,
-      [pool, renderer, scene, skybox_pipeline,
-       lighting_pipeline, use_rt_shadows, is_ortho](VkCommandBuffer) {
+      [pool, renderer, scene, skybox_pipeline, lighting_pipeline,
+       use_rt_shadows, is_ortho](VkCommandBuffer) {
         if (!is_ortho) {
           skybox_pipeline->Bind(PipelineBindPointGraphics);
           auto skybox = scene->GetSkybox();
@@ -214,15 +212,15 @@ void LightingFeature::AddPasses(RenderGraph& graph,
         lighting_pipeline->Bind(PipelineBindPointGraphics);
         if (use_rt_shadows) {
           renderer->DrawFullscreen(lighting_pipeline,
-              {pool->GetDescriptor("geometry.output"),
-               pool->GetDescriptor("ssao.blur_v.output"),
-               pool->GetDescriptor("GlobalDescriptor"),
-               pool->GetDescriptor("lighting.rt_shadow")});
+                                   {pool->GetDescriptor("geometry.output"),
+                                    pool->GetDescriptor("ssao.blur_v.output"),
+                                    pool->GetDescriptor("GlobalDescriptor"),
+                                    pool->GetDescriptor("lighting.rt_shadow")});
         } else {
           renderer->DrawFullscreen(lighting_pipeline,
-              {pool->GetDescriptor("geometry.output"),
-               pool->GetDescriptor("ssao.blur_v.output"),
-               pool->GetDescriptor("GlobalDescriptor")});
+                                   {pool->GetDescriptor("geometry.output"),
+                                    pool->GetDescriptor("ssao.blur_v.output"),
+                                    pool->GetDescriptor("GlobalDescriptor")});
         }
       });
 

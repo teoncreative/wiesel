@@ -34,12 +34,13 @@ Material::~Material() {
 
 void Material::InitDefaults() {
   properties["color_tint"] = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-  properties["roughness"] = 1.0f;   // multiplier: 1.0 = use full texture value
-  properties["metallic"] = 1.0f;    // multiplier: 1.0 = use full texture value
-  properties["specular"] = 1.0f;    // multiplier: 1.0 = use full texture value
+  properties["roughness"] = 1.0f;  // multiplier: 1.0 = use full texture value
+  properties["metallic"] = 1.0f;   // multiplier: 1.0 = use full texture value
+  properties["specular"] = 1.0f;   // multiplier: 1.0 = use full texture value
 }
 
-void Material::SetProperty(const std::string& name, MaterialPropertyValue value) {
+void Material::SetProperty(const std::string& name,
+                           MaterialPropertyValue value) {
   properties[name] = std::move(value);
   MarkDirty();
 }
@@ -145,7 +146,8 @@ void Material::SetSpecular(float value) {
 nlohmann::json Material::Serialize() const {
   nlohmann::json j;
   j["name"] = name;
-  j["color_tint"] = {GetColorTint().x, GetColorTint().y, GetColorTint().z, GetColorTint().w};
+  j["color_tint"] = {GetColorTint().x, GetColorTint().y, GetColorTint().z,
+                     GetColorTint().w};
   j["roughness"] = GetRoughness();
   j["metallic"] = GetMetallic();
   j["specular"] = GetSpecular();
@@ -153,7 +155,8 @@ nlohmann::json Material::Serialize() const {
   // Serialize texture references as asset paths
   nlohmann::json textures;
   auto& mgr = Engine::asset_manager();
-  auto serialize_tex = [&](const char* key, const std::shared_ptr<Texture>& tex) {
+  auto serialize_tex = [&](const char* key,
+                           const std::shared_ptr<Texture>& tex) {
     if (tex && !tex->path_.empty()) {
       textures[key] = tex->path_;
     }
@@ -183,13 +186,20 @@ std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
   auto mat = std::make_shared<Material>();
   mat->name = j.value("name", "");
 
-  if (j.contains("color_tint") && j["color_tint"].is_array() && j["color_tint"].size() >= 4) {
+  if (j.contains("color_tint") && j["color_tint"].is_array() &&
+      j["color_tint"].size() >= 4) {
     mat->SetColorTint(glm::vec4(j["color_tint"][0], j["color_tint"][1],
                                 j["color_tint"][2], j["color_tint"][3]));
   }
-  if (j.contains("roughness")) mat->SetRoughness(j["roughness"].get<float>());
-  if (j.contains("metallic")) mat->SetMetallic(j["metallic"].get<float>());
-  if (j.contains("specular")) mat->SetSpecular(j["specular"].get<float>());
+  if (j.contains("roughness")) {
+    mat->SetRoughness(j["roughness"].get<float>());
+  }
+  if (j.contains("metallic")) {
+    mat->SetMetallic(j["metallic"].get<float>());
+  }
+  if (j.contains("specular")) {
+    mat->SetSpecular(j["specular"].get<float>());
+  }
 
   // Texture paths are stored but loading is deferred until the material is used
   // (textures are loaded by the model import pipeline or resolved separately)
@@ -203,8 +213,8 @@ std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
   return mat;
 }
 
-void Material::Set(std::shared_ptr<Material> material, std::shared_ptr<Texture> texture,
-                   TextureType type) {
+void Material::Set(std::shared_ptr<Material> material,
+                   std::shared_ptr<Texture> texture, TextureType type) {
   switch (type) {
     case TextureTypeNone:
       break;
@@ -269,7 +279,8 @@ std::shared_ptr<Material> MaterialInstance::GetBaseMaterial() const {
   return Engine::asset_manager().Get<Material>(base_material_handle);
 }
 
-MaterialPropertyValue MaterialInstance::GetEffectiveProperty(const std::string& name) const {
+MaterialPropertyValue MaterialInstance::GetEffectiveProperty(
+    const std::string& name) const {
   auto it = overrides.find(name);
   if (it != overrides.end()) {
     return it->second;
@@ -297,7 +308,8 @@ glm::vec4 MaterialInstance::GetEffectiveVec4(const std::string& name) const {
   return glm::vec4(0.0f);
 }
 
-void MaterialInstance::SetOverride(const std::string& name, MaterialPropertyValue value) {
+void MaterialInstance::SetOverride(const std::string& name,
+                                   MaterialPropertyValue value) {
   overrides[name] = std::move(value);
 }
 

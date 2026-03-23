@@ -49,22 +49,34 @@ static const InputContext* GetContext(const std::string& name) {
 }
 
 static const InputContext* GetPlayerContext(int player) {
-  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return nullptr;
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) {
+    return nullptr;
+  }
   return GetContext(players_[player].context_name);
 }
 
-static const InputAction* FindAction(const InputContext* ctx, const std::string& name) {
-  if (!ctx) return nullptr;
+static const InputAction* FindAction(const InputContext* ctx,
+                                     const std::string& name) {
+  if (!ctx) {
+    return nullptr;
+  }
   for (auto& a : ctx->actions) {
-    if (a.name == name) return &a;
+    if (a.name == name) {
+      return &a;
+    }
   }
   return nullptr;
 }
 
-static const InputAxisMapping* FindAxis(const InputContext* ctx, const std::string& name) {
-  if (!ctx) return nullptr;
+static const InputAxisMapping* FindAxis(const InputContext* ctx,
+                                        const std::string& name) {
+  if (!ctx) {
+    return nullptr;
+  }
   for (auto& a : ctx->axes) {
-    if (a.name == name) return &a;
+    if (a.name == name) {
+      return &a;
+    }
   }
   return nullptr;
 }
@@ -73,19 +85,25 @@ static const InputAxisMapping* FindAxis(const InputContext* ctx, const std::stri
 static bool IsActionActive(const PlayerSlot& slot, const InputAction* action,
                            bool (*check_key)(KeyCode),
                            bool (*check_btn)(int, GamepadButton)) {
-  if (!action) return false;
+  if (!action) {
+    return false;
+  }
 
   // Keyboard keys (only if player is not bound to a specific gamepad)
   if (slot.gamepad_index < 0) {
     for (auto code : action->keys) {
-      if (check_key(code)) return true;
+      if (check_key(code)) {
+        return true;
+      }
     }
   }
 
   // Gamepad buttons
   if (slot.gamepad_index >= 0) {
     for (auto btn : action->buttons) {
-      if (check_btn(slot.gamepad_index, btn)) return true;
+      if (check_btn(slot.gamepad_index, btn)) {
+        return true;
+      }
     }
   }
 
@@ -110,7 +128,8 @@ static bool OnMouseMoved(MouseMovedEvent& event) {
   if (event.GetCursorMode() == CursorModeRelative) {
     mouse_axis_x_ -= mouse_axis_sens_x_ * event.GetDeltaX();
     mouse_axis_y_ -= mouse_axis_sens_y_ * event.GetDeltaY();
-    mouse_axis_y_ = std::clamp(mouse_axis_y_, -mouse_axis_limit_y_, mouse_axis_limit_y_);
+    mouse_axis_y_ =
+        std::clamp(mouse_axis_y_, -mouse_axis_limit_y_, mouse_axis_limit_y_);
   }
   return false;
 }
@@ -195,18 +214,24 @@ static bool RawKeyUp(KeyCode code) {
 }
 
 static bool RawBtnPressed(int gp, GamepadButton btn) {
-  if (gp < 0 || gp >= kMaxGamepads) return false;
+  if (gp < 0 || gp >= kMaxGamepads) {
+    return false;
+  }
   return gamepads_[gp].buttons[btn].pressed;
 }
 
 static bool RawBtnDown(int gp, GamepadButton btn) {
-  if (gp < 0 || gp >= kMaxGamepads) return false;
+  if (gp < 0 || gp >= kMaxGamepads) {
+    return false;
+  }
   auto& bd = gamepads_[gp].buttons[btn];
   return bd.pressed && !bd.previous_pressed;
 }
 
 static bool RawBtnUp(int gp, GamepadButton btn) {
-  if (gp < 0 || gp >= kMaxGamepads) return false;
+  if (gp < 0 || gp >= kMaxGamepads) {
+    return false;
+  }
   auto& bd = gamepads_[gp].buttons[btn];
   return !bd.pressed && bd.previous_pressed;
 }
@@ -236,13 +261,20 @@ void InputManager::OnEvent(Event& event) {
   dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnKeyPressed));
   dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnKeyReleased));
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseMoved));
-  dispatcher.Dispatch<MouseButtonPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseButtonPressed));
-  dispatcher.Dispatch<MouseButtonReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseButtonReleased));
-  dispatcher.Dispatch<JoystickConnectedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickConnect));
-  dispatcher.Dispatch<JoystickDisconnectedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickDisconnect));
-  dispatcher.Dispatch<JoystickButtonPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickButtonPressed));
-  dispatcher.Dispatch<JoystickButtonReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickButtonReleased));
-  dispatcher.Dispatch<JoystickAxisMovedEvent>(WIESEL_BIND_GLOBAL_FN(OnJoystickAxisMoved));
+  dispatcher.Dispatch<MouseButtonPressedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnMouseButtonPressed));
+  dispatcher.Dispatch<MouseButtonReleasedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnMouseButtonReleased));
+  dispatcher.Dispatch<JoystickConnectedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnJoystickConnect));
+  dispatcher.Dispatch<JoystickDisconnectedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnJoystickDisconnect));
+  dispatcher.Dispatch<JoystickButtonPressedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnJoystickButtonPressed));
+  dispatcher.Dispatch<JoystickButtonReleasedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnJoystickButtonReleased));
+  dispatcher.Dispatch<JoystickAxisMovedEvent>(
+      WIESEL_BIND_GLOBAL_FN(OnJoystickAxisMoved));
 }
 
 void InputManager::Update() {
@@ -256,9 +288,12 @@ void InputManager::Update() {
   }
   // Update previous_pressed for gamepad buttons
   for (int i = 0; i < kMaxGamepads; i++) {
-    if (!gamepads_[i].connected) continue;
+    if (!gamepads_[i].connected) {
+      continue;
+    }
     for (int b = 0; b < GamepadButtonCount; b++) {
-      gamepads_[i].buttons[b].previous_pressed = gamepads_[i].buttons[b].pressed;
+      gamepads_[i].buttons[b].previous_pressed =
+          gamepads_[i].buttons[b].pressed;
     }
   }
 }
@@ -284,8 +319,12 @@ float InputManager::GetAxis(const std::string& axis_name) {
 // --- Multi-player ---
 
 bool InputManager::GetAction(int player, const std::string& action) {
-  if (!input_enabled_) return false;
-  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
+  if (!input_enabled_) {
+    return false;
+  }
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) {
+    return false;
+  }
 
   auto* ctx = GetPlayerContext(player);
   auto* act = FindAction(ctx, action);
@@ -293,8 +332,12 @@ bool InputManager::GetAction(int player, const std::string& action) {
 }
 
 bool InputManager::GetActionDown(int player, const std::string& action) {
-  if (!input_enabled_) return false;
-  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
+  if (!input_enabled_) {
+    return false;
+  }
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) {
+    return false;
+  }
 
   auto* ctx = GetPlayerContext(player);
   auto* act = FindAction(ctx, action);
@@ -302,8 +345,12 @@ bool InputManager::GetActionDown(int player, const std::string& action) {
 }
 
 bool InputManager::GetActionUp(int player, const std::string& action) {
-  if (!input_enabled_) return false;
-  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return false;
+  if (!input_enabled_) {
+    return false;
+  }
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) {
+    return false;
+  }
 
   const InputContext* ctx = GetPlayerContext(player);
   const InputAction* act = FindAction(ctx, action);
@@ -311,24 +358,36 @@ bool InputManager::GetActionUp(int player, const std::string& action) {
 }
 
 float InputManager::GetAxis(int player, const std::string& axis_name) {
-  if (player < 0 || player >= kMaxPlayers || !players_[player].active) return 0.0f;
+  if (player < 0 || player >= kMaxPlayers || !players_[player].active) {
+    return 0.0f;
+  }
 
   // Mouse axes are always available for keyboard players
   PlayerSlot& slot = players_[player];
   if (slot.gamepad_index < 0) {
-    if (axis_name == "Mouse X") return mouse_axis_x_;
-    if (axis_name == "Mouse Y") return mouse_axis_y_;
+    if (axis_name == "Mouse X") {
+      return mouse_axis_x_;
+    }
+    if (axis_name == "Mouse Y") {
+      return mouse_axis_y_;
+    }
   }
 
   const InputContext* ctx = GetPlayerContext(player);
   const InputAxisMapping* mapping = FindAxis(ctx, axis_name);
-  if (!mapping) return 0.0f;
+  if (!mapping) {
+    return 0.0f;
+  }
 
   // Gamepad analog axis (takes priority if player has a gamepad)
   if (slot.gamepad_index >= 0 && mapping->gamepad_axis >= 0) {
     float val = GetGamepadAxis(slot.gamepad_index, mapping->gamepad_axis);
-    if (mapping->invert_axis) val = -val;
-    if (std::abs(val) < mapping->dead_zone) val = 0.0f;
+    if (mapping->invert_axis) {
+      val = -val;
+    }
+    if (std::abs(val) < mapping->dead_zone) {
+      val = 0.0f;
+    }
     return val;
   }
 
@@ -347,8 +406,12 @@ float InputManager::GetAxis(int player, const std::string& axis_name) {
         break;
       }
     }
-    if (pos && !neg) return 1.0f;
-    if (neg && !pos) return -1.0f;
+    if (pos && !neg) {
+      return 1.0f;
+    }
+    if (neg && !pos) {
+      return -1.0f;
+    }
   }
 
   // Digital gamepad axis (DPad buttons as axis)
@@ -359,46 +422,70 @@ float InputManager::GetAxis(int player, const std::string& axis_name) {
 
 // --- Player management ---
 
-void InputManager::AssignPlayer(int player, const std::string& context, int gamepad_index) {
-  if (player < 0 || player >= kMaxPlayers) return;
+void InputManager::AssignPlayer(int player, const std::string& context,
+                                int gamepad_index) {
+  if (player < 0 || player >= kMaxPlayers) {
+    return;
+  }
   players_[player].active = true;
   players_[player].context_name = context;
   players_[player].gamepad_index = gamepad_index;
-  LOG_INFO("Player {} assigned to context '{}' (gamepad: {})", player, context, gamepad_index);
+  LOG_INFO("Player {} assigned to context '{}' (gamepad: {})", player, context,
+           gamepad_index);
 }
 
 void InputManager::UnassignPlayer(int player) {
-  if (player < 0 || player >= kMaxPlayers) return;
+  if (player < 0 || player >= kMaxPlayers) {
+    return;
+  }
   players_[player] = {};
 }
 
 const PlayerSlot& InputManager::GetPlayerSlot(int player) {
   static PlayerSlot empty;
-  if (player < 0 || player >= kMaxPlayers) return empty;
+  if (player < 0 || player >= kMaxPlayers) {
+    return empty;
+  }
   return players_[player];
 }
 
 // --- Raw queries ---
 
 bool InputManager::IsKeyPressed(KeyCode code) {
-  if (!input_enabled_) return false;
+  if (!input_enabled_) {
+    return false;
+  }
   return keys_[code].pressed;
 }
 
-bool InputManager::IsGamepadButtonPressed(int gamepad_index, GamepadButton button) {
-  if (gamepad_index < 0 || gamepad_index >= kMaxGamepads) return false;
-  if (button < 0 || button >= GamepadButtonCount) return false;
+bool InputManager::IsGamepadButtonPressed(int gamepad_index,
+                                          GamepadButton button) {
+  if (gamepad_index < 0 || gamepad_index >= kMaxGamepads) {
+    return false;
+  }
+  if (button < 0 || button >= GamepadButtonCount) {
+    return false;
+  }
   return gamepads_[gamepad_index].buttons[button].pressed;
 }
 
 float InputManager::GetGamepadAxis(int gamepad_index, GamepadAxis axis) {
-  if (gamepad_index < 0 || gamepad_index >= kMaxGamepads) return 0.0f;
-  if (axis < 0 || axis >= GamepadAxisCount) return 0.0f;
+  if (gamepad_index < 0 || gamepad_index >= kMaxGamepads) {
+    return 0.0f;
+  }
+  if (axis < 0 || axis >= GamepadAxisCount) {
+    return 0.0f;
+  }
   return gamepads_[gamepad_index].axes[axis];
 }
 
-int InputManager::GetMouseX() { return mouse_x_; }
-int InputManager::GetMouseY() { return mouse_y_; }
+int InputManager::GetMouseX() {
+  return mouse_x_;
+}
+
+int InputManager::GetMouseY() {
+  return mouse_y_;
+}
 
 bool InputManager::IsMouseButtonPressed(MouseCode button) {
   int b = static_cast<int>(button);
@@ -427,14 +514,18 @@ bool InputManager::IsMouseButtonUp(MouseCode button) {
 int InputManager::GetConnectedGamepadCount() {
   int count = 0;
   for (int i = 0; i < kMaxGamepads; i++) {
-    if (gamepads_[i].connected) count++;
+    if (gamepads_[i].connected) {
+      count++;
+    }
   }
   return count;
 }
 
 const GamepadState& InputManager::GetGamepadState(int index) {
   static GamepadState empty;
-  if (index < 0 || index >= kMaxGamepads) return empty;
+  if (index < 0 || index >= kMaxGamepads) {
+    return empty;
+  }
   return gamepads_[index];
 }
 

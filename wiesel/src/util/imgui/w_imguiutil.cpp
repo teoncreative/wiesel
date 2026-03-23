@@ -38,9 +38,10 @@ bool ClosableTreeNode(const char* label, bool* p_visible) {
   unsigned int id = ImGui::GetID(label);
   ImGuiTreeNodeFlags flags = 0;
   flags |= ImGuiTreeNodeFlags_Framed;
-  if (p_visible)
+  if (p_visible) {
     flags |= ImGuiTreeNodeFlags_AllowOverlap |
              ImGuiTreeNodeFlags_ClipLabelForTrailingButton;
+  }
   bool open = ImGui::TreeNodeBehavior(id, flags, label);
   if (p_visible != NULL) {
     // Create a small overlapping close button
@@ -54,8 +55,9 @@ bool ClosableTreeNode(const char* label, bool* p_visible) {
                                g.Style.FramePadding.x * 2.0f - button_size);
     float button_y = g.LastItemData.Rect.Min.y;
     ImGuiID close_button_id = GetIDWithSeed("#CLOSE", NULL, id);
-    if (CloseButton(close_button_id, ImVec2(button_x, button_y)))
+    if (CloseButton(close_button_id, ImVec2(button_x, button_y))) {
       *p_visible = false;
+    }
     g.LastItemData = last_item_backup;
   }
   return open;

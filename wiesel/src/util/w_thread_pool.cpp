@@ -21,9 +21,8 @@ ThreadPool::ThreadPool(uint32_t thread_count) {
         std::function<void()> task;
         {
           std::unique_lock<std::mutex> lock(mutex_);
-          condition_.wait(lock, [this]() {
-            return stopping_ || !tasks_.empty();
-          });
+          condition_.wait(lock,
+                          [this]() { return stopping_ || !tasks_.empty(); });
           if (stopping_ && tasks_.empty()) {
             return;
           }

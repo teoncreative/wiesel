@@ -33,8 +33,9 @@ class ScopedPerfMarker {
   ScopedPerfMarker(VkCommandBuffer cmd, const char* name, Colorf color)
       : cmd_(cmd), end_func_(nullptr) {
     if (!PerfMarker::vkCmdBeginDebugUtilsLabelEXT ||
-        !PerfMarker::vkCmdEndDebugUtilsLabelEXT)
+        !PerfMarker::vkCmdEndDebugUtilsLabelEXT) {
       return;
+    }
 
     VkDebugUtilsLabelEXT label{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     label.pLabelName = name;
@@ -47,8 +48,9 @@ class ScopedPerfMarker {
   }
 
   ~ScopedPerfMarker() {
-    if (end_func_)
+    if (end_func_) {
       end_func_(cmd_);
+    }
   }
 
  private:

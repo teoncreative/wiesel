@@ -17,7 +17,8 @@
 
 namespace Wiesel {
 
-std::unordered_map<AssetType, AssetPropertyDesc>& AssetPropertyRegistry::Registry() {
+std::unordered_map<AssetType, AssetPropertyDesc>&
+AssetPropertyRegistry::Registry() {
   static std::unordered_map<AssetType, AssetPropertyDesc> registry;
   return registry;
 }
@@ -48,21 +49,24 @@ static nlohmann::json SerializeTextureProperties(const void* p) {
   j["filter_mode"] = static_cast<int>(props->filter_mode);
   j["wrap_mode"] = static_cast<int>(props->wrap_mode);
   j["generate_mipmaps"] = props->generate_mipmaps;
-  if (props->slice_border.x != 0 || props->slice_border.y != 0
-      || props->slice_border.z != 0 || props->slice_border.w != 0) {
+  if (props->slice_border.x != 0 || props->slice_border.y != 0 ||
+      props->slice_border.z != 0 || props->slice_border.w != 0) {
     j["slice_border"] = {props->slice_border.x, props->slice_border.y,
                          props->slice_border.z, props->slice_border.w};
   }
   return j;
 }
 
-static std::shared_ptr<void> DeserializeTextureProperties(const nlohmann::json& j) {
+static std::shared_ptr<void> DeserializeTextureProperties(
+    const nlohmann::json& j) {
   auto props = std::make_shared<TextureAssetProperties>();
   if (j.contains("asset_type")) {
-    props->asset_type = static_cast<TextureAssetType>(j["asset_type"].get<int>());
+    props->asset_type =
+        static_cast<TextureAssetType>(j["asset_type"].get<int>());
   }
   if (j.contains("filter_mode")) {
-    props->filter_mode = static_cast<TextureFilterMode>(j["filter_mode"].get<int>());
+    props->filter_mode =
+        static_cast<TextureFilterMode>(j["filter_mode"].get<int>());
   }
   if (j.contains("wrap_mode")) {
     props->wrap_mode = static_cast<TextureWrapMode>(j["wrap_mode"].get<int>());
@@ -70,8 +74,8 @@ static std::shared_ptr<void> DeserializeTextureProperties(const nlohmann::json& 
   if (j.contains("generate_mipmaps")) {
     props->generate_mipmaps = j["generate_mipmaps"].get<bool>();
   }
-  if (j.contains("slice_border") && j["slice_border"].is_array()
-      && j["slice_border"].size() >= 4) {
+  if (j.contains("slice_border") && j["slice_border"].is_array() &&
+      j["slice_border"].size() >= 4) {
     props->slice_border = {j["slice_border"][0], j["slice_border"][1],
                            j["slice_border"][2], j["slice_border"][3]};
   }
@@ -107,7 +111,8 @@ static bool RenderTexturePropertiesImGui(void* p) {
 
   ImGui::SeparatorText("9-Slice");
   changed |= ImGui::DragFloat4("Border (L,T,R,B)",
-      reinterpret_cast<float*>(&props->slice_border), 1.0f, 0.0f, 500.0f);
+                               reinterpret_cast<float*>(&props->slice_border),
+                               1.0f, 0.0f, 500.0f);
 
   return changed;
 }
@@ -121,7 +126,8 @@ static nlohmann::json SerializeFontProperties(const void* p) {
   return j;
 }
 
-static std::shared_ptr<void> DeserializeFontProperties(const nlohmann::json& j) {
+static std::shared_ptr<void> DeserializeFontProperties(
+    const nlohmann::json& j) {
   auto props = std::make_shared<FontAssetProperties>();
   if (j.contains("aa_mode")) {
     props->aa_mode = static_cast<FontAAMode>(j["aa_mode"].get<int>());
@@ -146,19 +152,20 @@ static bool RenderFontPropertiesImGui(void* p) {
 // --- Registration ---
 
 void InitializeAssetProperties() {
-  AssetPropertyRegistry::Register(AssetType::Texture, {
-      []() -> std::shared_ptr<void> { return std::make_shared<TextureAssetProperties>(); },
-      SerializeTextureProperties,
-      DeserializeTextureProperties,
-      RenderTexturePropertiesImGui
-  });
+  AssetPropertyRegistry::Register(
+      AssetType::Texture,
+      {[]() -> std::shared_ptr<void> {
+         return std::make_shared<TextureAssetProperties>();
+       },
+       SerializeTextureProperties, DeserializeTextureProperties,
+       RenderTexturePropertiesImGui});
 
-  AssetPropertyRegistry::Register(AssetType::Font, {
-      []() -> std::shared_ptr<void> { return std::make_shared<FontAssetProperties>(); },
-      SerializeFontProperties,
-      DeserializeFontProperties,
-      RenderFontPropertiesImGui
-  });
+  AssetPropertyRegistry::Register(
+      AssetType::Font, {[]() -> std::shared_ptr<void> {
+                          return std::make_shared<FontAssetProperties>();
+                        },
+                        SerializeFontProperties, DeserializeFontProperties,
+                        RenderFontPropertiesImGui});
 }
 
 }  // namespace Wiesel

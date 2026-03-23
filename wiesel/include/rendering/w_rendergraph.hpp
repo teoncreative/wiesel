@@ -11,9 +11,9 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "util/w_color.hpp"
 #include "util/w_utils.hpp"
+#include "w_pch.hpp"
 #include "w_texture.hpp"
 
 namespace Wiesel {
@@ -21,25 +21,32 @@ namespace Wiesel {
 class Renderer;
 class RenderPass;
 class Framebuffer;
-struct Pipeline;
+class Pipeline;
 
 // Opaque handle to a resource in the render graph
 struct RGResource {
   uint32_t index = UINT32_MAX;
+
   bool IsValid() const { return index != UINT32_MAX; }
-  bool operator==(const RGResource& other) const { return index == other.index; }
-  bool operator!=(const RGResource& other) const { return index != other.index; }
+
+  bool operator==(const RGResource& other) const {
+    return index == other.index;
+  }
+
+  bool operator!=(const RGResource& other) const {
+    return index != other.index;
+  }
 };
 
 // How a pass accesses a resource
 enum class RGAccess {
-  ColorAttachmentWrite,       // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-  DepthStencilWrite,          // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-  DepthStencilReadOnly,       // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-  ShaderRead,                 // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-  StorageImageRead,           // VK_IMAGE_LAYOUT_GENERAL (imageLoad in shader)
-  StorageImageWrite,          // VK_IMAGE_LAYOUT_GENERAL
-  Present                     // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+  ColorAttachmentWrite,  // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+  DepthStencilWrite,     // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  DepthStencilReadOnly,  // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+  ShaderRead,            // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+  StorageImageRead,      // VK_IMAGE_LAYOUT_GENERAL (imageLoad in shader)
+  StorageImageWrite,     // VK_IMAGE_LAYOUT_GENERAL
+  Present                // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 };
 
 VkImageLayout RGAccessToLayout(RGAccess access);
@@ -89,10 +96,12 @@ class RenderGraphPass {
   glm::vec2 viewport_size_ = {0, 0};
   Colorf clear_color_ = {0, 0, 0, 1};
   bool enabled_ = true;
-  bool manages_render_pass_ = true;  // If true, graph calls Begin/End on render pass
+  bool manages_render_pass_ =
+      true;  // If true, graph calls Begin/End on render pass
 
  public:
   const std::string& GetName() const { return name_; }
+
   bool IsEnabled() const { return enabled_; }
 };
 
@@ -113,9 +122,9 @@ class RenderGraph {
   // Build Phase
 
   // Import an external resource into the graph
-  RGResource ImportTexture(const std::string& name,
-                           std::shared_ptr<AttachmentTexture> texture,
-                           VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED);
+  RGResource ImportTexture(
+      const std::string& name, std::shared_ptr<AttachmentTexture> texture,
+      VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED);
 
   // Declare a transient resource (created by graph during Compile)
   RGResource DeclareTransient(const RGTextureDesc& desc);
@@ -156,7 +165,9 @@ class RenderGraph {
 
   // Management
   void MarkDirty();
+
   bool IsDirty() const { return dirty_; }
+
   bool IsCompiled() const { return compiled_; }
 
   // Access a resource's texture (valid after Compile)
@@ -166,7 +177,9 @@ class RenderGraph {
   RenderGraphPass& GetPass(uint32_t index);
   const RenderGraphPass& GetPass(uint32_t index) const;
 
-  const std::vector<PassTimingResult>& GetPassTimings() const { return pass_timings_; }
+  const std::vector<PassTimingResult>& GetPassTimings() const {
+    return pass_timings_;
+  }
 
 #ifdef WIESEL_GPU_PROFILING
   void CreateQueryPool();
@@ -175,7 +188,8 @@ class RenderGraph {
 
  private:
   void TopologicalSort();
-  void TransitionResource(VkCommandBuffer cmd, RGResourceData& resource, VkImageLayout required);
+  void TransitionResource(VkCommandBuffer cmd, RGResourceData& resource,
+                          VkImageLayout required);
   void InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pass);
   void UpdateOutputLayouts(const RenderGraphPass& pass);
   void CreateTransientResources();

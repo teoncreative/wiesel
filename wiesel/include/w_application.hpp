@@ -27,7 +27,8 @@
 namespace Wiesel {
 class Application {
  public:
-  Application(const WindowProperties&& window_props, const RendererProperties&& renderer_props);
+  Application(const WindowProperties&& window_props,
+              const RendererProperties&& renderer_props);
   virtual ~Application();
 
   virtual void Init() = 0;
@@ -44,25 +45,23 @@ class Application {
   bool OnWindowResize(WindowResizeEvent& event);
 
   WIESEL_GETTER_FN std::shared_ptr<AppWindow> GetWindow();
+
   WIESEL_GETTER_FN float_t GetFPS() const { return fps_; }
+
   WIESEL_GETTER_FN float_t GetDeltaTime() const { return delta_time_; }
 
-  void SetMaxFPS(float_t max_fps) {
-    max_fps_ = max_fps;
-  }
-  WIESEL_GETTER_FN float_t GetMaxFPS() const {
-    return max_fps_;
-  }
+  void SetMaxFPS(float_t max_fps) { max_fps_ = max_fps; }
 
-  void SetIdleMaxFPS(float_t fps) {
-    idle_max_fps_ = fps;
-  }
-  void SetIdleTimeout(float_t seconds) {
-    idle_timeout_ = seconds;
-  }
+  WIESEL_GETTER_FN float_t GetMaxFPS() const { return max_fps_; }
+
+  void SetIdleMaxFPS(float_t fps) { idle_max_fps_ = fps; }
+
+  void SetIdleTimeout(float_t seconds) { idle_timeout_ = seconds; }
 
   void SetTimeScale(float_t time_scale) { time_scale_ = time_scale; }
+
   WIESEL_GETTER_FN float_t GetTimeScale() const { return time_scale_; }
+
   WIESEL_GETTER_FN const WindowSize& GetWindowSize();
 
   void SubmitToMainThread(std::function<void()> fn);
@@ -95,13 +94,11 @@ class Application {
   uint32_t frame_count_ = 0;
   float_t fps_ = 0.0f;
   float_t max_fps_ = 0.0f;        // 0 = unlimited
-  float_t idle_max_fps_ = 15.0f;   // FPS when idle (no input)
-  float_t idle_timeout_ = 3.0f;    // seconds of no input before idle mode
+  float_t idle_max_fps_ = 15.0f;  // FPS when idle (no input)
+  float_t idle_timeout_ = 3.0f;   // seconds of no input before idle mode
   float_t idle_timer_ = 0.0f;
   bool is_idle_ = false;
   float_t time_scale_ = 1.0f;
-
-
 };
 
 }  // namespace Wiesel

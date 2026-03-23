@@ -14,28 +14,28 @@
 #include "behavior/w_native_behavior.hpp"
 #include "util/w_discord_rpc.hpp"
 
-#include <thread>
-#include <future>
-#include <fstream>
-#include <chrono>
-#include <assimp/IOSystem.hpp>
 #include <assimp/IOStream.hpp>
+#include <assimp/IOSystem.hpp>
+#include <chrono>
+#include <fstream>
+#include <future>
+#include <thread>
 #include "asset/w_asset_loader.hpp"
-#include "util/w_thread_pool.hpp"
 #include "asset/w_asset_manager.hpp"
-#include "project/w_project.hpp"
+#include "asset/w_asset_properties.hpp"
+#include "asset/w_asset_property_registry.hpp"
 #include "input/w_input.hpp"
+#include "project/w_project.hpp"
 #include "scene/w_component_serializer.hpp"
 #include "scene/w_componentutil.hpp"
-#include "asset/w_asset_properties.hpp"
-#include "ui/w_font.hpp"
-#include "asset/w_asset_property_registry.hpp"
-#include "scene/w_scene_manager.hpp"
 #include "scene/w_entity.hpp"
 #include "scene/w_lights.hpp"
+#include "scene/w_scene_manager.hpp"
 #include "script/w_scriptmanager.hpp"
+#include "ui/w_font.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_platform.hpp"
+#include "util/w_thread_pool.hpp"
 #ifdef WIESEL_BACKEND_SDL3
 #include "window/w_sdlwindow.hpp"
 #else
@@ -48,8 +48,10 @@ namespace Wiesel {
 // Assimp IOStream backed by a VfsFile
 class VfsAssimpIOStream : public Assimp::IOStream {
   friend class VfsAssimpIOSystem;
-public:
+
+ public:
   explicit VfsAssimpIOStream(VfsFile file) : file_(std::move(file)) {}
+
   ~VfsAssimpIOStream() override = default;
 
   size_t Read(void* pvBuffer, size_t pSize, size_t pCount) override {
@@ -58,32 +60,43 @@ public:
     return bytes_read / pSize;
   }
 
-  size_t Write(const void* /*pvBuffer*/, size_t /*pSize*/, size_t /*pCount*/) override {
-    return 0; // Read-only
+  size_t Write(const void* /*pvBuffer*/, size_t /*pSize*/,
+               size_t /*pCount*/) override {
+    return 0;  // Read-only
   }
 
   aiReturn Seek(size_t pOffset, aiOrigin pOrigin) override {
     switch (pOrigin) {
-      case aiOrigin_SET: file_.Seek(pOffset); break;
-      case aiOrigin_CUR: file_.SeekRelative(static_cast<int64_t>(pOffset)); break;
-      case aiOrigin_END: file_.Seek(file_.Size() - pOffset); break;
-      default: return aiReturn_FAILURE;
+      case aiOrigin_SET:
+        file_.Seek(pOffset);
+        break;
+      case aiOrigin_CUR:
+        file_.SeekRelative(static_cast<int64_t>(pOffset));
+        break;
+      case aiOrigin_END:
+        file_.Seek(file_.Size() - pOffset);
+        break;
+      default:
+        return aiReturn_FAILURE;
     }
     return aiReturn_SUCCESS;
   }
 
   size_t Tell() const override { return file_.Tell(); }
+
   size_t FileSize() const override { return file_.Size(); }
+
   void Flush() override {}
 
-private:
+ private:
   VfsFile file_;
 };
 
 // Assimp IOSystem backed by VFS
 class VfsAssimpIOSystem : public Assimp::IOSystem {
-public:
-  VfsAssimpIOSystem(std::shared_ptr<VirtualFileSystem> vfs, const std::string& base_dir)
+ public:
+  VfsAssimpIOSystem(std::shared_ptr<VirtualFileSystem> vfs,
+                    const std::string& base_dir)
       : vfs_(std::move(vfs)), base_dir_(base_dir) {}
 
   ~VfsAssimpIOSystem() override = default;
@@ -103,11 +116,9 @@ public:
     return new VfsAssimpIOStream(std::move(file));
   }
 
-  void Close(Assimp::IOStream* pFile) override {
-    delete pFile;
-  }
+  void Close(Assimp::IOStream* pFile) override { delete pFile; }
 
-private:
+ private:
   std::string ResolvePath(const char* pFile) const {
     std::string path(pFile);
     // If already an absolute VFS path, use as-is
@@ -123,122 +134,124 @@ private:
 };
 
 EngineProperties EngineProperties::Parse(int argc, char** argv) {
-    EngineProperties config;
-    std::filesystem::path exe_dir = GetExecutableDirectory();
+  EngineProperties config;
+  std::filesystem::path exe_dir = GetExecutableDirectory();
 
-    // Setup cxxopts
-    cxxopts::Options options(argv[0], "Wiesel Game Engine");
+  // Setup cxxopts
+  cxxopts::Options options(argv[0], "Wiesel Game Engine");
 
-    options.add_options()
-        ("e,editor", "Enable editor layer", cxxopts::value<bool>()->default_value("false"))
-        ("dev", "Enable development mode", cxxopts::value<bool>()->default_value("false"))
-        ("engine-assets", "Path to engine assets directory or pak file",
-            cxxopts::value<std::string>())
-        ("editor-assets", "Path to editor assets directory or pak file",
-            cxxopts::value<std::string>())
-        ("app-assets", "Path to application assets directory",
-            cxxopts::value<std::string>())
-        ("project", "Path to project directory",
-            cxxopts::value<std::string>())
-        ("h,help", "Print usage information");
+  options.add_options()("e,editor", "Enable editor layer",
+                        cxxopts::value<bool>()->default_value("false"))(
+      "dev", "Enable development mode",
+      cxxopts::value<bool>()->default_value("false"))(
+      "engine-assets", "Path to engine assets directory or pak file",
+      cxxopts::value<std::string>())(
+      "editor-assets", "Path to editor assets directory or pak file",
+      cxxopts::value<std::string>())("app-assets",
+                                     "Path to application assets directory",
+                                     cxxopts::value<std::string>())(
+      "project", "Path to project directory", cxxopts::value<std::string>())(
+      "h,help", "Print usage information");
 
-    try {
-        auto result = options.parse(argc, argv);
+  try {
+    auto result = options.parse(argc, argv);
 
-        // Handle help
-        if (result.count("help")) {
-            std::cout << options.help() << std::endl;
-            std::exit(0);
-        }
-
-        // Parse flags
-        config.editor_enabled = result["editor"].as<bool>();
-        config.dev_mode = result["dev"].as<bool>();
-
-        // Parse optional paths
-        if (result.count("engine-assets")) {
-            config.engine_assets_path = result["engine-assets"].as<std::string>();
-        }
-
-        if (result.count("editor-assets")) {
-            config.editor_assets_path = result["editor-assets"].as<std::string>();
-        }
-
-        if (result.count("app-assets")) {
-            config.app_assets_path = result["app-assets"].as<std::string>();
-        }
-
-        if (result.count("project")) {
-            config.project_path = result["project"].as<std::string>();
-        }
-
-    } catch (const cxxopts::exceptions::exception& e) {
-        std::cerr << "Error parsing arguments: " << e.what() << std::endl;
-        std::cerr << options.help() << std::endl;
-        std::exit(1);
+    // Handle help
+    if (result.count("help")) {
+      std::cout << options.help() << std::endl;
+      std::exit(0);
     }
 
-    // Fallback to environment variables
-    if (config.engine_assets_path.empty()) {
-        if (const char* env = std::getenv("WIESEL_ENGINE_ASSETS")) {
-            config.engine_assets_path = env;
-        }
+    // Parse flags
+    config.editor_enabled = result["editor"].as<bool>();
+    config.dev_mode = result["dev"].as<bool>();
+
+    // Parse optional paths
+    if (result.count("engine-assets")) {
+      config.engine_assets_path = result["engine-assets"].as<std::string>();
     }
 
-    if (config.editor_assets_path.empty() && config.editor_enabled) {
-        if (const char* env = std::getenv("WIESEL_EDITOR_ASSETS")) {
-            config.editor_assets_path = env;
-        }
+    if (result.count("editor-assets")) {
+      config.editor_assets_path = result["editor-assets"].as<std::string>();
     }
 
-    if (config.app_assets_path.empty()) {
-        if (const char* env = std::getenv("WIESEL_APP_ASSETS")) {
-            config.app_assets_path = env;
-        }
+    if (result.count("app-assets")) {
+      config.app_assets_path = result["app-assets"].as<std::string>();
     }
 
-    if (config.project_path.empty()) {
-        if (const char* env = std::getenv("WIESEL_PROJECT_PATH")) {
-            config.project_path = env;
-        }
+    if (result.count("project")) {
+      config.project_path = result["project"].as<std::string>();
     }
 
-    // Final fallback to default locations
-    if (config.engine_assets_path.empty()) {
-        // Development: Look for source tree
-        std::filesystem::path dev_path = exe_dir / "../../../engine/assets";
-        if (std::filesystem::exists(dev_path)) {
-            config.engine_assets_path = dev_path;
-            config.dev_mode = true;
-        } else {
-            // Release: Look for pak or embedded
-            config.engine_assets_path = exe_dir / "engine.pak";
-        }
-    }
+  } catch (const cxxopts::exceptions::exception& e) {
+    std::cerr << "Error parsing arguments: " << e.what() << std::endl;
+    std::cerr << options.help() << std::endl;
+    std::exit(1);
+  }
 
-    if (config.editor_assets_path.empty() && config.editor_enabled) {
-        std::filesystem::path dev_path = exe_dir / "../../../editor/assets";
-        if (std::filesystem::exists(dev_path)) {
-            config.editor_assets_path = dev_path;
-        } else {
-            config.editor_assets_path = exe_dir / "editor.pak";
-        }
+  // Fallback to environment variables
+  if (config.engine_assets_path.empty()) {
+    if (const char* env = std::getenv("WIESEL_ENGINE_ASSETS")) {
+      config.engine_assets_path = env;
     }
+  }
 
-    if (config.app_assets_path.empty()) {
-        // Default to assets/ relative to current working directory
-        std::filesystem::path default_app = std::filesystem::current_path() / "assets";
-        if (std::filesystem::exists(default_app)) {
-            config.app_assets_path = default_app;
-        }
+  if (config.editor_assets_path.empty() && config.editor_enabled) {
+    if (const char* env = std::getenv("WIESEL_EDITOR_ASSETS")) {
+      config.editor_assets_path = env;
     }
+  }
 
-    if (config.user_data_path.empty()) {
-        config.user_data_path = GetUserDataDirectory();
+  if (config.app_assets_path.empty()) {
+    if (const char* env = std::getenv("WIESEL_APP_ASSETS")) {
+      config.app_assets_path = env;
     }
+  }
 
-    return config;
+  if (config.project_path.empty()) {
+    if (const char* env = std::getenv("WIESEL_PROJECT_PATH")) {
+      config.project_path = env;
+    }
+  }
+
+  // Final fallback to default locations
+  if (config.engine_assets_path.empty()) {
+    // Development: Look for source tree
+    std::filesystem::path dev_path = exe_dir / "../../../engine/assets";
+    if (std::filesystem::exists(dev_path)) {
+      config.engine_assets_path = dev_path;
+      config.dev_mode = true;
+    } else {
+      // Release: Look for pak or embedded
+      config.engine_assets_path = exe_dir / "engine.pak";
+    }
+  }
+
+  if (config.editor_assets_path.empty() && config.editor_enabled) {
+    std::filesystem::path dev_path = exe_dir / "../../../editor/assets";
+    if (std::filesystem::exists(dev_path)) {
+      config.editor_assets_path = dev_path;
+    } else {
+      config.editor_assets_path = exe_dir / "editor.pak";
+    }
+  }
+
+  if (config.app_assets_path.empty()) {
+    // Default to assets/ relative to current working directory
+    std::filesystem::path default_app =
+        std::filesystem::current_path() / "assets";
+    if (std::filesystem::exists(default_app)) {
+      config.app_assets_path = default_app;
+    }
+  }
+
+  if (config.user_data_path.empty()) {
+    config.user_data_path = GetUserDataDirectory();
+  }
+
+  return config;
 }
+
 EngineProperties Engine::properties_;
 std::shared_ptr<Renderer> Engine::renderer_;
 std::shared_ptr<AppWindow> Engine::window_;
@@ -269,19 +282,22 @@ void Engine::InitEngine(const EngineProperties& props) {
   asset_manager_ = std::make_shared<AssetManager>();
 
   // Register asset loaders
-  asset_manager_->RegisterLoader(AssetType::Model,
+  asset_manager_->RegisterLoader(
+      AssetType::Model,
       std::make_shared<FunctionAssetLoader>(
           [](AssetHandle handle) { return LoadModel(handle); },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
-  asset_manager_->RegisterLoader(AssetType::Texture,
+  asset_manager_->RegisterLoader(
+      AssetType::Texture,
       std::make_shared<FunctionAssetLoader>(
           [](AssetHandle handle) { return LoadTextureAsset(handle); },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
   // Font loader: reads font file, creates FT_Face, stores FontAsset.
   // Size-specific rasterization happens lazily in FontCache::Get.
-  asset_manager_->RegisterLoader(AssetType::Font,
+  asset_manager_->RegisterLoader(
+      AssetType::Font,
       std::make_shared<FunctionAssetLoader>(
           [](AssetHandle handle) {
             const auto* meta = asset_manager_->GetMetadata(handle);
@@ -395,7 +411,6 @@ void Engine::SetProject(std::shared_ptr<Project> project) {
   project_ = std::move(project);
 }
 
-
 aiScene* Engine::LoadAssimpModel(const std::string& path,
                                  bool convert_to_left_handed) {
   LOG_INFO("Loading model: {}", path);
@@ -445,9 +460,9 @@ bool Engine::LoadTextureAsset(AssetHandle handle) {
   meta->load_progress.store(0.1f);
 
   int w, h, channels;
-  stbi_uc* pixels = stbi_load_from_memory(
-      file.Data(), static_cast<int>(file.Size()),
-      &w, &h, &channels, STBI_rgb_alpha);
+  stbi_uc* pixels =
+      stbi_load_from_memory(file.Data(), static_cast<int>(file.Size()), &w, &h,
+                            &channels, STBI_rgb_alpha);
   if (!pixels) {
     LOG_ERROR("LoadTexture: decode failed: {}", meta->virtual_source_path);
     return false;
@@ -469,12 +484,13 @@ bool Engine::LoadTextureAsset(AssetHandle handle) {
   TextureProps props;
   props.width = w;
   props.height = h;
-  props.image_format = use_srgb ? VK_FORMAT_R8G8B8A8_SRGB
-                                : VK_FORMAT_R8G8B8A8_UNORM;
+  props.image_format =
+      use_srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
   props.generate_mipmaps = ap.generate_mipmaps;
 
   VkFilter vk_filter = (ap.filter_mode == TextureFilterMode::Nearest)
-      ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
+                           ? VK_FILTER_NEAREST
+                           : VK_FILTER_LINEAR;
   VkSamplerAddressMode vk_wrap;
   switch (ap.wrap_mode) {
     case TextureWrapMode::Clamp:
@@ -536,7 +552,8 @@ bool Engine::LoadModel(AssetHandle handle) {
              std::chrono::duration<double>(t1 - t0).count());
 
     if (!assimp_scene) {
-      Engine::asset_manager().SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+      Engine::asset_manager().SetLoadState(handle, AssetLoadState::Loading,
+                                           AssetLoadState::Failed);
       return false;
     }
 
@@ -557,9 +574,10 @@ bool Engine::LoadModel(AssetHandle handle) {
     auto t_predecode = Clock::now();
     PreDecodeTextures(*model, *assimp_scene);
     auto t_predecode_end = Clock::now();
-    LOG_INFO("Parallel texture decode: {:.1f}s ({} textures)",
-             std::chrono::duration<double>(t_predecode_end - t_predecode).count(),
-             model->decoded_texture_cache.size());
+    LOG_INFO(
+        "Parallel texture decode: {:.1f}s ({} textures)",
+        std::chrono::duration<double>(t_predecode_end - t_predecode).count(),
+        model->decoded_texture_cache.size());
     meta->load_progress.store(0.5f);
 
     // Batch all GPU uploads (textures + vertex/index buffers) into a single
@@ -625,80 +643,89 @@ bool Engine::LoadModel(AssetHandle handle) {
     }
 
     // Register on main thread (no GPU work, just data structure updates)
-    Application::Get()->SubmitToMainThread(
-        [model, handle]() {
-          for (auto& [texPath, tex] : model->textures) {
-            asset_manager_->RegisterAndStore<Texture>(texPath, AssetType::Texture,
-                                             texPath, tex);
+    Application::Get()->SubmitToMainThread([model, handle]() {
+      for (auto& [texPath, tex] : model->textures) {
+        asset_manager_->RegisterAndStore<Texture>(texPath, AssetType::Texture,
+                                                  texPath, tex);
+      }
+      // Register materials extracted from meshes as assets
+      // Derive the model's directory for saving .wmat files
+      std::string model_dir;
+      std::string model_stem;
+      {
+        size_t sl = model->model_path.rfind('/');
+        model_dir =
+            (sl != std::string::npos) ? model->model_path.substr(0, sl) : "";
+        std::string filename = (sl != std::string::npos)
+                                   ? model->model_path.substr(sl + 1)
+                                   : model->model_path;
+        size_t dot = filename.rfind('.');
+        model_stem =
+            (dot != std::string::npos) ? filename.substr(0, dot) : filename;
+      }
+
+      for (size_t i = 0; i < model->meshes.size(); i++) {
+        auto& mesh = model->meshes[i];
+        if (mesh->mat) {
+          std::string mat_name = mesh->mat->name.empty()
+                                     ? "Material_" + std::to_string(i)
+                                     : mesh->mat->name;
+
+          // VFS path for the .wmat file alongside the model
+          std::string wmat_vfs_path =
+              model_dir + "/" + model_stem + "_" + mat_name + ".wmat";
+
+          // Check if already registered (re-import case)
+          AssetHandle existing =
+              asset_manager_->FindBySourcePath(wmat_vfs_path);
+          if (existing.IsValid()) {
+            mesh->material_handle = existing;
+            mesh->mat->asset_handle = existing;
+            asset_manager_->Store<Material>(existing, mesh->mat);
+            asset_manager_->SetLoadState(existing, AssetLoadState::Unloaded,
+                                         AssetLoadState::Loaded);
+          } else {
+            AssetHandle mat_handle = asset_manager_->RegisterAndStore<Material>(
+                mat_name, AssetType::Material, wmat_vfs_path, mesh->mat);
+            mesh->material_handle = mat_handle;
+            mesh->mat->asset_handle = mat_handle;
           }
-          // Register materials extracted from meshes as assets
-          // Derive the model's directory for saving .wmat files
-          std::string model_dir;
-          std::string model_stem;
-          {
-            size_t sl = model->model_path.rfind('/');
-            model_dir = (sl != std::string::npos) ? model->model_path.substr(0, sl) : "";
-            std::string filename = (sl != std::string::npos) ? model->model_path.substr(sl + 1) : model->model_path;
-            size_t dot = filename.rfind('.');
-            model_stem = (dot != std::string::npos) ? filename.substr(0, dot) : filename;
-          }
 
-          for (size_t i = 0; i < model->meshes.size(); i++) {
-            auto& mesh = model->meshes[i];
-            if (mesh->mat) {
-              std::string mat_name = mesh->mat->name.empty()
-                  ? "Material_" + std::to_string(i)
-                  : mesh->mat->name;
-
-              // VFS path for the .wmat file alongside the model
-              std::string wmat_vfs_path = model_dir + "/" + model_stem + "_" + mat_name + ".wmat";
-
-              // Check if already registered (re-import case)
-              AssetHandle existing = asset_manager_->FindBySourcePath(wmat_vfs_path);
-              if (existing.IsValid()) {
-                mesh->material_handle = existing;
-                mesh->mat->asset_handle = existing;
-                asset_manager_->Store<Material>(existing, mesh->mat);
-                asset_manager_->SetLoadState(existing, AssetLoadState::Unloaded, AssetLoadState::Loaded);
-              } else {
-                AssetHandle mat_handle = asset_manager_->RegisterAndStore<Material>(
-                    mat_name, AssetType::Material, wmat_vfs_path, mesh->mat);
-                mesh->material_handle = mat_handle;
-                mesh->mat->asset_handle = mat_handle;
-              }
-
-              // Save .wmat file to project directory if a project is active
-              if (project_ && wmat_vfs_path.starts_with("/app/")) {
-                namespace fs = std::filesystem;
-                // Convert VFS path to physical: /app/... -> <assets_dir>/...
-                std::string rel = wmat_vfs_path.substr(5);  // strip "/app/"
-                fs::path wmat_path = fs::path(project_->GetAssetsDirectory()) / rel;
-                if (!fs::exists(wmat_path)) {
-                  fs::create_directories(wmat_path.parent_path());
-                  nlohmann::json j = mesh->mat->Serialize();
-                  std::ofstream ofs(wmat_path);
-                  if (ofs.is_open()) {
-                    ofs << j.dump(2);
-                    LOG_INFO("Saved material: {}", wmat_path.string());
-                  }
-                }
+          // Save .wmat file to project directory if a project is active
+          if (project_ && wmat_vfs_path.starts_with("/app/")) {
+            namespace fs = std::filesystem;
+            // Convert VFS path to physical: /app/... -> <assets_dir>/...
+            std::string rel = wmat_vfs_path.substr(5);  // strip "/app/"
+            fs::path wmat_path = fs::path(project_->GetAssetsDirectory()) / rel;
+            if (!fs::exists(wmat_path)) {
+              fs::create_directories(wmat_path.parent_path());
+              nlohmann::json j = mesh->mat->Serialize();
+              std::ofstream ofs(wmat_path);
+              if (ofs.is_open()) {
+                ofs << j.dump(2);
+                LOG_INFO("Saved material: {}", wmat_path.string());
               }
             }
           }
-          asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
-          asset_manager_->Store(handle, model);
-        });
+        }
+      }
+      asset_manager_->SetLoadState(handle, AssetLoadState::Loading,
+                                   AssetLoadState::Loaded);
+      asset_manager_->Store(handle, model);
+    });
   }
   return true;
 }
 
 void Engine::LoadModelAsync(AssetHandle handle) {
-  if (!asset_manager_->SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+  if (!asset_manager_->SetLoadState(handle, AssetLoadState::Unloaded,
+                                    AssetLoadState::Loading)) {
     return;
   }
   thread_pool_->Submit([handle]() {
     if (!LoadModel(handle)) {
-      asset_manager_->SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+      asset_manager_->SetLoadState(handle, AssetLoadState::Loading,
+                                   AssetLoadState::Failed);
     }
   });
 }
@@ -707,15 +734,16 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
   // Only pre-decode embedded textures. External textures are loaded as
   // standalone assets via LoadTextureAsset or on-demand in LoadTexture.
   const aiTextureType texture_types[] = {
-      aiTextureType_DIFFUSE, aiTextureType_NORMALS, aiTextureType_SPECULAR,
-      aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE_ROUGHNESS,
-      aiTextureType_METALNESS};
+      aiTextureType_DIFFUSE,           aiTextureType_NORMALS,
+      aiTextureType_SPECULAR,          aiTextureType_BASE_COLOR,
+      aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_METALNESS};
 
   struct EmbeddedTask {
     int index;
     std::string key;
     aiTexture* tex;
   };
+
   std::vector<EmbeddedTask> embedded_tasks;
   for (unsigned int m = 0; m < scene.mNumMaterials; m++) {
     aiMaterial* mat = scene.mMaterials[m];
@@ -731,7 +759,8 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
         if (idx < 0 || static_cast<unsigned>(idx) >= scene.mNumTextures) {
           continue;
         }
-        std::string key = model.textures_path + "/embedded_" + std::to_string(idx);
+        std::string key =
+            model.textures_path + "/embedded_" + std::to_string(idx);
         if (model.decoded_texture_cache.contains(key)) {
           continue;
         }
@@ -741,43 +770,51 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
     }
   }
 
-  if (embedded_tasks.empty()) return;
+  if (embedded_tasks.empty()) {
+    return;
+  }
 
-  std::vector<std::future<std::pair<std::string, std::shared_ptr<DecodedTextureData>>>> futures;
+  std::vector<
+      std::future<std::pair<std::string, std::shared_ptr<DecodedTextureData>>>>
+      futures;
   for (auto& task : embedded_tasks) {
-    futures.push_back(std::async(std::launch::async, [task]()
-        -> std::pair<std::string, std::shared_ptr<DecodedTextureData>> {
-      auto decoded = std::make_shared<DecodedTextureData>();
-      if (task.tex->mHeight == 0) {
-        decoded->pixels = stbi_load_from_memory(
-            reinterpret_cast<unsigned char*>(task.tex->pcData),
-            task.tex->mWidth,
-            &decoded->width, &decoded->height, &decoded->channels, STBI_rgb_alpha);
-      } else {
-        decoded->width = task.tex->mWidth;
-        decoded->height = task.tex->mHeight;
-        decoded->channels = 4;
-        int size = decoded->width * decoded->height;
-        decoded->pixels = static_cast<stbi_uc*>(malloc(size * 4));
-        aiTexel* texels = task.tex->pcData;
-        for (int i = 0; i < size; i++) {
-          decoded->pixels[i * 4 + 0] = texels[i].r;
-          decoded->pixels[i * 4 + 1] = texels[i].g;
-          decoded->pixels[i * 4 + 2] = texels[i].b;
-          decoded->pixels[i * 4 + 3] = texels[i].a;
-        }
-      }
-      if (!decoded->pixels) return {task.key, nullptr};
-      int pixel_count = decoded->width * decoded->height;
-      for (int p = 0; p < pixel_count; p++) {
-        uint8_t a = decoded->pixels[p * 4 + 3];
-        if (a > 0 && a < 255) {
-          decoded->has_semi_transparency = true;
-          break;
-        }
-      }
-      return {task.key, decoded};
-    }));
+    futures.push_back(std::async(
+        std::launch::async,
+        [task]()
+            -> std::pair<std::string, std::shared_ptr<DecodedTextureData>> {
+          auto decoded = std::make_shared<DecodedTextureData>();
+          if (task.tex->mHeight == 0) {
+            decoded->pixels = stbi_load_from_memory(
+                reinterpret_cast<unsigned char*>(task.tex->pcData),
+                task.tex->mWidth, &decoded->width, &decoded->height,
+                &decoded->channels, STBI_rgb_alpha);
+          } else {
+            decoded->width = task.tex->mWidth;
+            decoded->height = task.tex->mHeight;
+            decoded->channels = 4;
+            int size = decoded->width * decoded->height;
+            decoded->pixels = static_cast<stbi_uc*>(malloc(size * 4));
+            aiTexel* texels = task.tex->pcData;
+            for (int i = 0; i < size; i++) {
+              decoded->pixels[i * 4 + 0] = texels[i].r;
+              decoded->pixels[i * 4 + 1] = texels[i].g;
+              decoded->pixels[i * 4 + 2] = texels[i].b;
+              decoded->pixels[i * 4 + 3] = texels[i].a;
+            }
+          }
+          if (!decoded->pixels) {
+            return {task.key, nullptr};
+          }
+          int pixel_count = decoded->width * decoded->height;
+          for (int p = 0; p < pixel_count; p++) {
+            uint8_t a = decoded->pixels[p * 4 + 3];
+            if (a > 0 && a < 255) {
+              decoded->has_semi_transparency = true;
+              break;
+            }
+          }
+          return {task.key, decoded};
+        }));
   }
 
   for (auto& f : futures) {
@@ -789,9 +826,10 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
 }
 
 // Resolve an embedded texture from the pre-decoded cache or by direct decode.
-std::shared_ptr<Texture> Engine::LoadEmbeddedTexture(
-    Model& model, int tex_index, TextureType tex_type,
-    const aiScene& scene) {
+std::shared_ptr<Texture> Engine::LoadEmbeddedTexture(Model& model,
+                                                     int tex_index,
+                                                     TextureType tex_type,
+                                                     const aiScene& scene) {
   std::string key =
       model.textures_path + "/embedded_" + std::to_string(tex_index);
 
@@ -806,14 +844,14 @@ std::shared_ptr<Texture> Engine::LoadEmbeddedTexture(
   auto cache_it = model.decoded_texture_cache.find(key);
   if (cache_it != model.decoded_texture_cache.end() && cache_it->second) {
     auto& decoded = cache_it->second;
-    bool is_color = tex_type == TextureTypeDiffuse
-        || tex_type == TextureTypeBaseColor;
+    bool is_color =
+        tex_type == TextureTypeDiffuse || tex_type == TextureTypeBaseColor;
     TextureProps props;
     props.type = tex_type;
     props.width = decoded->width;
     props.height = decoded->height;
-    props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB
-                                  : VK_FORMAT_R8G8B8A8_UNORM;
+    props.image_format =
+        is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
     props.generate_mipmaps = true;
     texture = renderer_->CreateTexture(decoded->pixels, 4, props, {});
   } else {
@@ -839,8 +877,8 @@ std::shared_ptr<Texture> Engine::LoadExternalTexture(
 
   // Check if already loaded as a standalone asset
   AssetHandle tex_handle = asset_manager_->FindBySourcePath(texture_path);
-  if (tex_handle.IsValid()
-      && asset_manager_->GetLoadState(tex_handle) == AssetLoadState::Loaded) {
+  if (tex_handle.IsValid() &&
+      asset_manager_->GetLoadState(tex_handle) == AssetLoadState::Loaded) {
     texture = asset_manager_->Get<Texture>(tex_handle);
   }
 
@@ -860,8 +898,8 @@ static std::string NormalizeTexturePath(const std::string& raw,
                                         const std::string& textures_dir) {
   std::string s = raw;
   size_t last_sep = s.find_last_of("/\\");
-  if (last_sep != std::string::npos
-      && (s.find(':') != std::string::npos || s[0] == '/')) {
+  if (last_sep != std::string::npos &&
+      (s.find(':') != std::string::npos || s[0] == '/')) {
     s = s.substr(last_sep + 1);
   }
   return textures_dir + "/" + s;
@@ -943,7 +981,8 @@ std::shared_ptr<Texture> Engine::CreateTextureFromEmbedded(aiTexture* aiTex,
   props.height = height;
   props.type = type;
   bool is_color = type == TextureTypeDiffuse || type == TextureTypeBaseColor;
-  props.image_format = is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+  props.image_format =
+      is_color ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
   props.generate_mipmaps = true;
 
   auto texture = renderer_->CreateTexture(pixelData, 4, props, {});
@@ -1008,23 +1047,30 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
 
   // Check base texture for semi-transparency (diffuse or albedo)
   auto check_transparency = [&](aiTextureType type) {
-    if (material->GetTextureCount(type) == 0) return;
+    if (material->GetTextureCount(type) == 0) {
+      return;
+    }
     aiString str;
     material->GetTexture(type, 0, &str);
     std::string s = str.C_Str();
-    if (s.empty()) return;
+    if (s.empty()) {
+      return;
+    }
     std::string key;
     if (s[0] == '*') {
       int idx = std::atoi(s.c_str() + 1);
       key = model.textures_path + "/embedded_" + std::to_string(idx);
     } else {
       size_t last_sep = s.find_last_of("/\\");
-      if (last_sep != std::string::npos && (s.find(':') != std::string::npos || s[0] == '/'))
+      if (last_sep != std::string::npos &&
+          (s.find(':') != std::string::npos || s[0] == '/')) {
         s = s.substr(last_sep + 1);
+      }
       key = model.textures_path + "/" + s;
     }
     auto it = model.decoded_texture_cache.find(key);
-    if (it != model.decoded_texture_cache.end() && it->second && it->second->has_semi_transparency) {
+    if (it != model.decoded_texture_cache.end() && it->second &&
+        it->second->has_semi_transparency) {
       mesh->has_transparency = true;
     }
   };
@@ -1035,7 +1081,8 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
   // When a map exists, the factor acts as a multiplier (default 1.0 = full texture).
   // When no map exists, the factor IS the value directly.
   float roughness_factor;
-  if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness_factor) != AI_SUCCESS) {
+  if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness_factor) !=
+      AI_SUCCESS) {
     roughness_factor = (flags & VertexFlagHasRoughnessMap) ? 1.0f : 0.5f;
   }
   float metallic_factor;
@@ -1100,8 +1147,7 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     vertex.Flags = flags;
 
     if (aiMesh->mColors[0]) {
-      vertex.Color = {aiMesh->mColors[0][i].r,
-                      aiMesh->mColors[0][i].g,
+      vertex.Color = {aiMesh->mColors[0][i].r, aiMesh->mColors[0][i].g,
                       aiMesh->mColors[0][i].b};
     } else {
       // Fall back to material diffuse color when no vertex colors exist
@@ -1225,7 +1271,8 @@ void Engine::ProcessNode(Model& model, aiNode* node, const aiScene& scene,
 
   // Recurse children, filling in child indices
   for (uint32_t i = 0; i < node->mNumChildren; i++) {
-    int32_t child_index = static_cast<int32_t>(model.node_hierarchy.nodes.size());
+    int32_t child_index =
+        static_cast<int32_t>(model.node_hierarchy.nodes.size());
     model.node_hierarchy.nodes[node_index].children[i] = child_index;
     ProcessNode(model, node->mChildren[i], scene, meshes, node_index);
   }
@@ -1243,7 +1290,8 @@ void Engine::ExtractAnimations(Model& model, const aiScene& scene) {
     clip.name = anim->mName.C_Str();
     clip.duration = static_cast<float>(anim->mDuration);
     clip.ticks_per_second = anim->mTicksPerSecond > 0
-        ? static_cast<float>(anim->mTicksPerSecond) : 25.0f;
+                                ? static_cast<float>(anim->mTicksPerSecond)
+                                : 25.0f;
 
     for (uint32_t c = 0; c < anim->mNumChannels; c++) {
       aiNodeAnim* chan = anim->mChannels[c];
@@ -1252,30 +1300,30 @@ void Engine::ExtractAnimations(Model& model, const aiScene& scene) {
 
       ch.position_keys.reserve(chan->mNumPositionKeys);
       for (uint32_t k = 0; k < chan->mNumPositionKeys; k++) {
-        ch.position_keys.push_back({
-            static_cast<float>(chan->mPositionKeys[k].mTime),
-            glm::vec3(chan->mPositionKeys[k].mValue.x,
-                      chan->mPositionKeys[k].mValue.y,
-                      chan->mPositionKeys[k].mValue.z)});
+        ch.position_keys.push_back(
+            {static_cast<float>(chan->mPositionKeys[k].mTime),
+             glm::vec3(chan->mPositionKeys[k].mValue.x,
+                       chan->mPositionKeys[k].mValue.y,
+                       chan->mPositionKeys[k].mValue.z)});
       }
 
       ch.rotation_keys.reserve(chan->mNumRotationKeys);
       for (uint32_t k = 0; k < chan->mNumRotationKeys; k++) {
-        ch.rotation_keys.push_back({
-            static_cast<float>(chan->mRotationKeys[k].mTime),
-            glm::quat(chan->mRotationKeys[k].mValue.w,
-                      chan->mRotationKeys[k].mValue.x,
-                      chan->mRotationKeys[k].mValue.y,
-                      chan->mRotationKeys[k].mValue.z)});
+        ch.rotation_keys.push_back(
+            {static_cast<float>(chan->mRotationKeys[k].mTime),
+             glm::quat(chan->mRotationKeys[k].mValue.w,
+                       chan->mRotationKeys[k].mValue.x,
+                       chan->mRotationKeys[k].mValue.y,
+                       chan->mRotationKeys[k].mValue.z)});
       }
 
       ch.scale_keys.reserve(chan->mNumScalingKeys);
       for (uint32_t k = 0; k < chan->mNumScalingKeys; k++) {
-        ch.scale_keys.push_back({
-            static_cast<float>(chan->mScalingKeys[k].mTime),
-            glm::vec3(chan->mScalingKeys[k].mValue.x,
-                      chan->mScalingKeys[k].mValue.y,
-                      chan->mScalingKeys[k].mValue.z)});
+        ch.scale_keys.push_back(
+            {static_cast<float>(chan->mScalingKeys[k].mTime),
+             glm::vec3(chan->mScalingKeys[k].mValue.x,
+                       chan->mScalingKeys[k].mValue.y,
+                       chan->mScalingKeys[k].mValue.z)});
       }
 
       clip.channels.push_back(std::move(ch));

@@ -20,6 +20,7 @@ class CommandPool {
   std::shared_ptr<CommandBuffer> CreateBuffer();
 
   VkCommandPool handle_{};
+
  private:
   friend class CommandBuffer;
   void ReturnBuffer(VkCommandBuffer buffer);
@@ -37,10 +38,10 @@ class CommandBuffer {
   void End();
 
   VkCommandBuffer handle_;
+
  private:
   CommandPool& pool_;
-
 };
-}
+}  // namespace Wiesel
 
 #endif  //WIESEL_COMMAND_CONTEXT_HPP

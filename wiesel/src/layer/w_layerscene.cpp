@@ -38,7 +38,7 @@ void SceneLayer::OnBeginPresent() {}
 void SceneLayer::OnPresent() {
   std::shared_ptr<Renderer> renderer = Engine::renderer();
   renderer->DrawFullscreen(renderer->GetPresentPipeline(),
-                                {renderer->GetFinalOutputDescriptor()});
+                           {renderer->GetFinalOutputDescriptor()});
 }
 
 void SceneLayer::OnPostPresent() {

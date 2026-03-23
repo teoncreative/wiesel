@@ -26,11 +26,13 @@ class DescriptorSetLayout {
 
   bool allocated_;
   VkDescriptorSetLayout layout_;
+
   struct Binding {
     uint32_t index;
     VkDescriptorType type;
     VkShaderStageFlags flags;
   };
+
   std::vector<Binding> bindings_;
 };
 }  // namespace Wiesel

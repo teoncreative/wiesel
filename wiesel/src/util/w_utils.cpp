@@ -62,7 +62,9 @@ std::string FormatVariableName(const std::string& name) {
   // Calculate final size
   size_t final_size = name.size();
   for (char c : name) {
-    if (c == '_') final_size--; // underscore becomes space, next char becomes uppercase
+    if (c == '_') {
+      final_size--;  // underscore becomes space, next char becomes uppercase
+    }
   }
 
   std::string result;

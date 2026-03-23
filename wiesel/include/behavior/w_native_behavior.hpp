@@ -38,7 +38,9 @@ class NativeBehavior : public IBehavior {
 
   // Override these in your behavior
   virtual void OnStart() {}
+
   virtual void OnTick(float_t delta_time) {}
+
   virtual void OnDestroy() {}
 
  private:
@@ -61,13 +63,13 @@ class NativeBehaviorRegistry {
     names_.push_back(name);
   }
 
-  bool Has(const std::string& name) const {
-    return factories_.contains(name);
-  }
+  bool Has(const std::string& name) const { return factories_.contains(name); }
 
   NativeBehavior* Create(const std::string& name, Entity entity) const {
     auto it = factories_.find(name);
-    if (it == factories_.end()) return nullptr;
+    if (it == factories_.end()) {
+      return nullptr;
+    }
     return it->second(entity);
   }
 

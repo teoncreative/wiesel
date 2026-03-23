@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_motion_blur_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -21,11 +21,10 @@ MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
   render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                             "PostProcess RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+                                              "PostProcess RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   // Pipeline (2-input layout + global layout + push constants)
@@ -33,14 +32,13 @@ MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/fullscreen_shader.vert"});
-  auto frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/motion_blur.frag"});
+  auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
+                                       "main", ShaderSourceSource,
+                                       "/engine/shaders/motion_blur.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(
-      renderer_->GetPostprocess2InputDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetPostprocess2InputDescriptorLayout());
   pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
   pipeline_->AddPushConstant(push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);
   pipeline_->AddShader(fullscreen_vert);
@@ -59,11 +57,14 @@ void MotionBlurFeature::SetupResources(RenderContext& ctx) {
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  pool.SetTexture("motion_blur.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "motion_blur.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
-  pool.SetFramebuffer("motion_blur",
+  pool.SetFramebuffer(
+      "motion_blur",
       render_pass_->CreateFramebuffer(
           0, {pool.GetTexture("motion_blur.color").get()}, {rw, rh}));
 
@@ -104,8 +105,7 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
 
   // Import motion blur output texture from pool
   RGResource motion_blur_out =
-      graph.ImportTexture("MotionBlur",
-                          pool->GetTexture("motion_blur.color"));
+      graph.ImportTexture("MotionBlur", pool->GetTexture("motion_blur.color"));
 
   // Get PipelineOutput and geometry world pos from registry
   auto pipeline_input = registry.Get("PipelineOutput");
@@ -120,15 +120,14 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
         push_constants->num_samples = s.motion_blur_samples;
         pipeline->Bind(PipelineBindPointGraphics);
         renderer->DrawFullscreen(pipeline,
-            {pool->GetDescriptor("motion_blur.input"),
-             pool->GetDescriptor("GlobalDescriptor")});
+                                 {pool->GetDescriptor("motion_blur.input"),
+                                  pool->GetDescriptor("GlobalDescriptor")});
       });
 
   graph.PassReadsTexture(motion_blur, pipeline_input);
   graph.PassReadsTexture(motion_blur, geo_world_pos);
   graph.PassWritesColor(motion_blur, motion_blur_out);
-  graph.SetPassFramebuffer(motion_blur,
-                           pool->GetFramebuffer("motion_blur"));
+  graph.SetPassFramebuffer(motion_blur, pool->GetFramebuffer("motion_blur"));
   graph.SetPassViewport(motion_blur, ctx.viewport_size);
   graph.SetPassClearColor(motion_blur, {0, 0, 0, 0});
 

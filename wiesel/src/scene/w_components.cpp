@@ -92,10 +92,16 @@ float AnimatorComponent::GetFloat(const std::string& name) const {
 }
 
 void AnimatorComponent::Play(const std::string& state_name, float blend_time) {
-  if (!UseController()) return;
+  if (!UseController()) {
+    return;
+  }
   const auto* state = controller.FindState(state_name);
-  if (!state) return;
-  if (current_state_name == state_name && !is_blending) return;
+  if (!state) {
+    return;
+  }
+  if (current_state_name == state_name && !is_blending) {
+    return;
+  }
 
   // Start crossfade from current to new state
   if (blend_time > 0.0f && !current_state_name.empty()) {

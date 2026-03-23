@@ -10,21 +10,20 @@
 
 #include "script/mono/w_monobehavior.hpp"
 
+#include "input/w_input.hpp"
 #include "mono_util.h"
 #include "script/w_scriptmanager.hpp"
-#include "input/w_input.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
-MonoBehavior::MonoBehavior(Entity entity, const std::string& script_name) :
-      IBehavior(script_name, entity) {
+MonoBehavior::MonoBehavior(Entity entity, const std::string& script_name)
+    : IBehavior(script_name, entity) {
   script_instance_ = nullptr;
   InstantiateScript();
 }
 
-MonoBehavior::~MonoBehavior() {
-}
+MonoBehavior::~MonoBehavior() {}
 
 void MonoBehavior::OnUpdate(float_t delta_time) {
   if (unset_ || !enabled_) {
@@ -54,7 +53,8 @@ void MonoBehavior::InstantiateScript() {
 }
 
 bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {
-  std::map<std::string, std::function<MonoObject*()>> copy = script_instance_->attached_variables_;
+  std::map<std::string, std::function<MonoObject*()>> copy =
+      script_instance_->attached_variables_;
   script_instance_ = nullptr;
   InstantiateScript();
   script_instance_->attached_variables_ = copy;
@@ -81,4 +81,4 @@ bool MonoBehavior::OnMouseMoved(MouseMovedEvent& event) {
   }
   return script_instance_->OnMouseMoved(event);
 }
-}
+}  // namespace Wiesel

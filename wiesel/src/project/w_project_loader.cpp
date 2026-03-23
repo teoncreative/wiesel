@@ -27,21 +27,45 @@
 namespace Wiesel {
 
 AssetType ProjectLoader::ExtToAssetType(const std::string& ext) {
-  if (ext == ".wscene") return AssetType::Scene;
-  if (ext == ".wprefab") return AssetType::Prefab;
-  if (ext == ".wmat") return AssetType::Material;
-  if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") return AssetType::Model;
-  if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp") return AssetType::Texture;
-  if (ext == ".ttf" || ext == ".otf") return AssetType::Font;
-  if (ext == ".cs") return AssetType::Script;
-  if (ext == ".wskybox") return AssetType::Skybox;
-  if (ext == ".wspritesheet") return AssetType::SpriteSheet;
-  if (ext == ".wspriteanim") return AssetType::SpriteAnim;
-  if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") return AssetType::Audio;
+  if (ext == ".wscene") {
+    return AssetType::Scene;
+  }
+  if (ext == ".wprefab") {
+    return AssetType::Prefab;
+  }
+  if (ext == ".wmat") {
+    return AssetType::Material;
+  }
+  if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") {
+    return AssetType::Model;
+  }
+  if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
+      ext == ".bmp") {
+    return AssetType::Texture;
+  }
+  if (ext == ".ttf" || ext == ".otf") {
+    return AssetType::Font;
+  }
+  if (ext == ".cs") {
+    return AssetType::Script;
+  }
+  if (ext == ".wskybox") {
+    return AssetType::Skybox;
+  }
+  if (ext == ".wspritesheet") {
+    return AssetType::SpriteSheet;
+  }
+  if (ext == ".wspriteanim") {
+    return AssetType::SpriteAnim;
+  }
+  if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") {
+    return AssetType::Audio;
+  }
   return AssetType::None;
 }
 
-ProjectLoader::MetaFileData ProjectLoader::ReadMetaFile(const std::filesystem::path& meta_path) {
+ProjectLoader::MetaFileData ProjectLoader::ReadMetaFile(
+    const std::filesystem::path& meta_path) {
   MetaFileData result;
   if (!std::filesystem::exists(meta_path)) {
     return result;
@@ -62,8 +86,7 @@ ProjectLoader::MetaFileData ProjectLoader::ReadMetaFile(const std::filesystem::p
 }
 
 void ProjectLoader::WriteMetaFile(const std::filesystem::path& meta_path,
-                                  const AssetHandle& handle,
-                                  AssetType type,
+                                  const AssetHandle& handle, AssetType type,
                                   const void* properties) {
   nlohmann::json j;
   j["handle"] = handle.ToString();
@@ -98,25 +121,34 @@ void ProjectLoader::ScanAssets(Project& project) {
   std::vector<fs::path> scenes_to_preload;
 
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
-  if (!fs::exists(assets_dir)) return;
+  if (!fs::exists(assets_dir)) {
+    return;
+  }
 
   for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
-    if (!entry.is_regular_file()) continue;
+    if (!entry.is_regular_file()) {
+      continue;
+    }
 
     std::string ext = entry.path().extension().string();
-    if (ext == ".meta") continue;
+    if (ext == ".meta") {
+      continue;
+    }
 
     AssetType type = ExtToAssetType(ext);
-    if (type == AssetType::None) continue;
+    if (type == AssetType::None) {
+      continue;
+    }
 
     auto rel = fs::relative(entry.path(), assets_dir);
     std::string vfs_path = "/app/" + rel.generic_string();
     std::string name = entry.path().stem().string();
 
     // Types that store their handle inside their own JSON (no .meta needed)
-    bool is_json_asset = (type == AssetType::Scene || type == AssetType::Prefab
-                          || type == AssetType::Material || type == AssetType::Skybox
-                          || type == AssetType::SpriteSheet || type == AssetType::SpriteAnim);
+    bool is_json_asset =
+        (type == AssetType::Scene || type == AssetType::Prefab ||
+         type == AssetType::Material || type == AssetType::Skybox ||
+         type == AssetType::SpriteSheet || type == AssetType::SpriteAnim);
     AssetHandle handle;
 
     if (is_json_asset) {
@@ -148,7 +180,8 @@ void ProjectLoader::ScanAssets(Project& project) {
             mat->name = name;
             mgr.Register(handle, name, AssetType::Material, vfs_path);
             mgr.Store<Material>(handle, mat);
-            mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+            mgr.SetLoadState(handle, AssetLoadState::Unloaded,
+                             AssetLoadState::Loaded);
             mat->asset_handle = handle;
           } else {
             mgr.Register(handle, name, type, vfs_path);
@@ -210,7 +243,9 @@ void ProjectLoader::ScanAssets(Project& project) {
       }
     }
 
-    if (!handle.IsValid()) continue;
+    if (!handle.IsValid()) {
+      continue;
+    }
 
     if (type == AssetType::Scene) {
       Engine::scene_manager().RegisterScene(name, entry.path());
@@ -218,7 +253,8 @@ void ProjectLoader::ScanAssets(Project& project) {
     }
 
     if (type == AssetType::Prefab || type == AssetType::Scene) {
-      mgr.SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+      mgr.SetLoadState(handle, AssetLoadState::Unloaded,
+                       AssetLoadState::Loaded);
     }
   }
 
@@ -230,7 +266,8 @@ void ProjectLoader::ScanAssets(Project& project) {
     if (entry.path().extension() != ".meta") {
       continue;
     }
-    fs::path asset_path = entry.path().string().substr(0, entry.path().string().size() - 5);
+    fs::path asset_path =
+        entry.path().string().substr(0, entry.path().string().size() - 5);
     if (!fs::exists(asset_path)) {
       std::error_code ec;
       fs::remove(entry.path(), ec);
@@ -244,7 +281,8 @@ void ProjectLoader::ScanAssets(Project& project) {
     auto temp_scene = std::make_shared<Scene>();
     SceneSerializer serializer(temp_scene);
     if (serializer.Deserialize(scene_path)) {
-      LOG_INFO("Preloading assets for scene: {}", scene_path.filename().string());
+      LOG_INFO("Preloading assets for scene: {}",
+               scene_path.filename().string());
     }
     // temp_scene is discarded but async loads are already in flight
   }
@@ -276,16 +314,24 @@ void ProjectLoader::ApplyInputSettings(Project& project) {
 bool ProjectLoader::LoadStartScene(Project& project) {
   namespace fs = std::filesystem;
   const auto& start = project.GetSettings().start_scene;
-  if (start.empty()) return false;
+  if (start.empty()) {
+    return false;
+  }
 
   auto scene_path = project.GetAssetsDirectory() / start;
-  if (!fs::exists(scene_path)) return false;
+  if (!fs::exists(scene_path)) {
+    return false;
+  }
 
   auto scene = Engine::scene_manager().GetActiveScene();
-  if (!scene) return false;
+  if (!scene) {
+    return false;
+  }
 
   SceneSerializer serializer(scene);
-  if (!serializer.Deserialize(scene_path)) return false;
+  if (!serializer.Deserialize(scene_path)) {
+    return false;
+  }
 
   for (auto entity : scene->GetAllEntitiesWith<CameraComponent>()) {
     auto& cam = scene->GetComponent<CameraComponent>(entity);
@@ -297,7 +343,9 @@ bool ProjectLoader::LoadStartScene(Project& project) {
 }
 
 bool ProjectLoader::LoadAll(Project& project) {
-  if (!MountProject(project)) return false;
+  if (!MountProject(project)) {
+    return false;
+  }
 
   ScanAssets(project);
   Engine::script_manager().Reload();

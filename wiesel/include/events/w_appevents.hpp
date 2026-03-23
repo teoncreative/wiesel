@@ -43,7 +43,7 @@ class WindowResizeEvent : public Event {
 };
 
 class WindowFocusGainedEvent : public Event {
-public:
+ public:
   WindowFocusGainedEvent() {}
 
   EVENT_CLASS_TYPE(WindowFocusGained)
@@ -52,7 +52,7 @@ public:
 };
 
 class WindowFocusLostEvent : public Event {
-public:
+ public:
   WindowFocusLostEvent() {}
 
   EVENT_CLASS_TYPE(WindowFocusLost)
@@ -78,97 +78,108 @@ class AppRecreateSwapChainsEvent : public Event {
 
 class ScriptsReloadedEvent : public Event {
  public:
-  ScriptsReloadedEvent() { }
+  ScriptsReloadedEvent() {}
 
   EVENT_CLASS_TYPE(ScriptsReloaded)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
 };
 
 class JoystickConnectedEvent : public Event {
-public:
-  JoystickConnectedEvent(int jid, std::string name, bool is_gamepad) : jid_(jid), name_(name), is_gamepad_(is_gamepad) { }
+ public:
+  JoystickConnectedEvent(int jid, std::string name, bool is_gamepad)
+      : jid_(jid), name_(name), is_gamepad_(is_gamepad) {}
 
   WIESEL_GETTER_FN int GetJoystickId() const { return jid_; }
+
   WIESEL_GETTER_FN const std::string& GetJoystickName() const { return name_; }
+
   WIESEL_GETTER_FN bool IsGamepad() const { return is_gamepad_; }
 
   EVENT_CLASS_TYPE(JoystickConnected)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
-private:
+ private:
   int jid_;
   std::string name_;
   bool is_gamepad_;
 };
 
 class JoystickDisconnectedEvent : public Event {
-public:
-  JoystickDisconnectedEvent(int jid) : jid_(jid) { }
+ public:
+  JoystickDisconnectedEvent(int jid) : jid_(jid) {}
 
   WIESEL_GETTER_FN int GetJoystickId() const { return jid_; }
 
   EVENT_CLASS_TYPE(JoystickDisconnected)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
-private:
+ private:
   int jid_;
 };
 
 class JoystickButtonPressedEvent : public Event {
-public:
-  JoystickButtonPressedEvent(int jid, int button) : jid_(jid), button_(button) {}
+ public:
+  JoystickButtonPressedEvent(int jid, int button)
+      : jid_(jid), button_(button) {}
 
   WIESEL_GETTER_FN int GetJoystickId() const { return jid_; }
+
   WIESEL_GETTER_FN int GetButton() const { return button_; }
 
   EVENT_CLASS_TYPE(JoystickButtonPressed)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryInput)
-private:
+ private:
   int jid_;
   int button_;
 };
 
 class JoystickButtonReleasedEvent : public Event {
-public:
-  JoystickButtonReleasedEvent(int jid, int button) : jid_(jid), button_(button) {}
+ public:
+  JoystickButtonReleasedEvent(int jid, int button)
+      : jid_(jid), button_(button) {}
 
   WIESEL_GETTER_FN int GetJoystickId() const { return jid_; }
+
   WIESEL_GETTER_FN int GetButton() const { return button_; }
 
   EVENT_CLASS_TYPE(JoystickButtonReleased)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryInput)
-private:
+ private:
   int jid_;
   int button_;
 };
 
 class JoystickAxisMovedEvent : public Event {
-public:
+ public:
   JoystickAxisMovedEvent(int jid, int axis, float value)
       : jid_(jid), axis_(axis), value_(value) {}
 
   WIESEL_GETTER_FN int GetJoystickId() const { return jid_; }
+
   WIESEL_GETTER_FN int GetAxis() const { return axis_; }
+
   WIESEL_GETTER_FN float GetValue() const { return value_; }
 
   EVENT_CLASS_TYPE(JoystickAxisMoved)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryInput)
-private:
+ private:
   int jid_;
   int axis_;
   float value_;
 };
 
 class JoystickHatChangedEvent : public Event {
-public:
+ public:
   JoystickHatChangedEvent(int jid, int hat_index, int current_hat)
       : jid_(jid), hat_index_(hat_index), current_hat_(current_hat) {}
 
   WIESEL_GETTER_FN int GetJoystickId() const { return jid_; }
+
   WIESEL_GETTER_FN int GetHatIndex() const { return hat_index_; }
+
   WIESEL_GETTER_FN int GetCurrentHat() const { return current_hat_; }
 
   EVENT_CLASS_TYPE(JoystickHatChanged)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryInput)
-private:
+ private:
   int jid_;
   int hat_index_;
   int current_hat_;

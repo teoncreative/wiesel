@@ -118,7 +118,7 @@ bool SceneManager::BeginFrame() {
 }
 
 void SceneManager::LoadSceneWithLoading(const std::string& target_scene,
-                                         const std::string& loading_scene) {
+                                        const std::string& loading_scene) {
   auto target_it = registered_scenes_.find(target_scene);
   auto loading_it = registered_scenes_.find(loading_scene);
   if (target_it == registered_scenes_.end()) {
@@ -132,8 +132,9 @@ void SceneManager::LoadSceneWithLoading(const std::string& target_scene,
   LoadSceneWithLoadingPath(target_it->second, loading_it->second);
 }
 
-void SceneManager::LoadSceneWithLoadingPath(const std::filesystem::path& target_path,
-                                             const std::filesystem::path& loading_path) {
+void SceneManager::LoadSceneWithLoadingPath(
+    const std::filesystem::path& target_path,
+    const std::filesystem::path& loading_path) {
   if (!std::filesystem::exists(target_path)) {
     LOG_ERROR("Target scene not found: {}", target_path.string());
     return;
@@ -150,8 +151,8 @@ void SceneManager::LoadSceneWithLoadingPath(const std::filesystem::path& target_
 
   // Switch to loading scene immediately
   pending_scene_path_ = std::filesystem::absolute(loading_path);
-  LOG_INFO("Loading via intermediate scene: {} -> {}",
-           loading_path.string(), target_path.string());
+  LOG_INFO("Loading via intermediate scene: {} -> {}", loading_path.string(),
+           target_path.string());
 
   // Deserialize the target scene into a temporary scene to discover and
   // kick off async loads for all asset dependencies. RequestAsset() is
@@ -160,7 +161,8 @@ void SceneManager::LoadSceneWithLoadingPath(const std::filesystem::path& target_
   target_scene_ = std::make_shared<Scene>();
   SceneSerializer serializer(target_scene_);
   if (!serializer.Deserialize(target_scene_path_)) {
-    LOG_ERROR("Failed to pre-parse target scene: {}", target_scene_path_.string());
+    LOG_ERROR("Failed to pre-parse target scene: {}",
+              target_scene_path_.string());
     target_scene_.reset();
     load_progress_ = 1.0f;
     scene_ready_ = true;
@@ -206,8 +208,9 @@ void SceneManager::Cleanup() {
   }
 }
 
-void SceneManager::UnloadUnusedAssets(const std::vector<AssetHandle>& old_assets,
-                                      const std::vector<AssetHandle>& new_assets) {
+void SceneManager::UnloadUnusedAssets(
+    const std::vector<AssetHandle>& old_assets,
+    const std::vector<AssetHandle>& new_assets) {
   int unloaded = 0;
   for (const auto& old_handle : old_assets) {
     // Check if new scene still needs this asset

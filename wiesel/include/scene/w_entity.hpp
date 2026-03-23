@@ -51,8 +51,12 @@ class Entity {
   const std::string& GetName() { return GetComponent<TagComponent>().name; }
 
   Entity GetParent() const { return {parent_handle_, scene_}; }
+
   entt::entity parent_handle() const { return parent_handle_; }
-  const std::vector<entt::entity>* child_handles() const { return child_handles_; }
+
+  const std::vector<entt::entity>* child_handles() const {
+    return child_handles_;
+  }
 
   bool operator==(const Entity& other) const {
     return entity_handle_ == other.entity_handle_ && scene_ == other.scene_;
@@ -63,7 +67,6 @@ class Entity {
   entt::entity handle() const { return entity_handle_; }
 
   Scene* GetScene() const { return scene_; }
-
 
  private:
   entt::entity entity_handle_;

@@ -42,7 +42,8 @@ class EditorLayer : public Layer {
   bool OnWindowFocusGained(WindowFocusGainedEvent& event);
   bool OnWindowFocusLost(WindowFocusLostEvent& event);
 
-  void RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu);
+  void RenderEntity(Entity& entity, entt::entity entity_id, int depth,
+                    bool& ignore_menu);
   void UpdateHierarchyOrder();
 
   void OnBeginPresent() override;
@@ -99,8 +100,10 @@ class EditorLayer : public Layer {
   float mouse_sensitivity_ = 160.0f;
   float editor_2d_zoom_ = 5.0f;  // ortho size in 2D mode
   bool cursor_captured_ = false;
-  entt::entity piloting_camera_ = entt::null;  // entity whose camera we're piloting
-  glm::vec2 pending_pick_ndc_ = {-1, -1};  // NDC coords for fallback sprite picking
+  entt::entity piloting_camera_ =
+      entt::null;  // entity whose camera we're piloting
+  glm::vec2 pending_pick_ndc_ = {-1,
+                                 -1};  // NDC coords for fallback sprite picking
   bool game_panel_focused_ = false;
   bool scene_panel_visible_ = true;
   bool game_panel_visible_ = true;
@@ -109,12 +112,14 @@ class EditorLayer : public Layer {
   bool show_project_settings_ = false;
   int project_settings_category_ = 0;
   std::string selected_input_context_;
-  int selected_input_item_ = -1;  // index into actions or axes of selected context
+  int selected_input_item_ =
+      -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
   bool show_create_skybox_ = false;
   bool show_create_spritesheet_ = false;
   bool show_create_spriteanim_ = false;
-  std::string browser_current_dir_;  // current asset browser directory relative to /app
+  std::string
+      browser_current_dir_;  // current asset browser directory relative to /app
 
   // Asset properties panel
   bool show_asset_properties_ = false;
@@ -130,7 +135,14 @@ class EditorLayer : public Layer {
   void ClosePrefabEditor();
 
   // Deferred scene actions (executed between frames, not during rendering)
-  enum class DeferredAction { None, OpenScene, OpenPrefab, ClosePrefab, OpenProject, StopPlaying };
+  enum class DeferredAction {
+    None,
+    OpenScene,
+    OpenPrefab,
+    ClosePrefab,
+    OpenProject,
+    StopPlaying
+  };
   DeferredAction deferred_action_ = DeferredAction::None;
   std::filesystem::path deferred_path_;
   void ProcessDeferredActions();
@@ -138,6 +150,6 @@ class EditorLayer : public Layer {
   // Scene snapshot for Play/Stop restore (full scene JSON)
   std::string play_mode_snapshot_;
 };
-}
+}  // namespace Wiesel::Editor
 
 #endif  //WIESEL_PARENT_W_EDITOR_H

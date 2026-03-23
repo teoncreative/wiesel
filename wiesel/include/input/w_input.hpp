@@ -11,14 +11,15 @@
 
 #pragma once
 
+#include "events/w_events.hpp"
+#include "util/w_gamepadcodes.hpp"
 #include "util/w_keycodes.hpp"
 #include "util/w_mousecodes.hpp"
-#include "util/w_gamepadcodes.hpp"
-#include "events/w_events.hpp"
 
 namespace Wiesel {
 struct KeyData {
   KeyData() : pressed(false), previous_pressed(false) {}
+
   explicit KeyData(bool pressed) : pressed(pressed), previous_pressed(false) {}
 
   bool pressed;
@@ -36,7 +37,7 @@ constexpr int kMaxPlayers = 4;
 // Per-gamepad state
 struct GamepadState {
   bool connected = false;
-  int jid = -1;                                  // GLFW joystick ID
+  int jid = -1;  // GLFW joystick ID
   std::string name;
   KeyData buttons[GamepadButtonCount] = {};
   float axes[GamepadAxisCount] = {};
@@ -45,8 +46,8 @@ struct GamepadState {
 // Per-player assignment
 struct PlayerSlot {
   bool active = false;
-  std::string context_name;   // which InputContext this player uses
-  int gamepad_index = -1;     // index into gamepads_ array (-1 = keyboard/mouse)
+  std::string context_name;  // which InputContext this player uses
+  int gamepad_index = -1;    // index into gamepads_ array (-1 = keyboard/mouse)
 };
 
 class InputManager {
@@ -64,7 +65,8 @@ class InputManager {
   static float GetAxis(int player, const std::string& axis_name);
 
   // --- Player management ---
-  static void AssignPlayer(int player, const std::string& context, int gamepad_index = -1);
+  static void AssignPlayer(int player, const std::string& context,
+                           int gamepad_index = -1);
   static void UnassignPlayer(int player);
   static const PlayerSlot& GetPlayerSlot(int player);
 

@@ -21,12 +21,14 @@ class Scene;
 // Dispatches OnPointerClick/Down/Up/Enter/Exit to scripts on hit entities.
 class UIEventSystem {
  public:
-  void Update(Scene& scene, float mouse_x, float mouse_y,
-              bool mouse_down, bool mouse_up, bool mouse_held);
+  void Update(Scene& scene, float mouse_x, float mouse_y, bool mouse_down,
+              bool mouse_up, bool mouse_held);
 
   // Text input focus
   entt::entity GetFocusedEntity() const { return focused_entity_; }
+
   void SetFocusedEntity(entt::entity entity) { focused_entity_ = entity; }
+
   void ClearFocus() { focused_entity_ = entt::null; }
 
  private:

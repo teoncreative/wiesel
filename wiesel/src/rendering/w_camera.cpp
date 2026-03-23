@@ -20,8 +20,8 @@ void CameraComponent::UpdateProjection() {
   if (projection_mode == ProjectionMode::Orthographic) {
     float half_h = ortho_size;
     float half_w = half_h * aspect_ratio;
-    projection = glm::ortho(-half_w, half_w, -half_h, half_h,
-                             near_plane, far_plane);
+    projection =
+        glm::ortho(-half_w, half_w, -half_h, half_h, near_plane, far_plane);
   } else {
     projection = glm::perspective(glm::radians(field_of_view), aspect_ratio,
                                   near_plane, far_plane);
@@ -34,8 +34,8 @@ void CameraComponent::UpdateProjection() {
 
 void CameraComponent::UpdateView(const glm::mat4& worldTransform) {
   inv_view_matrix = worldTransform;
-  view_matrix    = glm::inverse(worldTransform);
-  any_changed  = true;
+  view_matrix = glm::inverse(worldTransform);
+  any_changed = true;
 }
 
 void CameraComponent::UpdateAll() {
@@ -53,7 +53,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
 
   // This ensures shadow quality is consistent regardless of camera settings.
   float effectiveNear = 0.5f;
-  float effectiveFar  = 1000.0f;
+  float effectiveFar = 1000.0f;
 
   float clipRange = effectiveFar - effectiveNear;
   float minZ = effectiveNear;
@@ -122,7 +122,8 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     // Shadow camera position: offset from frustum center along light direction
     glm::vec3 shadowCamPos = frustumCenter + lightDir * radius;
 
-    glm::mat4 lightViewMatrix = glm::lookAt(shadowCamPos, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightViewMatrix =
+        glm::lookAt(shadowCamPos, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
     // Compute tight Z bounds in light-view space
     float lightZMin = std::numeric_limits<float>::max();
@@ -135,18 +136,17 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
 
     // Extend behind camera to catch shadow casters outside the view frustum
     float zMargin = radius;
-    glm::mat4 lightOrthoMatrix = glm::ortho(
-        minExtents.x, maxExtents.x,
-        minExtents.y, maxExtents.y,
-        -lightZMax - zMargin, -lightZMin + zMargin
-    );
+    glm::mat4 lightOrthoMatrix =
+        glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y,
+                   -lightZMax - zMargin, -lightZMin + zMargin);
     lightOrthoMatrix[1][1] *= -1;
 
     // Texel-space snapping: prevents shadow edge swimming when camera moves
     // We snap the projection's XY translation to texel boundaries rather than
     // snapping the camera position in world space (which would shift the view direction)
     float halfDim = static_cast<float>(WIESEL_SHADOWMAP_DIM) / 2.0f;
-    glm::vec4 shadowOrigin = (lightOrthoMatrix * lightViewMatrix) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    glm::vec4 shadowOrigin = (lightOrthoMatrix * lightViewMatrix) *
+                             glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     shadowOrigin.x *= halfDim;
     shadowOrigin.y *= halfDim;
     glm::vec4 roundedOrigin = glm::round(shadowOrigin);
@@ -154,7 +154,8 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     lightOrthoMatrix[3][1] += (roundedOrigin.y - shadowOrigin.y) / halfDim;
 
     // Store split distance and matrix in cascade
-    shadow_map_cascades[i].SplitDepth = (effectiveNear + splitDist * clipRange) * -1.0f;
+    shadow_map_cascades[i].SplitDepth =
+        (effectiveNear + splitDist * clipRange) * -1.0f;
     shadow_map_cascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
     lastSplitDist = cascadeSplits[i];
   }

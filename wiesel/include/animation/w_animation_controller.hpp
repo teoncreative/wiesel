@@ -8,6 +8,7 @@ enum class AnimParamType { Bool, Int, Float, Trigger };
 
 struct AnimParam {
   AnimParamType type = AnimParamType::Bool;
+
   union {
     bool b;
     int i;
@@ -15,19 +16,19 @@ struct AnimParam {
   };
 
   AnimParam() : type(AnimParamType::Bool), b(false) {}
+
   AnimParam(AnimParamType t, bool val) : type(t), b(val) {}
+
   AnimParam(AnimParamType t, int val) : type(t), i(val) {}
+
   AnimParam(AnimParamType t, float val) : type(t), f(val) {}
 
-  static AnimParam MakeBool(bool val) {
-    return {AnimParamType::Bool, val};
-  }
-  static AnimParam MakeInt(int val) {
-    return {AnimParamType::Int, val};
-  }
-  static AnimParam MakeFloat(float val) {
-    return {AnimParamType::Float, val};
-  }
+  static AnimParam MakeBool(bool val) { return {AnimParamType::Bool, val}; }
+
+  static AnimParam MakeInt(int val) { return {AnimParamType::Int, val}; }
+
+  static AnimParam MakeFloat(float val) { return {AnimParamType::Float, val}; }
+
   static AnimParam MakeTrigger() {
     AnimParam p;
     p.type = AnimParamType::Trigger;
@@ -42,6 +43,7 @@ struct TransitionCondition {
   std::string param_name;
   ConditionOp op = ConditionOp::Equals;
   AnimParamType param_type = AnimParamType::Bool;
+
   union {
     bool b;
     int i;
@@ -117,7 +119,9 @@ struct AnimationController {
 
   const AnimationState* FindState(const std::string& name) const {
     for (const auto& s : states) {
-      if (s.name == name) return &s;
+      if (s.name == name) {
+        return &s;
+      }
     }
     return nullptr;
   }

@@ -19,7 +19,7 @@ struct AgentMemory : public IComponent {
   int GetInt(const std::string& key, int fallback = 0) const;
   bool GetBool(const std::string& key, bool fallback = false) const;
   glm::vec3 GetVec3(const std::string& key,
-                     glm::vec3 fallback = glm::vec3(0.0f)) const;
+                    glm::vec3 fallback = glm::vec3(0.0f)) const;
   entt::entity GetEntity(const std::string& key) const;
   std::string GetString(const std::string& key,
                         const std::string& fallback = "") const;

@@ -17,13 +17,13 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
-#include <type_traits>
 #include <algorithm>  // Necessary for std::clamp
 #include <any>
 #include <array>
 #include <chrono>
 #include <cstdint>  // Necessary for uint32_t
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <glm/glm.hpp>
@@ -34,18 +34,19 @@
 #include <glm/gtx/quaternion.hpp>
 #include <iostream>
 #include <limits>  // Necessary for std::numeric_limits
+#include <list>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <set>
+#include <span>
 #include <sstream>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
-#include <mutex>
-#include <list>
-#include <span>
-#include <format>
+#include <initializer_list>
 
 #include "util/w_attributes.hpp"
 #include "util/w_platformdetection.hpp"

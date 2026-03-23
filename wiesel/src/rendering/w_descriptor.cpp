@@ -10,22 +10,26 @@
 //
 
 #include "rendering/w_descriptor.hpp"
-#include "rendering/w_texture.hpp"
 #include "rendering/w_image.hpp"
 #include "rendering/w_sampler.hpp"
+#include "rendering/w_texture.hpp"
 
 #include "w_engine.hpp"
 
 namespace Wiesel {
 
 DescriptorSet::DescriptorSet() {
-    allocated_ = false;
+  allocated_ = false;
 }
 
 DescriptorSet::~DescriptorSet() {
-  if (!allocated_) return;
+  if (!allocated_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   VkDescriptorPool pool = descriptor_pool_;
   descriptor_pool_ = VK_NULL_HANDLE;
@@ -39,16 +43,17 @@ DescriptorSet::~DescriptorSet() {
 void DescriptorSet::Bake() {
   if (allocated_) {
     // Destroying the pool is enough to destroy all descriptor set objects.
-    vkDestroyDescriptorPool(Engine::renderer()->GetLogicalDevice(), descriptor_pool_,
-                            nullptr);
+    vkDestroyDescriptorPool(Engine::renderer()->GetLogicalDevice(),
+                            descriptor_pool_, nullptr);
     allocated_ = false;
   }
 
   std::vector<VkDescriptorPoolSize> poolSizes;
 
   if (!combined_image_samplers_.empty()) {
-    poolSizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                         static_cast<uint32_t>(combined_image_samplers_.size())});
+    poolSizes.push_back(
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+         static_cast<uint32_t>(combined_image_samplers_.size())});
   }
 
   if (!uniform_buffer_data_.empty()) {
@@ -67,8 +72,9 @@ void DescriptorSet::Bake() {
   }
 
   if (!acceleration_structure_data_.empty()) {
-    poolSizes.push_back({VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-                         static_cast<uint32_t>(acceleration_structure_data_.size())});
+    poolSizes.push_back(
+        {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+         static_cast<uint32_t>(acceleration_structure_data_.size())});
   }
 
   VkDescriptorPoolCreateInfo poolInfo{};
@@ -78,28 +84,31 @@ void DescriptorSet::Bake() {
   poolInfo.maxSets = 1;
 
   // Allocate pool
-  WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
-      Engine::renderer()->GetLogicalDevice(), &poolInfo, nullptr, &descriptor_pool_));
+  WIESEL_CHECK_VKRESULT(
+      vkCreateDescriptorPool(Engine::renderer()->GetLogicalDevice(), &poolInfo,
+                             nullptr, &descriptor_pool_));
 
-  std::vector<VkDescriptorSetLayout> layouts{
-      1, layout_->layout_};
+  std::vector<VkDescriptorSetLayout> layouts{1, layout_->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = descriptor_pool_;
   allocInfo.descriptorSetCount = layouts.size();
   allocInfo.pSetLayouts = layouts.data();
-  WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(Engine::renderer()->GetLogicalDevice(), &allocInfo,
-                                                 &descriptor_set_));
+  WIESEL_CHECK_VKRESULT(vkAllocateDescriptorSets(
+      Engine::renderer()->GetLogicalDevice(), &allocInfo, &descriptor_set_));
 
-  size_t total_writes = combined_image_samplers_.size() + uniform_buffer_data_.size()
-                     + storage_buffer_data_.size() + storage_image_data_.size()
-                     + acceleration_structure_data_.size();
+  size_t total_writes =
+      combined_image_samplers_.size() + uniform_buffer_data_.size() +
+      storage_buffer_data_.size() + storage_image_data_.size() +
+      acceleration_structure_data_.size();
   std::vector<VkWriteDescriptorSet> writes;
   writes.reserve(total_writes);
   std::vector<VkDescriptorBufferInfo> buffer_infos;
-  buffer_infos.reserve(uniform_buffer_data_.size() + storage_buffer_data_.size());
+  buffer_infos.reserve(uniform_buffer_data_.size() +
+                       storage_buffer_data_.size());
   std::vector<VkDescriptorImageInfo> imageInfos;
-  imageInfos.reserve(combined_image_samplers_.size() + storage_image_data_.size());
+  imageInfos.reserve(combined_image_samplers_.size() +
+                     storage_image_data_.size());
   std::vector<VkWriteDescriptorSetAccelerationStructureKHR> asWrites;
   asWrites.reserve(acceleration_structure_data_.size());
 
@@ -181,7 +190,8 @@ void DescriptorSet::Bake() {
 
   for (const auto& item : acceleration_structure_data_) {
     VkWriteDescriptorSetAccelerationStructureKHR asWrite{};
-    asWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+    asWrite.sType =
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
     asWrite.accelerationStructureCount = 1;
     asWrite.pAccelerationStructures = &item.as;
     asWrites.emplace_back(asWrite);
@@ -197,8 +207,9 @@ void DescriptorSet::Bake() {
     writes.emplace_back(set);
   }
 
-  vkUpdateDescriptorSets(Engine::renderer()->GetLogicalDevice(), static_cast<uint32_t>(writes.size()),
-                         writes.data(), 0, nullptr);
+  vkUpdateDescriptorSets(Engine::renderer()->GetLogicalDevice(),
+                         static_cast<uint32_t>(writes.size()), writes.data(), 0,
+                         nullptr);
 
   allocated_ = true;
 }

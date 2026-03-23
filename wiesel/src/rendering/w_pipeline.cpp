@@ -15,13 +15,12 @@
 
 namespace Wiesel {
 
-Pipeline::Pipeline(PipelineProperties properties)
-    : properties_(properties) {
-}
+Pipeline::Pipeline(PipelineProperties properties) : properties_(properties) {}
 
 Pipeline::~Pipeline() {
   vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_, nullptr);
-  vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_, nullptr);
+  vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_,
+                          nullptr);
   is_allocated_ = false;
 }
 
@@ -38,28 +37,33 @@ void Pipeline::AddDynamicState(VkDynamicState state) {
 }
 
 void Pipeline::AddShader(std::shared_ptr<Shader> shader) {
-  shaders_.push_back({
-      .shader = shader
-  });
+  shaders_.push_back({.shader = shader});
 }
 
-void Pipeline::SetVertexData(VkVertexInputBindingDescription input_binding_description, std::vector<VkVertexInputAttributeDescription> attribute_descriptions) {
+void Pipeline::SetVertexData(
+    VkVertexInputBindingDescription input_binding_description,
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions) {
   vertex_input_binding_descriptions_ = {input_binding_description};
   vertex_attribute_descriptions_ = attribute_descriptions;
   has_vertex_binding_ = true;
 }
 
-void Pipeline::SetVertexData(std::vector<VkVertexInputBindingDescription> i, std::vector<VkVertexInputAttributeDescription> attribute_descriptions) {
-   vertex_input_binding_descriptions_ = i;
-   vertex_attribute_descriptions_ = attribute_descriptions;
-   has_vertex_binding_ = true;
+void Pipeline::SetVertexData(
+    std::vector<VkVertexInputBindingDescription> i,
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions) {
+  vertex_input_binding_descriptions_ = i;
+  vertex_attribute_descriptions_ = attribute_descriptions;
+  has_vertex_binding_ = true;
 }
 
 void Pipeline::Bake() {
-  LOG_DEBUG("Creating pipeline with {} samples", (uint64_t)properties_.sampling_mode);
+  LOG_DEBUG("Creating pipeline with {} samples",
+            (uint64_t)properties_.sampling_mode);
   if (is_allocated_) {
-    vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_, nullptr);
-    vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_, nullptr);
+    vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_,
+                      nullptr);
+    vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_,
+                            nullptr);
     is_allocated_ = false;
   }
 
@@ -72,11 +76,8 @@ void Pipeline::Bake() {
   std::vector<VkPushConstantRange> pushConstants;
   pushConstants.reserve(push_constants_.size());
   for (const auto& item : push_constants_) {
-    pushConstants.push_back({
-        .stageFlags = item.flags,
-        .offset = item.offset,
-        .size = item.size
-    });
+    pushConstants.push_back(
+        {.stageFlags = item.flags, .offset = item.offset, .size = item.size});
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -85,8 +86,9 @@ void Pipeline::Bake() {
   pipelineLayoutInfo.pushConstantRangeCount = pushConstants.size();
   pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
 
-  WIESEL_CHECK_VKRESULT(vkCreatePipelineLayout(
-      Engine::renderer()->GetLogicalDevice(), &pipelineLayoutInfo, nullptr, &layout_));
+  WIESEL_CHECK_VKRESULT(
+      vkCreatePipelineLayout(Engine::renderer()->GetLogicalDevice(),
+                             &pipelineLayoutInfo, nullptr, &layout_));
 
   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
   std::vector<VkSpecializationInfo> specializationInfos;
@@ -94,18 +96,17 @@ void Pipeline::Bake() {
   uint32_t specializationIndex = 0;
   for (const auto& info : shaders_) {
     VkPipelineShaderStageCreateInfo stageInfo{};
-    stageInfo.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stageInfo.stage = GetShaderFlagBitsByType(info.shader->properties_.type);
     stageInfo.module = info.shader->shader_module_;
     stageInfo.pName = info.shader->properties_.main.c_str();
     if (info.specialization.data != nullptr) {
       specializationInfos[specializationIndex] = VkSpecializationInfo{
-          .mapEntryCount = static_cast<uint32_t>(info.specialization.map_entries.size()),
+          .mapEntryCount =
+              static_cast<uint32_t>(info.specialization.map_entries.size()),
           .pMapEntries = info.specialization.map_entries.data(),
           .dataSize = sizeof(info.specialization.data_size),
-          .pData = info.specialization.data
-      };
+          .pData = info.specialization.data};
       stageInfo.pSpecializationInfo = &specializationInfos[specializationIndex];
       specializationIndex++;
     }
@@ -131,10 +132,12 @@ void Pipeline::Bake() {
   if (has_vertex_binding_) {
     vertexInputInfo.vertexBindingDescriptionCount =
         static_cast<uint32_t>(vertex_input_binding_descriptions_.size());
-    vertexInputInfo.pVertexBindingDescriptions = vertex_input_binding_descriptions_.data();
+    vertexInputInfo.pVertexBindingDescriptions =
+        vertex_input_binding_descriptions_.data();
     vertexInputInfo.vertexAttributeDescriptionCount =
         static_cast<uint32_t>(vertex_attribute_descriptions_.size());
-    vertexInputInfo.pVertexAttributeDescriptions = vertex_attribute_descriptions_.data();
+    vertexInputInfo.pVertexAttributeDescriptions =
+        vertex_attribute_descriptions_.data();
   } else {
     vertexInputInfo.vertexBindingDescriptionCount = 0;
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
@@ -197,17 +200,24 @@ void Pipeline::Bake() {
   multisampling.sType =
       VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = VK_FALSE;
-  multisampling.rasterizationSamples = ToVkSampleCountFlagBits(properties_.sampling_mode);
+  multisampling.rasterizationSamples =
+      ToVkSampleCountFlagBits(properties_.sampling_mode);
 
   std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
   for (const auto& item : render_pass_->attachments_) {
-    if (item.type != AttachmentTextureType::Color && item.type != AttachmentTextureType::Offscreen && item.type != AttachmentTextureType::SwapChain) {
+    if (item.type != AttachmentTextureType::Color &&
+        item.type != AttachmentTextureType::Offscreen &&
+        item.type != AttachmentTextureType::SwapChain) {
       continue;
     }
     // Skip resolve targets - they don't count as color attachments in the subpass
-    if (item.type == AttachmentTextureType::SwapChain || item.type == AttachmentTextureType::Resolve) {
-      bool used_as_resolve = item.msaa_mode > SamplingMode::DISABLED || item.type == AttachmentTextureType::Resolve;
-      if (used_as_resolve) continue;
+    if (item.type == AttachmentTextureType::SwapChain ||
+        item.type == AttachmentTextureType::Resolve) {
+      bool used_as_resolve = item.msaa_mode > SamplingMode::DISABLED ||
+                             item.type == AttachmentTextureType::Resolve;
+      if (used_as_resolve) {
+        continue;
+      }
     }
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
@@ -216,10 +226,12 @@ void Pipeline::Bake() {
     if (properties_.enable_alpha_blending) {
       colorBlendAttachment.blendEnable = VK_TRUE;
       colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-      colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      colorBlendAttachment.dstColorBlendFactor =
+          VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
       colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
       colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-      colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+      colorBlendAttachment.dstAlphaBlendFactor =
+          VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
       colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
     } else {
       colorBlendAttachment.blendEnable = VK_FALSE;
@@ -269,17 +281,17 @@ void Pipeline::Bake() {
   pipelineInfo.renderPass = render_pass_->GetVulkanHandle();
   pipelineInfo.subpass = 0;
 
-  WIESEL_CHECK_VKRESULT(
-      vkCreateGraphicsPipelines(Engine::renderer()->GetLogicalDevice(), VK_NULL_HANDLE, 1,
-                                &pipelineInfo, nullptr, &pipeline_));
+  WIESEL_CHECK_VKRESULT(vkCreateGraphicsPipelines(
+      Engine::renderer()->GetLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo,
+      nullptr, &pipeline_));
 
   is_allocated_ = true;
 }
 
 void Pipeline::Bind(PipelineBindPoint bind_point) {
   auto renderer = Engine::renderer();
-  vkCmdBindPipeline(renderer->GetCommandBuffer().handle_, ToVkPipelineBindPoint(bind_point),
-                    pipeline_);
+  vkCmdBindPipeline(renderer->GetCommandBuffer().handle_,
+                    ToVkPipelineBindPoint(bind_point), pipeline_);
   for (const auto& item : push_constants_) {
     vkCmdPushConstants(renderer->GetCommandBuffer().handle_, layout_,
                        item.flags, 0, item.size, item.ptr.get());

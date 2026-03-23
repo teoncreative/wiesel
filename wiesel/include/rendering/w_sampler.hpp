@@ -43,5 +43,5 @@ class Sampler {
   VkSamplerAddressMode address_mode_;
   VkBorderColor border_color_;
 };
-}
+}  // namespace Wiesel
 #endif  //WIESEL_SAMPLER_H

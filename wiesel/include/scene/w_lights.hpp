@@ -41,8 +41,7 @@ struct alignas(16) LightBase {
 struct alignas(16) LightDirect {
   LightDirect() : base({}) {}
 
-  LightDirect(LightBase base)
-      : base(base) {}
+  LightDirect(LightBase base) : base(base) {}
 
   ~LightDirect() = default;
 
@@ -51,18 +50,11 @@ struct alignas(16) LightDirect {
 };
 
 struct alignas(16) LightPoint {
-  LightPoint()
-      : base({}),
-        constant(1.0f),
-        linear(0.09f),
-        exp(0.032f) {}
+  LightPoint() : base({}), constant(1.0f), linear(0.09f), exp(0.032f) {}
 
   LightPoint(glm::vec3 position, LightBase base, float constant, float linear,
              float exp)
-      : base(base),
-        constant(constant),
-        linear(linear),
-        exp(exp) {}
+      : base(base), constant(constant), linear(linear), exp(exp) {}
 
   ~LightPoint() = default;
 
@@ -75,7 +67,7 @@ struct alignas(16) LightPoint {
 static const int MAX_LIGHTS = 16;
 
 struct alignas(16) LightsUniformData {
-  LightsUniformData() : direct_light_count(0), point_light_count(0){};
+  LightsUniformData() : direct_light_count(0), point_light_count(0) {};
 
   uint32_t direct_light_count;
   uint32_t point_light_count;

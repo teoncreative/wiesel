@@ -16,7 +16,9 @@ namespace Wiesel {
 bool EvaluateCondition(const TransitionCondition& cond,
                        const std::map<std::string, AnimParam>& params) {
   auto it = params.find(cond.param_name);
-  if (it == params.end()) return false;
+  if (it == params.end()) {
+    return false;
+  }
 
   const auto& param = it->second;
 
@@ -83,19 +85,25 @@ void StateMachineRuntime::SetTrigger(const std::string& name) {
 
 bool StateMachineRuntime::GetBool(const std::string& name) const {
   auto it = parameters.find(name);
-  if (it == parameters.end()) return false;
+  if (it == parameters.end()) {
+    return false;
+  }
   return it->second.b;
 }
 
 int StateMachineRuntime::GetInt(const std::string& name) const {
   auto it = parameters.find(name);
-  if (it == parameters.end()) return 0;
+  if (it == parameters.end()) {
+    return 0;
+  }
   return it->second.i;
 }
 
 float StateMachineRuntime::GetFloat(const std::string& name) const {
   auto it = parameters.find(name);
-  if (it == parameters.end()) return 0.0f;
+  if (it == parameters.end()) {
+    return 0.0f;
+  }
   return it->second.f;
 }
 

@@ -13,8 +13,8 @@
 
 #include "w_pch.hpp"
 #ifdef _WIN32
-#include <locale>
 #include <codecvt>
+#include <locale>
 #include <string>
 #endif
 

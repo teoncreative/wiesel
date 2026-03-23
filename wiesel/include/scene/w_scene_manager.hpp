@@ -15,13 +15,16 @@ class SceneManager {
 
   // Scene ownership - SceneManager is the single authority
   std::shared_ptr<Scene> CreateScene();
+
   void SetActiveScene(std::shared_ptr<Scene> scene) { active_scene_ = scene; }
+
   std::shared_ptr<Scene> GetActiveScene() const { return active_scene_; }
 
   // Register a scene file path with a name (e.g. "MainMenu", "Level1")
   void RegisterScene(const std::string& name,
                      const std::filesystem::path& path);
   void UnregisterScene(const std::string& name);
+
   void ClearRegisteredScenes() { registered_scenes_.clear(); }
 
   // Get all registered scenes
@@ -41,12 +44,13 @@ class SceneManager {
   // 3. Loading screen scripts can query progress
   // 4. When ready, call ActivateLoadedScene() to switch
   void LoadSceneWithLoading(const std::string& target_scene,
-                             const std::string& loading_scene);
+                            const std::string& loading_scene);
   void LoadSceneWithLoadingPath(const std::filesystem::path& target_path,
-                                 const std::filesystem::path& loading_path);
+                                const std::filesystem::path& loading_path);
 
   // Query async loading state (for loading screen scripts)
   float GetLoadProgress() const { return load_progress_; }
+
   bool IsSceneReady() const { return scene_ready_; }
 
   // Switch to the async-loaded scene (call from loading screen when ready)
@@ -54,6 +58,7 @@ class SceneManager {
 
   // Check if a scene switch is pending
   bool HasPendingSceneLoad() const { return !pending_scene_path_.empty(); }
+
   const std::filesystem::path& GetPendingScenePath() const {
     return pending_scene_path_;
   }

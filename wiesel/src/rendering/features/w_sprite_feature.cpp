@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_sprite_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "rendering/w_sprite.hpp"
 #include "scene/w_scene.hpp"
@@ -23,10 +23,9 @@ SpriteFeature::SpriteFeature(std::shared_ptr<Renderer> renderer)
   // Render pass (single swap-chain-format attachment, no MSAA)
   render_pass_ =
       std::make_shared<RenderPass>(PassType::PostProcess, "Sprite RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   auto sprite_vert = renderer_->CreateShader(
@@ -55,13 +54,14 @@ void SpriteFeature::SetupResources(RenderContext& ctx) {
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
   pool.SetTexture("sprite.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+                                      {rw, rh, AttachmentTextureType::Offscreen,
+                                       1, renderer.GetSwapChainImageFormat(),
+                                       SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 1> attachments{
       pool.GetTexture("sprite.color").get()};
-  pool.SetFramebuffer("sprite",
-      render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
+  pool.SetFramebuffer(
+      "sprite", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   // Sprite output descriptor: reads sprite.color, linear sampler
   auto sprite_output_desc = std::make_shared<DescriptorSet>();
@@ -87,8 +87,7 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
       graph.ImportTexture("SpriteOut", pool->GetTexture("sprite.color"));
 
   uint32_t sprite = graph.AddPass(
-      "Sprite", render_pass_,
-      [pipeline, scene, renderer](VkCommandBuffer) {
+      "Sprite", render_pass_, [pipeline, scene, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
 
         // Collect and sort sprites by sort_layer
@@ -109,7 +108,8 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
 
         for (auto& entry : sorted) {
           auto& spr = scene->GetComponent<SpriteComponent>(entry.entity);
-          auto& transform = scene->GetComponent<TransformComponent>(entry.entity);
+          auto& transform =
+              scene->GetComponent<TransformComponent>(entry.entity);
           renderer->DrawSprite(spr, transform);
         }
       });

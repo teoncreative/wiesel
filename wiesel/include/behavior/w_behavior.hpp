@@ -59,6 +59,7 @@ class IBehavior {
   }
 
   WIESEL_GETTER_FN const std::string& GetName() { return name_; }
+
   WIESEL_GETTER_FN const std::string& GetEditorName() { return editor_name_; }
 
   WIESEL_GETTER_FN bool IsInternalBehavior() const {
@@ -70,20 +71,20 @@ class IBehavior {
   virtual void SetEnabled(bool enabled);
 
   // Pointer events (requires InteractableComponent on the entity)
-  virtual bool OnPointerClick(float x, float y) {
-    return false;
-  }
-  virtual bool OnPointerDown(float x, float y) {
-    return false;
-  }
-  virtual bool OnPointerUp(float x, float y) {
-    return false;
-  }
+  virtual bool OnPointerClick(float x, float y) { return false; }
+
+  virtual bool OnPointerDown(float x, float y) { return false; }
+
+  virtual bool OnPointerUp(float x, float y) { return false; }
+
   virtual void OnPointerEnter() {}
+
   virtual void OnPointerExit() {}
 
   WIESEL_GETTER_FN Entity entity() { return entity_; }
+
   WIESEL_GETTER_FN Scene* scene() { return scene_; }
+
   WIESEL_GETTER_FN entt::entity handle() { return entity_.handle(); }
 
  protected:

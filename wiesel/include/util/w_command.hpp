@@ -14,18 +14,15 @@
 
 namespace Wiesel {
 
-enum class ConsoleLogLevel {
-  Info,
-  Warning,
-  Error
-};
+enum class ConsoleLogLevel { Info, Warning, Error };
 
 struct ConsoleLine {
   ConsoleLogLevel level;
   std::string text;
 };
 
-using CommandCallback = std::function<void(const std::vector<std::string>& args)>;
+using CommandCallback =
+    std::function<void(const std::vector<std::string>& args)>;
 
 struct CommandEntry {
   std::string name;
@@ -41,17 +38,31 @@ class DeveloperConsole {
   void Execute(const std::string& command_line);
 
   void Log(ConsoleLogLevel level, const std::string& message);
-  void LogInfo(const std::string& message) { Log(ConsoleLogLevel::Info, message); }
-  void LogWarning(const std::string& message) { Log(ConsoleLogLevel::Warning, message); }
-  void LogError(const std::string& message) { Log(ConsoleLogLevel::Error, message); }
+
+  void LogInfo(const std::string& message) {
+    Log(ConsoleLogLevel::Info, message);
+  }
+
+  void LogWarning(const std::string& message) {
+    Log(ConsoleLogLevel::Warning, message);
+  }
+
+  void LogError(const std::string& message) {
+    Log(ConsoleLogLevel::Error, message);
+  }
 
   void Clear();
 
   const std::vector<ConsoleLine>& GetLog() const { return log_; }
-  const std::map<std::string, CommandEntry>& GetCommands() const { return commands_; }
+
+  const std::map<std::string, CommandEntry>& GetCommands() const {
+    return commands_;
+  }
 
   bool IsVisible() const { return visible_; }
+
   void SetVisible(bool visible) { visible_ = visible; }
+
   void Toggle() { visible_ = !visible_; }
 
  private:

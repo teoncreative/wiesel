@@ -10,10 +10,10 @@
 //
 
 #include "rendering/features/w_transparency_feature.hpp"
-#include "rendering/w_renderer.hpp"
-#include "rendering/w_pipeline.hpp"
-#include "rendering/w_renderpass.hpp"
 #include "rendering/w_mesh.hpp"
+#include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
+#include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
 namespace Wiesel {
@@ -22,21 +22,19 @@ TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass: 1 color + depth stencil (read-only)
   render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                             "Transparency RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = renderer_->FindDepthFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+                                              "Transparency RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
+                              .format = renderer_->FindDepthFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   // Pipeline: alpha blend on, depth test on, depth write off, no culling
-  auto vert = renderer_->CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/geometry_shader.vert"});
+  auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
+                                       ShaderSourceSource,
+                                       "/engine/shaders/geometry_shader.vert"});
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/transparency_shader.frag"});
@@ -60,16 +58,18 @@ void TransparencyFeature::SetupResources(RenderContext& ctx) {
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  pool.SetTexture("transparency.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "transparency.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
   // Framebuffer: transparency color + geometry depth stencil (reused, read-only)
   std::array<AttachmentTexture*, 2> attachments{
       pool.GetTexture("transparency.color").get(),
       pool.GetTexture("geometry.depth_stencil").get()};
-  pool.SetFramebuffer("transparency",
-      render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
+  pool.SetFramebuffer("transparency", render_pass_->CreateFramebuffer(
+                                          0, attachments, {rw, rh}));
 
   // Output descriptor for composite
   auto output_desc = std::make_shared<DescriptorSet>();
@@ -90,8 +90,8 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
   auto* scene = &ctx.scene;
   auto pipeline = pipeline_;
 
-  RGResource transparency_out =
-      graph.ImportTexture("TransparencyOut", pool->GetTexture("transparency.color"));
+  RGResource transparency_out = graph.ImportTexture(
+      "TransparencyOut", pool->GetTexture("transparency.color"));
 
   // Depend on LightingOut for ordering (ensures geometry + lighting run first)
   auto lighting_out = registry.Get("LightingOut");
@@ -103,7 +103,9 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
         for (const auto& entity :
              scene->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = scene->GetComponent<ModelComponent>(entity);
-          if (!model.enable_rendering) continue;
+          if (!model.enable_rendering) {
+            continue;
+          }
           auto& transform = scene->GetComponent<TransformComponent>(entity);
           renderer->DrawModelTransparent(model, transform, entity);
         }

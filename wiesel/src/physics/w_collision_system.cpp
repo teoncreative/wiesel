@@ -10,9 +10,9 @@
 //
 
 #include "physics/w_collision_system.hpp"
+#include "behavior/w_behavior.hpp"
 #include "physics/w_collider.hpp"
 #include "scene/w_components.hpp"
-#include "behavior/w_behavior.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "script/w_scriptmanager.hpp"
 
@@ -25,9 +25,8 @@ bool TestBoxBox(const ColliderEntry& a, const ColliderEntry& b) {
   glm::vec3 b_min = b.world_center - b.half_extents;
   glm::vec3 b_max = b.world_center + b.half_extents;
 
-  return a_min.x <= b_max.x && a_max.x >= b_min.x &&
-         a_min.y <= b_max.y && a_max.y >= b_min.y &&
-         a_min.z <= b_max.z && a_max.z >= b_min.z;
+  return a_min.x <= b_max.x && a_max.x >= b_min.x && a_min.y <= b_max.y &&
+         a_max.y >= b_min.y && a_min.z <= b_max.z && a_max.z >= b_min.z;
 }
 
 bool TestSphereSphere(const ColliderEntry& a, const ColliderEntry& b) {
@@ -68,10 +67,9 @@ std::vector<ColliderEntry> CollectColliderEntries(entt::registry& registry) {
   for (entt::entity handle : box_view) {
     auto& transform = box_view.get<TransformComponent>(handle);
     auto& box = box_view.get<BoxColliderComponent>(handle);
-    entries.push_back({
-        handle, ColliderShape::Box,
-        transform.GetPosition() + box.offset,
-        box.half_extents, 0.0f});
+    entries.push_back({handle, ColliderShape::Box,
+                       transform.GetPosition() + box.offset, box.half_extents,
+                       0.0f});
   }
 
   auto sphere_view =
@@ -79,10 +77,9 @@ std::vector<ColliderEntry> CollectColliderEntries(entt::registry& registry) {
   for (entt::entity handle : sphere_view) {
     auto& transform = sphere_view.get<TransformComponent>(handle);
     auto& sphere = sphere_view.get<SphereColliderComponent>(handle);
-    entries.push_back({
-        handle, ColliderShape::Sphere,
-        transform.GetPosition() + sphere.offset,
-        glm::vec3(0.0f), sphere.radius});
+    entries.push_back({handle, ColliderShape::Sphere,
+                       transform.GetPosition() + sphere.offset, glm::vec3(0.0f),
+                       sphere.radius});
   }
 
   return entries;
@@ -91,7 +88,8 @@ std::vector<ColliderEntry> CollectColliderEntries(entt::registry& registry) {
 std::vector<entt::entity> QueryOverlapBox(entt::registry& registry,
                                           glm::vec3 center,
                                           glm::vec3 half_extents) {
-  ColliderEntry query{entt::null, ColliderShape::Box, center, half_extents, 0.0f};
+  ColliderEntry query{entt::null, ColliderShape::Box, center, half_extents,
+                      0.0f};
   auto entries = CollectColliderEntries(registry);
 
   std::vector<entt::entity> results;
@@ -105,7 +103,8 @@ std::vector<entt::entity> QueryOverlapBox(entt::registry& registry,
 
 std::vector<entt::entity> QueryOverlapSphere(entt::registry& registry,
                                              glm::vec3 center, float radius) {
-  ColliderEntry query{entt::null, ColliderShape::Sphere, center, glm::vec3(0.0f), radius};
+  ColliderEntry query{entt::null, ColliderShape::Sphere, center,
+                      glm::vec3(0.0f), radius};
   auto entries = CollectColliderEntries(registry);
 
   std::vector<entt::entity> results;
@@ -124,10 +123,12 @@ void CollisionSystem::Update(entt::registry& registry) {
   std::set<CollisionPair> current_overlaps;
   for (size_t i = 0; i < entries.size(); i++) {
     for (size_t j = i + 1; j < entries.size(); j++) {
-      if (entries[i].entity == entries[j].entity) continue;
+      if (entries[i].entity == entries[j].entity) {
+        continue;
+      }
       if (TestOverlap(entries[i], entries[j])) {
-        current_overlaps.insert(CollisionPair(entries[i].entity,
-                                              entries[j].entity));
+        current_overlaps.insert(
+            CollisionPair(entries[i].entity, entries[j].entity));
       }
     }
   }
@@ -159,18 +160,21 @@ void CollisionSystem::Update(entt::registry& registry) {
   previous_overlaps_ = std::move(current_overlaps);
 }
 
-void CollisionSystem::DispatchCallbacks(
-    entt::registry& registry,
-    const std::set<CollisionPair>& entered,
-    const std::set<CollisionPair>& stayed,
-    const std::set<CollisionPair>& exited) {
+void CollisionSystem::DispatchCallbacks(entt::registry& registry,
+                                        const std::set<CollisionPair>& entered,
+                                        const std::set<CollisionPair>& stayed,
+                                        const std::set<CollisionPair>& exited) {
   auto invoke = [&](entt::entity entity, entt::entity other,
                     void (ScriptInstance::*method)(entt::entity)) {
-    if (!registry.any_of<BehaviorsComponent>(entity)) return;
+    if (!registry.any_of<BehaviorsComponent>(entity)) {
+      return;
+    }
     auto& behaviors = registry.get<BehaviorsComponent>(entity);
     for (auto& behavior : behaviors.behaviors_ | std::views::values) {
       auto* mono = dynamic_cast<MonoBehavior*>(behavior);
-      if (!mono || !mono->script_instance()) continue;
+      if (!mono || !mono->script_instance()) {
+        continue;
+      }
       (mono->script_instance()->*method)(other);
     }
   };

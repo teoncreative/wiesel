@@ -13,7 +13,8 @@ FileWatcher::~FileWatcher() {
   Stop();
 }
 
-void FileWatcher::Watch(const std::filesystem::path& directory, bool recursive) {
+void FileWatcher::Watch(const std::filesystem::path& directory,
+                        bool recursive) {
   Stop();
 
   if (!std::filesystem::exists(directory)) {
@@ -50,10 +51,10 @@ bool FileWatcher::Poll() {
 }
 
 void FileWatcher::handleFileAction(efsw::WatchID watch_id,
-                                    const std::string& dir,
-                                    const std::string& filename,
-                                    efsw::Action action,
-                                    std::string old_filename) {
+                                   const std::string& dir,
+                                   const std::string& filename,
+                                   efsw::Action action,
+                                   std::string old_filename) {
   changed_.store(true);
 }
 

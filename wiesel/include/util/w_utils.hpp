@@ -48,8 +48,6 @@ enum BakeResult { SUCCESS };
 
 using Index = uint32_t;
 
-
-
 enum Vertex3DFlag {
   VertexFlagHasTexture = BIT(0),
   VertexFlagHasNormalMap = BIT(1),
@@ -85,23 +83,25 @@ struct Vertex3D {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Pos)});
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t)offsetof(Vertex3D, Pos)});
+    attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                     (uint32_t)offsetof(Vertex3D, Color)});
     attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Color)});
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t)offsetof(Vertex3D, UV)});
+    attributeDescriptions.push_back({3, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                     (uint32_t)offsetof(Vertex3D, Normal)});
+    attributeDescriptions.push_back({4, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                     (uint32_t)offsetof(Vertex3D, Tangent)});
+    attributeDescriptions.push_back({5, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                     (uint32_t)offsetof(Vertex3D, BiTangent)});
     attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex3D, UV)});
+        {6, 0, VK_FORMAT_R32_UINT, (uint32_t)offsetof(Vertex3D, Flags)});
     attributeDescriptions.push_back(
-        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Normal)});
+        {7, 0, VK_FORMAT_R32G32B32A32_SINT,
+         (uint32_t)offsetof(Vertex3D, BoneIndices)});
     attributeDescriptions.push_back(
-        {4, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, Tangent)});
-    attributeDescriptions.push_back(
-        {5, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t) offsetof(Vertex3D, BiTangent)});
-    attributeDescriptions.push_back(
-        {6, 0, VK_FORMAT_R32_UINT, (uint32_t) offsetof(Vertex3D, Flags)});
-    attributeDescriptions.push_back(
-        {7, 0, VK_FORMAT_R32G32B32A32_SINT, (uint32_t) offsetof(Vertex3D, BoneIndices)});
-    attributeDescriptions.push_back(
-        {8, 0, VK_FORMAT_R32G32B32A32_SFLOAT, (uint32_t) offsetof(Vertex3D, BoneWeights)});
+        {8, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
+         (uint32_t)offsetof(Vertex3D, BoneWeights)});
 
     return attributeDescriptions;
   }
@@ -128,10 +128,10 @@ struct Vertex2DNoColor {
   GetAttributeDescriptions() {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
-    attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex2DNoColor, Pos)});
-    attributeDescriptions.push_back(
-        {1, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(Vertex2DNoColor, UV)});
+    attributeDescriptions.push_back({0, 0, VK_FORMAT_R32G32_SFLOAT,
+                                     (uint32_t)offsetof(Vertex2DNoColor, Pos)});
+    attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32_SFLOAT,
+                                     (uint32_t)offsetof(Vertex2DNoColor, UV)});
 
     return attributeDescriptions;
   }
@@ -153,18 +153,17 @@ struct VertexSprite {
     return bindingDescriptions;
   }
 
-  static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() {
+  static std::vector<VkVertexInputAttributeDescription>
+  GetAttributeDescriptions() {
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t) offsetof(VertexSprite, UV)});
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t)offsetof(VertexSprite, UV)});
 
     return attributeDescriptions;
   }
 
-  bool operator==(const VertexSprite& other) const {
-    return UV == other.UV;
-  }
+  bool operator==(const VertexSprite& other) const { return UV == other.UV; }
 };
 
 struct alignas(16) MatricesUniformData {
@@ -175,7 +174,9 @@ struct alignas(16) MatricesUniformData {
   float entity_id = 0.0f;
   float _pad1[3]{};  // pad to next vec4 boundary (offset 128)
   alignas(16) glm::vec4 color_tint{1.0f, 1.0f, 1.0f, 1.0f};
-  alignas(16) glm::vec4 material_params{1.0f, 1.0f, 1.0f, 0.0f};  // x=roughness, y=metallic, z=specular (0-1 multipliers)
+  alignas(16) glm::vec4 material_params{
+      1.0f, 1.0f, 1.0f,
+      0.0f};  // x=roughness, y=metallic, z=specular (0-1 multipliers)
 };
 
 struct alignas(16) SpriteUniformData {
@@ -256,44 +257,47 @@ class Time {
   static float_t GetTime();
 };
 
-enum class AntiAliasingMode {
-  None,
-  FXAA,
-  TAA
-};
+enum class AntiAliasingMode { None, FXAA, TAA };
 
-enum class SamplingMode {
-  DISABLED,
-  X2,
-  X4,
-  X8,
-  X16,
-  X32,
-  X64
-};
+enum class SamplingMode { DISABLED, X2, X4, X8, X16, X32, X64 };
 
 inline const char* ToString(SamplingMode sampling_mode) {
   switch (sampling_mode) {
-    case SamplingMode::DISABLED: return "Disabled";
-    case SamplingMode::X2: return "2x";
-    case SamplingMode::X4: return "4x";
-    case SamplingMode::X8: return "8x";
-    case SamplingMode::X16: return "16x";
-    case SamplingMode::X32: return "32x";
-    case SamplingMode::X64: return "64x";
-    default: return "Unknown";
+    case SamplingMode::DISABLED:
+      return "Disabled";
+    case SamplingMode::X2:
+      return "2x";
+    case SamplingMode::X4:
+      return "4x";
+    case SamplingMode::X8:
+      return "8x";
+    case SamplingMode::X16:
+      return "16x";
+    case SamplingMode::X32:
+      return "32x";
+    case SamplingMode::X64:
+      return "64x";
+    default:
+      return "Unknown";
   }
 }
 
 inline VkSampleCountFlagBits ToVkSampleCountFlagBits(SamplingMode mode) {
   switch (mode) {
-    case SamplingMode::X2: return VK_SAMPLE_COUNT_2_BIT;
-    case SamplingMode::X4: return VK_SAMPLE_COUNT_4_BIT;
-    case SamplingMode::X8: return VK_SAMPLE_COUNT_8_BIT;
-    case SamplingMode::X16: return VK_SAMPLE_COUNT_16_BIT;
-    case SamplingMode::X32: return VK_SAMPLE_COUNT_32_BIT;
-    case SamplingMode::X64: return VK_SAMPLE_COUNT_64_BIT;
-    default: return VK_SAMPLE_COUNT_1_BIT;
+    case SamplingMode::X2:
+      return VK_SAMPLE_COUNT_2_BIT;
+    case SamplingMode::X4:
+      return VK_SAMPLE_COUNT_4_BIT;
+    case SamplingMode::X8:
+      return VK_SAMPLE_COUNT_8_BIT;
+    case SamplingMode::X16:
+      return VK_SAMPLE_COUNT_16_BIT;
+    case SamplingMode::X32:
+      return VK_SAMPLE_COUNT_32_BIT;
+    case SamplingMode::X64:
+      return VK_SAMPLE_COUNT_64_BIT;
+    default:
+      return VK_SAMPLE_COUNT_1_BIT;
   }
 }
 

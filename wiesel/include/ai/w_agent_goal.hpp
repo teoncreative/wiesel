@@ -8,18 +8,24 @@ namespace Wiesel {
 class AgentGoal {
  public:
   explicit AgentGoal(const std::string& name) : name_(name) {}
+
   virtual ~AgentGoal() = default;
 
   virtual int GetPriority() const = 0;
   virtual bool CanActivate() const = 0;
+
   virtual void OnActivate() {}
+
   virtual void OnDeactivate() {}
+
   virtual void OnUpdate(float dt) = 0;
+
   virtual bool IsFinished() const { return false; }
 
   const std::string& GetName() const { return name_; }
 
   void SetEntity(Entity entity) { entity_ = entity; }
+
   Entity GetEntity() const { return entity_; }
 
  protected:

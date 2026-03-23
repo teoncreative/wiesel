@@ -28,7 +28,7 @@ class MonoBehavior : public IBehavior {
   void OnUpdate(float_t delta_time) override;
   void OnEvent(Event& event) override;
 
-  template<class T>
+  template <class T>
   void AttachExternComponent(std::string variable, entt::entity entity) {
     if (unset_ || !enabled_) {
       return;
@@ -39,22 +39,36 @@ class MonoBehavior : public IBehavior {
   ScriptInstance* script_instance() const { return script_instance_.get(); }
 
   bool OnPointerClick(float x, float y) override {
-    if (script_instance_) return script_instance_->OnPointerClick(x, y);
+    if (script_instance_) {
+      return script_instance_->OnPointerClick(x, y);
+    }
     return false;
   }
+
   bool OnPointerDown(float x, float y) override {
-    if (script_instance_) return script_instance_->OnPointerDown(x, y);
+    if (script_instance_) {
+      return script_instance_->OnPointerDown(x, y);
+    }
     return false;
   }
+
   bool OnPointerUp(float x, float y) override {
-    if (script_instance_) return script_instance_->OnPointerUp(x, y);
+    if (script_instance_) {
+      return script_instance_->OnPointerUp(x, y);
+    }
     return false;
   }
+
   void OnPointerEnter() override {
-    if (script_instance_) script_instance_->OnPointerEnter();
+    if (script_instance_) {
+      script_instance_->OnPointerEnter();
+    }
   }
+
   void OnPointerExit() override {
-    if (script_instance_) script_instance_->OnPointerExit();
+    if (script_instance_) {
+      script_instance_->OnPointerExit();
+    }
   }
 
  private:

@@ -24,33 +24,29 @@ RTShadowFeature::RTShadowFeature(std::shared_ptr<Renderer> renderer)
       VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
       VK_SHADER_STAGE_RAYGEN_BIT_KHR);
   // binding 1: output r32ui storage image (shadow bitmask)
-  rt_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-      VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+  rt_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                    VK_SHADER_STAGE_RAYGEN_BIT_KHR);
   // binding 2: world position G-buffer
-  rt_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+  rt_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                    VK_SHADER_STAGE_RAYGEN_BIT_KHR);
   // binding 3: world normal G-buffer
-  rt_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+  rt_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                    VK_SHADER_STAGE_RAYGEN_BIT_KHR);
   // binding 4: shadow lights UBO
-  rt_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+  rt_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                    VK_SHADER_STAGE_RAYGEN_BIT_KHR);
   rt_descriptor_layout_->Bake();
 
   // UBO for shadow light data
   shadow_lights_ubo_ = renderer_->CreateUniformBuffer(sizeof(RTShadowLightUBO));
 
   // Compile RT shaders
-  auto raygen = renderer_->CreateShader(
-      {ShaderTypeRayGen, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/rt_shadow.rgen"});
-  auto miss = renderer_->CreateShader(
-      {ShaderTypeMiss, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/rt_shadow.rmiss"});
+  auto raygen = renderer_->CreateShader({ShaderTypeRayGen, ShaderLangGLSL,
+                                         "main", ShaderSourceSource,
+                                         "/engine/shaders/rt_shadow.rgen"});
+  auto miss = renderer_->CreateShader({ShaderTypeMiss, ShaderLangGLSL, "main",
+                                       ShaderSourceSource,
+                                       "/engine/shaders/rt_shadow.rmiss"});
   auto closesthit = renderer_->CreateShader(
       {ShaderTypeClosestHit, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/rt_shadow.rchit"});
@@ -76,16 +72,16 @@ void RTShadowFeature::SetupResources(RenderContext& ctx) {
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
   // Create or recreate R32UI storage image if missing or viewport size changed
-  if (!ctx.resources.HasTexture("rt_shadow.mask") ||
-      rw != mask_width_ || rh != mask_height_) {
+  if (!ctx.resources.HasTexture("rt_shadow.mask") || rw != mask_width_ ||
+      rh != mask_height_) {
     ctx.resources.SetTexture("rt_shadow.mask",
-        renderer_->CreateAttachmentTexture(
-            {.width = rw,
-             .height = rh,
-             .type = AttachmentTextureType::Offscreen,
-             .image_format = VK_FORMAT_R32_UINT,
-             .sampled = true,
-             .storage = true}));
+                             renderer_->CreateAttachmentTexture(
+                                 {.width = rw,
+                                  .height = rh,
+                                  .type = AttachmentTextureType::Offscreen,
+                                  .image_format = VK_FORMAT_R32_UINT,
+                                  .sampled = true,
+                                  .storage = true}));
     mask_width_ = rw;
     mask_height_ = rh;
   }
@@ -106,7 +102,8 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
 
   // Import the shadow mask texture into the render graph
   auto shadow_mask_tex = pool->GetTexture("rt_shadow.mask");
-  RGResource shadow_mask_res = graph.ImportTexture("RTShadowMask", shadow_mask_tex);
+  RGResource shadow_mask_res =
+      graph.ImportTexture("RTShadowMask", shadow_mask_tex);
 
   // Get G-buffer outputs from registry
   RGResource geo_world_pos = registry.Get("GeoWorldPos");
@@ -114,36 +111,48 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
 
   uint32_t pass_idx = graph.AddPass(
       "RTShadow", nullptr,
-      [pool, renderer, scene, rt_pipeline, rt_layout, lights_ubo,
-       trace_width, trace_height](VkCommandBuffer cmd) {
+      [pool, renderer, scene, rt_pipeline, rt_layout, lights_ubo, trace_width,
+       trace_height](VkCommandBuffer cmd) {
         auto as_manager = renderer->GetASManager();
-        if (!as_manager) return;
+        if (!as_manager) {
+          return;
+        }
 
         // Build TLAS for the current frame
         as_manager->BuildTLAS(cmd, *scene);
-        if (!as_manager->HasTLAS()) return;
+        if (!as_manager->HasTLAS()) {
+          return;
+        }
 
         // Collect shadow lights (directional + point)
         RTShadowLightUBO ubo_data{};
         ubo_data.count = 0;
 
         for (const auto& entity :
-             scene->GetAllEntitiesWith<LightDirectComponent, TransformComponent>()) {
-          if (ubo_data.count >= kMaxRTShadowLights) break;
+             scene->GetAllEntitiesWith<LightDirectComponent,
+                                       TransformComponent>()) {
+          if (ubo_data.count >= kMaxRTShadowLights) {
+            break;
+          }
           auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldDir = glm::normalize(
-              glm::vec3(transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
-          ubo_data.lights[ubo_data.count].pos_or_dir = glm::vec4(worldDir, 0.0f);
+          glm::vec3 worldDir = glm::normalize(glm::vec3(
+              transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
+          ubo_data.lights[ubo_data.count].pos_or_dir =
+              glm::vec4(worldDir, 0.0f);
           ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
           ubo_data.count++;
         }
 
         for (const auto& entity :
-             scene->GetAllEntitiesWith<LightPointComponent, TransformComponent>()) {
-          if (ubo_data.count >= kMaxRTShadowLights) break;
+             scene->GetAllEntitiesWith<LightPointComponent,
+                                       TransformComponent>()) {
+          if (ubo_data.count >= kMaxRTShadowLights) {
+            break;
+          }
           auto& transform = scene->GetComponent<TransformComponent>(entity);
           glm::vec3 worldPos = transform.GetWorldPosition();
-          ubo_data.lights[ubo_data.count].pos_or_dir = glm::vec4(worldPos, 1.0f);
+          ubo_data.lights[ubo_data.count].pos_or_dir =
+              glm::vec4(worldPos, 1.0f);
           ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
           ubo_data.count++;
         }
@@ -154,17 +163,17 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
         ubo_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
         ubo_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         ubo_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-        vkCmdPipelineBarrier(cmd,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
-            0, 1, &ubo_barrier, 0, nullptr, 0, nullptr);
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1,
+                             &ubo_barrier, 0, nullptr, 0, nullptr);
 
         // New descriptor each frame (TLAS handle changes); old one is deferred
         // by SetDescriptor via the DeletionQueue for safe multi-frame-in-flight.
         auto desc = std::make_shared<DescriptorSet>();
         desc->SetLayout(rt_layout);
         desc->AddAccelerationStructure(0, as_manager->GetTLAS());
-        desc->AddStorageImage(1, pool->GetTexture("rt_shadow.mask")->image_views_[0]);
+        desc->AddStorageImage(
+            1, pool->GetTexture("rt_shadow.mask")->image_views_[0]);
         desc->AddCombinedImageSampler(
             2, pool->GetTexture("geometry.world_pos_resolve")->image_views_[0],
             renderer->GetDefaultNearestSampler());
@@ -180,11 +189,8 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
         rt_pipeline->BindDescriptorSet(cmd, desc->descriptor_set_);
 
         renderer->vkCmdTraceRaysKHR()(
-            cmd,
-            &rt_pipeline->GetRayGenRegion(),
-            &rt_pipeline->GetMissRegion(),
-            &rt_pipeline->GetHitRegion(),
-            &rt_pipeline->GetCallableRegion(),
+            cmd, &rt_pipeline->GetRayGenRegion(), &rt_pipeline->GetMissRegion(),
+            &rt_pipeline->GetHitRegion(), &rt_pipeline->GetCallableRegion(),
             trace_width, trace_height, 1);
       });
 

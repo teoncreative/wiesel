@@ -54,13 +54,16 @@ class GlfwAppWindow : public AppWindow {
   double prev_cursor_x_ = 0.0, prev_cursor_y_ = 0.0;
   bool cursor_relative_first_ = true;
   double cursor_delta_x_ = 0.0, cursor_delta_y_ = 0.0;
-  std::array<std::optional<GLFWgamepadstate>, GLFW_JOYSTICK_LAST + 1> gamepad_prev_{};
+  std::array<std::optional<GLFWgamepadstate>, GLFW_JOYSTICK_LAST + 1>
+      gamepad_prev_{};
+
   struct RawJoyPrev {
     bool valid = false;
     std::vector<float> axes;
     std::vector<unsigned char> buttons;
     std::vector<unsigned char> hats;
   };
+
   std::array<RawJoyPrev, GLFW_JOYSTICK_LAST + 1> joy_prev_{};
   bool first_frame_ = true;
 };

@@ -4,6 +4,7 @@
 
 #include "rendering/w_command.hpp"
 #include "w_engine.hpp"
+
 namespace Wiesel {
 
 CommandPool::CommandPool() {
@@ -11,12 +12,13 @@ CommandPool::CommandPool() {
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
   poolInfo.queueFamilyIndex = Engine::renderer()->GetGraphicsQueueFamilyIndex();
-  WIESEL_CHECK_VKRESULT(
-      vkCreateCommandPool(Engine::renderer()->GetLogicalDevice(), &poolInfo, nullptr, &handle_));
+  WIESEL_CHECK_VKRESULT(vkCreateCommandPool(
+      Engine::renderer()->GetLogicalDevice(), &poolInfo, nullptr, &handle_));
 }
 
 CommandPool::~CommandPool() {
-  vkDestroyCommandPool(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
+  vkDestroyCommandPool(Engine::renderer()->GetLogicalDevice(), handle_,
+                       nullptr);
 }
 
 std::shared_ptr<CommandBuffer> CommandPool::CreateBuffer() {
@@ -32,8 +34,8 @@ std::shared_ptr<CommandBuffer> CommandPool::CreateBuffer() {
   allocInfo.commandBufferCount = 1;
 
   VkCommandBuffer buffer;
-  WIESEL_CHECK_VKRESULT(
-      vkAllocateCommandBuffers(Engine::renderer()->GetLogicalDevice(), &allocInfo, &buffer));
+  WIESEL_CHECK_VKRESULT(vkAllocateCommandBuffers(
+      Engine::renderer()->GetLogicalDevice(), &allocInfo, &buffer));
   return std::make_shared<CommandBuffer>(*this, buffer);
 }
 
@@ -41,8 +43,8 @@ void CommandPool::ReturnBuffer(VkCommandBuffer buffer) {
   free_buffers_.push_back(buffer);
 }
 
-CommandBuffer::CommandBuffer(CommandPool& pool, VkCommandBuffer commandBuffer) : pool_(pool), handle_(commandBuffer) {
-}
+CommandBuffer::CommandBuffer(CommandPool& pool, VkCommandBuffer commandBuffer)
+    : pool_(pool), handle_(commandBuffer) {}
 
 CommandBuffer::~CommandBuffer() {
   pool_.ReturnBuffer(handle_);
@@ -64,4 +66,4 @@ void CommandBuffer::End() {
 void CommandBuffer::Reset() {
   vkResetCommandBuffer(handle_, 0);
 }
-}
+}  // namespace Wiesel

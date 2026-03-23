@@ -11,10 +11,10 @@
 
 #pragma once
 
-#include "w_pch.hpp"
-#include "util/w_utils.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_mesh.hpp"
+#include "util/w_utils.hpp"
+#include "w_pch.hpp"
 
 namespace Wiesel {
 
@@ -33,11 +33,15 @@ class AccelerationStructureManager {
   explicit AccelerationStructureManager(std::shared_ptr<Renderer> renderer);
   ~AccelerationStructureManager();
 
-  std::shared_ptr<AccelerationStructure> GetOrBuildBLAS(std::shared_ptr<Mesh> mesh);
+  std::shared_ptr<AccelerationStructure> GetOrBuildBLAS(
+      std::shared_ptr<Mesh> mesh);
   void BuildTLAS(VkCommandBuffer cmd, Scene& scene);
 
   VkAccelerationStructureKHR GetTLAS() const;
-  bool HasTLAS() const { return tlas_ != nullptr && tlas_->handle != VK_NULL_HANDLE; }
+
+  bool HasTLAS() const {
+    return tlas_ != nullptr && tlas_->handle != VK_NULL_HANDLE;
+  }
 
  private:
   void DestroyAS(AccelerationStructure& as);

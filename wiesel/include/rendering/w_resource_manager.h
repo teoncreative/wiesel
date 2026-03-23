@@ -6,9 +6,7 @@
 #define WIESEL_W_RESOURCE_MANAGER_H
 
 class ResourceManager {
-public:
-
-private:
-
+ public:
+ private:
 };
 #endif  //WIESEL_W_RESOURCE_MANAGER_H

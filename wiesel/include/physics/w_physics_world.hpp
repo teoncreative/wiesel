@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include <btBulletDynamicsCommon.h>
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
+#include <btBulletDynamicsCommon.h>
 #include <entt/entt.hpp>
 #include <set>
 #include <unordered_map>
@@ -36,18 +36,23 @@ struct ContactPair {
   entt::entity b;
 
   ContactPair(entt::entity x, entt::entity y) {
-    if (x < y) { a = x; b = y; }
-    else { a = y; b = x; }
+    if (x < y) {
+      a = x;
+      b = y;
+    } else {
+      a = y;
+      b = x;
+    }
   }
 
   bool operator<(const ContactPair& o) const {
-    if (a != o.a) return a < o.a;
+    if (a != o.a) {
+      return a < o.a;
+    }
     return b < o.b;
   }
 
-  bool operator==(const ContactPair& o) const {
-    return a == o.a && b == o.b;
-  }
+  bool operator==(const ContactPair& o) const { return a == o.a && b == o.b; }
 };
 
 class PhysicsWorld {
@@ -74,12 +79,10 @@ class PhysicsWorld {
   void DetectContacts();
 
   // Queries
-  bool Raycast(const glm::vec3& from, const glm::vec3& to,
-               RaycastHit& hit,
+  bool Raycast(const glm::vec3& from, const glm::vec3& to, RaycastHit& hit,
                entt::entity ignore = entt::null) const;
-  bool Raycast(const glm::vec3& from, const glm::vec3& to,
-               RaycastHit& hit, entt::entity ignore,
-               uint16_t collision_mask) const;
+  bool Raycast(const glm::vec3& from, const glm::vec3& to, RaycastHit& hit,
+               entt::entity ignore, uint16_t collision_mask) const;
   std::vector<entt::entity> OverlapBox(const glm::vec3& center,
                                        const glm::vec3& half_extents) const;
   std::vector<entt::entity> OverlapSphere(const glm::vec3& center,
@@ -113,6 +116,7 @@ class PhysicsWorld {
     btDefaultMotionState* motion_state = nullptr;
     bool is_ghost = false;
   };
+
   std::unordered_map<entt::entity, BodyData> bodies_;
 
   // Contact tracking

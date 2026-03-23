@@ -12,11 +12,11 @@
 #pragma once
 
 #include <entt/entt.hpp>
-#include "w_pch.hpp"
 #include "util/w_utils.hpp"
-#include "w_rendergraph.hpp"
 #include "w_descriptor.hpp"
 #include "w_framebuffer.hpp"
+#include "w_pch.hpp"
+#include "w_rendergraph.hpp"
 #include "w_texture.hpp"
 
 namespace Wiesel {
@@ -30,7 +30,8 @@ class RenderPipeline;
 // Resources are stored by name and looked up at runtime.
 class CameraResourcePool {
  public:
-  void SetTexture(const std::string& name, std::shared_ptr<AttachmentTexture> tex);
+  void SetTexture(const std::string& name,
+                  std::shared_ptr<AttachmentTexture> tex);
   std::shared_ptr<AttachmentTexture> GetTexture(const std::string& name) const;
   bool HasTexture(const std::string& name) const;
 
@@ -38,7 +39,8 @@ class CameraResourcePool {
   std::shared_ptr<Framebuffer> GetFramebuffer(const std::string& name) const;
   bool HasFramebuffer(const std::string& name) const;
 
-  void SetDescriptor(const std::string& name, std::shared_ptr<DescriptorSet> ds);
+  void SetDescriptor(const std::string& name,
+                     std::shared_ptr<DescriptorSet> ds);
   std::shared_ptr<DescriptorSet> GetDescriptor(const std::string& name) const;
   bool HasDescriptor(const std::string& name) const;
 
@@ -100,8 +102,7 @@ class RenderFeature {
 
   // Add passes to the render graph. Import resources from the pool,
   // wire reads/writes, and register outputs in the registry.
-  virtual void AddPasses(RenderGraph& graph,
-                         RenderResourceRegistry& registry,
+  virtual void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                          RenderContext& ctx) = 0;
 
   // Whether this feature should run this frame.
@@ -132,8 +133,10 @@ class RenderPipeline {
   void BuildRenderGraph(RenderGraph& graph, RenderContext& ctx);
 
   // Get the final output from the "PipelineOutput" convention.
-  std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor(CameraResourcePool& pool) const;
-  std::shared_ptr<AttachmentTexture> GetFinalOutputImage(CameraResourcePool& pool) const;
+  std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor(
+      CameraResourcePool& pool) const;
+  std::shared_ptr<AttachmentTexture> GetFinalOutputImage(
+      CameraResourcePool& pool) const;
 
   const std::vector<std::shared_ptr<RenderFeature>>& GetFeatures() const {
     return features_;

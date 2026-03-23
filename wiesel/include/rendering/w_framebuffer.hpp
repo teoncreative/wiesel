@@ -13,12 +13,12 @@
 namespace Wiesel {
 class Framebuffer {
  public:
-  Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent, RenderPass& render_pass);
+  Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent,
+              RenderPass& render_pass);
   ~Framebuffer();
 
   glm::vec2 extent_;
   VkFramebuffer handle_;
-
 };
-}
+}  // namespace Wiesel
 #endif  //WIESEL_W_FRAMEBUFFER_HPP

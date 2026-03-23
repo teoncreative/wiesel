@@ -19,7 +19,8 @@ namespace Wiesel {
 // The entity must also have a RectangleTransformComponent for hit testing.
 struct InteractableComponent : public IComponent {
   bool enabled = true;
-  bool blocks_raycast = true;  // if true, consumes the event and stops propagation
+  bool blocks_raycast =
+      true;  // if true, consumes the event and stops propagation
 
   // Runtime state (not serialized)
   bool hovered_ = false;

@@ -10,21 +10,21 @@
 //
 
 #include "physics/w_physics_world.hpp"
+#include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
+#include "behavior/w_behavior.hpp"
 #include "physics/w_collider.hpp"
 #include "physics/w_rigidbody.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_scene.hpp"
-#include "behavior/w_behavior.hpp"
 #include "script/mono/w_monobehavior.hpp"
 #include "script/w_scriptmanager.hpp"
-#include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 
 namespace Wiesel {
 
 // Store entity handle in Bullet's user pointer
 static void* EntityToPtr(entt::entity e) {
-  return reinterpret_cast<void*>(static_cast<uintptr_t>(
-      static_cast<uint32_t>(e)));
+  return reinterpret_cast<void*>(
+      static_cast<uintptr_t>(static_cast<uint32_t>(e)));
 }
 
 static entt::entity PtrToEntity(void* ptr) {
@@ -37,8 +37,8 @@ PhysicsWorld::PhysicsWorld(Scene* scene) : scene_(scene) {
   dispatcher_ = new btCollisionDispatcher(collision_config_);
   broadphase_ = new btDbvtBroadphase();
   solver_ = new btSequentialImpulseConstraintSolver();
-  dynamics_world_ = new btDiscreteDynamicsWorld(
-      dispatcher_, broadphase_, solver_, collision_config_);
+  dynamics_world_ = new btDiscreteDynamicsWorld(dispatcher_, broadphase_,
+                                                solver_, collision_config_);
   dynamics_world_->setGravity(btVector3(0, -20.0f, 0));
 
   // Required for btGhostObject overlap detection
@@ -128,11 +128,12 @@ btCollisionShape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) {
   }
   if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
-    if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) return nullptr;
+    if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
+      return nullptr;
+    }
     auto* shape = new btHeightfieldTerrainShape(
-        hf.width, hf.length, hf.height_data.data(),
-        hf.min_height, hf.max_height,
-        1 /*upAxis=Y*/, false /*flipQuadEdges*/);
+        hf.width, hf.length, hf.height_data.data(), hf.min_height,
+        hf.max_height, 1 /*upAxis=Y*/, false /*flipQuadEdges*/);
     shape->setLocalScaling(btVector3(hf.scale.x, hf.scale.y, hf.scale.z));
     return shape;
   }
@@ -140,11 +141,15 @@ btCollisionShape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) {
 }
 
 void PhysicsWorld::CreateBody(entt::entity entity) {
-  if (bodies_.count(entity)) return;
+  if (bodies_.count(entity)) {
+    return;
+  }
 
   auto& registry = scene_->GetRegistry();
   btCollisionShape* shape = CreateShapeForEntity(entity);
-  if (!shape) return;
+  if (!shape) {
+    return;
+  }
 
   // Determine collider offset and collision group
   glm::vec3 offset(0.0f);
@@ -170,12 +175,13 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
 
   // Check if this is a trigger (ghost object)
   bool is_trigger = false;
-  if (registry.any_of<BoxColliderComponent>(entity))
+  if (registry.any_of<BoxColliderComponent>(entity)) {
     is_trigger = registry.get<BoxColliderComponent>(entity).is_trigger;
-  else if (registry.any_of<SphereColliderComponent>(entity))
+  } else if (registry.any_of<SphereColliderComponent>(entity)) {
     is_trigger = registry.get<SphereColliderComponent>(entity).is_trigger;
-  else if (registry.any_of<CapsuleColliderComponent>(entity))
+  } else if (registry.any_of<CapsuleColliderComponent>(entity)) {
     is_trigger = registry.get<CapsuleColliderComponent>(entity).is_trigger;
+  }
 
   btTransform start_tf = MakeBtTransform(entity, offset);
 
@@ -186,9 +192,8 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     ghost->setCollisionFlags(ghost->getCollisionFlags() |
                              btCollisionObject::CF_NO_CONTACT_RESPONSE);
     ghost->setUserPointer(EntityToPtr(entity));
-    dynamics_world_->addCollisionObject(
-        ghost, btBroadphaseProxy::SensorTrigger,
-        btBroadphaseProxy::AllFilter);
+    dynamics_world_->addCollisionObject(ghost, btBroadphaseProxy::SensorTrigger,
+                                        btBroadphaseProxy::AllFilter);
     bodies_[entity] = {ghost, shape, nullptr, true};
     return;
   }
@@ -245,15 +250,13 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
   // Rotation locks
   if (registry.any_of<RigidBodyComponent>(entity)) {
     auto& rb = registry.get<RigidBodyComponent>(entity);
-    btVector3 linear_factor(
-        rb.lock_position_x ? 0.0f : 1.0f,
-        rb.lock_position_y ? 0.0f : 1.0f,
-        rb.lock_position_z ? 0.0f : 1.0f);
+    btVector3 linear_factor(rb.lock_position_x ? 0.0f : 1.0f,
+                            rb.lock_position_y ? 0.0f : 1.0f,
+                            rb.lock_position_z ? 0.0f : 1.0f);
     body->setLinearFactor(linear_factor);
-    btVector3 angular_factor(
-        rb.lock_rotation_x ? 0.0f : 1.0f,
-        rb.lock_rotation_y ? 0.0f : 1.0f,
-        rb.lock_rotation_z ? 0.0f : 1.0f);
+    btVector3 angular_factor(rb.lock_rotation_x ? 0.0f : 1.0f,
+                             rb.lock_rotation_y ? 0.0f : 1.0f,
+                             rb.lock_rotation_z ? 0.0f : 1.0f);
     body->setAngularFactor(angular_factor);
     rb.bt_body_ptr = body;
     rb.is_dirty = false;
@@ -265,14 +268,15 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
 
 void PhysicsWorld::DestroyBody(entt::entity entity) {
   auto it = bodies_.find(entity);
-  if (it == bodies_.end()) return;
+  if (it == bodies_.end()) {
+    return;
+  }
 
   auto& data = it->second;
   if (data.is_ghost) {
     dynamics_world_->removeCollisionObject(data.bt_object);
   } else {
-    dynamics_world_->removeRigidBody(
-        static_cast<btRigidBody*>(data.bt_object));
+    dynamics_world_->removeRigidBody(static_cast<btRigidBody*>(data.bt_object));
   }
   delete data.bt_object;
   delete data.bt_shape;
@@ -324,16 +328,18 @@ void PhysicsWorld::SyncTransformsFromECS() {
   PROFILE_ZONE_SCOPED_N("Physics::SyncFromECS");
   auto& registry = scene_->GetRegistry();
   for (auto& [entity, data] : bodies_) {
-    if (!registry.valid(entity)) continue;
+    if (!registry.valid(entity)) {
+      continue;
+    }
 
     glm::vec3 offset(0.0f);
-    if (registry.any_of<BoxColliderComponent>(entity))
+    if (registry.any_of<BoxColliderComponent>(entity)) {
       offset = registry.get<BoxColliderComponent>(entity).offset;
-    else if (registry.any_of<SphereColliderComponent>(entity))
+    } else if (registry.any_of<SphereColliderComponent>(entity)) {
       offset = registry.get<SphereColliderComponent>(entity).offset;
-    else if (registry.any_of<CapsuleColliderComponent>(entity))
+    } else if (registry.any_of<CapsuleColliderComponent>(entity)) {
       offset = registry.get<CapsuleColliderComponent>(entity).offset;
-    else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
+    } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
       auto& hf = registry.get<HeightfieldColliderComponent>(entity);
       offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
     }
@@ -360,8 +366,9 @@ void PhysicsWorld::SyncTransformsFromECS() {
       }
     }
 
-    if (data.motion_state)
+    if (data.motion_state) {
       body->getMotionState()->setWorldTransform(tf);
+    }
     body->setWorldTransform(tf);
     body->activate(true);
   }
@@ -371,21 +378,29 @@ void PhysicsWorld::SyncTransformsToECS() {
   PROFILE_ZONE_SCOPED_N("Physics::SyncToECS");
   auto& registry = scene_->GetRegistry();
   for (auto& [entity, data] : bodies_) {
-    if (data.is_ghost) continue;
-    if (!registry.valid(entity)) continue;
-    if (!registry.any_of<RigidBodyComponent>(entity)) continue;
+    if (data.is_ghost) {
+      continue;
+    }
+    if (!registry.valid(entity)) {
+      continue;
+    }
+    if (!registry.any_of<RigidBodyComponent>(entity)) {
+      continue;
+    }
 
     auto& rb = registry.get<RigidBodyComponent>(entity);
-    if (rb.type != RigidBodyType::Dynamic) continue;
+    if (rb.type != RigidBodyType::Dynamic) {
+      continue;
+    }
 
     glm::vec3 offset(0.0f);
-    if (registry.any_of<BoxColliderComponent>(entity))
+    if (registry.any_of<BoxColliderComponent>(entity)) {
       offset = registry.get<BoxColliderComponent>(entity).offset;
-    else if (registry.any_of<SphereColliderComponent>(entity))
+    } else if (registry.any_of<SphereColliderComponent>(entity)) {
       offset = registry.get<SphereColliderComponent>(entity).offset;
-    else if (registry.any_of<CapsuleColliderComponent>(entity))
+    } else if (registry.any_of<CapsuleColliderComponent>(entity)) {
       offset = registry.get<CapsuleColliderComponent>(entity).offset;
-    else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
+    } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
       auto& hf = registry.get<HeightfieldColliderComponent>(entity);
       offset = glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
     }
@@ -408,12 +423,18 @@ void PhysicsWorld::DetectContacts() {
   // Helper to invoke callbacks on all MonoBehaviors of an entity
   auto invoke = [&](entt::entity entity, entt::entity other,
                     void (ScriptInstance::*method)(entt::entity)) {
-    if (!registry.valid(entity)) return;
-    if (!registry.any_of<BehaviorsComponent>(entity)) return;
+    if (!registry.valid(entity)) {
+      return;
+    }
+    if (!registry.any_of<BehaviorsComponent>(entity)) {
+      return;
+    }
     auto& behaviors = registry.get<BehaviorsComponent>(entity);
     for (auto& [name, behavior] : behaviors.behaviors_) {
       auto* mono = dynamic_cast<MonoBehavior*>(behavior);
-      if (!mono || !mono->script_instance()) continue;
+      if (!mono || !mono->script_instance()) {
+        continue;
+      }
       (mono->script_instance()->*method)(other);
     }
   };
@@ -423,14 +444,17 @@ void PhysicsWorld::DetectContacts() {
   int num_manifolds = dispatcher_->getNumManifolds();
   for (int i = 0; i < num_manifolds; i++) {
     btPersistentManifold* manifold = dispatcher_->getManifoldByIndexInternal(i);
-    if (manifold->getNumContacts() == 0) continue;
+    if (manifold->getNumContacts() == 0) {
+      continue;
+    }
 
     const btCollisionObject* objA = manifold->getBody0();
     const btCollisionObject* objB = manifold->getBody1();
     // Skip if either is a ghost (handled separately as trigger)
     if (objA->getInternalType() == btCollisionObject::CO_GHOST_OBJECT ||
-        objB->getInternalType() == btCollisionObject::CO_GHOST_OBJECT)
+        objB->getInternalType() == btCollisionObject::CO_GHOST_OBJECT) {
       continue;
+    }
 
     entt::entity eA = PtrToEntity(objA->getUserPointer());
     entt::entity eB = PtrToEntity(objB->getUserPointer());
@@ -455,12 +479,16 @@ void PhysicsWorld::DetectContacts() {
   // Trigger contacts from ghost objects
   std::set<ContactPair> current_trigger;
   for (auto& [entity, data] : bodies_) {
-    if (!data.is_ghost) continue;
+    if (!data.is_ghost) {
+      continue;
+    }
     auto* ghost = static_cast<btGhostObject*>(data.bt_object);
     for (int i = 0; i < ghost->getNumOverlappingObjects(); i++) {
       btCollisionObject* other_obj = ghost->getOverlappingObject(i);
       entt::entity other_entity = PtrToEntity(other_obj->getUserPointer());
-      if (entity == other_entity) continue;
+      if (entity == other_entity) {
+        continue;
+      }
       current_trigger.insert(ContactPair(entity, other_entity));
     }
   }
@@ -489,12 +517,16 @@ bool PhysicsWorld::Raycast(const glm::vec3& from, const glm::vec3& to,
   // Custom callback that skips a specific collision object
   struct ClosestNotSelf : public btCollisionWorld::ClosestRayResultCallback {
     const btCollisionObject* ignore_obj;
+
     ClosestNotSelf(const btVector3& f, const btVector3& t,
                    const btCollisionObject* ig)
         : ClosestRayResultCallback(f, t), ignore_obj(ig) {}
+
     btScalar addSingleResult(btCollisionWorld::LocalRayResult& result,
                              bool normalInWorldSpace) override {
-      if (result.m_collisionObject == ignore_obj) return 1.0f;
+      if (result.m_collisionObject == ignore_obj) {
+        return 1.0f;
+      }
       return ClosestRayResultCallback::addSingleResult(result,
                                                        normalInWorldSpace);
     }
@@ -503,16 +535,19 @@ bool PhysicsWorld::Raycast(const glm::vec3& from, const glm::vec3& to,
   const btCollisionObject* ignore_obj = nullptr;
   if (ignore != entt::null) {
     auto it = bodies_.find(ignore);
-    if (it != bodies_.end()) ignore_obj = it->second.bt_object;
+    if (it != bodies_.end()) {
+      ignore_obj = it->second.bt_object;
+    }
   }
 
   ClosestNotSelf callback(bt_from, bt_to, ignore_obj);
   dynamics_world_->rayTest(bt_from, bt_to, callback);
 
-  if (!callback.hasHit()) return false;
+  if (!callback.hasHit()) {
+    return false;
+  }
 
-  hit.entity = PtrToEntity(
-      callback.m_collisionObject->getUserPointer());
+  hit.entity = PtrToEntity(callback.m_collisionObject->getUserPointer());
   hit.point = ToGlm(callback.m_hitPointWorld);
   hit.normal = ToGlm(callback.m_hitNormalWorld);
   hit.distance = (callback.m_hitPointWorld - bt_from).length();
@@ -525,32 +560,45 @@ bool PhysicsWorld::Raycast(const glm::vec3& from, const glm::vec3& to,
   btVector3 bt_from = ToBt(from);
   btVector3 bt_to = ToBt(to);
 
-  struct FilteredRayCallback : public btCollisionWorld::ClosestRayResultCallback {
+  struct FilteredRayCallback
+      : public btCollisionWorld::ClosestRayResultCallback {
     const btCollisionObject* ignore_obj;
     uint16_t mask;
+
     FilteredRayCallback(const btVector3& f, const btVector3& t,
                         const btCollisionObject* ig, uint16_t m)
         : ClosestRayResultCallback(f, t), ignore_obj(ig), mask(m) {}
+
     btScalar addSingleResult(btCollisionWorld::LocalRayResult& result,
                              bool normalInWorldSpace) override {
-      if (result.m_collisionObject == ignore_obj) return 1.0f;
-      // Check collision group against mask
-      if (!(result.m_collisionObject->getBroadphaseHandle()->m_collisionFilterGroup & mask))
+      if (result.m_collisionObject == ignore_obj) {
         return 1.0f;
-      return ClosestRayResultCallback::addSingleResult(result, normalInWorldSpace);
+      }
+      // Check collision group against mask
+      if (!(result.m_collisionObject->getBroadphaseHandle()
+                ->m_collisionFilterGroup &
+            mask)) {
+        return 1.0f;
+      }
+      return ClosestRayResultCallback::addSingleResult(result,
+                                                       normalInWorldSpace);
     }
   };
 
   const btCollisionObject* ignore_obj = nullptr;
   if (ignore != entt::null) {
     auto it = bodies_.find(ignore);
-    if (it != bodies_.end()) ignore_obj = it->second.bt_object;
+    if (it != bodies_.end()) {
+      ignore_obj = it->second.bt_object;
+    }
   }
 
   FilteredRayCallback callback(bt_from, bt_to, ignore_obj, collision_mask);
   dynamics_world_->rayTest(bt_from, bt_to, callback);
 
-  if (!callback.hasHit()) return false;
+  if (!callback.hasHit()) {
+    return false;
+  }
 
   hit.entity = PtrToEntity(callback.m_collisionObject->getUserPointer());
   hit.point = ToGlm(callback.m_hitPointWorld);
@@ -574,11 +622,11 @@ std::vector<entt::entity> PhysicsWorld::OverlapBox(
   // Use contactTest to find all overlapping objects
   struct ResultCallback : public btCollisionWorld::ContactResultCallback {
     std::vector<entt::entity> results;
+
     btScalar addSingleResult(btManifoldPoint&,
                              const btCollisionObjectWrapper* colObj0Wrap, int,
-                             int,
-                             const btCollisionObjectWrapper* colObj1Wrap, int,
-                             int) override {
+                             int, const btCollisionObjectWrapper* colObj1Wrap,
+                             int, int) override {
       const btCollisionObject* other = colObj1Wrap->getCollisionObject();
       entt::entity e = PtrToEntity(other->getUserPointer());
       results.push_back(e);
@@ -590,8 +638,8 @@ std::vector<entt::entity> PhysicsWorld::OverlapBox(
   return callback.results;
 }
 
-std::vector<entt::entity> PhysicsWorld::OverlapSphere(
-    const glm::vec3& center, float radius) const {
+std::vector<entt::entity> PhysicsWorld::OverlapSphere(const glm::vec3& center,
+                                                      float radius) const {
   btSphereShape query_shape(radius);
   btTransform query_tf;
   query_tf.setIdentity();
@@ -604,11 +652,11 @@ std::vector<entt::entity> PhysicsWorld::OverlapSphere(
 
   struct ResultCallback : public btCollisionWorld::ContactResultCallback {
     std::vector<entt::entity> results;
+
     btScalar addSingleResult(btManifoldPoint&,
                              const btCollisionObjectWrapper* colObj0Wrap, int,
-                             int,
-                             const btCollisionObjectWrapper* colObj1Wrap, int,
-                             int) override {
+                             int, const btCollisionObjectWrapper* colObj1Wrap,
+                             int, int) override {
       const btCollisionObject* other = colObj1Wrap->getCollisionObject();
       entt::entity e = PtrToEntity(other->getUserPointer());
       results.push_back(e);

@@ -28,6 +28,7 @@ namespace Wiesel {
 // Collect all canvas-drawable entities and sort by draw_order so children
 // render on top of parents regardless of component type.
 enum class CanvasElementType { Rect, Image, Button, Text };
+
 struct CanvasDrawEntry {
   entt::entity entity;
   entt::entity canvas_root;
@@ -57,11 +58,11 @@ static std::pair<AssetHandle, glm::vec4> GetButtonVisuals(
 }
 
 // Draw a single canvas element (Rect, Image, Button, or Text).
-static void DrawCanvasElement(const CanvasDrawEntry& entry, Scene* scene,
-                              std::shared_ptr<Renderer> renderer,
-                              std::shared_ptr<DescriptorSetLayout> element_layout,
-                              std::shared_ptr<DescriptorSetLayout> textured_layout,
-                              float eid) {
+static void DrawCanvasElement(
+    const CanvasDrawEntry& entry, Scene* scene,
+    std::shared_ptr<Renderer> renderer,
+    std::shared_ptr<DescriptorSetLayout> element_layout,
+    std::shared_ptr<DescriptorSetLayout> textured_layout, float eid) {
   switch (entry.type) {
     case CanvasElementType::Rect: {
       auto& rect = scene->GetComponent<CanvasRectComponent>(entry.entity);
@@ -85,8 +86,8 @@ static void DrawCanvasElement(const CanvasDrawEntry& entry, Scene* scene,
         auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
         if (tex) {
           renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
-                                     tex, tint, {0, 0, 1, 1},
-                                     textured_layout, eid);
+                                     tex, tint, {0, 0, 1, 1}, textured_layout,
+                                     eid);
         }
       }
       break;
@@ -105,14 +106,12 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   // Render pass: RGBA color + R32F entity ID, no MSAA
   render_pass_ =
       std::make_shared<RenderPass>(PassType::PostProcess, "Canvas RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R32_SFLOAT,
-       .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = VK_FORMAT_R32_SFLOAT,
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   // Descriptor layouts
@@ -124,9 +123,8 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   canvas_textured_layout_ = std::make_shared<DescriptorSetLayout>();
   canvas_textured_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                       VK_SHADER_STAGE_VERTEX_BIT);
-  canvas_textured_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);
+  canvas_textured_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                      VK_SHADER_STAGE_FRAGMENT_BIT);
   canvas_textured_layout_->Bake();
 
   // Shaders
@@ -147,8 +145,8 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   screen_size_push_ = std::make_shared<CanvasScreenPushConstant>();
 
   // Pipeline properties: alpha blending, no depth, no culling, no vertex input
-  PipelineProperties props{SamplingMode::DISABLED, CullModeNone, false, true,
-                           false, false};
+  PipelineProperties props{
+      SamplingMode::DISABLED, CullModeNone, false, true, false, false};
 
   // Rect pipeline (UBO only)
   rect_pipeline_ = std::make_shared<Pipeline>(props);
@@ -187,16 +185,15 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
 
   world_push_ = std::make_shared<CanvasWorldPushConstant>();
 
-  world_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "CanvasWorld RenderPass");
+  world_render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
+                                                    "CanvasWorld RenderPass");
   world_render_pass_->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = renderer_->GetSwapChainImageFormat(),
        .msaa_mode = SamplingMode::DISABLED});
-  world_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R32_SFLOAT,
-       .msaa_mode = SamplingMode::DISABLED});
+  world_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                                    .format = VK_FORMAT_R32_SFLOAT,
+                                    .msaa_mode = SamplingMode::DISABLED});
   world_render_pass_->Bake();
 
   // World rect pipeline
@@ -264,16 +261,14 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
   // Overlay canvas offscreen
-  pool.SetTexture("canvas.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(),
-                       SamplingMode::DISABLED, true}));
+  pool.SetTexture("canvas.color", renderer.CreateAttachmentTexture(
+                                      {rw, rh, AttachmentTextureType::Offscreen,
+                                       1, renderer.GetSwapChainImageFormat(),
+                                       SamplingMode::DISABLED, true}));
   pool.SetTexture("canvas.entity_id",
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R32_SFLOAT,
-                       SamplingMode::DISABLED, true}));
+                       VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 2> attachments{
       pool.GetTexture("canvas.color").get(),
@@ -290,22 +285,21 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("canvas.output", canvas_output_desc);
 
   // World-space canvas offscreen
-  pool.SetTexture("canvas_world.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(),
-                       SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "canvas_world.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
   pool.SetTexture("canvas_world.entity_id",
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R32_SFLOAT,
-                       SamplingMode::DISABLED, true}));
+                       VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 2> world_attachments{
       pool.GetTexture("canvas_world.color").get(),
       pool.GetTexture("canvas_world.entity_id").get()};
-  pool.SetFramebuffer("canvas_world",
-      world_render_pass_->CreateFramebuffer(0, world_attachments, {rw, rh}));
+  pool.SetFramebuffer("canvas_world", world_render_pass_->CreateFramebuffer(
+                                          0, world_attachments, {rw, rh}));
 
   // Descriptor for compositing world canvas
   auto world_canvas_desc = std::make_shared<DescriptorSet>();
@@ -317,22 +311,21 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("canvas_world.output", world_canvas_desc);
 
   // Per-canvas camera quad offscreen (for ScreenSpaceCamera / external overlay)
-  pool.SetTexture("canvas_camera.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(),
-                       SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "canvas_camera.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
   pool.SetTexture("canvas_camera.entity_id",
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R32_SFLOAT,
-                       SamplingMode::DISABLED, true}));
+                       VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 2> camera_attachments{
       pool.GetTexture("canvas_camera.color").get(),
       pool.GetTexture("canvas_camera.entity_id").get()};
-  pool.SetFramebuffer("canvas_camera",
-      world_render_pass_->CreateFramebuffer(0, camera_attachments, {rw, rh}));
+  pool.SetFramebuffer("canvas_camera", world_render_pass_->CreateFramebuffer(
+                                           0, camera_attachments, {rw, rh}));
 
   auto camera_canvas_desc = std::make_shared<DescriptorSet>();
   camera_canvas_desc->SetLayout(renderer.GetPresentDescriptorLayout());
@@ -343,16 +336,16 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("canvas_camera.output", camera_canvas_desc);
 
   // Canvas composite: blend canvas onto PipelineOutput
-  pool.SetTexture("canvas_comp.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(),
-                       SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "canvas_comp.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 1> comp_attachments{
       pool.GetTexture("canvas_comp.color").get()};
-  pool.SetFramebuffer("canvas_comp",
-      comp_render_pass_->CreateFramebuffer(0, comp_attachments, {rw, rh}));
+  pool.SetFramebuffer("canvas_comp", comp_render_pass_->CreateFramebuffer(
+                                         0, comp_attachments, {rw, rh}));
 
   // Descriptor to read previous PipelineOutput
   auto comp_input_desc = std::make_shared<DescriptorSet>();
@@ -370,8 +363,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
       0, pool.GetTexture("canvas_comp.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());
   comp_output_desc->Bake();
-  pool.SetTexture("PipelineOutput",
-                  pool.GetTexture("canvas_comp.color"));
+  pool.SetTexture("PipelineOutput", pool.GetTexture("canvas_comp.color"));
   pool.SetDescriptor("PipelineOutputDescriptor", comp_output_desc);
 
   // Clear per-canvas resources on resize (they will be recreated lazily)
@@ -401,7 +393,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // Compute effective screen size for canvas rendering.
   // If any canvas has a scaler, use its reference resolution.
   glm::vec2 effective_screen = ctx.viewport_size;
-  for (const auto& e : ctx.scene.GetAllEntitiesWith<CanvasComponent, CanvasScalerComponent>()) {
+  for (const auto& e :
+       ctx.scene.GetAllEntitiesWith<CanvasComponent, CanvasScalerComponent>()) {
     auto& scaler = ctx.scene.GetComponent<CanvasScalerComponent>(e);
     if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
       float scale_w = ctx.viewport_size.x / scaler.reference_resolution.x;
@@ -422,13 +415,14 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // on-demand rasterization happens now.  Collect unique fonts.
   std::unordered_map<Font*, std::shared_ptr<Font>> unique_fonts;
   for (const auto& entity :
-       ctx.scene.GetAllEntitiesWith<TextComponent,
-                                     RectangleTransformComponent>()) {
+       ctx.scene
+           .GetAllEntitiesWith<TextComponent, RectangleTransformComponent>()) {
     auto& text = ctx.scene.GetComponent<TextComponent>(entity);
     if (text.text.empty()) {
       continue;
     }
-    std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
+    std::shared_ptr<Font> font =
+        FontCache::Get(text.font_handle, text.font_size);
     if (!font || !font->IsLoaded()) {
       continue;
     }
@@ -452,9 +446,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   if (!flushed_fonts.empty()) {
     for (const auto& entity :
          ctx.scene.GetAllEntitiesWith<TextComponent,
-                                       RectangleTransformComponent>()) {
+                                      RectangleTransformComponent>()) {
       auto& text = ctx.scene.GetComponent<TextComponent>(entity);
-      std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
+      std::shared_ptr<Font> font =
+          FontCache::Get(text.font_handle, text.font_size);
       if (font && flushed_fonts.contains(font.get())) {
         text.glyph_gpu_.clear();
       }
@@ -464,7 +459,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // Build a cache from entity -> canvas root (nearest ancestor with CanvasComponent)
   std::unordered_map<entt::entity, entt::entity> canvas_root_cache;
 
-  auto find_canvas_root = [scene, &canvas_root_cache](entt::entity entity) -> entt::entity {
+  auto find_canvas_root =
+      [scene, &canvas_root_cache](entt::entity entity) -> entt::entity {
     // Check cache first
     auto cache_it = canvas_root_cache.find(entity);
     if (cache_it != canvas_root_cache.end()) {
@@ -505,7 +501,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   auto classify_entry = [scene, &find_canvas_root, &overlay_list, &world_list,
                          &camera_list, is_external, current_camera_entity](
-      entt::entity entity, CanvasElementType type, int32_t draw_order) {
+                            entt::entity entity, CanvasElementType type,
+                            int32_t draw_order) {
     entt::entity canvas_root = find_canvas_root(entity);
     if (canvas_root == entt::null) {
       overlay_list.push_back({entity, entt::null, type, draw_order});
@@ -534,48 +531,48 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<CanvasRectComponent,
-                                     RectangleTransformComponent>()) {
+                                    RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
     classify_entry(entity, CanvasElementType::Rect, rt.draw_order);
   }
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<CanvasImageComponent,
-                                     RectangleTransformComponent>()) {
+                                    RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
     classify_entry(entity, CanvasElementType::Image, rt.draw_order);
   }
   for (const auto& entity :
        ctx.scene.GetAllEntitiesWith<ButtonComponent,
-                                     RectangleTransformComponent>()) {
+                                    RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
     classify_entry(entity, CanvasElementType::Button, rt.draw_order);
   }
   for (const auto& entity :
-       ctx.scene.GetAllEntitiesWith<TextComponent,
-                                     RectangleTransformComponent>()) {
+       ctx.scene
+           .GetAllEntitiesWith<TextComponent, RectangleTransformComponent>()) {
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
     classify_entry(entity, CanvasElementType::Text, rt.draw_order);
   }
 
   std::ranges::sort(overlay_list,
-            [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
-              return a.draw_order < b.draw_order;
-            });
+                    [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
+                      return a.draw_order < b.draw_order;
+                    });
   std::ranges::sort(world_list,
-            [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
-              return a.draw_order < b.draw_order;
-            });
+                    [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
+                      return a.draw_order < b.draw_order;
+                    });
   std::ranges::sort(camera_list,
-            [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
-              return a.draw_order < b.draw_order;
-            });
+                    [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
+                      return a.draw_order < b.draw_order;
+                    });
 
-  auto sorted_overlay = std::make_shared<std::vector<CanvasDrawEntry>>(
-      std::move(overlay_list));
-  auto sorted_world = std::make_shared<std::vector<CanvasDrawEntry>>(
-      std::move(world_list));
-  auto sorted_camera = std::make_shared<std::vector<CanvasDrawEntry>>(
-      std::move(camera_list));
+  auto sorted_overlay =
+      std::make_shared<std::vector<CanvasDrawEntry>>(std::move(overlay_list));
+  auto sorted_world =
+      std::make_shared<std::vector<CanvasDrawEntry>>(std::move(world_list));
+  auto sorted_camera =
+      std::make_shared<std::vector<CanvasDrawEntry>>(std::move(camera_list));
 
   // ---- Unified per-canvas info computation ----
   // Compute ALL per-canvas info once. Every consumer references this single map.
@@ -583,9 +580,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     entt::entity entity;
     CanvasRenderMode render_mode;
     glm::mat4 model_matrix;
-    glm::vec2 canvas_size;      // reference resolution for layout/shader
-    glm::vec2 world_size;       // auto-computed with aspect correction
-    glm::vec2 texture_size;     // offscreen texture resolution (for camera/overlay-in-editor)
+    glm::vec2 canvas_size;  // reference resolution for layout/shader
+    glm::vec2 world_size;   // auto-computed with aspect correction
+    glm::vec2
+        texture_size;  // offscreen texture resolution (for camera/overlay-in-editor)
     float plane_distance;
     std::shared_ptr<PerCanvasResources> per_canvas_res;
   };
@@ -615,15 +613,16 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     }
   }
 
-  auto canvas_infos = std::make_shared<
-      std::unordered_map<entt::entity, CanvasRenderInfo>>();
+  auto canvas_infos =
+      std::make_shared<std::unordered_map<entt::entity, CanvasRenderInfo>>();
 
   // Ordered list of camera canvas roots (preserving first-seen order from sorted_camera)
   std::vector<entt::entity> camera_canvas_roots;
   {
     std::unordered_set<entt::entity> seen;
     for (const auto& entry : *sorted_camera) {
-      if (entry.canvas_root != entt::null && !seen.contains(entry.canvas_root)) {
+      if (entry.canvas_root != entt::null &&
+          !seen.contains(entry.canvas_root)) {
         seen.insert(entry.canvas_root);
         camera_canvas_roots.push_back(entry.canvas_root);
       }
@@ -657,7 +656,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     if (info.render_mode == CanvasRenderMode::WorldSpace) {
       float ppu = 100.0f;
       if (ctx.scene.HasComponent<CanvasScalerComponent>(ce)) {
-        ppu = std::max(1.0f, ctx.scene.GetComponent<CanvasScalerComponent>(ce).reference_pixels_per_unit);
+        ppu = std::max(1.0f, ctx.scene.GetComponent<CanvasScalerComponent>(ce)
+                                 .reference_pixels_per_unit);
       }
       info.world_size = info.canvas_size / ppu;
     } else {
@@ -686,8 +686,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       // Editor: all modes use entity Transform
       // Game WorldSpace: uses entity Transform
       if (ctx.scene.HasComponent<TransformComponent>(ce)) {
-        info.model_matrix = ctx.scene.GetComponent<TransformComponent>(ce)
-                                .GetTransformMatrix();
+        info.model_matrix =
+            ctx.scene.GetComponent<TransformComponent>(ce).GetTransformMatrix();
       } else {
         info.model_matrix = glm::mat4(1.0f);
       }
@@ -697,12 +697,14 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       if (canvas.camera_entity != entt::null &&
           ctx.scene.HasComponent<CameraComponent>(canvas.camera_entity) &&
           ctx.scene.HasComponent<TransformComponent>(canvas.camera_entity)) {
-        auto& cam = ctx.scene.GetComponent<CameraComponent>(canvas.camera_entity);
-        auto& cam_transform = ctx.scene.GetComponent<TransformComponent>(
-            canvas.camera_entity);
+        auto& cam =
+            ctx.scene.GetComponent<CameraComponent>(canvas.camera_entity);
+        auto& cam_transform =
+            ctx.scene.GetComponent<TransformComponent>(canvas.camera_entity);
 
         float fov_rad = glm::radians(cam.field_of_view * 0.5f);
-        float tex_aspect = info.texture_size.x / std::max(1.0f, info.texture_size.y);
+        float tex_aspect =
+            info.texture_size.x / std::max(1.0f, info.texture_size.y);
         float world_h = 2.0f * canvas.plane_distance * std::tan(fov_rad);
         float world_w = world_h * tex_aspect;
         info.world_size = {world_w, world_h};
@@ -729,7 +731,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     // Per-canvas offscreen resources (for camera_list canvases)
     bool needs_offscreen =
         (is_external && info.render_mode != CanvasRenderMode::WorldSpace) ||
-        (!is_external && info.render_mode == CanvasRenderMode::ScreenSpaceCamera);
+        (!is_external &&
+         info.render_mode == CanvasRenderMode::ScreenSpaceCamera);
     if (needs_offscreen) {
       uint32_t tw = static_cast<uint32_t>(std::max(1.0f, info.texture_size.x));
       uint32_t th = static_cast<uint32_t>(std::max(1.0f, info.texture_size.y));
@@ -738,20 +741,19 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       if (!res.texture || res.width != tw || res.height != th) {
         res.texture = renderer_->CreateAttachmentTexture(
             {tw, th, AttachmentTextureType::Offscreen, 1,
-             renderer_->GetSwapChainImageFormat(),
-             SamplingMode::DISABLED, true});
+             renderer_->GetSwapChainImageFormat(), SamplingMode::DISABLED,
+             true});
         res.entity_id_texture = renderer_->CreateAttachmentTexture(
-            {tw, th, AttachmentTextureType::Offscreen, 1,
-             VK_FORMAT_R32_SFLOAT,
+            {tw, th, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R32_SFLOAT,
              SamplingMode::DISABLED, true});
 
-        std::array<AttachmentTexture*, 2> att{
-            res.texture.get(),
-            res.entity_id_texture.get()};
+        std::array<AttachmentTexture*, 2> att{res.texture.get(),
+                                              res.entity_id_texture.get()};
         res.framebuffer = render_pass_->CreateFramebuffer(0, att, {tw, th});
 
         res.output_descriptor = std::make_shared<DescriptorSet>();
-        res.output_descriptor->SetLayout(renderer_->GetPresentDescriptorLayout());
+        res.output_descriptor->SetLayout(
+            renderer_->GetPresentDescriptorLayout());
         res.output_descriptor->AddCombinedImageSampler(
             0, res.texture->image_views_[0],
             renderer_->GetDefaultLinearSampler());
@@ -776,9 +778,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   }
 
   // ---- World-space canvas pass (renders BEFORE overlay) ----
-  RGResource canvas_world_out =
-      graph.ImportTexture("CanvasWorldOut",
-                          pool->GetTexture("canvas_world.color"));
+  RGResource canvas_world_out = graph.ImportTexture(
+      "CanvasWorldOut", pool->GetTexture("canvas_world.color"));
 
   // Build canvas border data for editor scene view
   struct CanvasBorderInfo {
@@ -786,6 +787,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     std::shared_ptr<UniformBuffer> edge_ubos[4];
     std::shared_ptr<DescriptorSet> edge_descriptors[4];
   };
+
   auto canvas_borders = std::make_shared<std::vector<CanvasBorderInfo>>();
 
   if (is_external) {
@@ -797,20 +799,25 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       const CanvasRenderInfo& ci = info_it->second;
 
       float bw = 2.0f;
-      struct EdgeRect { glm::vec2 pos; glm::vec2 size; };
+
+      struct EdgeRect {
+        glm::vec2 pos;
+        glm::vec2 size;
+      };
+
       EdgeRect edges[4] = {
-        {{0, 0}, {ci.canvas_size.x, bw}},                       // top
-        {{0, ci.canvas_size.y - bw}, {ci.canvas_size.x, bw}},   // bottom
-        {{0, 0}, {bw, ci.canvas_size.y}},                       // left
-        {{ci.canvas_size.x - bw, 0}, {bw, ci.canvas_size.y}},   // right
+          {{0, 0}, {ci.canvas_size.x, bw}},                      // top
+          {{0, ci.canvas_size.y - bw}, {ci.canvas_size.x, bw}},  // bottom
+          {{0, 0}, {bw, ci.canvas_size.y}},                      // left
+          {{ci.canvas_size.x - bw, 0}, {bw, ci.canvas_size.y}},  // right
       };
 
       CanvasBorderInfo border{};
       border.canvas_entity = canvas_entity;
 
       for (int ei = 0; ei < 4; ei++) {
-        border.edge_ubos[ei] = renderer_->CreateUniformBuffer(
-            sizeof(CanvasElementUniformData));
+        border.edge_ubos[ei] =
+            renderer_->CreateUniformBuffer(sizeof(CanvasElementUniformData));
         CanvasElementUniformData data{};
         data.position = edges[ei].pos;
         data.size = edges[ei].size;
@@ -836,14 +843,15 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     std::shared_ptr<UniformBuffer> ubo;
     std::shared_ptr<DescriptorSet> descriptor;
   };
+
   auto camera_quad_draws = std::make_shared<std::vector<CameraQuadDraw>>();
 
   uint32_t world_canvas_pass = graph.AddPass(
       "CanvasWorld", world_render_pass_,
-      [world_rect_pipeline, world_image_pipeline, world_text_pipeline,
-       scene, renderer, pool, world_push, element_layout, textured_layout,
-       sorted_world, canvas_infos, global_descriptor,
-       viewport, camera_quad_draws, canvas_borders](VkCommandBuffer) {
+      [world_rect_pipeline, world_image_pipeline, world_text_pipeline, scene,
+       renderer, pool, world_push, element_layout, textured_layout,
+       sorted_world, canvas_infos, global_descriptor, viewport,
+       camera_quad_draws, canvas_borders](VkCommandBuffer) {
         if (sorted_world->empty() && camera_quad_draws->empty() &&
             canvas_borders->empty()) {
           return;
@@ -896,15 +904,17 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             VkDescriptorSet global_set = global_descriptor->descriptor_set_;
             auto* bound = renderer->GetBoundPipeline();
             if (bound) {
-              vkCmdBindDescriptorSets(
-                  renderer->GetCommandBuffer().handle_,
-                  VK_PIPELINE_BIND_POINT_GRAPHICS,
-                  bound->layout_, 1, 1, &global_set, 0, nullptr);
+              vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                      VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                      bound->layout_, 1, 1, &global_set, 0,
+                                      nullptr);
             }
           }
 
-          float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
-          DrawCanvasElement(entry, scene, renderer, element_layout, textured_layout, eid);
+          float eid =
+              static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
+          DrawCanvasElement(entry, scene, renderer, element_layout,
+                            textured_layout, eid);
         }
 
         // Draw per-canvas textures as 3D quads (camera canvases in editor)
@@ -924,18 +934,17 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           VkDescriptorSet global_set = global_descriptor->descriptor_set_;
           auto* bound = renderer->GetBoundPipeline();
           if (bound) {
-            vkCmdBindDescriptorSets(
-                renderer->GetCommandBuffer().handle_,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                bound->layout_, 1, 1, &global_set, 0, nullptr);
+            vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    bound->layout_, 1, 1, &global_set, 0,
+                                    nullptr);
           }
 
           VkDescriptorSet sets[] = {qd.descriptor->descriptor_set_};
-          vkCmdBindDescriptorSets(
-              renderer->GetCommandBuffer().handle_,
-              VK_PIPELINE_BIND_POINT_GRAPHICS,
-              renderer->GetBoundPipeline()->layout_,
-              0, 1, sets, 0, nullptr);
+          vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  renderer->GetBoundPipeline()->layout_, 0, 1,
+                                  sets, 0, nullptr);
           vkCmdDraw(renderer->GetCommandBuffer().handle_, 6, 1, 0, 0);
         }
 
@@ -956,10 +965,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           VkDescriptorSet global_set = global_descriptor->descriptor_set_;
           auto* bound = renderer->GetBoundPipeline();
           if (bound) {
-            vkCmdBindDescriptorSets(
-                renderer->GetCommandBuffer().handle_,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                bound->layout_, 1, 1, &global_set, 0, nullptr);
+            vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    bound->layout_, 1, 1, &global_set, 0,
+                                    nullptr);
           }
 
           // Draw 4 thin rects as border edges - each needs its own UBO
@@ -971,11 +980,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                 border.edge_descriptors[ei];
 
             VkDescriptorSet sets[] = {edge_desc->descriptor_set_};
-            vkCmdBindDescriptorSets(
-                renderer->GetCommandBuffer().handle_,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                renderer->GetBoundPipeline()->layout_,
-                0, 1, sets, 0, nullptr);
+            vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    renderer->GetBoundPipeline()->layout_, 0, 1,
+                                    sets, 0, nullptr);
             vkCmdDraw(renderer->GetCommandBuffer().handle_, 6, 1, 0, 0);
           }
         }
@@ -996,7 +1004,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     entt::entity canvas_entity;
     RGResource rg_resource;
   };
-  auto per_canvas_pass_infos = std::make_shared<std::vector<PerCanvasPassInfo>>();
+
+  auto per_canvas_pass_infos =
+      std::make_shared<std::vector<PerCanvasPassInfo>>();
 
   for (entt::entity canvas_entity : camera_canvas_roots) {
     auto ci_it = canvas_infos->find(canvas_entity);
@@ -1022,17 +1032,18 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
     glm::vec2 canvas_viewport = ci.texture_size;
     std::shared_ptr<PerCanvasResources> canvas_res = ci.per_canvas_res;
-    std::string pass_name = "CanvasPerCanvas_" + std::to_string(
-        static_cast<uint32_t>(canvas_entity));
+    std::string pass_name =
+        "CanvasPerCanvas_" +
+        std::to_string(static_cast<uint32_t>(canvas_entity));
 
-    RGResource canvas_tex_rg = graph.ImportTexture(
-        pass_name, canvas_res->texture);
+    RGResource canvas_tex_rg =
+        graph.ImportTexture(pass_name, canvas_res->texture);
 
     uint32_t per_canvas_pass = graph.AddPass(
         pass_name, render_pass_,
         [rect_pipeline, image_pipeline, text_pipeline, scene, renderer,
-         screen_push, canvas_viewport, element_layout,
-         textured_layout, canvas_elements](VkCommandBuffer) {
+         screen_push, canvas_viewport, element_layout, textured_layout,
+         canvas_elements](VkCommandBuffer) {
           screen_push->screen_size = canvas_viewport;
 
           CanvasElementType bound_type = CanvasElementType::Rect;
@@ -1056,8 +1067,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
               first = false;
             }
 
-            float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
-            DrawCanvasElement(entry, scene, renderer, element_layout, textured_layout, eid);
+            float eid =
+                static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
+            DrawCanvasElement(entry, scene, renderer, element_layout,
+                              textured_layout, eid);
           }
         });
 
@@ -1072,10 +1085,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // ---- Per-canvas 3D quad pass ----
   // Draws each per-canvas offscreen texture as a textured quad in 3D,
   // rendered into a separate offscreen buffer that gets composited later.
-  RGResource canvas_camera_out =
-      graph.ImportTexture("CanvasCameraOut",
-                          pool->GetTexture("canvas_camera.color"));
+  RGResource canvas_camera_out = graph.ImportTexture(
+      "CanvasCameraOut", pool->GetTexture("canvas_camera.color"));
   bool camera_pass_added = !per_canvas_pass_infos->empty() && global_descriptor;
+
   // Pre-build per-canvas quad draw resources (UBO + descriptor) outside the
   // lambda so they are captured by shared_ptr and stay alive until the
   // render graph pass is destroyed (deferred via DeletionQueue).
@@ -1084,6 +1097,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     std::shared_ptr<UniformBuffer> ubo;
     std::shared_ptr<DescriptorSet> descriptor;
   };
+
   auto quad_draw_datas = std::make_shared<std::vector<CanvasQuadDrawData>>();
 
   if (camera_pass_added) {
@@ -1097,8 +1111,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         continue;
       }
 
-      auto ubo = renderer_->CreateUniformBuffer(
-          sizeof(CanvasElementUniformData));
+      auto ubo =
+          renderer_->CreateUniformBuffer(sizeof(CanvasElementUniformData));
       CanvasElementUniformData data{};
       data.position = {0.0f, 0.0f};
       data.size = ci.canvas_size;
@@ -1109,9 +1123,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       auto desc = std::make_shared<DescriptorSet>();
       desc->SetLayout(canvas_textured_layout_);
       desc->AddUniformBuffer(0, ubo);
-      desc->AddCombinedImageSampler(
-          1, ci.per_canvas_res->texture->image_views_[0],
-          renderer_->GetDefaultLinearSampler());
+      desc->AddCombinedImageSampler(1,
+                                    ci.per_canvas_res->texture->image_views_[0],
+                                    renderer_->GetDefaultLinearSampler());
       desc->Bake();
 
       quad_draw_datas->push_back({pass_info.canvas_entity, ubo, desc});
@@ -1125,9 +1139,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   uint32_t camera_quad_pass = graph.AddPass(
       "CanvasCameraQuad", world_render_pass_,
-      [world_image_pipeline, renderer, world_push,
-       global_descriptor, camera_pass_added, canvas_infos,
-       quad_draw_datas](VkCommandBuffer) {
+      [world_image_pipeline, renderer, world_push, global_descriptor,
+       camera_pass_added, canvas_infos, quad_draw_datas](VkCommandBuffer) {
         if (!camera_pass_added || !global_descriptor ||
             quad_draw_datas->empty()) {
           return;
@@ -1139,10 +1152,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         VkDescriptorSet global_set = global_descriptor->descriptor_set_;
         auto* bound = renderer->GetBoundPipeline();
         if (bound) {
-          vkCmdBindDescriptorSets(
-              renderer->GetCommandBuffer().handle_,
-              VK_PIPELINE_BIND_POINT_GRAPHICS,
-              bound->layout_, 1, 1, &global_set, 0, nullptr);
+          vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  bound->layout_, 1, 1, &global_set, 0,
+                                  nullptr);
         }
 
         for (const auto& qd : *quad_draw_datas) {
@@ -1163,19 +1176,18 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           // Re-bind global descriptor after pipeline rebind
           bound = renderer->GetBoundPipeline();
           if (bound) {
-            vkCmdBindDescriptorSets(
-                renderer->GetCommandBuffer().handle_,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                bound->layout_, 1, 1, &global_set, 0, nullptr);
+            vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    bound->layout_, 1, 1, &global_set, 0,
+                                    nullptr);
           }
 
           // Draw the full-canvas quad textured with the per-canvas offscreen
           VkDescriptorSet sets[] = {qd.descriptor->descriptor_set_};
-          vkCmdBindDescriptorSets(
-              renderer->GetCommandBuffer().handle_,
-              VK_PIPELINE_BIND_POINT_GRAPHICS,
-              renderer->GetBoundPipeline()->layout_,
-              0, 1, sets, 0, nullptr);
+          vkCmdBindDescriptorSets(renderer->GetCommandBuffer().handle_,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  renderer->GetBoundPipeline()->layout_, 0, 1,
+                                  sets, 0, nullptr);
           vkCmdDraw(renderer->GetCommandBuffer().handle_, 6, 1, 0, 0);
         }
       });
@@ -1222,8 +1234,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             first = false;
           }
 
-          float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
-          DrawCanvasElement(entry, scene, renderer, element_layout, textured_layout, eid);
+          float eid =
+              static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
+          DrawCanvasElement(entry, scene, renderer, element_layout,
+                            textured_layout, eid);
         }
       });
 
@@ -1246,18 +1260,18 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         comp_pipeline->Bind(PipelineBindPointGraphics);
         // Draw scene (previous PipelineOutput)
         renderer->DrawFullscreen(comp_pipeline,
-            {pool->GetDescriptor("canvas_comp.input")});
+                                 {pool->GetDescriptor("canvas_comp.input")});
         // Draw world canvas on top (alpha blended)
         renderer->DrawFullscreen(comp_pipeline,
-            {pool->GetDescriptor("canvas_world.output")});
+                                 {pool->GetDescriptor("canvas_world.output")});
         if (!is_external) {
           // Per-canvas camera quads as fullscreen (game view only;
           // in editor they're drawn as 3D quads in the world pass)
-          renderer->DrawFullscreen(comp_pipeline,
-              {pool->GetDescriptor("canvas_camera.output")});
+          renderer->DrawFullscreen(
+              comp_pipeline, {pool->GetDescriptor("canvas_camera.output")});
           // Overlay canvas (game view only; in editor it's in camera_list)
           renderer->DrawFullscreen(comp_pipeline,
-              {pool->GetDescriptor("canvas.output")});
+                                   {pool->GetDescriptor("canvas.output")});
         }
       });
 

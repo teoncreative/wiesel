@@ -59,7 +59,7 @@ WIESEL_FUNC_SIG
   std::print(fmsg, func, std::format(msg, __VA_ARGS__))
 
 #if LOG_LEVEL <= LOG_LEVEL_DEBUG
-#define LOG_DEBUG(msg, ...)                                    \
+#define LOG_DEBUG(msg, ...)                                        \
   PRINTFN("\x1b[44m[debug]\x1b[0m \x1b[35m{}: \x1b[0m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
@@ -67,7 +67,7 @@ WIESEL_FUNC_SIG
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_INFO
-#define LOG_INFO(msg, ...)                                     \
+#define LOG_INFO(msg, ...)                                         \
   PRINTFN("\x1b[42m[info ]\x1b[0m \x1b[35m{}: \x1b[0m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
@@ -75,7 +75,7 @@ WIESEL_FUNC_SIG
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_WARN
-#define LOG_WARN(msg, ...)                                      \
+#define LOG_WARN(msg, ...)                                          \
   PRINTFN("\x1b[41m[warn ]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
@@ -83,7 +83,7 @@ WIESEL_FUNC_SIG
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_ERROR
-#define LOG_ERROR(msg, ...)                                     \
+#define LOG_ERROR(msg, ...)                                         \
   PRINTFN("\x1b[41m[error]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
@@ -129,6 +129,5 @@ WIESEL_FUNC_SIG
 #endif
 
 #endif
-
 
 }  // namespace Wiesel

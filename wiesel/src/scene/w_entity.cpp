@@ -19,8 +19,7 @@ Entity::Entity(entt::entity handle, Scene* scene)
     : entity_handle_(handle), scene_(scene) {
   child_handles_ = nullptr;
   parent_handle_ = entt::null;
-  if (scene_ && entity_handle_ != entt::null &&
-      HasComponent<TreeComponent>()) {
+  if (scene_ && entity_handle_ != entt::null && HasComponent<TreeComponent>()) {
     TreeComponent& component = GetComponent<TreeComponent>();
     parent_handle_ = component.parent;
     child_handles_ = &component.childs;

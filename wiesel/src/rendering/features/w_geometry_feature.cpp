@@ -10,10 +10,10 @@
 //
 
 #include "rendering/features/w_geometry_feature.hpp"
-#include "rendering/w_renderer.hpp"
-#include "rendering/w_pipeline.hpp"
-#include "rendering/w_renderpass.hpp"
 #include "rendering/w_mesh.hpp"
+#include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
+#include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
 namespace Wiesel {
@@ -44,10 +44,9 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
   render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                               .format = VK_FORMAT_R32_SFLOAT,
                               .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = renderer_->FindDepthFormat(),
-       .msaa_mode = renderer_->options().msaa_mode});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
+                              .format = renderer_->FindDepthFormat(),
+                              .msaa_mode = renderer_->options().msaa_mode});
   if (renderer_->options().msaa_mode > SamplingMode::DISABLED) {
     render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
                                 .format = VK_FORMAT_R32G32B32A32_SFLOAT,
@@ -73,15 +72,15 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
   }
   render_pass_->Bake();
 
-  auto vert = renderer_->CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/geometry_shader.vert"});
-  auto frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/geometry_shader.frag"});
-  pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      renderer_->options().msaa_mode, CullModeBack,
-      renderer_->options().wireframe_enabled, false});
+  auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
+                                       ShaderSourceSource,
+                                       "/engine/shaders/geometry_shader.vert"});
+  auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
+                                       "main", ShaderSourceSource,
+                                       "/engine/shaders/geometry_shader.frag"});
+  pipeline_ = std::make_shared<Pipeline>(
+      PipelineProperties{renderer_->options().msaa_mode, CullModeBack,
+                         renderer_->options().wireframe_enabled, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
   pipeline_->SetRenderPass(render_pass_);
@@ -104,60 +103,73 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
   bool use_msaa = msaa > SamplingMode::DISABLED;
 
   // G-buffer color attachments
-  pool.SetTexture("geometry.view_pos", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R32G32B32A32_SFLOAT, msaa, true}));
-  pool.SetTexture("geometry.world_pos", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R32G32B32A32_SFLOAT, msaa, true}));
-  pool.SetTexture("geometry.depth", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R32_SFLOAT, msaa, true}));
-  pool.SetTexture("geometry.normal", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R8G8B8A8_UNORM, msaa, true}));
-  pool.SetTexture("geometry.albedo", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R8G8B8A8_UNORM, msaa, true}));
-  pool.SetTexture("geometry.material", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R16G16B16A16_SFLOAT, msaa, true}));
-  pool.SetTexture("geometry.entity_id", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       VK_FORMAT_R32_SFLOAT, msaa, true}));
-  pool.SetTexture("geometry.depth_stencil", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::DepthStencil, 1,
-       renderer.FindDepthFormat(), msaa, true}));
+  pool.SetTexture("geometry.view_pos",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32G32B32A32_SFLOAT, msaa, true}));
+  pool.SetTexture("geometry.world_pos",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32G32B32A32_SFLOAT, msaa, true}));
+  pool.SetTexture("geometry.depth",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32_SFLOAT, msaa, true}));
+  pool.SetTexture("geometry.normal",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R8G8B8A8_UNORM, msaa, true}));
+  pool.SetTexture("geometry.albedo",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R8G8B8A8_UNORM, msaa, true}));
+  pool.SetTexture("geometry.material",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R16G16B16A16_SFLOAT, msaa, true}));
+  pool.SetTexture("geometry.entity_id",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32_SFLOAT, msaa, true}));
+  pool.SetTexture("geometry.depth_stencil",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::DepthStencil, 1,
+                       renderer.FindDepthFormat(), msaa, true}));
 
   if (use_msaa) {
-    pool.SetTexture("geometry.view_pos_resolve",
+    pool.SetTexture(
+        "geometry.view_pos_resolve",
         renderer.CreateAttachmentTexture(
             {rw, rh, AttachmentTextureType::Resolve, 1,
              VK_FORMAT_R32G32B32A32_SFLOAT, SamplingMode::DISABLED, true}));
-    pool.SetTexture("geometry.world_pos_resolve",
+    pool.SetTexture(
+        "geometry.world_pos_resolve",
         renderer.CreateAttachmentTexture(
             {rw, rh, AttachmentTextureType::Resolve, 1,
              VK_FORMAT_R32G32B32A32_SFLOAT, SamplingMode::DISABLED, true}));
     pool.SetTexture("geometry.depth_resolve",
-        renderer.CreateAttachmentTexture(
-            {rw, rh, AttachmentTextureType::Resolve, 1,
-             VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
-    pool.SetTexture("geometry.normal_resolve",
-        renderer.CreateAttachmentTexture(
-            {rw, rh, AttachmentTextureType::Resolve, 1,
-             VK_FORMAT_R8G8B8A8_UNORM, SamplingMode::DISABLED, true}));
-    pool.SetTexture("geometry.albedo_resolve",
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Resolve, 1,
+                         VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
+    pool.SetTexture(
+        "geometry.normal_resolve",
         renderer.CreateAttachmentTexture(
             {rw, rh, AttachmentTextureType::Resolve, 1,
              VK_FORMAT_R8G8B8A8_UNORM, SamplingMode::DISABLED, true}));
-    pool.SetTexture("geometry.material_resolve",
+    pool.SetTexture(
+        "geometry.albedo_resolve",
+        renderer.CreateAttachmentTexture(
+            {rw, rh, AttachmentTextureType::Resolve, 1,
+             VK_FORMAT_R8G8B8A8_UNORM, SamplingMode::DISABLED, true}));
+    pool.SetTexture(
+        "geometry.material_resolve",
         renderer.CreateAttachmentTexture(
             {rw, rh, AttachmentTextureType::Resolve, 1,
              VK_FORMAT_R16G16B16A16_SFLOAT, SamplingMode::DISABLED, true}));
     pool.SetTexture("geometry.entity_id_resolve",
-        renderer.CreateAttachmentTexture(
-            {rw, rh, AttachmentTextureType::Resolve, 1,
-             VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Resolve, 1,
+                         VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
 
     std::array<AttachmentTexture*, 15> textures = {
         pool.GetTexture("geometry.view_pos").get(),
@@ -176,8 +188,8 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
         pool.GetTexture("geometry.material_resolve").get(),
         pool.GetTexture("geometry.entity_id_resolve").get(),
     };
-    pool.SetFramebuffer("geometry",
-        render_pass_->CreateFramebuffer(0, textures, ctx.viewport_size));
+    pool.SetFramebuffer("geometry", render_pass_->CreateFramebuffer(
+                                        0, textures, ctx.viewport_size));
   } else {
     // Without MSAA the resolve aliases point to the same textures
     pool.SetTexture("geometry.view_pos_resolve",
@@ -205,8 +217,8 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
         pool.GetTexture("geometry.entity_id").get(),
         pool.GetTexture("geometry.depth_stencil").get(),
     };
-    pool.SetFramebuffer("geometry",
-        render_pass_->CreateFramebuffer(0, textures, ctx.viewport_size));
+    pool.SetFramebuffer("geometry", render_pass_->CreateFramebuffer(
+                                        0, textures, ctx.viewport_size));
   }
 
   // Geometry output descriptor (6 bindings, one per resolved G-buffer image)
@@ -247,33 +259,26 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
 
   // Import G-buffer textures from the resource pool
   RGResource geo_view_pos = graph.ImportTexture(
-      "GeoViewPos",
-      use_resolve ? pool.GetTexture("geometry.view_pos_resolve")
-                  : pool.GetTexture("geometry.view_pos"));
+      "GeoViewPos", use_resolve ? pool.GetTexture("geometry.view_pos_resolve")
+                                : pool.GetTexture("geometry.view_pos"));
   RGResource geo_world_pos = graph.ImportTexture(
-      "GeoWorldPos",
-      use_resolve ? pool.GetTexture("geometry.world_pos_resolve")
-                  : pool.GetTexture("geometry.world_pos"));
+      "GeoWorldPos", use_resolve ? pool.GetTexture("geometry.world_pos_resolve")
+                                 : pool.GetTexture("geometry.world_pos"));
   RGResource geo_depth = graph.ImportTexture(
-      "GeoDepth",
-      use_resolve ? pool.GetTexture("geometry.depth_resolve")
-                  : pool.GetTexture("geometry.depth"));
+      "GeoDepth", use_resolve ? pool.GetTexture("geometry.depth_resolve")
+                              : pool.GetTexture("geometry.depth"));
   RGResource geo_normal = graph.ImportTexture(
-      "GeoNormal",
-      use_resolve ? pool.GetTexture("geometry.normal_resolve")
-                  : pool.GetTexture("geometry.normal"));
+      "GeoNormal", use_resolve ? pool.GetTexture("geometry.normal_resolve")
+                               : pool.GetTexture("geometry.normal"));
   RGResource geo_albedo = graph.ImportTexture(
-      "GeoAlbedo",
-      use_resolve ? pool.GetTexture("geometry.albedo_resolve")
-                  : pool.GetTexture("geometry.albedo"));
+      "GeoAlbedo", use_resolve ? pool.GetTexture("geometry.albedo_resolve")
+                               : pool.GetTexture("geometry.albedo"));
   RGResource geo_material = graph.ImportTexture(
-      "GeoMaterial",
-      use_resolve ? pool.GetTexture("geometry.material_resolve")
-                  : pool.GetTexture("geometry.material"));
+      "GeoMaterial", use_resolve ? pool.GetTexture("geometry.material_resolve")
+                                 : pool.GetTexture("geometry.material"));
   RGResource geo_entity_id = graph.ImportTexture(
-      "GeoEntityId",
-      use_resolve ? pool.GetTexture("geometry.entity_id_resolve")
-                  : pool.GetTexture("geometry.entity_id"));
+      "GeoEntityId", use_resolve ? pool.GetTexture("geometry.entity_id_resolve")
+                                 : pool.GetTexture("geometry.entity_id"));
 
   // Capture stable pointers for the deferred lambda execution.
   // Scene and Renderer are alive for the entire frame.
@@ -282,15 +287,15 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   auto pipeline = pipeline_;
 
   uint32_t geo = graph.AddPass(
-      "Geometry", render_pass_,
-      [pipeline, scene, renderer](VkCommandBuffer) {
+      "Geometry", render_pass_, [pipeline, scene, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
         for (const auto& entity :
              scene->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = scene->GetComponent<ModelComponent>(entity);
           auto& transform = scene->GetComponent<TransformComponent>(entity);
-          if (!model.enable_rendering || !model.model_handle)
+          if (!model.enable_rendering || !model.model_handle) {
             continue;
+          }
           renderer->DrawModel(model, transform, false, entity);
         }
       });

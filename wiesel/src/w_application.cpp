@@ -11,8 +11,8 @@
 
 #include "w_application.hpp"
 
-#include <chrono>
 #include <imgui.h>
+#include <chrono>
 #include <thread>
 
 #include "asset/w_asset_manager.hpp"
@@ -24,7 +24,8 @@ namespace Wiesel {
 
 Application* Application::application_;
 
-Application::Application(const WindowProperties&& window_props, const RendererProperties&& renderer_props) {
+Application::Application(const WindowProperties&& window_props,
+                         const RendererProperties&& renderer_props) {
   application_ = this;
 
   layer_counter_ = 0;
@@ -139,7 +140,8 @@ void Application::Run() {
         break;
       }
     }
-    for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_NamedKey_END && !has_input; i++) {
+    for (int i = ImGuiKey_NamedKey_BEGIN;
+         i < ImGuiKey_NamedKey_END && !has_input; i++) {
       if (ImGui::IsKeyDown(static_cast<ImGuiKey>(i))) {
         has_input = true;
       }
@@ -169,8 +171,8 @@ void Application::Run() {
         float_t elapsed = Time::GetTime() - previous_frame_;
         float_t remaining = target_frame_time - elapsed;
         if (remaining > 0.0005f) {
-          std::this_thread::sleep_for(
-              std::chrono::microseconds(static_cast<int64_t>(remaining * 1000000.0f)));
+          std::this_thread::sleep_for(std::chrono::microseconds(
+              static_cast<int64_t>(remaining * 1000000.0f)));
         }
       }
     }

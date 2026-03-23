@@ -21,6 +21,7 @@ AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
 BreakBeforeBraces: Custom
+InsertBraces: true
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false

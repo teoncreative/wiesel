@@ -19,7 +19,8 @@ struct AssetMetadata {
   std::string virtual_source_path;
 
   std::atomic<AssetLoadState> load_state = AssetLoadState::Unloaded;
-  mutable std::atomic<float> load_progress{0.0f};  // 0.0-1.0 sub-progress within a single asset
+  mutable std::atomic<float> load_progress{
+      0.0f};  // 0.0-1.0 sub-progress within a single asset
 
   // Per-asset properties (type-erased, set during ScanAssets)
   std::shared_ptr<void> properties;
@@ -37,9 +38,7 @@ struct AssetMetadata {
     return *static_cast<T*>(properties.get());
   }
 
-  bool IsValid() const {
-    return handle.IsValid() && type != AssetType::None;
-  }
+  bool IsValid() const { return handle.IsValid() && type != AssetType::None; }
 };
 
 class AssetManager {
@@ -75,10 +74,12 @@ class AssetManager {
     size_t unloaded = 0;
     size_t failed = 0;
   };
+
   AssetStats GetStats() const;
 
   // Load state
-  bool SetLoadState(AssetHandle handle, AssetLoadState expected, AssetLoadState new_state);
+  bool SetLoadState(AssetHandle handle, AssetLoadState expected,
+                    AssetLoadState new_state);
   AssetLoadState GetLoadState(AssetHandle handle) const;
 
   // Resource storage (type-erased)
@@ -98,7 +99,8 @@ class AssetManager {
 
   template <typename T>
   AssetHandle RegisterAndStore(const std::string& name, AssetType type,
-                               const std::string& virtual_source_path, std::shared_ptr<T> resource);
+                               const std::string& virtual_source_path,
+                               std::shared_ptr<T> resource);
 
   // Asset loaders -/ register per-type loaders for sync/async loading
   void RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader);
@@ -165,10 +167,9 @@ std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
 }
 
 template <typename T>
-AssetHandle AssetManager::RegisterAndStore(const std::string& name,
-                                           AssetType type,
-                                           const std::string& virtual_source_path,
-                                           std::shared_ptr<T> resource) {
+AssetHandle AssetManager::RegisterAndStore(
+    const std::string& name, AssetType type,
+    const std::string& virtual_source_path, std::shared_ptr<T> resource) {
   AssetHandle handle = Register(name, type, virtual_source_path);
   if (handle.IsValid()) {
     Store<T>(handle, std::move(resource));

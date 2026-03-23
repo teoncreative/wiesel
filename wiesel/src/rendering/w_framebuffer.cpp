@@ -7,7 +7,9 @@
 
 namespace Wiesel {
 
-Framebuffer::Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent, RenderPass& render_pass) : extent_(extent) {
+Framebuffer::Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent,
+                         RenderPass& render_pass)
+    : extent_(extent) {
   VkFramebufferCreateInfo framebufferInfo{};
   framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
   framebufferInfo.renderPass = render_pass.GetVulkanHandle();
@@ -17,12 +19,14 @@ Framebuffer::Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent, R
   framebufferInfo.height = extent.y;
   framebufferInfo.layers = 1;
 
-  WIESEL_CHECK_VKRESULT(vkCreateFramebuffer(Engine::renderer()->GetLogicalDevice(), &framebufferInfo,
-                                            nullptr, &handle_));
+  WIESEL_CHECK_VKRESULT(
+      vkCreateFramebuffer(Engine::renderer()->GetLogicalDevice(),
+                          &framebufferInfo, nullptr, &handle_));
 }
 
 Framebuffer::~Framebuffer() {
-  vkDestroyFramebuffer(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
+  vkDestroyFramebuffer(Engine::renderer()->GetLogicalDevice(), handle_,
+                       nullptr);
 }
 
-}
+}  // namespace Wiesel

@@ -31,6 +31,7 @@ class ConsoleLayer : public Layer {
 
   // Set the key that closes the console when it's open (default: grave accent / backtick)
   void SetToggleKey(KeyCode key) { toggle_key_ = key; }
+
   KeyCode GetToggleKey() const { return toggle_key_; }
 
  private:

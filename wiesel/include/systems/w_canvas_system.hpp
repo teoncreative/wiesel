@@ -23,10 +23,9 @@ class CanvasSystem {
 
  private:
   static glm::vec2 ComputeAnchorOrigin(AnchorPreset anchor,
-                                        glm::vec2 parent_size);
-  void LayoutChildren(Scene& scene, entt::entity parent,
-                      glm::vec2 parent_pos, glm::vec2 parent_size,
-                      const CanvasComponent* canvas,
+                                       glm::vec2 parent_size);
+  void LayoutChildren(Scene& scene, entt::entity parent, glm::vec2 parent_pos,
+                      glm::vec2 parent_size, const CanvasComponent* canvas,
                       int32_t& draw_order);
 };
 }  // namespace Wiesel

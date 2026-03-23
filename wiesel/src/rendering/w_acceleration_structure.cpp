@@ -19,7 +19,8 @@
 
 namespace Wiesel {
 
-AccelerationStructureManager::AccelerationStructureManager(std::shared_ptr<Renderer> renderer)
+AccelerationStructureManager::AccelerationStructureManager(
+    std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
 AccelerationStructureManager::~AccelerationStructureManager() {
@@ -62,16 +63,15 @@ void AccelerationStructureManager::DestroyAS(AccelerationStructure& as) {
 VkBuffer AccelerationStructureManager::CreateScratchBuffer(
     VkDeviceSize size, VkDeviceMemory& memory) {
   VkBuffer buffer;
-  renderer_->CreateBuffer(
-      size,
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, memory);
+  renderer_->CreateBuffer(size,
+                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, memory);
   return buffer;
 }
 
-std::shared_ptr<AccelerationStructure> AccelerationStructureManager::GetOrBuildBLAS(
-    std::shared_ptr<Mesh> mesh) {
+std::shared_ptr<AccelerationStructure>
+AccelerationStructureManager::GetOrBuildBLAS(std::shared_ptr<Mesh> mesh) {
   auto it = blas_cache_.find(mesh.get());
   if (it != blas_cache_.end()) {
     return it->second;
@@ -102,16 +102,14 @@ std::shared_ptr<AccelerationStructure> AccelerationStructureManager::GetOrBuildB
   geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
   geometry.geometry.triangles = triangles;
 
-  uint32_t primitiveCount =
-      static_cast<uint32_t>(mesh->indices.size()) / 3;
+  uint32_t primitiveCount = static_cast<uint32_t>(mesh->indices.size()) / 3;
 
   // Query build sizes
   VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
   buildInfo.sType =
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
   buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-  buildInfo.flags =
-      VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+  buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
   buildInfo.geometryCount = 1;
   buildInfo.pGeometries = &geometry;
 
@@ -195,21 +193,31 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
     auto& model = scene.GetComponent<ModelComponent>(entity);
     auto& transform = scene.GetComponent<TransformComponent>(entity);
 
-    if (!model.enable_rendering || !model.model_handle) continue;
+    if (!model.enable_rendering || !model.model_handle) {
+      continue;
+    }
 
-    const std::shared_ptr<Model>& modelData = assets.GetOrLoad<Model>(model.model_handle);
-    if (!modelData) continue;
+    const std::shared_ptr<Model>& modelData =
+        assets.GetOrLoad<Model>(model.model_handle);
+    if (!modelData) {
+      continue;
+    }
 
     for (size_t mi = 0; mi < modelData->meshes.size(); mi++) {
       const auto& mesh = modelData->meshes[mi];
-      if (!mesh->allocated_) continue;
+      if (!mesh->allocated_) {
+        continue;
+      }
 
       std::shared_ptr<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
-      if (!blas) continue;
+      if (!blas) {
+        continue;
+      }
 
       // Apply per-mesh node transform for static models
       glm::mat4 mesh_world = transform.GetTransformMatrix();
-      if (!modelData->has_skeleton && mi < modelData->mesh_node_transforms.size()) {
+      if (!modelData->has_skeleton &&
+          mi < modelData->mesh_node_transforms.size()) {
         mesh_world = mesh_world * modelData->mesh_node_transforms[mi];
       }
 
@@ -238,7 +246,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
       renderer_->GetDeletionQueue().Push([old_tlas, renderer_ref]() {
         VkDevice device = renderer_ref->GetLogicalDevice();
         if (old_tlas->handle != VK_NULL_HANDLE) {
-          renderer_ref->vkDestroyAccelerationStructureKHR()(device, old_tlas->handle, nullptr);
+          renderer_ref->vkDestroyAccelerationStructureKHR()(
+              device, old_tlas->handle, nullptr);
         }
         if (old_tlas->buffer != VK_NULL_HANDLE) {
           vkDestroyBuffer(device, old_tlas->buffer, nullptr);
@@ -249,7 +258,6 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
     tlas_ = nullptr;
     return;
   }
-
 
   // Ensure instance buffer is large enough
   VkDeviceSize instancesSize =
@@ -299,8 +307,7 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   buildInfo.sType =
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
   buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-  buildInfo.flags =
-      VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+  buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
   buildInfo.geometryCount = 1;
   buildInfo.pGeometries = &geometry;
 
@@ -318,7 +325,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
     renderer_->GetDeletionQueue().Push([old_tlas, renderer_ref]() {
       VkDevice device = renderer_ref->GetLogicalDevice();
       if (old_tlas->handle != VK_NULL_HANDLE) {
-        renderer_ref->vkDestroyAccelerationStructureKHR()(device, old_tlas->handle, nullptr);
+        renderer_ref->vkDestroyAccelerationStructureKHR()(
+            device, old_tlas->handle, nullptr);
       }
       if (old_tlas->buffer != VK_NULL_HANDLE) {
         vkDestroyBuffer(device, old_tlas->buffer, nullptr);
@@ -377,11 +385,10 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
   barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
   barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-  vkCmdPipelineBarrier(
-      cmd,
-      VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-      VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1, &barrier, 0,
-      nullptr, 0, nullptr);
+  vkCmdPipelineBarrier(cmd,
+                       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                       VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1,
+                       &barrier, 0, nullptr, 0, nullptr);
 
   // Get TLAS device address
   VkAccelerationStructureDeviceAddressInfoKHR addrInfo{};
@@ -391,7 +398,6 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   tlas_->device_address =
       renderer_->vkGetAccelerationStructureDeviceAddressKHR()(device,
                                                               &addrInfo);
-
 }
 
 VkAccelerationStructureKHR AccelerationStructureManager::GetTLAS() const {

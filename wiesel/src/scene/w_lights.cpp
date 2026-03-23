@@ -28,13 +28,13 @@ void UpdateLight(LightsUniformData& lights, const LightDirect& light,
   glm::vec3 worldDir = transform.LocalToWorldDirection({0, 0, -1});
 
   LightDirect& dst = lights.direct_lights[lights.direct_light_count++];
-  dst.direction                    = worldDir;
-  dst.base.position                = worldPos;
-  dst.base.color                   = light.base.color;
-  dst.base.ambient                 = light.base.ambient;
-  dst.base.diffuse                 = light.base.diffuse;
-  dst.base.specular                = light.base.specular;
-  dst.base.density                 = light.base.density;
+  dst.direction = worldDir;
+  dst.base.position = worldPos;
+  dst.base.color = light.base.color;
+  dst.base.ambient = light.base.ambient;
+  dst.base.diffuse = light.base.diffuse;
+  dst.base.specular = light.base.specular;
+  dst.base.density = light.base.density;
 }
 
 void UpdateLight(LightsUniformData& lights, const LightPoint& light,
@@ -43,14 +43,14 @@ void UpdateLight(LightsUniformData& lights, const LightPoint& light,
 
   LightPoint& dst = lights.point_lights[lights.point_light_count++];
   dst.base.position = worldPos;
-  dst.base.color    = light.base.color;
-  dst.base.ambient  = light.base.ambient;
-  dst.base.diffuse  = light.base.diffuse;
+  dst.base.color = light.base.color;
+  dst.base.ambient = light.base.ambient;
+  dst.base.diffuse = light.base.diffuse;
   dst.base.specular = light.base.specular;
-  dst.base.density  = light.base.density;
-  dst.constant      = light.constant;
-  dst.linear        = light.linear;
-  dst.exp           = light.exp;
+  dst.base.density = light.base.density;
+  dst.constant = light.constant;
+  dst.linear = light.linear;
+  dst.exp = light.exp;
 }
 
 }  // namespace Wiesel

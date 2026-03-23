@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <efsw/efsw.hpp>
 #include <atomic>
+#include <efsw/efsw.hpp>
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <string>
-#include <filesystem>
 
 namespace Wiesel {
 

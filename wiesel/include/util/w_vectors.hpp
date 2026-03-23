@@ -50,29 +50,30 @@ class Vector3 {
 
   Vector3 operator+(const Vector3& rhs) const {
     return {std::make_shared<glm::vec3>((*m_BackingVector) +
-                                       (*rhs.m_BackingVector))};
+                                        (*rhs.m_BackingVector))};
   }
 
   Vector3 operator-(const Vector3& rhs) const {
     return {std::make_shared<glm::vec3>((*m_BackingVector) -
-                                       (*rhs.m_BackingVector))};
+                                        (*rhs.m_BackingVector))};
   }
 
   Vector3 operator/(const Vector3& rhs) const {
     return {std::make_shared<glm::vec3>((*m_BackingVector) /
-                                       (*rhs.m_BackingVector))};
+                                        (*rhs.m_BackingVector))};
   }
 
   Vector3 operator*(const Vector3& rhs) const {
     return {std::make_shared<glm::vec3>((*m_BackingVector) *
-                                       (*rhs.m_BackingVector))};
+                                        (*rhs.m_BackingVector))};
   }
 
   operator const glm::vec3&() {  // NOLINT(google-explicit-constructor)
     return *m_BackingVector;
   }
 
-  operator std::shared_ptr<glm::vec3>() {  // NOLINT(google-explicit-constructor)
+  operator std::shared_ptr<
+      glm::vec3>() {  // NOLINT(google-explicit-constructor)
     return m_BackingVector;
   }
 

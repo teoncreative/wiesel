@@ -13,9 +13,9 @@
 
 #ifdef WIESEL_DISCORD_RPC
 
-#include "util/w_logger.hpp"
 #include <discord_rpc.h>
 #include <chrono>
+#include "util/w_logger.hpp"
 
 namespace Wiesel {
 
@@ -39,7 +39,8 @@ void DiscordRPC::Initialize(const std::string& application_id) {
 
   Discord_Initialize(application_id.c_str(), &handlers, 1, nullptr);
   session_start_time_ = std::chrono::duration_cast<std::chrono::seconds>(
-      std::chrono::system_clock::now().time_since_epoch()).count();
+                            std::chrono::system_clock::now().time_since_epoch())
+                            .count();
   initialized_ = true;
 }
 
@@ -51,11 +52,14 @@ void DiscordRPC::Shutdown() {
   }
 }
 
-void DiscordRPC::SetPresence(const std::string& details, const std::string& state,
+void DiscordRPC::SetPresence(const std::string& details,
+                             const std::string& state,
                              const std::string& large_image_key,
                              const std::string& large_image_text,
                              bool show_elapsed) {
-  if (!initialized_) return;
+  if (!initialized_) {
+    return;
+  }
 
   DiscordRichPresence presence{};
   presence.details = details.c_str();
@@ -75,12 +79,16 @@ void DiscordRPC::SetPresence(const std::string& details, const std::string& stat
 }
 
 void DiscordRPC::ClearPresence() {
-  if (!initialized_) return;
+  if (!initialized_) {
+    return;
+  }
   Discord_ClearPresence();
 }
 
 void DiscordRPC::RunCallbacks() {
-  if (!initialized_) return;
+  if (!initialized_) {
+    return;
+  }
 #ifdef DISCORD_DISABLE_IO_THREAD
   Discord_UpdateConnection();
 #endif

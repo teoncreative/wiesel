@@ -23,7 +23,9 @@ void CameraResourcePool::SetTexture(const std::string& name,
 std::shared_ptr<AttachmentTexture> CameraResourcePool::GetTexture(
     const std::string& name) const {
   auto it = textures_.find(name);
-  if (it != textures_.end()) return it->second;
+  if (it != textures_.end()) {
+    return it->second;
+  }
   return nullptr;
 }
 
@@ -39,7 +41,9 @@ void CameraResourcePool::SetFramebuffer(const std::string& name,
 std::shared_ptr<Framebuffer> CameraResourcePool::GetFramebuffer(
     const std::string& name) const {
   auto it = framebuffers_.find(name);
-  if (it != framebuffers_.end()) return it->second;
+  if (it != framebuffers_.end()) {
+    return it->second;
+  }
   return nullptr;
 }
 
@@ -60,7 +64,9 @@ void CameraResourcePool::SetDescriptor(const std::string& name,
 std::shared_ptr<DescriptorSet> CameraResourcePool::GetDescriptor(
     const std::string& name) const {
   auto it = descriptors_.find(name);
-  if (it != descriptors_.end()) return it->second;
+  if (it != descriptors_.end()) {
+    return it->second;
+  }
   return nullptr;
 }
 
@@ -76,7 +82,9 @@ void CameraResourcePool::SetImageView(const std::string& name,
 std::shared_ptr<ImageView> CameraResourcePool::GetImageView(
     const std::string& name) const {
   auto it = image_views_.find(name);
-  if (it != image_views_.end()) return it->second;
+  if (it != image_views_.end()) {
+    return it->second;
+  }
   return nullptr;
 }
 
@@ -85,14 +93,16 @@ bool CameraResourcePool::HasImageView(const std::string& name) const {
 }
 
 void CameraResourcePool::SetBuffer(const std::string& name,
-                                    std::shared_ptr<UniformBuffer> buf) {
+                                   std::shared_ptr<UniformBuffer> buf) {
   buffers_[name] = std::move(buf);
 }
 
 std::shared_ptr<UniformBuffer> CameraResourcePool::GetBuffer(
     const std::string& name) const {
   auto it = buffers_.find(name);
-  if (it != buffers_.end()) return it->second;
+  if (it != buffers_.end()) {
+    return it->second;
+  }
   return nullptr;
 }
 
@@ -115,7 +125,9 @@ void RenderResourceRegistry::Register(const std::string& name,
 
 RGResource RenderResourceRegistry::Get(const std::string& name) const {
   auto it = resources_.find(name);
-  if (it != resources_.end()) return it->second;
+  if (it != resources_.end()) {
+    return it->second;
+  }
   return RGResource{};  // invalid handle
 }
 
@@ -144,8 +156,7 @@ void RenderPipeline::SetupResources(RenderContext& ctx) {
   }
 }
 
-void RenderPipeline::BuildRenderGraph(RenderGraph& graph,
-                                      RenderContext& ctx) {
+void RenderPipeline::BuildRenderGraph(RenderGraph& graph, RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("RenderPipeline::BuildRenderGraph");
   RenderResourceRegistry registry;
   for (auto& feature : features_) {

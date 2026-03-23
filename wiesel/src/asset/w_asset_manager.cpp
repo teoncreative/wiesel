@@ -11,38 +11,79 @@ namespace Wiesel {
 
 const char* AssetTypeToString(AssetType type) {
   switch (type) {
-    case AssetType::None:     return "None";
-    case AssetType::Texture:  return "Texture";
-    case AssetType::Model:    return "Model";
-    case AssetType::Material: return "Material";
-    case AssetType::Shader:   return "Shader";
-    case AssetType::Sprite:   return "Sprite";
-    case AssetType::Skybox:   return "Skybox";
-    case AssetType::Font:     return "Font";
-    case AssetType::Script:   return "Script";
-    case AssetType::Scene:    return "Scene";
-    case AssetType::Prefab:   return "Prefab";
-    case AssetType::Audio:       return "Audio";
-    case AssetType::SpriteSheet: return "SpriteSheet";
-    case AssetType::SpriteAnim:  return "SpriteAnim";
-    default:                     return "Unknown";
+    case AssetType::None:
+      return "None";
+    case AssetType::Texture:
+      return "Texture";
+    case AssetType::Model:
+      return "Model";
+    case AssetType::Material:
+      return "Material";
+    case AssetType::Shader:
+      return "Shader";
+    case AssetType::Sprite:
+      return "Sprite";
+    case AssetType::Skybox:
+      return "Skybox";
+    case AssetType::Font:
+      return "Font";
+    case AssetType::Script:
+      return "Script";
+    case AssetType::Scene:
+      return "Scene";
+    case AssetType::Prefab:
+      return "Prefab";
+    case AssetType::Audio:
+      return "Audio";
+    case AssetType::SpriteSheet:
+      return "SpriteSheet";
+    case AssetType::SpriteAnim:
+      return "SpriteAnim";
+    default:
+      return "Unknown";
   }
 }
 
 AssetType AssetTypeFromString(std::string_view s) {
-  if (s == "Texture")  return AssetType::Texture;
-  if (s == "Model")    return AssetType::Model;
-  if (s == "Material") return AssetType::Material;
-  if (s == "Shader")   return AssetType::Shader;
-  if (s == "Sprite")   return AssetType::Sprite;
-  if (s == "Skybox")   return AssetType::Skybox;
-  if (s == "Font")     return AssetType::Font;
-  if (s == "Script")   return AssetType::Script;
-  if (s == "Scene")    return AssetType::Scene;
-  if (s == "Prefab")   return AssetType::Prefab;
-  if (s == "Audio")        return AssetType::Audio;
-  if (s == "SpriteSheet")  return AssetType::SpriteSheet;
-  if (s == "SpriteAnim")   return AssetType::SpriteAnim;
+  if (s == "Texture") {
+    return AssetType::Texture;
+  }
+  if (s == "Model") {
+    return AssetType::Model;
+  }
+  if (s == "Material") {
+    return AssetType::Material;
+  }
+  if (s == "Shader") {
+    return AssetType::Shader;
+  }
+  if (s == "Sprite") {
+    return AssetType::Sprite;
+  }
+  if (s == "Skybox") {
+    return AssetType::Skybox;
+  }
+  if (s == "Font") {
+    return AssetType::Font;
+  }
+  if (s == "Script") {
+    return AssetType::Script;
+  }
+  if (s == "Scene") {
+    return AssetType::Scene;
+  }
+  if (s == "Prefab") {
+    return AssetType::Prefab;
+  }
+  if (s == "Audio") {
+    return AssetType::Audio;
+  }
+  if (s == "SpriteSheet") {
+    return AssetType::SpriteSheet;
+  }
+  if (s == "SpriteAnim") {
+    return AssetType::SpriteAnim;
+  }
   return AssetType::None;
 }
 
@@ -80,7 +121,8 @@ AssetHandle AssetManager::Register(const std::string& name, AssetType type,
 }
 
 bool AssetManager::Register(AssetHandle handle, const std::string& name,
-                            AssetType type, const std::string& virtual_source_path) {
+                            AssetType type,
+                            const std::string& virtual_source_path) {
   if (!handle.IsValid()) {
     LOG_ERROR("Cannot register asset with nil handle");
     return false;
@@ -110,7 +152,9 @@ bool AssetManager::Register(AssetHandle handle, const std::string& name,
 
 void AssetManager::Unregister(AssetHandle handle) {
   auto it = registry_.find(handle);
-  if (it == registry_.end()) return;
+  if (it == registry_.end()) {
+    return;
+  }
 
   const auto& meta = it->second->metadata;
   if (!meta.virtual_source_path.empty()) {
@@ -133,19 +177,26 @@ bool AssetManager::HasAsset(AssetHandle handle) const {
 
 const AssetMetadata* AssetManager::GetMetadata(AssetHandle handle) const {
   auto it = registry_.find(handle);
-  if (it == registry_.end()) return nullptr;
+  if (it == registry_.end()) {
+    return nullptr;
+  }
   return &it->second->metadata;
 }
 
 AssetHandle AssetManager::FindByName(const std::string& name) const {
   auto it = name_index_.find(name);
-  if (it != name_index_.end()) return it->second;
+  if (it != name_index_.end()) {
+    return it->second;
+  }
   return kNullAssetHandle;
 }
 
-AssetHandle AssetManager::FindBySourcePath(const std::string& virtual_source_path) const {
+AssetHandle AssetManager::FindBySourcePath(
+    const std::string& virtual_source_path) const {
   auto it = path_index_.find(virtual_source_path);
-  if (it != path_index_.end()) return it->second;
+  if (it != path_index_.end()) {
+    return it->second;
+  }
   return kNullAssetHandle;
 }
 
@@ -177,10 +228,18 @@ AssetManager::AssetStats AssetManager::GetStats() const {
   stats.total = registry_.size();
   for (const auto& [handle, entry] : registry_) {
     switch (entry->metadata.load_state.load()) {
-      case AssetLoadState::Loaded:  stats.loaded++;  break;
-      case AssetLoadState::Loading: stats.loading++; break;
-      case AssetLoadState::Failed:  stats.failed++;  break;
-      default:                      stats.unloaded++; break;
+      case AssetLoadState::Loaded:
+        stats.loaded++;
+        break;
+      case AssetLoadState::Loading:
+        stats.loading++;
+        break;
+      case AssetLoadState::Failed:
+        stats.failed++;
+        break;
+      default:
+        stats.unloaded++;
+        break;
     }
   }
   return stats;
@@ -188,10 +247,12 @@ AssetManager::AssetStats AssetManager::GetStats() const {
 
 // Load state
 
-bool AssetManager::SetLoadState(AssetHandle handle, AssetLoadState expected, AssetLoadState new_state) {
+bool AssetManager::SetLoadState(AssetHandle handle, AssetLoadState expected,
+                                AssetLoadState new_state) {
   auto it = registry_.find(handle);
   if (it != registry_.end()) {
-    return it->second->metadata.load_state.compare_exchange_strong(expected, new_state);
+    return it->second->metadata.load_state.compare_exchange_strong(expected,
+                                                                   new_state);
   }
   return false;
 }
@@ -232,7 +293,8 @@ void AssetManager::Clear() {
   name_index_.clear();
 }
 
-void AssetManager::RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader) {
+void AssetManager::RegisterLoader(AssetType type,
+                                  std::shared_ptr<IAssetLoader> loader) {
   loaders_[type] = std::move(loader);
 }
 
@@ -259,7 +321,8 @@ bool AssetManager::LoadSync(AssetHandle handle) {
              AssetTypeToString(meta.type));
     return false;
   }
-  if (!SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+  if (!SetLoadState(handle, AssetLoadState::Unloaded,
+                    AssetLoadState::Loading)) {
     return false;
   }
   bool success = loader->Load(handle);
@@ -287,7 +350,8 @@ void AssetManager::LoadAsync(AssetHandle handle) {
              AssetTypeToString(meta.type));
     return;
   }
-  if (!SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loading)) {
+  if (!SetLoadState(handle, AssetLoadState::Unloaded,
+                    AssetLoadState::Loading)) {
     return;
   }
 

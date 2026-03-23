@@ -11,9 +11,12 @@
 
 #include "layer/w_layerimgui.hpp"
 
+// clang-format off
+// Import order important
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 #include <ImGuizmo.h>
+// clang-format on
 
 #ifdef WIESEL_BACKEND_SDL3
 #include <backends/imgui_impl_sdl3.h>
@@ -56,9 +59,8 @@ void ImGuiLayer::OnAttach() {
   pool_info.poolSizeCount = std::size(pool_sizes);
   pool_info.pPoolSizes = pool_sizes;
 
-  WIESEL_CHECK_VKRESULT(
-      vkCreateDescriptorPool(Engine::renderer()->logical_device_, &pool_info,
-                             nullptr, &m_ImGuiPool));
+  WIESEL_CHECK_VKRESULT(vkCreateDescriptorPool(
+      Engine::renderer()->logical_device_, &pool_info, nullptr, &m_ImGuiPool));
 
   // 2: initialize imgui library
 
@@ -90,8 +92,10 @@ void ImGuiLayer::OnAttach() {
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.PipelineInfoMain.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.PipelineInfoMain.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.PipelineInfoMain.MSAASamples =
+      ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
+  init_info.PipelineInfoMain.RenderPass =
+      Engine::renderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 }
@@ -101,7 +105,8 @@ void ImGuiLayer::OnDetach() {
   vkDeviceWaitIdle(Engine::renderer()->logical_device_);
   // Vulkan does this
   ImGui_ImplVulkan_Shutdown();
-  vkDestroyDescriptorPool(Engine::renderer()->logical_device_, m_ImGuiPool, nullptr);
+  vkDestroyDescriptorPool(Engine::renderer()->logical_device_, m_ImGuiPool,
+                          nullptr);
   m_ImGuiPool = VK_NULL_HANDLE;
 }
 
@@ -109,11 +114,12 @@ void ImGuiLayer::OnUpdate(float_t deltaTime) {}
 
 void ImGuiLayer::OnEvent(Event& event) {
   EventDispatcher dispatcher{event};
-  dispatcher.Dispatch<PipelineRecreatedEvent>([this](PipelineRecreatedEvent& e) {
-    // Defer reinitialization until next frame to avoid mid-frame issues
-    needs_reinitialization_ = true;
-    return false;
-  });
+  dispatcher.Dispatch<PipelineRecreatedEvent>(
+      [this](PipelineRecreatedEvent& e) {
+        // Defer reinitialization until next frame to avoid mid-frame issues
+        needs_reinitialization_ = true;
+        return false;
+      });
 }
 
 void ImGuiLayer::ReinitializeImGuiVulkan() {
@@ -142,8 +148,10 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
   init_info.DescriptorPool = m_ImGuiPool;
   init_info.MinImageCount = 3;
   init_info.ImageCount = 3;
-  init_info.PipelineInfoMain.MSAASamples = ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.PipelineInfoMain.RenderPass = Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.PipelineInfoMain.MSAASamples =
+      ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
+  init_info.PipelineInfoMain.RenderPass =
+      Engine::renderer()->present_render_pass_->GetVulkanHandle();
 
   ImGui_ImplVulkan_Init(&init_info);
 
@@ -168,8 +176,7 @@ void ImGuiLayer::OnPresent() {
   PROFILE_ZONE_SCOPED_N("ImGuiLayer::OnPresent");
   ImGui::Render();
   ImGui_ImplVulkan_RenderDrawData(
-      ImGui::GetDrawData(),
-      Engine::renderer()->GetCommandBuffer().handle_);
+      ImGui::GetDrawData(), Engine::renderer()->GetCommandBuffer().handle_);
   ImGuiIO& io = ImGui::GetIO();
   if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
     // move this to window handle!!

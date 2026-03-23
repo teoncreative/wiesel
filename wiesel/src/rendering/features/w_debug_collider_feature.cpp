@@ -11,17 +11,17 @@
 
 #include "rendering/features/w_debug_collider_feature.hpp"
 #include "audio/w_audio.hpp"
-#include "util/w_label_texture.hpp"
 #include "physics/w_collider.hpp"
 #include "physics/w_rigidbody.hpp"
+#include "rendering/w_camera.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_descriptorlayout.hpp"
 #include "rendering/w_pipeline.hpp"
-#include "rendering/w_camera.hpp"
 #include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_scene.hpp"
+#include "util/w_label_texture.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
@@ -30,24 +30,22 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass: 1 color + depth (load existing depth for occlusion)
   render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                             "DebugCollider RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = renderer_->FindDepthFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+                                              "DebugCollider RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
+                              .format = renderer_->FindDepthFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   // Shaders
-  auto vert = renderer_->CreateShader(
-      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/debug_collider.vert"});
-  auto frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/debug_collider.frag"});
+  auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
+                                       ShaderSourceSource,
+                                       "/engine/shaders/debug_collider.vert"});
+  auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
+                                       "main", ShaderSourceSource,
+                                       "/engine/shaders/debug_collider.frag"});
 
   // Wireframe pipeline: line-list, depth test (no write), no alpha blending
   {
@@ -79,9 +77,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->SetRenderPass(render_pass_);
 
   push_constant_ = std::make_shared<DebugColliderPushConstant>();
-  pipeline_->AddPushConstant(push_constant_,
-                             VK_SHADER_STAGE_VERTEX_BIT |
-                                 VK_SHADER_STAGE_FRAGMENT_BIT);
+  pipeline_->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT |
+                                                 VK_SHADER_STAGE_FRAGMENT_BIT);
 
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
@@ -114,17 +111,17 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   // Descriptor layout for label texture sampler
   overlay_desc_layout_ = std::make_shared<DescriptorSetLayout>();
   overlay_desc_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                    VK_SHADER_STAGE_FRAGMENT_BIT);
+                                   VK_SHADER_STAGE_FRAGMENT_BIT);
   overlay_desc_layout_->Bake();
 
-  filled_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeNone, false, true, true, false,
-      PrimitiveTopology::TriangleList});
+  filled_pipeline_ = std::make_shared<Pipeline>(
+      PipelineProperties{SamplingMode::DISABLED, CullModeNone, false, true,
+                         true, false, PrimitiveTopology::TriangleList});
   filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
   filled_pipeline_->SetRenderPass(render_pass_);
-  filled_pipeline_->AddPushConstant(push_constant_,
-                                     VK_SHADER_STAGE_VERTEX_BIT |
-                                         VK_SHADER_STAGE_FRAGMENT_BIT);
+  filled_pipeline_->AddPushConstant(
+      push_constant_,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
   filled_pipeline_->AddInputLayout(overlay_desc_layout_);
   filled_pipeline_->AddShader(overlay_vert);
   filled_pipeline_->AddShader(overlay_frag);
@@ -165,20 +162,20 @@ void DebugColliderFeature::GenerateBoxGeometry() {
   // Unit box: 8 corners of [-0.5, 0.5]^3
   std::vector<glm::vec3> vertices = {
       {-0.5f, -0.5f, -0.5f},  // 0
-      { 0.5f, -0.5f, -0.5f},  // 1
-      { 0.5f,  0.5f, -0.5f},  // 2
-      {-0.5f,  0.5f, -0.5f},  // 3
-      {-0.5f, -0.5f,  0.5f},  // 4
-      { 0.5f, -0.5f,  0.5f},  // 5
-      { 0.5f,  0.5f,  0.5f},  // 6
-      {-0.5f,  0.5f,  0.5f},  // 7
+      {0.5f, -0.5f, -0.5f},   // 1
+      {0.5f, 0.5f, -0.5f},    // 2
+      {-0.5f, 0.5f, -0.5f},   // 3
+      {-0.5f, -0.5f, 0.5f},   // 4
+      {0.5f, -0.5f, 0.5f},    // 5
+      {0.5f, 0.5f, 0.5f},     // 6
+      {-0.5f, 0.5f, 0.5f},    // 7
   };
 
   // 12 edges as line-list (24 indices)
   std::vector<Index> indices = {
-      0, 1,  1, 2,  2, 3,  3, 0,  // front face
-      4, 5,  5, 6,  6, 7,  7, 4,  // back face
-      0, 4,  1, 5,  2, 6,  3, 7,  // connecting edges
+      0, 1, 1, 2, 2, 3, 3, 0,  // front face
+      4, 5, 5, 6, 6, 7, 7, 4,  // back face
+      0, 4, 1, 5, 2, 6, 3, 7,  // connecting edges
   };
 
   box_vertex_buffer_ = renderer_->CreateVertexBuffer(vertices);
@@ -223,33 +220,33 @@ void DebugColliderFeature::GenerateFilledBoxGeometry() {
   std::vector<OverlayVertex> vertices = {
       // Front face (-Z)
       {{-0.5f, -0.5f, -0.5f}, {0, 1}},
-      {{ 0.5f, -0.5f, -0.5f}, {1, 1}},
-      {{ 0.5f,  0.5f, -0.5f}, {1, 0}},
-      {{-0.5f,  0.5f, -0.5f}, {0, 0}},
+      {{0.5f, -0.5f, -0.5f}, {1, 1}},
+      {{0.5f, 0.5f, -0.5f}, {1, 0}},
+      {{-0.5f, 0.5f, -0.5f}, {0, 0}},
       // Back face (+Z)
-      {{ 0.5f, -0.5f,  0.5f}, {0, 1}},
-      {{-0.5f, -0.5f,  0.5f}, {1, 1}},
-      {{-0.5f,  0.5f,  0.5f}, {1, 0}},
-      {{ 0.5f,  0.5f,  0.5f}, {0, 0}},
+      {{0.5f, -0.5f, 0.5f}, {0, 1}},
+      {{-0.5f, -0.5f, 0.5f}, {1, 1}},
+      {{-0.5f, 0.5f, 0.5f}, {1, 0}},
+      {{0.5f, 0.5f, 0.5f}, {0, 0}},
       // Left face (-X)
-      {{-0.5f, -0.5f,  0.5f}, {0, 1}},
+      {{-0.5f, -0.5f, 0.5f}, {0, 1}},
       {{-0.5f, -0.5f, -0.5f}, {1, 1}},
-      {{-0.5f,  0.5f, -0.5f}, {1, 0}},
-      {{-0.5f,  0.5f,  0.5f}, {0, 0}},
+      {{-0.5f, 0.5f, -0.5f}, {1, 0}},
+      {{-0.5f, 0.5f, 0.5f}, {0, 0}},
       // Right face (+X)
-      {{ 0.5f, -0.5f, -0.5f}, {0, 1}},
-      {{ 0.5f, -0.5f,  0.5f}, {1, 1}},
-      {{ 0.5f,  0.5f,  0.5f}, {1, 0}},
-      {{ 0.5f,  0.5f, -0.5f}, {0, 0}},
+      {{0.5f, -0.5f, -0.5f}, {0, 1}},
+      {{0.5f, -0.5f, 0.5f}, {1, 1}},
+      {{0.5f, 0.5f, 0.5f}, {1, 0}},
+      {{0.5f, 0.5f, -0.5f}, {0, 0}},
       // Top face (+Y)
-      {{-0.5f,  0.5f, -0.5f}, {0, 1}},
-      {{ 0.5f,  0.5f, -0.5f}, {1, 1}},
-      {{ 0.5f,  0.5f,  0.5f}, {1, 0}},
-      {{-0.5f,  0.5f,  0.5f}, {0, 0}},
+      {{-0.5f, 0.5f, -0.5f}, {0, 1}},
+      {{0.5f, 0.5f, -0.5f}, {1, 1}},
+      {{0.5f, 0.5f, 0.5f}, {1, 0}},
+      {{-0.5f, 0.5f, 0.5f}, {0, 0}},
       // Bottom face (-Y)
-      {{-0.5f, -0.5f,  0.5f}, {0, 1}},
-      {{ 0.5f, -0.5f,  0.5f}, {1, 1}},
-      {{ 0.5f, -0.5f, -0.5f}, {1, 0}},
+      {{-0.5f, -0.5f, 0.5f}, {0, 1}},
+      {{0.5f, -0.5f, 0.5f}, {1, 1}},
+      {{0.5f, -0.5f, -0.5f}, {1, 0}},
       {{-0.5f, -0.5f, -0.5f}, {0, 0}},
   };
 
@@ -276,10 +273,12 @@ void DebugColliderFeature::GenerateFilledSphereGeometry() {
   std::vector<Index> indices;
 
   for (int i = 0; i <= stacks; i++) {
-    float phi = glm::pi<float>() * static_cast<float>(i) / static_cast<float>(stacks);
+    float phi =
+        glm::pi<float>() * static_cast<float>(i) / static_cast<float>(stacks);
     float v = static_cast<float>(i) / static_cast<float>(stacks);
     for (int j = 0; j <= slices; j++) {
-      float theta = glm::two_pi<float>() * static_cast<float>(j) / static_cast<float>(slices);
+      float theta = glm::two_pi<float>() * static_cast<float>(j) /
+                    static_cast<float>(slices);
       float u = static_cast<float>(j) / static_cast<float>(slices);
       OverlayVertex vert;
       vert.position.x = sinf(phi) * cosf(theta) * 0.5f;
@@ -309,8 +308,7 @@ void DebugColliderFeature::GenerateFilledSphereGeometry() {
 }
 
 std::shared_ptr<DescriptorSet> DebugColliderFeature::GetOrCreateLabelDescriptor(
-    const std::string& label,
-    const glm::vec4& bg_color,
+    const std::string& label, const glm::vec4& bg_color,
     const glm::vec4& text_color) {
   auto it = label_descriptors_.find(label);
   if (it != label_descriptors_.end()) {
@@ -318,13 +316,14 @@ std::shared_ptr<DescriptorSet> DebugColliderFeature::GetOrCreateLabelDescriptor(
   }
 
   auto texture = GetOrCreateLabelTexture(label, label, bg_color, text_color);
-  if (!texture) return nullptr;
+  if (!texture) {
+    return nullptr;
+  }
 
   auto desc = std::make_shared<DescriptorSet>();
   desc->SetLayout(overlay_desc_layout_);
-  desc->AddCombinedImageSampler(
-      0, texture->image_view_,
-      renderer_->GetDefaultLinearSampler());
+  desc->AddCombinedImageSampler(0, texture->image_view_,
+                                renderer_->GetDefaultLinearSampler());
   desc->Bake();
 
   label_descriptors_[label] = desc;
@@ -339,17 +338,17 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
   // Wireframe offscreen texture
-  pool.SetTexture("debug_collider.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(),
-                       SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "debug_collider.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 2> attachments{
       pool.GetTexture("debug_collider.color").get(),
       pool.GetTexture("geometry.depth_stencil").get()};
-  pool.SetFramebuffer("debug_collider",
-      render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
+  pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
+                                            0, attachments, {rw, rh}));
 
   // Descriptor to read wireframe output
   auto debug_output_desc = std::make_shared<DescriptorSet>();
@@ -361,15 +360,16 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("debug_collider.output", debug_output_desc);
 
   // Composite output texture
-  pool.SetTexture("debug_collider_comp.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(),
-                       SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "debug_collider_comp.color",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
   std::array<AttachmentTexture*, 1> comp_attachments{
       pool.GetTexture("debug_collider_comp.color").get()};
-  pool.SetFramebuffer("debug_collider_comp",
+  pool.SetFramebuffer(
+      "debug_collider_comp",
       comp_render_pass_->CreateFramebuffer(0, comp_attachments, {rw, rh}));
 
   // Descriptor to read previous PipelineOutput
@@ -394,8 +394,8 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
 }
 
 void DebugColliderFeature::AddPasses(RenderGraph& graph,
-                                      RenderResourceRegistry& registry,
-                                      RenderContext& ctx) {
+                                     RenderResourceRegistry& registry,
+                                     RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("DebugColliderFeature::AddPasses");
 
   CameraResourcePool* pool = &ctx.resources;
@@ -422,10 +422,14 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   bool show_cameras = renderer_->options().show_cameras && ctx.is_external;
 
   // Pre-create label descriptors
-  auto trigger_desc = show_triggers ?
-      GetOrCreateLabelDescriptor("TRIGGER", {0.8f, 0.4f, 0, 0.4f}, {1, 1, 1, 1}) : nullptr;
-  auto reverb_desc = show_reverb ?
-      GetOrCreateLabelDescriptor("REVERB ZONE", {0.4f, 0.15f, 0.6f, 0.4f}, {1, 1, 1, 1}) : nullptr;
+  auto trigger_desc = show_triggers
+                          ? GetOrCreateLabelDescriptor(
+                                "TRIGGER", {0.8f, 0.4f, 0, 0.4f}, {1, 1, 1, 1})
+                          : nullptr;
+  auto reverb_desc =
+      show_reverb ? GetOrCreateLabelDescriptor(
+                        "REVERB ZONE", {0.4f, 0.15f, 0.6f, 0.4f}, {1, 1, 1, 1})
+                  : nullptr;
 
   // Compute VP matrix from camera
   glm::mat4 vp = ctx.camera.projection * ctx.camera.view_matrix;
@@ -435,10 +439,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
     hf_cache_.clear();
     for (const auto& entity :
          scene->GetAllEntitiesWith<HeightfieldColliderComponent,
-                                     TransformComponent>()) {
+                                   TransformComponent>()) {
       auto& hf = scene->GetComponent<HeightfieldColliderComponent>(entity);
       auto& tc = scene->GetComponent<TransformComponent>(entity);
-      if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) continue;
+      if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
+        continue;
+      }
 
       std::vector<glm::vec3> vertices;
       std::vector<Index> indices;
@@ -484,45 +490,43 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   std::vector<HeightfieldDebugData>& hf_data = hf_cache_;
 
   // Import resources
-  RGResource debug_out =
-      graph.ImportTexture("DebugCollidersOut",
-                          pool->GetTexture("debug_collider.color"));
+  RGResource debug_out = graph.ImportTexture(
+      "DebugCollidersOut", pool->GetTexture("debug_collider.color"));
 
   // Wireframe draw pass
   uint32_t draw_pass = graph.AddPass(
       "DebugColliders", render_pass_,
       [pipeline, filled_pipe, push_constant, scene, renderer, vp,
-       show_colliders, show_triggers, show_reverb, show_cameras,
-       box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
-       fbox_vb, fbox_ib, fbox_ic, fsphere_vb, fsphere_ib, fsphere_ic,
-       trigger_desc, reverb_desc,
-       &hf_data](
-          VkCommandBuffer cmd) {
-        if (!show_colliders && !show_triggers && !show_reverb && !show_cameras) {
+       show_colliders, show_triggers, show_reverb, show_cameras, box_vb, box_ib,
+       box_ic, sphere_vb, sphere_ib, sphere_ic, fbox_vb, fbox_ib, fbox_ic,
+       fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc,
+       &hf_data](VkCommandBuffer cmd) {
+        if (!show_colliders && !show_triggers && !show_reverb &&
+            !show_cameras) {
           return;
         }
 
-        auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb, std::shared_ptr<IndexBuffer> ib,
+        auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb,
+                                  std::shared_ptr<IndexBuffer> ib,
                                   uint32_t index_count, const glm::mat4& model,
                                   const glm::vec4& color) {
           push_constant->mvp = vp * model;
           push_constant->model = model;
           push_constant->color = color;
-          vkCmdPushConstants(cmd, pipeline->layout_,
-                             VK_SHADER_STAGE_VERTEX_BIT |
-                                 VK_SHADER_STAGE_FRAGMENT_BIT,
-                             0, sizeof(DebugColliderPushConstant),
-                             push_constant.get());
+          vkCmdPushConstants(
+              cmd, pipeline->layout_,
+              VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+              sizeof(DebugColliderPushConstant), push_constant.get());
 
           VkBuffer buffers[] = {vb->buffer_handle_};
           VkDeviceSize offsets[] = {0};
           vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
-          vkCmdBindIndexBuffer(cmd, ib->buffer_handle_, 0,
-                               ib->index_type_);
+          vkCmdBindIndexBuffer(cmd, ib->buffer_handle_, 0, ib->index_type_);
           vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
         };
 
-        auto draw_filled = [&](std::shared_ptr<MemoryBuffer> vb, std::shared_ptr<IndexBuffer> ib,
+        auto draw_filled = [&](std::shared_ptr<MemoryBuffer> vb,
+                               std::shared_ptr<IndexBuffer> ib,
                                uint32_t index_count, const glm::mat4& model,
                                const glm::vec4& color,
                                std::shared_ptr<DescriptorSet> label_desc) {
@@ -530,16 +534,16 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           push_constant->mvp = vp * model;
           push_constant->model = model;
           push_constant->color = color;
-          vkCmdPushConstants(cmd, filled_pipe->layout_,
-                             VK_SHADER_STAGE_VERTEX_BIT |
-                                 VK_SHADER_STAGE_FRAGMENT_BIT,
-                             0, sizeof(DebugColliderPushConstant),
-                             push_constant.get());
+          vkCmdPushConstants(
+              cmd, filled_pipe->layout_,
+              VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+              sizeof(DebugColliderPushConstant), push_constant.get());
 
           if (label_desc) {
             VkDescriptorSet ds = label_desc->descriptor_set_;
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                     filled_pipe->layout_, 0, 1, &ds, 0, nullptr);
+                                    filled_pipe->layout_, 0, 1, &ds, 0,
+                                    nullptr);
           }
 
           VkBuffer buffers[] = {vb->buffer_handle_};
@@ -552,9 +556,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         // Colliders and triggers share the same component types,
         // differentiated by is_trigger flag.
         if (show_colliders || show_triggers) {
-          constexpr glm::vec4 static_wire(0.0f, 1.0f, 0.0f, 1.0f);      // green: static collider
-          constexpr glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f, 1.0f);     // blue: has rigidbody
-          constexpr glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f, 1.0f);   // yellow: kinematic
+          constexpr glm::vec4 static_wire(0.0f, 1.0f, 0.0f,
+                                          1.0f);  // green: static collider
+          constexpr glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f,
+                                           1.0f);  // blue: has rigidbody
+          constexpr glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f,
+                                             1.0f);  // yellow: kinematic
           constexpr glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
           constexpr glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
           constexpr glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
@@ -580,12 +587,16 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                                    std::shared_ptr<MemoryBuffer> fill_vb,
                                    std::shared_ptr<IndexBuffer> fill_ib,
                                    uint32_t fill_ic) {
-            if (is_trigger && !show_triggers) { return; }
-            if (!is_trigger && !show_colliders) { return; }
+            if (is_trigger && !show_triggers) {
+              return;
+            }
+            if (!is_trigger && !show_colliders) {
+              return;
+            }
 
             if (is_trigger) {
-              draw_filled(fill_vb, fill_ib, fill_ic, model,
-                          trigger_fill, trigger_desc);
+              draw_filled(fill_vb, fill_ib, fill_ic, model, trigger_fill,
+                          trigger_desc);
               pipeline->Bind(PipelineBindPointGraphics);
               draw_wireframe(wire_vb, wire_ib, wire_ic, model, trigger_wire);
             } else {
@@ -598,37 +609,36 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           // Box colliders/triggers
           for (const auto& entity :
                scene->GetAllEntitiesWith<BoxColliderComponent,
-                                          TransformComponent>()) {
+                                         TransformComponent>()) {
             auto& box = scene->GetComponent<BoxColliderComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
             glm::mat4 model =
                 glm::translate(glm::mat4(1.0f),
                                tc.GetWorldPosition() + box.offset) *
                 glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
-            draw_collider(entity, box.is_trigger, model,
-                          box_vb, box_ib, box_ic, fbox_vb, fbox_ib, fbox_ic);
+            draw_collider(entity, box.is_trigger, model, box_vb, box_ib, box_ic,
+                          fbox_vb, fbox_ib, fbox_ic);
           }
 
           // Sphere colliders/triggers
           for (const auto& entity :
                scene->GetAllEntitiesWith<SphereColliderComponent,
-                                          TransformComponent>()) {
-            auto& sphere =
-                scene->GetComponent<SphereColliderComponent>(entity);
+                                         TransformComponent>()) {
+            auto& sphere = scene->GetComponent<SphereColliderComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
             glm::mat4 model =
                 glm::translate(glm::mat4(1.0f),
                                tc.GetWorldPosition() + sphere.offset) *
                 glm::scale(glm::mat4(1.0f), glm::vec3(sphere.radius * 2.0f));
-            draw_collider(entity, sphere.is_trigger, model,
-                          sphere_vb, sphere_ib, sphere_ic,
-                          fsphere_vb, fsphere_ib, fsphere_ic);
+            draw_collider(entity, sphere.is_trigger, model, sphere_vb,
+                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
+                          fsphere_ic);
           }
 
           // Capsule colliders/triggers
           for (const auto& entity :
                scene->GetAllEntitiesWith<CapsuleColliderComponent,
-                                          TransformComponent>()) {
+                                         TransformComponent>()) {
             auto& cap = scene->GetComponent<CapsuleColliderComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
             float total_h = cap.height + cap.radius * 2.0f;
@@ -648,9 +658,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                 glm::translate(glm::mat4(1.0f),
                                tc.GetWorldPosition() + cap.offset) *
                 glm::scale(glm::mat4(1.0f), scale_vec);
-            draw_collider(entity, cap.is_trigger, model,
-                          sphere_vb, sphere_ib, sphere_ic,
-                          fsphere_vb, fsphere_ib, fsphere_ic);
+            draw_collider(entity, cap.is_trigger, model, sphere_vb, sphere_ib,
+                          sphere_ic, fsphere_vb, fsphere_ib, fsphere_ic);
           }
 
           // Heightfield colliders: wireframe only
@@ -672,14 +681,13 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
           for (const auto& entity :
                scene->GetAllEntitiesWith<ReverbZoneComponent,
-                                          TransformComponent>()) {
+                                         TransformComponent>()) {
             auto& zone = scene->GetComponent<ReverbZoneComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
 
             glm::mat4 model =
                 glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
-                glm::scale(glm::mat4(1.0f),
-                           glm::vec3(zone.radius * 2.0f));
+                glm::scale(glm::mat4(1.0f), glm::vec3(zone.radius * 2.0f));
 
             draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
                         zone.active_ ? reverb_active_fill : reverb_fill,
@@ -696,9 +704,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           glm::vec4 cam_color = {1.0f, 1.0f, 1.0f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
-          for (auto cam_entity : scene->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
+          for (auto cam_entity :
+               scene->GetAllEntitiesWith<CameraComponent,
+                                         TransformComponent>()) {
             auto& cam = scene->GetComponent<CameraComponent>(cam_entity);
-            auto& cam_transform = scene->GetComponent<TransformComponent>(cam_entity);
+            auto& cam_transform =
+                scene->GetComponent<TransformComponent>(cam_entity);
 
             // Build a matrix that maps the unit box [-0.5, 0.5] to the
             // frustum in world space. The box represents NDC [-1,1] scaled
@@ -709,17 +720,15 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             float vis_far = std::min(cam.far_plane, 50.0f);
 
             glm::mat4 cam_proj;
-            float aspect = cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
+            float aspect =
+                cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
             if (cam.projection_mode == ProjectionMode::Perspective) {
-              cam_proj = glm::perspective(
-                  glm::radians(cam.field_of_view), aspect,
-                  cam.near_plane, vis_far);
+              cam_proj = glm::perspective(glm::radians(cam.field_of_view),
+                                          aspect, cam.near_plane, vis_far);
             } else {
               float size = cam.ortho_size;
-              cam_proj = glm::ortho(
-                  -size * aspect, size * aspect,
-                  -size, size,
-                  cam.near_plane, vis_far);
+              cam_proj = glm::ortho(-size * aspect, size * aspect, -size, size,
+                                    cam.near_plane, vis_far);
             }
             // Vulkan clip Y flip
             cam_proj[1][1] *= -1.0f;
@@ -744,9 +753,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   // Composite pass: blend debug overlay onto PipelineOutput
   RGResource pipeline_out = registry.Get("PipelineOutput");
-  RGResource comp_out =
-      graph.ImportTexture("DebugCollidersCompOut",
-                          pool->GetTexture("debug_collider_comp.color"));
+  RGResource comp_out = graph.ImportTexture(
+      "DebugCollidersCompOut", pool->GetTexture("debug_collider_comp.color"));
 
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   uint32_t comp_pass = graph.AddPass(
@@ -754,11 +762,11 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       [pool, renderer, comp_pipeline](VkCommandBuffer) {
         comp_pipeline->Bind(PipelineBindPointGraphics);
         // Draw previous PipelineOutput (background)
-        renderer->DrawFullscreen(comp_pipeline,
-            {pool->GetDescriptor("debug_collider_comp.input")});
+        renderer->DrawFullscreen(
+            comp_pipeline, {pool->GetDescriptor("debug_collider_comp.input")});
         // Draw debug collider overlay
-        renderer->DrawFullscreen(comp_pipeline,
-            {pool->GetDescriptor("debug_collider.output")});
+        renderer->DrawFullscreen(
+            comp_pipeline, {pool->GetDescriptor("debug_collider.output")});
       });
 
   graph.PassReadsTexture(comp_pass, pipeline_out);

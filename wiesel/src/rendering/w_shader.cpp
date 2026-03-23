@@ -48,12 +48,15 @@ Shader::Shader(ShaderProperties properties) : properties_(properties) {
 #else
     bool debug = false;
 #endif
-    if (!Spirv::ShaderToSPV(properties_.type, debug, data, properties_.defines, code)) {
+    if (!Spirv::ShaderToSPV(properties_.type, debug, data, properties_.defines,
+                            code)) {
       throw std::runtime_error("Failed to compile shader!");
     }
   } else if (properties_.source == ShaderSourcePrecompiled) {
     if (!properties.defines.empty()) {
-      LOG_WARN("Defines for shader was not empty but the shader is precompiled. Defines might not be matching.");
+      LOG_WARN(
+          "Defines for shader was not empty but the shader is precompiled. "
+          "Defines might not be matching.");
     }
     code = ReadVirtualFileUint32(properties_.virtual_path);
   } else {
@@ -67,12 +70,14 @@ Shader::Shader(ShaderProperties properties) : properties_(properties) {
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size() * 4;
   createInfo.pCode = code.data();
-  WIESEL_CHECK_VKRESULT(vkCreateShaderModule(Engine::renderer()->GetLogicalDevice(), &createInfo,
-                                             nullptr, &shader_module_));
+  WIESEL_CHECK_VKRESULT(
+      vkCreateShaderModule(Engine::renderer()->GetLogicalDevice(), &createInfo,
+                           nullptr, &shader_module_));
 }
 
 Shader::~Shader() {
-  vkDestroyShaderModule(Engine::renderer()->GetLogicalDevice(), shader_module_, nullptr);
+  vkDestroyShaderModule(Engine::renderer()->GetLogicalDevice(), shader_module_,
+                        nullptr);
 }
 
 }  // namespace Wiesel

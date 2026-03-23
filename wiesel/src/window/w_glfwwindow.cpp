@@ -35,8 +35,10 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   glfwGetFramebufferSize(handle_, &framebuffer_size_.width,
                          &framebuffer_size_.height);
   glfwGetWindowSize(handle_, &window_size_.width, &window_size_.height);
-  scale_.width = framebuffer_size_.width / static_cast<float>(window_size_.width);
-  scale_.height = framebuffer_size_.height / static_cast<float>(window_size_.height);
+  scale_.width =
+      framebuffer_size_.width / static_cast<float>(window_size_.width);
+  scale_.height =
+      framebuffer_size_.height / static_cast<float>(window_size_.height);
 
   glfwSetWindowSizeCallback(
       handle_, [](GLFWwindow* window, int width, int height) {
@@ -49,9 +51,9 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
         glfwGetWindowSize(app_window.handle_, &app_window.window_size_.width,
                           &app_window.window_size_.height);
         app_window.scale_.width = app_window.framebuffer_size_.width /
-                                 (float)app_window.window_size_.width;
+                                  (float)app_window.window_size_.width;
         app_window.scale_.height = app_window.framebuffer_size_.height /
-                                  (float)app_window.window_size_.height;
+                                   (float)app_window.window_size_.height;
 
         WindowResizeEvent event({width, height}, width / (float)height);
         app_window.GetEventHandler()(event);
@@ -367,7 +369,8 @@ void GlfwAppWindow::SetCursorMode(CursorMode cursor_mode) {
       break;
     }
   }
-  glfwSetInputMode(handle_, GLFW_RAW_MOUSE_MOTION, cursor_mode == CursorModeRelative);
+  glfwSetInputMode(handle_, GLFW_RAW_MOUSE_MOTION,
+                   cursor_mode == CursorModeRelative);
 }
 
 void GlfwAppWindow::WarpCursor(double x, double y) {

@@ -43,7 +43,8 @@ struct PushConstant {
   std::shared_ptr<void> ptr;
 };
 
-struct Pipeline {
+class Pipeline {
+ public:
   explicit Pipeline(PipelineProperties properties);
   ~Pipeline();
 
@@ -51,44 +52,48 @@ struct Pipeline {
   void AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout);
   void AddDynamicState(VkDynamicState state);
   void AddShader(std::shared_ptr<Shader> shader);
-  template<typename T>
-  void AddShader(std::shared_ptr<Shader> shader, T* data, std::vector<VkSpecializationMapEntry> mapEntries) {
-    shaders_.push_back({
-        .shader = shader,
-        .specialization = {
-            .data = data,
-            .data_size = sizeof(*data),
-            .map_entries = mapEntries
-        }
-    });
+
+  template <typename T>
+  void AddShader(std::shared_ptr<Shader> shader, T* data,
+                 std::vector<VkSpecializationMapEntry> mapEntries) {
+    shaders_.push_back({.shader = shader,
+                        .specialization = {.data = data,
+                                           .data_size = sizeof(*data),
+                                           .map_entries = mapEntries}});
   }
 
-  void SetVertexData(VkVertexInputBindingDescription input_binding_description, std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
-  void SetVertexData(std::vector<VkVertexInputBindingDescription> input_binding_descriptions, std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
+  void SetVertexData(
+      VkVertexInputBindingDescription input_binding_description,
+      std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
+  void SetVertexData(
+      std::vector<VkVertexInputBindingDescription> input_binding_descriptions,
+      std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
 
-  template<typename T>
+  template <typename T>
   void AddPushConstant(std::shared_ptr<T> ptr, VkShaderStageFlags flags) {
     assert(ptr);
-    push_constants_.push_back(PushConstant{
-        .flags = flags,
-        .size = sizeof(T),
-        .offset = static_cast<uint32_t>(push_constants_.size()),
-        .ptr = std::static_pointer_cast<void>(ptr)
-    });
+    push_constants_.push_back(
+        PushConstant{.flags = flags,
+                     .size = sizeof(T),
+                     .offset = static_cast<uint32_t>(push_constants_.size()),
+                     .ptr = std::static_pointer_cast<void>(ptr)});
   }
 
   void Bake();
 
   void Bind(PipelineBindPoint bind_point);
+
   struct SpecializationData {
     std::vector<VkSpecializationMapEntry> map_entries;
     size_t data_size;
     void* data;
   };
+
   struct ShaderInfo {
     std::shared_ptr<Shader> shader;
     SpecializationData specialization;
   };
+
   PipelineProperties properties_;
   std::vector<ShaderInfo> shaders_;
   std::vector<VkDynamicState> dynamic_states_;
@@ -97,7 +102,8 @@ struct Pipeline {
   VkPipelineLayout layout_{};
   VkPipeline pipeline_{};
   bool has_vertex_binding_ = false;
-  std::vector<VkVertexInputBindingDescription> vertex_input_binding_descriptions_;
+  std::vector<VkVertexInputBindingDescription>
+      vertex_input_binding_descriptions_;
   std::vector<VkVertexInputAttributeDescription> vertex_attribute_descriptions_;
   std::vector<PushConstant> push_constants_;
   bool is_allocated_ = false;

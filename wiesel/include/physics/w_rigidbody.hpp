@@ -15,11 +15,7 @@
 
 namespace Wiesel {
 
-enum class RigidBodyType : uint8_t {
-  Static = 0,
-  Kinematic = 1,
-  Dynamic = 2
-};
+enum class RigidBodyType : uint8_t { Static = 0, Kinematic = 1, Dynamic = 2 };
 
 struct RigidBodyComponent : public IComponent {
   RigidBodyComponent() = default;
@@ -55,7 +51,8 @@ struct RigidBodyComponent : public IComponent {
   void AddForce(const glm::vec3& force);
   void AddImpulse(const glm::vec3& impulse);
   void AddForceAtPosition(const glm::vec3& force, const glm::vec3& position);
-  void AddImpulseAtPosition(const glm::vec3& impulse, const glm::vec3& position);
+  void AddImpulseAtPosition(const glm::vec3& impulse,
+                            const glm::vec3& position);
   void AddTorque(const glm::vec3& torque);
 
   // Setters that update both the component field AND the live Bullet body

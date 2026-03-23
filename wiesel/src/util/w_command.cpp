@@ -16,55 +16,64 @@
 namespace Wiesel {
 
 DeveloperConsole::DeveloperConsole() {
-  Register("help", "List all available commands", [this](const std::vector<std::string>&) {
-    LogInfo("Available commands:");
-    for (const auto& [name, entry] : commands_) {
-      LogInfo("  " + name + " - " + entry.description);
-    }
-  });
+  Register("help", "List all available commands",
+           [this](const std::vector<std::string>&) {
+             LogInfo("Available commands:");
+             for (const auto& [name, entry] : commands_) {
+               LogInfo("  " + name + " - " + entry.description);
+             }
+           });
 
-  Register("clear", "Clear console output", [this](const std::vector<std::string>&) {
-    Clear();
-  });
+  Register("clear", "Clear console output",
+           [this](const std::vector<std::string>&) { Clear(); });
 
-  Register("host_timescale", "Set game time scale (e.g. host_timescale 0.5)", [this](const std::vector<std::string>& args) {
-    auto* app = Application::Get();
-    if (!app) { LogError("No application instance"); return; }
-    if (args.empty()) {
-      LogInfo("host_timescale = " + std::to_string(app->GetTimeScale()));
-      return;
-    }
-    try {
-      float scale = std::stof(args[0]);
-      app->SetTimeScale(scale);
-      LogInfo("host_timescale set to " + std::to_string(scale));
-    } catch (...) {
-      LogError("Usage: host_timescale <value>");
-    }
-  });
+  Register(
+      "host_timescale", "Set game time scale (e.g. host_timescale 0.5)",
+      [this](const std::vector<std::string>& args) {
+        auto* app = Application::Get();
+        if (!app) {
+          LogError("No application instance");
+          return;
+        }
+        if (args.empty()) {
+          LogInfo("host_timescale = " + std::to_string(app->GetTimeScale()));
+          return;
+        }
+        try {
+          float scale = std::stof(args[0]);
+          app->SetTimeScale(scale);
+          LogInfo("host_timescale set to " + std::to_string(scale));
+        } catch (...) {
+          LogError("Usage: host_timescale <value>");
+        }
+      });
 
-  Register("toggleconsole", "Toggle developer console visibility", [this](const std::vector<std::string>&) {
-    Toggle();
-  });
+  Register("toggleconsole", "Toggle developer console visibility",
+           [this](const std::vector<std::string>&) { Toggle(); });
 
-  Register("max_fps", "Set max FPS limit (0 = unlimited)", [this](const std::vector<std::string>& args) {
-    auto* app = Application::Get();
-    if (!app) { LogError("No application instance"); return; }
-    if (args.empty()) {
-      LogInfo("max_fps = " + std::to_string(app->GetMaxFPS()));
-      return;
-    }
-    try {
-      float fps = std::stof(args[0]);
-      app->SetMaxFPS(fps);
-      LogInfo("max_fps set to " + std::to_string(fps));
-    } catch (...) {
-      LogError("Usage: max_fps <value>");
-    }
-  });
+  Register("max_fps", "Set max FPS limit (0 = unlimited)",
+           [this](const std::vector<std::string>& args) {
+             auto* app = Application::Get();
+             if (!app) {
+               LogError("No application instance");
+               return;
+             }
+             if (args.empty()) {
+               LogInfo("max_fps = " + std::to_string(app->GetMaxFPS()));
+               return;
+             }
+             try {
+               float fps = std::stof(args[0]);
+               app->SetMaxFPS(fps);
+               LogInfo("max_fps set to " + std::to_string(fps));
+             } catch (...) {
+               LogError("Usage: max_fps <value>");
+             }
+           });
 }
 
-void DeveloperConsole::Register(const std::string& name, const std::string& description,
+void DeveloperConsole::Register(const std::string& name,
+                                const std::string& description,
                                 CommandCallback callback) {
   std::lock_guard lock(mutex_);
   commands_[name] = {name, description, std::move(callback)};
@@ -108,7 +117,8 @@ void DeveloperConsole::Clear() {
   log_.clear();
 }
 
-std::vector<std::string> DeveloperConsole::Tokenize(const std::string& command_line) {
+std::vector<std::string> DeveloperConsole::Tokenize(
+    const std::string& command_line) {
   std::vector<std::string> tokens;
   std::string current;
   bool in_quotes = false;

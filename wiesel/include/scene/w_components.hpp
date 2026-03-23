@@ -12,11 +12,11 @@
 #pragma once
 
 #include <entt/entt.hpp>
+#include "animation/w_animation_controller.hpp"
 #include "events/w_events.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_texture.hpp"
-#include "animation/w_animation_controller.hpp"
 #include "ui/w_canvas.hpp"
 #include "util/w_utils.hpp"
 #include "util/w_uuid.hpp"
@@ -50,10 +50,11 @@ struct TreeComponent : public IComponent {
 
 struct TagComponent : public IComponent {
   TagComponent(const std::string& name) : name(name) {}
+
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
 
-  std::string name;  // entity name
+  std::string name;               // entity name
   std::vector<std::string> tags;  // game tags ("Enemy", "Player", etc.)
 
   bool HasTag(const std::string& tag) const {
@@ -85,11 +86,17 @@ struct TransformComponent : public IComponent {
 
   // Getters (read-only, no dirty flag)
   const glm::vec3& GetPosition() const { return position_; }
+
   const glm::vec3& GetRotation() const { return rotation_; }
+
   const glm::vec3& GetScale() const { return scale_; }
+
   const glm::vec3& GetPivot() const { return pivot_; }
+
   bool IsChanged() const { return is_changed_; }
+
   const glm::mat4& GetTransformMatrix() const { return transform_matrix_; }
+
   const glm::mat3& GetNormalMatrix() const { return normal_matrix_; }
 
   // Setters (mark dirty automatically)
@@ -97,6 +104,7 @@ struct TransformComponent : public IComponent {
     position_ = pos;
     is_changed_ = true;
   }
+
   void SetPosition(float x, float y, float z) {
     position_ = {x, y, z};
     is_changed_ = true;
@@ -106,6 +114,7 @@ struct TransformComponent : public IComponent {
     rotation_ = rot;
     is_changed_ = true;
   }
+
   void SetRotation(float x, float y, float z) {
     rotation_ = {x, y, z};
     is_changed_ = true;
@@ -115,6 +124,7 @@ struct TransformComponent : public IComponent {
     scale_ = scale;
     is_changed_ = true;
   }
+
   void SetScale(float x, float y, float z) {
     scale_ = {x, y, z};
     is_changed_ = true;
@@ -126,22 +136,19 @@ struct TransformComponent : public IComponent {
   }
 
   // World-space getters (from cached transform matrix)
-  glm::vec3 GetWorldPosition() const {
-    return glm::vec3(transform_matrix_[3]);
-  }
+  glm::vec3 GetWorldPosition() const { return glm::vec3(transform_matrix_[3]); }
 
   glm::vec3 GetWorldScale() const {
-    return {
-        glm::length(glm::vec3(transform_matrix_[0])),
-        glm::length(glm::vec3(transform_matrix_[1])),
-        glm::length(glm::vec3(transform_matrix_[2]))
-    };
+    return {glm::length(glm::vec3(transform_matrix_[0])),
+            glm::length(glm::vec3(transform_matrix_[1])),
+            glm::length(glm::vec3(transform_matrix_[2]))};
   }
 
   // Direction conversion between local and world space
   glm::vec3 LocalToWorldDirection(const glm::vec3& dir) const {
     return glm::normalize(glm::mat3(transform_matrix_) * dir);
   }
+
   glm::vec3 WorldToLocalDirection(const glm::vec3& dir) const {
     return glm::normalize(glm::inverse(glm::mat3(transform_matrix_)) * dir);
   }
@@ -150,6 +157,7 @@ struct TransformComponent : public IComponent {
   glm::vec3 LocalToWorldPoint(const glm::vec3& point) const {
     return glm::vec3(transform_matrix_ * glm::vec4(point, 1.0f));
   }
+
   glm::vec3 WorldToLocalPoint(const glm::vec3& point) const {
     return glm::vec3(glm::inverse(transform_matrix_) * glm::vec4(point, 1.0f));
   }
@@ -161,9 +169,8 @@ struct TransformComponent : public IComponent {
     position_ += delta;
     is_changed_ = true;
   }
-  void Move(float dx, float dy, float dz) {
-    Move({dx, dy, dz});
-  }
+
+  void Move(float dx, float dy, float dz) { Move({dx, dy, dz}); }
 
   // Translate with space selection
   void Translate(const glm::vec3& delta, Space space = Space::Local) {
@@ -182,30 +189,33 @@ struct TransformComponent : public IComponent {
     rotation_ += delta;
     is_changed_ = true;
   }
-  void Rotate(float dx, float dy, float dz) {
-    Rotate({dx, dy, dz});
-  }
+
+  void Rotate(float dx, float dy, float dz) { Rotate({dx, dy, dz}); }
 
   void Resize(const glm::vec3& delta) {
     scale_ += delta;
     is_changed_ = true;
   }
-  void Resize(float dx, float dy, float dz) {
-    Resize({dx, dy, dz});
-  }
+
+  void Resize(float dx, float dy, float dz) { Resize({dx, dy, dz}); }
 
   // Internal: used by scene to update cached matrices and reset flag
   void SetTransformMatrix(const glm::mat4& mat) {
     transform_matrix_ = mat;
     normal_matrix_ = glm::mat3(mat);
   }
+
   void ClearChanged() { is_changed_ = false; }
+
   void MarkChanged() { is_changed_ = true; }
 
   // Direct mutable access (for serialization, physics sync, editor inspector)
   glm::vec3& PositionMut() { return position_; }
+
   glm::vec3& RotationMut() { return rotation_; }
+
   glm::vec3& ScaleMut() { return scale_; }
+
   glm::vec3& PivotMut() { return pivot_; }
 
  private:
@@ -223,12 +233,14 @@ struct RectangleTransformComponent : public IComponent {
   float rotation = 0.0f;
   glm::vec2 size = {100.0f, 100.0f};
   glm::vec2 scale = {1.0f, 1.0f};
-  AnchorPreset anchor = AnchorPreset::TopLeft;      // point on parent
-  AnchorPreset pivot = AnchorPreset::TopLeft;       // point on self
+  AnchorPreset anchor = AnchorPreset::TopLeft;  // point on parent
+  AnchorPreset pivot = AnchorPreset::TopLeft;   // point on self
   SizeMode size_mode_x = SizeMode::Fixed;
   SizeMode size_mode_y = SizeMode::Fixed;
-  glm::vec4 padding = {0.0f, 0.0f, 0.0f, 0.0f};   // inner padding (left, top, right, bottom)
-  glm::vec4 margin = {0.0f, 0.0f, 0.0f, 0.0f};    // outer margin (left, top, right, bottom)
+  glm::vec4 padding = {0.0f, 0.0f, 0.0f,
+                       0.0f};  // inner padding (left, top, right, bottom)
+  glm::vec4 margin = {0.0f, 0.0f, 0.0f,
+                      0.0f};  // outer margin (left, top, right, bottom)
 
   // Computed by layout system (screen-space pixels)
   glm::vec2 computed_position = {0.0f, 0.0f};
@@ -241,6 +253,7 @@ struct RectangleTransformComponent : public IComponent {
 // Animation playback state (per-entity)
 struct AnimatorComponent : public IComponent {
   AnimatorComponent() = default;
+
   AnimatorComponent(const AnimatorComponent& other)
       : current_clip_name(other.current_clip_name),
         playback_time(other.playback_time),
@@ -270,8 +283,8 @@ struct AnimatorComponent : public IComponent {
   bool is_blending = false;
   std::string prev_clip_name;
   float prev_clip_time = 0.0f;
-  float blend_weight = 0.0f;       // 0.0 = fully prev, 1.0 = fully current
-  float blend_duration = 0.25f;    // seconds
+  float blend_weight = 0.0f;     // 0.0 = fully prev, 1.0 = fully current
+  float blend_duration = 0.25f;  // seconds
   float blend_elapsed = 0.0f;
   std::vector<glm::mat4> prev_bone_matrices;
   std::vector<glm::mat4> prev_node_transforms;
@@ -288,6 +301,7 @@ struct AnimatorComponent : public IComponent {
     int32_t cached_node_index = -1;
     int32_t cached_bone_index = -1;
   };
+
   std::vector<BoneOverride> bone_overrides;
 
   // GPU resources (per-entity, allocated lazily)

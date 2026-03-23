@@ -43,7 +43,6 @@ class UUID {
     return a.hi_ < b.hi_ || (a.hi_ == b.hi_ && a.lo_ < b.lo_);
   }
 
-
   std::uint64_t hi() const noexcept { return hi_; }
 
   std::uint64_t lo() const noexcept { return lo_; }
@@ -53,19 +52,21 @@ class UUID {
   std::uint64_t lo_;
 
   void FromBytes(const bytes& b) noexcept;
-
 };
 
 }  // namespace Wiesel
 
 // hashing support
 namespace std {
-template<> struct hash<Wiesel::UUID> {
+template <>
+struct hash<Wiesel::UUID> {
   size_t operator()(const Wiesel::UUID& u) const noexcept {
     // 64-bit mix (xorshift64*)
     std::uint64_t x = u.hi() ^ (u.lo() * 0x9E3779B97F4A7C15ull);
-    x ^= x >> 30; x *= 0xBF58476D1CE4E5B9ull;
-    x ^= x >> 27; x *= 0x94D049BB133111EBull;
+    x ^= x >> 30;
+    x *= 0xBF58476D1CE4E5B9ull;
+    x ^= x >> 27;
+    x *= 0x94D049BB133111EBull;
     x ^= x >> 31;
     return x;
   }

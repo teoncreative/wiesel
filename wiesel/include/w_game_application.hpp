@@ -11,9 +11,9 @@
 
 #pragma once
 
+#include "behavior/w_native_behavior.hpp"
 #include "w_application.hpp"
 #include "w_engine.hpp"
-#include "behavior/w_native_behavior.hpp"
 
 namespace Wiesel {
 

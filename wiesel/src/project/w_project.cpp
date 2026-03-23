@@ -19,12 +19,16 @@ static nlohmann::json SerializeAction(const InputAction& action) {
   aj["name"] = action.name;
 
   nlohmann::json keys = nlohmann::json::array();
-  for (auto k : action.keys) keys.push_back(KeyCodeToString(k));
+  for (auto k : action.keys) {
+    keys.push_back(KeyCodeToString(k));
+  }
   aj["keys"] = keys;
 
   if (!action.buttons.empty()) {
     nlohmann::json btns = nlohmann::json::array();
-    for (auto b : action.buttons) btns.push_back(GamepadButtonToString(b));
+    for (auto b : action.buttons) {
+      btns.push_back(GamepadButtonToString(b));
+    }
     aj["buttons"] = btns;
   }
   return aj;
@@ -35,17 +39,25 @@ static nlohmann::json SerializeAxis(const InputAxisMapping& axis) {
   axj["name"] = axis.name;
 
   nlohmann::json pos = nlohmann::json::array();
-  for (auto k : axis.positive_keys) pos.push_back(KeyCodeToString(k));
+  for (auto k : axis.positive_keys) {
+    pos.push_back(KeyCodeToString(k));
+  }
   axj["positive_keys"] = pos;
 
   nlohmann::json neg = nlohmann::json::array();
-  for (auto k : axis.negative_keys) neg.push_back(KeyCodeToString(k));
+  for (auto k : axis.negative_keys) {
+    neg.push_back(KeyCodeToString(k));
+  }
   axj["negative_keys"] = neg;
 
   if (axis.gamepad_axis >= 0) {
     axj["stick"] = GamepadAxisToString(axis.gamepad_axis);
-    if (axis.invert_axis) axj["invert"] = true;
-    if (axis.dead_zone != 0.15f) axj["dead_zone"] = axis.dead_zone;
+    if (axis.invert_axis) {
+      axj["invert"] = true;
+    }
+    if (axis.dead_zone != 0.15f) {
+      axj["dead_zone"] = axis.dead_zone;
+    }
   }
 
   axj["gravity"] = axis.gravity;
@@ -62,7 +74,9 @@ static InputAction DeserializeAction(const nlohmann::json& aj) {
     for (auto& k : aj["keys"]) {
       int32_t code = k.is_string() ? StringToKeyCode(k.get<std::string>())
                                    : k.get<int32_t>();
-      if (code != KeyUnknown) action.keys.push_back(code);
+      if (code != KeyUnknown) {
+        action.keys.push_back(code);
+      }
     }
   }
 
@@ -71,7 +85,9 @@ static InputAction DeserializeAction(const nlohmann::json& aj) {
     for (auto& b : aj["buttons"]) {
       int32_t btn = b.is_string() ? StringToGamepadButton(b.get<std::string>())
                                   : b.get<int32_t>();
-      if (btn >= 0) action.buttons.push_back(btn);
+      if (btn >= 0) {
+        action.buttons.push_back(btn);
+      }
     }
   }
   return action;
@@ -84,19 +100,24 @@ static InputAxisMapping DeserializeAxis(const nlohmann::json& axj) {
   axis.sensitivity = axj.value("sensitivity", 3.0f);
 
   auto parse_key = [](const nlohmann::json& k) -> int32_t {
-    return k.is_string() ? StringToKeyCode(k.get<std::string>()) : k.get<int32_t>();
+    return k.is_string() ? StringToKeyCode(k.get<std::string>())
+                         : k.get<int32_t>();
   };
 
   if (axj.contains("positive_keys") && axj["positive_keys"].is_array()) {
     for (auto& k : axj["positive_keys"]) {
       int32_t code = parse_key(k);
-      if (code != KeyUnknown) axis.positive_keys.push_back(code);
+      if (code != KeyUnknown) {
+        axis.positive_keys.push_back(code);
+      }
     }
   }
   if (axj.contains("negative_keys") && axj["negative_keys"].is_array()) {
     for (auto& k : axj["negative_keys"]) {
       int32_t code = parse_key(k);
-      if (code != KeyUnknown) axis.negative_keys.push_back(code);
+      if (code != KeyUnknown) {
+        axis.negative_keys.push_back(code);
+      }
     }
   }
 
@@ -193,7 +214,8 @@ std::unique_ptr<Project> Project::Load(
   project->project_file_ = std::filesystem::absolute(project_file);
   project->settings_.name = j.value("name", "Untitled Project");
   project->settings_.version = j.value("version", 1);
-  project->settings_.start_scene = j.value("start_scene", j.value("default_scene", ""));
+  project->settings_.start_scene =
+      j.value("start_scene", j.value("default_scene", ""));
   project->settings_.last_scene = j.value("last_scene", "");
 
   if (j.contains("scenes") && j["scenes"].is_array()) {
@@ -234,13 +256,17 @@ std::unique_ptr<Project> Project::Load(
         if (ctx_json.contains("actions") && ctx_json["actions"].is_array()) {
           for (auto& aj : ctx_json["actions"]) {
             auto action = DeserializeAction(aj);
-            if (!action.name.empty()) ctx.actions.push_back(std::move(action));
+            if (!action.name.empty()) {
+              ctx.actions.push_back(std::move(action));
+            }
           }
         }
         if (ctx_json.contains("axes") && ctx_json["axes"].is_array()) {
           for (auto& axj : ctx_json["axes"]) {
             auto axis = DeserializeAxis(axj);
-            if (!axis.name.empty()) ctx.axes.push_back(std::move(axis));
+            if (!axis.name.empty()) {
+              ctx.axes.push_back(std::move(axis));
+            }
           }
         }
         input.contexts[ctx_name] = std::move(ctx);
@@ -248,19 +274,24 @@ std::unique_ptr<Project> Project::Load(
     }
 
     // Legacy: flat actions/axes at input root -> migrate into "keyboard" context
-    if (!ij.contains("contexts") && (ij.contains("actions") || ij.contains("axes"))) {
+    if (!ij.contains("contexts") &&
+        (ij.contains("actions") || ij.contains("axes"))) {
       InputContext legacy;
       legacy.name = "keyboard";
       if (ij.contains("actions") && ij["actions"].is_array()) {
         for (auto& aj : ij["actions"]) {
           auto action = DeserializeAction(aj);
-          if (!action.name.empty()) legacy.actions.push_back(std::move(action));
+          if (!action.name.empty()) {
+            legacy.actions.push_back(std::move(action));
+          }
         }
       }
       if (ij.contains("axes") && ij["axes"].is_array()) {
         for (auto& axj : ij["axes"]) {
           auto axis = DeserializeAxis(axj);
-          if (!axis.name.empty()) legacy.axes.push_back(std::move(axis));
+          if (!axis.name.empty()) {
+            legacy.axes.push_back(std::move(axis));
+          }
         }
       }
       input.contexts["keyboard"] = std::move(legacy);
@@ -271,8 +302,10 @@ std::unique_ptr<Project> Project::Load(
   if (j.contains("editor_camera")) {
     auto& ecj = j["editor_camera"];
     auto& ec = project->settings_.editor_camera;
-    if (ecj.contains("position") && ecj["position"].is_array() && ecj["position"].size() >= 3) {
-      ec.position = {ecj["position"][0], ecj["position"][1], ecj["position"][2]};
+    if (ecj.contains("position") && ecj["position"].is_array() &&
+        ecj["position"].size() >= 3) {
+      ec.position = {ecj["position"][0], ecj["position"][1],
+                     ecj["position"][2]};
     }
     ec.yaw = ecj.value("yaw", 180.0f);
     ec.pitch = ecj.value("pitch", -15.0f);

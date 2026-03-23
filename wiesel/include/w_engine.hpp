@@ -31,15 +31,15 @@ class DiscordRPC;
 #endif
 
 struct EngineProperties {
-    bool editor_enabled = false;
-    std::filesystem::path engine_assets_path;
-    std::filesystem::path editor_assets_path;
-    std::filesystem::path app_assets_path;
-    std::filesystem::path project_path;
-    std::filesystem::path user_data_path;
-    bool dev_mode = false;  // Affects hot reloading, logging, etc.
+  bool editor_enabled = false;
+  std::filesystem::path engine_assets_path;
+  std::filesystem::path editor_assets_path;
+  std::filesystem::path app_assets_path;
+  std::filesystem::path project_path;
+  std::filesystem::path user_data_path;
+  bool dev_mode = false;  // Affects hot reloading, logging, etc.
 
-    static EngineProperties Parse(int argc, char** argv);
+  static EngineProperties Parse(int argc, char** argv);
 };
 
 class Engine {
@@ -53,17 +53,44 @@ class Engine {
   static void CleanupWindow();
   static void CleanupEngine();
 
-  WIESEL_GETTER_FN static std::shared_ptr<Renderer> renderer() { return renderer_; }
-  WIESEL_GETTER_FN static std::shared_ptr<AppWindow> window() { return window_; }
-  WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> vfs() { return vfs_; }
+  WIESEL_GETTER_FN static std::shared_ptr<Renderer> renderer() {
+    return renderer_;
+  }
+
+  WIESEL_GETTER_FN static std::shared_ptr<AppWindow> window() {
+    return window_;
+  }
+
+  WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> vfs() {
+    return vfs_;
+  }
+
   WIESEL_GETTER_FN static DeveloperConsole& console() { return console_; }
-  WIESEL_GETTER_FN static AssetManager& asset_manager() { return *asset_manager_; }
-  WIESEL_GETTER_FN static ScriptManager& script_manager() { return *script_manager_; }
-  WIESEL_GETTER_FN static NativeBehaviorRegistry& behavior_registry() { return *behavior_registry_; }
+
+  WIESEL_GETTER_FN static AssetManager& asset_manager() {
+    return *asset_manager_;
+  }
+
+  WIESEL_GETTER_FN static ScriptManager& script_manager() {
+    return *script_manager_;
+  }
+
+  WIESEL_GETTER_FN static NativeBehaviorRegistry& behavior_registry() {
+    return *behavior_registry_;
+  }
+
   WIESEL_GETTER_FN static ThreadPool& thread_pool() { return *thread_pool_; }
+
   WIESEL_GETTER_FN static AudioManager& audio() { return *audio_manager_; }
-  WIESEL_GETTER_FN static SceneManager& scene_manager() { return *scene_manager_; }
-  WIESEL_GETTER_FN static std::shared_ptr<Project> project() { return project_; }
+
+  WIESEL_GETTER_FN static SceneManager& scene_manager() {
+    return *scene_manager_;
+  }
+
+  WIESEL_GETTER_FN static std::shared_ptr<Project> project() {
+    return project_;
+  }
+
   static void SetProject(std::shared_ptr<Project> project);
 #ifdef WIESEL_DISCORD_RPC
   WIESEL_GETTER_FN static DiscordRPC& discord_rpc() { return *discord_rpc_; }
@@ -78,22 +105,28 @@ class Engine {
   static bool LoadTextureAsset(AssetHandle handle);
   static bool LoadModel(AssetHandle handle);
   static void LoadModelAsync(AssetHandle handle);
+
  private:
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
-  static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh, aiMaterial* mat,
-                         aiTextureType type, const aiScene& scene);
-  static std::shared_ptr<Texture> LoadEmbeddedTexture(
-      Model& model, int tex_index, TextureType tex_type, const aiScene& scene);
+  static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
+                          aiMaterial* mat, aiTextureType type,
+                          const aiScene& scene);
+  static std::shared_ptr<Texture> LoadEmbeddedTexture(Model& model,
+                                                      int tex_index,
+                                                      TextureType tex_type,
+                                                      const aiScene& scene);
   static std::shared_ptr<Texture> LoadExternalTexture(
       Model& model, const std::string& texture_path, TextureType tex_type);
   static void PreDecodeTextures(Model& model, const aiScene& scene);
-  static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex, TextureType type);
-  static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width, int height);
+  static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex,
+                                                            TextureType type);
+  static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width,
+                                          int height);
   static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
-                                     const aiScene& aiScene);
+                                           const aiScene& aiScene);
   static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
-                         std::vector<std::shared_ptr<Mesh>>& meshes,
-                         int32_t parent_node_index);
+                          std::vector<std::shared_ptr<Mesh>>& meshes,
+                          int32_t parent_node_index);
   static void ExtractAnimations(Model& model, const aiScene& scene);
 
   static void InitializeVfs();

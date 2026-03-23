@@ -11,28 +11,21 @@
 
 #pragma once
 
-#include <glm/glm.hpp>
 #include <cstdint>
+#include <glm/glm.hpp>
 
 namespace Wiesel {
 
 // --- Texture asset properties ---
 
-enum class TextureFilterMode : uint8_t {
-  Nearest = 0,
-  Linear = 1
-};
+enum class TextureFilterMode : uint8_t { Nearest = 0, Linear = 1 };
 
-enum class TextureWrapMode : uint8_t {
-  Repeat = 0,
-  Clamp = 1,
-  Mirror = 2
-};
+enum class TextureWrapMode : uint8_t { Repeat = 0, Clamp = 1, Mirror = 2 };
 
 enum class TextureAssetType : uint8_t {
-  Default = 0,   // sRGB, mipmaps - general purpose 3D textures
+  Default = 0,    // sRGB, mipmaps - general purpose 3D textures
   NormalMap = 1,  // linear (UNORM), mipmaps - normal/height/roughness/metallic
-  Sprite = 2,    // linear (UNORM), no mipmaps - UI/canvas textures, exact colors
+  Sprite = 2,  // linear (UNORM), no mipmaps - UI/canvas textures, exact colors
 };
 
 struct TextureAssetProperties {
@@ -45,10 +38,7 @@ struct TextureAssetProperties {
 
 // --- Font asset properties ---
 
-enum class FontAAMode : uint8_t {
-  None = 0,
-  Grayscale = 1
-};
+enum class FontAAMode : uint8_t { None = 0, Grayscale = 1 };
 
 struct FontAssetProperties {
   FontAAMode aa_mode = FontAAMode::Grayscale;

@@ -12,8 +12,8 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include <miniaudio.h>
 
-#include "audio/w_audio.hpp"
 #include "asset/w_asset_manager.hpp"
+#include "audio/w_audio.hpp"
 #include "util/w_logger.hpp"
 #include "util/w_vfs.hpp"
 #include "w_engine.hpp"
@@ -27,18 +27,26 @@ struct VfsAudioFile {
 };
 
 static ma_result ma_vfs_wiesel_open(ma_vfs* pVFS, const char* pFilePath,
-                                     ma_uint32 openMode, ma_vfs_file* pFile) {
+                                    ma_uint32 openMode, ma_vfs_file* pFile) {
   (void)pVFS;
-  if (openMode & MA_OPEN_MODE_WRITE) return MA_NOT_IMPLEMENTED;
+  if (openMode & MA_OPEN_MODE_WRITE) {
+    return MA_NOT_IMPLEMENTED;
+  }
 
   auto vfs = Engine::vfs();
-  if (!vfs) return MA_ERROR;
+  if (!vfs) {
+    return MA_ERROR;
+  }
 
   std::string path = pFilePath;
-  if (!vfs->FileExists(path)) return MA_DOES_NOT_EXIST;
+  if (!vfs->FileExists(path)) {
+    return MA_DOES_NOT_EXIST;
+  }
 
   auto vfs_file = vfs->Open(path);
-  if (vfs_file.Size() == 0) return MA_ERROR;
+  if (vfs_file.Size() == 0) {
+    return MA_ERROR;
+  }
 
   auto* handle = new VfsAudioFile{std::move(vfs_file)};
   *pFile = (ma_vfs_file)handle;
@@ -46,8 +54,11 @@ static ma_result ma_vfs_wiesel_open(ma_vfs* pVFS, const char* pFilePath,
 }
 
 static ma_result ma_vfs_wiesel_open_w(ma_vfs* pVFS, const wchar_t* pFilePath,
-                                       ma_uint32 openMode, ma_vfs_file* pFile) {
-  (void)pVFS; (void)pFilePath; (void)openMode; (void)pFile;
+                                      ma_uint32 openMode, ma_vfs_file* pFile) {
+  (void)pVFS;
+  (void)pFilePath;
+  (void)openMode;
+  (void)pFile;
   return MA_NOT_IMPLEMENTED;
 }
 
@@ -57,32 +68,40 @@ static ma_result ma_vfs_wiesel_close(ma_vfs* pVFS, ma_vfs_file file) {
   return MA_SUCCESS;
 }
 
-static ma_result ma_vfs_wiesel_read(ma_vfs* pVFS, ma_vfs_file file,
-                                     void* pDst, size_t sizeInBytes,
-                                     size_t* pBytesRead) {
+static ma_result ma_vfs_wiesel_read(ma_vfs* pVFS, ma_vfs_file file, void* pDst,
+                                    size_t sizeInBytes, size_t* pBytesRead) {
   (void)pVFS;
   auto* f = static_cast<VfsAudioFile*>(file);
   size_t remaining = f->file.Size() - f->file.Tell();
   size_t to_read = std::min(sizeInBytes, remaining);
   if (to_read == 0) {
-    if (pBytesRead) *pBytesRead = 0;
+    if (pBytesRead) {
+      *pBytesRead = 0;
+    }
     return MA_AT_END;
   }
   f->file.Read(pDst, to_read);
-  if (pBytesRead) *pBytesRead = to_read;
+  if (pBytesRead) {
+    *pBytesRead = to_read;
+  }
   return MA_SUCCESS;
 }
 
 static ma_result ma_vfs_wiesel_write(ma_vfs* pVFS, ma_vfs_file file,
-                                      const void* pSrc, size_t sizeInBytes,
-                                      size_t* pBytesWritten) {
-  (void)pVFS; (void)file; (void)pSrc; (void)sizeInBytes;
-  if (pBytesWritten) *pBytesWritten = 0;
+                                     const void* pSrc, size_t sizeInBytes,
+                                     size_t* pBytesWritten) {
+  (void)pVFS;
+  (void)file;
+  (void)pSrc;
+  (void)sizeInBytes;
+  if (pBytesWritten) {
+    *pBytesWritten = 0;
+  }
   return MA_NOT_IMPLEMENTED;
 }
 
 static ma_result ma_vfs_wiesel_seek(ma_vfs* pVFS, ma_vfs_file file,
-                                     ma_int64 offset, ma_seek_origin origin) {
+                                    ma_int64 offset, ma_seek_origin origin) {
   (void)pVFS;
   auto* f = static_cast<VfsAudioFile*>(file);
   switch (origin) {
@@ -100,7 +119,7 @@ static ma_result ma_vfs_wiesel_seek(ma_vfs* pVFS, ma_vfs_file file,
 }
 
 static ma_result ma_vfs_wiesel_tell(ma_vfs* pVFS, ma_vfs_file file,
-                                     ma_int64* pCursor) {
+                                    ma_int64* pCursor) {
   (void)pVFS;
   auto* f = static_cast<VfsAudioFile*>(file);
   *pCursor = static_cast<ma_int64>(f->file.Tell());
@@ -108,7 +127,7 @@ static ma_result ma_vfs_wiesel_tell(ma_vfs* pVFS, ma_vfs_file file,
 }
 
 static ma_result ma_vfs_wiesel_info(ma_vfs* pVFS, ma_vfs_file file,
-                                     ma_file_info* pInfo) {
+                                    ma_file_info* pInfo) {
   (void)pVFS;
   auto* f = static_cast<VfsAudioFile*>(file);
   pInfo->sizeInBytes = f->file.Size();
@@ -119,17 +138,16 @@ struct WieselVfs {
   ma_vfs_callbacks cb;
 };
 
-static WieselVfs g_wiesel_vfs = {
-    {
-        ma_vfs_wiesel_open,
-        ma_vfs_wiesel_open_w,
-        ma_vfs_wiesel_close,
-        ma_vfs_wiesel_read,
-        ma_vfs_wiesel_write,
-        ma_vfs_wiesel_seek,
-        ma_vfs_wiesel_tell,
-        ma_vfs_wiesel_info,
-    }};
+static WieselVfs g_wiesel_vfs = {{
+    ma_vfs_wiesel_open,
+    ma_vfs_wiesel_open_w,
+    ma_vfs_wiesel_close,
+    ma_vfs_wiesel_read,
+    ma_vfs_wiesel_write,
+    ma_vfs_wiesel_seek,
+    ma_vfs_wiesel_tell,
+    ma_vfs_wiesel_info,
+}};
 
 // -- AudioManager implementation --
 
@@ -160,15 +178,20 @@ struct AudioManager::Impl {
   float GetBusVolume(AudioBus bus) const {
     float base = master_volume;
     switch (bus) {
-      case AudioBus::SFX: return base * sfx_volume;
-      case AudioBus::Music: return base * music_volume;
-      default: return base;
+      case AudioBus::SFX:
+        return base * sfx_volume;
+      case AudioBus::Music:
+        return base * music_volume;
+      default:
+        return base;
     }
   }
 
   ActiveSound* FindSound(uint64_t id) {
     for (auto& s : active_sounds) {
-      if (s.id == id) return &s;
+      if (s.id == id) {
+        return &s;
+      }
     }
     return nullptr;
   }
@@ -196,7 +219,9 @@ bool AudioManager::Init() {
 }
 
 void AudioManager::Shutdown() {
-  if (!impl_ || !impl_->initialized) return;
+  if (!impl_ || !impl_->initialized) {
+    return;
+  }
 
   StopAll();
   if (impl_->delay_node) {
@@ -210,38 +235,52 @@ void AudioManager::Shutdown() {
 }
 
 std::string AudioManager::ResolveClipPath(const AssetHandle& handle) {
-  if (!handle.IsValid()) return "";
+  if (!handle.IsValid()) {
+    return "";
+  }
   const auto* meta = Engine::asset_manager().GetMetadata(handle);
-  if (!meta || meta->type != AssetType::Audio) return "";
+  if (!meta || meta->type != AssetType::Audio) {
+    return "";
+  }
   return meta->virtual_source_path;
 }
 
 // --- Asset handle overloads ---
 
-SoundHandle AudioManager::Play(const AssetHandle& clip, const SoundParams& params) {
+SoundHandle AudioManager::Play(const AssetHandle& clip,
+                               const SoundParams& params) {
   std::string path = ResolveClipPath(clip);
-  if (path.empty()) return {};
+  if (path.empty()) {
+    return {};
+  }
   return Play(path, params);
 }
 
-void AudioManager::PlaySound(const AssetHandle& clip, AudioBus bus, float volume) {
+void AudioManager::PlaySound(const AssetHandle& clip, AudioBus bus,
+                             float volume) {
   std::string path = ResolveClipPath(clip);
-  if (path.empty()) return;
+  if (path.empty()) {
+    return;
+  }
   PlaySound(path, bus, volume);
 }
 
-void AudioManager::PlaySound(const std::string& path, AudioBus bus, float volume) {
+void AudioManager::PlaySound(const std::string& path, AudioBus bus,
+                             float volume) {
   SoundParams params;
   params.bus = bus;
   params.volume = volume;
   Play(path, params);
 }
 
-void AudioManager::PlaySoundAt(const AssetHandle& clip, const glm::vec3& position,
-                                AudioBus bus, float volume,
-                                float min_distance, float max_distance) {
+void AudioManager::PlaySoundAt(const AssetHandle& clip,
+                               const glm::vec3& position, AudioBus bus,
+                               float volume, float min_distance,
+                               float max_distance) {
   std::string path = ResolveClipPath(clip);
-  if (path.empty()) return;
+  if (path.empty()) {
+    return;
+  }
   SoundParams params;
   params.bus = bus;
   params.volume = volume;
@@ -254,17 +293,22 @@ void AudioManager::PlaySoundAt(const AssetHandle& clip, const glm::vec3& positio
 
 void AudioManager::PlayMusic(const AssetHandle& clip, float volume) {
   std::string path = ResolveClipPath(clip);
-  if (path.empty()) return;
+  if (path.empty()) {
+    return;
+  }
   PlayMusic(path, volume);
 }
 
-SoundHandle AudioManager::Play(const std::string& path, const SoundParams& params) {
-  if (!impl_->initialized) return {};
+SoundHandle AudioManager::Play(const std::string& path,
+                               const SoundParams& params) {
+  if (!impl_->initialized) {
+    return {};
+  }
 
   auto* sound = new ma_sound;
   ma_uint32 flags = MA_SOUND_FLAG_DECODE;  // decode upfront for low latency
-  ma_result result = ma_sound_init_from_file(
-      &impl_->engine, path.c_str(), flags, nullptr, nullptr, sound);
+  ma_result result = ma_sound_init_from_file(&impl_->engine, path.c_str(),
+                                             flags, nullptr, nullptr, sound);
   if (result != MA_SUCCESS) {
     LOG_ERROR("Failed to load sound '{}': {}", path, (int)result);
     delete sound;
@@ -282,7 +326,8 @@ SoundHandle AudioManager::Play(const std::string& path, const SoundParams& param
   // Spatialization
   if (params.spatial_blend > 0.0f) {
     ma_sound_set_spatialization_enabled(sound, MA_TRUE);
-    ma_sound_set_position(sound, params.position.x, params.position.y, params.position.z);
+    ma_sound_set_position(sound, params.position.x, params.position.y,
+                          params.position.z);
     ma_sound_set_min_distance(sound, params.min_distance);
     ma_sound_set_max_distance(sound, params.max_distance);
     // Blend: for partial spatial_blend we scale the min gain
@@ -301,9 +346,12 @@ SoundHandle AudioManager::Play(const std::string& path, const SoundParams& param
 }
 
 void AudioManager::Stop(SoundHandle handle) {
-  if (!handle.IsValid()) return;
+  if (!handle.IsValid()) {
+    return;
+  }
 
-  for (auto it = impl_->active_sounds.begin(); it != impl_->active_sounds.end(); ++it) {
+  for (auto it = impl_->active_sounds.begin(); it != impl_->active_sounds.end();
+       ++it) {
     if (it->id == handle.Id()) {
       ma_sound_stop(it->sound);
       ma_sound_uninit(it->sound);
@@ -324,8 +372,11 @@ void AudioManager::StopAll() {
   impl_->current_music = {};
 }
 
-void AudioManager::SetSoundPosition(SoundHandle handle, const glm::vec3& position) {
-  if (!handle.IsValid()) return;
+void AudioManager::SetSoundPosition(SoundHandle handle,
+                                    const glm::vec3& position) {
+  if (!handle.IsValid()) {
+    return;
+  }
   auto* s = impl_->FindSound(handle.Id());
   if (s) {
     ma_sound_set_position(s->sound, position.x, position.y, position.z);
@@ -333,7 +384,9 @@ void AudioManager::SetSoundPosition(SoundHandle handle, const glm::vec3& positio
 }
 
 void AudioManager::SetSoundVolume(SoundHandle handle, float volume) {
-  if (!handle.IsValid()) return;
+  if (!handle.IsValid()) {
+    return;
+  }
   auto* s = impl_->FindSound(handle.Id());
   if (s) {
     s->base_volume = volume;
@@ -372,7 +425,8 @@ void AudioManager::SetSFXVolume(float volume) {
   impl_->sfx_volume = std::clamp(volume, 0.0f, 1.0f);
   for (auto& s : impl_->active_sounds) {
     if (s.bus == AudioBus::SFX) {
-      ma_sound_set_volume(s.sound, s.base_volume * impl_->GetBusVolume(AudioBus::SFX));
+      ma_sound_set_volume(s.sound,
+                          s.base_volume * impl_->GetBusVolume(AudioBus::SFX));
     }
   }
 }
@@ -381,28 +435,46 @@ void AudioManager::SetMusicVolume(float volume) {
   impl_->music_volume = std::clamp(volume, 0.0f, 1.0f);
   for (auto& s : impl_->active_sounds) {
     if (s.bus == AudioBus::Music) {
-      ma_sound_set_volume(s.sound, s.base_volume * impl_->GetBusVolume(AudioBus::Music));
+      ma_sound_set_volume(s.sound,
+                          s.base_volume * impl_->GetBusVolume(AudioBus::Music));
     }
   }
 }
 
-float AudioManager::GetMasterVolume() const { return impl_->master_volume; }
-float AudioManager::GetSFXVolume() const { return impl_->sfx_volume; }
-float AudioManager::GetMusicVolume() const { return impl_->music_volume; }
-
-void AudioManager::SetListenerPosition(const glm::vec3& position) {
-  if (!impl_->initialized) return;
-  ma_engine_listener_set_position(&impl_->engine, 0, position.x, position.y, position.z);
+float AudioManager::GetMasterVolume() const {
+  return impl_->master_volume;
 }
 
-void AudioManager::SetListenerDirection(const glm::vec3& forward, const glm::vec3& up) {
-  if (!impl_->initialized) return;
-  ma_engine_listener_set_direction(&impl_->engine, 0, forward.x, forward.y, forward.z);
+float AudioManager::GetSFXVolume() const {
+  return impl_->sfx_volume;
+}
+
+float AudioManager::GetMusicVolume() const {
+  return impl_->music_volume;
+}
+
+void AudioManager::SetListenerPosition(const glm::vec3& position) {
+  if (!impl_->initialized) {
+    return;
+  }
+  ma_engine_listener_set_position(&impl_->engine, 0, position.x, position.y,
+                                  position.z);
+}
+
+void AudioManager::SetListenerDirection(const glm::vec3& forward,
+                                        const glm::vec3& up) {
+  if (!impl_->initialized) {
+    return;
+  }
+  ma_engine_listener_set_direction(&impl_->engine, 0, forward.x, forward.y,
+                                   forward.z);
   ma_engine_listener_set_world_up(&impl_->engine, 0, up.x, up.y, up.z);
 }
 
 void AudioManager::SetReverb(float delay_ms, float decay, float wet) {
-  if (!impl_->initialized) return;
+  if (!impl_->initialized) {
+    return;
+  }
 
   ma_engine* engine = &impl_->engine;
   ma_uint32 channels = ma_engine_get_channels(engine);
@@ -412,10 +484,10 @@ void AudioManager::SetReverb(float delay_ms, float decay, float wet) {
 
   if (!impl_->delay_node) {
     impl_->delay_node = new ma_delay_node;
-    ma_delay_node_config config = ma_delay_node_config_init(
-        channels, sample_rate, delay_frames, decay);
-    ma_result result = ma_delay_node_init(
-        ma_engine_get_node_graph(engine), &config, nullptr, impl_->delay_node);
+    ma_delay_node_config config =
+        ma_delay_node_config_init(channels, sample_rate, delay_frames, decay);
+    ma_result result = ma_delay_node_init(ma_engine_get_node_graph(engine),
+                                          &config, nullptr, impl_->delay_node);
     if (result != MA_SUCCESS) {
       LOG_ERROR("Failed to create delay node: {}", (int)result);
       delete impl_->delay_node;
@@ -436,7 +508,9 @@ void AudioManager::SetReverb(float delay_ms, float decay, float wet) {
 }
 
 void AudioManager::ClearReverb() {
-  if (!impl_->delay_node) return;
+  if (!impl_->delay_node) {
+    return;
+  }
 
   ma_delay_node_set_wet(impl_->delay_node, 0.0f);
   ma_delay_node_set_dry(impl_->delay_node, 1.0f);
@@ -444,9 +518,12 @@ void AudioManager::ClearReverb() {
 }
 
 void AudioManager::Update() {
-  if (!impl_->initialized) return;
+  if (!impl_->initialized) {
+    return;
+  }
 
-  for (auto it = impl_->active_sounds.begin(); it != impl_->active_sounds.end();) {
+  for (auto it = impl_->active_sounds.begin();
+       it != impl_->active_sounds.end();) {
     if (!ma_sound_is_looping(it->sound) && ma_sound_at_end(it->sound)) {
       ma_sound_uninit(it->sound);
       delete it->sound;

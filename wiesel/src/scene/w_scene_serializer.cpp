@@ -11,7 +11,8 @@
 
 namespace Wiesel {
 
-SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene) : scene_(std::move(scene)) {}
+SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene)
+    : scene_(std::move(scene)) {}
 
 // --- Entity serialization ---
 
@@ -55,7 +56,8 @@ void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
   }
 
   // All components via registry
-  ComponentSerializerRegistry::DeserializeAll(entity, entity_json, scene_.get());
+  ComponentSerializerRegistry::DeserializeAll(entity, entity_json,
+                                              scene_.get());
 }
 
 // --- Full scene serialization ---
@@ -211,7 +213,7 @@ bool SceneSerializer::Deserialize(const std::filesystem::path& path) {
   }
 
   std::string json_str((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
+                       std::istreambuf_iterator<char>());
 
   LOG_INFO("Loading scene from: {}", path.string());
   return DeserializeFromString(json_str);

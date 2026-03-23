@@ -24,6 +24,7 @@ class DiscordRPC {
 
   void Initialize(const std::string& application_id);
   void Shutdown();
+
   bool IsInitialized() const { return initialized_; }
 
   // Set full presence - caller controls all fields

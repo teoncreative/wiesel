@@ -5,9 +5,9 @@
 #ifndef WIESEL_SKYBOX_HPP
 #define WIESEL_SKYBOX_HPP
 
+#include "rendering/w_texture.hpp"
 #include "util/w_utils.hpp"
 #include "w_pch.hpp"
-#include "rendering/w_texture.hpp"
 
 namespace Wiesel {
 
@@ -20,6 +20,6 @@ class Skybox {
   std::shared_ptr<DescriptorSet> descriptors_;
 };
 
-}
+}  // namespace Wiesel
 
 #endif  //WIESEL_SKYBOX_HPP

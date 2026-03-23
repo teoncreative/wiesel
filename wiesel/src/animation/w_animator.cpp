@@ -7,15 +7,18 @@ namespace Wiesel {
 // Binary search: find the index of the last key with time <= target
 template <typename T>
 static int FindKeyIndex(const std::vector<AnimationKey<T>>& keys, float time) {
-  if (keys.size() <= 1) return 0;
+  if (keys.size() <= 1) {
+    return 0;
+  }
   int lo = 0;
   int hi = static_cast<int>(keys.size()) - 1;
   while (lo < hi - 1) {
     int mid = (lo + hi) / 2;
-    if (keys[mid].time <= time)
+    if (keys[mid].time <= time) {
       lo = mid;
-    else
+    } else {
       hi = mid;
+    }
   }
   return lo;
 }
@@ -23,12 +26,18 @@ static int FindKeyIndex(const std::vector<AnimationKey<T>>& keys, float time) {
 glm::vec3 Animator::InterpolatePosition(const AnimationChannel& channel,
                                         float time) {
   auto& keys = channel.position_keys;
-  if (keys.empty()) return glm::vec3(0.0f);
-  if (keys.size() == 1) return keys[0].value;
+  if (keys.empty()) {
+    return glm::vec3(0.0f);
+  }
+  if (keys.size() == 1) {
+    return keys[0].value;
+  }
 
   int i = FindKeyIndex(keys, time);
   int next = i + 1;
-  if (next >= static_cast<int>(keys.size())) return keys[i].value;
+  if (next >= static_cast<int>(keys.size())) {
+    return keys[i].value;
+  }
 
   float dt = keys[next].time - keys[i].time;
   float t = (dt > 0.0f) ? (time - keys[i].time) / dt : 0.0f;
@@ -39,12 +48,18 @@ glm::vec3 Animator::InterpolatePosition(const AnimationChannel& channel,
 glm::quat Animator::InterpolateRotation(const AnimationChannel& channel,
                                         float time) {
   auto& keys = channel.rotation_keys;
-  if (keys.empty()) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-  if (keys.size() == 1) return keys[0].value;
+  if (keys.empty()) {
+    return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+  }
+  if (keys.size() == 1) {
+    return keys[0].value;
+  }
 
   int i = FindKeyIndex(keys, time);
   int next = i + 1;
-  if (next >= static_cast<int>(keys.size())) return keys[i].value;
+  if (next >= static_cast<int>(keys.size())) {
+    return keys[i].value;
+  }
 
   float dt = keys[next].time - keys[i].time;
   float t = (dt > 0.0f) ? (time - keys[i].time) / dt : 0.0f;
@@ -55,12 +70,18 @@ glm::quat Animator::InterpolateRotation(const AnimationChannel& channel,
 glm::vec3 Animator::InterpolateScale(const AnimationChannel& channel,
                                      float time) {
   auto& keys = channel.scale_keys;
-  if (keys.empty()) return glm::vec3(1.0f);
-  if (keys.size() == 1) return keys[0].value;
+  if (keys.empty()) {
+    return glm::vec3(1.0f);
+  }
+  if (keys.size() == 1) {
+    return keys[0].value;
+  }
 
   int i = FindKeyIndex(keys, time);
   int next = i + 1;
-  if (next >= static_cast<int>(keys.size())) return keys[i].value;
+  if (next >= static_cast<int>(keys.size())) {
+    return keys[i].value;
+  }
 
   float dt = keys[next].time - keys[i].time;
   float t = (dt > 0.0f) ? (time - keys[i].time) / dt : 0.0f;
@@ -124,8 +145,7 @@ void Animator::Evaluate(const Model& model, const AnimationClip& clip,
     auto node_it = hierarchy.node_name_to_index.find(bone.name);
     if (node_it != hierarchy.node_name_to_index.end()) {
       int32_t node_idx = node_it->second;
-      bone_matrices[b] =
-          node_transforms[node_idx] * bone.inverse_bind_matrix;
+      bone_matrices[b] = node_transforms[node_idx] * bone.inverse_bind_matrix;
     }
   }
 }

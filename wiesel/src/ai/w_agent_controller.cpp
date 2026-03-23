@@ -13,7 +13,9 @@ void AgentController::Evaluate(float dt) {
   }
 
   // Cooldown prevents flicker between goals
-  if (switch_timer > 0.0f) return;
+  if (switch_timer > 0.0f) {
+    return;
+  }
 
   // Find highest-priority activatable goal
   AgentGoal* best = nullptr;

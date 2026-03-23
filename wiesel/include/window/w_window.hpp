@@ -62,7 +62,12 @@ class AppWindow {
   virtual void SetCursorMode(CursorMode mouse_mode);
   WIESEL_GETTER_FN virtual CursorMode GetCursorMode();
   virtual void WarpCursor(double x, double y);
-  virtual void GetCursorDelta(double& dx, double& dy) { dx = 0; dy = 0; }
+
+  virtual void GetCursorDelta(double& dx, double& dy) {
+    dx = 0;
+    dy = 0;
+  }
+
   virtual void ResetCursorDelta() {}
 
   virtual void CreateWindowSurface(VkInstance instance,

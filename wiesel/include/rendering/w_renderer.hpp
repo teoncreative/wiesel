@@ -15,8 +15,8 @@
 
 #include <stb_image.h>
 
-#include "rendering/w_buffer.hpp"
 #include "rendering/w_deletion_queue.hpp"
+#include "rendering/w_buffer.hpp"
 #include "rendering/w_camera.hpp"
 #include "rendering/w_command.hpp"
 #include "rendering/w_descriptor.hpp"
@@ -35,7 +35,6 @@
 #include "w_skybox.hpp"
 #include "window/w_window.hpp"
 
-
 namespace Wiesel {
 
 class AccelerationStructureManager;
@@ -44,35 +43,27 @@ struct ShadowPipelinePushConstant {
   int cascade_index;
 };
 
-template<typename T>
+template <typename T>
 class Setting {
-public:
+ public:
   Setting(T v) : value(v), change_hook(nullptr) {}
 
-  void SetHook(bool* ptr) {
-    change_hook = ptr;
-  }
+  void SetHook(bool* ptr) { change_hook = ptr; }
 
-  T Get() {
-    return value;
-  }
+  T Get() { return value; }
 
   Setting& operator=(const T& new_val) {
     SetValue(new_val);
     return *this;
   }
 
-  operator T() const {
-    return value;
-  }
+  operator T() const { return value; }
 
   struct Proxy {
     Setting* owner;
     T old_value;
 
-    operator T*() {
-      return &owner->value;
-    }
+    operator T*() { return &owner->value; }
 
     ~Proxy() {
       if (owner->change_hook && old_value != owner->value) {
@@ -81,11 +72,9 @@ public:
     }
   };
 
-  Proxy operator&() {
-    return Proxy{this, value};
-  }
+  Proxy operator&() { return Proxy{this, value}; }
 
-private:
+ private:
   void SetValue(const T& new_val) {
     if (value == new_val) {
       return;
@@ -93,8 +82,9 @@ private:
 
     value = new_val;
 
-    if (change_hook)
+    if (change_hook) {
       *change_hook = true;
+    }
   }
 
   T value;
@@ -129,7 +119,6 @@ struct RendererOptions {
   Setting<float> bloom_intensity = 0.6f;
   Setting<float> motion_blur_strength = 1.0f;
   Setting<int> motion_blur_samples = 8;
-
 };
 
 struct RendererProperties {};
@@ -160,7 +149,7 @@ class Renderer {
 
   void Initialize(const RendererProperties&& props);
 
-  template<typename T>
+  template <typename T>
   std::shared_ptr<MemoryBuffer> CreateVertexBuffer(std::vector<T> vertices);
 
   std::shared_ptr<IndexBuffer> CreateIndexBuffer(std::vector<Index> indices);
@@ -171,41 +160,48 @@ class Renderer {
   void SetupCameraComponent(CameraComponent& component);
 
   std::shared_ptr<Texture> CreateBlankTexture();
-  std::shared_ptr<Texture> CreateBlankTexture(const TextureProps& texture_props,
-                                  const SamplerProps& sampler_props);
+  std::shared_ptr<Texture> CreateBlankTexture(
+      const TextureProps& texture_props, const SamplerProps& sampler_props);
   std::shared_ptr<Texture> CreateTexture(const std::string& path,
-                             const TextureProps& texture_props,
-                             const SamplerProps& sampler_props);
-  std::shared_ptr<Texture> CreateTexture(void* buffer,
-                             size_t size_per_pixel,
-                             const TextureProps& texture_props,
-                             const SamplerProps& sampler_props);
-  std::shared_ptr<Texture> CreateCubemapTexture(const std::array<std::string, 6>& paths,
-                                    const TextureProps& texture_props,
-                                    const SamplerProps& sampler_props);
-  std::shared_ptr<Texture> CreateCubemapTextureFromSingle(const std::string& virtual_path,
-                                    const TextureProps& texture_props,
-                                    const SamplerProps& sampler_props);
-  VkSampler CreateTextureSampler(uint32_t mip_levels, const SamplerProps& props);
+                                         const TextureProps& texture_props,
+                                         const SamplerProps& sampler_props);
+  std::shared_ptr<Texture> CreateTexture(void* buffer, size_t size_per_pixel,
+                                         const TextureProps& texture_props,
+                                         const SamplerProps& sampler_props);
+  std::shared_ptr<Texture> CreateCubemapTexture(
+      const std::array<std::string, 6>& paths,
+      const TextureProps& texture_props, const SamplerProps& sampler_props);
+  std::shared_ptr<Texture> CreateCubemapTextureFromSingle(
+      const std::string& virtual_path, const TextureProps& texture_props,
+      const SamplerProps& sampler_props);
+  VkSampler CreateTextureSampler(uint32_t mip_levels,
+                                 const SamplerProps& props);
 
   std::shared_ptr<AttachmentTexture> CreateAttachmentTexture(
       const AttachmentTextureProps& props);
 
-  void SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> texture, void* buffer,
-                                  size_t size_per_pixel);
+  void SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> texture,
+                                  void* buffer, size_t size_per_pixel);
 
-  std::shared_ptr<DescriptorSet> CreateMeshDescriptors(std::shared_ptr<UniformBuffer> uniform_buffer,
-                                            std::shared_ptr<Material> material);
+  std::shared_ptr<DescriptorSet> CreateMeshDescriptors(
+      std::shared_ptr<UniformBuffer> uniform_buffer,
+      std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateShadowMeshDescriptors(
-      std::shared_ptr<UniformBuffer> uniform_buffer, std::shared_ptr<Material> material);
+      std::shared_ptr<UniformBuffer> uniform_buffer,
+      std::shared_ptr<Material> material);
 
-  std::shared_ptr<DescriptorSet> CreateGlobalDescriptors(CameraComponent& camera);
-  std::shared_ptr<DescriptorSet> CreateShadowGlobalDescriptors(CameraComponent& camera);
-  std::shared_ptr<DescriptorSet> CreateBoneDescriptors(std::shared_ptr<UniformBuffer> bone_ubo);
+  std::shared_ptr<DescriptorSet> CreateGlobalDescriptors(
+      CameraComponent& camera);
+  std::shared_ptr<DescriptorSet> CreateShadowGlobalDescriptors(
+      CameraComponent& camera);
+  std::shared_ptr<DescriptorSet> CreateBoneDescriptors(
+      std::shared_ptr<UniformBuffer> bone_ubo);
 
-  std::shared_ptr<DescriptorSet> CreateDescriptors(std::shared_ptr<AttachmentTexture> texture);
-  std::shared_ptr<DescriptorSet> CreateSkyboxDescriptors(std::shared_ptr<Texture> texture);
+  std::shared_ptr<DescriptorSet> CreateDescriptors(
+      std::shared_ptr<AttachmentTexture> texture);
+  std::shared_ptr<DescriptorSet> CreateSkyboxDescriptors(
+      std::shared_ptr<Texture> texture);
 
   void DestroyDescriptorLayout(DescriptorSetLayout& layout);
 
@@ -218,17 +214,30 @@ class Renderer {
   WIESEL_GETTER_FN Colorf& GetClearColor();
 
   WIESEL_GETTER_FN RendererOptions& options() { return options_; }
+
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
-  WIESEL_GETTER_FN bool IsRecreatePipeline() const { return recreate_pipeline_; }
-  WIESEL_GETTER_FN bool NeedsRecreateResources() const { return recreate_resources_; }
+
+  WIESEL_GETTER_FN bool IsRecreatePipeline() const {
+    return recreate_pipeline_;
+  }
+
+  WIESEL_GETTER_FN bool NeedsRecreateResources() const {
+    return recreate_resources_;
+  }
+
   void ClearRecreateResources() { recreate_resources_ = false; }
 
   std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor() const;
   std::shared_ptr<AttachmentTexture> GetFinalOutputImage() const;
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
+
   WIESEL_GETTER_FN float GetAspectRatio() const { return aspect_ratio_; }
-  WIESEL_GETTER_FN const WindowSize& GetWindowSize() const { return window_size_; }
+
+  WIESEL_GETTER_FN const WindowSize& GetWindowSize() const {
+    return window_size_;
+  }
+
   WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return extent_; }
 
   WIESEL_GETTER_FN const uint32_t GetGraphicsQueueFamilyIndex() const {
@@ -247,116 +256,206 @@ class Renderer {
     return swap_chain_image_format_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<CameraData> GetCameraData()
-      const {
+  WIESEL_GETTER_FN const std::shared_ptr<CameraData> GetCameraData() const {
     return camera_;
   }
 
-  WIESEL_GETTER_FN const VkPhysicalDeviceProperties GetPhysicalDeviceProperties() const {
+  WIESEL_GETTER_FN const VkPhysicalDeviceProperties
+  GetPhysicalDeviceProperties() const {
     return physical_device_properties_;
   }
 
-  WIESEL_GETTER_FN const VkPhysicalDeviceFeatures GetPhysicalDeviceFeatures() const {
+  WIESEL_GETTER_FN const VkPhysicalDeviceFeatures
+  GetPhysicalDeviceFeatures() const {
     return physical_device_features_;
   }
 
   WIESEL_GETTER_FN bool IsRayTracingSupported() const { return rt_supported_; }
-  WIESEL_GETTER_FN const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& GetRTProperties() const {
+
+  WIESEL_GETTER_FN const VkPhysicalDeviceRayTracingPipelinePropertiesKHR&
+  GetRTProperties() const {
     return rt_pipeline_properties_;
   }
-  WIESEL_GETTER_FN const VkPhysicalDeviceAccelerationStructurePropertiesKHR& GetASProperties() const {
+
+  WIESEL_GETTER_FN const VkPhysicalDeviceAccelerationStructurePropertiesKHR&
+  GetASProperties() const {
     return rt_as_properties_;
   }
 
   // RT function pointer accessors
-  PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR() const { return pfn_vkCreateAccelerationStructureKHR_; }
-  PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR() const { return pfn_vkDestroyAccelerationStructureKHR_; }
-  PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR() const { return pfn_vkGetAccelerationStructureBuildSizesKHR_; }
-  PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR() const { return pfn_vkCmdBuildAccelerationStructuresKHR_; }
-  PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR() const { return pfn_vkGetAccelerationStructureDeviceAddressKHR_; }
-  PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR() const { return pfn_vkCreateRayTracingPipelinesKHR_; }
-  PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR() const { return pfn_vkGetRayTracingShaderGroupHandlesKHR_; }
-  PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR() const { return pfn_vkCmdTraceRaysKHR_; }
+  PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR()
+      const {
+    return pfn_vkCreateAccelerationStructureKHR_;
+  }
 
-  WIESEL_GETTER_FN std::shared_ptr<AccelerationStructureManager> GetASManager() const { return as_manager_; }
+  PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR()
+      const {
+    return pfn_vkDestroyAccelerationStructureKHR_;
+  }
+
+  PFN_vkGetAccelerationStructureBuildSizesKHR
+  vkGetAccelerationStructureBuildSizesKHR() const {
+    return pfn_vkGetAccelerationStructureBuildSizesKHR_;
+  }
+
+  PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR()
+      const {
+    return pfn_vkCmdBuildAccelerationStructuresKHR_;
+  }
+
+  PFN_vkGetAccelerationStructureDeviceAddressKHR
+  vkGetAccelerationStructureDeviceAddressKHR() const {
+    return pfn_vkGetAccelerationStructureDeviceAddressKHR_;
+  }
+
+  PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR() const {
+    return pfn_vkCreateRayTracingPipelinesKHR_;
+  }
+
+  PFN_vkGetRayTracingShaderGroupHandlesKHR
+  vkGetRayTracingShaderGroupHandlesKHR() const {
+    return pfn_vkGetRayTracingShaderGroupHandlesKHR_;
+  }
+
+  PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR() const {
+    return pfn_vkCmdTraceRaysKHR_;
+  }
+
+  WIESEL_GETTER_FN std::shared_ptr<AccelerationStructureManager> GetASManager()
+      const {
+    return as_manager_;
+  }
 
   WIESEL_GETTER_FN const std::shared_ptr<Pipeline> GetPresentPipeline() const {
     return present_pipeline_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<Sampler> GetDefaultLinearSampler() const {
+  WIESEL_GETTER_FN const std::shared_ptr<Sampler> GetDefaultLinearSampler()
+      const {
     return default_linear_sampler_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<Sampler> GetDefaultNearestSampler() const {
+  WIESEL_GETTER_FN const std::shared_ptr<Sampler> GetDefaultNearestSampler()
+      const {
     return default_nearest_sampler_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<MemoryBuffer> GetQuadIndexBuffer() const {
+  WIESEL_GETTER_FN const std::shared_ptr<MemoryBuffer> GetQuadIndexBuffer()
+      const {
     return quad_index_buffer_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<MemoryBuffer> GetQuadVertexBuffer() const {
+  WIESEL_GETTER_FN const std::shared_ptr<MemoryBuffer> GetQuadVertexBuffer()
+      const {
     return quad_vertex_buffer_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<DescriptorSetLayout> GetSpriteDrawDescriptorLayout() const {
+  WIESEL_GETTER_FN const std::shared_ptr<DescriptorSetLayout>
+  GetSpriteDrawDescriptorLayout() const {
     return sprite_draw_descriptor_layout_;
   }
 
   // Descriptor layout getters (used by RenderFeatures)
 
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGeometryMeshDescriptorLayout() const {
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetGeometryMeshDescriptorLayout() const {
     return geometry_mesh_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetShadowMeshDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetShadowMeshDescriptorLayout() const {
     return shadow_mesh_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGlobalDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetGlobalDescriptorLayout() const {
     return global_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGlobalShadowDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetGlobalShadowDescriptorLayout() const {
     return global_shadow_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSSAOGenDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetSSAOGenDescriptorLayout() const {
     return ssao_gen_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSSAOBlurDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetSSAOBlurDescriptorLayout() const {
     return ssao_blur_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSSAOOutputDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetSSAOOutputDescriptorLayout() const {
     return ssao_output_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetGeometryOutputDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetGeometryOutputDescriptorLayout() const {
     return geometry_output_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetSkyboxDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetSkyboxDescriptorLayout() const {
     return skybox_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetPresentDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetPresentDescriptorLayout() const {
     return present_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetPostprocess2InputDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetPostprocess2InputDescriptorLayout() const {
     return postprocess_2input_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetTAADescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetTAADescriptorLayout()
+      const {
     return taa_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetBoneDescriptorLayout() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
+  GetBoneDescriptorLayout() const {
     return bone_descriptor_layout_;
   }
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSet> GetIdentityBoneDescriptor() const {
+
+  WIESEL_GETTER_FN std::shared_ptr<DescriptorSet> GetIdentityBoneDescriptor()
+      const {
     return identity_bone_descriptor_;
   }
 
   // Shared resource getters (used by RenderFeatures)
 
-  WIESEL_GETTER_FN std::shared_ptr<AttachmentTexture> GetSSAONoise() const { return ssao_noise_; }
-  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetSSAOKernelUniformBuffer() const { return ssao_kernel_uniform_buffer_; }
-  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetCameraUniformBuffer() const { return camera_uniform_buffer_; }
-  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetLightsUniformBuffer() const { return lights_uniform_buffer_; }
-  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetShadowCameraUniformBuffer() const { return shadow_camera_uniform_buffer_; }
-  ShadowMapMatricesUniformData& GetShadowCameraUniformData() { return shadow_camera_uniform_data_; }
+  WIESEL_GETTER_FN std::shared_ptr<AttachmentTexture> GetSSAONoise() const {
+    return ssao_noise_;
+  }
+
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetSSAOKernelUniformBuffer()
+      const {
+    return ssao_kernel_uniform_buffer_;
+  }
+
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetCameraUniformBuffer()
+      const {
+    return camera_uniform_buffer_;
+  }
+
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetLightsUniformBuffer()
+      const {
+    return lights_uniform_buffer_;
+  }
+
+  WIESEL_GETTER_FN std::shared_ptr<UniformBuffer> GetShadowCameraUniformBuffer()
+      const {
+    return shadow_camera_uniform_buffer_;
+  }
+
+  ShadowMapMatricesUniformData& GetShadowCameraUniformData() {
+    return shadow_camera_uniform_data_;
+  }
 
   VkFormat FindDepthFormat();
 
@@ -365,7 +464,8 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadow_pass, entt::entity entity_handle = entt::null);
-  void DrawModelTransparent(ModelComponent& model, const TransformComponent& transform,
+  void DrawModelTransparent(ModelComponent& model,
+                            const TransformComponent& transform,
                             entt::entity entity_handle = entt::null);
   void DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                    std::shared_ptr<DescriptorSet> mesh_descriptors,
@@ -387,13 +487,17 @@ class Renderer {
                       std::shared_ptr<DescriptorSetLayout> layout,
                       float entity_id = 0);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
-  void DrawFullscreen(std::shared_ptr<Pipeline> pipeline, std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
-  void RequestEntityPick(uint32_t x, uint32_t y,
-                         std::shared_ptr<AttachmentTexture> entity_id_texture,
-                         std::shared_ptr<AttachmentTexture> fallback_entity_id_texture = nullptr);
+  void DrawFullscreen(
+      std::shared_ptr<Pipeline> pipeline,
+      std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
+  void RequestEntityPick(
+      uint32_t x, uint32_t y,
+      std::shared_ptr<AttachmentTexture> entity_id_texture,
+      std::shared_ptr<AttachmentTexture> fallback_entity_id_texture = nullptr);
   bool ExecuteEntityPick(entt::entity& out_entity);
 
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
+
   Pipeline* GetBoundPipeline() const { return bound_pipeline_; }
 
   const RenderStats& GetStats() const { return stats_; }
@@ -421,11 +525,11 @@ class Renderer {
                     VkDeviceMemory& bufferMemory);
 
   void CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
-  void CopyBuffer(VkCommandBuffer cmd, VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+  void CopyBuffer(VkCommandBuffer cmd, VkBuffer src_buffer, VkBuffer dst_buffer,
+                  VkDeviceSize size);
   void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
                          uint32_t height, VkDeviceSize base_offset = 0,
-                         uint32_t layer = 0,
-                         uint32_t layer_count = 1);
+                         uint32_t layer = 0, uint32_t layer_count = 1);
   void CopyBufferToImage(VkCommandBuffer cmd, VkBuffer buffer, VkImage image,
                          uint32_t width, uint32_t height,
                          VkDeviceSize base_offset = 0, uint32_t layer = 0,
@@ -460,9 +564,7 @@ class Renderer {
 
   void SetObjectName(VkObjectType type, uint64_t handle, const char* name);
 
-  SamplingMode GetHighestSamplingMode() const {
-    return max_sampling_mode_;
-  }
+  SamplingMode GetHighestSamplingMode() const { return max_sampling_mode_; }
 
   const std::vector<SamplingMode>& GetSupportedSamplingModes() const {
     return supported_sampling_modes_;
@@ -520,6 +622,7 @@ class Renderer {
     VkBuffer buffer;
     VkDeviceMemory memory;
   };
+
   static thread_local VkCommandPool tl_command_pool_;
   static thread_local VkCommandBuffer tl_batch_cmd_;
   static thread_local bool tl_batch_active_;
@@ -536,8 +639,9 @@ class Renderer {
   bool HasStencilComponent(VkFormat format);
   void GenerateMipmaps(VkImage image, VkFormat image_format, int32_t tex_width,
                        int32_t tex_height, uint32_t mip_levels);
-  void GenerateMipmaps(VkCommandBuffer cmd, VkImage image, VkFormat image_format,
-                       int32_t tex_width, int32_t tex_height, uint32_t mip_levels);
+  void GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
+                       VkFormat image_format, int32_t tex_width,
+                       int32_t tex_height, uint32_t mip_levels);
 
 #ifdef VULKAN_VALIDATION
   bool CheckValidationLayerSupport();
@@ -555,9 +659,8 @@ class Renderer {
 #endif
 
   void CreateTracy();
-  TracyVkCtx GetTracyCtx() const {
-    return tracy_ctx_;
-  }
+
+  TracyVkCtx GetTracyCtx() const { return tracy_ctx_; }
 
  private:
   friend class ImGuiLayer;
@@ -602,7 +705,8 @@ class Renderer {
 
   std::vector<VkSemaphore> image_available_semaphores_;
   std::vector<VkSemaphore> render_finished_semaphores_;
-  std::vector<VkSemaphore> render_order_semaphores_;  // Cross-frame GPU serialization
+  std::vector<VkSemaphore>
+      render_order_semaphores_;  // Cross-frame GPU serialization
   std::vector<VkFence> fences_;
 
   float_t aspect_ratio_;
@@ -682,9 +786,12 @@ class Renderer {
   std::vector<SamplingMode> supported_sampling_modes_;
 
   TracyVkCtx tracy_ctx_;
-  PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ = nullptr;
-  PFN_vkCreateDebugUtilsMessengerEXT pfn_create_debug_utils_messenger_ext_ = nullptr;
-  PFN_vkDestroyDebugUtilsMessengerEXT pfn_destroy_debug_utils_messenger_ext_ = nullptr;
+  PFN_vkSetDebugUtilsObjectNameEXT pfn_set_debug_utils_object_name_ext_ =
+      nullptr;
+  PFN_vkCreateDebugUtilsMessengerEXT pfn_create_debug_utils_messenger_ext_ =
+      nullptr;
+  PFN_vkDestroyDebugUtilsMessengerEXT pfn_destroy_debug_utils_messenger_ext_ =
+      nullptr;
 
   DeletionQueue deletion_queue_;
 
@@ -695,6 +802,7 @@ class Renderer {
     VkImageView bound_texture = VK_NULL_HANDLE;
     VkSampler bound_sampler = VK_NULL_HANDLE;
   };
+
   std::vector<SliceDrawResource> slice_pool_[kMaxFramesInFlight];
   uint32_t slice_pool_used_[kMaxFramesInFlight] = {};
   SliceDrawResource& AcquireSliceResource(
@@ -709,13 +817,20 @@ class Renderer {
   bool CheckRayTracingSupport(VkPhysicalDevice device);
 
   // RT function pointers
-  PFN_vkCreateAccelerationStructureKHR pfn_vkCreateAccelerationStructureKHR_ = nullptr;
-  PFN_vkDestroyAccelerationStructureKHR pfn_vkDestroyAccelerationStructureKHR_ = nullptr;
-  PFN_vkGetAccelerationStructureBuildSizesKHR pfn_vkGetAccelerationStructureBuildSizesKHR_ = nullptr;
-  PFN_vkCmdBuildAccelerationStructuresKHR pfn_vkCmdBuildAccelerationStructuresKHR_ = nullptr;
-  PFN_vkGetAccelerationStructureDeviceAddressKHR pfn_vkGetAccelerationStructureDeviceAddressKHR_ = nullptr;
-  PFN_vkCreateRayTracingPipelinesKHR pfn_vkCreateRayTracingPipelinesKHR_ = nullptr;
-  PFN_vkGetRayTracingShaderGroupHandlesKHR pfn_vkGetRayTracingShaderGroupHandlesKHR_ = nullptr;
+  PFN_vkCreateAccelerationStructureKHR pfn_vkCreateAccelerationStructureKHR_ =
+      nullptr;
+  PFN_vkDestroyAccelerationStructureKHR pfn_vkDestroyAccelerationStructureKHR_ =
+      nullptr;
+  PFN_vkGetAccelerationStructureBuildSizesKHR
+      pfn_vkGetAccelerationStructureBuildSizesKHR_ = nullptr;
+  PFN_vkCmdBuildAccelerationStructuresKHR
+      pfn_vkCmdBuildAccelerationStructuresKHR_ = nullptr;
+  PFN_vkGetAccelerationStructureDeviceAddressKHR
+      pfn_vkGetAccelerationStructureDeviceAddressKHR_ = nullptr;
+  PFN_vkCreateRayTracingPipelinesKHR pfn_vkCreateRayTracingPipelinesKHR_ =
+      nullptr;
+  PFN_vkGetRayTracingShaderGroupHandlesKHR
+      pfn_vkGetRayTracingShaderGroupHandlesKHR_ = nullptr;
   PFN_vkCmdTraceRaysKHR pfn_vkCmdTraceRaysKHR_ = nullptr;
 };
 

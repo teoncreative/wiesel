@@ -11,17 +11,17 @@
 
 #pragma once
 
-#include "scene/w_components.hpp"
 #include <vector>
+#include "scene/w_components.hpp"
 
 namespace Wiesel {
 
 enum CollisionGroup : uint16_t {
-  CollisionGroupDefault   = 1 << 0,
-  CollisionGroupTerrain   = 1 << 1,
-  CollisionGroupBuilding  = 1 << 2,
+  CollisionGroupDefault = 1 << 0,
+  CollisionGroupTerrain = 1 << 1,
+  CollisionGroupBuilding = 1 << 2,
   CollisionGroupCharacter = 1 << 3,
-  CollisionGroupAll       = 0xFFFF,
+  CollisionGroupAll = 0xFFFF,
 };
 
 struct BoxColliderComponent : public IComponent {
@@ -56,7 +56,8 @@ struct CapsuleColliderComponent : public IComponent {
 
   glm::vec3 offset = {0.0f, 0.0f, 0.0f};
   float radius = 0.3f;
-  float height = 1.0f;   // height of the cylindrical section (total = height + 2*radius)
+  float height =
+      1.0f;  // height of the cylindrical section (total = height + 2*radius)
   CapsuleAxis axis = CapsuleAxis::Y;
   bool is_trigger = false;
   uint16_t collision_group = CollisionGroupDefault;
@@ -68,7 +69,8 @@ struct HeightfieldColliderComponent : public IComponent {
 
   int width = 0;
   int length = 0;
-  std::vector<float> height_data;  // row-major, owned here (Bullet reads pointer)
+  std::vector<float>
+      height_data;  // row-major, owned here (Bullet reads pointer)
   float min_height = 0.0f;
   float max_height = 1.0f;
   glm::vec3 scale = {1.0f, 1.0f, 1.0f};  // XZ per cell + Y multiplier

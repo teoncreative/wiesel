@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_composite_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -21,16 +21,14 @@ CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass (1 color + optional resolve for MSAA)
   render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                             "Composite RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = renderer_->options().msaa_mode});
+                                              "Composite RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = renderer_->options().msaa_mode});
   if (renderer_->options().msaa_mode > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput(
-        {.type = AttachmentTextureType::Resolve,
-         .format = renderer_->GetSwapChainImageFormat(),
-         .msaa_mode = SamplingMode::DISABLED});
+    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                .format = renderer_->GetSwapChainImageFormat(),
+                                .msaa_mode = SamplingMode::DISABLED});
   }
   render_pass_->Bake();
 
@@ -59,31 +57,32 @@ void CompositeFeature::SetupResources(RenderContext& ctx) {
   bool use_msaa = msaa > SamplingMode::DISABLED;
 
   // Textures
-  pool.SetTexture("composite.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), msaa,
-       msaa == SamplingMode::DISABLED}));
+  pool.SetTexture("composite.color",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       renderer.GetSwapChainImageFormat(), msaa,
+                       msaa == SamplingMode::DISABLED}));
 
   if (use_msaa) {
     pool.SetTexture("composite.color_resolve",
-        renderer.CreateAttachmentTexture(
-            {rw, rh, AttachmentTextureType::Resolve, 1,
-             renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED,
-             true}));
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Resolve, 1,
+                         renderer.GetSwapChainImageFormat(),
+                         SamplingMode::DISABLED, true}));
 
     std::array<AttachmentTexture*, 2> textures{
         pool.GetTexture("composite.color").get(),
         pool.GetTexture("composite.color_resolve").get()};
-    pool.SetFramebuffer("composite",
-        render_pass_->CreateFramebuffer(0, textures, ctx.viewport_size));
+    pool.SetFramebuffer("composite", render_pass_->CreateFramebuffer(
+                                         0, textures, ctx.viewport_size));
   } else {
     pool.SetTexture("composite.color_resolve",
                     pool.GetTexture("composite.color"));
 
     std::array<AttachmentTexture*, 1> textures{
         pool.GetTexture("composite.color").get()};
-    pool.SetFramebuffer("composite",
-        render_pass_->CreateFramebuffer(0, textures, ctx.viewport_size));
+    pool.SetFramebuffer("composite", render_pass_->CreateFramebuffer(
+                                         0, textures, ctx.viewport_size));
   }
 
   // Composite output descriptor: reads resolved composite color, linear sampler
@@ -96,10 +95,8 @@ void CompositeFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("composite.output", composite_output_desc);
 
   // Set initial PipelineOutput for the post-processing chain
-  pool.SetTexture("PipelineOutput",
-                  pool.GetTexture("composite.color_resolve"));
-  pool.SetDescriptor("PipelineOutputDescriptor",
-                     composite_output_desc);
+  pool.SetTexture("PipelineOutput", pool.GetTexture("composite.color_resolve"));
+  pool.SetDescriptor("PipelineOutputDescriptor", composite_output_desc);
 }
 
 void CompositeFeature::AddPasses(RenderGraph& graph,
@@ -111,17 +108,18 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   bool use_resolve = ctx.use_msaa_resolve;
 
   // Import composite output texture from pool
-  auto composite_tex = use_resolve
-      ? pool->GetTexture("composite.color_resolve")
-      : pool->GetTexture("composite.color");
-  RGResource composite_out =
-      graph.ImportTexture("CompositeOut", composite_tex);
+  auto composite_tex = use_resolve ? pool->GetTexture("composite.color_resolve")
+                                   : pool->GetTexture("composite.color");
+  RGResource composite_out = graph.ImportTexture("CompositeOut", composite_tex);
 
   // Get references from registry
   auto lighting_out = registry.Get("LightingOut");
-  auto transparency_out = registry.Has("TransparencyOut") ? registry.Get("TransparencyOut") : RGResource{};
+  auto transparency_out = registry.Has("TransparencyOut")
+                              ? registry.Get("TransparencyOut")
+                              : RGResource{};
   auto sprite_out = registry.Get("SpriteOut");
-  auto grid_out = registry.Has("GridOut") ? registry.Get("GridOut") : RGResource{};
+  auto grid_out =
+      registry.Has("GridOut") ? registry.Get("GridOut") : RGResource{};
 
   // Composite pass (canvas is blended later by CanvasFeature)
   auto pipeline = pipeline_;
@@ -133,20 +131,20 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
         pipeline->Bind(PipelineBindPointGraphics);
         if (renderer->options().only_ssao) {
           renderer->DrawFullscreen(pipeline,
-              {pool->GetDescriptor("ssao.blur_v.output")});
+                                   {pool->GetDescriptor("ssao.blur_v.output")});
         } else {
           renderer->DrawFullscreen(pipeline,
-              {pool->GetDescriptor("lighting.output")});
+                                   {pool->GetDescriptor("lighting.output")});
           if (has_grid) {
             renderer->DrawFullscreen(pipeline,
-                {pool->GetDescriptor("grid.output")});
+                                     {pool->GetDescriptor("grid.output")});
           }
           if (has_transparency) {
-            renderer->DrawFullscreen(pipeline,
-                {pool->GetDescriptor("transparency.output")});
+            renderer->DrawFullscreen(
+                pipeline, {pool->GetDescriptor("transparency.output")});
           }
           renderer->DrawFullscreen(pipeline,
-              {pool->GetDescriptor("sprite.output")});
+                                   {pool->GetDescriptor("sprite.output")});
         }
       });
 

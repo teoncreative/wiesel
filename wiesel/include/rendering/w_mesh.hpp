@@ -15,8 +15,8 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-#include <assimp/Importer.hpp>
 #include <stb_image.h>
+#include <assimp/Importer.hpp>
 
 #include "animation/w_animation.hpp"
 #include "asset/w_asset_handle.hpp"
@@ -30,7 +30,8 @@
 namespace Wiesel {
 struct Mesh {
   Mesh();
-  Mesh(const std::vector<Vertex3D>& vertices, const std::vector<Index>& indices);
+  Mesh(const std::vector<Vertex3D>& vertices,
+       const std::vector<Index>& indices);
   ~Mesh();
 
   void Allocate();
@@ -39,9 +40,9 @@ struct Mesh {
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
   std::string model_path;
-  std::shared_ptr<Material> mat;              // cached material pointer (set during import)
+  std::shared_ptr<Material> mat;  // cached material pointer (set during import)
   AssetHandle material_handle;    // asset handle for this mesh's material
-  int32_t node_index = -1;       // which node in the hierarchy this mesh belongs to
+  int32_t node_index = -1;  // which node in the hierarchy this mesh belongs to
 
   // Shared GPU geometry (created once, used by all entities referencing this mesh)
   std::shared_ptr<MemoryBuffer> vertex_buffer;
@@ -61,21 +62,35 @@ struct DecodedTextureData {
   bool has_semi_transparency = false;
 
   ~DecodedTextureData() {
-    if (pixels) stbi_image_free(pixels);
+    if (pixels) {
+      stbi_image_free(pixels);
+    }
   }
+
   DecodedTextureData() = default;
+
   DecodedTextureData(DecodedTextureData&& o) noexcept
-      : pixels(o.pixels), width(o.width), height(o.height), channels(o.channels),
+      : pixels(o.pixels),
+        width(o.width),
+        height(o.height),
+        channels(o.channels),
         has_semi_transparency(o.has_semi_transparency) {
     o.pixels = nullptr;
   }
+
   DecodedTextureData& operator=(DecodedTextureData&& o) noexcept {
-    if (pixels) stbi_image_free(pixels);
-    pixels = o.pixels; width = o.width; height = o.height; channels = o.channels;
+    if (pixels) {
+      stbi_image_free(pixels);
+    }
+    pixels = o.pixels;
+    width = o.width;
+    height = o.height;
+    channels = o.channels;
     has_semi_transparency = o.has_semi_transparency;
     o.pixels = nullptr;
     return *this;
   }
+
   DecodedTextureData(const DecodedTextureData&) = delete;
   DecodedTextureData& operator=(const DecodedTextureData&) = delete;
 };
@@ -90,7 +105,8 @@ struct Model {
   std::map<std::string, std::shared_ptr<Texture>> textures;
 
   // Pre-decoded texture cache (populated in parallel, consumed during ProcessNode)
-  std::map<std::string, std::shared_ptr<DecodedTextureData>> decoded_texture_cache;
+  std::map<std::string, std::shared_ptr<DecodedTextureData>>
+      decoded_texture_cache;
 
   // Pre-computed world transform per mesh (from node hierarchy)
   // Used for static models to position each mesh correctly
@@ -118,6 +134,7 @@ struct Model {
 
 struct ModelComponent : public IComponent {
   ModelComponent() = default;
+
   // Copy settings but NOT render data. Each entity gets its own allocation
   ModelComponent(const ModelComponent& other)
       : model_handle(other.model_handle),
@@ -134,7 +151,8 @@ struct ModelComponent : public IComponent {
   }
 
   AssetHandle model_handle;
-  std::shared_ptr<Texture> default_texture;  // fallback diffuse texture for meshes without one
+  std::shared_ptr<Texture>
+      default_texture;  // fallback diffuse texture for meshes without one
   bool receive_shadows = true;
   bool enable_rendering = true;
 
@@ -149,8 +167,10 @@ struct ModelComponent : public IComponent {
 
   // Per-entity render data (lazily allocated by renderer)
   std::shared_ptr<UniformBuffer> uniform_buffer;
-  std::vector<std::shared_ptr<DescriptorSet>> geometry_descriptors;  // one per mesh
-  std::vector<std::shared_ptr<DescriptorSet>> shadow_descriptors;    // one per mesh
+  std::vector<std::shared_ptr<DescriptorSet>>
+      geometry_descriptors;  // one per mesh
+  std::vector<std::shared_ptr<DescriptorSet>>
+      shadow_descriptors;    // one per mesh
   AssetHandle render_model;  // tracks which model render data was built for
 
   // Bone animation GPU data (per-entity)

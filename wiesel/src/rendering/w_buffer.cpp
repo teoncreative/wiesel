@@ -18,10 +18,16 @@ namespace Wiesel {
 MemoryBuffer::MemoryBuffer(MemoryType type) : type_(type) {}
 
 MemoryBuffer::~MemoryBuffer() {
-  if (type_ == MemoryTypeUniformBuffer) return;
-  if (!buffer_handle_) return;
+  if (type_ == MemoryTypeUniformBuffer) {
+    return;
+  }
+  if (!buffer_handle_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   VkBuffer buffer = buffer_handle_;
   VkDeviceMemory memory = memory_handle_;
@@ -39,14 +45,16 @@ MemoryBuffer::~MemoryBuffer() {
   });
 }
 
-UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {
-
-}
+UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {}
 
 UniformBuffer::~UniformBuffer() {
-  if (!buffer_handle_) return;
+  if (!buffer_handle_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   VkBuffer buffer = buffer_handle_;
   VkDeviceMemory memory = memory_handle_;

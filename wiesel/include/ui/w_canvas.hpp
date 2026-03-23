@@ -35,27 +35,16 @@ enum class AnchorPreset {
   StretchAll
 };
 
-enum class SizeMode {
-  Fixed,
-  Percent
-};
+enum class SizeMode { Fixed, Percent };
 
-enum class LayoutDirection {
-  None,
-  Row,
-  Column
-};
+enum class LayoutDirection { None, Row, Column };
 
-enum class ChildAlignment {
-  Start,
-  Center,
-  End
-};
+enum class ChildAlignment { Start, Center, End };
 
 enum class CanvasRenderMode {
-  ScreenSpaceOverlay,   // 2D overlay on top of everything
-  ScreenSpaceCamera,    // flat plane at distance in front of camera
-  WorldSpace,           // 3D positioned via TransformComponent
+  ScreenSpaceOverlay,  // 2D overlay on top of everything
+  ScreenSpaceCamera,   // flat plane at distance in front of camera
+  WorldSpace,          // 3D positioned via TransformComponent
 };
 
 enum class ScaleMode {
@@ -74,8 +63,8 @@ struct CanvasComponent {
 
   // ScreenSpaceCamera settings
   float plane_distance = 10.0f;
-  entt::entity camera_entity = entt::null;  // which camera to render in front of
-
+  entt::entity camera_entity =
+      entt::null;  // which camera to render in front of
 };
 
 struct CanvasScalerComponent {

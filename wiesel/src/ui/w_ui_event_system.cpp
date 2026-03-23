@@ -23,9 +23,10 @@
 
 namespace Wiesel {
 
-static bool PointInRect(float px, float py, const glm::vec2& pos, const glm::vec2& size) {
-  return px >= pos.x && px <= pos.x + size.x &&
-         py >= pos.y && py <= pos.y + size.y;
+static bool PointInRect(float px, float py, const glm::vec2& pos,
+                        const glm::vec2& size) {
+  return px >= pos.x && px <= pos.x + size.x && py >= pos.y &&
+         py <= pos.y + size.y;
 }
 
 // Transform viewport-pixel mouse position to canvas-space coordinates,
@@ -38,8 +39,8 @@ static glm::vec2 ViewportToCanvasSpace(float mouse_x, float mouse_y,
   float cy = mouse_y;
 
   // Scale from display pixels to render pixels
-  if (display_size.x > 0 && display_size.y > 0 &&
-      render_res.x > 0 && render_res.y > 0) {
+  if (display_size.x > 0 && display_size.y > 0 && render_res.x > 0 &&
+      render_res.y > 0) {
     cx = mouse_x * (render_res.x / display_size.x);
     cy = mouse_y * (render_res.y / display_size.y);
   }
@@ -69,9 +70,9 @@ struct CameraRay {
   bool valid = false;
 };
 
-static CameraRay BuildCameraRay(float mouse_x, float mouse_y,
-                                const glm::vec2& display_size,
-                                const std::shared_ptr<CameraData>& camera_data) {
+static CameraRay BuildCameraRay(
+    float mouse_x, float mouse_y, const glm::vec2& display_size,
+    const std::shared_ptr<CameraData>& camera_data) {
   CameraRay ray;
   if (!camera_data || display_size.x <= 0 || display_size.y <= 0) {
     return ray;
@@ -99,7 +100,8 @@ static CameraRay BuildCameraRay(float mouse_x, float mouse_y,
 }
 
 // Walk up the entity hierarchy to find the nearest ancestor with CanvasComponent.
-static entt::entity FindCanvasRoot(entt::registry& registry, entt::entity entity) {
+static entt::entity FindCanvasRoot(entt::registry& registry,
+                                   entt::entity entity) {
   entt::entity walk = entity;
   while (walk != entt::null) {
     if (registry.any_of<CanvasComponent>(walk)) {
@@ -115,7 +117,7 @@ static entt::entity FindCanvasRoot(entt::registry& registry, entt::entity entity
 }
 
 void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
-                            bool mouse_down, bool mouse_up, bool mouse_held) {
+                           bool mouse_down, bool mouse_up, bool mouse_held) {
   auto& registry = scene.GetRegistry();
 
   glm::vec2 display_size = scene.GetViewportDisplaySize();
@@ -124,19 +126,21 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
     render_res = display_size;
   }
 
-  glm::vec2 canvas_mouse = ViewportToCanvasSpace(
-      mouse_x, mouse_y, display_size, render_res, registry);
+  glm::vec2 canvas_mouse = ViewportToCanvasSpace(mouse_x, mouse_y, display_size,
+                                                 render_res, registry);
 
-  CameraRay ray = BuildCameraRay(
-      mouse_x, mouse_y, display_size, Engine::renderer()->GetCameraData());
+  CameraRay ray = BuildCameraRay(mouse_x, mouse_y, display_size,
+                                 Engine::renderer()->GetCameraData());
 
   struct HitCandidate {
     entt::entity entity;
     int32_t draw_order;
   };
+
   std::vector<HitCandidate> candidates;
 
-  for (auto entity : registry.view<InteractableComponent, RectangleTransformComponent>()) {
+  for (auto entity :
+       registry.view<InteractableComponent, RectangleTransformComponent>()) {
     auto& interactable = registry.get<InteractableComponent>(entity);
     if (!interactable.enabled) {
       continue;
@@ -194,12 +198,14 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
       normalized.y = -normalized.y;  // undo the shader's Y flip
       glm::vec2 canvas_pos = (normalized + glm::vec2(0.5f)) * ref_size;
 
-      if (PointInRect(canvas_pos.x, canvas_pos.y, rt.computed_position, rt.computed_size)) {
+      if (PointInRect(canvas_pos.x, canvas_pos.y, rt.computed_position,
+                      rt.computed_size)) {
         candidates.push_back({entity, rt.draw_order});
       }
     } else {
       // Screen-space (Overlay and ScreenSpaceCamera): 2D hit test
-      if (PointInRect(canvas_mouse.x, canvas_mouse.y, rt.computed_position, rt.computed_size)) {
+      if (PointInRect(canvas_mouse.x, canvas_mouse.y, rt.computed_position,
+                      rt.computed_size)) {
         candidates.push_back({entity, rt.draw_order});
       }
     }
@@ -252,13 +258,14 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
   if (mouse_down) {
     // Update text input focus
     entt::entity new_focus = entt::null;
-    if (hit_entity != entt::null && registry.any_of<TextInputComponent>(hit_entity)) {
+    if (hit_entity != entt::null &&
+        registry.any_of<TextInputComponent>(hit_entity)) {
       new_focus = hit_entity;
     }
     if (new_focus != focused_entity_) {
       // Unfocus old
-      if (focused_entity_ != entt::null && registry.valid(focused_entity_)
-          && registry.any_of<TextInputComponent>(focused_entity_)) {
+      if (focused_entity_ != entt::null && registry.valid(focused_entity_) &&
+          registry.any_of<TextInputComponent>(focused_entity_)) {
         registry.get<TextInputComponent>(focused_entity_).focused_ = false;
       }
       // Focus new
@@ -299,7 +306,9 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
         if (registry.any_of<BehaviorsComponent>(pressed_entity_)) {
           auto& bc = registry.get<BehaviorsComponent>(pressed_entity_);
           for (auto& [name, behavior] : bc.behaviors_) {
-            if (behavior->OnPointerClick(mouse_x, mouse_y)) break;
+            if (behavior->OnPointerClick(mouse_x, mouse_y)) {
+              break;
+            }
           }
         }
       }
@@ -307,7 +316,9 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
       if (registry.any_of<BehaviorsComponent>(pressed_entity_)) {
         auto& bc = registry.get<BehaviorsComponent>(pressed_entity_);
         for (auto& [name, behavior] : bc.behaviors_) {
-          if (behavior->OnPointerUp(mouse_x, mouse_y)) break;
+          if (behavior->OnPointerUp(mouse_x, mouse_y)) {
+            break;
+          }
         }
       }
     }

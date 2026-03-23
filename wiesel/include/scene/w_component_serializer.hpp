@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include <nlohmann/json.hpp>
-#include <glm/glm.hpp>
 #include <functional>
+#include <glm/glm.hpp>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 

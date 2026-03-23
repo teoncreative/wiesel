@@ -33,7 +33,5 @@ class ImGuiLayer : public Layer {
  private:
   VkDescriptorPool m_ImGuiPool;
   bool needs_reinitialization_ = false;
-
-
 };
 }  // namespace Wiesel

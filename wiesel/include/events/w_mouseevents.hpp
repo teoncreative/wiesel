@@ -11,25 +11,30 @@
 
 #pragma once
 
-#include "window/w_window.hpp"
 #include "events/w_events.hpp"
 #include "util/w_mousecodes.hpp"
 #include "w_pch.hpp"
+#include "window/w_window.hpp"
 
 namespace Wiesel {
 class MouseMovedEvent : public Event {
  public:
   MouseMovedEvent(double x, double y, double delta_x, double delta_y,
                   CursorMode cursor_mode)
-      : x_(x), y_(y), delta_x_(delta_x), delta_y_(delta_y),
+      : x_(x),
+        y_(y),
+        delta_x_(delta_x),
+        delta_y_(delta_y),
         cursor_mode_(cursor_mode) {}
 
   // Absolute screen position (pixels, DPI-scaled)
   WIESEL_GETTER_FN double GetX() const { return x_; }
+
   WIESEL_GETTER_FN double GetY() const { return y_; }
 
   // Normalized delta (pixel delta / window width)
   WIESEL_GETTER_FN double GetDeltaX() const { return delta_x_; }
+
   WIESEL_GETTER_FN double GetDeltaY() const { return delta_y_; }
 
   WIESEL_GETTER_FN CursorMode GetCursorMode() const { return cursor_mode_; }

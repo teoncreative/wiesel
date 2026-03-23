@@ -11,11 +11,11 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include "util/w_utils.hpp"
-#include "w_descriptorlayout.hpp"
-#include "w_shader.hpp"
 #include "w_buffer.hpp"
+#include "w_descriptorlayout.hpp"
+#include "w_pch.hpp"
+#include "w_shader.hpp"
 
 namespace Wiesel {
 
@@ -48,24 +48,36 @@ class RTPipeline {
 
   template <typename T>
   void AddPushConstant(std::shared_ptr<T> ptr, VkShaderStageFlags flags) {
-    push_constants_.push_back(RTPushConstant{
-        .flags = flags,
-        .size = sizeof(T),
-        .offset = 0,
-        .ptr = std::static_pointer_cast<void>(ptr)});
+    push_constants_.push_back(
+        RTPushConstant{.flags = flags,
+                       .size = sizeof(T),
+                       .offset = 0,
+                       .ptr = std::static_pointer_cast<void>(ptr)});
   }
 
   void Bake();
 
   void Bind(VkCommandBuffer cmd);
-  void BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet set, uint32_t index = 0);
+  void BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet set,
+                         uint32_t index = 0);
 
   VkPipelineLayout GetLayout() const { return layout_; }
 
-  const VkStridedDeviceAddressRegionKHR& GetRayGenRegion() const { return raygen_region_; }
-  const VkStridedDeviceAddressRegionKHR& GetMissRegion() const { return miss_region_; }
-  const VkStridedDeviceAddressRegionKHR& GetHitRegion() const { return hit_region_; }
-  const VkStridedDeviceAddressRegionKHR& GetCallableRegion() const { return callable_region_; }
+  const VkStridedDeviceAddressRegionKHR& GetRayGenRegion() const {
+    return raygen_region_;
+  }
+
+  const VkStridedDeviceAddressRegionKHR& GetMissRegion() const {
+    return miss_region_;
+  }
+
+  const VkStridedDeviceAddressRegionKHR& GetHitRegion() const {
+    return hit_region_;
+  }
+
+  const VkStridedDeviceAddressRegionKHR& GetCallableRegion() const {
+    return callable_region_;
+  }
 
  private:
   void CreateSBT();

@@ -9,4 +9,3 @@ static TracyVkCtx ctx_;
 TracyVkCtx GetTracyCtx() {
   return ctx_;
 }
-

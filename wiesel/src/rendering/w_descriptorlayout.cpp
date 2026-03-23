@@ -22,7 +22,8 @@ DescriptorSetLayout::~DescriptorSetLayout() {
   Engine::renderer()->DestroyDescriptorLayout(*this);
 }
 
-void DescriptorSetLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags flags) {
+void DescriptorSetLayout::AddBinding(VkDescriptorType type,
+                                     VkShaderStageFlags flags) {
   bindings_.push_back({
       .index = static_cast<uint32_t>(bindings_.size()),
       .type = type,
@@ -32,18 +33,17 @@ void DescriptorSetLayout::AddBinding(VkDescriptorType type, VkShaderStageFlags f
 
 void DescriptorSetLayout::Bake() {
   if (allocated_) {
-    return; // todo error or destroy
+    return;  // todo error or destroy
   }
   std::vector<VkDescriptorSetLayoutBinding> bindings{};
   bindings.reserve(bindings_.size());
 
   for (const auto& item : bindings_) {
-    VkDescriptorSetLayoutBinding binding{
-        .binding = item.index,
-        .descriptorType = item.type,
-        .descriptorCount = 1,
-        .stageFlags = item.flags,
-        .pImmutableSamplers = nullptr};
+    VkDescriptorSetLayoutBinding binding{.binding = item.index,
+                                         .descriptorType = item.type,
+                                         .descriptorCount = 1,
+                                         .stageFlags = item.flags,
+                                         .pImmutableSamplers = nullptr};
     bindings.push_back(binding);
   }
 

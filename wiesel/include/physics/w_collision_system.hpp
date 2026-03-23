@@ -24,12 +24,19 @@ struct CollisionPair {
   entt::entity b;
 
   CollisionPair(entt::entity x, entt::entity y) {
-    if (x < y) { a = x; b = y; }
-    else { a = y; b = x; }
+    if (x < y) {
+      a = x;
+      b = y;
+    } else {
+      a = y;
+      b = x;
+    }
   }
 
   bool operator<(const CollisionPair& other) const {
-    if (a != other.a) return a < other.a;
+    if (a != other.a) {
+      return a < other.a;
+    }
     return b < other.b;
   }
 

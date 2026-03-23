@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_bloom_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -21,11 +21,10 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Shared postprocess render pass (1 color, no MSAA)
   render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                             "PostProcess RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+                                              "PostProcess RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   push_constants_ = std::make_shared<BloomPushConstants>();
@@ -61,9 +60,12 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
   blur_h_pipeline_->Bake();
 
   // Bloom blur V pipeline (with BLUR_VERTICAL define)
-  auto blur_v_frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/bloom_blur.frag", {"BLUR_VERTICAL"}});
+  auto blur_v_frag = renderer_->CreateShader({ShaderTypeFragment,
+                                              ShaderLangGLSL,
+                                              "main",
+                                              ShaderSourceSource,
+                                              "/engine/shaders/bloom_blur.frag",
+                                              {"BLUR_VERTICAL"}});
   blur_v_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_v_pipeline_->SetRenderPass(render_pass_);
@@ -103,31 +105,43 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
 
   // Textures
   // Half-res textures for extract and blur passes
-  pool.SetTexture("bloom.extract", renderer.CreateAttachmentTexture(
-      {hrw, hrh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-  pool.SetTexture("bloom.blur_h", renderer.CreateAttachmentTexture(
-      {hrw, hrh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-  pool.SetTexture("bloom.blur_v", renderer.CreateAttachmentTexture(
-      {hrw, hrh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "bloom.extract",
+      renderer.CreateAttachmentTexture(
+          {hrw, hrh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "bloom.blur_h",
+      renderer.CreateAttachmentTexture(
+          {hrw, hrh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "bloom.blur_v",
+      renderer.CreateAttachmentTexture(
+          {hrw, hrh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
   // Full-res composite output
-  pool.SetTexture("bloom.composite", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+  pool.SetTexture(
+      "bloom.composite",
+      renderer.CreateAttachmentTexture(
+          {rw, rh, AttachmentTextureType::Offscreen, 1,
+           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
   // Framebuffers
-  pool.SetFramebuffer("bloom.extract",
+  pool.SetFramebuffer(
+      "bloom.extract",
       render_pass_->CreateFramebuffer(
           0, {pool.GetTexture("bloom.extract").get()}, {hrw, hrh}));
-  pool.SetFramebuffer("bloom.blur_h",
+  pool.SetFramebuffer(
+      "bloom.blur_h",
       render_pass_->CreateFramebuffer(
           0, {pool.GetTexture("bloom.blur_h").get()}, {hrw, hrh}));
-  pool.SetFramebuffer("bloom.blur_v",
+  pool.SetFramebuffer(
+      "bloom.blur_v",
       render_pass_->CreateFramebuffer(
           0, {pool.GetTexture("bloom.blur_v").get()}, {hrw, hrh}));
-  pool.SetFramebuffer("bloom.composite",
+  pool.SetFramebuffer(
+      "bloom.composite",
       render_pass_->CreateFramebuffer(
           0, {pool.GetTexture("bloom.composite").get()}, {rw, rh}));
 
@@ -202,9 +216,8 @@ void BloomFeature::AddPasses(RenderGraph& graph,
       graph.ImportTexture("BloomBlurH", pool->GetTexture("bloom.blur_h"));
   RGResource bloom_blur_v_out =
       graph.ImportTexture("BloomBlurV", pool->GetTexture("bloom.blur_v"));
-  RGResource bloom_composite_out =
-      graph.ImportTexture("BloomComposite",
-                          pool->GetTexture("bloom.composite"));
+  RGResource bloom_composite_out = graph.ImportTexture(
+      "BloomComposite", pool->GetTexture("bloom.composite"));
 
   // Get PipelineOutput from registry (set by previous feature)
   auto pipeline_input = registry.Get("PipelineOutput");
@@ -219,14 +232,14 @@ void BloomFeature::AddPasses(RenderGraph& graph,
         push_constants->intensity = s.bloom_intensity;
         extract_pipeline->Bind(PipelineBindPointGraphics);
         renderer->DrawFullscreen(extract_pipeline,
-            {pool->GetDescriptor("bloom.extract_input")});
+                                 {pool->GetDescriptor("bloom.extract_input")});
       });
   graph.PassReadsTexture(bloom_extract, pipeline_input);
   graph.PassWritesColor(bloom_extract, bloom_extract_out);
   graph.SetPassFramebuffer(bloom_extract,
                            pool->GetFramebuffer("bloom.extract"));
   graph.SetPassViewport(bloom_extract,
-      {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
+                        {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
   graph.SetPassClearColor(bloom_extract, {0, 0, 0, 0});
 
   // Bloom Blur Horizontal pass (half-res)
@@ -236,14 +249,13 @@ void BloomFeature::AddPasses(RenderGraph& graph,
       [pool, renderer, blur_h_pipeline](VkCommandBuffer) {
         blur_h_pipeline->Bind(PipelineBindPointGraphics);
         renderer->DrawFullscreen(blur_h_pipeline,
-            {pool->GetDescriptor("bloom.blur_h_input")});
+                                 {pool->GetDescriptor("bloom.blur_h_input")});
       });
   graph.PassReadsTexture(bloom_blur_h, bloom_extract_out);
   graph.PassWritesColor(bloom_blur_h, bloom_blur_h_out);
-  graph.SetPassFramebuffer(bloom_blur_h,
-                           pool->GetFramebuffer("bloom.blur_h"));
+  graph.SetPassFramebuffer(bloom_blur_h, pool->GetFramebuffer("bloom.blur_h"));
   graph.SetPassViewport(bloom_blur_h,
-      {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
+                        {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
   graph.SetPassClearColor(bloom_blur_h, {0, 0, 0, 0});
 
   // Bloom Blur Vertical pass (half-res)
@@ -253,14 +265,13 @@ void BloomFeature::AddPasses(RenderGraph& graph,
       [pool, renderer, blur_v_pipeline](VkCommandBuffer) {
         blur_v_pipeline->Bind(PipelineBindPointGraphics);
         renderer->DrawFullscreen(blur_v_pipeline,
-            {pool->GetDescriptor("bloom.blur_v_input")});
+                                 {pool->GetDescriptor("bloom.blur_v_input")});
       });
   graph.PassReadsTexture(bloom_blur_v, bloom_blur_h_out);
   graph.PassWritesColor(bloom_blur_v, bloom_blur_v_out);
-  graph.SetPassFramebuffer(bloom_blur_v,
-                           pool->GetFramebuffer("bloom.blur_v"));
+  graph.SetPassFramebuffer(bloom_blur_v, pool->GetFramebuffer("bloom.blur_v"));
   graph.SetPassViewport(bloom_blur_v,
-      {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
+                        {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
   graph.SetPassClearColor(bloom_blur_v, {0, 0, 0, 0});
 
   // Bloom Composite pass (full-res)
@@ -272,14 +283,13 @@ void BloomFeature::AddPasses(RenderGraph& graph,
         push_constants->threshold = s.bloom_threshold;
         push_constants->intensity = s.bloom_intensity;
         composite_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(composite_pipeline,
-            {pool->GetDescriptor("bloom.composite_input")});
+        renderer->DrawFullscreen(
+            composite_pipeline, {pool->GetDescriptor("bloom.composite_input")});
       });
   graph.PassReadsTexture(bloom_comp, pipeline_input);
   graph.PassReadsTexture(bloom_comp, bloom_blur_v_out);
   graph.PassWritesColor(bloom_comp, bloom_composite_out);
-  graph.SetPassFramebuffer(bloom_comp,
-                           pool->GetFramebuffer("bloom.composite"));
+  graph.SetPassFramebuffer(bloom_comp, pool->GetFramebuffer("bloom.composite"));
   graph.SetPassViewport(bloom_comp, ctx.viewport_size);
   graph.SetPassClearColor(bloom_comp, {0, 0, 0, 0});
 

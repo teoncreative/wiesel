@@ -35,6 +35,7 @@ class MemoryBuffer {
 class IndexBuffer : public MemoryBuffer {
  public:
   IndexBuffer() : MemoryBuffer(MemoryTypeIndexBuffer) {}
+
   ~IndexBuffer() override {}
 
   VkIndexType index_type_;

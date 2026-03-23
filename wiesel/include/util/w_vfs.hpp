@@ -7,33 +7,31 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <map>
-#include <optional>
-#include <memory>
-#include <filesystem>
-#include <fstream>
 #include <algorithm>
 #include <cstring>
-#include <stdexcept>
+#include <filesystem>
+#include <fstream>
 #include <istream>
+#include <map>
+#include <memory>
+#include <optional>
+#include <stdexcept>
 #include <streambuf>
+#include <string>
+#include <vector>
 
 namespace Wiesel {
 
 class VfsFile {
-public:
+ public:
   VfsFile() = default;
   VfsFile(std::vector<uint8_t> data, std::string path);
 
   // Returns true if the file was opened successfully (has data)
-  explicit operator bool() const {
-    return !data_.empty();
-  }
+  explicit operator bool() const { return !data_.empty(); }
 
   // Stream-like reading
-  template<typename T>
+  template <typename T>
   T Read();
 
   size_t Read(void* buffer, size_t size);
@@ -57,9 +55,9 @@ public:
   // std::istream compatibility
   std::istream& Stream();
 
-private:
+ private:
   class MemBuf : public std::streambuf {
-  public:
+   public:
     MemBuf(const uint8_t* data, size_t size) {
       char* p = const_cast<char*>(reinterpret_cast<const char*>(data));
       setg(p, p, p + size);
@@ -75,7 +73,7 @@ private:
 };
 
 // Template implementation
-template<typename T>
+template <typename T>
 T VfsFile::Read() {
   if (position_ + sizeof(T) > data_.size()) {
     throw std::runtime_error("VfsFile::Read past end of file: " + path_);
@@ -87,20 +85,24 @@ T VfsFile::Read() {
 }
 
 class VirtualFileSystem {
-public:
-  void Mount(const std::string& mount_point, const std::string& physical_path, int priority = 0);
-  void MountArchive(const std::string& mount_point, const std::string& archive_path);
+ public:
+  void Mount(const std::string& mount_point, const std::string& physical_path,
+             int priority = 0);
+  void MountArchive(const std::string& mount_point,
+                    const std::string& archive_path);
 
   VfsFile Open(const std::string& virtual_path);
   bool FileExists(const std::string& virtual_path);
-  std::vector<std::string> ListFiles(const std::string& virtual_dir, bool recursive = false);
+  std::vector<std::string> ListFiles(const std::string& virtual_dir,
+                                     bool recursive = false);
 
-  std::optional<std::filesystem::path> GetPhysicalPath(const std::string& virtual_path);
+  std::optional<std::filesystem::path> GetPhysicalPath(
+      const std::string& virtual_path);
 
   void Unmount(const std::string& mount_point);
   void Clear();
 
-private:
+ private:
   struct MountPoint {
     std::string mount_point;
     std::filesystem::path physical_path;
@@ -108,7 +110,7 @@ private:
     bool is_archive;
 
     bool operator<(const MountPoint& other) const {
-      return priority > other.priority; // Higher priority first
+      return priority > other.priority;  // Higher priority first
     }
   };
 
@@ -130,9 +132,10 @@ private:
 
   std::string NormalizePath(const std::string& path);
   bool LoadArchive(const std::filesystem::path& archive_path, Archive& archive);
-  std::vector<uint8_t> ReadFromArchive(const Archive& archive, const ArchiveEntry& entry);
+  std::vector<uint8_t> ReadFromArchive(const Archive& archive,
+                                       const ArchiveEntry& entry);
 };
 
-} // namespace Wiesel
+}  // namespace Wiesel
 
 #endif  //WIESEL_PARENT_W_VFS_HPP

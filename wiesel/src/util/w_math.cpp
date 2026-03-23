@@ -29,8 +29,9 @@ bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation,
   mat4 local_matrix(transform);
 
   // Normalize the matrix.
-  if (epsilonEqual(local_matrix[3][3], static_cast<float>(0), epsilon<T>()))
+  if (epsilonEqual(local_matrix[3][3], static_cast<float>(0), epsilon<T>())) {
     return false;
+  }
 
   // First, isolate perspective.  This is the messiest.
   if (epsilonNotEqual(local_matrix[0][3], static_cast<T>(0), epsilon<T>()) ||
@@ -49,9 +50,11 @@ bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation,
   vec3 row[3], pdum3;
 
   // Now get scale and shear.
-  for (length_t i = 0; i < 3; ++i)
-    for (length_t j = 0; j < 3; ++j)
+  for (length_t i = 0; i < 3; ++i) {
+    for (length_t j = 0; j < 3; ++j) {
       row[i][j] = local_matrix[i][j];
+    }
+  }
 
   // Compute X scale factor and normalize first row.
   scale.x = length(row[0]);

@@ -11,9 +11,9 @@
 
 #pragma once
 
-#include "w_pch.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
+#include "w_pch.hpp"
 
 #include "window/w_window.hpp"
 
@@ -59,6 +59,7 @@ class SdlAppWindow : public AppWindow {
     std::array<bool, SDL_GAMEPAD_BUTTON_COUNT> buttons{};
     std::array<float, SDL_GAMEPAD_AXIS_COUNT> axes{};
   };
+
   std::unordered_map<SDL_JoystickID, GamepadState> gamepads_;
 };
 }  // namespace Wiesel

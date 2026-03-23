@@ -156,17 +156,18 @@ SdlAppWindow::SdlAppWindow(const WindowProperties&& properties)
     flags |= SDL_WINDOW_RESIZABLE;
   }
 
-  handle_ = SDL_CreateWindow(properties_.title.c_str(),
-                              properties_.size.width, properties_.size.height,
-                              flags);
+  handle_ = SDL_CreateWindow(properties_.title.c_str(), properties_.size.width,
+                             properties_.size.height, flags);
 
   int w, h;
   SDL_GetWindowSizeInPixels(handle_, &w, &h);
   framebuffer_size_ = {w, h};
   SDL_GetWindowSize(handle_, &w, &h);
   window_size_ = {w, h};
-  scale_.width = framebuffer_size_.width / static_cast<float>(window_size_.width);
-  scale_.height = framebuffer_size_.height / static_cast<float>(window_size_.height);
+  scale_.width =
+      framebuffer_size_.width / static_cast<float>(window_size_.width);
+  scale_.height =
+      framebuffer_size_.height / static_cast<float>(window_size_.height);
 }
 
 SdlAppWindow::~SdlAppWindow() {
@@ -208,8 +209,10 @@ void SdlAppWindow::OnUpdate() {
           framebuffer_size_ = {w, h};
           SDL_GetWindowSize(handle_, &w, &h);
           window_size_ = {w, h};
-          scale_.width = framebuffer_size_.width / static_cast<float>(window_size_.width);
-          scale_.height = framebuffer_size_.height / static_cast<float>(window_size_.height);
+          scale_.width =
+              framebuffer_size_.width / static_cast<float>(window_size_.width);
+          scale_.height = framebuffer_size_.height /
+                          static_cast<float>(window_size_.height);
 
           WindowResizeEvent event({w, h}, w / static_cast<float>(h));
           GetEventHandler()(event);
@@ -251,7 +254,8 @@ void SdlAppWindow::OnUpdate() {
         }
 
         case SDL_EVENT_MOUSE_BUTTON_DOWN: {
-          auto button = static_cast<MouseCode>(e.button.button - 1);  // SDL buttons are 1-based
+          auto button = static_cast<MouseCode>(e.button.button -
+                                               1);  // SDL buttons are 1-based
           MouseButtonPressedEvent event(button);
           GetEventHandler()(event);
           break;
@@ -364,7 +368,7 @@ bool SdlAppWindow::IsShouldClose() {
 }
 
 void SdlAppWindow::CreateWindowSurface(VkInstance instance,
-                                        VkSurfaceKHR* surface) {
+                                       VkSurfaceKHR* surface) {
   if (!SDL_Vulkan_CreateSurface(handle_, instance, nullptr, surface)) {
     LOG_ERROR("Failed to create Vulkan surface: {}", SDL_GetError());
   }

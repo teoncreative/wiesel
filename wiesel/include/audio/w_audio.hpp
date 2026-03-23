@@ -27,11 +27,14 @@ class SoundHandle {
   SoundHandle() = default;
 
   bool IsValid() const { return id_ != 0; }
+
   uint64_t Id() const { return id_; }
 
  private:
   friend class AudioManager;
+
   explicit SoundHandle(uint64_t id) : id_(id) {}
+
   uint64_t id_ = 0;
 };
 
@@ -40,7 +43,7 @@ struct SoundParams {
   float volume = 1.0f;
   float pitch = 1.0f;
   bool loop = false;
-  float spatial_blend = 0.0f;   // 0 = 2D, 1 = fully 3D
+  float spatial_blend = 0.0f;  // 0 = 2D, 1 = fully 3D
   glm::vec3 position = {0, 0, 0};
   float min_distance = 1.0f;
   float max_distance = 100.0f;
@@ -124,7 +127,7 @@ struct AudioSourceComponent {
   bool loop = false;
   bool play_on_start = false;
   bool mute = false;
-  float spatial_blend = 0.0f;   // 0 = fully 2D, 1 = fully 3D
+  float spatial_blend = 0.0f;  // 0 = fully 2D, 1 = fully 3D
   float min_distance = 1.0f;
   float max_distance = 100.0f;
 
@@ -150,10 +153,10 @@ struct AudioSourceComponent {
 // ECS component - defines a zone where reverb/echo is applied.
 // Uses the entity's transform position + radius to define the area.
 struct ReverbZoneComponent {
-  float radius = 10.0f;          // zone radius
-  float delay_ms = 150.0f;       // echo delay in milliseconds
-  float decay = 0.4f;            // how much each echo repeats (0-1)
-  float wet = 0.5f;              // wet/dry mix when fully inside (0 = dry, 1 = full reverb)
+  float radius = 10.0f;     // zone radius
+  float delay_ms = 150.0f;  // echo delay in milliseconds
+  float decay = 0.4f;       // how much each echo repeats (0-1)
+  float wet = 0.5f;  // wet/dry mix when fully inside (0 = dry, 1 = full reverb)
 
   // Runtime
   bool active_ = false;

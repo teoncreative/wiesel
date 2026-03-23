@@ -15,22 +15,20 @@
 
 #include "asset/w_asset_handle.hpp"
 #include "events/w_appevents.hpp"
-#include "ui/w_ui_event_system.hpp"
 #include "events/w_engineevents.hpp"
 #include "events/w_events.hpp"
+#include "physics/w_physics_world.hpp"
 #include "rendering/w_camera.hpp"
 #include "rendering/w_render_feature.hpp"
 #include "rendering/w_rendergraph.hpp"
 #include "rendering/w_skybox.hpp"
-#include "physics/w_physics_world.hpp"
 #include "scene/w_components.hpp"
+#include "ui/w_ui_event_system.hpp"
 #include "w_pch.hpp"
 
 namespace Wiesel {
 
-enum class SystemType {
-  Update
-};
+enum class SystemType { Update };
 
 class Entity;
 class CanvasSystem;
@@ -52,13 +50,19 @@ class Scene {
   void RequestAsset(AssetHandle handle);
   bool AreAssetsReady() const;
   float GetAssetLoadProgress() const;
-  const std::vector<AssetHandle>& GetRequestedAssets() const { return requested_assets_; }
+
+  const std::vector<AssetHandle>& GetRequestedAssets() const {
+    return requested_assets_;
+  }
+
   void ClearRequestedAssets();
 
   bool GetKeepAssetsLoaded() const { return keep_assets_loaded_; }
+
   void SetKeepAssetsLoaded(bool keep) { keep_assets_loaded_ = keep; }
 
   bool GetPreloadAssets() const { return preload_assets_; }
+
   void SetPreloadAssets(bool preload) { preload_assets_ = preload; }
 
   void OnUpdate(float_t delta_time);
@@ -77,36 +81,43 @@ class Scene {
 
   void SetPaused(bool paused) { is_paused_ = paused; }
 
-  void SetSkybox(const std::shared_ptr<Skybox>& skybox) {
-    skybox_ = skybox;
-  }
+  void SetSkybox(const std::shared_ptr<Skybox>& skybox) { skybox_ = skybox; }
+
   void SetSkyboxAsset(AssetHandle handle);
-  AssetHandle GetSkyboxAsset() const {
-    return skybox_asset_;
-  }
+
+  AssetHandle GetSkyboxAsset() const { return skybox_asset_; }
+
   std::shared_ptr<Skybox> GetSkybox();
   void EnsureDefaultSkybox();
-  bool HasCustomSkybox() const {
-    return skybox_ != nullptr;
+
+  bool HasCustomSkybox() const { return skybox_ != nullptr; }
+
+  void SetRenderResolution(glm::vec2 resolution) {
+    render_resolution_ = resolution;
   }
 
-  void SetRenderResolution(glm::vec2 resolution) { render_resolution_ = resolution; }
   glm::vec2 GetRenderResolution() const { return render_resolution_; }
 
   void SetViewportOrigin(glm::vec2 origin) { viewport_origin_ = origin; }
+
   glm::vec2 GetViewportOrigin() const { return viewport_origin_; }
 
   void SetViewportDisplaySize(glm::vec2 size) { viewport_display_size_ = size; }
+
   glm::vec2 GetViewportDisplaySize() const { return viewport_display_size_; }
 
   // Set the default render pipeline for all cameras without a per-camera override.
   void SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline);
   // Set a per-camera render pipeline override.
-  void SetRenderPipeline(entt::entity camera, std::shared_ptr<RenderPipeline> pipeline);
+  void SetRenderPipeline(entt::entity camera,
+                         std::shared_ptr<RenderPipeline> pipeline);
   // Create a default pipeline with all built-in features.
-  static std::shared_ptr<RenderPipeline> CreateDefaultPipeline(std::shared_ptr<Renderer> renderer);
+  static std::shared_ptr<RenderPipeline> CreateDefaultPipeline(
+      std::shared_ptr<Renderer> renderer);
 
-  std::shared_ptr<RenderPipeline> GetDefaultPipeline() const { return default_pipeline_; }
+  std::shared_ptr<RenderPipeline> GetDefaultPipeline() const {
+    return default_pipeline_;
+  }
 
   template <typename T, typename... Args>
   T& AddComponent(entt::entity handle, Args&&... args) {
@@ -114,20 +125,19 @@ class Scene {
       //throw std::runtime_error("Entity already has component!");
       std::terminate();
     }
-    auto& component = registry_.emplace<T>(
-        handle, std::forward<Args>(args)...);
+    auto& component = registry_.emplace<T>(handle, std::forward<Args>(args)...);
     OnAddComponent(handle, component);
     return component;
   }
 
   template <typename T>
-  T& GetComponent(entt::entity handle) {  // This function is intentionally not marked as const!
+  T& GetComponent(
+      entt::entity
+          handle) {  // This function is intentionally not marked as const!
     return registry_.get<T>(handle);
   }
 
-  bool HasEntity(entt::entity handle) const {
-    return registry_.valid(handle);
-  }
+  bool HasEntity(entt::entity handle) const { return registry_.valid(handle); }
 
   template <typename T>
   bool HasComponent(entt::entity handle) const {
@@ -150,6 +160,7 @@ class Scene {
   }
 
   entt::registry& GetRegistry() { return registry_; }
+
   PhysicsWorld& GetPhysicsWorld() { return *physics_world_; }
 
   /*
@@ -162,7 +173,9 @@ class Scene {
 
   void ProcessDestroyQueue();
   bool Render();
-  bool RenderFromExternal(CameraComponent& camera, TransformComponent& transform, bool show_grid = false);
+  bool RenderFromExternal(CameraComponent& camera,
+                          TransformComponent& transform,
+                          bool show_grid = false);
   void BuildRenderGraph(entt::entity camera_entity);
   void InvalidateRenderGraphs();
 
@@ -170,7 +183,8 @@ class Scene {
   // Must be called before vkDestroyDevice.
   void Cleanup();
 
-  std::shared_ptr<RenderGraph> GetRenderGraph(entt::entity camera_entity) const {
+  std::shared_ptr<RenderGraph> GetRenderGraph(
+      entt::entity camera_entity) const {
     auto it = render_graphs_.find(camera_entity);
     return it != render_graphs_.end() ? it->second : nullptr;
   }
@@ -181,6 +195,7 @@ class Scene {
 
   void ResetPhysicsWorld();
   void ResetScriptStates();
+
   void ResetFirstUpdate() { first_update_ = true; }
 
   template <typename Entity, typename... Components, typename Func>
@@ -205,7 +220,6 @@ class Scene {
       }
     });
   }
-
 
  private:
   bool OnWindowResizeEvent(WindowResizeEvent& event);
@@ -233,14 +247,17 @@ class Scene {
   std::shared_ptr<Skybox> skybox_;
   std::shared_ptr<Skybox> default_skybox_;
   AssetHandle skybox_asset_;
-  bool keep_assets_loaded_ = false;  // If true, assets are never unloaded on scene switch
-  bool preload_assets_ = false;      // If true, assets are loaded when the project opens
+  bool keep_assets_loaded_ =
+      false;  // If true, assets are never unloaded on scene switch
+  bool preload_assets_ =
+      false;  // If true, assets are loaded when the project opens
   UIEventSystem ui_event_system_;
   std::vector<AssetHandle> requested_assets_;
   std::shared_ptr<RenderPipeline> default_pipeline_;
   std::unordered_map<entt::entity, std::shared_ptr<RenderGraph>> render_graphs_;
   std::shared_ptr<RenderGraph> external_render_graph_;
-  std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>> systems_;
+  std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>>
+      systems_;
   std::unique_ptr<PhysicsWorld> physics_world_;
   glm::vec2 render_resolution_{0.0f, 0.0f};
   glm::vec2 viewport_origin_{0.0f, 0.0f};

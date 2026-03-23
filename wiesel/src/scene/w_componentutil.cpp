@@ -11,30 +11,30 @@
 
 #include "scene/w_componentutil.hpp"
 
+#include <backends/imgui_impl_vulkan.h>
+#include <imgui.h>
+#include <misc/cpp/imgui_stdlib.h>
+#include <typeindex>
 #include "animation/w_animation.hpp"
-#include "audio/w_audio.hpp"
-#include "ui/w_interactable.hpp"
-#include "rendering/w_sprite.hpp"
-#include "rendering/w_sprite_loader.hpp"
 #include "asset/w_asset_manager.hpp"
-#include "ui/w_canvas.hpp"
+#include "audio/w_audio.hpp"
 #include "behavior/w_behavior.hpp"
 #include "behavior/w_native_behavior.hpp"
+#include "mono_util.h"
 #include "physics/w_collider.hpp"
 #include "physics/w_rigidbody.hpp"
 #include "rendering/w_mesh.hpp"
+#include "rendering/w_sprite.hpp"
+#include "rendering/w_sprite_loader.hpp"
 #include "scene/w_lights.hpp"
 #include "script/mono/w_monobehavior.hpp"
+#include "ui/w_canvas.hpp"
+#include "ui/w_interactable.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_logger.hpp"
 #include "w_application.hpp"
 #include "w_engine.hpp"
-#include "mono_util.h"
-#include <typeindex>
-#include <imgui.h>
-#include <misc/cpp/imgui_stdlib.h>
-#include <backends/imgui_impl_vulkan.h>
 
 #include <ranges>
 
@@ -68,13 +68,15 @@ static void RenderTexturePreview(const char* label, Texture* tex) {
 // auto-imports if needed, returns a valid handle or null.
 static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
   AssetHandle result;
-  if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("AssetHandle")) {
+  if (const ImGuiPayload* payload =
+          ImGui::AcceptDragDropPayload("AssetHandle")) {
     AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
     const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
     if (meta && meta->type == required_type) {
       result = dropped;
     }
-  } else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("BrowserFile")) {
+  } else if (const ImGuiPayload* payload =
+                 ImGui::AcceptDragDropPayload("BrowserFile")) {
     std::string file_path(static_cast<const char*>(payload->Data));
     std::string ext = std::filesystem::path(file_path).extension().string();
     if (ProjectLoader::ExtToAssetType(ext) == required_type) {
@@ -93,7 +95,8 @@ static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
         }
         // Auto-import if not registered
         if (!result.IsValid()) {
-          result = Engine::asset_manager().Register(name, required_type, vfs_path);
+          result =
+              Engine::asset_manager().Register(name, required_type, vfs_path);
           if (result.IsValid()) {
             ProjectLoader::WriteMetaFile(meta_path, result);
           }
@@ -106,7 +109,8 @@ static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
 
 // Accepts an AssetHandle drag-drop payload, filtered by type.
 // Returns true and writes the handle if accepted; false otherwise.
-static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle) {
+static bool AcceptAssetDragDrop(AssetType required_type,
+                                AssetHandle& out_handle) {
   if (ImGui::BeginDragDropTarget()) {
     AssetHandle result = AcceptAssetDragDrop(required_type);
     ImGui::EndDragDropTarget();
@@ -117,8 +121,10 @@ static bool AcceptAssetDragDrop(AssetType required_type, AssetHandle& out_handle
   }
   return false;
 }
+
 // Renders an asset drag-drop field for a given type. Returns true if changed.
-static bool AssetDropField(const char* label, AssetType type, AssetHandle& handle) {
+static bool AssetDropField(const char* label, AssetType type,
+                           AssetHandle& handle) {
   std::string name = "(None)";
   if (handle.IsValid()) {
     const auto* meta = Engine::asset_manager().GetMetadata(handle);
@@ -154,15 +160,15 @@ static bool TextureDropField(const char* label, AssetHandle& handle) {
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Transform", nullptr)) {
     bool changed = false;
-    changed |=
-        ImGui::DragFloat3(PrefixLabel("Position").c_str(),
-                          reinterpret_cast<float*>(&component.PositionMut()), 0.1f);
-    changed |=
-        ImGui::DragFloat3(PrefixLabel("Rotation").c_str(),
-                          reinterpret_cast<float*>(&component.RotationMut()), 0.1f);
-    changed |=
-        ImGui::DragFloat3(PrefixLabel("Scale").c_str(),
-                          reinterpret_cast<float*>(&component.ScaleMut()), 0.1f);
+    changed |= ImGui::DragFloat3(
+        PrefixLabel("Position").c_str(),
+        reinterpret_cast<float*>(&component.PositionMut()), 0.1f);
+    changed |= ImGui::DragFloat3(
+        PrefixLabel("Rotation").c_str(),
+        reinterpret_cast<float*>(&component.RotationMut()), 0.1f);
+    changed |= ImGui::DragFloat3(
+        PrefixLabel("Scale").c_str(),
+        reinterpret_cast<float*>(&component.ScaleMut()), 0.1f);
     if (changed) {
       component.MarkChanged();
     }
@@ -177,9 +183,9 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
     auto& assets = Engine::asset_manager();
 
     // Asset selector: show current asset name + dropdown to pick from registered model assets
-    const AssetMetadata* currentMeta = model.model_handle.IsValid()
-        ? assets.GetMetadata(model.model_handle)
-        : nullptr;
+    const AssetMetadata* currentMeta =
+        model.model_handle.IsValid() ? assets.GetMetadata(model.model_handle)
+                                     : nullptr;
     std::string currentName = currentMeta ? currentMeta->name : "(None)";
 
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 4);
@@ -193,7 +199,9 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
       auto modelAssets = assets.GetAllOfType(AssetType::Model);
       for (auto& handle : modelAssets) {
         const auto* meta = assets.GetMetadata(handle);
-        if (!meta) continue;
+        if (!meta) {
+          continue;
+        }
         bool is_selected = model.model_handle == handle;
         if (ImGui::Selectable(meta->name.c_str(), is_selected)) {
           if (model.model_handle != handle) {
@@ -220,10 +228,18 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
       AssetLoadState state = assets.GetLoadState(model.model_handle);
       const char* stateStr = "Unknown";
       switch (state) {
-        case AssetLoadState::Unloaded: stateStr = "Unloaded"; break;
-        case AssetLoadState::Loading:  stateStr = "Loading..."; break;
-        case AssetLoadState::Loaded:   stateStr = "Loaded"; break;
-        case AssetLoadState::Failed:   stateStr = "Failed"; break;
+        case AssetLoadState::Unloaded:
+          stateStr = "Unloaded";
+          break;
+        case AssetLoadState::Loading:
+          stateStr = "Loading...";
+          break;
+        case AssetLoadState::Loaded:
+          stateStr = "Loaded";
+          break;
+        case AssetLoadState::Failed:
+          stateStr = "Failed";
+          break;
       }
       ImGui::TextDisabled("Status: %s", stateStr);
     }
@@ -233,7 +249,8 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
 
     // Per-mesh material slots
     if (model.model_handle.IsValid()) {
-      const std::shared_ptr<Model>& model_data = assets.GetOrLoad<Model>(model.model_handle);
+      const std::shared_ptr<Model>& model_data =
+          assets.GetOrLoad<Model>(model.model_handle);
       if (model_data) {
         // Ensure material instances match mesh count
         if (model.material_instances.size() != model_data->meshes.size()) {
@@ -244,9 +261,10 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
         for (size_t i = 0; i < model_data->meshes.size(); i++) {
           if (!model.material_instances[i]) {
             auto inst = std::make_shared<MaterialInstance>();
-            AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
-                ? model.material_slot_handles[i]
-                : model_data->meshes[i]->material_handle;
+            AssetHandle mat_handle =
+                model.material_slot_handles[i].IsValid()
+                    ? model.material_slot_handles[i]
+                    : model_data->meshes[i]->material_handle;
             inst->base_material_handle = mat_handle;
             model.material_instances[i] = inst;
           }
@@ -255,7 +273,9 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
         if (ImGui::TreeNode("Materials")) {
           for (size_t i = 0; i < model.material_instances.size(); i++) {
             auto& inst = model.material_instances[i];
-            if (!inst) continue;
+            if (!inst) {
+              continue;
+            }
 
             ImGui::PushID(static_cast<int>(i));
 
@@ -265,7 +285,9 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
               if (!base->name.empty()) {
                 slot_label = base->name;
               }
-              if (base->base_texture) slot_label += " (textured)";
+              if (base->base_texture) {
+                slot_label += " (textured)";
+              }
             }
 
             if (ImGui::TreeNode(slot_label.c_str())) {
@@ -278,22 +300,26 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
               }
 
               glm::vec4 tint = inst->GetColorTint();
-              if (ImGui::ColorEdit4(PrefixLabel("Color Tint").c_str(), &tint.x)) {
+              if (ImGui::ColorEdit4(PrefixLabel("Color Tint").c_str(),
+                                    &tint.x)) {
                 inst->SetColorTint(tint);
               }
 
               float roughness = inst->GetRoughness();
-              if (ImGui::SliderFloat(PrefixLabel("Roughness").c_str(), &roughness, 0.0f, 1.0f)) {
+              if (ImGui::SliderFloat(PrefixLabel("Roughness").c_str(),
+                                     &roughness, 0.0f, 1.0f)) {
                 inst->SetRoughness(roughness);
               }
 
               float metallic = inst->GetMetallic();
-              if (ImGui::SliderFloat(PrefixLabel("Metallic").c_str(), &metallic, 0.0f, 1.0f)) {
+              if (ImGui::SliderFloat(PrefixLabel("Metallic").c_str(), &metallic,
+                                     0.0f, 1.0f)) {
                 inst->SetMetallic(metallic);
               }
 
               float specular = inst->GetSpecular();
-              if (ImGui::SliderFloat(PrefixLabel("Specular").c_str(), &specular, 0.0f, 1.0f)) {
+              if (ImGui::SliderFloat(PrefixLabel("Specular").c_str(), &specular,
+                                     0.0f, 1.0f)) {
                 inst->SetSpecular(specular);
               }
 
@@ -309,8 +335,10 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
                 }
               }
 
-              if (inst->HasOverride("color_tint") || inst->HasOverride("roughness") ||
-                  inst->HasOverride("metallic") || inst->HasOverride("specular")) {
+              if (inst->HasOverride("color_tint") ||
+                  inst->HasOverride("roughness") ||
+                  inst->HasOverride("metallic") ||
+                  inst->HasOverride("specular")) {
                 if (ImGui::Button("Reset to Default")) {
                   inst->overrides.clear();
                 }
@@ -337,16 +365,14 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
     auto deferred_bone_ubo = std::move(model.bone_ubo_);
     auto deferred_bone_desc = std::move(model.bone_descriptor_);
     auto deferred_uniform = std::move(model.uniform_buffer);
-    Engine::renderer()->GetDeletionQueue().Push([
-        ubos = std::move(deferred_ubos),
-        geo = std::move(deferred_geo),
-        shadow = std::move(deferred_shadow),
-        bone_ubo = std::move(deferred_bone_ubo),
-        bone_desc = std::move(deferred_bone_desc),
-        uniform = std::move(deferred_uniform)
-    ]() {
-      // Resources released when lambda is destroyed
-    });
+    Engine::renderer()->GetDeletionQueue().Push(
+        [ubos = std::move(deferred_ubos), geo = std::move(deferred_geo),
+         shadow = std::move(deferred_shadow),
+         bone_ubo = std::move(deferred_bone_ubo),
+         bone_desc = std::move(deferred_bone_desc),
+         uniform = std::move(deferred_uniform)]() {
+          // Resources released when lambda is destroyed
+        });
     entity.RemoveComponent<ModelComponent>();
     visible = true;
   }
@@ -390,8 +416,8 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
                        &component.light_data.constant, 0.1f);
       ImGui::DragFloat(PrefixLabel("Linear").c_str(),
                        &component.light_data.linear, 0.1f);
-      ImGui::DragFloat(PrefixLabel("Exp").c_str(),
-                       &component.light_data.exp, 0.1f);
+      ImGui::DragFloat(PrefixLabel("Exp").c_str(), &component.light_data.exp,
+                       0.1f);
       ImGui::TreePop();
     }
     ImGui::ColorPicker3(
@@ -411,7 +437,8 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
 
     const char* proj_modes[] = {"Perspective", "Orthographic"};
     int proj_idx = static_cast<int>(component.projection_mode);
-    if (ImGui::Combo(PrefixLabel("Projection").c_str(), &proj_idx, proj_modes, 2)) {
+    if (ImGui::Combo(PrefixLabel("Projection").c_str(), &proj_idx, proj_modes,
+                     2)) {
       component.projection_mode = static_cast<ProjectionMode>(proj_idx);
       changed = true;
     }
@@ -431,12 +458,12 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
                                 &component.far_plane, 0.1f);
     ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &component.enabled);
-    ImGui::Text("Viewport: %dx%d",
-        static_cast<int>(component.viewport_size.x),
-        static_cast<int>(component.viewport_size.y));
+    ImGui::Text("Viewport: %dx%d", static_cast<int>(component.viewport_size.x),
+                static_cast<int>(component.viewport_size.y));
 
     if (changed) {
-      component.aspect_ratio = component.viewport_size.x / component.viewport_size.y;
+      component.aspect_ratio =
+          component.viewport_size.x / component.viewport_size.y;
       component.view_changed = true;
       component.resources_dirty = true;
     }
@@ -457,9 +484,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
   for (FieldData& value : data.fields() | std::views::values) {
     if (value.field_type() == FieldType::Float) {
       float_t val = value.Get<float_t>(instance->handle());
-      if (ImGui::DragFloat(
-              PrefixLabel(value.formatted_name().c_str()).c_str(), &val,
-              0.1f)) {
+      if (ImGui::DragFloat(PrefixLabel(value.formatted_name().c_str()).c_str(),
+                           &val, 0.1f)) {
         value.Set(instance->handle(), &val);
       }
     } else if (value.field_type() == FieldType::Integer) {
@@ -478,8 +504,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
       MonoObject* val = value.Get<MonoObject*>(instance->handle());
       MonoObjectWrapper wrapper{val};
       std::string str = wrapper.AsString();
-      if (ImGui::InputText(
-              PrefixLabel(value.formatted_name().c_str()).c_str(), &str)) {
+      if (ImGui::InputText(PrefixLabel(value.formatted_name().c_str()).c_str(),
+                           &str)) {
         MonoString* newVal =
             mono_string_new(Engine::script_manager().app_domain(), str.c_str());
         value.Set(instance->handle(), newVal);
@@ -489,11 +515,12 @@ void RenderScriptVariables(ScriptInstance* instance) {
         if (const ImGuiPayload* payload =
                 ImGui::AcceptDragDropPayload("AssetHandle")) {
           AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-          const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
+          const AssetMetadata* meta =
+              Engine::asset_manager().GetMetadata(dropped);
           if (meta && !meta->virtual_source_path.empty()) {
-            MonoString* newVal = mono_string_new(
-                Engine::script_manager().app_domain(),
-                meta->virtual_source_path.c_str());
+            MonoString* newVal =
+                mono_string_new(Engine::script_manager().app_domain(),
+                                meta->virtual_source_path.c_str());
             value.Set(instance->handle(), newVal);
           }
         }
@@ -514,7 +541,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
           Scene* scene = instance->behavior()->scene();
           if (scene && scene->HasEntity(current_entity_id) &&
               scene->HasComponent<TagComponent>(current_entity_id)) {
-            entity_label = scene->GetComponent<TagComponent>(current_entity_id).name;
+            entity_label =
+                scene->GetComponent<TagComponent>(current_entity_id).name;
           } else {
             entity_label = "(Invalid)";
           }
@@ -533,8 +561,9 @@ void RenderScriptVariables(ScriptInstance* instance) {
               *static_cast<const entt::entity*>(payload->Data);
           Scene* scene = instance->behavior()->scene();
           if (scene) {
-            MonoObject* new_entity = mono_object_new(
-                Engine::script_manager().app_domain(), Engine::script_manager().entity_class());
+            MonoObject* new_entity =
+                mono_object_new(Engine::script_manager().app_domain(),
+                                Engine::script_manager().entity_class());
             MonoMethod* ctor = mono_class_get_method_from_name(
                 Engine::script_manager().entity_class(), ".ctor", 2);
             uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
@@ -579,7 +608,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
       }
 
       std::string label = PrefixLabel(value.formatted_name().c_str());
-      ImGui::InputText(label.c_str(), &prefab_label, ImGuiInputTextFlags_ReadOnly);
+      ImGui::InputText(label.c_str(), &prefab_label,
+                       ImGuiInputTextFlags_ReadOnly);
 
       // Drag-drop target: accept prefab assets (AssetHandle or file path)
       if (ImGui::BeginDragDropTarget()) {
@@ -588,7 +618,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
         if (const ImGuiPayload* payload =
                 ImGui::AcceptDragDropPayload("AssetHandle")) {
           AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-          const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
+          const AssetMetadata* meta =
+              Engine::asset_manager().GetMetadata(dropped);
           if (meta && meta->type == AssetType::Prefab) {
             dropped_path = meta->virtual_source_path;
           }
@@ -599,8 +630,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
             // Convert physical path to VFS path via /app mount
             auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
             if (physical_app.has_value()) {
-              std::filesystem::path rel = std::filesystem::relative(
-                  file_path, *physical_app);
+              std::filesystem::path rel =
+                  std::filesystem::relative(file_path, *physical_app);
               dropped_path = "/app/" + rel.generic_string();
             }
           }
@@ -609,17 +640,16 @@ void RenderScriptVariables(ScriptInstance* instance) {
         if (!dropped_path.empty()) {
           MonoObject* new_prefab = prefab_obj;
           if (!new_prefab) {
-            new_prefab = mono_object_new(
-                Engine::script_manager().app_domain(),
-                Engine::script_manager().prefab_class());
+            new_prefab =
+                mono_object_new(Engine::script_manager().app_domain(),
+                                Engine::script_manager().prefab_class());
             mono_runtime_object_init(new_prefab);
           }
           MonoClassField* path_field = mono_class_get_field_from_name(
               Engine::script_manager().prefab_class(), "path");
           if (path_field) {
             MonoString* path_val = mono_string_new(
-                Engine::script_manager().app_domain(),
-                dropped_path.c_str());
+                Engine::script_manager().app_domain(), dropped_path.c_str());
             mono_field_set_value(new_prefab, path_field, path_val);
           }
           value.Set(instance->handle(), new_prefab);
@@ -654,7 +684,9 @@ void RenderScriptVariables(ScriptInstance* instance) {
               current_handle_str = cstr;
               AssetHandle h = AssetHandle::FromString(current_handle_str);
               const auto* meta = Engine::asset_manager().GetMetadata(h);
-              if (meta) display = meta->name;
+              if (meta) {
+                display = meta->name;
+              }
             }
             mono_free((void*)cstr);
           }
@@ -670,18 +702,17 @@ void RenderScriptVariables(ScriptInstance* instance) {
           // Create or update AudioClip object
           MonoObject* obj = clip_obj;
           if (!obj) {
-            obj = mono_object_new(
-                Engine::script_manager().app_domain(),
-                Engine::script_manager().audio_clip_class());
+            obj = mono_object_new(Engine::script_manager().app_domain(),
+                                  Engine::script_manager().audio_clip_class());
             mono_runtime_object_init(obj);
           }
           if (obj) {
             MonoClassField* handle_field = mono_class_get_field_from_name(
                 mono_object_get_class(obj), "handle");
             if (handle_field) {
-              MonoString* h_val = mono_string_new(
-                  Engine::script_manager().app_domain(),
-                  dropped_handle.ToString().c_str());
+              MonoString* h_val =
+                  mono_string_new(Engine::script_manager().app_domain(),
+                                  dropped_handle.ToString().c_str());
               mono_field_set_value(obj, handle_field, h_val);
             }
             value.Set(instance->handle(), obj);
@@ -704,8 +735,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
 }
 
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
-                                  IBehavior& behavior,
-                                  Entity entity) {
+                                  IBehavior& behavior, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode(behavior.GetEditorName().c_str(), &visible)) {
     bool enabled = behavior.IsEnabled();
@@ -819,9 +849,12 @@ void RenderAddComponentImGui_SphereColliderComponent(Entity entity) {
 void RenderComponentImGui(CapsuleColliderComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Capsule Collider", &visible)) {
-    ImGui::DragFloat3(PrefixLabel("Offset").c_str(), &component.offset.x, 0.01f);
-    ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.01f, 0.01f, 100.0f);
-    ImGui::DragFloat(PrefixLabel("Height").c_str(), &component.height, 0.01f, 0.01f, 100.0f);
+    ImGui::DragFloat3(PrefixLabel("Offset").c_str(), &component.offset.x,
+                      0.01f);
+    ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.01f,
+                     0.01f, 100.0f);
+    ImGui::DragFloat(PrefixLabel("Height").c_str(), &component.height, 0.01f,
+                     0.01f, 100.0f);
 
     const char* axis_names[] = {"X", "Y", "Z"};
     int axis_idx = static_cast<int>(component.axis);
@@ -839,7 +872,8 @@ void RenderComponentImGui(CapsuleColliderComponent& component, Entity entity) {
 }
 
 void RenderAddComponentImGui_CapsuleColliderComponent(Entity entity) {
-  if (ImGui::MenuItem("Capsule Collider") && !entity.HasComponent<CapsuleColliderComponent>()) {
+  if (ImGui::MenuItem("Capsule Collider") &&
+      !entity.HasComponent<CapsuleColliderComponent>()) {
     entity.AddComponent<CapsuleColliderComponent>();
   }
 }
@@ -907,24 +941,27 @@ void RenderAddComponentImGui_RigidBodyComponent(Entity entity) {
 
 // Canvas / UI components
 
-void RenderComponentImGui(RectangleTransformComponent& component, Entity entity) {
+void RenderComponentImGui(RectangleTransformComponent& component,
+                          Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Rectangle Transform", &visible)) {
     bool changed = false;
-    changed |= ImGui::DragFloat2(PrefixLabel("Position").c_str(),
-                                  reinterpret_cast<float*>(&component.position), 0.5f);
+    changed |=
+        ImGui::DragFloat2(PrefixLabel("Position").c_str(),
+                          reinterpret_cast<float*>(&component.position), 0.5f);
     changed |= ImGui::DragFloat(PrefixLabel("Rotation").c_str(),
-                                 &component.rotation, 0.5f);
-    changed |= ImGui::DragFloat2(PrefixLabel("Size").c_str(),
-                                  reinterpret_cast<float*>(&component.size), 0.5f);
-    changed |= ImGui::DragFloat2(PrefixLabel("Scale").c_str(),
-                                  reinterpret_cast<float*>(&component.scale), 0.01f);
+                                &component.rotation, 0.5f);
+    changed |=
+        ImGui::DragFloat2(PrefixLabel("Size").c_str(),
+                          reinterpret_cast<float*>(&component.size), 0.5f);
+    changed |=
+        ImGui::DragFloat2(PrefixLabel("Scale").c_str(),
+                          reinterpret_cast<float*>(&component.scale), 0.01f);
 
-    const char* anchors[] = {
-        "Top Left", "Top Center", "Top Right",
-        "Middle Left", "Middle Center", "Middle Right",
-        "Bottom Left", "Bottom Center", "Bottom Right",
-        "Stretch All"};
+    const char* anchors[] = {"Top Left",    "Top Center",    "Top Right",
+                             "Middle Left", "Middle Center", "Middle Right",
+                             "Bottom Left", "Bottom Center", "Bottom Right",
+                             "Stretch All"};
     int anchor_idx = static_cast<int>(component.anchor);
     if (ImGui::Combo(PrefixLabel("Anchor").c_str(), &anchor_idx, anchors, 10)) {
       component.anchor = static_cast<AnchorPreset>(anchor_idx);
@@ -949,13 +986,16 @@ void RenderComponentImGui(RectangleTransformComponent& component, Entity entity)
       changed = true;
     }
 
-    changed |= ImGui::DragFloat4(PrefixLabel("Padding").c_str(),
-                                  reinterpret_cast<float*>(&component.padding), 0.5f);
-    changed |= ImGui::DragFloat4(PrefixLabel("Margin").c_str(),
-                                  reinterpret_cast<float*>(&component.margin), 0.5f);
+    changed |=
+        ImGui::DragFloat4(PrefixLabel("Padding").c_str(),
+                          reinterpret_cast<float*>(&component.padding), 0.5f);
+    changed |=
+        ImGui::DragFloat4(PrefixLabel("Margin").c_str(),
+                          reinterpret_cast<float*>(&component.margin), 0.5f);
 
     ImGui::TextDisabled("Computed: (%.0f, %.0f) %.0fx%.0f",
-                        component.computed_position.x, component.computed_position.y,
+                        component.computed_position.x,
+                        component.computed_position.y,
                         component.computed_size.x, component.computed_size.y);
 
     /*if (changed) {
@@ -972,14 +1012,17 @@ void RenderComponentImGui(RectangleTransformComponent& component, Entity entity)
 void RenderComponentImGui(CanvasComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Canvas", &visible)) {
-    const char* render_modes[] = {"Screen Space - Overlay", "Screen Space - Camera", "World Space"};
+    const char* render_modes[] = {"Screen Space - Overlay",
+                                  "Screen Space - Camera", "World Space"};
     int rm = static_cast<int>(component.render_mode);
-    if (ImGui::Combo(PrefixLabel("Render Mode").c_str(), &rm, render_modes, 3)) {
+    if (ImGui::Combo(PrefixLabel("Render Mode").c_str(), &rm, render_modes,
+                     3)) {
       component.render_mode = static_cast<CanvasRenderMode>(rm);
     }
 
     if (component.render_mode == CanvasRenderMode::ScreenSpaceCamera) {
-      ImGui::DragFloat(PrefixLabel("Plane Distance").c_str(), &component.plane_distance, 0.1f, 0.1f, 1000.0f);
+      ImGui::DragFloat(PrefixLabel("Plane Distance").c_str(),
+                       &component.plane_distance, 0.1f, 0.1f, 1000.0f);
 
       // Camera entity picker - show combo of all entities with CameraComponent
       {
@@ -987,10 +1030,13 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
         std::string current_name = "(None)";
         if (component.camera_entity != entt::null && s &&
             s->HasComponent<TagComponent>(component.camera_entity)) {
-          current_name = s->GetComponent<TagComponent>(component.camera_entity).name;
+          current_name =
+              s->GetComponent<TagComponent>(component.camera_entity).name;
         }
-        if (ImGui::BeginCombo(PrefixLabel("Camera").c_str(), current_name.c_str())) {
-          if (ImGui::Selectable("(None)", component.camera_entity == entt::null)) {
+        if (ImGui::BeginCombo(PrefixLabel("Camera").c_str(),
+                              current_name.c_str())) {
+          if (ImGui::Selectable("(None)",
+                                component.camera_entity == entt::null)) {
             component.camera_entity = entt::null;
           }
           if (s) {
@@ -1022,8 +1068,10 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
     }
 
     ImGui::DragFloat(PrefixLabel("Spacing").c_str(), &component.spacing, 0.5f);
-    ImGui::DragFloat(PrefixLabel("Start Spacing").c_str(), &component.start_spacing, 0.5f);
-    ImGui::DragFloat(PrefixLabel("End Spacing").c_str(), &component.end_spacing, 0.5f);
+    ImGui::DragFloat(PrefixLabel("Start Spacing").c_str(),
+                     &component.start_spacing, 0.5f);
+    ImGui::DragFloat(PrefixLabel("End Spacing").c_str(), &component.end_spacing,
+                     0.5f);
     ImGui::InputInt(PrefixLabel("Sort Order").c_str(), &component.sort_order);
     ImGui::TreePop();
   }
@@ -1045,10 +1093,12 @@ void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
 
     if (is_world_space) {
       // WorldSpace mode: show pixels-per-unit instead of scale mode
-      ImGui::DragFloat2(PrefixLabel("Reference Resolution").c_str(),
-                        reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
+      ImGui::DragFloat2(
+          PrefixLabel("Reference Resolution").c_str(),
+          reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
       ImGui::DragFloat(PrefixLabel("Ref Pixels Per Unit").c_str(),
-                       &component.reference_pixels_per_unit, 1.0f, 1.0f, 1000.0f);
+                       &component.reference_pixels_per_unit, 1.0f, 1.0f,
+                       1000.0f);
     } else {
       const char* modes[] = {"Constant Pixel Size", "Scale With Screen Size"};
       int mode = static_cast<int>(component.scale_mode);
@@ -1056,8 +1106,9 @@ void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
         component.scale_mode = static_cast<ScaleMode>(mode);
       }
       if (component.scale_mode == ScaleMode::ScaleWithScreenSize) {
-        ImGui::DragFloat2(PrefixLabel("Reference Resolution").c_str(),
-                          reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
+        ImGui::DragFloat2(
+            PrefixLabel("Reference Resolution").c_str(),
+            reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
         ImGui::SliderFloat(PrefixLabel("Match").c_str(),
                            &component.match_width_or_height, 0.0f, 1.0f,
                            "Width %.2f Height");
@@ -1099,7 +1150,8 @@ void RenderComponentImGui(CanvasImageComponent& component, Entity entity) {
     {
       AssetHandle tex_handle;
       if (component.texture && !component.texture->path_.empty()) {
-        tex_handle = Engine::asset_manager().FindBySourcePath(component.texture->path_);
+        tex_handle =
+            Engine::asset_manager().FindBySourcePath(component.texture->path_);
       }
       if (TextureDropField("Texture", tex_handle)) {
         if (tex_handle.IsValid()) {
@@ -1209,7 +1261,8 @@ void RenderComponentImGui(TextInputComponent& component, Entity entity) {
     char buf[256];
     strncpy(buf, component.placeholder.c_str(), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
-    if (ImGui::InputText(PrefixLabel("Placeholder").c_str(), buf, sizeof(buf))) {
+    if (ImGui::InputText(PrefixLabel("Placeholder").c_str(), buf,
+                         sizeof(buf))) {
       component.placeholder = buf;
     }
     ImGui::InputInt(PrefixLabel("Max Length").c_str(), &component.max_length);
@@ -1246,7 +1299,8 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
     if (entity.HasComponent<ModelComponent>()) {
       auto& model_comp = entity.GetComponent<ModelComponent>();
       if (model_comp.model_handle.IsValid()) {
-        model_ptr = Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
+        model_ptr =
+            Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
       }
     }
 
@@ -1263,7 +1317,8 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
 
       // Current state
       std::string state_label = component.current_state_name.empty()
-          ? "(None)" : component.current_state_name;
+                                    ? "(None)"
+                                    : component.current_state_name;
       ImGui::Text("State: %s", state_label.c_str());
 
       if (component.is_blending) {
@@ -1271,15 +1326,14 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
                            "Blending...");
       }
 
-      ImGui::DragFloat(PrefixLabel("State Time").c_str(),
-                       &component.state_time, 0.1f, 0.0f, 10000.0f);
+      ImGui::DragFloat(PrefixLabel("State Time").c_str(), &component.state_time,
+                       0.1f, 0.0f, 10000.0f);
 
       // Default state
       if (ImGui::BeginCombo(PrefixLabel("Default State").c_str(),
                             component.controller.default_state.c_str())) {
         for (const auto& state : component.controller.states) {
-          bool selected =
-              (component.controller.default_state == state.name);
+          bool selected = (component.controller.default_state == state.name);
           if (ImGui::Selectable(state.name.c_str(), selected)) {
             component.controller.default_state = state.name;
           }
@@ -1324,8 +1378,8 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
         }
         if (ImGui::Button("+ Add State")) {
           AnimationState new_state;
-          new_state.name = "State" +
-              std::to_string(component.controller.states.size());
+          new_state.name =
+              "State" + std::to_string(component.controller.states.size());
           component.controller.states.push_back(new_state);
         }
         ImGui::TreePop();
@@ -1336,12 +1390,14 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
         for (size_t i = 0; i < component.controller.transitions.size(); i++) {
           auto& trans = component.controller.transitions[i];
           ImGui::PushID(static_cast<int>(i));
-          std::string label = (trans.from_state.empty() ? "Any" : trans.from_state)
-                              + " -> " + trans.to_state;
+          std::string label =
+              (trans.from_state.empty() ? "Any" : trans.from_state) + " -> " +
+              trans.to_state;
           if (ImGui::TreeNode(label.c_str())) {
             // From state combo
-            if (ImGui::BeginCombo("From",
-                    trans.from_state.empty() ? "(Any)" : trans.from_state.c_str())) {
+            if (ImGui::BeginCombo("From", trans.from_state.empty()
+                                              ? "(Any)"
+                                              : trans.from_state.c_str())) {
               if (ImGui::Selectable("(Any)", trans.from_state.empty())) {
                 trans.from_state = "";
               }
@@ -1363,8 +1419,8 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
               }
               ImGui::EndCombo();
             }
-            ImGui::DragFloat("Blend Duration", &trans.blend_duration,
-                             0.01f, 0.0f, 5.0f);
+            ImGui::DragFloat("Blend Duration", &trans.blend_duration, 0.01f,
+                             0.0f, 5.0f);
 
             // Conditions
             for (size_t j = 0; j < trans.conditions.size(); j++) {
@@ -1394,9 +1450,8 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
                   break;
               }
               if (ImGui::Button("Remove Condition")) {
-                trans.conditions.erase(
-                    trans.conditions.begin() +
-                    static_cast<ptrdiff_t>(j));
+                trans.conditions.erase(trans.conditions.begin() +
+                                       static_cast<ptrdiff_t>(j));
                 ImGui::PopID();
                 break;
               }
@@ -1493,7 +1548,8 @@ void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
       if (model_ptr && !model_ptr->animation_clips.empty()) {
         const auto& clips = model_ptr->animation_clips;
         std::string current = component.current_clip_name.empty()
-            ? "(None)" : component.current_clip_name;
+                                  ? "(None)"
+                                  : component.current_clip_name;
         if (ImGui::BeginCombo(PrefixLabel("Clip").c_str(), current.c_str())) {
           for (const auto& clip : clips) {
             bool selected = (component.current_clip_name == clip.name);
@@ -1564,6 +1620,7 @@ void RenderAddComponentImGui_CameraComponent(Entity entity) {
     Engine::renderer()->SetupCameraComponent(component);
   }
 }
+
 static entt::entity addMonoScriptEntityId = entt::null;
 static bool shouldOpenMonoScriptPopup = false;
 
@@ -1575,8 +1632,9 @@ void RenderAddComponentImGui_BehaviorsComponent(Entity entity) {
 }
 
 void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
-  if (entity.handle() != addMonoScriptEntityId)
+  if (entity.handle() != addMonoScriptEntityId) {
     return;
+  }
 
   if (shouldOpenMonoScriptPopup) {
     ImGui::OpenPopup("Add Script");
@@ -1585,7 +1643,8 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
 
   static int currentScriptIndex = 0;
   bool open = true;
-  if (ImGui::BeginPopupModal("Add Script", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
+  if (ImGui::BeginPopupModal("Add Script", &open,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
     // Build combined list: native behaviors + C# scripts
     std::vector<std::string> all_scripts;
     std::vector<bool> is_native;
@@ -1595,33 +1654,42 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
       all_scripts.push_back(name + " (C++)");
       is_native.push_back(true);
     }
-    const std::vector<std::string>& cs_names = Engine::script_manager().script_names();
+    const std::vector<std::string>& cs_names =
+        Engine::script_manager().script_names();
     for (const auto& name : cs_names) {
       all_scripts.push_back(name + " (C#)");
       is_native.push_back(false);
     }
 
     if (!all_scripts.empty()) {
-      if (currentScriptIndex >= static_cast<int>(all_scripts.size()))
+      if (currentScriptIndex >= static_cast<int>(all_scripts.size())) {
         currentScriptIndex = 0;
-      ImGui::Combo("Script", &currentScriptIndex,
-                   [](void* data, int idx) -> const char* {
-                     const auto& names = *static_cast<const std::vector<std::string>*>(data);
-                     if (idx < 0 || idx >= static_cast<int>(names.size())) return nullptr;
-                     return names[idx].c_str();
-                   }, (void*)&all_scripts, static_cast<int>(all_scripts.size()));
+      }
+      ImGui::Combo(
+          "Script", &currentScriptIndex,
+          [](void* data, int idx) -> const char* {
+            const auto& names =
+                *static_cast<const std::vector<std::string>*>(data);
+            if (idx < 0 || idx >= static_cast<int>(names.size())) {
+              return nullptr;
+            }
+            return names[idx].c_str();
+          },
+          (void*)&all_scripts, static_cast<int>(all_scripts.size()));
     } else {
       ImGui::TextDisabled("No scripts found.");
     }
 
     if (ImGui::Button("Add") && !all_scripts.empty()) {
-      if (!entity.HasComponent<BehaviorsComponent>())
+      if (!entity.HasComponent<BehaviorsComponent>()) {
         entity.AddComponent<BehaviorsComponent>();
+      }
 
       auto& bc = entity.GetComponent<BehaviorsComponent>();
       if (is_native[currentScriptIndex]) {
         const std::string& name = native_names[currentScriptIndex];
-        NativeBehavior* native = Engine::behavior_registry().Create(name, entity);
+        NativeBehavior* native =
+            Engine::behavior_registry().Create(name, entity);
         if (native) {
           bc.behaviors_.insert(std::pair(name, native));
         }
@@ -1645,7 +1713,6 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
   }
 }
 
-
 struct ComponentDesc {
   std::string display_name;
   std::string group;
@@ -1657,37 +1724,32 @@ struct ComponentDesc {
 
 std::unordered_map<std::type_index, ComponentDesc> kRegistry;
 
-template<typename T>
-void RegisterComponentType(
-    const std::string& display_name,
-    const std::string& group,
-    void (*renderSelf)(T&, Entity),
-    void (*renderAdd)(Entity),
-    void (*renderModal)(Entity)
-) {
+template <typename T>
+void RegisterComponentType(const std::string& display_name,
+                           const std::string& group,
+                           void (*renderSelf)(T&, Entity),
+                           void (*renderAdd)(Entity),
+                           void (*renderModal)(Entity)) {
   auto ti = std::type_index(typeid(T));
-  kRegistry[ti] = ComponentDesc{
-      display_name,
-      group,
-      [renderSelf](Entity e) {
-        if (renderSelf) {
-          renderSelf(e.GetComponent<T>(), e);
-        }
-      },
-      [renderAdd](Entity e) {
-        if (renderAdd) {
-          renderAdd(e);
-        }
-      },
-      [renderModal](Entity e) {
-        if (renderModal) {
-          renderModal(e);
-        }
-      },
-      [](Entity entity) {
-        return entity.HasComponent<T>();
-      }
-  };
+  kRegistry[ti] =
+      ComponentDesc{display_name,
+                    group,
+                    [renderSelf](Entity e) {
+                      if (renderSelf) {
+                        renderSelf(e.GetComponent<T>(), e);
+                      }
+                    },
+                    [renderAdd](Entity e) {
+                      if (renderAdd) {
+                        renderAdd(e);
+                      }
+                    },
+                    [renderModal](Entity e) {
+                      if (renderModal) {
+                        renderModal(e);
+                      }
+                    },
+                    [](Entity entity) { return entity.HasComponent<T>(); }};
 }
 
 void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
@@ -1704,13 +1766,18 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
   std::string display = "(None)";
   if (component.clip.IsValid()) {
     const auto* meta = Engine::asset_manager().GetMetadata(component.clip);
-    if (meta) display = meta->name;
+    if (meta) {
+      display = meta->name;
+    }
   }
-  ImGui::InputText(PrefixLabel("Clip").c_str(), &display, ImGuiInputTextFlags_ReadOnly);
+  ImGui::InputText(PrefixLabel("Clip").c_str(), &display,
+                   ImGuiInputTextFlags_ReadOnly);
 
   if (ImGui::BeginDragDropTarget()) {
     AssetHandle dropped = AcceptAssetDragDrop(AssetType::Audio);
-    if (dropped.IsValid()) component.clip = dropped;
+    if (dropped.IsValid()) {
+      component.clip = dropped;
+    }
     ImGui::EndDragDropTarget();
   }
 
@@ -1732,17 +1799,25 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
     component.bus = static_cast<AudioBus>(bus_idx);
   }
 
-  ImGui::SliderFloat(PrefixLabel("Volume").c_str(), &component.volume, 0.0f, 1.0f);
-  ImGui::SliderFloat(PrefixLabel("Pitch").c_str(), &component.pitch, 0.1f, 3.0f);
-  ImGui::SliderFloat(PrefixLabel("Spatial Blend").c_str(), &component.spatial_blend, 0.0f, 1.0f,
-                      component.spatial_blend < 0.01f ? "2D" : (component.spatial_blend > 0.99f ? "3D" : "%.2f"));
+  ImGui::SliderFloat(PrefixLabel("Volume").c_str(), &component.volume, 0.0f,
+                     1.0f);
+  ImGui::SliderFloat(PrefixLabel("Pitch").c_str(), &component.pitch, 0.1f,
+                     3.0f);
+  ImGui::SliderFloat(PrefixLabel("Spatial Blend").c_str(),
+                     &component.spatial_blend, 0.0f, 1.0f,
+                     component.spatial_blend < 0.01f
+                         ? "2D"
+                         : (component.spatial_blend > 0.99f ? "3D" : "%.2f"));
   ImGui::Checkbox(PrefixLabel("Loop").c_str(), &component.loop);
-  ImGui::Checkbox(PrefixLabel("Play On Start").c_str(), &component.play_on_start);
+  ImGui::Checkbox(PrefixLabel("Play On Start").c_str(),
+                  &component.play_on_start);
   ImGui::Checkbox(PrefixLabel("Mute").c_str(), &component.mute);
 
   if (component.spatial_blend > 0.0f) {
-    ImGui::DragFloat(PrefixLabel("Min Distance").c_str(), &component.min_distance, 0.1f, 0.0f, 1000.0f);
-    ImGui::DragFloat(PrefixLabel("Max Distance").c_str(), &component.max_distance, 1.0f, 0.0f, 10000.0f);
+    ImGui::DragFloat(PrefixLabel("Min Distance").c_str(),
+                     &component.min_distance, 0.1f, 0.0f, 1000.0f);
+    ImGui::DragFloat(PrefixLabel("Max Distance").c_str(),
+                     &component.max_distance, 1.0f, 0.0f, 10000.0f);
   }
 
   // Preview buttons
@@ -1760,7 +1835,8 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
         params.pitch = component.pitch;
         params.loop = component.loop;
         params.spatial_blend = 0.0f;  // preview always 2D
-        component.playing_handle_ = Engine::audio().Play(component.clip, params);
+        component.playing_handle_ =
+            Engine::audio().Play(component.clip, params);
       }
     }
   }
@@ -1769,7 +1845,8 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
 }
 
 void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
-  if (ImGui::MenuItem("Audio Source") && !entity.HasComponent<AudioSourceComponent>()) {
+  if (ImGui::MenuItem("Audio Source") &&
+      !entity.HasComponent<AudioSourceComponent>()) {
     entity.AddComponent<AudioSourceComponent>();
   }
 }
@@ -1787,12 +1864,14 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
   // Animation asset (drag-drop)
   std::string display = "(None)";
   if (component.asset_handle_.IsValid()) {
-    const auto* meta = Engine::asset_manager().GetMetadata(component.asset_handle_);
+    const auto* meta =
+        Engine::asset_manager().GetMetadata(component.asset_handle_);
     if (meta) {
       display = meta->name;
     }
   }
-  ImGui::InputText(PrefixLabel("Animation").c_str(), &display, ImGuiInputTextFlags_ReadOnly);
+  ImGui::InputText(PrefixLabel("Animation").c_str(), &display,
+                   ImGuiInputTextFlags_ReadOnly);
   if (ImGui::BeginDragDropTarget()) {
     AssetHandle dropped = AcceptAssetDragDrop(AssetType::SpriteAnim);
     if (dropped.IsValid()) {
@@ -1830,7 +1909,8 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
   // Clips table
   if (ImGui::TreeNode("Clips")) {
     if (ImGui::BeginTable("##clips", 6,
-        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                              ImGuiTableFlags_Resizable)) {
       ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 80);
       ImGui::TableSetupColumn("Start", ImGuiTableColumnFlags_WidthFixed, 50);
       ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 50);
@@ -1900,13 +1980,15 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
   auto& ctrl = component.state_machine.controller;
   if (ImGui::TreeNode("Controller")) {
     // Default state
-    if (ImGui::BeginCombo("Default State",
-                           ctrl.default_state.empty() ? "(None)" : ctrl.default_state.c_str())) {
+    if (ImGui::BeginCombo("Default State", ctrl.default_state.empty()
+                                               ? "(None)"
+                                               : ctrl.default_state.c_str())) {
       if (ImGui::Selectable("(None)", ctrl.default_state.empty())) {
         ctrl.default_state.clear();
       }
       for (auto& state : ctrl.states) {
-        if (ImGui::Selectable(state.name.c_str(), ctrl.default_state == state.name)) {
+        if (ImGui::Selectable(state.name.c_str(),
+                              ctrl.default_state == state.name)) {
           ctrl.default_state = state.name;
         }
       }
@@ -1916,7 +1998,7 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
     // States table
     if (ImGui::TreeNode("States")) {
       if (ImGui::BeginTable("##states", 5,
-          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                            ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
         ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableSetupColumn("Clip", ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableSetupColumn("Speed", ImGuiTableColumnFlags_WidthFixed, 50);
@@ -1941,9 +2023,12 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
 
           ImGui::TableNextColumn();
           ImGui::SetNextItemWidth(-1);
-          if (ImGui::BeginCombo("##sc", state.clip_name.empty() ? "(None)" : state.clip_name.c_str())) {
+          if (ImGui::BeginCombo("##sc", state.clip_name.empty()
+                                            ? "(None)"
+                                            : state.clip_name.c_str())) {
             for (auto& clip : component.clips) {
-              if (ImGui::Selectable(clip.name.c_str(), state.clip_name == clip.name)) {
+              if (ImGui::Selectable(clip.name.c_str(),
+                                    state.clip_name == clip.name)) {
                 state.clip_name = clip.name;
               }
             }
@@ -2051,9 +2136,11 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
         auto& trans = ctrl.transitions[i];
 
         // From -> To header
-        std::string header = (trans.from_state.empty() ? "Any" : trans.from_state) +
-                             " -> " + trans.to_state;
-        bool open = ImGui::TreeNodeEx("##t", ImGuiTreeNodeFlags_AllowOverlap, "%s", header.c_str());
+        std::string header =
+            (trans.from_state.empty() ? "Any" : trans.from_state) + " -> " +
+            trans.to_state;
+        bool open = ImGui::TreeNodeEx("##t", ImGuiTreeNodeFlags_AllowOverlap,
+                                      "%s", header.c_str());
         ImGui::SameLine(ImGui::GetContentRegionAvail().x - 20);
         if (ImGui::SmallButton("X")) {
           to_remove = i;
@@ -2061,12 +2148,15 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
 
         if (open) {
           // From state
-          if (ImGui::BeginCombo("From", trans.from_state.empty() ? "(Any)" : trans.from_state.c_str())) {
+          if (ImGui::BeginCombo("From", trans.from_state.empty()
+                                            ? "(Any)"
+                                            : trans.from_state.c_str())) {
             if (ImGui::Selectable("(Any)", trans.from_state.empty())) {
               trans.from_state.clear();
             }
             for (auto& state : ctrl.states) {
-              if (ImGui::Selectable(state.name.c_str(), trans.from_state == state.name)) {
+              if (ImGui::Selectable(state.name.c_str(),
+                                    trans.from_state == state.name)) {
                 trans.from_state = state.name;
               }
             }
@@ -2074,9 +2164,12 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
           }
 
           // To state
-          if (ImGui::BeginCombo("To", trans.to_state.empty() ? "(None)" : trans.to_state.c_str())) {
+          if (ImGui::BeginCombo("To", trans.to_state.empty()
+                                          ? "(None)"
+                                          : trans.to_state.c_str())) {
             for (auto& state : ctrl.states) {
-              if (ImGui::Selectable(state.name.c_str(), trans.to_state == state.name)) {
+              if (ImGui::Selectable(state.name.c_str(),
+                                    trans.to_state == state.name)) {
                 trans.to_state = state.name;
               }
             }
@@ -2096,7 +2189,8 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
             ImGui::SetNextItemWidth(80);
             if (ImGui::BeginCombo("##cp", cond.param_name.c_str())) {
               for (auto& [pname, pparam] : component.state_machine.parameters) {
-                if (ImGui::Selectable(pname.c_str(), cond.param_name == pname)) {
+                if (ImGui::Selectable(pname.c_str(),
+                                      cond.param_name == pname)) {
                   cond.param_name = pname;
                   cond.param_type = pparam.type;
                 }
@@ -2116,7 +2210,8 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
             ImGui::SameLine();
             // Value
             ImGui::SetNextItemWidth(60);
-            if (cond.param_type == AnimParamType::Bool || cond.param_type == AnimParamType::Trigger) {
+            if (cond.param_type == AnimParamType::Bool ||
+                cond.param_type == AnimParamType::Trigger) {
               ImGui::Checkbox("##cv", &cond.value.b);
             } else if (cond.param_type == AnimParamType::Int) {
               ImGui::InputInt("##cv", &cond.value.i);
@@ -2190,7 +2285,8 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
   ImGui::ColorEdit4(PrefixLabel("Normal").c_str(), &component.normal_color.r);
   ImGui::ColorEdit4(PrefixLabel("Hovered").c_str(), &component.hovered_color.r);
   ImGui::ColorEdit4(PrefixLabel("Pressed").c_str(), &component.pressed_color.r);
-  ImGui::ColorEdit4(PrefixLabel("Disabled").c_str(), &component.disabled_color.r);
+  ImGui::ColorEdit4(PrefixLabel("Disabled").c_str(),
+                    &component.disabled_color.r);
 
   ImGui::SeparatorText("Textures (optional)");
   TextureDropField("Normal", component.normal_texture);
@@ -2205,7 +2301,8 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
                     reinterpret_cast<float*>(&component.pressed_offset), 0.5f);
 
   const char* state_names[] = {"Normal", "Hovered", "Pressed", "Disabled"};
-  ImGui::TextDisabled("State: %s", state_names[static_cast<int>(component.state_)]);
+  ImGui::TextDisabled("State: %s",
+                      state_names[static_cast<int>(component.state_)]);
 
   ImGui::TreePop();
 }
@@ -2235,7 +2332,8 @@ void RenderComponentImGui(InteractableComponent& component, Entity entity) {
   }
 
   ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &component.enabled);
-  ImGui::Checkbox(PrefixLabel("Blocks Raycast").c_str(), &component.blocks_raycast);
+  ImGui::Checkbox(PrefixLabel("Blocks Raycast").c_str(),
+                  &component.blocks_raycast);
 
   if (component.hovered_) {
     ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Hovered");
@@ -2249,7 +2347,8 @@ void RenderComponentImGui(InteractableComponent& component, Entity entity) {
 }
 
 void RenderAddComponentImGui_InteractableComponent(Entity entity) {
-  if (ImGui::MenuItem("Interactable") && !entity.HasComponent<InteractableComponent>()) {
+  if (ImGui::MenuItem("Interactable") &&
+      !entity.HasComponent<InteractableComponent>()) {
     entity.AddComponent<InteractableComponent>();
   }
 }
@@ -2264,9 +2363,12 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
     return;
   }
 
-  ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.5f, 0.1f, 1000.0f);
-  ImGui::DragFloat(PrefixLabel("Delay (ms)").c_str(), &component.delay_ms, 5.0f, 10.0f, 2000.0f);
-  ImGui::SliderFloat(PrefixLabel("Decay").c_str(), &component.decay, 0.0f, 1.0f);
+  ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.5f, 0.1f,
+                   1000.0f);
+  ImGui::DragFloat(PrefixLabel("Delay (ms)").c_str(), &component.delay_ms, 5.0f,
+                   10.0f, 2000.0f);
+  ImGui::SliderFloat(PrefixLabel("Decay").c_str(), &component.decay, 0.0f,
+                     1.0f);
   ImGui::SliderFloat(PrefixLabel("Wet").c_str(), &component.wet, 0.0f, 1.0f);
 
   if (component.active_) {
@@ -2277,7 +2379,8 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
 }
 
 void RenderAddComponentImGui_ReverbZoneComponent(Entity entity) {
-  if (ImGui::MenuItem("Reverb Zone") && !entity.HasComponent<ReverbZoneComponent>()) {
+  if (ImGui::MenuItem("Reverb Zone") &&
+      !entity.HasComponent<ReverbZoneComponent>()) {
     entity.AddComponent<ReverbZoneComponent>();
   }
 }
@@ -2285,29 +2388,74 @@ void RenderAddComponentImGui_ReverbZoneComponent(Entity entity) {
 void InitializeComponents() {
   RegisterComponentType<IdComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
-  RegisterComponentType<TransformComponent>("Transform", "", RenderComponentImGui, nullptr, nullptr);
-  RegisterComponentType<ModelComponent>("Model", "Rendering", RenderComponentImGui, RenderAddComponentImGui_ModelComponent, nullptr);
-  RegisterComponentType<AnimatorComponent>("Animator", "Rendering", RenderComponentImGui, RenderAddComponentImGui_AnimatorComponent, nullptr);
-  RegisterComponentType<CameraComponent>("Camera", "Rendering", RenderComponentImGui, RenderAddComponentImGui_CameraComponent, nullptr);
-  RegisterComponentType<LightDirectComponent>("Directional Light", "Lighting", RenderComponentImGui, RenderAddComponentImGui_LightDirectComponent, nullptr);
-  RegisterComponentType<LightPointComponent>("Point Light", "Lighting", RenderComponentImGui, RenderAddComponentImGui_LightPointComponent, nullptr);
-  RegisterComponentType<BehaviorsComponent>("C# Script", "Scripting", RenderComponentImGui, RenderAddComponentImGui_BehaviorsComponent, RenderModalComponentImGui_BehaviorsComponent);
-  RegisterComponentType<BoxColliderComponent>("Box Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_BoxColliderComponent, nullptr);
-  RegisterComponentType<SphereColliderComponent>("Sphere Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_SphereColliderComponent, nullptr);
-  RegisterComponentType<CapsuleColliderComponent>("Capsule Collider", "Physics", RenderComponentImGui, RenderAddComponentImGui_CapsuleColliderComponent, nullptr);
-  RegisterComponentType<RigidBodyComponent>("Rigid Body", "Physics", RenderComponentImGui, RenderAddComponentImGui_RigidBodyComponent,  nullptr);
-  RegisterComponentType<RectangleTransformComponent>("Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
-  RegisterComponentType<CanvasComponent>("Canvas", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasComponent, nullptr);
-  RegisterComponentType<CanvasScalerComponent>("Canvas Scaler", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasScalerComponent, nullptr);
-  RegisterComponentType<CanvasRectComponent>("Canvas Rect", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasRectComponent, nullptr);
-  RegisterComponentType<CanvasImageComponent>("Canvas Image", "Canvas", RenderComponentImGui, RenderAddComponentImGui_CanvasImageComponent, nullptr);
-  RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui, RenderAddComponentImGui_TextComponent, nullptr);
-  RegisterComponentType<TextInputComponent>("Text Input", "UI", RenderComponentImGui, RenderAddComponentImGui_TextInputComponent, nullptr);
-  RegisterComponentType<ButtonComponent>("Button", "UI", RenderComponentImGui, RenderAddComponentImGui_ButtonComponent, nullptr);
-  RegisterComponentType<InteractableComponent>("Interactable", "UI", RenderComponentImGui, RenderAddComponentImGui_InteractableComponent, nullptr);
-  RegisterComponentType<AudioSourceComponent>("Audio Source", "Audio", RenderComponentImGui, RenderAddComponentImGui_AudioSourceComponent, nullptr);
-  RegisterComponentType<SpriteComponent>("Sprite", "Rendering", RenderComponentImGui, RenderAddComponentImGui_SpriteComponent, nullptr);
-  RegisterComponentType<ReverbZoneComponent>("Reverb Zone", "Audio", RenderComponentImGui, RenderAddComponentImGui_ReverbZoneComponent, nullptr);
+  RegisterComponentType<TransformComponent>(
+      "Transform", "", RenderComponentImGui, nullptr, nullptr);
+  RegisterComponentType<ModelComponent>(
+      "Model", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_ModelComponent, nullptr);
+  RegisterComponentType<AnimatorComponent>(
+      "Animator", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_AnimatorComponent, nullptr);
+  RegisterComponentType<CameraComponent>(
+      "Camera", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_CameraComponent, nullptr);
+  RegisterComponentType<LightDirectComponent>(
+      "Directional Light", "Lighting", RenderComponentImGui,
+      RenderAddComponentImGui_LightDirectComponent, nullptr);
+  RegisterComponentType<LightPointComponent>(
+      "Point Light", "Lighting", RenderComponentImGui,
+      RenderAddComponentImGui_LightPointComponent, nullptr);
+  RegisterComponentType<BehaviorsComponent>(
+      "C# Script", "Scripting", RenderComponentImGui,
+      RenderAddComponentImGui_BehaviorsComponent,
+      RenderModalComponentImGui_BehaviorsComponent);
+  RegisterComponentType<BoxColliderComponent>(
+      "Box Collider", "Physics", RenderComponentImGui,
+      RenderAddComponentImGui_BoxColliderComponent, nullptr);
+  RegisterComponentType<SphereColliderComponent>(
+      "Sphere Collider", "Physics", RenderComponentImGui,
+      RenderAddComponentImGui_SphereColliderComponent, nullptr);
+  RegisterComponentType<CapsuleColliderComponent>(
+      "Capsule Collider", "Physics", RenderComponentImGui,
+      RenderAddComponentImGui_CapsuleColliderComponent, nullptr);
+  RegisterComponentType<RigidBodyComponent>(
+      "Rigid Body", "Physics", RenderComponentImGui,
+      RenderAddComponentImGui_RigidBodyComponent, nullptr);
+  RegisterComponentType<RectangleTransformComponent>(
+      "Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
+  RegisterComponentType<CanvasComponent>(
+      "Canvas", "Canvas", RenderComponentImGui,
+      RenderAddComponentImGui_CanvasComponent, nullptr);
+  RegisterComponentType<CanvasScalerComponent>(
+      "Canvas Scaler", "Canvas", RenderComponentImGui,
+      RenderAddComponentImGui_CanvasScalerComponent, nullptr);
+  RegisterComponentType<CanvasRectComponent>(
+      "Canvas Rect", "Canvas", RenderComponentImGui,
+      RenderAddComponentImGui_CanvasRectComponent, nullptr);
+  RegisterComponentType<CanvasImageComponent>(
+      "Canvas Image", "Canvas", RenderComponentImGui,
+      RenderAddComponentImGui_CanvasImageComponent, nullptr);
+  RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui,
+                                       RenderAddComponentImGui_TextComponent,
+                                       nullptr);
+  RegisterComponentType<TextInputComponent>(
+      "Text Input", "UI", RenderComponentImGui,
+      RenderAddComponentImGui_TextInputComponent, nullptr);
+  RegisterComponentType<ButtonComponent>(
+      "Button", "UI", RenderComponentImGui,
+      RenderAddComponentImGui_ButtonComponent, nullptr);
+  RegisterComponentType<InteractableComponent>(
+      "Interactable", "UI", RenderComponentImGui,
+      RenderAddComponentImGui_InteractableComponent, nullptr);
+  RegisterComponentType<AudioSourceComponent>(
+      "Audio Source", "Audio", RenderComponentImGui,
+      RenderAddComponentImGui_AudioSourceComponent, nullptr);
+  RegisterComponentType<SpriteComponent>(
+      "Sprite", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_SpriteComponent, nullptr);
+  RegisterComponentType<ReverbZoneComponent>(
+      "Reverb Zone", "Audio", RenderComponentImGui,
+      RenderAddComponentImGui_ReverbZoneComponent, nullptr);
 }
 
 void RenderExistingComponents(Entity entity) {
@@ -2332,28 +2480,36 @@ void RenderAddPopup(Entity entity) {
     ImGui::SetKeyboardFocusHere();
     search_buf[0] = '\0';
   }
-  ImGui::InputTextWithHint("##component_search", "Search...", search_buf, sizeof(search_buf));
+  ImGui::InputTextWithHint("##component_search", "Search...", search_buf,
+                           sizeof(search_buf));
 
   std::string filter(search_buf);
   // Lowercase for case-insensitive matching
   std::string filter_lower = filter;
-  for (auto& c : filter_lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  for (auto& c : filter_lower) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
 
   bool has_filter = !filter_lower.empty();
 
   // Collect groups in consistent order
   static const std::vector<std::string> group_order = {
-      "Rendering", "Lighting", "Audio", "Physics", "UI", "Canvas", "Scripting"
-  };
+      "Rendering", "Lighting", "Audio", "Physics", "UI", "Canvas", "Scripting"};
 
   if (has_filter) {
     // Flat filtered list (no groups)
     for (const auto& [ti, desc] : kRegistry) {
-      if (!desc.RenderAdd || desc.display_name.empty()) continue;
+      if (!desc.RenderAdd || desc.display_name.empty()) {
+        continue;
+      }
       std::string name_lower = desc.display_name;
-      for (auto& c : name_lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      for (auto& c : name_lower) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      }
       std::string group_lower = desc.group;
-      for (auto& c : group_lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      for (auto& c : group_lower) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      }
       if (name_lower.find(filter_lower) != std::string::npos ||
           group_lower.find(filter_lower) != std::string::npos) {
         desc.RenderAdd(entity);
@@ -2369,7 +2525,9 @@ void RenderAddPopup(Entity entity) {
           break;
         }
       }
-      if (!has_items) continue;
+      if (!has_items) {
+        continue;
+      }
 
       if (ImGui::BeginMenu(group.c_str())) {
         for (const auto& [ti, desc] : kRegistry) {

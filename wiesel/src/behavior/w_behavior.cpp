@@ -12,7 +12,6 @@
 #include "behavior/w_behavior.hpp"
 #include <filesystem>
 
-
 namespace Wiesel {
 
 void IBehavior::OnUpdate(float_t delta_time) {}

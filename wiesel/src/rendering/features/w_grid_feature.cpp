@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_grid_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -19,16 +19,14 @@ namespace Wiesel {
 
 GridFeature::GridFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  render_pass_ =
-      std::make_shared<RenderPass>(PassType::ForwardTransparency, "Grid RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = renderer_->FindDepthFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
+                                              "Grid RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
+                              .format = renderer_->FindDepthFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   auto fullscreen_vert = renderer_->CreateShader(
@@ -63,15 +61,16 @@ void GridFeature::SetupResources(RenderContext& ctx) {
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
   pool.SetTexture("grid.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+                                    {rw, rh, AttachmentTextureType::Offscreen,
+                                     1, renderer.GetSwapChainImageFormat(),
+                                     SamplingMode::DISABLED, true}));
 
   // Framebuffer: grid color + geometry depth stencil (reused, read+write for gl_FragDepth)
   std::array<AttachmentTexture*, 2> attachments{
       pool.GetTexture("grid.color").get(),
       pool.GetTexture("geometry.depth_stencil").get()};
-  pool.SetFramebuffer("grid",
-      render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
+  pool.SetFramebuffer(
+      "grid", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   // Grid output descriptor for composite
   auto output_desc = std::make_shared<DescriptorSet>();
@@ -84,7 +83,7 @@ void GridFeature::SetupResources(RenderContext& ctx) {
 
   // Grid UBO
   pool.SetBuffer("grid.ubo",
-      renderer.CreateUniformBuffer(sizeof(GridUniformData)));
+                 renderer.CreateUniformBuffer(sizeof(GridUniformData)));
 
   // Grid draw descriptor (UBO for the grid shader)
   auto grid_desc = std::make_shared<DescriptorSet>();
@@ -112,8 +111,7 @@ void GridFeature::AddPasses(RenderGraph& graph,
   auto lighting_out = registry.Get("LightingOut");
 
   uint32_t pass = graph.AddPass(
-      "Grid", render_pass_,
-      [pipeline, pool, renderer](VkCommandBuffer) {
+      "Grid", render_pass_, [pipeline, pool, renderer](VkCommandBuffer) {
         // Update grid UBO with current camera data
         auto ubo = pool->GetBuffer("grid.ubo");
         auto cam_data = renderer->GetCameraData();
@@ -129,8 +127,7 @@ void GridFeature::AddPasses(RenderGraph& graph,
         }
 
         pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(pipeline,
-            {pool->GetDescriptor("grid.draw")});
+        renderer->DrawFullscreen(pipeline, {pool->GetDescriptor("grid.draw")});
       });
 
   graph.PassWritesColor(pass, grid_out);

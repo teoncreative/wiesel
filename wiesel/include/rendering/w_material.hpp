@@ -26,33 +26,25 @@ static constexpr int kMaterialTextureCount = 7;
 
 // --- Material Property System ---
 
-enum class MaterialPropertyType {
-  Float,
-  Vec2,
-  Vec3,
-  Vec4,
-  Texture,
-  Bool,
-  Int
-};
+enum class MaterialPropertyType { Float, Vec2, Vec3, Vec4, Texture, Bool, Int };
 
-using MaterialPropertyValue = std::variant<
-    float,
-    glm::vec2,
-    glm::vec3,
-    glm::vec4,
-    std::shared_ptr<Texture>,
-    bool,
-    int32_t>;
+using MaterialPropertyValue =
+    std::variant<float, glm::vec2, glm::vec3, glm::vec4,
+                 std::shared_ptr<Texture>, bool, int32_t>;
 
 struct MaterialProperty {
   MaterialProperty() = default;
+
   MaterialProperty(std::string name, std::string display_name,
-                   MaterialPropertyType type, MaterialPropertyValue default_value,
-                   float min_value = 0.0f, float max_value = 1.0f)
-      : name(std::move(name)), display_name(std::move(display_name)),
-        type(type), default_value(std::move(default_value)),
-        min_value(min_value), max_value(max_value) {}
+                   MaterialPropertyType type,
+                   MaterialPropertyValue default_value, float min_value = 0.0f,
+                   float max_value = 1.0f)
+      : name(std::move(name)),
+        display_name(std::move(display_name)),
+        type(type),
+        default_value(std::move(default_value)),
+        min_value(min_value),
+        max_value(max_value) {}
 
   std::string name;
   std::string display_name;  // for editor UI
@@ -66,42 +58,40 @@ struct MaterialProperty {
 
 struct MaterialFeature {
   MaterialFeature() = default;
+
   MaterialFeature(std::string name, std::string define_name,
                   std::vector<MaterialProperty> properties)
-      : name(std::move(name)), define_name(std::move(define_name)),
+      : name(std::move(name)),
+        define_name(std::move(define_name)),
         properties(std::move(properties)) {}
 
-  std::string name;          // e.g. "Emission"
-  std::string define_name;   // e.g. "FEATURE_EMISSION" - used for shader #ifdef
+  std::string name;         // e.g. "Emission"
+  std::string define_name;  // e.g. "FEATURE_EMISSION" - used for shader #ifdef
   std::vector<MaterialProperty> properties;  // feature-specific defaults
 };
 
 // Built-in feature registry
 namespace MaterialFeatures {
-  inline MaterialFeature Emission() {
-    return {
-        "Emission",
-        "FEATURE_EMISSION",
-        {
-            {"emission_color", "Emission Color", MaterialPropertyType::Vec4,
-             glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)},
-            {"emission_strength", "Emission Strength", MaterialPropertyType::Float,
-             1.0f, 0.0f, 10.0f},
-        }
-    };
-  }
-
-  inline MaterialFeature AlphaClip() {
-    return {
-        "AlphaClip",
-        "FEATURE_ALPHA_CLIP",
-        {
-            {"alpha_cutoff", "Alpha Cutoff", MaterialPropertyType::Float,
-             0.5f, 0.0f, 1.0f},
-        }
-    };
-  }
+inline MaterialFeature Emission() {
+  return {"Emission",
+          "FEATURE_EMISSION",
+          {
+              {"emission_color", "Emission Color", MaterialPropertyType::Vec4,
+               glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)},
+              {"emission_strength", "Emission Strength",
+               MaterialPropertyType::Float, 1.0f, 0.0f, 10.0f},
+          }};
 }
+
+inline MaterialFeature AlphaClip() {
+  return {"AlphaClip",
+          "FEATURE_ALPHA_CLIP",
+          {
+              {"alpha_cutoff", "Alpha Cutoff", MaterialPropertyType::Float,
+               0.5f, 0.0f, 1.0f},
+          }};
+}
+}  // namespace MaterialFeatures
 
 // --- Material ---
 
@@ -161,8 +151,8 @@ struct Material {
   nlohmann::json Serialize() const;
   static std::shared_ptr<Material> Deserialize(const nlohmann::json& j);
 
-  static void Set(std::shared_ptr<Material> material, std::shared_ptr<Texture> texture,
-                  TextureType type);
+  static void Set(std::shared_ptr<Material> material,
+                  std::shared_ptr<Texture> texture, TextureType type);
 };
 
 // --- Material Instance ---

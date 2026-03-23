@@ -72,18 +72,22 @@ UUID UUID::FromString(std::string_view s, bool* ok) noexcept {
   UUID out;
   if (s.size() != 36 || s[8] != '-' || s[13] != '-' || s[18] != '-' ||
       s[23] != '-') {
-    if (ok)
+    if (ok) {
       *ok = false;
+    }
     return out;
   }
   bytes b{};
   auto hex = [&](char c) -> int {
-    if (c >= '0' && c <= '9')
+    if (c >= '0' && c <= '9') {
       return c - '0';
-    if (c >= 'a' && c <= 'f')
+    }
+    if (c >= 'a' && c <= 'f') {
       return 10 + (c - 'a');
-    if (c >= 'A' && c <= 'F')
+    }
+    if (c >= 'A' && c <= 'F') {
       return 10 + (c - 'A');
+    }
     return -1;
   };
   int bi = 0;
@@ -93,27 +97,31 @@ UUID UUID::FromString(std::string_view s, bool* ok) noexcept {
       continue;
     }
     if (i + 1 >= s.size()) {
-      if (ok)
+      if (ok) {
         *ok = false;
+      }
       return out;
     }
     int h = hex(s[i]), l = hex(s[i + 1]);
     if (h < 0 || l < 0) {
-      if (ok)
+      if (ok) {
         *ok = false;
+      }
       return out;
     }
     b[bi++] = static_cast<std::uint8_t>((h << 4) | l);
     i += 2;
   }
   if (bi != 16) {
-    if (ok)
+    if (ok) {
       *ok = false;
+    }
     return out;
   }
   out.FromBytes(b);
-  if (ok)
+  if (ok) {
     *ok = true;
+  }
   return out;
 }
 
@@ -124,8 +132,9 @@ std::string UUID::ToString() const {
   s.resize(36);
   int j = 0;
   for (int i = 0; i < 16; ++i) {
-    if (i == 4 || i == 6 || i == 8 || i == 10)
+    if (i == 4 || i == 6 || i == 8 || i == 10) {
       s[j++] = '-';
+    }
     s[j++] = kHex[b[i] >> 4];
     s[j++] = kHex[b[i] & 0x0F];
   }

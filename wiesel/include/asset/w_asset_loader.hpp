@@ -38,12 +38,9 @@ class FunctionAssetLoader : public IAssetLoader {
   using UnloadFn = std::function<void(AssetHandle)>;
 
   FunctionAssetLoader(LoadFn load_fn, UnloadFn unload_fn = nullptr)
-      : load_fn_(std::move(load_fn)),
-        unload_fn_(std::move(unload_fn)) {}
+      : load_fn_(std::move(load_fn)), unload_fn_(std::move(unload_fn)) {}
 
-  bool Load(AssetHandle handle) override {
-    return load_fn_(handle);
-  }
+  bool Load(AssetHandle handle) override { return load_fn_(handle); }
 
   void Unload(AssetHandle handle) override {
     if (unload_fn_) {

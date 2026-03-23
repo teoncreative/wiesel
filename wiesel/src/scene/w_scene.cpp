@@ -10,40 +10,40 @@
 
 #include "scene/w_scene.hpp"
 
-#include "input/w_input.hpp"
 #include <nlohmann/json.hpp>
 #include <ranges>
 #include <rendering/w_sprite.hpp>
+#include "input/w_input.hpp"
 
-#include "behavior/w_behavior.hpp"
-#include "rendering/w_render_feature.hpp"
-#include "rendering/w_renderer.hpp"
-#include "rendering/features/w_shadow_feature.hpp"
-#include "rendering/features/w_geometry_feature.hpp"
-#include "rendering/features/w_ssao_feature.hpp"
-#include "rendering/features/w_lighting_feature.hpp"
-#include "rendering/features/w_transparency_feature.hpp"
-#include "rendering/features/w_grid_feature.hpp"
-#include "rendering/features/w_sprite_feature.hpp"
-#include "rendering/features/w_composite_feature.hpp"
-#include "rendering/features/w_taa_feature.hpp"
-#include "rendering/features/w_bloom_feature.hpp"
-#include "rendering/features/w_motion_blur_feature.hpp"
-#include "rendering/features/w_canvas_feature.hpp"
-#include "rendering/features/w_debug_collider_feature.hpp"
-#include "rendering/features/w_fxaa_feature.hpp"
-#include "rendering/features/w_rt_shadow_feature.hpp"
+#include "ai/w_agent_controller.hpp"
 #include "animation/w_animation.hpp"
 #include "animation/w_animation_controller.hpp"
 #include "animation/w_animator.hpp"
 #include "asset/w_asset_manager.hpp"
-#include "scene/w_entity.hpp"
-#include "systems/w_canvas_system.hpp"
-#include "ai/w_agent_controller.hpp"
 #include "audio/w_audio.hpp"
+#include "behavior/w_behavior.hpp"
 #include "events/w_keyevents.hpp"
-#include "ui/w_interactable.hpp"
+#include "rendering/features/w_bloom_feature.hpp"
+#include "rendering/features/w_canvas_feature.hpp"
+#include "rendering/features/w_composite_feature.hpp"
+#include "rendering/features/w_debug_collider_feature.hpp"
+#include "rendering/features/w_fxaa_feature.hpp"
+#include "rendering/features/w_geometry_feature.hpp"
+#include "rendering/features/w_grid_feature.hpp"
+#include "rendering/features/w_lighting_feature.hpp"
+#include "rendering/features/w_motion_blur_feature.hpp"
+#include "rendering/features/w_rt_shadow_feature.hpp"
+#include "rendering/features/w_shadow_feature.hpp"
+#include "rendering/features/w_sprite_feature.hpp"
+#include "rendering/features/w_ssao_feature.hpp"
+#include "rendering/features/w_taa_feature.hpp"
+#include "rendering/features/w_transparency_feature.hpp"
+#include "rendering/w_render_feature.hpp"
+#include "rendering/w_renderer.hpp"
+#include "scene/w_entity.hpp"
 #include "script/mono/w_monobehavior.hpp"
+#include "systems/w_canvas_system.hpp"
+#include "ui/w_interactable.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
@@ -60,7 +60,9 @@ Scene::~Scene() {
 }
 
 std::shared_ptr<Skybox> Scene::GetSkybox() {
-  if (skybox_) return skybox_;
+  if (skybox_) {
+    return skybox_;
+  }
   return default_skybox_;
 }
 
@@ -68,14 +70,20 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
   skybox_asset_ = handle;
   skybox_ = nullptr;
 
-  if (!handle.IsValid()) return;
+  if (!handle.IsValid()) {
+    return;
+  }
 
   auto& mgr = Engine::asset_manager();
   const auto* meta = mgr.GetMetadata(handle);
-  if (!meta || meta->type != AssetType::Skybox) return;
+  if (!meta || meta->type != AssetType::Skybox) {
+    return;
+  }
 
   VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
-  if (!file) return;
+  if (!file) {
+    return;
+  }
 
   try {
     std::string content((std::istreambuf_iterator<char>(file.Stream())),
@@ -95,12 +103,8 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
       if (j.contains("faces") && j["faces"].is_object()) {
         auto& f = j["faces"];
         std::array<std::string, 6> paths = {
-            f.value("right", ""),
-            f.value("left", ""),
-            f.value("top", ""),
-            f.value("bottom", ""),
-            f.value("front", ""),
-            f.value("back", ""),
+            f.value("right", ""),  f.value("left", ""),  f.value("top", ""),
+            f.value("bottom", ""), f.value("front", ""), f.value("back", ""),
         };
         tex = renderer->CreateCubemapTexture(paths, {}, {});
       }
@@ -121,9 +125,13 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
 }
 
 void Scene::EnsureDefaultSkybox() {
-  if (default_skybox_) return;
+  if (default_skybox_) {
+    return;
+  }
   auto renderer = Engine::renderer();
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
   auto tex = renderer->CreateCubemapTextureFromSingle(
       "/engine/textures/default_skybox.png", {}, {});
   if (tex) {
@@ -238,7 +246,9 @@ bool Scene::AreAssetsReady() const {
 }
 
 float Scene::GetAssetLoadProgress() const {
-  if (requested_assets_.empty()) return 1.0f;
+  if (requested_assets_.empty()) {
+    return 1.0f;
+  }
   float total = 0.0f;
   for (auto& handle : requested_assets_) {
     auto state = Engine::asset_manager().GetLoadState(handle);
@@ -259,7 +269,6 @@ void Scene::ClearRequestedAssets() {
   requested_assets_.clear();
 }
 
-
 void Scene::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
 
@@ -269,7 +278,9 @@ void Scene::OnUpdate(float_t delta_time) {
     auto& audio = Engine::audio();
     for (auto entity : registry_.view<CameraComponent, TransformComponent>()) {
       auto& cam = registry_.get<CameraComponent>(entity);
-      if (!cam.enabled) continue;
+      if (!cam.enabled) {
+        continue;
+      }
       auto& transform = registry_.get<TransformComponent>(entity);
       audio.SetListenerPosition(transform.GetPosition());
       glm::vec3 forward = -glm::vec3(cam.inv_view_matrix[2]);
@@ -278,10 +289,12 @@ void Scene::OnUpdate(float_t delta_time) {
 
       // Check reverb zones against listener position
       bool in_reverb = false;
-      for (auto zone_entity : registry_.view<ReverbZoneComponent, TransformComponent>()) {
+      for (auto zone_entity :
+           registry_.view<ReverbZoneComponent, TransformComponent>()) {
         auto& zone = registry_.get<ReverbZoneComponent>(zone_entity);
         auto& zone_transform = registry_.get<TransformComponent>(zone_entity);
-        float dist = glm::distance(transform.GetPosition(), zone_transform.GetPosition());
+        float dist = glm::distance(transform.GetPosition(),
+                                   zone_transform.GetPosition());
         if (dist < zone.radius) {
           // Blend wet amount based on how deep inside the zone we are
           float blend = 1.0f - dist / zone.radius;
@@ -308,7 +321,8 @@ void Scene::OnUpdate(float_t delta_time) {
     {
       PROFILE_ZONE_SCOPED_N("Behaviors::OnUpdate");
       for (const auto& entity : registry_.view<BehaviorsComponent>()) {
-        BehaviorsComponent& component = registry_.get<BehaviorsComponent>(entity);
+        BehaviorsComponent& component =
+            registry_.get<BehaviorsComponent>(entity);
         for (IBehavior*& value : component.behaviors_ | std::views::values) {
           value->OnUpdate(delta_time);
         }
@@ -331,19 +345,22 @@ void Scene::OnUpdate(float_t delta_time) {
 
     // UI pointer events
     {
-      float mx = static_cast<float>(InputManager::GetMouseX()) - viewport_origin_.x;
-      float my = static_cast<float>(InputManager::GetMouseY()) - viewport_origin_.y;
+      float mx =
+          static_cast<float>(InputManager::GetMouseX()) - viewport_origin_.x;
+      float my =
+          static_cast<float>(InputManager::GetMouseY()) - viewport_origin_.y;
       bool down = InputManager::IsMouseButtonDown(MouseCode::kMouseButtonLeft);
       bool up = InputManager::IsMouseButtonUp(MouseCode::kMouseButtonLeft);
-      bool held = InputManager::IsMouseButtonPressed(MouseCode::kMouseButtonLeft);
+      bool held =
+          InputManager::IsMouseButtonPressed(MouseCode::kMouseButtonLeft);
       ui_event_system_.Update(*this, mx, my, down, up, held);
     }
 
     // Text input: cursor blink and sync to TextComponent
     {
       entt::entity focused = ui_event_system_.GetFocusedEntity();
-      if (focused != entt::null && registry_.valid(focused)
-          && registry_.any_of<TextInputComponent>(focused)) {
+      if (focused != entt::null && registry_.valid(focused) &&
+          registry_.any_of<TextInputComponent>(focused)) {
         auto& input = registry_.get<TextInputComponent>(focused);
         input.cursor_timer_ += delta_time;
         if (input.cursor_timer_ >= 0.5f) {
@@ -368,7 +385,8 @@ void Scene::OnUpdate(float_t delta_time) {
     // Audio: tick audio source components
     {
       auto& audio = Engine::audio();
-      for (auto entity : registry_.view<AudioSourceComponent, TransformComponent>()) {
+      for (auto entity :
+           registry_.view<AudioSourceComponent, TransformComponent>()) {
         auto& src = registry_.get<AudioSourceComponent>(entity);
         auto& transform = registry_.get<TransformComponent>(entity);
 
@@ -382,7 +400,8 @@ void Scene::OnUpdate(float_t delta_time) {
 
         // Play on start (first frame only)
         if (src.play_on_start && !src.started_ && src.clip.IsValid()) {
-          src.playing_handle_ = audio.Play(src.clip, src.MakeParams(transform.GetPosition()));
+          src.playing_handle_ =
+              audio.Play(src.clip, src.MakeParams(transform.GetPosition()));
           src.started_ = true;
         }
 
@@ -479,8 +498,7 @@ void Scene::UpdateCameras() {
     }
     if (lights.direct_light_count > 0 &&
         Engine::renderer()->options().shadows_enabled) {
-      camera.ComputeCascades(
-          glm::normalize(lights.direct_lights[0].direction));
+      camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
     } else {
       camera.does_shadow_pass = false;
     }
@@ -492,7 +510,9 @@ void Scene::UpdateSpriteAnimations(float_t delta_time) {
   // Sprite animation
   for (auto entity : registry_.view<SpriteComponent>()) {
     auto& spr = registry_.get<SpriteComponent>(entity);
-    if (!spr.asset_) continue;
+    if (!spr.asset_) {
+      continue;
+    }
 
     // Evaluate state machine transitions (if controller is set up)
     if (!spr.state_machine.controller.IsEmpty()) {
@@ -500,8 +520,8 @@ void Scene::UpdateSpriteAnimations(float_t delta_time) {
       std::string new_state = spr.state_machine.EvaluateTransitions();
       if (!new_state.empty()) {
         // State changed - reset frame to clip start
-        const SpriteClip* clip = spr.FindClip(
-            spr.state_machine.GetCurrentState()->clip_name);
+        const SpriteClip* clip =
+            spr.FindClip(spr.state_machine.GetCurrentState()->clip_name);
         if (clip) {
           spr.current_frame_ = clip->start_frame;
           spr.frame_timer_ = 0.0f;
@@ -510,20 +530,26 @@ void Scene::UpdateSpriteAnimations(float_t delta_time) {
       }
     }
 
-    if (!spr.playing_) continue;
+    if (!spr.playing_) {
+      continue;
+    }
 
     const SpriteClip* clip = spr.GetActiveClip();
     if (!clip) {
       // No clip - animate through all frames using per-frame duration
       auto& frames = spr.asset_->GetFrames();
-      if (frames.size() <= 1) continue;
+      if (frames.size() <= 1) {
+        continue;
+      }
       float duration = frames[spr.current_frame_].duration;
-      if (duration <= 0.0f) continue;
+      if (duration <= 0.0f) {
+        continue;
+      }
       spr.frame_timer_ += delta_time;
       if (spr.frame_timer_ >= duration) {
         spr.frame_timer_ -= duration;
-        spr.current_frame_ = (spr.current_frame_ + 1) %
-                              static_cast<uint32_t>(frames.size());
+        spr.current_frame_ =
+            (spr.current_frame_ + 1) % static_cast<uint32_t>(frames.size());
       }
       continue;
     }
@@ -566,7 +592,9 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
     // Helper: find clip by name in model
     auto find_clip = [&](const std::string& name) -> const AnimationClip* {
       for (const auto& c : model_data->animation_clips) {
-        if (c.name == name) return &c;
+        if (c.name == name) {
+          return &c;
+        }
       }
       return nullptr;
     };
@@ -582,14 +610,17 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
       }
 
       const auto* cur_state = ctrl.FindState(animator.current_state_name);
-      if (!cur_state) continue;
+      if (!cur_state) {
+        continue;
+      }
 
       // Check transitions (current state transitions first, then "any state")
       const AnimationTransition* fired_transition = nullptr;
       for (const AnimationTransition& trans : ctrl.transitions) {
         if (!trans.from_state.empty() &&
-            trans.from_state != animator.current_state_name)
+            trans.from_state != animator.current_state_name) {
           continue;
+        }
         // Evaluate all conditions
         bool all_met = true;
         for (const TransitionCondition& cond : trans.conditions) {
@@ -601,15 +632,21 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
           const auto& param = param_it->second;
           switch (cond.param_type) {
             case AnimParamType::Trigger:
-              if (!param.b) all_met = false;
+              if (!param.b) {
+                all_met = false;
+              }
               break;
             case AnimParamType::Bool:
               switch (cond.op) {
                 case ConditionOp::Equals:
-                  if (param.b != cond.value.b) all_met = false;
+                  if (param.b != cond.value.b) {
+                    all_met = false;
+                  }
                   break;
                 case ConditionOp::NotEquals:
-                  if (param.b == cond.value.b) all_met = false;
+                  if (param.b == cond.value.b) {
+                    all_met = false;
+                  }
                   break;
                 default:
                   break;
@@ -618,39 +655,55 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
             case AnimParamType::Int:
               switch (cond.op) {
                 case ConditionOp::Equals:
-                  if (param.i != cond.value.i) all_met = false;
+                  if (param.i != cond.value.i) {
+                    all_met = false;
+                  }
                   break;
                 case ConditionOp::NotEquals:
-                  if (param.i == cond.value.i) all_met = false;
+                  if (param.i == cond.value.i) {
+                    all_met = false;
+                  }
                   break;
                 case ConditionOp::Greater:
-                  if (param.i <= cond.value.i) all_met = false;
+                  if (param.i <= cond.value.i) {
+                    all_met = false;
+                  }
                   break;
                 case ConditionOp::Less:
-                  if (param.i >= cond.value.i) all_met = false;
+                  if (param.i >= cond.value.i) {
+                    all_met = false;
+                  }
                   break;
               }
               break;
             case AnimParamType::Float:
               switch (cond.op) {
                 case ConditionOp::Equals:
-                  if (std::abs(param.f - cond.value.f) > 0.001f)
+                  if (std::abs(param.f - cond.value.f) > 0.001f) {
                     all_met = false;
+                  }
                   break;
                 case ConditionOp::NotEquals:
-                  if (std::abs(param.f - cond.value.f) <= 0.001f)
+                  if (std::abs(param.f - cond.value.f) <= 0.001f) {
                     all_met = false;
+                  }
                   break;
                 case ConditionOp::Greater:
-                  if (param.f <= cond.value.f) all_met = false;
+                  if (param.f <= cond.value.f) {
+                    all_met = false;
+                  }
                   break;
                 case ConditionOp::Less:
-                  if (param.f >= cond.value.f) all_met = false;
+                  if (param.f >= cond.value.f) {
+                    all_met = false;
+                  }
                   break;
               }
               break;
           }
-          if (!all_met) break;
+          if (!all_met) {
+            break;
+          }
         }
         if (all_met && trans.to_state != animator.current_state_name) {
           fired_transition = &trans;
@@ -686,20 +739,23 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
         animator.current_state_name = fired_transition->to_state;
         animator.state_time = 0.0f;
         cur_state = ctrl.FindState(animator.current_state_name);
-        if (!cur_state) continue;
+        if (!cur_state) {
+          continue;
+        }
       }
 
       // Find the current clip
       const AnimationClip* clip = find_clip(cur_state->clip_name);
-      if (!clip) continue;
+      if (!clip) {
+        continue;
+      }
 
       // Advance state time
       float tps = clip->ticks_per_second;
       animator.state_time +=
           delta_time * cur_state->speed * animator.playback_speed * tps;
       if (cur_state->looping && clip->duration > 0.0f) {
-        animator.state_time =
-            std::fmod(animator.state_time, clip->duration);
+        animator.state_time = std::fmod(animator.state_time, clip->duration);
         if (animator.state_time < 0.0f) {
           animator.state_time += clip->duration;
         }
@@ -727,8 +783,9 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
           if (prev_clip->duration > 0.0f) {
             animator.prev_clip_time =
                 std::fmod(animator.prev_clip_time, prev_clip->duration);
-            if (animator.prev_clip_time < 0.0f)
+            if (animator.prev_clip_time < 0.0f) {
               animator.prev_clip_time += prev_clip->duration;
+            }
           }
 
           Animator::Evaluate(*model_data, *prev_clip, animator.prev_clip_time,
@@ -737,10 +794,10 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
         }
 
         // Blend node transforms, then recompute bone matrices
-        Animator::BlendAndSkin(*model_data,
-                               animator.prev_node_transforms,
+        Animator::BlendAndSkin(*model_data, animator.prev_node_transforms,
                                animator.node_transforms, animator.blend_weight,
-                               animator.bone_matrices, animator.node_transforms);
+                               animator.bone_matrices,
+                               animator.node_transforms);
 
         if (animator.blend_weight >= 1.0f) {
           animator.is_blending = false;
@@ -786,7 +843,9 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
       const auto& skeleton = model_data->skeleton;
 
       for (auto& ovr : animator.bone_overrides) {
-        if (!ovr.enabled) continue;
+        if (!ovr.enabled) {
+          continue;
+        }
 
         // Resolve indices on first use
         if (ovr.cached_node_index < 0) {
@@ -797,34 +856,34 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
         int bi = ovr.cached_bone_index;
         if (ni < 0 || bi < 0 ||
             ni >= static_cast<int>(animator.node_transforms.size()) ||
-            bi >= static_cast<int>(animator.bone_matrices.size()))
+            bi >= static_cast<int>(animator.bone_matrices.size())) {
           continue;
+        }
 
         // Decompose current global node transform
         glm::vec3 pos, scale, skew;
         glm::quat rot;
         glm::vec4 persp;
         glm::decompose(animator.node_transforms[ni], scale, rot, pos, skew,
-                        persp);
+                       persp);
 
         // Apply additional rotation in local space
         glm::quat new_rot = rot * ovr.additional_rotation;
-        animator.node_transforms[ni] =
-            glm::translate(glm::mat4(1.0f), pos) *
-            glm::mat4_cast(new_rot) *
-            glm::scale(glm::mat4(1.0f), scale);
+        animator.node_transforms[ni] = glm::translate(glm::mat4(1.0f), pos) *
+                                       glm::mat4_cast(new_rot) *
+                                       glm::scale(glm::mat4(1.0f), scale);
 
         // Recompute bone matrix for this bone
-        animator.bone_matrices[bi] =
-            animator.node_transforms[ni] *
-            skeleton.bones[bi].inverse_bind_matrix;
+        animator.bone_matrices[bi] = animator.node_transforms[ni] *
+                                     skeleton.bones[bi].inverse_bind_matrix;
 
         // Re-propagate to children
         const auto& node = hierarchy.nodes[ni];
         for (int32_t child_idx : node.children) {
           if (child_idx < 0 ||
-              child_idx >= static_cast<int>(animator.node_transforms.size()))
+              child_idx >= static_cast<int>(animator.node_transforms.size())) {
             continue;
+          }
 
           animator.node_transforms[child_idx] =
               animator.node_transforms[ni] *
@@ -872,16 +931,16 @@ void Scene::OnEvent(Event& event) {
 
   // Route keyboard input to focused text input
   entt::entity focused = ui_event_system_.GetFocusedEntity();
-  if (focused != entt::null && registry_.valid(focused)
-      && registry_.any_of<TextInputComponent>(focused)) {
+  if (focused != entt::null && registry_.valid(focused) &&
+      registry_.any_of<TextInputComponent>(focused)) {
     auto& input = registry_.get<TextInputComponent>(focused);
 
     if (event.GetEventType() == KeyTypedEvent::GetStaticType()) {
       auto& typed = static_cast<KeyTypedEvent&>(event);
       uint32_t codepoint = static_cast<uint32_t>(typed.GetKeyCode());
       if (codepoint >= 32) {
-        if (input.max_length <= 0
-            || static_cast<int>(input.text.size()) < input.max_length) {
+        if (input.max_length <= 0 ||
+            static_cast<int>(input.text.size()) < input.max_length) {
           input.text.insert(input.text.begin() + input.cursor_pos_,
                             static_cast<char>(codepoint));
           input.cursor_pos_++;
@@ -964,8 +1023,10 @@ void Scene::LinkEntities(entt::entity parent, entt::entity child) {
   child_tree.parent = parent;
   auto& child_transform = registry_.get<TransformComponent>(child);
   auto& parent_transform = registry_.get<TransformComponent>(parent);
-  glm::vec3 posDiff = child_transform.GetPosition() - parent_transform.GetPosition();
-  glm::vec3 rotDiff = child_transform.GetRotation() - parent_transform.GetRotation();
+  glm::vec3 posDiff =
+      child_transform.GetPosition() - parent_transform.GetPosition();
+  glm::vec3 rotDiff =
+      child_transform.GetRotation() - parent_transform.GetRotation();
 
   child_transform.SetPosition(posDiff);
   child_transform.SetRotation(rotDiff);
@@ -983,8 +1044,10 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
   child_tree.parent = entt::null;
   auto& child_transform = registry_.get<TransformComponent>(child);
   auto& parent_transform = registry_.get<TransformComponent>(parent);
-  glm::vec3 pos_diff = child_transform.GetPosition() + parent_transform.GetPosition();
-  glm::vec3 rot_diff = child_transform.GetRotation() + parent_transform.GetRotation();
+  glm::vec3 pos_diff =
+      child_transform.GetPosition() + parent_transform.GetPosition();
+  glm::vec3 rot_diff =
+      child_transform.GetRotation() + parent_transform.GetRotation();
 
   child_transform.SetPosition(pos_diff);
   child_transform.SetRotation(rot_diff);
@@ -1008,8 +1071,8 @@ void Scene::ProcessDestroyQueue() {
     // Unlink from parent
     if (registry_.any_of<TreeComponent>(handle)) {
       auto& tree = registry_.get<TreeComponent>(handle);
-      if (tree.parent != entt::null && registry_.valid(tree.parent)
-          && registry_.any_of<TreeComponent>(tree.parent)) {
+      if (tree.parent != entt::null && registry_.valid(tree.parent) &&
+          registry_.any_of<TreeComponent>(tree.parent)) {
         auto& parent_tree = registry_.get<TreeComponent>(tree.parent);
         std::erase(parent_tree.childs, handle);
       }
@@ -1143,11 +1206,12 @@ void Scene::BuildRenderGraph(entt::entity camera_entity) {
   }
 
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                    camera.viewport_size, use_resolve, false, false, camera_entity};
+  RenderContext ctx{
+      *renderer,   *this, camera, camera.resource_pool, camera.viewport_size,
+      use_resolve, false, false,  camera_entity};
 
-  auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
-                                          : *default_pipeline_;
+  auto& pipeline =
+      camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
   pipeline.BuildRenderGraph(*graph, ctx);
   graph->Compile();
 }
@@ -1178,8 +1242,9 @@ bool Scene::Render() {
   for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
     auto& camera = registry_.get<CameraComponent>(cameraEntity);
     auto& camera_transform = registry_.get<TransformComponent>(cameraEntity);
-    if (!camera.enabled)
+    if (!camera.enabled) {
       continue;
+    }
 
     // Apply scene render resolution if set
     if (render_resolution_.x > 0 && render_resolution_.y > 0) {
@@ -1202,10 +1267,17 @@ bool Scene::Render() {
     if (camera.resources_dirty) {
       vkDeviceWaitIdle(renderer->GetLogicalDevice());
       bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-      RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                        camera.viewport_size, use_resolve, false, false, cameraEntity};
-      auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
-                                              : *default_pipeline_;
+      RenderContext ctx{*renderer,
+                        *this,
+                        camera,
+                        camera.resource_pool,
+                        camera.viewport_size,
+                        use_resolve,
+                        false,
+                        false,
+                        cameraEntity};
+      auto& pipeline =
+          camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
       pipeline.SetupResources(ctx);
       camera.resources_dirty = false;
       render_graphs_.erase(cameraEntity);
@@ -1231,8 +1303,7 @@ bool Scene::Render() {
 }
 
 bool Scene::RenderFromExternal(CameraComponent& camera,
-                               TransformComponent& transform,
-                               bool show_grid) {
+                               TransformComponent& transform, bool show_grid) {
   EnsureDefaultSkybox();
   PROFILE_ZONE_SCOPED();
   std::shared_ptr<Renderer> renderer = Engine::renderer();
@@ -1294,10 +1365,16 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   if (camera.resources_dirty) {
     vkDeviceWaitIdle(renderer->GetLogicalDevice());
     bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-    RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                      camera.viewport_size, use_resolve, true, show_grid};
-    auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
-                                            : *default_pipeline_;
+    RenderContext ctx{*renderer,
+                      *this,
+                      camera,
+                      camera.resource_pool,
+                      camera.viewport_size,
+                      use_resolve,
+                      true,
+                      show_grid};
+    auto& pipeline =
+        camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
     pipeline.SetupResources(ctx);
     camera.resources_dirty = false;
     external_render_graph_ = nullptr;
@@ -1314,10 +1391,11 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
     external_render_graph_->Clear();
   }
   bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RenderContext ctx{*renderer, *this, camera, camera.resource_pool,
-                    camera.viewport_size, use_resolve, true, show_grid};
-  auto& pipeline = camera.render_pipeline ? *camera.render_pipeline
-                                          : *default_pipeline_;
+  RenderContext ctx{
+      *renderer,   *this, camera,   camera.resource_pool, camera.viewport_size,
+      use_resolve, true,  show_grid};
+  auto& pipeline =
+      camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
   pipeline.BuildRenderGraph(*external_render_graph_, ctx);
   external_render_graph_->Compile();
   external_render_graph_->Execute(renderer->GetCommandBuffer().handle_);
@@ -1366,7 +1444,8 @@ void Scene::SetRenderPipeline(entt::entity camera_entity,
   camera.resources_dirty = true;
 }
 
-std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(std::shared_ptr<Renderer> renderer) {
+std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(
+    std::shared_ptr<Renderer> renderer) {
   auto pipeline = std::make_shared<RenderPipeline>(renderer);
   pipeline->AddFeature<ShadowFeature>(renderer);
   pipeline->AddFeature<GeometryFeature>(renderer);

@@ -24,9 +24,9 @@
 #define PROFILE_GPU_ZONE(ctx, cmd, name) TracyVkZone(ctx, cmd, name)
 #define PROFILE_GPU_COLLECT(ctx, cmd) TracyVkCollect(ctx, cmd)
 #if TRACY_ENABLE
-    #define PROFILE_THREAD(name) tracy::SetThreadName(name)
+#define PROFILE_THREAD(name) tracy::SetThreadName(name)
 #else
-    #define PROFILE_THREAD(name)
+#define PROFILE_THREAD(name)
 #endif
 
 #define PROFILE_MESSAGE(text, size) TracyMessage(text, size)
@@ -45,6 +45,5 @@
 // For named memory pools
 #define PROFILE_ALLOC_NAMED(ptr, size, name) TracyAllocN(ptr, size, name)
 #define PROFILE_FREE_NAMED(ptr, name) TracyFreeN(ptr, name)
-
 
 #endif  //WIESEL_PARENT_W_TRACY_H

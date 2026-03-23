@@ -23,6 +23,8 @@
 #include "util/w_vectors.hpp"
 #include "w_engine.hpp"
 
+// clang-format off
+// Implementation macros must precede their includes
 #include <random>
 
 #define VMA_IMPLEMENTATION
@@ -31,6 +33,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #include <stb_image.h>
+// clang-format on
 
 #include "animation/w_animation.hpp"
 #include "asset/w_asset_manager.hpp"
@@ -122,7 +125,8 @@ void Renderer::Initialize(const RendererProperties&& properties) {
     LOG_INFO("Ray tracing extensions supported - enabling RT");
     device_extensions_.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     device_extensions_.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
-    device_extensions_.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    device_extensions_.push_back(
+        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
   } else {
     LOG_INFO("Ray tracing extensions not supported - RT disabled");
   }
@@ -131,13 +135,17 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   // Enable device fault diagnostics if available (gives info instead of hard GPU crash)
   {
     uint32_t ext_count = 0;
-    vkEnumerateDeviceExtensionProperties(physical_device_, nullptr, &ext_count, nullptr);
+    vkEnumerateDeviceExtensionProperties(physical_device_, nullptr, &ext_count,
+                                         nullptr);
     std::vector<VkExtensionProperties> exts(ext_count);
-    vkEnumerateDeviceExtensionProperties(physical_device_, nullptr, &ext_count, exts.data());
+    vkEnumerateDeviceExtensionProperties(physical_device_, nullptr, &ext_count,
+                                         exts.data());
     for (const auto& ext : exts) {
-      if (std::string(ext.extensionName) == VK_EXT_DEVICE_FAULT_EXTENSION_NAME) {
+      if (std::string(ext.extensionName) ==
+          VK_EXT_DEVICE_FAULT_EXTENSION_NAME) {
         device_extensions_.push_back(VK_EXT_DEVICE_FAULT_EXTENSION_NAME);
-        LOG_INFO("VK_EXT_device_fault enabled - GPU fault diagnostics available");
+        LOG_INFO(
+            "VK_EXT_device_fault enabled - GPU fault diagnostics available");
         break;
       }
     }
@@ -150,8 +158,8 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   // ---
   CreateCommandPools();
   if (rt_supported_) {
-    as_manager_ = std::make_shared<AccelerationStructureManager>(
-        Engine::renderer());
+    as_manager_ =
+        std::make_shared<AccelerationStructureManager>(Engine::renderer());
   }
   CreateDescriptorLayouts();
   CreateSwapChain();
@@ -168,7 +176,8 @@ VkDevice Renderer::GetLogicalDevice() {
 }
 
 template <typename T>
-std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertices) {
+std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
+    std::vector<T> vertices) {
   std::shared_ptr<MemoryBuffer> memoryBuffer =
       std::make_shared<MemoryBuffer>(MemoryTypeVertexBuffer);
 
@@ -187,15 +196,15 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertic
   memcpy(data, vertices.data(), buffer_size);
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
-  VkBufferUsageFlags vertex_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  VkBufferUsageFlags vertex_usage =
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   if (rt_supported_) {
-    vertex_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                   VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    vertex_usage |=
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
   }
-  CreateBuffer(
-      buffer_size, vertex_usage,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryBuffer->buffer_handle_,
-      memoryBuffer->memory_handle_);
+  CreateBuffer(buffer_size, vertex_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+               memoryBuffer->buffer_handle_, memoryBuffer->memory_handle_);
 
   CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
 
@@ -203,7 +212,8 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertic
     VkBufferDeviceAddressInfo addrInfo{};
     addrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
     addrInfo.buffer = memoryBuffer->buffer_handle_;
-    memoryBuffer->device_address_ = vkGetBufferDeviceAddress(logical_device_, &addrInfo);
+    memoryBuffer->device_address_ =
+        vkGetBufferDeviceAddress(logical_device_, &addrInfo);
   }
 
   if (tl_batch_active_) {
@@ -218,19 +228,21 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(std::vector<T> vertic
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex3D>(
     std::vector<Vertex3D>);
 
-template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex2DNoColor>(
-    std::vector<Vertex2DNoColor>);
+template std::shared_ptr<MemoryBuffer>
+    Renderer::CreateVertexBuffer<Vertex2DNoColor>(std::vector<Vertex2DNoColor>);
 
-template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<VertexSprite>(
-    std::vector<VertexSprite>);
+template std::shared_ptr<MemoryBuffer>
+    Renderer::CreateVertexBuffer<VertexSprite>(std::vector<VertexSprite>);
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
     std::vector<glm::vec3>);
 
-template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<DebugColliderFeature::OverlayVertex>(
-    std::vector<DebugColliderFeature::OverlayVertex>);
+template std::shared_ptr<MemoryBuffer>
+    Renderer::CreateVertexBuffer<DebugColliderFeature::OverlayVertex>(
+        std::vector<DebugColliderFeature::OverlayVertex>);
 
-std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indices) {
+std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
+    std::vector<Index> indices) {
   std::shared_ptr<IndexBuffer> memoryBuffer = std::make_shared<IndexBuffer>();
 
   static_assert(sizeof(Index) == sizeof(uint32_t));
@@ -250,15 +262,15 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indi
   memcpy(data, indices.data(), (size_t)buffer_size);
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
-  VkBufferUsageFlags index_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+  VkBufferUsageFlags index_usage =
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
   if (rt_supported_) {
-    index_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    index_usage |=
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
   }
-  CreateBuffer(
-      buffer_size, index_usage,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryBuffer->buffer_handle_,
-      memoryBuffer->memory_handle_);
+  CreateBuffer(buffer_size, index_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+               memoryBuffer->buffer_handle_, memoryBuffer->memory_handle_);
 
   CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
 
@@ -266,7 +278,8 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indi
     VkBufferDeviceAddressInfo addrInfo{};
     addrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
     addrInfo.buffer = memoryBuffer->buffer_handle_;
-    memoryBuffer->device_address_ = vkGetBufferDeviceAddress(logical_device_, &addrInfo);
+    memoryBuffer->device_address_ =
+        vkGetBufferDeviceAddress(logical_device_, &addrInfo);
   }
 
   if (tl_batch_active_) {
@@ -279,19 +292,22 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(std::vector<Index> indi
   return memoryBuffer;
 }
 
-std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) {
-  std::shared_ptr<UniformBuffer> uniformBuffer = std::make_shared<UniformBuffer>();
+std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
+    VkDeviceSize size) {
+  std::shared_ptr<UniformBuffer> uniformBuffer =
+      std::make_shared<UniformBuffer>();
 
   uniformBuffer->data_ = malloc(size);
   uniformBuffer->size_ = size;
   // TODO not use host coherent memory, use staging buffer and copy when it changes
   // like how I did in GlistEngine
   // This is slow af
-  CreateBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               uniformBuffer->buffer_handle_, uniformBuffer->memory_handle_);
+  CreateBuffer(
+      size,
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      uniformBuffer->buffer_handle_, uniformBuffer->memory_handle_);
 
   WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_,
                                     uniformBuffer->memory_handle_, 0, size, 0,
@@ -302,18 +318,19 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(VkDeviceSize size) 
   return uniformBuffer;
 }
 
-std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(VkDeviceSize size) {
+std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
+    VkDeviceSize size) {
   std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
   buffer->data_ = malloc(size);
   buffer->size_ = size;
-  CreateBuffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               buffer->buffer_handle_, buffer->memory_handle_);
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_,
-                                    buffer->memory_handle_, 0, size, 0,
-                                    &buffer->data_));
+  CreateBuffer(
+      size,
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      buffer->buffer_handle_, buffer->memory_handle_);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, buffer->memory_handle_, 0,
+                                    size, 0, &buffer->data_));
   memset(buffer->data_, 0, size);
   return buffer;
 }
@@ -334,7 +351,8 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
 }
 
 std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>(TextureTypeDiffuse, "");
+  std::shared_ptr<Texture> texture =
+      std::make_shared<Texture>(TextureTypeDiffuse, "");
 
   stbi_uc pixels[] = {255, 255, 255, 255};  // full white
   texture->width_ = 1;
@@ -381,7 +399,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
                   texture->height_, texture->mip_levels_);
 
   texture->format_ = format;
-  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, SamplerProps{});
+  texture->sampler_ =
+      std::make_shared<Sampler>(texture->mip_levels_, SamplerProps{});
   texture->image_view_ = CreateImageView(
       texture->image_, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
@@ -389,9 +408,10 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
   return texture;
 }
 
-std::shared_ptr<Texture> Renderer::CreateBlankTexture(const TextureProps& texture_props,
-                                          const SamplerProps& sampler_props) {
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>(TextureTypeDiffuse, "");
+std::shared_ptr<Texture> Renderer::CreateBlankTexture(
+    const TextureProps& texture_props, const SamplerProps& sampler_props) {
+  std::shared_ptr<Texture> texture =
+      std::make_shared<Texture>(TextureTypeDiffuse, "");
 
   texture->width_ = texture_props.width;
   texture->height_ = texture_props.height;
@@ -452,10 +472,11 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(const TextureProps& textur
   return texture;
 }
 
-std::shared_ptr<Texture> Renderer::CreateTexture(const std::string& path,
-                                     const TextureProps& texture_props,
-                                     const SamplerProps& sampler_props) {
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, path);
+std::shared_ptr<Texture> Renderer::CreateTexture(
+    const std::string& path, const TextureProps& texture_props,
+    const SamplerProps& sampler_props) {
+  std::shared_ptr<Texture> texture =
+      std::make_shared<Texture>(texture_props.type, path);
 
   VfsFile vfs_file = Engine::vfs()->Open(path);
   if (!vfs_file) {
@@ -524,7 +545,8 @@ std::shared_ptr<Texture> Renderer::CreateTexture(const std::string& path,
     vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   }
 
-  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
+  texture->sampler_ =
+      std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
   texture->image_view_ =
       CreateImageView(texture->image_, texture_props.image_format,
                       VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
@@ -533,10 +555,11 @@ std::shared_ptr<Texture> Renderer::CreateTexture(const std::string& path,
   return texture;
 }
 
-std::shared_ptr<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_pixel,
-                                     const TextureProps& texture_props,
-                                     const SamplerProps& sampler_props) {
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
+std::shared_ptr<Texture> Renderer::CreateTexture(
+    void* buffer, size_t size_per_pixel, const TextureProps& texture_props,
+    const SamplerProps& sampler_props) {
+  std::shared_ptr<Texture> texture =
+      std::make_shared<Texture>(texture_props.type, "");
   texture->width_ = texture_props.width;
   texture->height_ = texture_props.height;
   texture->size_ = texture->width_ * texture->height_ * size_per_pixel;
@@ -589,7 +612,8 @@ std::shared_ptr<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_p
     vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   }
 
-  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
+  texture->sampler_ =
+      std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
   texture->image_view_ =
       CreateImageView(texture->image_, texture_props.image_format,
                       VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
@@ -601,7 +625,8 @@ std::shared_ptr<Texture> Renderer::CreateTexture(void* buffer, size_t size_per_p
 std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     const std::array<std::string, 6>& paths, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
+  std::shared_ptr<Texture> texture =
+      std::make_shared<Texture>(texture_props.type, "");
   VkDeviceSize total_size = 0;
   stbi_uc* all_pixels = nullptr;
 
@@ -667,15 +692,14 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
     for (uint32_t layer = 0; layer < 6; layer++) {
-      TransitionImageLayout(
-          texture->image_, texture_props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels_, cmd,
-          layer, 1);
-      CopyBufferToImage(
-          cmd, staging_buffer, texture->image_,
-          static_cast<uint32_t>(texture->width_),
-          static_cast<uint32_t>(texture->height_), texture->size_ * layer,
-          layer);
+      TransitionImageLayout(texture->image_, texture_props.image_format,
+                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            texture->mip_levels_, cmd, layer, 1);
+      CopyBufferToImage(cmd, staging_buffer, texture->image_,
+                        static_cast<uint32_t>(texture->width_),
+                        static_cast<uint32_t>(texture->height_),
+                        texture->size_ * layer, layer);
     }
     for (uint32_t layer = 0; layer < 6; layer++) {
       TransitionImageLayout(texture->image_, texture_props.image_format,
@@ -690,7 +714,8 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
   vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
   delete[] all_pixels;
 
-  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
+  texture->sampler_ =
+      std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
   texture->image_view_ = CreateImageView(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
       texture->mip_levels_, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6);
@@ -701,7 +726,8 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
 std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
     const std::string& virtual_path, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>(texture_props.type, "");
+  std::shared_ptr<Texture> texture =
+      std::make_shared<Texture>(texture_props.type, "");
 
   int w, h, channels;
   VfsFile vfs_cubemap = Engine::vfs()->Open(virtual_path);
@@ -729,12 +755,13 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
 
   uint32_t faceSize = 0;
 
-  if (is_horizontal_strip)
+  if (is_horizontal_strip) {
     faceSize = w / 6;
-  else if (is_vertical_cross)
+  } else if (is_vertical_cross) {
     faceSize = w / 4;
-  else
+  } else {
     faceSize = h;  // equirectangular: full height for better quality
+  }
 
   texture->width_ = faceSize;
   texture->height_ = faceSize;
@@ -782,7 +809,8 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
       for (int c = 0; c < 4; c++) {
         float top = p00[c] * (1.0f - sx) + p10[c] * sx;
         float bot = p01[c] * (1.0f - sx) + p11[c] * sx;
-        out[c] = static_cast<stbi_uc>(std::clamp(top * (1.0f - sy) + bot * sy, 0.0f, 255.0f));
+        out[c] = static_cast<stbi_uc>(
+            std::clamp(top * (1.0f - sy) + bot * sy, 0.0f, 255.0f));
       }
     };
 
@@ -794,18 +822,46 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
           float t = (2.0f * (py + 0.5f) / faceSize) - 1.0f;
           float x = 0, y = 0, z = 0;
           switch (face) {
-            case 0: x =  1; y = -t; z = -s; break;  // +X
-            case 1: x = -1; y = -t; z =  s; break;  // -X
-            case 2: x =  s; y =  1; z =  t; break;  // +Y
-            case 3: x =  s; y = -1; z = -t; break;  // -Y
-            case 4: x =  s; y = -t; z =  1; break;  // +Z
-            case 5: x = -s; y = -t; z = -1; break;  // -Z
-            default: break;
+            case 0:
+              x = 1;
+              y = -t;
+              z = -s;
+              break;  // +X
+            case 1:
+              x = -1;
+              y = -t;
+              z = s;
+              break;  // -X
+            case 2:
+              x = s;
+              y = 1;
+              z = t;
+              break;  // +Y
+            case 3:
+              x = s;
+              y = -1;
+              z = -t;
+              break;  // -Y
+            case 4:
+              x = s;
+              y = -t;
+              z = 1;
+              break;  // +Z
+            case 5:
+              x = -s;
+              y = -t;
+              z = -1;
+              break;  // -Z
+            default:
+              break;
           }
-          float len = std::sqrt(x*x + y*y + z*z);
-          x /= len; y /= len; z /= len;
+          float len = std::sqrt(x * x + y * y + z * z);
+          x /= len;
+          y /= len;
+          z /= len;
 
-          uint32_t outIdx = face * faceSize * faceSize * 4 + (py * faceSize + px) * 4;
+          uint32_t outIdx =
+              face * faceSize * faceSize * 4 + (py * faceSize + px) * 4;
           sampleEquirect(x, y, z, cube_pixels.data() + outIdx);
         }
       }
@@ -869,7 +925,8 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
   vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
   vkFreeMemory(logical_device_, stagingMemory, nullptr);
 
-  texture->sampler_ = std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
+  texture->sampler_ =
+      std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
 
   texture->image_view_ = CreateImageView(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -885,7 +942,8 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
     throw new std::runtime_error(
         "AttachmentTextureType::SwapChain cannot be created!");
   }
-  std::shared_ptr<AttachmentTexture> texture = std::make_shared<AttachmentTexture>();
+  std::shared_ptr<AttachmentTexture> texture =
+      std::make_shared<AttachmentTexture>();
   texture->type_ = props.type;
   texture->format_ = props.image_format;
   texture->width_ = props.width;
@@ -928,11 +986,11 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->images_[i],
                 texture->device_memories_[i], 0, props.layer_count);
 
-    if (props.layer_count != 1)
+    if (props.layer_count != 1) {
       texture->image_views_[i] =
           CreateImageView(texture->images_[i], props.image_format, aspectFlags,
                           1, VK_IMAGE_VIEW_TYPE_2D_ARRAY, 0, props.layer_count);
-    else {
+    } else {
       texture->image_views_[i] =
           CreateImageView(texture->images_[i], props.image_format, aspectFlags,
                           1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
@@ -960,8 +1018,9 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
   return texture;
 }
 
-void Renderer::SetAttachmentTextureBuffer(std::shared_ptr<AttachmentTexture> texture,
-                                          void* buffer, size_t sizePerPixel) {
+void Renderer::SetAttachmentTextureBuffer(
+    std::shared_ptr<AttachmentTexture> texture, void* buffer,
+    size_t sizePerPixel) {
   VkBuffer staging_buffer;
   VkDeviceMemory staging_buffer_memory;
   size_t size = texture->width_ * texture->height_ * sizePerPixel;
@@ -1024,7 +1083,8 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
-    std::shared_ptr<UniformBuffer> uniform_buffer, std::shared_ptr<Material> material) {
+    std::shared_ptr<UniformBuffer> uniform_buffer,
+    std::shared_ptr<Material> material) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
@@ -1251,7 +1311,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
-    std::shared_ptr<UniformBuffer> uniform_buffer, std::shared_ptr<Material> material) {
+    std::shared_ptr<UniformBuffer> uniform_buffer,
+    std::shared_ptr<Material> material) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
@@ -1334,7 +1395,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
   return object;
 }
 
-std::shared_ptr<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent& camera) {
+std::shared_ptr<DescriptorSet> Renderer::CreateGlobalDescriptors(
+    CameraComponent& camera) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
@@ -1430,7 +1492,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateGlobalDescriptors(CameraComponent
   {
     VkDescriptorImageInfo image_info;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    auto shadow_view = camera.resource_pool.GetImageView("ShadowDepthViewArray");
+    auto shadow_view =
+        camera.resource_pool.GetImageView("ShadowDepthViewArray");
     if (shadow_view == nullptr) {
       image_info.imageView = blank_texture_->image_view_->handle_;
       image_info.sampler = blank_texture_->sampler_->handle();
@@ -1517,7 +1580,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
   return object;
 }
 
-std::shared_ptr<DescriptorSet> Renderer::CreateBoneDescriptors(std::shared_ptr<UniformBuffer> bone_ubo) {
+std::shared_ptr<DescriptorSet> Renderer::CreateBoneDescriptors(
+    std::shared_ptr<UniformBuffer> bone_ubo) {
   auto desc = std::make_shared<DescriptorSet>();
   desc->SetLayout(bone_descriptor_layout_);
   desc->AddUniformBuffer(0, bone_ubo);
@@ -1525,7 +1589,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateBoneDescriptors(std::shared_ptr<U
   return desc;
 }
 
-std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(std::shared_ptr<AttachmentTexture> texture) {
+std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(
+    std::shared_ptr<AttachmentTexture> texture) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
@@ -1557,7 +1622,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(std::shared_ptr<Attac
   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   image_info.imageView = texture->image_views_[0]->handle_;
   image_info.sampler = texture->sampler_ ? texture->sampler_->handle_
-                                        : default_linear_sampler_->handle_;
+                                         : default_linear_sampler_->handle_;
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
   set.dstSet = object->descriptor_set_;
@@ -1577,7 +1642,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(std::shared_ptr<Attac
   return object;
 }
 
-std::shared_ptr<DescriptorSet> Renderer::CreateSkyboxDescriptors(std::shared_ptr<Texture> texture) {
+std::shared_ptr<DescriptorSet> Renderer::CreateSkyboxDescriptors(
+    std::shared_ptr<Texture> texture) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
@@ -1608,8 +1674,8 @@ std::shared_ptr<DescriptorSet> Renderer::CreateSkyboxDescriptors(std::shared_ptr
   VkDescriptorImageInfo image_info;
   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   image_info.imageView = texture->image_view_->handle_;
-  image_info.sampler =
-      texture->sampler_ ? texture->sampler_->handle() : default_linear_sampler_->handle();
+  image_info.sampler = texture->sampler_ ? texture->sampler_->handle()
+                                         : default_linear_sampler_->handle();
 
   VkWriteDescriptorSet set{};
   set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1693,8 +1759,10 @@ void Renderer::Cleanup() {
 
   LOG_DEBUG("Destroying semaphores and fences");
   for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
-    vkDestroySemaphore(logical_device_, render_finished_semaphores_[i], nullptr);
-    vkDestroySemaphore(logical_device_, image_available_semaphores_[i], nullptr);
+    vkDestroySemaphore(logical_device_, render_finished_semaphores_[i],
+                       nullptr);
+    vkDestroySemaphore(logical_device_, image_available_semaphores_[i],
+                       nullptr);
     vkDestroySemaphore(logical_device_, render_order_semaphores_[i], nullptr);
     vkDestroyFence(logical_device_, fences_[i], nullptr);
   }
@@ -1838,7 +1906,7 @@ void Renderer::CreateLogicalDevice() {
 
   std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
   std::set<uint32_t> unique_queue_families = {GetGraphicsQueueFamilyIndex(),
-                                            GetPresentQueueFamilyIndex()};
+                                              GetPresentQueueFamilyIndex()};
 
   float queuePriority = 1.0f;
   for (uint32_t queue_family : unique_queue_families) {
@@ -1857,21 +1925,25 @@ void Renderer::CreateLogicalDevice() {
   device_features2.features.wideLines = VK_TRUE;
 
   VkPhysicalDeviceVulkan12Features vulkan12_features{};
-  vulkan12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+  vulkan12_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
   vulkan12_features.bufferDeviceAddress = VK_TRUE;
   device_features2.pNext = &vulkan12_features;
 
   VkPhysicalDeviceVulkan11Features vulkan11_features{};
-  vulkan11_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+  vulkan11_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
   vulkan12_features.pNext = &vulkan11_features;
 
   // RT feature structs (chained only when RT is supported)
   VkPhysicalDeviceAccelerationStructureFeaturesKHR as_features{};
-  as_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+  as_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
   as_features.accelerationStructure = VK_TRUE;
 
   VkPhysicalDeviceRayTracingPipelineFeaturesKHR rt_pipeline_features{};
-  rt_pipeline_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+  rt_pipeline_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
   rt_pipeline_features.rayTracingPipeline = VK_TRUE;
 
   if (rt_supported_) {
@@ -1879,8 +1951,10 @@ void Renderer::CreateLogicalDevice() {
     as_features.pNext = &rt_pipeline_features;
 
     // Query RT properties for SBT alignment
-    rt_pipeline_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
-    rt_as_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+    rt_pipeline_properties_.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+    rt_as_properties_.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
     rt_pipeline_properties_.pNext = &rt_as_properties_;
 
     VkPhysicalDeviceProperties2 props2{};
@@ -1939,24 +2013,34 @@ void Renderer::LoadDeviceExtensions() {
     pfn_vkGetRayTracingShaderGroupHandlesKHR_ =
         (PFN_vkGetRayTracingShaderGroupHandlesKHR)vkGetDeviceProcAddr(
             logical_device_, "vkGetRayTracingShaderGroupHandlesKHR");
-    pfn_vkCmdTraceRaysKHR_ =
-        (PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(
-            logical_device_, "vkCmdTraceRaysKHR");
+    pfn_vkCmdTraceRaysKHR_ = (PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(
+        logical_device_, "vkCmdTraceRaysKHR");
     LOG_INFO("Ray tracing function pointers loaded");
   }
 }
 
 bool Renderer::CheckRayTracingSupport(VkPhysicalDevice device) {
   uint32_t extensionCount;
-  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
+                                       nullptr);
   std::vector<VkExtensionProperties> extensions(extensionCount);
-  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
+                                       extensions.data());
 
   bool has_as = false, has_rt_pipeline = false, has_deferred = false;
   for (const auto& ext : extensions) {
-    if (strcmp(ext.extensionName, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0) has_as = true;
-    if (strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) has_rt_pipeline = true;
-    if (strcmp(ext.extensionName, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) == 0) has_deferred = true;
+    if (strcmp(ext.extensionName,
+               VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) == 0) {
+      has_as = true;
+    }
+    if (strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) ==
+        0) {
+      has_rt_pipeline = true;
+    }
+    if (strcmp(ext.extensionName,
+               VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) == 0) {
+      has_deferred = true;
+    }
   }
   return has_as && has_rt_pipeline && has_deferred;
 }
@@ -2120,7 +2204,7 @@ void Renderer::CreateSwapChain() {
   uint32_t present_queue_family_index = GetPresentQueueFamilyIndex();
 
   uint32_t queue_family_indices[] = {graphics_queue_family_index,
-                                   present_queue_family_index};
+                                     present_queue_family_index};
 
   if (graphics_queue_family_index != present_queue_family_index) {
     create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -2160,7 +2244,8 @@ void Renderer::CreateSwapChain() {
   stats_.swap_chain_images = image_count;
   stats_.frames_in_flight = kMaxFramesInFlight;
 
-  std::shared_ptr<AttachmentTexture> texture = std::make_shared<AttachmentTexture>();
+  std::shared_ptr<AttachmentTexture> texture =
+      std::make_shared<AttachmentTexture>();
   texture->format_ = surface_format.format;
   texture->width_ = extent_.width;
   texture->height_ = extent_.height;
@@ -2295,7 +2380,7 @@ void Renderer::CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer,
 }
 
 void Renderer::CopyBuffer(VkCommandBuffer cmd, VkBuffer src_buffer,
-                           VkBuffer dst_buffer, VkDeviceSize size) {
+                          VkBuffer dst_buffer, VkDeviceSize size) {
   VkBufferCopy copy_region{};
   copy_region.size = size;
   vkCmdCopyBuffer(cmd, src_buffer, dst_buffer, 1, &copy_region);
@@ -2478,11 +2563,11 @@ void Renderer::CreatePermanentResources() {
   default_linear_sampler_ = std::make_shared<Sampler>(1, SamplerProps{});
   default_nearest_sampler_ = std::make_shared<Sampler>(
       1, SamplerProps{VK_FILTER_NEAREST, VK_FILTER_NEAREST, -1.0f});
-  shadow_sampler_ = std::make_shared<Sampler>(1, SamplerProps{
-      VK_FILTER_LINEAR, VK_FILTER_LINEAR, -1.0f,
-      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-      VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
-      VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL});
+  shadow_sampler_ = std::make_shared<Sampler>(
+      1, SamplerProps{VK_FILTER_LINEAR, VK_FILTER_LINEAR, -1.0f,
+                      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+                      VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE, VK_TRUE,
+                      VK_COMPARE_OP_LESS_OR_EQUAL});
 
   // SSAO
   ssao_kernel_uniform_buffer_ =
@@ -2522,8 +2607,7 @@ void Renderer::CreatePermanentResources() {
                              sizeof(glm::vec4));
 
   // Entity pick staging buffer (4 bytes for one float)
-  CreateBuffer(sizeof(float),
-               VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+  CreateBuffer(sizeof(float), VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                pick_staging_buffer_, pick_staging_memory_);
@@ -2535,7 +2619,8 @@ void Renderer::CreatePermanentResources() {
     for (auto& m : identity.bone_matrices) {
       m = glm::mat4(1.0f);
     }
-    memcpy(identity_bone_ubo_->data_, &identity, sizeof(BoneMatricesUniformData));
+    memcpy(identity_bone_ubo_->data_, &identity,
+           sizeof(BoneMatricesUniformData));
   }
   identity_bone_descriptor_ = CreateBoneDescriptors(identity_bone_ubo_);
 }
@@ -2588,11 +2673,10 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
   vkBindImageMemory(logical_device_, image, imageMemory, 0);
 }
 
-std::shared_ptr<ImageView> Renderer::CreateImageView(VkImage image, VkFormat format,
-                                         VkImageAspectFlags aspectFlags,
-                                         uint32_t mipLevels,
-                                         VkImageViewType viewType,
-                                         uint32_t layer, uint32_t layerCount) {
+std::shared_ptr<ImageView> Renderer::CreateImageView(
+    VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+    uint32_t mipLevels, VkImageViewType viewType, uint32_t layer,
+    uint32_t layerCount) {
   PROFILE_ZONE_SCOPED();
   std::shared_ptr<ImageView> view = std::make_shared<ImageView>();
   view->layer_ = layer;
@@ -2628,9 +2712,9 @@ void Renderer::SetObjectName(VkObjectType type, uint64_t handle,
   pfn_set_debug_utils_object_name_ext_(logical_device_, &name_info);
 }
 
-std::shared_ptr<ImageView> Renderer::CreateImageView(std::shared_ptr<AttachmentTexture> image,
-                                         VkImageViewType viewType,
-                                         uint32_t layer, uint32_t layer_count) {
+std::shared_ptr<ImageView> Renderer::CreateImageView(
+    std::shared_ptr<AttachmentTexture> image, VkImageViewType viewType,
+    uint32_t layer, uint32_t layer_count) {
   return CreateImageView(image->images_[0], image->format_,
                          image->aspect_flags_, image->mip_levels_, viewType,
                          layer, layer_count);
@@ -2734,8 +2818,12 @@ void Renderer::GenerateMipmaps(VkImage image, VkFormat image_format,
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
                          0, nullptr, 1, &barrier);
 
-    if (mip_width > 1) mip_width /= 2;
-    if (mip_height > 1) mip_height /= 2;
+    if (mip_width > 1) {
+      mip_width /= 2;
+    }
+    if (mip_height > 1) {
+      mip_height /= 2;
+    }
   }
 
   barrier.subresourceRange.baseMipLevel = mip_levels - 1;
@@ -2802,8 +2890,8 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
     blit.dstSubresource.baseArrayLayer = 0;
     blit.dstSubresource.layerCount = 1;
 
-    vkCmdBlitImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+    vkCmdBlitImage(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image,
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
                    VK_FILTER_LINEAR);
 
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -2815,8 +2903,12 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
                          0, nullptr, 1, &barrier);
 
-    if (mip_width > 1) mip_width /= 2;
-    if (mip_height > 1) mip_height /= 2;
+    if (mip_width > 1) {
+      mip_width /= 2;
+    }
+    if (mip_height > 1) {
+      mip_height /= 2;
+    }
   }
 
   barrier.subresourceRange.baseMipLevel = mip_levels - 1;
@@ -2861,12 +2953,15 @@ void Renderer::CreateSyncObjects() {
   fences_.resize(kMaxFramesInFlight);
 
   for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
-    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
-        logical_device_, &semaphore_info, nullptr, &image_available_semaphores_[i]));
-    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
-        logical_device_, &semaphore_info, nullptr, &render_finished_semaphores_[i]));
-    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(
-        logical_device_, &semaphore_info, nullptr, &render_order_semaphores_[i]));
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
+                                            nullptr,
+                                            &image_available_semaphores_[i]));
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
+                                            nullptr,
+                                            &render_finished_semaphores_[i]));
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
+                                            nullptr,
+                                            &render_order_semaphores_[i]));
     WIESEL_CHECK_VKRESULT(
         vkCreateFence(logical_device_, &fence_info, nullptr, &fences_[i]));
   }
@@ -2981,7 +3076,8 @@ void Renderer::BeginRender() {
   slice_pool_used_[current_frame_] = 0;
 
   // Wait for this frame slot's previous work to complete
-  vkWaitForFences(logical_device_, 1, &fences_[current_frame_], VK_TRUE, UINT64_MAX);
+  vkWaitForFences(logical_device_, 1, &fences_[current_frame_], VK_TRUE,
+                  UINT64_MAX);
   vkResetFences(logical_device_, 1, &fences_[current_frame_]);
 
   command_buffers_[current_frame_]->Reset();
@@ -2993,7 +3089,8 @@ void Renderer::BeginRender() {
     RecreateSwapChain();
     recreate_swap_chain_ = false;
     recreate_pipeline_ = false;  // Already handled in RecreateSwapChain
-    recreate_resources_ = true;  // Features need resource rebuild for new MSAA/format
+    recreate_resources_ =
+        true;  // Features need resource rebuild for new MSAA/format
   }
   if (recreate_pipeline_) {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate Pipeline");
@@ -3007,9 +3104,10 @@ void Renderer::BeginRender() {
 
 bool Renderer::BeginPresent() {
   PROFILE_ZONE_SCOPED();
-  VkResult result = vkAcquireNextImageKHR(
-      logical_device_, swap_chain_, UINT64_MAX, image_available_semaphores_[current_frame_],
-      VK_NULL_HANDLE, &image_index_);
+  VkResult result =
+      vkAcquireNextImageKHR(logical_device_, swap_chain_, UINT64_MAX,
+                            image_available_semaphores_[current_frame_],
+                            VK_NULL_HANDLE, &image_index_);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     LOG_INFO(
         "Received VK_ERROR_OUT_OF_DATE_KHR, trying to recreate swap chain.");
@@ -3021,9 +3119,8 @@ bool Renderer::BeginPresent() {
     empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     empty_submit.commandBufferCount = 1;
     empty_submit.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
-    VkSemaphore empty_signal[] = {
-        render_finished_semaphores_[current_frame_],
-        render_order_semaphores_[current_frame_]};
+    VkSemaphore empty_signal[] = {render_finished_semaphores_[current_frame_],
+                                  render_order_semaphores_[current_frame_]};
     empty_submit.signalSemaphoreCount = 2;
     empty_submit.pSignalSemaphores = empty_signal;
     {
@@ -3098,10 +3195,10 @@ void Renderer::EndPresent() {
   // Wait on image availability AND the previous frame's render order semaphore.
   // The latter serializes GPU execution across frames so shared intermediate
   // render targets don't have layout conflicts.
-  uint32_t prev_frame = (current_frame_ + kMaxFramesInFlight - 1) % kMaxFramesInFlight;
-  VkSemaphore waitSemaphores[] = {
-      image_available_semaphores_[current_frame_],
-      render_order_semaphores_[prev_frame]};
+  uint32_t prev_frame =
+      (current_frame_ + kMaxFramesInFlight - 1) % kMaxFramesInFlight;
+  VkSemaphore waitSemaphores[] = {image_available_semaphores_[current_frame_],
+                                  render_order_semaphores_[prev_frame]};
   VkPipelineStageFlags waitStages[] = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
@@ -3113,16 +3210,16 @@ void Renderer::EndPresent() {
   submitInfo.pWaitDstStageMask = waitStages;
 
   // Signal both render_finished (for present) and render_order (for next frame)
-  VkSemaphore signalSemaphores[] = {
-      render_finished_semaphores_[current_frame_],
-      render_order_semaphores_[current_frame_]};
+  VkSemaphore signalSemaphores[] = {render_finished_semaphores_[current_frame_],
+                                    render_order_semaphores_[current_frame_]};
   submitInfo.signalSemaphoreCount = 2;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
   VkResult result;
   {
     std::lock_guard<std::mutex> lock(queue_submit_mutex_);
-    WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo, fences_[current_frame_]));
+    WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo,
+                                        fences_[current_frame_]));
   }
 
   VkPresentInfoKHR presentInfo{};
@@ -3171,11 +3268,10 @@ void Renderer::UpdateUniformData() {
   barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
   barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-  vkCmdPipelineBarrier(cmd,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-      0, 1, &barrier, 0, nullptr, 0, nullptr);
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                       0, 1, &barrier, 0, nullptr, 0, nullptr);
 }
 
 void Renderer::AllocateModelRenderData(ModelComponent& model,
@@ -3191,8 +3287,8 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
       auto inst = std::make_shared<MaterialInstance>();
       // Set material handle: use slot override if set, otherwise mesh default
       AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
-          ? model.material_slot_handles[i]
-          : model_data.meshes[i]->material_handle;
+                                   ? model.material_slot_handles[i]
+                                   : model_data.meshes[i]->material_handle;
       if (mat_handle.IsValid()) {
         inst->base_material_handle = mat_handle;
       } else if (model_data.meshes[i]->mat) {
@@ -3231,15 +3327,18 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
     const auto& mesh = model_data.meshes[i];
     // Resolve the effective material for this slot
     std::shared_ptr<Material> effective_mat = nullptr;
-    if (i < model.material_slot_handles.size() && model.material_slot_handles[i].IsValid()) {
-      effective_mat = Engine::asset_manager().Get<Material>(model.material_slot_handles[i]);
+    if (i < model.material_slot_handles.size() &&
+        model.material_slot_handles[i].IsValid()) {
+      effective_mat =
+          Engine::asset_manager().Get<Material>(model.material_slot_handles[i]);
     }
     if (!effective_mat) {
       effective_mat = mesh->mat;
     }
 
     // Apply default texture to meshes that lack a diffuse texture
-    if (model.default_texture && effective_mat && !effective_mat->base_texture) {
+    if (model.default_texture && effective_mat &&
+        !effective_mat->base_texture) {
       effective_mat->base_texture = model.default_texture;
       // Update vertex flags so the shader samples the texture
       for (auto& v : mesh->vertices) {
@@ -3251,8 +3350,8 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
     }
     model.geometry_descriptors.push_back(
         CreateMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
-    model.shadow_descriptors.push_back(
-        CreateShadowMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
+    model.shadow_descriptors.push_back(CreateShadowMeshDescriptors(
+        model.mesh_uniform_buffers_[i], effective_mat));
     // Track material version for descriptor invalidation
     if (effective_mat && i < model.material_versions.size()) {
       model.material_versions[i] = effective_mat->version;
@@ -3268,7 +3367,8 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
       for (auto& m : identity.bone_matrices) {
         m = glm::mat4(1.0f);
       }
-      memcpy(model.bone_ubo_->data_, &identity, sizeof(BoneMatricesUniformData));
+      memcpy(model.bone_ubo_->data_, &identity,
+             sizeof(BoneMatricesUniformData));
     }
     model.bone_descriptor_ = CreateBoneDescriptors(model.bone_ubo_);
   } else {
@@ -3285,7 +3385,8 @@ void Renderer::DrawModel(ModelComponent& model,
                          entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = Engine::asset_manager();
-  const std::shared_ptr<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
+  const std::shared_ptr<Model>& ptr =
+      assets.GetOrLoad<Model>(model.model_handle);
   if (!ptr) {
     return;
   }
@@ -3304,53 +3405,62 @@ void Renderer::DrawModel(ModelComponent& model,
 
   // Determine the bone descriptor to bind
   std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
-      ? model.bone_descriptor_
-      : identity_bone_descriptor_;
+                                                 ? model.bone_descriptor_
+                                                 : identity_bone_descriptor_;
 
   // Cache global descriptor and command buffer outside mesh loop
-  std::shared_ptr<DescriptorSet> global_desc = shadow_pass
-      ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
-      : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  std::shared_ptr<DescriptorSet> global_desc =
+      shadow_pass
+          ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
+          : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
 
   stats_.models++;
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
     // Skip transparent meshes in geometry pass (they use the forward transparency pass)
-    if (!shadow_pass && ptr->meshes[i]->has_transparency) continue;
+    if (!shadow_pass && ptr->meshes[i]->has_transparency) {
+      continue;
+    }
     if (shadow_pass) {
       // Shadow pass: only model_matrix is needed by the shadow vertex shader.
       // Skip normal_matrix inverse, material lookups, and entity_id.
       glm::mat4 model_matrix;
       if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        model_matrix = transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
+        model_matrix =
+            transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
       } else {
         model_matrix = transform.GetTransformMatrix();
       }
-      memcpy(model.mesh_uniform_buffers_[i]->data_, &model_matrix, sizeof(glm::mat4));
+      memcpy(model.mesh_uniform_buffers_[i]->data_, &model_matrix,
+             sizeof(glm::mat4));
     } else {
       MatricesUniformData matrices{};
       if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        glm::mat4 mesh_model = transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
+        glm::mat4 mesh_model =
+            transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
         matrices.model_matrix = mesh_model;
-        matrices.normal_matrix = glm::mat3(glm::transpose(glm::inverse(mesh_model)));
+        matrices.normal_matrix =
+            glm::mat3(glm::transpose(glm::inverse(mesh_model)));
       } else {
         matrices.model_matrix = transform.GetTransformMatrix();
         matrices.normal_matrix = transform.GetNormalMatrix();
       }
       if (entity_handle != entt::null) {
-        matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+        matrices.entity_id =
+            static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
       }
 
       // Set per-mesh material properties
       if (i < model.material_instances.size() && model.material_instances[i]) {
         auto& inst = model.material_instances[i];
         matrices.color_tint = inst->GetColorTint();
-        matrices.material_params = glm::vec4(
-            inst->GetRoughness(), inst->GetMetallic(),
-            inst->GetSpecular(), 0.0f);
+        matrices.material_params =
+            glm::vec4(inst->GetRoughness(), inst->GetMetallic(),
+                      inst->GetSpecular(), 0.0f);
       }
 
-      memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
+      memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices,
+             sizeof(MatricesUniformData));
     }
 
     std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
@@ -3363,7 +3473,8 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
                                     entt::entity entity_handle) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = Engine::asset_manager();
-  const std::shared_ptr<Model>& ptr = assets.GetOrLoad<Model>(model.model_handle);
+  const std::shared_ptr<Model>& ptr =
+      assets.GetOrLoad<Model>(model.model_handle);
   if (!ptr || !ptr->has_transparent_meshes) {
     return;
   }
@@ -3373,38 +3484,43 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
   }
 
   std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
-      ? model.bone_descriptor_
-      : identity_bone_descriptor_;
+                                                 ? model.bone_descriptor_
+                                                 : identity_bone_descriptor_;
 
   std::shared_ptr<DescriptorSet> global_desc =
       camera_->resource_pool->GetDescriptor("GlobalDescriptor");
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
 
   for (size_t i = 0; i < ptr->meshes.size(); i++) {
-    if (!ptr->meshes[i]->has_transparency) continue;
+    if (!ptr->meshes[i]->has_transparency) {
+      continue;
+    }
 
     MatricesUniformData matrices{};
     if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-      glm::mat4 mesh_model = transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
+      glm::mat4 mesh_model =
+          transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
       matrices.model_matrix = mesh_model;
-      matrices.normal_matrix = glm::mat3(glm::transpose(glm::inverse(mesh_model)));
+      matrices.normal_matrix =
+          glm::mat3(glm::transpose(glm::inverse(mesh_model)));
     } else {
       matrices.model_matrix = transform.GetTransformMatrix();
       matrices.normal_matrix = transform.GetNormalMatrix();
     }
     if (entity_handle != entt::null) {
-      matrices.entity_id = static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+      matrices.entity_id =
+          static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
     }
 
     if (i < model.material_instances.size() && model.material_instances[i]) {
       auto& inst = model.material_instances[i];
       matrices.color_tint = inst->GetColorTint();
       matrices.material_params = glm::vec4(
-          inst->GetRoughness(), inst->GetMetallic(),
-          inst->GetSpecular(), 0.0f);
+          inst->GetRoughness(), inst->GetMetallic(), inst->GetSpecular(), 0.0f);
     }
 
-    memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices, sizeof(MatricesUniformData));
+    memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices,
+           sizeof(MatricesUniformData));
 
     std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
     DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
@@ -3440,9 +3556,10 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
   stats_.triangles += index_count / 3;
 }
 
-void Renderer::RequestEntityPick(uint32_t x, uint32_t y,
-                                 std::shared_ptr<AttachmentTexture> entity_id_texture,
-                                 std::shared_ptr<AttachmentTexture> fallback_entity_id_texture) {
+void Renderer::RequestEntityPick(
+    uint32_t x, uint32_t y,
+    std::shared_ptr<AttachmentTexture> entity_id_texture,
+    std::shared_ptr<AttachmentTexture> fallback_entity_id_texture) {
   pick_x_ = x;
   pick_y_ = y;
   pick_entity_id_image_ = entity_id_texture;
@@ -3558,12 +3675,13 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
     fb_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     fb_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                         nullptr, 1, &fb_barrier);
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
+                         0, nullptr, 1, &fb_barrier);
 
     EndSingleTimeCommands(cmd2);
 
-    vkMapMemory(logical_device_, pick_staging_memory_, 0, sizeof(float), 0, &data);
+    vkMapMemory(logical_device_, pick_staging_memory_, 0, sizeof(float), 0,
+                &data);
     value = *static_cast<float*>(data);
     vkUnmapMemory(logical_device_, pick_staging_memory_);
   } else {
@@ -3583,29 +3701,30 @@ void Renderer::DrawSprite(SpriteComponent& sprite,
   if (!sprite.asset_ || !sprite.asset_->is_allocated_) {
     return;
   }
-  sprite.asset_->UpdateTransform(
-      transform.GetTransformMatrix(),
-      sprite.tint_,
-      sprite.flip_x_,
-      sprite.flip_y_,
-      static_cast<int>(sprite.current_frame_));
+  sprite.asset_->UpdateTransform(transform.GetTransformMatrix(), sprite.tint_,
+                                 sprite.flip_x_, sprite.flip_y_,
+                                 static_cast<int>(sprite.current_frame_));
   // TODO: In the feature, we can use instanced sprites for atlas sprites
   const SpriteAsset::Frame& frame =
       sprite.asset_->frames_[sprite.current_frame_];
 
-  std::shared_ptr<MemoryBuffer> vertexBuffer = Engine::renderer()->GetQuadVertexBuffer();
+  std::shared_ptr<MemoryBuffer> vertexBuffer =
+      Engine::renderer()->GetQuadVertexBuffer();
   VkBuffer buffers[] = {frame.vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
   static_assert(std::size(buffers) == std::size(offsets));
-  vkCmdBindVertexBuffers(command_buffers_[current_frame_]->handle_, 0, std::size(buffers),
-                         buffers, offsets);
+  vkCmdBindVertexBuffers(command_buffers_[current_frame_]->handle_, 0,
+                         std::size(buffers), buffers, offsets);
 
-  VkDescriptorSet sets[] = {frame.descriptor->descriptor_set_,
-                            camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
+  VkDescriptorSet sets[] = {
+      frame.descriptor->descriptor_set_,
+      camera_->resource_pool->GetDescriptor("GlobalDescriptor")
+          ->descriptor_set_};
 
-  vkCmdBindDescriptorSets(
-      command_buffers_[current_frame_]->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      bound_pipeline_->layout_, 0, std::size(sets), sets, 0, nullptr);
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          bound_pipeline_->layout_, 0, std::size(sets), sets, 0,
+                          nullptr);
 
   vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
   stats_.draw_calls++;
@@ -3655,8 +3774,8 @@ Renderer::SliceDrawResource& Renderer::AcquireSliceResource(
     res.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
   }
   VkImageView view = texture->image_view_->handle_;
-  VkSampler sampler = texture->sampler_ ? texture->sampler_->handle()
-                                        : VK_NULL_HANDLE;
+  VkSampler sampler =
+      texture->sampler_ ? texture->sampler_->handle() : VK_NULL_HANDLE;
   if (!res.descriptor || res.bound_texture != view ||
       res.bound_sampler != sampler) {
     res.descriptor = std::make_shared<DescriptorSet>();
@@ -3747,6 +3866,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
       glm::vec2 size;
       glm::vec4 uv;
     };
+
     SliceRegion regions[9] = {
         // Top row
         {{x0, y0}, {bL, bT}, {0, 0, uL, vT}},
@@ -3834,8 +3954,8 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
       gpu.descriptor = std::make_shared<DescriptorSet>();
       gpu.descriptor->SetLayout(layout);
       gpu.descriptor->AddUniformBuffer(0, gpu.ubo);
-      gpu.descriptor->AddCombinedImageSampler(
-          1, font->GetAtlasImageView(), GetDefaultLinearSampler());
+      gpu.descriptor->AddCombinedImageSampler(1, font->GetAtlasImageView(),
+                                              GetDefaultLinearSampler());
       gpu.descriptor->Bake();
       text.glyph_gpu_.push_back(std::move(gpu));
     }
@@ -3845,7 +3965,8 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
 
   // Helper: render one pass of all glyphs at given origin with given color
   size_t glyph_idx = 0;
-  auto render_pass = [&](float origin_x, float origin_y, const glm::vec4& color) {
+  auto render_pass = [&](float origin_x, float origin_y,
+                         const glm::vec4& color) {
     float cursor_x = origin_x;
     float cursor_y = origin_y + font->GetAscent() * scale;
 
@@ -3882,8 +4003,7 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
       VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
       vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
                               VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              bound_pipeline_->layout_, 0, 1, sets, 0,
-                              nullptr);
+                              bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
       vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
       stats_.draw_calls++;
 
@@ -3906,11 +4026,13 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
 void Renderer::DrawSkybox(std::shared_ptr<Skybox> skybox) {
   std::array<VkDescriptorSet, 2> sets{
       skybox->descriptors_->descriptor_set_,
-      camera_->resource_pool->GetDescriptor("GlobalDescriptor")->descriptor_set_};
+      camera_->resource_pool->GetDescriptor("GlobalDescriptor")
+          ->descriptor_set_};
 
-  vkCmdBindDescriptorSets(
-      command_buffers_[current_frame_]->handle_, VK_PIPELINE_BIND_POINT_GRAPHICS,
-      bound_pipeline_->layout_, 0, 2, sets.data(), 0, nullptr);
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          bound_pipeline_->layout_, 0, 2, sets.data(), 0,
+                          nullptr);
 
   // draw cube via gl_VertexIndex (no vertex/index buffer needed)
   vkCmdDraw(command_buffers_[current_frame_]->handle_, 36, 1, 0, 0);
@@ -3998,14 +4120,16 @@ void Renderer::SetCameraData(std::shared_ptr<CameraData> camera_data) {
 }
 
 std::shared_ptr<DescriptorSet> Renderer::GetFinalOutputDescriptor() const {
-  if (!camera_ || !camera_->resource_pool)
+  if (!camera_ || !camera_->resource_pool) {
     return nullptr;
+  }
   return camera_->resource_pool->GetDescriptor("PipelineOutputDescriptor");
 }
 
 std::shared_ptr<AttachmentTexture> Renderer::GetFinalOutputImage() const {
-  if (!camera_ || !camera_->resource_pool)
+  if (!camera_ || !camera_->resource_pool) {
     return nullptr;
+  }
   return camera_->resource_pool->GetTexture("PipelineOutput");
 }
 
@@ -4053,28 +4177,33 @@ VkCommandPool Renderer::CreateTransientCommandPool() {
 thread_local VkCommandPool Renderer::tl_command_pool_ = VK_NULL_HANDLE;
 thread_local VkCommandBuffer Renderer::tl_batch_cmd_ = VK_NULL_HANDLE;
 thread_local bool Renderer::tl_batch_active_ = false;
-thread_local std::vector<Renderer::StagingResource> Renderer::tl_deferred_staging_;
+thread_local std::vector<Renderer::StagingResource>
+    Renderer::tl_deferred_staging_;
 
 void Renderer::SetThreadCommandPool(VkCommandPool pool) {
   tl_command_pool_ = pool;
 }
 
 void Renderer::BeginBatchUpload() {
-  if (tl_batch_active_) return;
+  if (tl_batch_active_) {
+    return;
+  }
   tl_batch_active_ = true;
   tl_batch_cmd_ = BeginSingleTimeCommands();
 }
 
 void Renderer::EndBatchUpload() {
-  if (!tl_batch_active_) return;
+  if (!tl_batch_active_) {
+    return;
+  }
   tl_batch_active_ = false;
   VkCommandBuffer cmd = tl_batch_cmd_;
   tl_batch_cmd_ = VK_NULL_HANDLE;
 
   // Submit all recorded commands in one go
   VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
-                            ? tl_command_pool_
-                            : command_pool_->handle_;
+                           ? tl_command_pool_
+                           : command_pool_->handle_;
   EndSingleTimeCommands(cmd, pool);
 
   // Now that GPU is done, free all deferred staging buffers
@@ -4095,8 +4224,8 @@ VkCommandBuffer Renderer::BeginSingleTimeCommands() {
     return tl_batch_cmd_;
   }
   VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
-                            ? tl_command_pool_
-                            : command_pool_->handle_;
+                           ? tl_command_pool_
+                           : command_pool_->handle_;
   return BeginSingleTimeCommands(pool);
 }
 
@@ -4125,8 +4254,8 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
     return;
   }
   VkCommandPool pool = tl_command_pool_ != VK_NULL_HANDLE
-                            ? tl_command_pool_
-                            : command_pool_->handle_;
+                           ? tl_command_pool_
+                           : command_pool_->handle_;
   EndSingleTimeCommands(commandBuffer, pool);
 }
 

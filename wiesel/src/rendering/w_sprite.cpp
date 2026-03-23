@@ -7,20 +7,19 @@
 
 namespace Wiesel {
 
-SpriteTexture::~SpriteTexture() {
-}
+SpriteTexture::~SpriteTexture() {}
 
-SpriteAsset::~SpriteAsset() {
+SpriteAsset::~SpriteAsset() {}
 
-}
-
-std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>& paths) {
+std::shared_ptr<SpriteTexture> LoadSpriteTexture(
+    const std::vector<std::string>& paths) {
   std::shared_ptr<SpriteTexture> texture = std::make_shared<SpriteTexture>();
 
   struct ImageEntry {
     int w, h, channels;
     stbi_uc* pixels;
   };
+
   int wMax = 0;
   int hMax = 0;
   int channels = 0;
@@ -29,9 +28,9 @@ std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>&
   for (size_t i = 0; i < paths.size(); ++i) {
     ImageEntry entry;
     VfsFile vfs_sprite = Engine::vfs()->Open(paths[i]);
-    entry.pixels =
-        stbi_load_from_memory(vfs_sprite.Data(), static_cast<int>(vfs_sprite.Size()),
-                              &entry.w, &entry.h, &entry.channels, STBI_rgb_alpha);
+    entry.pixels = stbi_load_from_memory(
+        vfs_sprite.Data(), static_cast<int>(vfs_sprite.Size()), &entry.w,
+        &entry.h, &entry.channels, STBI_rgb_alpha);
     if (!entry.pixels) {
       throw std::runtime_error("failed to load texture image: " + paths[i]);
     }
@@ -55,7 +54,8 @@ std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>&
 
   for (int i = 0; i < list.size(); ++i) {
     const ImageEntry& data = list[i];
-    memcpy(allPixels + i * texture->DataLength, data.pixels, texture->DataLength);
+    memcpy(allPixels + i * texture->DataLength, data.pixels,
+           texture->DataLength);
     stbi_image_free(data.pixels);
   }
   list.clear();
@@ -64,31 +64,34 @@ std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>&
   VkBuffer stagingBuffer;
   VkDeviceMemory stagingBufferMemory;
   renderer->CreateBuffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               stagingBuffer, stagingBufferMemory);
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                         stagingBuffer, stagingBufferMemory);
 
   void* data;
-  vkMapMemory(renderer->GetLogicalDevice(), stagingBufferMemory, 0, totalSize, 0, &data);
+  vkMapMemory(renderer->GetLogicalDevice(), stagingBufferMemory, 0, totalSize,
+              0, &data);
   memcpy(data, allPixels, static_cast<size_t>(totalSize));
   vkUnmapMemory(renderer->GetLogicalDevice(), stagingBufferMemory);
 
-  renderer->CreateImage(texture->Size.x, texture->Size.y, 1,
-              SamplingMode::DISABLED, VK_FORMAT_R8G8B8A8_UNORM,
-              VK_IMAGE_TILING_OPTIMAL,
-              VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                  VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->Image,
-              texture->DeviceMemory, paths.size() == 1 ? 0 : VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT, paths.size());
+  renderer->CreateImage(
+      texture->Size.x, texture->Size.y, 1, SamplingMode::DISABLED,
+      VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+          VK_IMAGE_USAGE_SAMPLED_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->Image,
+      texture->DeviceMemory,
+      paths.size() == 1 ? 0 : VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT,
+      paths.size());
 
-    renderer->TransitionImageLayout(
-        texture->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, 0, paths.size());
+  renderer->TransitionImageLayout(
+      texture->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED,
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, 0, paths.size());
   for (uint32_t layer = 0; layer < paths.size(); layer++) {
     renderer->CopyBufferToImage(stagingBuffer, texture->Image,
-                      static_cast<uint32_t>(texture->Size.x),
-                      static_cast<uint32_t>(texture->Size.y),
-                      texture->DataLength * layer, layer);
+                                static_cast<uint32_t>(texture->Size.x),
+                                static_cast<uint32_t>(texture->Size.y),
+                                texture->DataLength * layer, layer);
   }
 
   vkDestroyBuffer(renderer->GetLogicalDevice(), stagingBuffer, nullptr);
@@ -97,8 +100,8 @@ std::shared_ptr<SpriteTexture> LoadSpriteTexture(const std::vector<std::string>&
 
   renderer->TransitionImageLayout(texture->Image, VK_FORMAT_R8G8B8A8_UNORM,
                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                  1, 0, paths.size());
+                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                                  0, paths.size());
   return texture;
 }
 
@@ -107,9 +110,8 @@ void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix) {
 }
 
 void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix,
-                                   const glm::vec4& tint,
-                                   bool flip_x, bool flip_y,
-                                   int frame_index) {
+                                  const glm::vec4& tint, bool flip_x,
+                                  bool flip_y, int frame_index) {
   if (!is_allocated_) {
     return;
   }
@@ -137,7 +139,9 @@ void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix,
 }
 
 void SpriteComponent::Play(const std::string& clip_name, bool restart) {
-  if (!restart && direct_clip_ == clip_name && playing_) return;
+  if (!restart && direct_clip_ == clip_name && playing_) {
+    return;
+  }
   direct_clip_ = clip_name;
   frame_timer_ = 0.0f;
   playing_ = true;
@@ -153,7 +157,9 @@ void SpriteComponent::Stop() {
 
 const SpriteClip* SpriteComponent::FindClip(const std::string& name) const {
   for (auto& c : clips) {
-    if (c.name == name) return &c;
+    if (c.name == name) {
+      return &c;
+    }
   }
   return nullptr;
 }
@@ -173,26 +179,22 @@ const SpriteClip* SpriteComponent::GetActiveClip() const {
   return nullptr;
 }
 
-AddFrameResult SpriteBuilder::AddFrame(float_t duration_seconds, glm::vec2 uv_pos, glm::vec2 uv_size) {
+AddFrameResult SpriteBuilder::AddFrame(float_t duration_seconds,
+                                       glm::vec2 uv_pos, glm::vec2 uv_size) {
   if (fixed_size_) {
     uv_size = fixed_uv_size_;
   }
   if (uv_size.x <= 0 || uv_size.y <= 0) {
     return AddFrameResult::UVSizeShouldBeLargerThanZero;
   }
-  frames_.emplace_back(
-      glm::vec4{
-          uv_pos,
-          uv_size
-      },
-      duration_seconds
-  );
+  frames_.emplace_back(glm::vec4{uv_pos, uv_size}, duration_seconds);
 
   return AddFrameResult::Success;
 }
 
-void SpriteBuilder::AddGridFrames(glm::ivec2 cell_size, int start_col, int start_row,
-                                   int count, float frame_duration) {
+void SpriteBuilder::AddGridFrames(glm::ivec2 cell_size, int start_col,
+                                  int start_row, int count,
+                                  float frame_duration) {
   int cols_per_row = static_cast<int>(atlas_size_.x) / cell_size.x;
   int col = start_col;
   int row = start_row;
@@ -221,6 +223,7 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
       stbi_uc* pixels;
       int w, h;
     };
+
     std::vector<FrameImage> images;
     int max_h = 0;
     int total_w = 0;
@@ -229,21 +232,27 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
       VfsFile file = Engine::vfs()->Open(path);
       if (!file) {
         LOG_ERROR("SpriteBuilder: failed to open frame image: {}", path);
-        for (auto& img : images) stbi_image_free(img.pixels);
+        for (auto& img : images) {
+          stbi_image_free(img.pixels);
+        }
         return nullptr;
       }
       int w, h, ch;
-      stbi_uc* px = stbi_load_from_memory(
-          file.Data(), static_cast<int>(file.Size()),
-          &w, &h, &ch, STBI_rgb_alpha);
+      stbi_uc* px =
+          stbi_load_from_memory(file.Data(), static_cast<int>(file.Size()), &w,
+                                &h, &ch, STBI_rgb_alpha);
       if (!px) {
         LOG_ERROR("SpriteBuilder: failed to load frame image: {}", path);
-        for (auto& img : images) stbi_image_free(img.pixels);
+        for (auto& img : images) {
+          stbi_image_free(img.pixels);
+        }
         return nullptr;
       }
       images.push_back({px, w, h});
       total_w += w;
-      if (h > max_h) max_h = h;
+      if (h > max_h) {
+        max_h = h;
+      }
     }
 
     // Create stitched atlas (horizontal strip)
@@ -256,8 +265,7 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
       // Copy rows into atlas
       for (int row = 0; row < img.h; row++) {
         memcpy(atlas_data.data() + (row * total_w + x_offset) * 4,
-               img.pixels + row * img.w * 4,
-               img.w * 4);
+               img.pixels + row * img.w * 4, img.w * 4);
       }
 
       // Auto-add frame for this image
@@ -278,8 +286,8 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
     props.width = total_w;
     props.height = max_h;
 
-    auto tex = Engine::renderer()->CreateTexture(
-        atlas_data.data(), 4, props, {});
+    auto tex =
+        Engine::renderer()->CreateTexture(atlas_data.data(), 4, props, {});
     if (!tex) {
       LOG_ERROR("SpriteBuilder: failed to create stitched atlas texture");
       return nullptr;
@@ -298,7 +306,8 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
     tex->device_memory_ = VK_NULL_HANDLE;
     tex->is_allocated_ = false;
 
-    asset->sampler_ = sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
+    asset->sampler_ =
+        sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
   } else {
     // Single atlas mode (original path)
     asset->texture_ = LoadSpriteTexture({virtual_atlas_path_});
@@ -306,10 +315,11 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
 
   asset->frames_ = frames_;
   asset->atlas_size_ = atlas_size_;
-  asset->sampler_ = sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
+  asset->sampler_ =
+      sampler_ ? sampler_ : Engine::renderer()->GetDefaultLinearSampler();
   std::shared_ptr<ImageView> view = Engine::renderer()->CreateImageView(
-      asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT,
-      1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
+      asset->texture_->Image, VK_FORMAT_R8G8B8A8_UNORM,
+      VK_IMAGE_ASPECT_COLOR_BIT, 1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
   for (SpriteAsset::Frame& item : asset->frames_) {
     item.view = view;
     /*item.VertexBuffer = Engine::renderer()->CreateVertexBuffer(std::vector<VertexSprite>{
@@ -318,26 +328,27 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
         {{item.UVRect.x, item.UVRect.y + item.UVRect.w}},
         {{item.UVRect.x + item.UVRect.z, item.UVRect.y + item.UVRect.w}},
     }); */
-    float u0 = item.uv_rect.x           / atlas_size_.x; // left
-    float v0 = item.uv_rect.y           / atlas_size_.y; // bottom
-    float u1 = (item.uv_rect.x + item.uv_rect.z) / atlas_size_.x; // right
-    float v1 = (item.uv_rect.y + item.uv_rect.w) / atlas_size_.y; // top
+    float u0 = item.uv_rect.x / atlas_size_.x;                     // left
+    float v0 = item.uv_rect.y / atlas_size_.y;                     // bottom
+    float u1 = (item.uv_rect.x + item.uv_rect.z) / atlas_size_.x;  // right
+    float v1 = (item.uv_rect.y + item.uv_rect.w) / atlas_size_.y;  // top
 
     std::vector<VertexSprite> uvs = {
-        {{u0, v0}},   // UV for vertex 0 (bottom-left)
-        {{u1, v0}},   //    "     1 (bottom-right)
-        {{u1, v1}},   //    "     2 (top-right)
+        {{u0, v0}},  // UV for vertex 0 (bottom-left)
+        {{u1, v0}},  //    "     1 (bottom-right)
+        {{u1, v1}},  //    "     2 (top-right)
 
-        {{u0, v0}},   //    "     3 (bottom-left again)
-        {{u1, v1}},   //    "     4 (top-right)
-        {{u0, v1}},   //    "     5 (top-left)
+        {{u0, v0}},  //    "     3 (bottom-left again)
+        {{u1, v1}},  //    "     4 (top-right)
+        {{u0, v1}},  //    "     5 (top-left)
     };
 
     item.vertex_buffer = Engine::renderer()->CreateVertexBuffer(uvs);
-    item.uniform_buffer = Engine::renderer()->CreateUniformBuffer(
-        sizeof(SpriteUniformData));
+    item.uniform_buffer =
+        Engine::renderer()->CreateUniformBuffer(sizeof(SpriteUniformData));
     item.descriptor = std::make_shared<DescriptorSet>();
-    item.descriptor->SetLayout(Engine::renderer()->GetSpriteDrawDescriptorLayout());
+    item.descriptor->SetLayout(
+        Engine::renderer()->GetSpriteDrawDescriptorLayout());
     item.descriptor->AddCombinedImageSampler(0, view, asset->sampler_);
     item.descriptor->AddUniformBuffer(1, item.uniform_buffer);
     item.descriptor->Bake();
@@ -345,4 +356,4 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
   asset->is_allocated_ = true;
   return asset;
 }
-}
+}  // namespace Wiesel

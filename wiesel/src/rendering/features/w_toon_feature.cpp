@@ -10,8 +10,8 @@
 //
 
 #include "rendering/features/w_toon_feature.hpp"
-#include "rendering/w_renderer.hpp"
 #include "rendering/w_pipeline.hpp"
+#include "rendering/w_renderer.hpp"
 #include "rendering/w_renderpass.hpp"
 #include "scene/w_scene.hpp"
 
@@ -20,12 +20,11 @@ namespace Wiesel {
 ToonFeature::ToonFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                             "Toon RenderPass");
-  render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
+  render_pass_ =
+      std::make_shared<RenderPass>(PassType::PostProcess, "Toon RenderPass");
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = renderer_->GetSwapChainImageFormat(),
+                              .msaa_mode = SamplingMode::DISABLED});
   render_pass_->Bake();
 
   // 3-sampler descriptor layout (scene color + normals + depth)
@@ -43,9 +42,9 @@ ToonFeature::ToonFeature(std::shared_ptr<Renderer> renderer)
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "/engine/shaders/fullscreen_shader.vert"});
-  auto frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/toon_shader.frag"});
+  auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
+                                       "main", ShaderSourceSource,
+                                       "/engine/shaders/toon_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
@@ -69,15 +68,15 @@ void ToonFeature::SetupResources(RenderContext& ctx) {
 
   // Texture
   pool.SetTexture("toon.color", renderer.CreateAttachmentTexture(
-      {rw, rh, AttachmentTextureType::Offscreen, 1,
-       renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+                                    {rw, rh, AttachmentTextureType::Offscreen,
+                                     1, renderer.GetSwapChainImageFormat(),
+                                     SamplingMode::DISABLED, true}));
 
   // Framebuffer
   {
-    std::array<AttachmentTexture*, 1> att{
-        pool.GetTexture("toon.color").get()};
+    std::array<AttachmentTexture*, 1> att{pool.GetTexture("toon.color").get()};
     pool.SetFramebuffer("toon",
-        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
+                        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
   }
 
   // Descriptors
@@ -138,8 +137,7 @@ void ToonFeature::AddPasses(RenderGraph& graph,
       [pool, renderer, pipeline, push_constants,
        viewport_size](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(pipeline,
-            {pool->GetDescriptor("toon.input")});
+        renderer->DrawFullscreen(pipeline, {pool->GetDescriptor("toon.input")});
       });
 
   graph.PassReadsTexture(toon_pass, pipeline_input);

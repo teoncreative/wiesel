@@ -31,12 +31,13 @@ void OpenFileDialog(std::vector<FilterEntry> filters,
   std::vector<nfdnfilteritem_t> filterList;
   nfdfiltersize_t filterCount = filters.size();
   for (int i = 0; i < filterCount; i++) {
-    filterList.push_back({
-      reinterpret_cast<const nfdnchar_t*>(filters[i].name.c_str()),
-      reinterpret_cast<const nfdnchar_t*>(filters[i].spec.c_str())
-    });
+    filterList.push_back(
+        {reinterpret_cast<const nfdnchar_t*>(filters[i].name.c_str()),
+         reinterpret_cast<const nfdnchar_t*>(filters[i].spec.c_str())});
   }
-  nfdresult_t result = NFD_OpenDialog(&outPath,  reinterpret_cast<const nfdfilteritem_t*>(filterList.data()), filterList.size(), NULL);
+  nfdresult_t result = NFD_OpenDialog(
+      &outPath, reinterpret_cast<const nfdfilteritem_t*>(filterList.data()),
+      filterList.size(), NULL);
   if (result == NFD_OKAY) {
     auto relative = std::filesystem::relative(outPath);
     fn(relative.string());
@@ -52,12 +53,13 @@ void SaveFileDialog(std::vector<FilterEntry> filters,
   std::vector<nfdnfilteritem_t> filterList;
   nfdfiltersize_t filterCount = filters.size();
   for (int i = 0; i < filterCount; i++) {
-    filterList.push_back({
-      reinterpret_cast<const nfdnchar_t*>(filters[i].name.c_str()),
-      reinterpret_cast<const nfdnchar_t*>(filters[i].spec.c_str())
-    });
+    filterList.push_back(
+        {reinterpret_cast<const nfdnchar_t*>(filters[i].name.c_str()),
+         reinterpret_cast<const nfdnchar_t*>(filters[i].spec.c_str())});
   }
-  nfdresult_t result = NFD_SaveDialog(&outPath, reinterpret_cast<const nfdfilteritem_t*>(filterList.data()), filterList.size(), NULL, NULL);
+  nfdresult_t result = NFD_SaveDialog(
+      &outPath, reinterpret_cast<const nfdfilteritem_t*>(filterList.data()),
+      filterList.size(), NULL, NULL);
   if (result == NFD_OKAY) {
     fn(std::string(outPath));
     NFD_FreePath(outPath);
