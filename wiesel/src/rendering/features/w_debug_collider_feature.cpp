@@ -398,9 +398,9 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                                       RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("DebugColliderFeature::AddPasses");
 
-  auto* pool = &ctx.resources;
-  auto renderer = renderer_;
-  auto* scene = &ctx.scene;
+  CameraResourcePool* pool = &ctx.resources;
+  std::shared_ptr<Renderer> renderer = renderer_;
+  Scene* scene = &ctx.scene;
   auto pipeline = pipeline_;
   auto filled_pipe = filled_pipeline_;
   auto push_constant = push_constant_;
@@ -481,7 +481,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
     hf_cache_.clear();
     hf_cache_valid_ = false;
   }
-  auto& hf_data = hf_cache_;
+  std::vector<HeightfieldDebugData>& hf_data = hf_cache_;
 
   // Import resources
   RGResource debug_out =
@@ -552,12 +552,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         // Colliders and triggers share the same component types,
         // differentiated by is_trigger flag.
         if (show_colliders || show_triggers) {
-          const glm::vec4 static_wire(0.0f, 1.0f, 0.0f, 1.0f);      // green: static collider
-          const glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f, 1.0f);     // blue: has rigidbody
-          const glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f, 1.0f);   // yellow: kinematic
-          const glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
-          const glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
-          const glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
+          constexpr glm::vec4 static_wire(0.0f, 1.0f, 0.0f, 1.0f);      // green: static collider
+          constexpr glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f, 1.0f);     // blue: has rigidbody
+          constexpr glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f, 1.0f);   // yellow: kinematic
+          constexpr glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
+          constexpr glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
+          constexpr glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
 
           // Helper: pick wireframe color based on rigidbody state
           auto get_collider_color = [&](entt::entity entity) -> glm::vec4 {
@@ -571,30 +571,42 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             return dynamic_wire;
           };
 
+          // Helper: draw a collider or trigger with the appropriate style
+          auto draw_collider = [&](entt::entity entity, bool is_trigger,
+                                   const glm::mat4& model,
+                                   std::shared_ptr<MemoryBuffer> wire_vb,
+                                   std::shared_ptr<IndexBuffer> wire_ib,
+                                   uint32_t wire_ic,
+                                   std::shared_ptr<MemoryBuffer> fill_vb,
+                                   std::shared_ptr<IndexBuffer> fill_ib,
+                                   uint32_t fill_ic) {
+            if (is_trigger && !show_triggers) { return; }
+            if (!is_trigger && !show_colliders) { return; }
+
+            if (is_trigger) {
+              draw_filled(fill_vb, fill_ib, fill_ic, model,
+                          trigger_fill, trigger_desc);
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(wire_vb, wire_ib, wire_ic, model, trigger_wire);
+            } else {
+              pipeline->Bind(PipelineBindPointGraphics);
+              draw_wireframe(wire_vb, wire_ib, wire_ic, model,
+                             get_collider_color(entity));
+            }
+          };
+
           // Box colliders/triggers
           for (const auto& entity :
                scene->GetAllEntitiesWith<BoxColliderComponent,
                                           TransformComponent>()) {
             auto& box = scene->GetComponent<BoxColliderComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
-
-            if (box.is_trigger && !show_triggers) continue;
-            if (!box.is_trigger && !show_colliders) continue;
-
-            glm::mat4 model = glm::translate(glm::mat4(1.0f),
-                                              tc.GetPosition() + box.offset) *
-                              glm::scale(glm::mat4(1.0f),
-                                         box.half_extents * 2.0f);
-
-            if (box.is_trigger) {
-              draw_filled(fbox_vb, fbox_ib, fbox_ic, model,
-                          trigger_fill, trigger_desc);
-              pipeline->Bind(PipelineBindPointGraphics);
-              draw_wireframe(box_vb, box_ib, box_ic, model, trigger_wire);
-            } else {
-              pipeline->Bind(PipelineBindPointGraphics);
-              draw_wireframe(box_vb, box_ib, box_ic, model, get_collider_color(entity));
-            }
+            glm::mat4 model =
+                glm::translate(glm::mat4(1.0f),
+                               tc.GetWorldPosition() + box.offset) *
+                glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
+            draw_collider(entity, box.is_trigger, model,
+                          box_vb, box_ib, box_ic, fbox_vb, fbox_ib, fbox_ic);
           }
 
           // Sphere colliders/triggers
@@ -604,36 +616,21 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             auto& sphere =
                 scene->GetComponent<SphereColliderComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
-
-            if (sphere.is_trigger && !show_triggers) continue;
-            if (!sphere.is_trigger && !show_colliders) continue;
-
             glm::mat4 model =
-                glm::translate(glm::mat4(1.0f), tc.GetPosition() + sphere.offset) *
-                glm::scale(glm::mat4(1.0f),
-                           glm::vec3(sphere.radius * 2.0f));
-
-            if (sphere.is_trigger) {
-              draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
-                          trigger_fill, trigger_desc);
-              pipeline->Bind(PipelineBindPointGraphics);
-              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, trigger_wire);
-            } else {
-              pipeline->Bind(PipelineBindPointGraphics);
-              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, get_collider_color(entity));
-            }
+                glm::translate(glm::mat4(1.0f),
+                               tc.GetWorldPosition() + sphere.offset) *
+                glm::scale(glm::mat4(1.0f), glm::vec3(sphere.radius * 2.0f));
+            draw_collider(entity, sphere.is_trigger, model,
+                          sphere_vb, sphere_ib, sphere_ic,
+                          fsphere_vb, fsphere_ib, fsphere_ic);
           }
 
-          // Capsule colliders/triggers (approximated as elongated spheres)
+          // Capsule colliders/triggers
           for (const auto& entity :
                scene->GetAllEntitiesWith<CapsuleColliderComponent,
                                           TransformComponent>()) {
             auto& cap = scene->GetComponent<CapsuleColliderComponent>(entity);
             auto& tc = scene->GetComponent<TransformComponent>(entity);
-
-            if (cap.is_trigger && !show_triggers) continue;
-            if (!cap.is_trigger && !show_colliders) continue;
-
             float total_h = cap.height + cap.radius * 2.0f;
             glm::vec3 scale_vec;
             switch (cap.axis) {
@@ -647,26 +644,19 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                 scale_vec = {cap.radius * 2.0f, cap.radius * 2.0f, total_h};
                 break;
             }
-
             glm::mat4 model =
-                glm::translate(glm::mat4(1.0f), tc.GetPosition() + cap.offset) *
+                glm::translate(glm::mat4(1.0f),
+                               tc.GetWorldPosition() + cap.offset) *
                 glm::scale(glm::mat4(1.0f), scale_vec);
-
-            if (cap.is_trigger) {
-              draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
-                          trigger_fill, trigger_desc);
-              pipeline->Bind(PipelineBindPointGraphics);
-              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, trigger_wire);
-            } else {
-              pipeline->Bind(PipelineBindPointGraphics);
-              draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model, get_collider_color(entity));
-            }
+            draw_collider(entity, cap.is_trigger, model,
+                          sphere_vb, sphere_ib, sphere_ic,
+                          fsphere_vb, fsphere_ib, fsphere_ic);
           }
 
           // Heightfield colliders: wireframe only
           if (show_colliders) {
             pipeline->Bind(PipelineBindPointGraphics);
-            for (const auto& hf : hf_data) {
+            for (const HeightfieldDebugData& hf : hf_data) {
               draw_wireframe(hf.vb, hf.ib, hf.index_count, hf.model,
                              terrain_wire);
             }
@@ -758,7 +748,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       graph.ImportTexture("DebugCollidersCompOut",
                           pool->GetTexture("debug_collider_comp.color"));
 
-  auto comp_pipeline = comp_pipeline_;
+  std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   uint32_t comp_pass = graph.AddPass(
       "DebugCollidersComposite", comp_render_pass_,
       [pool, renderer, comp_pipeline](VkCommandBuffer) {

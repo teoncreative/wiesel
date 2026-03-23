@@ -109,6 +109,11 @@ void Application::Run() {
     delta_time_ = time - previous_frame_;
     previous_frame_ = time;
 
+    // Clamp delta to avoid physics/animation explosions after hibernation or debugger pause
+    if (delta_time_ > 0.25f) {
+      delta_time_ = 0.25f;
+    }
+
     fps_timer_ += delta_time_;
     frame_count_++;
 
@@ -154,22 +159,27 @@ void Application::Run() {
       }
     }
 
-    // FPS cap
-    float_t target_fps = is_idle_ ? idle_max_fps_ : max_fps_;
-    if (target_fps > 0.0f) {
-      float_t target_frame_time = 1.0f / target_fps;
-      float_t elapsed = Time::GetTime() - previous_frame_ + delta_time_;
-      if (elapsed < target_frame_time) {
-        float_t sleep_ms = (target_frame_time - elapsed) * 1000.0f;
-        if (sleep_ms > 0.5f) {
+    // FPS cap: sleep to hit target frame time (idle or active).
+    // Done before input polling so we don't add latency between
+    // events arriving and the frame that processes them.
+    {
+      float_t target_fps = is_idle_ ? idle_max_fps_ : max_fps_;
+      if (target_fps > 0.0f) {
+        float_t target_frame_time = 1.0f / target_fps;
+        float_t elapsed = Time::GetTime() - previous_frame_;
+        float_t remaining = target_frame_time - elapsed;
+        if (remaining > 0.0005f) {
           std::this_thread::sleep_for(
-              std::chrono::milliseconds(static_cast<int>(sleep_ms)));
+              std::chrono::microseconds(static_cast<int64_t>(remaining * 1000000.0f)));
         }
       }
     }
 
-    // Save previous input state, then poll OS events so single-frame
-    // transitions (Down/Up) are visible during this frame's update.
+    // INPUT ORDERING (fragile - do not reorder):
+    // 1. InputManager::Update() saves previous_pressed from last frame
+    // 2. window_->OnUpdate() polls OS events, dispatches press/release to InputManager
+    // 3. Layer updates read IsMouseButtonDown/Up (pressed && !previous_pressed)
+    // If Update() runs after OnUpdate(), the single-frame Down/Up signals are lost.
     InputManager::Update();
     window_->OnUpdate();
 
@@ -210,15 +220,6 @@ void Application::Run() {
         renderer->RecreateSwapChain();
       }
       window_resized_ = false;
-    }
-
-    // Frame rate limiting
-    if (max_fps_ > 0.0f) {
-      float_t target_frame_time = 1.0f / max_fps_;
-      float_t elapsed = Time::GetTime() - previous_frame_;
-      while (elapsed < target_frame_time) {
-        elapsed = Time::GetTime() - previous_frame_;
-      }
     }
   }
 }

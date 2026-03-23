@@ -28,30 +28,20 @@ static bool PointInRect(float px, float py, const glm::vec2& pos, const glm::vec
          py >= pos.y && py <= pos.y + size.y;
 }
 
-void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
-                            bool mouse_down, bool mouse_up, bool mouse_held) {
-  auto& registry = scene.GetRegistry();
-
-  // Transform mouse from viewport-pixel space to canvas space.
-  // mouse_x/y are already relative to the viewport origin.
-  // Step 1: viewport display pixels -> render resolution pixels
-  // Step 2: render resolution pixels -> canvas reference resolution
-  glm::vec2 display_size = scene.GetViewportDisplaySize();
-  glm::vec2 render_res = scene.GetRenderResolution();
-
-  // If render_res is zero (Free Aspect), use display size as render res
-  if (render_res.x <= 0 || render_res.y <= 0) {
-    render_res = display_size;
-  }
-
-  float canvas_mx = mouse_x;
-  float canvas_my = mouse_y;
+// Transform viewport-pixel mouse position to canvas-space coordinates,
+// accounting for display scaling and canvas scaler.
+static glm::vec2 ViewportToCanvasSpace(float mouse_x, float mouse_y,
+                                       const glm::vec2& display_size,
+                                       const glm::vec2& render_res,
+                                       entt::registry& registry) {
+  float cx = mouse_x;
+  float cy = mouse_y;
 
   // Scale from display pixels to render pixels
   if (display_size.x > 0 && display_size.y > 0 &&
       render_res.x > 0 && render_res.y > 0) {
-    canvas_mx = mouse_x * (render_res.x / display_size.x);
-    canvas_my = mouse_y * (render_res.y / display_size.y);
+    cx = mouse_x * (render_res.x / display_size.x);
+    cy = mouse_y * (render_res.y / display_size.y);
   }
 
   // Scale from render pixels to canvas reference resolution
@@ -63,68 +53,88 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
       float scale_h = render_res.y / scaler.reference_resolution.y;
       float t = scaler.match_width_or_height;
       float scale_factor = scale_w * (1.0f - t) + scale_h * t;
-      canvas_mx /= scale_factor;
-      canvas_my /= scale_factor;
+      cx /= scale_factor;
+      cy /= scale_factor;
       break;
     }
   }
 
-  // Collect all interactable entities sorted by draw order (front to back)
+  return {cx, cy};
+}
+
+// Build a world-space ray from viewport mouse position through the camera.
+struct CameraRay {
+  glm::vec3 origin;
+  glm::vec3 direction;
+  bool valid = false;
+};
+
+static CameraRay BuildCameraRay(float mouse_x, float mouse_y,
+                                const glm::vec2& display_size,
+                                const std::shared_ptr<CameraData>& camera_data) {
+  CameraRay ray;
+  if (!camera_data || display_size.x <= 0 || display_size.y <= 0) {
+    return ray;
+  }
+
+  // Vulkan Y flip is baked into the projection matrix, so don't flip Y here.
+  float ndc_x = (mouse_x / display_size.x) * 2.0f - 1.0f;
+  float ndc_y = (mouse_y / display_size.y) * 2.0f - 1.0f;
+
+  glm::mat4 inv_proj = glm::inverse(camera_data->projection);
+  glm::mat4 inv_view = glm::inverse(camera_data->view_matrix);
+
+  glm::vec4 near_ndc = {ndc_x, ndc_y, -1.0f, 1.0f};
+  glm::vec4 far_ndc = {ndc_x, ndc_y, 1.0f, 1.0f};
+
+  glm::vec4 near_view = inv_proj * near_ndc;
+  near_view /= near_view.w;
+  glm::vec4 far_view = inv_proj * far_ndc;
+  far_view /= far_view.w;
+
+  ray.origin = glm::vec3(inv_view * near_view);
+  ray.direction = glm::normalize(glm::vec3(inv_view * far_view) - ray.origin);
+  ray.valid = true;
+  return ray;
+}
+
+// Walk up the entity hierarchy to find the nearest ancestor with CanvasComponent.
+static entt::entity FindCanvasRoot(entt::registry& registry, entt::entity entity) {
+  entt::entity walk = entity;
+  while (walk != entt::null) {
+    if (registry.any_of<CanvasComponent>(walk)) {
+      return walk;
+    }
+    if (registry.any_of<TreeComponent>(walk)) {
+      walk = registry.get<TreeComponent>(walk).parent;
+    } else {
+      break;
+    }
+  }
+  return entt::null;
+}
+
+void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
+                            bool mouse_down, bool mouse_up, bool mouse_held) {
+  auto& registry = scene.GetRegistry();
+
+  glm::vec2 display_size = scene.GetViewportDisplaySize();
+  glm::vec2 render_res = scene.GetRenderResolution();
+  if (render_res.x <= 0 || render_res.y <= 0) {
+    render_res = display_size;
+  }
+
+  glm::vec2 canvas_mouse = ViewportToCanvasSpace(
+      mouse_x, mouse_y, display_size, render_res, registry);
+
+  CameraRay ray = BuildCameraRay(
+      mouse_x, mouse_y, display_size, Engine::renderer()->GetCameraData());
+
   struct HitCandidate {
     entt::entity entity;
     int32_t draw_order;
   };
   std::vector<HitCandidate> candidates;
-
-  // Build a camera ray for world-space canvas hit testing.
-  // Use viewport-relative mouse position (before canvas scaler transform)
-  // scaled to render resolution for correct NDC.
-  auto camera_data = Engine::renderer()->GetCameraData();
-  glm::vec3 ray_origin{0};
-  glm::vec3 ray_dir{0, 0, -1};
-  bool has_ray = false;
-
-  if (camera_data && display_size.x > 0 && display_size.y > 0) {
-    // Convert viewport mouse position to NDC.
-    // Vulkan Y flip is baked into the projection matrix, so don't flip Y here.
-    float ndc_x = (mouse_x / display_size.x) * 2.0f - 1.0f;
-    float ndc_y = (mouse_y / display_size.y) * 2.0f - 1.0f;
-
-    glm::mat4 inv_proj = glm::inverse(camera_data->projection);
-    glm::mat4 inv_view = glm::inverse(camera_data->view_matrix);
-
-    // Unproject near and far points
-    glm::vec4 near_ndc = {ndc_x, ndc_y, -1.0f, 1.0f};
-    glm::vec4 far_ndc = {ndc_x, ndc_y, 1.0f, 1.0f};
-
-    glm::vec4 near_view = inv_proj * near_ndc;
-    near_view /= near_view.w;
-    glm::vec4 far_view = inv_proj * far_ndc;
-    far_view /= far_view.w;
-
-    glm::vec3 near_world = glm::vec3(inv_view * near_view);
-    glm::vec3 far_world = glm::vec3(inv_view * far_view);
-
-    ray_origin = near_world;
-    ray_dir = glm::normalize(far_world - near_world);
-    has_ray = true;
-  }
-
-  // Helper: find canvas root for an entity
-  auto find_canvas_root = [&registry](entt::entity entity) -> entt::entity {
-    entt::entity walk = entity;
-    while (walk != entt::null) {
-      if (registry.any_of<CanvasComponent>(walk)) {
-        return walk;
-      }
-      if (registry.any_of<TreeComponent>(walk)) {
-        walk = registry.get<TreeComponent>(walk).parent;
-      } else {
-        break;
-      }
-    }
-    return entt::null;
-  };
 
   for (auto entity : registry.view<InteractableComponent, RectangleTransformComponent>()) {
     auto& interactable = registry.get<InteractableComponent>(entity);
@@ -132,7 +142,7 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
       continue;
     }
 
-    entt::entity canvas_root = find_canvas_root(entity);
+    entt::entity canvas_root = FindCanvasRoot(registry, entity);
     if (canvas_root == entt::null) {
       continue;
     }
@@ -142,7 +152,7 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
 
     if (canvas.render_mode == CanvasRenderMode::WorldSpace) {
       // World-space: raycast against the canvas plane
-      if (!has_ray || !registry.any_of<TransformComponent>(canvas_root)) {
+      if (!ray.valid || !registry.any_of<TransformComponent>(canvas_root)) {
         continue;
       }
 
@@ -152,16 +162,16 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
       glm::vec3 plane_origin = glm::vec3(model[3]);
 
       // Ray-plane intersection
-      float denom = glm::dot(plane_normal, ray_dir);
+      float denom = glm::dot(plane_normal, ray.direction);
       if (std::abs(denom) < 1e-6f) {
         continue;
       }
-      float t = glm::dot(plane_origin - ray_origin, plane_normal) / denom;
+      float t = glm::dot(plane_origin - ray.origin, plane_normal) / denom;
       if (t < 0) {
         continue;
       }
 
-      glm::vec3 hit_world = ray_origin + ray_dir * t;
+      glm::vec3 hit_world = ray.origin + ray.direction * t;
 
       // Convert hit point to canvas pixel coordinates
       glm::mat4 inv_model = glm::inverse(model);
@@ -189,7 +199,7 @@ void UIEventSystem::Update(Scene& scene, float mouse_x, float mouse_y,
       }
     } else {
       // Screen-space (Overlay and ScreenSpaceCamera): 2D hit test
-      if (PointInRect(canvas_mx, canvas_my, rt.computed_position, rt.computed_size)) {
+      if (PointInRect(canvas_mouse.x, canvas_mouse.y, rt.computed_position, rt.computed_size)) {
         candidates.push_back({entity, rt.draw_order});
       }
     }

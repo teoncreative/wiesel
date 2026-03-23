@@ -25,6 +25,81 @@
 
 namespace Wiesel {
 
+// Collect all canvas-drawable entities and sort by draw_order so children
+// render on top of parents regardless of component type.
+enum class CanvasElementType { Rect, Image, Button, Text };
+struct CanvasDrawEntry {
+  entt::entity entity;
+  entt::entity canvas_root;
+  CanvasElementType type;
+  int32_t draw_order;
+};
+
+// Resolve the active texture and tint for a button's current state.
+static std::pair<AssetHandle, glm::vec4> GetButtonVisuals(
+    const ButtonComponent& btn) {
+  switch (btn.state_) {
+    case ButtonState::Hovered:
+      return {btn.hovered_texture.IsValid() ? btn.hovered_texture
+                                            : btn.normal_texture,
+              btn.hovered_color};
+    case ButtonState::Pressed:
+      return {btn.pressed_texture.IsValid() ? btn.pressed_texture
+                                            : btn.normal_texture,
+              btn.pressed_color};
+    case ButtonState::Disabled:
+      return {btn.disabled_texture.IsValid() ? btn.disabled_texture
+                                             : btn.normal_texture,
+              btn.disabled_color};
+    default:
+      return {btn.normal_texture, btn.normal_color};
+  }
+}
+
+// Draw a single canvas element (Rect, Image, Button, or Text).
+static void DrawCanvasElement(const CanvasDrawEntry& entry, Scene* scene,
+                              std::shared_ptr<Renderer> renderer,
+                              std::shared_ptr<DescriptorSetLayout> element_layout,
+                              std::shared_ptr<DescriptorSetLayout> textured_layout,
+                              float eid) {
+  switch (entry.type) {
+    case CanvasElementType::Rect: {
+      auto& rect = scene->GetComponent<CanvasRectComponent>(entry.entity);
+      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
+      renderer->DrawCanvasRect(rt, rect, element_layout, eid);
+      break;
+    }
+    case CanvasElementType::Image: {
+      auto& img = scene->GetComponent<CanvasImageComponent>(entry.entity);
+      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
+      renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
+                                 img.texture, img.tint, img.uv_rect,
+                                 textured_layout, eid);
+      break;
+    }
+    case CanvasElementType::Button: {
+      auto& btn = scene->GetComponent<ButtonComponent>(entry.entity);
+      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
+      auto [tex_handle, tint] = GetButtonVisuals(btn);
+      if (tex_handle.IsValid()) {
+        auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
+        if (tex) {
+          renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
+                                     tex, tint, {0, 0, 1, 1},
+                                     textured_layout, eid);
+        }
+      }
+      break;
+    }
+    case CanvasElementType::Text: {
+      auto& text = scene->GetComponent<TextComponent>(entry.entity);
+      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
+      renderer->DrawCanvasText(rt, text, textured_layout, eid);
+      break;
+    }
+  }
+}
+
 CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass: RGBA color + R32F entity ID, no MSAA
@@ -307,20 +382,21 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                               RenderResourceRegistry& registry,
                               RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("CanvasFeature::AddPasses");
-  auto* pool = &ctx.resources;
-  auto renderer = renderer_;
-  auto* scene = &ctx.scene;
-  auto rect_pipeline = rect_pipeline_;
-  auto image_pipeline = image_pipeline_;
-  auto text_pipeline = text_pipeline_;
-  auto screen_push = screen_size_push_;
-  auto element_layout = canvas_element_layout_;
-  auto textured_layout = canvas_textured_layout_;
+  CameraResourcePool* pool = &ctx.resources;
+  std::shared_ptr<Renderer> renderer = renderer_;
+  Scene* scene = &ctx.scene;
+  std::shared_ptr<Pipeline> rect_pipeline = rect_pipeline_;
+  std::shared_ptr<Pipeline> image_pipeline = image_pipeline_;
+  std::shared_ptr<Pipeline> text_pipeline = text_pipeline_;
+  std::shared_ptr<CanvasScreenPushConstant> screen_push = screen_size_push_;
+  std::shared_ptr<DescriptorSetLayout> element_layout = canvas_element_layout_;
+  std::shared_ptr<DescriptorSetLayout> textured_layout =
+      canvas_textured_layout_;
 
-  auto world_rect_pipeline = world_rect_pipeline_;
-  auto world_image_pipeline = world_image_pipeline_;
-  auto world_text_pipeline = world_text_pipeline_;
-  auto world_push = world_push_;
+  std::shared_ptr<Pipeline> world_rect_pipeline = world_rect_pipeline_;
+  std::shared_ptr<Pipeline> world_image_pipeline = world_image_pipeline_;
+  std::shared_ptr<Pipeline> world_text_pipeline = world_text_pipeline_;
+  std::shared_ptr<CanvasWorldPushConstant> world_push = world_push_;
 
   // Compute effective screen size for canvas rendering.
   // If any canvas has a scaler, use its reference resolution.
@@ -384,16 +460,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       }
     }
   }
-
-  // Collect all canvas-drawable entities and sort by draw_order so children
-  // render on top of parents regardless of component type.
-  enum class CanvasElementType { Rect, Image, Button, Text };
-  struct CanvasDrawEntry {
-    entt::entity entity;
-    entt::entity canvas_root;
-    CanvasElementType type;
-    int32_t draw_order;
-  };
 
   // Build a cache from entity -> canvas root (nearest ancestor with CanvasComponent)
   std::unordered_map<entt::entity, entt::entity> canvas_root_cache;
@@ -491,15 +557,15 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     classify_entry(entity, CanvasElementType::Text, rt.draw_order);
   }
 
-  std::sort(overlay_list.begin(), overlay_list.end(),
+  std::ranges::sort(overlay_list,
             [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
               return a.draw_order < b.draw_order;
             });
-  std::sort(world_list.begin(), world_list.end(),
+  std::ranges::sort(world_list,
             [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
               return a.draw_order < b.draw_order;
             });
-  std::sort(camera_list.begin(), camera_list.end(),
+  std::ranges::sort(camera_list,
             [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
               return a.draw_order < b.draw_order;
             });
@@ -564,7 +630,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     }
   }
 
-  auto camera_data = renderer_->GetCameraData();
+  std::shared_ptr<CameraData> camera_data = renderer_->GetCameraData();
 
   for (entt::entity ce : all_canvas_roots) {
     auto& canvas = ctx.scene.GetComponent<CanvasComponent>(ce);
@@ -728,7 +794,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       if (info_it == canvas_infos->end()) {
         continue;
       }
-      const auto& ci = info_it->second;
+      const CanvasRenderInfo& ci = info_it->second;
 
       float bw = 2.0f;
       struct EdgeRect { glm::vec2 pos; glm::vec2 size; };
@@ -799,7 +865,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             if (info_it == canvas_infos->end()) {
               continue;
             }
-            const auto& ci = info_it->second;
+            const CanvasRenderInfo& ci = info_it->second;
 
             world_push->model_matrix = ci.model_matrix;
             world_push->canvas_size = ci.canvas_size;
@@ -838,87 +904,16 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           }
 
           float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
-
-          switch (entry.type) {
-            case CanvasElementType::Rect: {
-              auto& rect =
-                  scene->GetComponent<CanvasRectComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              renderer->DrawCanvasRect(rt, rect, element_layout, eid);
-              break;
-            }
-            case CanvasElementType::Image: {
-              auto& img =
-                  scene->GetComponent<CanvasImageComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              renderer->DrawTexturedRect(rt.computed_position,
-                                         rt.computed_size, img.texture,
-                                         img.tint, img.uv_rect,
-                                         textured_layout, eid);
-              break;
-            }
-            case CanvasElementType::Button: {
-              auto& btn =
-                  scene->GetComponent<ButtonComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              AssetHandle tex_handle;
-              glm::vec4 tint;
-              switch (btn.state_) {
-                case ButtonState::Hovered:
-                  tex_handle = btn.hovered_texture.IsValid()
-                                   ? btn.hovered_texture
-                                   : btn.normal_texture;
-                  tint = btn.hovered_color;
-                  break;
-                case ButtonState::Pressed:
-                  tex_handle = btn.pressed_texture.IsValid()
-                                   ? btn.pressed_texture
-                                   : btn.normal_texture;
-                  tint = btn.pressed_color;
-                  break;
-                case ButtonState::Disabled:
-                  tex_handle = btn.disabled_texture.IsValid()
-                                   ? btn.disabled_texture
-                                   : btn.normal_texture;
-                  tint = btn.disabled_color;
-                  break;
-                default:
-                  tex_handle = btn.normal_texture;
-                  tint = btn.normal_color;
-                  break;
-              }
-              if (tex_handle.IsValid()) {
-                auto tex = Engine::asset_manager().GetOrLoad<Texture>(
-                    tex_handle);
-                if (tex) {
-                  renderer->DrawTexturedRect(rt.computed_position,
-                                             rt.computed_size, tex, tint,
-                                             {0, 0, 1, 1}, textured_layout,
-                                             eid);
-                }
-              }
-              break;
-            }
-            case CanvasElementType::Text: {
-              auto& text = scene->GetComponent<TextComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              renderer->DrawCanvasText(rt, text, textured_layout, eid);
-              break;
-            }
-          }
+          DrawCanvasElement(entry, scene, renderer, element_layout, textured_layout, eid);
         }
 
         // Draw per-canvas textures as 3D quads (camera canvases in editor)
-        for (const auto& qd : *camera_quad_draws) {
+        for (const CameraQuadDraw& qd : *camera_quad_draws) {
           auto ci_it = canvas_infos->find(qd.canvas_entity);
           if (ci_it == canvas_infos->end()) {
             continue;
           }
-          const auto& ci = ci_it->second;
+          const CanvasRenderInfo& ci = ci_it->second;
 
           world_push->model_matrix = ci.model_matrix;
           world_push->canvas_size = ci.canvas_size;
@@ -945,12 +940,12 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         }
 
         // Draw canvas borders in editor scene view
-        for (const auto& border : *canvas_borders) {
+        for (const CanvasBorderInfo& border : *canvas_borders) {
           auto ci_it = canvas_infos->find(border.canvas_entity);
           if (ci_it == canvas_infos->end()) {
             continue;
           }
-          const auto& ci = ci_it->second;
+          const CanvasRenderInfo& ci = ci_it->second;
 
           world_push->model_matrix = ci.model_matrix;
           world_push->canvas_size = ci.canvas_size;
@@ -970,8 +965,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           // Draw 4 thin rects as border edges - each needs its own UBO
           // since the GPU reads them later during execution.
           for (int ei = 0; ei < 4; ei++) {
-            auto& edge_ubo = border.edge_ubos[ei];
-            auto& edge_desc = border.edge_descriptors[ei];
+            const std::shared_ptr<UniformBuffer>& edge_ubo =
+                border.edge_ubos[ei];
+            const std::shared_ptr<DescriptorSet>& edge_desc =
+                border.edge_descriptors[ei];
 
             VkDescriptorSet sets[] = {edge_desc->descriptor_set_};
             vkCmdBindDescriptorSets(
@@ -1006,7 +1003,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     if (ci_it == canvas_infos->end()) {
       continue;
     }
-    const auto& ci = ci_it->second;
+    const CanvasRenderInfo& ci = ci_it->second;
     if (!ci.per_canvas_res || !ci.per_canvas_res->texture) {
       continue;
     }
@@ -1024,7 +1021,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     }
 
     glm::vec2 canvas_viewport = ci.texture_size;
-    auto canvas_res = ci.per_canvas_res;
+    std::shared_ptr<PerCanvasResources> canvas_res = ci.per_canvas_res;
     std::string pass_name = "CanvasPerCanvas_" + std::to_string(
         static_cast<uint32_t>(canvas_entity));
 
@@ -1060,79 +1057,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             }
 
             float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
-
-            switch (entry.type) {
-              case CanvasElementType::Rect: {
-                auto& rect =
-                    scene->GetComponent<CanvasRectComponent>(entry.entity);
-                auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                    entry.entity);
-                renderer->DrawCanvasRect(rt, rect, element_layout, eid);
-                break;
-              }
-              case CanvasElementType::Image: {
-                auto& img =
-                    scene->GetComponent<CanvasImageComponent>(entry.entity);
-                auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                    entry.entity);
-                renderer->DrawTexturedRect(rt.computed_position,
-                                           rt.computed_size, img.texture,
-                                           img.tint, img.uv_rect,
-                                           textured_layout, eid);
-                break;
-              }
-              case CanvasElementType::Button: {
-                auto& btn =
-                    scene->GetComponent<ButtonComponent>(entry.entity);
-                auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                    entry.entity);
-                AssetHandle tex_handle;
-                glm::vec4 tint;
-                switch (btn.state_) {
-                  case ButtonState::Hovered:
-                    tex_handle = btn.hovered_texture.IsValid()
-                                     ? btn.hovered_texture
-                                     : btn.normal_texture;
-                    tint = btn.hovered_color;
-                    break;
-                  case ButtonState::Pressed:
-                    tex_handle = btn.pressed_texture.IsValid()
-                                     ? btn.pressed_texture
-                                     : btn.normal_texture;
-                    tint = btn.pressed_color;
-                    break;
-                  case ButtonState::Disabled:
-                    tex_handle = btn.disabled_texture.IsValid()
-                                     ? btn.disabled_texture
-                                     : btn.normal_texture;
-                    tint = btn.disabled_color;
-                    break;
-                  default:
-                    tex_handle = btn.normal_texture;
-                    tint = btn.normal_color;
-                    break;
-                }
-                if (tex_handle.IsValid()) {
-                  auto tex = Engine::asset_manager().GetOrLoad<Texture>(
-                      tex_handle);
-                  if (tex) {
-                    renderer->DrawTexturedRect(rt.computed_position,
-                                               rt.computed_size, tex, tint,
-                                               {0, 0, 1, 1}, textured_layout,
-                                               eid);
-                  }
-                }
-                break;
-              }
-              case CanvasElementType::Text: {
-                auto& text =
-                    scene->GetComponent<TextComponent>(entry.entity);
-                auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                    entry.entity);
-                renderer->DrawCanvasText(rt, text, textured_layout, eid);
-                break;
-              }
-            }
+            DrawCanvasElement(entry, scene, renderer, element_layout, textured_layout, eid);
           }
         });
 
@@ -1167,7 +1092,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       if (ci_it == canvas_infos->end()) {
         continue;
       }
-      const auto& ci = ci_it->second;
+      const CanvasRenderInfo& ci = ci_it->second;
       if (!ci.per_canvas_res || !ci.per_canvas_res->texture) {
         continue;
       }
@@ -1298,77 +1223,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           }
 
           float eid = static_cast<float>(static_cast<uint32_t>(entry.entity) + 1);
-
-          switch (entry.type) {
-            case CanvasElementType::Rect: {
-              auto& rect =
-                  scene->GetComponent<CanvasRectComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              renderer->DrawCanvasRect(rt, rect, element_layout, eid);
-              break;
-            }
-            case CanvasElementType::Image: {
-              auto& img =
-                  scene->GetComponent<CanvasImageComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              renderer->DrawTexturedRect(rt.computed_position,
-                                         rt.computed_size, img.texture,
-                                         img.tint, img.uv_rect,
-                                         textured_layout, eid);
-              break;
-            }
-            case CanvasElementType::Button: {
-              auto& btn =
-                  scene->GetComponent<ButtonComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              AssetHandle tex_handle;
-              glm::vec4 tint;
-              switch (btn.state_) {
-                case ButtonState::Hovered:
-                  tex_handle = btn.hovered_texture.IsValid()
-                                   ? btn.hovered_texture
-                                   : btn.normal_texture;
-                  tint = btn.hovered_color;
-                  break;
-                case ButtonState::Pressed:
-                  tex_handle = btn.pressed_texture.IsValid()
-                                   ? btn.pressed_texture
-                                   : btn.normal_texture;
-                  tint = btn.pressed_color;
-                  break;
-                case ButtonState::Disabled:
-                  tex_handle = btn.disabled_texture.IsValid()
-                                   ? btn.disabled_texture
-                                   : btn.normal_texture;
-                  tint = btn.disabled_color;
-                  break;
-                default:
-                  tex_handle = btn.normal_texture;
-                  tint = btn.normal_color;
-                  break;
-              }
-              if (tex_handle.IsValid()) {
-                auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
-                if (tex) {
-                  renderer->DrawTexturedRect(rt.computed_position,
-                                             rt.computed_size, tex, tint,
-                                             {0, 0, 1, 1}, textured_layout,
-                                             eid);
-                }
-              }
-              break;
-            }
-            case CanvasElementType::Text: {
-              auto& text = scene->GetComponent<TextComponent>(entry.entity);
-              auto& rt = scene->GetComponent<RectangleTransformComponent>(
-                  entry.entity);
-              renderer->DrawCanvasText(rt, text, textured_layout, eid);
-              break;
-            }
-          }
+          DrawCanvasElement(entry, scene, renderer, element_layout, textured_layout, eid);
         }
       });
 

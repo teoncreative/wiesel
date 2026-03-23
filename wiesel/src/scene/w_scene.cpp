@@ -423,21 +423,23 @@ void Scene::MarkChildrenDirty(entt::entity entity) {
   }
 }
 
-void Scene::UpdateSceneState(float_t delta_time) {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateSceneState");
+void Scene::UpdateTransforms() {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateTransforms");
   for (const auto& entity : registry_.view<TransformComponent>()) {
     auto& transform = registry_.get<TransformComponent>(entity);
     if (transform.IsChanged()) {
       UpdateMatrices(entity);
       transform.ClearChanged();
-      // Propagate dirty to all descendants
       MarkChildrenDirty(entity);
       if (registry_.any_of<CameraComponent>(entity)) {
-        auto& camera = registry_.get<CameraComponent>(entity);
-        camera.pos_changed = true;
+        registry_.get<CameraComponent>(entity).pos_changed = true;
       }
     }
   }
+}
+
+void Scene::UpdateLights() {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateLights");
   auto& lights = Engine::renderer()->lights_uniform_data_;
   lights.direct_light_count = 0;
   lights.point_light_count = 0;
@@ -451,7 +453,42 @@ void Scene::UpdateSceneState(float_t delta_time) {
     auto& transform = registry_.get<TransformComponent>(entity);
     UpdateLight(lights, light.light_data, transform);
   }
+}
 
+void Scene::UpdateCameras() {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateCameras");
+  auto& lights = Engine::renderer()->lights_uniform_data_;
+  for (const auto& entity :
+       registry_.view<CameraComponent, TransformComponent>()) {
+    auto& camera = registry_.get<CameraComponent>(entity);
+    auto& transform = registry_.get<TransformComponent>(entity);
+    if (!camera.enabled) {
+      continue;
+    }
+    if (camera.view_changed) {
+      camera.UpdateProjection();
+      camera.view_changed = false;
+    }
+    if (camera.pos_changed) {
+      camera.UpdateView(transform.GetTransformMatrix());
+      camera.pos_changed = false;
+    }
+    if (camera.any_changed) {
+      camera.UpdateAll();
+      camera.any_changed = false;
+    }
+    if (lights.direct_light_count > 0 &&
+        Engine::renderer()->options().shadows_enabled) {
+      camera.ComputeCascades(
+          glm::normalize(lights.direct_lights[0].direction));
+    } else {
+      camera.does_shadow_pass = false;
+    }
+  }
+}
+
+void Scene::UpdateSpriteAnimations(float_t delta_time) {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateSpriteAnimations");
   // Sprite animation
   for (auto entity : registry_.view<SpriteComponent>()) {
     auto& spr = registry_.get<SpriteComponent>(entity);
@@ -508,10 +545,10 @@ void Scene::UpdateSceneState(float_t delta_time) {
       spr.current_frame_ = clip->start_frame + local_frame;
     }
   }
+}
 
-  // Animation evaluation
-  {
-  PROFILE_ZONE_SCOPED_N("Animation Evaluation");
+void Scene::UpdateSkeletalAnimations(float_t delta_time) {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateSkeletalAnimations");
   for (const auto& entity :
        registry_.view<AnimatorComponent, ModelComponent>()) {
     auto& animator = registry_.get<AnimatorComponent>(entity);
@@ -536,7 +573,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
 
     if (animator.UseController()) {
       // --- Controller mode ---
-      auto& ctrl = animator.controller;
+      AnimationController& ctrl = animator.controller;
 
       // Initialize state if needed
       if (animator.current_state_name.empty() && !ctrl.default_state.empty()) {
@@ -549,13 +586,13 @@ void Scene::UpdateSceneState(float_t delta_time) {
 
       // Check transitions (current state transitions first, then "any state")
       const AnimationTransition* fired_transition = nullptr;
-      for (const auto& trans : ctrl.transitions) {
+      for (const AnimationTransition& trans : ctrl.transitions) {
         if (!trans.from_state.empty() &&
             trans.from_state != animator.current_state_name)
           continue;
         // Evaluate all conditions
         bool all_met = true;
-        for (const auto& cond : trans.conditions) {
+        for (const TransitionCondition& cond : trans.conditions) {
           auto param_it = animator.parameters.find(cond.param_name);
           if (param_it == animator.parameters.end()) {
             all_met = false;
@@ -623,7 +660,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
 
       if (fired_transition) {
         // Consume triggers used in this transition
-        for (const auto& cond : fired_transition->conditions) {
+        for (const TransitionCondition& cond : fired_transition->conditions) {
           if (cond.param_type == AnimParamType::Trigger) {
             auto param_it = animator.parameters.find(cond.param_name);
             if (param_it != animator.parameters.end()) {
@@ -816,33 +853,14 @@ void Scene::UpdateSceneState(float_t delta_time) {
              sizeof(BoneMatricesUniformData));
     }
   }
-  }  // end Animation Evaluation profile zone
+}
 
-  for (const auto& entity :
-       registry_.view<CameraComponent, TransformComponent>()) {
-    auto& camera = registry_.get<CameraComponent>(entity);
-    auto& transform = registry_.get<TransformComponent>(entity);
-    if (!camera.enabled) {
-      continue;
-    }
-    if (camera.view_changed) {
-      camera.UpdateProjection();
-      camera.view_changed = false;
-    }
-    if (camera.pos_changed) {
-      camera.UpdateView(transform.GetTransformMatrix());
-      camera.pos_changed = false;
-    }
-    if (camera.any_changed) {
-      camera.UpdateAll();
-      camera.any_changed = false;
-    }
-    if (lights.direct_light_count > 0 && Engine::renderer()->options().shadows_enabled) {
-      camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
-    } else {
-      camera.does_shadow_pass = false;
-    }
-  }
+void Scene::UpdateSceneState(float_t delta_time) {
+  UpdateTransforms();
+  UpdateLights();
+  UpdateSpriteAnimations(delta_time);
+  UpdateSkeletalAnimations(delta_time);
+  UpdateCameras();
 }
 
 void Scene::OnEvent(Event& event) {

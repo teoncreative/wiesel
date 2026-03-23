@@ -212,8 +212,13 @@ class Scene {
   bool OnPipelineRecreatedEvent(PipelineRecreatedEvent& event);
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
+  void UpdateTransforms();
+  void UpdateLights();
+  void UpdateCameras();
   void UpdateMatrices(entt::entity entity);
   void MarkChildrenDirty(entt::entity entity);
+  void UpdateSpriteAnimations(float_t delta_time);
+  void UpdateSkeletalAnimations(float_t delta_time);
 
  private:
   std::unordered_map<UUID, entt::entity> entities_;

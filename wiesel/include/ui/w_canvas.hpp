@@ -90,9 +90,10 @@ struct CanvasScalerComponent {
 };
 
 struct CanvasRectComponent {
+  // Serialized
   glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 
-  // GPU resources (allocated lazily)
+  // Runtime (not serialized) - GPU resources allocated lazily
   std::shared_ptr<UniformBuffer> ubo_;
   std::shared_ptr<DescriptorSet> descriptor_;
   bool gpu_dirty_ = true;
@@ -141,17 +142,16 @@ struct TextGlyphGPU {
 };
 
 struct TextComponent {
+  // Serialized
   std::string text;
   AssetHandle font_handle;  // font asset (empty = default engine font)
   float font_size = 16.0f;
   glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f};
-
-  // Shadow
   bool shadow = false;
   glm::vec2 shadow_offset = {1.0f, 1.0f};
   glm::vec4 shadow_color = {0.0f, 0.0f, 0.0f, 0.5f};
 
-  // Per-glyph GPU resources (one UBO+descriptor per visible character)
+  // Runtime (not serialized) - per-glyph GPU resources and change tracking
   std::vector<TextGlyphGPU> glyph_gpu_;
   std::string prev_text_;
   AssetHandle prev_font_handle_;

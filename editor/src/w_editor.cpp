@@ -127,6 +127,14 @@ static const ResolutionPreset kResolutionPresets[] = {
 };
 static constexpr int kResolutionPresetCount = sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]);
 
+// Editor layout constants
+static constexpr float kLeftPanelRatio = 0.20f;
+static constexpr float kHierarchySplitRatio = 0.45f;
+static constexpr float kAssetBrowserRatio = 0.25f;
+static constexpr float kRightPanelRatio = 0.20f;
+static constexpr float kResolutionComboWidth = 130.0f;
+static constexpr float kSettingsButtonWidth = 24.0f;
+
 struct ThumbnailEntry {
   VkDescriptorSet texture_id = nullptr;
   bool attempted = false;
@@ -604,19 +612,19 @@ void EditorLayer::OnBeginPresent() {
 
     // Split: left panel (20%) | center+right remainder
     ImGuiID dock_left, dock_remainder;
-    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.20f, &dock_left, &dock_remainder);
+    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, kLeftPanelRatio, &dock_left, &dock_remainder);
 
     // Split left into top (hierarchy) and bottom (components)
     ImGuiID dock_left_top, dock_left_bottom;
-    ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Up, 0.45f, &dock_left_top, &dock_left_bottom);
+    ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Up, kHierarchySplitRatio, &dock_left_top, &dock_left_bottom);
 
-    // Split remainder: bottom (asset browser 25%) | center+right
+    // Split remainder: bottom (asset browser) | center+right
     ImGuiID dock_bottom, dock_center_right;
-    ImGui::DockBuilderSplitNode(dock_remainder, ImGuiDir_Down, 0.25f, &dock_bottom, &dock_center_right);
+    ImGui::DockBuilderSplitNode(dock_remainder, ImGuiDir_Down, kAssetBrowserRatio, &dock_bottom, &dock_center_right);
 
-    // Split center_right: right panel (scene props 20%) | center (viewport)
+    // Split center_right: right panel (scene props) | center (viewport)
     ImGuiID dock_right, dock_center;
-    ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right, 0.20f, &dock_right, &dock_center);
+    ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right, kRightPanelRatio, &dock_right, &dock_center);
 
     // Dock windows
     ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left_top);
@@ -1903,13 +1911,13 @@ void EditorLayer::OnBeginPresent() {
     }
     {
       float rightEdge = ImGui::GetWindowContentRegionMax().x;
-      ImGui::SameLine(rightEdge - 24.0f);
+      ImGui::SameLine(rightEdge - kSettingsButtonWidth);
       if (ImGui::Button("...##SceneSettings")) {
         ImGui::OpenPopup("SceneCameraSettings");
       }
       if (ImGui::BeginPopup("SceneCameraSettings")) {
         ImGui::SeparatorText("Camera");
-        ImGui::SetNextItemWidth(130.0f);
+        ImGui::SetNextItemWidth(kResolutionComboWidth);
         if (ImGui::BeginCombo("Resolution", kResolutionPresets[resolution_preset_index_].label)) {
           for (int i = 0; i < kResolutionPresetCount; i++) {
             bool selected = (i == resolution_preset_index_);
@@ -2302,7 +2310,7 @@ void EditorLayer::OnBeginPresent() {
     if (gameVisible) {
       DrawPlayStopButtons();
       {
-        float comboWidth = 130.0f;
+        float comboWidth = kResolutionComboWidth;
         float rightEdge = ImGui::GetWindowContentRegionMax().x;
         ImGui::SameLine(rightEdge - comboWidth);
         ImGui::SetNextItemWidth(comboWidth);
