@@ -74,7 +74,7 @@ void GridFeature::SetupResources(RenderContext& ctx) {
 
   // Grid output descriptor for composite
   auto output_desc = std::make_shared<DescriptorSet>();
-  output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("grid.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());

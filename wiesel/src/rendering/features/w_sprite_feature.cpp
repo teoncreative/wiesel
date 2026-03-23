@@ -39,8 +39,8 @@ SpriteFeature::SpriteFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->SetVertexData(VertexSprite::GetBindingDescriptions(),
                            VertexSprite::GetAttributeDescriptions());
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(renderer_->GetSpriteDrawDescriptorLayout());
-  pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SpriteDraw"));
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   pipeline_->AddShader(sprite_vert);
   pipeline_->AddShader(sprite_frag);
   pipeline_->Bake();
@@ -65,7 +65,7 @@ void SpriteFeature::SetupResources(RenderContext& ctx) {
 
   // Sprite output descriptor: reads sprite.color, linear sampler
   auto sprite_output_desc = std::make_shared<DescriptorSet>();
-  sprite_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  sprite_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   sprite_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("sprite.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());

@@ -56,8 +56,8 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
   gen_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   gen_pipeline_->SetRenderPass(gen_render_pass_);
-  gen_pipeline_->AddInputLayout(renderer_->GetSSAOGenDescriptorLayout());
-  gen_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  gen_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SSAOGen"));
+  gen_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   gen_pipeline_->AddShader(fullscreen_vert);
   gen_pipeline_->AddShader(ssao_frag);
   gen_pipeline_->Bake();
@@ -69,7 +69,7 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
   blur_horz_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_horz_pipeline_->SetRenderPass(blur_horz_render_pass_);
-  blur_horz_pipeline_->AddInputLayout(renderer_->GetSSAOBlurDescriptorLayout());
+  blur_horz_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SSAOBlur"));
   blur_horz_pipeline_->AddShader(fullscreen_vert);
   blur_horz_pipeline_->AddShader(blur_h_frag);
   blur_horz_pipeline_->Bake();
@@ -85,7 +85,7 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
   blur_vert_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_vert_pipeline_->SetRenderPass(blur_vert_render_pass_);
-  blur_vert_pipeline_->AddInputLayout(renderer_->GetSSAOBlurDescriptorLayout());
+  blur_vert_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SSAOBlur"));
   blur_vert_pipeline_->AddShader(fullscreen_vert);
   blur_vert_pipeline_->AddShader(blur_v_frag);
   blur_vert_pipeline_->Bake();
@@ -130,7 +130,7 @@ void SSAOFeature::SetupResources(RenderContext& ctx) {
 
   // SSAO gen descriptor: reads geometry resolve textures + noise + kernel UBO
   auto ssao_gen_desc = std::make_shared<DescriptorSet>();
-  ssao_gen_desc->SetLayout(renderer.GetSSAOGenDescriptorLayout());
+  ssao_gen_desc->SetLayout(renderer.GetDescriptorLayout("SSAOGen"));
   ssao_gen_desc->AddCombinedImageSampler(
       0, pool.GetTexture("geometry.view_pos_resolve")->image_views_[0],
       renderer.GetDefaultNearestSampler());
@@ -149,7 +149,7 @@ void SSAOFeature::SetupResources(RenderContext& ctx) {
 
   // SSAO output descriptor: reads ssao.color + geometry depth (nearest sampler)
   auto ssao_output_desc = std::make_shared<DescriptorSet>();
-  ssao_output_desc->SetLayout(renderer.GetSSAOOutputDescriptorLayout());
+  ssao_output_desc->SetLayout(renderer.GetDescriptorLayout("SSAOOutput"));
   ssao_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("ssao.color")->image_views_[0],
       renderer.GetDefaultNearestSampler());
@@ -161,7 +161,7 @@ void SSAOFeature::SetupResources(RenderContext& ctx) {
 
   // SSAO blur H output descriptor: reads ssao.blur_h (linear) + depth (nearest)
   auto blur_h_output_desc = std::make_shared<DescriptorSet>();
-  blur_h_output_desc->SetLayout(renderer.GetSSAOBlurDescriptorLayout());
+  blur_h_output_desc->SetLayout(renderer.GetDescriptorLayout("SSAOBlur"));
   blur_h_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("ssao.blur_h")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -173,7 +173,7 @@ void SSAOFeature::SetupResources(RenderContext& ctx) {
 
   // SSAO blur V output descriptor: reads ssao.blur_v (linear) + depth (nearest)
   auto blur_v_output_desc = std::make_shared<DescriptorSet>();
-  blur_v_output_desc->SetLayout(renderer.GetSSAOBlurDescriptorLayout());
+  blur_v_output_desc->SetLayout(renderer.GetDescriptorLayout("SSAOBlur"));
   blur_v_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("ssao.blur_v")->image_views_[0],
       renderer.GetDefaultLinearSampler());

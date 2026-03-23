@@ -1101,7 +1101,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
       logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts(
-      1, geometry_mesh_descriptor_layout_->layout_);
+      1, GetDescriptorLayout("GeometryMesh")->layout_);
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -1330,7 +1330,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
       logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      1, shadow_mesh_descriptor_layout_->layout_};
+      1, GetDescriptorLayout("ShadowMesh")->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -1413,7 +1413,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateGlobalDescriptors(
       logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      1, global_descriptor_layout_->layout_};
+      1, GetDescriptorLayout("Global")->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -1539,7 +1539,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
       logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      1, global_shadow_descriptor_layout_->layout_};
+      1, GetDescriptorLayout("GlobalShadow")->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -1583,7 +1583,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowGlobalDescriptors(
 std::shared_ptr<DescriptorSet> Renderer::CreateBoneDescriptors(
     std::shared_ptr<UniformBuffer> bone_ubo) {
   auto desc = std::make_shared<DescriptorSet>();
-  desc->SetLayout(bone_descriptor_layout_);
+  desc->SetLayout(GetDescriptorLayout("Bone"));
   desc->AddUniformBuffer(0, bone_ubo);
   desc->Bake();
   return desc;
@@ -1607,7 +1607,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateDescriptors(
       logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      1, present_descriptor_layout_->layout_};
+      1, GetDescriptorLayout("Present")->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -1660,7 +1660,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateSkyboxDescriptors(
       logical_device_, &pool_info, nullptr, &object->descriptor_pool_));
 
   std::vector<VkDescriptorSetLayout> layouts{
-      1, present_descriptor_layout_->layout_};
+      1, GetDescriptorLayout("Present")->layout_};
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = object->descriptor_pool_;
@@ -2045,131 +2045,177 @@ bool Renderer::CheckRayTracingSupport(VkPhysicalDevice device) {
   return has_as && has_rt_pipeline && has_deferred;
 }
 
-void Renderer::CreateDescriptorLayouts() {
-  geometry_mesh_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  geometry_mesh_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-  for (int i = 0; i < kMaterialTextureCount; i++) {
-    geometry_mesh_descriptor_layout_->AddBinding(
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_SHADER_STAGE_FRAGMENT_BIT);
+std::shared_ptr<DescriptorSetLayout> Renderer::GetDescriptorLayout(
+    const std::string& name) const {
+  auto it = descriptor_layouts_.find(name);
+  if (it != descriptor_layouts_.end()) {
+    return it->second;
   }
-  geometry_mesh_descriptor_layout_->Bake();
+  return nullptr;
+}
 
-  shadow_mesh_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  shadow_mesh_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                             VK_SHADER_STAGE_VERTEX_BIT);
-  shadow_mesh_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  shadow_mesh_descriptor_layout_->Bake();
+void Renderer::RegisterDescriptorLayout(
+    const std::string& name,
+    std::shared_ptr<DescriptorSetLayout> layout) {
+  descriptor_layouts_[name] = std::move(layout);
+}
 
-  global_shadow_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  global_shadow_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-  global_shadow_descriptor_layout_->Bake();
+void Renderer::CreateDescriptorLayouts() {
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    for (int i = 0; i < kMaterialTextureCount; i++) {
+      layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                         VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
+    layout->Bake();
+    RegisterDescriptorLayout("GeometryMesh", std::move(layout));
+  }
 
-  global_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  global_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  global_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  global_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-  global_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  global_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("ShadowMesh", std::move(layout));
+  }
 
-  present_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  present_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  present_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("GlobalShadow", std::move(layout));
+  }
 
-  skybox_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  skybox_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  skybox_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("Global", std::move(layout));
+  }
 
-  ssao_gen_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  ssao_gen_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  ssao_gen_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  ssao_gen_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  ssao_gen_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  ssao_gen_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                          VK_SHADER_STAGE_FRAGMENT_BIT);
-  ssao_gen_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("Present", std::move(layout));
+  }
 
-  ssao_output_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  ssao_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerSSAO
-  ssao_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerDepth
-  ssao_output_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("Skybox", std::move(layout));
+  }
 
-  ssao_blur_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  ssao_blur_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerSSAO
-  ssao_blur_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerDepth
-  ssao_blur_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("SSAOGen", std::move(layout));
+  }
 
-  geometry_output_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  geometry_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  geometry_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  geometry_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  geometry_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  geometry_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  geometry_output_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  geometry_output_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerSSAO
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerDepth
+    layout->Bake();
+    RegisterDescriptorLayout("SSAOOutput", std::move(layout));
+  }
 
-  sprite_draw_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  sprite_draw_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  sprite_draw_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                             VK_SHADER_STAGE_VERTEX_BIT);
-  sprite_draw_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerSSAO
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // samplerDepth
+    layout->Bake();
+    RegisterDescriptorLayout("SSAOBlur", std::move(layout));
+  }
+
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("GeometryOutput", std::move(layout));
+  }
+
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("SpriteDraw", std::move(layout));
+  }
 
   // 2-sampler layout for bloom composite and motion blur
-  postprocess_2input_descriptor_layout_ =
-      std::make_shared<DescriptorSetLayout>();
-  postprocess_2input_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  postprocess_2input_descriptor_layout_->AddBinding(
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-  postprocess_2input_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("Postprocess2Input", std::move(layout));
+  }
 
-  taa_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                     VK_SHADER_STAGE_FRAGMENT_BIT);
-  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                     VK_SHADER_STAGE_FRAGMENT_BIT);
-  taa_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                     VK_SHADER_STAGE_FRAGMENT_BIT);
-  taa_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("TAA", std::move(layout));
+  }
 
   // Bone matrices UBO layout (set 2 for geometry and shadow passes)
-  bone_descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
-  bone_descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                      VK_SHADER_STAGE_VERTEX_BIT);
-  bone_descriptor_layout_->Bake();
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                       VK_SHADER_STAGE_VERTEX_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("Bone", std::move(layout));
+  }
 }
 
 void Renderer::CreateSwapChain() {
@@ -2319,7 +2365,7 @@ void Renderer::CreatePresentGraphicsPipelines() {
   present_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
   present_pipeline_->SetRenderPass(present_render_pass_);
-  present_pipeline_->AddInputLayout(present_descriptor_layout_);
+  present_pipeline_->AddInputLayout(GetDescriptorLayout("Present"));
   present_pipeline_->AddShader(present_vertex_shader);
   present_pipeline_->AddShader(present_fragment_shader);
   present_pipeline_->Bake();
@@ -2968,20 +3014,7 @@ void Renderer::CreateSyncObjects() {
 }
 
 void Renderer::CleanupDescriptorLayouts() {
-  geometry_mesh_descriptor_layout_ = nullptr;
-  shadow_mesh_descriptor_layout_ = nullptr;
-  global_descriptor_layout_ = nullptr;
-  global_shadow_descriptor_layout_ = nullptr;
-  ssao_gen_descriptor_layout_ = nullptr;
-  ssao_blur_descriptor_layout_ = nullptr;
-  ssao_output_descriptor_layout_ = nullptr;
-  geometry_output_descriptor_layout_ = nullptr;
-  sprite_draw_descriptor_layout_ = nullptr;
-  skybox_descriptor_layout_ = nullptr;
-  postprocess_2input_descriptor_layout_ = nullptr;
-  taa_descriptor_layout_ = nullptr;
-  bone_descriptor_layout_ = nullptr;
-  present_descriptor_layout_ = nullptr;
+  descriptor_layouts_.clear();
 }
 
 void Renderer::CleanupPresentGraphics() {

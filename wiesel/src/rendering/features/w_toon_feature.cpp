@@ -98,7 +98,7 @@ void ToonFeature::SetupResources(RenderContext& ctx) {
 
   // Toon output descriptor: reads toon.color
   auto toon_output_desc = std::make_shared<DescriptorSet>();
-  toon_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  toon_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   toon_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("toon.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());

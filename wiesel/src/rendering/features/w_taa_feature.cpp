@@ -38,8 +38,8 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
   taa_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   taa_pipeline_->SetRenderPass(render_pass_);
-  taa_pipeline_->AddInputLayout(renderer_->GetTAADescriptorLayout());
-  taa_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  taa_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("TAA"));
+  taa_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   taa_pipeline_->AddShader(fullscreen_vert);
   taa_pipeline_->AddShader(taa_frag);
   taa_pipeline_->Bake();
@@ -51,7 +51,7 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
   copy_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   copy_pipeline_->SetRenderPass(render_pass_);
-  copy_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
+  copy_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   copy_pipeline_->AddShader(fullscreen_vert);
   copy_pipeline_->AddShader(copy_frag);
   copy_pipeline_->Bake();
@@ -99,7 +99,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
 
   // TAA input: reads PipelineOutput + history + geometry depth (3 inputs)
   auto taa_input_desc = std::make_shared<DescriptorSet>();
-  taa_input_desc->SetLayout(renderer.GetTAADescriptorLayout());
+  taa_input_desc->SetLayout(renderer.GetDescriptorLayout("TAA"));
   taa_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -114,7 +114,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
 
   // TAA copy input: reads taa.output for copying into history
   auto taa_copy_input_desc = std::make_shared<DescriptorSet>();
-  taa_copy_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  taa_copy_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   taa_copy_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("taa.output")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -123,7 +123,7 @@ void TAAFeature::SetupResources(RenderContext& ctx) {
 
   // TAA output descriptor: reads taa.output
   auto taa_output_desc = std::make_shared<DescriptorSet>();
-  taa_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  taa_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   taa_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("taa.output")->image_views_[0],
       renderer.GetDefaultLinearSampler());

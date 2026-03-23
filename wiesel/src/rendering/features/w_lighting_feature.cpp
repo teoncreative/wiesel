@@ -42,8 +42,8 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
       PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
                          false, true, false});
   skybox_pipeline_->SetRenderPass(render_pass_);
-  skybox_pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
-  skybox_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  skybox_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
+  skybox_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   skybox_pipeline_->AddShader(skybox_vert);
   skybox_pipeline_->AddShader(skybox_frag);
   skybox_pipeline_->Bake();
@@ -59,11 +59,11 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
       renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
   lighting_pipeline_->SetRenderPass(render_pass_);
   lighting_pipeline_->AddInputLayout(
-      renderer_->GetGeometryOutputDescriptorLayout());
+      renderer_->GetDescriptorLayout("GeometryOutput"));
   lighting_pipeline_->AddInputLayout(
-      renderer_->GetSSAOOutputDescriptorLayout());
-  lighting_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
-  lighting_pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
+      renderer_->GetDescriptorLayout("SSAOOutput"));
+  lighting_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  lighting_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   lighting_pipeline_->AddShader(fullscreen_vert);
   lighting_pipeline_->AddShader(lighting_frag);
   lighting_pipeline_->Bake();
@@ -88,11 +88,11 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
                            true, true, false});
     rt_lighting_pipeline_->SetRenderPass(render_pass_);
     rt_lighting_pipeline_->AddInputLayout(
-        renderer_->GetGeometryOutputDescriptorLayout());
+        renderer_->GetDescriptorLayout("GeometryOutput"));
     rt_lighting_pipeline_->AddInputLayout(
-        renderer_->GetSSAOOutputDescriptorLayout());
+        renderer_->GetDescriptorLayout("SSAOOutput"));
     rt_lighting_pipeline_->AddInputLayout(
-        renderer_->GetGlobalDescriptorLayout());
+        renderer_->GetDescriptorLayout("Global"));
     rt_lighting_pipeline_->AddInputLayout(rt_shadow_desc_layout_);
     rt_lighting_pipeline_->AddShader(fullscreen_vert);
     rt_lighting_pipeline_->AddShader(rt_lighting_frag);
@@ -141,7 +141,7 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
   // Descriptors
   // Lighting output descriptor: reads resolved lighting color, linear sampler
   auto lighting_output_desc = std::make_shared<DescriptorSet>();
-  lighting_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  lighting_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   lighting_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("lighting.color_resolve")->image_views_[0],
       renderer.GetDefaultLinearSampler());

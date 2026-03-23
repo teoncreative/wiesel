@@ -41,7 +41,7 @@ CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   pipeline_->AddShader(fullscreen_vert);
   pipeline_->AddShader(composite_frag);
   pipeline_->Bake();
@@ -87,7 +87,7 @@ void CompositeFeature::SetupResources(RenderContext& ctx) {
 
   // Composite output descriptor: reads resolved composite color, linear sampler
   auto composite_output_desc = std::make_shared<DescriptorSet>();
-  composite_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  composite_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   composite_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("composite.color_resolve")->image_views_[0],
       renderer.GetDefaultLinearSampler());

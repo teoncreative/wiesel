@@ -350,77 +350,13 @@ class Renderer {
     return quad_vertex_buffer_;
   }
 
-  WIESEL_GETTER_FN const std::shared_ptr<DescriptorSetLayout>
-  GetSpriteDrawDescriptorLayout() const {
-    return sprite_draw_descriptor_layout_;
-  }
+  // Descriptor layout registry (used by RenderFeatures)
 
-  // Descriptor layout getters (used by RenderFeatures)
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetGeometryMeshDescriptorLayout() const {
-    return geometry_mesh_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetShadowMeshDescriptorLayout() const {
-    return shadow_mesh_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetGlobalDescriptorLayout() const {
-    return global_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetGlobalShadowDescriptorLayout() const {
-    return global_shadow_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetSSAOGenDescriptorLayout() const {
-    return ssao_gen_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetSSAOBlurDescriptorLayout() const {
-    return ssao_blur_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetSSAOOutputDescriptorLayout() const {
-    return ssao_output_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetGeometryOutputDescriptorLayout() const {
-    return geometry_output_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetSkyboxDescriptorLayout() const {
-    return skybox_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetPresentDescriptorLayout() const {
-    return present_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetPostprocess2InputDescriptorLayout() const {
-    return postprocess_2input_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout> GetTAADescriptorLayout()
-      const {
-    return taa_descriptor_layout_;
-  }
-
-  WIESEL_GETTER_FN std::shared_ptr<DescriptorSetLayout>
-  GetBoneDescriptorLayout() const {
-    return bone_descriptor_layout_;
-  }
+  std::shared_ptr<DescriptorSetLayout> GetDescriptorLayout(
+      const std::string& name) const;
+  void RegisterDescriptorLayout(
+      const std::string& name,
+      std::shared_ptr<DescriptorSetLayout> layout);
 
   WIESEL_GETTER_FN std::shared_ptr<DescriptorSet> GetIdentityBoneDescriptor()
       const {
@@ -730,15 +666,8 @@ class Renderer {
   std::shared_ptr<CameraData> camera_;
   glm::vec2 viewport_size_;
 
-  std::shared_ptr<DescriptorSetLayout> geometry_mesh_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> shadow_mesh_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> global_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> global_shadow_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> ssao_gen_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> ssao_blur_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> ssao_output_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> geometry_output_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> sprite_draw_descriptor_layout_;
+  std::unordered_map<std::string, std::shared_ptr<DescriptorSetLayout>>
+      descriptor_layouts_;
 
   // Entity picking readback
   VkBuffer pick_staging_buffer_ = VK_NULL_HANDLE;
@@ -751,10 +680,6 @@ class Renderer {
   std::shared_ptr<AttachmentTexture> pick_entity_id_image_;
   std::shared_ptr<AttachmentTexture> pick_fallback_image_;
 
-  std::shared_ptr<DescriptorSetLayout> skybox_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> postprocess_2input_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> taa_descriptor_layout_;
-  std::shared_ptr<DescriptorSetLayout> bone_descriptor_layout_;
   std::shared_ptr<UniformBuffer> identity_bone_ubo_;
   std::shared_ptr<DescriptorSet> identity_bone_descriptor_;
 
@@ -762,7 +687,6 @@ class Renderer {
   Pipeline* bound_pipeline_ = nullptr;
 
   std::shared_ptr<RenderPass> present_render_pass_;
-  std::shared_ptr<DescriptorSetLayout> present_descriptor_layout_;
   std::shared_ptr<Pipeline> present_pipeline_;
   std::shared_ptr<AttachmentTexture> present_color_image_;
   std::shared_ptr<AttachmentTexture> present_depth_stencil_;

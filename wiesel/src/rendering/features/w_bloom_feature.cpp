@@ -40,7 +40,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
   extract_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   extract_pipeline_->SetRenderPass(render_pass_);
-  extract_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
+  extract_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   extract_pipeline_->AddPushConstant(push_constants_,
                                      VK_SHADER_STAGE_FRAGMENT_BIT);
   extract_pipeline_->AddShader(fullscreen_vert);
@@ -54,7 +54,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
   blur_h_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_h_pipeline_->SetRenderPass(render_pass_);
-  blur_h_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
+  blur_h_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   blur_h_pipeline_->AddShader(fullscreen_vert);
   blur_h_pipeline_->AddShader(blur_h_frag);
   blur_h_pipeline_->Bake();
@@ -69,7 +69,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
   blur_v_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_v_pipeline_->SetRenderPass(render_pass_);
-  blur_v_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
+  blur_v_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   blur_v_pipeline_->AddShader(fullscreen_vert);
   blur_v_pipeline_->AddShader(blur_v_frag);
   blur_v_pipeline_->Bake();
@@ -82,7 +82,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   composite_pipeline_->SetRenderPass(render_pass_);
   composite_pipeline_->AddInputLayout(
-      renderer_->GetPostprocess2InputDescriptorLayout());
+      renderer_->GetDescriptorLayout("Postprocess2Input"));
   composite_pipeline_->AddPushConstant(push_constants_,
                                        VK_SHADER_STAGE_FRAGMENT_BIT);
   composite_pipeline_->AddShader(fullscreen_vert);
@@ -149,7 +149,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
 
   // Bloom extract input: reads PipelineOutput (whatever the previous feature set)
   auto extract_input_desc = std::make_shared<DescriptorSet>();
-  extract_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  extract_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   extract_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -158,7 +158,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
 
   // Bloom blur H input: reads bloom extract output
   auto blur_h_input_desc = std::make_shared<DescriptorSet>();
-  blur_h_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  blur_h_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   blur_h_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("bloom.extract")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -167,7 +167,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
 
   // Bloom blur V input: reads bloom blur H output
   auto blur_v_input_desc = std::make_shared<DescriptorSet>();
-  blur_v_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  blur_v_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   blur_v_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("bloom.blur_h")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -177,7 +177,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
   // Bloom composite input: reads PipelineOutput + bloom blur V (2 inputs)
   auto composite_input_desc = std::make_shared<DescriptorSet>();
   composite_input_desc->SetLayout(
-      renderer.GetPostprocess2InputDescriptorLayout());
+      renderer.GetDescriptorLayout("Postprocess2Input"));
   composite_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -189,7 +189,7 @@ void BloomFeature::SetupResources(RenderContext& ctx) {
 
   // Bloom output descriptor: reads bloom composite result
   auto bloom_output_desc = std::make_shared<DescriptorSet>();
-  bloom_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  bloom_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   bloom_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("bloom.composite")->image_views_[0],
       renderer.GetDefaultLinearSampler());

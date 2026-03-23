@@ -348,7 +348,7 @@ std::shared_ptr<SpriteAsset> SpriteBuilder::Build() {
         Engine::renderer()->CreateUniformBuffer(sizeof(SpriteUniformData));
     item.descriptor = std::make_shared<DescriptorSet>();
     item.descriptor->SetLayout(
-        Engine::renderer()->GetSpriteDrawDescriptorLayout());
+        Engine::renderer()->GetDescriptorLayout("SpriteDraw"));
     item.descriptor->AddCombinedImageSampler(0, view, asset->sampler_);
     item.descriptor->AddUniformBuffer(1, item.uniform_buffer);
     item.descriptor->Bake();

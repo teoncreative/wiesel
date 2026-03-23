@@ -43,9 +43,9 @@ TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(renderer_->GetGeometryMeshDescriptorLayout());
-  pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
-  pipeline_->AddInputLayout(renderer_->GetBoneDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("GeometryMesh"));
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
@@ -73,7 +73,7 @@ void TransparencyFeature::SetupResources(RenderContext& ctx) {
 
   // Output descriptor for composite
   auto output_desc = std::make_shared<DescriptorSet>();
-  output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("transparency.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());

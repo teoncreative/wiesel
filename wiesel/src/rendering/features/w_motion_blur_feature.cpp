@@ -38,8 +38,8 @@ MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(renderer_->GetPostprocess2InputDescriptorLayout());
-  pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Postprocess2Input"));
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   pipeline_->AddPushConstant(push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);
   pipeline_->AddShader(fullscreen_vert);
   pipeline_->AddShader(frag);
@@ -71,7 +71,7 @@ void MotionBlurFeature::SetupResources(RenderContext& ctx) {
   // Motion blur input: reads PipelineOutput + geometry world pos (2 inputs)
   auto motion_blur_input_desc = std::make_shared<DescriptorSet>();
   motion_blur_input_desc->SetLayout(
-      renderer.GetPostprocess2InputDescriptorLayout());
+      renderer.GetDescriptorLayout("Postprocess2Input"));
   motion_blur_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -83,7 +83,7 @@ void MotionBlurFeature::SetupResources(RenderContext& ctx) {
 
   // Motion blur output descriptor: reads motion_blur.color
   auto motion_blur_output_desc = std::make_shared<DescriptorSet>();
-  motion_blur_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  motion_blur_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   motion_blur_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("motion_blur.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());

@@ -146,7 +146,7 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, true, false, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
-  comp_pipeline_->AddInputLayout(renderer_->GetSkyboxDescriptorLayout());
+  comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
   comp_pipeline_->Bake();
@@ -352,7 +352,7 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
 
   // Descriptor to read wireframe output
   auto debug_output_desc = std::make_shared<DescriptorSet>();
-  debug_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  debug_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   debug_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("debug_collider.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -374,7 +374,7 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
 
   // Descriptor to read previous PipelineOutput
   auto comp_input_desc = std::make_shared<DescriptorSet>();
-  comp_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  comp_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   comp_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -383,7 +383,7 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
 
   // Update PipelineOutput for downstream features
   auto comp_output_desc = std::make_shared<DescriptorSet>();
-  comp_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  comp_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   comp_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("debug_collider_comp.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());

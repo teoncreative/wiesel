@@ -84,9 +84,9 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(renderer_->GetGeometryMeshDescriptorLayout());
-  pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
-  pipeline_->AddInputLayout(renderer_->GetBoneDescriptorLayout());
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("GeometryMesh"));
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
@@ -223,7 +223,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
 
   // Geometry output descriptor (6 bindings, one per resolved G-buffer image)
   auto geo_output_desc = std::make_shared<DescriptorSet>();
-  geo_output_desc->SetLayout(renderer.GetGeometryOutputDescriptorLayout());
+  geo_output_desc->SetLayout(renderer.GetDescriptorLayout("GeometryOutput"));
   geo_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("geometry.view_pos_resolve")->image_views_[0],
       renderer.GetDefaultNearestSampler());

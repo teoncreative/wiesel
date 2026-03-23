@@ -200,7 +200,7 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_rect_pipeline_ = std::make_shared<Pipeline>(props);
   world_rect_pipeline_->SetRenderPass(world_render_pass_);
   world_rect_pipeline_->AddInputLayout(canvas_element_layout_);
-  world_rect_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  world_rect_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   world_rect_pipeline_->AddShader(canvas_world_vert);
   world_rect_pipeline_->AddShader(rect_frag);
   world_rect_pipeline_->AddPushConstant(world_push_,
@@ -211,7 +211,7 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_image_pipeline_ = std::make_shared<Pipeline>(props);
   world_image_pipeline_->SetRenderPass(world_render_pass_);
   world_image_pipeline_->AddInputLayout(canvas_textured_layout_);
-  world_image_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  world_image_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   world_image_pipeline_->AddShader(canvas_world_vert);
   world_image_pipeline_->AddShader(image_frag);
   world_image_pipeline_->AddPushConstant(world_push_,
@@ -222,7 +222,7 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_text_pipeline_ = std::make_shared<Pipeline>(props);
   world_text_pipeline_->SetRenderPass(world_render_pass_);
   world_text_pipeline_->AddInputLayout(canvas_textured_layout_);
-  world_text_pipeline_->AddInputLayout(renderer_->GetGlobalDescriptorLayout());
+  world_text_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   world_text_pipeline_->AddShader(canvas_world_vert);
   world_text_pipeline_->AddShader(text_frag);
   world_text_pipeline_->AddPushConstant(world_push_,
@@ -247,7 +247,7 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, true, true, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
-  comp_pipeline_->AddInputLayout(renderer_->GetPresentDescriptorLayout());
+  comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
   comp_pipeline_->Bake();
@@ -277,7 +277,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
       "canvas", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   auto canvas_output_desc = std::make_shared<DescriptorSet>();
-  canvas_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  canvas_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   canvas_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("canvas.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -303,7 +303,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
 
   // Descriptor for compositing world canvas
   auto world_canvas_desc = std::make_shared<DescriptorSet>();
-  world_canvas_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  world_canvas_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   world_canvas_desc->AddCombinedImageSampler(
       0, pool.GetTexture("canvas_world.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -328,7 +328,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
                                            0, camera_attachments, {rw, rh}));
 
   auto camera_canvas_desc = std::make_shared<DescriptorSet>();
-  camera_canvas_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  camera_canvas_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   camera_canvas_desc->AddCombinedImageSampler(
       0, pool.GetTexture("canvas_camera.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -349,7 +349,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
 
   // Descriptor to read previous PipelineOutput
   auto comp_input_desc = std::make_shared<DescriptorSet>();
-  comp_input_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  comp_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   comp_input_desc->AddCombinedImageSampler(
       0, pool.GetTexture("PipelineOutput")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -358,7 +358,7 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
 
   // Update PipelineOutput for downstream features
   auto comp_output_desc = std::make_shared<DescriptorSet>();
-  comp_output_desc->SetLayout(renderer.GetPresentDescriptorLayout());
+  comp_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   comp_output_desc->AddCombinedImageSampler(
       0, pool.GetTexture("canvas_comp.color")->image_views_[0],
       renderer.GetDefaultLinearSampler());
@@ -753,7 +753,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
         res.output_descriptor = std::make_shared<DescriptorSet>();
         res.output_descriptor->SetLayout(
-            renderer_->GetPresentDescriptorLayout());
+            renderer_->GetDescriptorLayout("Present"));
         res.output_descriptor->AddCombinedImageSampler(
             0, res.texture->image_views_[0],
             renderer_->GetDefaultLinearSampler());
