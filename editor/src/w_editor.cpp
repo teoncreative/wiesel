@@ -4,6 +4,7 @@
 
 #include "w_editor.hpp"
 #include "util/w_discord_rpc.hpp"
+#include <unordered_set>
 
 #include <imgui.h>
 #include "util/w_tracy.hpp"
@@ -13,6 +14,7 @@
 
 #include "asset/w_asset_manager.hpp"
 #include "asset/w_asset_property_registry.hpp"
+#include "scene/w_component_serializer.hpp"
 #include "ui/w_font.hpp"
 #include "imgui_internal.h"
 #include "physics/w_collider.hpp"
@@ -102,7 +104,22 @@ void RecentProjects::Add(const std::string& path) {
 // Todo move these to the editor overlay instead
 static entt::entity selected_entity_;
 static bool has_selected_entity_ = false;
+static bool scroll_to_selected_ = false;
+static char hierarchy_search_[256] = {};
+static std::unordered_set<entt::entity> open_ancestors_;
+static std::string entity_clipboard_;
 static ImGuizmo::OPERATION current_op_ = ImGuizmo::TRANSLATE;
+
+// Panel visibility (toggled via Window menu)
+static bool panel_scene_hierarchy_ = true;
+static bool panel_components_ = true;
+static bool panel_asset_browser_ = true;
+static bool panel_console_ = true;
+static bool panel_stats_ = true;
+static bool panel_scene_view_ = true;
+static bool panel_game_view_ = true;
+static bool panel_scene_properties_ = true;
+static bool layout_initialized_ = false;
 static struct SceneHierarchyData {
   entt::entity move_from = entt::null;
   entt::entity move_to = entt::null;
@@ -477,8 +494,40 @@ static bool AssetCombo(const char* label, AssetType type, AssetHandle& selected,
   return changed;
 }
 
+// Check if an entity or any of its descendants match the search filter.
+static bool EntityMatchesSearch(Scene* scene, entt::entity entity_id,
+                                const std::string& filter) {
+  if (filter.empty()) {
+    return true;
+  }
+  auto& tag = scene->GetComponent<TagComponent>(entity_id);
+  std::string name_lower = tag.name;
+  std::ranges::transform(name_lower, name_lower.begin(), ::tolower);
+  if (name_lower.find(filter) != std::string::npos) {
+    return true;
+  }
+  // Check children recursively
+  if (scene->HasComponent<TreeComponent>(entity_id)) {
+    auto& tree = scene->GetComponent<TreeComponent>(entity_id);
+    for (auto child : tree.childs) {
+      if (EntityMatchesSearch(scene, child, filter)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth, bool& ignore_menu) {
   auto& tag_component = entity.GetComponent<TagComponent>();
+
+  // Filter by search
+  std::string filter(hierarchy_search_);
+  std::ranges::transform(filter, filter.begin(), ::tolower);
+  if (!filter.empty() && !EntityMatchesSearch(scene().get(), entity_id, filter)) {
+    return;
+  }
+
   bool has_children = entity.child_handles() && !entity.child_handles()->empty();
   bool is_selected = has_selected_entity_ && selected_entity_ == entity_id;
 
@@ -495,14 +544,37 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id, int depth
   if (!has_children) {
     flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
   }
+  // Auto-open nodes when searching or scrolling to a descendant
+  if (!filter.empty() || open_ancestors_.contains(entity_id)) {
+    ImGui::SetNextItemOpen(true);
+  }
 
   bool node_open = ImGui::TreeNodeEx(label.c_str(), flags);
+
+  // Scroll to selected entity when requested (e.g., after viewport click)
+  if (is_selected && scroll_to_selected_) {
+    ImGui::ScrollToItem();
+    scroll_to_selected_ = false;
+    open_ancestors_.clear();
+  }
 
   // Selection on release (not during drag)
   if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(0)
       && !ImGui::IsItemToggledOpen() && !ImGui::IsDragDropActive()) {
     selected_entity_ = entity_id;
     has_selected_entity_ = true;
+  }
+
+  // Double-click to navigate editor camera to entity
+  if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+    if (entity.HasComponent<TransformComponent>()) {
+      auto& tc = entity.GetComponent<TransformComponent>();
+      glm::vec3 target = tc.GetWorldPosition();
+      float distance = 5.0f;
+      glm::vec3 cam_forward = editor_camera_transform_.GetForward();
+      editor_camera_transform_.SetPosition(target - cam_forward * distance);
+      editor_camera_.view_changed = true;
+    }
   }
 
   // Drag & drop source
@@ -602,9 +674,8 @@ void EditorLayer::OnBeginPresent() {
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
 
   // Build initial layout once
-  static bool layout_initialized = false;
-  if (!layout_initialized) {
-    layout_initialized = true;
+  if (!layout_initialized_) {
+    layout_initialized_ = true;
 
     ImGui::DockBuilderRemoveNode(dockspace_id);
     ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
@@ -642,44 +713,46 @@ void EditorLayer::OnBeginPresent() {
     ImGui::DockBuilderFinish(dockspace_id);
   }
 
-  static bool scenePropertiesOpen = true;
-  if (ImGui::Begin("Scene Properties", &scenePropertiesOpen)) {
-    auto& settings = renderer->options();
+  bool& scene_properties_open = panel_scene_properties_;
+  if (scene_properties_open) {
+    if (ImGui::Begin("Scene Properties", &scene_properties_open)) {
+      auto& settings = renderer->options();
 
-    ImGui::SeparatorText("Debug");
-    ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(), &settings.wireframe_enabled);
-    ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(), &settings.only_ssao);
-    {
-      const char* debug_modes[] = {"Off", "Cascades", "Material", "Normals", "World Pos", "Raw Normal", "Albedo", "Depth", "Vertex Normal"};
-      int debug_mode = settings.debug_cascades;
-      if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode, debug_modes, 9)) {
-        settings.debug_cascades = debug_mode;
+      ImGui::SeparatorText("Debug");
+      ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(), &settings.wireframe_enabled);
+      ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(), &settings.only_ssao);
+      {
+        const char* debug_modes[] = {"Off", "Cascades", "Material", "Normals", "World Pos", "Raw Normal", "Albedo", "Depth", "Vertex Normal"};
+        int debug_mode = settings.debug_cascades;
+        if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode, debug_modes, 9)) {
+          settings.debug_cascades = debug_mode;
+        }
+      }
+      ImGui::Checkbox(PrefixLabel("Colliders").c_str(), &settings.show_colliders);
+      ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
+      ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(), &settings.show_reverb_zones);
+      ImGui::Checkbox(PrefixLabel("Cameras").c_str(), &settings.show_cameras);
+
+      ImGui::SeparatorText("Shadow Cascades");
+      auto cam = renderer->GetCameraData();
+      if (cam) {
+        ImGui::Text("Shadows: %s", cam->does_shadow_pass ? "ON" : "OFF");
+        for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; i++) {
+          ImGui::Text("Cascade %d: split Z = %.2f", i,
+                      cam->shadow_map_cascades[i].SplitDepth);
+        }
+      }
+
+      ImGui::Separator();
+      if (ImGui::Button("Reload Scripts")) {
+        Engine::script_manager().ReloadAsync();
+      }
+      if (ImGui::Button("Recreate Pipeline")) {
+        renderer->SetRecreatePipeline(true);
       }
     }
-    ImGui::Checkbox(PrefixLabel("Colliders").c_str(), &settings.show_colliders);
-    ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
-    ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(), &settings.show_reverb_zones);
-    ImGui::Checkbox(PrefixLabel("Cameras").c_str(), &settings.show_cameras);
-
-    ImGui::SeparatorText("Shadow Cascades");
-    auto cam = renderer->GetCameraData();
-    if (cam) {
-      ImGui::Text("Shadows: %s", cam->does_shadow_pass ? "ON" : "OFF");
-      for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; i++) {
-        ImGui::Text("Cascade %d: split Z = %.2f", i,
-                    cam->shadow_map_cascades[i].SplitDepth);
-      }
-    }
-
-    ImGui::Separator();
-    if (ImGui::Button("Reload Scripts")) {
-      Engine::script_manager().ReloadAsync();
-    }
-    if (ImGui::Button("Recreate Pipeline")) {
-      renderer->SetRecreatePipeline(true);
-    }
+    ImGui::End();
   }
-  ImGui::End();
 
   RenderProjectSettingsPopup();
   RenderAssetPropertiesPanel();
@@ -687,8 +760,9 @@ void EditorLayer::OnBeginPresent() {
   RenderCreateSpriteSheetPopup();
   RenderCreateSpriteAnimPopup();
 
-  static bool sceneOpen = true;
-  if (ImGui::Begin("Scene Hierarchy", &sceneOpen)) {
+  bool& scene_open = panel_scene_hierarchy_;
+  if (scene_open) {
+  if (ImGui::Begin("Scene Hierarchy", &scene_open)) {
     bool ignoreMenu = false;
 
     // Prefab editing banner
@@ -707,6 +781,28 @@ void EditorLayer::OnBeginPresent() {
       }
       ImGui::Separator();
     }
+
+    // When scrolling to selected, build set of ancestors to force-open
+    if (scroll_to_selected_ && has_selected_entity_) {
+      open_ancestors_.clear();
+      entt::entity walk = selected_entity_;
+      while (walk != entt::null) {
+        if (scene()->HasComponent<TreeComponent>(walk)) {
+          entt::entity parent = scene()->GetComponent<TreeComponent>(walk).parent;
+          if (parent != entt::null) {
+            open_ancestors_.insert(parent);
+          }
+          walk = parent;
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Search bar
+    ImGui::SetNextItemWidth(-1);
+    ImGui::InputTextWithHint("##HierarchySearch", "Search entities...",
+                             hierarchy_search_, sizeof(hierarchy_search_));
 
     // Scene root node (always open, not collapsible)
     ImGuiTreeNodeFlags scene_flags = ImGuiTreeNodeFlags_DefaultOpen
@@ -786,9 +882,11 @@ void EditorLayer::OnBeginPresent() {
     }
   }
   ImGui::End();
+  }
 
-  static bool componentsOpen = true;
-  if (ImGui::Begin("Components", &componentsOpen) && has_selected_entity_) {
+  bool& components_open = panel_components_;
+  if (components_open) {
+  if (ImGui::Begin("Components", &components_open) && has_selected_entity_) {
     Entity entity = {selected_entity_, scene().get()};
     TagComponent& tag = entity.GetComponent<TagComponent>();
     if (ImGui::InputText("##", &tag.name, ImGuiInputTextFlags_AutoSelectAll)) {
@@ -850,8 +948,11 @@ void EditorLayer::OnBeginPresent() {
     RenderExistingComponents(entity);
   }
   ImGui::End();
-  static bool assetBrowserOpen = true;
-  if (ImGui::Begin("Asset Browser", &assetBrowserOpen)) {
+  }
+
+  bool& asset_browser_open = panel_asset_browser_;
+  if (asset_browser_open) {
+  if (ImGui::Begin("Asset Browser", &asset_browser_open)) {
     auto& mgr = Engine::asset_manager();
 
     static std::string current_dir;  // relative to assets dir, e.g. "" or "models/" or "scenes/"
@@ -1574,10 +1675,12 @@ void EditorLayer::OnBeginPresent() {
     }
   }
   ImGui::End();
+  }
 
   // Developer Console Panel
   {
-    static bool console_open = true;
+    bool& console_open = panel_console_;
+    if (console_open) {
     static std::vector<std::string> history;
     static int history_pos = -1;  // -1 = new line, 0..N = browsing history
     static char input_buf[512] = "";
@@ -1658,13 +1761,15 @@ void EditorLayer::OnBeginPresent() {
       }
     }
     ImGui::End();
+    }
   }
 
   // Render Stats Panel
   {
-    static bool stats_open = true;
+    bool& stats_open = panel_stats_;
+    if (stats_open) {
     if (ImGui::Begin("Render Stats", &stats_open)) {
-      auto renderer = Engine::renderer();
+        std::shared_ptr<Renderer> renderer = Engine::renderer();
       const auto& stats = renderer->GetStats();
 
       ImGui::SeparatorText("Performance");
@@ -1837,6 +1942,7 @@ void EditorLayer::OnBeginPresent() {
       }
     }
     ImGui::End();
+    }
   }
 
   // Helper lambda: draws Play/Stop buttons, returns true if state changed
@@ -1864,9 +1970,10 @@ void EditorLayer::OnBeginPresent() {
   // Scene Panel (editor free camera)
   //
 
-  static bool sceneViewOpen = true;
+  bool& scene_view_open = panel_scene_view_;
+  if (scene_view_open) {
   ImGuiWindowFlags sceneFlags = ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
-  scene_panel_visible_ = ImGui::Begin("Scene", &sceneViewOpen, sceneFlags);
+  scene_panel_visible_ = ImGui::Begin("Scene", &scene_view_open, sceneFlags);
   if (scene_panel_visible_) {
     // Play/Stop buttons + gizmo controls
     DrawPlayStopButtons();
@@ -2300,11 +2407,13 @@ void EditorLayer::OnBeginPresent() {
     }
   }
   ImGui::End();
+  }
 
   // ======== Game Panel (primary scene camera, only when playing) ========
-  static bool gameViewOpen = true;
+  bool& game_view_open = panel_game_view_;
+  if (game_view_open) {
   {
-    bool gameVisible = ImGui::Begin("Game", &gameViewOpen);
+    bool gameVisible = ImGui::Begin("Game", &game_view_open);
     game_panel_visible_ = gameVisible;
     game_panel_focused_ = ImGui::IsWindowFocused();
     if (gameVisible) {
@@ -2412,6 +2521,7 @@ void EditorLayer::OnBeginPresent() {
     }
     ImGui::End();
   }
+  }
 }
 
 void EditorLayer::OnPostPresent() {
@@ -2422,6 +2532,7 @@ void EditorLayer::OnPostPresent() {
     if (picked != entt::null && scene()->GetRegistry().valid(picked)) {
       selected_entity_ = picked;
       has_selected_entity_ = true;
+      scroll_to_selected_ = true;
     } else if (pending_pick_ndc_.x >= -1.0f) {
       // GPU pick missed — fallback: check sprites by projecting to screen
       glm::mat4 vp = editor_camera_.projection * editor_camera_.view_matrix;
@@ -2460,6 +2571,7 @@ void EditorLayer::OnPostPresent() {
       if (best != entt::null) {
         selected_entity_ = best;
         has_selected_entity_ = true;
+        scroll_to_selected_ = true;
       } else {
         has_selected_entity_ = false;
       }
@@ -3527,6 +3639,30 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("Window")) {
+      ImGui::MenuItem("Scene", nullptr, &panel_scene_view_);
+      ImGui::MenuItem("Game", nullptr, &panel_game_view_);
+      ImGui::MenuItem("Scene Hierarchy", nullptr, &panel_scene_hierarchy_);
+      ImGui::MenuItem("Components", nullptr, &panel_components_);
+      ImGui::MenuItem("Asset Browser", nullptr, &panel_asset_browser_);
+      ImGui::MenuItem("Scene Properties", nullptr, &panel_scene_properties_);
+      ImGui::MenuItem("Console", nullptr, &panel_console_);
+      ImGui::MenuItem("Stats", nullptr, &panel_stats_);
+      ImGui::Separator();
+      if (ImGui::MenuItem("Reset Layout")) {
+        panel_scene_hierarchy_ = true;
+        panel_components_ = true;
+        panel_asset_browser_ = true;
+        panel_console_ = true;
+        panel_stats_ = true;
+        panel_scene_view_ = true;
+        panel_game_view_ = true;
+        panel_scene_properties_ = true;
+        layout_initialized_ = false;
+      }
+      ImGui::EndMenu();
+    }
+
     if (ImGui::BeginMenu("Help")) {
       if (ImGui::MenuItem("About")) {
         show_about_popup_ = true;
@@ -3630,6 +3766,61 @@ void EditorLayer::RenderMainMenuBar() {
     } else {
       SaveSceneAs();
     }
+  }
+
+  // Entity copy (Ctrl+C)
+  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false) &&
+      has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
+    Entity entity{selected_entity_, scene().get()};
+    nlohmann::json j;
+    j["name"] = entity.GetName();
+    ComponentSerializerRegistry::SerializeAll(entity, j);
+    entity_clipboard_ = j.dump();
+  }
+
+  // Entity paste (Ctrl+V)
+  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false) &&
+      !entity_clipboard_.empty() && !ImGui::GetIO().WantTextInput) {
+    try {
+      nlohmann::json j = nlohmann::json::parse(entity_clipboard_);
+      std::string name = j.value("name", "Entity") + " (Copy)";
+      Entity new_entity = scene()->CreateEntity(name);
+      ComponentSerializerRegistry::DeserializeAll(new_entity, j, nullptr);
+      selected_entity_ = new_entity.handle();
+      has_selected_entity_ = true;
+      scroll_to_selected_ = true;
+      scene_dirty_ = true;
+    } catch (...) {}
+  }
+
+  // Entity duplicate (Ctrl+D)
+  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false) &&
+      has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
+    Entity entity{selected_entity_, scene().get()};
+    nlohmann::json j;
+    j["name"] = entity.GetName();
+    ComponentSerializerRegistry::SerializeAll(entity, j);
+    std::string name = j.value("name", "Entity") + " (Copy)";
+    Entity new_entity = scene()->CreateEntity(name);
+    ComponentSerializerRegistry::DeserializeAll(new_entity, j, nullptr);
+    // Parent to same parent as original
+    Entity parent = entity.GetParent();
+    if (parent) {
+      scene()->LinkEntities(parent.handle(), new_entity);
+    }
+    selected_entity_ = new_entity.handle();
+    has_selected_entity_ = true;
+    scroll_to_selected_ = true;
+    scene_dirty_ = true;
+  }
+
+  // Delete selected entity
+  if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) &&
+      has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
+    Entity entity{selected_entity_, scene().get()};
+    scene()->RemoveEntity(entity);
+    has_selected_entity_ = false;
+    scene_dirty_ = true;
   }
 }
 
