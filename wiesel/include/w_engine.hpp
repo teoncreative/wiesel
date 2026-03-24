@@ -136,6 +136,17 @@ class Engine {
   static void ExtractAnimations(Model& model, const aiScene& scene);
 
   static void InitializeVfs();
+  static void RegisterPrimitives();
+
+  // Built-in primitive model handles
+  static AssetHandle primitive_cube_;
+  static AssetHandle primitive_sphere_;
+  static AssetHandle primitive_plane_;
+  static AssetHandle primitive_cylinder_;
+  static AssetHandle primitive_capsule_;
+
+ public:
+  static AssetHandle GetPrimitive(const std::string& name);
 
  private:
   static EngineProperties properties_;

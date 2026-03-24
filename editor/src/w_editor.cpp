@@ -651,13 +651,33 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
   if (ImGui::BeginPopupContextItem()) {
     selected_entity_ = entity_id;
     has_selected_entity_ = true;
-    if (ImGui::MenuItem("Add Child")) {
+    if (ImGui::BeginMenu("Add Child")) {
       entt::entity parent_id = entity_id;
-      app_.SubmitToMainThread([this, parent_id]() {
-        Entity child = scene()->CreateEntity();
-        scene()->LinkEntities(parent_id, child);
-        scene_dirty_ = true;
-      });
+      if (ImGui::MenuItem("Empty Entity")) {
+        app_.SubmitToMainThread([this, parent_id]() {
+          Entity child = scene()->CreateEntity();
+          scene()->LinkEntities(parent_id, child);
+          scene_dirty_ = true;
+        });
+      }
+      if (ImGui::BeginMenu("3D Shape")) {
+        const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder",
+                                "Capsule"};
+        for (const char* shape : shapes) {
+          if (ImGui::MenuItem(shape)) {
+            std::string shape_name = shape;
+            app_.SubmitToMainThread([this, parent_id, shape_name]() {
+              Entity child = scene()->CreateEntity(shape_name);
+              auto& mc = child.AddComponent<ModelComponent>();
+              mc.model_handle = Engine::GetPrimitive(shape_name);
+              scene()->LinkEntities(parent_id, child);
+              scene_dirty_ = true;
+            });
+          }
+        }
+        ImGui::EndMenu();
+      }
+      ImGui::EndMenu();
     }
     if (ImGui::MenuItem("Save as Prefab...")) {
       Dialogs::SaveFileDialog({{"Wiesel Prefab", "wprefab"}},
@@ -870,9 +890,25 @@ void EditorLayer::OnBeginPresent() {
 
       // Right-click on scene root to add entities
       if (ImGui::BeginPopupContextItem("scene_root_context")) {
-        if (ImGui::MenuItem("Add Empty Entity")) {
-          scene()->CreateEntity();
-          scene_dirty_ = true;
+        if (ImGui::BeginMenu("Add")) {
+          if (ImGui::MenuItem("Empty Entity")) {
+            scene()->CreateEntity();
+            scene_dirty_ = true;
+          }
+          if (ImGui::BeginMenu("3D Shape")) {
+            const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder",
+                                    "Capsule"};
+            for (const char* shape : shapes) {
+              if (ImGui::MenuItem(shape)) {
+                Entity e = scene()->CreateEntity(shape);
+                auto& mc = e.AddComponent<ModelComponent>();
+                mc.model_handle = Engine::GetPrimitive(shape);
+                scene_dirty_ = true;
+              }
+            }
+            ImGui::EndMenu();
+          }
+          ImGui::EndMenu();
         }
         ImGui::EndPopup();
         ignoreMenu = true;
@@ -930,9 +966,27 @@ void EditorLayer::OnBeginPresent() {
       }
 
       if (ImGui::BeginPopup("right_click_hierarchy")) {
-        if (ImGui::MenuItem("Add Empty Entity")) {
-          scene()->CreateEntity();
-          ImGui::CloseCurrentPopup();
+        if (ImGui::BeginMenu("Add")) {
+          if (ImGui::MenuItem("Empty Entity")) {
+            scene()->CreateEntity();
+            scene_dirty_ = true;
+            ImGui::CloseCurrentPopup();
+          }
+          if (ImGui::BeginMenu("3D Shape")) {
+            const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder",
+                                    "Capsule"};
+            for (const char* shape : shapes) {
+              if (ImGui::MenuItem(shape)) {
+                Entity e = scene()->CreateEntity(shape);
+                auto& mc = e.AddComponent<ModelComponent>();
+                mc.model_handle = Engine::GetPrimitive(shape);
+                scene_dirty_ = true;
+                ImGui::CloseCurrentPopup();
+              }
+            }
+            ImGui::EndMenu();
+          }
+          ImGui::EndMenu();
         }
         ImGui::EndPopup();
       }

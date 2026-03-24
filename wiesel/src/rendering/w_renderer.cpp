@@ -2387,7 +2387,7 @@ std::shared_ptr<Shader> Renderer::CreateShader(ShaderProperties properties) {
 
 void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                             VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                            VkDeviceMemory& bufferMemory) {
+                            VkDeviceMemory& buffer_memory) {
   PROFILE_ZONE_SCOPED();
   VkBufferCreateInfo buffer_info{};
   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -2415,9 +2415,9 @@ void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   }
 
   WIESEL_CHECK_VKRESULT(
-      vkAllocateMemory(logical_device_, &alloc_info, nullptr, &bufferMemory));
+      vkAllocateMemory(logical_device_, &alloc_info, nullptr, &buffer_memory));
   WIESEL_CHECK_VKRESULT(
-      vkBindBufferMemory(logical_device_, buffer, bufferMemory, 0));
+      vkBindBufferMemory(logical_device_, buffer, buffer_memory, 0));
 }
 
 void Renderer::CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer,

@@ -457,7 +457,7 @@ class Renderer {
 
   void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                     VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                    VkDeviceMemory& bufferMemory);
+                    VkDeviceMemory& buffer_memory);
 
   void CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
   void CopyBuffer(VkCommandBuffer cmd, VkBuffer src_buffer, VkBuffer dst_buffer,

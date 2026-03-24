@@ -27,6 +27,7 @@
 #include "asset/w_asset_property_registry.hpp"
 #include "game/w_game_info.hpp"
 #include "input/w_input.hpp"
+#include "rendering/w_primitives.hpp"
 #include "rendering/w_sprite_asset.hpp"
 #include "scene/w_component_serializer.hpp"
 #include "scene/w_entity.hpp"
@@ -296,6 +297,11 @@ std::shared_ptr<ThreadPool> Engine::thread_pool_;
 std::shared_ptr<AudioManager> Engine::audio_manager_;
 std::shared_ptr<SceneManager> Engine::scene_manager_;
 std::shared_ptr<GameInfo> Engine::game_info_;
+AssetHandle Engine::primitive_cube_;
+AssetHandle Engine::primitive_sphere_;
+AssetHandle Engine::primitive_plane_;
+AssetHandle Engine::primitive_cylinder_;
+AssetHandle Engine::primitive_capsule_;
 #ifdef WIESEL_DISCORD_RPC
 std::shared_ptr<DiscordRPC> Engine::discord_rpc_;
 #endif
@@ -410,6 +416,7 @@ void Engine::InitEngine(const EngineProperties& props) {
   }
   thread_pool_ = std::make_shared<ThreadPool>(pool_size);
   LOG_INFO("Asset thread pool: {} workers", pool_size);
+
   scene_manager_ = std::make_shared<SceneManager>();
   audio_manager_ = std::make_shared<AudioManager>();
   audio_manager_->Init();
@@ -436,6 +443,7 @@ void Engine::InitRenderer(const RendererProperties&& props) {
   }
   renderer_ = std::make_shared<Renderer>(window_);
   renderer_->Initialize(std::move(props));
+  RegisterPrimitives();
 }
 
 void Engine::InitApplication() {
@@ -456,6 +464,44 @@ void Engine::InitializeVfs() {
   if (!properties_.user_data_path.empty()) {
     vfs_->Mount("/user", properties_.user_data_path, 0);
   }
+}
+
+void Engine::RegisterPrimitives() {
+  primitive_cube_ = asset_manager_->RegisterAndStore<Model>(
+      "Cube", AssetType::Model, "primitive://cube", Primitives::CreateCube());
+  primitive_sphere_ = asset_manager_->RegisterAndStore<Model>(
+      "Sphere", AssetType::Model, "primitive://sphere",
+      Primitives::CreateSphere());
+  primitive_plane_ = asset_manager_->RegisterAndStore<Model>(
+      "Plane", AssetType::Model, "primitive://plane",
+      Primitives::CreatePlane());
+  primitive_cylinder_ = asset_manager_->RegisterAndStore<Model>(
+      "Cylinder", AssetType::Model, "primitive://cylinder",
+      Primitives::CreateCylinder());
+  primitive_capsule_ = asset_manager_->RegisterAndStore<Model>(
+      "Capsule", AssetType::Model, "primitive://capsule",
+      Primitives::CreateCapsule());
+
+  LOG_INFO("Registered {} primitive shapes", 5);
+}
+
+AssetHandle Engine::GetPrimitive(const std::string& name) {
+  if (name == "Cube") {
+    return primitive_cube_;
+  }
+  if (name == "Sphere") {
+    return primitive_sphere_;
+  }
+  if (name == "Plane") {
+    return primitive_plane_;
+  }
+  if (name == "Cylinder") {
+    return primitive_cylinder_;
+  }
+  if (name == "Capsule") {
+    return primitive_capsule_;
+  }
+  return {};
 }
 
 void Engine::BroadcastEvent(Event& event) {
