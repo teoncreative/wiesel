@@ -81,7 +81,7 @@ Wiesel is a cross-platform game engine built with C++ and Vulkan, featuring a de
 
 ### Build
 ```bash
-git clone --recursive https://github.com/user/wiesel.git
+git clone --recursive https://github.com/teoncreative/wiesel.git
 cd wiesel
 cmake -B build
 cmake --build build

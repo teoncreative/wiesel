@@ -34,13 +34,12 @@ int main(int argc, char** argv) {
   LOG_INFO("Initializing engine...");
   EngineProperties properties = EngineProperties::Parse(argc, argv);
   Engine::InitEngine(properties);
-  Application& app = *CreateApp();
-  LOG_INFO("Initializing app...");
-  app.Init();
+  Engine::InitApplication();
   LOG_INFO("Running...");
-  app.Run();
-  LOG_INFO("Cleaning up...");
-  delete &app;
+  Application& application = Engine::app();
+  application.Run();
+  Engine::CleanupApplication();
+
   Engine::CleanupEngine();
   LOG_INFO("Done!");
 }

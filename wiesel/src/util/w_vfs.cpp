@@ -79,47 +79,53 @@ std::vector<uint32_t> VfsFile::AsUint32() const {
 }
 
 void VirtualFileSystem::Mount(const std::string& mount_point,
-                              const std::string& physical_path, int priority) {
-  MountPoint mp;
-  mp.mount_point = NormalizePath(mount_point);
-  mp.physical_path = std::filesystem::absolute(physical_path);
-  mp.priority = priority;
-  mp.is_archive = false;
+                              const std::filesystem::path& path, int priority) {
+  std::filesystem::path abs_path = std::filesystem::absolute(path);
 
-  if (!std::filesystem::exists(mp.physical_path)) {
-    throw std::runtime_error("Physical path does not exist: " + physical_path);
-  }
-
-  mount_points_.push_back(mp);
-  std::sort(mount_points_.begin(), mount_points_.end());
-}
-
-void VirtualFileSystem::MountArchive(const std::string& mount_point,
-                                     const std::string& archive_path) {
-  std::filesystem::path abs_archive_path =
-      std::filesystem::absolute(archive_path);
-
-  if (!std::filesystem::exists(abs_archive_path)) {
-    throw std::runtime_error("Archive does not exist: " + archive_path);
-  }
-
-  Archive archive;
-  archive.path = abs_archive_path;
-
-  if (!LoadArchive(abs_archive_path, archive)) {
-    throw std::runtime_error("Failed to load archive: " + archive_path);
+  if (!std::filesystem::exists(abs_path)) {
+    throw std::runtime_error("Path does not exist: " + path.string());
   }
 
   std::string normalized_mount = NormalizePath(mount_point);
-  archives_[normalized_mount] = archive;
 
-  MountPoint mp;
-  mp.mount_point = normalized_mount;
-  mp.physical_path = abs_archive_path;
-  mp.priority = 0;
-  mp.is_archive = true;
+  if (std::filesystem::is_regular_file(abs_path)) {
+    // Check for WPAK magic
+    std::ifstream file(abs_path, std::ios::binary);
+    char magic[4] = {};
+    if (file.is_open()) {
+      file.read(magic, 4);
+    }
 
-  mount_points_.push_back(mp);
+    if (std::strncmp(magic, "WPAK", 4) != 0) {
+      throw std::runtime_error("Not a valid .pak archive: " + path.string());
+    }
+
+    Archive archive;
+    archive.path = abs_path;
+
+    if (!LoadArchive(abs_path, archive)) {
+      throw std::runtime_error("Failed to load archive: " + path.string());
+    }
+
+    archives_[normalized_mount] = archive;
+
+    MountPoint mp;
+    mp.mount_point = normalized_mount;
+    mp.physical_path = abs_path;
+    mp.priority = priority;
+    mp.is_archive = true;
+
+    mount_points_.push_back(mp);
+  } else {
+    MountPoint mp;
+    mp.mount_point = normalized_mount;
+    mp.physical_path = abs_path;
+    mp.priority = priority;
+    mp.is_archive = false;
+
+    mount_points_.push_back(mp);
+  }
+
   std::sort(mount_points_.begin(), mount_points_.end());
 }
 

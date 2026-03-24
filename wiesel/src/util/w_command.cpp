@@ -12,6 +12,7 @@
 #include "util/w_command.hpp"
 #include "util/w_logger.hpp"
 #include "w_application.hpp"
+#include "w_engine.hpp"
 
 namespace Wiesel {
 
@@ -30,18 +31,14 @@ DeveloperConsole::DeveloperConsole() {
   Register(
       "host_timescale", "Set game time scale (e.g. host_timescale 0.5)",
       [this](const std::vector<std::string>& args) {
-        auto* app = Application::Get();
-        if (!app) {
-          LogError("No application instance");
-          return;
-        }
+        Application& app = Engine::app();
         if (args.empty()) {
-          LogInfo("host_timescale = " + std::to_string(app->GetTimeScale()));
+          LogInfo("host_timescale = " + std::to_string(app.GetTimeScale()));
           return;
         }
         try {
           float scale = std::stof(args[0]);
-          app->SetTimeScale(scale);
+          app.SetTimeScale(scale);
           LogInfo("host_timescale set to " + std::to_string(scale));
         } catch (...) {
           LogError("Usage: host_timescale <value>");
@@ -53,18 +50,14 @@ DeveloperConsole::DeveloperConsole() {
 
   Register("max_fps", "Set max FPS limit (0 = unlimited)",
            [this](const std::vector<std::string>& args) {
-             auto* app = Application::Get();
-             if (!app) {
-               LogError("No application instance");
-               return;
-             }
+             Application& app = Engine::app();
              if (args.empty()) {
-               LogInfo("max_fps = " + std::to_string(app->GetMaxFPS()));
+               LogInfo("max_fps = " + std::to_string(app.GetMaxFPS()));
                return;
              }
              try {
                float fps = std::stof(args[0]);
-               app->SetMaxFPS(fps);
+               app.SetMaxFPS(fps);
                LogInfo("max_fps set to " + std::to_string(fps));
              } catch (...) {
                LogError("Usage: max_fps <value>");

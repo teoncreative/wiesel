@@ -4,11 +4,7 @@
 #include <mono/jit/jit.h>
 #include <string>
 
-bool CompileToDLL(const std::string& output_file,
-                  const std::vector<std::string>& source_files,
-                  const std::string& lib_dir = "",
-                  const std::vector<std::string>& link_libs = {},
-                  bool debug = false);
+#include "mono_compiler.h"
 
 class MonoStringWrapper {
  public:

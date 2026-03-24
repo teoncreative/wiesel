@@ -28,7 +28,6 @@ Application* Wiesel::CreateApp() {
   // Force editor mode when running standalone
   auto& props = const_cast<EngineProperties&>(Engine::properties());
   props.editor_enabled = true;
-  props.dev_mode = true;
 
   return new EditorApplication();
 }

@@ -66,15 +66,11 @@ class Application {
 
   void SubmitToMainThread(std::function<void()> fn);
 
-  WIESEL_GETTER_FN static Application* Get();
-
  private:
   void ExecuteQueue();
   void UpdateKeyboardAxis();
 
  protected:
-  static Application* application_;
-
   std::vector<std::function<void()>> main_thread_queue_;
   std::mutex main_thread_queue_mutex_;
 

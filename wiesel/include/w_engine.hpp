@@ -47,11 +47,13 @@ class Engine {
   static void InitEngine(const EngineProperties& props);
   static void InitWindow(const WindowProperties&& props);
   static void InitRenderer(const RendererProperties&& props);
+  static void InitApplication();
 
   static void CleanupAssets();
   static void CleanupRenderer();
   static void CleanupWindow();
   static void CleanupEngine();
+  static void CleanupApplication();
 
   WIESEL_GETTER_FN static std::shared_ptr<Renderer> renderer() {
     return renderer_;
@@ -64,6 +66,8 @@ class Engine {
   WIESEL_GETTER_FN static std::shared_ptr<VirtualFileSystem> vfs() {
     return vfs_;
   }
+
+  WIESEL_GETTER_FN static Application& app() { return *application_; }
 
   WIESEL_GETTER_FN static DeveloperConsole& console() { return console_; }
 
@@ -106,6 +110,8 @@ class Engine {
   static bool LoadModel(AssetHandle handle);
   static void LoadModelAsync(AssetHandle handle);
 
+  static void BroadcastEvent(Event& event);
+
  private:
   static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
   static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
@@ -144,6 +150,7 @@ class Engine {
   static std::shared_ptr<AudioManager> audio_manager_;
   static std::shared_ptr<SceneManager> scene_manager_;
   static std::shared_ptr<Project> project_;
+  static Application* application_;
 #ifdef WIESEL_DISCORD_RPC
   static std::shared_ptr<DiscordRPC> discord_rpc_;
 #endif

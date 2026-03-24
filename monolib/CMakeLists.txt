@@ -25,7 +25,13 @@ message("Include dirs: ${MONO_INCLUDE_DIRS}")
 message("Lib dirs: ${MONO_LIBRARY_DIRS}")
 message("Libs: ${MONO_LIBRARIES}")
 
+# Standalone C# compiler helper (no Mono runtime dependency)
+add_library(mono-compiler STATIC src/mono_compiler.cpp)
+target_include_directories(mono-compiler PUBLIC include)
+target_compile_features(mono-compiler PUBLIC cxx_std_17)
+
 add_library(monolib STATIC src/mono_util.cpp)
+target_link_libraries(monolib PUBLIC mono-compiler)
 
 message("MONO_LDFLAGS: ${MONO_LDFLAGS}")
 message("MONO_INCLUDE_DIRS: ${MONO_INCLUDE_DIRS}")

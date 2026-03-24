@@ -12,6 +12,7 @@
 
 #include <direct.h>
 #include <imgui.h>
+#include <mono/metadata/assembly.h>
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/mono-debug.h>
@@ -33,9 +34,38 @@
 #include "script/mono/w_monobehavior.hpp"
 #include "ui/w_canvas.hpp"
 #include "util/w_logger.hpp"
+#include "util/w_platform.hpp"
 #include "w_engine.hpp"
 
 namespace Wiesel {
+
+static std::vector<std::filesystem::path> s_assembly_search_paths;
+
+static MonoAssembly* AssemblyPreloadHook(MonoAssemblyName* aname,
+                                         char** /*assemblies_path*/,
+                                         void* /*user_data*/) {
+  const char* name = mono_assembly_name_get_name(aname);
+  if (!name) {
+    return nullptr;
+  }
+
+  std::string dll_name = std::string(name) + ".dll";
+
+  for (const auto& dir : s_assembly_search_paths) {
+    std::filesystem::path candidate = dir / dll_name;
+    if (std::filesystem::exists(candidate)) {
+      MonoImageOpenStatus status;
+      MonoAssembly* assembly = mono_assembly_open(
+          candidate.string().c_str(), &status);
+      if (assembly && status == MONO_IMAGE_OK) {
+        LOG_INFO("Assembly resolved: {} -> {}", name, candidate.string());
+        return assembly;
+      }
+    }
+  }
+
+  return nullptr;
+}
 
 // todo move these bindings to script glue
 
@@ -1093,6 +1123,26 @@ void Internals_ModelComponent_SetSpecular(uint64_t scene_ptr,
       scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
   EnsureMaterialInstance(model)->SetSpecular(v);
 }
+
+// --- Time ---
+
+float Internals_Time_GetDeltaTime() {
+  return Engine::app().GetDeltaTime();
+}
+
+float Internals_Time_GetTimeScale() {
+  return Engine::app().GetTimeScale();
+}
+
+void Internals_Time_SetTimeScale(float value) {
+  Engine::app().SetTimeScale(value);
+}
+
+float Internals_Time_GetElapsedTime() {
+  return Time::GetTime();
+}
+
+// --- Scene ---
 
 uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
   if (scene_ptr == 0) {
@@ -2470,6 +2520,18 @@ void ScriptManager::Init(const ScriptManagerProperties&& props) {
   mono_set_dirs("mono/lib", "mono/etc");
   mono_config_parse("mono/etc/mono/config");
 
+  // Set up assembly search paths
+  std::filesystem::path exe_dir = GetExecutableDirectory();
+  s_assembly_search_paths.clear();
+  s_assembly_search_paths.push_back(exe_dir);
+  s_assembly_search_paths.push_back(std::filesystem::current_path());
+  std::filesystem::path obj_dir = std::filesystem::current_path() / "obj";
+  if (std::filesystem::exists(obj_dir)) {
+    s_assembly_search_paths.push_back(obj_dir);
+  }
+
+  mono_install_assembly_preload_hook(AssemblyPreloadHook, nullptr);
+
   if (enable_debugger_) {
     const char* opt[] = {
         "--debugger-agent=transport=dt_socket,address=0.0.0.0:50000,server=y,"
@@ -2518,16 +2580,11 @@ void ScriptManager::Reload() {
   LoadApp();
 
   ScriptsReloadedEvent event{};
-  Application::Get()->OnEvent(event);
+  Engine::BroadcastEvent(event);
 }
 
 void ScriptManager::ReloadAsync() {
   if (compiling_) {
-    return;
-  }
-
-  if (!Engine::properties().dev_mode) {
-    Reload();
     return;
   }
 
@@ -2553,26 +2610,24 @@ void ScriptManager::ReloadAsync() {
   }
 
   std::vector<std::string> link_libs;
-  if (std::filesystem::exists("obj")) {
-    for (const auto& entry :
-         std::filesystem::recursive_directory_iterator("obj")) {
-      if (entry.is_regular_file() && entry.path().extension() == ".dll") {
-        link_libs.push_back(entry.path().string());
-      }
+  for (const auto& entry : std::filesystem::directory_iterator(".")) {
+    if (entry.is_regular_file() && entry.path().extension() == ".dll"
+        && entry.path().filename() != "App.dll") {
+      link_libs.push_back(entry.path().string());
     }
   }
 
   // Only compile on the background thread - do NOT touch Mono or unload anything.
   // Old scripts keep running. Domain swap happens in FinishReloadIfReady.
   LOG_INFO("Compiling scripts (async)...");
-  pending_dll_path_ = "obj/App.dll";
+  pending_dll_path_ = "./App.dll";
   bool debug = enable_debugger_;
   std::string dll_path = pending_dll_path_;
 
   compiling_ = true;
   compile_future_ = std::async(
       std::launch::async, [dll_path, source_files, link_libs, debug]() {
-        return CompileToDLL(dll_path, source_files, "obj", link_libs, debug);
+        return CompileToDLL(dll_path, source_files, "./", link_libs, debug);
       });
 }
 
@@ -2635,16 +2690,18 @@ bool ScriptManager::FinishReloadIfReady() {
 
   LOG_INFO("Scripts compiled and loaded ({} scripts)", script_names_.size());
   ScriptsReloadedEvent event{};
-  Application::Get()->OnEvent(event);
+  Engine::BroadcastEvent(event);
   return true;
 }
 
 void ScriptManager::LoadCore() {
-  std::string dll_path = "obj/Core.dll";
+  // Try pre-compiled DLL first
+  std::string dll_path = "./Core.dll";
 
-  if (Engine::properties().dev_mode) {
+  if (!std::filesystem::exists(dll_path)) {
+    // No pre-compiled DLL, compile from source
     LOG_INFO("Compiling core scripts...");
-    std::vector<std::string> sourceFiles;
+    std::vector<std::string> source_files;
     std::optional<std::filesystem::path> physical =
         Engine::vfs()->GetPhysicalPath("/engine/scripts");
     assert(physical.has_value());
@@ -2653,7 +2710,7 @@ void ScriptManager::LoadCore() {
       if (entry.is_regular_file() && entry.path().extension() == ".cs") {
         std::string name = entry.path().string();
         LOG_INFO("Found internal script {}", name);
-        sourceFiles.push_back(name);
+        source_files.push_back(name);
 
         std::filesystem::path rel =
             std::filesystem::relative(entry.path(), *physical);
@@ -2663,10 +2720,8 @@ void ScriptManager::LoadCore() {
                                          vfs_path);
       }
     }
-    CompileToDLL(dll_path, sourceFiles, "", {}, enable_debugger_);
+    CompileToDLL(dll_path, source_files, "./", {}, enable_debugger_);
   } else {
-    // Release: Core.dll should be pre-compiled and placed next to the executable
-    dll_path = "Core.dll";
     LOG_INFO("Loading pre-compiled core scripts from {}", dll_path);
   }
 
@@ -2723,53 +2778,54 @@ void ScriptManager::LoadCore() {
 }
 
 void ScriptManager::LoadApp() {
-  std::string dll_path = "obj/App.dll";
+  // Try pre-compiled DLL first
+  std::string dll_path = "./App.dll";
 
-  if (Engine::properties().dev_mode) {
-    // Dev mode: compile from source
-    std::optional<std::filesystem::path> physical =
-        Engine::vfs()->GetPhysicalPath("/app/scripts");
-    if (!physical.has_value() || !std::filesystem::exists(*physical)) {
-      LOG_WARN("No app scripts directory found, skipping app script loading");
-      return;
-    }
-    std::vector<std::string> sourceFiles;
-    for (const auto& entry :
-         std::filesystem::recursive_directory_iterator(*physical)) {
-      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-        std::string name = entry.path().string();
-        LOG_INFO("Found user script {}", name);
-        sourceFiles.push_back(name);
-
-        std::filesystem::path rel =
-            std::filesystem::relative(entry.path(), *physical);
-        std::string vfs_path = "/app/scripts/" + rel.generic_string();
-        std::string script_name = entry.path().stem().string();
-        Engine::asset_manager().Register(script_name, AssetType::Script,
-                                         vfs_path);
-      }
-    }
-    std::vector<std::string> link_libs;
-    for (const auto& entry :
-         std::filesystem::recursive_directory_iterator("obj")) {
-      if (entry.is_regular_file() && entry.path().extension() == ".dll") {
-        std::string name = entry.path().string();
-        link_libs.push_back(name);
-        LOG_INFO("Found DLL to link {}", name);
-      }
-    }
-    if (!CompileToDLL(dll_path, sourceFiles, "obj", link_libs,
-                      enable_debugger_)) {
-      return;
-    }
-  } else {
-    // Release: App.dll should be pre-compiled and placed next to the executable
-    dll_path = "App.dll";
-    if (!std::filesystem::exists(dll_path)) {
-      LOG_WARN("No pre-compiled App.dll found, skipping app scripts");
-      return;
-    }
+  if (std::filesystem::exists(dll_path)) {
     LOG_INFO("Loading pre-compiled app scripts from {}", dll_path);
+    LoadAppDll(dll_path);
+    return;
+  }
+
+  // No pre-compiled DLL, try compiling from source
+  std::optional<std::filesystem::path> physical =
+      Engine::vfs()->GetPhysicalPath("/app/scripts");
+  if (!physical.has_value() || !std::filesystem::exists(*physical)) {
+    LOG_WARN("No app scripts found, skipping app script loading");
+    return;
+  }
+
+  std::vector<std::string> source_files;
+  for (const auto& entry :
+       std::filesystem::recursive_directory_iterator(*physical)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+      std::string name = entry.path().string();
+      LOG_INFO("Found user script {}", name);
+      source_files.push_back(name);
+
+      std::filesystem::path rel =
+          std::filesystem::relative(entry.path(), *physical);
+      std::string vfs_path = "/app/scripts/" + rel.generic_string();
+      std::string script_name = entry.path().stem().string();
+      Engine::asset_manager().Register(script_name, AssetType::Script,
+                                       vfs_path);
+    }
+  }
+
+  // Find compiled DLLs to reference (e.g. Core.dll)
+  std::vector<std::string> link_libs;
+  for (const auto& entry : std::filesystem::directory_iterator(".")) {
+    if (entry.is_regular_file() && entry.path().extension() == ".dll"
+        && entry.path().filename() != "App.dll") {
+      std::string name = entry.path().string();
+      link_libs.push_back(name);
+      LOG_INFO("Found DLL to link {}", name);
+    }
+  }
+
+  if (!CompileToDLL(dll_path, source_files, "./", link_libs,
+                    enable_debugger_)) {
+    return;
   }
 
   LoadAppDll(dll_path);
@@ -3221,6 +3277,10 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(SceneManager_ActivateLoadedScene);
   WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
   // Scene
+  WIESEL_ADD_INTERNAL_CALL(Time_GetDeltaTime);
+  WIESEL_ADD_INTERNAL_CALL(Time_GetTimeScale);
+  WIESEL_ADD_INTERNAL_CALL(Time_SetTimeScale);
+  WIESEL_ADD_INTERNAL_CALL(Time_GetElapsedTime);
   WIESEL_ADD_INTERNAL_CALL(Scene_CreateEntity);
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntity);
   WIESEL_ADD_INTERNAL_CALL(Scene_DestroyEntity);

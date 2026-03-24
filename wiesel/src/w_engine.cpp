@@ -222,8 +222,14 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       config.engine_assets_path = dev_path;
       config.dev_mode = true;
     } else {
-      // Release: Look for pak or embedded
-      config.engine_assets_path = exe_dir / "engine.pak";
+      // Bundle: Look for engine/ directory next to executable
+      std::filesystem::path bundle_path = exe_dir / "engine";
+      if (std::filesystem::exists(bundle_path)) {
+        config.engine_assets_path = bundle_path;
+      } else {
+        // Release: Look for pak or embedded
+        config.engine_assets_path = exe_dir / "engine.pak";
+      }
     }
   }
 
@@ -232,7 +238,13 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
     if (std::filesystem::exists(dev_path)) {
       config.editor_assets_path = dev_path;
     } else {
-      config.editor_assets_path = exe_dir / "editor.pak";
+      // Bundle: Look for editor/ directory next to executable
+      std::filesystem::path bundle_path = exe_dir / "editor";
+      if (std::filesystem::exists(bundle_path)) {
+        config.editor_assets_path = bundle_path;
+      } else {
+        config.editor_assets_path = exe_dir / "editor.pak";
+      }
     }
   }
 
@@ -257,6 +269,7 @@ std::shared_ptr<Renderer> Engine::renderer_;
 std::shared_ptr<AppWindow> Engine::window_;
 std::shared_ptr<VirtualFileSystem> Engine::vfs_;
 DeveloperConsole Engine::console_;
+Application* Engine::application_;
 std::shared_ptr<AssetManager> Engine::asset_manager_;
 std::shared_ptr<ScriptManager> Engine::script_manager_;
 std::shared_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
@@ -362,17 +375,29 @@ void Engine::InitRenderer(const RendererProperties&& props) {
   renderer_->Initialize(std::move(props));
 }
 
+void Engine::InitApplication() {
+  LOG_INFO("Initializing app...");
+  application_ = CreateApp();
+  application_->Init();
+}
+
 void Engine::InitializeVfs() {
   vfs_ = std::make_shared<VirtualFileSystem>();
-  vfs_->Mount("/engine", properties_.engine_assets_path.string(), 100);
+  vfs_->Mount("/engine", properties_.engine_assets_path, 100);
   if (properties_.editor_enabled && !properties_.editor_assets_path.empty()) {
-    vfs_->Mount("/editor", properties_.editor_assets_path.string(), 90);
+    vfs_->Mount("/editor", properties_.editor_assets_path, 90);
   }
   if (!properties_.app_assets_path.empty()) {
-    vfs_->Mount("/app", properties_.app_assets_path.string(), 80);
+    vfs_->Mount("/app", properties_.app_assets_path, 80);
   }
   if (!properties_.user_data_path.empty()) {
-    vfs_->Mount("/user", properties_.user_data_path.string(), 0);
+    vfs_->Mount("/user", properties_.user_data_path, 0);
+  }
+}
+
+void Engine::BroadcastEvent(Event& event) {
+  if (application_) {
+    application_->OnEvent(event);
   }
 }
 
@@ -405,6 +430,12 @@ void Engine::CleanupEngine() {
     audio_manager_->Shutdown();
     audio_manager_ = nullptr;
   }
+}
+
+void Engine::CleanupApplication() {
+  LOG_INFO("Cleaning up application...");
+  delete application_;
+  application_ = nullptr;
 }
 
 void Engine::SetProject(std::shared_ptr<Project> project) {
@@ -643,7 +674,7 @@ bool Engine::LoadModel(AssetHandle handle) {
     }
 
     // Register on main thread (no GPU work, just data structure updates)
-    Application::Get()->SubmitToMainThread([model, handle]() {
+    application_->SubmitToMainThread([model, handle]() {
       for (auto& [texPath, tex] : model->textures) {
         asset_manager_->RegisterAndStore<Texture>(texPath, AssetType::Texture,
                                                   texPath, tex);

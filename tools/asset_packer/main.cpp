@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <cstring>
+#include "mono_compiler.h"
 
 namespace fs = std::filesystem;
 
@@ -102,14 +103,88 @@ void PackAssets(const fs::path& input_dir, const fs::path& output_pak) {
     std::cout << "Total size: " << fs::file_size(output_pak) << " bytes\n";
 }
 
+bool CompileScripts(const fs::path& scripts_dir, const fs::path& output_dll) {
+    std::vector<std::string> source_files;
+
+    if (!fs::exists(scripts_dir)) {
+        std::cerr << "Scripts directory does not exist: " << scripts_dir << "\n";
+        return false;
+    }
+
+    for (const auto& entry : fs::recursive_directory_iterator(scripts_dir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+            source_files.push_back(entry.path().string());
+        }
+    }
+
+    if (source_files.empty()) {
+        std::cerr << "No .cs files found in " << scripts_dir << "\n";
+        return false;
+    }
+
+    std::cout << "Compiling " << source_files.size() << " C# scripts to " << output_dll << "\n";
+    return CompileToDLL(output_dll.string(), source_files);
+}
+
+void PrintUsage() {
+    std::cerr << "Usage:\n"
+              << "  assetpacker pack <input_dir> <output.pak>\n"
+              << "  assetpacker compile <scripts_dir> <output.dll>\n"
+              << "  assetpacker bundle <engine_assets_dir> <editor_assets_dir> <output_dir>\n";
+}
+
 int main(int argc, char** argv) {
-    if (argc != 3) {
-        std::cerr << "Usage: assetpacker <input_dir> <output.pak>\n";
+    if (argc < 2) {
+        PrintUsage();
         return 1;
     }
 
+    std::string command = argv[1];
+
     try {
-        PackAssets(argv[1], argv[2]);
+        if (command == "pack") {
+            if (argc != 4) {
+                PrintUsage();
+                return 1;
+            }
+            PackAssets(argv[2], argv[3]);
+        } else if (command == "compile") {
+            if (argc != 4) {
+                PrintUsage();
+                return 1;
+            }
+            if (!CompileScripts(argv[2], argv[3])) {
+                return 1;
+            }
+        } else if (command == "bundle") {
+            if (argc != 5) {
+                PrintUsage();
+                return 1;
+            }
+            fs::path engine_assets = argv[2];
+            fs::path editor_assets = argv[3];
+            fs::path output_dir = argv[4];
+
+            fs::create_directories(output_dir);
+
+            // Pack assets
+            PackAssets(engine_assets, output_dir / "engine.pak");
+            PackAssets(editor_assets, output_dir / "editor.pak");
+
+            // Compile core scripts
+            fs::path scripts_dir = engine_assets / "scripts";
+            if (fs::exists(scripts_dir)) {
+                CompileScripts(scripts_dir, output_dir / "Core.dll");
+            }
+        } else {
+            // Legacy mode: assetpacker <input_dir> <output.pak>
+            if (argc == 3) {
+                PackAssets(argv[1], argv[2]);
+            } else {
+                PrintUsage();
+                return 1;
+            }
+        }
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
         return 1;

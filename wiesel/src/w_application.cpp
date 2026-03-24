@@ -22,11 +22,8 @@
 
 namespace Wiesel {
 
-Application* Application::application_;
-
 Application::Application(const WindowProperties&& window_props,
                          const RendererProperties&& renderer_props) {
-  application_ = this;
 
   layer_counter_ = 0;
   is_running_ = true;
@@ -261,10 +258,6 @@ void Application::ExecuteQueue() {
     func();
   }
   main_thread_queue_.clear();
-}
-
-Application* Application::Get() {
-  return application_;
 }
 
 }  // namespace Wiesel

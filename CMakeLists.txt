@@ -53,3 +53,30 @@ add_subdirectory(editor)
 
 # examples
 add_subdirectory(examples/native_demo)
+
+# tools
+add_subdirectory(tools/asset_packer)
+
+##### EDITOR BUNDLE #####
+set(BUNDLE_DIR ${CMAKE_BINARY_DIR}/bundle)
+add_custom_target(bundle-editor
+    DEPENDS wiesel-editor assetpacker
+    COMMENT "Creating editor bundle in ${BUNDLE_DIR}"
+
+    # Clean and create bundle directory
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${BUNDLE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${BUNDLE_DIR}
+
+    # Copy editor executable
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:wiesel-editor> ${BUNDLE_DIR}/
+
+    # Pack assets and compile core scripts
+    COMMAND $<TARGET_FILE:assetpacker> bundle
+        ${CMAKE_CURRENT_SOURCE_DIR}/wiesel/assets
+        ${CMAKE_CURRENT_SOURCE_DIR}/editor/assets
+        ${BUNDLE_DIR}
+
+    # Copy Mono runtime
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_BINARY_DIR}/mono ${BUNDLE_DIR}/mono
+)

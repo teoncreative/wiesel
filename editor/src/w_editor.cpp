@@ -749,6 +749,7 @@ void EditorLayer::OnBeginPresent() {
     ImGuiID scene_window_id = ImHashStr("Scene");
     ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
     ImGui::DockBuilderDockWindow("Scene Properties", dock_right);
+    ImGui::DockBuilderDockWindow("Asset Properties", dock_right);
     ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
     ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
     ImGui::DockBuilderDockWindow("Render Stats", dock_right);
@@ -1561,6 +1562,10 @@ void EditorLayer::OnBeginPresent() {
                          GetAssetAbbrev(fe.asset_type), is_sel, false,
                          thumbnail, meta, &dbl_clicked)) {
               selected_file = fe.name;
+              // Auto-show in Asset Properties panel
+              if (handle.IsValid()) {
+                properties_asset_handle_ = handle;
+              }
             }
 
             if (dbl_clicked) {
@@ -1679,10 +1684,7 @@ void EditorLayer::OnBeginPresent() {
             }
             if (!fe.is_dir && handle.IsValid() &&
                 AssetPropertyRegistry::HasProperties(fe.asset_type)) {
-              if (ImGui::MenuItem("Properties")) {
-                properties_asset_handle_ = handle;
-                show_asset_properties_ = true;
-              }
+              // Properties panel auto-selects on click, no menu item needed.
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Delete")) {
@@ -4546,19 +4548,21 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
 }
 
 void EditorLayer::RenderAssetPropertiesPanel() {
-  if (!show_asset_properties_) {
+  static bool panel_open = true;
+  if (!panel_open) {
     return;
   }
 
-  const auto* meta =
-      Engine::asset_manager().GetMetadata(properties_asset_handle_);
-  if (!meta) {
-    show_asset_properties_ = false;
-    return;
-  }
-
-  ImGui::SetNextWindowSize(ImVec2(350, 0), ImGuiCond_FirstUseEver);
-  if (ImGui::Begin("Asset Properties", &show_asset_properties_)) {
+  if (ImGui::Begin("Asset Properties", &panel_open)) {
+    const auto* meta =
+        Engine::asset_manager().GetMetadata(properties_asset_handle_);
+    if (!meta || !properties_asset_handle_.IsValid()) {
+      ImGui::TextDisabled("No asset selected");
+      ImGui::TextDisabled("Right-click an asset in the browser");
+      ImGui::TextDisabled("and select Properties.");
+      ImGui::End();
+      return;
+    }
     ImGui::Text("Name: %s", meta->name.c_str());
     ImGui::TextDisabled("Path: %s", meta->virtual_source_path.c_str());
     ImGui::Separator();

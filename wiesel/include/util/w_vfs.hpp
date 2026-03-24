@@ -86,10 +86,10 @@ T VfsFile::Read() {
 
 class VirtualFileSystem {
  public:
-  void Mount(const std::string& mount_point, const std::string& physical_path,
-             int priority = 0);
-  void MountArchive(const std::string& mount_point,
-                    const std::string& archive_path);
+  // Auto-detects whether path is a directory or a .pak archive.
+  // For archives, validates the WPAK magic before mounting.
+  void Mount(const std::string& mount_point,
+             const std::filesystem::path& path, int priority = 0);
 
   VfsFile Open(const std::string& virtual_path);
   bool FileExists(const std::string& virtual_path);

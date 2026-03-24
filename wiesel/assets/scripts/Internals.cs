@@ -457,6 +457,16 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Prefab_Instantiate(ulong scenePtr, string path);
 
+        // Time
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Time_GetDeltaTime();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Time_GetTimeScale();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Time_SetTimeScale(float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Time_GetElapsedTime();
+
         // Scene
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Scene_CreateEntity(ulong scenePtr, string name);
