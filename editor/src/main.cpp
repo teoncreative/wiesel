@@ -8,10 +8,6 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-//
-// Standalone Wiesel Editor Application
-//
-
 #include "w_editor.hpp"
 #include "w_editor_components.hpp"
 

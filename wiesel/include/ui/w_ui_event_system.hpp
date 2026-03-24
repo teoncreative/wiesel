@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -32,7 +32,9 @@ class UIEventSystem {
   void Update(Scene& scene, float delta_time);
 
   entt::entity GetFocusedEntity() const { return focused_entity_; }
+
   void SetFocusedEntity(entt::entity entity) { focused_entity_ = entity; }
+
   void ClearFocus() { focused_entity_ = entt::null; }
 
   entt::entity GetSelectedEntity(int player_index = 0) const;

@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -15,15 +15,15 @@
 
 #include <stb_image.h>
 
-#include "rendering/w_deletion_queue.hpp"
 #include "rendering/w_buffer.hpp"
 #include "rendering/w_camera.hpp"
 #include "rendering/w_command.hpp"
+#include "rendering/w_deletion_queue.hpp"
 #include "rendering/w_descriptor.hpp"
 #include "rendering/w_framebuffer.hpp"
 #include "rendering/w_mesh.hpp"
-#include "rendering/w_texture.hpp"
 #include "rendering/w_sprite.hpp"
+#include "rendering/w_texture.hpp"
 #include "scene/w_components.hpp"
 #include "scene/w_lights.hpp"
 #include "util/w_color.hpp"
@@ -354,9 +354,8 @@ class Renderer {
 
   std::shared_ptr<DescriptorSetLayout> GetDescriptorLayout(
       const std::string& name) const;
-  void RegisterDescriptorLayout(
-      const std::string& name,
-      std::shared_ptr<DescriptorSetLayout> layout);
+  void RegisterDescriptorLayout(const std::string& name,
+                                std::shared_ptr<DescriptorSetLayout> layout);
 
   WIESEL_GETTER_FN std::shared_ptr<DescriptorSet> GetIdentityBoneDescriptor()
       const {

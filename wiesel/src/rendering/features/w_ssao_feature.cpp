@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/features/w_ssao_feature.hpp"
@@ -69,7 +69,8 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
   blur_horz_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_horz_pipeline_->SetRenderPass(blur_horz_render_pass_);
-  blur_horz_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SSAOBlur"));
+  blur_horz_pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("SSAOBlur"));
   blur_horz_pipeline_->AddShader(fullscreen_vert);
   blur_horz_pipeline_->AddShader(blur_h_frag);
   blur_horz_pipeline_->Bake();
@@ -85,7 +86,8 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
   blur_vert_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   blur_vert_pipeline_->SetRenderPass(blur_vert_render_pass_);
-  blur_vert_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SSAOBlur"));
+  blur_vert_pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("SSAOBlur"));
   blur_vert_pipeline_->AddShader(fullscreen_vert);
   blur_vert_pipeline_->AddShader(blur_v_frag);
   blur_vert_pipeline_->Bake();

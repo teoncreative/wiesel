@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/features/w_motion_blur_feature.hpp"
@@ -38,7 +38,8 @@ MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Postprocess2Input"));
+  pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Postprocess2Input"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   pipeline_->AddPushConstant(push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);
   pipeline_->AddShader(fullscreen_vert);

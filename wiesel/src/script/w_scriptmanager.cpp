@@ -1,11 +1,11 @@
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "script/w_scriptmanager.hpp"
@@ -55,8 +55,8 @@ static MonoAssembly* AssemblyPreloadHook(MonoAssemblyName* aname,
     std::filesystem::path candidate = dir / dll_name;
     if (std::filesystem::exists(candidate)) {
       MonoImageOpenStatus status;
-      MonoAssembly* assembly = mono_assembly_open(
-          candidate.string().c_str(), &status);
+      MonoAssembly* assembly =
+          mono_assembly_open(candidate.string().c_str(), &status);
       if (assembly && status == MONO_IMAGE_OK) {
         LOG_INFO("Assembly resolved: {} -> {}", name, candidate.string());
         return assembly;
@@ -1730,15 +1730,19 @@ MonoObject* Internals_TransformComponent_WorldToLocalDirection(
   return CreateVector3fWithValues(val.x, val.y, val.z);
 }
 
-MonoObject* Internals_TransformComponent_LocalToWorldPoint(
-    Scene* scene, entt::entity entity, float x, float y, float z) {
+MonoObject* Internals_TransformComponent_LocalToWorldPoint(Scene* scene,
+                                                           entt::entity entity,
+                                                           float x, float y,
+                                                           float z) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
   glm::vec3 val = c.LocalToWorldPoint({x, y, z});
   return CreateVector3fWithValues(val.x, val.y, val.z);
 }
 
-MonoObject* Internals_TransformComponent_WorldToLocalPoint(
-    Scene* scene, entt::entity entity, float x, float y, float z) {
+MonoObject* Internals_TransformComponent_WorldToLocalPoint(Scene* scene,
+                                                           entt::entity entity,
+                                                           float x, float y,
+                                                           float z) {
   auto& c = scene->GetComponent<TransformComponent>(entity);
   glm::vec3 val = c.WorldToLocalPoint({x, y, z});
   return CreateVector3fWithValues(val.x, val.y, val.z);
@@ -2666,8 +2670,8 @@ void ScriptManager::ReloadAsync() {
 
   std::vector<std::string> link_libs;
   for (const auto& entry : std::filesystem::directory_iterator(".")) {
-    if (entry.is_regular_file() && entry.path().extension() == ".dll"
-        && entry.path().filename() != "App.dll") {
+    if (entry.is_regular_file() && entry.path().extension() == ".dll" &&
+        entry.path().filename() != "App.dll") {
       link_libs.push_back(entry.path().string());
     }
   }

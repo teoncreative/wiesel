@@ -148,13 +148,12 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       "engine-assets", "Path to engine assets directory or pak file",
       cxxopts::value<std::string>())(
       "editor-assets", "Path to editor assets directory or pak file",
-      cxxopts::value<std::string>())("app-assets",
-                                     "Path to application assets directory",
-                                     cxxopts::value<std::string>())(
-      "project", "Path to project file (editor)", cxxopts::value<std::string>())(
-      "game-info", "Path to gameinfo.wgame file",
       cxxopts::value<std::string>())(
-      "h,help", "Print usage information");
+      "app-assets", "Path to application assets directory",
+      cxxopts::value<std::string>())("project", "Path to project file (editor)",
+                                     cxxopts::value<std::string>())(
+      "game-info", "Path to gameinfo.wgame file",
+      cxxopts::value<std::string>())("h,help", "Print usage information");
 
   try {
     auto result = options.parse(argc, argv);
@@ -372,12 +371,10 @@ void Engine::InitEngine(const EngineProperties& props) {
             }
             auto chars = file.AsChars();
             std::string json_str(chars.begin(), chars.end());
-            nlohmann::json j =
-                nlohmann::json::parse(json_str, nullptr, false);
+            nlohmann::json j = nlohmann::json::parse(json_str, nullptr, false);
             if (j.is_discarded() || !j.contains("texture") ||
                 !j.contains("rect")) {
-              LOG_ERROR("Invalid .wsprite file: {}",
-                        meta->virtual_source_path);
+              LOG_ERROR("Invalid .wsprite file: {}", meta->virtual_source_path);
               return false;
             }
 

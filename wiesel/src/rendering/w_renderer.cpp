@@ -1,21 +1,21 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/w_renderer.hpp"
 #include "asset/w_asset_properties.hpp"
+#include "rendering/features/w_canvas_feature.hpp"
 #include "rendering/features/w_debug_collider_feature.hpp"
 #include "rendering/w_acceleration_structure.hpp"
 #include "rendering/w_perf_marker.hpp"
 #include "rendering/w_sampler.hpp"
-#include "rendering/features/w_canvas_feature.hpp"
 #include "ui/w_font.hpp"
 
 #include "util/imgui/imgui_theme.hpp"
@@ -2055,16 +2055,16 @@ std::shared_ptr<DescriptorSetLayout> Renderer::GetDescriptorLayout(
 }
 
 void Renderer::RegisterDescriptorLayout(
-    const std::string& name,
-    std::shared_ptr<DescriptorSetLayout> layout) {
+    const std::string& name, std::shared_ptr<DescriptorSetLayout> layout) {
   descriptor_layouts_[name] = std::move(layout);
 }
 
 void Renderer::CreateDescriptorLayouts() {
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     for (int i = 0; i < kMaterialTextureCount; i++) {
       layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                          VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -2093,12 +2093,15 @@ void Renderer::CreateDescriptorLayouts() {
 
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                        VK_SHADER_STAGE_FRAGMENT_BIT);
     layout->Bake();

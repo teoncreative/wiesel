@@ -10,20 +10,20 @@
 
 #pragma once
 
-#include <vector>
 #include <mono/jit/jit.h>
 #include <string>
+#include <vector>
 
 #include "mono_compiler.h"
 
 class MonoStringWrapper {
  public:
-  MonoStringWrapper(const char* string, int length) : string_(string), length_(length) {}
+  MonoStringWrapper(const char* string, int length)
+      : string_(string), length_(length) {}
+
   ~MonoStringWrapper() {}
 
-  void Release() {
-    mono_free((void*) string_);
-  }
+  void Release() { mono_free((void*)string_); }
 
   operator const char*() { return string_; }
 
@@ -38,9 +38,7 @@ class ScopedMonoStringWrapper {
  public:
   ScopedMonoStringWrapper(MonoStringWrapper string) : string_(string) {}
 
-  ~ScopedMonoStringWrapper() {
-    string_.Release();
-  }
+  ~ScopedMonoStringWrapper() { string_.Release(); }
 
   operator const char*() { return string_; }
 
@@ -53,7 +51,8 @@ class ScopedMonoStringWrapper {
 class MonoObjectWrapper {
  public:
   MonoObjectWrapper(MonoObject* object) : object_(object) {}
-  ~MonoObjectWrapper() { }
+
+  ~MonoObjectWrapper() {}
 
   operator bool() { return object_ != nullptr; }
 
@@ -66,10 +65,10 @@ class MonoObjectWrapper {
 
   MonoStringWrapper AsWrappedString() {
     MonoString* resultString = mono_object_to_string(object_, nullptr);
-    return {mono_string_to_utf8(resultString), mono_string_length(resultString)};
+    return {mono_string_to_utf8(resultString),
+            mono_string_length(resultString)};
   }
 
  private:
   MonoObject* object_;
-
 };
