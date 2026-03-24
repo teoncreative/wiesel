@@ -38,7 +38,6 @@ struct EngineProperties {
   std::filesystem::path project_path;    // editor-only: .wiesel file
   std::filesystem::path game_info_path;  // runtime: gameinfo.wgame file
   std::filesystem::path user_data_path;
-  bool dev_mode = false;  // Affects hot reloading, logging, etc.
 
   static EngineProperties Parse(int argc, char** argv);
 };

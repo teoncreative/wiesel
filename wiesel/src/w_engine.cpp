@@ -143,8 +143,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
 
   options.add_options()("e,editor", "Enable editor layer",
                         cxxopts::value<bool>()->default_value("false"))(
-      "dev", "Enable development mode",
-      cxxopts::value<bool>()->default_value("false"))(
       "engine-assets", "Path to engine assets directory or pak file",
       cxxopts::value<std::string>())(
       "editor-assets", "Path to editor assets directory or pak file",
@@ -166,7 +164,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
 
     // Parse flags
     config.editor_enabled = result["editor"].as<bool>();
-    config.dev_mode = result["dev"].as<bool>();
 
     // Parse optional paths
     if (result.count("engine-assets")) {
@@ -243,7 +240,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
     std::filesystem::path dev_path = exe_dir / "../../../engine/assets";
     if (std::filesystem::exists(dev_path)) {
       config.engine_assets_path = dev_path;
-      config.dev_mode = true;
     } else {
       // Bundle: Look for engine/ directory next to executable
       std::filesystem::path bundle_path = exe_dir / "engine";
@@ -314,7 +310,6 @@ void Engine::InitEngine(const EngineProperties& props) {
   LOG_INFO(" - app_assets_path: {}", props.app_assets_path.string());
   LOG_INFO(" - project_path: {}", props.project_path.string());
   LOG_INFO(" - user_data_path: {}", props.user_data_path.string());
-  LOG_INFO(" - dev_mode: {}", props.dev_mode);
   asset_manager_ = std::make_shared<AssetManager>();
 
   // Register asset loaders
