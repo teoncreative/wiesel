@@ -4042,12 +4042,18 @@ void EditorLayer::RenderMainMenuBar() {
       std::string status_text;
       bool has_activity =
           asset_stats.loading > 0 || Engine::script_manager().IsCompiling();
+      bool has_compile_error = false;
       if (Engine::script_manager().IsCompiling()) {
         status_text = "Compiling scripts...";
-      } else if (asset_stats.loading > 0) {
+      } else if (!Engine::script_manager().last_compile_result().output.empty()
+                 && !Engine::script_manager().last_compile_result().success) {
+        has_compile_error = true;
+      }
+
+      if (status_text.empty() && asset_stats.loading > 0) {
         status_text = std::format("Loading {} asset{}...", asset_stats.loading,
                                   asset_stats.loading > 1 ? "s" : "");
-      } else if (asset_stats.failed > 0) {
+      } else if (status_text.empty() && asset_stats.failed > 0) {
         status_text = std::format("{} failed", asset_stats.failed);
       }
       std::string asset_summary =
@@ -4073,10 +4079,23 @@ void EditorLayer::RenderMainMenuBar() {
           status_text.empty()
               ? 0.0f
               : ImGui::CalcTextSize(status_text.c_str()).x + spacing;
-      float total_right =
-          status_width + summary_width + spacing + info_width + 16.0f;
+      float error_width =
+          has_compile_error
+              ? ImGui::CalcTextSize("Compile Error").x + spacing
+              : 0.0f;
+      float total_right = error_width + status_width + summary_width + spacing
+                          + info_width + 16.0f;
 
       ImGui::SameLine(ImGui::GetWindowWidth() - total_right);
+
+      if (has_compile_error) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+        if (ImGui::SmallButton("Compile Error")) {
+          ImGui::OpenPopup("compile_error_popup");
+        }
+        ImGui::PopStyleColor();
+        ImGui::SameLine(0, spacing);
+      }
 
       if (!status_text.empty()) {
         if (has_activity) {
@@ -4092,6 +4111,30 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::TextDisabled("%s", asset_summary.c_str());
       ImGui::SameLine(0, spacing);
       ImGui::TextDisabled("%s", info.c_str());
+    }
+
+    // Compile error popup
+    ImGui::SetNextWindowSizeConstraints(ImVec2(800, 400), ImVec2(800, 400));
+    if (ImGui::BeginPopup("compile_error_popup")) {
+      const auto& result = Engine::script_manager().last_compile_result();
+      if (result.success) {
+        ImGui::CloseCurrentPopup();
+      } else {
+        ImGui::Text("Compilation failed (exit code %d)", result.exit_code);
+        ImGui::Separator();
+        ImGui::BeginChild("compile_output",
+                           ImVec2(0, -ImGui::GetFrameHeightWithSpacing()),
+                           ImGuiChildFlags_None,
+                           ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        ImGui::TextUnformatted(result.output.c_str());
+        ImGui::PopStyleColor();
+        ImGui::EndChild();
+        if (!result.command.empty()) {
+          ImGui::TextWrapped("Command: %s", result.command.c_str());
+        }
+      }
+      ImGui::EndPopup();
     }
 
     ImGui::EndMainMenuBar();

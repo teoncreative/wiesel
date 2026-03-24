@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include <wpak/wpak.h>
+
 namespace Wiesel {
 
 class VfsFile {
@@ -88,8 +90,8 @@ class VirtualFileSystem {
  public:
   // Auto-detects whether path is a directory or a .pak archive.
   // For archives, validates the WPAK magic before mounting.
-  void Mount(const std::string& mount_point,
-             const std::filesystem::path& path, int priority = 0);
+  void Mount(const std::string& mount_point, const std::filesystem::path& path,
+             int priority = 0);
 
   VfsFile Open(const std::string& virtual_path);
   bool FileExists(const std::string& virtual_path);
@@ -114,26 +116,10 @@ class VirtualFileSystem {
     }
   };
 
-  struct ArchiveEntry {
-    std::string name;
-    uint64_t offset;
-    uint64_t size;
-    uint64_t compressed_size;
-    bool compressed;
-  };
-
-  struct Archive {
-    std::filesystem::path path;
-    std::map<std::string, ArchiveEntry> entries;
-  };
-
   std::vector<MountPoint> mount_points_;
-  std::map<std::string, Archive> archives_;
+  std::map<std::string, Wpak::Archive> archives_;
 
   std::string NormalizePath(const std::string& path);
-  bool LoadArchive(const std::filesystem::path& archive_path, Archive& archive);
-  std::vector<uint8_t> ReadFromArchive(const Archive& archive,
-                                       const ArchiveEntry& entry);
 };
 
 }  // namespace Wiesel

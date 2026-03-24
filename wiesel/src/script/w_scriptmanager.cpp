@@ -2520,14 +2520,15 @@ void ScriptManager::Init(const ScriptManagerProperties&& props) {
   mono_set_dirs("mono/lib", "mono/etc");
   mono_config_parse("mono/etc/mono/config");
 
-  // Set up assembly search paths
+  // Set up assembly search paths for automatic DLL resolution
   std::filesystem::path exe_dir = GetExecutableDirectory();
   s_assembly_search_paths.clear();
   s_assembly_search_paths.push_back(exe_dir);
   s_assembly_search_paths.push_back(std::filesystem::current_path());
-  std::filesystem::path obj_dir = std::filesystem::current_path() / "obj";
-  if (std::filesystem::exists(obj_dir)) {
-    s_assembly_search_paths.push_back(obj_dir);
+
+  LOG_INFO("Assembly search paths:");
+  for (const auto& path : s_assembly_search_paths) {
+    LOG_INFO("  - {}", path.string());
   }
 
   mono_install_assembly_preload_hook(AssemblyPreloadHook, nullptr);
@@ -2627,7 +2628,7 @@ void ScriptManager::ReloadAsync() {
   compiling_ = true;
   compile_future_ = std::async(
       std::launch::async, [dll_path, source_files, link_libs, debug]() {
-        return CompileToDLL(dll_path, source_files, "./", link_libs, debug);
+        return CompileToDLL(dll_path, source_files, "", link_libs, debug);
       });
 }
 
@@ -2640,11 +2641,12 @@ bool ScriptManager::FinishReloadIfReady() {
     return false;  // still compiling
   }
 
-  bool success = compile_future_.get();
+  last_compile_result_ = compile_future_.get();
   compiling_ = false;
 
-  if (!success) {
-    LOG_ERROR("Script compilation failed");
+  if (!last_compile_result_.success) {
+    LOG_ERROR("Script compilation failed (exit code {}):\n{}",
+              last_compile_result_.exit_code, last_compile_result_.output);
     return true;
   }
 
@@ -2695,22 +2697,17 @@ bool ScriptManager::FinishReloadIfReady() {
 }
 
 void ScriptManager::LoadCore() {
-  // Try pre-compiled DLL first
   std::string dll_path = "./Core.dll";
 
-  if (!std::filesystem::exists(dll_path)) {
-    // No pre-compiled DLL, compile from source
-    LOG_INFO("Compiling core scripts...");
+  // If source files are available, always compile (ensures latest code)
+  std::optional<std::filesystem::path> physical =
+      Engine::vfs()->GetPhysicalPath("/engine/scripts");
+  if (physical.has_value() && std::filesystem::exists(*physical)) {
     std::vector<std::string> source_files;
-    std::optional<std::filesystem::path> physical =
-        Engine::vfs()->GetPhysicalPath("/engine/scripts");
-    assert(physical.has_value());
     for (const auto& entry :
          std::filesystem::recursive_directory_iterator(*physical)) {
       if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-        std::string name = entry.path().string();
-        LOG_INFO("Found internal script {}", name);
-        source_files.push_back(name);
+        source_files.push_back(entry.path().string());
 
         std::filesystem::path rel =
             std::filesystem::relative(entry.path(), *physical);
@@ -2720,11 +2717,18 @@ void ScriptManager::LoadCore() {
                                          vfs_path);
       }
     }
-    CompileToDLL(dll_path, source_files, "./", {}, enable_debugger_);
-  } else {
-    LOG_INFO("Loading pre-compiled core scripts from {}", dll_path);
+    LOG_INFO("Compiling core scripts ({} files)...", source_files.size());
+    last_compile_result_ =
+        CompileToDLL(dll_path, source_files, "", {}, enable_debugger_);
+    if (!last_compile_result_.success) {
+      LOG_ERROR("Core script compilation failed (exit code {}):\n{}",
+                last_compile_result_.exit_code, last_compile_result_.output);
+    }
+  } else if (!std::filesystem::exists(dll_path)) {
+    LOG_ERROR("No core scripts or pre-compiled Core.dll found");
   }
 
+  LOG_INFO("Loading Core.dll from {}", dll_path);
   core_assembly_ = mono_domain_assembly_open(root_domain_, dll_path.c_str());
   assert(core_assembly_);
 
@@ -2778,66 +2782,68 @@ void ScriptManager::LoadCore() {
 }
 
 void ScriptManager::LoadApp() {
-  // Try pre-compiled DLL first
   std::string dll_path = "./App.dll";
 
-  if (std::filesystem::exists(dll_path)) {
-    LOG_INFO("Loading pre-compiled app scripts from {}", dll_path);
-    LoadAppDll(dll_path);
-    return;
-  }
-
-  // No pre-compiled DLL, try compiling from source
+  // If source files are available, always compile (ensures latest code)
   std::optional<std::filesystem::path> physical =
       Engine::vfs()->GetPhysicalPath("/app/scripts");
-  if (!physical.has_value() || !std::filesystem::exists(*physical)) {
-    LOG_WARN("No app scripts found, skipping app script loading");
-    return;
-  }
+  if (physical.has_value() && std::filesystem::exists(*physical)) {
+    std::vector<std::string> source_files;
+    for (const auto& entry :
+         std::filesystem::recursive_directory_iterator(*physical)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+        source_files.push_back(entry.path().string());
 
-  std::vector<std::string> source_files;
-  for (const auto& entry :
-       std::filesystem::recursive_directory_iterator(*physical)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-      std::string name = entry.path().string();
-      LOG_INFO("Found user script {}", name);
-      source_files.push_back(name);
+        std::filesystem::path rel =
+            std::filesystem::relative(entry.path(), *physical);
+        std::string vfs_path = "/app/scripts/" + rel.generic_string();
+        std::string script_name = entry.path().stem().string();
+        Engine::asset_manager().Register(script_name, AssetType::Script,
+                                         vfs_path);
+      }
+    }
 
-      std::filesystem::path rel =
-          std::filesystem::relative(entry.path(), *physical);
-      std::string vfs_path = "/app/scripts/" + rel.generic_string();
-      std::string script_name = entry.path().stem().string();
-      Engine::asset_manager().Register(script_name, AssetType::Script,
-                                       vfs_path);
+    if (!source_files.empty()) {
+      // Find compiled DLLs to reference (e.g. Core.dll)
+      std::vector<std::string> link_libs;
+      for (const auto& entry : std::filesystem::directory_iterator(".")) {
+        if (entry.is_regular_file() && entry.path().extension() == ".dll" &&
+            entry.path().filename() != "App.dll") {
+          link_libs.push_back(entry.path().string());
+        }
+      }
+
+      LOG_INFO("Compiling app scripts ({} files, {} references)...",
+               source_files.size(), link_libs.size());
+      last_compile_result_ =
+          CompileToDLL(dll_path, source_files, "", link_libs, enable_debugger_);
+      if (!last_compile_result_.success) {
+        LOG_ERROR("App script compilation failed (exit code {}):\n{}",
+                  last_compile_result_.exit_code, last_compile_result_.output);
+        return;
+      }
+
+      LoadAppDll(dll_path);
+      return;
     }
   }
 
-  // Find compiled DLLs to reference (e.g. Core.dll)
-  std::vector<std::string> link_libs;
-  for (const auto& entry : std::filesystem::directory_iterator(".")) {
-    if (entry.is_regular_file() && entry.path().extension() == ".dll"
-        && entry.path().filename() != "App.dll") {
-      std::string name = entry.path().string();
-      link_libs.push_back(name);
-      LOG_INFO("Found DLL to link {}", name);
-    }
+  // No source files - fall back to pre-compiled DLL
+  if (std::filesystem::exists(dll_path)) {
+    LoadAppDll(dll_path);
+  } else {
+    LOG_WARN("No app scripts or pre-compiled App.dll found");
   }
-
-  if (!CompileToDLL(dll_path, source_files, "./", link_libs,
-                    enable_debugger_)) {
-    return;
-  }
-
-  LoadAppDll(dll_path);
 }
 
 bool ScriptManager::LoadAppDll(const std::string& dll_path) {
   app_domain_ =
       mono_domain_create_appdomain(const_cast<char*>("WieselApp"), nullptr);
   mono_domain_set(app_domain_, true);
+  LOG_INFO("Loading App.dll from {}", dll_path);
   app_assembly_ = mono_domain_assembly_open(app_domain_, dll_path.c_str());
   if (!app_assembly_) {
-    LOG_ERROR("Failed to load app DLL: {}", dll_path);
+    LOG_ERROR("Failed to load App.dll: {}", dll_path);
     return false;
   }
 

@@ -17,6 +17,7 @@
 #include <typeindex>
 #include "events/w_keyevents.hpp"
 #include "events/w_mouseevents.hpp"
+#include "mono_compiler.h"
 #include "scene/w_entity.hpp"
 #include "scene/w_scene.hpp"
 
@@ -302,6 +303,10 @@ class ScriptManager {
 
   bool IsCompiling() const { return compiling_; }
 
+  const CompileResult& last_compile_result() const {
+    return last_compile_result_;
+  }
+
   bool FinishReloadIfReady();
 
   void LoadCore();
@@ -385,8 +390,9 @@ class ScriptManager {
 
   // Async compilation
   bool compiling_ = false;
-  std::future<bool> compile_future_;
+  std::future<CompileResult> compile_future_;
   std::string pending_dll_path_;
+  CompileResult last_compile_result_;
 };
 
 }  // namespace Wiesel

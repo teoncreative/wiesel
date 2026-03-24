@@ -89,25 +89,16 @@ void VirtualFileSystem::Mount(const std::string& mount_point,
   std::string normalized_mount = NormalizePath(mount_point);
 
   if (std::filesystem::is_regular_file(abs_path)) {
-    // Check for WPAK magic
-    std::ifstream file(abs_path, std::ios::binary);
-    char magic[4] = {};
-    if (file.is_open()) {
-      file.read(magic, 4);
-    }
-
-    if (std::strncmp(magic, "WPAK", 4) != 0) {
+    if (!Wpak::IsWpakFile(abs_path)) {
       throw std::runtime_error("Not a valid .pak archive: " + path.string());
     }
 
-    Archive archive;
-    archive.path = abs_path;
-
-    if (!LoadArchive(abs_path, archive)) {
-      throw std::runtime_error("Failed to load archive: " + path.string());
+    auto result = Wpak::LoadArchive(abs_path);
+    if (!result) {
+      throw std::runtime_error(result.error.message);
     }
 
-    archives_[normalized_mount] = archive;
+    archives_[normalized_mount] = std::move(result.value);
 
     MountPoint mp;
     mp.mount_point = normalized_mount;
@@ -145,12 +136,16 @@ VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
     if (mp.is_archive) {
       auto archive_it = archives_.find(mp.mount_point);
       if (archive_it != archives_.end()) {
-        const Archive& archive = archive_it->second;
+        const auto& archive = archive_it->second;
         auto entry_it = archive.entries.find(relative_path);
 
         if (entry_it != archive.entries.end()) {
-          auto data = ReadFromArchive(archive, entry_it->second);
-          return VfsFile(std::move(data), virtual_path);
+          auto result = Wpak::ReadEntry(archive, entry_it->second);
+          if (result) {
+            return VfsFile(std::move(result.value), virtual_path);
+          }
+          LOG_ERROR("VFS: failed to read from archive: {}",
+                    result.error.message);
         }
       }
     } else {
@@ -194,8 +189,8 @@ bool VirtualFileSystem::FileExists(const std::string& virtual_path) {
     if (mp.is_archive) {
       auto archive_it = archives_.find(mp.mount_point);
       if (archive_it != archives_.end()) {
-        const Archive& archive = archive_it->second;
-        if (archive.entries.find(relative_path) != archive.entries.end()) {
+        if (archive_it->second.entries.find(relative_path) !=
+            archive_it->second.entries.end()) {
           return true;
         }
       }
@@ -228,9 +223,7 @@ std::vector<std::string> VirtualFileSystem::ListFiles(
     if (mp.is_archive) {
       auto archive_it = archives_.find(mp.mount_point);
       if (archive_it != archives_.end()) {
-        const Archive& archive = archive_it->second;
-
-        for (const auto& [name, entry] : archive.entries) {
+        for (const auto& [name, entry] : archive_it->second.entries) {
           if (relative_path.empty() || name.find(relative_path) == 0) {
             std::string full_virtual_path = mp.mount_point + "/" + name;
             results.push_back(full_virtual_path);
@@ -337,85 +330,6 @@ std::string VirtualFileSystem::NormalizePath(const std::string& path) {
   }
 
   return normalized;
-}
-
-bool VirtualFileSystem::LoadArchive(const std::filesystem::path& archive_path,
-                                    Archive& archive) {
-  std::ifstream file(archive_path, std::ios::binary);
-  if (!file.is_open()) {
-    return false;
-  }
-
-  // Read header
-  char magic[4];
-  file.read(magic, 4);
-
-  if (std::strncmp(magic, "WPAK", 4) != 0) {
-    return false;
-  }
-
-  uint32_t version;
-  file.read(reinterpret_cast<char*>(&version), sizeof(version));
-
-  if (version != 1) {
-    return false;
-  }
-
-  // Read number of entries
-  uint32_t entry_count;
-  file.read(reinterpret_cast<char*>(&entry_count), sizeof(entry_count));
-
-  // Read entries
-  for (uint32_t i = 0; i < entry_count; i++) {
-    ArchiveEntry entry;
-
-    // Read name length
-    uint32_t name_length;
-    file.read(reinterpret_cast<char*>(&name_length), sizeof(name_length));
-
-    // Read name
-    std::string name(name_length, '\0');
-    file.read(&name[0], name_length);
-    entry.name = name;
-
-    // Read metadata
-    file.read(reinterpret_cast<char*>(&entry.offset), sizeof(entry.offset));
-    file.read(reinterpret_cast<char*>(&entry.size), sizeof(entry.size));
-    file.read(reinterpret_cast<char*>(&entry.compressed_size),
-              sizeof(entry.compressed_size));
-
-    uint8_t compressed;
-    file.read(reinterpret_cast<char*>(&compressed), sizeof(compressed));
-    entry.compressed = (compressed != 0);
-
-    archive.entries[entry.name] = entry;
-  }
-
-  return true;
-}
-
-std::vector<uint8_t> VirtualFileSystem::ReadFromArchive(
-    const Archive& archive, const ArchiveEntry& entry) {
-  std::ifstream file(archive.path, std::ios::binary);
-  if (!file.is_open()) {
-    throw std::runtime_error("Failed to open archive: " +
-                             archive.path.string());
-  }
-
-  file.seekg(entry.offset);
-
-  if (entry.compressed) {
-    std::vector<uint8_t> compressed_data(entry.compressed_size);
-    file.read(reinterpret_cast<char*>(compressed_data.data()),
-              entry.compressed_size);
-
-    // TODO: Decompress
-    throw std::runtime_error("Compressed archives not yet implemented");
-  } else {
-    std::vector<uint8_t> data(entry.size);
-    file.read(reinterpret_cast<char*>(data.data()), entry.size);
-    return data;
-  }
 }
 
 }  // namespace Wiesel

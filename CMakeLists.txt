@@ -47,6 +47,7 @@ add_compile_definitions(
 )
 
 include(${VENDOR_DIR}/CMakeLists.txt)
+add_subdirectory(libs/wpak)
 add_subdirectory(monolib)
 add_subdirectory(wiesel)
 add_subdirectory(editor)

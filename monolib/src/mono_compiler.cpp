@@ -1,28 +1,39 @@
 #include "mono_compiler.h"
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <numeric>
+#include <optional>
 
-static std::filesystem::path ResolveMcs() {
+static std::optional<std::filesystem::path> ResolveMcs() {
 #ifdef _WIN32
-  const char* v = std::getenv("MONO_ROOT"); // <- use MONO_ROOT, not MONO_PATH
-  if (!v) throw std::runtime_error("MONO_ROOT not set");
+  const char* v = std::getenv("MONO_ROOT");
+  if (!v) {
+    return std::nullopt;
+  }
   std::filesystem::path p(v);
 
-  // tolerate people passing lib\mono\4.x or bin\ or the bat itself
-  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs.bat") return p;
-  if (p.filename() == "bin") return p / "mcs.bat";
+  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs.bat") {
+    return p;
+  }
+  if (p.filename() == "bin") {
+    return p / "mcs.bat";
+  }
   if (p.string().find("\\lib\\mono\\") != std::string::npos) {
     return p.parent_path().parent_path() / "bin" / "mcs.bat";
   }
   return p / "bin" / "mcs.bat";
 #else
   const char* v = std::getenv("MONO_ROOT");
-  if (!v) throw std::runtime_error("MONO_ROOT not set");
+  if (!v) {
+    return std::nullopt;
+  }
   std::filesystem::path p(v);
-  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs") return p;
-  if (p.filename() == "bin") return p / "mcs";
+  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs") {
+    return p;
+  }
+  if (p.filename() == "bin") {
+    return p / "mcs";
+  }
   if (p.string().find("/lib/mono/") != std::string::npos) {
     return p.parent_path().parent_path() / "bin" / "mcs";
   }
@@ -30,34 +41,48 @@ static std::filesystem::path ResolveMcs() {
 #endif
 }
 
-static std::pair<int,std::string> ExecuteAndGetOutput(const std::string& cmd, std::filesystem::path tmp) {
+static std::pair<int, std::string> ExecuteAndGetOutput(
+    const std::string& cmd, const std::filesystem::path& tmp) {
   int rc = std::system(cmd.c_str());
   std::ifstream in(tmp, std::ios::binary);
   std::string out((std::istreambuf_iterator<char>(in)), {});
-  std::error_code ec; std::filesystem::remove(tmp, ec);
+  std::error_code ec;
+  std::filesystem::remove(tmp, ec);
   return {rc, out};
 }
 
-bool CompileToDLL(const std::string& output_file,
-                  const std::vector<std::string>& source_files,
-                  const std::string& lib_dir,
-                  const std::vector<std::string>& link_libs,
-                  bool debug) {
-  std::filesystem::path output_dir = std::filesystem::path(output_file).parent_path();
-  if (!std::filesystem::exists(output_dir) && !std::filesystem::create_directories(output_dir)) {
-    std::cout << "Failed to create output directory: " << output_dir << std::endl;
-    return false;
+CompileResult CompileToDLL(const std::string& output_file,
+                           const std::vector<std::string>& source_files,
+                           const std::string& lib_dir,
+                           const std::vector<std::string>& link_libs,
+                           bool debug) {
+  std::filesystem::path output_dir =
+      std::filesystem::path(output_file).parent_path();
+  if (!output_dir.empty() && !std::filesystem::exists(output_dir) &&
+      !std::filesystem::create_directories(output_dir)) {
+    return {false, -1,
+            "Failed to create output directory: " + output_dir.string(), ""};
   }
-  std::string source = std::accumulate(source_files.begin(), source_files.end(), std::string(),
-                                       [](const std::string& a, const std::string& b) {
-                                         return a.empty() ? b : a + " " + b;
-                                       });
+
+  auto mcs_path = ResolveMcs();
+  if (!mcs_path) {
+    return {false, -1,
+            "MONO_ROOT environment variable is not set. "
+            "Cannot locate mcs compiler.",
+            ""};
+  }
+
+  std::string source =
+      std::accumulate(source_files.begin(), source_files.end(), std::string(),
+                      [](const std::string& a, const std::string& b) {
+                        return a.empty() ? b : a + " " + b;
+                      });
+
   std::string args;
   for (const auto& lib : link_libs) {
     args += " -reference:" + lib;
   }
   if (debug) {
-    //args += " -debug:portable";
     args += " -debug";
   }
   args += " -langversion:latest";
@@ -70,18 +95,14 @@ bool CompileToDLL(const std::string& output_file,
   args += " " + source;
 
   auto tmp = std::filesystem::temp_directory_path() / "wiesel_cmd_out.txt";
-  std::string mcs = ResolveMcs().make_preferred().string();
-  std::string command = "\"" + mcs + "\"" + args + " > \"" + tmp.string() + "\" 2>&1";
+  std::string mcs = mcs_path->make_preferred().string();
+  std::string command =
+      "\"" + mcs + "\"" + args + " > \"" + tmp.string() + "\" 2>&1";
 
 #ifdef WIN32
   command = "\"" + command + "\"";
 #endif
-  std::pair result = ExecuteAndGetOutput(command,tmp);
-  if (result.first != 0) {
-    std::cout << "Failed to compile C# sources to DLL (error code:" << result.first << ")" << std::endl << result.second;
-    std::cout << "Compile command: " << command << std::endl;
-    return false;
-  }
 
-  return true;
+  auto [exit_code, output] = ExecuteAndGetOutput(command, tmp);
+  return {exit_code == 0, exit_code, output, command};
 }
