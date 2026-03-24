@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -25,7 +25,7 @@ class SceneManager;
 class NativeBehaviorRegistry;
 class AudioManager;
 class ThreadPool;
-class Project;
+struct GameInfo;
 #ifdef WIESEL_DISCORD_RPC
 class DiscordRPC;
 #endif
@@ -35,7 +35,8 @@ struct EngineProperties {
   std::filesystem::path engine_assets_path;
   std::filesystem::path editor_assets_path;
   std::filesystem::path app_assets_path;
-  std::filesystem::path project_path;
+  std::filesystem::path project_path;    // editor-only: .wiesel file
+  std::filesystem::path game_info_path;  // runtime: gameinfo.wgame file
   std::filesystem::path user_data_path;
   bool dev_mode = false;  // Affects hot reloading, logging, etc.
 
@@ -91,11 +92,11 @@ class Engine {
     return *scene_manager_;
   }
 
-  WIESEL_GETTER_FN static std::shared_ptr<Project> project() {
-    return project_;
+  WIESEL_GETTER_FN static std::shared_ptr<GameInfo> game_info() {
+    return game_info_;
   }
 
-  static void SetProject(std::shared_ptr<Project> project);
+  static void SetGameInfo(std::shared_ptr<GameInfo> info);
 #ifdef WIESEL_DISCORD_RPC
   WIESEL_GETTER_FN static DiscordRPC& discord_rpc() { return *discord_rpc_; }
 #endif
@@ -149,7 +150,7 @@ class Engine {
   static std::shared_ptr<ThreadPool> thread_pool_;
   static std::shared_ptr<AudioManager> audio_manager_;
   static std::shared_ptr<SceneManager> scene_manager_;
-  static std::shared_ptr<Project> project_;
+  static std::shared_ptr<GameInfo> game_info_;
   static Application* application_;
 #ifdef WIESEL_DISCORD_RPC
   static std::shared_ptr<DiscordRPC> discord_rpc_;

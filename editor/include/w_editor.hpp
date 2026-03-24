@@ -1,4 +1,14 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 18/04/2025.
 //
 
@@ -8,10 +18,10 @@
 #include "behavior/w_behavior.hpp"
 #include "events/w_appevents.hpp"
 #include "events/w_mouseevents.hpp"
-#include "project/w_project.hpp"
 #include "rendering/w_camera.hpp"
 #include "scene/w_scene.hpp"
 #include "w_application.hpp"
+#include "w_project.hpp"
 
 namespace Wiesel::Editor {
 
@@ -41,6 +51,7 @@ class EditorLayer : public Layer {
   bool OnMouseMoved(MouseMovedEvent& event);
   bool OnWindowFocusGained(WindowFocusGainedEvent& event);
   bool OnWindowFocusLost(WindowFocusLostEvent& event);
+  bool OnAssetUnloaded(AssetUnloadedEvent& event);
 
   void RenderEntity(Entity& entity, entt::entity entity_id, int depth,
                     bool& ignore_menu);
@@ -58,6 +69,8 @@ class EditorLayer : public Layer {
   void RenderMainMenuBar();
   void RenderProjectSettingsPopup();
   void RenderCreateSkyboxPopup();
+  void RenderCreateSpritePopup();
+  void RenderSliceSpritesPopup();
   void RenderCreateSpriteSheetPopup();
   void RenderCreateSpriteAnimPopup();
   void NewProject();
@@ -118,6 +131,9 @@ class EditorLayer : public Layer {
   bool show_create_skybox_ = false;
   bool show_create_spritesheet_ = false;
   bool show_create_spriteanim_ = false;
+  bool show_create_sprite_ = false;
+  bool show_slice_sprites_ = false;
+  AssetHandle slice_texture_handle_;  // texture being sliced
   std::string
       browser_current_dir_;  // current asset browser directory relative to /app
 

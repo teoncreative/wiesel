@@ -1,4 +1,14 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 05.03.2026.
 //
 
@@ -92,9 +102,23 @@ bool SceneManager::BeginFrame() {
   scene->InvalidateRenderGraphs();
   scene->ClearRequestedAssets();
 
-  // Load the new scene (populates requested_assets_ via RequestAsset)
+  // Load the new scene via VFS (populates requested_assets_ via RequestAsset)
+  auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+  std::string vfs_path;
+  if (physical_app.has_value()) {
+    auto rel = std::filesystem::relative(path, *physical_app);
+    vfs_path = "/app/" + rel.generic_string();
+  }
+
+  VfsFile file = Engine::vfs()->Open(vfs_path);
+  if (!file) {
+    LOG_ERROR("Failed to open scene: {}", vfs_path);
+    return false;
+  }
+  std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                      std::istreambuf_iterator<char>());
   SceneSerializer serializer(scene);
-  if (!serializer.Deserialize(path)) {
+  if (!serializer.DeserializeFromString(content)) {
     LOG_ERROR("Failed to load scene: {}", path.string());
     return false;
   }
@@ -159,8 +183,22 @@ void SceneManager::LoadSceneWithLoadingPath(
   // called during deserialization for every asset handle, so we don't
   // need to manually scan the JSON for specific component types.
   target_scene_ = std::make_shared<Scene>();
+  auto target_app = Engine::vfs()->GetPhysicalPath("/app");
+  std::string target_vfs;
+  if (target_app.has_value()) {
+    auto rel = std::filesystem::relative(target_scene_path_, *target_app);
+    target_vfs = "/app/" + rel.generic_string();
+  }
+  VfsFile target_file = Engine::vfs()->Open(target_vfs);
+  std::string target_content;
+  if (target_file) {
+    target_content =
+        std::string((std::istreambuf_iterator<char>(target_file.Stream())),
+                    std::istreambuf_iterator<char>());
+  }
   SceneSerializer serializer(target_scene_);
-  if (!serializer.Deserialize(target_scene_path_)) {
+  if (target_content.empty() ||
+      !serializer.DeserializeFromString(target_content)) {
     LOG_ERROR("Failed to pre-parse target scene: {}",
               target_scene_path_.string());
     target_scene_.reset();

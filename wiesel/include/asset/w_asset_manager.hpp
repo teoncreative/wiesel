@@ -1,11 +1,23 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 10.02.2026.
 //
 
 #pragma once
 
+#include <unordered_set>
 #include "asset/w_asset_handle.hpp"
 #include "asset/w_asset_loader.hpp"
+#include "util/w_command.hpp"
 #include "util/w_logger.hpp"
 #include "util/w_utils.hpp"
 #include "w_pch.hpp"
@@ -97,6 +109,15 @@ class AssetManager {
   void Unload(AssetHandle handle);
   void UnloadAll();
 
+  // Dependency tracking: when parent is unloaded, all dependents are
+  // unloaded too. Call this during asset loading to register that
+  // `dependent` requires `parent` (e.g. sprite depends on texture).
+  void AddDependency(AssetHandle dependent, AssetHandle parent);
+  void RemoveDependencies(AssetHandle dependent);
+
+  // Get all assets that depend on the given parent.
+  std::vector<AssetHandle> GetDependents(AssetHandle parent) const;
+
   template <typename T>
   AssetHandle RegisterAndStore(const std::string& name, AssetType type,
                                const std::string& virtual_source_path,
@@ -128,16 +149,27 @@ class AssetManager {
   std::unordered_map<std::string, AssetHandle> path_index_;
   std::unordered_map<std::string, AssetHandle> name_index_;
   std::unordered_map<AssetType, std::shared_ptr<IAssetLoader>> loaders_;
+
+  // Dependency graph: parent -> set of dependents
+  std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>>
+      parent_to_dependents_;
+  // Reverse: dependent -> set of parents
+  std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>>
+      dependent_to_parents_;
 };
 
 // Template implementations
 
 template <typename T>
 void AssetManager::Store(AssetHandle handle, std::shared_ptr<T> resource) {
+  if (!handle.IsValid()) {
+    DCON_LOG_ERROR("AssetManager::Store called with invalid handle");
+    return;
+  }
   auto it = registry_.find(handle);
   if (it == registry_.end()) {
-    LOG_ERROR("AssetManager::Store called with unregistered handle {}",
-              handle.ToString());
+    DCON_LOG_ERROR("AssetManager::Store called with unregistered handle {}",
+                   handle.ToString());
     return;
   }
   it->second->resource = std::static_pointer_cast<void>(resource);
@@ -145,6 +177,9 @@ void AssetManager::Store(AssetHandle handle, std::shared_ptr<T> resource) {
 
 template <typename T>
 std::shared_ptr<T> AssetManager::Get(AssetHandle handle) const {
+  if (!handle.IsValid()) {
+    return nullptr;
+  }
   auto it = registry_.find(handle);
   if (it == registry_.end() || !it->second->resource) {
     return nullptr;
@@ -154,6 +189,9 @@ std::shared_ptr<T> AssetManager::Get(AssetHandle handle) const {
 
 template <typename T>
 std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
+  if (!handle.IsValid()) {
+    return nullptr;
+  }
   auto it = registry_.find(handle);
   if (it == registry_.end()) {
     return nullptr;

@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "util/w_command.hpp"
@@ -104,6 +104,17 @@ void DeveloperConsole::Execute(const std::string& command_line) {
 
 void DeveloperConsole::Log(ConsoleLogLevel level, const std::string& message) {
   log_.push_back({level, message});
+  switch (level) {
+    case ConsoleLogLevel::Info:
+      LOG_INFO("[DCON] {}", message);
+      break;
+    case ConsoleLogLevel::Warning:
+      LOG_WARN("[DCON] {}", message);
+      break;
+    case ConsoleLogLevel::Error:
+      LOG_ERROR("[DCON] {}", message);
+      break;
+  }
 }
 
 void DeveloperConsole::Clear() {

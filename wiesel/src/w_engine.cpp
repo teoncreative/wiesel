@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "w_engine.hpp"
@@ -20,14 +20,15 @@
 #include <fstream>
 #include <future>
 #include <thread>
+#include "../../editor/include/w_editor_components.hpp"
 #include "asset/w_asset_loader.hpp"
 #include "asset/w_asset_manager.hpp"
 #include "asset/w_asset_properties.hpp"
 #include "asset/w_asset_property_registry.hpp"
+#include "game/w_game_info.hpp"
 #include "input/w_input.hpp"
-#include "project/w_project.hpp"
+#include "rendering/w_sprite_asset.hpp"
 #include "scene/w_component_serializer.hpp"
-#include "scene/w_componentutil.hpp"
 #include "scene/w_entity.hpp"
 #include "scene/w_lights.hpp"
 #include "scene/w_scene_manager.hpp"
@@ -150,7 +151,9 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       cxxopts::value<std::string>())("app-assets",
                                      "Path to application assets directory",
                                      cxxopts::value<std::string>())(
-      "project", "Path to project directory", cxxopts::value<std::string>())(
+      "project", "Path to project file (editor)", cxxopts::value<std::string>())(
+      "game-info", "Path to gameinfo.wgame file",
+      cxxopts::value<std::string>())(
       "h,help", "Print usage information");
 
   try {
@@ -183,6 +186,10 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       config.project_path = result["project"].as<std::string>();
     }
 
+    if (result.count("game-info")) {
+      config.game_info_path = result["game-info"].as<std::string>();
+    }
+
   } catch (const cxxopts::exceptions::exception& e) {
     std::cerr << "Error parsing arguments: " << e.what() << std::endl;
     std::cerr << options.help() << std::endl;
@@ -211,6 +218,23 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
   if (config.project_path.empty()) {
     if (const char* env = std::getenv("WIESEL_PROJECT_PATH")) {
       config.project_path = env;
+    }
+  }
+
+  if (config.game_info_path.empty()) {
+    if (const char* env = std::getenv("WIESEL_GAME_INFO")) {
+      config.game_info_path = env;
+    }
+  }
+
+  // Auto-discover gameinfo.wgame next to exe or in CWD
+  if (config.game_info_path.empty()) {
+    std::filesystem::path cwd_info = "gameinfo.wgame";
+    std::filesystem::path exe_info = exe_dir / "gameinfo.wgame";
+    if (std::filesystem::exists(cwd_info)) {
+      config.game_info_path = cwd_info;
+    } else if (std::filesystem::exists(exe_info)) {
+      config.game_info_path = exe_info;
     }
   }
 
@@ -276,7 +300,7 @@ std::shared_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
 std::shared_ptr<ThreadPool> Engine::thread_pool_;
 std::shared_ptr<AudioManager> Engine::audio_manager_;
 std::shared_ptr<SceneManager> Engine::scene_manager_;
-std::shared_ptr<Project> Engine::project_;
+std::shared_ptr<GameInfo> Engine::game_info_;
 #ifdef WIESEL_DISCORD_RPC
 std::shared_ptr<DiscordRPC> Engine::discord_rpc_;
 #endif
@@ -333,8 +357,55 @@ void Engine::InitEngine(const EngineProperties& props) {
             asset_manager_->Unload(handle);
           }));
 
+  // Sprite (.wsprite) loader: reads JSON, stores SpriteAssetData.
+  asset_manager_->RegisterLoader(
+      AssetType::Sprite,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) {
+            const auto* meta = asset_manager_->GetMetadata(handle);
+            if (!meta) {
+              return false;
+            }
+            auto file = Engine::vfs()->Open(meta->virtual_source_path);
+            if (!file) {
+              return false;
+            }
+            auto chars = file.AsChars();
+            std::string json_str(chars.begin(), chars.end());
+            nlohmann::json j =
+                nlohmann::json::parse(json_str, nullptr, false);
+            if (j.is_discarded() || !j.contains("texture") ||
+                !j.contains("rect")) {
+              LOG_ERROR("Invalid .wsprite file: {}",
+                        meta->virtual_source_path);
+              return false;
+            }
+
+            auto data = std::make_shared<SpriteAssetData>();
+            data->texture_handle =
+                AssetHandle::FromString(j["texture"].get<std::string>());
+            data->rect = {j["rect"][0].get<float>(), j["rect"][1].get<float>(),
+                          j["rect"][2].get<float>(), j["rect"][3].get<float>()};
+            if (j.contains("pivot") && j["pivot"].is_array()) {
+              data->pivot = {j["pivot"][0].get<float>(),
+                             j["pivot"][1].get<float>()};
+            }
+
+            // Ensure the backing texture is loaded
+            if (data->texture_handle.IsValid()) {
+              auto tex = asset_manager_->Get<Texture>(data->texture_handle);
+              if (!tex) {
+                asset_manager_->LoadSync(data->texture_handle);
+              }
+            }
+
+            asset_manager_->Store(handle, data);
+            asset_manager_->AddDependency(handle, data->texture_handle);
+            return true;
+          },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
   InitializeVfs();
-  InitializeComponents();
   InitializeComponentSerializers();
   InputManager::Init();
   InitializeAssetProperties();
@@ -423,7 +494,7 @@ void Engine::CleanupEngine() {
   discord_rpc_ = nullptr;
 #endif
   scene_manager_ = nullptr;
-  project_ = nullptr;
+  game_info_ = nullptr;
   script_manager_ = nullptr;
   behavior_registry_ = nullptr;
   if (audio_manager_) {
@@ -438,8 +509,8 @@ void Engine::CleanupApplication() {
   application_ = nullptr;
 }
 
-void Engine::SetProject(std::shared_ptr<Project> project) {
-  project_ = std::move(project);
+void Engine::SetGameInfo(std::shared_ptr<GameInfo> info) {
+  game_info_ = std::move(info);
 }
 
 aiScene* Engine::LoadAssimpModel(const std::string& path,
@@ -722,12 +793,11 @@ bool Engine::LoadModel(AssetHandle handle) {
             mesh->mat->asset_handle = mat_handle;
           }
 
-          // Save .wmat file to project directory if a project is active
-          if (project_ && wmat_vfs_path.starts_with("/app/")) {
+          // Save .wmat file to physical path if available
+          auto wmat_physical = vfs_->GetPhysicalPath(wmat_vfs_path);
+          if (wmat_physical.has_value()) {
             namespace fs = std::filesystem;
-            // Convert VFS path to physical: /app/... -> <assets_dir>/...
-            std::string rel = wmat_vfs_path.substr(5);  // strip "/app/"
-            fs::path wmat_path = fs::path(project_->GetAssetsDirectory()) / rel;
+            fs::path wmat_path = *wmat_physical;
             if (!fs::exists(wmat_path)) {
               fs::create_directories(wmat_path.parent_path());
               nlohmann::json j = mesh->mat->Serialize();

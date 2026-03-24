@@ -1,4 +1,14 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 18/04/2025.
 //
 
@@ -23,12 +33,15 @@
 #include "layer/w_layerscene.hpp"
 #include "physics/w_collider.hpp"
 #include "physics/w_physics_world.hpp"
-#include "project/w_project_loader.hpp"
+#include "w_project_loader.hpp"
+#include "asset/w_asset_utils.hpp"
 #include "rendering/w_material.hpp"
 #include "rendering/w_sprite.hpp"
+#include "rendering/w_sprite_asset.hpp"
+#include "../include/w_thumbnail_cache.hpp"
 #include "rendering/w_texture.hpp"
 #include "scene/w_component_serializer.hpp"
-#include "scene/w_componentutil.hpp"
+#include "../include/w_editor_components.hpp"
 #include "scene/w_prefab.hpp"
 #include "scene/w_scene_manager.hpp"
 #include "scene/w_scene_serializer.hpp"
@@ -48,8 +61,10 @@ std::shared_ptr<Wiesel::Scene> scene() {
   return Wiesel::Engine::scene_manager().GetActiveScene();
 }
 
+static std::shared_ptr<Wiesel::Project> active_project_;
+
 std::shared_ptr<Wiesel::Project> project() {
-  return Wiesel::Engine::project();
+  return active_project_;
 }
 
 // --- RecentProjects ---
@@ -162,6 +177,36 @@ static const ResolutionPreset kResolutionPresets[] = {
 static constexpr int kResolutionPresetCount =
     sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]);
 
+// Save a scene to disk, preserving the asset_handle field.
+static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
+                            const std::filesystem::path& path) {
+  SceneSerializer serializer(s);
+  nlohmann::json root = nlohmann::json::parse(serializer.SerializeToString());
+
+  // Preserve existing asset_handle from the file
+  {
+    std::ifstream existing(path);
+    if (existing.is_open()) {
+      try {
+        nlohmann::json old_json;
+        existing >> old_json;
+        std::string handle_str = old_json.value("asset_handle", "");
+        if (!handle_str.empty()) {
+          root["asset_handle"] = handle_str;
+        }
+      } catch (...) {}
+    }
+  }
+
+  std::ofstream file(path);
+  if (!file.is_open()) {
+    return false;
+  }
+  file << root.dump(2);
+  return true;
+}
+
+
 // Editor layout constants
 static constexpr float kLeftPanelRatio = 0.20f;
 static constexpr float kHierarchySplitRatio = 0.45f;
@@ -170,20 +215,10 @@ static constexpr float kRightPanelRatio = 0.20f;
 static constexpr float kResolutionComboWidth = 130.0f;
 static constexpr float kSettingsButtonWidth = 24.0f;
 
-struct ThumbnailEntry {
-  VkDescriptorSet texture_id = nullptr;
-  bool attempted = false;
-};
-
-static std::unordered_map<AssetHandle, ThumbnailEntry> thumbnail_cache_;
+static ThumbnailCache thumbnail_cache_instance_;
 
 static void CleanupThumbnailCache() {
-  for (ThumbnailEntry& entry : thumbnail_cache_ | std::views::values) {
-    if (entry.texture_id) {
-      ImGui_ImplVulkan_RemoveTexture(entry.texture_id);
-    }
-  }
-  thumbnail_cache_.clear();
+  thumbnail_cache_instance_.Clear();
 }
 
 EditorLayer::EditorLayer(Application& app) : Layer("Demo Overlay"), app_(app) {}
@@ -192,6 +227,7 @@ EditorLayer::~EditorLayer() = default;
 
 void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
+  ThumbnailCache::Set(&thumbnail_cache_instance_);
 
   // Editor idle throttling
   app_.SetIdleMaxFPS(15.0f);
@@ -362,12 +398,18 @@ bool EditorLayer::OnWindowFocusLost(WindowFocusLostEvent& event) {
   return false;
 }
 
+bool EditorLayer::OnAssetUnloaded(AssetUnloadedEvent& event) {
+  thumbnail_cache_instance_.Remove(event.GetHandle());
+  return false;
+}
+
 void EditorLayer::OnEvent(Event& event) {
   EventDispatcher dispatcher(event);
   dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
   dispatcher.Dispatch<WindowFocusGainedEvent>(
       WIESEL_BIND_FN(OnWindowFocusGained));
   dispatcher.Dispatch<WindowFocusLostEvent>(WIESEL_BIND_FN(OnWindowFocusLost));
+  dispatcher.Dispatch<AssetUnloadedEvent>(WIESEL_BIND_FN(OnAssetUnloaded));
 
   if (editor_state_ == EditorState::Playing) {
     bool is_input = event.IsInCategory(EventCategory::kEventCategoryInput);
@@ -393,53 +435,7 @@ void EditorLayer::OnEvent(Event& event) {
 
 static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle,
                                            const AssetMetadata& meta) {
-  auto it = thumbnail_cache_.find(handle);
-  if (it != thumbnail_cache_.end()) {
-    return it->second;
-  }
-
-  ThumbnailEntry entry;
-  AssetManager& mgr = Engine::asset_manager();
-
-  if (meta.type == AssetType::Texture) {
-    std::shared_ptr<Texture> texture = mgr.Get<Texture>(handle);
-    if (!texture && !meta.virtual_source_path.empty()) {
-      // Load on demand for editor preview
-      texture =
-          Engine::renderer()->CreateTexture(meta.virtual_source_path, {}, {});
-      if (texture) {
-        mgr.Store<Texture>(handle, texture);
-        mgr.SetLoadState(handle, AssetLoadState::Unloaded,
-                         AssetLoadState::Loaded);
-      }
-    }
-    if (!texture || !texture->is_allocated_ || !texture->image_view_ ||
-        !texture->sampler_) {
-      return entry;
-    }
-    entry.texture_id = ImGui_ImplVulkan_AddTexture(
-        texture->sampler_->handle(), texture->image_view_->handle_,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    entry.attempted = true;
-  } else if (meta.type == AssetType::Sprite) {
-    std::shared_ptr<SpriteAsset> sprite = mgr.Get<SpriteAsset>(handle);
-    if (!sprite || !sprite->IsAllocated() || sprite->GetFrames().empty()) {
-      return entry;
-    }
-    const SpriteAsset::Frame& frame = sprite->GetFrames()[0];
-    if (!frame.view || !sprite->GetSampler()) {
-      return entry;
-    }
-    entry.texture_id = ImGui_ImplVulkan_AddTexture(
-        sprite->GetSampler()->handle(), frame.view->handle_,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    entry.attempted = true;
-  }
-
-  if (entry.attempted) {
-    thumbnail_cache_[handle] = entry;
-  }
-  return entry;
+  return thumbnail_cache_instance_.GetOrCreate(handle, meta);
 }
 
 // Reusable asset picker combo. Shows all assets of the given type with
@@ -496,7 +492,7 @@ static bool AssetCombo(const char* label, AssetType type, AssetHandle& selected,
         if (thumb.texture_id) {
           ImGui::BeginTooltip();
           ImGui::Image(reinterpret_cast<ImTextureID>(thumb.texture_id),
-                       ImVec2(128, 128));
+                       thumb.FitSize(128), thumb.uv0, thumb.uv1);
           ImGui::EndTooltip();
         }
       }
@@ -517,7 +513,8 @@ static bool AssetCombo(const char* label, AssetType type, AssetHandle& selected,
         ImGui::SameLine();
         ImGui::Image(
             reinterpret_cast<ImTextureID>(thumb.texture_id),
-            ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
+            ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()),
+            thumb.uv0, thumb.uv1);
       }
     }
   }
@@ -807,6 +804,8 @@ void EditorLayer::OnBeginPresent() {
   RenderProjectSettingsPopup();
   RenderAssetPropertiesPanel();
   RenderCreateSkyboxPopup();
+  RenderCreateSpritePopup();
+  RenderSliceSpritesPopup();
   RenderCreateSpriteSheetPopup();
   RenderCreateSpriteAnimPopup();
 
@@ -1053,7 +1052,7 @@ void EditorLayer::OnBeginPresent() {
 
             if (!fe.is_dir) {
               auto ext = entry.path().extension().string();
-              fe.asset_type = ProjectLoader::ExtToAssetType(ext);
+              fe.asset_type = ExtToAssetType(ext);
               if (fe.asset_type == AssetType::None) {
                 if (ext == ".cs") {
                   fe.asset_type = AssetType::Script;
@@ -1282,7 +1281,8 @@ void EditorLayer::OnBeginPresent() {
 
         auto DrawTile = [&](const char* label, ImVec4 icon_color,
                             const char* type_abbrev, bool is_selected,
-                            bool is_folder, VkDescriptorSet thumbnail = nullptr,
+                            bool is_folder,
+                            const ThumbnailEntry* thumbnail = nullptr,
                             const AssetMetadata* asset_meta = nullptr,
                             bool* double_clicked = nullptr) -> bool {
           bool clicked = false;
@@ -1317,10 +1317,16 @@ void EditorLayer::OnBeginPresent() {
           }
 
           // Icon: thumbnail image or colored rectangle
-          if (thumbnail) {
-            dl->AddImageRounded(reinterpret_cast<ImTextureID>(thumbnail),
-                                icon_min, icon_max, ImVec2(0, 0), ImVec2(1, 1),
-                                IM_COL32_WHITE, 6.0f);
+          if (thumbnail && thumbnail->texture_id) {
+            ImVec2 img_size = thumbnail->FitSize(tile_size);
+            float ox = (tile_size - img_size.x) * 0.5f;
+            float oy = (tile_size - img_size.y) * 0.5f;
+            ImVec2 img_min(icon_min.x + ox, icon_min.y + oy);
+            ImVec2 img_max(img_min.x + img_size.x, img_min.y + img_size.y);
+            dl->AddImageRounded(
+                reinterpret_cast<ImTextureID>(thumbnail->texture_id), img_min,
+                img_max, thumbnail->uv0, thumbnail->uv1, IM_COL32_WHITE,
+                6.0f);
           } else {
             ImU32 col32 = ImGui::ColorConvertFloat4ToU32(icon_color);
             dl->AddRectFilled(icon_min, icon_max, col32,
@@ -1543,11 +1549,14 @@ void EditorLayer::OnBeginPresent() {
               }
             }
 
-            VkDescriptorSet thumbnail = nullptr;
+            const ThumbnailEntry* thumbnail = nullptr;
+            ThumbnailEntry thumb_entry;
             if (meta && (meta->type == AssetType::Texture ||
                          meta->type == AssetType::Sprite)) {
-              ThumbnailEntry thumb = GetOrCreateThumbnail(handle, *meta);
-              thumbnail = thumb.texture_id;
+              thumb_entry = GetOrCreateThumbnail(handle, *meta);
+              if (thumb_entry.texture_id) {
+                thumbnail = &thumb_entry;
+              }
             }
 
             bool is_imported = handle.IsValid();
@@ -1629,18 +1638,24 @@ void EditorLayer::OnBeginPresent() {
                 fe.asset_type != AssetType::None) {
               if (ImGui::MenuItem("Import")) {
                 std::string import_vfs = "/app/" + current_dir + fe.name;
-                AssetHandle new_handle =
-                    mgr.Register(fe.name, fe.asset_type, import_vfs);
+                AssetHandle new_handle = ProjectLoader::ImportAsset(
+                    fe.name, fe.asset_type, import_vfs);
                 if (new_handle.IsValid()) {
-                  namespace fs = std::filesystem;
-                  fs::path meta_path = fe.physical_path.string() + ".meta";
-                  ProjectLoader::WriteMetaFile(meta_path, new_handle);
                   if (fe.asset_type == AssetType::Prefab ||
                       fe.asset_type == AssetType::Scene) {
                     mgr.SetLoadState(new_handle, AssetLoadState::Unloaded,
                                      AssetLoadState::Loaded);
                   }
                 }
+              }
+              ImGui::Separator();
+            }
+            if (!fe.is_dir && fe.asset_type == AssetType::Texture &&
+                handle.IsValid()) {
+              if (ImGui::MenuItem("Slice into Sprites")) {
+                slice_texture_handle_ = handle;
+                show_slice_sprites_ = true;
+                ImGui::CloseCurrentPopup();
               }
               ImGui::Separator();
             }
@@ -1758,6 +1773,10 @@ void EditorLayer::OnBeginPresent() {
             }
             if (ImGui::MenuItem("Skybox")) {
               show_create_skybox_ = true;
+              ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("Sprite")) {
+              show_create_sprite_ = true;
               ImGui::CloseCurrentPopup();
             }
             if (ImGui::MenuItem("Sprite Sheet")) {
@@ -3066,6 +3085,252 @@ void EditorLayer::RenderCreateSkyboxPopup() {
   }
 }
 
+// Helper: write a .wsprite JSON file and rescan assets
+static void WriteSpriteFile(const std::filesystem::path& file_path,
+                            const AssetHandle& texture_handle,
+                            float x, float y, float w, float h,
+                            float pivot_x, float pivot_y) {
+  nlohmann::json j;
+  j["asset_handle"] = AssetHandle::Generate().ToString();
+  j["texture"] = texture_handle.ToString();
+  j["rect"] = {x, y, w, h};
+  j["pivot"] = {pivot_x, pivot_y};
+  std::ofstream out(file_path);
+  if (out.is_open()) {
+    out << j.dump(2);
+  }
+}
+
+void EditorLayer::RenderCreateSpritePopup() {
+  if (show_create_sprite_) {
+    ImGui::OpenPopup("Create Sprite");
+    show_create_sprite_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiCond_Appearing);
+
+  if (ImGui::BeginPopupModal("Create Sprite", nullptr,
+                             ImGuiWindowFlags_None)) {
+    static char name_buf[128] = "sprite";
+    static AssetHandle texture_handle;
+    static float rect[4] = {0, 0, 64, 64};  // x, y, w, h in pixels
+    static float pivot[2] = {0.5f, 0.5f};
+
+    ImGui::InputText("Name", name_buf, sizeof(name_buf));
+    AssetCombo("Texture", AssetType::Texture, texture_handle, false);
+
+    // Show texture preview with rect overlay
+    if (texture_handle.IsValid()) {
+      auto tex = Engine::asset_manager().Get<Texture>(texture_handle);
+      if (!tex) {
+        Engine::asset_manager().LoadSync(texture_handle);
+        tex = Engine::asset_manager().Get<Texture>(texture_handle);
+      }
+      if (tex) {
+        float tex_w = static_cast<float>(tex->width_);
+        float tex_h = static_cast<float>(tex->height_);
+
+        ImGui::Text("Texture: %dx%d", static_cast<int>(tex_w),
+                     static_cast<int>(tex_h));
+
+        ImGui::DragFloat4("Rect (x, y, w, h)", rect, 1.0f, 0.0f,
+                          std::max(tex_w, tex_h));
+        ImGui::DragFloat2("Pivot", pivot, 0.01f, 0.0f, 1.0f);
+
+        // Clamp rect to texture bounds
+        rect[0] = std::clamp(rect[0], 0.0f, tex_w);
+        rect[1] = std::clamp(rect[1], 0.0f, tex_h);
+        rect[2] = std::clamp(rect[2], 1.0f, tex_w - rect[0]);
+        rect[3] = std::clamp(rect[3], 1.0f, tex_h - rect[1]);
+
+        // Preview
+        ImGui::Separator();
+        ImGui::Text("Preview:");
+        VkDescriptorSet desc = tex->GetImGuiDescriptor();
+        if (desc) {
+          // Show just the selected sub-region
+          ImVec2 uv0(rect[0] / tex_w, rect[1] / tex_h);
+          ImVec2 uv1((rect[0] + rect[2]) / tex_w,
+                      (rect[1] + rect[3]) / tex_h);
+          float aspect = rect[2] / rect[3];
+          float preview_h = 128.0f;
+          float preview_w = preview_h * aspect;
+          ImGui::Image(reinterpret_cast<ImTextureID>(desc),
+                       ImVec2(preview_w, preview_h), uv0, uv1);
+        }
+      }
+    }
+
+    ImGui::Separator();
+    bool can_create = name_buf[0] != '\0' && texture_handle.IsValid();
+    if (ImGui::Button("Create") && can_create) {
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      if (physical_app.has_value()) {
+        namespace fs = std::filesystem;
+        fs::path base = fs::absolute(*physical_app);
+        if (!browser_current_dir_.empty()) {
+          base = base / browser_current_dir_;
+        }
+        fs::path file_path = base / (std::string(name_buf) + ".wsprite");
+        WriteSpriteFile(file_path, texture_handle,
+                        rect[0], rect[1], rect[2], rect[3],
+                        pivot[0], pivot[1]);
+        ScanProjectAssets();
+      }
+      name_buf[0] = '\0';
+      texture_handle = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      name_buf[0] = '\0';
+      texture_handle = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
+}
+
+void EditorLayer::RenderSliceSpritesPopup() {
+  if (show_slice_sprites_) {
+    ImGui::OpenPopup("Slice into Sprites");
+    show_slice_sprites_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiCond_Appearing);
+
+  if (ImGui::BeginPopupModal("Slice into Sprites", nullptr,
+                             ImGuiWindowFlags_None)) {
+    static char prefix_buf[128] = "sprite";
+    static int columns = 6;
+    static int rows = 1;
+    static float pivot[2] = {0.5f, 0.5f};
+
+    auto tex = slice_texture_handle_.IsValid()
+                   ? Engine::asset_manager().Get<Texture>(slice_texture_handle_)
+                   : nullptr;
+    if (!tex) {
+      ImGui::Text("Texture not loaded.");
+      if (ImGui::Button("Close")) {
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+      return;
+    }
+
+    float tex_w = static_cast<float>(tex->width_);
+    float tex_h = static_cast<float>(tex->height_);
+    const auto* meta =
+        Engine::asset_manager().GetMetadata(slice_texture_handle_);
+    ImGui::Text("Texture: %s (%dx%d)", meta ? meta->name.c_str() : "?",
+                static_cast<int>(tex_w), static_cast<int>(tex_h));
+
+    ImGui::InputText("Name Prefix", prefix_buf, sizeof(prefix_buf));
+    ImGui::InputInt("Columns", &columns);
+    ImGui::InputInt("Rows", &rows);
+    ImGui::DragFloat2("Pivot", pivot, 0.01f, 0.0f, 1.0f);
+
+    columns = std::max(1, columns);
+    rows = std::max(1, rows);
+
+    float cell_w = tex_w / static_cast<float>(columns);
+    float cell_h = tex_h / static_cast<float>(rows);
+    int total = columns * rows;
+
+    ImGui::Text("Cell size: %.0fx%.0f | Total sprites: %d", cell_w, cell_h,
+                total);
+
+    // Texture preview with grid overlay
+    ImGui::Separator();
+    VkDescriptorSet desc = tex->GetImGuiDescriptor();
+    if (desc) {
+      // Fit preview to available width
+      float avail_w = ImGui::GetContentRegionAvail().x;
+      float avail_h = ImGui::GetContentRegionAvail().y - 50.0f;
+      float scale = std::min(avail_w / tex_w, avail_h / tex_h);
+      scale = std::min(scale, 1.0f);  // don't upscale
+      float preview_w = tex_w * scale;
+      float preview_h = tex_h * scale;
+
+      ImVec2 cursor = ImGui::GetCursorScreenPos();
+      ImGui::Image(reinterpret_cast<ImTextureID>(desc),
+                   ImVec2(preview_w, preview_h));
+
+      // Draw grid lines
+      ImDrawList* dl = ImGui::GetWindowDrawList();
+      ImU32 grid_col = IM_COL32(255, 255, 0, 180);
+
+      for (int c = 1; c < columns; c++) {
+        float x = cursor.x + (static_cast<float>(c) / columns) * preview_w;
+        dl->AddLine(ImVec2(x, cursor.y),
+                    ImVec2(x, cursor.y + preview_h), grid_col);
+      }
+      for (int r = 1; r < rows; r++) {
+        float y = cursor.y + (static_cast<float>(r) / rows) * preview_h;
+        dl->AddLine(ImVec2(cursor.x, y),
+                    ImVec2(cursor.x + preview_w, y), grid_col);
+      }
+
+      // Draw border
+      dl->AddRect(cursor, ImVec2(cursor.x + preview_w, cursor.y + preview_h),
+                  grid_col);
+
+      // Draw cell index labels
+      for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < columns; c++) {
+          int idx = r * columns + c;
+          float cx = cursor.x + (c + 0.5f) / columns * preview_w;
+          float cy = cursor.y + (r + 0.5f) / rows * preview_h;
+          std::string label = std::to_string(idx);
+          ImVec2 text_sz = ImGui::CalcTextSize(label.c_str());
+          dl->AddText(ImVec2(cx - text_sz.x * 0.5f, cy - text_sz.y * 0.5f),
+                      IM_COL32(255, 255, 255, 200), label.c_str());
+        }
+      }
+    }
+
+    ImGui::Separator();
+    bool can_create = prefix_buf[0] != '\0';
+    if (ImGui::Button("Slice") && can_create) {
+      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      if (physical_app.has_value()) {
+        namespace fs = std::filesystem;
+        fs::path base = fs::absolute(*physical_app);
+        if (!browser_current_dir_.empty()) {
+          base = base / browser_current_dir_;
+        }
+
+        for (int r = 0; r < rows; r++) {
+          for (int c = 0; c < columns; c++) {
+            int idx = r * columns + c;
+            std::string name =
+                std::string(prefix_buf) + "_" + std::to_string(idx);
+            fs::path file_path = base / (name + ".wsprite");
+            WriteSpriteFile(file_path, slice_texture_handle_,
+                            c * cell_w, r * cell_h, cell_w, cell_h,
+                            pivot[0], pivot[1]);
+          }
+        }
+        ScanProjectAssets();
+      }
+      prefix_buf[0] = '\0';
+      slice_texture_handle_ = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      prefix_buf[0] = '\0';
+      slice_texture_handle_ = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+  }
+}
+
 void EditorLayer::RenderCreateSpriteSheetPopup() {
   if (show_create_spritesheet_) {
     ImGui::OpenPopup("Create Sprite Sheet");
@@ -3363,6 +3628,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
   if (ImGui::BeginPopupModal("Project Settings", &popup_open,
                              ImGuiWindowFlags_NoScrollbar)) {
     auto& proj_settings = project()->GetSettings();
+    auto& game_info = project()->GetGameInfo();
     bool changed = false;
 
     const char* categories[] = {"Scene", "Rendering", "Input"};
@@ -3401,18 +3667,9 @@ void EditorLayer::RenderProjectSettingsPopup() {
       }
 
       // Start scene selector
-      if (ImGui::BeginCombo(PrefixLabel("Start Scene").c_str(),
-                            proj_settings.start_scene.empty()
-                                ? "(none)"
-                                : proj_settings.start_scene.c_str())) {
-        for (const auto& scene_rel : proj_settings.scenes) {
-          bool selected = (scene_rel == proj_settings.start_scene);
-          if (ImGui::Selectable(scene_rel.c_str(), selected)) {
-            proj_settings.start_scene = scene_rel;
-            changed = true;
-          }
-        }
-        ImGui::EndCombo();
+      if (AssetCombo(PrefixLabel("Start Scene").c_str(), AssetType::Scene,
+                     game_info.start_scene, true, "(None)")) {
+        changed = true;
       }
 
       ImGui::SeparatorText("Skybox");
@@ -3525,7 +3782,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
       }
 
       // Sync live renderer options back to project for saving
-      auto& ro = proj_settings.render_options;
+      auto& ro = game_info.render_options;
       ro.ssao_enabled = settings.ssao_enabled;
       ro.bloom_enabled = settings.bloom_enabled;
       ro.bloom_threshold = settings.bloom_threshold;
@@ -3541,7 +3798,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
 
     } else if (project_settings_category_ == 2) {
       // ---- Input ----
-      auto& input = proj_settings.input;
+      auto& input = game_info.input;
       bool input_changed = false;
 
       ImGui::SeparatorText("Mouse");
@@ -4254,8 +4511,10 @@ void EditorLayer::NewProject() {
     if (Project::Create(dir, name)) {
       auto proj = Project::Load(dir / (name + ".wiesel"));
       if (proj) {
-        Engine::SetProject(std::move(proj));
-        auto project = Engine::project();
+        active_project_ = std::move(proj);
+        Engine::SetGameInfo(std::make_shared<GameInfo>(
+            active_project_->GetGameInfo()));
+        auto project = active_project_;
 
         // Mount project assets
         auto* vfs = Engine::vfs().get();
@@ -4289,11 +4548,11 @@ void EditorLayer::OpenProject() {
 }
 
 void EditorLayer::SaveProject() {
-  auto project = Engine::project();
+  auto project = active_project_;
   if (project) {
     // Capture current render options into project settings
     auto& settings = Engine::renderer()->options();
-    auto& opts = project->GetSettings().render_options;
+    auto& opts = project->GetGameInfo().render_options;
     opts.ssao_enabled = settings.ssao_enabled;
     opts.bloom_enabled = settings.bloom_enabled;
     opts.bloom_threshold = settings.bloom_threshold;
@@ -4323,7 +4582,7 @@ void EditorLayer::SaveProject() {
 }
 
 void EditorLayer::NewScene() {
-  auto project = Engine::project();
+  auto project = active_project_;
   if (!project) {
     return;
   }
@@ -4367,7 +4626,12 @@ void EditorLayer::OpenSceneFromPath(const std::filesystem::path& path) {
   if (auto p = project()) {
     auto rel =
         std::filesystem::relative(current_scene_path_, p->GetAssetsDirectory());
-    p->GetSettings().last_scene = rel.generic_string();
+    std::string vfs_path = "/app/" + rel.generic_string();
+    AssetHandle scene_handle =
+        Engine::asset_manager().FindBySourcePath(vfs_path);
+    if (scene_handle.IsValid()) {
+      p->GetSettings().last_scene = scene_handle;
+    }
     p->Save();
   }
 
@@ -4383,22 +4647,19 @@ void EditorLayer::SaveScene() {
   // Ensure parent directory exists
   std::filesystem::create_directories(current_scene_path_.parent_path());
 
-  SceneSerializer serializer(scene());
-  if (serializer.Serialize(current_scene_path_)) {
+  if (SaveSceneToFile(scene(), current_scene_path_)) {
     scene_dirty_ = false;
     UpdateWindowTitle();
 
     auto_save_timer_ = 0.0f;
 
-    // Add to project scene list and register with SceneManager
-    auto project = Engine::project();
+    // Register with SceneManager
+    auto project = active_project_;
     if (project) {
-      auto rel = std::filesystem::relative(current_scene_path_,
-                                           project->GetAssetsDirectory());
-      project->AddScene(rel.generic_string());
-      project->GetSettings().last_scene = rel.generic_string();
       project->Save();
 
+      auto rel = std::filesystem::relative(current_scene_path_,
+                                           project->GetAssetsDirectory());
       std::string scene_name = current_scene_path_.stem().string();
       Engine::scene_manager().RegisterScene(scene_name, current_scene_path_);
 
@@ -4433,7 +4694,7 @@ void EditorLayer::SaveSceneAs() {
         }
 
         // If a project is open, ensure the scene is saved inside the assets dir
-        auto project = Engine::project();
+        auto project = active_project_;
         if (project) {
           namespace fs = std::filesystem;
           fs::path abs = fs::absolute(path);
@@ -4479,7 +4740,7 @@ void EditorLayer::ClearScene() {
 
 void EditorLayer::UpdateWindowTitle() {
   std::string title = "Wiesel Editor";
-  auto project = Engine::project();
+  auto project = active_project_;
   if (project) {
     title += " - " + project->GetSettings().name;
   }
@@ -4499,20 +4760,10 @@ void EditorLayer::AutoSave() {
     return;
   }
 
-  SceneSerializer serializer(scene());
-  if (serializer.Serialize(current_scene_path_)) {
+  if (SaveSceneToFile(scene(), current_scene_path_)) {
     scene_dirty_ = false;
     auto_save_timer_ = 0.0f;
     UpdateWindowTitle();
-
-    auto project = Engine::project();
-    if (project) {
-      std::filesystem::path rel = std::filesystem::relative(
-          current_scene_path_, project->GetAssetsDirectory());
-      project->AddScene(rel.generic_string());
-      project->GetSettings().last_scene = rel.generic_string();
-      project->Save();
-    }
 
     LOG_DEBUG("Auto-saved scene: {}", current_scene_path_.filename().string());
   }
@@ -4526,8 +4777,10 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
     return;
   }
 
-  Engine::SetProject(std::move(proj));
-  auto project = Engine::project();
+  active_project_ = std::move(proj);
+  Engine::SetGameInfo(
+      std::make_shared<GameInfo>(active_project_->GetGameInfo()));
+  auto project = active_project_;
 
   // Remove startup FPS cap now that a project is loaded
   app_.SetMaxFPS(0.0f);
@@ -4545,15 +4798,31 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
     script_watcher_.Watch(*scripts_dir, true);
   }
 
-  // Open last scene or start scene
-  const std::string& last = project->GetSettings().last_scene;
-  const std::string& start = project->GetSettings().start_scene;
-  const std::string& to_open = !last.empty() ? last : start;
-  if (!to_open.empty()) {
-    auto scene_path = project->GetAssetsDirectory() / to_open;
-    if (fs::exists(scene_path)) {
-      OpenSceneFromPath(scene_path);
+  // Open last scene or start scene (prefer last_scene, fall back to start)
+  auto resolve_scene_path = [&](const AssetHandle& handle)
+      -> std::optional<std::filesystem::path> {
+    if (!handle.IsValid()) {
+      return std::nullopt;
     }
+    const auto* meta = Engine::asset_manager().GetMetadata(handle);
+    if (!meta) {
+      return std::nullopt;
+    }
+    auto physical =
+        Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
+    if (physical.has_value() && fs::exists(*physical)) {
+      return physical;
+    }
+    return std::nullopt;
+  };
+
+  auto scene_to_open = resolve_scene_path(project->GetSettings().last_scene);
+  if (!scene_to_open.has_value()) {
+    scene_to_open = resolve_scene_path(project->GetGameInfo().start_scene);
+  }
+
+  if (scene_to_open.has_value()) {
+    OpenSceneFromPath(*scene_to_open);
   }
 
   // Restore editor camera state
@@ -4610,6 +4879,32 @@ void EditorLayer::RenderAssetPropertiesPanel() {
     ImGui::TextDisabled("Path: %s", meta->virtual_source_path.c_str());
     ImGui::Separator();
 
+    // Large preview for texture/sprite assets
+    if (meta->type == AssetType::Texture || meta->type == AssetType::Sprite) {
+      ThumbnailEntry thumb =
+          GetOrCreateThumbnail(properties_asset_handle_, *meta);
+      if (thumb.texture_id) {
+        float avail_width = ImGui::GetContentRegionAvail().x;
+        float max_preview = std::min(avail_width, 256.0f);
+        ImVec2 preview_size = thumb.FitSize(max_preview);
+        // Center the preview
+        float indent = (avail_width - preview_size.x) * 0.5f;
+        if (indent > 0.0f) {
+          ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+        }
+        ImGui::Image(reinterpret_cast<ImTextureID>(thumb.texture_id),
+                     preview_size, thumb.uv0, thumb.uv1);
+        if (thumb.width > 0 && thumb.height > 0) {
+          uint32_t display_w = static_cast<uint32_t>(
+              thumb.width * (thumb.uv1.x - thumb.uv0.x));
+          uint32_t display_h = static_cast<uint32_t>(
+              thumb.height * (thumb.uv1.y - thumb.uv0.y));
+          ImGui::TextDisabled("%u x %u", display_w, display_h);
+        }
+        ImGui::Separator();
+      }
+    }
+
     const auto* desc = AssetPropertyRegistry::Get(meta->type);
     if (desc && meta->properties) {
       bool changed = desc->RenderImGui(meta->properties.get());
@@ -4644,38 +4939,9 @@ void EditorLayer::RenderAssetPropertiesPanel() {
         }
       }
 
-      // Invalidate thumbnail cache before unloading so the stale ImGui
-      // descriptor is freed while the old Vulkan resources are still valid.
-      {
-        auto thumb_it = thumbnail_cache_.find(properties_asset_handle_);
-        if (thumb_it != thumbnail_cache_.end()) {
-          if (thumb_it->second.texture_id) {
-            ImGui_ImplVulkan_RemoveTexture(thumb_it->second.texture_id);
-          }
-          thumbnail_cache_.erase(thumb_it);
-        }
-      }
-
       Engine::asset_manager().Unload(properties_asset_handle_);
       // Use sync load since we already waited for GPU
       Engine::asset_manager().LoadSync(properties_asset_handle_);
-
-      if (meta->type == AssetType::Texture) {
-        // Update all CanvasImage components that were using the old texture
-        auto new_tex =
-            Engine::asset_manager().Get<Texture>(properties_asset_handle_);
-        auto s = scene();
-        if (s && new_tex) {
-          std::string path = meta->virtual_source_path;
-          for (auto e : s->GetAllEntitiesWith<CanvasImageComponent>()) {
-            auto& img = s->GetComponent<CanvasImageComponent>(e);
-            if (img.texture && img.texture->path_ == path) {
-              img.texture = new_tex;
-            }
-          }
-        }
-      }
-
       // Rebuild render graphs with new resources
       scene()->InvalidateRenderGraphs();
     }
@@ -4687,22 +4953,12 @@ void EditorLayer::RenderAssetPropertiesPanel() {
 }
 
 void EditorLayer::ScanProjectAssets() {
-  auto project = Engine::project();
+  auto project = active_project_;
   if (project) {
     ProjectLoader::ScanAssets(*project);
     project->Save();
 
-    // Remove thumbnail cache entries for assets that no longer exist
-    for (auto it = thumbnail_cache_.begin(); it != thumbnail_cache_.end();) {
-      if (!Engine::asset_manager().HasAsset(it->first)) {
-        if (it->second.texture_id) {
-          ImGui_ImplVulkan_RemoveTexture(it->second.texture_id);
-        }
-        it = thumbnail_cache_.erase(it);
-      } else {
-        ++it;
-      }
-    }
+    thumbnail_cache_instance_.RemoveStale();
 
     // Clear stale skybox reference if its asset was deleted
     AssetHandle sky = scene()->GetSkyboxAsset();

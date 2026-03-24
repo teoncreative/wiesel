@@ -1,22 +1,36 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
 
+#include "asset/w_asset_handle.hpp"
 #include "events/w_events.hpp"
 #include "util/w_mousecodes.hpp"
 #include "w_pch.hpp"
 #include "window/w_window.hpp"
 
 namespace Wiesel {
+
+class AssetUnloadedEvent : public Event {
+ public:
+  AssetUnloadedEvent(AssetHandle handle) : handle_(handle) {}
+
+  AssetHandle GetHandle() const { return handle_; }
+
+  EVENT_CLASS_TYPE(AssetUnloaded)
+  EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
+ private:
+  AssetHandle handle_;
+};
+
 class WindowCloseEvent : public Event {
  public:
   WindowCloseEvent() {}

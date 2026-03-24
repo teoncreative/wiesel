@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/features/w_canvas_feature.hpp"
@@ -77,22 +77,24 @@ static void DrawCanvasElement(
     case CanvasElementType::Image: {
       auto& img = scene->GetComponent<CanvasImageComponent>(entry.entity);
       auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
-      renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
-                                 img.texture, img.tint, img.uv_rect,
-                                 textured_layout, eid);
+      auto texture =
+          Engine::asset_manager().GetOrLoad<Texture>(img.texture_handle);
+      if (texture) {
+        renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
+                                   texture, img.tint, img.uv_rect,
+                                   textured_layout, eid);
+      }
       break;
     }
     case CanvasElementType::Button: {
       auto& btn = scene->GetComponent<ButtonComponent>(entry.entity);
       auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
       auto [tex_handle, tint] = GetButtonVisuals(btn);
-      if (tex_handle.IsValid()) {
-        auto tex = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
-        if (tex) {
-          renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
-                                     tex, tint, {0, 0, 1, 1}, textured_layout,
-                                     eid);
-        }
+      auto texture = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
+      if (texture) {
+        renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
+                                   texture, tint, {0, 0, 1, 1}, textured_layout,
+                                   eid);
       }
       break;
     }
@@ -204,7 +206,8 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_rect_pipeline_ = std::make_shared<Pipeline>(props);
   world_rect_pipeline_->SetRenderPass(world_render_pass_);
   world_rect_pipeline_->AddInputLayout(canvas_element_layout_);
-  world_rect_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  world_rect_pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Global"));
   world_rect_pipeline_->AddShader(canvas_world_vert);
   world_rect_pipeline_->AddShader(rect_frag);
   world_rect_pipeline_->AddPushConstant(world_push_,
@@ -215,7 +218,8 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_image_pipeline_ = std::make_shared<Pipeline>(props);
   world_image_pipeline_->SetRenderPass(world_render_pass_);
   world_image_pipeline_->AddInputLayout(canvas_textured_layout_);
-  world_image_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  world_image_pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Global"));
   world_image_pipeline_->AddShader(canvas_world_vert);
   world_image_pipeline_->AddShader(image_frag);
   world_image_pipeline_->AddPushConstant(world_push_,
@@ -226,7 +230,8 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_text_pipeline_ = std::make_shared<Pipeline>(props);
   world_text_pipeline_->SetRenderPass(world_render_pass_);
   world_text_pipeline_->AddInputLayout(canvas_textured_layout_);
-  world_text_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  world_text_pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Global"));
   world_text_pipeline_->AddShader(canvas_world_vert);
   world_text_pipeline_->AddShader(text_frag);
   world_text_pipeline_->AddPushConstant(world_push_,

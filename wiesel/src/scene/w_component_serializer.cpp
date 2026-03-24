@@ -1,4 +1,14 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Component serializer registry - single source of truth for component
 // serialization used by both scene files and prefabs.
 //
@@ -957,6 +967,9 @@ void InitializeComponentSerializers() {
       [](Entity& entity) -> json {
         auto& ci = entity.GetComponent<CanvasImageComponent>();
         json cij;
+        if (ci.texture_handle.IsValid()) {
+          cij["texture"] = ci.texture_handle.ToString();
+        }
         cij["tint"] = {ci.tint.x, ci.tint.y, ci.tint.z, ci.tint.w};
         cij["uv_rect"] = {ci.uv_rect.x, ci.uv_rect.y, ci.uv_rect.z,
                           ci.uv_rect.w};
@@ -965,6 +978,10 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& cij, Scene* /*scene*/) {
         auto& ci = entity.AddComponent<CanvasImageComponent>();
+        if (cij.contains("texture") && cij["texture"].is_string()) {
+          ci.texture_handle =
+              AssetHandle::FromString(cij["texture"].get<std::string>());
+        }
         if (cij.contains("tint") && cij["tint"].is_array() &&
             cij["tint"].size() >= 4) {
           ci.tint = {cij["tint"][0], cij["tint"][1], cij["tint"][2],

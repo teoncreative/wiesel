@@ -1,9 +1,20 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 10.02.2026.
 //
 
 #include "asset/w_asset_manager.hpp"
 
+#include "events/w_appevents.hpp"
 #include "util/w_thread_pool.hpp"
 #include "w_engine.hpp"
 
@@ -274,10 +285,22 @@ bool AssetManager::IsLoaded(AssetHandle handle) const {
 
 void AssetManager::Unload(AssetHandle handle) {
   auto it = registry_.find(handle);
-  if (it != registry_.end()) {
+  if (it != registry_.end() && it->second->resource) {
     it->second->resource.reset();
     it->second->metadata.load_state.store(AssetLoadState::Unloaded);
     it->second->metadata.load_progress.store(0.0f);
+
+    AssetUnloadedEvent event(handle);
+    Engine::BroadcastEvent(event);
+  }
+
+  // Cascade: unload all assets that depend on this one
+  auto dep_it = parent_to_dependents_.find(handle);
+  if (dep_it != parent_to_dependents_.end()) {
+    auto dependents = dep_it->second;
+    for (const auto& dep : dependents) {
+      Unload(dep);
+    }
   }
 }
 
@@ -287,10 +310,45 @@ void AssetManager::UnloadAll() {
   }
 }
 
+void AssetManager::AddDependency(AssetHandle dependent, AssetHandle parent) {
+  if (!dependent.IsValid() || !parent.IsValid()) {
+    return;
+  }
+  parent_to_dependents_[parent].insert(dependent);
+  dependent_to_parents_[dependent].insert(parent);
+}
+
+void AssetManager::RemoveDependencies(AssetHandle dependent) {
+  auto it = dependent_to_parents_.find(dependent);
+  if (it == dependent_to_parents_.end()) {
+    return;
+  }
+  for (const auto& parent : it->second) {
+    auto p_it = parent_to_dependents_.find(parent);
+    if (p_it != parent_to_dependents_.end()) {
+      p_it->second.erase(dependent);
+      if (p_it->second.empty()) {
+        parent_to_dependents_.erase(p_it);
+      }
+    }
+  }
+  dependent_to_parents_.erase(it);
+}
+
+std::vector<AssetHandle> AssetManager::GetDependents(AssetHandle parent) const {
+  auto it = parent_to_dependents_.find(parent);
+  if (it == parent_to_dependents_.end()) {
+    return {};
+  }
+  return {it->second.begin(), it->second.end()};
+}
+
 void AssetManager::Clear() {
   registry_.clear();
   path_index_.clear();
   name_index_.clear();
+  parent_to_dependents_.clear();
+  dependent_to_parents_.clear();
 }
 
 void AssetManager::RegisterLoader(AssetType type,

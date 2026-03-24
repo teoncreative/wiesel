@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -128,7 +128,7 @@ struct ButtonComponent {
 };
 
 struct CanvasImageComponent {
-  std::shared_ptr<Texture> texture;
+  AssetHandle texture_handle;
   glm::vec4 tint = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 uv_rect = {0.0f, 0.0f, 1.0f, 1.0f};
 };

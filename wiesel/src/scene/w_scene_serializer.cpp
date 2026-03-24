@@ -1,4 +1,14 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 05.03.2026.
 //
 
@@ -111,36 +121,6 @@ std::string SceneSerializer::SerializeToString() const {
   return root.dump(2);
 }
 
-bool SceneSerializer::Serialize(const std::filesystem::path& path) const {
-  // Preserve asset_handle from the existing file (if any)
-  std::string existing_handle;
-  {
-    std::ifstream existing(path);
-    if (existing.is_open()) {
-      try {
-        nlohmann::json old_json;
-        existing >> old_json;
-        existing_handle = old_json.value("asset_handle", "");
-      } catch (...) {}
-    }
-  }
-
-  nlohmann::json root = nlohmann::json::parse(SerializeToString());
-  if (!existing_handle.empty()) {
-    root["asset_handle"] = existing_handle;
-  }
-
-  std::ofstream file(path);
-  if (!file.is_open()) {
-    LOG_ERROR("Failed to open file for writing: {}", path.string());
-    return false;
-  }
-
-  file << root.dump(2);
-  LOG_INFO("Scene saved to: {}", path.string());
-  return true;
-}
-
 bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
   nlohmann::json root;
   try {
@@ -203,20 +183,6 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
 
   LOG_INFO("Scene deserialized: {} entities", root["entities"].size());
   return true;
-}
-
-bool SceneSerializer::Deserialize(const std::filesystem::path& path) {
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    LOG_ERROR("Failed to open scene file: {}", path.string());
-    return false;
-  }
-
-  std::string json_str((std::istreambuf_iterator<char>(file)),
-                       std::istreambuf_iterator<char>());
-
-  LOG_INFO("Loading scene from: {}", path.string());
-  return DeserializeFromString(json_str);
 }
 
 }  // namespace Wiesel
