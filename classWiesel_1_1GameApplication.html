@@ -92,7 +92,6 @@ $(document).ready(function(){initNavTree('classWiesel_1_1GameApplication.html','
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pro-attribs">Protected Attributes</a> &#124;
 <a href="classWiesel_1_1GameApplication-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">Wiesel::GameApplication Class Reference</div></div>
 </div><!--header-->
@@ -117,7 +116,6 @@ Collaboration diagram for Wiesel::GameApplication:</div>
 <area shape="rect" title=" " alt="" coords="5,168,192,193"/>
 <area shape="rect" href="classWiesel_1_1Application.html" title=" " alt="" coords="25,93,172,119"/>
 <area shape="poly" title=" " alt="" coords="101,133,101,168,96,168,96,133"/>
-<area shape="poly" title=" " alt="" coords="187,98,199,106,190,113,172,115,172,110,188,108,193,106,185,103"/>
 <area shape="rect" href="structWiesel_1_1WindowSize.html" title=" " alt="" coords="22,5,175,31"/>
 <area shape="poly" title=" " alt="" coords="101,45,101,93,96,93,96,45"/>
 </map>
@@ -132,10 +130,8 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a4056172f508d66898e3cc638822bda30" id="r_a4056172f508d66898e3cc638822bda30"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a4056172f508d66898e3cc638822bda30"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameApplication.html#a4056172f508d66898e3cc638822bda30">RegisterNativeBehavior</a> (const std::string &amp;name)</td></tr>
 <tr class="separator:a4056172f508d66898e3cc638822bda30"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6510c836032a79ceb58a59d39d752a10" id="r_a6510c836032a79ceb58a59d39d752a10"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameApplication.html#a6510c836032a79ceb58a59d39d752a10">LoadProjectAndScene</a> (const std::filesystem::path &amp;project_path, std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene)</td></tr>
-<tr class="separator:a6510c836032a79ceb58a59d39d752a10"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a51e781f540282dafcbad8a771ff4c492" id="r_a51e781f540282dafcbad8a771ff4c492"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1Project.html">Project</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameApplication.html#a51e781f540282dafcbad8a771ff4c492">GetProject</a> () const</td></tr>
-<tr class="separator:a51e781f540282dafcbad8a771ff4c492"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3bef5b6ad667f57602e6cd9a7b79aae0" id="r_a3bef5b6ad667f57602e6cd9a7b79aae0"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameApplication.html#a3bef5b6ad667f57602e6cd9a7b79aae0">LoadGame</a> (const std::filesystem::path &amp;game_info_path, const std::filesystem::path &amp;assets_dir)</td></tr>
+<tr class="separator:a3bef5b6ad667f57602e6cd9a7b79aae0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_classWiesel_1_1Application"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_classWiesel_1_1Application')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="classWiesel_1_1Application.html">Wiesel::Application</a></td></tr>
 <tr class="memitem:ade692996f95d974bbfdb516586a5b591 inherit pub_methods_classWiesel_1_1Application" id="r_ade692996f95d974bbfdb516586a5b591"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#ade692996f95d974bbfdb516586a5b591">Application</a> (const <a class="el" href="structWiesel_1_1WindowProperties.html">WindowProperties</a> &amp;&amp;window_props, const <a class="el" href="structWiesel_1_1RendererProperties.html">RendererProperties</a> &amp;&amp;renderer_props)</td></tr>
 <tr class="separator:ade692996f95d974bbfdb516586a5b591 inherit pub_methods_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -180,10 +176,8 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a9d1d86f5861d8f74198972b1e0d01e02 inherit pub_methods_classWiesel_1_1Application" id="r_a9d1d86f5861d8f74198972b1e0d01e02"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#a9d1d86f5861d8f74198972b1e0d01e02">SubmitToMainThread</a> (std::function&lt; void()&gt; fn)</td></tr>
 <tr class="separator:a9d1d86f5861d8f74198972b1e0d01e02 inherit pub_methods_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-attribs" name="pro-attribs"></a>
-Protected Attributes</h2></td></tr>
-<tr class="memitem:a371d60bf47e815ccaea25d46bcd790db" id="r_a371d60bf47e815ccaea25d46bcd790db"><td class="memItemLeft" align="right" valign="top">std::unique_ptr&lt; <a class="el" href="classWiesel_1_1Project.html">Project</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameApplication.html#a371d60bf47e815ccaea25d46bcd790db">project_</a></td></tr>
-<tr class="separator:a371d60bf47e815ccaea25d46bcd790db"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="inherited" name="inherited"></a>
+Additional Inherited Members</h2></td></tr>
 <tr class="inherit_header pro_attribs_classWiesel_1_1Application"><td colspan="2" onclick="javascript:toggleInherit('pro_attribs_classWiesel_1_1Application')"><img src="closed.png" alt="-"/>&#160;Protected Attributes inherited from <a class="el" href="classWiesel_1_1Application.html">Wiesel::Application</a></td></tr>
 <tr class="memitem:a9dc13d537fef8c741b3ddafb74c6f558 inherit pro_attribs_classWiesel_1_1Application" id="r_a9dc13d537fef8c741b3ddafb74c6f558"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::function&lt; void()&gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#a9dc13d537fef8c741b3ddafb74c6f558">main_thread_queue_</a></td></tr>
 <tr class="separator:a9dc13d537fef8c741b3ddafb74c6f558 inherit pro_attribs_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -227,15 +221,6 @@ Protected Attributes</h2></td></tr>
 <tr class="separator:a08847571e625afcdb432324e84d8420c inherit pro_attribs_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6d51887ae60ba5dea93289a7afda984a inherit pro_attribs_classWiesel_1_1Application" id="r_a6d51887ae60ba5dea93289a7afda984a"><td class="memItemLeft" align="right" valign="top">float_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#a6d51887ae60ba5dea93289a7afda984a">time_scale_</a> = 1.0f</td></tr>
 <tr class="separator:a6d51887ae60ba5dea93289a7afda984a inherit pro_attribs_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="inherited" name="inherited"></a>
-Additional Inherited Members</h2></td></tr>
-<tr class="inherit_header pub_static_methods_classWiesel_1_1Application"><td colspan="2" onclick="javascript:toggleInherit('pub_static_methods_classWiesel_1_1Application')"><img src="closed.png" alt="-"/>&#160;Static Public Member Functions inherited from <a class="el" href="classWiesel_1_1Application.html">Wiesel::Application</a></td></tr>
-<tr class="memitem:ad69c481132db5e118d460420f1b4f43d inherit pub_static_methods_classWiesel_1_1Application" id="r_ad69c481132db5e118d460420f1b4f43d"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="w__attributes_8hpp.html#a85d205c4f00d74230eca9a1973e02b6f">WIESEL_GETTER_FN</a> <a class="el" href="classWiesel_1_1Application.html">Application</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#ad69c481132db5e118d460420f1b4f43d">Get</a> ()</td></tr>
-<tr class="separator:ad69c481132db5e118d460420f1b4f43d inherit pub_static_methods_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="inherit_header pro_static_attribs_classWiesel_1_1Application"><td colspan="2" onclick="javascript:toggleInherit('pro_static_attribs_classWiesel_1_1Application')"><img src="closed.png" alt="-"/>&#160;Static Protected Attributes inherited from <a class="el" href="classWiesel_1_1Application.html">Wiesel::Application</a></td></tr>
-<tr class="memitem:aef66e2a9b457e9708137d05d9334a0e0 inherit pro_static_attribs_classWiesel_1_1Application" id="r_aef66e2a9b457e9708137d05d9334a0e0"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classWiesel_1_1Application.html">Application</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#aef66e2a9b457e9708137d05d9334a0e0">application_</a></td></tr>
-<tr class="separator:aef66e2a9b457e9708137d05d9334a0e0 inherit pro_static_attribs_classWiesel_1_1Application"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ac142f7d00e2e60015d2329d905507bbd" name="ac142f7d00e2e60015d2329d905507bbd"></a>
@@ -300,48 +285,23 @@ Additional Inherited Members</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="a51e781f540282dafcbad8a771ff4c492" name="a51e781f540282dafcbad8a771ff4c492"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a51e781f540282dafcbad8a771ff4c492">&#9670;&#160;</a></span>GetProject()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="classWiesel_1_1Project.html">Project</a> * Wiesel::GameApplication::GetProject </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a6510c836032a79ceb58a59d39d752a10" name="a6510c836032a79ceb58a59d39d752a10"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6510c836032a79ceb58a59d39d752a10">&#9670;&#160;</a></span>LoadProjectAndScene()</h2>
+<a id="a3bef5b6ad667f57602e6cd9a7b79aae0" name="a3bef5b6ad667f57602e6cd9a7b79aae0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3bef5b6ad667f57602e6cd9a7b79aae0">&#9670;&#160;</a></span>LoadGame()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool Wiesel::GameApplication::LoadProjectAndScene </td>
+          <td class="memname">bool Wiesel::GameApplication::LoadGame </td>
           <td>(</td>
           <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
-          <td class="paramname"><em>project_path</em>, </td>
+          <td class="paramname"><em>game_info_path</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt;&#160;</td>
-          <td class="paramname"><em>scene</em>&#160;</td>
+          <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
+          <td class="paramname"><em>assets_dir</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -375,29 +335,6 @@ template&lt;typename T &gt; </div>
   </td>
   <td class="mlabels-right">
 <span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<h2 class="groupheader">Member Data Documentation</h2>
-<a id="a371d60bf47e815ccaea25d46bcd790db" name="a371d60bf47e815ccaea25d46bcd790db"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a371d60bf47e815ccaea25d46bcd790db">&#9670;&#160;</a></span>project_</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::unique_ptr&lt;<a class="el" href="classWiesel_1_1Project.html">Project</a>&gt; Wiesel::GameApplication::project_</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">protected</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">

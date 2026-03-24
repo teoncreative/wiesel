@@ -13,7 +13,7 @@ var classWiesel_1_1Texture =
     [ "is_allocated_", "classWiesel_1_1Texture.html#a2338e586e3f5749db3bff44c96829e14", null ],
     [ "mip_levels_", "classWiesel_1_1Texture.html#a972385dba0b33ead82bb0e0824309655", null ],
     [ "path_", "classWiesel_1_1Texture.html#a0b766a72580fe69aee5459aa62b1d293", null ],
-    [ "sampler_", "classWiesel_1_1Texture.html#a03d404a639b3568117c13b6339814aed", null ],
+    [ "sampler_", "classWiesel_1_1Texture.html#aa6f333c6abed6f5abbed283369dc8d8b", null ],
     [ "size_", "classWiesel_1_1Texture.html#a505ca9881c54287d94da5f4094d5f3a0", null ],
     [ "type_", "classWiesel_1_1Texture.html#a7a66d0e5debcfbdb38d95b10c1ed24b6", null ],
     [ "width_", "classWiesel_1_1Texture.html#a6a1845e4ee536cab4fa252314f38d422", null ]

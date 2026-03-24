@@ -12,6 +12,7 @@ var structWiesel_1_1RendererOptions =
     [ "only_ssao", "structWiesel_1_1RendererOptions.html#a700eb53b1c7d042029f742ceab840d62", null ],
     [ "rt_shadows_enabled", "structWiesel_1_1RendererOptions.html#af45c9d08068e42d9d864c779891a04b6", null ],
     [ "shadows_enabled", "structWiesel_1_1RendererOptions.html#a9bcf8517b1db964069535edcb6a44ed4", null ],
+    [ "show_cameras", "structWiesel_1_1RendererOptions.html#a849409cfef7379edb48f4eb7a6b32fec", null ],
     [ "show_colliders", "structWiesel_1_1RendererOptions.html#a6eac4b14a2970afaa2d90625e0fbb81d", null ],
     [ "show_reverb_zones", "structWiesel_1_1RendererOptions.html#ae998fdd5f8b542e288b98f51f96fadb4", null ],
     [ "show_triggers", "structWiesel_1_1RendererOptions.html#af63cb5bd29ee28b98f91269fb85b907d", null ],

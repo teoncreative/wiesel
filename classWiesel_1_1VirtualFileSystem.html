@@ -102,10 +102,8 @@ $(document).ready(function(){initNavTree('classWiesel_1_1VirtualFileSystem.html'
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a22093d100155eec36634e3131f0c2d56" id="r_a22093d100155eec36634e3131f0c2d56"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1VirtualFileSystem.html#a22093d100155eec36634e3131f0c2d56">Mount</a> (const std::string &amp;mount_point, const std::string &amp;physical_path, int priority=0)</td></tr>
-<tr class="separator:a22093d100155eec36634e3131f0c2d56"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afc8558a25447f1025cdaba7d7dfffb6c" id="r_afc8558a25447f1025cdaba7d7dfffb6c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1VirtualFileSystem.html#afc8558a25447f1025cdaba7d7dfffb6c">MountArchive</a> (const std::string &amp;mount_point, const std::string &amp;archive_path)</td></tr>
-<tr class="separator:afc8558a25447f1025cdaba7d7dfffb6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a18315fc60b627208e41bcdebdc8acd74" id="r_a18315fc60b627208e41bcdebdc8acd74"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1VirtualFileSystem.html#a18315fc60b627208e41bcdebdc8acd74">Mount</a> (const std::string &amp;mount_point, const std::filesystem::path &amp;path, int priority=0)</td></tr>
+<tr class="separator:a18315fc60b627208e41bcdebdc8acd74"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a29046a68c5cf381dd61d0b2338629aa3" id="r_a29046a68c5cf381dd61d0b2338629aa3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1VfsFile.html">VfsFile</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1VirtualFileSystem.html#a29046a68c5cf381dd61d0b2338629aa3">Open</a> (const std::string &amp;virtual_path)</td></tr>
 <tr class="separator:a29046a68c5cf381dd61d0b2338629aa3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac8038e63c93f6977a71854ebf1060982" id="r_ac8038e63c93f6977a71854ebf1060982"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1VirtualFileSystem.html#ac8038e63c93f6977a71854ebf1060982">FileExists</a> (const std::string &amp;virtual_path)</td></tr>
@@ -201,8 +199,8 @@ Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a22093d100155eec36634e3131f0c2d56" name="a22093d100155eec36634e3131f0c2d56"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a22093d100155eec36634e3131f0c2d56">&#9670;&#160;</a></span>Mount()</h2>
+<a id="a18315fc60b627208e41bcdebdc8acd74" name="a18315fc60b627208e41bcdebdc8acd74"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a18315fc60b627208e41bcdebdc8acd74">&#9670;&#160;</a></span>Mount()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -216,42 +214,14 @@ Public Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>physical_path</em>, </td>
+          <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
+          <td class="paramname"><em>path</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">int&#160;</td>
           <td class="paramname"><em>priority</em> = <code>0</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="afc8558a25447f1025cdaba7d7dfffb6c" name="afc8558a25447f1025cdaba7d7dfffb6c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#afc8558a25447f1025cdaba7d7dfffb6c">&#9670;&#160;</a></span>MountArchive()</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void Wiesel::VirtualFileSystem::MountArchive </td>
-          <td>(</td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>mount_point</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>archive_path</em>&#160;</td>
         </tr>
         <tr>
           <td></td>

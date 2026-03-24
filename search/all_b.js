@@ -39,7 +39,7 @@ var searchData=
   ['keyenter_36',['KeyEnter',['../namespaceWiesel.html#a4df34af0948bceb948d3144474f5fb86a476b376d15db5919571beeb48aa32567',1,'Wiesel']]],
   ['keyequal_37',['KeyEqual',['../namespaceWiesel.html#a4df34af0948bceb948d3144474f5fb86a4a3ef936e71dae1cfeba735e10f565eb',1,'Wiesel']]],
   ['keyescape_38',['KeyEscape',['../namespaceWiesel.html#a4df34af0948bceb948d3144474f5fb86aea4eaaf39b21f0ad33b3b17e42b5e344',1,'Wiesel']]],
-  ['keyevent_39',['keyevent',['../classWiesel_1_1KeyEvent.html',1,'Wiesel::KeyEvent'],['../classWiesel_1_1KeyEvent.html#ab4f253ffe51451ae7e01bc3f50e54012',1,'Wiesel::KeyEvent::KeyEvent()']]],
+  ['keyevent_39',['KeyEvent',['../classWiesel_1_1KeyEvent.html',1,'Wiesel']]],
   ['keyf_40',['KeyF',['../namespaceWiesel.html#a4df34af0948bceb948d3144474f5fb86ae6714bacf1e180b7008227c866dc3c8d',1,'Wiesel']]],
   ['keyf1_41',['KeyF1',['../namespaceWiesel.html#a4df34af0948bceb948d3144474f5fb86aee714bf3d561e5aa206a662ff060573d',1,'Wiesel']]],
   ['keyf10_42',['KeyF10',['../namespaceWiesel.html#a4df34af0948bceb948d3144474f5fb86a1febf0c4a540e97d13c9d90936706415',1,'Wiesel']]],

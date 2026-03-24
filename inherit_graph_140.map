@@ -1,3 +1,35 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$classWiesel_1_1RTPipeline.html" title=" " alt="" coords="5,5,148,31"/>
+<area shape="rect" id="Node000000" href="$classWiesel_1_1RenderFeature.html" title=" " alt="" coords="5,376,175,401"/>
+<area shape="rect" id="Node000001" href="$classWiesel_1_1BloomFeature.html" title=" " alt="" coords="247,5,413,31"/>
+<area shape="poly" id="edge56_Node000000_Node000001" title=" " alt="" coords="90,362,99,297,120,209,137,163,159,118,187,76,221,40,246,25,248,30,224,44,191,80,164,121,142,165,125,211,105,297,96,363"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1CanvasFeature.html" title=" " alt="" coords="245,55,415,80"/>
+<area shape="poly" id="edge57_Node000000_Node000002" title=" " alt="" coords="92,362,104,305,127,231,144,192,165,154,191,119,221,89,243,76,246,81,224,93,195,123,170,157,149,194,132,233,109,306,98,363"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1CompositeFeature.html" title=" " alt="" coords="233,104,427,129"/>
+<area shape="poly" id="edge58_Node000000_Node000003" title=" " alt="" coords="95,362,109,314,134,253,171,191,194,163,221,139,241,127,243,132,224,143,198,167,175,194,139,255,114,316,100,364"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1DebugColliderFeature.html" title=" " alt="" coords="223,153,437,179"/>
+<area shape="poly" id="edge59_Node000000_Node000004" title=" " alt="" coords="99,362,116,322,142,275,177,228,221,188,243,176,245,181,224,192,181,231,147,278,121,325,103,364"/>
+<area shape="rect" id="Node000005" href="$classWiesel_1_1FXAAFeature.html" title=" " alt="" coords="251,203,409,228"/>
+<area shape="poly" id="edge60_Node000000_Node000005" title=" " alt="" coords="104,363,150,299,183,265,221,237,250,225,252,229,224,242,187,269,154,303,108,366"/>
+<area shape="rect" id="Node000006" href="$classWiesel_1_1GeometryFeature.html" title=" " alt="" coords="236,252,424,277"/>
+<area shape="poly" id="edge61_Node000000_Node000006" title=" " alt="" coords="112,364,160,324,190,304,222,286,253,275,255,280,224,291,193,308,163,328,116,368"/>
+<area shape="rect" id="Node000007" href="$classWiesel_1_1GridFeature.html" title=" " alt="" coords="255,301,405,327"/>
+<area shape="poly" id="edge62_Node000000_Node000007" title=" " alt="" coords="132,368,222,335,265,324,266,329,223,341,134,373"/>
+<area shape="rect" id="Node000008" href="$classWiesel_1_1LightingFeature.html" title=" " alt="" coords="243,351,417,376"/>
+<area shape="poly" id="edge63_Node000000_Node000008" title=" " alt="" coords="188,376,242,370,243,375,188,381"/>
+<area shape="rect" id="Node000009" href="$classWiesel_1_1MotionBlurFeature.html" title=" " alt="" coords="233,400,427,425"/>
+<area shape="poly" id="edge64_Node000000_Node000009" title=" " alt="" coords="188,396,233,400,232,406,188,401"/>
+<area shape="rect" id="Node000010" href="$classWiesel_1_1RTShadowFeature.html" title=" " alt="" coords="235,449,425,475"/>
+<area shape="poly" id="edge65_Node000000_Node000010" title=" " alt="" coords="136,404,223,434,271,447,269,452,222,439,134,409"/>
+<area shape="rect" id="Node000011" href="$classWiesel_1_1SSAOFeature.html" title=" " alt="" coords="251,499,409,524"/>
+<area shape="poly" id="edge66_Node000000_Node000011" title=" " alt="" coords="116,408,164,447,224,484,259,496,257,501,222,488,161,451,113,413"/>
+<area shape="rect" id="Node000012" href="$classWiesel_1_1ShadowFeature.html" title=" " alt="" coords="243,548,417,573"/>
+<area shape="poly" id="edge67_Node000000_Node000012" title=" " alt="" coords="108,411,155,473,187,506,224,533,252,545,250,550,221,538,184,510,151,477,104,415"/>
+<area shape="rect" id="Node000013" href="$classWiesel_1_1SpriteFeature.html" title=" " alt="" coords="249,597,411,623"/>
+<area shape="poly" id="edge68_Node000000_Node000013" title=" " alt="" coords="104,413,121,451,147,498,182,544,224,582,250,595,248,600,221,587,178,547,143,500,116,454,99,415"/>
+<area shape="rect" id="Node000014" href="$classWiesel_1_1TAAFeature.html" title=" " alt="" coords="256,647,404,672"/>
+<area shape="poly" id="edge69_Node000000_Node000014" title=" " alt="" coords="100,414,115,462,140,521,176,581,198,608,224,632,257,648,255,653,221,636,195,612,172,584,135,523,110,463,95,416"/>
+<area shape="rect" id="Node000015" href="$classWiesel_1_1ToonFeature.html" title=" " alt="" coords="253,696,407,721"/>
+<area shape="poly" id="edge70_Node000000_Node000015" title=" " alt="" coords="98,415,110,471,133,543,150,581,170,618,195,652,224,681,255,697,252,702,221,685,191,655,166,621,145,584,128,545,105,472,93,416"/>
+<area shape="rect" id="Node000016" href="$classWiesel_1_1TransparencyFeature.html" title=" " alt="" coords="225,745,435,771"/>
+<area shape="poly" id="edge71_Node000000_Node000016" title=" " alt="" coords="96,415,105,479,126,565,143,610,164,655,191,695,224,731,244,743,241,747,221,735,187,699,160,657,138,613,121,567,100,480,91,416"/>
 </map>

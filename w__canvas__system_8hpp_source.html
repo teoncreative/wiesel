@@ -124,21 +124,20 @@ $(document).ready(function(){initNavTree('w__canvas__system_8hpp_source.html',''
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span> <span class="keyword">private</span>:</div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>  <span class="keyword">static</span> glm::vec2 ComputeAnchorOrigin(<a class="code hl_enumeration" href="namespaceWiesel.html#a31372fbcc35c740f4372e5cf18aa1a65">AnchorPreset</a> anchor,</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>                                        glm::vec2 parent_size);</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>  <span class="keywordtype">void</span> LayoutChildren(<a class="code hl_class" href="classWiesel_1_1Scene.html">Scene</a>&amp; scene, entt::entity parent,</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>                      glm::vec2 parent_pos, glm::vec2 parent_size,</div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>                      <span class="keyword">const</span> <a class="code hl_struct" href="structWiesel_1_1CanvasComponent.html">CanvasComponent</a>* canvas,</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>                      int32_t&amp; draw_order);</div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>};</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>                                       glm::vec2 parent_size);</div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>  <span class="keywordtype">void</span> LayoutChildren(<a class="code hl_class" href="classWiesel_1_1Scene.html">Scene</a>&amp; scene, entt::entity parent, glm::vec2 parent_pos,</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>                      glm::vec2 parent_size, <span class="keyword">const</span> <a class="code hl_struct" href="structWiesel_1_1CanvasComponent.html">CanvasComponent</a>* canvas,</div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>                      int32_t&amp; draw_order);</div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>};</div>
 </div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>}  <span class="comment">// namespace Wiesel</span></div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>}  <span class="comment">// namespace Wiesel</span></div>
 <div class="ttc" id="aclassWiesel_1_1CanvasSystem_html"><div class="ttname"><a href="classWiesel_1_1CanvasSystem.html">Wiesel::CanvasSystem</a></div><div class="ttdef"><b>Definition</b> w_canvas_system.hpp:19</div></div>
 <div class="ttc" id="aclassWiesel_1_1CanvasSystem_html_a69309229ec8ec90276ac1c29c6cf5d96"><div class="ttname"><a href="classWiesel_1_1CanvasSystem.html#a69309229ec8ec90276ac1c29c6cf5d96">Wiesel::CanvasSystem::OnEvent</a></div><div class="ttdeci">void OnEvent(Event &amp;event)</div></div>
 <div class="ttc" id="aclassWiesel_1_1CanvasSystem_html_aee4ca963daa0450b7130de308a02bfc8"><div class="ttname"><a href="classWiesel_1_1CanvasSystem.html#aee4ca963daa0450b7130de308a02bfc8">Wiesel::CanvasSystem::Update</a></div><div class="ttdeci">void Update(Scene &amp;scene, glm::vec2 screen_size)</div></div>
-<div class="ttc" id="aclassWiesel_1_1Event_html"><div class="ttname"><a href="classWiesel_1_1Event.html">Wiesel::Event</a></div><div class="ttdef"><b>Definition</b> w_events.hpp:52</div></div>
-<div class="ttc" id="aclassWiesel_1_1Scene_html"><div class="ttname"><a href="classWiesel_1_1Scene.html">Wiesel::Scene</a></div><div class="ttdef"><b>Definition</b> w_scene.hpp:37</div></div>
+<div class="ttc" id="aclassWiesel_1_1Event_html"><div class="ttname"><a href="classWiesel_1_1Event.html">Wiesel::Event</a></div><div class="ttdef"><b>Definition</b> w_events.hpp:55</div></div>
+<div class="ttc" id="aclassWiesel_1_1Scene_html"><div class="ttname"><a href="classWiesel_1_1Scene.html">Wiesel::Scene</a></div><div class="ttdef"><b>Definition</b> w_scene.hpp:36</div></div>
 <div class="ttc" id="anamespaceWiesel_html"><div class="ttname"><a href="namespaceWiesel.html">Wiesel</a></div><div class="ttdef"><b>Definition</b> w_agent_controller.hpp:8</div></div>
-<div class="ttc" id="anamespaceWiesel_html_a31372fbcc35c740f4372e5cf18aa1a65"><div class="ttname"><a href="namespaceWiesel.html#a31372fbcc35c740f4372e5cf18aa1a65">Wiesel::AnchorPreset</a></div><div class="ttdeci">AnchorPreset</div><div class="ttdef"><b>Definition</b> w_canvas.hpp:23</div></div>
+<div class="ttc" id="anamespaceWiesel_html_a31372fbcc35c740f4372e5cf18aa1a65"><div class="ttname"><a href="namespaceWiesel.html#a31372fbcc35c740f4372e5cf18aa1a65">Wiesel::AnchorPreset</a></div><div class="ttdeci">AnchorPreset</div><div class="ttdef"><b>Definition</b> w_canvas.hpp:25</div></div>
 <div class="ttc" id="astructWiesel_1_1CanvasComponent_html"><div class="ttname"><a href="structWiesel_1_1CanvasComponent.html">Wiesel::CanvasComponent</a></div><div class="ttdef"><b>Definition</b> w_canvas.hpp:55</div></div>
 <div class="ttc" id="aw__canvas_8hpp_html"><div class="ttname"><a href="w__canvas_8hpp.html">w_canvas.hpp</a></div></div>
 <div class="ttc" id="aw__scene_8hpp_html"><div class="ttname"><a href="w__scene_8hpp.html">w_scene.hpp</a></div></div>

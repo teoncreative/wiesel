@@ -1,6 +1,6 @@
 var classWiesel_1_1Font =
 [
-    [ "Font", "classWiesel_1_1Font.html#a0c386276e620cc2579c0f63eb2e3c45d", null ],
+    [ "Font", "classWiesel_1_1Font.html#af1fffff4b9a637a3005f091afda24555", null ],
     [ "~Font", "classWiesel_1_1Font.html#a9b954581be140c6570ccb88c281c61d0", null ],
     [ "FlushAtlas", "classWiesel_1_1Font.html#a27c2a4d61ac8f2694faec15b5ceebc0f", null ],
     [ "GetAscent", "classWiesel_1_1Font.html#af3949e060c67bc1fca3ef689e5a4e399", null ],

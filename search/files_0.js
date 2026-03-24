@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['imgui_5fspectrum_2ehpp_0',['imgui_spectrum.hpp',['../imgui__spectrum_8hpp.html',1,'']]]
+  ['imgui_5ftheme_2ehpp_0',['imgui_theme.hpp',['../imgui__theme_8hpp.html',1,'']]]
 ];

@@ -92,9 +92,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1Application.html',''); 
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
-<a href="#pro-static-attribs">Static Protected Attributes</a> &#124;
 <a href="classWiesel_1_1Application-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">Wiesel::Application Class Reference<span class="mlabels"><span class="mlabel">abstract</span></span></div></div>
 </div><!--header-->
@@ -117,7 +115,6 @@ Collaboration diagram for Wiesel::Application:</div>
 <div class="center"><img src="classWiesel_1_1Application__coll__graph.png" border="0" usemap="#aWiesel_1_1Application_coll__map" alt="Collaboration graph"/></div>
 <map name="aWiesel_1_1Application_coll__map" id="aWiesel_1_1Application_coll__map">
 <area shape="rect" title=" " alt="" coords="9,93,155,119"/>
-<area shape="poly" title=" " alt="" coords="170,98,182,106,174,113,156,116,155,111,172,109,177,106,167,102"/>
 <area shape="rect" href="structWiesel_1_1WindowSize.html" title=" " alt="" coords="5,5,159,31"/>
 <area shape="poly" title=" " alt="" coords="85,45,85,93,79,93,79,45"/>
 </map>
@@ -168,11 +165,6 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a9d1d86f5861d8f74198972b1e0d01e02" id="r_a9d1d86f5861d8f74198972b1e0d01e02"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#a9d1d86f5861d8f74198972b1e0d01e02">SubmitToMainThread</a> (std::function&lt; void()&gt; fn)</td></tr>
 <tr class="separator:a9d1d86f5861d8f74198972b1e0d01e02"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
-Static Public Member Functions</h2></td></tr>
-<tr class="memitem:ad69c481132db5e118d460420f1b4f43d" id="r_ad69c481132db5e118d460420f1b4f43d"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="w__attributes_8hpp.html#a85d205c4f00d74230eca9a1973e02b6f">WIESEL_GETTER_FN</a> <a class="el" href="classWiesel_1_1Application.html">Application</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#ad69c481132db5e118d460420f1b4f43d">Get</a> ()</td></tr>
-<tr class="separator:ad69c481132db5e118d460420f1b4f43d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-attribs" name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
 <tr class="memitem:a9dc13d537fef8c741b3ddafb74c6f558" id="r_a9dc13d537fef8c741b3ddafb74c6f558"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::function&lt; void()&gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#a9dc13d537fef8c741b3ddafb74c6f558">main_thread_queue_</a></td></tr>
@@ -217,11 +209,6 @@ Protected Attributes</h2></td></tr>
 <tr class="separator:a08847571e625afcdb432324e84d8420c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6d51887ae60ba5dea93289a7afda984a" id="r_a6d51887ae60ba5dea93289a7afda984a"><td class="memItemLeft" align="right" valign="top">float_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#a6d51887ae60ba5dea93289a7afda984a">time_scale_</a> = 1.0f</td></tr>
 <tr class="separator:a6d51887ae60ba5dea93289a7afda984a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-static-attribs" name="pro-static-attribs"></a>
-Static Protected Attributes</h2></td></tr>
-<tr class="memitem:aef66e2a9b457e9708137d05d9334a0e0" id="r_aef66e2a9b457e9708137d05d9334a0e0"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classWiesel_1_1Application.html">Application</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Application.html#aef66e2a9b457e9708137d05d9334a0e0">application_</a></td></tr>
-<tr class="separator:aef66e2a9b457e9708137d05d9334a0e0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ade692996f95d974bbfdb516586a5b591" name="ade692996f95d974bbfdb516586a5b591"></a>
@@ -291,31 +278,6 @@ Static Protected Attributes</h2></td></tr>
           <td></td>
         </tr>
       </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="ad69c481132db5e118d460420f1b4f43d" name="ad69c481132db5e118d460420f1b4f43d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad69c481132db5e118d460420f1b4f43d">&#9670;&#160;</a></span>Get()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static <a class="el" href="w__attributes_8hpp.html#a85d205c4f00d74230eca9a1973e02b6f">WIESEL_GETTER_FN</a> <a class="el" href="classWiesel_1_1Application.html">Application</a> * Wiesel::Application::Get </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -709,28 +671,6 @@ Static Protected Attributes</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Data Documentation</h2>
-<a id="aef66e2a9b457e9708137d05d9334a0e0" name="aef66e2a9b457e9708137d05d9334a0e0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aef66e2a9b457e9708137d05d9334a0e0">&#9670;&#160;</a></span>application_</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname"><a class="el" href="classWiesel_1_1Application.html">Application</a>* Wiesel::Application::application_</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">protected</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="ae3f6706cda0c5c0d9779d84dd696c81e" name="ae3f6706cda0c5c0d9779d84dd696c81e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ae3f6706cda0c5c0d9779d84dd696c81e">&#9670;&#160;</a></span>delta_time_</h2>
 

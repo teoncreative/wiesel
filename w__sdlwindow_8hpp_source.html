@@ -111,9 +111,9 @@ $(document).ready(function(){initNavTree('w__sdlwindow_8hpp_source.html',''); in
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span> </div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="preprocessor">#pragma once</span></div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span> </div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="preprocessor">#include &quot;<a class="code" href="w__pch_8hpp.html">w_pch.hpp</a>&quot;</span></div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="preprocessor">#include &lt;SDL3/SDL.h&gt;</span></div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="preprocessor">#include &lt;SDL3/SDL_vulkan.h&gt;</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="preprocessor">#include &lt;SDL3/SDL.h&gt;</span></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="preprocessor">#include &lt;SDL3/SDL_vulkan.h&gt;</span></div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="preprocessor">#include &quot;<a class="code" href="w__pch_8hpp.html">w_pch.hpp</a>&quot;</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span> </div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="preprocessor">#include &quot;<a class="code" href="w__window_8hpp.html">window/w_window.hpp</a>&quot;</span></div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span> </div>
@@ -160,10 +160,11 @@ $(document).ready(function(){initNavTree('w__sdlwindow_8hpp_source.html',''); in
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    std::array&lt;bool, SDL_GAMEPAD_BUTTON_COUNT&gt; buttons{};</div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    std::array&lt;float, SDL_GAMEPAD_AXIS_COUNT&gt; axes{};</div>
 <div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>  };</div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>  std::unordered_map&lt;SDL_JoystickID, GamepadState&gt; gamepads_;</div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>};</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span> </div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>  std::unordered_map&lt;SDL_JoystickID, GamepadState&gt; gamepads_;</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>};</div>
 </div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>}  <span class="comment">// namespace Wiesel</span></div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>}  <span class="comment">// namespace Wiesel</span></div>
 <div class="ttc" id="aclassWiesel_1_1AppWindow_html"><div class="ttname"><a href="classWiesel_1_1AppWindow.html">Wiesel::AppWindow</a></div><div class="ttdef"><b>Definition</b> w_window.hpp:46</div></div>
 <div class="ttc" id="aclassWiesel_1_1SdlAppWindow_html"><div class="ttname"><a href="classWiesel_1_1SdlAppWindow.html">Wiesel::SdlAppWindow</a></div><div class="ttdef"><b>Definition</b> w_sdlwindow.hpp:21</div></div>
 <div class="ttc" id="aclassWiesel_1_1SdlAppWindow_html_a3351918ab18d63ee2e03834af68bd7e7"><div class="ttname"><a href="classWiesel_1_1SdlAppWindow.html#a3351918ab18d63ee2e03834af68bd7e7">Wiesel::SdlAppWindow::ResetCursorDelta</a></div><div class="ttdeci">void ResetCursorDelta() override</div></div>
@@ -183,7 +184,7 @@ $(document).ready(function(){initNavTree('w__sdlwindow_8hpp_source.html',''); in
 <div class="ttc" id="anamespaceWiesel_html"><div class="ttname"><a href="namespaceWiesel.html">Wiesel</a></div><div class="ttdef"><b>Definition</b> w_agent_controller.hpp:8</div></div>
 <div class="ttc" id="anamespaceWiesel_html_ae8894874dc19b1403cd5d48933e4bb22"><div class="ttname"><a href="namespaceWiesel.html#ae8894874dc19b1403cd5d48933e4bb22">Wiesel::CursorMode</a></div><div class="ttdeci">CursorMode</div><div class="ttdef"><b>Definition</b> w_window.hpp:29</div></div>
 <div class="ttc" id="anamespaceWiesel_html_af49c8c5545def5e3fe27890a04f552ce"><div class="ttname"><a href="namespaceWiesel.html#af49c8c5545def5e3fe27890a04f552ce">Wiesel::KeyCode</a></div><div class="ttdeci">int32_t KeyCode</div><div class="ttdef"><b>Definition</b> w_keycodes.hpp:17</div></div>
-<div class="ttc" id="astructWiesel_1_1GamepadState_html"><div class="ttname"><a href="structWiesel_1_1GamepadState.html">Wiesel::GamepadState</a></div><div class="ttdef"><b>Definition</b> w_input.hpp:37</div></div>
+<div class="ttc" id="astructWiesel_1_1GamepadState_html"><div class="ttname"><a href="structWiesel_1_1GamepadState.html">Wiesel::GamepadState</a></div><div class="ttdef"><b>Definition</b> w_input.hpp:38</div></div>
 <div class="ttc" id="astructWiesel_1_1WindowProperties_html"><div class="ttname"><a href="structWiesel_1_1WindowProperties.html">Wiesel::WindowProperties</a></div><div class="ttdef"><b>Definition</b> w_window.hpp:36</div></div>
 <div class="ttc" id="astructWiesel_1_1WindowSize_html"><div class="ttname"><a href="structWiesel_1_1WindowSize.html">Wiesel::WindowSize</a></div><div class="ttdef"><b>Definition</b> w_window.hpp:24</div></div>
 <div class="ttc" id="aw__pch_8hpp_html"><div class="ttname"><a href="w__pch_8hpp.html">w_pch.hpp</a></div></div>

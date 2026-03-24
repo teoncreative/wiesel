@@ -30,6 +30,9 @@ var w__events_8hpp =
       [ "JoystickButtonReleased", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa98913a905aad67c179f13e65d0b534ad", null ],
       [ "JoystickAxisMoved", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa11783af6be768504300caada41bca2d9", null ],
       [ "JoystickHatChanged", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa234f5a67f7c3d14c6ffe80119141584f", null ],
-      [ "PipelineRecreated", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfaf3dfa69eb8efe783aabcd02a0f83fcb3", null ]
+      [ "PipelineRecreated", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfaf3dfa69eb8efe783aabcd02a0f83fcb3", null ],
+      [ "WindowFocusGained", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa05b3dce6e0f8da4f434551354c06927f", null ],
+      [ "WindowFocusLost", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfaa01c68a918521970c26998c27d41e26e", null ],
+      [ "AssetUnloaded", "w__events_8hpp.html#adc25558cdf36ff75b7903b843b394fcfa0f45700d0cbb836b50fb77296cf0b040", null ]
     ] ]
 ];

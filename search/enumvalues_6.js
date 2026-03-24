@@ -24,5 +24,6 @@ var searchData=
   ['gamepadbuttonx_21',['GamepadButtonX',['../namespaceWiesel.html#a5465370561e8eb90fb24d3c113513db8a38a6d94dc46076a50435a8f56243f767',1,'Wiesel']]],
   ['gamepadbuttony_22',['GamepadButtonY',['../namespaceWiesel.html#a5465370561e8eb90fb24d3c113513db8a0eaa373d6a1913b5e8d808dd2a316f6f',1,'Wiesel']]],
   ['geometry_23',['Geometry',['../namespaceWiesel.html#a3a4dc529a9c91e974ef506984adfda2ead9c6333623e6357515fcbf17be806273',1,'Wiesel']]],
-  ['greater_24',['Greater',['../namespaceWiesel.html#a8ba879d9cc438ebb614ecb66d7c3a98aa8768a6821cd735aea4f5b0df88c1fc6a',1,'Wiesel']]]
+  ['grayscale_24',['Grayscale',['../namespaceWiesel.html#a1a36549c4278a69eb9ace4d998a33d07ad3f6975213fb5546d8486b54b025dbd7',1,'Wiesel']]],
+  ['greater_25',['Greater',['../namespaceWiesel.html#a8ba879d9cc438ebb614ecb66d7c3a98aa8768a6821cd735aea4f5b0df88c1fc6a',1,'Wiesel']]]
 ];

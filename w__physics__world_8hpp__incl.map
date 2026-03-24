@@ -1,9 +1,9 @@
 <map id="w_physics_world.hpp" name="w_physics_world.hpp">
 <area shape="rect" id="Node000001" title=" " alt="" coords="474,5,634,31"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="5,86,215,111"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="490,33,188,86,187,81,489,28"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="239,79,427,119"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="523,33,400,77,398,72,521,28"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,193,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="487,33,207,81,206,76,486,28"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="217,86,427,111"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="521,33,370,84,368,79,519,28"/>
 <area shape="rect" id="Node000004" title=" " alt="" coords="451,86,558,111"/>
 <area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="549,32,521,76,517,73,544,29"/>
 <area shape="rect" id="Node000005" title=" " alt="" coords="582,86,625,111"/>

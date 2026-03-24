@@ -129,7 +129,7 @@ $(document).ready(function(){initNavTree('w__monobehavior_8hpp_source.html','');
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#aa5ecc2f274dbc01b35d5d58d4e697e53">   28</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#aa5ecc2f274dbc01b35d5d58d4e697e53">OnUpdate</a>(float_t delta_time) <span class="keyword">override</span>;</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#a5d8ebc278dce5d7f8425b29e3e066d16">   29</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#a5d8ebc278dce5d7f8425b29e3e066d16">OnEvent</a>(<a class="code hl_class" href="classWiesel_1_1Event.html">Event</a>&amp; event) <span class="keyword">override</span>;</div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>  <span class="keyword">template</span>&lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
 <div class="foldopen" id="foldopen00032" data-start="{" data-end="}">
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#ad3e7eb1705ed1b7413d0628513253a45">   32</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#ad3e7eb1705ed1b7413d0628513253a45">AttachExternComponent</a>(std::string variable, entt::entity <a class="code hl_function" href="classWiesel_1_1IBehavior.html#a865cc9e710ce15d410b68e3f017c105a">entity</a>) {</div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    <span class="keywordflow">if</span> (<a class="code hl_variable" href="classWiesel_1_1IBehavior.html#a03f09ebd87efbe5186e776d43f224335">unset_</a> || !<a class="code hl_variable" href="classWiesel_1_1IBehavior.html#af82b5d47f9162c70c65fa6e87c434b27">enabled_</a>) {</div>
@@ -140,36 +140,123 @@ $(document).ready(function(){initNavTree('w__monobehavior_8hpp_source.html','');
 </div>
 <div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#afc894dbabcd81b44b6fbf969634f4caf">   39</a></span>  <a class="code hl_class" href="classWiesel_1_1ScriptInstance.html">ScriptInstance</a>* <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#afc894dbabcd81b44b6fbf969634f4caf">script_instance</a>()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> script_instance_.get(); }</div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>  <span class="keywordtype">void</span> InstantiateScript();</div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>  <span class="keywordtype">bool</span> OnReloadScripts(<a class="code hl_class" href="classWiesel_1_1ScriptsReloadedEvent.html">ScriptsReloadedEvent</a>&amp; event);</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>  <span class="keywordtype">bool</span> OnKeyPressed(<a class="code hl_class" href="classWiesel_1_1KeyPressedEvent.html">KeyPressedEvent</a>&amp; event);</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>  <span class="keywordtype">bool</span> OnKeyReleased(<a class="code hl_class" href="classWiesel_1_1KeyReleasedEvent.html">KeyReleasedEvent</a>&amp; event);</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>  <span class="keywordtype">bool</span> OnMouseMoved(<a class="code hl_class" href="classWiesel_1_1MouseMovedEvent.html">MouseMovedEvent</a>&amp; event);</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span> </div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>  std::unique_ptr&lt;ScriptInstance&gt; script_instance_;</div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>};</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
+<div class="foldopen" id="foldopen00041" data-start="{" data-end="}">
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#a727bf458af79c7fe758a1be9d9a9b004">   41</a></span>  <span class="keywordtype">bool</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#a727bf458af79c7fe758a1be9d9a9b004">OnPointerClick</a>(<span class="keywordtype">float</span> x, <span class="keywordtype">float</span> y)<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>      <span class="keywordflow">return</span> script_instance_-&gt;OnPointerClick(x, y);</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>    }</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>  }</div>
 </div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>}  <span class="comment">// namespace Wiesel</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
+<div class="foldopen" id="foldopen00048" data-start="{" data-end="}">
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#ac255d0291cdeaa0f8c5e78c35993afe5">   48</a></span>  <span class="keywordtype">bool</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#ac255d0291cdeaa0f8c5e78c35993afe5">OnPointerDown</a>(<span class="keywordtype">float</span> x, <span class="keywordtype">float</span> y)<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>      <span class="keywordflow">return</span> script_instance_-&gt;OnPointerDown(x, y);</div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    }</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>  }</div>
+</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
+<div class="foldopen" id="foldopen00055" data-start="{" data-end="}">
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#aa12a6e1a386e9571e39db840cd05d076">   55</a></span>  <span class="keywordtype">bool</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#aa12a6e1a386e9571e39db840cd05d076">OnPointerUp</a>(<span class="keywordtype">float</span> x, <span class="keywordtype">float</span> y)<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>      <span class="keywordflow">return</span> script_instance_-&gt;OnPointerUp(x, y);</div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>    }</div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>  }</div>
+</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
+<div class="foldopen" id="foldopen00062" data-start="{" data-end="}">
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#ace11301bc746e18ace949b20a2d2a727">   62</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#ace11301bc746e18ace949b20a2d2a727">OnPointerEnter</a>()<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>      script_instance_-&gt;OnPointerEnter();</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    }</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>  }</div>
+</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span> </div>
+<div class="foldopen" id="foldopen00068" data-start="{" data-end="}">
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#a148691d090e74e1100378daf125c8b94">   68</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#a148691d090e74e1100378daf125c8b94">OnPointerExit</a>()<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>      script_instance_-&gt;OnPointerExit();</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>    }</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>  }</div>
+</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span> </div>
+<div class="foldopen" id="foldopen00074" data-start="{" data-end="}">
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#a7c894e18faad92efae92032217f37a9d">   74</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#a7c894e18faad92efae92032217f37a9d">OnSelect</a>()<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>      script_instance_-&gt;OnSelect();</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    }</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>  }</div>
+</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span> </div>
+<div class="foldopen" id="foldopen00080" data-start="{" data-end="}">
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#affde01309a3a2f48cdd7105b1282d923">   80</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#affde01309a3a2f48cdd7105b1282d923">OnDeselect</a>()<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>      script_instance_-&gt;OnDeselect();</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>    }</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>  }</div>
+</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span> </div>
+<div class="foldopen" id="foldopen00086" data-start="{" data-end="}">
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#a774d59ff70640bdfec7edaa620b0b2ac">   86</a></span>  <span class="keywordtype">bool</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#a774d59ff70640bdfec7edaa620b0b2ac">OnSubmit</a>()<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>      <span class="keywordflow">return</span> script_instance_-&gt;OnSubmit();</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>    }</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>  }</div>
+</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span> </div>
+<div class="foldopen" id="foldopen00093" data-start="{" data-end="}">
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno"><a class="line" href="classWiesel_1_1MonoBehavior.html#acaab70af3e45ef6bc521bf3f365aefc0">   93</a></span>  <span class="keywordtype">bool</span> <a class="code hl_function" href="classWiesel_1_1MonoBehavior.html#acaab70af3e45ef6bc521bf3f365aefc0">OnCancel</a>()<span class="keyword"> override </span>{</div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    <span class="keywordflow">if</span> (script_instance_) {</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>      <span class="keywordflow">return</span> script_instance_-&gt;OnCancel();</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>    }</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>  }</div>
+</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span> </div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span> <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>  <span class="keywordtype">void</span> InstantiateScript();</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>  <span class="keywordtype">bool</span> OnReloadScripts(<a class="code hl_class" href="classWiesel_1_1ScriptsReloadedEvent.html">ScriptsReloadedEvent</a>&amp; event);</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>  <span class="keywordtype">bool</span> OnKeyPressed(<a class="code hl_class" href="classWiesel_1_1KeyPressedEvent.html">KeyPressedEvent</a>&amp; event);</div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>  <span class="keywordtype">bool</span> OnKeyReleased(<a class="code hl_class" href="classWiesel_1_1KeyReleasedEvent.html">KeyReleasedEvent</a>&amp; event);</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>  <span class="keywordtype">bool</span> OnMouseMoved(<a class="code hl_class" href="classWiesel_1_1MouseMovedEvent.html">MouseMovedEvent</a>&amp; event);</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span> </div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>  std::unique_ptr&lt;ScriptInstance&gt; script_instance_;</div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>};</div>
+</div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span> </div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>}  <span class="comment">// namespace Wiesel</span></div>
 <div class="ttc" id="aclassWiesel_1_1Entity_html"><div class="ttname"><a href="classWiesel_1_1Entity.html">Wiesel::Entity</a></div><div class="ttdef"><b>Definition</b> w_entity.hpp:18</div></div>
-<div class="ttc" id="aclassWiesel_1_1Event_html"><div class="ttname"><a href="classWiesel_1_1Event.html">Wiesel::Event</a></div><div class="ttdef"><b>Definition</b> w_events.hpp:52</div></div>
+<div class="ttc" id="aclassWiesel_1_1Event_html"><div class="ttname"><a href="classWiesel_1_1Event.html">Wiesel::Event</a></div><div class="ttdef"><b>Definition</b> w_events.hpp:55</div></div>
 <div class="ttc" id="aclassWiesel_1_1IBehavior_html"><div class="ttname"><a href="classWiesel_1_1IBehavior.html">Wiesel::IBehavior</a></div><div class="ttdef"><b>Definition</b> w_behavior.hpp:25</div></div>
-<div class="ttc" id="aclassWiesel_1_1IBehavior_html_a03f09ebd87efbe5186e776d43f224335"><div class="ttname"><a href="classWiesel_1_1IBehavior.html#a03f09ebd87efbe5186e776d43f224335">Wiesel::IBehavior::unset_</a></div><div class="ttdeci">bool unset_</div><div class="ttdef"><b>Definition</b> w_behavior.hpp:83</div></div>
-<div class="ttc" id="aclassWiesel_1_1IBehavior_html_a865cc9e710ce15d410b68e3f017c105a"><div class="ttname"><a href="classWiesel_1_1IBehavior.html#a865cc9e710ce15d410b68e3f017c105a">Wiesel::IBehavior::entity</a></div><div class="ttdeci">WIESEL_GETTER_FN Entity entity()</div><div class="ttdef"><b>Definition</b> w_behavior.hpp:72</div></div>
-<div class="ttc" id="aclassWiesel_1_1IBehavior_html_af82b5d47f9162c70c65fa6e87c434b27"><div class="ttname"><a href="classWiesel_1_1IBehavior.html#af82b5d47f9162c70c65fa6e87c434b27">Wiesel::IBehavior::enabled_</a></div><div class="ttdeci">bool enabled_</div><div class="ttdef"><b>Definition</b> w_behavior.hpp:82</div></div>
-<div class="ttc" id="aclassWiesel_1_1KeyPressedEvent_html"><div class="ttname"><a href="classWiesel_1_1KeyPressedEvent.html">Wiesel::KeyPressedEvent</a></div><div class="ttdef"><b>Definition</b> w_keyevents.hpp:29</div></div>
-<div class="ttc" id="aclassWiesel_1_1KeyReleasedEvent_html"><div class="ttname"><a href="classWiesel_1_1KeyReleasedEvent.html">Wiesel::KeyReleasedEvent</a></div><div class="ttdef"><b>Definition</b> w_keyevents.hpp:41</div></div>
+<div class="ttc" id="aclassWiesel_1_1IBehavior_html_a03f09ebd87efbe5186e776d43f224335"><div class="ttname"><a href="classWiesel_1_1IBehavior.html#a03f09ebd87efbe5186e776d43f224335">Wiesel::IBehavior::unset_</a></div><div class="ttdeci">bool unset_</div><div class="ttdef"><b>Definition</b> w_behavior.hpp:106</div></div>
+<div class="ttc" id="aclassWiesel_1_1IBehavior_html_a865cc9e710ce15d410b68e3f017c105a"><div class="ttname"><a href="classWiesel_1_1IBehavior.html#a865cc9e710ce15d410b68e3f017c105a">Wiesel::IBehavior::entity</a></div><div class="ttdeci">WIESEL_GETTER_FN Entity entity()</div><div class="ttdef"><b>Definition</b> w_behavior.hpp:93</div></div>
+<div class="ttc" id="aclassWiesel_1_1IBehavior_html_af82b5d47f9162c70c65fa6e87c434b27"><div class="ttname"><a href="classWiesel_1_1IBehavior.html#af82b5d47f9162c70c65fa6e87c434b27">Wiesel::IBehavior::enabled_</a></div><div class="ttdeci">bool enabled_</div><div class="ttdef"><b>Definition</b> w_behavior.hpp:105</div></div>
+<div class="ttc" id="aclassWiesel_1_1KeyPressedEvent_html"><div class="ttname"><a href="classWiesel_1_1KeyPressedEvent.html">Wiesel::KeyPressedEvent</a></div><div class="ttdef"><b>Definition</b> w_keyevents.hpp:30</div></div>
+<div class="ttc" id="aclassWiesel_1_1KeyReleasedEvent_html"><div class="ttname"><a href="classWiesel_1_1KeyReleasedEvent.html">Wiesel::KeyReleasedEvent</a></div><div class="ttdef"><b>Definition</b> w_keyevents.hpp:42</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html">Wiesel::MonoBehavior</a></div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:23</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_a148691d090e74e1100378daf125c8b94"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#a148691d090e74e1100378daf125c8b94">Wiesel::MonoBehavior::OnPointerExit</a></div><div class="ttdeci">void OnPointerExit() override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:68</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_a209d359c73b8c9714ffb45da921fb384"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#a209d359c73b8c9714ffb45da921fb384">Wiesel::MonoBehavior::MonoBehavior</a></div><div class="ttdeci">MonoBehavior(Entity entity, const std::string &amp;script_name)</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_a5d8ebc278dce5d7f8425b29e3e066d16"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#a5d8ebc278dce5d7f8425b29e3e066d16">Wiesel::MonoBehavior::OnEvent</a></div><div class="ttdeci">void OnEvent(Event &amp;event) override</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_a727bf458af79c7fe758a1be9d9a9b004"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#a727bf458af79c7fe758a1be9d9a9b004">Wiesel::MonoBehavior::OnPointerClick</a></div><div class="ttdeci">bool OnPointerClick(float x, float y) override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:41</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_a774d59ff70640bdfec7edaa620b0b2ac"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#a774d59ff70640bdfec7edaa620b0b2ac">Wiesel::MonoBehavior::OnSubmit</a></div><div class="ttdeci">bool OnSubmit() override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:86</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_a7c894e18faad92efae92032217f37a9d"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#a7c894e18faad92efae92032217f37a9d">Wiesel::MonoBehavior::OnSelect</a></div><div class="ttdeci">void OnSelect() override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:74</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_aa12a6e1a386e9571e39db840cd05d076"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#aa12a6e1a386e9571e39db840cd05d076">Wiesel::MonoBehavior::OnPointerUp</a></div><div class="ttdeci">bool OnPointerUp(float x, float y) override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:55</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_aa5ecc2f274dbc01b35d5d58d4e697e53"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#aa5ecc2f274dbc01b35d5d58d4e697e53">Wiesel::MonoBehavior::OnUpdate</a></div><div class="ttdeci">void OnUpdate(float_t delta_time) override</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_ac22e585f8c7b8daca1ed4f8892bdd616"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#ac22e585f8c7b8daca1ed4f8892bdd616">Wiesel::MonoBehavior::~MonoBehavior</a></div><div class="ttdeci">~MonoBehavior() override</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_ac255d0291cdeaa0f8c5e78c35993afe5"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#ac255d0291cdeaa0f8c5e78c35993afe5">Wiesel::MonoBehavior::OnPointerDown</a></div><div class="ttdeci">bool OnPointerDown(float x, float y) override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:48</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_acaab70af3e45ef6bc521bf3f365aefc0"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#acaab70af3e45ef6bc521bf3f365aefc0">Wiesel::MonoBehavior::OnCancel</a></div><div class="ttdeci">bool OnCancel() override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:93</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_ace11301bc746e18ace949b20a2d2a727"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#ace11301bc746e18ace949b20a2d2a727">Wiesel::MonoBehavior::OnPointerEnter</a></div><div class="ttdeci">void OnPointerEnter() override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:62</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_ad3e7eb1705ed1b7413d0628513253a45"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#ad3e7eb1705ed1b7413d0628513253a45">Wiesel::MonoBehavior::AttachExternComponent</a></div><div class="ttdeci">void AttachExternComponent(std::string variable, entt::entity entity)</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:32</div></div>
 <div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_afc894dbabcd81b44b6fbf969634f4caf"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#afc894dbabcd81b44b6fbf969634f4caf">Wiesel::MonoBehavior::script_instance</a></div><div class="ttdeci">ScriptInstance * script_instance() const</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:39</div></div>
+<div class="ttc" id="aclassWiesel_1_1MonoBehavior_html_affde01309a3a2f48cdd7105b1282d923"><div class="ttname"><a href="classWiesel_1_1MonoBehavior.html#affde01309a3a2f48cdd7105b1282d923">Wiesel::MonoBehavior::OnDeselect</a></div><div class="ttdeci">void OnDeselect() override</div><div class="ttdef"><b>Definition</b> w_monobehavior.hpp:80</div></div>
 <div class="ttc" id="aclassWiesel_1_1MouseMovedEvent_html"><div class="ttname"><a href="classWiesel_1_1MouseMovedEvent.html">Wiesel::MouseMovedEvent</a></div><div class="ttdef"><b>Definition</b> w_mouseevents.hpp:20</div></div>
-<div class="ttc" id="aclassWiesel_1_1ScriptInstance_html"><div class="ttname"><a href="classWiesel_1_1ScriptInstance.html">Wiesel::ScriptInstance</a></div><div class="ttdef"><b>Definition</b> w_scriptmanager.hpp:175</div></div>
-<div class="ttc" id="aclassWiesel_1_1ScriptsReloadedEvent_html"><div class="ttname"><a href="classWiesel_1_1ScriptsReloadedEvent.html">Wiesel::ScriptsReloadedEvent</a></div><div class="ttdef"><b>Definition</b> w_appevents.hpp:61</div></div>
+<div class="ttc" id="aclassWiesel_1_1ScriptInstance_html"><div class="ttname"><a href="classWiesel_1_1ScriptInstance.html">Wiesel::ScriptInstance</a></div><div class="ttdef"><b>Definition</b> w_scriptmanager.hpp:244</div></div>
+<div class="ttc" id="aclassWiesel_1_1ScriptsReloadedEvent_html"><div class="ttname"><a href="classWiesel_1_1ScriptsReloadedEvent.html">Wiesel::ScriptsReloadedEvent</a></div><div class="ttdef"><b>Definition</b> w_appevents.hpp:93</div></div>
 <div class="ttc" id="anamespaceWiesel_html"><div class="ttname"><a href="namespaceWiesel.html">Wiesel</a></div><div class="ttdef"><b>Definition</b> w_agent_controller.hpp:8</div></div>
 <div class="ttc" id="aw__behavior_8hpp_html"><div class="ttname"><a href="w__behavior_8hpp.html">w_behavior.hpp</a></div></div>
 <div class="ttc" id="aw__scriptmanager_8hpp_html"><div class="ttname"><a href="w__scriptmanager_8hpp.html">w_scriptmanager.hpp</a></div></div>

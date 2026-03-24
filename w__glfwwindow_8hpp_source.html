@@ -155,18 +155,21 @@ $(document).ready(function(){initNavTree('w__glfwwindow_8hpp_source.html',''); i
 <div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>  <span class="keywordtype">double</span> prev_cursor_x_ = 0.0, prev_cursor_y_ = 0.0;</div>
 <div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>  <span class="keywordtype">bool</span> cursor_relative_first_ = <span class="keyword">true</span>;</div>
 <div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>  <span class="keywordtype">double</span> cursor_delta_x_ = 0.0, cursor_delta_y_ = 0.0;</div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>  std::array&lt;std::optional&lt;GLFWgamepadstate&gt;, GLFW_JOYSTICK_LAST + 1&gt; gamepad_prev_{};</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>  <span class="keyword">struct </span>RawJoyPrev {</div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    <span class="keywordtype">bool</span> valid = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    std::vector&lt;float&gt; axes;</div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    std::vector&lt;unsigned char&gt; buttons;</div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>    std::vector&lt;unsigned char&gt; hats;</div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>  };</div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>  std::array&lt;RawJoyPrev, GLFW_JOYSTICK_LAST + 1&gt; joy_prev_{};</div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>  <span class="keywordtype">bool</span> first_frame_ = <span class="keyword">true</span>;</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>};</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>  std::array&lt;std::optional&lt;GLFWgamepadstate&gt;, GLFW_JOYSTICK_LAST + 1&gt;</div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>      gamepad_prev_{};</div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span> </div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>  <span class="keyword">struct </span>RawJoyPrev {</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    <span class="keywordtype">bool</span> valid = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>    std::vector&lt;float&gt; axes;</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    std::vector&lt;unsigned char&gt; buttons;</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>    std::vector&lt;unsigned char&gt; hats;</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>  };</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>  std::array&lt;RawJoyPrev, GLFW_JOYSTICK_LAST + 1&gt; joy_prev_{};</div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>  <span class="keywordtype">bool</span> first_frame_ = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>};</div>
 </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>}  <span class="comment">// namespace Wiesel</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>}  <span class="comment">// namespace Wiesel</span></div>
 <div class="ttc" id="aclassWiesel_1_1AppWindow_html"><div class="ttname"><a href="classWiesel_1_1AppWindow.html">Wiesel::AppWindow</a></div><div class="ttdef"><b>Definition</b> w_window.hpp:46</div></div>
 <div class="ttc" id="aclassWiesel_1_1GlfwAppWindow_html"><div class="ttname"><a href="classWiesel_1_1GlfwAppWindow.html">Wiesel::GlfwAppWindow</a></div><div class="ttdef"><b>Definition</b> w_glfwwindow.hpp:26</div></div>
 <div class="ttc" id="aclassWiesel_1_1GlfwAppWindow_html_a0d8be29e06db14bcdf5c8bab0be8d572"><div class="ttname"><a href="classWiesel_1_1GlfwAppWindow.html#a0d8be29e06db14bcdf5c8bab0be8d572">Wiesel::GlfwAppWindow::SetTitle</a></div><div class="ttdeci">void SetTitle(const std::string &amp;title) override</div></div>

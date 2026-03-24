@@ -92,7 +92,6 @@ $(document).ready(function(){initNavTree('classWiesel_1_1SceneManager.html','');
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="classWiesel_1_1SceneManager-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">Wiesel::SceneManager Class Reference</div></div>
 </div><!--header-->
@@ -102,6 +101,14 @@ $(document).ready(function(){initNavTree('classWiesel_1_1SceneManager.html','');
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
+<tr class="memitem:a680d191ae2ae6dc560aba19466ebe5e0" id="r_a680d191ae2ae6dc560aba19466ebe5e0"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a680d191ae2ae6dc560aba19466ebe5e0">SceneManager</a> ()=default</td></tr>
+<tr class="separator:a680d191ae2ae6dc560aba19466ebe5e0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abc6d0110cfb0da4cb7ff3165c522b351" id="r_abc6d0110cfb0da4cb7ff3165c522b351"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#abc6d0110cfb0da4cb7ff3165c522b351">CreateScene</a> ()</td></tr>
+<tr class="separator:abc6d0110cfb0da4cb7ff3165c522b351"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acbaad7c3f310cb28f734a4223479fd5a" id="r_acbaad7c3f310cb28f734a4223479fd5a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#acbaad7c3f310cb28f734a4223479fd5a">SetActiveScene</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene)</td></tr>
+<tr class="separator:acbaad7c3f310cb28f734a4223479fd5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa32c77257f5ff03fb8d0ba37a46165e4" id="r_aa32c77257f5ff03fb8d0ba37a46165e4"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#aa32c77257f5ff03fb8d0ba37a46165e4">GetActiveScene</a> () const</td></tr>
+<tr class="separator:aa32c77257f5ff03fb8d0ba37a46165e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a48ccada4903a1fd8590753c06b927f54" id="r_a48ccada4903a1fd8590753c06b927f54"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a48ccada4903a1fd8590753c06b927f54">RegisterScene</a> (const std::string &amp;name, const std::filesystem::path &amp;path)</td></tr>
 <tr class="separator:a48ccada4903a1fd8590753c06b927f54"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a676993355307202db21f14eb3fd38b49" id="r_a676993355307202db21f14eb3fd38b49"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a676993355307202db21f14eb3fd38b49">UnregisterScene</a> (const std::string &amp;name)</td></tr>
@@ -114,25 +121,109 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a32ad9c5be93e32a06d40e65f85612df8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84010b3628ca0a867f8970224f07fce4" id="r_a84010b3628ca0a867f8970224f07fce4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a84010b3628ca0a867f8970224f07fce4">LoadSceneFromPath</a> (const std::filesystem::path &amp;path)</td></tr>
 <tr class="separator:a84010b3628ca0a867f8970224f07fce4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab7aac1d6927bf14f93d4879eb243ee2a" id="r_ab7aac1d6927bf14f93d4879eb243ee2a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#ab7aac1d6927bf14f93d4879eb243ee2a">LoadSceneWithLoading</a> (const std::string &amp;target_scene, const std::string &amp;loading_scene)</td></tr>
+<tr class="separator:ab7aac1d6927bf14f93d4879eb243ee2a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af62bb7da005f3fb482fc97a8dffbe53a" id="r_af62bb7da005f3fb482fc97a8dffbe53a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#af62bb7da005f3fb482fc97a8dffbe53a">LoadSceneWithLoadingPath</a> (const std::filesystem::path &amp;target_path, const std::filesystem::path &amp;loading_path)</td></tr>
+<tr class="separator:af62bb7da005f3fb482fc97a8dffbe53a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8255107d39fbde155745c878fd8f6156" id="r_a8255107d39fbde155745c878fd8f6156"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a8255107d39fbde155745c878fd8f6156">GetLoadProgress</a> () const</td></tr>
+<tr class="separator:a8255107d39fbde155745c878fd8f6156"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aac8599f6d4f310949022bc0f0bac284c" id="r_aac8599f6d4f310949022bc0f0bac284c"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#aac8599f6d4f310949022bc0f0bac284c">IsSceneReady</a> () const</td></tr>
+<tr class="separator:aac8599f6d4f310949022bc0f0bac284c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae491d0b96c25097e240472d8c18065fe" id="r_ae491d0b96c25097e240472d8c18065fe"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#ae491d0b96c25097e240472d8c18065fe">ActivateLoadedScene</a> ()</td></tr>
+<tr class="separator:ae491d0b96c25097e240472d8c18065fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0091d45413a4d787f3e8ee0e78a77e5e" id="r_a0091d45413a4d787f3e8ee0e78a77e5e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a0091d45413a4d787f3e8ee0e78a77e5e">HasPendingSceneLoad</a> () const</td></tr>
 <tr class="separator:a0091d45413a4d787f3e8ee0e78a77e5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6fbb87ed66c2c39a1a615a9ab3685ad0" id="r_a6fbb87ed66c2c39a1a615a9ab3685ad0"><td class="memItemLeft" align="right" valign="top">const std::filesystem::path &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a6fbb87ed66c2c39a1a615a9ab3685ad0">GetPendingScenePath</a> () const</td></tr>
 <tr class="separator:a6fbb87ed66c2c39a1a615a9ab3685ad0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:affb6db4c7cd7ecc691f116b8651b1097" id="r_affb6db4c7cd7ecc691f116b8651b1097"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#affb6db4c7cd7ecc691f116b8651b1097">ProcessPendingLoad</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene)</td></tr>
-<tr class="separator:affb6db4c7cd7ecc691f116b8651b1097"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a771e14e536b87e75490a99a06e691d78" id="r_a771e14e536b87e75490a99a06e691d78"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a771e14e536b87e75490a99a06e691d78">BeginFrame</a> ()</td></tr>
+<tr class="separator:a771e14e536b87e75490a99a06e691d78"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1cb6f841b6adcdeca73d39c8666cf718" id="r_a1cb6f841b6adcdeca73d39c8666cf718"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a1cb6f841b6adcdeca73d39c8666cf718">EndFrame</a> ()</td></tr>
+<tr class="separator:a1cb6f841b6adcdeca73d39c8666cf718"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6b1063b537d2f304f90d20229e3949dc" id="r_a6b1063b537d2f304f90d20229e3949dc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a6b1063b537d2f304f90d20229e3949dc">Cleanup</a> ()</td></tr>
+<tr class="separator:a6b1063b537d2f304f90d20229e3949dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ace30fe0fcccf7bc4b27ba5765dbaa744" id="r_ace30fe0fcccf7bc4b27ba5765dbaa744"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#ace30fe0fcccf7bc4b27ba5765dbaa744">ClearPending</a> ()</td></tr>
 <tr class="separator:ace30fe0fcccf7bc4b27ba5765dbaa744"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acbaad7c3f310cb28f734a4223479fd5a" id="r_acbaad7c3f310cb28f734a4223479fd5a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#acbaad7c3f310cb28f734a4223479fd5a">SetActiveScene</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene)</td></tr>
-<tr class="separator:acbaad7c3f310cb28f734a4223479fd5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa32c77257f5ff03fb8d0ba37a46165e4" id="r_aa32c77257f5ff03fb8d0ba37a46165e4"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#aa32c77257f5ff03fb8d0ba37a46165e4">GetActiveScene</a> () const</td></tr>
-<tr class="separator:aa32c77257f5ff03fb8d0ba37a46165e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
-Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a6251e8f2b16e37e9d75330cfb7deae68" id="r_a6251e8f2b16e37e9d75330cfb7deae68"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classWiesel_1_1SceneManager.html">SceneManager</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a6251e8f2b16e37e9d75330cfb7deae68">Get</a> ()</td></tr>
-<tr class="separator:a6251e8f2b16e37e9d75330cfb7deae68"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a197e24f3dfb701230b4f24d9692a3d7a" id="r_a197e24f3dfb701230b4f24d9692a3d7a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SceneManager.html#a197e24f3dfb701230b4f24d9692a3d7a">UnloadUnusedAssets</a> (const std::vector&lt; <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &gt; &amp;old_assets, const std::vector&lt; <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &gt; &amp;new_assets)</td></tr>
+<tr class="separator:a197e24f3dfb701230b4f24d9692a3d7a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a680d191ae2ae6dc560aba19466ebe5e0" name="a680d191ae2ae6dc560aba19466ebe5e0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a680d191ae2ae6dc560aba19466ebe5e0">&#9670;&#160;</a></span>SceneManager()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">Wiesel::SceneManager::SceneManager </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">default</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="ae491d0b96c25097e240472d8c18065fe" name="ae491d0b96c25097e240472d8c18065fe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae491d0b96c25097e240472d8c18065fe">&#9670;&#160;</a></span>ActivateLoadedScene()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::SceneManager::ActivateLoadedScene </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a771e14e536b87e75490a99a06e691d78" name="a771e14e536b87e75490a99a06e691d78"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a771e14e536b87e75490a99a06e691d78">&#9670;&#160;</a></span>BeginFrame()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::SceneManager::BeginFrame </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a6b1063b537d2f304f90d20229e3949dc" name="a6b1063b537d2f304f90d20229e3949dc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6b1063b537d2f304f90d20229e3949dc">&#9670;&#160;</a></span>Cleanup()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::SceneManager::Cleanup </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="ace30fe0fcccf7bc4b27ba5765dbaa744" name="ace30fe0fcccf7bc4b27ba5765dbaa744"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ace30fe0fcccf7bc4b27ba5765dbaa744">&#9670;&#160;</a></span>ClearPending()</h2>
 
@@ -183,27 +274,36 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a6251e8f2b16e37e9d75330cfb7deae68" name="a6251e8f2b16e37e9d75330cfb7deae68"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6251e8f2b16e37e9d75330cfb7deae68">&#9670;&#160;</a></span>Get()</h2>
+<a id="abc6d0110cfb0da4cb7ff3165c522b351" name="abc6d0110cfb0da4cb7ff3165c522b351"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abc6d0110cfb0da4cb7ff3165c522b351">&#9670;&#160;</a></span>CreateScene()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">static <a class="el" href="classWiesel_1_1SceneManager.html">SceneManager</a> &amp; Wiesel::SceneManager::Get </td>
+          <td class="memname">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; Wiesel::SceneManager::CreateScene </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a1cb6f841b6adcdeca73d39c8666cf718" name="a1cb6f841b6adcdeca73d39c8666cf718"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1cb6f841b6adcdeca73d39c8666cf718">&#9670;&#160;</a></span>EndFrame()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::SceneManager::EndFrame </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
 </div><div class="memdoc">
 
 </div>
@@ -219,6 +319,31 @@ Static Public Member Functions</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; Wiesel::SceneManager::GetActiveScene </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a8255107d39fbde155745c878fd8f6156" name="a8255107d39fbde155745c878fd8f6156"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8255107d39fbde155745c878fd8f6156">&#9670;&#160;</a></span>GetLoadProgress()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">float Wiesel::SceneManager::GetLoadProgress </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td> const</td>
@@ -308,6 +433,31 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="aac8599f6d4f310949022bc0f0bac284c" name="aac8599f6d4f310949022bc0f0bac284c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aac8599f6d4f310949022bc0f0bac284c">&#9670;&#160;</a></span>IsSceneReady()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::SceneManager::IsSceneReady </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a32ad9c5be93e32a06d40e65f85612df8" name="a32ad9c5be93e32a06d40e65f85612df8"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a32ad9c5be93e32a06d40e65f85612df8">&#9670;&#160;</a></span>LoadScene()</h2>
 
@@ -344,18 +494,56 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="affb6db4c7cd7ecc691f116b8651b1097" name="affb6db4c7cd7ecc691f116b8651b1097"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#affb6db4c7cd7ecc691f116b8651b1097">&#9670;&#160;</a></span>ProcessPendingLoad()</h2>
+<a id="ab7aac1d6927bf14f93d4879eb243ee2a" name="ab7aac1d6927bf14f93d4879eb243ee2a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab7aac1d6927bf14f93d4879eb243ee2a">&#9670;&#160;</a></span>LoadSceneWithLoading()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool Wiesel::SceneManager::ProcessPendingLoad </td>
+          <td class="memname">void Wiesel::SceneManager::LoadSceneWithLoading </td>
           <td>(</td>
-          <td class="paramtype">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt;&#160;</td>
-          <td class="paramname"><em>scene</em></td><td>)</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>target_scene</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>loading_scene</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="af62bb7da005f3fb482fc97a8dffbe53a" name="af62bb7da005f3fb482fc97a8dffbe53a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af62bb7da005f3fb482fc97a8dffbe53a">&#9670;&#160;</a></span>LoadSceneWithLoadingPath()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::SceneManager::LoadSceneWithLoadingPath </td>
+          <td>(</td>
+          <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
+          <td class="paramname"><em>target_path</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
+          <td class="paramname"><em>loading_path</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -412,6 +600,34 @@ Static Public Member Functions</h2></td></tr>
 <span class="mlabels"><span class="mlabel">inline</span></span>  </td>
   </tr>
 </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a197e24f3dfb701230b4f24d9692a3d7a" name="a197e24f3dfb701230b4f24d9692a3d7a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a197e24f3dfb701230b4f24d9692a3d7a">&#9670;&#160;</a></span>UnloadUnusedAssets()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::SceneManager::UnloadUnusedAssets </td>
+          <td>(</td>
+          <td class="paramtype">const std::vector&lt; <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &gt; &amp;&#160;</td>
+          <td class="paramname"><em>old_assets</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::vector&lt; <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &gt; &amp;&#160;</td>
+          <td class="paramname"><em>new_assets</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
 </div><div class="memdoc">
 
 </div>

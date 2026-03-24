@@ -134,89 +134,89 @@ $(document).ready(function(){initNavTree('w__descriptor_8hpp_source.html',''); i
 </div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
 <div class="foldopen" id="foldopen00033" data-start="{" data-end="}">
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a16bc39fd017e2e64c550f6cc27dc2568">   33</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a16bc39fd017e2e64c550f6cc27dc2568">AddCombinedImageSampler</a>(uint32_t dst_binding, std::shared_ptr&lt;ImageView&gt; view, std::shared_ptr&lt;Sampler&gt; sampler) {</div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    combined_image_samplers_.push_back({</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>        .dst_binding = dst_binding,</div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>        .image_view = view,</div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        .sampler = sampler</div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    });</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>  }</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a16bc39fd017e2e64c550f6cc27dc2568">   33</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a16bc39fd017e2e64c550f6cc27dc2568">AddCombinedImageSampler</a>(uint32_t dst_binding,</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>                               std::shared_ptr&lt;ImageView&gt; view,</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>                               std::shared_ptr&lt;Sampler&gt; sampler) {</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>    combined_image_samplers_.push_back(</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        {.dst_binding = dst_binding, .image_view = view, .sampler = sampler});</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>  }</div>
 </div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
-<div class="foldopen" id="foldopen00041" data-start="{" data-end="}">
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a74a3ae88de094a0f931f16e12a55cf1d">   41</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a74a3ae88de094a0f931f16e12a55cf1d">AddUniformBuffer</a>(uint32_t dst_binding, std::shared_ptr&lt;UniformBuffer&gt; ubo) {</div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    uniform_buffer_data_.push_back({</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>        .dst_binding = dst_binding,</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        .ubo = ubo</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>    });</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>  }</div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span> </div>
+<div class="foldopen" id="foldopen00040" data-start="{" data-end="}">
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a74a3ae88de094a0f931f16e12a55cf1d">   40</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a74a3ae88de094a0f931f16e12a55cf1d">AddUniformBuffer</a>(uint32_t dst_binding,</div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>                        std::shared_ptr&lt;UniformBuffer&gt; ubo) {</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    uniform_buffer_data_.push_back({.dst_binding = dst_binding, .ubo = ubo});</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>  }</div>
 </div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
-<div class="foldopen" id="foldopen00048" data-start="{" data-end="}">
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a631ead5b1728459c2235dc9befaba846">   48</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a631ead5b1728459c2235dc9befaba846">AddStorageBuffer</a>(uint32_t dst_binding, std::shared_ptr&lt;UniformBuffer&gt; buffer) {</div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>    storage_buffer_data_.push_back({</div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>        .dst_binding = dst_binding,</div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>        .buffer = buffer</div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    });</div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>  }</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span> </div>
+<div class="foldopen" id="foldopen00045" data-start="{" data-end="}">
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a631ead5b1728459c2235dc9befaba846">   45</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a631ead5b1728459c2235dc9befaba846">AddStorageBuffer</a>(uint32_t dst_binding,</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>                        std::shared_ptr&lt;UniformBuffer&gt; buffer) {</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>    storage_buffer_data_.push_back(</div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>        {.dst_binding = dst_binding, .buffer = buffer});</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>  }</div>
 </div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
-<div class="foldopen" id="foldopen00055" data-start="{" data-end="}">
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a92f4f1deaeb0cb2632c0247f84d9be76">   55</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a92f4f1deaeb0cb2632c0247f84d9be76">AddStorageImage</a>(uint32_t dst_binding, std::shared_ptr&lt;ImageView&gt; view) {</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>    storage_image_data_.push_back({</div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>        .dst_binding = dst_binding,</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>        .image_view = view</div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    });</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span> </div>
+<div class="foldopen" id="foldopen00051" data-start="{" data-end="}">
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a92f4f1deaeb0cb2632c0247f84d9be76">   51</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a92f4f1deaeb0cb2632c0247f84d9be76">AddStorageImage</a>(uint32_t dst_binding, std::shared_ptr&lt;ImageView&gt; view) {</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    storage_image_data_.push_back(</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>        {.dst_binding = dst_binding, .image_view = view});</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>  }</div>
+</div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span> </div>
+<div class="foldopen" id="foldopen00056" data-start="{" data-end="}">
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a3e11ea44f512af9682b8f069e2484831">   56</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a3e11ea44f512af9682b8f069e2484831">AddAccelerationStructure</a>(uint32_t dst_binding,</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>                                VkAccelerationStructureKHR as) {</div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>    acceleration_structure_data_.push_back(</div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>        {.dst_binding = dst_binding, .as = as});</div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>  }</div>
 </div>
 <div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
 <div class="foldopen" id="foldopen00062" data-start="{" data-end="}">
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a3e11ea44f512af9682b8f069e2484831">   62</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a3e11ea44f512af9682b8f069e2484831">AddAccelerationStructure</a>(uint32_t dst_binding, VkAccelerationStructureKHR as) {</div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    acceleration_structure_data_.push_back({</div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>        .dst_binding = dst_binding,</div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>        .as = as</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>    });</div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>  }</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a441440d7e2d63217c9491bb1c6efeccf">   62</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a441440d7e2d63217c9491bb1c6efeccf">ClearBindings</a>() {</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    combined_image_samplers_.clear();</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>    uniform_buffer_data_.clear();</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    storage_buffer_data_.clear();</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>    storage_image_data_.clear();</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>    acceleration_structure_data_.clear();</div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>  }</div>
 </div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span> </div>
-<div class="foldopen" id="foldopen00069" data-start="{" data-end="}">
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a441440d7e2d63217c9491bb1c6efeccf">   69</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a441440d7e2d63217c9491bb1c6efeccf">ClearBindings</a>() {</div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>    combined_image_samplers_.clear();</div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>    uniform_buffer_data_.clear();</div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>    storage_buffer_data_.clear();</div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    storage_image_data_.clear();</div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>    acceleration_structure_data_.clear();</div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>  }</div>
-</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span> </div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a788761fbcbaf867c09abc1133ef03d72">   77</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a788761fbcbaf867c09abc1133ef03d72">Bake</a>();</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span> </div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a788761fbcbaf867c09abc1133ef03d72">   70</a></span>  <span class="keywordtype">void</span> <a class="code hl_function" href="classWiesel_1_1DescriptorSet.html#a788761fbcbaf867c09abc1133ef03d72">Bake</a>();</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a2a68b8793d0b303ab2bde000cdb52450">   72</a></span>  <span class="keywordtype">bool</span> <a class="code hl_variable" href="classWiesel_1_1DescriptorSet.html#a2a68b8793d0b303ab2bde000cdb52450">allocated_</a>;</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4">   73</a></span>  VkDescriptorPool <a class="code hl_variable" href="classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4">descriptor_pool_</a>;</div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316">   74</a></span>  VkDescriptorSet <a class="code hl_variable" href="classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316">descriptor_set_</a>;</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span> </div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span> <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>  std::shared_ptr&lt;DescriptorSetLayout&gt; layout_;</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a2a68b8793d0b303ab2bde000cdb52450">   79</a></span>  <span class="keywordtype">bool</span> <a class="code hl_variable" href="classWiesel_1_1DescriptorSet.html#a2a68b8793d0b303ab2bde000cdb52450">allocated_</a>;</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4">   80</a></span>  VkDescriptorPool <a class="code hl_variable" href="classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4">descriptor_pool_</a>;</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno"><a class="line" href="classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316">   81</a></span>  VkDescriptorSet <a class="code hl_variable" href="classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316">descriptor_set_</a>;</div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>  std::shared_ptr&lt;DescriptorSetLayout&gt; layout_;</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>  <span class="keyword">struct </span>CombinedImageSamplerData {</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    uint32_t dst_binding;</div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>    std::shared_ptr&lt;ImageView&gt; image_view;</div>
-<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>    std::shared_ptr&lt;Sampler&gt; sampler;</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>  <span class="keyword">struct </span>CombinedImageSamplerData {</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    uint32_t dst_binding;</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    std::shared_ptr&lt;ImageView&gt; image_view;</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    std::shared_ptr&lt;Sampler&gt; sampler;</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>  };</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span> </div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>  <span class="keyword">struct </span>UniformBufferData {</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>    uint32_t dst_binding;</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>    std::shared_ptr&lt;UniformBuffer&gt; ubo;</div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>  };</div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>  <span class="keyword">struct </span>UniformBufferData {</div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    uint32_t dst_binding;</div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    std::shared_ptr&lt;UniformBuffer&gt; ubo;</div>
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>  };</div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>  <span class="keyword">struct </span>StorageBufferData {</div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    uint32_t dst_binding;</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    std::shared_ptr&lt;UniformBuffer&gt; buffer;</div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>  };</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>  <span class="keyword">struct </span>StorageImageData {</div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>    uint32_t dst_binding;</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    std::shared_ptr&lt;ImageView&gt; image_view;</div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>  };</div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>  <span class="keyword">struct </span>AccelerationStructureData {</div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>    uint32_t dst_binding;</div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>    VkAccelerationStructureKHR as;</div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>  };</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>  <span class="keyword">struct </span>StorageBufferData {</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    uint32_t dst_binding;</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    std::shared_ptr&lt;UniformBuffer&gt; buffer;</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>  };</div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>  <span class="keyword">struct </span>StorageImageData {</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>    uint32_t dst_binding;</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>    std::shared_ptr&lt;ImageView&gt; image_view;</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>  };</div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span> </div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>  <span class="keyword">struct </span>AccelerationStructureData {</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>    uint32_t dst_binding;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>    VkAccelerationStructureKHR as;</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>  };</div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span> </div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>  std::vector&lt;CombinedImageSamplerData&gt; combined_image_samplers_;</div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>  std::vector&lt;UniformBufferData&gt; uniform_buffer_data_;</div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>  std::vector&lt;StorageBufferData&gt; storage_buffer_data_;</div>
@@ -227,16 +227,16 @@ $(document).ready(function(){initNavTree('w__descriptor_8hpp_source.html',''); i
 <div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>}  <span class="comment">// namespace Wiesel</span></div>
 <div class="ttc" id="aclassWiesel_1_1DescriptorSet_html"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html">Wiesel::DescriptorSet</a></div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:24</div></div>
 <div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a16bc39fd017e2e64c550f6cc27dc2568"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a16bc39fd017e2e64c550f6cc27dc2568">Wiesel::DescriptorSet::AddCombinedImageSampler</a></div><div class="ttdeci">void AddCombinedImageSampler(uint32_t dst_binding, std::shared_ptr&lt; ImageView &gt; view, std::shared_ptr&lt; Sampler &gt; sampler)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:33</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a1bc6fb18d12a1c5689e18af4c41e01e4"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4">Wiesel::DescriptorSet::descriptor_pool_</a></div><div class="ttdeci">VkDescriptorPool descriptor_pool_</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:80</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a2a68b8793d0b303ab2bde000cdb52450"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a2a68b8793d0b303ab2bde000cdb52450">Wiesel::DescriptorSet::allocated_</a></div><div class="ttdeci">bool allocated_</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:79</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a3e11ea44f512af9682b8f069e2484831"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a3e11ea44f512af9682b8f069e2484831">Wiesel::DescriptorSet::AddAccelerationStructure</a></div><div class="ttdeci">void AddAccelerationStructure(uint32_t dst_binding, VkAccelerationStructureKHR as)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:62</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a441440d7e2d63217c9491bb1c6efeccf"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a441440d7e2d63217c9491bb1c6efeccf">Wiesel::DescriptorSet::ClearBindings</a></div><div class="ttdeci">void ClearBindings()</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:69</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a631ead5b1728459c2235dc9befaba846"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a631ead5b1728459c2235dc9befaba846">Wiesel::DescriptorSet::AddStorageBuffer</a></div><div class="ttdeci">void AddStorageBuffer(uint32_t dst_binding, std::shared_ptr&lt; UniformBuffer &gt; buffer)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:48</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a74a3ae88de094a0f931f16e12a55cf1d"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a74a3ae88de094a0f931f16e12a55cf1d">Wiesel::DescriptorSet::AddUniformBuffer</a></div><div class="ttdeci">void AddUniformBuffer(uint32_t dst_binding, std::shared_ptr&lt; UniformBuffer &gt; ubo)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:41</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a1bc6fb18d12a1c5689e18af4c41e01e4"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a1bc6fb18d12a1c5689e18af4c41e01e4">Wiesel::DescriptorSet::descriptor_pool_</a></div><div class="ttdeci">VkDescriptorPool descriptor_pool_</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:73</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a2a68b8793d0b303ab2bde000cdb52450"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a2a68b8793d0b303ab2bde000cdb52450">Wiesel::DescriptorSet::allocated_</a></div><div class="ttdeci">bool allocated_</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:72</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a3e11ea44f512af9682b8f069e2484831"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a3e11ea44f512af9682b8f069e2484831">Wiesel::DescriptorSet::AddAccelerationStructure</a></div><div class="ttdeci">void AddAccelerationStructure(uint32_t dst_binding, VkAccelerationStructureKHR as)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:56</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a441440d7e2d63217c9491bb1c6efeccf"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a441440d7e2d63217c9491bb1c6efeccf">Wiesel::DescriptorSet::ClearBindings</a></div><div class="ttdeci">void ClearBindings()</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:62</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a631ead5b1728459c2235dc9befaba846"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a631ead5b1728459c2235dc9befaba846">Wiesel::DescriptorSet::AddStorageBuffer</a></div><div class="ttdeci">void AddStorageBuffer(uint32_t dst_binding, std::shared_ptr&lt; UniformBuffer &gt; buffer)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:45</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a74a3ae88de094a0f931f16e12a55cf1d"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a74a3ae88de094a0f931f16e12a55cf1d">Wiesel::DescriptorSet::AddUniformBuffer</a></div><div class="ttdeci">void AddUniformBuffer(uint32_t dst_binding, std::shared_ptr&lt; UniformBuffer &gt; ubo)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:40</div></div>
 <div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a788761fbcbaf867c09abc1133ef03d72"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a788761fbcbaf867c09abc1133ef03d72">Wiesel::DescriptorSet::Bake</a></div><div class="ttdeci">void Bake()</div></div>
 <div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a85a6e15742d0cef89713d9fb577e3179"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a85a6e15742d0cef89713d9fb577e3179">Wiesel::DescriptorSet::SetLayout</a></div><div class="ttdeci">void SetLayout(std::shared_ptr&lt; DescriptorSetLayout &gt; layout)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:29</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a92f4f1deaeb0cb2632c0247f84d9be76"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a92f4f1deaeb0cb2632c0247f84d9be76">Wiesel::DescriptorSet::AddStorageImage</a></div><div class="ttdeci">void AddStorageImage(uint32_t dst_binding, std::shared_ptr&lt; ImageView &gt; view)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:55</div></div>
-<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_aced29e13a2f2f3afc9c6dd245fcdb316"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316">Wiesel::DescriptorSet::descriptor_set_</a></div><div class="ttdeci">VkDescriptorSet descriptor_set_</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:81</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_a92f4f1deaeb0cb2632c0247f84d9be76"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#a92f4f1deaeb0cb2632c0247f84d9be76">Wiesel::DescriptorSet::AddStorageImage</a></div><div class="ttdeci">void AddStorageImage(uint32_t dst_binding, std::shared_ptr&lt; ImageView &gt; view)</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:51</div></div>
+<div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_aced29e13a2f2f3afc9c6dd245fcdb316"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#aced29e13a2f2f3afc9c6dd245fcdb316">Wiesel::DescriptorSet::descriptor_set_</a></div><div class="ttdeci">VkDescriptorSet descriptor_set_</div><div class="ttdef"><b>Definition</b> w_descriptor.hpp:74</div></div>
 <div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_ad043854f494cdfe67bc3928aff223eee"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#ad043854f494cdfe67bc3928aff223eee">Wiesel::DescriptorSet::~DescriptorSet</a></div><div class="ttdeci">~DescriptorSet()</div></div>
 <div class="ttc" id="aclassWiesel_1_1DescriptorSet_html_ae2d6fc0b082d80531791bb6df06a2e95"><div class="ttname"><a href="classWiesel_1_1DescriptorSet.html#ae2d6fc0b082d80531791bb6df06a2e95">Wiesel::DescriptorSet::DescriptorSet</a></div><div class="ttdeci">DescriptorSet()</div></div>
 <div class="ttc" id="anamespaceWiesel_html"><div class="ttname"><a href="namespaceWiesel.html">Wiesel</a></div><div class="ttdef"><b>Definition</b> w_agent_controller.hpp:8</div></div>

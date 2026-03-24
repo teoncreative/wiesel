@@ -1,19 +1,19 @@
 <map id="w_rendergraph.hpp" name="w_rendergraph.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="123,5,270,31"/>
-<area shape="rect" id="Node000002" href="$w__pch_8hpp.html" title=" " alt="" coords="194,225,285,251"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="264,28,306,46,325,60,340,77,355,103,360,127,356,152,343,179,320,204,291,222,288,217,317,200,338,176,350,150,354,127,350,105,336,80,321,64,303,51,262,33"/>
-<area shape="rect" id="Node000003" href="$w__color_8hpp.html" title=" " alt="" coords="63,79,187,104"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="187,33,148,71,144,67,183,29"/>
-<area shape="rect" id="Node000004" href="$w__utils_8hpp.html" title=" " alt="" coords="12,152,133,177"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="125,33,84,51,67,64,52,80,47,94,48,109,59,139,54,141,42,110,42,93,48,77,63,60,82,46,123,28"/>
-<area shape="rect" id="Node000006" href="$w__texture_8hpp.html" title=" " alt="" coords="211,79,326,104"/>
-<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="210,29,249,67,245,71,207,33"/>
-<area shape="poly" id="edge5_Node000004_Node000002" title=" " alt="" coords="100,175,201,217,199,222,98,180"/>
-<area shape="rect" id="Node000005" title=" " alt="" coords="5,225,140,251"/>
-<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="75,178,75,212,70,212,70,178"/>
-<area shape="poly" id="edge8_Node000006_Node000002" title=" " alt="" coords="248,106,221,126,199,153,196,169,200,184,219,214,215,217,195,186,191,169,194,151,217,122,245,102"/>
-<area shape="poly" id="edge7_Node000006_Node000004" title=" " alt="" coords="238,107,118,150,117,145,236,102"/>
-<area shape="rect" id="Node000007" href="$w__sampler_8hpp.html" title=" " alt="" coords="209,152,329,177"/>
-<area shape="poly" id="edge9_Node000006_Node000007" title=" " alt="" coords="271,104,271,138,266,138,266,104"/>
-<area shape="poly" id="edge10_Node000007_Node000002" title=" " alt="" coords="266,179,252,214,247,212,261,177"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="141,5,287,31"/>
+<area shape="rect" id="Node000002" href="$w__color_8hpp.html" title=" " alt="" coords="5,79,129,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="192,33,105,75,102,70,189,28"/>
+<area shape="rect" id="Node000003" href="$w__utils_8hpp.html" title=" " alt="" coords="103,152,224,177"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="212,32,195,80,174,140,169,138,190,78,207,30"/>
+<area shape="rect" id="Node000005" href="$w__pch_8hpp.html" title=" " alt="" coords="285,225,375,251"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="258,28,303,45,353,70,399,105,418,126,434,151,437,163,437,174,425,194,404,210,379,222,376,218,401,205,421,190,432,172,432,163,429,153,414,130,395,109,350,74,301,50,256,33"/>
+<area shape="rect" id="Node000006" href="$w__texture_8hpp.html" title=" " alt="" coords="205,79,319,104"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="224,30,249,66,244,69,220,33"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="96,225,231,251"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="166,178,166,212,161,212,161,178"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="191,175,291,217,289,222,189,180"/>
+<area shape="poly" id="edge7_Node000006_Node000003" title=" " alt="" coords="248,106,192,146,189,142,245,102"/>
+<area shape="poly" id="edge8_Node000006_Node000005" title=" " alt="" coords="267,103,275,137,290,176,314,213,309,216,285,179,270,138,262,105"/>
+<area shape="rect" id="Node000007" href="$w__sampler_8hpp.html" title=" " alt="" coords="299,152,419,177"/>
+<area shape="poly" id="edge9_Node000006_Node000007" title=" " alt="" coords="279,102,334,141,331,146,276,106"/>
+<area shape="poly" id="edge10_Node000007_Node000005" title=" " alt="" coords="357,179,342,214,338,212,352,177"/>
 </map>

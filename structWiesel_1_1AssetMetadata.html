@@ -114,6 +114,12 @@ Collaboration diagram for Wiesel::AssetMetadata:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
+<tr class="memitem:a99270836d3b3e55035abe48a98eab6ec" id="r_a99270836d3b3e55035abe48a98eab6ec"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a99270836d3b3e55035abe48a98eab6ec"><td class="memTemplItemLeft" align="right" valign="top">T *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetMetadata.html#a99270836d3b3e55035abe48a98eab6ec">GetProperties</a> () const</td></tr>
+<tr class="separator:a99270836d3b3e55035abe48a98eab6ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3061291fb38882bfce1b5079340c0134" id="r_a3061291fb38882bfce1b5079340c0134"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a3061291fb38882bfce1b5079340c0134"><td class="memTemplItemLeft" align="right" valign="top">T &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetMetadata.html#a3061291fb38882bfce1b5079340c0134">GetOrCreateProperties</a> ()</td></tr>
+<tr class="separator:a3061291fb38882bfce1b5079340c0134"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7ba7f0306c7773c69a1b0198d49d45e7" id="r_a7ba7f0306c7773c69a1b0198d49d45e7"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetMetadata.html#a7ba7f0306c7773c69a1b0198d49d45e7">IsValid</a> () const</td></tr>
 <tr class="separator:a7ba7f0306c7773c69a1b0198d49d45e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -129,8 +135,66 @@ Public Attributes</h2></td></tr>
 <tr class="separator:a32c1d9897144844e69e764ba7c38d03a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaa9c0f6987147108ae05fd20bd93c6fa" id="r_aaa9c0f6987147108ae05fd20bd93c6fa"><td class="memItemLeft" align="right" valign="top">std::atomic&lt; <a class="el" href="namespaceWiesel.html#aaff7e60822659adca7212520c9568c46">AssetLoadState</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetMetadata.html#aaa9c0f6987147108ae05fd20bd93c6fa">load_state</a> = <a class="el" href="namespaceWiesel.html#aaff7e60822659adca7212520c9568c46aa5ae20aa7fda5bd38bf0dce98e65bd2d">AssetLoadState::Unloaded</a></td></tr>
 <tr class="separator:aaa9c0f6987147108ae05fd20bd93c6fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a72a39b0006605489916636bcf67e1dfd" id="r_a72a39b0006605489916636bcf67e1dfd"><td class="memItemLeft" align="right" valign="top">std::atomic&lt; float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetMetadata.html#a72a39b0006605489916636bcf67e1dfd">load_progress</a></td></tr>
+<tr class="separator:a72a39b0006605489916636bcf67e1dfd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae58314bfd9ec5a09aad21201abf362ab" id="r_ae58314bfd9ec5a09aad21201abf362ab"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetMetadata.html#ae58314bfd9ec5a09aad21201abf362ab">properties</a></td></tr>
+<tr class="separator:ae58314bfd9ec5a09aad21201abf362ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="a3061291fb38882bfce1b5079340c0134" name="a3061291fb38882bfce1b5079340c0134"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3061291fb38882bfce1b5079340c0134">&#9670;&#160;</a></span>GetOrCreateProperties()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">T &amp; Wiesel::AssetMetadata::GetOrCreateProperties </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a99270836d3b3e55035abe48a98eab6ec" name="a99270836d3b3e55035abe48a98eab6ec"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a99270836d3b3e55035abe48a98eab6ec">&#9670;&#160;</a></span>GetProperties()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">T * Wiesel::AssetMetadata::GetProperties </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a7ba7f0306c7773c69a1b0198d49d45e7" name="a7ba7f0306c7773c69a1b0198d49d45e7"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7ba7f0306c7773c69a1b0198d49d45e7">&#9670;&#160;</a></span>IsValid()</h2>
 
@@ -171,6 +235,30 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a72a39b0006605489916636bcf67e1dfd" name="a72a39b0006605489916636bcf67e1dfd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a72a39b0006605489916636bcf67e1dfd">&#9670;&#160;</a></span>load_progress</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::atomic&lt;float&gt; Wiesel::AssetMetadata::load_progress</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">mutable</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<b>Initial value:</b><div class="fragment"><div class="line">{</div>
+<div class="line">      0.0f}</div>
+</div><!-- fragment -->
+</div>
+</div>
 <a id="aaa9c0f6987147108ae05fd20bd93c6fa" name="aaa9c0f6987147108ae05fd20bd93c6fa"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aaa9c0f6987147108ae05fd20bd93c6fa">&#9670;&#160;</a></span>load_state</h2>
 
@@ -193,6 +281,20 @@ Public Attributes</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">std::string Wiesel::AssetMetadata::name</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ae58314bfd9ec5a09aad21201abf362ab" name="ae58314bfd9ec5a09aad21201abf362ab"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae58314bfd9ec5a09aad21201abf362ab">&#9670;&#160;</a></span>properties</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::shared_ptr&lt;void&gt; Wiesel::AssetMetadata::properties</td>
         </tr>
       </table>
 </div><div class="memdoc">

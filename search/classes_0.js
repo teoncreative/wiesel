@@ -20,10 +20,13 @@ var searchData=
   ['assethandle_17',['AssetHandle',['../structWiesel_1_1AssetHandle.html',1,'Wiesel']]],
   ['assetmanager_18',['AssetManager',['../classWiesel_1_1AssetManager.html',1,'Wiesel']]],
   ['assetmetadata_19',['AssetMetadata',['../structWiesel_1_1AssetMetadata.html',1,'Wiesel']]],
-  ['assetstats_20',['AssetStats',['../structWiesel_1_1AssetManager_1_1AssetStats.html',1,'Wiesel::AssetManager']]],
-  ['attachmenttexture_21',['AttachmentTexture',['../classWiesel_1_1AttachmentTexture.html',1,'Wiesel']]],
-  ['attachmenttextureinfo_22',['AttachmentTextureInfo',['../structWiesel_1_1AttachmentTextureInfo.html',1,'Wiesel']]],
-  ['attachmenttextureprops_23',['AttachmentTextureProps',['../structWiesel_1_1AttachmentTextureProps.html',1,'Wiesel']]],
-  ['audiomanager_24',['AudioManager',['../classWiesel_1_1AudioManager.html',1,'Wiesel']]],
-  ['audiosourcecomponent_25',['AudioSourceComponent',['../structWiesel_1_1AudioSourceComponent.html',1,'Wiesel']]]
+  ['assetpropertydesc_20',['AssetPropertyDesc',['../structWiesel_1_1AssetPropertyDesc.html',1,'Wiesel']]],
+  ['assetpropertyregistry_21',['AssetPropertyRegistry',['../classWiesel_1_1AssetPropertyRegistry.html',1,'Wiesel']]],
+  ['assetstats_22',['AssetStats',['../structWiesel_1_1AssetManager_1_1AssetStats.html',1,'Wiesel::AssetManager']]],
+  ['assetunloadedevent_23',['AssetUnloadedEvent',['../classWiesel_1_1AssetUnloadedEvent.html',1,'Wiesel']]],
+  ['attachmenttexture_24',['AttachmentTexture',['../classWiesel_1_1AttachmentTexture.html',1,'Wiesel']]],
+  ['attachmenttextureinfo_25',['AttachmentTextureInfo',['../structWiesel_1_1AttachmentTextureInfo.html',1,'Wiesel']]],
+  ['attachmenttextureprops_26',['AttachmentTextureProps',['../structWiesel_1_1AttachmentTextureProps.html',1,'Wiesel']]],
+  ['audiomanager_27',['AudioManager',['../classWiesel_1_1AudioManager.html',1,'Wiesel']]],
+  ['audiosourcecomponent_28',['AudioSourceComponent',['../structWiesel_1_1AudioSourceComponent.html',1,'Wiesel']]]
 ];

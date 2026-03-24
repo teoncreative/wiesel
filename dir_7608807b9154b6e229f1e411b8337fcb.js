@@ -24,6 +24,7 @@ var dir_7608807b9154b6e229f1e411b8337fcb =
     [ "w_shader.hpp", "w__shader_8hpp.html", "w__shader_8hpp" ],
     [ "w_skybox.hpp", "w__skybox_8hpp.html", "w__skybox_8hpp" ],
     [ "w_sprite.hpp", "w__sprite_8hpp.html", "w__sprite_8hpp" ],
+    [ "w_sprite_asset.hpp", "w__sprite__asset_8hpp.html", "w__sprite__asset_8hpp" ],
     [ "w_sprite_loader.hpp", "w__sprite__loader_8hpp.html", "w__sprite__loader_8hpp" ],
     [ "w_texture.hpp", "w__texture_8hpp.html", "w__texture_8hpp" ]
 ];

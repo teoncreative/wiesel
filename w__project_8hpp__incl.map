@@ -1,5 +1,14 @@
 <map id="w_project.hpp" name="w_project.hpp">
-<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,119,31"/>
-<area shape="rect" id="Node000002" href="$w__pch_8hpp.html" title=" " alt="" coords="17,79,107,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="65,31,65,65,59,65,59,31"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="167,5,280,31"/>
+<area shape="rect" id="Node000002" href="$w__game__info_8hpp.html" title=" " alt="" coords="71,79,250,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="215,33,182,70,178,66,211,29"/>
+<area shape="rect" id="Node000004" href="$w__pch_8hpp.html" title=" " alt="" coords="142,299,233,324"/>
+<area shape="poly" id="edge7_Node000001_Node000004" title=" " alt="" coords="236,29,252,51,265,78,266,91,265,104,257,180,249,212,234,252,210,289,205,287,229,249,244,211,252,179,259,104,261,91,259,79,247,54,232,33"/>
+<area shape="rect" id="Node000003" href="$w__asset__handle_8hpp.html" title=" " alt="" coords="5,152,199,177"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="153,106,122,143,118,140,149,103"/>
+<area shape="poly" id="edge6_Node000002_Node000004" title=" " alt="" coords="177,102,196,123,212,151,220,178,221,201,213,251,201,287,196,285,207,250,216,200,215,179,208,153,192,126,173,106"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="92,179,68,212,63,231,67,249,79,264,94,277,130,294,128,299,92,281,75,268,62,252,57,231,63,210,88,176"/>
+<area shape="rect" id="Node000005" href="$w__uuid_8hpp.html" title=" " alt="" coords="77,225,199,251"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="110,176,128,212,124,214,106,179"/>
+<area shape="poly" id="edge5_Node000005_Node000004" title=" " alt="" coords="148,249,174,286,169,289,144,253"/>
 </map>

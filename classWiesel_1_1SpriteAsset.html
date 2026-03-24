@@ -114,14 +114,20 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ac18bd83dd0907b3a8a78ff1a74840353"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3ae1d25a4e7da930062547ddfad0339a" id="r_a3ae1d25a4e7da930062547ddfad0339a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a3ae1d25a4e7da930062547ddfad0339a">UpdateTransform</a> (glm::mat4 transform_matrix)</td></tr>
 <tr class="separator:a3ae1d25a4e7da930062547ddfad0339a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a92445ce1fb13ad41771c406bdef07ca1" id="r_a92445ce1fb13ad41771c406bdef07ca1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a92445ce1fb13ad41771c406bdef07ca1">UpdateTransform</a> (glm::mat4 transform_matrix, const glm::vec4 &amp;tint, bool flip_x, bool flip_y, int frame_index=-1)</td></tr>
+<tr class="separator:a92445ce1fb13ad41771c406bdef07ca1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7fba2b9b53925870e0f028e138fa6cf5" id="r_a7fba2b9b53925870e0f028e138fa6cf5"><td class="memItemLeft" align="right" valign="top">const std::shared_ptr&lt; <a class="el" href="structWiesel_1_1SpriteTexture.html">SpriteTexture</a> &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a7fba2b9b53925870e0f028e138fa6cf5">GetTexture</a> () const</td></tr>
 <tr class="separator:a7fba2b9b53925870e0f028e138fa6cf5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1a48688506be9ecc23a6b2a743fb05dd" id="r_a1a48688506be9ecc23a6b2a743fb05dd"><td class="memItemLeft" align="right" valign="top">const std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Sampler.html">Sampler</a> &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a1a48688506be9ecc23a6b2a743fb05dd">GetSampler</a> () const</td></tr>
 <tr class="separator:a1a48688506be9ecc23a6b2a743fb05dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a604d86b88061d7880e2bd8026e40a1cd" id="r_a604d86b88061d7880e2bd8026e40a1cd"><td class="memItemLeft" align="right" valign="top">const std::vector&lt; <a class="el" href="structWiesel_1_1SpriteAsset_1_1Frame.html">Frame</a> &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a604d86b88061d7880e2bd8026e40a1cd">GetFrames</a> () const</td></tr>
 <tr class="separator:a604d86b88061d7880e2bd8026e40a1cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a50db2af925a9dbd2ea3ca0d451a56676" id="r_a50db2af925a9dbd2ea3ca0d451a56676"><td class="memItemLeft" align="right" valign="top">std::vector&lt; <a class="el" href="structWiesel_1_1SpriteAsset_1_1Frame.html">Frame</a> &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a50db2af925a9dbd2ea3ca0d451a56676">GetFrames</a> ()</td></tr>
+<tr class="separator:a50db2af925a9dbd2ea3ca0d451a56676"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5c4f13b436db64d573333c31c22b5117" id="r_a5c4f13b436db64d573333c31c22b5117"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a5c4f13b436db64d573333c31c22b5117">IsAllocated</a> () const</td></tr>
 <tr class="separator:a5c4f13b436db64d573333c31c22b5117"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3847b603b76ee1f00381c70230102ac6" id="r_a3847b603b76ee1f00381c70230102ac6"><td class="memItemLeft" align="right" valign="top">glm::vec2&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1SpriteAsset.html#a3847b603b76ee1f00381c70230102ac6">GetAtlasSize</a> () const</td></tr>
+<tr class="separator:a3847b603b76ee1f00381c70230102ac6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="friends" name="friends"></a>
 Friends</h2></td></tr>
@@ -174,8 +180,58 @@ Friends</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="a3847b603b76ee1f00381c70230102ac6" name="a3847b603b76ee1f00381c70230102ac6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3847b603b76ee1f00381c70230102ac6">&#9670;&#160;</a></span>GetAtlasSize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">glm::vec2 Wiesel::SpriteAsset::GetAtlasSize </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a50db2af925a9dbd2ea3ca0d451a56676" name="a50db2af925a9dbd2ea3ca0d451a56676"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a50db2af925a9dbd2ea3ca0d451a56676">&#9670;&#160;</a></span>GetFrames() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt; <a class="el" href="structWiesel_1_1SpriteAsset_1_1Frame.html">Frame</a> &gt; &amp; Wiesel::SpriteAsset::GetFrames </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a604d86b88061d7880e2bd8026e40a1cd" name="a604d86b88061d7880e2bd8026e40a1cd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a604d86b88061d7880e2bd8026e40a1cd">&#9670;&#160;</a></span>GetFrames()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a604d86b88061d7880e2bd8026e40a1cd">&#9670;&#160;</a></span>GetFrames() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -275,7 +331,7 @@ Friends</h2></td></tr>
 </div>
 </div>
 <a id="a3ae1d25a4e7da930062547ddfad0339a" name="a3ae1d25a4e7da930062547ddfad0339a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ae1d25a4e7da930062547ddfad0339a">&#9670;&#160;</a></span>UpdateTransform()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ae1d25a4e7da930062547ddfad0339a">&#9670;&#160;</a></span>UpdateTransform() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -286,6 +342,52 @@ Friends</h2></td></tr>
           <td class="paramtype">glm::mat4&#160;</td>
           <td class="paramname"><em>transform_matrix</em></td><td>)</td>
           <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a92445ce1fb13ad41771c406bdef07ca1" name="a92445ce1fb13ad41771c406bdef07ca1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a92445ce1fb13ad41771c406bdef07ca1">&#9670;&#160;</a></span>UpdateTransform() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::SpriteAsset::UpdateTransform </td>
+          <td>(</td>
+          <td class="paramtype">glm::mat4&#160;</td>
+          <td class="paramname"><em>transform_matrix</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const glm::vec4 &amp;&#160;</td>
+          <td class="paramname"><em>tint</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>flip_x</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>flip_y</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>frame_index</em> = <code>-1</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
 </div><div class="memdoc">

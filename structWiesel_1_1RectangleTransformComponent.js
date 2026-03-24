@@ -1,11 +1,11 @@
 var structWiesel_1_1RectangleTransformComponent =
 [
+    [ "MarkChanged", "structWiesel_1_1RectangleTransformComponent.html#a81f6f2326576129f7e07bac51409fb18", null ],
     [ "anchor", "structWiesel_1_1RectangleTransformComponent.html#a859bd9a6ef5296363d43199e9806a087", null ],
     [ "computed_position", "structWiesel_1_1RectangleTransformComponent.html#a47f61c7147f92a186f8b54406694306f", null ],
     [ "computed_size", "structWiesel_1_1RectangleTransformComponent.html#acbce998e730bc931c3afba8f00ce8567", null ],
     [ "draw_order", "structWiesel_1_1RectangleTransformComponent.html#a973a221daaf538bafdf53a52a5382d37", null ],
-    [ "is_changed", "structWiesel_1_1RectangleTransformComponent.html#a3e7501eb78c75e4de6604f26a89fa809", null ],
-    [ "is_driven", "structWiesel_1_1RectangleTransformComponent.html#a0b39ac80e9c77c20f525cc56196d9851", null ],
+    [ "margin", "structWiesel_1_1RectangleTransformComponent.html#aed3d154600ec5aace0e7d72e471f9660", null ],
     [ "padding", "structWiesel_1_1RectangleTransformComponent.html#acfe1e06b217415b2b415add74f77ddb5", null ],
     [ "pivot", "structWiesel_1_1RectangleTransformComponent.html#af030223ba380bb02694f0c2e4b228288", null ],
     [ "position", "structWiesel_1_1RectangleTransformComponent.html#a7e1c13212ebee275788d4dfa71837356", null ],

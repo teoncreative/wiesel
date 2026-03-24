@@ -1,6 +1,7 @@
 var structWiesel_1_1RenderContext =
 [
     [ "camera", "structWiesel_1_1RenderContext.html#a189a09d2f0750559e742874003880486", null ],
+    [ "camera_entity", "structWiesel_1_1RenderContext.html#a2422bbb6ded190b9f99cdcb68c7760b6", null ],
     [ "is_external", "structWiesel_1_1RenderContext.html#ac3862c7f8c75546c8f2db566f76424e5", null ],
     [ "renderer", "structWiesel_1_1RenderContext.html#a5e547cda56dfcf0b3ebbccd182221463", null ],
     [ "resources", "structWiesel_1_1RenderContext.html#a405309e9c96445fb609fd126eab60a6d", null ],

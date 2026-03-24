@@ -4,7 +4,7 @@ var w__material_8hpp =
     [ "Wiesel::MaterialFeature", "structWiesel_1_1MaterialFeature.html", "structWiesel_1_1MaterialFeature" ],
     [ "Wiesel::Material", "structWiesel_1_1Material.html", "structWiesel_1_1Material" ],
     [ "Wiesel::MaterialInstance", "structWiesel_1_1MaterialInstance.html", "structWiesel_1_1MaterialInstance" ],
-    [ "MaterialPropertyValue", "w__material_8hpp.html#a8c5d24dbde06d1b08bfa18857029f7a3", null ],
+    [ "MaterialPropertyValue", "w__material_8hpp.html#a95cdbc04fdeff63f8eaeab8aa870d7cf", null ],
     [ "MaterialPropertyType", "w__material_8hpp.html#a7a75552f6d02f275e7f61864f6942fa5", [
       [ "Float", "w__material_8hpp.html#a7a75552f6d02f275e7f61864f6942fa5a22ae0e2b89e5e3d477f988cc36d3272b", null ],
       [ "Vec2", "w__material_8hpp.html#a7a75552f6d02f275e7f61864f6942fa5afe98032d4f1c52a2f0b617f9205d5f80", null ],

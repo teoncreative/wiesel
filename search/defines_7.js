@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['spectrum_5fuse_5fdark_5ftheme_0',['SPECTRUM_USE_DARK_THEME',['../imgui__spectrum_8hpp.html#ab2a743989692f3fe2001f62f1d64f699',1,'imgui_spectrum.hpp']]]
+  ['use_5fnodiscard_0',['USE_NODISCARD',['../w__attributes_8hpp.html#a1c7ac7e31beb294c692375211aacf399',1,'w_attributes.hpp']]]
 ];

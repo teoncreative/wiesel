@@ -124,9 +124,9 @@ $(document).ready(function(){initNavTree('w__tracy_8hpp_source.html',''); initRe
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno"><a class="line" href="w__tracy_8hpp.html#a823c76cb79948cc300a4e590eb399379">   24</a></span><span class="preprocessor">#define PROFILE_GPU_ZONE(ctx, cmd, name) TracyVkZone(ctx, cmd, name)</span></div>
 <div class="line"><a id="l00025" name="l00025"></a><span class="lineno"><a class="line" href="w__tracy_8hpp.html#af943e1fea00147bea699942d8f380c85">   25</a></span><span class="preprocessor">#define PROFILE_GPU_COLLECT(ctx, cmd) TracyVkCollect(ctx, cmd)</span></div>
 <div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="preprocessor">#if TRACY_ENABLE</span></div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="preprocessor">    #define PROFILE_THREAD(name) tracy::SetThreadName(name)</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="preprocessor">#define PROFILE_THREAD(name) tracy::SetThreadName(name)</span></div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="w__tracy_8hpp.html#a767fd69fd510d03c23eb4f68a2c80ad2">   29</a></span><span class="preprocessor">    #define PROFILE_THREAD(name)</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="w__tracy_8hpp.html#a767fd69fd510d03c23eb4f68a2c80ad2">   29</a></span><span class="preprocessor">#define PROFILE_THREAD(name)</span></div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> </div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="preprocessor">#define PROFILE_MESSAGE(text, size) TracyMessage(text, size)</span></div>
@@ -146,8 +146,7 @@ $(document).ready(function(){initNavTree('w__tracy_8hpp_source.html',''); initRe
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno"><a class="line" href="w__tracy_8hpp.html#a07432e450ad8a1ab8cfc7925e17e9d32">   46</a></span><span class="preprocessor">#define PROFILE_ALLOC_NAMED(ptr, size, name) TracyAllocN(ptr, size, name)</span></div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno"><a class="line" href="w__tracy_8hpp.html#a08df7380adb18b3c9c60d8b546ff0c0c">   47</a></span><span class="preprocessor">#define PROFILE_FREE_NAMED(ptr, name) TracyFreeN(ptr, name)</span></div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span> </div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="preprocessor">#endif  </span><span class="comment">//WIESEL_PARENT_W_TRACY_H</span></div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="preprocessor">#endif  </span><span class="comment">//WIESEL_PARENT_W_TRACY_H</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

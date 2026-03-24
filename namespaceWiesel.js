@@ -9,6 +9,14 @@ var namespaceWiesel =
     [ "Math", "namespaceWiesel_1_1Math.html", [
       [ "DecomposeTransform", "namespaceWiesel_1_1Math.html#ac2bf0a17e452d43de4c72a72065ebb77", null ]
     ] ],
+    [ "SerializeUtil", "namespaceWiesel_1_1SerializeUtil.html", [
+      [ "Vec2", "namespaceWiesel_1_1SerializeUtil.html#ad6fbadf4d0167ab04ff18b216fd9cf98", null ],
+      [ "Vec2", "namespaceWiesel_1_1SerializeUtil.html#a7004f11eff448bb88886da0345c99f78", null ],
+      [ "Vec3", "namespaceWiesel_1_1SerializeUtil.html#ae968a66dcf341a10ef8e0bd6a9911794", null ],
+      [ "Vec3", "namespaceWiesel_1_1SerializeUtil.html#a68cfe4cc8c248e3a4605e6cd9559a67a", null ],
+      [ "Vec4", "namespaceWiesel_1_1SerializeUtil.html#ab9a2433a9a2a8f619e69d1b3498666cb", null ],
+      [ "Vec4", "namespaceWiesel_1_1SerializeUtil.html#a707956a1e8e7dbecda02b22f086d39af", null ]
+    ] ],
     [ "Spirv", "namespaceWiesel_1_1Spirv.html", [
       [ "Cleanup", "namespaceWiesel_1_1Spirv.html#a07f8c522e340ce300f16fd7d04ee0bc6", null ],
       [ "FindLanguage", "namespaceWiesel_1_1Spirv.html#a78662e227d72dcf19130f9f82db967e4", null ],
@@ -36,6 +44,9 @@ var namespaceWiesel =
     [ "AssetHandle", "structWiesel_1_1AssetHandle.html", "structWiesel_1_1AssetHandle" ],
     [ "AssetManager", "classWiesel_1_1AssetManager.html", "classWiesel_1_1AssetManager" ],
     [ "AssetMetadata", "structWiesel_1_1AssetMetadata.html", "structWiesel_1_1AssetMetadata" ],
+    [ "AssetPropertyDesc", "structWiesel_1_1AssetPropertyDesc.html", "structWiesel_1_1AssetPropertyDesc" ],
+    [ "AssetPropertyRegistry", "classWiesel_1_1AssetPropertyRegistry.html", null ],
+    [ "AssetUnloadedEvent", "classWiesel_1_1AssetUnloadedEvent.html", "classWiesel_1_1AssetUnloadedEvent" ],
     [ "AttachmentTexture", "classWiesel_1_1AttachmentTexture.html", "classWiesel_1_1AttachmentTexture" ],
     [ "AttachmentTextureInfo", "structWiesel_1_1AttachmentTextureInfo.html", "structWiesel_1_1AttachmentTextureInfo" ],
     [ "AttachmentTextureProps", "structWiesel_1_1AttachmentTextureProps.html", "structWiesel_1_1AttachmentTextureProps" ],
@@ -47,6 +58,7 @@ var namespaceWiesel =
     [ "BoneInfo", "structWiesel_1_1BoneInfo.html", "structWiesel_1_1BoneInfo" ],
     [ "BoneMatricesUniformData", "structWiesel_1_1BoneMatricesUniformData.html", "structWiesel_1_1BoneMatricesUniformData" ],
     [ "BoxColliderComponent", "structWiesel_1_1BoxColliderComponent.html", "structWiesel_1_1BoxColliderComponent" ],
+    [ "ButtonComponent", "structWiesel_1_1ButtonComponent.html", "structWiesel_1_1ButtonComponent" ],
     [ "CameraComponent", "structWiesel_1_1CameraComponent.html", "structWiesel_1_1CameraComponent" ],
     [ "CameraData", "structWiesel_1_1CameraData.html", "structWiesel_1_1CameraData" ],
     [ "CameraResourcePool", "classWiesel_1_1CameraResourcePool.html", "classWiesel_1_1CameraResourcePool" ],
@@ -56,8 +68,11 @@ var namespaceWiesel =
     [ "CanvasFeature", "classWiesel_1_1CanvasFeature.html", "classWiesel_1_1CanvasFeature" ],
     [ "CanvasImageComponent", "structWiesel_1_1CanvasImageComponent.html", "structWiesel_1_1CanvasImageComponent" ],
     [ "CanvasRectComponent", "structWiesel_1_1CanvasRectComponent.html", "structWiesel_1_1CanvasRectComponent" ],
+    [ "CanvasScalerComponent", "structWiesel_1_1CanvasScalerComponent.html", "structWiesel_1_1CanvasScalerComponent" ],
     [ "CanvasScreenPushConstant", "structWiesel_1_1CanvasScreenPushConstant.html", "structWiesel_1_1CanvasScreenPushConstant" ],
     [ "CanvasSystem", "classWiesel_1_1CanvasSystem.html", "classWiesel_1_1CanvasSystem" ],
+    [ "CanvasWorldPushConstant", "structWiesel_1_1CanvasWorldPushConstant.html", "structWiesel_1_1CanvasWorldPushConstant" ],
+    [ "CapsuleColliderComponent", "structWiesel_1_1CapsuleColliderComponent.html", "structWiesel_1_1CapsuleColliderComponent" ],
     [ "Cascade", "structWiesel_1_1Cascade.html", "structWiesel_1_1Cascade" ],
     [ "ColliderEntry", "structWiesel_1_1ColliderEntry.html", "structWiesel_1_1ColliderEntry" ],
     [ "CollisionPair", "structWiesel_1_1CollisionPair.html", "structWiesel_1_1CollisionPair" ],
@@ -66,6 +81,8 @@ var namespaceWiesel =
     [ "CommandBuffer", "classWiesel_1_1CommandBuffer.html", "classWiesel_1_1CommandBuffer" ],
     [ "CommandEntry", "structWiesel_1_1CommandEntry.html", "structWiesel_1_1CommandEntry" ],
     [ "CommandPool", "classWiesel_1_1CommandPool.html", "classWiesel_1_1CommandPool" ],
+    [ "ComponentSerializerDesc", "structWiesel_1_1ComponentSerializerDesc.html", "structWiesel_1_1ComponentSerializerDesc" ],
+    [ "ComponentSerializerRegistry", "classWiesel_1_1ComponentSerializerRegistry.html", null ],
     [ "CompositeFeature", "classWiesel_1_1CompositeFeature.html", "classWiesel_1_1CompositeFeature" ],
     [ "ConsoleLayer", "classWiesel_1_1ConsoleLayer.html", "classWiesel_1_1ConsoleLayer" ],
     [ "ConsoleLine", "structWiesel_1_1ConsoleLine.html", "structWiesel_1_1ConsoleLine" ],
@@ -86,12 +103,17 @@ var namespaceWiesel =
     [ "FieldData", "classWiesel_1_1FieldData.html", "classWiesel_1_1FieldData" ],
     [ "FileWatcher", "classWiesel_1_1FileWatcher.html", "classWiesel_1_1FileWatcher" ],
     [ "Font", "classWiesel_1_1Font.html", "classWiesel_1_1Font" ],
+    [ "FontAsset", "classWiesel_1_1FontAsset.html", "classWiesel_1_1FontAsset" ],
+    [ "FontAssetProperties", "structWiesel_1_1FontAssetProperties.html", "structWiesel_1_1FontAssetProperties" ],
     [ "FontCache", "classWiesel_1_1FontCache.html", null ],
     [ "Framebuffer", "classWiesel_1_1Framebuffer.html", "classWiesel_1_1Framebuffer" ],
     [ "FrustumPlanes", "structWiesel_1_1FrustumPlanes.html", "structWiesel_1_1FrustumPlanes" ],
+    [ "FunctionAssetLoader", "classWiesel_1_1FunctionAssetLoader.html", "classWiesel_1_1FunctionAssetLoader" ],
     [ "FXAAFeature", "classWiesel_1_1FXAAFeature.html", "classWiesel_1_1FXAAFeature" ],
     [ "FxaaPushConstants", "structWiesel_1_1FxaaPushConstants.html", "structWiesel_1_1FxaaPushConstants" ],
     [ "GameApplication", "classWiesel_1_1GameApplication.html", "classWiesel_1_1GameApplication" ],
+    [ "GameInfo", "structWiesel_1_1GameInfo.html", "structWiesel_1_1GameInfo" ],
+    [ "GameLoader", "classWiesel_1_1GameLoader.html", "classWiesel_1_1GameLoader" ],
     [ "GamepadState", "structWiesel_1_1GamepadState.html", "structWiesel_1_1GamepadState" ],
     [ "GeometryFeature", "classWiesel_1_1GeometryFeature.html", "classWiesel_1_1GeometryFeature" ],
     [ "GlfwAppWindow", "classWiesel_1_1GlfwAppWindow.html", "classWiesel_1_1GlfwAppWindow" ],
@@ -99,6 +121,7 @@ var namespaceWiesel =
     [ "GridFeature", "classWiesel_1_1GridFeature.html", "classWiesel_1_1GridFeature" ],
     [ "GridUniformData", "structWiesel_1_1GridUniformData.html", "structWiesel_1_1GridUniformData" ],
     [ "HeightfieldColliderComponent", "structWiesel_1_1HeightfieldColliderComponent.html", "structWiesel_1_1HeightfieldColliderComponent" ],
+    [ "IAssetLoader", "classWiesel_1_1IAssetLoader.html", "classWiesel_1_1IAssetLoader" ],
     [ "IBehavior", "classWiesel_1_1IBehavior.html", "classWiesel_1_1IBehavior" ],
     [ "IComponent", "structWiesel_1_1IComponent.html", "structWiesel_1_1IComponent" ],
     [ "IdComponent", "structWiesel_1_1IdComponent.html", "structWiesel_1_1IdComponent" ],
@@ -110,6 +133,7 @@ var namespaceWiesel =
     [ "InputContext", "structWiesel_1_1InputContext.html", "structWiesel_1_1InputContext" ],
     [ "InputManager", "classWiesel_1_1InputManager.html", null ],
     [ "InputSettings", "structWiesel_1_1InputSettings.html", "structWiesel_1_1InputSettings" ],
+    [ "InteractableComponent", "structWiesel_1_1InteractableComponent.html", "structWiesel_1_1InteractableComponent" ],
     [ "is_component", "structWiesel_1_1is__component.html", null ],
     [ "is_component< T & >", "structWiesel_1_1is__component_3_01T_01_6_01_4.html", null ],
     [ "JoystickAxisMovedEvent", "classWiesel_1_1JoystickAxisMovedEvent.html", "classWiesel_1_1JoystickAxisMovedEvent" ],
@@ -150,14 +174,18 @@ var namespaceWiesel =
     [ "MouseScrolledEvent", "classWiesel_1_1MouseScrolledEvent.html", "classWiesel_1_1MouseScrolledEvent" ],
     [ "NativeBehavior", "classWiesel_1_1NativeBehavior.html", "classWiesel_1_1NativeBehavior" ],
     [ "NativeBehaviorRegistry", "classWiesel_1_1NativeBehaviorRegistry.html", "classWiesel_1_1NativeBehaviorRegistry" ],
+    [ "NaturalSortCompare", "structWiesel_1_1NaturalSortCompare.html", "structWiesel_1_1NaturalSortCompare" ],
+    [ "NavigableComponent", "structWiesel_1_1NavigableComponent.html", "structWiesel_1_1NavigableComponent" ],
     [ "NodeHierarchy", "structWiesel_1_1NodeHierarchy.html", "structWiesel_1_1NodeHierarchy" ],
     [ "NodeInfo", "structWiesel_1_1NodeInfo.html", "structWiesel_1_1NodeInfo" ],
     [ "PassTimingResult", "structWiesel_1_1PassTimingResult.html", "structWiesel_1_1PassTimingResult" ],
+    [ "PerCanvasResources", "structWiesel_1_1PerCanvasResources.html", "structWiesel_1_1PerCanvasResources" ],
     [ "PerfMarker", "classWiesel_1_1PerfMarker.html", null ],
     [ "PhysicsWorld", "classWiesel_1_1PhysicsWorld.html", "classWiesel_1_1PhysicsWorld" ],
-    [ "Pipeline", "structWiesel_1_1Pipeline.html", "structWiesel_1_1Pipeline" ],
+    [ "Pipeline", "classWiesel_1_1Pipeline.html", "classWiesel_1_1Pipeline" ],
     [ "PipelineProperties", "structWiesel_1_1PipelineProperties.html", "structWiesel_1_1PipelineProperties" ],
     [ "PipelineRecreatedEvent", "classWiesel_1_1PipelineRecreatedEvent.html", "classWiesel_1_1PipelineRecreatedEvent" ],
+    [ "PlayerNavState", "structWiesel_1_1PlayerNavState.html", "structWiesel_1_1PlayerNavState" ],
     [ "PlayerSlot", "structWiesel_1_1PlayerSlot.html", "structWiesel_1_1PlayerSlot" ],
     [ "Prefab", "classWiesel_1_1Prefab.html", "classWiesel_1_1Prefab" ],
     [ "Project", "classWiesel_1_1Project.html", "classWiesel_1_1Project" ],
@@ -216,6 +244,7 @@ var namespaceWiesel =
     [ "SoundParams", "structWiesel_1_1SoundParams.html", "structWiesel_1_1SoundParams" ],
     [ "SphereColliderComponent", "structWiesel_1_1SphereColliderComponent.html", "structWiesel_1_1SphereColliderComponent" ],
     [ "SpriteAsset", "classWiesel_1_1SpriteAsset.html", "classWiesel_1_1SpriteAsset" ],
+    [ "SpriteAssetData", "structWiesel_1_1SpriteAssetData.html", "structWiesel_1_1SpriteAssetData" ],
     [ "SpriteBuilder", "classWiesel_1_1SpriteBuilder.html", "classWiesel_1_1SpriteBuilder" ],
     [ "SpriteClip", "structWiesel_1_1SpriteClip.html", "structWiesel_1_1SpriteClip" ],
     [ "SpriteComponent", "classWiesel_1_1SpriteComponent.html", "classWiesel_1_1SpriteComponent" ],
@@ -231,8 +260,13 @@ var namespaceWiesel =
     [ "TagComponent", "structWiesel_1_1TagComponent.html", "structWiesel_1_1TagComponent" ],
     [ "TextComponent", "structWiesel_1_1TextComponent.html", "structWiesel_1_1TextComponent" ],
     [ "TextGlyphGPU", "structWiesel_1_1TextGlyphGPU.html", "structWiesel_1_1TextGlyphGPU" ],
+    [ "TextInputComponent", "structWiesel_1_1TextInputComponent.html", "structWiesel_1_1TextInputComponent" ],
     [ "Texture", "classWiesel_1_1Texture.html", "classWiesel_1_1Texture" ],
+    [ "TextureAssetProperties", "structWiesel_1_1TextureAssetProperties.html", "structWiesel_1_1TextureAssetProperties" ],
     [ "TextureProps", "structWiesel_1_1TextureProps.html", "structWiesel_1_1TextureProps" ],
+    [ "ThreadPool", "classWiesel_1_1ThreadPool.html", "classWiesel_1_1ThreadPool" ],
+    [ "ThumbnailCache", "classWiesel_1_1ThumbnailCache.html", "classWiesel_1_1ThumbnailCache" ],
+    [ "ThumbnailEntry", "structWiesel_1_1ThumbnailEntry.html", "structWiesel_1_1ThumbnailEntry" ],
     [ "Time", "classWiesel_1_1Time.html", null ],
     [ "ToonFeature", "classWiesel_1_1ToonFeature.html", "classWiesel_1_1ToonFeature" ],
     [ "ToonPushConstants", "structWiesel_1_1ToonPushConstants.html", "structWiesel_1_1ToonPushConstants" ],
@@ -241,6 +275,7 @@ var namespaceWiesel =
     [ "TransparencyFeature", "classWiesel_1_1TransparencyFeature.html", "classWiesel_1_1TransparencyFeature" ],
     [ "TreeComponent", "structWiesel_1_1TreeComponent.html", "structWiesel_1_1TreeComponent" ],
     [ "TypedSystemFunction", "classWiesel_1_1TypedSystemFunction.html", "classWiesel_1_1TypedSystemFunction" ],
+    [ "UIEventSystem", "classWiesel_1_1UIEventSystem.html", "classWiesel_1_1UIEventSystem" ],
     [ "UniformBuffer", "classWiesel_1_1UniformBuffer.html", "classWiesel_1_1UniformBuffer" ],
     [ "UUID", "classWiesel_1_1UUID.html", "classWiesel_1_1UUID" ],
     [ "Vector3", "classWiesel_1_1Vector3.html", "classWiesel_1_1Vector3" ],
@@ -250,6 +285,8 @@ var namespaceWiesel =
     [ "VfsFile", "classWiesel_1_1VfsFile.html", "classWiesel_1_1VfsFile" ],
     [ "VirtualFileSystem", "classWiesel_1_1VirtualFileSystem.html", "classWiesel_1_1VirtualFileSystem" ],
     [ "WindowCloseEvent", "classWiesel_1_1WindowCloseEvent.html", "classWiesel_1_1WindowCloseEvent" ],
+    [ "WindowFocusGainedEvent", "classWiesel_1_1WindowFocusGainedEvent.html", "classWiesel_1_1WindowFocusGainedEvent" ],
+    [ "WindowFocusLostEvent", "classWiesel_1_1WindowFocusLostEvent.html", "classWiesel_1_1WindowFocusLostEvent" ],
     [ "WindowProperties", "structWiesel_1_1WindowProperties.html", "structWiesel_1_1WindowProperties" ],
     [ "WindowResizeEvent", "classWiesel_1_1WindowResizeEvent.html", "classWiesel_1_1WindowResizeEvent" ],
     [ "WindowSize", "structWiesel_1_1WindowSize.html", "structWiesel_1_1WindowSize" ],
@@ -260,7 +297,7 @@ var namespaceWiesel =
     [ "GamepadButton", "namespaceWiesel.html#ac055cf12f229c1126968aca93ca1079a", null ],
     [ "Index", "namespaceWiesel.html#ad29bec122d477febf047e8b178a0f213", null ],
     [ "KeyCode", "namespaceWiesel.html#af49c8c5545def5e3fe27890a04f552ce", null ],
-    [ "MaterialPropertyValue", "namespaceWiesel.html#a8c5d24dbde06d1b08bfa18857029f7a3", null ],
+    [ "MaterialPropertyValue", "namespaceWiesel.html#a95cdbc04fdeff63f8eaeab8aa870d7cf", null ],
     [ "NativeBehaviorFactory", "namespaceWiesel.html#a0a27ada6f4f17d8bbbbb32147b894b80", null ],
     [ "Pair", "namespaceWiesel.html#acc234c8a575ffd4d5311189784d9eee3", null ],
     [ "RGExecuteFn", "namespaceWiesel.html#a258ecd959ec02f5966c65522feb8a265", null ],
@@ -330,8 +367,22 @@ var namespaceWiesel =
     [ "BakeResult", "namespaceWiesel.html#a1269e98138085e8c52861afee5815d03", [
       [ "SUCCESS", "namespaceWiesel.html#a1269e98138085e8c52861afee5815d03a1b669465913a55f5f1339ec5e123359d", null ]
     ] ],
-    [ "CanvasType", "namespaceWiesel.html#a65148833b3227b9832b41ada3b87cf26", [
-      [ "CanvasTypeScreenSpace", "namespaceWiesel.html#a65148833b3227b9832b41ada3b87cf26acda1a779eb9c24acb4a56e221167f519", null ]
+    [ "ButtonState", "namespaceWiesel.html#a1b2d0fbf35000cd61372c9784874a78a", [
+      [ "Normal", "namespaceWiesel.html#a1b2d0fbf35000cd61372c9784874a78aa960b44c579bc2f6818d2daaf9e4c16f0", null ],
+      [ "Hovered", "namespaceWiesel.html#a1b2d0fbf35000cd61372c9784874a78aa3ef193e1ac8f2bc3d7226a29d6b09875", null ],
+      [ "Pressed", "namespaceWiesel.html#a1b2d0fbf35000cd61372c9784874a78aad78a68f6a85421ae121c2cb5b73a1040", null ],
+      [ "Selected", "namespaceWiesel.html#a1b2d0fbf35000cd61372c9784874a78aa91b442d385b54e1418d81adc34871053", null ],
+      [ "Disabled", "namespaceWiesel.html#a1b2d0fbf35000cd61372c9784874a78aab9f5c797ebbf55adccdd8539a65a0241", null ]
+    ] ],
+    [ "CanvasRenderMode", "namespaceWiesel.html#a9bb98f1609a0ab34f59c39a3a6c90748", [
+      [ "ScreenSpaceOverlay", "namespaceWiesel.html#a9bb98f1609a0ab34f59c39a3a6c90748ad4b612fd0e35f3771e6b215171845740", null ],
+      [ "ScreenSpaceCamera", "namespaceWiesel.html#a9bb98f1609a0ab34f59c39a3a6c90748a34c0889e457c8a05edf8f2cf9f6071f2", null ],
+      [ "WorldSpace", "namespaceWiesel.html#a9bb98f1609a0ab34f59c39a3a6c90748a43c5bd4a88c440bd0862f954e4faa177", null ]
+    ] ],
+    [ "CapsuleAxis", "namespaceWiesel.html#a275769e8ea9f59936570ef9667ce6fa6", [
+      [ "X", "namespaceWiesel.html#a275769e8ea9f59936570ef9667ce6fa6a02129bb861061d1a052c592e2dc6b383", null ],
+      [ "Y", "namespaceWiesel.html#a275769e8ea9f59936570ef9667ce6fa6a57cec4137b614c87cb4e24a3d003a3e0", null ],
+      [ "Z", "namespaceWiesel.html#a275769e8ea9f59936570ef9667ce6fa6a21c2e59531c8710156d34a3c30ac81d5", null ]
     ] ],
     [ "ChildAlignment", "namespaceWiesel.html#a863d7d54a8ad2efd99ea3101b5f91755", [
       [ "Start", "namespaceWiesel.html#a863d7d54a8ad2efd99ea3101b5f91755aa6122a65eaa676f700ae68d393054a37", null ],
@@ -398,7 +449,10 @@ var namespaceWiesel =
       [ "JoystickButtonReleased", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa98913a905aad67c179f13e65d0b534ad", null ],
       [ "JoystickAxisMoved", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa11783af6be768504300caada41bca2d9", null ],
       [ "JoystickHatChanged", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa234f5a67f7c3d14c6ffe80119141584f", null ],
-      [ "PipelineRecreated", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfaf3dfa69eb8efe783aabcd02a0f83fcb3", null ]
+      [ "PipelineRecreated", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfaf3dfa69eb8efe783aabcd02a0f83fcb3", null ],
+      [ "WindowFocusGained", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa05b3dce6e0f8da4f434551354c06927f", null ],
+      [ "WindowFocusLost", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfaa01c68a918521970c26998c27d41e26e", null ],
+      [ "AssetUnloaded", "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa0f45700d0cbb836b50fb77296cf0b040", null ]
     ] ],
     [ "FieldType", "namespaceWiesel.html#af5bdb823ed0d6baa76d7954eee8df469", [
       [ "Boolean", "namespaceWiesel.html#af5bdb823ed0d6baa76d7954eee8df469a27226c864bac7454a8504f8edb15d95b", null ],
@@ -413,6 +467,10 @@ var namespaceWiesel =
       [ "Prefab", "namespaceWiesel.html#af5bdb823ed0d6baa76d7954eee8df469afc149351d98dcbf17361c6a449e6355e", null ],
       [ "AudioClip", "namespaceWiesel.html#af5bdb823ed0d6baa76d7954eee8df469aa8a27cf2fdd442d8dcde6fc373d9152a", null ],
       [ "Object", "namespaceWiesel.html#af5bdb823ed0d6baa76d7954eee8df469a497031794414a552435f90151ac3b54b", null ]
+    ] ],
+    [ "FontAAMode", "namespaceWiesel.html#a1a36549c4278a69eb9ace4d998a33d07", [
+      [ "None", "namespaceWiesel.html#a1a36549c4278a69eb9ace4d998a33d07a6adf97f83acf6453d4a6a4b1070f3754", null ],
+      [ "Grayscale", "namespaceWiesel.html#a1a36549c4278a69eb9ace4d998a33d07ad3f6975213fb5546d8486b54b025dbd7", null ]
     ] ],
     [ "InputMode", "namespaceWiesel.html#ae4239fba4848edbaac0ecb0cd02398d7", [
       [ "kInputModeKeyboardAndMouse", "namespaceWiesel.html#ae4239fba4848edbaac0ecb0cd02398d7aac7c663830893e2d810e0c0b931f4583", null ],
@@ -495,6 +553,10 @@ var namespaceWiesel =
       [ "X32", "namespaceWiesel.html#aa1c45abe55496d4d69b39aba218a03d6aaebf1ebe049feaa907e785eeb955ae32", null ],
       [ "X64", "namespaceWiesel.html#aa1c45abe55496d4d69b39aba218a03d6af0851da0e02bf22830828822f578dc8f", null ]
     ] ],
+    [ "ScaleMode", "namespaceWiesel.html#a589ff865d1f183dab50fd9acde2d2434", [
+      [ "ConstantPixelSize", "namespaceWiesel.html#a589ff865d1f183dab50fd9acde2d2434aa07993906b341f3f90d4c0e59ac7c8fd", null ],
+      [ "ScaleWithScreenSize", "namespaceWiesel.html#a589ff865d1f183dab50fd9acde2d2434a2ac0fab43627f997005598024f98fd05", null ]
+    ] ],
     [ "ShaderLang", "namespaceWiesel.html#acd48e32050820d10f8d6b74c7a0f3e1d", [
       [ "ShaderLangGLSL", "namespaceWiesel.html#acd48e32050820d10f8d6b74c7a0f3e1da1b08ae70d5af0c286d2310961a189571", null ],
       [ "ShaderLangHLSL", "namespaceWiesel.html#acd48e32050820d10f8d6b74c7a0f3e1da8e965bfa2b71089ff48418ac2e728290", null ]
@@ -524,6 +586,15 @@ var namespaceWiesel =
     [ "SystemType", "namespaceWiesel.html#acb0fe25a369d4ff4c3e3b32d3cf114dd", [
       [ "Update", "namespaceWiesel.html#acb0fe25a369d4ff4c3e3b32d3cf114dda06933067aafd48425d67bcb01bba5cb6", null ]
     ] ],
+    [ "TextureAssetType", "namespaceWiesel.html#add5db06fe398c26e7b60fd86535eff2d", [
+      [ "Default", "namespaceWiesel.html#add5db06fe398c26e7b60fd86535eff2da7a1920d61156abc05a60135aefe8bc67", null ],
+      [ "NormalMap", "namespaceWiesel.html#add5db06fe398c26e7b60fd86535eff2da6b9d0d690dd35849b77d2c234ce90d90", null ],
+      [ "Sprite", "namespaceWiesel.html#add5db06fe398c26e7b60fd86535eff2da51f2b7b14433aa22c67d1f4fc18943cd", null ]
+    ] ],
+    [ "TextureFilterMode", "namespaceWiesel.html#a4eb321d8985c62eea7891a48f66bd660", [
+      [ "Nearest", "namespaceWiesel.html#a4eb321d8985c62eea7891a48f66bd660a60494f02d440f316319dd0fad40ad007", null ],
+      [ "Linear", "namespaceWiesel.html#a4eb321d8985c62eea7891a48f66bd660a32a843da6ea40ab3b17a3421ccdf671b", null ]
+    ] ],
     [ "TextureType", "namespaceWiesel.html#addb7239279b9f406f7e192f8c32c3c85", [
       [ "TextureTypeNone", "namespaceWiesel.html#addb7239279b9f406f7e192f8c32c3c85af4a0f1528bd85c8df67df5a77d3eda0d", null ],
       [ "TextureTypeDiffuse", "namespaceWiesel.html#addb7239279b9f406f7e192f8c32c3c85af1570f8ef9301ec1e1b747324af3e891", null ],
@@ -547,6 +618,11 @@ var namespaceWiesel =
       [ "TextureTypeClearcoat", "namespaceWiesel.html#addb7239279b9f406f7e192f8c32c3c85a2f2204fcf3fdfd807c100e3c7e51f8f8", null ],
       [ "TextureTypeTransmission", "namespaceWiesel.html#addb7239279b9f406f7e192f8c32c3c85a66081f68cded832330250ea51c85b200", null ]
     ] ],
+    [ "TextureWrapMode", "namespaceWiesel.html#a3d15e1f5b763eb622f4bea5f6e3384e5", [
+      [ "Repeat", "namespaceWiesel.html#a3d15e1f5b763eb622f4bea5f6e3384e5a7020426cfb0a204051be4b3053d2acc8", null ],
+      [ "Clamp", "namespaceWiesel.html#a3d15e1f5b763eb622f4bea5f6e3384e5a08825280e3f8137556325061ba67ff8c", null ],
+      [ "Mirror", "namespaceWiesel.html#a3d15e1f5b763eb622f4bea5f6e3384e5a2403def5083f02105e7802b3b315681e", null ]
+    ] ],
     [ "Vertex3DFlag", "namespaceWiesel.html#a74bcb5e873d456ca267408c368a348c2", [
       [ "VertexFlagHasTexture", "namespaceWiesel.html#a74bcb5e873d456ca267408c368a348c2a47636f98f73c9fcb5acde69c3e2d8a05", null ],
       [ "VertexFlagHasNormalMap", "namespaceWiesel.html#a74bcb5e873d456ca267408c368a348c2a15b2b94bc8207004a81fa2565c61dc34", null ],
@@ -562,6 +638,7 @@ var namespaceWiesel =
     [ "CollectColliderEntries", "namespaceWiesel.html#a3a4cc518baac750248f6f37f670cb0d7", null ],
     [ "CreateApp", "namespaceWiesel.html#a0b26735393d9a90e10be908c80d9ce43", null ],
     [ "EvaluateCondition", "namespaceWiesel.html#a672c1f5b28a97c868409dfa3581f55eb", null ],
+    [ "ExtToAssetType", "namespaceWiesel.html#ad4d88ee639fd63d4ab0de848c2b8312d", null ],
     [ "FormatVariableName", "namespaceWiesel.html#a7eeeed252d2944f5a68e764e2e6cff33", null ],
     [ "GamepadAxisToString", "namespaceWiesel.html#a338818aebde6789bef26f3a7a653feaa", null ],
     [ "GamepadButtonToString", "namespaceWiesel.html#a27c209e108b1cdf050c570aa2152be96", null ],
@@ -576,12 +653,16 @@ var namespaceWiesel =
     [ "GetShaderFlagBitsByType", "namespaceWiesel.html#a1360723dc71bd3de668e5ba281014b33", null ],
     [ "GetUserCacheDirectory", "namespaceWiesel.html#a8932561d669e1355f41118121ab0cfee", null ],
     [ "GetUserDataDirectory", "namespaceWiesel.html#a455059d6699ff607d6b54a199c977c0f", null ],
-    [ "InitializeComponents", "namespaceWiesel.html#af979501456eca6a1c1e080bd4d56e0ec", null ],
+    [ "InitializeAssetProperties", "namespaceWiesel.html#a4a6bd56cfac137f015f3914d188353db", null ],
+    [ "InitializeComponentSerializers", "namespaceWiesel.html#a1b5a1615b2013d70306e9dc64fbbb6bb", null ],
+    [ "InitializeEditorComponents", "namespaceWiesel.html#ac3e2b8baf5685efa6b39522ba400cf9e", null ],
+    [ "IsJsonAssetType", "namespaceWiesel.html#ad005e80ebd08410bf185c5a226a37dbb", null ],
     [ "KeyCodeToString", "namespaceWiesel.html#ad26de06f9f2e1a9fd0f9b54b11f911f8", null ],
     [ "LoadSpriteAnim", "namespaceWiesel.html#a325889152e8d0e16f0dfe55939a4284a", null ],
     [ "LoadSpriteSheet", "namespaceWiesel.html#a2a8eebfceeabde9d5f77525cd5133611", null ],
     [ "LoadSpriteTexture", "namespaceWiesel.html#ad2223682fee663332ee39539359abc93", null ],
     [ "MakeSystemFunction", "namespaceWiesel.html#a89b038520e24714035daf84b30df3351", null ],
+    [ "NaturalLess", "namespaceWiesel.html#a76953a1216bdb127f292ca4cf2e32ef2", null ],
     [ "OpenFileInDefaultEditor", "namespaceWiesel.html#a9cfc5c45940bd91d60aabc490d926773", null ],
     [ "PrefixLabel", "namespaceWiesel.html#a5ce2c16a0cab9c7710af9994d93dfba8", null ],
     [ "QueryOverlapBox", "namespaceWiesel.html#ae9722d7c22f10d7ea1289052b5aaef5e", null ],
