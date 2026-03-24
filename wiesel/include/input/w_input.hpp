@@ -48,6 +48,10 @@ struct PlayerSlot {
   bool active = false;
   std::string context_name;  // which InputContext this player uses
   int gamepad_index = -1;    // index into gamepads_ array (-1 = keyboard/mouse)
+
+  InputMode GetInputMode() const {
+    return gamepad_index >= 0 ? kInputModeGamepad : kInputModeKeyboardAndMouse;
+  }
 };
 
 class InputManager {
@@ -85,6 +89,9 @@ class InputManager {
   // --- Gamepad info ---
   static int GetConnectedGamepadCount();
   static const GamepadState& GetGamepadState(int index);
+
+  // --- Input mode (per-player, derived from device assignment) ---
+  static InputMode GetInputMode(int player = 0);
 
   // --- System ---
   static void Init();

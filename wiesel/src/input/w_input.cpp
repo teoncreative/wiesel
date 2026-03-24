@@ -529,6 +529,13 @@ const GamepadState& InputManager::GetGamepadState(int index) {
   return gamepads_[index];
 }
 
+InputMode InputManager::GetInputMode(int player) {
+  if (player < 0 || player >= kMaxPlayers) {
+    return kInputModeKeyboardAndMouse;
+  }
+  return players_[player].GetInputMode();
+}
+
 void InputManager::SetEnabled(bool enabled) {
   input_enabled_ = enabled;
 }

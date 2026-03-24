@@ -218,6 +218,8 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
       auto& btn = scene.GetComponent<ButtonComponent>(child);
       if (btn.state_ == ButtonState::Pressed) {
         child_origin += btn.pressed_offset;
+      } else if (btn.state_ == ButtonState::Selected) {
+        child_origin += btn.selected_offset;
       } else if (btn.state_ == ButtonState::Hovered) {
         child_origin += btn.hovered_offset;
       }

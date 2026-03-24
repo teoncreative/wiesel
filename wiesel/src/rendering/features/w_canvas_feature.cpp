@@ -48,6 +48,10 @@ static std::pair<AssetHandle, glm::vec4> GetButtonVisuals(
       return {btn.pressed_texture.IsValid() ? btn.pressed_texture
                                             : btn.normal_texture,
               btn.pressed_color};
+    case ButtonState::Selected:
+      return {btn.selected_texture.IsValid() ? btn.selected_texture
+                                             : btn.normal_texture,
+              btn.selected_color};
     case ButtonState::Disabled:
       return {btn.disabled_texture.IsValid() ? btn.disabled_texture
                                              : btn.normal_texture,

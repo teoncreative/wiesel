@@ -135,10 +135,37 @@ namespace WieselEngine
       Menu = 348
     };
 
+    public enum GamepadButton : int
+    {
+        A = 0,
+        B = 1,
+        X = 2,
+        Y = 3,
+        LB = 4,
+        RB = 5,
+        Back = 6,
+        Start = 7,
+        Guide = 8,
+        LeftStick = 9,
+        RightStick = 10,
+        DPadUp = 11,
+        DPadRight = 12,
+        DPadDown = 13,
+        DPadLeft = 14
+    }
+
+    public enum GamepadAxis : int
+    {
+        LeftX = 0,
+        LeftY = 1,
+        RightX = 2,
+        RightY = 3,
+        LeftTrigger = 4,
+        RightTrigger = 5
+    }
+
     public class Input
     {
-
-
         public static float GetAxis(string axis)
         {
             return Internals.Input_GetAxis(axis);
@@ -197,6 +224,21 @@ namespace WieselEngine
         public static bool GetMouseButtonUp(int button)
         {
             return Internals.Input_GetMouseButtonUp(button);
+        }
+
+        public static bool GetGamepadButton(int gamepadIndex, GamepadButton button)
+        {
+            return Internals.Input_GetGamepadButton(gamepadIndex, (int)button);
+        }
+
+        public static float GetGamepadAxis(int gamepadIndex, GamepadAxis axis)
+        {
+            return Internals.Input_GetGamepadAxis(gamepadIndex, (int)axis);
+        }
+
+        public static int ConnectedGamepadCount
+        {
+            get { return Internals.Input_GetConnectedGamepadCount(); }
         }
     }
 }

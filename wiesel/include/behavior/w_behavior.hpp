@@ -81,6 +81,15 @@ class IBehavior {
 
   virtual void OnPointerExit() {}
 
+  // Navigation events (requires NavigableComponent on the entity)
+  virtual void OnSelect() {}
+
+  virtual void OnDeselect() {}
+
+  virtual bool OnSubmit() { return false; }
+
+  virtual bool OnCancel() { return false; }
+
   WIESEL_GETTER_FN Entity entity() { return entity_; }
 
   WIESEL_GETTER_FN Scene* scene() { return scene_; }

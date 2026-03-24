@@ -65,6 +65,10 @@ struct CanvasComponent {
   float plane_distance = 10.0f;
   entt::entity camera_entity =
       entt::null;  // which camera to render in front of
+
+  // Which player's input drives this canvas.
+  // Overlay canvases default to player 0.
+  int player_index = 0;
 };
 
 struct CanvasScalerComponent {
@@ -92,7 +96,8 @@ enum class ButtonState : int {
   Normal = 0,
   Hovered = 1,
   Pressed = 2,
-  Disabled = 3,
+  Selected = 3,
+  Disabled = 4,
 };
 
 // Button component - self-rendering canvas element with per-state textures.
@@ -103,17 +108,20 @@ struct ButtonComponent {
   glm::vec4 normal_color = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 hovered_color = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 pressed_color = {1.0f, 1.0f, 1.0f, 1.0f};
+  glm::vec4 selected_color = {1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 disabled_color = {0.5f, 0.5f, 0.5f, 0.5f};
 
   // Texture per state (normal is required, others fall back to normal)
   AssetHandle normal_texture;
   AssetHandle hovered_texture;
   AssetHandle pressed_texture;
+  AssetHandle selected_texture;
   AssetHandle disabled_texture;
 
   // Child offset applied per state (pixels, affects children positioning)
   glm::vec2 hovered_offset = {0.0f, 0.0f};
   glm::vec2 pressed_offset = {0.0f, 0.0f};
+  glm::vec2 selected_offset = {0.0f, 0.0f};
 
   // Runtime state (not serialized)
   ButtonState state_ = ButtonState::Normal;

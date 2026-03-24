@@ -30,6 +30,7 @@
 #include "script/mono/w_monobehavior.hpp"
 #include "ui/w_canvas.hpp"
 #include "ui/w_interactable.hpp"
+#include "ui/w_navigable.hpp"
 #include "util/imgui/w_imguiutil.hpp"
 #include "util/w_dialogs.hpp"
 #include "util/w_logger.hpp"
@@ -1073,6 +1074,11 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("End Spacing").c_str(), &component.end_spacing,
                      0.5f);
     ImGui::InputInt(PrefixLabel("Sort Order").c_str(), &component.sort_order);
+
+    ImGui::SeparatorText("Input");
+    ImGui::InputInt(PrefixLabel("Player Index").c_str(),
+                    &component.player_index);
+    component.player_index = std::clamp(component.player_index, 0, 3);
     ImGui::TreePop();
   }
   if (!visible) {
@@ -2285,6 +2291,8 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
   ImGui::ColorEdit4(PrefixLabel("Normal").c_str(), &component.normal_color.r);
   ImGui::ColorEdit4(PrefixLabel("Hovered").c_str(), &component.hovered_color.r);
   ImGui::ColorEdit4(PrefixLabel("Pressed").c_str(), &component.pressed_color.r);
+  ImGui::ColorEdit4(PrefixLabel("Selected").c_str(),
+                    &component.selected_color.r);
   ImGui::ColorEdit4(PrefixLabel("Disabled").c_str(),
                     &component.disabled_color.r);
 
@@ -2292,6 +2300,7 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
   TextureDropField("Normal", component.normal_texture);
   TextureDropField("Hovered", component.hovered_texture);
   TextureDropField("Pressed", component.pressed_texture);
+  TextureDropField("Selected", component.selected_texture);
   TextureDropField("Disabled", component.disabled_texture);
 
   ImGui::SeparatorText("Child Offsets");
@@ -2299,8 +2308,11 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
                     reinterpret_cast<float*>(&component.hovered_offset), 0.5f);
   ImGui::DragFloat2(PrefixLabel("Pressed Offset").c_str(),
                     reinterpret_cast<float*>(&component.pressed_offset), 0.5f);
+  ImGui::DragFloat2(PrefixLabel("Selected Offset").c_str(),
+                    reinterpret_cast<float*>(&component.selected_offset), 0.5f);
 
-  const char* state_names[] = {"Normal", "Hovered", "Pressed", "Disabled"};
+  const char* state_names[] = {"Normal", "Hovered", "Pressed", "Selected",
+                               "Disabled"};
   ImGui::TextDisabled("State: %s",
                       state_names[static_cast<int>(component.state_)]);
 
@@ -2310,11 +2322,12 @@ void RenderComponentImGui(ButtonComponent& component, Entity entity) {
 void RenderAddComponentImGui_ButtonComponent(Entity entity) {
   if (ImGui::MenuItem("Button") && !entity.HasComponent<ButtonComponent>()) {
     entity.AddComponent<ButtonComponent>();
-    // Auto-add InteractableComponent if missing
     if (!entity.HasComponent<InteractableComponent>()) {
       entity.AddComponent<InteractableComponent>();
     }
-    // Auto-add RectangleTransformComponent if missing (needed for hit testing)
+    if (!entity.HasComponent<NavigableComponent>()) {
+      entity.AddComponent<NavigableComponent>();
+    }
     if (!entity.HasComponent<RectangleTransformComponent>()) {
       entity.AddComponent<RectangleTransformComponent>();
     }
@@ -2342,6 +2355,10 @@ void RenderComponentImGui(InteractableComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Pressed");
   }
+  if (component.selected_) {
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(0.4f, 0.6f, 1.0f, 1.0f), "Selected");
+  }
 
   ImGui::TreePop();
 }
@@ -2350,6 +2367,53 @@ void RenderAddComponentImGui_InteractableComponent(Entity entity) {
   if (ImGui::MenuItem("Interactable") &&
       !entity.HasComponent<InteractableComponent>()) {
     entity.AddComponent<InteractableComponent>();
+  }
+}
+
+void RenderComponentImGui(NavigableComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Navigable", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<NavigableComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  auto nav_field = [&](const char* label, entt::entity& target) {
+    Scene* scene = entity.GetScene();
+    std::string name = "None (Auto)";
+    if (target != entt::null && scene && scene->GetRegistry().valid(target)) {
+      if (scene->HasComponent<TagComponent>(target)) {
+        name = scene->GetComponent<TagComponent>(target).name;
+      } else {
+        name = "Entity";
+      }
+    }
+    ImGui::Text("%s: %s", label, name.c_str());
+    // Allow clearing with right-click
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+      target = entt::null;
+    }
+  };
+
+  nav_field("Up", component.nav_up);
+  nav_field("Down", component.nav_down);
+  nav_field("Left", component.nav_left);
+  nav_field("Right", component.nav_right);
+
+  ImGui::TextDisabled("Right-click to clear (reset to auto)");
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_NavigableComponent(Entity entity) {
+  if (ImGui::MenuItem("Navigable") &&
+      !entity.HasComponent<NavigableComponent>()) {
+    entity.AddComponent<NavigableComponent>();
+    if (!entity.HasComponent<InteractableComponent>()) {
+      entity.AddComponent<InteractableComponent>();
+    }
   }
 }
 
@@ -2447,6 +2511,9 @@ void InitializeComponents() {
   RegisterComponentType<InteractableComponent>(
       "Interactable", "UI", RenderComponentImGui,
       RenderAddComponentImGui_InteractableComponent, nullptr);
+  RegisterComponentType<NavigableComponent>(
+      "Navigable", "UI", RenderComponentImGui,
+      RenderAddComponentImGui_NavigableComponent, nullptr);
   RegisterComponentType<AudioSourceComponent>(
       "Audio Source", "Audio", RenderComponentImGui,
       RenderAddComponentImGui_AudioSourceComponent, nullptr);

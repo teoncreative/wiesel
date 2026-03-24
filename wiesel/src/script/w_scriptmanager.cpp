@@ -500,6 +500,22 @@ bool Internals_Input_GetMouseButtonUp(int button) {
   return ImGui::IsMouseReleased(static_cast<ImGuiMouseButton>(button));
 }
 
+// --- Gamepad bindings ---
+
+bool Internals_Input_GetGamepadButton(int gamepad_index, int button) {
+  return InputManager::IsGamepadButtonPressed(
+      gamepad_index, static_cast<GamepadButton>(button));
+}
+
+float Internals_Input_GetGamepadAxis(int gamepad_index, int axis) {
+  return InputManager::GetGamepadAxis(gamepad_index,
+                                      static_cast<GamepadAxis>(axis));
+}
+
+int Internals_Input_GetConnectedGamepadCount() {
+  return InputManager::GetConnectedGamepadCount();
+}
+
 // --- Entity tag bindings ---
 
 bool Internals_Entity_HasTag(uint64_t scene_ptr, uint64_t entity_id,
@@ -2438,6 +2454,44 @@ void ScriptInstance::OnPointerExit() {
              &errored_);
 }
 
+void ScriptInstance::OnSelect() {
+  if (errored_ || !script_data_->on_select_method()) {
+    return;
+  }
+  InvokeSafe(script_data_->on_select_method(), handle_, nullptr, &errored_);
+}
+
+void ScriptInstance::OnDeselect() {
+  if (errored_ || !script_data_->on_deselect_method()) {
+    return;
+  }
+  InvokeSafe(script_data_->on_deselect_method(), handle_, nullptr, &errored_);
+}
+
+bool ScriptInstance::OnSubmit() {
+  if (errored_ || !script_data_->on_submit_method()) {
+    return false;
+  }
+  MonoObject* result =
+      InvokeSafe(script_data_->on_submit_method(), handle_, nullptr, &errored_);
+  if (!result) {
+    return false;
+  }
+  return *(bool*)mono_object_unbox(result);
+}
+
+bool ScriptInstance::OnCancel() {
+  if (errored_ || !script_data_->on_cancel_method()) {
+    return false;
+  }
+  MonoObject* result =
+      InvokeSafe(script_data_->on_cancel_method(), handle_, nullptr, &errored_);
+  if (!result) {
+    return false;
+  }
+  return *(bool*)mono_object_unbox(result);
+}
+
 // explicitly instantiate needed types, this is required:
 template void ScriptInstance::AttachExternComponent<TransformComponent>(
     std::string, entt::entity);
@@ -2918,6 +2972,14 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
         mono_class_get_method_from_name(klass, "OnPointerEnter", 0);
     MonoMethod* on_ptr_exit =
         mono_class_get_method_from_name(klass, "OnPointerExit", 0);
+    MonoMethod* on_select =
+        mono_class_get_method_from_name(klass, "OnSelect", 0);
+    MonoMethod* on_deselect =
+        mono_class_get_method_from_name(klass, "OnDeselect", 0);
+    MonoMethod* on_submit =
+        mono_class_get_method_from_name(klass, "OnSubmit", 0);
+    MonoMethod* on_cancel =
+        mono_class_get_method_from_name(klass, "OnCancel", 0);
 
     script_data_.insert(std::pair(
         class_name,
@@ -2926,7 +2988,8 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
             on_key_released, on_mouse_moved, on_trigger_enter, on_trigger_stay,
             on_trigger_exit, on_collision_enter, on_collision_stay,
             on_collision_exit, on_disable, on_destroy, on_ptr_click,
-            on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, fields)));
+            on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, on_select,
+            on_deselect, on_submit, on_cancel, fields)));
     script_names_.push_back(class_name);
     LOG_INFO("Registered script: {}", class_name);
   }
@@ -3335,6 +3398,9 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Input_GetMouseButton);
   WIESEL_ADD_INTERNAL_CALL(Input_GetMouseButtonDown);
   WIESEL_ADD_INTERNAL_CALL(Input_GetMouseButtonUp);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetGamepadButton);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetGamepadAxis);
+  WIESEL_ADD_INTERNAL_CALL(Input_GetConnectedGamepadCount);
 
   WIESEL_ADD_INTERNAL_CALL(Entity_HasTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_AddTag);

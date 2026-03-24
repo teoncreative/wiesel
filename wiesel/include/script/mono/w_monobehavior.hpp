@@ -71,6 +71,32 @@ class MonoBehavior : public IBehavior {
     }
   }
 
+  void OnSelect() override {
+    if (script_instance_) {
+      script_instance_->OnSelect();
+    }
+  }
+
+  void OnDeselect() override {
+    if (script_instance_) {
+      script_instance_->OnDeselect();
+    }
+  }
+
+  bool OnSubmit() override {
+    if (script_instance_) {
+      return script_instance_->OnSubmit();
+    }
+    return false;
+  }
+
+  bool OnCancel() override {
+    if (script_instance_) {
+      return script_instance_->OnCancel();
+    }
+    return false;
+  }
+
  private:
   void InstantiateScript();
   bool OnReloadScripts(ScriptsReloadedEvent& event);

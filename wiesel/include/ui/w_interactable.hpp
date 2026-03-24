@@ -25,6 +25,7 @@ struct InteractableComponent : public IComponent {
   // Runtime state (not serialized)
   bool hovered_ = false;
   bool pressed_ = false;
+  bool selected_ = false;
 };
 
 }  // namespace Wiesel

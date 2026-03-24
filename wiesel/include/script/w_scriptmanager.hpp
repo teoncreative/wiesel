@@ -120,7 +120,9 @@ class ScriptData {
              MonoMethod* on_pointer_down_method,
              MonoMethod* on_pointer_up_method,
              MonoMethod* on_pointer_enter_method,
-             MonoMethod* on_pointer_exit_method,
+             MonoMethod* on_pointer_exit_method, MonoMethod* on_select_method,
+             MonoMethod* on_deselect_method, MonoMethod* on_submit_method,
+             MonoMethod* on_cancel_method,
              std::unordered_map<std::string, FieldData> fields)
       : mono_class_(klass),
         on_update_method_(on_update_method),
@@ -142,6 +144,10 @@ class ScriptData {
         on_pointer_up_method_(on_pointer_up_method),
         on_pointer_enter_method_(on_pointer_enter_method),
         on_pointer_exit_method_(on_pointer_exit_method),
+        on_select_method_(on_select_method),
+        on_deselect_method_(on_deselect_method),
+        on_submit_method_(on_submit_method),
+        on_cancel_method_(on_cancel_method),
         fields_(fields) {}
 
   MonoClass* mono_class() const { return mono_class_; }
@@ -196,6 +202,14 @@ class ScriptData {
 
   MonoMethod* on_pointer_exit_method() const { return on_pointer_exit_method_; }
 
+  MonoMethod* on_select_method() const { return on_select_method_; }
+
+  MonoMethod* on_deselect_method() const { return on_deselect_method_; }
+
+  MonoMethod* on_submit_method() const { return on_submit_method_; }
+
+  MonoMethod* on_cancel_method() const { return on_cancel_method_; }
+
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
  private:
@@ -219,6 +233,10 @@ class ScriptData {
   MonoMethod* on_pointer_up_method_;
   MonoMethod* on_pointer_enter_method_;
   MonoMethod* on_pointer_exit_method_;
+  MonoMethod* on_select_method_;
+  MonoMethod* on_deselect_method_;
+  MonoMethod* on_submit_method_;
+  MonoMethod* on_cancel_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
 };
@@ -264,6 +282,10 @@ class ScriptInstance {
   bool OnPointerUp(float x, float y);
   void OnPointerEnter();
   void OnPointerExit();
+  void OnSelect();
+  void OnDeselect();
+  bool OnSubmit();
+  bool OnCancel();
 
   template <class T>
   void AttachExternComponent(std::string variable, entt::entity entity);

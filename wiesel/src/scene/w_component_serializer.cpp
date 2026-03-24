@@ -19,6 +19,7 @@
 #include "script/mono/w_monobehavior.hpp"
 #include "ui/w_canvas.hpp"
 #include "ui/w_interactable.hpp"
+#include "ui/w_navigable.hpp"
 #include "util/w_logger.hpp"
 #include "w_engine.hpp"
 
@@ -852,8 +853,9 @@ void InitializeComponentSerializers() {
             }
           }
         }
-        // WorldSpace no longer has per-canvas size fields;
-        // world size is derived from CanvasScaler.reference_pixels_per_unit
+        if (c.player_index != 0) {
+          cj["player_index"] = c.player_index;
+        }
         return cj;
       },
       // Deserialize
@@ -875,7 +877,7 @@ void InitializeComponentSerializers() {
               UUID::FromString(cj["camera_uuid"].get<std::string>());
           c.camera_entity = scene->FindEntityByUUID(cam_uuid);
         }
-        // pixels_per_unit moved to CanvasScalerComponent
+        c.player_index = cj.value("player_index", 0);
       },
   });
 
@@ -1173,6 +1175,8 @@ void InitializeComponentSerializers() {
                                btn.hovered_color.b, btn.hovered_color.a};
         bj["pressed_color"] = {btn.pressed_color.r, btn.pressed_color.g,
                                btn.pressed_color.b, btn.pressed_color.a};
+        bj["selected_color"] = {btn.selected_color.r, btn.selected_color.g,
+                                btn.selected_color.b, btn.selected_color.a};
         bj["disabled_color"] = {btn.disabled_color.r, btn.disabled_color.g,
                                 btn.disabled_color.b, btn.disabled_color.a};
         if (btn.normal_texture.IsValid()) {
@@ -1184,6 +1188,9 @@ void InitializeComponentSerializers() {
         if (btn.pressed_texture.IsValid()) {
           bj["pressed_texture"] = btn.pressed_texture.ToString();
         }
+        if (btn.selected_texture.IsValid()) {
+          bj["selected_texture"] = btn.selected_texture.ToString();
+        }
         if (btn.disabled_texture.IsValid()) {
           bj["disabled_texture"] = btn.disabled_texture.ToString();
         }
@@ -1192,6 +1199,9 @@ void InitializeComponentSerializers() {
         }
         if (btn.pressed_offset.x != 0 || btn.pressed_offset.y != 0) {
           bj["pressed_offset"] = SerializeUtil::Vec2(btn.pressed_offset);
+        }
+        if (btn.selected_offset.x != 0 || btn.selected_offset.y != 0) {
+          bj["selected_offset"] = SerializeUtil::Vec2(btn.selected_offset);
         }
         return bj;
       },
@@ -1210,6 +1220,7 @@ void InitializeComponentSerializers() {
             load_color(bj, "hovered_color", {0.9f, 0.9f, 0.9f, 1});
         btn.pressed_color =
             load_color(bj, "pressed_color", {0.7f, 0.7f, 0.7f, 1});
+        btn.selected_color = load_color(bj, "selected_color", {1, 1, 1, 1});
         btn.disabled_color =
             load_color(bj, "disabled_color", {0.5f, 0.5f, 0.5f, 0.5f});
 
@@ -1223,12 +1234,16 @@ void InitializeComponentSerializers() {
         btn.normal_texture = load_handle(bj, "normal_texture");
         btn.hovered_texture = load_handle(bj, "hovered_texture");
         btn.pressed_texture = load_handle(bj, "pressed_texture");
+        btn.selected_texture = load_handle(bj, "selected_texture");
         btn.disabled_texture = load_handle(bj, "disabled_texture");
         if (bj.contains("hovered_offset")) {
           btn.hovered_offset = SerializeUtil::Vec2(bj["hovered_offset"]);
         }
         if (bj.contains("pressed_offset")) {
           btn.pressed_offset = SerializeUtil::Vec2(bj["pressed_offset"]);
+        }
+        if (bj.contains("selected_offset")) {
+          btn.selected_offset = SerializeUtil::Vec2(bj["selected_offset"]);
         }
       },
   });
@@ -1259,7 +1274,53 @@ void InitializeComponentSerializers() {
   });
 
   // -------------------------------------------------------------------
-  // 22. Sprite
+  // 22. Navigable
+  // -------------------------------------------------------------------
+  ComponentSerializerRegistry::Register({
+      "Navigable",
+      // Has
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<NavigableComponent>();
+      },
+      // Serialize
+      [](Entity& entity) -> json {
+        auto& nav = entity.GetComponent<NavigableComponent>();
+        json nj;
+        Scene* s = entity.GetScene();
+        auto serialize_nav = [&](const std::string& key, entt::entity e) {
+          if (e != entt::null && s && s->GetRegistry().valid(e) &&
+              s->HasComponent<IdComponent>(e)) {
+            nj[key] = s->GetComponent<IdComponent>(e).Id.ToString();
+          }
+        };
+        serialize_nav("nav_up", nav.nav_up);
+        serialize_nav("nav_down", nav.nav_down);
+        serialize_nav("nav_left", nav.nav_left);
+        serialize_nav("nav_right", nav.nav_right);
+        return nj;
+      },
+      // Deserialize
+      [](Entity& entity, const json& nj, Scene* scene) {
+        auto& nav = entity.AddComponent<NavigableComponent>();
+        auto load_nav = [&](const std::string& key) -> entt::entity {
+          if (nj.contains(key) && nj[key].is_string() && scene) {
+            UUID uuid = UUID::FromString(nj[key].get<std::string>());
+            entt::entity ent = scene->FindEntityByUUID(uuid);
+            if (ent != entt::null) {
+              return ent;
+            }
+          }
+          return entt::null;
+        };
+        nav.nav_up = load_nav("nav_up");
+        nav.nav_down = load_nav("nav_down");
+        nav.nav_left = load_nav("nav_left");
+        nav.nav_right = load_nav("nav_right");
+      },
+  });
+
+  // -------------------------------------------------------------------
+  // 23. Sprite
   // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Sprite",

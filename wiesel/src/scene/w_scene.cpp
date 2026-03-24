@@ -343,18 +343,8 @@ void Scene::OnUpdate(float_t delta_time) {
       }
     }
 
-    // UI pointer events
-    {
-      float mx =
-          static_cast<float>(InputManager::GetMouseX()) - viewport_origin_.x;
-      float my =
-          static_cast<float>(InputManager::GetMouseY()) - viewport_origin_.y;
-      bool down = InputManager::IsMouseButtonDown(MouseCode::kMouseButtonLeft);
-      bool up = InputManager::IsMouseButtonUp(MouseCode::kMouseButtonLeft);
-      bool held =
-          InputManager::IsMouseButtonPressed(MouseCode::kMouseButtonLeft);
-      ui_event_system_.Update(*this, mx, my, down, up, held);
-    }
+    // UI events
+    ui_event_system_.Update(*this, delta_time);
 
     // Text input: cursor blink and sync to TextComponent
     {

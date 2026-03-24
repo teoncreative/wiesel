@@ -722,6 +722,14 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool Input_GetMouseButtonUp(int button);
 
+        // Gamepad
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Input_GetGamepadButton(int gamepadIndex, int button);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Input_GetGamepadAxis(int gamepadIndex, int axis);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Input_GetConnectedGamepadCount();
+
         // Entity tags
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool Entity_HasTag(ulong scenePtr, ulong entityId, string tag);
