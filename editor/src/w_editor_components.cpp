@@ -1730,7 +1730,7 @@ struct ComponentDesc {
   std::function<bool(Entity)> HasComponent;
 };
 
-std::unordered_map<std::type_index, ComponentDesc> kRegistry;
+std::map<std::type_index, ComponentDesc> kRegistry;
 
 template <typename T>
 void RegisterComponentType(const std::string& display_name,
