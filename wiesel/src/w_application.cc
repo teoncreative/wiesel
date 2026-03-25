@@ -47,7 +47,7 @@ Application::~Application() {
   // Wait for GPU to finish before destroying any resources.
   Engine::renderer()->WaitForGPU();
 
-  for (const auto& item : layers_) {
+  for (const auto& item : layers_ | std::views::reverse) {
     item->OnDetach();
   }
   layers_.clear();
