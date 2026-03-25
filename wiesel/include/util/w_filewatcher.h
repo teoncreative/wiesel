@@ -29,6 +29,9 @@ class FileWatcher : public efsw::FileWatchListener {
   ~FileWatcher() override;
 
   void Watch(const std::filesystem::path& directory, bool recursive = true);
+
+  void SetExtensionFilter(const std::string& ext) { extension_filter_ = ext; }
+
   void Stop();
 
   // Returns true if any changes occurred since last call, then resets the flag.
@@ -46,6 +49,7 @@ class FileWatcher : public efsw::FileWatchListener {
   efsw::WatchID watch_id_ = -1;
   bool watching_ = false;
   std::atomic<bool> changed_{false};
+  std::string extension_filter_;
 };
 
 }  // namespace Wiesel

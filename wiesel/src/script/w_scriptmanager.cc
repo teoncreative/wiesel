@@ -2662,7 +2662,7 @@ void ScriptManager::ReloadAsync() {
   }
 
   std::optional<std::filesystem::path> physical =
-      Engine::vfs()->GetPhysicalPath("/app/scripts");
+      Engine::vfs()->GetPhysicalPath("/app");
   if (!physical.has_value() || !std::filesystem::exists(*physical)) {
     Reload();
     return;
@@ -2744,14 +2744,14 @@ bool ScriptManager::FinishReloadIfReady() {
 
   // Register script assets
   std::optional<std::filesystem::path> physical =
-      Engine::vfs()->GetPhysicalPath("/app/scripts");
+      Engine::vfs()->GetPhysicalPath("/app");
   if (physical.has_value() && std::filesystem::exists(*physical)) {
     for (const auto& entry :
          std::filesystem::recursive_directory_iterator(*physical)) {
       if (entry.is_regular_file() && entry.path().extension() == ".cs") {
         std::filesystem::path rel =
             std::filesystem::relative(entry.path(), *physical);
-        std::string vfs_path = "/app/scripts/" + rel.generic_string();
+        std::string vfs_path = "/app/" + rel.generic_string();
         mgr.Register(entry.path().stem().string(), AssetType::Script, vfs_path);
       }
     }
@@ -2860,7 +2860,7 @@ void ScriptManager::LoadApp() {
 
   // If source files are available, always compile (ensures latest code)
   std::optional<std::filesystem::path> physical =
-      Engine::vfs()->GetPhysicalPath("/app/scripts");
+      Engine::vfs()->GetPhysicalPath("/app");
   if (physical.has_value() && std::filesystem::exists(*physical)) {
     std::vector<std::string> source_files;
     for (const auto& entry :
@@ -2870,7 +2870,7 @@ void ScriptManager::LoadApp() {
 
         std::filesystem::path rel =
             std::filesystem::relative(entry.path(), *physical);
-        std::string vfs_path = "/app/scripts/" + rel.generic_string();
+        std::string vfs_path = "/app/" + rel.generic_string();
         std::string script_name = entry.path().stem().string();
         Engine::asset_manager().Register(script_name, AssetType::Script,
                                          vfs_path);

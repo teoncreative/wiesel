@@ -1356,17 +1356,6 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
     external_render_graph_ = nullptr;
   }
 
-  // Apply scene render resolution if set
-  if (render_resolution_.x > 0 && render_resolution_.y > 0) {
-    if (render_resolution_.x != camera.viewport_size.x ||
-        render_resolution_.y != camera.viewport_size.y) {
-      camera.viewport_size = render_resolution_;
-      camera.aspect_ratio = render_resolution_.x / render_resolution_.y;
-      camera.view_changed = true;
-      camera.resources_dirty = true;
-    }
-  }
-
   // Compute canvas layout using camera viewport (must match shader push constant)
   {
     CanvasSystem canvas_system;

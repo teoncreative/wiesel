@@ -65,6 +65,12 @@ void FileWatcher::handleFileAction(efsw::WatchID watch_id,
                                    const std::string& filename,
                                    efsw::Action action,
                                    std::string old_filename) {
+  if (!extension_filter_.empty()) {
+    std::filesystem::path p(filename);
+    if (p.extension().string() != extension_filter_) {
+      return;
+    }
+  }
   changed_.store(true);
 }
 
