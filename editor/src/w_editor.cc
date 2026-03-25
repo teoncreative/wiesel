@@ -139,6 +139,8 @@ static entt::entity selected_entity_;
 static bool has_selected_entity_ = false;
 static bool scroll_to_selected_ = false;
 static char hierarchy_search_[256] = {};
+static entt::entity renaming_entity_ = entt::null;
+static char rename_entity_buf_[256] = {};
 static std::unordered_set<entt::entity> open_ancestors_;
 static std::string entity_clipboard_;
 static ImGuizmo::OPERATION current_op_ = ImGuizmo::TRANSLATE;
@@ -579,6 +581,39 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
       entity.child_handles() && !entity.child_handles()->empty();
   bool is_selected = has_selected_entity_ && selected_entity_ == entity_id;
 
+  bool is_renaming = renaming_entity_ == entity_id;
+
+  // If renaming, show input field instead of tree node
+  if (is_renaming) {
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::InputText("##rename_entity", rename_entity_buf_,
+                         sizeof(rename_entity_buf_),
+                         ImGuiInputTextFlags_EnterReturnsTrue |
+                         ImGuiInputTextFlags_AutoSelectAll)) {
+      if (rename_entity_buf_[0] != '\0') {
+        tag_component.name = rename_entity_buf_;
+        scene_dirty_ = true;
+      }
+      renaming_entity_ = entt::null;
+    }
+    // Cancel on escape
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+      renaming_entity_ = entt::null;
+    }
+    // Lose focus = confirm
+    if (!ImGui::IsItemActive() && !ImGui::IsItemDeactivated()) {
+      // Not yet focused - set focus
+      ImGui::SetKeyboardFocusHere(-1);
+    } else if (ImGui::IsItemDeactivated() && renaming_entity_ != entt::null) {
+      if (rename_entity_buf_[0] != '\0') {
+        tag_component.name = rename_entity_buf_;
+        scene_dirty_ = true;
+      }
+      renaming_entity_ = entt::null;
+    }
+    return;
+  }
+
   // Build unique label
   std::string label = tag_component.name + "##" +
                       std::to_string(static_cast<uint32_t>(entity_id));
@@ -623,6 +658,14 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
       editor_camera_transform_.SetPosition(target - cam_forward * distance);
       editor_camera_.view_changed = true;
     }
+  }
+
+  // F2 to rename selected entity
+  if (is_selected && ImGui::IsKeyPressed(ImGuiKey_F2)) {
+    renaming_entity_ = entity_id;
+    strncpy(rename_entity_buf_, tag_component.name.c_str(),
+            sizeof(rename_entity_buf_) - 1);
+    rename_entity_buf_[sizeof(rename_entity_buf_) - 1] = '\0';
   }
 
   // Drag & drop source
@@ -3832,6 +3875,8 @@ void EditorLayer::RenderProjectSettingsPopup() {
       ImGui::SeparatorText("General");
       ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
                       &settings.ssao_enabled);
+      ImGui::Checkbox(PrefixLabel("Enable IBL").c_str(),
+                      &settings.ibl_enabled);
       ImGui::Checkbox(PrefixLabel("Enable Vsync").c_str(), &settings.vsync);
       ImGui::Checkbox(PrefixLabel("Shadows").c_str(),
                       &settings.shadows_enabled);
@@ -3887,21 +3932,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
       }
 
       // Sync live renderer options back to project for saving
-      auto& ro = game_info.render_options;
-      ro.ambient_color = {settings.ambient_color.x, settings.ambient_color.y,
-                          settings.ambient_color.z};
-      ro.ambient_intensity = settings.ambient_intensity;
-      ro.ssao_enabled = settings.ssao_enabled;
-      ro.bloom_enabled = settings.bloom_enabled;
-      ro.bloom_threshold = settings.bloom_threshold;
-      ro.bloom_intensity = settings.bloom_intensity;
-      ro.motion_blur_enabled = settings.motion_blur_enabled;
-      ro.motion_blur_strength = settings.motion_blur_strength;
-      ro.motion_blur_samples = settings.motion_blur_samples;
-      ro.shadows_enabled = settings.shadows_enabled;
-      ro.vsync = settings.vsync;
-      ro.aa_mode = static_cast<int>(settings.aa_mode.Get());
-      ro.msaa_mode = static_cast<int>(settings.msaa_mode.Get());
+      GameLoader::CaptureRenderOptions(game_info.render_options);
       changed = true;
 
     } else if (project_settings_category_ == 2) {
@@ -4659,21 +4690,7 @@ void EditorLayer::SaveProject() {
   auto project = active_project_;
   if (project) {
     // Capture current render options into project settings
-    auto& settings = Engine::renderer()->options();
-    auto& opts = project->GetGameInfo().render_options;
-    opts.ambient_color = settings.ambient_color;
-    opts.ambient_intensity = settings.ambient_intensity;
-    opts.ssao_enabled = settings.ssao_enabled;
-    opts.bloom_enabled = settings.bloom_enabled;
-    opts.bloom_threshold = settings.bloom_threshold;
-    opts.bloom_intensity = settings.bloom_intensity;
-    opts.motion_blur_enabled = settings.motion_blur_enabled;
-    opts.motion_blur_strength = settings.motion_blur_strength;
-    opts.motion_blur_samples = settings.motion_blur_samples;
-    opts.shadows_enabled = settings.shadows_enabled;
-    opts.vsync = settings.vsync;
-    opts.aa_mode =
-        static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
+    GameLoader::CaptureRenderOptions(project->GetGameInfo().render_options);
 
     // Save editor camera state
     auto& ec = project->GetSettings().editor_camera;
