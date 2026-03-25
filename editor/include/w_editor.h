@@ -73,6 +73,7 @@ class EditorLayer : public Layer {
   void RenderSliceSpritesPopup();
   void RenderCreateSpriteAnimPopup();
   void RenderCreateSpriteControllerPopup();
+  void RenderEntityInspector(entt::entity handle);
   void NewProject();
   void OpenProject();
   void SaveProject();

@@ -998,71 +998,9 @@ void EditorLayer::OnBeginPresent() {
     if (ImGui::Begin("Entity Inspector", &components_open)) {
       if (!has_selected_entity_) {
         ImGui::TextDisabled("No entity selected");
+      } else {
+        RenderEntityInspector(selected_entity_);
       }
-      Entity entity = {selected_entity_, scene().get()};
-      TagComponent& tag = entity.GetComponent<TagComponent>();
-      if (ImGui::InputText("##", &tag.name,
-                           ImGuiInputTextFlags_AutoSelectAll)) {
-        if (tag.name[0] == ' ') {
-          TrimLeft(tag.name);
-        }
-
-        if (tag.name.empty()) {
-          tag.name = "Entity";
-        }
-      }
-      // Game tags
-      {
-        std::string tags_display;
-        for (size_t i = 0; i < tag.tags.size(); i++) {
-          if (i > 0) {
-            tags_display += ", ";
-          }
-          tags_display += tag.tags[i];
-        }
-        if (tags_display.empty()) {
-          tags_display = "(no tags)";
-        }
-        ImGui::TextDisabled("Tags: %s", tags_display.c_str());
-        ImGui::SameLine();
-        if (ImGui::SmallButton("+##addtag")) {
-          ImGui::OpenPopup("add_tag_popup");
-        }
-        if (ImGui::BeginPopup("add_tag_popup")) {
-          static char tag_buf[64] = "";
-          ImGui::InputText("##tagname", tag_buf, sizeof(tag_buf));
-          ImGui::SameLine();
-          if (ImGui::Button("Add") && tag_buf[0] != '\0') {
-            tag.AddTag(tag_buf);
-            tag_buf[0] = '\0';
-            ImGui::CloseCurrentPopup();
-          }
-          // Show existing tags with remove buttons
-          for (size_t i = 0; i < tag.tags.size(); i++) {
-            ImGui::PushID(static_cast<int>(i));
-            ImGui::Text("%s", tag.tags[i].c_str());
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X")) {
-              tag.RemoveTag(tag.tags[i]);
-              ImGui::PopID();
-              break;
-            }
-            ImGui::PopID();
-          }
-          ImGui::EndPopup();
-        }
-      }
-
-      ImGui::SameLine();
-      if (ImGui::Button("Add")) {
-        ImGui::OpenPopup("add_component_popup");
-      }
-      RenderModals(entity);
-      if (ImGui::BeginPopup("add_component_popup")) {
-        RenderAddPopup(entity);
-        ImGui::EndPopup();
-      }
-      RenderExistingComponents(entity);
     }
     ImGui::End();
   }
@@ -3549,6 +3487,73 @@ void EditorLayer::RenderCreateSpriteControllerPopup() {
 
     ImGui::EndPopup();
   }
+}
+
+void EditorLayer::RenderEntityInspector(entt::entity handle) {
+  Entity entity = {handle, scene().get()};
+  TagComponent& tag = entity.GetComponent<TagComponent>();
+  if (ImGui::InputText("##", &tag.name,
+                       ImGuiInputTextFlags_AutoSelectAll)) {
+    if (tag.name[0] == ' ') {
+      TrimLeft(tag.name);
+    }
+
+    if (tag.name.empty()) {
+      tag.name = "Entity";
+    }
+  }
+  // Game tags
+  {
+    std::string tags_display;
+    for (size_t i = 0; i < tag.tags.size(); i++) {
+      if (i > 0) {
+        tags_display += ", ";
+      }
+      tags_display += tag.tags[i];
+    }
+    if (tags_display.empty()) {
+      tags_display = "(no tags)";
+    }
+    ImGui::TextDisabled("Tags: %s", tags_display.c_str());
+    ImGui::SameLine();
+    if (ImGui::SmallButton("+##addtag")) {
+      ImGui::OpenPopup("add_tag_popup");
+    }
+    if (ImGui::BeginPopup("add_tag_popup")) {
+      static char tag_buf[64] = "";
+      ImGui::InputText("##tagname", tag_buf, sizeof(tag_buf));
+      ImGui::SameLine();
+      if (ImGui::Button("Add") && tag_buf[0] != '\0') {
+        tag.AddTag(tag_buf);
+        tag_buf[0] = '\0';
+        ImGui::CloseCurrentPopup();
+      }
+      // Show existing tags with remove buttons
+      for (size_t i = 0; i < tag.tags.size(); i++) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::Text("%s", tag.tags[i].c_str());
+        ImGui::SameLine();
+        if (ImGui::SmallButton("X")) {
+          tag.RemoveTag(tag.tags[i]);
+          ImGui::PopID();
+          break;
+        }
+        ImGui::PopID();
+      }
+      ImGui::EndPopup();
+    }
+  }
+
+  ImGui::SameLine();
+  if (ImGui::Button("Add")) {
+    ImGui::OpenPopup("add_component_popup");
+  }
+  RenderModals(entity);
+  if (ImGui::BeginPopup("add_component_popup")) {
+    RenderAddPopup(entity);
+    ImGui::EndPopup();
+  }
+  RenderExistingComponents(entity);
 }
 
 void EditorLayer::RenderProjectSettingsPopup() {
