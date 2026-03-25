@@ -46,8 +46,6 @@ class RTShadowFeature : public RenderFeature {
   std::shared_ptr<RTPipeline> rt_pipeline_;
   std::shared_ptr<DescriptorSetLayout> rt_descriptor_layout_;
   std::shared_ptr<UniformBuffer> shadow_lights_ubo_;
-  uint32_t mask_width_ = 0;
-  uint32_t mask_height_ = 0;
 };
 
 }  // namespace Wiesel

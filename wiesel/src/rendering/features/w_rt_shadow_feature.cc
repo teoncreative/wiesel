@@ -71,20 +71,14 @@ void RTShadowFeature::SetupResources(RenderContext& ctx) {
   uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  // Create or recreate R32UI storage image if missing or viewport size changed
-  if (!ctx.resources.HasTexture("rt_shadow.mask") || rw != mask_width_ ||
-      rh != mask_height_) {
-    ctx.resources.SetTexture("rt_shadow.mask",
-                             renderer_->CreateAttachmentTexture(
-                                 {.width = rw,
-                                  .height = rh,
-                                  .type = AttachmentTextureType::Offscreen,
-                                  .image_format = VK_FORMAT_R32_UINT,
-                                  .sampled = true,
-                                  .storage = true}));
-    mask_width_ = rw;
-    mask_height_ = rh;
-  }
+  ctx.resources.SetTexture("rt_shadow.mask",
+                           renderer_->CreateAttachmentTexture(
+                               {.width = rw,
+                                .height = rh,
+                                .type = AttachmentTextureType::Offscreen,
+                                .image_format = VK_FORMAT_R32_UINT,
+                                .sampled = true,
+                                .storage = true}));
 }
 
 void RTShadowFeature::AddPasses(RenderGraph& graph,
@@ -97,13 +91,13 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   std::shared_ptr<RTPipeline> rt_pipeline = rt_pipeline_;
   std::shared_ptr<DescriptorSetLayout> rt_layout = rt_descriptor_layout_;
   std::shared_ptr<UniformBuffer> lights_ubo = shadow_lights_ubo_;
-  uint32_t trace_width = mask_width_;
-  uint32_t trace_height = mask_height_;
 
   // Import the shadow mask texture into the render graph
   auto shadow_mask_tex = pool->GetTexture("rt_shadow.mask");
   RGResource shadow_mask_res =
       graph.ImportTexture("RTShadowMask", shadow_mask_tex);
+  uint32_t trace_width = shadow_mask_tex->width_;
+  uint32_t trace_height = shadow_mask_tex->height_;
 
   // Get G-buffer outputs from registry
   RGResource geo_world_pos = registry.Get("GeoWorldPos");
