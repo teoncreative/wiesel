@@ -122,7 +122,10 @@ struct RendererOptions {
 
   // Scene ambient
   glm::vec3 ambient_color = {1.0f, 1.0f, 1.0f};
-  float ambient_intensity = 0.03f;
+  float ambient_intensity = 0.3f;
+
+  // IBL
+  Setting<bool> ibl_enabled = true;
 };
 
 struct RendererProperties {};
@@ -228,6 +231,8 @@ class Renderer {
   WIESEL_GETTER_FN bool NeedsRecreateResources() const {
     return recreate_resources_;
   }
+
+  void SetRecreateResources(bool value) { recreate_resources_ = value; }
 
   void ClearRecreateResources() { recreate_resources_ = false; }
 
@@ -398,8 +403,8 @@ class Renderer {
 
   VkFormat FindDepthFormat();
 
-  void SetViewport(VkExtent2D extent);
-  void SetViewport(glm::vec2 extent);
+  void SetViewport(VkExtent2D extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
+  void SetViewport(glm::vec2 extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadow_pass, entt::entity entity_handle = entt::null);
@@ -428,7 +433,8 @@ class Renderer {
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(
       std::shared_ptr<Pipeline> pipeline,
-      std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors);
+      std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors,
+      VkCommandBuffer cmd = VK_NULL_HANDLE);
   void RequestEntityPick(
       uint32_t x, uint32_t y,
       std::shared_ptr<AttachmentTexture> entity_id_texture,
@@ -496,6 +502,13 @@ class Renderer {
       uint32_t mipLevels, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
       uint32_t layer = 0, uint32_t layerCount = 1);
 
+  // Create an image view for a specific mip level (used for per-mip rendering)
+  std::shared_ptr<ImageView> CreateImageViewMip(
+      VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+      uint32_t baseMipLevel, uint32_t levelCount = 1,
+      VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
+      uint32_t layerCount = 1);
+
   std::shared_ptr<ImageView> CreateImageView(
       std::shared_ptr<AttachmentTexture> image,
       VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
@@ -508,6 +521,34 @@ class Renderer {
   const std::vector<SamplingMode>& GetSupportedSamplingModes() const {
     return supported_sampling_modes_;
   }
+
+  // Create a transient command pool for background thread uploads.
+  // Set it as active with SetThreadCommandPool() before doing GPU uploads
+  // from a non-main thread, then clear it when done.
+  VkCommandPool CreateTransientCommandPool();
+  static void SetThreadCommandPool(VkCommandPool pool);
+
+  // Batch upload mode: all single-time commands are recorded into one command
+  // buffer and submitted together when EndBatchUpload is called.
+  // This avoids per-texture/per-mesh GPU sync during model loading.
+  // Staging buffers are deferred until the batch is flushed via DeferStagingCleanup.
+  void BeginBatchUpload();
+  void EndBatchUpload();
+  void DeferStagingCleanup(VkBuffer buffer, VkDeviceMemory memory);
+
+  VkCommandBuffer BeginSingleTimeCommands();
+  VkCommandBuffer BeginSingleTimeCommands(VkCommandPool pool);
+
+  // Resolve command buffer: returns cmd if valid, otherwise current frame's buffer
+  VkCommandBuffer ResolveCmd(VkCommandBuffer cmd = VK_NULL_HANDLE) {
+    if (cmd != VK_NULL_HANDLE) {
+      return cmd;
+    }
+    return command_buffers_[current_frame_]->handle_;
+  }
+
+  void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+  void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool pool);
 
  private:
   void CreateVulkanInstance();
@@ -536,27 +577,7 @@ class Renderer {
   VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
   bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
   SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
-  VkCommandBuffer BeginSingleTimeCommands();
-  VkCommandBuffer BeginSingleTimeCommands(VkCommandPool pool);
-  void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
-  void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool pool);
 
-  // Create a transient command pool for background thread uploads.
-  // Set it as active with SetThreadCommandPool() before doing GPU uploads
-  // from a non-main thread, then clear it when done.
- public:
-  VkCommandPool CreateTransientCommandPool();
-  static void SetThreadCommandPool(VkCommandPool pool);
-
-  // Batch upload mode: all single-time commands are recorded into one command
-  // buffer and submitted together when EndBatchUpload is called.
-  // This avoids per-texture/per-mesh GPU sync during model loading.
-  // Staging buffers are deferred until the batch is flushed via DeferStagingCleanup.
-  void BeginBatchUpload();
-  void EndBatchUpload();
-  void DeferStagingCleanup(VkBuffer buffer, VkDeviceMemory memory);
-
- private:
   struct StagingResource {
     VkBuffer buffer;
     VkDeviceMemory memory;

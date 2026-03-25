@@ -60,8 +60,7 @@ layout(set = 2, binding = 1, std140) uniform Camera {
     int debugCascades;
     mat4 prevViewProjection;
     vec2 taaJitterOffset;
-    vec3 ambientColor;
-    float ambientIntensity;
+    vec4 ambient; // xyz=color, w=intensity
 } cam;
 
 layout(set = 2, binding = 2) uniform ShadowMapMatrices {
@@ -71,6 +70,18 @@ layout(set = 2, binding = 2) uniform ShadowMapMatrices {
 
 
 layout(set = 2, binding = 3) uniform sampler2DArrayShadow shadowMap;
+
+#ifdef USE_IBL
+  #ifdef USE_RT_SHADOWS
+    layout (set = 4, binding = 0) uniform samplerCube irradianceMap;
+layout (set = 4, binding = 1) uniform samplerCube prefilterMap;
+layout (set = 4, binding = 2) uniform sampler2D brdfLUT;
+#else
+    layout (set = 3, binding = 0) uniform samplerCube irradianceMap;
+layout (set = 3, binding = 1) uniform samplerCube prefilterMap;
+layout (set = 3, binding = 2) uniform sampler2D brdfLUT;
+#endif
+#endif
 
 layout(location = 0) in vec2 inUV;
 
@@ -259,12 +270,26 @@ void main() {
         pointResult += (ambient + lit * shadow) * light.base.color * light.base.density;
     }
 
-    // Scene ambient with Fresnel rim on ambient
+    // Scene ambient
     float NdotV = max(dot(normal, viewDir), 0.0);
     vec3 F_ambient = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
     vec3 kD_ambient = (1.0 - F_ambient) * (1.0 - matMetallic);
+
+    #ifdef USE_IBL
+    vec3 irradiance = texture(irradianceMap, normal).rgb;
+    vec3 iblDiffuse = kD_ambient * diffuseColor * irradiance;
+
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 R = reflect(-viewDir, normal);
+    vec3 prefilteredColor = textureLod(prefilterMap, R, matRoughness * MAX_REFLECTION_LOD).rgb;
+    vec2 envBRDF = texture(brdfLUT, vec2(NdotV, matRoughness)).rg;
+    vec3 iblSpecular = prefilteredColor * (F_ambient * envBRDF.x + envBRDF.y);
+
+    vec3 sceneAmbient = (iblDiffuse + iblSpecular) * cam.ambient.w * ambientOcclusion;
+    #else
     vec3 sceneAmbient = (kD_ambient * diffuseColor + F_ambient) *
-    cam.ambientColor * cam.ambientIntensity * ambientOcclusion;
+    cam.ambient.rgb * cam.ambient.w * ambientOcclusion;
+    #endif
 
     vec3 finalColor = clamp(dirResult + pointResult + sceneAmbient, 0.0, 1.0);
 
@@ -364,12 +389,26 @@ void main() {
         }
     }
 
-    // Scene ambient with Fresnel rim on ambient
+    // Scene ambient
     float NdotV = max(dot(normal, viewDir), 0.0);
     vec3 F_ambient = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
     vec3 kD_ambient = (1.0 - F_ambient) * (1.0 - matMetallic);
+
+    #ifdef USE_IBL
+    vec3 irradiance = texture(irradianceMap, normal).rgb;
+    vec3 iblDiffuse = kD_ambient * diffuseColor * irradiance;
+
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 R = reflect(-viewDir, normal);
+    vec3 prefilteredColor = textureLod(prefilterMap, R, matRoughness * MAX_REFLECTION_LOD).rgb;
+    vec2 envBRDF = texture(brdfLUT, vec2(NdotV, matRoughness)).rg;
+    vec3 iblSpecular = prefilteredColor * (F_ambient * envBRDF.x + envBRDF.y);
+
+    vec3 sceneAmbient = (iblDiffuse + iblSpecular) * cam.ambient.w * ambientOcclusion;
+    #else
     vec3 sceneAmbient = (kD_ambient * diffuseColor + F_ambient) *
-    cam.ambientColor * cam.ambientIntensity * ambientOcclusion;
+    cam.ambient.rgb * cam.ambient.w * ambientOcclusion;
+    #endif
 
     vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult + sceneAmbient, 0.0, 1.0);
 

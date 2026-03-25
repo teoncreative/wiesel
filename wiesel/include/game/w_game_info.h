@@ -21,8 +21,9 @@ namespace Wiesel {
 
 struct RenderOptionsSerialized {
   glm::vec3 ambient_color = {1.0f, 1.0f, 1.0f};
-  float ambient_intensity = 0.03f;
+  float ambient_intensity = 0.3f;
   bool ssao_enabled = true;
+  bool ibl_enabled = true;
   bool bloom_enabled = false;
   float bloom_threshold = 0.7f;
   float bloom_intensity = 0.6f;

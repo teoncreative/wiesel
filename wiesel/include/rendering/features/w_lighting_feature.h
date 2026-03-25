@@ -40,7 +40,9 @@ class LightingFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> lighting_pipeline_;
+  std::shared_ptr<Pipeline> ibl_lighting_pipeline_;
   std::shared_ptr<Pipeline> rt_lighting_pipeline_;
+  std::shared_ptr<Pipeline> rt_ibl_lighting_pipeline_;
   std::shared_ptr<DescriptorSetLayout> rt_shadow_desc_layout_;
   std::shared_ptr<Pipeline> skybox_pipeline_;
 };

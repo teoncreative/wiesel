@@ -68,6 +68,33 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
   lighting_pipeline_->AddShader(lighting_frag);
   lighting_pipeline_->Bake();
 
+  // IBL variant: same as base but with USE_IBL define and IBL descriptor
+  {
+    auto ibl_lighting_frag =
+        renderer_->CreateShader({ShaderTypeFragment,
+                                 ShaderLangGLSL,
+                                 "main",
+                                 ShaderSourceSource,
+                                 "/engine/shaders/lighting_shader.frag",
+                                 {"USE_IBL"}});
+
+    ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
+        PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+                           true, true, false});
+    ibl_lighting_pipeline_->SetRenderPass(render_pass_);
+    ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("GeometryOutput"));
+    ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("SSAOOutput"));
+    ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("Global"));
+    ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("IBL"));
+    ibl_lighting_pipeline_->AddShader(fullscreen_vert);
+    ibl_lighting_pipeline_->AddShader(ibl_lighting_frag);
+    ibl_lighting_pipeline_->Bake();
+  }
+
   // RT shadow variant: same pipeline but with USE_RT_SHADOWS define and extra descriptor set
   if (renderer_->IsRayTracingSupported()) {
     auto rt_lighting_frag =
@@ -97,6 +124,32 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     rt_lighting_pipeline_->AddShader(fullscreen_vert);
     rt_lighting_pipeline_->AddShader(rt_lighting_frag);
     rt_lighting_pipeline_->Bake();
+
+    // RT + IBL variant
+    auto rt_ibl_lighting_frag =
+        renderer_->CreateShader({ShaderTypeFragment,
+                                 ShaderLangGLSL,
+                                 "main",
+                                 ShaderSourceSource,
+                                 "/engine/shaders/lighting_shader.frag",
+                                 {"USE_RT_SHADOWS", "USE_IBL"}});
+
+    rt_ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
+        PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+                           true, true, false});
+    rt_ibl_lighting_pipeline_->SetRenderPass(render_pass_);
+    rt_ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("GeometryOutput"));
+    rt_ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("SSAOOutput"));
+    rt_ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("Global"));
+    rt_ibl_lighting_pipeline_->AddInputLayout(rt_shadow_desc_layout_);
+    rt_ibl_lighting_pipeline_->AddInputLayout(
+        renderer_->GetDescriptorLayout("IBL"));
+    rt_ibl_lighting_pipeline_->AddShader(fullscreen_vert);
+    rt_ibl_lighting_pipeline_->AddShader(rt_ibl_lighting_frag);
+    rt_ibl_lighting_pipeline_->Bake();
   }
 }
 
@@ -212,15 +265,27 @@ void LightingFeature::AddPasses(RenderGraph& graph,
     rt_shadow_mask = registry.Get("RTShadowMask");
   }
 
-  // Lighting pass
+  // Select pipeline variant based on RT shadows and IBL availability
+  bool use_ibl =
+      pool->HasDescriptor("ibl.descriptor") && renderer_->options().ibl_enabled;
+
   std::shared_ptr<Pipeline> skybox_pipeline = skybox_pipeline_;
-  std::shared_ptr<Pipeline> lighting_pipeline =
-      use_rt_shadows ? rt_lighting_pipeline_ : lighting_pipeline_;
+  std::shared_ptr<Pipeline> lighting_pipeline;
+  if (use_rt_shadows && use_ibl && rt_ibl_lighting_pipeline_) {
+    lighting_pipeline = rt_ibl_lighting_pipeline_;
+  } else if (use_rt_shadows) {
+    lighting_pipeline = rt_lighting_pipeline_;
+  } else if (use_ibl && ibl_lighting_pipeline_) {
+    lighting_pipeline = ibl_lighting_pipeline_;
+  } else {
+    lighting_pipeline = lighting_pipeline_;
+  }
+
   bool is_ortho = ctx.camera.projection_mode == ProjectionMode::Orthographic;
   uint32_t lighting = graph.AddPass(
       "Lighting", render_pass_,
       [pool, renderer, scene, skybox_pipeline, lighting_pipeline,
-       use_rt_shadows, is_ortho](VkCommandBuffer) {
+       use_rt_shadows, use_ibl, is_ortho](VkCommandBuffer) {
         if (!is_ortho) {
           skybox_pipeline->Bind(PipelineBindPointGraphics);
           auto skybox = scene->GetSkybox();
@@ -229,12 +294,25 @@ void LightingFeature::AddPasses(RenderGraph& graph,
           }
         }
         lighting_pipeline->Bind(PipelineBindPointGraphics);
-        if (use_rt_shadows) {
+        if (use_rt_shadows && use_ibl) {
+          renderer->DrawFullscreen(lighting_pipeline,
+                                   {pool->GetDescriptor("geometry.output"),
+                                    pool->GetDescriptor("ssao.blur_v.output"),
+                                    pool->GetDescriptor("GlobalDescriptor"),
+                                    pool->GetDescriptor("lighting.rt_shadow"),
+                                    pool->GetDescriptor("ibl.descriptor")});
+        } else if (use_rt_shadows) {
           renderer->DrawFullscreen(lighting_pipeline,
                                    {pool->GetDescriptor("geometry.output"),
                                     pool->GetDescriptor("ssao.blur_v.output"),
                                     pool->GetDescriptor("GlobalDescriptor"),
                                     pool->GetDescriptor("lighting.rt_shadow")});
+        } else if (use_ibl) {
+          renderer->DrawFullscreen(lighting_pipeline,
+                                   {pool->GetDescriptor("geometry.output"),
+                                    pool->GetDescriptor("ssao.blur_v.output"),
+                                    pool->GetDescriptor("GlobalDescriptor"),
+                                    pool->GetDescriptor("ibl.descriptor")});
         } else {
           renderer->DrawFullscreen(lighting_pipeline,
                                    {pool->GetDescriptor("geometry.output"),

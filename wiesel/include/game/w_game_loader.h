@@ -36,6 +36,9 @@ class GameLoader {
   // Apply render options to the renderer.
   static void ApplyRenderOptions(const GameInfo& info);
 
+  // Capture current renderer settings into serialized render options.
+  static void CaptureRenderOptions(RenderOptionsSerialized& out_opts);
+
   // Apply input settings to the input manager.
   static void ApplyInputSettings(const GameInfo& info);
 

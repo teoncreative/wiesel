@@ -245,7 +245,7 @@ void RenderPass::Bake() {
 }
 
 void RenderPass::Begin(std::shared_ptr<Framebuffer> framebuffer,
-                       const Colorf& clear_color) {
+                       const Colorf& clear_color, VkCommandBuffer cmd) {
   VkRenderPassBeginInfo render_pass_info{};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   render_pass_info.renderPass = render_pass_;
@@ -265,12 +265,13 @@ void RenderPass::Begin(std::shared_ptr<Framebuffer> framebuffer,
   }
   render_pass_info.clearValueCount = static_cast<uint32_t>(clearValues.size());
   render_pass_info.pClearValues = clearValues.data();
-  vkCmdBeginRenderPass(Engine::renderer()->GetCommandBuffer().handle_,
-                       &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+  VkCommandBuffer cb = Engine::renderer()->ResolveCmd(cmd);
+  vkCmdBeginRenderPass(cb, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void RenderPass::End() {
-  vkCmdEndRenderPass(Engine::renderer()->GetCommandBuffer().handle_);
+void RenderPass::End(VkCommandBuffer cmd) {
+  VkCommandBuffer cb = Engine::renderer()->ResolveCmd(cmd);
+  vkCmdEndRenderPass(cb);
 }
 
 // Change these to take span of std::shared_ptr<ImageView> instead.

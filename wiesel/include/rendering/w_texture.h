@@ -205,6 +205,8 @@ struct AttachmentTextureProps {
   SamplingMode sampling_mode = SamplingMode::DISABLED;
   bool sampled = false;
   uint32_t layer_count = 1;
+  uint32_t mip_levels = 1;
+  bool is_cubemap = false;
   bool transfer_dest = false;
   bool storage = false;
 };

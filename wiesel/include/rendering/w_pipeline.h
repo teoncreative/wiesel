@@ -81,7 +81,7 @@ class Pipeline {
 
   void Bake();
 
-  void Bind(PipelineBindPoint bind_point);
+  void Bind(PipelineBindPoint bind_point, VkCommandBuffer cmd = VK_NULL_HANDLE);
 
   struct SpecializationData {
     std::vector<VkSpecializationMapEntry> map_entries;

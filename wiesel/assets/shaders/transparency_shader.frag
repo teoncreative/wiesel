@@ -72,8 +72,7 @@ layout(set = 1, binding = 1, std140) uniform Camera {
     int debugCascades;
     mat4 prevViewProjection;
     vec2 taaJitterOffset;
-    vec3 ambientColor;
-    float ambientIntensity;
+    vec4 ambient; // xyz=color, w=intensity
 } cam;
 
 layout(location = 0) in vec3 inWorldPos;
@@ -140,8 +139,10 @@ void main() {
     vec3 viewDir = normalize(cam.position - inWorldPos);
 
     float shininess = max(2.0, pow(2.0, 10.0 * (1.0 - matRoughness)));
+
+    // PBR Fresnel
+    vec3 F0 = mix(vec3(0.04 * matSpecular), albedo, matMetallic);
     vec3 diffuseColor = albedo * (1.0 - matMetallic);
-    vec3 specularColor = mix(vec3(matSpecular * 0.5), albedo, matMetallic);
 
     // Inline forward lighting (no shadows, no SSAO)
     vec3 result = vec3(0.0);
@@ -149,18 +150,24 @@ void main() {
     // Directional lights
     for (int i = 0; i < lights.directLightCount; i++) {
         LightDirect light = lights.directLights[i];
-        vec3 lDir = normalize(light.direction);
+        vec3 lDir = -normalize(light.direction);
+        float NdotL = max(dot(normal, lDir), 0.0);
 
-        float diff = light.base.diffuse * max(dot(normal, lDir), 0.0);
-        float spec = 0.0;
-        if (diff > 0.0) {
+        vec3 specContrib = vec3(0.0);
+        vec3 kD = vec3(1.0);
+        if (NdotL > 0.0) {
             vec3 halfwayDir = normalize(lDir + viewDir);
-            spec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
+            float NdotH = max(dot(normal, halfwayDir), 0.0);
+            float HdotV = max(dot(halfwayDir, viewDir), 0.0);
+            vec3 F = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
+            kD = (1.0 - F) * (1.0 - matMetallic);
+            float specPower = pow(NdotH, shininess) * (shininess + 2.0) / 8.0;
+            specContrib = F * specPower * light.base.specular;
         }
 
         vec3 ambient = light.base.ambient * diffuseColor * light.base.color * light.base.density;
-        vec3 diffSpec = (diff * diffuseColor + spec * specularColor) * light.base.color * light.base.density;
-        result += ambient + diffSpec;
+        vec3 lit = (kD * diffuseColor * light.base.diffuse * NdotL + specContrib) * light.base.color * light.base.density;
+        result += ambient + lit;
     }
 
     // Point lights
@@ -169,17 +176,32 @@ void main() {
         vec3 pDir = normalize(light.base.position - inWorldPos);
         float dist = length(light.base.position - inWorldPos);
         float atten = 1.0 / (light.constant + light.linear * dist + light.exp * dist * dist);
+        float NdotL = max(dot(normal, pDir), 0.0);
 
-        float pDiff = light.base.diffuse * max(dot(normal, pDir), 0.0) * atten;
-        float pSpec = 0.0;
-        if (pDiff > 0.0) {
+        vec3 specContrib = vec3(0.0);
+        vec3 kD = vec3(1.0);
+        if (NdotL > 0.0) {
             vec3 halfwayDir = normalize(pDir + viewDir);
-            pSpec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular * atten;
+            float NdotH = max(dot(normal, halfwayDir), 0.0);
+            float HdotV = max(dot(halfwayDir, viewDir), 0.0);
+            vec3 F = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
+            kD = (1.0 - F) * (1.0 - matMetallic);
+            float specPower = pow(NdotH, shininess) * (shininess + 2.0) / 8.0;
+            specContrib = F * specPower * light.base.specular * atten;
         }
 
         float pAmbient = light.base.ambient * atten;
-        result += (pAmbient * diffuseColor + pDiff * diffuseColor + pSpec * specularColor) * light.base.color * light.base.density;
+        vec3 ambient = pAmbient * diffuseColor;
+        vec3 lit = kD * diffuseColor * light.base.diffuse * NdotL * atten + specContrib;
+        result += (ambient + lit) * light.base.color * light.base.density;
     }
 
-    outFragColor = vec4(clamp(result, 0.0, 1.0), baseColor.a);
+    // Scene ambient with Fresnel rim
+    float NdotV = max(dot(normal, viewDir), 0.0);
+    vec3 F_ambient = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+    vec3 kD_ambient = (1.0 - F_ambient) * (1.0 - matMetallic);
+    vec3 sceneAmbient = (kD_ambient * diffuseColor + F_ambient) *
+    cam.ambient.rgb * cam.ambient.w;
+
+    outFragColor = vec4(clamp(result + sceneAmbient, 0.0, 1.0), baseColor.a);
 }

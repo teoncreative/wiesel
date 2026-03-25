@@ -150,6 +150,7 @@ static void SerializeRenderOptions(nlohmann::json& j,
        {opts.ambient_color.x, opts.ambient_color.y, opts.ambient_color.z}},
       {"ambient_intensity", opts.ambient_intensity},
       {"ssao_enabled", opts.ssao_enabled},
+      {"ibl_enabled", opts.ibl_enabled},
       {"bloom_enabled", opts.bloom_enabled},
       {"bloom_threshold", opts.bloom_threshold},
       {"bloom_intensity", opts.bloom_intensity},
@@ -173,8 +174,9 @@ static void DeserializeRenderOptions(const nlohmann::json& j,
     opts.ambient_color = {ro["ambient_color"][0], ro["ambient_color"][1],
                           ro["ambient_color"][2]};
   }
-  opts.ambient_intensity = ro.value("ambient_intensity", 0.03f);
+  opts.ambient_intensity = ro.value("ambient_intensity", 0.3f);
   opts.ssao_enabled = ro.value("ssao_enabled", true);
+  opts.ibl_enabled = ro.value("ibl_enabled", true);
   opts.bloom_enabled = ro.value("bloom_enabled", false);
   opts.bloom_threshold = ro.value("bloom_threshold", 0.7f);
   opts.bloom_intensity = ro.value("bloom_intensity", 0.6f);

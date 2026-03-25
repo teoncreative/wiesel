@@ -975,42 +975,54 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
     aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
   }
   texture->aspect_flags_ = aspectFlags;
-  texture->mip_levels_ = 1;
+  texture->mip_levels_ = props.mip_levels;
   texture->images_.resize(props.image_count);
   texture->device_memories_.resize(props.image_count);
   texture->image_views_.resize(props.image_count);
 
-  for (uint32_t i = 0; i < props.image_count; i++) {
-    CreateImage(props.width, props.height, 1, props.sampling_mode,
-                props.image_format, VK_IMAGE_TILING_OPTIMAL, usage,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->images_[i],
-                texture->device_memories_[i], 0, props.layer_count);
+  uint32_t actual_layers =
+      props.is_cubemap ? props.layer_count * 6 : props.layer_count;
+  VkImageCreateFlags create_flags = 0;
+  if (props.is_cubemap) {
+    create_flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+  }
 
-    if (props.layer_count != 1) {
-      texture->image_views_[i] =
-          CreateImageView(texture->images_[i], props.image_format, aspectFlags,
-                          1, VK_IMAGE_VIEW_TYPE_2D_ARRAY, 0, props.layer_count);
+  for (uint32_t i = 0; i < props.image_count; i++) {
+    CreateImage(props.width, props.height, props.mip_levels,
+                props.sampling_mode, props.image_format,
+                VK_IMAGE_TILING_OPTIMAL, usage,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->images_[i],
+                texture->device_memories_[i], create_flags, actual_layers);
+
+    VkImageViewType view_type;
+    if (props.is_cubemap) {
+      view_type = VK_IMAGE_VIEW_TYPE_CUBE;
+    } else if (actual_layers > 1) {
+      view_type = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
     } else {
-      texture->image_views_[i] =
-          CreateImageView(texture->images_[i], props.image_format, aspectFlags,
-                          1, VK_IMAGE_VIEW_TYPE_2D, 0, 1);
+      view_type = VK_IMAGE_VIEW_TYPE_2D;
     }
+
+    texture->image_views_[i] =
+        CreateImageView(texture->images_[i], props.image_format, aspectFlags,
+                        props.mip_levels, view_type, 0, actual_layers);
 
     if (props.type == AttachmentTextureType::DepthStencil) {
       TransitionImageLayout(texture->images_[i], props.image_format,
                             VK_IMAGE_LAYOUT_UNDEFINED,
-                            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1,
-                            0, props.layer_count);
+                            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                            props.mip_levels, 0, actual_layers);
     } else if (props.type == AttachmentTextureType::Color ||
                props.type == AttachmentTextureType::Resolve ||
                props.type == AttachmentTextureType::Offscreen) {
       TransitionImageLayout(
           texture->images_[i], props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, props.layer_count);
+          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                            props.mip_levels, 0, actual_layers);
     } else if (props.type == AttachmentTextureType::SwapChain) {
       TransitionImageLayout(
           texture->images_[i], props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1, 0, props.layer_count);
+          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, props.mip_levels, 0, actual_layers);
     }
   }
 
@@ -2127,6 +2139,26 @@ void Renderer::CreateDescriptorLayouts() {
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
     layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // irradiance
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // prefilter
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);  // brdfLUT
+    layout->Bake();
+    RegisterDescriptorLayout("IBL", std::move(layout));
+  }
+
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->Bake();
+    RegisterDescriptorLayout("CubemapSampler", std::move(layout));
+  }
+
+  {
+    auto layout = std::make_shared<DescriptorSetLayout>();
+    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                        VK_SHADER_STAGE_FRAGMENT_BIT);
     layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                        VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -2761,6 +2793,32 @@ void Renderer::SetObjectName(VkObjectType type, uint64_t handle,
   pfn_set_debug_utils_object_name_ext_(logical_device_, &name_info);
 }
 
+std::shared_ptr<ImageView> Renderer::CreateImageViewMip(
+    VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+    uint32_t baseMipLevel, uint32_t levelCount, VkImageViewType viewType,
+    uint32_t layer, uint32_t layerCount) {
+  PROFILE_ZONE_SCOPED();
+  std::shared_ptr<ImageView> view = std::make_shared<ImageView>();
+  view->layer_ = layer;
+  view->layer_count_ = layerCount;
+
+  VkImageViewCreateInfo view_info{};
+  view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image = image;
+  view_info.viewType = viewType;
+  view_info.format = format;
+  view_info.subresourceRange.aspectMask = aspectFlags;
+  view_info.subresourceRange.baseMipLevel = baseMipLevel;
+  view_info.subresourceRange.levelCount = levelCount;
+  view_info.subresourceRange.baseArrayLayer = layer;
+  view_info.subresourceRange.layerCount = layerCount;
+
+  WIESEL_CHECK_VKRESULT(
+      vkCreateImageView(logical_device_, &view_info, nullptr, &view->handle_));
+
+  return view;
+}
+
 std::shared_ptr<ImageView> Renderer::CreateImageView(
     std::shared_ptr<AttachmentTexture> image, VkImageViewType viewType,
     uint32_t layer, uint32_t layer_count) {
@@ -3071,8 +3129,9 @@ void Renderer::RecreateSwapChain() {
   Engine::window()->GetEventHandler()(event);
 }
 
-void Renderer::SetViewport(VkExtent2D extent) {
+void Renderer::SetViewport(VkExtent2D extent, VkCommandBuffer cmd) {
   PROFILE_ZONE_SCOPED();
+  VkCommandBuffer cb = ResolveCmd(cmd);
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
@@ -3080,16 +3139,17 @@ void Renderer::SetViewport(VkExtent2D extent) {
   viewport.height = static_cast<float>(extent.height);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(command_buffers_[current_frame_]->handle_, 0, 1, &viewport);
+  vkCmdSetViewport(cb, 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = extent;
-  vkCmdSetScissor(command_buffers_[current_frame_]->handle_, 0, 1, &scissor);
+  vkCmdSetScissor(cb, 0, 1, &scissor);
 }
 
-void Renderer::SetViewport(glm::vec2 extent) {
+void Renderer::SetViewport(glm::vec2 extent, VkCommandBuffer cmd) {
   PROFILE_ZONE_SCOPED();
+  VkCommandBuffer cb = ResolveCmd(cmd);
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
@@ -3097,13 +3157,13 @@ void Renderer::SetViewport(glm::vec2 extent) {
   viewport.height = extent.y;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(command_buffers_[current_frame_]->handle_, 0, 1, &viewport);
+  vkCmdSetViewport(cb, 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent.width = extent.x;
   scissor.extent.height = extent.y;
-  vkCmdSetScissor(command_buffers_[current_frame_]->handle_, 0, 1, &scissor);
+  vkCmdSetScissor(cb, 0, 1, &scissor);
 }
 
 void Renderer::BeginRender() {
@@ -3130,9 +3190,8 @@ void Renderer::BeginRender() {
   }
   if (recreate_pipeline_) {
     PROFILE_ZONE_SCOPED_N("Renderer::BeginRender: Recreate Pipeline");
-    // Pipelines are now owned by features. Mark camera resources dirty
-    // so features recreate their pipelines with updated options.
     recreate_pipeline_ = false;
+    recreate_resources_ = true;
     PipelineRecreatedEvent event{};
     Engine::window()->GetEventHandler()(event);
   }
@@ -4076,14 +4135,9 @@ void Renderer::DrawSkybox(std::shared_ptr<Skybox> skybox) {
 
 void Renderer::DrawFullscreen(
     std::shared_ptr<Pipeline> pipeline,
-    std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors) {
-  /*if (!texture->m_Descriptors) {
-    texture->m_Descriptors = CreateDescriptors(texture);
-  }
-  vkCmdBindDescriptorSets(m_CommandBuffer->m_Handle,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->m_Layout,
-                          0, 1, &texture->m_Descriptors->m_DescriptorSet, 0,
-                          nullptr);*/
+    std::initializer_list<std::shared_ptr<DescriptorSet>> descriptors,
+    VkCommandBuffer cmd) {
+  VkCommandBuffer cb = ResolveCmd(cmd);
   std::vector<VkDescriptorSet> sets;
   for (const auto& item : descriptors) {
     if (!item) {
@@ -4095,12 +4149,11 @@ void Renderer::DrawFullscreen(
     LOG_WARN("DrawFullscreen called with no valid descriptors, skipping");
     return;
   }
-  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout_, 0,
-                          sets.size(), sets.data(), 0, nullptr);
+  vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipeline->layout_, 0, sets.size(), sets.data(), 0,
+                          nullptr);
 
-  // Draw the quad.
-  vkCmdDraw(command_buffers_[current_frame_]->handle_, 3, 1, 0, 0);
+  vkCmdDraw(cb, 3, 1, 0, 0);
 }
 
 static float Halton(int index, int base) {

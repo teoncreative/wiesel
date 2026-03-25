@@ -54,8 +54,8 @@ class RenderPass {
   void Bake();
 
   void Begin(std::shared_ptr<Framebuffer> framebuffer,
-             const Colorf& clear_color);
-  void End();
+             const Colorf& clear_color, VkCommandBuffer cmd = VK_NULL_HANDLE);
+  void End(VkCommandBuffer cmd = VK_NULL_HANDLE);
 
   std::shared_ptr<Framebuffer> CreateFramebuffer(
       uint32_t index, std::span<AttachmentTexture* const> output_attachments,

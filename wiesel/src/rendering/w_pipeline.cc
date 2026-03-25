@@ -288,13 +288,12 @@ void Pipeline::Bake() {
   is_allocated_ = true;
 }
 
-void Pipeline::Bind(PipelineBindPoint bind_point) {
+void Pipeline::Bind(PipelineBindPoint bind_point, VkCommandBuffer cmd) {
   auto renderer = Engine::renderer();
-  vkCmdBindPipeline(renderer->GetCommandBuffer().handle_,
-                    ToVkPipelineBindPoint(bind_point), pipeline_);
+  VkCommandBuffer cb = renderer->ResolveCmd(cmd);
+  vkCmdBindPipeline(cb, ToVkPipelineBindPoint(bind_point), pipeline_);
   for (const auto& item : push_constants_) {
-    vkCmdPushConstants(renderer->GetCommandBuffer().handle_, layout_,
-                       item.flags, 0, item.size, item.ptr.get());
+    vkCmdPushConstants(cb, layout_, item.flags, 0, item.size, item.ptr.get());
   }
   renderer->SetBoundPipeline(this);
 }

@@ -30,6 +30,7 @@
 #include "rendering/features/w_fxaa_feature.h"
 #include "rendering/features/w_geometry_feature.h"
 #include "rendering/features/w_grid_feature.h"
+#include "rendering/features/w_ibl_feature.h"
 #include "rendering/features/w_lighting_feature.h"
 #include "rendering/features/w_motion_blur_feature.h"
 #include "rendering/features/w_rt_shadow_feature.h"
@@ -118,6 +119,9 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
     if (tex) {
       skybox_ = std::make_shared<Skybox>(tex);
       LOG_INFO("Loaded skybox asset: {}", meta->name);
+
+      // Trigger full resource recreation so IBL regenerates from new skybox
+      Engine::renderer()->SetRecreateResources(true);
     }
   } catch (const std::exception& e) {
     LOG_ERROR("Failed to load skybox asset: {}", e.what());
@@ -1444,6 +1448,7 @@ std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(
     pipeline->AddFeature<RTShadowFeature>(renderer);
   }
   pipeline->AddFeature<SSAOFeature>(renderer);
+  pipeline->AddFeature<IBLFeature>(renderer);
   pipeline->AddFeature<LightingFeature>(renderer);
   pipeline->AddFeature<TransparencyFeature>(renderer);
   pipeline->AddFeature<GridFeature>(renderer);

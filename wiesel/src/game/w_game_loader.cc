@@ -243,6 +243,7 @@ void GameLoader::ApplyRenderOptions(const GameInfo& info) {
   settings.ambient_color = opts.ambient_color;
   settings.ambient_intensity = opts.ambient_intensity;
   settings.ssao_enabled = opts.ssao_enabled;
+  settings.ibl_enabled = opts.ibl_enabled;
   settings.bloom_enabled = opts.bloom_enabled;
   settings.bloom_threshold = opts.bloom_threshold;
   settings.bloom_intensity = opts.bloom_intensity;
@@ -253,6 +254,26 @@ void GameLoader::ApplyRenderOptions(const GameInfo& info) {
   settings.vsync = opts.vsync;
   settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
   settings.msaa_mode = static_cast<SamplingMode>(opts.msaa_mode);
+}
+
+void GameLoader::CaptureRenderOptions(RenderOptionsSerialized& out_opts) {
+  auto& settings = Engine::renderer()->options();
+  out_opts.ambient_color = settings.ambient_color;
+  out_opts.ambient_intensity = settings.ambient_intensity;
+  out_opts.ssao_enabled = settings.ssao_enabled;
+  out_opts.ibl_enabled = settings.ibl_enabled;
+  out_opts.bloom_enabled = settings.bloom_enabled;
+  out_opts.bloom_threshold = settings.bloom_threshold;
+  out_opts.bloom_intensity = settings.bloom_intensity;
+  out_opts.motion_blur_enabled = settings.motion_blur_enabled;
+  out_opts.motion_blur_strength = settings.motion_blur_strength;
+  out_opts.motion_blur_samples = settings.motion_blur_samples;
+  out_opts.shadows_enabled = settings.shadows_enabled;
+  out_opts.vsync = settings.vsync;
+  out_opts.aa_mode =
+      static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
+  out_opts.msaa_mode =
+      static_cast<int>(static_cast<SamplingMode>(settings.msaa_mode));
 }
 
 void GameLoader::ApplyInputSettings(const GameInfo& info) {
