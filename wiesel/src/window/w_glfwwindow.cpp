@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "window/w_glfwwindow.hpp"
@@ -347,6 +347,19 @@ void GlfwAppWindow::GetWindowFramebufferSize(WindowSize& size) {
 void GlfwAppWindow::SetTitle(const std::string& title) {
   AppWindow::SetTitle(title);
   glfwSetWindowTitle(handle_, title.c_str());
+}
+
+void GlfwAppWindow::SetIcon(const uint8_t* pixels, int width, int height) {
+  AppWindow::SetIcon(pixels, width, height);
+  if (!pixels || width <= 0 || height <= 0) {
+    glfwSetWindowIcon(handle_, 0, nullptr);
+    return;
+  }
+  GLFWimage image;
+  image.width = width;
+  image.height = height;
+  image.pixels = const_cast<unsigned char*>(pixels);
+  glfwSetWindowIcon(handle_, 1, &image);
 }
 
 void GlfwAppWindow::SetCursorMode(CursorMode cursor_mode) {

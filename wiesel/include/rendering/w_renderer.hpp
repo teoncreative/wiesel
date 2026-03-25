@@ -119,6 +119,10 @@ struct RendererOptions {
   Setting<float> bloom_intensity = 0.6f;
   Setting<float> motion_blur_strength = 1.0f;
   Setting<int> motion_blur_samples = 8;
+
+  // Scene ambient
+  glm::vec3 ambient_color = {1.0f, 1.0f, 1.0f};
+  float ambient_intensity = 0.03f;
 };
 
 struct RendererProperties {};
@@ -241,11 +245,11 @@ class Renderer {
   WIESEL_GETTER_FN const VkExtent2D& GetExtent() const { return extent_; }
 
   WIESEL_GETTER_FN const uint32_t GetGraphicsQueueFamilyIndex() const {
-    return queue_family_indices_.graphicsFamily.value();
+    return queue_family_indices_.graphics_family.value();
   }
 
   WIESEL_GETTER_FN const uint32_t GetPresentQueueFamilyIndex() const {
-    return queue_family_indices_.presentFamily.value();
+    return queue_family_indices_.present_family.value();
   }
 
   WIESEL_GETTER_FN const CommandBuffer& GetCommandBuffer() const {

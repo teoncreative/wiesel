@@ -146,6 +146,9 @@ static InputAxisMapping DeserializeAxis(const nlohmann::json& axj) {
 static void SerializeRenderOptions(nlohmann::json& j,
                                    const RenderOptionsSerialized& opts) {
   j["render_options"] = {
+      {"ambient_color",
+       {opts.ambient_color.x, opts.ambient_color.y, opts.ambient_color.z}},
+      {"ambient_intensity", opts.ambient_intensity},
       {"ssao_enabled", opts.ssao_enabled},
       {"bloom_enabled", opts.bloom_enabled},
       {"bloom_threshold", opts.bloom_threshold},
@@ -166,6 +169,11 @@ static void DeserializeRenderOptions(const nlohmann::json& j,
     return;
   }
   auto& ro = j["render_options"];
+  if (ro.contains("ambient_color") && ro["ambient_color"].is_array()) {
+    opts.ambient_color = {ro["ambient_color"][0], ro["ambient_color"][1],
+                          ro["ambient_color"][2]};
+  }
+  opts.ambient_intensity = ro.value("ambient_intensity", 0.03f);
   opts.ssao_enabled = ro.value("ssao_enabled", true);
   opts.bloom_enabled = ro.value("bloom_enabled", false);
   opts.bloom_threshold = ro.value("bloom_threshold", 0.7f);
@@ -289,6 +297,8 @@ std::unique_ptr<GameInfo> GameInfo::Load(const std::filesystem::path& path) {
 
   auto info = std::make_unique<GameInfo>();
   info->name = j.value("name", "Untitled Game");
+  info->version = j.value("version", "1.0.0");
+  info->icon = AssetHandle::FromString(j.value("icon", ""));
   info->start_scene = AssetHandle::FromString(j.value("start_scene", ""));
   DeserializeRenderOptions(j, info->render_options);
   DeserializeInputSettings(j, info->input);
@@ -298,6 +308,8 @@ std::unique_ptr<GameInfo> GameInfo::Load(const std::filesystem::path& path) {
 bool GameInfo::Save(const std::filesystem::path& path) const {
   nlohmann::json j;
   j["name"] = name;
+  j["version"] = version;
+  j["icon"] = icon.IsValid() ? icon.ToString() : "";
   j["start_scene"] = start_scene.IsValid() ? start_scene.ToString() : "";
   SerializeRenderOptions(j, render_options);
   SerializeInputSettings(j, input);

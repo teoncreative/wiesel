@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/features/w_rt_shadow_feature.hpp"
@@ -135,7 +135,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
             break;
           }
           auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldDir = glm::normalize(glm::vec3(
+          glm::vec3 worldDir = -glm::normalize(glm::vec3(
               transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
           ubo_data.lights[ubo_data.count].pos_or_dir =
               glm::vec4(worldDir, 0.0f);

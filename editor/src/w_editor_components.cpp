@@ -2528,7 +2528,7 @@ void InitializeEditorComponents() {
 }
 
 void RenderExistingComponents(Entity entity) {
-  for (const auto& [ti, desc] : kRegistry) {
+  for (const auto& [ti, desc] : kRegistry | std::views::reverse) {
     if (desc.HasComponent(entity)) {
       desc.RenderSelf(entity);
     }
@@ -2536,7 +2536,7 @@ void RenderExistingComponents(Entity entity) {
 }
 
 void RenderModals(Entity entity) {
-  for (const auto& item : kRegistry) {
+  for (const auto& item : kRegistry | std::views::reverse) {
     item.second.RenderModal(entity);
   }
 }

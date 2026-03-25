@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -27,21 +27,21 @@ namespace Wiesel {
 #define WIESEL_SSAO_BIAS 0.025
 #define WIESEL_SHADOWMAP_DIM 4096
 
-std::string GetNameFromVulkanResult(VkResult errorCode);
+std::string GetNameFromVulkanResult(VkResult error_code);
 
 struct QueueFamilyIndices {
-  std::optional<uint32_t> graphicsFamily;
-  std::optional<uint32_t> presentFamily;
+  std::optional<uint32_t> graphics_family;
+  std::optional<uint32_t> present_family;
 
   bool IsComplete() {
-    return graphicsFamily.has_value() && presentFamily.has_value();
+    return graphics_family.has_value() && present_family.has_value();
   }
 };
 
 struct SwapChainSupportDetails {
   VkSurfaceCapabilitiesKHR capabilities;
   std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> presentModes;
+  std::vector<VkPresentModeKHR> present_modes;
 };
 
 enum BakeResult { SUCCESS };
@@ -59,111 +59,113 @@ enum Vertex3DFlag {
 };
 
 struct Vertex3D {
-  glm::vec3 Pos;
-  glm::vec3 Color;
-  glm::vec2 UV;
-  glm::vec3 Normal;
-  glm::vec3 Tangent;
-  glm::vec3 BiTangent;
-  uint32_t Flags;
-  glm::ivec4 BoneIndices = {0, 0, 0, 0};
-  glm::vec4 BoneWeights = {0.0f, 0.0f, 0.0f, 0.0f};
+  glm::vec3 ppos;
+  glm::vec3 color;
+  glm::vec2 uv;
+  glm::vec3 normal;
+  glm::vec3 tangent;
+  glm::vec3 bi_tangent;
+  uint32_t flags;
+  glm::ivec4 bone_indices = {0, 0, 0, 0};
+  glm::vec4 bone_weights = {0.0f, 0.0f, 0.0f, 0.0f};
 
   static VkVertexInputBindingDescription GetBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex3D);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    VkVertexInputBindingDescription binding_description{};
+    binding_description.binding = 0;
+    binding_description.stride = sizeof(Vertex3D);
+    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    return bindingDescription;
+    return binding_description;
   }
 
   static std::vector<VkVertexInputAttributeDescription>
   GetAttributeDescriptions() {
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
 
-    attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t)offsetof(Vertex3D, Pos)});
-    attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT,
-                                     (uint32_t)offsetof(Vertex3D, Color)});
-    attributeDescriptions.push_back(
-        {2, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t)offsetof(Vertex3D, UV)});
-    attributeDescriptions.push_back({3, 0, VK_FORMAT_R32G32B32_SFLOAT,
-                                     (uint32_t)offsetof(Vertex3D, Normal)});
-    attributeDescriptions.push_back({4, 0, VK_FORMAT_R32G32B32_SFLOAT,
-                                     (uint32_t)offsetof(Vertex3D, Tangent)});
-    attributeDescriptions.push_back({5, 0, VK_FORMAT_R32G32B32_SFLOAT,
-                                     (uint32_t)offsetof(Vertex3D, BiTangent)});
-    attributeDescriptions.push_back(
-        {6, 0, VK_FORMAT_R32_UINT, (uint32_t)offsetof(Vertex3D, Flags)});
-    attributeDescriptions.push_back(
+    attribute_descriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32B32_SFLOAT, (uint32_t)offsetof(Vertex3D, ppos)});
+    attribute_descriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                      (uint32_t)offsetof(Vertex3D, color)});
+    attribute_descriptions.push_back(
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t)offsetof(Vertex3D, uv)});
+    attribute_descriptions.push_back({3, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                      (uint32_t)offsetof(Vertex3D, normal)});
+    attribute_descriptions.push_back({4, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                                      (uint32_t)offsetof(Vertex3D, tangent)});
+    attribute_descriptions.push_back(
+        {5, 0, VK_FORMAT_R32G32B32_SFLOAT,
+         (uint32_t)offsetof(Vertex3D, bi_tangent)});
+    attribute_descriptions.push_back(
+        {6, 0, VK_FORMAT_R32_UINT, (uint32_t)offsetof(Vertex3D, flags)});
+    attribute_descriptions.push_back(
         {7, 0, VK_FORMAT_R32G32B32A32_SINT,
-         (uint32_t)offsetof(Vertex3D, BoneIndices)});
-    attributeDescriptions.push_back(
+         (uint32_t)offsetof(Vertex3D, bone_indices)});
+    attribute_descriptions.push_back(
         {8, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
-         (uint32_t)offsetof(Vertex3D, BoneWeights)});
+         (uint32_t)offsetof(Vertex3D, bone_weights)});
 
-    return attributeDescriptions;
+    return attribute_descriptions;
   }
 
   bool operator==(const Vertex3D& other) const {
-    return Pos == other.Pos && Color == other.Color && UV == other.UV;
+    return ppos == other.ppos && color == other.color && uv == other.uv;
   }
 };
 
 struct Vertex2DNoColor {
-  glm::vec2 Pos;
-  glm::vec2 UV;
+  glm::vec2 pos;
+  glm::vec2 uv;
 
   static VkVertexInputBindingDescription GetBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex2DNoColor);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    VkVertexInputBindingDescription binding_description{};
+    binding_description.binding = 0;
+    binding_description.stride = sizeof(Vertex2DNoColor);
+    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    return bindingDescription;
+    return binding_description;
   }
 
   static std::vector<VkVertexInputAttributeDescription>
   GetAttributeDescriptions() {
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
 
-    attributeDescriptions.push_back({0, 0, VK_FORMAT_R32G32_SFLOAT,
-                                     (uint32_t)offsetof(Vertex2DNoColor, Pos)});
-    attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32_SFLOAT,
-                                     (uint32_t)offsetof(Vertex2DNoColor, UV)});
+    attribute_descriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32_SFLOAT,
+         (uint32_t)offsetof(Vertex2DNoColor, pos)});
+    attribute_descriptions.push_back({1, 0, VK_FORMAT_R32G32_SFLOAT,
+                                      (uint32_t)offsetof(Vertex2DNoColor, uv)});
 
-    return attributeDescriptions;
+    return attribute_descriptions;
   }
 
   bool operator==(const Vertex2DNoColor& other) const {
-    return Pos == other.Pos && UV == other.UV;
+    return pos == other.pos && uv == other.uv;
   }
 };
 
 struct VertexSprite {
-  glm::vec2 UV;
+  glm::vec2 uv;
 
   static std::vector<VkVertexInputBindingDescription> GetBindingDescriptions() {
-    std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+    std::vector<VkVertexInputBindingDescription> binding_descriptions{};
 
-    bindingDescriptions.push_back(
+    binding_descriptions.push_back(
         {0, sizeof(VertexSprite), VK_VERTEX_INPUT_RATE_VERTEX});
 
-    return bindingDescriptions;
+    return binding_descriptions;
   }
 
   static std::vector<VkVertexInputAttributeDescription>
   GetAttributeDescriptions() {
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
 
-    attributeDescriptions.push_back(
-        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t)offsetof(VertexSprite, UV)});
+    attribute_descriptions.push_back(
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, (uint32_t)offsetof(VertexSprite, uv)});
 
-    return attributeDescriptions;
+    return attribute_descriptions;
   }
 
-  bool operator==(const VertexSprite& other) const { return UV == other.UV; }
+  bool operator==(const VertexSprite& other) const { return uv == other.uv; }
 };
 
 struct alignas(16) MatricesUniformData {
@@ -180,52 +182,53 @@ struct alignas(16) MatricesUniformData {
 };
 
 struct alignas(16) SpriteUniformData {
-  alignas(16) glm::mat4 ModelMatrix;
-  alignas(16) glm::vec4 Tint;
-  alignas(4) int FlipX;
-  alignas(4) int FlipY;
+  alignas(16) glm::mat4 model_matrix;
+  alignas(16) glm::vec4 tint;
+  alignas(4) int flip_x;
+  alignas(4) int flip_y;
 };
 
 struct alignas(16) CameraUniformData {
-  alignas(16) glm::mat4 ViewMatrix;
-  alignas(16) glm::mat4 Projection;
-  alignas(16) glm::mat4 InvProjection;
-  alignas(16) glm::vec3 Position;
-  float NearPlane;
-  float FarPlane;
+  alignas(16) glm::mat4 view_matrix;
+  alignas(16) glm::mat4 projection;
+  alignas(16) glm::mat4 inv_projection;
+  alignas(16) glm::vec3 position;
+  float near_plane;
+  float far_plane;
   float _pad1[2];
-  glm::vec4 CascadeSplits;
+  glm::vec4 cascade_splits;
   uint32_t enable_ssao;
   uint32_t debug_cascades;
   float _pad2[2];
-  alignas(16) glm::mat4 PrevViewProjection;
-  alignas(16) glm::vec2 TaaJitterOffset;
+  alignas(16) glm::mat4 prev_view_projection;
+  alignas(16) glm::vec2 taa_jitter_offset;
   float _pad3[2];
+  alignas(16) glm::vec4 ambient;  // xyz = color, w = intensity
 };
 
 struct alignas(16) ShadowMapMatricesUniformData {
-  alignas(16) glm::mat4 ViewProjectionMatrix[WIESEL_SHADOW_CASCADE_COUNT];
-  alignas(16) int32_t EnableShadows;
+  alignas(16) glm::mat4 view_projection_matrix[WIESEL_SHADOW_CASCADE_COUNT];
+  alignas(16) int32_t enable_shadows;
 };
 
 struct alignas(16) SSAOKernelUniformData {
-  alignas(16) glm::vec4 Samples[WIESEL_SSAO_KERNEL_SIZE];
+  alignas(16) glm::vec4 samples[WIESEL_SSAO_KERNEL_SIZE];
 };
 
 struct SSAOSpecializationData {
-  uint32_t kernelSize = WIESEL_SSAO_KERNEL_SIZE;
+  uint32_t kernel_size = WIESEL_SSAO_KERNEL_SIZE;
   float radius = WIESEL_SSAO_RADIUS;
 
   std::vector<VkSpecializationMapEntry> GetSpecializationMapEntries() {
     std::vector<VkSpecializationMapEntry> entries;
     entries.push_back(VkSpecializationMapEntry{
         .constantID = 0,
-        .offset = (uint32_t)offsetof(SSAOSpecializationData, kernelSize),
-        .size = sizeof(SSAOSpecializationData::kernelSize)});
+        .offset = (uint32_t)offsetof(SSAOSpecializationData, kernel_size),
+        .size = sizeof(kernel_size)});
     entries.push_back(VkSpecializationMapEntry{
         .constantID = 1,
         .offset = (uint32_t)offsetof(SSAOSpecializationData, radius),
-        .size = sizeof(SSAOSpecializationData::radius)});
+        .size = sizeof(radius)});
     return entries;
   }
 };
@@ -307,7 +310,7 @@ std::vector<uint32_t> ReadVirtualFileUint32(const std::string& virtual_path);
 std::string FormatVariableName(const std::string& name);
 
 inline void TrimLeft(std::string& s) {
-  s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+  s.erase(s.begin(), std::ranges::find_if(s, [](unsigned char ch) {
             return !std::isspace(ch);
           }));
 }

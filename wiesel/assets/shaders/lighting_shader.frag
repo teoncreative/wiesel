@@ -60,6 +60,8 @@ layout(set = 2, binding = 1, std140) uniform Camera {
     int debugCascades;
     mat4 prevViewProjection;
     vec2 taaJitterOffset;
+    vec3 ambientColor;
+    float ambientIntensity;
 } cam;
 
 layout(set = 2, binding = 2) uniform ShadowMapMatrices {
@@ -159,7 +161,11 @@ void main() {
     // Derive shininess from roughness: rough surfaces have broad, dim highlights
     float shininess = max(2.0, pow(2.0, 10.0 * (1.0 - matRoughness)));
 
-    // Metallic surfaces tint specular with albedo color and reduce diffuse
+    // PBR Fresnel: F0 is the reflectance at normal incidence
+    // Non-metals reflect ~4%, metals reflect their albedo color
+    vec3 F0 = mix(vec3(0.04 * matSpecular), albedo.rgb, matMetallic);
+    vec3 diffuseColor = albedo.rgb * (1.0 - matMetallic);
+
     float ambientOcclusion;
     if (cam.enableSSAO != 0) {
         ambientOcclusion = texture(samplerSSAO, inUV).r;
@@ -195,29 +201,32 @@ void main() {
     uint rtMask = imageLoad(rtShadowMask, ivec2(gl_FragCoord.xy)).r;
     int rtLightIndex = 0;
 
-    vec3 diffuseColor = albedo.rgb * (1.0 - matMetallic);
-    vec3 specularColor = mix(vec3(matSpecular * 0.5), albedo.rgb, matMetallic);
-
     // Directional lights with per-light RT shadow
     vec3 dirResult = vec3(0.0);
     for (int i = 0; i < lights.directLightCount; i++) {
         LightDirect light = lights.directLights[i];
-        vec3 lDir = normalize(light.direction);
+        vec3 lDir = -normalize(light.direction);
+        float NdotL = max(dot(normal, lDir), 0.0);
 
-        float diff = light.base.diffuse * max(dot(normal, lDir), 0.0);
-        float spec = 0.0;
-        if (diff > 0.0) {
+        vec3 specContrib = vec3(0.0);
+        vec3 kD = vec3(1.0);
+        if (NdotL > 0.0) {
             vec3 halfwayDir = normalize(lDir + viewDir);
-            spec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
+            float NdotH = max(dot(normal, halfwayDir), 0.0);
+            float HdotV = max(dot(halfwayDir, viewDir), 0.0);
+            vec3 F = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
+            kD = (1.0 - F) * (1.0 - matMetallic);
+            float specPower = pow(NdotH, shininess) * (shininess + 2.0) / 8.0;
+            specContrib = F * specPower * light.base.specular;
         }
 
         vec3 ambient = light.base.ambient * diffuseColor * ambientOcclusion * light.base.color * light.base.density;
-        vec3 diffSpec = (diff * diffuseColor + spec * specularColor) * light.base.color * light.base.density;
+        vec3 lit = (kD * diffuseColor * light.base.diffuse * NdotL + specContrib) * light.base.color * light.base.density;
 
         float shadow = float((rtMask >> rtLightIndex) & 1u);
         rtLightIndex++;
 
-        dirResult += ambient + diffSpec * shadow;
+        dirResult += ambient + lit * shadow;
     }
 
     // Point lights with per-light RT shadow
@@ -227,24 +236,37 @@ void main() {
         vec3 pDir = normalize(light.base.position - worldPos);
         float dist = length(light.base.position - worldPos);
         float atten = 1.0 / (light.constant + light.linear * dist + light.exp * dist * dist);
+        float NdotL = max(dot(normal, pDir), 0.0);
 
-        float pAmbient = light.base.ambient * atten;
-        float pDiff = light.base.diffuse * max(dot(normal, pDir), 0.0) * atten;
-        float pSpec = 0.0;
-        if (pDiff > 0.0) {
+        vec3 specContrib = vec3(0.0);
+        vec3 kD = vec3(1.0);
+        if (NdotL > 0.0) {
             vec3 halfwayDir = normalize(pDir + viewDir);
-            pSpec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular * atten;
+            float NdotH = max(dot(normal, halfwayDir), 0.0);
+            float HdotV = max(dot(halfwayDir, viewDir), 0.0);
+            vec3 F = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
+            kD = (1.0 - F) * (1.0 - matMetallic);
+            float specPower = pow(NdotH, shininess) * (shininess + 2.0) / 8.0;
+            specContrib = F * specPower * light.base.specular * atten;
         }
 
+        float pAmbient = light.base.ambient * atten;
+        vec3 ambient = pAmbient * diffuseColor * ambientOcclusion;
+        vec3 lit = (kD * diffuseColor * light.base.diffuse * NdotL * atten + specContrib);
         float shadow = float((rtMask >> rtLightIndex) & 1u);
         rtLightIndex++;
 
-        vec3 ambient = pAmbient * diffuseColor * ambientOcclusion;
-        vec3 diffSpec = pDiff * diffuseColor + pSpec * specularColor;
-        pointResult += (ambient + diffSpec * shadow) * light.base.color * light.base.density;
+        pointResult += (ambient + lit * shadow) * light.base.color * light.base.density;
     }
 
-    vec3 finalColor = clamp(dirResult + pointResult, 0.0, 1.0);
+    // Scene ambient with Fresnel rim on ambient
+    float NdotV = max(dot(normal, viewDir), 0.0);
+    vec3 F_ambient = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+    vec3 kD_ambient = (1.0 - F_ambient) * (1.0 - matMetallic);
+    vec3 sceneAmbient = (kD_ambient * diffuseColor + F_ambient) *
+    cam.ambientColor * cam.ambientIntensity * ambientOcclusion;
+
+    vec3 finalColor = clamp(dirResult + pointResult + sceneAmbient, 0.0, 1.0);
 
     if (cam.debugCascades == 2) {
         finalColor = vec3(matRoughness, matMetallic, matSpecular);
@@ -253,28 +275,30 @@ void main() {
     outFragColor = vec4(finalColor, albedo.a);
 #else
     // Cascaded shadow map path (shadow only on first directional light)
-    vec3 diffuseColor = albedo.rgb * (1.0 - matMetallic);
-    vec3 specularColor = mix(vec3(matSpecular * 0.5), albedo.rgb, matMetallic);
-
     vec3 sunAmbientContrib = vec3(0.0);
     vec3 sunDiffSpecContrib = vec3(0.0);
     float sunAmbient = 0.0;
     vec3 sunDir = vec3(0.0);
     for (int i = 0; i < lights.directLightCount; i++) {
         LightDirect light = lights.directLights[i];
-        sunDir = normalize(light.direction);
+        sunDir = -normalize(light.direction);
         sunAmbient = light.base.ambient;
+        float NdotL = max(dot(normal, sunDir), 0.0);
 
-        float diff = light.base.diffuse * max(dot(normal, sunDir), 0.0);
-
-        float spec = 0.0;
-        if (diff > 0.0) {
+        vec3 specContrib = vec3(0.0);
+        vec3 kD = vec3(1.0);
+        if (NdotL > 0.0) {
             vec3 halfwayDir = normalize(sunDir + viewDir);
-            spec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular;
+            float NdotH = max(dot(normal, halfwayDir), 0.0);
+            float HdotV = max(dot(halfwayDir, viewDir), 0.0);
+            vec3 F = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
+            kD = (1.0 - F) * (1.0 - matMetallic);
+            float specPower = pow(NdotH, shininess) * (shininess + 2.0) / 8.0;
+            specContrib = F * specPower * light.base.specular;
         }
 
         sunAmbientContrib = sunAmbient * diffuseColor * ambientOcclusion * light.base.color * light.base.density;
-        sunDiffSpecContrib = (diff * diffuseColor + spec * specularColor) * light.base.color * light.base.density;
+        sunDiffSpecContrib = (kD * diffuseColor * light.base.diffuse * NdotL + specContrib) * light.base.color * light.base.density;
         break;
     }
 
@@ -284,17 +308,24 @@ void main() {
         vec3 pDir = normalize(light.base.position - worldPos);
         float dist = length(light.base.position - worldPos);
         float atten = 1.0 / (light.constant + light.linear * dist + light.exp * dist * dist);
+        float NdotL = max(dot(normal, pDir), 0.0);
 
-        float pAmbient = light.base.ambient * atten;
-        float pDiff = light.base.diffuse * max(dot(normal, pDir), 0.0) * atten;
-
-        float pSpec = 0.0;
-        if (pDiff > 0.0) {
+        vec3 specContrib = vec3(0.0);
+        vec3 kD = vec3(1.0);
+        if (NdotL > 0.0) {
             vec3 halfwayDir = normalize(pDir + viewDir);
-            pSpec = pow(max(dot(normal, halfwayDir), 0.0), shininess) * light.base.specular * atten;
+            float NdotH = max(dot(normal, halfwayDir), 0.0);
+            float HdotV = max(dot(halfwayDir, viewDir), 0.0);
+            vec3 F = F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
+            kD = (1.0 - F) * (1.0 - matMetallic);
+            float specPower = pow(NdotH, shininess) * (shininess + 2.0) / 8.0;
+            specContrib = F * specPower * light.base.specular * atten;
         }
 
-        pointResult += (pAmbient * diffuseColor * ambientOcclusion + pDiff * diffuseColor + pSpec * specularColor) * light.base.color * light.base.density;
+        float pAmbient = light.base.ambient * atten;
+        vec3 ambient = pAmbient * diffuseColor * ambientOcclusion;
+        vec3 lit = kD * diffuseColor * light.base.diffuse * NdotL * atten + specContrib;
+        pointResult += (ambient + lit) * light.base.color * light.base.density;
     }
 
     float shadow = 1.0;
@@ -333,7 +364,14 @@ void main() {
         }
     }
 
-    vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult, 0.0, 1.0);
+    // Scene ambient with Fresnel rim on ambient
+    float NdotV = max(dot(normal, viewDir), 0.0);
+    vec3 F_ambient = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+    vec3 kD_ambient = (1.0 - F_ambient) * (1.0 - matMetallic);
+    vec3 sceneAmbient = (kD_ambient * diffuseColor + F_ambient) *
+    cam.ambientColor * cam.ambientIntensity * ambientOcclusion;
+
+    vec3 finalColor = clamp(sunAmbientContrib + sunDiffSpecContrib * shadow + pointResult + sceneAmbient, 0.0, 1.0);
 
     if (cam.debugCascades == 1) {
         const vec3 cascadeColors[4] = vec3[](

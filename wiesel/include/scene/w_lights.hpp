@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -52,8 +52,7 @@ struct alignas(16) LightDirect {
 struct alignas(16) LightPoint {
   LightPoint() : base({}), constant(1.0f), linear(0.09f), exp(0.032f) {}
 
-  LightPoint(glm::vec3 position, LightBase base, float constant, float linear,
-             float exp)
+  LightPoint(LightBase base, float constant, float linear, float exp)
       : base(base), constant(constant), linear(linear), exp(exp) {}
 
   ~LightPoint() = default;

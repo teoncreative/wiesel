@@ -229,6 +229,23 @@ void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
   ThumbnailCache::Set(&thumbnail_cache_instance_);
 
+  // Set editor window icon from engine logo
+  {
+    auto logo = Engine::vfs()->Open("/engine/textures/logo.png");
+    if (logo) {
+      int w = 0;
+      int h = 0;
+      int channels = 0;
+      stbi_uc* pixels = stbi_load_from_memory(
+          logo.Data(), static_cast<int>(logo.Size()), &w, &h, &channels,
+          STBI_rgb_alpha);
+      if (pixels) {
+        Engine::window()->SetIcon(pixels, w, h);
+        stbi_image_free(pixels);
+      }
+    }
+  }
+
   // Editor idle throttling
   app_.SetIdleMaxFPS(15.0f);
   app_.SetIdleTimeout(120.0f);
@@ -3720,6 +3737,34 @@ void EditorLayer::RenderProjectSettingsPopup() {
         changed = true;
       }
 
+      ImGui::SeparatorText("Game");
+      {
+        char game_name_buf[128];
+        strncpy(game_name_buf, game_info.name.c_str(),
+                sizeof(game_name_buf) - 1);
+        game_name_buf[sizeof(game_name_buf) - 1] = '\0';
+        if (ImGui::InputText(PrefixLabel("Game Name").c_str(), game_name_buf,
+                             sizeof(game_name_buf))) {
+          game_info.name = game_name_buf;
+          changed = true;
+        }
+      }
+      {
+        char version_buf[64];
+        strncpy(version_buf, game_info.version.c_str(),
+                sizeof(version_buf) - 1);
+        version_buf[sizeof(version_buf) - 1] = '\0';
+        if (ImGui::InputText(PrefixLabel("Version").c_str(), version_buf,
+                             sizeof(version_buf))) {
+          game_info.version = version_buf;
+          changed = true;
+        }
+      }
+      if (AssetCombo("Icon", AssetType::Texture, game_info.icon, true,
+                     "(None)")) {
+        changed = true;
+      }
+
       // Start scene selector
       if (AssetCombo(PrefixLabel("Start Scene").c_str(), AssetType::Scene,
                      game_info.start_scene, true, "(None)")) {
@@ -3777,6 +3822,12 @@ void EditorLayer::RenderProjectSettingsPopup() {
       // ---- Rendering ----
       Renderer* renderer = Engine::renderer().get();
       auto& settings = renderer->options();
+
+      ImGui::SeparatorText("Ambient");
+      ImGui::ColorEdit3(PrefixLabel("Ambient Color").c_str(),
+                        &settings.ambient_color.x);
+      ImGui::SliderFloat(PrefixLabel("Ambient Intensity").c_str(),
+                         &settings.ambient_intensity, 0.0f, 1.0f);
 
       ImGui::SeparatorText("General");
       ImGui::Checkbox(PrefixLabel("Enable SSAO").c_str(),
@@ -3837,6 +3888,9 @@ void EditorLayer::RenderProjectSettingsPopup() {
 
       // Sync live renderer options back to project for saving
       auto& ro = game_info.render_options;
+      ro.ambient_color = {settings.ambient_color.x, settings.ambient_color.y,
+                          settings.ambient_color.z};
+      ro.ambient_intensity = settings.ambient_intensity;
       ro.ssao_enabled = settings.ssao_enabled;
       ro.bloom_enabled = settings.bloom_enabled;
       ro.bloom_threshold = settings.bloom_threshold;
@@ -4607,6 +4661,8 @@ void EditorLayer::SaveProject() {
     // Capture current render options into project settings
     auto& settings = Engine::renderer()->options();
     auto& opts = project->GetGameInfo().render_options;
+    opts.ambient_color = settings.ambient_color;
+    opts.ambient_intensity = settings.ambient_intensity;
     opts.ssao_enabled = settings.ssao_enabled;
     opts.bloom_enabled = settings.bloom_enabled;
     opts.bloom_threshold = settings.bloom_threshold;

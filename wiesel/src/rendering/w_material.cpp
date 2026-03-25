@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/w_material.hpp"
@@ -34,9 +34,9 @@ Material::~Material() {
 
 void Material::InitDefaults() {
   properties["color_tint"] = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-  properties["roughness"] = 1.0f;  // multiplier: 1.0 = use full texture value
-  properties["metallic"] = 1.0f;   // multiplier: 1.0 = use full texture value
-  properties["specular"] = 1.0f;   // multiplier: 1.0 = use full texture value
+  properties["roughness"] = 0.5f;
+  properties["metallic"] = 0.0f;
+  properties["specular"] = 0.5f;
 }
 
 void Material::SetProperty(const std::string& name,

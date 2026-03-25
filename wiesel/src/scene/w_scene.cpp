@@ -1,11 +1,11 @@
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "scene/w_scene.hpp"
@@ -488,7 +488,8 @@ void Scene::UpdateCameras() {
     }
     if (lights.direct_light_count > 0 &&
         Engine::renderer()->options().shadows_enabled) {
-      camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
+      camera.ComputeCascades(
+          -glm::normalize(lights.direct_lights[0].direction));
     } else {
       camera.does_shadow_pass = false;
     }
@@ -1346,7 +1347,7 @@ bool Scene::RenderFromExternal(CameraComponent& camera,
   // Compute shadow cascades for external camera (same as ECS cameras)
   auto& lights = Engine::renderer()->lights_uniform_data_;
   if (lights.direct_light_count > 0 && renderer->options().shadows_enabled) {
-    camera.ComputeCascades(glm::normalize(lights.direct_lights[0].direction));
+    camera.ComputeCascades(-glm::normalize(lights.direct_lights[0].direction));
   } else {
     camera.does_shadow_pass = false;
   }

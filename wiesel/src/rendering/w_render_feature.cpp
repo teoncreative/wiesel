@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/w_render_feature.hpp"
@@ -26,6 +26,10 @@ std::shared_ptr<AttachmentTexture> CameraResourcePool::GetTexture(
   if (it != textures_.end()) {
     return it->second;
   }
+  LOG_ERROR(
+      "CameraResourcePool: texture '{}' not found - a render feature "
+      "may be disabled or not yet initialized",
+      name);
   return nullptr;
 }
 
@@ -67,6 +71,10 @@ std::shared_ptr<DescriptorSet> CameraResourcePool::GetDescriptor(
   if (it != descriptors_.end()) {
     return it->second;
   }
+  LOG_ERROR(
+      "CameraResourcePool: descriptor '{}' not found - a render feature "
+      "may be disabled or not yet initialized",
+      name);
   return nullptr;
 }
 

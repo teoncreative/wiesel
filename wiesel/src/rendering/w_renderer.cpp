@@ -2228,7 +2228,7 @@ void Renderer::CreateSwapChain() {
   VkSurfaceFormatKHR surface_format =
       ChooseSwapSurfaceFormat(swap_chain_details_.formats);
   VkPresentModeKHR present_mode =
-      ChooseSwapPresentMode(swap_chain_details_.presentModes);
+      ChooseSwapPresentMode(swap_chain_details_.present_modes);
   extent_ = ChooseSwapExtent(swap_chain_details_.capabilities);
 
   uint32_t image_count = swap_chain_details_.capabilities.minImageCount + 1;
@@ -2632,7 +2632,7 @@ void Renderer::CreatePermanentResources() {
     sample *= rnd_dist(rnd_engine);
     float scale = float(i) / float(WIESEL_SSAO_KERNEL_SIZE);
     scale = std::lerp(0.1f, 1.0f, scale * scale);
-    ssao_kernel_uniform_data_.Samples[i] = glm::vec4(sample * scale, 0.0f);
+    ssao_kernel_uniform_data_.samples[i] = glm::vec4(sample * scale, 0.0f);
   }
   memcpy(ssao_kernel_uniform_buffer_->data_, &ssao_kernel_uniform_data_,
          sizeof(ssao_kernel_uniform_data_));
@@ -3378,7 +3378,7 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
       effective_mat->base_texture = model.default_texture;
       // Update vertex flags so the shader samples the texture
       for (auto& v : mesh->vertices) {
-        v.Flags |= VertexFlagHasTexture;
+        v.flags |= VertexFlagHasTexture;
       }
       // Re-upload vertex data with updated flags
       mesh->Deallocate();
@@ -4118,17 +4118,17 @@ static float Halton(int index, int base) {
 void Renderer::SetCameraData(std::shared_ptr<CameraData> camera_data) {
   camera_ = camera_data;
   viewport_size_ = camera_data->viewport_size;
-  camera_uniform_data_.Position = camera_data->position;
-  camera_uniform_data_.ViewMatrix = camera_data->view_matrix;
-  camera_uniform_data_.Projection = camera_data->projection;
-  camera_uniform_data_.InvProjection = camera_data->inv_projection;
-  camera_uniform_data_.NearPlane = camera_data->near_plane;
-  camera_uniform_data_.FarPlane = camera_data->far_plane;
-  shadow_camera_uniform_data_.EnableShadows = camera_data->does_shadow_pass;
+  camera_uniform_data_.position = camera_data->position;
+  camera_uniform_data_.view_matrix = camera_data->view_matrix;
+  camera_uniform_data_.projection = camera_data->projection;
+  camera_uniform_data_.inv_projection = camera_data->inv_projection;
+  camera_uniform_data_.near_plane = camera_data->near_plane;
+  camera_uniform_data_.far_plane = camera_data->far_plane;
+  shadow_camera_uniform_data_.enable_shadows = camera_data->does_shadow_pass;
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
-    shadow_camera_uniform_data_.ViewProjectionMatrix[i] =
+    shadow_camera_uniform_data_.view_projection_matrix[i] =
         camera_data->shadow_map_cascades[i].ViewProjMatrix;
-    camera_uniform_data_.CascadeSplits[i] =
+    camera_uniform_data_.cascade_splits[i] =
         camera_data->shadow_map_cascades[i].SplitDepth;
   }
   camera_uniform_data_.enable_ssao = options_.ssao_enabled;
@@ -4136,23 +4136,27 @@ void Renderer::SetCameraData(std::shared_ptr<CameraData> camera_data) {
 
   // TAA jitter
   if (options_.aa_mode == AntiAliasingMode::TAA) {
-    camera_uniform_data_.PrevViewProjection = prev_jittered_vp_;
+    camera_uniform_data_.prev_view_projection = prev_jittered_vp_;
 
     int idx = static_cast<int>((taa_frame_index_ % 16) + 1);
     float jitter_x = Halton(idx, 2) - 0.5f;
     float jitter_y = Halton(idx, 3) - 0.5f;
-    camera_uniform_data_.Projection[2][0] += jitter_x * 2.0f / viewport_size_.x;
-    camera_uniform_data_.Projection[2][1] += jitter_y * 2.0f / viewport_size_.y;
-    camera_uniform_data_.TaaJitterOffset =
+    camera_uniform_data_.projection[2][0] += jitter_x * 2.0f / viewport_size_.x;
+    camera_uniform_data_.projection[2][1] += jitter_y * 2.0f / viewport_size_.y;
+    camera_uniform_data_.taa_jitter_offset =
         glm::vec2(jitter_x / viewport_size_.x, jitter_y / viewport_size_.y);
 
     prev_jittered_vp_ =
-        camera_uniform_data_.Projection * camera_uniform_data_.ViewMatrix;
+        camera_uniform_data_.projection * camera_uniform_data_.view_matrix;
     taa_frame_index_++;
   } else {
-    camera_uniform_data_.PrevViewProjection = camera_data->prev_view_projection;
-    camera_uniform_data_.TaaJitterOffset = glm::vec2(0.0f);
+    camera_uniform_data_.prev_view_projection =
+        camera_data->prev_view_projection;
+    camera_uniform_data_.taa_jitter_offset = glm::vec2(0.0f);
   }
+
+  camera_uniform_data_.ambient =
+      glm::vec4(options_.ambient_color, options_.ambient_intensity);
 }
 
 std::shared_ptr<DescriptorSet> Renderer::GetFinalOutputDescriptor() const {
@@ -4203,7 +4207,7 @@ VkCommandPool Renderer::CreateTransientCommandPool() {
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-  poolInfo.queueFamilyIndex = queue_family_indices_.graphicsFamily.value();
+  poolInfo.queueFamilyIndex = queue_family_indices_.graphics_family.value();
   VkCommandPool pool;
   WIESEL_CHECK_VKRESULT(
       vkCreateCommandPool(logical_device_, &poolInfo, nullptr, &pool));
@@ -4330,7 +4334,7 @@ bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
   if (extensionsSupported) {
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device);
     swapChainAdequate = !swapChainSupport.formats.empty() &&
-                        !swapChainSupport.presentModes.empty();
+                        !swapChainSupport.present_modes.empty();
   }
 
   VkPhysicalDeviceFeatures supportedFeatures;
@@ -4446,14 +4450,14 @@ QueueFamilyIndices Renderer::FindQueueFamilies(VkPhysicalDevice device) {
   uint32_t i = 0;
   for (const auto& queueFamily : queueFamilies) {
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.graphicsFamily = i;
+      indices.graphics_family = i;
     }
 
     VkBool32 presentSupport = false;
     vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface_, &presentSupport);
 
     if (presentSupport) {
-      indices.presentFamily = i;
+      indices.present_family = i;
     }
 
     if (indices.IsComplete()) {
@@ -4485,9 +4489,9 @@ SwapChainSupportDetails Renderer::QuerySwapChainSupport(
                                             nullptr);
 
   if (presentModeCount != 0) {
-    details.presentModes.resize(presentModeCount);
+    details.present_modes.resize(presentModeCount);
     vkGetPhysicalDeviceSurfacePresentModesKHR(
-        device, surface_, &presentModeCount, details.presentModes.data());
+        device, surface_, &presentModeCount, details.present_modes.data());
   }
 
   return details;

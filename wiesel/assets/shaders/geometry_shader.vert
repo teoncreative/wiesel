@@ -24,6 +24,8 @@ layout(set = 1, binding = 1, std140) uniform Camera {
     int debugCascades;
     mat4 prevViewProjection;
     vec2 taaJitterOffset;
+    vec3 ambientColor;
+    float ambientIntensity;
 } cam;
 
 layout(set = 2, binding = 0, std140) uniform BoneMatrices {

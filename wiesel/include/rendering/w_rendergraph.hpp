@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #pragma once
@@ -87,17 +87,17 @@ class RenderGraphPass {
   friend class RenderGraph;
 
   std::string name_;
-  uint32_t index_ = 0;
+  uint32_t index_{0};
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Framebuffer> framebuffer_;
   std::vector<RGResourceRef> inputs_;
   std::vector<RGResourceRef> outputs_;
   RGExecuteFn execute_fn_;
-  glm::vec2 viewport_size_ = {0, 0};
-  Colorf clear_color_ = {0, 0, 0, 1};
-  bool enabled_ = true;
-  bool manages_render_pass_ =
-      true;  // If true, graph calls Begin/End on render pass
+  glm::vec2 viewport_size_{0, 0};
+  Colorf clear_color_{0, 0, 0, 1};
+  bool enabled_{true};
+  bool manages_render_pass_{
+      true};  // If true, graph calls Begin/End on render pass
 
  public:
   const std::string& GetName() const { return name_; }

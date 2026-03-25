@@ -1,18 +1,5 @@
 {
-  "editor_camera": {
-    "fov": 60.0,
-    "mode": 0,
-    "pitch": -15.0,
-    "position": [
-      0.0,
-      5.0,
-      -10.0
-    ],
-    "sensitivity": 160.0,
-    "speed": 10.0,
-    "yaw": 180.0,
-    "zoom_2d": 5.0
-  },
+  "icon": "",
   "input": {
     "contexts": {
       "gamepad": {
@@ -149,10 +136,15 @@
     "mouse_sensitivity_x": 80.0,
     "mouse_sensitivity_y": 80.0
   },
-  "last_scene": "scenes/main.wscene",
-  "name": "demo",
+  "name": "demo_3d",
   "render_options": {
     "aa_mode": 1,
+    "ambient_color": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "ambient_intensity": 0.04100000113248825,
     "bloom_enabled": false,
     "bloom_intensity": 0.800000011920929,
     "bloom_threshold": 0.5,
@@ -164,9 +156,6 @@
     "ssao_enabled": true,
     "vsync": false
   },
-  "scenes": [
-    "scenes/main.wscene"
-  ],
-  "start_scene": "scenes/main.wscene",
-  "version": 1
+  "start_scene": "",
+  "version": "1.0.0"
 }

@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "window/w_sdlwindow.hpp"
@@ -383,6 +383,20 @@ void SdlAppWindow::GetWindowFramebufferSize(WindowSize& size) {
 void SdlAppWindow::SetTitle(const std::string& title) {
   AppWindow::SetTitle(title);
   SDL_SetWindowTitle(handle_, title.c_str());
+}
+
+void SdlAppWindow::SetIcon(const uint8_t* pixels, int width, int height) {
+  AppWindow::SetIcon(pixels, width, height);
+  if (!pixels || width <= 0 || height <= 0) {
+    return;
+  }
+  SDL_Surface* surface =
+      SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32,
+                            const_cast<uint8_t*>(pixels), width * 4);
+  if (surface) {
+    SDL_SetWindowIcon(handle_, surface);
+    SDL_DestroySurface(surface);
+  }
 }
 
 void SdlAppWindow::SetCursorMode(CursorMode cursor_mode) {

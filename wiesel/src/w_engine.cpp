@@ -1266,33 +1266,33 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
     vector.x = aiMesh->mVertices[i].x;
     vector.y = aiMesh->mVertices[i].y;
     vector.z = aiMesh->mVertices[i].z;
-    vertex.Pos = vector;
+    vertex.ppos = vector;
 
     // normals
     vector.x = aiMesh->mNormals[i].x;
     vector.y = aiMesh->mNormals[i].y;
     vector.z = aiMesh->mNormals[i].z;
-    vertex.Normal = vector;
+    vertex.normal = vector;
 
     // texture coordinates
     if (aiMesh->mTextureCoords[0]) {
       glm::vec2 vec;
       vec.x = aiMesh->mTextureCoords[0][i].x;
       vec.y = aiMesh->mTextureCoords[0][i].y;
-      vertex.UV = vec;
+      vertex.uv = vec;
     } else {
-      vertex.UV = glm::vec2(0.0f, 0.0f);
+      vertex.uv = glm::vec2(0.0f, 0.0f);
     }
-    vertex.Flags = flags;
+    vertex.flags = flags;
 
     if (aiMesh->mColors[0]) {
-      vertex.Color = {aiMesh->mColors[0][i].r, aiMesh->mColors[0][i].g,
+      vertex.color = {aiMesh->mColors[0][i].r, aiMesh->mColors[0][i].g,
                       aiMesh->mColors[0][i].b};
     } else {
       // Fall back to material diffuse color when no vertex colors exist
       aiColor4D diffuse_color(1.0f, 1.0f, 1.0f, 1.0f);
       material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse_color);
-      vertex.Color = {diffuse_color.r, diffuse_color.g, diffuse_color.b};
+      vertex.color = {diffuse_color.r, diffuse_color.g, diffuse_color.b};
     }
 
     // tangent
@@ -1300,9 +1300,9 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
       vector.x = aiMesh->mTangents[i].x;
       vector.y = aiMesh->mTangents[i].y;
       vector.z = aiMesh->mTangents[i].z;
-      vertex.Tangent = vector;
+      vertex.tangent = vector;
     } else {
-      vertex.Tangent = {1.0f, 0.0f, 0.0f};
+      vertex.tangent = {1.0f, 0.0f, 0.0f};
     }
 
     // bitangent
@@ -1310,17 +1310,17 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
       vector.x = aiMesh->mBitangents[i].x;
       vector.y = aiMesh->mBitangents[i].y;
       vector.z = aiMesh->mBitangents[i].z;
-      vertex.BiTangent = vector;
+      vertex.bi_tangent = vector;
     } else {
-      vertex.BiTangent = {0.0f, 0.0f, 1.0f};
+      vertex.bi_tangent = {0.0f, 0.0f, 1.0f};
     }
 
-    float handedness = glm::dot(glm::cross(vertex.Normal, vertex.Tangent),
-                                vertex.BiTangent) < 0.0f
+    float handedness = glm::dot(glm::cross(vertex.normal, vertex.tangent),
+                                vertex.bi_tangent) < 0.0f
                            ? -1.0f
                            : 1.0f;
     if (handedness < 0.0f) {
-      vertex.Tangent *= -1.0f;
+      vertex.tangent *= -1.0f;
     }
 
     mesh->vertices.push_back(vertex);
@@ -1352,9 +1352,9 @@ std::shared_ptr<Mesh> Engine::ProcessMesh(Model& model, aiMesh* aiMesh,
         float weight = bone->mWeights[w].mWeight;
         auto& v = mesh->vertices[vertex_id];
         for (int s = 0; s < WIESEL_MAX_BONE_INFLUENCE; s++) {
-          if (v.BoneWeights[s] == 0.0f) {
-            v.BoneIndices[s] = bone_index;
-            v.BoneWeights[s] = weight;
+          if (v.bone_weights[s] == 0.0f) {
+            v.bone_indices[s] = bone_index;
+            v.bone_weights[s] = weight;
             break;
           }
         }

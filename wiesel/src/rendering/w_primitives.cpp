@@ -27,13 +27,13 @@ static Vertex3D MakeVertex(glm::vec3 pos, glm::vec3 normal, glm::vec2 uv) {
   glm::vec3 bitangent = glm::cross(normal, tangent);
 
   Vertex3D v{};
-  v.Pos = pos;
-  v.Color = {1.0f, 1.0f, 1.0f};
-  v.UV = uv;
-  v.Normal = normal;
-  v.Tangent = tangent;
-  v.BiTangent = bitangent;
-  v.Flags = 0;
+  v.ppos = pos;
+  v.color = {1.0f, 1.0f, 1.0f};
+  v.uv = uv;
+  v.normal = normal;
+  v.tangent = tangent;
+  v.bi_tangent = bitangent;
+  v.flags = 0;
   return v;
 }
 
@@ -42,6 +42,9 @@ static std::shared_ptr<Model> WrapMesh(std::vector<Vertex3D>& vertices,
                                        const std::string& name) {
   auto mesh = std::make_shared<Mesh>(vertices, indices);
   mesh->model_path = "primitive://" + name;
+  mesh->mat->SetRoughness(0.5f);
+  mesh->mat->SetMetallic(0.0f);
+  mesh->mat->SetSpecular(0.5f);
   mesh->Allocate();
 
   auto model = std::make_shared<Model>();
@@ -123,12 +126,12 @@ std::shared_ptr<Model> CreateSphere(int stacks, int slices) {
       uint32_t b = a + slices + 1;
 
       indices.push_back(a);
-      indices.push_back(b);
       indices.push_back(a + 1);
+      indices.push_back(b);
 
       indices.push_back(a + 1);
-      indices.push_back(b);
       indices.push_back(b + 1);
+      indices.push_back(b);
     }
   }
 
@@ -179,12 +182,12 @@ std::shared_ptr<Model> CreateCylinder(int segments) {
     uint32_t d = a + 3;
 
     indices.push_back(a);
-    indices.push_back(c);
     indices.push_back(b);
+    indices.push_back(c);
 
     indices.push_back(b);
-    indices.push_back(c);
     indices.push_back(d);
+    indices.push_back(c);
   }
 
   // Top cap
@@ -201,8 +204,8 @@ std::shared_ptr<Model> CreateCylinder(int segments) {
   }
   for (int i = 0; i < segments; i++) {
     indices.push_back(top_center);
-    indices.push_back(top_center + 1 + i);
     indices.push_back(top_center + 2 + i);
+    indices.push_back(top_center + 1 + i);
   }
 
   // Bottom cap
@@ -219,8 +222,8 @@ std::shared_ptr<Model> CreateCylinder(int segments) {
   }
   for (int i = 0; i < segments; i++) {
     indices.push_back(bot_center);
-    indices.push_back(bot_center + 2 + i);
     indices.push_back(bot_center + 1 + i);
+    indices.push_back(bot_center + 2 + i);
   }
 
   return WrapMesh(vertices, indices, "cylinder");
@@ -280,12 +283,12 @@ std::shared_ptr<Model> CreateCapsule(int stacks, int slices) {
       uint32_t b = a + slices + 1;
 
       indices.push_back(a);
-      indices.push_back(b);
       indices.push_back(a + 1);
+      indices.push_back(b);
 
       indices.push_back(a + 1);
-      indices.push_back(b);
       indices.push_back(b + 1);
+      indices.push_back(b);
     }
   }
 

@@ -1,4 +1,14 @@
 //
+//   Copyright 2025 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+//
 // Created by Metehan Gezer on 24/04/2025.
 //
 
@@ -120,19 +130,19 @@ void SpriteAsset::UpdateTransform(glm::mat4 transform_matrix,
     // Update only the specified frame
     auto& item = frames_[frame_index];
     SpriteUniformData data{};
-    data.ModelMatrix = transform_matrix;
-    data.Tint = tint;
-    data.FlipX = flip_x ? 1 : 0;
-    data.FlipY = flip_y ? 1 : 0;
+    data.model_matrix = transform_matrix;
+    data.tint = tint;
+    data.flip_x = flip_x ? 1 : 0;
+    data.flip_y = flip_y ? 1 : 0;
     memcpy(item.uniform_buffer->data_, &data, sizeof(SpriteUniformData));
   } else {
     // Update all frames (legacy path)
     for (auto& item : frames_) {
       SpriteUniformData data{};
-      data.ModelMatrix = transform_matrix;
-      data.Tint = tint;
-      data.FlipX = flip_x ? 1 : 0;
-      data.FlipY = flip_y ? 1 : 0;
+      data.model_matrix = transform_matrix;
+      data.tint = tint;
+      data.flip_x = flip_x ? 1 : 0;
+      data.flip_y = flip_y ? 1 : 0;
       memcpy(item.uniform_buffer->data_, &data, sizeof(SpriteUniformData));
     }
   }

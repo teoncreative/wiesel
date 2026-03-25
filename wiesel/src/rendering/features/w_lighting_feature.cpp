@@ -1,12 +1,12 @@
 
 //
-//    Copyright 2023 Metehan Gezer
+//   Copyright 2025 Metehan Gezer
 //
-//     Licensed under the Apache License, Version 2.0 (the "License");
-//     you may not use this file except in compliance with the License.
-//     You may obtain a copy of the License at
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
 //
-//         http://www.apache.org/licenses/LICENSE-2.0
+//        http://www.apache.org/licenses/LICENSE-2.0
 //
 
 #include "rendering/features/w_lighting_feature.hpp"
@@ -147,6 +147,25 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
       renderer.GetDefaultLinearSampler());
   lighting_output_desc->Bake();
   pool.SetDescriptor("lighting.output", lighting_output_desc);
+
+  // If SSAO is disabled, create a fallback descriptor with a 1x1 white texture
+  // so the lighting shader has a valid binding (it checks cam.enableSSAO in
+  // the shader and won't sample it, but Vulkan requires a valid descriptor).
+  if (!pool.HasDescriptor("ssao.blur_v.output")) {
+    auto fallback_tex = renderer.CreateAttachmentTexture(
+        {1, 1, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R8_UNORM,
+         SamplingMode::DISABLED, true});
+    pool.SetTexture("ssao.blur_v.fallback", fallback_tex);
+
+    auto fallback_desc = std::make_shared<DescriptorSet>();
+    fallback_desc->SetLayout(renderer.GetDescriptorLayout("SSAOBlur"));
+    fallback_desc->AddCombinedImageSampler(0, fallback_tex->image_views_[0],
+                                           renderer.GetDefaultNearestSampler());
+    fallback_desc->AddCombinedImageSampler(1, fallback_tex->image_views_[0],
+                                           renderer.GetDefaultNearestSampler());
+    fallback_desc->Bake();
+    pool.SetDescriptor("ssao.blur_v.output", fallback_desc);
+  }
 
   // RT shadow descriptor for reading the shadow mask in the lighting shader
   if (rt_shadow_desc_layout_ && pool.HasTexture("rt_shadow.mask")) {

@@ -20,6 +20,8 @@
 namespace Wiesel {
 
 struct RenderOptionsSerialized {
+  glm::vec3 ambient_color = {1.0f, 1.0f, 1.0f};
+  float ambient_intensity = 0.03f;
   bool ssao_enabled = true;
   bool bloom_enabled = false;
   float bloom_threshold = 0.7f;
@@ -70,6 +72,8 @@ struct InputSettings {
 // Contains everything a shipped game needs to start.
 struct GameInfo {
   std::string name = "Untitled Game";
+  std::string version = "1.0.0";
+  AssetHandle icon;
   AssetHandle start_scene;
   RenderOptionsSerialized render_options;
   InputSettings input;

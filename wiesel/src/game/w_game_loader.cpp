@@ -14,6 +14,7 @@
 
 #include "game/w_game_loader.hpp"
 
+#include <stb_image.h>
 #include <nlohmann/json.hpp>
 
 #include "asset/w_asset_manager.hpp"
@@ -239,6 +240,8 @@ void GameLoader::ScanAssets() {
 void GameLoader::ApplyRenderOptions(const GameInfo& info) {
   auto& opts = info.render_options;
   auto& settings = Engine::renderer()->options();
+  settings.ambient_color = opts.ambient_color;
+  settings.ambient_intensity = opts.ambient_intensity;
   settings.ssao_enabled = opts.ssao_enabled;
   settings.bloom_enabled = opts.bloom_enabled;
   settings.bloom_threshold = opts.bloom_threshold;
@@ -302,6 +305,31 @@ bool GameLoader::LoadAll(const GameInfo& info,
 
   ScanAssets();
   Engine::script_manager().Reload();
+  // Set window title from game name
+  if (!info.name.empty()) {
+    Engine::window()->SetTitle(info.name);
+  }
+
+  // Set window icon
+  if (info.icon.IsValid()) {
+    const auto* meta = Engine::asset_manager().GetMetadata(info.icon);
+    if (meta) {
+      auto file = Engine::vfs()->Open(meta->virtual_source_path);
+      if (file) {
+        int w = 0;
+        int h = 0;
+        int channels = 0;
+        stbi_uc* pixels =
+            stbi_load_from_memory(file.Data(), static_cast<int>(file.Size()),
+                                  &w, &h, &channels, STBI_rgb_alpha);
+        if (pixels) {
+          Engine::window()->SetIcon(pixels, w, h);
+          stbi_image_free(pixels);
+        }
+      }
+    }
+  }
+
   ApplyRenderOptions(info);
   ApplyInputSettings(info);
   LoadStartScene(info);

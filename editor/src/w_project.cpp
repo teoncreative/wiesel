@@ -143,6 +143,11 @@ std::unique_ptr<Project> Project::Load(
     if (j.contains("render_options")) {
       auto& ro = j["render_options"];
       auto& opts = project->game_info_.render_options;
+      if (ro.contains("ambient_color") && ro["ambient_color"].is_array()) {
+        opts.ambient_color = {ro["ambient_color"][0], ro["ambient_color"][1],
+                              ro["ambient_color"][2]};
+      }
+      opts.ambient_intensity = ro.value("ambient_intensity", 0.03f);
       opts.ssao_enabled = ro.value("ssao_enabled", true);
       opts.bloom_enabled = ro.value("bloom_enabled", false);
       opts.bloom_threshold = ro.value("bloom_threshold", 0.7f);
