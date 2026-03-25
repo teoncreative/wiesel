@@ -120,7 +120,7 @@ void IBLFeature::GenerateBRDFLUT() {
 
   // Transition to shader read
   renderer_->TransitionImageLayout(
-      brdf_lut_->images_[0], VK_FORMAT_R16G16_SFLOAT,
+      cmd, brdf_lut_->images_[0], VK_FORMAT_R16G16_SFLOAT,
       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
 
@@ -223,6 +223,10 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
 
   VkCommandBuffer cmd = renderer_->BeginSingleTimeCommands();
 
+  // Keep all framebuffers alive until after EndSingleTimeCommands --
+  // the command buffer references them, so they must not be destroyed early.
+  std::vector<std::shared_ptr<Framebuffer>> kept_framebuffers;
+
   // --- Generate irradiance map ---
   for (uint32_t face = 0; face < 6; face++) {
     auto face_view = renderer_->CreateImageViewMip(
@@ -231,6 +235,7 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
 
     auto fb = filter_pass->CreateFramebuffer(
         {face_view}, {kIrradianceSize, kIrradianceSize});
+    kept_framebuffers.push_back(fb);
 
     filter_pass->Begin(fb, {0, 0, 0, 1}, cmd);
     renderer_->SetViewport(glm::vec2(kIrradianceSize, kIrradianceSize), cmd);
@@ -242,9 +247,9 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
     filter_pass->End(cmd);
   }
 
-  // Transition irradiance to shader read
+  // Transition irradiance to shader read (must use same command buffer)
   renderer_->TransitionImageLayout(
-      irradiance_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
+      cmd, irradiance_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 6);
 
@@ -261,6 +266,7 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
 
       auto fb =
           filter_pass->CreateFramebuffer({face_view}, {mip_size, mip_size});
+      kept_framebuffers.push_back(fb);
 
       filter_pass->Begin(fb, {0, 0, 0, 1}, cmd);
       renderer_->SetViewport(glm::vec2(mip_size, mip_size), cmd);
@@ -274,13 +280,14 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
     }
   }
 
-  // Transition entire prefilter to shader read
+  // Transition entire prefilter to shader read (must use same command buffer)
   renderer_->TransitionImageLayout(
-      prefilter_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
+      cmd, prefilter_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, kPrefilterMipLevels, 0, 6);
 
   renderer_->EndSingleTimeCommands(cmd);
+  kept_framebuffers.clear();
 
   maps_generated_ = true;
   last_env_texture_ = env_cubemap.get();

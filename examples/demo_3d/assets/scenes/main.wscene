@@ -3,7 +3,7 @@
   "entities": [
     {
       "Model": {
-        "asset_handle": "88eb546f-3715-495b-b29f-f966b8c34bab",
+        "asset_handle": "715c5b5a-ec87-4f59-a3fd-a2ab848350b0",
         "asset_name": "Plane",
         "asset_path": "primitive://plane",
         "enable_rendering": true,
@@ -11,13 +11,13 @@
           {
             "overrides": {
               "color_tint": [
-                0.4117647111415863,
                 1.0,
-                0.8274509906768799,
-                0.843137264251709
+                1.0,
+                1.0,
+                1.0
               ],
               "metallic": 0.0,
-              "roughness": 0.5170000195503235,
+              "roughness": 0.08799999952316284,
               "specular": 0.4830000102519989
             }
           }
@@ -32,7 +32,7 @@
         ],
         "position": [
           0.0,
-          0.40086889266967773,
+          0.3380270004272461,
           0.0
         ],
         "rotation": [
@@ -41,57 +41,17 @@
           0.0
         ],
         "scale": [
-          8.899999618530273,
+          24.0,
           1.0,
-          10.300000190734863
+          26.399999618530273
         ]
       },
       "name": "Plane",
       "uuid": "deb5422e-783c-49cb-948c-ec942613d9bb"
     },
     {
-      "LightPoint": {
-        "ambient": 0.20000000298023224,
-        "color": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "constant": 1.0,
-        "density": 1.0,
-        "diffuse": 1.0,
-        "exp": 0.03200000151991844,
-        "linear": 0.09000000357627869,
-        "specular": 0.8500000238418579
-      },
-      "Transform": {
-        "pivot": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "position": [
-          -1.3350577354431152,
-          2.477283477783203,
-          0.3244148790836334
-        ],
-        "rotation": [
-          68.29579162597656,
-          -11.733990669250488,
-          -162.9498291015625
-        ],
-        "scale": [
-          0.99974125623703,
-          0.9998319745063782,
-          0.9999662637710571
-        ]
-      },
-      "name": "Entity",
-      "uuid": "dc74ce5c-1ab8-41fe-97d8-1462d383e1e9"
-    },
-    {
       "Model": {
-        "asset_handle": "59a9fa51-5a54-4149-ae68-78afd3dd1c99",
+        "asset_handle": "0876a437-6425-42a5-bb85-a9dc25f55df3",
         "asset_name": "Cylinder",
         "asset_path": "primitive://cylinder",
         "enable_rendering": true,
@@ -105,8 +65,8 @@
                 1.0
               ],
               "metallic": 0.0,
-              "roughness": 0.4749999940395355,
-              "specular": 0.4749999940395355
+              "roughness": 0.0,
+              "specular": 1.0
             }
           }
         ],
@@ -120,18 +80,18 @@
         ],
         "position": [
           0.0,
-          1.6851603984832764,
+          0.9986230731010437,
           1.9987092018127441
         ],
         "rotation": [
-          160.87815856933594,
+          160.87808227539063,
           9.120047569274902,
           -25.47188377380371
         ],
         "scale": [
           0.9999722838401794,
-          0.999995768070221,
-          0.9999839067459106
+          0.9999958872795105,
+          0.9999843239784241
         ]
       },
       "name": "Cylinder",
@@ -139,7 +99,7 @@
     },
     {
       "Model": {
-        "asset_handle": "aa519d8d-41d8-4a34-b4ed-82b18aa9007e",
+        "asset_handle": "e6454913-853a-4f08-a5b7-4c9efce35ca4",
         "asset_name": "Capsule",
         "asset_path": "primitive://capsule",
         "enable_rendering": true,
@@ -187,7 +147,7 @@
     },
     {
       "Model": {
-        "asset_handle": "192ea278-a591-4cfa-b69f-65425661b2ea",
+        "asset_handle": "cba79737-096f-46d5-8675-db059ac9189d",
         "asset_name": "Sphere",
         "asset_path": "primitive://sphere",
         "enable_rendering": true,
@@ -234,15 +194,18 @@
       "uuid": "cdc9bf67-7750-400a-b909-177776a7c1dc"
     },
     {
-      "LightDirect": {
+      "LightPoint": {
         "ambient": 0.20000000298023224,
         "color": [
           1.0,
           1.0,
           1.0
         ],
+        "constant": 1.0,
         "density": 1.0,
         "diffuse": 1.0,
+        "exp": 0.03200000151991844,
+        "linear": 0.09000000357627869,
         "specular": 0.8500000238418579
       },
       "Transform": {
@@ -252,13 +215,13 @@
           0.0
         ],
         "position": [
-          0.0,
-          0.0,
+          -1.117008924484253,
+          1.7554867267608643,
           0.0
         ],
         "rotation": [
-          45.0,
-          0.0,
+          45.000003814697266,
+          -0.0,
           0.0
         ],
         "scale": [

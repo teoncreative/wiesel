@@ -859,8 +859,8 @@ void EditorLayer::OnBeginPresent() {
   RenderCreateSkyboxPopup();
   RenderCreateSpritePopup();
   RenderSliceSpritesPopup();
-  RenderCreateSpriteSheetPopup();
   RenderCreateSpriteAnimPopup();
+  RenderCreateSpriteControllerPopup();
 
   bool& scene_open = panel_scene_hierarchy_;
   if (scene_open) {
@@ -1492,10 +1492,10 @@ void EditorLayer::OnBeginPresent() {
               return {0.45f, 0.55f, 0.72f, 1.0f};
             case AssetType::Audio:
               return {0.72f, 0.45f, 0.60f, 1.0f};
-            case AssetType::SpriteSheet:
-              return {0.20f, 0.65f, 0.55f, 1.0f};
             case AssetType::SpriteAnim:
               return {0.30f, 0.70f, 0.45f, 1.0f};
+            case AssetType::SpriteController:
+              return {0.45f, 0.55f, 0.75f, 1.0f};
             default:
               return {0.40f, 0.40f, 0.40f, 1.0f};
           }
@@ -1525,10 +1525,10 @@ void EditorLayer::OnBeginPresent() {
               return "PFB";
             case AssetType::Audio:
               return "SND";
-            case AssetType::SpriteSheet:
-              return "SPR";
             case AssetType::SpriteAnim:
               return "ANM";
+            case AssetType::SpriteController:
+              return "CTR";
             default:
               return "?";
           }
@@ -1835,12 +1835,12 @@ void EditorLayer::OnBeginPresent() {
               show_create_sprite_ = true;
               ImGui::CloseCurrentPopup();
             }
-            if (ImGui::MenuItem("Sprite Sheet")) {
-              show_create_spritesheet_ = true;
-              ImGui::CloseCurrentPopup();
-            }
             if (ImGui::MenuItem("Sprite Animation")) {
               show_create_spriteanim_ = true;
+              ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("Sprite Controller")) {
+              show_create_spritecontroller_ = true;
               ImGui::CloseCurrentPopup();
             }
             ImGui::EndMenu();
@@ -2865,7 +2865,7 @@ void EditorLayer::OnPostPresent() {
       float best_depth = std::numeric_limits<float>::max();
 
       for (auto entity :
-           scene()->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
+           scene()->GetAllEntitiesWith<SpriteRendererComponent, TransformComponent>()) {
         auto& tc = scene()->GetComponent<TransformComponent>(entity);
         glm::vec3 world_pos = tc.GetWorldPosition();
         glm::vec4 clip = vp * glm::vec4(world_pos, 1.0f);
@@ -3399,208 +3399,65 @@ void EditorLayer::RenderSliceSpritesPopup() {
   }
 }
 
-void EditorLayer::RenderCreateSpriteSheetPopup() {
-  if (show_create_spritesheet_) {
-    ImGui::OpenPopup("Create Sprite Sheet");
-    show_create_spritesheet_ = false;
-  }
-
-  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-  bool popup_open = true;
-  if (ImGui::BeginPopupModal("Create Sprite Sheet", &popup_open,
-                             ImGuiWindowFlags_AlwaysAutoResize)) {
-    static char name_buf[128] = "spritesheet";
-    static int sheet_mode = 0;  // 0 = single atlas, 1 = multiple images
-    static AssetHandle texture_handle;
-    static int cell_w = 64;
-    static int cell_h = 64;
-    static int frame_count = 0;
-    static std::vector<AssetHandle> multi_textures;
-    static float multi_duration = 0.1f;
-
-    ImGui::InputText("Name", name_buf, sizeof(name_buf));
-
-    const char* mode_names[] = {"Single Atlas", "Multiple Images"};
-    ImGui::Combo("Mode", &sheet_mode, mode_names, 2);
-
-    if (sheet_mode == 0) {
-      AssetCombo("Texture", AssetType::Texture, texture_handle, false);
-      ImGui::InputInt("Cell Width", &cell_w);
-      ImGui::InputInt("Cell Height", &cell_h);
-      ImGui::InputInt("Frame Count (0 = auto)", &frame_count);
-
-      if (cell_w < 1) {
-        cell_w = 1;
-      }
-      if (cell_h < 1) {
-        cell_h = 1;
-      }
-      if (frame_count < 0) {
-        frame_count = 0;
-      }
-    } else {
-      ImGui::InputFloat("Frame Duration", &multi_duration, 0.01f);
-      ImGui::Text("Frames: %d", static_cast<int>(multi_textures.size()));
-
-      int to_remove = -1;
-      for (int i = 0; i < static_cast<int>(multi_textures.size()); i++) {
-        ImGui::PushID(i);
-        const auto* meta =
-            Engine::asset_manager().GetMetadata(multi_textures[i]);
-        std::string label = meta ? meta->name : "(Unknown)";
-        ImGui::Text("%d: %s", i, label.c_str());
-        ImGui::SameLine();
-        if (ImGui::SmallButton("X")) {
-          to_remove = i;
-        }
-        ImGui::PopID();
-      }
-      if (to_remove >= 0) {
-        multi_textures.erase(multi_textures.begin() + to_remove);
-      }
-
-      // Add texture button
-      static AssetHandle add_tex;
-      AssetCombo("Add Frame", AssetType::Texture, add_tex);
-      if (add_tex.IsValid()) {
-        multi_textures.push_back(add_tex);
-        add_tex = {};
-      }
-    }
-
-    ImGui::Separator();
-
-    bool can_create = name_buf[0] != '\0';
-    if (sheet_mode == 0) {
-      can_create = can_create && texture_handle.IsValid();
-    } else {
-      can_create = can_create && !multi_textures.empty();
-    }
-
-    if (ImGui::Button("Create") && can_create) {
-      nlohmann::json j;
-      j["asset_handle"] = AssetHandle::Generate().ToString();
-
-      if (sheet_mode == 0) {
-        const auto* meta = Engine::asset_manager().GetMetadata(texture_handle);
-        j["texture"] = meta ? meta->virtual_source_path : "";
-        j["cell_size"] = {cell_w, cell_h};
-        j["frame_count"] = frame_count;
-      } else {
-        nlohmann::json tex_arr = nlohmann::json::array();
-        for (auto& h : multi_textures) {
-          const auto* meta = Engine::asset_manager().GetMetadata(h);
-          if (meta) {
-            tex_arr.push_back(meta->virtual_source_path);
-          }
-        }
-        j["textures"] = tex_arr;
-        j["frame_duration"] = multi_duration;
-      }
-
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
-      if (physical_app.has_value()) {
-        namespace fs = std::filesystem;
-        fs::path base = fs::absolute(*physical_app);
-        if (!browser_current_dir_.empty()) {
-          base = base / browser_current_dir_;
-        }
-        fs::path file_path = base / (std::string(name_buf) + ".wspritesheet");
-        {
-          std::ofstream out(file_path);
-          if (out.is_open()) {
-            out << j.dump(2);
-          }
-        }
-        ScanProjectAssets();
-      }
-
-      name_buf[0] = '\0';
-      texture_handle = {};
-      multi_textures.clear();
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-      name_buf[0] = '\0';
-      texture_handle = {};
-      multi_textures.clear();
-      ImGui::CloseCurrentPopup();
-    }
-
-    ImGui::EndPopup();
-  }
+void EditorLayer::RenderCreateSpriteAnimPopup() {
+  // TODO: rewrite without SpriteSheet references
 }
 
-void EditorLayer::RenderCreateSpriteAnimPopup() {
-  if (show_create_spriteanim_) {
-    ImGui::OpenPopup("Create Sprite Animation");
-    show_create_spriteanim_ = false;
+void EditorLayer::RenderCreateSpriteControllerPopup() {
+  if (show_create_spritecontroller_) {
+    ImGui::OpenPopup("Create Sprite Controller");
+    show_create_spritecontroller_ = false;
   }
 
   ImVec2 center = ImGui::GetMainViewport()->GetCenter();
   ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_Appearing);
+  ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiCond_Appearing);
 
   bool popup_open = true;
-  if (ImGui::BeginPopupModal("Create Sprite Animation", &popup_open,
-                             ImGuiWindowFlags_NoScrollbar)) {
-    static char name_buf[128] = "animation";
-    static AssetHandle sheet_handle;
-    static std::string default_state;
+  if (ImGui::BeginPopupModal("Create Sprite Controller", &popup_open,
+                             ImGuiWindowFlags_None)) {
+    static char name_buf[128] = "controller";
+    static std::string default_state_name;
 
-    struct ClipEntry {
+    struct StateEntry {
       char name[64] = "";
-      int start = 0;
-      int count = 1;
-      float duration = 0.1f;
-      bool loop = true;
+      AssetHandle anim_handle;
+      float speed = 1.0f;
     };
 
-    static std::vector<ClipEntry> clip_entries;
+    static std::vector<StateEntry> state_entries;
 
     ImGui::InputText("Name", name_buf, sizeof(name_buf));
-    AssetCombo("Sprite Sheet", AssetType::SpriteSheet, sheet_handle, false);
 
-    ImGui::SeparatorText("Clips");
+    ImGui::SeparatorText("States");
 
-    if (ImGui::BeginTable("##clips", 6,
+    if (ImGui::BeginTable("##states", 4,
                           ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                               ImGuiTableFlags_Resizable)) {
-      ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 100);
-      ImGui::TableSetupColumn("Start");
-      ImGui::TableSetupColumn("Count");
-      ImGui::TableSetupColumn("Duration");
-      ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 40);
+      ImGui::TableSetupColumn("State Name", ImGuiTableColumnFlags_WidthFixed,
+                              120);
+      ImGui::TableSetupColumn("Animation");
+      ImGui::TableSetupColumn("Speed", ImGuiTableColumnFlags_WidthFixed, 60);
       ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
       ImGui::TableHeadersRow();
 
       int to_remove = -1;
-      for (int i = 0; i < static_cast<int>(clip_entries.size()); i++) {
+      for (int i = 0; i < static_cast<int>(state_entries.size()); i++) {
         ImGui::PushID(i);
-        auto& clip = clip_entries[i];
+        auto& state = state_entries[i];
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##name", clip.name, sizeof(clip.name));
+        ImGui::InputText("##name", state.name, sizeof(state.name));
 
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputInt("##start", &clip.start);
+        AssetCombo("##anim", AssetType::SpriteAnim, state.anim_handle, false);
 
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        ImGui::InputInt("##count", &clip.count);
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputFloat("##dur", &clip.duration, 0.01f);
-
-        ImGui::TableNextColumn();
-        ImGui::Checkbox("##loop", &clip.loop);
+        ImGui::InputFloat("##speed", &state.speed, 0.1f);
 
         ImGui::TableNextColumn();
         if (ImGui::SmallButton("X")) {
@@ -3612,37 +3469,52 @@ void EditorLayer::RenderCreateSpriteAnimPopup() {
       ImGui::EndTable();
 
       if (to_remove >= 0) {
-        clip_entries.erase(clip_entries.begin() + to_remove);
+        state_entries.erase(state_entries.begin() + to_remove);
       }
     }
 
-    if (ImGui::Button("+ Add Clip")) {
-      clip_entries.push_back({});
+    if (ImGui::Button("+ Add State")) {
+      state_entries.push_back({});
+    }
+
+    // Default state selector
+    if (ImGui::BeginCombo("Default State",
+                          default_state_name.empty()
+                              ? "(None)"
+                              : default_state_name.c_str())) {
+      for (auto& s : state_entries) {
+        if (s.name[0] != '\0') {
+          if (ImGui::Selectable(s.name, default_state_name == s.name)) {
+            default_state_name = s.name;
+          }
+        }
+      }
+      ImGui::EndCombo();
     }
 
     ImGui::Separator();
 
-    bool can_create =
-        name_buf[0] != '\0' && sheet_handle.IsValid() && !clip_entries.empty();
+    bool can_create = name_buf[0] != '\0' && !state_entries.empty();
     if (ImGui::Button("Create") && can_create) {
       nlohmann::json j;
       j["asset_handle"] = AssetHandle::Generate().ToString();
-      j["sprite_sheet"] = sheet_handle.ToString();
+      j["default_state"] = default_state_name;
 
-      nlohmann::json clips_json = nlohmann::json::array();
-      for (auto& clip : clip_entries) {
-        if (clip.name[0] == '\0') {
+      nlohmann::json states_json = nlohmann::json::array();
+      for (auto& s : state_entries) {
+        if (s.name[0] == '\0') {
           continue;
         }
-        nlohmann::json cj;
-        cj["name"] = clip.name;
-        cj["start"] = clip.start;
-        cj["count"] = clip.count;
-        cj["duration"] = clip.duration;
-        cj["loop"] = clip.loop;
-        clips_json.push_back(cj);
+        nlohmann::json sj;
+        sj["name"] = s.name;
+        if (s.anim_handle.IsValid()) {
+          sj["animation"] = s.anim_handle.ToString();
+        }
+        sj["speed"] = s.speed;
+        states_json.push_back(sj);
       }
-      j["clips"] = clips_json;
+      j["states"] = states_json;
+      j["transitions"] = nlohmann::json::array();
 
       auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
       if (physical_app.has_value()) {
@@ -3651,7 +3523,8 @@ void EditorLayer::RenderCreateSpriteAnimPopup() {
         if (!browser_current_dir_.empty()) {
           base = base / browser_current_dir_;
         }
-        fs::path file_path = base / (std::string(name_buf) + ".wspriteanim");
+        fs::path file_path =
+            base / (std::string(name_buf) + ".wspritecontroller");
         {
           std::ofstream out(file_path);
           if (out.is_open()) {
@@ -3662,15 +3535,15 @@ void EditorLayer::RenderCreateSpriteAnimPopup() {
       }
 
       name_buf[0] = '\0';
-      sheet_handle = {};
-      clip_entries.clear();
+      default_state_name.clear();
+      state_entries.clear();
       ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
     if (ImGui::Button("Cancel")) {
       name_buf[0] = '\0';
-      sheet_handle = {};
-      clip_entries.clear();
+      default_state_name.clear();
+      state_entries.clear();
       ImGui::CloseCurrentPopup();
     }
 

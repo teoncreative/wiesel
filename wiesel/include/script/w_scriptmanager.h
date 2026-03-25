@@ -392,7 +392,8 @@ class ScriptManager {
   MonoClass* text_component_class_ = nullptr;
   MonoClass* animator_component_class_ = nullptr;
   MonoClass* audio_source_class_ = nullptr;
-  MonoClass* sprite_class_ = nullptr;
+  MonoClass* sprite_renderer_class_ = nullptr;
+  MonoClass* sprite_animator_class_ = nullptr;
   MonoClass* camera_class_ = nullptr;
   MonoClass* light_direct_class_ = nullptr;
   MonoClass* light_point_class_ = nullptr;

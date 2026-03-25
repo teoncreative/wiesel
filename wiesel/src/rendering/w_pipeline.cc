@@ -11,6 +11,8 @@
 
 #include "rendering/w_pipeline.h"
 
+#include <algorithm>
+
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -117,7 +119,10 @@ void Pipeline::Bake() {
   dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
   dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
   for (const auto& item : dynamic_states_) {
-    dynamicStates.push_back(item);
+    if (std::find(dynamicStates.begin(), dynamicStates.end(), item) ==
+        dynamicStates.end()) {
+      dynamicStates.push_back(item);
+    }
   }
 
   VkPipelineDynamicStateCreateInfo dynamicState{};

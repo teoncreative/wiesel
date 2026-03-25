@@ -27,7 +27,9 @@
 #include "game/w_game_info.h"
 #include "input/w_input.h"
 #include "rendering/w_primitives.h"
+#include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
+#include "rendering/w_sprite_loader.h"
 #include "scene/w_component_serializer.h"
 #include "scene/w_entity.h"
 #include "scene/w_lights.h"
@@ -398,8 +400,51 @@ void Engine::InitEngine(const EngineProperties& props) {
 
             asset_manager_->Store(handle, data);
             asset_manager_->AddDependency(handle, data->texture_handle);
+
+            // Build GPU resources for rendering
+            auto tex = asset_manager_->Get<Texture>(data->texture_handle);
+            if (tex && tex->is_allocated_ && tex->image_view_) {
+              auto gpu = std::make_shared<SpriteGpuData>();
+              gpu->view = tex->image_view_;
+              gpu->sampler =
+                  tex->sampler_ ? tex->sampler_
+                                : Engine::renderer()->GetDefaultLinearSampler();
+              gpu->pixel_size = {data->rect.z, data->rect.w};
+
+              float tw = static_cast<float>(tex->width_);
+              float th = static_cast<float>(tex->height_);
+              glm::vec4 uv = data->GetUVRect(tw, th);
+
+              float u0 = uv.x;
+              float v0 = uv.y;
+              float u1 = uv.x + uv.z;
+              float v1 = uv.y + uv.w;
+
+              std::vector<VertexSprite> uvs = {
+                  {{u0, v0}}, {{u1, v0}}, {{u1, v1}},
+                  {{u0, v0}}, {{u1, v1}}, {{u0, v1}},
+              };
+              gpu->vertex_buffer = Engine::renderer()->CreateVertexBuffer(uvs);
+
+              asset_manager_->Store(handle, gpu);
+            }
+
             return true;
           },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
+  // SpriteAnim (.wspriteanim) loader
+  asset_manager_->RegisterLoader(
+      AssetType::SpriteAnim,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) { return LoadSpriteAnimAsset(handle); },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
+  // SpriteController (.wspritecontroller) loader
+  asset_manager_->RegisterLoader(
+      AssetType::SpriteController,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) { return LoadSpriteControllerAsset(handle); },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
   InitializeVfs();

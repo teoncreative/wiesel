@@ -39,6 +39,11 @@ bool CameraResourcePool::HasTexture(const std::string& name) const {
 
 void CameraResourcePool::SetFramebuffer(const std::string& name,
                                         std::shared_ptr<Framebuffer> fb) {
+  auto it = framebuffers_.find(name);
+  if (it != framebuffers_.end() && it->second) {
+    std::shared_ptr<Framebuffer> old = std::move(it->second);
+    Engine::renderer()->GetDeletionQueue().Push([old]() {});
+  }
   framebuffers_[name] = std::move(fb);
 }
 
@@ -120,7 +125,19 @@ bool CameraResourcePool::HasBuffer(const std::string& name) const {
 
 void CameraResourcePool::Clear() {
   textures_.clear();
+  for (auto& [key, fb] : framebuffers_) {
+    if (fb) {
+      std::shared_ptr<Framebuffer> old = std::move(fb);
+      Engine::renderer()->GetDeletionQueue().Push([old]() {});
+    }
+  }
   framebuffers_.clear();
+  for (auto& [key, ds] : descriptors_) {
+    if (ds) {
+      std::shared_ptr<DescriptorSet> old = std::move(ds);
+      Engine::renderer()->GetDeletionQueue().Push([old]() {});
+    }
+  }
   descriptors_.clear();
   image_views_.clear();
   buffers_.clear();

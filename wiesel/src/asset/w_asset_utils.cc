@@ -45,11 +45,11 @@ AssetType ExtToAssetType(const std::string& ext) {
   if (ext == ".wsprite") {
     return AssetType::Sprite;
   }
-  if (ext == ".wspritesheet") {
-    return AssetType::SpriteSheet;
-  }
   if (ext == ".wspriteanim") {
     return AssetType::SpriteAnim;
+  }
+  if (ext == ".wspritecontroller") {
+    return AssetType::SpriteController;
   }
   if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") {
     return AssetType::Audio;
@@ -60,8 +60,8 @@ AssetType ExtToAssetType(const std::string& ext) {
 bool IsJsonAssetType(AssetType type) {
   return type == AssetType::Scene || type == AssetType::Prefab ||
          type == AssetType::Material || type == AssetType::Skybox ||
-         type == AssetType::Sprite || type == AssetType::SpriteSheet ||
-         type == AssetType::SpriteAnim;
+         type == AssetType::Sprite || type == AssetType::SpriteAnim ||
+         type == AssetType::SpriteController;
 }
 
 }  // namespace Wiesel

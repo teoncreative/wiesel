@@ -231,7 +231,7 @@ class Scene {
   void UpdateCameras();
   void UpdateMatrices(entt::entity entity);
   void MarkChildrenDirty(entt::entity entity);
-  void UpdateSpriteAnimations(float_t delta_time);
+  void UpdateSpriteAnimators(float_t delta_time);
   void UpdateSkeletalAnimations(float_t delta_time);
 
  private:

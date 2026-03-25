@@ -17,7 +17,7 @@
 namespace Wiesel {
 
 // Interface for type-specific asset loaders.
-// Each asset type (Model, Texture, Audio, SpriteSheet) registers a loader.
+// Each asset type (Model, Texture, Audio, etc.) registers a loader.
 class IAssetLoader {
  public:
   virtual ~IAssetLoader() = default;

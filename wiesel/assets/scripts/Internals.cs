@@ -519,59 +519,61 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Camera_SetBgColorA(ulong scenePtr, ulong entityId, float v);
 
-        // SpriteComponent
+        // SpriteRendererComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_Play(ulong scenePtr, ulong entityId, string clipName, bool restart);
+        public static extern bool SpriteRenderer_GetFlipX(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_Stop(ulong scenePtr, ulong entityId);
+        public static extern void SpriteRenderer_SetFlipX(ulong scenePtr, ulong entityId, bool value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool Sprite_GetIsPlaying(ulong scenePtr, ulong entityId);
+        public static extern bool SpriteRenderer_GetFlipY(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern string Sprite_GetCurrentClip(ulong scenePtr, ulong entityId);
+        public static extern void SpriteRenderer_SetFlipY(ulong scenePtr, ulong entityId, bool value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern int Sprite_GetCurrentFrame(ulong scenePtr, ulong entityId);
+        public static extern float SpriteRenderer_GetTintR(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetBool(ulong scenePtr, ulong entityId, string name, bool value);
+        public static extern float SpriteRenderer_GetTintG(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetInt(ulong scenePtr, ulong entityId, string name, int value);
+        public static extern float SpriteRenderer_GetTintB(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetFloat(ulong scenePtr, ulong entityId, string name, float value);
+        public static extern float SpriteRenderer_GetTintA(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetTrigger(ulong scenePtr, ulong entityId, string name);
+        public static extern void SpriteRenderer_SetTintR(ulong scenePtr, ulong entityId, float value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool Sprite_GetBool(ulong scenePtr, ulong entityId, string name);
+        public static extern void SpriteRenderer_SetTintG(ulong scenePtr, ulong entityId, float value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern int Sprite_GetInt(ulong scenePtr, ulong entityId, string name);
+        public static extern void SpriteRenderer_SetTintB(ulong scenePtr, ulong entityId, float value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Sprite_GetFloat(ulong scenePtr, ulong entityId, string name);
+        public static extern void SpriteRenderer_SetTintA(ulong scenePtr, ulong entityId, float value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool Sprite_GetFlipX(ulong scenePtr, ulong entityId);
+        public static extern int SpriteRenderer_GetSortLayer(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetFlipX(ulong scenePtr, ulong entityId, bool value);
+        public static extern void SpriteRenderer_SetSortLayer(ulong scenePtr, ulong entityId, int value);
+
+        // SpriteAnimatorComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool Sprite_GetFlipY(ulong scenePtr, ulong entityId);
+        public static extern void SpriteAnimator_Play(ulong scenePtr, ulong entityId, string stateName, bool restart);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetFlipY(ulong scenePtr, ulong entityId, bool value);
+        public static extern void SpriteAnimator_Stop(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Sprite_GetTintR(ulong scenePtr, ulong entityId);
+        public static extern bool SpriteAnimator_GetIsPlaying(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Sprite_GetTintG(ulong scenePtr, ulong entityId);
+        public static extern string SpriteAnimator_GetCurrentState(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Sprite_GetTintB(ulong scenePtr, ulong entityId);
+        public static extern int SpriteAnimator_GetCurrentFrame(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Sprite_GetTintA(ulong scenePtr, ulong entityId);
+        public static extern void SpriteAnimator_SetBool(ulong scenePtr, ulong entityId, string name, bool value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetTintR(ulong scenePtr, ulong entityId, float v);
+        public static extern void SpriteAnimator_SetInt(ulong scenePtr, ulong entityId, string name, int value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetTintG(ulong scenePtr, ulong entityId, float v);
+        public static extern void SpriteAnimator_SetFloat(ulong scenePtr, ulong entityId, string name, float value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetTintB(ulong scenePtr, ulong entityId, float v);
+        public static extern void SpriteAnimator_SetTrigger(ulong scenePtr, ulong entityId, string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetTintA(ulong scenePtr, ulong entityId, float v);
+        public static extern bool SpriteAnimator_GetBool(ulong scenePtr, ulong entityId, string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern int Sprite_GetSortLayer(ulong scenePtr, ulong entityId);
+        public static extern int SpriteAnimator_GetInt(ulong scenePtr, ulong entityId, string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Sprite_SetSortLayer(ulong scenePtr, ulong entityId, int value);
+        public static extern float SpriteAnimator_GetFloat(ulong scenePtr, ulong entityId, string name);
 
         // AudioSourceComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

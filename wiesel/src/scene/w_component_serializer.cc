@@ -24,6 +24,7 @@
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_sprite.h"
+#include "rendering/w_sprite_asset.h"
 #include "rendering/w_sprite_loader.h"
 #include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
@@ -1337,107 +1338,44 @@ void InitializeComponentSerializers() {
   });
 
   // -------------------------------------------------------------------
-  // 23. Sprite
+  // 23. SpriteRenderer
   // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
-      "Sprite",
+      "SpriteRenderer",
       // Has
       [](Entity& entity) -> bool {
-        return entity.HasComponent<SpriteComponent>();
+        return entity.HasComponent<SpriteRendererComponent>();
       },
       // Serialize
       [](Entity& entity) -> json {
-        auto& s = entity.GetComponent<SpriteComponent>();
+        auto& s = entity.GetComponent<SpriteRendererComponent>();
         json sj;
-
-        if (s.asset_handle_.IsValid()) {
-          sj["asset_handle"] = s.asset_handle_.ToString();
+        if (s.sprite_handle_.IsValid()) {
+          sj["sprite_handle"] = s.sprite_handle_.ToString();
         }
         sj["flip_x"] = s.flip_x_;
         sj["flip_y"] = s.flip_y_;
         sj["tint"] = {s.tint_.r, s.tint_.g, s.tint_.b, s.tint_.a};
         sj["sort_layer"] = s.sort_layer_;
-        sj["playing"] = s.playing_;
-
-        // Clips
-        json clips_arr = json::array();
-        for (auto& clip : s.clips) {
-          json cj;
-          cj["name"] = clip.name;
-          cj["start"] = clip.start_frame;
-          cj["count"] = clip.frame_count;
-          cj["duration"] = clip.frame_duration;
-          cj["loop"] = clip.loop;
-          clips_arr.push_back(cj);
-        }
-        sj["clips"] = clips_arr;
-
-        // State machine controller
-        if (!s.state_machine.controller.IsEmpty()) {
-          json ctrl;
-          ctrl["default_state"] = s.state_machine.controller.default_state;
-
-          json states_arr = json::array();
-          for (auto& state : s.state_machine.controller.states) {
-            json st;
-            st["name"] = state.name;
-            st["clip_name"] = state.clip_name;
-            st["speed"] = state.speed;
-            st["looping"] = state.looping;
-            states_arr.push_back(st);
-          }
-          ctrl["states"] = states_arr;
-
-          json trans_arr = json::array();
-          for (auto& trans : s.state_machine.controller.transitions) {
-            json tj;
-            tj["from"] = trans.from_state;
-            tj["to"] = trans.to_state;
-            tj["blend"] = trans.blend_duration;
-
-            json conds_arr = json::array();
-            for (auto& cond : trans.conditions) {
-              json condj;
-              condj["param"] = cond.param_name;
-              condj["op"] = static_cast<int>(cond.op);
-              condj["type"] = static_cast<int>(cond.param_type);
-              if (cond.param_type == AnimParamType::Float) {
-                condj["value"] = cond.value.f;
-              } else if (cond.param_type == AnimParamType::Int) {
-                condj["value"] = cond.value.i;
-              } else {
-                condj["value"] = cond.value.b;
-              }
-              conds_arr.push_back(condj);
-            }
-            tj["conditions"] = conds_arr;
-            trans_arr.push_back(tj);
-          }
-          ctrl["transitions"] = trans_arr;
-
-          sj["controller"] = ctrl;
-        }
-
+        sj["pivot"] = {s.pivot_.x, s.pivot_.y};
         return sj;
       },
       // Deserialize
       [](Entity& entity, const json& sj, Scene* scene) {
-        auto& s = entity.AddComponent<SpriteComponent>();
+        auto& s = entity.AddComponent<SpriteRendererComponent>();
 
-        // Load the sprite asset
-        std::string handle_str = sj.value("asset_handle", "");
+        std::string handle_str = sj.value("sprite_handle", "");
         if (!handle_str.empty()) {
-          s.asset_handle_ = AssetHandle::FromString(handle_str);
+          s.sprite_handle_ = AssetHandle::FromString(handle_str);
           if (scene) {
-            scene->RequestAsset(s.asset_handle_);
+            scene->RequestAsset(s.sprite_handle_);
           }
-          const auto* meta =
-              Engine::asset_manager().GetMetadata(s.asset_handle_);
-          if (meta) {
-            if (meta->type == AssetType::SpriteAnim) {
-              LoadSpriteAnim(s.asset_handle_, s);
-            } else if (meta->type == AssetType::SpriteSheet) {
-              s.asset_ = LoadSpriteSheet(s.asset_handle_);
+          // Ensure the .wsprite (and its backing texture) is loaded
+          if (s.sprite_handle_.IsValid()) {
+            auto gpu =
+                Engine::asset_manager().Get<SpriteGpuData>(s.sprite_handle_);
+            if (!gpu) {
+              Engine::asset_manager().LoadSync(s.sprite_handle_);
             }
           }
         }
@@ -1450,88 +1388,53 @@ void InitializeComponentSerializers() {
                      sj["tint"][3]};
         }
         s.sort_layer_ = sj.value("sort_layer", 0);
+        if (sj.contains("pivot") && sj["pivot"].is_array() &&
+            sj["pivot"].size() >= 2) {
+          s.pivot_ = {sj["pivot"][0], sj["pivot"][1]};
+        }
+      },
+  });
+
+  // -------------------------------------------------------------------
+  // 25. SpriteAnimator
+  // -------------------------------------------------------------------
+  ComponentSerializerRegistry::Register({
+      "SpriteAnimator",
+      // Has
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<SpriteAnimatorComponent>();
+      },
+      // Serialize
+      [](Entity& entity) -> json {
+        auto& s = entity.GetComponent<SpriteAnimatorComponent>();
+        json sj;
+        if (s.controller_handle_.IsValid()) {
+          sj["controller_handle"] = s.controller_handle_.ToString();
+        }
+        sj["playing"] = s.playing_;
+        return sj;
+      },
+      // Deserialize
+      [](Entity& entity, const json& sj, Scene* scene) {
+        auto& s = entity.AddComponent<SpriteAnimatorComponent>();
+
+        std::string handle_str = sj.value("controller_handle", "");
+        if (!handle_str.empty()) {
+          s.controller_handle_ = AssetHandle::FromString(handle_str);
+          if (scene) {
+            scene->RequestAsset(s.controller_handle_);
+          }
+          // Ensure the controller is loaded
+          if (s.controller_handle_.IsValid()) {
+            auto ctrl = Engine::asset_manager().Get<SpriteControllerAssetData>(
+                s.controller_handle_);
+            if (!ctrl) {
+              Engine::asset_manager().LoadSync(s.controller_handle_);
+            }
+          }
+        }
+
         s.playing_ = sj.value("playing", true);
-
-        // Clips
-        if (sj.contains("clips") && sj["clips"].is_array()) {
-          for (auto& cj : sj["clips"]) {
-            SpriteClip clip;
-            clip.name = cj.value("name", "");
-            clip.start_frame = cj.value("start", 0);
-            clip.frame_count = cj.value("count", 1);
-            clip.frame_duration = cj.value("duration", 0.1f);
-            clip.loop = cj.value("loop", true);
-            if (!clip.name.empty()) {
-              s.clips.push_back(std::move(clip));
-            }
-          }
-        }
-
-        // State machine controller
-        if (sj.contains("controller") && sj["controller"].is_object()) {
-          auto& ctrl_json = sj["controller"];
-          auto& ctrl = s.state_machine.controller;
-
-          ctrl.default_state = ctrl_json.value("default_state", "");
-
-          if (ctrl_json.contains("states") && ctrl_json["states"].is_array()) {
-            for (auto& st : ctrl_json["states"]) {
-              AnimationState state;
-              state.name = st.value("name", "");
-              state.clip_name = st.value("clip_name", "");
-              state.speed = st.value("speed", 1.0f);
-              state.looping = st.value("looping", true);
-              if (!state.name.empty()) {
-                ctrl.states.push_back(std::move(state));
-              }
-            }
-          }
-
-          if (ctrl_json.contains("transitions") &&
-              ctrl_json["transitions"].is_array()) {
-            for (auto& tj : ctrl_json["transitions"]) {
-              AnimationTransition trans;
-              trans.from_state = tj.value("from", "");
-              trans.to_state = tj.value("to", "");
-              trans.blend_duration = tj.value("blend", 0.0f);
-
-              if (tj.contains("conditions") && tj["conditions"].is_array()) {
-                for (auto& condj : tj["conditions"]) {
-                  TransitionCondition cond;
-                  cond.param_name = condj.value("param", "");
-                  cond.op = static_cast<ConditionOp>(condj.value("op", 0));
-                  cond.param_type =
-                      static_cast<AnimParamType>(condj.value("type", 0));
-
-                  if (cond.param_type == AnimParamType::Float) {
-                    cond.value.f = condj.value("value", 0.0f);
-                  } else if (cond.param_type == AnimParamType::Int) {
-                    cond.value.i = condj.value("value", 0);
-                  } else {
-                    cond.value.b = condj.value("value", false);
-                  }
-
-                  if (!cond.param_name.empty()) {
-                    trans.conditions.push_back(std::move(cond));
-                  }
-                }
-              }
-
-              if (!trans.to_state.empty()) {
-                ctrl.transitions.push_back(std::move(trans));
-              }
-            }
-          }
-        }
-
-        // Auto-play first clip if available
-        if (!s.clips.empty() && s.playing_) {
-          if (!s.state_machine.controller.IsEmpty()) {
-            s.state_machine.EnsureDefaultState();
-          } else {
-            s.Play(s.clips[0].name);
-          }
-        }
       },
   });
 }

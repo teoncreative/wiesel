@@ -1859,45 +1859,18 @@ void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
   }
 }
 
-void RenderComponentImGui(SpriteComponent& component, Entity entity) {
+void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
   static bool visible = true;
-  if (!ImGui::ClosableTreeNode("Sprite", &visible)) {
+  if (!ImGui::ClosableTreeNode("Sprite Renderer", &visible)) {
     if (!visible) {
-      entity.RemoveComponent<SpriteComponent>();
+      entity.RemoveComponent<SpriteRendererComponent>();
       visible = true;
     }
     return;
   }
 
-  // Animation asset (drag-drop)
-  std::string display = "(None)";
-  if (component.asset_handle_.IsValid()) {
-    const auto* meta =
-        Engine::asset_manager().GetMetadata(component.asset_handle_);
-    if (meta) {
-      display = meta->name;
-    }
-  }
-  ImGui::InputText(PrefixLabel("Animation").c_str(), &display,
-                   ImGuiInputTextFlags_ReadOnly);
-  if (ImGui::BeginDragDropTarget()) {
-    AssetHandle dropped = AcceptAssetDragDrop(AssetType::SpriteAnim);
-    if (dropped.IsValid()) {
-      LoadSpriteAnim(dropped, component);
-      component.asset_handle_ = dropped;
-    } else {
-      dropped = AcceptAssetDragDrop(AssetType::SpriteSheet);
-      if (dropped.IsValid()) {
-        auto sheet = LoadSpriteSheet(dropped);
-        if (sheet) {
-          component.asset_ = sheet;
-          component.asset_handle_ = dropped;
-          component.clips.clear();
-        }
-      }
-    }
-    ImGui::EndDragDropTarget();
-  }
+  // Sprite asset picker
+  AssetDropField("Sprite", AssetType::Sprite, component.sprite_handle_);
 
   // Visual properties
   ImGui::Checkbox(PrefixLabel("Flip X").c_str(), &component.flip_x_);
@@ -1908,374 +1881,112 @@ void RenderComponentImGui(SpriteComponent& component, Entity entity) {
   if (ImGui::InputInt(PrefixLabel("Sort Layer").c_str(), &sort)) {
     component.sort_layer_ = static_cast<uint8_t>(std::clamp(sort, 0, 255));
   }
+  ImGui::DragFloat2(PrefixLabel("Pivot").c_str(), &component.pivot_.x, 0.01f,
+                    0.0f, 1.0f);
 
-  // Playback
-  ImGui::SeparatorText("Playback");
-  ImGui::Text("Frame: %d", component.current_frame_);
-  ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing_);
+  ImGui::TreePop();
+}
 
-  // Clips table
-  if (ImGui::TreeNode("Clips")) {
-    if (ImGui::BeginTable("##clips", 6,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                              ImGuiTableFlags_Resizable)) {
-      ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 80);
-      ImGui::TableSetupColumn("Start", ImGuiTableColumnFlags_WidthFixed, 50);
-      ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 50);
-      ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthFixed, 60);
-      ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 35);
-      ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
-      ImGui::TableHeadersRow();
+void RenderAddComponentImGui_SpriteRendererComponent(Entity entity) {
+  if (ImGui::MenuItem("Sprite Renderer") &&
+      !entity.HasComponent<SpriteRendererComponent>()) {
+    entity.AddComponent<SpriteRendererComponent>();
+  }
+}
 
-      int to_remove = -1;
-      for (int i = 0; i < static_cast<int>(component.clips.size()); i++) {
-        ImGui::PushID(i);
-        auto& clip = component.clips[i];
-        ImGui::TableNextRow();
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        char nbuf[64];
-        strncpy(nbuf, clip.name.c_str(), sizeof(nbuf) - 1);
-        nbuf[sizeof(nbuf) - 1] = '\0';
-        if (ImGui::InputText("##n", nbuf, sizeof(nbuf))) {
-          clip.name = nbuf;
-        }
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        int start = static_cast<int>(clip.start_frame);
-        if (ImGui::InputInt("##s", &start)) {
-          clip.start_frame = std::max(0, start);
-        }
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        int count = static_cast<int>(clip.frame_count);
-        if (ImGui::InputInt("##c", &count)) {
-          clip.frame_count = std::max(1, count);
-        }
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputFloat("##d", &clip.frame_duration, 0.01f);
-
-        ImGui::TableNextColumn();
-        ImGui::Checkbox("##l", &clip.loop);
-
-        ImGui::TableNextColumn();
-        if (ImGui::SmallButton("X")) {
-          to_remove = i;
-        }
-
-        ImGui::PopID();
-      }
-      ImGui::EndTable();
-
-      if (to_remove >= 0) {
-        component.clips.erase(component.clips.begin() + to_remove);
-      }
+void RenderComponentImGui(SpriteAnimatorComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Sprite Animator", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<SpriteAnimatorComponent>();
+      visible = true;
     }
-    if (ImGui::Button("+ Add Clip")) {
-      SpriteClip clip;
-      clip.name = "clip" + std::to_string(component.clips.size());
-      component.clips.push_back(clip);
-    }
-    ImGui::TreePop();
+    return;
   }
 
-  // State machine controller
-  auto& ctrl = component.state_machine.controller;
-  if (ImGui::TreeNode("Controller")) {
-    // Default state
-    if (ImGui::BeginCombo("Default State", ctrl.default_state.empty()
-                                               ? "(None)"
-                                               : ctrl.default_state.c_str())) {
-      if (ImGui::Selectable("(None)", ctrl.default_state.empty())) {
-        ctrl.default_state.clear();
-      }
-      for (auto& state : ctrl.states) {
-        if (ImGui::Selectable(state.name.c_str(),
-                              ctrl.default_state == state.name)) {
-          ctrl.default_state = state.name;
-        }
-      }
-      ImGui::EndCombo();
-    }
+  // Controller asset picker
+  AssetDropField("Controller", AssetType::SpriteController,
+                 component.controller_handle_);
 
-    // States table
-    if (ImGui::TreeNode("States")) {
-      if (ImGui::BeginTable("##states", 5,
-                            ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("Clip", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn("Speed", ImGuiTableColumnFlags_WidthFixed, 50);
-        ImGui::TableSetupColumn("Loop", ImGuiTableColumnFlags_WidthFixed, 35);
-        ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
-        ImGui::TableHeadersRow();
+  // Playback
+  ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing_);
+  ImGui::Text("State: %s", component.current_state_name_.empty()
+                               ? "(None)"
+                               : component.current_state_name_.c_str());
+  ImGui::Text("Frame: %d", component.current_frame_index_);
 
-        int to_remove = -1;
-        for (int i = 0; i < static_cast<int>(ctrl.states.size()); i++) {
-          ImGui::PushID(i + 2000);
-          auto& state = ctrl.states[i];
-          ImGui::TableNextRow();
-
-          ImGui::TableNextColumn();
-          ImGui::SetNextItemWidth(-1);
-          char sbuf[64];
-          strncpy(sbuf, state.name.c_str(), sizeof(sbuf) - 1);
-          sbuf[sizeof(sbuf) - 1] = '\0';
-          if (ImGui::InputText("##sn", sbuf, sizeof(sbuf))) {
-            state.name = sbuf;
+  // Parameters
+  if (ImGui::TreeNode("Parameters")) {
+    auto& params = component.state_machine_.parameters;
+    std::string param_to_remove;
+    for (auto& [name, param] : params) {
+      ImGui::PushID(name.c_str());
+      ImGui::Text("%s", name.c_str());
+      ImGui::SameLine(120);
+      switch (param.type) {
+        case AnimParamType::Bool:
+          ImGui::Checkbox("##v", &param.b);
+          break;
+        case AnimParamType::Int:
+          ImGui::SetNextItemWidth(80);
+          ImGui::InputInt("##v", &param.i);
+          break;
+        case AnimParamType::Float:
+          ImGui::SetNextItemWidth(80);
+          ImGui::InputFloat("##v", &param.f, 0.1f);
+          break;
+        case AnimParamType::Trigger:
+          if (ImGui::SmallButton("Fire")) {
+            param.b = true;
           }
-
-          ImGui::TableNextColumn();
-          ImGui::SetNextItemWidth(-1);
-          if (ImGui::BeginCombo("##sc", state.clip_name.empty()
-                                            ? "(None)"
-                                            : state.clip_name.c_str())) {
-            for (auto& clip : component.clips) {
-              if (ImGui::Selectable(clip.name.c_str(),
-                                    state.clip_name == clip.name)) {
-                state.clip_name = clip.name;
-              }
-            }
-            ImGui::EndCombo();
-          }
-
-          ImGui::TableNextColumn();
-          ImGui::SetNextItemWidth(-1);
-          ImGui::InputFloat("##sp", &state.speed, 0.1f);
-
-          ImGui::TableNextColumn();
-          ImGui::Checkbox("##sl", &state.looping);
-
-          ImGui::TableNextColumn();
-          if (ImGui::SmallButton("X")) {
-            to_remove = i;
-          }
-
-          ImGui::PopID();
-        }
-        ImGui::EndTable();
-
-        if (to_remove >= 0) {
-          ctrl.states.erase(ctrl.states.begin() + to_remove);
-        }
+          break;
       }
-      if (ImGui::Button("+ Add State")) {
-        AnimationState state;
-        state.name = "state" + std::to_string(ctrl.states.size());
-        ctrl.states.push_back(state);
-      }
-      ImGui::TreePop();
-    }
-
-    // Parameters
-    if (ImGui::TreeNode("Parameters")) {
-      auto& params = component.state_machine.parameters;
-      std::string param_to_remove;
-      for (auto& [name, param] : params) {
-        ImGui::PushID(name.c_str());
-        ImGui::Text("%s", name.c_str());
-        ImGui::SameLine(120);
-        switch (param.type) {
-          case AnimParamType::Bool:
-            ImGui::Checkbox("##v", &param.b);
-            break;
-          case AnimParamType::Int:
-            ImGui::SetNextItemWidth(80);
-            ImGui::InputInt("##v", &param.i);
-            break;
-          case AnimParamType::Float:
-            ImGui::SetNextItemWidth(80);
-            ImGui::InputFloat("##v", &param.f, 0.1f);
-            break;
-          case AnimParamType::Trigger:
-            if (ImGui::SmallButton("Fire")) {
-              param.b = true;
-            }
-            break;
-        }
-        ImGui::SameLine();
-        if (ImGui::SmallButton("X")) {
-          param_to_remove = name;
-        }
-        ImGui::PopID();
-      }
-      if (!param_to_remove.empty()) {
-        params.erase(param_to_remove);
-      }
-
-      // Add parameter
-      static char param_name[64] = "";
-      static int param_type = 0;
-      ImGui::InputText("##pn", param_name, sizeof(param_name));
       ImGui::SameLine();
-      const char* ptypes[] = {"Bool", "Int", "Float", "Trigger"};
-      ImGui::SetNextItemWidth(80);
-      ImGui::Combo("##pt", &param_type, ptypes, 4);
-      ImGui::SameLine();
-      if (ImGui::Button("+ Param") && param_name[0] != '\0') {
-        switch (param_type) {
-          case 0:
-            params[param_name] = AnimParam::MakeBool(false);
-            break;
-          case 1:
-            params[param_name] = AnimParam::MakeInt(0);
-            break;
-          case 2:
-            params[param_name] = AnimParam::MakeFloat(0.0f);
-            break;
-          case 3:
-            params[param_name] = AnimParam::MakeTrigger();
-            break;
-        }
-        param_name[0] = '\0';
+      if (ImGui::SmallButton("X")) {
+        param_to_remove = name;
       }
-      ImGui::TreePop();
+      ImGui::PopID();
+    }
+    if (!param_to_remove.empty()) {
+      params.erase(param_to_remove);
     }
 
-    // Transitions
-    if (ImGui::TreeNode("Transitions")) {
-      int to_remove = -1;
-      for (int i = 0; i < static_cast<int>(ctrl.transitions.size()); i++) {
-        ImGui::PushID(i + 3000);
-        auto& trans = ctrl.transitions[i];
-
-        // From -> To header
-        std::string header =
-            (trans.from_state.empty() ? "Any" : trans.from_state) + " -> " +
-            trans.to_state;
-        bool open = ImGui::TreeNodeEx("##t", ImGuiTreeNodeFlags_AllowOverlap,
-                                      "%s", header.c_str());
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 20);
-        if (ImGui::SmallButton("X")) {
-          to_remove = i;
-        }
-
-        if (open) {
-          // From state
-          if (ImGui::BeginCombo("From", trans.from_state.empty()
-                                            ? "(Any)"
-                                            : trans.from_state.c_str())) {
-            if (ImGui::Selectable("(Any)", trans.from_state.empty())) {
-              trans.from_state.clear();
-            }
-            for (auto& state : ctrl.states) {
-              if (ImGui::Selectable(state.name.c_str(),
-                                    trans.from_state == state.name)) {
-                trans.from_state = state.name;
-              }
-            }
-            ImGui::EndCombo();
-          }
-
-          // To state
-          if (ImGui::BeginCombo("To", trans.to_state.empty()
-                                          ? "(None)"
-                                          : trans.to_state.c_str())) {
-            for (auto& state : ctrl.states) {
-              if (ImGui::Selectable(state.name.c_str(),
-                                    trans.to_state == state.name)) {
-                trans.to_state = state.name;
-              }
-            }
-            ImGui::EndCombo();
-          }
-
-          ImGui::InputFloat("Blend", &trans.blend_duration, 0.01f);
-
-          // Conditions
-          ImGui::Text("Conditions:");
-          int cond_remove = -1;
-          for (int c = 0; c < static_cast<int>(trans.conditions.size()); c++) {
-            ImGui::PushID(c + 4000);
-            auto& cond = trans.conditions[c];
-
-            // Parameter name combo
-            ImGui::SetNextItemWidth(80);
-            if (ImGui::BeginCombo("##cp", cond.param_name.c_str())) {
-              for (auto& [pname, pparam] : component.state_machine.parameters) {
-                if (ImGui::Selectable(pname.c_str(),
-                                      cond.param_name == pname)) {
-                  cond.param_name = pname;
-                  cond.param_type = pparam.type;
-                }
-              }
-              ImGui::EndCombo();
-            }
-
-            ImGui::SameLine();
-            // Operator combo
-            const char* ops[] = {"==", "!=", ">", "<"};
-            ImGui::SetNextItemWidth(45);
-            int op_idx = static_cast<int>(cond.op);
-            if (ImGui::Combo("##co", &op_idx, ops, 4)) {
-              cond.op = static_cast<ConditionOp>(op_idx);
-            }
-
-            ImGui::SameLine();
-            // Value
-            ImGui::SetNextItemWidth(60);
-            if (cond.param_type == AnimParamType::Bool ||
-                cond.param_type == AnimParamType::Trigger) {
-              ImGui::Checkbox("##cv", &cond.value.b);
-            } else if (cond.param_type == AnimParamType::Int) {
-              ImGui::InputInt("##cv", &cond.value.i);
-            } else {
-              ImGui::InputFloat("##cv", &cond.value.f, 0.1f);
-            }
-
-            ImGui::SameLine();
-            if (ImGui::SmallButton("X##cd")) {
-              cond_remove = c;
-            }
-            ImGui::PopID();
-          }
-          if (cond_remove >= 0) {
-            trans.conditions.erase(trans.conditions.begin() + cond_remove);
-          }
-
-          if (ImGui::SmallButton("+ Condition")) {
-            TransitionCondition cond;
-            if (!component.state_machine.parameters.empty()) {
-              auto& first = *component.state_machine.parameters.begin();
-              cond.param_name = first.first;
-              cond.param_type = first.second.type;
-            }
-            trans.conditions.push_back(cond);
-          }
-
-          ImGui::TreePop();
-        }
-        ImGui::PopID();
+    // Add parameter
+    static char param_name[64] = "";
+    static int param_type = 0;
+    ImGui::InputText("##pn", param_name, sizeof(param_name));
+    ImGui::SameLine();
+    const char* ptypes[] = {"Bool", "Int", "Float", "Trigger"};
+    ImGui::SetNextItemWidth(80);
+    ImGui::Combo("##pt", &param_type, ptypes, 4);
+    ImGui::SameLine();
+    if (ImGui::Button("+ Param") && param_name[0] != '\0') {
+      switch (param_type) {
+        case 0:
+          params[param_name] = AnimParam::MakeBool(false);
+          break;
+        case 1:
+          params[param_name] = AnimParam::MakeInt(0);
+          break;
+        case 2:
+          params[param_name] = AnimParam::MakeFloat(0.0f);
+          break;
+        case 3:
+          params[param_name] = AnimParam::MakeTrigger();
+          break;
       }
-
-      if (to_remove >= 0) {
-        ctrl.transitions.erase(ctrl.transitions.begin() + to_remove);
-      }
-
-      if (ImGui::Button("+ Add Transition")) {
-        AnimationTransition trans;
-        if (ctrl.states.size() >= 2) {
-          trans.from_state = ctrl.states[0].name;
-          trans.to_state = ctrl.states[1].name;
-        }
-        ctrl.transitions.push_back(trans);
-      }
-      ImGui::TreePop();
+      param_name[0] = '\0';
     }
-
     ImGui::TreePop();
   }
 
   ImGui::TreePop();
 }
 
-void RenderAddComponentImGui_SpriteComponent(Entity entity) {
-  if (ImGui::MenuItem("Sprite") && !entity.HasComponent<SpriteComponent>()) {
-    entity.AddComponent<SpriteComponent>();
+void RenderAddComponentImGui_SpriteAnimatorComponent(Entity entity) {
+  if (ImGui::MenuItem("Sprite Animator") &&
+      !entity.HasComponent<SpriteAnimatorComponent>()) {
+    entity.AddComponent<SpriteAnimatorComponent>();
   }
 }
 
@@ -2519,9 +2230,12 @@ void InitializeEditorComponents() {
   RegisterComponentType<AudioSourceComponent>(
       "Audio Source", "Audio", RenderComponentImGui,
       RenderAddComponentImGui_AudioSourceComponent, nullptr);
-  RegisterComponentType<SpriteComponent>(
-      "Sprite", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_SpriteComponent, nullptr);
+  RegisterComponentType<SpriteRendererComponent>(
+      "Sprite Renderer", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_SpriteRendererComponent, nullptr);
+  RegisterComponentType<SpriteAnimatorComponent>(
+      "Sprite Animator", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_SpriteAnimatorComponent, nullptr);
   RegisterComponentType<ReverbZoneComponent>(
       "Reverb Zone", "Audio", RenderComponentImGui,
       RenderAddComponentImGui_ReverbZoneComponent, nullptr);

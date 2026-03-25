@@ -11,6 +11,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include "animation/w_animation_controller.h"
 #include "asset/w_asset_handle.h"
 
 namespace Wiesel {
@@ -28,6 +29,39 @@ struct SpriteAssetData {
     }
     return {rect.x / tex_width, rect.y / tex_height, rect.z / tex_width,
             rect.w / tex_height};
+  }
+};
+
+// Runtime data for a .wspriteanim asset - one animation clip.
+struct SpriteAnimAssetData {
+  struct Frame {
+    AssetHandle sprite_handle;
+    float duration = 0.1f;
+  };
+
+  std::vector<Frame> frames;
+  bool loop = true;
+};
+
+// Runtime data for a .wspritecontroller asset - state machine.
+struct SpriteControllerAssetData {
+  struct State {
+    std::string name;
+    AssetHandle animation_handle;  // -> .wspriteanim
+    float speed = 1.0f;
+  };
+
+  std::string default_state;
+  std::vector<State> states;
+  std::vector<AnimationTransition> transitions;
+
+  const State* FindState(const std::string& name) const {
+    for (const auto& s : states) {
+      if (s.name == name) {
+        return &s;
+      }
+    }
+    return nullptr;
   }
 };
 

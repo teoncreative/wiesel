@@ -416,7 +416,8 @@ class Renderer {
                    std::shared_ptr<DescriptorSet> bone_descriptors,
                    std::shared_ptr<DescriptorSet> global_descriptors);
   void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
-  void DrawSprite(SpriteComponent& sprite, const TransformComponent& transform);
+  void DrawSprite(SpriteRendererComponent& sprite,
+                  const TransformComponent& transform);
   void DrawCanvasRect(const RectangleTransformComponent& rt,
                       CanvasRectComponent& rect,
                       std::shared_ptr<DescriptorSetLayout> layout,

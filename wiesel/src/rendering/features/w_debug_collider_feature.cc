@@ -29,14 +29,21 @@ namespace Wiesel {
 DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   // Render pass: 1 color + depth (load existing depth for occlusion)
+  SamplingMode msaa = renderer_->options().msaa_mode;
+
   render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
                                               "DebugCollider RenderPass");
   render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
                               .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
+                              .msaa_mode = msaa});
   render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
                               .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
+                              .msaa_mode = msaa});
+  if (msaa > SamplingMode::DISABLED) {
+    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                .format = renderer_->GetSwapChainImageFormat(),
+                                .msaa_mode = SamplingMode::DISABLED});
+  }
   render_pass_->Bake();
 
   // Shaders
@@ -50,7 +57,7 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   // Wireframe pipeline: line-list, depth test (no write), no alpha blending
   {
     PipelineProperties wire_props{};
-    wire_props.sampling_mode = SamplingMode::DISABLED;
+    wire_props.sampling_mode = msaa;
     wire_props.cull_mode = CullModeNone;
     wire_props.enable_wireframe = false;
     wire_props.enable_alpha_blending = false;
@@ -115,8 +122,7 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   overlay_desc_layout_->Bake();
 
   filled_pipeline_ = std::make_shared<Pipeline>(
-      PipelineProperties{SamplingMode::DISABLED, CullModeNone, false, true,
-                         true, false, PrimitiveTopology::TriangleList});
+      PipelineProperties{msaa, CullModeNone, false, true, true, false, PrimitiveTopology::TriangleList});
   filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
   filled_pipeline_->SetRenderPass(render_pass_);
   filled_pipeline_->AddPushConstant(
@@ -338,23 +344,41 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
   uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
   // Wireframe offscreen texture
-  pool.SetTexture(
-      "debug_collider.color",
+  SamplingMode msaa = renderer.options().msaa_mode;
+  bool use_msaa = msaa > SamplingMode::DISABLED;
+
+  pool.SetTexture("debug_collider.color",
       renderer.CreateAttachmentTexture(
           {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
+           renderer.GetSwapChainImageFormat(), msaa, true}));
 
-  std::array<AttachmentTexture*, 2> attachments{
-      pool.GetTexture("debug_collider.color").get(),
-      pool.GetTexture("geometry.depth_stencil").get()};
-  pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
-                                            0, attachments, {rw, rh}));
+  if (use_msaa) {
+    pool.SetTexture("debug_collider.color_resolve",
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Resolve, 1,
+                         renderer.GetSwapChainImageFormat(),
+                         SamplingMode::DISABLED, true}));
+    std::array<AttachmentTexture*, 3> attachments{
+        pool.GetTexture("debug_collider.color").get(),
+        pool.GetTexture("geometry.depth_stencil").get(),
+        pool.GetTexture("debug_collider.color_resolve").get()};
+    pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
+                                              0, attachments, {rw, rh}));
+  } else {
+    pool.SetTexture("debug_collider.color_resolve",
+                    pool.GetTexture("debug_collider.color"));
+    std::array<AttachmentTexture*, 2> attachments{
+        pool.GetTexture("debug_collider.color").get(),
+        pool.GetTexture("geometry.depth_stencil").get()};
+    pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
+                                              0, attachments, {rw, rh}));
+  }
 
-  // Descriptor to read wireframe output
+  // Descriptor to read wireframe output (use resolved texture)
   auto debug_output_desc = std::make_shared<DescriptorSet>();
   debug_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   debug_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("debug_collider.color")->image_views_[0],
+      0, pool.GetTexture("debug_collider.color_resolve")->image_views_[0],
       renderer.GetDefaultLinearSampler());
   debug_output_desc->Bake();
   pool.SetDescriptor("debug_collider.output", debug_output_desc);
@@ -491,7 +515,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   // Import resources
   RGResource debug_out = graph.ImportTexture(
-      "DebugCollidersOut", pool->GetTexture("debug_collider.color"));
+      "DebugCollidersOut", pool->GetTexture("debug_collider.color_resolve"));
 
   // Wireframe draw pass
   uint32_t draw_pass = graph.AddPass(

@@ -1,4 +1,3 @@
-
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -12,15 +11,13 @@
 #pragma once
 
 #include "asset/w_asset_handle.h"
-#include "rendering/w_sprite.h"
 
 namespace Wiesel {
 
-// Loads a .wspritesheet asset and builds a SpriteAsset from it.
-std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle);
+// Loads a .wspriteanim asset (list of .wsprite handles + durations + loop).
+bool LoadSpriteAnimAsset(const AssetHandle& handle);
 
-// Loads a .wspriteanim asset and configures a SpriteComponent.
-// Sets up the sprite asset (from the referenced sheet), clips, and controller.
-bool LoadSpriteAnim(const AssetHandle& handle, SpriteComponent& out);
+// Loads a .wspritecontroller asset (state machine definition).
+bool LoadSpriteControllerAsset(const AssetHandle& handle);
 
 }  // namespace Wiesel

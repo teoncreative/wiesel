@@ -96,18 +96,22 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
           uint8_t layer;
         };
         std::vector<SpriteEntry> sorted;
+
         for (const auto& entity :
-             scene->GetAllEntitiesWith<SpriteComponent, TransformComponent>()) {
-          auto& spr = scene->GetComponent<SpriteComponent>(entity);
+             scene->GetAllEntitiesWith<SpriteRendererComponent,
+                                       TransformComponent>()) {
+          auto& spr = scene->GetComponent<SpriteRendererComponent>(entity);
           sorted.push_back({entity, spr.sort_layer_});
         }
+
         std::sort(sorted.begin(), sorted.end(),
                   [](const SpriteEntry& a, const SpriteEntry& b) {
                     return a.layer < b.layer;
                   });
 
         for (auto& entry : sorted) {
-          auto& spr = scene->GetComponent<SpriteComponent>(entry.entity);
+          auto& spr =
+              scene->GetComponent<SpriteRendererComponent>(entry.entity);
           auto& transform =
               scene->GetComponent<TransformComponent>(entry.entity);
           renderer->DrawSprite(spr, transform);

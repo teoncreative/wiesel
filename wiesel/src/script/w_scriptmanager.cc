@@ -697,171 +697,185 @@ void Internals_Camera_SetBgColorA(uint64_t sp, uint64_t eid, float v) {
 
 #undef GET_CAM_OR_RETURN
 
-// --- SpriteComponent bindings ---
+// --- SpriteRendererComponent bindings ---
 
-#define GET_SPRITE_OR_RETURN(scene_ptr, entity_id, retval) \
-  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);  \
-  if (!scene->HasComponent<SpriteComponent>(handle))       \
-    return retval;                                         \
-  auto& spr = scene->GetComponent<SpriteComponent>(handle)
+#define GET_SPRITE_RENDERER_OR_RETURN(scene_ptr, entity_id, retval) \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);           \
+  if (!scene->HasComponent<SpriteRendererComponent>(handle))        \
+    return retval;                                                  \
+  auto& spr_r = scene->GetComponent<SpriteRendererComponent>(handle)
 
-void Internals_Sprite_Play(uint64_t sp, uint64_t eid, MonoString* clip,
-                           bool restart) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  const char* cstr = mono_string_to_utf8(clip);
-  spr.Play(cstr, restart);
+bool Internals_SpriteRenderer_GetFlipX(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, false);
+  return spr_r.flip_x_;
+}
+
+void Internals_SpriteRenderer_SetFlipX(uint64_t sp, uint64_t eid, bool v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.flip_x_ = v;
+}
+
+bool Internals_SpriteRenderer_GetFlipY(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, false);
+  return spr_r.flip_y_;
+}
+
+void Internals_SpriteRenderer_SetFlipY(uint64_t sp, uint64_t eid, bool v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.flip_y_ = v;
+}
+
+float Internals_SpriteRenderer_GetTintR(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, 1.0f);
+  return spr_r.tint_.r;
+}
+
+float Internals_SpriteRenderer_GetTintG(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, 1.0f);
+  return spr_r.tint_.g;
+}
+
+float Internals_SpriteRenderer_GetTintB(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, 1.0f);
+  return spr_r.tint_.b;
+}
+
+float Internals_SpriteRenderer_GetTintA(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, 1.0f);
+  return spr_r.tint_.a;
+}
+
+void Internals_SpriteRenderer_SetTintR(uint64_t sp, uint64_t eid, float v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.tint_.r = v;
+}
+
+void Internals_SpriteRenderer_SetTintG(uint64_t sp, uint64_t eid, float v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.tint_.g = v;
+}
+
+void Internals_SpriteRenderer_SetTintB(uint64_t sp, uint64_t eid, float v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.tint_.b = v;
+}
+
+void Internals_SpriteRenderer_SetTintA(uint64_t sp, uint64_t eid, float v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.tint_.a = v;
+}
+
+int Internals_SpriteRenderer_GetSortLayer(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, 0);
+  return spr_r.sort_layer_;
+}
+
+void Internals_SpriteRenderer_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
+  GET_SPRITE_RENDERER_OR_RETURN(sp, eid, );
+  spr_r.sort_layer_ = static_cast<uint8_t>(std::clamp(v, 0, 255));
+}
+
+#undef GET_SPRITE_RENDERER_OR_RETURN
+
+// --- SpriteAnimatorComponent bindings ---
+
+#define GET_SPRITE_ANIMATOR_OR_RETURN(scene_ptr, entity_id, retval) \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);           \
+  if (!scene->HasComponent<SpriteAnimatorComponent>(handle))        \
+    return retval;                                                  \
+  auto& spr_a = scene->GetComponent<SpriteAnimatorComponent>(handle)
+
+void Internals_SpriteAnimator_Play(uint64_t sp, uint64_t eid, MonoString* state,
+                                   bool restart) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  const char* cstr = mono_string_to_utf8(state);
+  spr_a.Play(cstr, restart);
   mono_free((void*)cstr);
 }
 
-void Internals_Sprite_Stop(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.Stop();
+void Internals_SpriteAnimator_Stop(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  spr_a.Stop();
 }
 
-bool Internals_Sprite_GetIsPlaying(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, false);
-  return spr.playing_;
+bool Internals_SpriteAnimator_GetIsPlaying(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
+  return spr_a.playing_;
 }
 
-MonoString* Internals_Sprite_GetCurrentClip(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(
+MonoString* Internals_SpriteAnimator_GetCurrentState(uint64_t sp,
+                                                     uint64_t eid) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(
       sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
-  const SpriteClip* clip = spr.GetActiveClip();
-  const char* name = clip ? clip->name.c_str() : "";
-  return mono_string_new(Engine::script_manager().app_domain(), name);
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         spr_a.current_state_name_.c_str());
 }
 
-int Internals_Sprite_GetCurrentFrame(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, 0);
-  return static_cast<int>(spr.current_frame_);
+int Internals_SpriteAnimator_GetCurrentFrame(uint64_t sp, uint64_t eid) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(spr_a.current_frame_index_);
 }
 
-void Internals_Sprite_SetBool(uint64_t sp, uint64_t eid, MonoString* name,
-                              bool val) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
+void Internals_SpriteAnimator_SetBool(uint64_t sp, uint64_t eid,
+                                      MonoString* name, bool val) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
   const char* cstr = mono_string_to_utf8(name);
-  spr.state_machine.SetBool(cstr, val);
+  spr_a.state_machine_.SetBool(cstr, val);
   mono_free((void*)cstr);
 }
 
-void Internals_Sprite_SetInt(uint64_t sp, uint64_t eid, MonoString* name,
-                             int val) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
+void Internals_SpriteAnimator_SetInt(uint64_t sp, uint64_t eid,
+                                     MonoString* name, int val) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
   const char* cstr = mono_string_to_utf8(name);
-  spr.state_machine.SetInt(cstr, val);
+  spr_a.state_machine_.SetInt(cstr, val);
   mono_free((void*)cstr);
 }
 
-void Internals_Sprite_SetFloat(uint64_t sp, uint64_t eid, MonoString* name,
-                               float val) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
+void Internals_SpriteAnimator_SetFloat(uint64_t sp, uint64_t eid,
+                                       MonoString* name, float val) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
   const char* cstr = mono_string_to_utf8(name);
-  spr.state_machine.SetFloat(cstr, val);
+  spr_a.state_machine_.SetFloat(cstr, val);
   mono_free((void*)cstr);
 }
 
-void Internals_Sprite_SetTrigger(uint64_t sp, uint64_t eid, MonoString* name) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
+void Internals_SpriteAnimator_SetTrigger(uint64_t sp, uint64_t eid,
+                                         MonoString* name) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
   const char* cstr = mono_string_to_utf8(name);
-  spr.state_machine.SetTrigger(cstr);
+  spr_a.state_machine_.SetTrigger(cstr);
   mono_free((void*)cstr);
 }
 
-bool Internals_Sprite_GetBool(uint64_t sp, uint64_t eid, MonoString* name) {
-  GET_SPRITE_OR_RETURN(sp, eid, false);
+bool Internals_SpriteAnimator_GetBool(uint64_t sp, uint64_t eid,
+                                      MonoString* name) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
   const char* cstr = mono_string_to_utf8(name);
-  bool val = spr.state_machine.GetBool(cstr);
-  mono_free((void*)cstr);
-  return val;
-}
-
-int Internals_Sprite_GetInt(uint64_t sp, uint64_t eid, MonoString* name) {
-  GET_SPRITE_OR_RETURN(sp, eid, 0);
-  const char* cstr = mono_string_to_utf8(name);
-  int val = spr.state_machine.GetInt(cstr);
+  bool val = spr_a.state_machine_.GetBool(cstr);
   mono_free((void*)cstr);
   return val;
 }
 
-float Internals_Sprite_GetFloat(uint64_t sp, uint64_t eid, MonoString* name) {
-  GET_SPRITE_OR_RETURN(sp, eid, 0.0f);
+int Internals_SpriteAnimator_GetInt(uint64_t sp, uint64_t eid,
+                                    MonoString* name) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
   const char* cstr = mono_string_to_utf8(name);
-  float val = spr.state_machine.GetFloat(cstr);
+  int val = spr_a.state_machine_.GetInt(cstr);
   mono_free((void*)cstr);
   return val;
 }
 
-bool Internals_Sprite_GetFlipX(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, false);
-  return spr.flip_x_;
+float Internals_SpriteAnimator_GetFloat(uint64_t sp, uint64_t eid,
+                                        MonoString* name) {
+  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0.0f);
+  const char* cstr = mono_string_to_utf8(name);
+  float val = spr_a.state_machine_.GetFloat(cstr);
+  mono_free((void*)cstr);
+  return val;
 }
 
-void Internals_Sprite_SetFlipX(uint64_t sp, uint64_t eid, bool v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.flip_x_ = v;
-}
-
-bool Internals_Sprite_GetFlipY(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, false);
-  return spr.flip_y_;
-}
-
-void Internals_Sprite_SetFlipY(uint64_t sp, uint64_t eid, bool v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.flip_y_ = v;
-}
-
-float Internals_Sprite_GetTintR(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, 1.0f);
-  return spr.tint_.r;
-}
-
-float Internals_Sprite_GetTintG(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, 1.0f);
-  return spr.tint_.g;
-}
-
-float Internals_Sprite_GetTintB(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, 1.0f);
-  return spr.tint_.b;
-}
-
-float Internals_Sprite_GetTintA(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, 1.0f);
-  return spr.tint_.a;
-}
-
-void Internals_Sprite_SetTintR(uint64_t sp, uint64_t eid, float v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.tint_.r = v;
-}
-
-void Internals_Sprite_SetTintG(uint64_t sp, uint64_t eid, float v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.tint_.g = v;
-}
-
-void Internals_Sprite_SetTintB(uint64_t sp, uint64_t eid, float v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.tint_.b = v;
-}
-
-void Internals_Sprite_SetTintA(uint64_t sp, uint64_t eid, float v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.tint_.a = v;
-}
-
-int Internals_Sprite_GetSortLayer(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_OR_RETURN(sp, eid, 0);
-  return spr.sort_layer_;
-}
-
-void Internals_Sprite_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
-  GET_SPRITE_OR_RETURN(sp, eid, );
-  spr.sort_layer_ = static_cast<uint8_t>(std::clamp(v, 0, 255));
-}
-
-#undef GET_SPRITE_OR_RETURN
+#undef GET_SPRITE_ANIMATOR_OR_RETURN
 
 // --- Audio bindings ---
 
@@ -2821,8 +2835,10 @@ void ScriptManager::LoadCore() {
       core_assembly_image_, "WieselEngine", "AnimatorComponent");
   audio_source_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "AudioSourceComponent");
-  sprite_class_ = mono_class_from_name(core_assembly_image_, "WieselEngine",
-                                       "SpriteComponent");
+  sprite_renderer_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "SpriteRendererComponent");
+  sprite_animator_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "SpriteAnimatorComponent");
   camera_class_ = mono_class_from_name(core_assembly_image_, "WieselEngine",
                                        "CameraComponent");
   light_direct_class_ = mono_class_from_name(
@@ -3432,32 +3448,35 @@ void ScriptManager::RegisterInternals() {
   WIESEL_ADD_INTERNAL_CALL(Camera_SetBgColorB);
   WIESEL_ADD_INTERNAL_CALL(Camera_SetBgColorA);
 
-  WIESEL_ADD_INTERNAL_CALL(Sprite_Play);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_Stop);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetIsPlaying);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetCurrentClip);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetCurrentFrame);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetBool);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetInt);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetFloat);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetTrigger);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetBool);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetInt);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetFloat);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetFlipX);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetFlipX);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetFlipY);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetFlipY);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetTintR);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetTintG);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetTintB);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetTintA);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetTintR);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetTintG);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetTintB);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetTintA);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_GetSortLayer);
-  WIESEL_ADD_INTERNAL_CALL(Sprite_SetSortLayer);
+  // SpriteRenderer
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetFlipX);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetFlipX);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetFlipY);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetFlipY);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetTintR);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetTintG);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetTintB);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetTintA);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetTintR);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetTintG);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetTintB);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetTintA);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetSortLayer);
+
+  // SpriteAnimator
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_Play);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_Stop);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_GetIsPlaying);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_GetCurrentState);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_GetCurrentFrame);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_SetBool);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_SetInt);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_SetFloat);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_SetTrigger);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_GetBool);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_GetInt);
+  WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_GetFloat);
 
   WIESEL_ADD_INTERNAL_CALL(AudioSource_Play);
   WIESEL_ADD_INTERNAL_CALL(AudioSource_PlayClip);
@@ -3789,23 +3808,45 @@ void ScriptManager::RegisterComponents() {
         });
   }
 
-  if (sprite_class_) {
-    RegisterComponent<SpriteComponent>(
-        "SpriteComponent",
+  if (sprite_renderer_class_) {
+    RegisterComponent<SpriteRendererComponent>(
+        "SpriteRendererComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj = mono_object_new(app_domain_, sprite_class_);
+          MonoObject* obj =
+              mono_object_new(app_domain_, sprite_renderer_class_);
           void* args[2];
           uint64_t scenePtr = (uint64_t)scene;
           uint64_t entityId = (uint64_t)entity;
           args[0] = &scenePtr;
           args[1] = &entityId;
-          MonoMethod* method =
-              mono_class_get_method_from_name(sprite_class_, ".ctor", 2);
+          MonoMethod* method = mono_class_get_method_from_name(
+              sprite_renderer_class_, ".ctor", 2);
           InvokeSafe(method, obj, args);
           return obj;
         },
         [](Scene* scene, entt::entity entity) -> bool {
-          return scene->HasComponent<SpriteComponent>(entity);
+          return scene->HasComponent<SpriteRendererComponent>(entity);
+        });
+  }
+
+  if (sprite_animator_class_) {
+    RegisterComponent<SpriteAnimatorComponent>(
+        "SpriteAnimatorComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          MonoObject* obj =
+              mono_object_new(app_domain_, sprite_animator_class_);
+          void* args[2];
+          uint64_t scenePtr = (uint64_t)scene;
+          uint64_t entityId = (uint64_t)entity;
+          args[0] = &scenePtr;
+          args[1] = &entityId;
+          MonoMethod* method = mono_class_get_method_from_name(
+              sprite_animator_class_, ".ctor", 2);
+          InvokeSafe(method, obj, args);
+          return obj;
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<SpriteAnimatorComponent>(entity);
         });
   }
 }

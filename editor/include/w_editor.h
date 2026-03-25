@@ -71,8 +71,8 @@ class EditorLayer : public Layer {
   void RenderCreateSkyboxPopup();
   void RenderCreateSpritePopup();
   void RenderSliceSpritesPopup();
-  void RenderCreateSpriteSheetPopup();
   void RenderCreateSpriteAnimPopup();
+  void RenderCreateSpriteControllerPopup();
   void NewProject();
   void OpenProject();
   void SaveProject();
@@ -129,9 +129,9 @@ class EditorLayer : public Layer {
       -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
   bool show_create_skybox_ = false;
-  bool show_create_spritesheet_ = false;
   bool show_create_spriteanim_ = false;
   bool show_create_sprite_ = false;
+  bool show_create_spritecontroller_ = false;
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced
   std::string

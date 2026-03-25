@@ -34,8 +34,8 @@ enum class AssetType : uint8_t {
   Scene,
   Prefab,
   Audio,
-  SpriteSheet,
   SpriteAnim,
+  SpriteController,
   Count
 };
 

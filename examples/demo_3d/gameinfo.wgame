@@ -144,10 +144,11 @@
       1.0,
       1.0
     ],
-    "ambient_intensity": 0.04100000113248825,
+    "ambient_intensity": 0.3330000042915344,
     "bloom_enabled": false,
     "bloom_intensity": 0.800000011920929,
     "bloom_threshold": 0.5,
+    "ibl_enabled": true,
     "motion_blur_enabled": false,
     "motion_blur_samples": 8,
     "motion_blur_strength": 1.0,
@@ -156,6 +157,6 @@
     "ssao_enabled": true,
     "vsync": false
   },
-  "start_scene": "",
+  "start_scene": "735e6d5e-eaaa-459c-8c56-4bf8ba747f94",
   "version": "1.0.0"
 }

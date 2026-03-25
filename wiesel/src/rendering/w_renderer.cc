@@ -1774,12 +1774,13 @@ void Renderer::Cleanup() {
 
   LOG_DEBUG("Destroying semaphores and fences");
   for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
-    vkDestroySemaphore(logical_device_, render_finished_semaphores_[i],
-                       nullptr);
     vkDestroySemaphore(logical_device_, image_available_semaphores_[i],
                        nullptr);
     vkDestroySemaphore(logical_device_, render_order_semaphores_[i], nullptr);
     vkDestroyFence(logical_device_, fences_[i], nullptr);
+  }
+  for (VkSemaphore sem : render_finished_semaphores_) {
+    vkDestroySemaphore(logical_device_, sem, nullptr);
   }
 
   LOG_DEBUG("Destroying acceleration structures");
@@ -2978,9 +2979,15 @@ void Renderer::CreateSyncObjects() {
   fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
   image_available_semaphores_.resize(kMaxFramesInFlight);
-  render_finished_semaphores_.resize(kMaxFramesInFlight);
   render_order_semaphores_.resize(kMaxFramesInFlight);
   fences_.resize(kMaxFramesInFlight);
+
+  // render_finished is indexed by swapchain image, not by frame-in-flight,
+  // because the presentation engine holds the semaphore until the image is
+  // re-acquired. With N images > kMaxFramesInFlight the FIF-indexed
+  // semaphore would be reused before the present completes.
+  uint32_t sc_images = stats_.swap_chain_images;
+  render_finished_semaphores_.resize(sc_images);
 
   for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
     WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
@@ -2988,12 +2995,14 @@ void Renderer::CreateSyncObjects() {
                                             &image_available_semaphores_[i]));
     WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
                                             nullptr,
-                                            &render_finished_semaphores_[i]));
-    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
-                                            nullptr,
                                             &render_order_semaphores_[i]));
     WIESEL_CHECK_VKRESULT(
         vkCreateFence(logical_device_, &fence_info, nullptr, &fences_[i]));
+  }
+  for (uint32_t i = 0; i < sc_images; i++) {
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
+                                            nullptr,
+                                            &render_finished_semaphores_[i]));
   }
 }
 
@@ -3043,9 +3052,35 @@ void Renderer::RecreateSwapChain() {
 
   vkDeviceWaitIdle(logical_device_);
 
+  // Recreate semaphores so the old swapchain's presentation engine doesn't
+  // hold stale references to them
+  for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
+    vkDestroySemaphore(logical_device_, image_available_semaphores_[i],
+                       nullptr);
+  }
+  for (auto sem : render_finished_semaphores_) {
+    vkDestroySemaphore(logical_device_, sem, nullptr);
+  }
+  render_finished_semaphores_.clear();
+
   CleanupPresentGraphics();
   CreateSwapChain();
   CreatePresentGraphicsPipelines();
+
+  // Recreate semaphores with the (possibly new) swapchain image count.
+  VkSemaphoreCreateInfo semaphore_info{};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  for (uint32_t i = 0; i < kMaxFramesInFlight; i++) {
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
+                                            nullptr,
+                                            &image_available_semaphores_[i]));
+  }
+  render_finished_semaphores_.resize(stats_.swap_chain_images);
+  for (uint32_t i = 0; i < stats_.swap_chain_images; i++) {
+    WIESEL_CHECK_VKRESULT(vkCreateSemaphore(logical_device_, &semaphore_info,
+                                            nullptr,
+                                            &render_finished_semaphores_[i]));
+  }
 
   // Notify that pipelines were recreated so cameras can recreate their resources
   PipelineRecreatedEvent event{};
@@ -3130,16 +3165,18 @@ bool Renderer::BeginPresent() {
     LOG_INFO(
         "Received VK_ERROR_OUT_OF_DATE_KHR, trying to recreate swap chain.");
     recreate_swap_chain_ = true;
-    // End the command buffer and submit empty work so the fence and
-    // render_finished semaphore get signaled (prevents next frame deadlock).
+    // End the command buffer and submit work so the fence and render_order
+    // semaphore get signaled (prevents next frame deadlock).  We only signal
+    // render_order here -- render_finished is skipped because the
+    // presentation engine may still reference it from a prior present, and
+    // signaling it again would violate the Vulkan spec.
     command_buffers_[current_frame_]->End();
     VkSubmitInfo empty_submit{};
     empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     empty_submit.commandBufferCount = 1;
     empty_submit.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
-    VkSemaphore empty_signal[] = {render_finished_semaphores_[current_frame_],
-                                  render_order_semaphores_[current_frame_]};
-    empty_submit.signalSemaphoreCount = 2;
+    VkSemaphore empty_signal[] = {render_order_semaphores_[current_frame_]};
+    empty_submit.signalSemaphoreCount = 1;
     empty_submit.pSignalSemaphores = empty_signal;
     {
       std::lock_guard<std::mutex> lock(queue_submit_mutex_);
@@ -3227,8 +3264,10 @@ void Renderer::EndPresent() {
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;
 
-  // Signal both render_finished (for present) and render_order (for next frame)
-  VkSemaphore signalSemaphores[] = {render_finished_semaphores_[current_frame_],
+  // Signal both render_finished (for present) and render_order (for next frame).
+  // render_finished is indexed by swapchain image so the presentation engine
+  // never sees the same semaphore reused before the image is re-acquired.
+  VkSemaphore signalSemaphores[] = {render_finished_semaphores_[image_index_],
                                     render_order_semaphores_[current_frame_]};
   submitInfo.signalSemaphoreCount = 2;
   submitInfo.pSignalSemaphores = signalSemaphores;
@@ -3713,29 +3752,57 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
   return true;
 }
 
-void Renderer::DrawSprite(SpriteComponent& sprite,
+void Renderer::DrawSprite(SpriteRendererComponent& sprite,
                           const TransformComponent& transform) {
   PROFILE_ZONE_SCOPED();
-  if (!sprite.asset_ || !sprite.asset_->is_allocated_) {
+  if (!sprite.sprite_handle_.IsValid()) {
     return;
   }
-  sprite.asset_->UpdateTransform(transform.GetTransformMatrix(), sprite.tint_,
-                                 sprite.flip_x_, sprite.flip_y_,
-                                 static_cast<int>(sprite.current_frame_));
-  // TODO: In the feature, we can use instanced sprites for atlas sprites
-  const SpriteAsset::Frame& frame =
-      sprite.asset_->frames_[sprite.current_frame_];
 
-  std::shared_ptr<MemoryBuffer> vertexBuffer =
-      Engine::renderer()->GetQuadVertexBuffer();
-  VkBuffer buffers[] = {frame.vertex_buffer->buffer_handle_};
+  // Lazily resolve GPU data from asset manager
+  if (!sprite.gpu_data_ || sprite.sprite_handle_ != sprite.bound_sprite_) {
+    sprite.gpu_data_ =
+        Engine::asset_manager().Get<SpriteGpuData>(sprite.sprite_handle_);
+    if (!sprite.gpu_data_) {
+      return;
+    }
+
+    // Allocate per-instance UBO if needed
+    if (!sprite.ubo_) {
+      sprite.ubo_ = CreateUniformBuffer(sizeof(SpriteUniformData));
+    }
+
+    // Rebuild descriptor set for the new sprite
+    sprite.descriptor_ = std::make_shared<DescriptorSet>();
+    sprite.descriptor_->SetLayout(GetDescriptorLayout("SpriteDraw"));
+    sprite.descriptor_->AddCombinedImageSampler(0, sprite.gpu_data_->view,
+                                                sprite.gpu_data_->sampler);
+    sprite.descriptor_->AddUniformBuffer(1, sprite.ubo_);
+    sprite.descriptor_->Bake();
+    sprite.bound_sprite_ = sprite.sprite_handle_;
+  }
+
+  if (!sprite.gpu_data_ || !sprite.descriptor_) {
+    return;
+  }
+
+  // Update UBO
+  SpriteUniformData data{};
+  data.model_matrix = transform.GetTransformMatrix();
+  data.tint = sprite.tint_;
+  data.flip_x = sprite.flip_x_ ? 1 : 0;
+  data.flip_y = sprite.flip_y_ ? 1 : 0;
+  memcpy(sprite.ubo_->data_, &data, sizeof(SpriteUniformData));
+
+  // Bind and draw
+  VkBuffer buffers[] = {sprite.gpu_data_->vertex_buffer->buffer_handle_};
   VkDeviceSize offsets[] = {0};
   static_assert(std::size(buffers) == std::size(offsets));
   vkCmdBindVertexBuffers(command_buffers_[current_frame_]->handle_, 0,
                          std::size(buffers), buffers, offsets);
 
   VkDescriptorSet sets[] = {
-      frame.descriptor->descriptor_set_,
+      sprite.descriptor_->descriptor_set_,
       camera_->resource_pool->GetDescriptor("GlobalDescriptor")
           ->descriptor_set_};
 

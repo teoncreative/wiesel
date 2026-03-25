@@ -1,4 +1,3 @@
-
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -15,26 +14,12 @@
 
 #include "animation/w_animation_controller.h"
 #include "asset/w_asset_manager.h"
+#include "rendering/w_sprite_asset.h"
 #include "util/w_logger.h"
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
 namespace Wiesel {
-
-static std::string ResolveAssetPath(const std::string& ref) {
-  // If it looks like a UUID, resolve via asset manager
-  if (ref.size() > 30 && ref.find('-') != std::string::npos) {
-    AssetHandle h = AssetHandle::FromString(ref);
-    if (h.IsValid()) {
-      const auto* meta = Engine::asset_manager().GetMetadata(h);
-      if (meta) {
-        return meta->virtual_source_path;
-      }
-    }
-  }
-  // Otherwise treat as VFS path
-  return ref;
-}
 
 static nlohmann::json LoadJsonAsset(const AssetHandle& handle) {
   const auto* meta = Engine::asset_manager().GetMetadata(handle);
@@ -57,229 +42,171 @@ static nlohmann::json LoadJsonAsset(const AssetHandle& handle) {
   }
 }
 
-std::shared_ptr<SpriteAsset> LoadSpriteSheet(const AssetHandle& handle) {
+bool LoadSpriteAnimAsset(const AssetHandle& handle) {
   auto j = LoadJsonAsset(handle);
   if (j.is_null()) {
-    return nullptr;
+    return false;
   }
 
-  // Check if it's multi-image ("textures" array) or single-image ("texture" string)
-  bool is_multi = j.contains("textures") && j["textures"].is_array();
-
-  std::shared_ptr<SpriteAsset> asset;
-
-  if (is_multi) {
-    // Multi-image mode: stitch individual frames
-    std::vector<std::string> frame_paths;
-    for (auto& t : j["textures"]) {
-      std::string path = ResolveAssetPath(t.get<std::string>());
-      if (!path.empty()) {
-        frame_paths.push_back(path);
-      }
-    }
-    if (frame_paths.empty()) {
-      LOG_ERROR("SpriteSheet: no valid textures in array");
-      return nullptr;
-    }
-
-    float frame_duration = j.value("frame_duration", 0.1f);
-    SpriteBuilder builder(frame_paths);
-    // Frame duration can be overridden; frames are auto-added by Build()
-    asset = builder.Build();
-
-    // Override durations if specified
-    if (asset) {
-      for (auto& frame : asset->GetFrames()) {
-        frame.duration = frame_duration;
-      }
-    }
-  } else {
-    // Single atlas mode
-    std::string texture_ref = j.value("texture", "");
-    std::string texture_path = ResolveAssetPath(texture_ref);
-    if (texture_path.empty()) {
-      LOG_ERROR("SpriteSheet: missing texture");
-      return nullptr;
-    }
-
-    auto cell_size_arr = j.value("cell_size", nlohmann::json::array({64, 64}));
-    glm::ivec2 cell_size(cell_size_arr[0].get<int>(),
-                         cell_size_arr[1].get<int>());
-    int frame_count = j.value("frame_count", 0);
-
-    VfsFile tex_file = Engine::vfs()->Open(texture_path);
-    if (!tex_file) {
-      LOG_ERROR("SpriteSheet: texture not found: {}", texture_path);
-      return nullptr;
-    }
-    int tex_w, tex_h, tex_ch;
-    stbi_uc* pixels = stbi_load_from_memory(
-        tex_file.Data(), static_cast<int>(tex_file.Size()), &tex_w, &tex_h,
-        &tex_ch, STBI_rgb_alpha);
-    if (!pixels) {
-      LOG_ERROR("SpriteSheet: failed to load texture: {}", texture_path);
-      return nullptr;
-    }
-    stbi_image_free(pixels);
-
-    glm::vec2 atlas_size(tex_w, tex_h);
-    int cols = tex_w / cell_size.x;
-    int rows = tex_h / cell_size.y;
-    int total_frames = frame_count > 0 ? frame_count : (cols * rows);
-
-    SpriteBuilder builder(texture_path, atlas_size);
-    builder.SetFixedSize(glm::vec2(cell_size));
-    builder.AddGridFrames(cell_size, 0, 0, total_frames, 0.1f);
-    asset = builder.Build();
+  if (!j.contains("frames") || !j["frames"].is_array()) {
+    LOG_ERROR("SpriteAnim: missing 'frames' array");
+    return false;
   }
 
-  if (asset) {
-    Engine::asset_manager().Store<SpriteAsset>(handle, asset);
-    Engine::asset_manager().SetLoadState(handle, AssetLoadState::Unloaded,
-                                         AssetLoadState::Loaded);
-    LOG_INFO("Loaded sprite sheet: {} frames", asset->GetFrames().size());
+  auto data = std::make_shared<SpriteAnimAssetData>();
+  data->loop = j.value("loop", true);
+
+  for (auto& fj : j["frames"]) {
+    SpriteAnimAssetData::Frame frame;
+    std::string sprite_ref;
+    if (fj.is_object()) {
+      sprite_ref = fj.value("sprite", "");
+      frame.duration = fj.value("duration", 0.1f);
+    } else if (fj.is_string()) {
+      sprite_ref = fj.get<std::string>();
+      frame.duration = 0.1f;
+    } else {
+      continue;
+    }
+
+    if (sprite_ref.empty()) {
+      continue;
+    }
+
+    frame.sprite_handle = AssetHandle::FromString(sprite_ref);
+    if (!frame.sprite_handle.IsValid()) {
+      continue;
+    }
+
+    // Ensure the .wsprite is loaded
+    auto sprite_data =
+        Engine::asset_manager().Get<SpriteAssetData>(frame.sprite_handle);
+    if (!sprite_data) {
+      Engine::asset_manager().LoadSync(frame.sprite_handle);
+    }
+
+    Engine::asset_manager().AddDependency(handle, frame.sprite_handle);
+    data->frames.push_back(std::move(frame));
   }
-  return asset;
+
+  if (data->frames.empty()) {
+    LOG_ERROR("SpriteAnim: no valid frames");
+    return false;
+  }
+
+  Engine::asset_manager().Store(handle, data);
+  Engine::asset_manager().SetLoadState(handle, AssetLoadState::Unloaded,
+                                       AssetLoadState::Loaded);
+  LOG_INFO("Loaded sprite anim: {} frames, loop={}", data->frames.size(),
+           data->loop);
+  return true;
 }
 
-bool LoadSpriteAnim(const AssetHandle& handle, SpriteComponent& out) {
+static void ParseTransitionConditions(
+    const nlohmann::json& conds_json,
+    std::vector<TransitionCondition>& out_conditions) {
+  for (auto& condj : conds_json) {
+    TransitionCondition cond;
+    cond.param_name = condj.value("param", "");
+
+    std::string type_str = condj.value("type", "Bool");
+    if (type_str == "Bool") {
+      cond.param_type = AnimParamType::Bool;
+    } else if (type_str == "Int") {
+      cond.param_type = AnimParamType::Int;
+    } else if (type_str == "Float") {
+      cond.param_type = AnimParamType::Float;
+    } else if (type_str == "Trigger") {
+      cond.param_type = AnimParamType::Trigger;
+    }
+
+    std::string op_str = condj.value("op", "Equals");
+    if (op_str == "Equals") {
+      cond.op = ConditionOp::Equals;
+    } else if (op_str == "NotEquals") {
+      cond.op = ConditionOp::NotEquals;
+    } else if (op_str == "Greater") {
+      cond.op = ConditionOp::Greater;
+    } else if (op_str == "Less") {
+      cond.op = ConditionOp::Less;
+    }
+
+    if (cond.param_type == AnimParamType::Bool ||
+        cond.param_type == AnimParamType::Trigger) {
+      cond.value.b = condj.value("value", true);
+    } else if (cond.param_type == AnimParamType::Int) {
+      cond.value.i = condj.value("value", 0);
+    } else if (cond.param_type == AnimParamType::Float) {
+      cond.value.f = condj.value("value", 0.0f);
+    }
+
+    if (!cond.param_name.empty()) {
+      out_conditions.push_back(std::move(cond));
+    }
+  }
+}
+
+bool LoadSpriteControllerAsset(const AssetHandle& handle) {
   auto j = LoadJsonAsset(handle);
   if (j.is_null()) {
     return false;
   }
 
-  // Load the referenced sprite sheet
-  std::string sheet_ref = j.value("sprite_sheet", "");
-  AssetHandle sheet_handle;
-  if (!sheet_ref.empty()) {
-    sheet_handle = AssetHandle::FromString(sheet_ref);
-  }
+  auto data = std::make_shared<SpriteControllerAssetData>();
+  data->default_state = j.value("default_state", "");
 
-  if (!sheet_handle.IsValid()) {
-    LOG_ERROR("SpriteAnim: missing sprite_sheet reference");
-    return false;
-  }
-
-  // Get or load the sprite sheet
-  auto sprite_asset = Engine::asset_manager().Get<SpriteAsset>(sheet_handle);
-  if (!sprite_asset) {
-    sprite_asset = LoadSpriteSheet(sheet_handle);
-  }
-  if (!sprite_asset) {
-    LOG_ERROR("SpriteAnim: failed to load sprite sheet");
-    return false;
-  }
-
-  out.asset_ = sprite_asset;
-  out.clips.clear();
-
-  // Load clips
-  if (j.contains("clips") && j["clips"].is_array()) {
-    for (auto& cj : j["clips"]) {
-      SpriteClip clip;
-      clip.name = cj.value("name", "");
-      clip.start_frame = cj.value("start", 0);
-      clip.frame_count = cj.value("count", 1);
-      clip.frame_duration = cj.value("duration", 0.1f);
-      clip.loop = cj.value("loop", true);
-      if (!clip.name.empty()) {
-        out.clips.push_back(std::move(clip));
+  // Load states
+  if (j.contains("states") && j["states"].is_array()) {
+    for (auto& sj : j["states"]) {
+      SpriteControllerAssetData::State state;
+      state.name = sj.value("name", "");
+      std::string anim_ref = sj.value("animation", "");
+      if (!anim_ref.empty()) {
+        state.animation_handle = AssetHandle::FromString(anim_ref);
       }
-    }
-  }
+      state.speed = sj.value("speed", 1.0f);
 
-  // Load controller (optional)
-  if (j.contains("controller") && j["controller"].is_object()) {
-    auto& cj = j["controller"];
-    auto& ctrl = out.state_machine.controller;
+      if (state.name.empty()) {
+        continue;
+      }
 
-    ctrl.default_state = cj.value("default_state", "");
-
-    if (cj.contains("states") && cj["states"].is_array()) {
-      for (auto& sj : cj["states"]) {
-        AnimationState state;
-        state.name = sj.value("name", "");
-        state.clip_name = sj.value("clip_name", "");
-        state.speed = sj.value("speed", 1.0f);
-        state.looping = sj.value("looping", true);
-        if (!state.name.empty()) {
-          ctrl.states.push_back(std::move(state));
+      // Ensure the .wspriteanim is loaded
+      if (state.animation_handle.IsValid()) {
+        auto anim_data = Engine::asset_manager().Get<SpriteAnimAssetData>(
+            state.animation_handle);
+        if (!anim_data) {
+          Engine::asset_manager().LoadSync(state.animation_handle);
         }
+        Engine::asset_manager().AddDependency(handle, state.animation_handle);
       }
+
+      data->states.push_back(std::move(state));
     }
+  }
 
-    if (cj.contains("transitions") && cj["transitions"].is_array()) {
-      for (auto& tj : cj["transitions"]) {
-        AnimationTransition trans;
-        trans.from_state = tj.value("from", "");
-        trans.to_state = tj.value("to", "");
-        trans.blend_duration = tj.value("blend", 0.0f);
+  // Load transitions
+  if (j.contains("transitions") && j["transitions"].is_array()) {
+    for (auto& tj : j["transitions"]) {
+      AnimationTransition trans;
+      trans.from_state = tj.value("from", "");
+      trans.to_state = tj.value("to", "");
+      trans.blend_duration = tj.value("blend", 0.0f);
 
-        if (tj.contains("conditions") && tj["conditions"].is_array()) {
-          for (auto& condj : tj["conditions"]) {
-            TransitionCondition cond;
-            cond.param_name = condj.value("param", "");
+      if (tj.contains("conditions") && tj["conditions"].is_array()) {
+        ParseTransitionConditions(tj["conditions"], trans.conditions);
+      }
 
-            std::string type_str = condj.value("type", "Bool");
-            if (type_str == "Bool") {
-              cond.param_type = AnimParamType::Bool;
-            } else if (type_str == "Int") {
-              cond.param_type = AnimParamType::Int;
-            } else if (type_str == "Float") {
-              cond.param_type = AnimParamType::Float;
-            } else if (type_str == "Trigger") {
-              cond.param_type = AnimParamType::Trigger;
-            }
-
-            std::string op_str = condj.value("op", "Equals");
-            if (op_str == "Equals") {
-              cond.op = ConditionOp::Equals;
-            } else if (op_str == "NotEquals") {
-              cond.op = ConditionOp::NotEquals;
-            } else if (op_str == "Greater") {
-              cond.op = ConditionOp::Greater;
-            } else if (op_str == "Less") {
-              cond.op = ConditionOp::Less;
-            }
-
-            if (cond.param_type == AnimParamType::Bool ||
-                cond.param_type == AnimParamType::Trigger) {
-              cond.value.b = condj.value("value", true);
-            } else if (cond.param_type == AnimParamType::Int) {
-              cond.value.i = condj.value("value", 0);
-            } else if (cond.param_type == AnimParamType::Float) {
-              cond.value.f = condj.value("value", 0.0f);
-            }
-
-            if (!cond.param_name.empty()) {
-              trans.conditions.push_back(std::move(cond));
-            }
-          }
-        }
-
-        if (!trans.to_state.empty()) {
-          ctrl.transitions.push_back(std::move(trans));
-        }
+      if (!trans.to_state.empty()) {
+        data->transitions.push_back(std::move(trans));
       }
     }
   }
 
-  // Auto-play default state or first clip
-  if (!out.state_machine.controller.IsEmpty()) {
-    out.state_machine.EnsureDefaultState();
-    const auto* state = out.state_machine.GetCurrentState();
-    if (state) {
-      const SpriteClip* clip = out.FindClip(state->clip_name);
-      if (clip) {
-        out.current_frame_ = clip->start_frame;
-      }
-    }
-  } else if (!out.clips.empty()) {
-    out.Play(out.clips[0].name);
-  }
-
-  LOG_INFO("Loaded sprite anim: {} clips, {} states", out.clips.size(),
-           out.state_machine.controller.states.size());
+  Engine::asset_manager().Store(handle, data);
+  Engine::asset_manager().SetLoadState(handle, AssetLoadState::Unloaded,
+                                       AssetLoadState::Loaded);
+  LOG_INFO("Loaded sprite controller: {} states, {} transitions",
+           data->states.size(), data->transitions.size());
   return true;
 }
 

@@ -11,6 +11,7 @@
 #include "scene/w_scene.h"
 
 #include <rendering/w_sprite.h>
+#include <rendering/w_sprite_asset.h>
 #include <nlohmann/json.hpp>
 #include <ranges>
 #include "input/w_input.h"
@@ -498,70 +499,111 @@ void Scene::UpdateCameras() {
   }
 }
 
-void Scene::UpdateSpriteAnimations(float_t delta_time) {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateSpriteAnimations");
-  // Sprite animation
-  for (auto entity : registry_.view<SpriteComponent>()) {
-    auto& spr = registry_.get<SpriteComponent>(entity);
-    if (!spr.asset_) {
+void Scene::UpdateSpriteAnimators(float_t delta_time) {
+  PROFILE_ZONE_SCOPED_N("Scene::UpdateSpriteAnimators");
+  for (auto entity : registry_.view<SpriteAnimatorComponent>()) {
+    auto& animator = registry_.get<SpriteAnimatorComponent>(entity);
+    if (!registry_.all_of<SpriteRendererComponent>(entity)) {
+      continue;
+    }
+    auto& renderer_comp = registry_.get<SpriteRendererComponent>(entity);
+
+    if (!animator.controller_handle_.IsValid()) {
       continue;
     }
 
-    // Evaluate state machine transitions (if controller is set up)
-    if (!spr.state_machine.controller.IsEmpty()) {
-      spr.state_machine.EnsureDefaultState();
-      std::string new_state = spr.state_machine.EvaluateTransitions();
-      if (!new_state.empty()) {
-        // State changed - reset frame to clip start
-        const SpriteClip* clip =
-            spr.FindClip(spr.state_machine.GetCurrentState()->clip_name);
-        if (clip) {
-          spr.current_frame_ = clip->start_frame;
-          spr.frame_timer_ = 0.0f;
-          spr.playing_ = true;
-        }
-      }
-    }
-
-    if (!spr.playing_) {
+    // Load controller data if not yet resolved
+    auto controller_data =
+        Engine::asset_manager().Get<SpriteControllerAssetData>(
+            animator.controller_handle_);
+    if (!controller_data) {
       continue;
     }
 
-    const SpriteClip* clip = spr.GetActiveClip();
-    if (!clip) {
-      // No clip - animate through all frames using per-frame duration
-      auto& frames = spr.asset_->GetFrames();
-      if (frames.size() <= 1) {
-        continue;
+    // Initialize state machine controller if empty
+    if (animator.state_machine_.controller.IsEmpty()) {
+      animator.state_machine_.controller.default_state =
+          controller_data->default_state;
+      for (const auto& state : controller_data->states) {
+        AnimationState anim_state;
+        anim_state.name = state.name;
+        anim_state.clip_name = state.name;  // map state name to itself
+        anim_state.speed = state.speed;
+        anim_state.looping = true;
+        animator.state_machine_.controller.states.push_back(
+            std::move(anim_state));
       }
-      float duration = frames[spr.current_frame_].duration;
-      if (duration <= 0.0f) {
-        continue;
+      animator.state_machine_.controller.transitions =
+          controller_data->transitions;
+      animator.state_machine_.EnsureDefaultState();
+      animator.current_state_name_ = animator.state_machine_.current_state;
+    }
+
+    // Evaluate state machine transitions
+    std::string new_state = animator.state_machine_.EvaluateTransitions();
+    if (!new_state.empty()) {
+      animator.current_state_name_ = new_state;
+      animator.current_frame_index_ = 0;
+      animator.frame_timer_ = 0.0f;
+      animator.current_anim_ = nullptr;  // force re-resolve
+    }
+
+    // Resolve current animation if needed
+    if (!animator.current_anim_) {
+      const auto* state =
+          controller_data->FindState(animator.current_state_name_);
+      if (state && state->animation_handle.IsValid()) {
+        animator.current_anim_ =
+            Engine::asset_manager().Get<SpriteAnimAssetData>(
+                state->animation_handle);
       }
-      spr.frame_timer_ += delta_time;
-      if (spr.frame_timer_ >= duration) {
-        spr.frame_timer_ -= duration;
-        spr.current_frame_ =
-            (spr.current_frame_ + 1) % static_cast<uint32_t>(frames.size());
+    }
+
+    if (!animator.current_anim_ || animator.current_anim_->frames.empty()) {
+      continue;
+    }
+
+    if (!animator.playing_) {
+      // Still set the sprite even when paused
+      const auto& frame =
+          animator.current_anim_->frames[animator.current_frame_index_];
+      if (renderer_comp.sprite_handle_ != frame.sprite_handle) {
+        renderer_comp.sprite_handle_ = frame.sprite_handle;
       }
       continue;
     }
 
-    // Named clip animation
-    spr.frame_timer_ += delta_time;
-    if (spr.frame_timer_ >= clip->frame_duration) {
-      spr.frame_timer_ -= clip->frame_duration;
-      uint32_t local_frame = spr.current_frame_ - clip->start_frame;
-      local_frame++;
-      if (local_frame >= clip->frame_count) {
-        if (clip->loop) {
-          local_frame = 0;
+    // Get speed from controller state
+    float speed = 1.0f;
+    const auto* state =
+        controller_data->FindState(animator.current_state_name_);
+    if (state) {
+      speed = state->speed;
+    }
+
+    // Advance frame timer
+    const auto& frames = animator.current_anim_->frames;
+    animator.frame_timer_ += delta_time * speed;
+    float frame_duration = frames[animator.current_frame_index_].duration;
+    if (frame_duration > 0.0f && animator.frame_timer_ >= frame_duration) {
+      animator.frame_timer_ -= frame_duration;
+      animator.current_frame_index_++;
+      if (animator.current_frame_index_ >=
+          static_cast<uint32_t>(frames.size())) {
+        if (animator.current_anim_->loop) {
+          animator.current_frame_index_ = 0;
         } else {
-          local_frame = clip->frame_count - 1;
-          spr.playing_ = false;
+          animator.current_frame_index_ =
+              static_cast<uint32_t>(frames.size()) - 1;
+          animator.playing_ = false;
         }
       }
-      spr.current_frame_ = clip->start_frame + local_frame;
+    }
+
+    // Set the sprite on the renderer
+    const auto& current_frame = frames[animator.current_frame_index_];
+    if (renderer_comp.sprite_handle_ != current_frame.sprite_handle) {
+      renderer_comp.sprite_handle_ = current_frame.sprite_handle;
     }
   }
 }
@@ -910,7 +952,7 @@ void Scene::UpdateSkeletalAnimations(float_t delta_time) {
 void Scene::UpdateSceneState(float_t delta_time) {
   UpdateTransforms();
   UpdateLights();
-  UpdateSpriteAnimations(delta_time);
+  UpdateSpriteAnimators(delta_time);
   UpdateSkeletalAnimations(delta_time);
   UpdateCameras();
 }
