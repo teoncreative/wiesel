@@ -41,6 +41,7 @@
 #include "w_thumbnail_cache.h"
 #include "rendering/w_texture.h"
 #include "scene/w_component_serializer.h"
+#include "scene/w_lights.h"
 #include "w_editor_components.h"
 #include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
@@ -153,7 +154,6 @@ static bool panel_console_ = true;
 static bool panel_stats_ = true;
 static bool panel_scene_view_ = true;
 static bool panel_game_view_ = true;
-static bool panel_scene_properties_ = true;
 static bool layout_initialized_ = false;
 
 static struct SceneHierarchyData {
@@ -208,6 +208,57 @@ static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
   return true;
 }
 
+
+// Helper: renders the contents of an "Add" entity menu.
+// If parent != entt::null, the entity is linked as a child.
+// Returns true if an entity was created.
+static bool RenderAddEntityMenu(Scene* scene, bool& dirty,
+                                entt::entity parent = entt::null) {
+  Entity created{entt::null, nullptr};
+
+  if (ImGui::MenuItem("Empty Entity")) {
+    created = scene->CreateEntity();
+  }
+
+  if (ImGui::BeginMenu("3D Shape")) {
+    const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder", "Capsule"};
+    for (const char* shape : shapes) {
+      if (ImGui::MenuItem(shape)) {
+        created = scene->CreateEntity(shape);
+        auto& mc = created.AddComponent<ModelComponent>();
+        mc.model_handle = Engine::GetPrimitive(shape);
+      }
+    }
+    ImGui::EndMenu();
+  }
+
+  if (ImGui::BeginMenu("Light")) {
+    if (ImGui::MenuItem("Directional Light")) {
+      created = scene->CreateEntity("Directional Light");
+      created.AddComponent<LightDirectComponent>();
+    }
+    if (ImGui::MenuItem("Point Light")) {
+      created = scene->CreateEntity("Point Light");
+      created.AddComponent<LightPointComponent>();
+    }
+    ImGui::EndMenu();
+  }
+
+  if (ImGui::MenuItem("Camera")) {
+    created = scene->CreateEntity("Camera");
+    created.AddComponent<CameraComponent>();
+  }
+
+  if (created.handle() != entt::null) {
+    if (parent != entt::null) {
+      scene->LinkEntities(parent, created);
+    }
+    dirty = true;
+    return true;
+  }
+
+  return false;
+}
 
 // Editor layout constants
 static constexpr float kLeftPanelRatio = 0.20f;
@@ -712,31 +763,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     selected_entity_ = entity_id;
     has_selected_entity_ = true;
     if (ImGui::BeginMenu("Add Child")) {
-      entt::entity parent_id = entity_id;
-      if (ImGui::MenuItem("Empty Entity")) {
-        app_.SubmitToMainThread([this, parent_id]() {
-          Entity child = scene()->CreateEntity();
-          scene()->LinkEntities(parent_id, child);
-          scene_dirty_ = true;
-        });
-      }
-      if (ImGui::BeginMenu("3D Shape")) {
-        const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder",
-                                "Capsule"};
-        for (const char* shape : shapes) {
-          if (ImGui::MenuItem(shape)) {
-            std::string shape_name = shape;
-            app_.SubmitToMainThread([this, parent_id, shape_name]() {
-              Entity child = scene()->CreateEntity(shape_name);
-              auto& mc = child.AddComponent<ModelComponent>();
-              mc.model_handle = Engine::GetPrimitive(shape_name);
-              scene()->LinkEntities(parent_id, child);
-              scene_dirty_ = true;
-            });
-          }
-        }
-        ImGui::EndMenu();
-      }
+      RenderAddEntityMenu(scene().get(), scene_dirty_, entity_id);
       ImGui::EndMenu();
     }
     if (ImGui::MenuItem("Save as Prefab...")) {
@@ -796,89 +823,35 @@ void EditorLayer::OnBeginPresent() {
     ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
-    // Split: left panel (20%) | center+right remainder
-    ImGuiID dock_left, dock_remainder;
-    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, kLeftPanelRatio,
-                                &dock_left, &dock_remainder);
+    // Split: bottom (asset browser) | top
+    ImGuiID dock_bottom, dock_top;
+    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down,
+                                kAssetBrowserRatio, &dock_bottom, &dock_top);
 
-    // Split left into top (hierarchy) and bottom (components)
-    ImGuiID dock_left_top, dock_left_bottom;
-    ImGui::DockBuilderSplitNode(dock_left, ImGuiDir_Up, kHierarchySplitRatio,
-                                &dock_left_top, &dock_left_bottom);
+    // Split top: left (hierarchy) | center+right
+    ImGuiID dock_left, dock_center_right;
+    ImGui::DockBuilderSplitNode(dock_top, ImGuiDir_Left, kLeftPanelRatio,
+                                &dock_left, &dock_center_right);
 
-    // Split remainder: bottom (asset browser) | center+right
-    ImGuiID dock_bottom, dock_center_right;
-    ImGui::DockBuilderSplitNode(dock_remainder, ImGuiDir_Down,
-                                kAssetBrowserRatio, &dock_bottom,
-                                &dock_center_right);
-
-    // Split center_right: right panel (scene props) | center (viewport)
+    // Split center_right: right (inspector + asset props) | center (viewport)
     ImGuiID dock_right, dock_center;
     ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right,
                                 kRightPanelRatio, &dock_right, &dock_center);
 
     // Dock windows
-    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left_top);
-    ImGui::DockBuilderDockWindow("Components", dock_left_bottom);
+    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left);
     ImGui::DockBuilderDockWindow("Game", dock_center);
     ImGui::DockBuilderDockWindow("Scene", dock_center);
     // Select Scene tab by default
     ImGuiID scene_window_id = ImHashStr("Scene");
     ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
-    ImGui::DockBuilderDockWindow("Scene Properties", dock_right);
+    ImGui::DockBuilderDockWindow("Entity Inspector", dock_right);
     ImGui::DockBuilderDockWindow("Asset Properties", dock_right);
     ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
     ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
-    ImGui::DockBuilderDockWindow("Render Stats", dock_right);
+    ImGui::DockBuilderDockWindow("Render Stats", dock_bottom);
 
     ImGui::DockBuilderFinish(dockspace_id);
-  }
-
-  bool& scene_properties_open = panel_scene_properties_;
-  if (scene_properties_open) {
-    if (ImGui::Begin("Scene Properties", &scene_properties_open)) {
-      auto& settings = renderer->options();
-
-      ImGui::SeparatorText("Debug");
-      ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
-                      &settings.wireframe_enabled);
-      ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(), &settings.only_ssao);
-      {
-        const char* debug_modes[] = {"Off",     "Cascades",  "Material",
-                                     "Normals", "World Pos", "Raw Normal",
-                                     "Albedo",  "Depth",     "Vertex Normal"};
-        int debug_mode = settings.debug_cascades;
-        if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode,
-                         debug_modes, 9)) {
-          settings.debug_cascades = debug_mode;
-        }
-      }
-      ImGui::Checkbox(PrefixLabel("Colliders").c_str(),
-                      &settings.show_colliders);
-      ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
-      ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(),
-                      &settings.show_reverb_zones);
-      ImGui::Checkbox(PrefixLabel("Cameras").c_str(), &settings.show_cameras);
-
-      ImGui::SeparatorText("Shadow Cascades");
-      auto cam = renderer->GetCameraData();
-      if (cam) {
-        ImGui::Text("Shadows: %s", cam->does_shadow_pass ? "ON" : "OFF");
-        for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; i++) {
-          ImGui::Text("Cascade %d: split Z = %.2f", i,
-                      cam->shadow_map_cascades[i].SplitDepth);
-        }
-      }
-
-      ImGui::Separator();
-      if (ImGui::Button("Reload Scripts")) {
-        Engine::script_manager().ReloadAsync();
-      }
-      if (ImGui::Button("Recreate Pipeline")) {
-        renderer->SetRecreatePipeline(true);
-      }
-    }
-    ImGui::End();
   }
 
   RenderProjectSettingsPopup();
@@ -951,23 +924,7 @@ void EditorLayer::OnBeginPresent() {
       // Right-click on scene root to add entities
       if (ImGui::BeginPopupContextItem("scene_root_context")) {
         if (ImGui::BeginMenu("Add")) {
-          if (ImGui::MenuItem("Empty Entity")) {
-            scene()->CreateEntity();
-            scene_dirty_ = true;
-          }
-          if (ImGui::BeginMenu("3D Shape")) {
-            const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder",
-                                    "Capsule"};
-            for (const char* shape : shapes) {
-              if (ImGui::MenuItem(shape)) {
-                Entity e = scene()->CreateEntity(shape);
-                auto& mc = e.AddComponent<ModelComponent>();
-                mc.model_handle = Engine::GetPrimitive(shape);
-                scene_dirty_ = true;
-              }
-            }
-            ImGui::EndMenu();
-          }
+          RenderAddEntityMenu(scene().get(), scene_dirty_);
           ImGui::EndMenu();
         }
         ImGui::EndPopup();
@@ -1027,25 +984,7 @@ void EditorLayer::OnBeginPresent() {
 
       if (ImGui::BeginPopup("right_click_hierarchy")) {
         if (ImGui::BeginMenu("Add")) {
-          if (ImGui::MenuItem("Empty Entity")) {
-            scene()->CreateEntity();
-            scene_dirty_ = true;
-            ImGui::CloseCurrentPopup();
-          }
-          if (ImGui::BeginMenu("3D Shape")) {
-            const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder",
-                                    "Capsule"};
-            for (const char* shape : shapes) {
-              if (ImGui::MenuItem(shape)) {
-                Entity e = scene()->CreateEntity(shape);
-                auto& mc = e.AddComponent<ModelComponent>();
-                mc.model_handle = Engine::GetPrimitive(shape);
-                scene_dirty_ = true;
-                ImGui::CloseCurrentPopup();
-              }
-            }
-            ImGui::EndMenu();
-          }
+          RenderAddEntityMenu(scene().get(), scene_dirty_);
           ImGui::EndMenu();
         }
         ImGui::EndPopup();
@@ -1056,7 +995,10 @@ void EditorLayer::OnBeginPresent() {
 
   bool& components_open = panel_components_;
   if (components_open) {
-    if (ImGui::Begin("Components", &components_open) && has_selected_entity_) {
+    if (ImGui::Begin("Entity Inspector", &components_open)) {
+      if (!has_selected_entity_) {
+        ImGui::TextDisabled("No entity selected");
+      }
       Entity entity = {selected_entity_, scene().get()};
       TagComponent& tag = entity.GetComponent<TagComponent>();
       if (ImGui::InputText("##", &tag.name,
@@ -2122,6 +2064,18 @@ void EditorLayer::OnBeginPresent() {
         if (asset_stats.failed > 0) {
           ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Failed: %zu",
                              asset_stats.failed);
+        }
+
+        {
+          ImGui::SeparatorText("Shadow Cascades");
+          auto cam = renderer->GetCameraData();
+          if (cam) {
+            ImGui::Text("Shadows: %s", cam->does_shadow_pass ? "ON" : "OFF");
+            for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; i++) {
+              ImGui::Text("Cascade %d: split Z = %.2f", i,
+                          cam->shadow_map_cascades[i].SplitDepth);
+            }
+          }
         }
 
         if (scene()) {
@@ -4404,9 +4358,8 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::MenuItem("Scene", nullptr, &panel_scene_view_);
       ImGui::MenuItem("Game", nullptr, &panel_game_view_);
       ImGui::MenuItem("Scene Hierarchy", nullptr, &panel_scene_hierarchy_);
-      ImGui::MenuItem("Components", nullptr, &panel_components_);
+      ImGui::MenuItem("Entity Inspector", nullptr, &panel_components_);
       ImGui::MenuItem("Asset Browser", nullptr, &panel_asset_browser_);
-      ImGui::MenuItem("Scene Properties", nullptr, &panel_scene_properties_);
       ImGui::MenuItem("Console", nullptr, &panel_console_);
       ImGui::MenuItem("Stats", nullptr, &panel_stats_);
       ImGui::Separator();
@@ -4418,9 +4371,44 @@ void EditorLayer::RenderMainMenuBar() {
         panel_stats_ = true;
         panel_scene_view_ = true;
         panel_game_view_ = true;
-        panel_scene_properties_ = true;
         layout_initialized_ = false;
       }
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Debug")) {
+      auto& settings = Engine::renderer()->options();
+
+      ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
+                      &settings.wireframe_enabled);
+      ImGui::Checkbox(PrefixLabel("Only SSAO").c_str(), &settings.only_ssao);
+      {
+        const char* debug_modes[] = {"Off",     "Cascades",  "Material",
+                                     "Normals", "World Pos", "Raw Normal",
+                                     "Albedo",  "Depth",     "Vertex Normal"};
+        int debug_mode = settings.debug_cascades;
+        if (ImGui::Combo(PrefixLabel("Debug View").c_str(), &debug_mode,
+                         debug_modes, 9)) {
+          settings.debug_cascades = debug_mode;
+        }
+      }
+
+      ImGui::SeparatorText("Overlays");
+      ImGui::Checkbox(PrefixLabel("Colliders").c_str(),
+                      &settings.show_colliders);
+      ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
+      ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(),
+                      &settings.show_reverb_zones);
+      ImGui::Checkbox(PrefixLabel("Cameras").c_str(), &settings.show_cameras);
+
+      ImGui::SeparatorText("Actions");
+      if (ImGui::MenuItem("Reload Scripts")) {
+        Engine::script_manager().ReloadAsync();
+      }
+      if (ImGui::MenuItem("Recreate Pipeline")) {
+        Engine::renderer()->SetRecreatePipeline(true);
+      }
+
       ImGui::EndMenu();
     }
 
@@ -4997,8 +4985,6 @@ void EditorLayer::RenderAssetPropertiesPanel() {
         Engine::asset_manager().GetMetadata(properties_asset_handle_);
     if (!meta || !properties_asset_handle_.IsValid()) {
       ImGui::TextDisabled("No asset selected");
-      ImGui::TextDisabled("Right-click an asset in the browser");
-      ImGui::TextDisabled("and select Properties.");
       ImGui::End();
       return;
     }

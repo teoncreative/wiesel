@@ -108,6 +108,7 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   options_.vsync.SetHook(&recreate_swap_chain_);
   // Feature toggles need resource recreation (SetupResources re-runs)
   options_.ssao_enabled.SetHook(&recreate_resources_);
+  options_.ibl_enabled.SetHook(&recreate_resources_);
   options_.bloom_enabled.SetHook(&recreate_resources_);
   options_.motion_blur_enabled.SetHook(&recreate_resources_);
   options_.shadows_enabled.SetHook(&recreate_resources_);

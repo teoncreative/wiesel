@@ -71,6 +71,7 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
   skybox_asset_ = handle;
   skybox_ = nullptr;
 
+  Engine::renderer()->SetRecreateResources(true);
   if (!handle.IsValid()) {
     return;
   }
@@ -119,9 +120,6 @@ void Scene::SetSkyboxAsset(AssetHandle handle) {
     if (tex) {
       skybox_ = std::make_shared<Skybox>(tex);
       LOG_INFO("Loaded skybox asset: {}", meta->name);
-
-      // Trigger full resource recreation so IBL regenerates from new skybox
-      Engine::renderer()->SetRecreateResources(true);
     }
   } catch (const std::exception& e) {
     LOG_ERROR("Failed to load skybox asset: {}", e.what());
