@@ -5,6 +5,7 @@ option(ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
 option(ENABLE_VULKAN_VALIDATION "Enables Vulkan validation layer" OFF)
 option(ENABLE_TRACY "Enables tracy profiler" OFF)
 option(ENABLE_GPU_PROFILING "Enable per-pass GPU timing queries" OFF)
+option(WIESEL_DISCORD_RPC "Enable Discord Rich Presence" ON)
 set(WIESEL_WINDOW_BACKEND "SDL3" CACHE STRING "Window backend: GLFW or SDL3")
 set_property(CACHE WIESEL_WINDOW_BACKEND PROPERTY STRINGS "GLFW" "SDL3")
 
@@ -144,29 +145,7 @@ file(
         "${VENDOR_DIR}/glslang/SPIRV/*.cpp"
 )
 
-# Discord RPC (optional)
-option(WIESEL_DISCORD_RPC "Enable Discord Rich Presence" ON)
-set(DISCORD_RPC_SRC "")
-if(WIESEL_DISCORD_RPC)
-    set(DISCORD_RPC_SRC
-        "${VENDOR_DIR}/discord-rpc/src/discord_rpc.cpp"
-        "${VENDOR_DIR}/discord-rpc/src/rpc_connection.cpp"
-        "${VENDOR_DIR}/discord-rpc/src/serialization.cpp"
-    )
-    if(WIN32)
-        list(APPEND DISCORD_RPC_SRC
-            "${VENDOR_DIR}/discord-rpc/src/connection_win.cpp"
-            "${VENDOR_DIR}/discord-rpc/src/discord_register_win.cpp"
-        )
-    else()
-        list(APPEND DISCORD_RPC_SRC
-            "${VENDOR_DIR}/discord-rpc/src/connection_unix.cpp"
-            "${VENDOR_DIR}/discord-rpc/src/discord_register_linux.cpp"
-        )
-    endif()
-endif()
-
-add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${IMGUI_FILES} ${IMGUIZMO_FILES} ${GLSLANG_FILES} ${DISCORD_RPC_SRC})
+add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${IMGUI_FILES} ${IMGUIZMO_FILES} ${GLSLANG_FILES})
 
 if (MSVC)
     target_compile_options(wiesel PRIVATE
@@ -241,9 +220,8 @@ target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/miniaudio)
 if(WIESEL_DISCORD_RPC)
     target_compile_definitions(wiesel PUBLIC WIESEL_DISCORD_RPC=1)
+    target_link_libraries(wiesel PUBLIC discord-rpc)
     target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/discord-rpc/include)
-    target_include_directories(wiesel PRIVATE ${VENDOR_DIR}/discord-rpc/src)
-    target_include_directories(wiesel PRIVATE ${VENDOR_DIR}/discord-rpc/thirdparty/rapidjson/include)
 endif()
 target_link_libraries(wiesel PUBLIC assimp)
 target_link_libraries(wiesel PUBLIC freetype)
