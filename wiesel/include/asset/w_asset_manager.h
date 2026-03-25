@@ -123,6 +123,11 @@ class AssetManager {
                                const std::string& virtual_source_path,
                                std::shared_ptr<T> resource);
 
+  template <typename T>
+  bool RegisterAndStore(AssetHandle handle, const std::string& name,
+                        AssetType type, const std::string& virtual_source_path,
+                        std::shared_ptr<T> resource);
+
   // Asset loaders -/ register per-type loaders for sync/async loading
   void RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader);
   IAssetLoader* GetLoader(AssetType type) const;
@@ -214,6 +219,19 @@ AssetHandle AssetManager::RegisterAndStore(
     SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
   }
   return handle;
+}
+
+template <typename T>
+bool AssetManager::RegisterAndStore(AssetHandle handle, const std::string& name,
+                                    AssetType type,
+                                    const std::string& virtual_source_path,
+                                    std::shared_ptr<T> resource) {
+  if (!Register(handle, name, type, virtual_source_path)) {
+    return false;
+  }
+  Store<T>(handle, std::move(resource));
+  SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+  return true;
 }
 
 }  // namespace Wiesel

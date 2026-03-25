@@ -76,6 +76,18 @@ struct AssetHandle {
 
 inline const AssetHandle kNullAssetHandle{};
 
+// Fixed primitive asset handles - deterministic across sessions
+inline const AssetHandle kPrimitiveCube{
+    UUID::FromString("00000000-0000-4000-8000-000000000001")};
+inline const AssetHandle kPrimitiveSphere{
+    UUID::FromString("00000000-0000-4000-8000-000000000002")};
+inline const AssetHandle kPrimitivePlane{
+    UUID::FromString("00000000-0000-4000-8000-000000000003")};
+inline const AssetHandle kPrimitiveCylinder{
+    UUID::FromString("00000000-0000-4000-8000-000000000004")};
+inline const AssetHandle kPrimitiveCapsule{
+    UUID::FromString("00000000-0000-4000-8000-000000000005")};
+
 }  // namespace Wiesel
 
 namespace std {

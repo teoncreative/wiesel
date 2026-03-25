@@ -237,12 +237,6 @@ void InitializeComponentSerializers() {
         json model;
         if (m.model_handle.IsValid()) {
           model["asset_handle"] = m.model_handle.ToString();
-          const auto* meta =
-              Engine::asset_manager().GetMetadata(m.model_handle);
-          if (meta) {
-            model["asset_name"] = meta->name;
-            model["asset_path"] = meta->virtual_source_path;
-          }
         }
         model["receive_shadows"] = m.receive_shadows;
         model["enable_rendering"] = m.enable_rendering;

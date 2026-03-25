@@ -511,20 +511,27 @@ void Engine::InitializeVfs() {
 }
 
 void Engine::RegisterPrimitives() {
-  primitive_cube_ = asset_manager_->RegisterAndStore<Model>(
-      "Cube", AssetType::Model, "primitive://cube", Primitives::CreateCube());
-  primitive_sphere_ = asset_manager_->RegisterAndStore<Model>(
-      "Sphere", AssetType::Model, "primitive://sphere",
+  asset_manager_->RegisterAndStore<Model>(kPrimitiveCube, "Cube",
+                                          AssetType::Model, "primitive://cube",
+                                          Primitives::CreateCube());
+  asset_manager_->RegisterAndStore<Model>(
+      kPrimitiveSphere, "Sphere", AssetType::Model, "primitive://sphere",
       Primitives::CreateSphere());
-  primitive_plane_ = asset_manager_->RegisterAndStore<Model>(
-      "Plane", AssetType::Model, "primitive://plane",
-      Primitives::CreatePlane());
-  primitive_cylinder_ = asset_manager_->RegisterAndStore<Model>(
-      "Cylinder", AssetType::Model, "primitive://cylinder",
+  asset_manager_->RegisterAndStore<Model>(kPrimitivePlane, "Plane",
+                                          AssetType::Model, "primitive://plane",
+                                          Primitives::CreatePlane());
+  asset_manager_->RegisterAndStore<Model>(
+      kPrimitiveCylinder, "Cylinder", AssetType::Model, "primitive://cylinder",
       Primitives::CreateCylinder());
-  primitive_capsule_ = asset_manager_->RegisterAndStore<Model>(
-      "Capsule", AssetType::Model, "primitive://capsule",
+  asset_manager_->RegisterAndStore<Model>(
+      kPrimitiveCapsule, "Capsule", AssetType::Model, "primitive://capsule",
       Primitives::CreateCapsule());
+
+  primitive_cube_ = kPrimitiveCube;
+  primitive_sphere_ = kPrimitiveSphere;
+  primitive_plane_ = kPrimitivePlane;
+  primitive_cylinder_ = kPrimitiveCylinder;
+  primitive_capsule_ = kPrimitiveCapsule;
 
   LOG_INFO("Registered {} primitive shapes", 5);
 }
