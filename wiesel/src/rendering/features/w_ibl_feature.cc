@@ -98,10 +98,10 @@ void IBLFeature::GenerateBRDFLUT() {
   // Create pipeline
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/fullscreen_shader.vert"});
+       "engine://shaders/fullscreen_shader.vert"});
   auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
                                        "main", ShaderSourceSource,
-                                       "/engine/shaders/brdf_lut.frag"});
+                                       "engine://shaders/brdf_lut.frag"});
 
   auto pipeline = std::make_shared<Pipeline>(PipelineProperties{});
   pipeline->SetRenderPass(render_pass);
@@ -174,13 +174,13 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
   // Compile shaders
   auto cube_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/cubemap_filter.vert"});
+       "engine://shaders/cubemap_filter.vert"});
   auto irr_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/irradiance_conv.frag"});
+       "engine://shaders/irradiance_conv.frag"});
   auto pref_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/prefilter_env.frag"});
+       "engine://shaders/prefilter_env.frag"});
 
   // Push constant data for view-projection matrix
   struct IrrPushConstants {

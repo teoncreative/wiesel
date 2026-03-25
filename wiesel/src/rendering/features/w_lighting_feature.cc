@@ -34,10 +34,10 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
 
   auto skybox_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/skybox_shader.vert"});
+       "engine://shaders/skybox_shader.vert"});
   auto skybox_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/skybox_shader.frag"});
+       "engine://shaders/skybox_shader.frag"});
   skybox_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
                          false, true, false});
@@ -51,10 +51,10 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
   // Lighting pipeline
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/fullscreen_shader.vert"});
+       "engine://shaders/fullscreen_shader.vert"});
   auto lighting_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/lighting_shader.frag"});
+       "engine://shaders/lighting_shader.frag"});
   lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
   lighting_pipeline_->SetRenderPass(render_pass_);
@@ -75,7 +75,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
                                  ShaderLangGLSL,
                                  "main",
                                  ShaderSourceSource,
-                                 "/engine/shaders/lighting_shader.frag",
+                                 "engine://shaders/lighting_shader.frag",
                                  {"USE_IBL"}});
 
     ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
@@ -102,7 +102,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
                                  ShaderLangGLSL,
                                  "main",
                                  ShaderSourceSource,
-                                 "/engine/shaders/lighting_shader.frag",
+                                 "engine://shaders/lighting_shader.frag",
                                  {"USE_RT_SHADOWS"}});
 
     rt_shadow_desc_layout_ = std::make_shared<DescriptorSetLayout>();
@@ -131,7 +131,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
                                  ShaderLangGLSL,
                                  "main",
                                  ShaderSourceSource,
-                                 "/engine/shaders/lighting_shader.frag",
+                                 "engine://shaders/lighting_shader.frag",
                                  {"USE_RT_SHADOWS", "USE_IBL"}});
 
     rt_ibl_lighting_pipeline_ = std::make_shared<Pipeline>(

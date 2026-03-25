@@ -72,12 +72,12 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
   }
   render_pass_->Bake();
 
-  auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                                       ShaderSourceSource,
-                                       "/engine/shaders/geometry_shader.vert"});
-  auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
-                                       "main", ShaderSourceSource,
-                                       "/engine/shaders/geometry_shader.frag"});
+  auto vert = renderer_->CreateShader(
+      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
+       "engine://shaders/geometry_shader.vert"});
+  auto frag = renderer_->CreateShader(
+      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
+       "engine://shaders/geometry_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{renderer_->options().msaa_mode, CullModeBack,
                          renderer_->options().wireframe_enabled, false});

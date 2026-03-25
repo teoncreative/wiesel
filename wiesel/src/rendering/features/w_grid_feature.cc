@@ -38,10 +38,10 @@ GridFeature::GridFeature(std::shared_ptr<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/fullscreen_shader.vert"});
+       "engine://shaders/fullscreen_shader.vert"});
   auto grid_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/editor_grid.frag"});
+       "engine://shaders/editor_grid.frag"});
 
   // Pipeline: no alpha blend, depth test on, depth write off (read-only depth)
   pipeline_ = std::make_shared<Pipeline>(
@@ -69,9 +69,10 @@ void GridFeature::SetupResources(RenderContext& ctx) {
   SamplingMode msaa = renderer.options().msaa_mode;
   bool use_msaa = msaa > SamplingMode::DISABLED;
 
-  pool.SetTexture("grid.color", renderer.CreateAttachmentTexture(
-                                    {rw, rh, AttachmentTextureType::Offscreen,
-                                     1, renderer.GetSwapChainImageFormat(), msaa, true}));
+  pool.SetTexture("grid.color",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       renderer.GetSwapChainImageFormat(), msaa, true}));
 
   if (use_msaa) {
     pool.SetTexture("grid.color_resolve",

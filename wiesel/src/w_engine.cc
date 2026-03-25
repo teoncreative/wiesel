@@ -498,15 +498,15 @@ void Engine::InitApplication() {
 
 void Engine::InitializeVfs() {
   vfs_ = std::make_shared<VirtualFileSystem>();
-  vfs_->Mount("/engine", properties_.engine_assets_path, 100);
+  vfs_->Mount("engine://", properties_.engine_assets_path, 100);
   if (properties_.editor_enabled && !properties_.editor_assets_path.empty()) {
-    vfs_->Mount("/editor", properties_.editor_assets_path, 90);
+    vfs_->Mount("editor://", properties_.editor_assets_path, 90);
   }
   if (!properties_.app_assets_path.empty()) {
-    vfs_->Mount("/app", properties_.app_assets_path, 80);
+    vfs_->Mount("app://", properties_.app_assets_path, 80);
   }
   if (!properties_.user_data_path.empty()) {
-    vfs_->Mount("/user", properties_.user_data_path, 0);
+    vfs_->Mount("user://", properties_.user_data_path, 0);
   }
 }
 

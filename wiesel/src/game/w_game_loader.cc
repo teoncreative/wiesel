@@ -56,8 +56,8 @@ bool GameLoader::MountAssets(const std::filesystem::path& assets_dir) {
   namespace fs = std::filesystem;
   auto* vfs = Engine::vfs().get();
   if (fs::exists(assets_dir)) {
-    vfs->Unmount("/app");
-    vfs->Mount("/app", fs::absolute(assets_dir).string());
+    vfs->Unmount("app://");
+    vfs->Mount("app://", fs::absolute(assets_dir).string());
     return true;
   }
   return false;
@@ -142,7 +142,7 @@ void GameLoader::ScanAssets() {
   Engine::scene_manager().ClearRegisteredScenes();
   std::vector<std::string> scenes_to_preload;
 
-  auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+  auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
   if (!physical_app.has_value()) {
     return;
   }
@@ -167,7 +167,7 @@ void GameLoader::ScanAssets() {
     }
 
     auto rel = fs::relative(entry.path(), assets_dir);
-    std::string vfs_path = "/app/" + rel.generic_string();
+    std::string vfs_path = "app://" + rel.generic_string();
     std::string name = entry.path().stem().string();
 
     AssetHandle handle = RegisterAsset(name, type, vfs_path);

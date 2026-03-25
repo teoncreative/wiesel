@@ -307,7 +307,7 @@ std::shared_ptr<Font> FontCache::Get(AssetHandle font_handle, float size) {
     // Fallback to default engine font
     static std::shared_ptr<FontAsset> default_asset;
     if (!default_asset) {
-      default_asset = std::make_shared<FontAsset>("/engine/fonts/default.ttf");
+      default_asset = std::make_shared<FontAsset>("engine://fonts/default.ttf");
     }
     asset = default_asset;
   }

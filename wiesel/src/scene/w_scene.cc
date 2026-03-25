@@ -136,7 +136,7 @@ void Scene::EnsureDefaultSkybox() {
     return;
   }
   auto tex = renderer->CreateCubemapTextureFromSingle(
-      "/engine/textures/default_skybox.png", {}, {});
+      "engine://textures/default_skybox.png", {}, {});
   if (tex) {
     default_skybox_ = std::make_shared<Skybox>(tex);
   }

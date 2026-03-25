@@ -49,10 +49,10 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   // Shaders
   auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                                        ShaderSourceSource,
-                                       "/engine/shaders/debug_collider.vert"});
+                                       "engine://shaders/debug_collider.vert"});
   auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
                                        "main", ShaderSourceSource,
-                                       "/engine/shaders/debug_collider.frag"});
+                                       "engine://shaders/debug_collider.frag"});
 
   // Wireframe pipeline: line-list, depth test (no write), no alpha blending
   {
@@ -94,10 +94,10 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   // Textured filled pipeline: triangle-list, no depth write, alpha blend
   auto overlay_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/debug_overlay.vert"});
+       "engine://shaders/debug_overlay.vert"});
   auto overlay_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/debug_overlay.frag"});
+       "engine://shaders/debug_overlay.frag"});
 
   // Overlay vertex: vec3 position + vec2 uv
   VkVertexInputBindingDescription overlay_binding{};
@@ -122,7 +122,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   overlay_desc_layout_->Bake();
 
   filled_pipeline_ = std::make_shared<Pipeline>(
-      PipelineProperties{msaa, CullModeNone, false, true, true, false, PrimitiveTopology::TriangleList});
+      PipelineProperties{msaa, CullModeNone, false, true, true, false,
+                         PrimitiveTopology::TriangleList});
   filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
   filled_pipeline_->SetRenderPass(render_pass_);
   filled_pipeline_->AddPushConstant(
@@ -144,10 +145,10 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/fullscreen_shader.vert"});
+       "engine://shaders/fullscreen_shader.vert"});
   auto quad_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/quad_shader.frag"});
+       "engine://shaders/quad_shader.frag"});
 
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeFront, false, true, false, false});
@@ -348,9 +349,9 @@ void DebugColliderFeature::SetupResources(RenderContext& ctx) {
   bool use_msaa = msaa > SamplingMode::DISABLED;
 
   pool.SetTexture("debug_collider.color",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), msaa, true}));
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       renderer.GetSwapChainImageFormat(), msaa, true}));
 
   if (use_msaa) {
     pool.SetTexture("debug_collider.color_resolve",

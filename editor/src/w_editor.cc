@@ -1027,7 +1027,7 @@ void EditorLayer::OnBeginPresent() {
 
       std::vector<FileEntry> entries;
 
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
       if (physical_app.has_value()) {
         namespace fs = std::filesystem;
         fs::path browse_dir = fs::absolute(*physical_app) / current_dir;
@@ -1124,12 +1124,12 @@ void EditorLayer::OnBeginPresent() {
                          sizeof(new_folder_name));
         if (ImGui::Button("Create") && new_folder_name[0] != '\0') {
           namespace fs = std::filesystem;
-          auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+          auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
           if (physical_app.has_value()) {
             fs::path base = fs::absolute(*physical_app);
             if (!current_dir.empty()) {
               std::string rel = current_dir;
-              if (rel.rfind("/app/", 0) == 0) {
+              if (rel.rfind("app://", 0) == 0) {
                 rel = rel.substr(5);
               } else if (rel.rfind("/", 0) == 0) {
                 rel = rel.substr(1);
@@ -1160,9 +1160,9 @@ void EditorLayer::OnBeginPresent() {
         }
 
         fs::path abs = fs::absolute(file);
-        auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+        auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
         if (!physical_app.has_value()) {
-          LOG_ERROR("No /app mount point – open a project first");
+          LOG_ERROR("No app:// mount point – open a project first");
           return;
         }
         fs::path app_assets = fs::absolute(*physical_app);
@@ -1170,9 +1170,9 @@ void EditorLayer::OnBeginPresent() {
         // Determine destination directory from current browser path
         fs::path dest_dir = app_assets;
         if (!current_dir.empty()) {
-          // current_dir is like "/app/models/" - strip "/app/" prefix
+          // current_dir is like "app://models/" - strip "app://" prefix
           std::string rel = current_dir;
-          if (rel.rfind("/app/", 0) == 0) {
+          if (rel.rfind("app://", 0) == 0) {
             rel = rel.substr(5);
           } else if (rel.rfind("/", 0) == 0) {
             rel = rel.substr(1);
@@ -1219,7 +1219,7 @@ void EditorLayer::OnBeginPresent() {
           // Register the main model file
           auto vfs_rel =
               fs::relative(model_dest_dir / abs.filename(), app_assets);
-          std::string vfs_path = "/app/" + vfs_rel.generic_string();
+          std::string vfs_path = "app://" + vfs_rel.generic_string();
           std::string name = abs.stem().string();
           Engine::asset_manager().Register(name, type, vfs_path);
           LOG_INFO("Imported model directory {} to {}", name, vfs_path);
@@ -1232,7 +1232,7 @@ void EditorLayer::OnBeginPresent() {
             return;
           }
           auto vfs_rel = fs::relative(dest, app_assets);
-          std::string vfs_path = "/app/" + vfs_rel.generic_string();
+          std::string vfs_path = "app://" + vfs_rel.generic_string();
           std::string name = abs.stem().string();
           Engine::asset_manager().Register(name, type, vfs_path);
           LOG_INFO("Imported {} to {}", name, vfs_path);
@@ -1534,7 +1534,7 @@ void EditorLayer::OnBeginPresent() {
             }
           } else {
             // Look up asset in AssetManager for thumbnails
-            std::string vfs_path = "/app/" + current_dir + fe.name;
+            std::string vfs_path = "app://" + current_dir + fe.name;
             for (auto& h : mgr.GetAll()) {
               const auto* m = mgr.GetMetadata(h);
               if (m && m->virtual_source_path == vfs_path) {
@@ -1632,7 +1632,7 @@ void EditorLayer::OnBeginPresent() {
             if (!fe.is_dir && !handle.IsValid() &&
                 fe.asset_type != AssetType::None) {
               if (ImGui::MenuItem("Import")) {
-                std::string import_vfs = "/app/" + current_dir + fe.name;
+                std::string import_vfs = "app://" + current_dir + fe.name;
                 AssetHandle new_handle = ProjectLoader::ImportAsset(
                     fe.name, fe.asset_type, import_vfs);
                 if (new_handle.IsValid()) {
@@ -1721,7 +1721,7 @@ void EditorLayer::OnBeginPresent() {
           ImGui::InputText("##rename", rename_buf, sizeof(rename_buf));
           if (ImGui::Button("OK") && rename_buf[0] != '\0') {
             namespace fs = std::filesystem;
-            auto physical_app_path = Engine::vfs()->GetPhysicalPath("/app");
+            auto physical_app_path = Engine::vfs()->GetPhysicalPath("app://");
             if (physical_app_path.has_value()) {
               fs::path old_path = fs::absolute(*physical_app_path) /
                                   current_dir / renaming_file;
@@ -1805,7 +1805,7 @@ void EditorLayer::OnBeginPresent() {
                          sizeof(new_script_name));
         if (ImGui::Button("Create") && new_script_name[0] != '\0') {
           namespace fs = std::filesystem;
-          auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+          auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
           if (physical_app.has_value()) {
             fs::path base = fs::absolute(*physical_app);
             if (!browser_current_dir_.empty()) {
@@ -3041,7 +3041,7 @@ void EditorLayer::RenderCreateSkyboxPopup() {
         j["source"] = resolve(source_handle);
       }
 
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
       if (physical_app.has_value()) {
         namespace fs = std::filesystem;
         fs::path base = fs::absolute(*physical_app);
@@ -3164,7 +3164,7 @@ void EditorLayer::RenderCreateSpritePopup() {
     ImGui::Separator();
     bool can_create = name_buf[0] != '\0' && texture_handle.IsValid();
     if (ImGui::Button("Create") && can_create) {
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
       if (physical_app.has_value()) {
         namespace fs = std::filesystem;
         fs::path base = fs::absolute(*physical_app);
@@ -3294,7 +3294,7 @@ void EditorLayer::RenderSliceSpritesPopup() {
     ImGui::Separator();
     bool can_create = prefix_buf[0] != '\0';
     if (ImGui::Button("Slice") && can_create) {
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
       if (physical_app.has_value()) {
         namespace fs = std::filesystem;
         fs::path base = fs::absolute(*physical_app);
@@ -3446,7 +3446,7 @@ void EditorLayer::RenderCreateSpriteControllerPopup() {
       j["states"] = states_json;
       j["transitions"] = nlohmann::json::array();
 
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
       if (physical_app.has_value()) {
         namespace fs = std::filesystem;
         fs::path base = fs::absolute(*physical_app);
@@ -4515,8 +4515,8 @@ void EditorLayer::NewProject() {
 
         // Mount project assets
         auto* vfs = Engine::vfs().get();
-        vfs->Unmount("/app");
-        vfs->Mount("/app", project->GetAssetsDirectory().string());
+        vfs->Unmount("app://");
+        vfs->Mount("app://", project->GetAssetsDirectory().string());
 
         // Create the default scene file
         ClearScene();
@@ -4611,7 +4611,7 @@ void EditorLayer::OpenSceneFromPath(const std::filesystem::path& path) {
   if (auto p = project()) {
     auto rel =
         std::filesystem::relative(current_scene_path_, p->GetAssetsDirectory());
-    std::string vfs_path = "/app/" + rel.generic_string();
+    std::string vfs_path = "app://" + rel.generic_string();
     AssetHandle scene_handle =
         Engine::asset_manager().FindBySourcePath(vfs_path);
     if (scene_handle.IsValid()) {
@@ -4649,7 +4649,7 @@ void EditorLayer::SaveScene() {
       Engine::scene_manager().RegisterScene(scene_name, current_scene_path_);
 
       // Register scene asset if not already in asset browser
-      auto vfs_path = "/app/" + rel.generic_string();
+      auto vfs_path = "app://" + rel.generic_string();
       auto& mgr = Engine::asset_manager();
       bool found = false;
       for (auto& h : mgr.GetAll()) {
@@ -4777,7 +4777,7 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   ProjectLoader::ApplyInputSettings(*project);
 
   // Start watching app directory for script hot reload
-  auto app_dir = Engine::vfs()->GetPhysicalPath("/app");
+  auto app_dir = Engine::vfs()->GetPhysicalPath("app://");
   if (app_dir.has_value()) {
     script_watcher_.SetExtensionFilter(".cs");
     script_watcher_.Watch(*app_dir, true);

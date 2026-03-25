@@ -89,10 +89,10 @@ static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
     std::string file_path(static_cast<const char*>(payload->Data));
     std::string ext = std::filesystem::path(file_path).extension().string();
     if (ExtToAssetType(ext) == required_type) {
-      auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
       if (physical_app.has_value()) {
         auto rel = std::filesystem::relative(file_path, *physical_app);
-        std::string vfs_path = "/app/" + rel.generic_string();
+        std::string vfs_path = "app://" + rel.generic_string();
         // Look up by VFS path - asset should already be imported by editor
         result = Engine::asset_manager().FindBySourcePath(vfs_path);
       }
@@ -647,12 +647,12 @@ void RenderScriptVariables(ScriptInstance* instance) {
                        ImGui::AcceptDragDropPayload("BrowserFile")) {
           std::string file_path(static_cast<const char*>(payload->Data));
           if (file_path.ends_with(".wprefab")) {
-            // Convert physical path to VFS path via /app mount
-            auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+            // Convert physical path to VFS path via app:// mount
+            auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
             if (physical_app.has_value()) {
               std::filesystem::path rel =
                   std::filesystem::relative(file_path, *physical_app);
-              dropped_path = "/app/" + rel.generic_string();
+              dropped_path = "app://" + rel.generic_string();
             }
           }
         }

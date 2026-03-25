@@ -32,12 +32,12 @@ TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
   render_pass_->Bake();
 
   // Pipeline: alpha blend on, depth test on, depth write off, no culling
-  auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
-                                       ShaderSourceSource,
-                                       "/engine/shaders/geometry_shader.vert"});
+  auto vert = renderer_->CreateShader(
+      {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
+       "engine://shaders/geometry_shader.vert"});
   auto frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/transparency_shader.frag"});
+       "engine://shaders/transparency_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, true, true, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),

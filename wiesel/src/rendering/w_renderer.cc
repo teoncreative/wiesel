@@ -2397,10 +2397,10 @@ void Renderer::CreateSwapChain() {
 void Renderer::CreatePresentGraphicsPipelines() {
   std::shared_ptr<Shader> present_vertex_shader = CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
-       "/engine/shaders/fullscreen_shader.vert"});
+       "engine://shaders/fullscreen_shader.vert"});
   std::shared_ptr<Shader> present_fragment_shader =
       CreateShader({ShaderTypeFragment, ShaderLangGLSL, "main",
-                    ShaderSourceSource, "/engine/shaders/quad_shader.frag"});
+                    ShaderSourceSource, "engine://shaders/quad_shader.frag"});
   present_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
   present_pipeline_->SetRenderPass(present_render_pass_);

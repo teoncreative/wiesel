@@ -41,7 +41,7 @@ std::shared_ptr<Texture> GetOrCreateLabelTexture(const std::string& key,
   }
 
   auto vfs = Engine::vfs();
-  std::string font_path = "/engine/fonts/default.ttf";
+  std::string font_path = "engine://fonts/default.ttf";
   if (!vfs->FileExists(font_path)) {
     LOG_ERROR("Default font not found for label texture");
     FT_Done_FreeType(ft);

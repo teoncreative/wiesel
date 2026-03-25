@@ -136,7 +136,7 @@ class EditorLayer : public Layer {
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced
   std::string
-      browser_current_dir_;  // current asset browser directory relative to /app
+      browser_current_dir_;  // current asset browser directory relative to app://
 
   // Asset properties panel
   bool show_asset_properties_ = false;

@@ -103,11 +103,11 @@ bool SceneManager::BeginFrame() {
   scene->ClearRequestedAssets();
 
   // Load the new scene via VFS (populates requested_assets_ via RequestAsset)
-  auto physical_app = Engine::vfs()->GetPhysicalPath("/app");
+  auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
   std::string vfs_path;
   if (physical_app.has_value()) {
     auto rel = std::filesystem::relative(path, *physical_app);
-    vfs_path = "/app/" + rel.generic_string();
+    vfs_path = "app://" + rel.generic_string();
   }
 
   VfsFile file = Engine::vfs()->Open(vfs_path);
@@ -183,11 +183,11 @@ void SceneManager::LoadSceneWithLoadingPath(
   // called during deserialization for every asset handle, so we don't
   // need to manually scan the JSON for specific component types.
   target_scene_ = std::make_shared<Scene>();
-  auto target_app = Engine::vfs()->GetPhysicalPath("/app");
+  auto target_app = Engine::vfs()->GetPhysicalPath("app://");
   std::string target_vfs;
   if (target_app.has_value()) {
     auto rel = std::filesystem::relative(target_scene_path_, *target_app);
-    target_vfs = "/app/" + rel.generic_string();
+    target_vfs = "app://" + rel.generic_string();
   }
   VfsFile target_file = Engine::vfs()->Open(target_vfs);
   std::string target_content;

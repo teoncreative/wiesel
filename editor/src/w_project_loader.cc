@@ -172,7 +172,7 @@ void ProjectLoader::ScanAssets(Project& project) {
     }
 
     auto rel = fs::relative(entry.path(), assets_dir);
-    std::string vfs_path = "/app/" + rel.generic_string();
+    std::string vfs_path = "app://" + rel.generic_string();
     std::string name = entry.path().stem().string();
 
     AssetHandle handle = ImportAsset(name, type, vfs_path);
