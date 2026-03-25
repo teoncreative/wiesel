@@ -86,16 +86,16 @@ set(ENGINE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "wiesel root")
 set(SOURCES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCLUDE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cpp")
-file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.hpp")
+file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cc")
+file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h")
 
 # Exclude inactive window backend
 if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
-    list(FILTER SOURCES EXCLUDE REGEX "w_glfwwindow\\.cpp$")
-    list(FILTER HEADERS EXCLUDE REGEX "w_glfwwindow\\.hpp$")
+    list(FILTER SOURCES EXCLUDE REGEX "w_glfwwindow\\.cc$")
+    list(FILTER HEADERS EXCLUDE REGEX "w_glfwwindow\\.h$")
 else()
-    list(FILTER SOURCES EXCLUDE REGEX "w_sdlwindow\\.cpp$")
-    list(FILTER HEADERS EXCLUDE REGEX "w_sdlwindow\\.hpp$")
+    list(FILTER SOURCES EXCLUDE REGEX "w_sdlwindow\\.cc$")
+    list(FILTER HEADERS EXCLUDE REGEX "w_sdlwindow\\.h$")
 endif()
 
 message("ENGINE_DIRECTORY: " ${ENGINE_DIRECTORY})
@@ -194,13 +194,13 @@ if (ENABLE_VULKAN_VALIDATION)
     target_compile_options(wiesel PUBLIC -DVULKAN_VALIDATION=1)
 endif()
 
-target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.hpp)
+target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.h)
 if (MSVC)
     # MSVC uses /FI to include precompiled header
-    target_compile_options(wiesel PRIVATE /FI ${INCLUDE_DIRECTORY}/w_pch.hpp)
+    target_compile_options(wiesel PRIVATE /FI ${INCLUDE_DIRECTORY}/w_pch.h)
 else()
     # Non-MSVC compilers use -include
-    target_compile_options(wiesel PRIVATE -include ${INCLUDE_DIRECTORY}/w_pch.hpp)
+    target_compile_options(wiesel PRIVATE -include ${INCLUDE_DIRECTORY}/w_pch.h)
 endif()
 
 target_include_directories(wiesel PUBLIC ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})

@@ -4,8 +4,8 @@ project(editor)
 set(SOURCES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCLUDE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cpp")
-file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.hpp")
+file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cc")
+file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h")
 
 # Standalone editor executable
 add_executable(wiesel-editor ${SOURCES} ${HEADERS})
