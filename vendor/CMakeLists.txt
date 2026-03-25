@@ -44,3 +44,29 @@ add_subdirectory(${VENDOR_DIR}/recastnavigation)
 set(BUILD_TEST_APP OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 add_subdirectory(${VENDOR_DIR}/efsw)
+# Discord RPC
+if (WIESEL_DISCORD_RPC)
+    set(DISCORD_RPC_SOURCES
+            ${VENDOR_DIR}/discord-rpc/src/discord_rpc.cpp
+            ${VENDOR_DIR}/discord-rpc/src/rpc_connection.cpp
+            ${VENDOR_DIR}/discord-rpc/src/serialization.cpp
+    )
+    if (WIN32)
+        list(APPEND DISCORD_RPC_SOURCES
+                ${VENDOR_DIR}/discord-rpc/src/connection_win.cpp
+                ${VENDOR_DIR}/discord-rpc/src/discord_register_win.cpp
+        )
+    else ()
+        list(APPEND DISCORD_RPC_SOURCES
+                ${VENDOR_DIR}/discord-rpc/src/connection_unix.cpp
+                ${VENDOR_DIR}/discord-rpc/src/discord_register_linux.cpp
+        )
+    endif ()
+    add_library(discord-rpc STATIC ${DISCORD_RPC_SOURCES})
+    target_include_directories(discord-rpc PUBLIC ${VENDOR_DIR}/discord-rpc/include)
+    target_include_directories(discord-rpc PRIVATE ${VENDOR_DIR}/discord-rpc/src)
+    target_include_directories(discord-rpc PRIVATE ${VENDOR_DIR}/rapidjson/include)
+    if (WIN32)
+        target_link_libraries(discord-rpc PRIVATE psapi advapi32)
+    endif ()
+endif ()
