@@ -481,37 +481,37 @@ class Renderer {
                          uint32_t layer_count = 1);
 
   void TransitionImageLayout(VkImage image, VkFormat format,
-                             VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels, uint32_t baseLayer = 0,
-                             uint32_t layerCount = 1);
+                             VkImageLayout old_layout, VkImageLayout new_layout,
+                             uint32_t mip_levels, uint32_t base_layer = 0,
+                             uint32_t layer_count = 1);
 
-  void TransitionImageLayout(VkImage image, VkFormat format,
-                             VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels, VkCommandBuffer command_buffer,
-                             uint32_t baseLayer, uint32_t layerCount);
+  void TransitionImageLayout(VkCommandBuffer command_buffer, VkImage image,
+                             VkFormat format, VkImageLayout old_layout,
+                             VkImageLayout new_layout, uint32_t mip_levels,
+                             uint32_t base_layer, uint32_t layer_count);
 
-  void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels,
+  void CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
                    SamplingMode msaa_mode, VkFormat format,
                    VkImageTiling tiling, VkImageUsageFlags usage,
                    VkMemoryPropertyFlags properties, VkImage& image,
-                   VkDeviceMemory& imageMemory, VkImageCreateFlags flags = 0,
-                   uint32_t arrayLayers = 1);
+                   VkDeviceMemory& image_memory, VkImageCreateFlags flags = 0,
+                   uint32_t array_layers = 1);
 
   std::shared_ptr<ImageView> CreateImageView(
-      VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
-      uint32_t mipLevels, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D,
-      uint32_t layer = 0, uint32_t layerCount = 1);
+      VkImage image, VkFormat format, VkImageAspectFlags aspect_flags,
+      uint32_t mip_levels, VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D,
+      uint32_t layer = 0, uint32_t layer_count = 1);
 
   // Create an image view for a specific mip level (used for per-mip rendering)
   std::shared_ptr<ImageView> CreateImageViewMip(
-      VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
-      uint32_t baseMipLevel, uint32_t levelCount = 1,
-      VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
-      uint32_t layerCount = 1);
+      VkImage image, VkFormat format, VkImageAspectFlags aspect_flags,
+      uint32_t base_mip_level, uint32_t level_count = 1,
+      VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
+      uint32_t layer_count = 1);
 
   std::shared_ptr<ImageView> CreateImageView(
       std::shared_ptr<AttachmentTexture> image,
-      VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
+      VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D, uint32_t layer = 0,
       uint32_t layer_count = 1);
 
   void SetObjectName(VkObjectType type, uint64_t handle, const char* name);

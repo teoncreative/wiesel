@@ -2953,13 +2953,13 @@ void EditorLayer::OnPrePresent() {
     if (scene_panel_visible_) {
       // Transition editor PipelineOutput back to COLOR_ATTACHMENT
       // (it was left in SHADER_READ from our manual transition last frame)
-      auto editorOutput =
+      auto editor_output =
           editor_camera_.resource_pool.GetTexture("PipelineOutput");
-      if (editorOutput) {
+      if (editor_output) {
         renderer->TransitionImageLayout(
-            editorOutput->images_[0], editorOutput->format_,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, cmd, 0, 1);
+            cmd, editor_output->images_[0],
+            editor_output->format_,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
       }
 
       // Render editor camera
@@ -2972,12 +2972,12 @@ void EditorLayer::OnPrePresent() {
       PROFILE_FRAME_MARK_NAMED("Scene");
 
       // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
-      editorOutput = editor_camera_.resource_pool.GetTexture("PipelineOutput");
-      if (editorOutput) {
+      editor_output = editor_camera_.resource_pool.GetTexture("PipelineOutput");
+      if (editor_output) {
         renderer->TransitionImageLayout(
-            editorOutput->images_[0], editorOutput->format_,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, cmd, 0, 1);
+            cmd, editor_output->images_[0],
+            editor_output->format_,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
       }
     }
 

@@ -441,8 +441,8 @@ void RenderGraph::TransitionResource(VkCommandBuffer cmd,
   }
 
   renderer_.TransitionImageLayout(
-      resource.texture->images_[0], resource.texture->format_,
-      resource.current_layout, required, 1, cmd, 0, layer_count);
+      cmd, resource.texture->images_[0], resource.texture->format_,
+      resource.current_layout, required, 1, 0, layer_count);
 
   resource.current_layout = required;
   resource.texture->current_layout_ = required;
