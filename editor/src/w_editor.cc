@@ -145,6 +145,7 @@ static char rename_entity_buf_[256] = {};
 static std::unordered_set<entt::entity> open_ancestors_;
 static std::string entity_clipboard_;
 static ImGuizmo::OPERATION current_op_ = ImGuizmo::TRANSLATE;
+static ImGuizmo::MODE current_mode_ = ImGuizmo::LOCAL;
 
 // Panel visibility (toggled via Window menu)
 static bool panel_scene_hierarchy_ = true;
@@ -2211,6 +2212,16 @@ void EditorLayer::OnBeginPresent() {
       ImGui::SameLine();
       ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
       ImGui::SameLine();
+      if (ImGui::RadioButton("Local", current_mode_ == ImGuizmo::LOCAL)) {
+        current_mode_ = ImGuizmo::LOCAL;
+      }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("World", current_mode_ == ImGuizmo::WORLD)) {
+        current_mode_ = ImGuizmo::WORLD;
+      }
+      ImGui::SameLine();
+      ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+      ImGui::SameLine();
       if (ImGui::RadioButton("Free",
                              editor_camera_mode_ == EditorCameraMode::Free)) {
         editor_camera_mode_ = EditorCameraMode::Free;
@@ -2243,22 +2254,6 @@ void EditorLayer::OnBeginPresent() {
         }
         if (ImGui::BeginPopup("SceneCameraSettings")) {
           ImGui::SeparatorText("Camera");
-          ImGui::SetNextItemWidth(kResolutionComboWidth);
-          if (ImGui::BeginCombo(
-                  "Resolution",
-                  kResolutionPresets[resolution_preset_index_].label)) {
-            for (int i = 0; i < kResolutionPresetCount; i++) {
-              bool selected = (i == resolution_preset_index_);
-              if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
-                resolution_preset_index_ = i;
-                scene()->SetRenderResolution(kResolutionPresets[i].size);
-              }
-              if (selected) {
-                ImGui::SetItemDefaultFocus();
-              }
-            }
-            ImGui::EndCombo();
-          }
           ImGui::DragFloat("Speed", &camera_speed_, 0.5f, 0.1f, 100.0f);
           ImGui::DragFloat("Sensitivity", &mouse_sensitivity_, 1.0f, 10.0f,
                            500.0f);
@@ -2321,10 +2316,9 @@ void EditorLayer::OnBeginPresent() {
       auto editor_image =
           editor_camera_.resource_pool.GetTexture("PipelineOutput");
 
-      // Handle viewport resize
+      // Handle viewport resize - editor camera always tracks panel size
       ImVec2 avail = ImGui::GetContentRegionAvail();
-      if (scene()->GetRenderResolution().x <= 0) {
-        // Free Aspect: editor camera tracks panel size
+      {
         uint32_t newW = static_cast<uint32_t>(avail.x);
         uint32_t newH = static_cast<uint32_t>(avail.y);
         if (newW > 0 && newH > 0 &&
@@ -2337,8 +2331,6 @@ void EditorLayer::OnBeginPresent() {
           editor_camera_.resources_dirty = true;
         }
       }
-
-      // When a preset is active, RenderFromExternal applies render_resolution_ automatically
       if (editor_desc && editor_image) {
         ImTextureID desc =
             reinterpret_cast<ImTextureID>(editor_desc->descriptor_set_);
@@ -2518,7 +2510,7 @@ void EditorLayer::OnBeginPresent() {
           ImGuizmo::SetRect(image_min.x, image_min.y, image_size.x,
                             image_size.y);
           if (ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
-                                   current_op_, ImGuizmo::WORLD,
+                                   current_op_, current_mode_,
                                    glm::value_ptr(model))) {
             // ImGuizmo returns a world-space matrix. If the entity has a parent,
             // convert back to local space before setting position/rotation/scale.
@@ -4784,11 +4776,11 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   ProjectLoader::ApplyRenderOptions(*project);
   ProjectLoader::ApplyInputSettings(*project);
 
-  // Start watching scripts directory for hot reload
-  auto scripts_dir = Engine::vfs()->GetPhysicalPath("/app/scripts");
-  if (scripts_dir.has_value()) {
-    fs::create_directories(*scripts_dir);
-    script_watcher_.Watch(*scripts_dir, true);
+  // Start watching app directory for script hot reload
+  auto app_dir = Engine::vfs()->GetPhysicalPath("/app");
+  if (app_dir.has_value()) {
+    script_watcher_.SetExtensionFilter(".cs");
+    script_watcher_.Watch(*app_dir, true);
   }
 
   // Open last scene or start scene (prefer last_scene, fall back to start)
