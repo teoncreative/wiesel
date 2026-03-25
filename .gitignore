@@ -74,6 +74,7 @@ shaders_runtime
 
 cmake-build-debug*
 cmake-build-release*
+build*
 todo
 
 .idea
