@@ -102,6 +102,7 @@ struct RendererOptions {
   Setting<bool> show_triggers = false;
   Setting<bool> show_reverb_zones = false;
   Setting<bool> show_cameras = true;
+  Setting<bool> show_billboards = true;
   Setting<bool> shadows_enabled = true;
   Setting<bool> rt_shadows_enabled = true;
 

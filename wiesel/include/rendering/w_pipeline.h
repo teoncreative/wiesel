@@ -18,7 +18,20 @@
 #include "w_shader.h"
 
 namespace Wiesel {
+
+class DescriptorSet;
+
 enum CullMode { CullModeNone, CullModeBack, CullModeFront, CullModeBoth };
+
+enum CompareOp {
+  CompareOpLess,
+  CompareOpLessOrEqual,
+  CompareOpGreater,
+  CompareOpGreaterOrEqual,
+  CompareOpEqual,
+  CompareOpAlways,
+  CompareOpNever,
+};
 
 enum class PrimitiveTopology {
   TriangleList,
@@ -32,8 +45,11 @@ struct PipelineProperties {
   bool enable_alpha_blending;
   bool enable_depth_test = true;
   bool enable_depth_write = true;
+  CompareOp depth_compare_op = CompareOpLess;
   PrimitiveTopology topology = PrimitiveTopology::TriangleList;
   float line_width = 1.0f;
+  float depth_bias_constant = 0.0f;
+  float depth_bias_slope = 0.0f;
 };
 
 struct PushConstant {
@@ -82,6 +98,14 @@ class Pipeline {
   void Bake();
 
   void Bind(PipelineBindPoint bind_point, VkCommandBuffer cmd = VK_NULL_HANDLE);
+
+  // Re-push constants after modifying data
+  void PushConstants(VkCommandBuffer cmd = VK_NULL_HANDLE);
+
+  // Bind descriptor sets to this pipeline's layout
+  void BindDescriptorSets(
+      VkCommandBuffer cmd,
+      const std::vector<std::shared_ptr<DescriptorSet>>& sets);
 
   struct SpecializationData {
     std::vector<VkSpecializationMapEntry> map_entries;

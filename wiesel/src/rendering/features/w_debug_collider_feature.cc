@@ -63,8 +63,9 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     wire_props.enable_alpha_blending = false;
     wire_props.enable_depth_test = true;
     wire_props.enable_depth_write = false;
+    wire_props.depth_compare_op = CompareOpLessOrEqual;
     wire_props.topology = PrimitiveTopology::LineList;
-    wire_props.line_width = 2.5f;
+    wire_props.line_width = 1.0f;
     pipeline_ = std::make_shared<Pipeline>(wire_props);
   }
 
@@ -80,16 +81,35 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
   attrs[0].offset = 0;
 
+  push_constant_ = std::make_shared<DebugColliderPushConstant>();
+
   pipeline_->SetVertexData(binding, attrs);
   pipeline_->SetRenderPass(render_pass_);
-
-  push_constant_ = std::make_shared<DebugColliderPushConstant>();
   pipeline_->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT |
                                                  VK_SHADER_STAGE_FRAGMENT_BIT);
-
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
+
+  // No-depth wireframe pipeline for camera frustums (always visible)
+  {
+    PipelineProperties no_depth_props{};
+    no_depth_props.sampling_mode = msaa;
+    no_depth_props.cull_mode = CullModeNone;
+    no_depth_props.enable_depth_test = false;
+    no_depth_props.enable_depth_write = false;
+    no_depth_props.topology = PrimitiveTopology::LineList;
+    no_depth_props.line_width = 1.0f;
+    no_depth_pipeline_ = std::make_shared<Pipeline>(no_depth_props);
+  }
+  no_depth_pipeline_->SetVertexData(binding, attrs);
+  no_depth_pipeline_->SetRenderPass(render_pass_);
+  no_depth_pipeline_->AddPushConstant(
+      push_constant_,
+      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+  no_depth_pipeline_->AddShader(vert);
+  no_depth_pipeline_->AddShader(frag);
+  no_depth_pipeline_->Bake();
 
   // Textured filled pipeline: triangle-list, no depth write, alpha blend
   auto overlay_vert = renderer_->CreateShader(
@@ -121,9 +141,16 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
                                    VK_SHADER_STAGE_FRAGMENT_BIT);
   overlay_desc_layout_->Bake();
 
-  filled_pipeline_ = std::make_shared<Pipeline>(
-      PipelineProperties{msaa, CullModeNone, false, true, true, false,
-                         PrimitiveTopology::TriangleList});
+  {
+    PipelineProperties filled_props{};
+    filled_props.sampling_mode = msaa;
+    filled_props.cull_mode = CullModeNone;
+    filled_props.enable_alpha_blending = true;
+    filled_props.enable_depth_test = true;
+    filled_props.enable_depth_write = false;
+    filled_props.depth_compare_op = CompareOpLessOrEqual;
+    filled_pipeline_ = std::make_shared<Pipeline>(filled_props);
+  }
   filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
   filled_pipeline_->SetRenderPass(render_pass_);
   filled_pipeline_->AddPushConstant(
@@ -519,9 +546,11 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       "DebugCollidersOut", pool->GetTexture("debug_collider.color_resolve"));
 
   // Wireframe draw pass
+  auto no_depth_pipe = no_depth_pipeline_;
+
   uint32_t draw_pass = graph.AddPass(
       "DebugColliders", render_pass_,
-      [pipeline, filled_pipe, push_constant, scene, renderer, vp,
+      [pipeline, filled_pipe, no_depth_pipe, push_constant, scene, renderer, vp,
        show_colliders, show_triggers, show_reverb, show_cameras, box_vb, box_ib,
        box_ic, sphere_vb, sphere_ib, sphere_ic, fbox_vb, fbox_ib, fbox_ic,
        fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc,
@@ -538,10 +567,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           push_constant->mvp = vp * model;
           push_constant->model = model;
           push_constant->color = color;
-          vkCmdPushConstants(
-              cmd, pipeline->layout_,
-              VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-              sizeof(DebugColliderPushConstant), push_constant.get());
+          pipeline->PushConstants(cmd);
 
           VkBuffer buffers[] = {vb->buffer_handle_};
           VkDeviceSize offsets[] = {0};
@@ -559,16 +585,10 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           push_constant->mvp = vp * model;
           push_constant->model = model;
           push_constant->color = color;
-          vkCmdPushConstants(
-              cmd, filled_pipe->layout_,
-              VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-              sizeof(DebugColliderPushConstant), push_constant.get());
+          filled_pipe->PushConstants(cmd);
 
           if (label_desc) {
-            VkDescriptorSet ds = label_desc->descriptor_set_;
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    filled_pipe->layout_, 0, 1, &ds, 0,
-                                    nullptr);
+            filled_pipe->BindDescriptorSets(cmd, {label_desc});
           }
 
           VkBuffer buffers[] = {vb->buffer_handle_};
@@ -725,8 +745,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
         // Camera frustum wireframes (editor scene view only)
         if (show_cameras) {
-          pipeline->Bind(PipelineBindPointGraphics);
-          glm::vec4 cam_color = {1.0f, 1.0f, 1.0f, 0.6f};
+          no_depth_pipe->Bind(PipelineBindPointGraphics);
+          glm::vec4 cam_color = {0.7f, 0.7f, 0.7f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
           for (auto cam_entity :
@@ -736,37 +756,72 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             auto& cam_transform =
                 scene->GetComponent<TransformComponent>(cam_entity);
 
-            // Build a matrix that maps the unit box [-0.5, 0.5] to the
-            // frustum in world space. The box represents NDC [-1,1] scaled
-            // by 0.5, so we scale by 2 then apply inverse projection to
-            // get view-space frustum, then camera world transform.
-            //
-            // For visualization we clamp the far plane to a reasonable distance.
             float vis_far = std::min(cam.far_plane, 50.0f);
-
-            glm::mat4 cam_proj;
             float aspect =
                 cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
+
+            // Compute frustum corners directly in view space (no matrix inversion)
+            float nw, nh, fw, fh;
             if (cam.projection_mode == ProjectionMode::Perspective) {
-              cam_proj = glm::perspective(glm::radians(cam.field_of_view),
-                                          aspect, cam.near_plane, vis_far);
+              float tan_half_fov = tanf(glm::radians(cam.field_of_view * 0.5f));
+              nh = cam.near_plane * tan_half_fov;
+              nw = nh * aspect;
+              fh = vis_far * tan_half_fov;
+              fw = fh * aspect;
             } else {
               float size = cam.ortho_size;
-              cam_proj = glm::ortho(-size * aspect, size * aspect, -size, size,
-                                    cam.near_plane, vis_far);
+              nw = fw = size * aspect;
+              nh = fh = size;
             }
-            // Vulkan clip Y flip
-            cam_proj[1][1] *= -1.0f;
 
-            glm::mat4 inv_proj = glm::inverse(cam_proj);
+            // 8 corners in view space (camera looks down -Z)
+            float n = -cam.near_plane;
+            float f = -vis_far;
+            glm::vec3 view_corners[8] = {
+                {-nw, -nh, n}, {nw, -nh, n}, {nw, nh, n}, {-nw, nh, n},
+                {-fw, -fh, f}, {fw, -fh, f}, {fw, fh, f}, {-fw, fh, f},
+            };
+
+            // Transform to clip space directly: vp * cam_world * corner
             glm::mat4 cam_world = cam_transform.GetTransformMatrix();
+            glm::mat4 mvp_base = vp * cam_world;
 
-            // Unit box [-0.5, 0.5] -> NDC [-1, 1] -> view space -> world space
-            glm::mat4 scale2 = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f));
-            glm::mat4 frustum_model = cam_world * inv_proj * scale2;
+            // Build a model matrix that maps unit box corners to the frustum
+            // corners. Since the frustum is a truncated pyramid, we can't do
+            // this with one affine matrix. Instead, compute clip-space corners
+            // and draw line segments directly.
+            //
+            // Map box corner index to frustum corner:
+            // box[-0.5,-0.5,-0.5] = near-bottom-left  = view_corners[0]
+            // box[ 0.5,-0.5,-0.5] = near-bottom-right = view_corners[1]
+            // box[ 0.5, 0.5,-0.5] = near-top-right    = view_corners[2]
+            // box[-0.5, 0.5,-0.5] = near-top-left     = view_corners[3]
+            // box[-0.5,-0.5, 0.5] = far-bottom-left   = view_corners[4]
+            // box[ 0.5,-0.5, 0.5] = far-bottom-right  = view_corners[5]
+            // box[ 0.5, 0.5, 0.5] = far-top-right     = view_corners[6]
+            // box[-0.5, 0.5, 0.5] = far-top-left      = view_corners[7]
 
-            draw_wireframe(box_vb, box_ib, box_ic, frustum_model,
-                           cam.enabled ? cam_color : cam_disabled_color);
+            // We need to draw 12 edges. Since we can't use the unit box
+            // approach (non-affine mapping), create a temporary vertex buffer.
+            std::vector<glm::vec3> frustum_verts(8);
+            for (int i = 0; i < 8; i++) {
+              frustum_verts[i] =
+                  glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
+            }
+
+            auto frust_vb = renderer->CreateVertexBuffer(frustum_verts);
+
+            push_constant->mvp = vp;
+            push_constant->model = glm::mat4(1.0f);
+            push_constant->color = cam.enabled ? cam_color : cam_disabled_color;
+            no_depth_pipe->PushConstants(cmd);
+
+            VkBuffer buffers[] = {frust_vb->buffer_handle_};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
+            vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
+                                 box_ib->index_type_);
+            vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
           }
         }
       });

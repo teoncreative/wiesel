@@ -695,9 +695,9 @@ bool Engine::LoadTextureAsset(AssetHandle handle) {
       break;
   }
   SamplerProps sampler;
-  sampler.MagFilter = vk_filter;
-  sampler.MinFilter = vk_filter;
-  sampler.AddressMode = vk_wrap;
+  sampler.mag_filter = vk_filter;
+  sampler.min_filter = vk_filter;
+  sampler.address_mode = vk_wrap;
 
   auto texture = renderer_->CreateTexture(pixels, 4, props, sampler);
   stbi_image_free(pixels);

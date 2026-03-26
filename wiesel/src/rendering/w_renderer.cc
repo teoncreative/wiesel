@@ -11,6 +11,7 @@
 
 #include "rendering/w_renderer.h"
 #include "asset/w_asset_properties.h"
+#include "rendering/features/w_billboard_feature.h"
 #include "rendering/features/w_canvas_feature.h"
 #include "rendering/features/w_debug_collider_feature.h"
 #include "rendering/w_acceleration_structure.h"
@@ -241,6 +242,9 @@ template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
 template std::shared_ptr<MemoryBuffer>
     Renderer::CreateVertexBuffer<DebugColliderFeature::OverlayVertex>(
         std::vector<DebugColliderFeature::OverlayVertex>);
+
+template std::shared_ptr<MemoryBuffer>
+    Renderer::CreateVertexBuffer<BillboardVertex>(std::vector<BillboardVertex>);
 
 std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
     std::vector<Index> indices) {
@@ -1069,24 +1073,24 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
                                          const SamplerProps& props) {
   VkSamplerCreateInfo sampler_info{};
   sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  sampler_info.magFilter = props.MagFilter;
-  sampler_info.minFilter = props.MinFilter;
-  sampler_info.addressModeU = props.AddressMode;
-  sampler_info.addressModeV = props.AddressMode;
-  sampler_info.addressModeW = props.AddressMode;
+  sampler_info.magFilter = props.mag_filter;
+  sampler_info.minFilter = props.min_filter;
+  sampler_info.addressModeU = props.address_mode;
+  sampler_info.addressModeV = props.address_mode;
+  sampler_info.addressModeW = props.address_mode;
 
-  if (props.MaxAnisotropy <= 0) {
+  if (props.max_anisotropy <= 0) {
     sampler_info.anisotropyEnable = VK_FALSE;
   } else {
     sampler_info.anisotropyEnable = VK_TRUE;
     sampler_info.maxAnisotropy =
-        std::min(props.MaxAnisotropy,
+        std::min(props.max_anisotropy,
                  physical_device_properties_.limits.maxSamplerAnisotropy);
   }
-  sampler_info.borderColor = props.BorderColor;
+  sampler_info.borderColor = props.border_color;
   sampler_info.unnormalizedCoordinates = VK_FALSE;
-  sampler_info.compareEnable = props.CompareEnable;
-  sampler_info.compareOp = props.CompareOp;
+  sampler_info.compareEnable = props.compare_enable;
+  sampler_info.compareOp = props.compare_op;
 
   sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   sampler_info.maxLod = static_cast<float>(mip_levels);

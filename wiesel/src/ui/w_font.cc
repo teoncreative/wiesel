@@ -215,9 +215,9 @@ void Font::UploadAtlas() {
   props.height = atlas_height_;
 
   SamplerProps sampler{};
-  sampler.MagFilter = VK_FILTER_LINEAR;
-  sampler.MinFilter = VK_FILTER_LINEAR;
-  sampler.AddressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  sampler.mag_filter = VK_FILTER_LINEAR;
+  sampler.min_filter = VK_FILTER_LINEAR;
+  sampler.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 
   atlas_texture_ =
       renderer->CreateTexture(atlas_pixels_.data(), 1, props, sampler);

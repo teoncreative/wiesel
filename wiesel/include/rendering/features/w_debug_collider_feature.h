@@ -49,6 +49,8 @@ class DebugColliderFeature : public RenderFeature {
   // Wireframe rendering
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline>
+      no_depth_pipeline_;  // camera frustums (always visible)
   std::shared_ptr<Pipeline> filled_pipeline_;  // translucent filled
   std::shared_ptr<DebugColliderPushConstant> push_constant_;
 

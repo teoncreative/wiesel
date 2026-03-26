@@ -24,6 +24,7 @@
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "events/w_keyevents.h"
+#include "rendering/features/w_billboard_feature.h"
 #include "rendering/features/w_bloom_feature.h"
 #include "rendering/features/w_canvas_feature.h"
 #include "rendering/features/w_composite_feature.h"
@@ -1489,6 +1490,7 @@ std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(
   pipeline->AddFeature<FXAAFeature>(renderer);
   pipeline->AddFeature<CanvasFeature>(renderer);
   pipeline->AddFeature<DebugColliderFeature>(renderer);
+  pipeline->AddFeature<BillboardFeature>(renderer);
   return pipeline;
 }
 

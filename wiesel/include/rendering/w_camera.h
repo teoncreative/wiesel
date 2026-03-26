@@ -44,7 +44,7 @@ struct CameraComponent {
   ProjectionMode projection_mode = ProjectionMode::Perspective;
   float field_of_view = 60;  // perspective only
   float ortho_size = 5.0f;   // orthographic only: half-height in world units
-  float near_plane = 0.01f;
+  float near_plane = 0.3f;
   float far_plane = 1000.0f;
   float aspect_ratio = 0.0;
   glm::vec4 background_color = {0.0f, 0.0f, 0.0f,

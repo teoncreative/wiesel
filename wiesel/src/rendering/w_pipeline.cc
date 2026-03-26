@@ -13,9 +13,32 @@
 
 #include <algorithm>
 
+#include "rendering/w_descriptor.h"
+
 #include "w_engine.h"
 
 namespace Wiesel {
+
+static VkCompareOp ToVkCompareOp(CompareOp op) {
+  switch (op) {
+    case CompareOpLess:
+      return VK_COMPARE_OP_LESS;
+    case CompareOpLessOrEqual:
+      return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case CompareOpGreater:
+      return VK_COMPARE_OP_GREATER;
+    case CompareOpGreaterOrEqual:
+      return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case CompareOpEqual:
+      return VK_COMPARE_OP_EQUAL;
+    case CompareOpAlways:
+      return VK_COMPARE_OP_ALWAYS;
+    case CompareOpNever:
+      return VK_COMPARE_OP_NEVER;
+    default:
+      return VK_COMPARE_OP_LESS;
+  }
+}
 
 Pipeline::Pipeline(PipelineProperties properties) : properties_(properties) {}
 
@@ -199,7 +222,11 @@ void Pipeline::Bake() {
   }
   rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
-  rasterizer.depthBiasEnable = VK_FALSE;
+  bool use_depth_bias = properties_.depth_bias_constant != 0.0f ||
+                        properties_.depth_bias_slope != 0.0f;
+  rasterizer.depthBiasEnable = use_depth_bias ? VK_TRUE : VK_FALSE;
+  rasterizer.depthBiasConstantFactor = properties_.depth_bias_constant;
+  rasterizer.depthBiasSlopeFactor = properties_.depth_bias_slope;
 
   VkPipelineMultisampleStateCreateInfo multisampling{};
   multisampling.sType =
@@ -264,7 +291,7 @@ void Pipeline::Bake() {
   } else {
     depthStencil.depthWriteEnable = VK_FALSE;
   }
-  depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+  depthStencil.depthCompareOp = ToVkCompareOp(properties_.depth_compare_op);
   depthStencil.depthBoundsTestEnable = VK_FALSE;
   depthStencil.minDepthBounds = 0.0f;
   depthStencil.maxDepthBounds = 1.0f;
@@ -295,12 +322,33 @@ void Pipeline::Bake() {
 
 void Pipeline::Bind(PipelineBindPoint bind_point, VkCommandBuffer cmd) {
   auto renderer = Engine::renderer();
-  VkCommandBuffer cb = renderer->ResolveCmd(cmd);
-  vkCmdBindPipeline(cb, ToVkPipelineBindPoint(bind_point), pipeline_);
-  for (const auto& item : push_constants_) {
-    vkCmdPushConstants(cb, layout_, item.flags, 0, item.size, item.ptr.get());
-  }
+  VkCommandBuffer command_buffer = renderer->ResolveCmd(cmd);
+  vkCmdBindPipeline(command_buffer, ToVkPipelineBindPoint(bind_point),
+                    pipeline_);
+  PushConstants(command_buffer);
   renderer->SetBoundPipeline(this);
+}
+
+void Pipeline::PushConstants(VkCommandBuffer cmd) {
+  VkCommandBuffer command_buffer = Engine::renderer()->ResolveCmd(cmd);
+  for (const auto& item : push_constants_) {
+    vkCmdPushConstants(command_buffer, layout_, item.flags, 0, item.size,
+                       item.ptr.get());
+  }
+}
+
+void Pipeline::BindDescriptorSets(
+    VkCommandBuffer cmd,
+    const std::vector<std::shared_ptr<DescriptorSet>>& sets) {
+  VkCommandBuffer command_buffer = Engine::renderer()->ResolveCmd(cmd);
+  std::vector<VkDescriptorSet> vk_sets;
+  vk_sets.reserve(sets.size());
+  for (const auto& s : sets) {
+    vk_sets.push_back(s->descriptor_set_);
+  }
+  vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          layout_, 0, static_cast<uint32_t>(vk_sets.size()),
+                          vk_sets.data(), 0, nullptr);
 }
 
 }  // namespace Wiesel

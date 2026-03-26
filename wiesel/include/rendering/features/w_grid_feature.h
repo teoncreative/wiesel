@@ -20,7 +20,7 @@ struct GridUniformData {
   alignas(16) glm::mat4 view_projection;
   alignas(16) glm::vec4 camera_pos;  // w unused
   float grid_scale = 1.0f;
-  float fade_distance = 100.0f;
+  float fade_distance = 400.0f;
 };
 
 class GridFeature : public RenderFeature {

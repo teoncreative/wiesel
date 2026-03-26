@@ -144,8 +144,6 @@ void GridFeature::AddPasses(RenderGraph& graph,
           data.inv_view_projection = glm::inverse(vp);
           data.view_projection = vp;
           data.camera_pos = glm::vec4(cam_data->position, 0.0f);
-          data.grid_scale = 1.0f;
-          data.fade_distance = 150.0f;
           memcpy(ubo->data_, &data, sizeof(GridUniformData));
         }
 

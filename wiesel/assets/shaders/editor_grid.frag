@@ -14,7 +14,7 @@ layout(location = 0) out vec4 outFragColor;
 float gridLine(vec2 coord, float scale) {
     vec2 grid = abs(fract(coord / scale - 0.5) - 0.5);
     vec2 line = fwidth(coord / scale);
-    vec2 g = smoothstep(line * 0.5, line * 1.5, grid);
+    vec2 g = smoothstep(line * 0.3, line * 0.8, grid);
     return 1.0 - min(g.x, g.y);
 }
 
@@ -53,11 +53,17 @@ void main() {
         discard;
     }
 
-    // Grid lines - 3 levels of increasing darkness
-    float minor = gridLine(worldPos.xz, gridScale) * 0.15;
-    float major = gridLine(worldPos.xz, gridScale * 10.0) * 0.35;
-    float super = gridLine(worldPos.xz, gridScale * 100.0) * 0.55;
-    float intensity = max(max(minor, major), super);
+    float camHeight = max(abs(cameraPos.y), 0.1);
+
+    float fade0 = 1.0 - smoothstep(gridScale * 15.0, gridScale * 50.0, camHeight);
+    float fade1 = 1.0 - smoothstep(gridScale * 150.0, gridScale * 500.0, camHeight);
+    float fade2 = 1.0 - smoothstep(gridScale * 1500.0, gridScale * 5000.0, camHeight);
+
+    float l0 = gridLine(worldPos.xz, gridScale) * 0.25 * fade0;
+    float l1 = gridLine(worldPos.xz, gridScale * 10.0) * 0.35 * fade1;
+    float l2 = gridLine(worldPos.xz, gridScale * 100.0) * 0.45 * fade2;
+    float l3 = gridLine(worldPos.xz, gridScale * 1000.0) * 0.55;
+    float intensity = max(max(l0, l1), max(l2, l3));
 
     // Axis highlights - wider than grid lines (3x), clamped to prevent grazing expansion
     vec2 fw = min(fwidth(worldPos.xz), vec2(gridScale * 0.05));

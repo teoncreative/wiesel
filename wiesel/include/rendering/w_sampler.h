@@ -25,18 +25,18 @@ namespace Wiesel {
 // * VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE: Like clamp to edge, but instead uses the edge opposite to the closest edge.
 // * VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: Return a solid color when sampling beyond the dimensions of the image.
 struct SamplerProps {
-  VkFilter MagFilter = VK_FILTER_LINEAR;
-  VkFilter MinFilter = VK_FILTER_LINEAR;
-  float MaxAnisotropy = -1.0f;
-  VkSamplerAddressMode AddressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  VkBorderColor BorderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-  VkBool32 CompareEnable = VK_FALSE;
-  VkCompareOp CompareOp = VK_COMPARE_OP_ALWAYS;
+  VkFilter mag_filter = VK_FILTER_LINEAR;
+  VkFilter min_filter = VK_FILTER_LINEAR;
+  float max_anisotropy = -1.0f;
+  VkSamplerAddressMode address_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  VkBorderColor border_color = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  VkBool32 compare_enable = VK_FALSE;
+  VkCompareOp compare_op = VK_COMPARE_OP_ALWAYS;
 };
 
 class Sampler {
  public:
-  Sampler(uint32_t mipLevels, const SamplerProps& props);
+  Sampler(uint32_t mip_levels, const SamplerProps& props);
   ~Sampler();
 
   VkSampler handle() const { return handle_; }

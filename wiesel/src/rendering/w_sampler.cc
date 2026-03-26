@@ -18,32 +18,32 @@
 
 namespace Wiesel {
 
-Sampler::Sampler(uint32_t mipLevels, const Wiesel::SamplerProps& props) {
+Sampler::Sampler(uint32_t mip_levels, const SamplerProps& props) {
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = props.MagFilter;
-  samplerInfo.minFilter = props.MinFilter;
-  samplerInfo.addressModeU = props.AddressMode;
-  samplerInfo.addressModeV = props.AddressMode;
-  samplerInfo.addressModeW = props.AddressMode;
+  samplerInfo.magFilter = props.mag_filter;
+  samplerInfo.minFilter = props.min_filter;
+  samplerInfo.addressModeU = props.address_mode;
+  samplerInfo.addressModeV = props.address_mode;
+  samplerInfo.addressModeW = props.address_mode;
 
   const VkPhysicalDeviceProperties& properties =
       Engine::renderer()->GetPhysicalDeviceProperties();
 
-  if (props.MaxAnisotropy <= 0) {
+  if (props.max_anisotropy <= 0) {
     samplerInfo.anisotropyEnable = VK_FALSE;
   } else {
     samplerInfo.anisotropyEnable = VK_TRUE;
     samplerInfo.maxAnisotropy =
-        std::min(props.MaxAnisotropy, properties.limits.maxSamplerAnisotropy);
+        std::min(props.max_anisotropy, properties.limits.maxSamplerAnisotropy);
   }
-  samplerInfo.borderColor = props.BorderColor;
+  samplerInfo.borderColor = props.border_color;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
-  samplerInfo.compareEnable = props.CompareEnable;
-  samplerInfo.compareOp = props.CompareOp;
+  samplerInfo.compareEnable = props.compare_enable;
+  samplerInfo.compareOp = props.compare_op;
 
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  samplerInfo.maxLod = static_cast<float>(mipLevels);
+  samplerInfo.maxLod = static_cast<float>(mip_levels);
 
   WIESEL_CHECK_VKRESULT(vkCreateSampler(Engine::renderer()->GetLogicalDevice(),
                                         &samplerInfo, nullptr, &handle_));
