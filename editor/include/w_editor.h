@@ -93,6 +93,7 @@ class EditorLayer : public Layer {
   // Project
   std::filesystem::path current_scene_path_;
   bool scene_dirty_ = false;
+  bool prev_scene_dirty_ = false;
   float auto_save_timer_ = 0.0f;
   static constexpr float kAutoSaveInterval = 30.0f;  // seconds
 

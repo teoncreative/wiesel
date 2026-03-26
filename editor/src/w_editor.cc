@@ -214,7 +214,8 @@ static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
 // If parent != entt::null, the entity is linked as a child.
 // Returns true if an entity was created.
 static bool RenderAddEntityMenu(Scene* scene, bool& dirty,
-                                entt::entity parent = entt::null) {
+                                entt::entity parent = entt::null,
+                                const glm::vec3* spawn_pos = nullptr) {
   Entity created{entt::null, nullptr};
 
   if (ImGui::MenuItem("Empty Entity")) {
@@ -254,6 +255,10 @@ static bool RenderAddEntityMenu(Scene* scene, bool& dirty,
     if (parent != entt::null) {
       scene->LinkEntities(parent, created);
     }
+    if (spawn_pos) {
+      auto& tc = created.GetComponent<TransformComponent>();
+      tc.SetPosition(*spawn_pos);
+    }
     dirty = true;
     return true;
   }
@@ -285,7 +290,7 @@ void EditorLayer::OnAttach() {
 
   // Set editor window icon from engine logo
   {
-    auto logo = Engine::vfs()->Open("/engine/textures/logo.png");
+    auto logo = Engine::vfs()->Open("engine://textures/logo.png");
     if (logo) {
       int w = 0;
       int h = 0;
@@ -394,6 +399,12 @@ void EditorLayer::ProcessDeferredActions() {
 
 void EditorLayer::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED_N("Editor::OnUpdate");
+
+  // Update window title when dirty state changes
+  if (scene_dirty_ != prev_scene_dirty_) {
+    prev_scene_dirty_ = scene_dirty_;
+    UpdateWindowTitle();
+  }
 
   // Process deferred scene switches (safe point between frames)
   ProcessDeferredActions();
@@ -2644,6 +2655,17 @@ void EditorLayer::OnBeginPresent() {
                 1.0f - (rel_y / image_size.y) * 2.0f  // flip Y
             };
           }
+        }
+        // Shift+R: open quick-add menu at camera position
+        if (scene_hovered && ImGui::IsKeyPressed(ImGuiKey_R, false) &&
+            ImGui::GetIO().KeyShift) {
+          ImGui::OpenPopup("##QuickAdd");
+        }
+        if (ImGui::BeginPopup("##QuickAdd")) {
+          glm::vec3 cam_pos = editor_camera_transform_.GetPosition();
+          RenderAddEntityMenu(scene().get(), scene_dirty_, entt::null,
+                              &cam_pos);
+          ImGui::EndPopup();
         }
       }
     }
