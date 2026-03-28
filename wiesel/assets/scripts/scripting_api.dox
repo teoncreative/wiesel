@@ -1,0 +1,11 @@
+/**
+ * @defgroup ScriptingAPI C# Scripting API
+ * @brief C# API for game scripting in the Wiesel Engine.
+ *
+ * The scripting API provides C# classes and components for building
+ * game logic. Scripts derive from MonoBehavior and are attached to
+ * entities as components.
+ *
+ * @{
+ * @}
+ */

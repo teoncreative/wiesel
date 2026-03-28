@@ -1,13 +1,34 @@
 PROJECT_NAME = WieselEngine
 OUTPUT_DIRECTORY = docs
-INPUT = wiesel monolib editor
+
+# Input sources - engine C++ API and C# scripting API
+INPUT = wiesel/include \
+        wiesel/src \
+        libs/monolib/include \
+        editor/include \
+        wiesel/assets/scripts
+
 RECURSIVE = YES
-EXCLUDE_PATTERNS = **/*.cpp
-EXCLUDE_PATTERNS += **/*.cs
-EXCLUDE_PATTERNS += vendor/*
+
+# Only process headers for C++, all .cs files for C# API
+FILE_PATTERNS = *.h *.cs *.dox
+
+EXCLUDE_PATTERNS = vendor/*
+
+# Group C# files into a separate module
+INPUT_FILTER =
+
 GENERATE_TREEVIEW = YES
 DISABLE_INDEX = NO
 FULL_SIDEBAR = NO
 HTML_EXTRA_STYLESHEET = docs/styles/doxygen-awesome.css
 FULL_PATH_NAMES = NO
 EXTRACT_ALL = YES
+
+# Enable grouping/modules for separating Engine API and Scripting API
+GROUP_GRAPHS = YES
+
+EXTENSION_MAPPING = cs=Csharp
+
+# Optimize for C++ and C# mixed docs
+OPTIMIZE_OUTPUT_JAVA = YES

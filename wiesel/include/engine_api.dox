@@ -1,0 +1,10 @@
+/**
+ * @defgroup EngineAPI C++ Engine API
+ * @brief C++ API for the Wiesel Engine core, rendering, scene, and editor systems.
+ *
+ * The engine API provides the foundational types and systems for
+ * rendering, scene management, physics, audio, and editor tooling.
+ *
+ * @{
+ * @}
+ */
