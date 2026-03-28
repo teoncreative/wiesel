@@ -11,8 +11,8 @@
 
 #include "window/w_sdlwindow.h"
 
-#include <imgui.h>
 #include <backends/imgui_impl_sdl3.h>
+#include <imgui.h>
 
 #include "events/w_appevents.h"
 #include "events/w_keyevents.h"
