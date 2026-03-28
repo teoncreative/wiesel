@@ -11,6 +11,7 @@
 
 #include "window/w_sdlwindow.h"
 
+#include <imgui.h>
 #include <backends/imgui_impl_sdl3.h>
 
 #include "events/w_appevents.h"
@@ -168,6 +169,9 @@ SdlAppWindow::SdlAppWindow(const WindowProperties&& properties)
       framebuffer_size_.width / static_cast<float>(window_size_.width);
   scale_.height =
       framebuffer_size_.height / static_cast<float>(window_size_.height);
+
+  // Enable text input events (SDL3 doesn't enable by default)
+  SDL_StartTextInput(handle_);
 }
 
 SdlAppWindow::~SdlAppWindow() {
@@ -244,7 +248,6 @@ void SdlAppWindow::OnUpdate() {
         }
 
         case SDL_EVENT_TEXT_INPUT: {
-          // SDL3 gives us a UTF-8 string; send first codepoint
           const char* text = e.text.text;
           if (text && text[0]) {
             KeyTypedEvent event(static_cast<unsigned int>(text[0]));

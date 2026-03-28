@@ -15,6 +15,7 @@
 #include "w_editor.h"
 #include <unordered_set>
 #include "util/w_discord_rpc.h"
+#include "w_csharp_lang.h"
 
 // clang-format off
 // Import order important
@@ -58,13 +59,13 @@
 
 namespace Wiesel::Editor {
 
-std::shared_ptr<Wiesel::Scene> scene() {
-  return Wiesel::Engine::scene_manager().GetActiveScene();
+std::shared_ptr<Scene> scene() {
+  return Engine::scene_manager().GetActiveScene();
 }
 
-static std::shared_ptr<Wiesel::Project> active_project_;
+static std::shared_ptr<Project> active_project_;
 
-std::shared_ptr<Wiesel::Project> project() {
+std::shared_ptr<Project> project() {
   return active_project_;
 }
 
@@ -155,6 +156,7 @@ static bool panel_console_ = true;
 static bool panel_stats_ = true;
 static bool panel_scene_view_ = true;
 static bool panel_game_view_ = true;
+static bool panel_lsp_debug_ = false;
 static bool layout_initialized_ = false;
 
 static struct SceneHierarchyData {
@@ -305,6 +307,22 @@ void EditorLayer::OnAttach() {
     }
   }
 
+  // Load monospace font for code editor
+  {
+    auto font_file = Engine::vfs()->Open("engine://fonts/RobotoMono-variable.ttf");
+    if (font_file) {
+      ImGuiIO& io = ImGui::GetIO();
+      // ImGui takes ownership of the data, so we need a persistent copy
+      void* font_data = IM_ALLOC(font_file.Size());
+      memcpy(font_data, font_file.Data(), font_file.Size());
+      code_editor_font_ = io.Fonts->AddFontFromMemoryTTF(
+          font_data, static_cast<int>(font_file.Size()), 36.0f);
+      if (code_editor_font_) {
+        code_editor_font_->Scale = 0.5f;
+      }
+    }
+  }
+
   // Editor idle throttling
   app_.SetIdleMaxFPS(15.0f);
   app_.SetIdleTimeout(120.0f);
@@ -358,6 +376,7 @@ void EditorLayer::OnAttach() {
 
 void EditorLayer::OnDetach() {
   LOG_DEBUG("OnDetach");
+  StopLsp();
   CleanupThumbnailCache();
   editor_camera_.resource_pool.Clear();
   editor_camera_.render_pipeline = nullptr;
@@ -868,6 +887,8 @@ void EditorLayer::OnBeginPresent() {
 
   RenderProjectSettingsPopup();
   RenderAssetPropertiesPanel();
+  RenderCodeEditor();
+  RenderLspDebugPanel();
   RenderCreateSkyboxPopup();
   RenderCreateSpritePopup();
   RenderSliceSpritesPopup();
@@ -1591,7 +1612,7 @@ void EditorLayer::OnBeginPresent() {
                 deferred_action_ = DeferredAction::OpenPrefab;
                 deferred_path_ = fe.physical_path;
               } else if (fe.asset_type == AssetType::Script) {
-                OpenFileInDefaultEditor(fe.physical_path);
+                OpenCodeEditor(fe.physical_path);
               }
             }
 
@@ -2177,13 +2198,20 @@ void EditorLayer::OnBeginPresent() {
   auto DrawPlayStopButtons = [&]() -> bool {
     bool changed = false;
     if (editor_state_ == EditorState::Edit) {
-      if (ImGui::Button("Play")) {
+      bool compiling = Engine::script_manager().IsCompiling();
+      if (compiling) {
+        ImGui::BeginDisabled();
+      }
+      if (ImGui::Button(compiling ? "Compiling..." : "Play")) {
         AutoSave();
         TakeSnapshot();
         editor_state_ = EditorState::Playing;
         scene()->ResetFirstUpdate();
         ImGui::SetWindowFocus("Game");
         changed = true;
+      }
+      if (compiling) {
+        ImGui::EndDisabled();
       }
     } else {
       if (ImGui::Button("Stop")) {
@@ -2399,9 +2427,9 @@ void EditorLayer::OnBeginPresent() {
 
         // Mouse look is handled in OnMouseMoved via the event system
 
-        // Camera movement
-        if (scene_focused || scene_right_active) {
-          ImGui::GetIO().WantCaptureKeyboard = false;
+        // Camera movement (only when no other widget wants keyboard input)
+        if ((scene_focused || scene_right_active) &&
+            !ImGui::GetIO().WantTextInput) {
           ImGuiIO& io = ImGui::GetIO();
           float dt = io.DeltaTime;
           float speed = camera_speed_ * dt;
@@ -4254,6 +4282,7 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::MenuItem("Asset Browser", nullptr, &panel_asset_browser_);
       ImGui::MenuItem("Console", nullptr, &panel_console_);
       ImGui::MenuItem("Stats", nullptr, &panel_stats_);
+      ImGui::MenuItem("LSP Debug", nullptr, &panel_lsp_debug_);
       ImGui::Separator();
       if (ImGui::MenuItem("Reset Layout")) {
         panel_scene_hierarchy_ = true;
@@ -4296,6 +4325,9 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::SeparatorText("Actions");
       if (ImGui::MenuItem("Reload Scripts")) {
         Engine::script_manager().ReloadAsync();
+      }
+      if (ImGui::MenuItem("Reload All (+ Core)")) {
+        Engine::script_manager().ReloadAsync(true);
       }
       if (ImGui::MenuItem("Recreate Pipeline")) {
         Engine::renderer()->SetRecreatePipeline(true);
@@ -4451,9 +4483,11 @@ void EditorLayer::RenderMainMenuBar() {
     ImGui::EndPopup();
   }
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (skip when code editor or other text input has focus)
   ImGuiIO& io = ImGui::GetIO();
-  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+  bool text_input_active = code_editor_focused_ || io.WantTextInput;
+  if (!text_input_active && io.KeyCtrl &&
+      ImGui::IsKeyPressed(ImGuiKey_S, false)) {
     if (!current_scene_path_.empty()) {
       SaveScene();
     } else {
@@ -4779,7 +4813,7 @@ void EditorLayer::AutoSave() {
 void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   namespace fs = std::filesystem;
 
-  auto proj = Project::Load(path);
+  std::unique_ptr<Project> proj = Project::Load(path);
   if (!proj) {
     return;
   }
@@ -4787,19 +4821,15 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   active_project_ = std::move(proj);
   Engine::SetGameInfo(
       std::make_shared<GameInfo>(active_project_->GetGameInfo()));
-  auto project = active_project_;
+  std::shared_ptr<Project> project = active_project_;
 
   // Remove startup FPS cap now that a project is loaded
   app_.SetMaxFPS(0.0f);
 
-  ProjectLoader::MountProject(*project);
-  ProjectLoader::ScanAssets(*project);
-  Engine::script_manager().Reload();
-  ProjectLoader::ApplyRenderOptions(*project);
-  ProjectLoader::ApplyInputSettings(*project);
+  ProjectLoader::LoadAll(*project, false);
 
   // Start watching app directory for script hot reload
-  auto app_dir = Engine::vfs()->GetPhysicalPath("app://");
+  std::optional<std::filesystem::path> app_dir = Engine::vfs()->GetPhysicalPath("app://");
   if (app_dir.has_value()) {
     script_watcher_.SetExtensionFilter(".cs");
     script_watcher_.Watch(*app_dir, true);
@@ -4811,11 +4841,11 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
     if (!handle.IsValid()) {
       return std::nullopt;
     }
-    const auto* meta = Engine::asset_manager().GetMetadata(handle);
+    const AssetMetadata* meta = Engine::asset_manager().GetMetadata(handle);
     if (!meta) {
       return std::nullopt;
     }
-    auto physical =
+    std::optional<std::filesystem::path> physical =
         Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
     if (physical.has_value() && fs::exists(*physical)) {
       return physical;
@@ -4823,7 +4853,7 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
     return std::nullopt;
   };
 
-  auto scene_to_open = resolve_scene_path(project->GetSettings().last_scene);
+  std::optional<std::filesystem::path> scene_to_open = resolve_scene_path(project->GetSettings().last_scene);
   if (!scene_to_open.has_value()) {
     scene_to_open = resolve_scene_path(project->GetGameInfo().start_scene);
   }
@@ -4866,6 +4896,277 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   LOG_INFO("Opened project: {}", project->GetSettings().name);
 }
 
+void EditorLayer::StartLsp() {
+  if (lsp_initialized_ || !active_project_) {
+    return;
+  }
+
+  std::filesystem::path project_dir = active_project_->GetProjectDirectory();
+  std::filesystem::path assets_dir = active_project_->GetAssetsDirectory();
+
+  // Generate a .csproj for the LSP server to discover the project
+  DotNetProject lsp_project("App");
+  lsp_project.SetOutputPath((project_dir / "App.dll").string());
+
+  // Collect all .cs files from the assets directory
+  for (const auto& entry :
+       std::filesystem::recursive_directory_iterator(assets_dir)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+      lsp_project.AddSource(entry.path().string());
+    }
+  }
+
+  // Reference Core.dll from the working directory (build output)
+  std::filesystem::path core_dll = std::filesystem::absolute("Core.dll");
+  if (std::filesystem::exists(core_dll)) {
+    lsp_project.AddReference(core_dll.string());
+  } else {
+    LOG_WARN("LSP: Core.dll not found, engine types won't be available");
+  }
+
+  lsp_project.Save();
+  LOG_INFO("LSP: generated .csproj at {}", lsp_project.GetCsprojPath().string());
+
+  std::string command = "csharp-ls";
+  if (lsp_client_.Start(command, project_dir)) {
+    lsp_client_.Initialize(project_dir);
+    lsp_initialized_ = true;
+    lsp_autocomplete_ = std::make_unique<LspAutocompleteProvider>(lsp_client_);
+    text_editor_.SetAutocompleteProvider(lsp_autocomplete_.get());
+    LOG_INFO("LSP: csharp-ls started");
+  } else {
+    LOG_WARN("LSP: Failed to start csharp-ls. Intellisense unavailable.");
+  }
+}
+
+void EditorLayer::StopLsp() {
+  if (!lsp_initialized_) {
+    return;
+  }
+  lsp_client_.Stop();
+  lsp_initialized_ = false;
+}
+
+void EditorLayer::OpenCodeEditor(const std::filesystem::path& path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    LOG_ERROR("Failed to open file: {}", path.string());
+    return;
+  }
+  std::string content((std::istreambuf_iterator<char>(file)),
+                       std::istreambuf_iterator<char>());
+
+  // Close previous file in LSP
+  if (!code_editor_uri_.empty() && lsp_initialized_) {
+    lsp_client_.DidClose(code_editor_uri_);
+  }
+
+  code_editor_path_ = path;
+  code_editor_uri_ = LspClient::PathToUri(path);
+  text_editor_.SetText(content);
+  text_editor_.SetFilePath(path.string());
+  static auto csharp_lang = CreateCSharpLanguageDefinition();
+  text_editor_.SetLanguageDefinition(csharp_lang);
+  text_editor_.SetShowWhitespaces(false);
+  code_editor_unsaved_ = false;
+  code_editor_open_ = true;
+
+  // Start LSP if needed and notify of opened file
+  StartLsp();
+  semantic_tokens_received_ = false;
+  if (lsp_initialized_) {
+    lsp_client_.DidOpen(code_editor_uri_, content);
+  }
+}
+
+void EditorLayer::SaveCodeEditorFile() {
+  if (code_editor_path_.empty()) {
+    return;
+  }
+  std::ofstream file(code_editor_path_);
+  if (!file.is_open()) {
+    LOG_ERROR("Failed to save file: {}", code_editor_path_.string());
+    return;
+  }
+  file << text_editor_.GetText();
+  code_editor_unsaved_ = false;
+
+  // Re-request semantic tokens after save
+  if (lsp_initialized_) {
+    lsp_client_.RequestSemanticTokens(code_editor_uri_);
+  }
+}
+
+void EditorLayer::RenderCodeEditor() {
+  if (!code_editor_open_) {
+    return;
+  }
+
+  std::string title = code_editor_path_.filename().string();
+  if (code_editor_unsaved_) {
+    title += " *";
+  }
+  title += "###CodeEditor";
+
+  ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
+  if (!ImGui::Begin(title.c_str(), &code_editor_open_,
+                    ImGuiWindowFlags_MenuBar)) {
+    ImGui::End();
+    return;
+  }
+
+  // Menu bar
+  if (ImGui::BeginMenuBar()) {
+    if (ImGui::BeginMenu("File")) {
+      if (ImGui::MenuItem("Save", "Ctrl+S", false, code_editor_unsaved_)) {
+        SaveCodeEditorFile();
+      }
+      ImGui::EndMenu();
+    }
+
+    // Right-aligned buttons
+    float avail = ImGui::GetContentRegionAvail().x;
+    float button_width = ImGui::CalcTextSize("Open in VS Code").x + 20;
+    ImGui::SameLine(avail - button_width + ImGui::GetCursorPosX());
+    if (ImGui::SmallButton("Open in VS Code")) {
+      std::string cmd = "code \"" + code_editor_path_.string() + "\"";
+      std::system(cmd.c_str());
+    }
+
+    ImGui::EndMenuBar();
+  }
+
+  // Status bar
+  auto cpos = text_editor_.GetCursorPosition();
+  ImGui::Text("Ln %d, Col %d | %s", cpos.mLine + 1, cpos.mColumn + 1,
+              code_editor_path_.filename().string().c_str());
+
+  // Request semantic tokens if we haven't received them yet (throttled)
+  if (lsp_initialized_ && !semantic_tokens_received_) {
+    static float retry_timer = 0.0f;
+    retry_timer += ImGui::GetIO().DeltaTime;
+    if (retry_timer >= 1.0f) {
+      retry_timer = 0.0f;
+      lsp_client_.RequestSemanticTokens(code_editor_uri_);
+    }
+  }
+
+  // Apply LSP semantic tokens as identifier highlights
+  if (lsp_initialized_ && lsp_client_.HasSemanticTokens()) {
+    semantic_tokens_received_ = true;
+    std::vector<LspSemanticToken> tokens = lsp_client_.TakeSemanticTokens();
+    const std::vector<std::string>& legend = lsp_client_.GetTokenTypeLegend();
+    std::vector<std::string> lines = text_editor_.GetTextLines();
+
+    int added_count = 0;
+    for (const LspSemanticToken& token : tokens) {
+      if (token.line >= static_cast<int>(lines.size())) {
+        continue;
+      }
+      const std::string& line = lines[token.line];
+      if (token.column + token.length > static_cast<int>(line.size())) {
+        continue;
+      }
+      std::string token_text = line.substr(token.column, token.length);
+
+      std::string type_name;
+      if (token.token_type < static_cast<int>(legend.size())) {
+        type_name = legend[token.token_type];
+      }
+
+      if (type_name == "class" || type_name == "struct" ||
+          type_name == "interface" || type_name == "enum" ||
+          type_name == "type" || type_name == "namespace") {
+        text_editor_.AddIdentifier(token_text);
+        added_count++;
+      }
+    }
+    if (added_count > 0) {
+      text_editor_.InvalidateColorize();
+    }
+  }
+
+  // Apply LSP diagnostics as error markers
+  if (lsp_initialized_ && lsp_client_.HasDiagnostics(code_editor_uri_)) {
+    std::vector<LspDiagnostic> diags = lsp_client_.TakeDiagnostics(code_editor_uri_);
+    TextEditor::ErrorMarkers markers;
+    for (const LspDiagnostic& d : diags) {
+      markers[d.line + 1] = d.message;  // TextEditor uses 1-based lines
+    }
+    text_editor_.SetErrorMarkers(markers);
+
+    // Request semantic tokens now that the server has analyzed the file
+    if (!lsp_client_.HasSemanticTokens()) {
+      lsp_client_.RequestSemanticTokens(code_editor_uri_);
+    }
+  }
+
+  // Editor (monospace font)
+  if (code_editor_font_) {
+    ImGui::PushFont(code_editor_font_);
+  }
+
+  bool was_modified = text_editor_.IsTextChanged();
+
+  text_editor_.Render("##editor");
+
+  if (text_editor_.IsTextChanged() && !was_modified) {
+    code_editor_unsaved_ = true;
+  }
+
+  if (code_editor_font_) {
+    ImGui::PopFont();
+  }
+
+  code_editor_focused_ =
+      ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
+
+  // Ctrl+S to save within the editor window
+  if (code_editor_focused_ && ImGui::GetIO().KeyCtrl &&
+      ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+    SaveCodeEditorFile();
+  }
+
+  ImGui::End();
+}
+
+void EditorLayer::RenderLspDebugPanel() {
+  if (!panel_lsp_debug_) {
+    return;
+  }
+
+  ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+  if (!ImGui::Begin("LSP Debug", &panel_lsp_debug_)) {
+    ImGui::End();
+    return;
+  }
+
+  ImGui::Text("Status: %s",
+              lsp_initialized_ ? (lsp_client_.IsRunning() ? "Running" : "Died")
+                               : "Not started");
+
+  ImGui::Separator();
+
+  std::vector<LspClient::LogEntry> log = lsp_client_.GetLog();
+  if (ImGui::BeginChild("##lsp_log", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
+    for (const LspClient::LogEntry& entry : log) {
+      ImVec4 color = entry.outgoing ? ImVec4(0.4f, 0.8f, 0.4f, 1.0f)
+                                    : ImVec4(0.5f, 0.7f, 1.0f, 1.0f);
+      ImGui::PushStyleColor(ImGuiCol_Text, color);
+      ImGui::TextWrapped("%s%s", entry.outgoing ? ">> " : "<< ",
+                         entry.summary.c_str());
+      ImGui::PopStyleColor();
+      ImGui::Separator();
+    }
+    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+      ImGui::SetScrollHereY(1.0f);
+    }
+  }
+  ImGui::EndChild();
+
+  ImGui::End();
+}
+
 void EditorLayer::RenderAssetPropertiesPanel() {
   static bool panel_open = true;
   if (!panel_open) {
@@ -4873,7 +5174,7 @@ void EditorLayer::RenderAssetPropertiesPanel() {
   }
 
   if (ImGui::Begin("Asset Properties", &panel_open)) {
-    const auto* meta =
+    const AssetMetadata* meta =
         Engine::asset_manager().GetMetadata(properties_asset_handle_);
     if (!meta || !properties_asset_handle_.IsValid()) {
       ImGui::TextDisabled("No asset selected");
@@ -4910,12 +5211,12 @@ void EditorLayer::RenderAssetPropertiesPanel() {
       }
     }
 
-    const auto* desc = AssetPropertyRegistry::Get(meta->type);
+    const AssetPropertyDesc* desc = AssetPropertyRegistry::Get(meta->type);
     if (desc && meta->properties) {
       bool changed = desc->RenderImGui(meta->properties.get());
       if (changed) {
         // Write properties back to .meta file
-        auto physical =
+        std::optional<std::filesystem::path> physical =
             Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
         if (physical.has_value()) {
           std::filesystem::path meta_path = physical->string() + ".meta";
@@ -4932,9 +5233,9 @@ void EditorLayer::RenderAssetPropertiesPanel() {
 
       if (meta->type == AssetType::Font) {
         FontCache::Invalidate(properties_asset_handle_);
-        auto s = scene();
+        std::shared_ptr<Scene> s = scene();
         if (s) {
-          for (auto e : s->GetAllEntitiesWith<TextComponent>()) {
+          for (entt::entity e : s->GetAllEntitiesWith<TextComponent>()) {
             auto& tc = s->GetComponent<TextComponent>(e);
             if (tc.font_handle == properties_asset_handle_) {
               tc.gpu_dirty_ = true;
@@ -4958,7 +5259,7 @@ void EditorLayer::RenderAssetPropertiesPanel() {
 }
 
 void EditorLayer::ScanProjectAssets() {
-  auto project = active_project_;
+  std::shared_ptr<Wiesel::Project> project = active_project_;
   if (project) {
     ProjectLoader::ScanAssets(*project);
     project->Save();
@@ -5052,7 +5353,7 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
   scene()->InvalidateRenderGraphs();
 
   // Setup camera components
-  for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
+  for (entt::entity entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
     auto& cam = scene()->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
@@ -5066,7 +5367,7 @@ void EditorLayer::SavePrefab() {
   }
 
   // Find the root entity (first in hierarchy - the prefab root)
-  auto& hierarchy = scene()->GetSceneHierarchy();
+  std::vector<entt::entity>& hierarchy = scene()->GetSceneHierarchy();
   if (hierarchy.empty()) {
     LOG_ERROR("Cannot save prefab: scene is empty");
     return;

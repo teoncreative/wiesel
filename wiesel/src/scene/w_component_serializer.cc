@@ -19,7 +19,7 @@
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "behavior/w_native_behavior.h"
-#include "mono_util.h"
+#include "mono_wrappers.h"
 #include "physics/w_collider.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"

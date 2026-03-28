@@ -65,7 +65,10 @@ bool CompileScripts(const fs::path& scripts_dir, const fs::path& output_dll) {
 
   std::cout << "Compiling " << source_files.size() << " C# scripts to "
             << output_dll << "\n";
-  auto result = CompileToDLL(output_dll.string(), source_files);
+  DotNetProject project(output_dll.stem().string());
+  project.SetOutputPath(output_dll.string());
+  project.SetSources(source_files);
+  auto result = project.Build();
   if (!result.success) {
     std::cerr << "Compilation failed (exit code " << result.exit_code << "):\n"
               << result.output << "\n";

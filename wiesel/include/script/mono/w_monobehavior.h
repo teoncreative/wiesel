@@ -14,12 +14,10 @@
 #include "behavior/w_behavior.h"
 #include "script/w_scriptmanager.h"
 
-#include <mono/jit/jit.h>
-#include <mono/metadata/assembly.h>
-#include <mono/metadata/class.h>
-#include <mono/metadata/debug-helpers.h>
-
 namespace Wiesel {
+
+class ScriptInstance;
+
 class MonoBehavior : public IBehavior {
  public:
   MonoBehavior(Entity entity, const std::string& script_name);
@@ -38,64 +36,23 @@ class MonoBehavior : public IBehavior {
 
   ScriptInstance* script_instance() const { return script_instance_.get(); }
 
-  bool OnPointerClick(float x, float y) override {
-    if (script_instance_) {
-      return script_instance_->OnPointerClick(x, y);
-    }
-    return false;
-  }
+  bool OnPointerClick(float x, float y) override;
 
-  bool OnPointerDown(float x, float y) override {
-    if (script_instance_) {
-      return script_instance_->OnPointerDown(x, y);
-    }
-    return false;
-  }
+  bool OnPointerDown(float x, float y) override;
 
-  bool OnPointerUp(float x, float y) override {
-    if (script_instance_) {
-      return script_instance_->OnPointerUp(x, y);
-    }
-    return false;
-  }
+  bool OnPointerUp(float x, float y) override;
 
-  void OnPointerEnter() override {
-    if (script_instance_) {
-      script_instance_->OnPointerEnter();
-    }
-  }
+  void OnPointerEnter() override;
 
-  void OnPointerExit() override {
-    if (script_instance_) {
-      script_instance_->OnPointerExit();
-    }
-  }
+  void OnPointerExit() override;
 
-  void OnSelect() override {
-    if (script_instance_) {
-      script_instance_->OnSelect();
-    }
-  }
+  void OnSelect() override;
 
-  void OnDeselect() override {
-    if (script_instance_) {
-      script_instance_->OnDeselect();
-    }
-  }
+  void OnDeselect() override;
 
-  bool OnSubmit() override {
-    if (script_instance_) {
-      return script_instance_->OnSubmit();
-    }
-    return false;
-  }
+  bool OnSubmit() override;
 
-  bool OnCancel() override {
-    if (script_instance_) {
-      return script_instance_->OnCancel();
-    }
-    return false;
-  }
+  bool OnCancel() override;
 
  private:
   void InstantiateScript();

@@ -30,7 +30,7 @@ add_library(mono-compiler STATIC src/mono_compiler.cc)
 target_include_directories(mono-compiler PUBLIC include)
 target_compile_features(mono-compiler PUBLIC cxx_std_17)
 
-add_library(monolib STATIC src/mono_util.cc)
+add_library(monolib STATIC src/mono_wrappers.cc)
 target_link_libraries(monolib PUBLIC mono-compiler)
 
 message("MONO_LDFLAGS: ${MONO_LDFLAGS}")
@@ -40,14 +40,10 @@ target_include_directories(monolib PUBLIC ${MONO_INCLUDE_DIRS} include)
 target_link_directories(monolib PUBLIC ${MONO_LIBRARY_DIRS})
 target_link_libraries(monolib PUBLIC ${MONO_LIBRARIES} ${MONO_LDFLAGS})
 
-# copy mcs to the build directory
+# Copy Mono runtime (etc + lib) to the build directory.
+# bin/ is no longer needed since we use dotnet build instead of mcs.
 if(WIN32)
     target_link_libraries(monolib PUBLIC winmm Ws2_32 Version bcrypt)
-    # todo
-    add_custom_command(TARGET monolib PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${MONO_ROOT}/bin ${CMAKE_BINARY_DIR}/mono/bin
-            COMMENT "Copying mono bin to the build directory"
-    )
     add_custom_command(TARGET monolib PRE_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${MONO_ROOT}/etc ${CMAKE_BINARY_DIR}/mono/etc
             COMMENT "Copying mono etc to the build directory"
@@ -58,10 +54,6 @@ if(WIN32)
     )
 else()
     add_custom_command(TARGET monolib PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory /opt/homebrew/opt/mono/bin ${CMAKE_BINARY_DIR}/mono/bin
-            COMMENT "Copying mono bin to the build directory"
-    )
-    add_custom_command(TARGET monolib PRE_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory /opt/homebrew/opt/mono/etc ${CMAKE_BINARY_DIR}/mono/etc
             COMMENT "Copying mono etc to the build directory"
     )
@@ -70,24 +62,3 @@ else()
             COMMENT "Copying mono lib to the build directory"
     )
 endif()
-
-
-function(target_compile_csharp target_project output_dll sources)
-    set(TARGET_PROJECT ${target_project})
-    set(ASSETS_DIRECTORY ${assets_directory})
-
-    set(OUTPUT_DLL ${output_dll})
-    get_filename_component(OUTPUT_DLL_FOLDER ${OUTPUT_DLL} DIRECTORY)
-
-    # Create a custom target to compile C# sources into a DLL
-    add_custom_command(TARGET ${TARGET_PROJECT} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DLL_FOLDER})
-
-    add_custom_target("CSharpCompile-${TARGET_PROJECT}"
-            COMMAND mcs -target:library -out:${OUTPUT_DLL} ${CSHARP_SOURCES}
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "Compiling C# sources into ${OUTPUT_DLL}"
-    )
-
-    add_dependencies(${TARGET_PROJECT} "CSharpCompile-${TARGET_PROJECT}")
-endfunction()

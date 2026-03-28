@@ -33,8 +33,9 @@ class ProjectLoader {
   static void ApplyInputSettings(Project& project);
   static bool LoadStartScene(Project& project);
 
-  // Convenience: do everything (mount, scan, scripts, options, start scene).
-  static bool LoadAll(Project& project);
+  // Convenience: mount, scan, compile scripts, apply options.
+  // Pass load_start_scene=true to also open the start scene.
+  static bool LoadAll(Project& project, bool load_start_scene = true);
 
   // Import a single asset file via VFS. Handles JSON-embedded handles for
   // JSON asset types and .meta sidecar files for binary assets.

@@ -10,16 +10,11 @@
 //
 
 #pragma once
-#include <mono/jit/jit.h>
-#include <mono/metadata/assembly.h>
-#include <mono/metadata/class.h>
-#include <future>
-#include <typeindex>
+
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
-#include "mono_compiler.h"
-#include "scene/w_entity.h"
 #include "scene/w_scene.h"
+#include "script/mono/w_mono_util.h"
 
 namespace Wiesel {
 
@@ -320,23 +315,28 @@ class ScriptManager {
 
   void Init(const ScriptManagerProperties&& properties);
   void Destroy();
+
+  // Synchronous compile + load (blocks until done). Used for initial load.
   void Reload();
-  void ReloadAsync();
+
+  // Async compile on background thread, SwapDomain on main thread when done.
+  void ReloadAsync(bool force_recompile_core = false);
+  bool FinishReloadIfReady();
 
   bool IsCompiling() const { return compiling_; }
-
   const CompileResult& last_compile_result() const {
     return last_compile_result_;
   }
 
-  bool FinishReloadIfReady();
-
-  void LoadCore();
-  void LoadApp();
+ private:
+  // Domain swap: unload old domain, load DLLs, register classes.
+  // Must only be called on the main thread after compilation finishes.
+  void SwapDomain();
+  void LoadCoreDll();
   bool LoadAppDll(const std::string& dll_path);
-  void RegisterInternals();
   void RegisterComponents();
 
+ public:
   MonoDomain* root_domain() { return root_domain_; }
 
   MonoDomain* app_domain() { return app_domain_; }
@@ -414,7 +414,6 @@ class ScriptManager {
   // Async compilation
   bool compiling_ = false;
   std::future<CompileResult> compile_future_;
-  std::string pending_dll_path_;
   CompileResult last_compile_result_;
 };
 

@@ -1,4 +1,3 @@
-
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -10,3 +9,11 @@
 //
 
 #pragma once
+
+#include "TextEditor.h"
+
+namespace Wiesel::Editor {
+
+TextEditor::LanguageDefinition CreateCSharpLanguageDefinition();
+
+}  // namespace Wiesel::Editor

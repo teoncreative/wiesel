@@ -8,6 +8,7 @@ file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cc")
 file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h")
 
 # Standalone editor executable
-add_executable(wiesel-editor ${SOURCES} ${HEADERS})
-target_include_directories(wiesel-editor PRIVATE ${INCLUDE_DIRECTORY})
+set(TEXTEDIT_DIR ${VENDOR_DIR}/ImGuiColorTextEdit)
+add_executable(wiesel-editor ${SOURCES} ${HEADERS} ${TEXTEDIT_DIR}/TextEditor.cpp)
+target_include_directories(wiesel-editor PRIVATE ${INCLUDE_DIRECTORY} ${TEXTEDIT_DIR})
 target_link_libraries(wiesel-editor PRIVATE wiesel)

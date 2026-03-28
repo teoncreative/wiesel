@@ -270,16 +270,19 @@ bool ProjectLoader::LoadStartScene(Project& project) {
   return GameLoader::LoadStartScene(project.GetGameInfo());
 }
 
-bool ProjectLoader::LoadAll(Project& project) {
+bool ProjectLoader::LoadAll(Project& project, bool load_start_scene) {
   if (!MountProject(project)) {
     return false;
   }
 
   ScanAssets(project);
-  Engine::script_manager().Reload();
+  Engine::script_manager().ReloadAsync();
   ApplyRenderOptions(project);
   ApplyInputSettings(project);
-  LoadStartScene(project);
+
+  if (load_start_scene) {
+    LoadStartScene(project);
+  }
 
   return true;
 }

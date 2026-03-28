@@ -15,12 +15,15 @@
 #ifndef WIESEL_PARENT_W_EDITOR_H
 #define WIESEL_PARENT_W_EDITOR_H
 
+#include "TextEditor.h"
 #include "behavior/w_behavior.h"
 #include "events/w_appevents.h"
 #include "events/w_mouseevents.h"
 #include "rendering/w_camera.h"
 #include "scene/w_scene.h"
 #include "w_application.h"
+#include "w_lsp_autocomplete.h"
+#include "w_lsp_client.h"
 #include "w_project.h"
 
 namespace Wiesel::Editor {
@@ -164,6 +167,25 @@ class EditorLayer : public Layer {
   DeferredAction deferred_action_ = DeferredAction::None;
   std::filesystem::path deferred_path_;
   void ProcessDeferredActions();
+
+  // Code editor
+  bool code_editor_open_ = false;
+  std::filesystem::path code_editor_path_;
+  TextEditor text_editor_;
+  bool code_editor_unsaved_ = false;
+  ImFont* code_editor_font_ = nullptr;
+  bool code_editor_focused_ = false;
+  std::string code_editor_uri_;
+  LspClient lsp_client_;
+  std::unique_ptr<LspAutocompleteProvider> lsp_autocomplete_;
+  bool lsp_initialized_ = false;
+  bool semantic_tokens_received_ = false;
+  void OpenCodeEditor(const std::filesystem::path& path);
+  void RenderCodeEditor();
+  void RenderLspDebugPanel();
+  void SaveCodeEditorFile();
+  void StartLsp();
+  void StopLsp();
 
   // Scene snapshot for Play/Stop restore (full scene JSON)
   std::string play_mode_snapshot_;

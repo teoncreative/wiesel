@@ -11,7 +11,7 @@
 #include "script/mono/w_monobehavior.h"
 
 #include "input/w_input.h"
-#include "mono_util.h"
+#include "mono_wrappers.h"
 #include "script/w_scriptmanager.h"
 #include "w_engine.h"
 
@@ -81,4 +81,64 @@ bool MonoBehavior::OnMouseMoved(MouseMovedEvent& event) {
   }
   return script_instance_->OnMouseMoved(event);
 }
+
+bool MonoBehavior::OnPointerClick(float x, float y) {
+  if (script_instance_) {
+    return script_instance_->OnPointerClick(x, y);
+  }
+  return false;
+}
+
+bool MonoBehavior::OnPointerDown(float x, float y) {
+  if (script_instance_) {
+    return script_instance_->OnPointerDown(x, y);
+  }
+  return false;
+}
+
+bool MonoBehavior::OnPointerUp(float x, float y) {
+  if (script_instance_) {
+    return script_instance_->OnPointerUp(x, y);
+  }
+  return false;
+}
+
+void MonoBehavior::OnPointerEnter() {
+  if (script_instance_) {
+    script_instance_->OnPointerEnter();
+  }
+}
+
+void MonoBehavior::OnPointerExit() {
+  if (script_instance_) {
+    script_instance_->OnPointerExit();
+  }
+}
+
+void MonoBehavior::OnSelect() {
+  if (script_instance_) {
+    script_instance_->OnSelect();
+  }
+}
+
+void MonoBehavior::OnDeselect() {
+  if (script_instance_) {
+    script_instance_->OnDeselect();
+  }
+}
+
+bool MonoBehavior::OnSubmit() {
+  if (script_instance_) {
+    return script_instance_->OnSubmit();
+  }
+  return false;
+}
+
+bool MonoBehavior::OnCancel() {
+  if (script_instance_) {
+    return script_instance_->OnCancel();
+  }
+  return false;
+}
+
 }  // namespace Wiesel

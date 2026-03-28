@@ -9,110 +9,155 @@
 //
 
 #include "mono_compiler.h"
-#include <filesystem>
+
 #include <fstream>
-#include <numeric>
-#include <optional>
 
-static std::optional<std::filesystem::path> ResolveMcs() {
-#ifdef _WIN32
-  const char* v = std::getenv("MONO_ROOT");
-  if (!v) {
-    return std::nullopt;
-  }
-  std::filesystem::path p(v);
+namespace fs = std::filesystem;
 
-  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs.bat") {
-    return p;
-  }
-  if (p.filename() == "bin") {
-    return p / "mcs.bat";
-  }
-  if (p.string().find("\\lib\\mono\\") != std::string::npos) {
-    return p.parent_path().parent_path() / "bin" / "mcs.bat";
-  }
-  return p / "bin" / "mcs.bat";
-#else
-  const char* v = std::getenv("MONO_ROOT");
-  if (!v) {
-    return std::nullopt;
-  }
-  std::filesystem::path p(v);
-  if (std::filesystem::is_regular_file(p) && p.filename() == "mcs") {
-    return p;
-  }
-  if (p.filename() == "bin") {
-    return p / "mcs";
-  }
-  if (p.string().find("/lib/mono/") != std::string::npos) {
-    return p.parent_path().parent_path() / "bin" / "mcs";
-  }
-  return p / "bin" / "mcs";
-#endif
-}
-
-static std::pair<int, std::string> ExecuteAndGetOutput(
-    const std::string& cmd, const std::filesystem::path& tmp) {
+static std::pair<int, std::string> ExecuteAndGetOutput(const std::string& cmd,
+                                                       const fs::path& tmp) {
   int rc = std::system(cmd.c_str());
   std::ifstream in(tmp, std::ios::binary);
   std::string out((std::istreambuf_iterator<char>(in)), {});
   std::error_code ec;
-  std::filesystem::remove(tmp, ec);
+  fs::remove(tmp, ec);
   return {rc, out};
 }
 
-CompileResult CompileToDLL(const std::string& output_file,
-                           const std::vector<std::string>& source_files,
-                           const std::string& lib_dir,
-                           const std::vector<std::string>& link_libs,
-                           bool debug) {
-  std::filesystem::path output_dir =
-      std::filesystem::path(output_file).parent_path();
-  if (!output_dir.empty() && !std::filesystem::exists(output_dir) &&
-      !std::filesystem::create_directories(output_dir)) {
-    return {false, -1,
-            "Failed to create output directory: " + output_dir.string(), ""};
+DotNetProject::DotNetProject(const std::string& assembly_name)
+    : assembly_name_(assembly_name) {}
+
+void DotNetProject::SetOutputPath(const std::string& path) {
+  output_path_ = path;
+  dirty_ = true;
+}
+
+void DotNetProject::SetTargetFramework(const std::string& framework) {
+  target_framework_ = framework;
+  dirty_ = true;
+}
+
+void DotNetProject::SetGenerateDocs(bool enable) {
+  generate_docs_ = enable;
+  dirty_ = true;
+}
+
+void DotNetProject::SetAllowUnsafe(bool enable) {
+  allow_unsafe_ = enable;
+  dirty_ = true;
+}
+
+void DotNetProject::SetLangVersion(const std::string& version) {
+  lang_version_ = version;
+  dirty_ = true;
+}
+
+void DotNetProject::AddSource(const std::string& path) {
+  sources_.push_back(path);
+  dirty_ = true;
+}
+
+void DotNetProject::SetSources(const std::vector<std::string>& paths) {
+  sources_ = paths;
+  dirty_ = true;
+}
+
+void DotNetProject::ClearSources() {
+  sources_.clear();
+  dirty_ = true;
+}
+
+void DotNetProject::AddReference(const std::string& dll_path) {
+  references_.push_back(dll_path);
+  dirty_ = true;
+}
+
+void DotNetProject::SetReferences(const std::vector<std::string>& paths) {
+  references_ = paths;
+  dirty_ = true;
+}
+
+void DotNetProject::ClearReferences() {
+  references_.clear();
+  dirty_ = true;
+}
+
+fs::path DotNetProject::Save() {
+  fs::path output = fs::absolute(output_path_);
+  fs::path output_dir = output.parent_path();
+
+  if (!output_dir.empty() && !fs::exists(output_dir)) {
+    fs::create_directories(output_dir);
   }
 
-  auto mcs_path = ResolveMcs();
-  if (!mcs_path) {
-    return {false, -1,
-            "MONO_ROOT environment variable is not set. "
-            "Cannot locate mcs compiler.",
-            ""};
+  csproj_path_ = output_dir / (assembly_name_ + ".csproj");
+
+  std::ofstream f(csproj_path_);
+  f << "<Project Sdk=\"Microsoft.NET.Sdk\">\n";
+  f << "  <PropertyGroup>\n";
+  f << "    <TargetFramework>" << target_framework_ << "</TargetFramework>\n";
+  f << "    <AssemblyName>" << assembly_name_ << "</AssemblyName>\n";
+  f << "    <OutputType>Library</OutputType>\n";
+  f << "    <OutputPath>" << output_dir.generic_string() << "</OutputPath>\n";
+  f << "    <AppendTargetFrameworkToOutputPath>false"
+       "</AppendTargetFrameworkToOutputPath>\n";
+  f << "    <AppendRuntimeIdentifierToOutputPath>false"
+       "</AppendRuntimeIdentifierToOutputPath>\n";
+  f << "    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>\n";
+  f << "    <LangVersion>" << lang_version_ << "</LangVersion>\n";
+  if (allow_unsafe_) {
+    f << "    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n";
+  }
+  if (generate_docs_) {
+    f << "    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n";
+  }
+  f << "  </PropertyGroup>\n";
+
+  // Source files
+  f << "  <ItemGroup>\n";
+  for (const auto& src : sources_) {
+    f << "    <Compile Include=\"" << fs::absolute(src).generic_string()
+      << "\" />\n";
+  }
+  f << "  </ItemGroup>\n";
+
+  // Reference DLLs
+  if (!references_.empty()) {
+    f << "  <ItemGroup>\n";
+    for (const auto& lib : references_) {
+      fs::path lib_path = fs::absolute(lib);
+      f << "    <Reference Include=\"" << lib_path.stem().generic_string()
+        << "\">\n";
+      f << "      <HintPath>" << lib_path.generic_string() << "</HintPath>\n";
+      f << "      <Private>false</Private>\n";
+      f << "    </Reference>\n";
+    }
+    f << "  </ItemGroup>\n";
   }
 
-  std::string source =
-      std::accumulate(source_files.begin(), source_files.end(), std::string(),
-                      [](const std::string& a, const std::string& b) {
-                        return a.empty() ? b : a + " " + b;
-                      });
+  f << "</Project>\n";
+  f.close();
 
-  std::string args;
-  for (const auto& lib : link_libs) {
-    args += " -reference:" + lib;
-  }
-  if (debug) {
-    args += " -debug";
-  }
-  args += " -langversion:latest";
-  args += " -target:library";
-  args += " /nologo";
-  if (!lib_dir.empty()) {
-    args += " -lib:" + lib_dir;
-  }
-  args += " -out:" + output_file;
-  args += " " + source;
+  dirty_ = false;
+  return csproj_path_;
+}
 
-  auto tmp = std::filesystem::temp_directory_path() / "wiesel_cmd_out.txt";
-  std::string mcs = mcs_path->make_preferred().string();
-  std::string command =
-      "\"" + mcs + "\"" + args + " > \"" + tmp.string() + "\" 2>&1";
+CompileResult DotNetProject::Build(bool debug) {
+  if (dirty_ || csproj_path_.empty()) {
+    Save();
+  }
+
+  std::string configuration = debug ? "Debug" : "Release";
+  std::string command = "dotnet build \"" + csproj_path_.string() + "\" -c " +
+                        configuration + " --nologo -v quiet";
+
+  auto tmp = fs::temp_directory_path() / "wiesel_cmd_out.txt";
+  std::string full_command = command + " > \"" + tmp.string() + "\" 2>&1";
 
 #ifdef WIN32
-  command = "\"" + command + "\"";
+  full_command = "\"" + full_command + "\"";
 #endif
 
-  auto [exit_code, output] = ExecuteAndGetOutput(command, tmp);
+  auto [exit_code, output] = ExecuteAndGetOutput(full_command, tmp);
   return {exit_code == 0, exit_code, output, command};
 }

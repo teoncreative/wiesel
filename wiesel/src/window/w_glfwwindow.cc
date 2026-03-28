@@ -12,6 +12,7 @@
 #include "window/w_glfwwindow.h"
 
 #include <backends/imgui_impl_glfw.h>
+#include <imgui.h>
 
 #include "events/w_appevents.h"
 #include "events/w_keyevents.h"
@@ -93,6 +94,9 @@ GlfwAppWindow::GlfwAppWindow(const WindowProperties&& properties)
   glfwSetCharCallback(handle_, [](GLFWwindow* window, unsigned int keycode) {
     GlfwAppWindow& app_window =
         *static_cast<GlfwAppWindow*>(glfwGetWindowUserPointer(window));
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddInputCharacter(keycode);
 
     KeyTypedEvent event(keycode);
     app_window.GetEventHandler()(event);

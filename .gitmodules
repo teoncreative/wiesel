@@ -49,3 +49,6 @@
 [submodule "vendor/rapidjson"]
 	path = vendor/rapidjson
 	url = https://github.com/Tencent/rapidjson
+[submodule "vendor/ImGuiColorTextEdit"]
+	path = vendor/ImGuiColorTextEdit
+	url = https://github.com/teoncreative/ImGuiColorTextEdit
