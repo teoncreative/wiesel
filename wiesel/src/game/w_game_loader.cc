@@ -31,25 +31,31 @@
 
 namespace Wiesel {
 
+GameLoader::MetaFileData GameLoader::ReadMetaFile(const nlohmann::json& j) {
+  MetaFileData result;
+  result.handle = AssetHandle::FromString(j.value("handle", ""));
+  if (j.contains("properties") && j["properties"].is_object()) {
+    result.properties = j["properties"];
+  }
+  return result;
+}
+
 GameLoader::MetaFileData GameLoader::ReadMetaFile(
     const std::filesystem::path& meta_path) {
-  MetaFileData result;
   if (!std::filesystem::exists(meta_path)) {
-    return result;
+    return {};
   }
   std::ifstream file(meta_path);
   if (!file.is_open()) {
-    return result;
+    return {};
   }
   try {
     nlohmann::json j;
     file >> j;
-    result.handle = AssetHandle::FromString(j.value("handle", ""));
-    if (j.contains("properties") && j["properties"].is_object()) {
-      result.properties = j["properties"];
-    }
-  } catch (...) {}
-  return result;
+    return ReadMetaFile(j);
+  } catch (...) {
+    return {};
+  }
 }
 
 bool GameLoader::MountAssets(const std::filesystem::path& assets_dir) {
@@ -69,8 +75,6 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
                                  const std::string& vfs_path) {
   AssetManager& mgr = Engine::asset_manager();
   AssetHandle handle;
-
-  auto physical = Engine::vfs()->GetPhysicalPath(vfs_path);
 
   if (IsJsonAssetType(type)) {
     try {
@@ -100,11 +104,17 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
       mgr.Register(handle, name, type, vfs_path);
     }
   } else {
-    // Binary assets: read .meta sidecar
+    // Binary assets: read .meta sidecar via VFS
     GameLoader::MetaFileData meta_data;
-    if (physical.has_value()) {
-      std::filesystem::path meta_path = physical->string() + ".meta";
-      meta_data = GameLoader::ReadMetaFile(meta_path);
+    std::string meta_vfs = vfs_path + ".meta";
+    VfsFile meta_file = Engine::vfs()->Open(meta_vfs);
+    if (meta_file) {
+      try {
+        std::string content(
+            (std::istreambuf_iterator<char>(meta_file.Stream())),
+            std::istreambuf_iterator<char>());
+        meta_data = GameLoader::ReadMetaFile(nlohmann::json::parse(content));
+      } catch (...) {}
     }
 
     if (!meta_data.handle.IsValid()) {
@@ -142,21 +152,12 @@ void GameLoader::ScanAssets() {
   Engine::scene_manager().ClearRegisteredScenes();
   std::vector<std::string> scenes_to_preload;
 
-  auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-  if (!physical_app.has_value()) {
-    return;
-  }
-  fs::path assets_dir = fs::absolute(*physical_app);
-  if (!fs::exists(assets_dir)) {
-    return;
-  }
+  VirtualFileSystem* vfs = Engine::vfs().get();
+  std::vector<std::string> all_files = vfs->ListFiles("app://", true);
 
-  for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
-    if (!entry.is_regular_file()) {
-      continue;
-    }
-
-    std::string ext = entry.path().extension().string();
+  for (const std::string& vfs_path : all_files) {
+    fs::path rel_path(vfs_path.substr(6));  // strip "app://"
+    std::string ext = rel_path.extension().string();
     if (ext == ".meta") {
       continue;
     }
@@ -166,9 +167,7 @@ void GameLoader::ScanAssets() {
       continue;
     }
 
-    auto rel = fs::relative(entry.path(), assets_dir);
-    std::string vfs_path = "app://" + rel.generic_string();
-    std::string name = entry.path().stem().string();
+    std::string name = rel_path.stem().string();
 
     AssetHandle handle = RegisterAsset(name, type, vfs_path);
     if (!handle.IsValid()) {
@@ -200,7 +199,7 @@ void GameLoader::ScanAssets() {
     }
 
     if (type == AssetType::Scene) {
-      Engine::scene_manager().RegisterScene(name, entry.path());
+      Engine::scene_manager().RegisterScene(name, vfs_path);
 
       try {
         VfsFile file = Engine::vfs()->Open(vfs_path);

@@ -2,6 +2,20 @@
   "asset_handle": "735e6d5e-eaaa-459c-8c56-4bf8ba747f94",
   "entities": [
     {
+      "BoxCollider": {
+        "collision_group": 1,
+        "half_extents": [
+          12.050000190734863,
+          0.5,
+          13.300000190734863
+        ],
+        "is_trigger": false,
+        "offset": [
+          0.0,
+          -0.44999998807907104,
+          0.0
+        ]
+      },
       "Model": {
         "asset_handle": "00000000-0000-4000-8000-000000000003",
         "enable_rendering": true,
@@ -22,6 +36,20 @@
         ],
         "receive_shadows": true
       },
+      "RigidBody": {
+        "angular_damping": 0.05000000074505806,
+        "friction": 0.5,
+        "linear_damping": 0.0,
+        "lock_position_x": false,
+        "lock_position_y": false,
+        "lock_position_z": false,
+        "lock_rotation_x": false,
+        "lock_rotation_y": false,
+        "lock_rotation_z": false,
+        "mass": 1.0,
+        "restitution": 0.0,
+        "type": 0
+      },
       "Transform": {
         "pivot": [
           0.0,
@@ -30,7 +58,7 @@
         ],
         "position": [
           0.0,
-          0.37988126277923584,
+          0.3798813819885254,
           0.04905688762664795
         ],
         "rotation": [
@@ -46,52 +74,6 @@
       },
       "name": "Plane",
       "uuid": "deb5422e-783c-49cb-948c-ec942613d9bb"
-    },
-    {
-      "Model": {
-        "asset_handle": "00000000-0000-4000-8000-000000000004",
-        "enable_rendering": true,
-        "material_slots": [
-          {
-            "overrides": {
-              "color_tint": [
-                0.9725490212440491,
-                0.9882352948188782,
-                1.0,
-                1.0
-              ],
-              "metallic": 0.0,
-              "roughness": 0.0,
-              "specular": 1.0
-            }
-          }
-        ],
-        "receive_shadows": true
-      },
-      "Transform": {
-        "pivot": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "position": [
-          0.0,
-          0.9986230731010437,
-          1.9987092018127441
-        ],
-        "rotation": [
-          160.87808227539063,
-          9.120047569274902,
-          -25.47188377380371
-        ],
-        "scale": [
-          0.9999722838401794,
-          0.9999958872795105,
-          0.9999843239784241
-        ]
-      },
-      "name": "Cylinder",
-      "uuid": "45a2b5fa-a56a-44ac-8bc7-b160f089e371"
     },
     {
       "Behaviors": [
@@ -125,6 +107,30 @@
         ],
         "receive_shadows": true
       },
+      "RigidBody": {
+        "angular_damping": 0.05000000074505806,
+        "friction": 0.5,
+        "linear_damping": 0.0,
+        "lock_position_x": false,
+        "lock_position_y": false,
+        "lock_position_z": false,
+        "lock_rotation_x": false,
+        "lock_rotation_y": false,
+        "lock_rotation_z": false,
+        "mass": 1.0,
+        "restitution": 0.0,
+        "type": 2
+      },
+      "SphereCollider": {
+        "collision_group": 1,
+        "is_trigger": false,
+        "offset": [
+          0.0,
+          -0.4000000059604645,
+          0.0
+        ],
+        "radius": 0.6000000238418579
+      },
       "Transform": {
         "pivot": [
           0.0,
@@ -132,9 +138,9 @@
           0.0
         ],
         "position": [
-          0.0,
-          1.4292762279510498,
-          0.0
+          -0.0007019188487902284,
+          3.262390613555908,
+          -0.00011416338384151459
         ],
         "rotation": [
           0.0,
@@ -246,89 +252,9 @@
       "LightPoint": {
         "ambient": 0.20000000298023224,
         "color": [
+          0.9065744280815125,
           1.0,
-          1.0,
-          1.0
-        ],
-        "constant": 1.0,
-        "density": 1.0,
-        "diffuse": 1.0,
-        "exp": 0.03200000151991844,
-        "linear": 0.09000000357627869,
-        "specular": 0.8500000238418579
-      },
-      "Transform": {
-        "pivot": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "position": [
-          -1.117008924484253,
-          1.7554867267608643,
-          0.4421529769897461
-        ],
-        "rotation": [
-          45.000003814697266,
-          -0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "name": "Entity",
-      "uuid": "d62379c7-f594-4ca6-a9e8-e812a6935cfa"
-    },
-    {
-      "LightPoint": {
-        "ambient": 0.20000000298023224,
-        "color": [
-          1.0,
-          0.0,
-          0.0
-        ],
-        "constant": 1.0,
-        "density": 1.0,
-        "diffuse": 1.0,
-        "exp": 0.03200000151991844,
-        "linear": 0.09000000357627869,
-        "specular": 0.8500000238418579
-      },
-      "Transform": {
-        "pivot": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "position": [
-          -4.7520551681518555,
-          3.646873712539673,
-          -5.49921989440918
-        ],
-        "rotation": [
-          0.0,
-          -0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "name": "Point Light",
-      "uuid": "7086911e-5a07-46d7-8388-3913d1e1c0d1"
-    },
-    {
-      "LightPoint": {
-        "ambient": 0.20000000298023224,
-        "color": [
-          0.3235294818878174,
-          1.0,
-          0.0
+          0.6029411554336548
         ],
         "constant": 1.0,
         "density": 1.0,
@@ -345,7 +271,7 @@
         ],
         "position": [
           -4.90718936920166,
-          1.5500738620758057,
+          2.0,
           2.5746233463287354
         ],
         "rotation": [
@@ -361,46 +287,6 @@
       },
       "name": "Point Light",
       "uuid": "034e6dd7-8698-4cfd-95bc-72218df07966"
-    },
-    {
-      "LightPoint": {
-        "ambient": 0.20000000298023224,
-        "color": [
-          1.0,
-          1.0,
-          1.0
-        ],
-        "constant": 1.0,
-        "density": 1.0,
-        "diffuse": 1.0,
-        "exp": 0.03200000151991844,
-        "linear": 0.09000000357627869,
-        "specular": 0.8500000238418579
-      },
-      "Transform": {
-        "pivot": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "position": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "scale": [
-          1.0,
-          1.0,
-          1.0
-        ]
-      },
-      "name": "Point Light",
-      "uuid": "7f446ba4-1191-4465-96d0-71e22255da81"
     }
   ]
 }

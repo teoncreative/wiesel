@@ -505,16 +505,21 @@ void ScriptManager::Destroy() {
   //mono_jit_cleanup(m_RootDomain);
 }
 
-// --- Helper: collect .cs files from a VFS path ---
-static std::vector<std::string> CollectCsFiles(const std::string& vfs_path) {
+// --- Helper: collect .cs source files (physical paths for compilation) ---
+static std::vector<std::string> CollectCsFiles(const std::string& vfs_prefix) {
   std::vector<std::string> files;
-  auto physical = Engine::vfs()->GetPhysicalPath(vfs_path);
-  if (physical.has_value() && std::filesystem::exists(*physical)) {
-    for (const auto& entry :
-         std::filesystem::recursive_directory_iterator(*physical)) {
-      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-        files.push_back(entry.path().string());
-      }
+  std::vector<std::string> vfs_files =
+      Engine::vfs()->ListFiles(vfs_prefix, true);
+  for (const std::string& vfs_path : vfs_files) {
+    std::filesystem::path rel(vfs_path);
+    if (rel.extension() != ".cs") {
+      continue;
+    }
+    // Compilation needs physical paths
+    std::optional<std::filesystem::path> physical =
+        Engine::vfs()->GetPhysicalPath(vfs_path);
+    if (physical.has_value()) {
+      files.push_back(physical->string());
     }
   }
   return files;
@@ -535,17 +540,12 @@ static std::vector<std::string> CollectLinkLibs(
 
 // --- Helper: register .cs files as script assets ---
 static void RegisterScriptAssets(const std::string& vfs_prefix) {
-  auto physical = Engine::vfs()->GetPhysicalPath(vfs_prefix);
-  if (!physical.has_value() || !std::filesystem::exists(*physical)) {
-    return;
-  }
-  for (const auto& entry :
-       std::filesystem::recursive_directory_iterator(*physical)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".cs") {
-      auto rel = std::filesystem::relative(entry.path(), *physical);
-      std::string vfs_path = vfs_prefix + rel.generic_string();
-      Engine::asset_manager().Register(entry.path().stem().string(),
-                                       AssetType::Script, vfs_path);
+  std::vector<std::string> files = Engine::vfs()->ListFiles(vfs_prefix, true);
+  for (const std::string& vfs_path : files) {
+    std::filesystem::path rel_path(vfs_path);
+    if (rel_path.extension() == ".cs") {
+      std::string name = rel_path.stem().string();
+      Engine::asset_manager().Register(name, AssetType::Script, vfs_path);
     }
   }
 }

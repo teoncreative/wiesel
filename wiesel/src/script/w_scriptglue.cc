@@ -2225,23 +2225,17 @@ uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   const char* cstr = mono_string_to_utf8(path);
 
-  // Try VFS path first, then filesystem
-  std::filesystem::path fs_path;
-  auto physical = Engine::vfs()->GetPhysicalPath(cstr);
-  if (physical.has_value()) {
-    fs_path = *physical;
-  } else {
-    fs_path = cstr;
-  }
+  std::string vfs_path = cstr;
   mono_free((void*)cstr);
 
-  auto shared_scene = Engine::scene_manager().GetActiveScene();
+  std::shared_ptr<Scene> shared_scene =
+      Engine::scene_manager().GetActiveScene();
   if (!shared_scene) {
     LOG_ERROR("Prefab_Instantiate: no active scene");
     return 0;
   }
 
-  Entity entity = Prefab::InstantiateFromFile(shared_scene, fs_path);
+  Entity entity = Prefab::InstantiateFromFile(shared_scene, vfs_path);
   return static_cast<uint32_t>(entity.handle());
 }
 

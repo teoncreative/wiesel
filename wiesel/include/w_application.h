@@ -94,6 +94,7 @@ class Application {
   float_t idle_timeout_ = 3.0f;   // seconds of no input before idle mode
   float_t idle_timer_ = 0.0f;
   bool is_idle_ = false;
+  bool had_input_this_frame_ = false;
   float_t time_scale_ = 1.0f;
 };
 

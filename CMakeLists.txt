@@ -51,6 +51,7 @@ add_subdirectory(libs/wpak)
 add_subdirectory(libs/monolib)
 add_subdirectory(wiesel)
 add_subdirectory(editor)
+add_subdirectory(runtime)
 
 # tools
 add_subdirectory(tools/asset_packer)
@@ -58,15 +59,16 @@ add_subdirectory(tools/asset_packer)
 ##### EDITOR BUNDLE #####
 set(BUNDLE_DIR ${CMAKE_BINARY_DIR}/bundle)
 add_custom_target(bundle-editor
-    DEPENDS wiesel-editor assetpacker
+        DEPENDS wiesel-editor wiesel-runtime assetpacker
     COMMENT "Creating editor bundle in ${BUNDLE_DIR}"
 
     # Clean and create bundle directory
     COMMAND ${CMAKE_COMMAND} -E rm -rf ${BUNDLE_DIR}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${BUNDLE_DIR}
 
-    # Copy editor executable
+        # Copy editor and runtime executables
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:wiesel-editor> ${BUNDLE_DIR}/
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:wiesel-runtime> ${BUNDLE_DIR}/
 
     # Pack assets and compile core scripts
     COMMAND $<TARGET_FILE:assetpacker> bundle

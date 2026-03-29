@@ -100,16 +100,18 @@ Entity Prefab::DeserializeEntityTree(std::shared_ptr<Scene> scene,
 }
 
 Entity Prefab::InstantiateFromFile(std::shared_ptr<Scene> scene,
-                                   const std::filesystem::path& path) {
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    LOG_ERROR("Failed to open prefab file: {}", path.string());
+                                   const std::string& vfs_path) {
+  VfsFile file = Engine::vfs()->Open(vfs_path);
+  if (!file) {
+    LOG_ERROR("Failed to open prefab file: {}", vfs_path);
     return Entity{entt::null, scene.get()};
   }
 
   nlohmann::json j;
   try {
-    file >> j;
+    std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                        std::istreambuf_iterator<char>());
+    j = nlohmann::json::parse(content);
   } catch (const nlohmann::json::parse_error& e) {
     LOG_ERROR("Failed to parse prefab: {}", e.what());
     return Entity{entt::null, scene.get()};

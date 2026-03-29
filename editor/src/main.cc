@@ -12,9 +12,8 @@
 #include "w_editor_components.h"
 
 #include "layer/w_layerimgui.h"
-#include "scene/w_scene.h"
+#include "util/w_platform.h"
 #include "w_engine.h"
-#include "w_entrypoint.h"
 
 using namespace Wiesel;
 using namespace Wiesel::Editor;
@@ -33,9 +32,19 @@ class EditorApplication : public Application {
 };
 
 Application* Wiesel::CreateApp() {
-  // Force editor mode when running standalone
-  auto& props = const_cast<EngineProperties&>(Engine::properties());
-  props.editor_enabled = true;
-
   return new EditorApplication();
+}
+
+int main(int argc, char** argv) {
+  EnableAnsiColors();
+
+  EngineProperties properties = EngineProperties::Parse(argc, argv);
+  properties.editor_enabled = true;
+  Engine::InitEngine(properties);
+  Engine::InitApplication();
+  Application& application = Engine::app();
+  application.Run();
+  Engine::CleanupApplication();
+  Engine::CleanupEngine();
+  return 0;
 }

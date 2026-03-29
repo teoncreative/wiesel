@@ -13,7 +13,9 @@
 //
 
 #include "w_editor.h"
+#include <wpak/wpak.h>
 #include <unordered_set>
+#include "mono_compiler.h"
 #include "util/w_discord_rpc.h"
 #include "w_csharp_lang.h"
 
@@ -388,14 +390,14 @@ void EditorLayer::ProcessDeferredActions() {
     return;
   }
 
-  auto action = deferred_action_;
-  auto path = std::move(deferred_path_);
+  DeferredAction action = deferred_action_;
+  std::string path = std::move(deferred_path_);
   deferred_action_ = DeferredAction::None;
   deferred_path_.clear();
 
   switch (action) {
     case DeferredAction::OpenScene:
-      OpenSceneFromPath(path);
+      OpenScene(path);
       break;
     case DeferredAction::OpenPrefab:
       OpenPrefabForEditing(path);
@@ -1053,6 +1055,7 @@ void EditorLayer::OnBeginPresent() {
         std::string name;
         bool is_dir;
         std::filesystem::path physical_path;
+        std::string vfs_path;
         AssetType asset_type;
       };
 
@@ -1074,6 +1077,9 @@ void EditorLayer::OnBeginPresent() {
             fe.name = entry.path().filename().string();
             fe.is_dir = entry.is_directory();
             fe.physical_path = entry.path();
+              // CHECK
+            fs::path rel = fs::relative(entry.path(), *physical_app);
+            fe.vfs_path = "app://" + rel.generic_string();
             fe.asset_type = AssetType::None;
 
             if (!fe.is_dir) {
@@ -1606,10 +1612,10 @@ void EditorLayer::OnBeginPresent() {
             if (dbl_clicked) {
               if (fe.asset_type == AssetType::Scene) {
                 deferred_action_ = DeferredAction::OpenScene;
-                deferred_path_ = fe.physical_path;
+                deferred_path_ = fe.vfs_path;
               } else if (fe.asset_type == AssetType::Prefab) {
                 deferred_action_ = DeferredAction::OpenPrefab;
-                deferred_path_ = fe.physical_path;
+                deferred_path_ = fe.vfs_path;
               } else if (fe.asset_type == AssetType::Script) {
                 OpenCodeEditor(fe.physical_path);
               }
@@ -4253,6 +4259,13 @@ void EditorLayer::RenderMainMenuBar() {
       }
       ImGui::Separator();
 
+      if (ImGui::MenuItem("Export Game...", nullptr, false,
+                          project() != nullptr)) {
+        ExportGame();
+      }
+
+      ImGui::Separator();
+
       if (ImGui::MenuItem("Exit")) {
         app_.Close();
       }
@@ -4664,23 +4677,21 @@ void EditorLayer::NewScene() {
   UpdateWindowTitle();
 }
 
-void EditorLayer::OpenSceneFromPath(const std::filesystem::path& path) {
-  // Auto-save current scene before switching
+void EditorLayer::OpenScene(const std::string& vfs_path) {
   AutoSave();
 
-  // Queue scene load - SceneManager::BeginFrame handles clearing,
-  // deserializing, camera setup, and asset unloading.
-  Engine::scene_manager().LoadSceneFromPath(path);
+  Engine::scene_manager().LoadSceneFromPath(vfs_path);
 
-  // Editor-specific state updated after BeginFrame processes the load
-  current_scene_path_ = std::filesystem::absolute(path);
+  // Resolve physical path for editor state (save target)
+  std::optional<std::filesystem::path> physical =
+      Engine::vfs()->GetPhysicalPath(vfs_path);
+  if (physical.has_value()) {
+    current_scene_path_ = *physical;
+  }
   scene_dirty_ = false;
 
   // Track last opened scene in project
-  if (auto p = project()) {
-    auto rel =
-        std::filesystem::relative(current_scene_path_, p->GetAssetsDirectory());
-    std::string vfs_path = "app://" + rel.generic_string();
+  if (std::shared_ptr<Project> p = project()) {
     AssetHandle scene_handle =
         Engine::asset_manager().FindBySourcePath(vfs_path);
     if (scene_handle.IsValid()) {
@@ -4849,30 +4860,25 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   }
 
   // Open last scene or start scene (prefer last_scene, fall back to start)
-  auto resolve_scene_path = [&](const AssetHandle& handle)
-      -> std::optional<std::filesystem::path> {
+  auto resolve_scene_vfs = [](const AssetHandle& handle) -> std::string {
     if (!handle.IsValid()) {
-      return std::nullopt;
+      return "";
     }
     const AssetMetadata* meta = Engine::asset_manager().GetMetadata(handle);
-    if (!meta) {
-      return std::nullopt;
+    if (!meta || meta->virtual_source_path.empty()) {
+      return "";
     }
-    std::optional<std::filesystem::path> physical =
-        Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
-    if (physical.has_value() && fs::exists(*physical)) {
-      return physical;
-    }
-    return std::nullopt;
+    return meta->virtual_source_path;
   };
 
-  std::optional<std::filesystem::path> scene_to_open = resolve_scene_path(project->GetSettings().last_scene);
-  if (!scene_to_open.has_value()) {
-    scene_to_open = resolve_scene_path(project->GetGameInfo().start_scene);
+  std::string scene_to_open =
+      resolve_scene_vfs(project->GetSettings().last_scene);
+  if (scene_to_open.empty()) {
+    scene_to_open = resolve_scene_vfs(project->GetGameInfo().start_scene);
   }
 
-  if (scene_to_open.has_value()) {
-    OpenSceneFromPath(*scene_to_open);
+  if (!scene_to_open.empty()) {
+    OpenScene(scene_to_open);
   }
 
   // Restore editor camera state
@@ -5353,7 +5359,7 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
     LOG_ERROR("Failed to open prefab for editing: {}", path.string());
     // Restore previous scene
     if (!prefab_return_scene_path_.empty()) {
-      OpenSceneFromPath(prefab_return_scene_path_);
+      OpenScene(prefab_return_scene_path_);
     }
     return;
   }
@@ -5403,11 +5409,212 @@ void EditorLayer::ClosePrefabEditor() {
 
   // Return to previous scene
   if (!prefab_return_scene_path_.empty()) {
-    OpenSceneFromPath(prefab_return_scene_path_);
+    OpenScene(prefab_return_scene_path_);
     prefab_return_scene_path_.clear();
   } else {
     ClearScene();
   }
 }
 
+void EditorLayer::ExportGame() {
+  if (!active_project_) {
+    return;
+  }
+
+  // Save current scene first
+  if (!current_scene_path_.empty()) {
+    SaveScene();
+  }
+  SaveProject();
+
+  Dialogs::SelectFolderDialog([this](const std::string& selected_dir) {
+    namespace fs = std::filesystem;
+    if (selected_dir.empty()) {
+      return;
+    }
+
+    fs::path export_dir =
+        fs::path(selected_dir) / active_project_->GetSettings().name;
+    ExportGame(selected_dir);
+  });
+}
+
+void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
+  namespace fs = std::filesystem;
+  fs::create_directories(export_dir);
+
+  LOG_INFO("Exporting game to: {}", export_dir.string());
+
+  // Copy gameinfo.wgame
+  fs::path src_gameinfo = active_project_->GetGameInfoPath();
+  if (fs::exists(src_gameinfo)) {
+    fs::copy_file(src_gameinfo, export_dir / "gameinfo.wgame",
+                  fs::copy_options::overwrite_existing);
+  }
+
+  // Pack app assets (excluding build artifacts and source files)
+  fs::path src_assets = active_project_->GetAssetsDirectory();
+  if (fs::exists(src_assets)) {
+    Wpak::Result<std::vector<Wpak::PackEntry>> app_files =
+        Wpak::CollectFiles(src_assets);
+    if (app_files.success) {
+      // Filter out files that shouldn't be in the export
+      std::vector<Wpak::PackEntry> filtered;
+      for (const Wpak::PackEntry& entry : app_files.value) {
+        fs::path rel(entry.relative_path);
+        std::string ext = rel.extension().string();
+        std::string first_dir =
+            rel.begin() != rel.end() ? rel.begin()->string() : "";
+
+        // Skip build artifacts and source files
+        if (first_dir == "obj" || first_dir == "bin" || first_dir == "out") {
+          continue;
+        }
+        if (ext == ".cs" || ext == ".csproj" || ext == ".sln" ||
+            ext == ".pdb" || ext == ".mdb") {
+          continue;
+        }
+
+        filtered.push_back(entry);
+      }
+
+      Wpak::Status status =
+          Wpak::WriteArchive(export_dir / "assets.pak", filtered);
+      if (!status.success) {
+        LOG_ERROR("Export: Failed to pack app assets: {}",
+                  status.error.message);
+        return;
+      }
+      LOG_INFO("Export: Packed {} assets ({} excluded)", filtered.size(),
+               app_files.value.size() - filtered.size());
+    }
+  }
+
+  // Compile scripts (build in project's out/ dir, copy DLLs to export)
+  {
+    fs::path project_dir = active_project_->GetProjectDirectory();
+    fs::path build_out = project_dir / "out";
+#ifdef NDEBUG
+    bool debug_build = false;
+#else
+    bool debug_build = true;
+#endif
+
+    // Core.dll
+    std::vector<std::string> core_sources;
+    std::optional<fs::path> core_physical =
+        Engine::vfs()->GetPhysicalPath("engine://scripts");
+    if (core_physical.has_value() && fs::exists(*core_physical)) {
+      for (const fs::directory_entry& entry :
+           fs::recursive_directory_iterator(*core_physical)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+          core_sources.push_back(entry.path().string());
+        }
+      }
+    }
+    if (!core_sources.empty()) {
+      DotNetProject core("Core");
+      core.SetOutputPath((build_out / "Core.dll").string());
+      core.SetSources(core_sources);
+      CompileResult result = core.Build(debug_build);
+      if (!result.success) {
+        LOG_ERROR("Export: Core compilation failed:\n{}", result.output);
+        return;
+      }
+      fs::copy_file(build_out / "Core.dll", export_dir / "Core.dll",
+                    fs::copy_options::overwrite_existing);
+      if (debug_build && fs::exists(build_out / "Core.pdb")) {
+        fs::copy_file(build_out / "Core.pdb", export_dir / "Core.pdb",
+                      fs::copy_options::overwrite_existing);
+      }
+    }
+
+    // App.dll
+    std::vector<std::string> app_sources;
+    for (const fs::directory_entry& entry :
+         fs::recursive_directory_iterator(src_assets)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".cs") {
+        app_sources.push_back(entry.path().string());
+      }
+    }
+    if (!app_sources.empty()) {
+      std::vector<std::string> link_libs;
+      fs::path core_dll = build_out / "Core.dll";
+      if (fs::exists(core_dll)) {
+        link_libs.push_back(core_dll.string());
+      }
+      DotNetProject app("App");
+      app.SetOutputPath((build_out / "App.dll").string());
+      app.SetSources(app_sources);
+      app.SetReferences(link_libs);
+      CompileResult result = app.Build(debug_build);
+      if (!result.success) {
+        LOG_ERROR("Export: App compilation failed:\n{}", result.output);
+        return;
+      }
+      fs::copy_file(build_out / "App.dll", export_dir / "App.dll",
+                    fs::copy_options::overwrite_existing);
+      if (debug_build && fs::exists(build_out / "App.pdb")) {
+        fs::copy_file(build_out / "App.pdb", export_dir / "App.pdb",
+                      fs::copy_options::overwrite_existing);
+      }
+    }
+  }
+
+  // Pack engine assets
+  {
+    std::optional<fs::path> engine_assets =
+        Engine::vfs()->GetPhysicalPath("engine://");
+    if (engine_assets.has_value() && fs::exists(*engine_assets)) {
+      Wpak::Result<std::vector<Wpak::PackEntry>> files =
+          Wpak::CollectFiles(*engine_assets);
+      if (files.success) {
+        Wpak::Status status =
+            Wpak::WriteArchive(export_dir / "engine.pak", files.value);
+        if (!status.success) {
+          LOG_ERROR("Export: Failed to pack engine assets: {}",
+                    status.error.message);
+        }
+      }
+    }
+  }
+
+  // Copy runtime executable, renamed to game name
+  {
+#ifdef _WIN32
+    std::string runtime_name = "wiesel-runtime.exe";
+    std::string game_ext = ".exe";
+#else
+    std::string runtime_name = "wiesel-runtime";
+    std::string game_ext = "";
+#endif
+    // Search next to the editor executable, then CWD
+    fs::path exe_dir = GetExecutableDirectory();
+    fs::path runtime_src;
+    for (const fs::path& search_dir :
+         {exe_dir, fs::current_path(), exe_dir / ".." / "runtime"}) {
+      fs::path candidate = search_dir / runtime_name;
+      if (fs::exists(candidate)) {
+        runtime_src = candidate;
+        break;
+      }
+    }
+
+    if (!runtime_src.empty()) {
+      fs::path dst_name =
+          export_dir / (active_project_->GetSettings().name + game_ext);
+      fs::copy_file(runtime_src, dst_name,
+                    fs::copy_options::overwrite_existing);
+      LOG_INFO("Export: Copied runtime as {}", dst_name.filename().string());
+    } else {
+      LOG_WARN("Export: wiesel-runtime not found. Build the 'wiesel-runtime' "
+               "target first.");
+    }
+  }
+
+  LOG_INFO("Export complete: {}", export_dir.string());
+
+  // Open the export directory
+  OpenFileInDefaultEditor(export_dir);
+}
 }  // namespace Wiesel::Editor

@@ -26,6 +26,10 @@ std::filesystem::path GetUserCacheDirectory(
 
 void OpenFileInDefaultEditor(const std::filesystem::path& path);
 
+// Console utilities (Windows)
+void EnableAnsiColors();
+void AllocateConsole();
+
 }  // namespace Wiesel
 
 #endif  //WIESEL_PARENT_W_PLATFORM_HPP

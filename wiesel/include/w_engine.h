@@ -32,6 +32,7 @@ class DiscordRPC;
 
 struct EngineProperties {
   bool editor_enabled = false;
+  bool enable_stdio = false;
   std::filesystem::path engine_assets_path;
   std::filesystem::path editor_assets_path;
   std::filesystem::path app_assets_path;

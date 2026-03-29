@@ -55,6 +55,7 @@ class GameLoader {
   };
 
   static MetaFileData ReadMetaFile(const std::filesystem::path& meta_path);
+  static MetaFileData ReadMetaFile(const nlohmann::json& j);
 };
 
 }  // namespace Wiesel

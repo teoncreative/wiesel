@@ -27,9 +27,9 @@ std::shared_ptr<Scene> SceneManager::CreateScene() {
 }
 
 void SceneManager::RegisterScene(const std::string& name,
-                                 const std::filesystem::path& path) {
-  registered_scenes_[name] = std::filesystem::absolute(path);
-  LOG_INFO("Registered scene '{}' at {}", name, path.string());
+                                 const std::string& vfs_path) {
+  registered_scenes_[name] = vfs_path;
+  LOG_INFO("Registered scene '{}' at {}", name, vfs_path);
 }
 
 void SceneManager::UnregisterScene(const std::string& name) {
@@ -46,13 +46,9 @@ void SceneManager::LoadScene(const std::string& name) {
   LOG_INFO("Queued scene load: '{}'", name);
 }
 
-void SceneManager::LoadSceneFromPath(const std::filesystem::path& path) {
-  if (!std::filesystem::exists(path)) {
-    LOG_ERROR("Scene file not found: {}", path.string());
-    return;
-  }
-  pending_scene_path_ = std::filesystem::absolute(path);
-  LOG_INFO("Queued scene load from path: {}", path.string());
+void SceneManager::LoadSceneFromPath(const std::string& vfs_path) {
+  pending_scene_path_ = vfs_path;
+  LOG_INFO("Queued scene load from path: {}", vfs_path);
 }
 
 bool SceneManager::BeginFrame() {
@@ -80,7 +76,7 @@ bool SceneManager::BeginFrame() {
     return false;
   }
 
-  std::filesystem::path path = pending_scene_path_;
+  std::string vfs_path = pending_scene_path_;
   pending_scene_path_.clear();
 
   // Save old scene's asset list and keep-loaded flag before clearing
@@ -91,9 +87,9 @@ bool SceneManager::BeginFrame() {
   Engine::renderer()->WaitForGPU();
 
   // Clear the current scene
-  auto& hierarchy = scene->GetSceneHierarchy();
+  std::vector<entt::entity>& hierarchy = scene->GetSceneHierarchy();
   std::vector<entt::entity> to_remove(hierarchy.begin(), hierarchy.end());
-  for (auto entity_id : to_remove) {
+  for (entt::entity entity_id : to_remove) {
     Entity entity{entity_id, scene.get()};
     scene->RemoveEntity(entity);
   }
@@ -102,14 +98,7 @@ bool SceneManager::BeginFrame() {
   scene->InvalidateRenderGraphs();
   scene->ClearRequestedAssets();
 
-  // Load the new scene via VFS (populates requested_assets_ via RequestAsset)
-  auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-  std::string vfs_path;
-  if (physical_app.has_value()) {
-    auto rel = std::filesystem::relative(path, *physical_app);
-    vfs_path = "app://" + rel.generic_string();
-  }
-
+  // Load the new scene via VFS
   VfsFile file = Engine::vfs()->Open(vfs_path);
   if (!file) {
     LOG_ERROR("Failed to open scene: {}", vfs_path);
@@ -119,7 +108,7 @@ bool SceneManager::BeginFrame() {
                       std::istreambuf_iterator<char>());
   SceneSerializer serializer(scene);
   if (!serializer.DeserializeFromString(content)) {
-    LOG_ERROR("Failed to load scene: {}", path.string());
+    LOG_ERROR("Failed to load scene: {}", vfs_path);
     return false;
   }
 
@@ -137,14 +126,16 @@ bool SceneManager::BeginFrame() {
   }
 
   scene->ResetFirstUpdate();
-  LOG_INFO("Scene loaded: {}", path.string());
+  LOG_INFO("Scene loaded: {}", vfs_path);
   return true;
 }
 
 void SceneManager::LoadSceneWithLoading(const std::string& target_scene,
                                         const std::string& loading_scene) {
-  auto target_it = registered_scenes_.find(target_scene);
-  auto loading_it = registered_scenes_.find(loading_scene);
+  std::map<std::string, std::string>::iterator target_it =
+      registered_scenes_.find(target_scene);
+  std::map<std::string, std::string>::iterator loading_it =
+      registered_scenes_.find(loading_scene);
   if (target_it == registered_scenes_.end()) {
     LOG_ERROR("Target scene '{}' not registered", target_scene);
     return;
@@ -153,43 +144,23 @@ void SceneManager::LoadSceneWithLoading(const std::string& target_scene,
     LOG_ERROR("Loading scene '{}' not registered", loading_scene);
     return;
   }
-  LoadSceneWithLoadingPath(target_it->second, loading_it->second);
-}
 
-void SceneManager::LoadSceneWithLoadingPath(
-    const std::filesystem::path& target_path,
-    const std::filesystem::path& loading_path) {
-  if (!std::filesystem::exists(target_path)) {
-    LOG_ERROR("Target scene not found: {}", target_path.string());
-    return;
-  }
-  if (!std::filesystem::exists(loading_path)) {
-    LOG_ERROR("Loading scene not found: {}", loading_path.string());
-    return;
-  }
-
-  target_scene_path_ = std::filesystem::absolute(target_path);
+  target_scene_path_ = target_it->second;
   load_progress_ = 0.0f;
   scene_ready_ = false;
   auto_activate_ = true;
 
   // Switch to loading scene immediately
-  pending_scene_path_ = std::filesystem::absolute(loading_path);
-  LOG_INFO("Loading via intermediate scene: {} -> {}", loading_path.string(),
-           target_path.string());
+  pending_scene_path_ = loading_it->second;
+  LOG_INFO("Loading via intermediate scene: {} -> {}", loading_it->second,
+           target_it->second);
 
   // Deserialize the target scene into a temporary scene to discover and
   // kick off async loads for all asset dependencies. RequestAsset() is
   // called during deserialization for every asset handle, so we don't
   // need to manually scan the JSON for specific component types.
   target_scene_ = std::make_shared<Scene>();
-  auto target_app = Engine::vfs()->GetPhysicalPath("app://");
-  std::string target_vfs;
-  if (target_app.has_value()) {
-    auto rel = std::filesystem::relative(target_scene_path_, *target_app);
-    target_vfs = "app://" + rel.generic_string();
-  }
-  VfsFile target_file = Engine::vfs()->Open(target_vfs);
+  VfsFile target_file = Engine::vfs()->Open(target_scene_path_);
   std::string target_content;
   if (target_file) {
     target_content =
@@ -199,8 +170,7 @@ void SceneManager::LoadSceneWithLoadingPath(
   SceneSerializer serializer(target_scene_);
   if (target_content.empty() ||
       !serializer.DeserializeFromString(target_content)) {
-    LOG_ERROR("Failed to pre-parse target scene: {}",
-              target_scene_path_.string());
+    LOG_ERROR("Failed to pre-parse target scene: {}", target_scene_path_);
     target_scene_.reset();
     load_progress_ = 1.0f;
     scene_ready_ = true;

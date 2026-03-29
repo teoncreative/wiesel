@@ -84,17 +84,19 @@ class EditorLayer : public Layer {
   void SaveScene();
   void SaveSceneAs();
   void ClearScene();
-  void OpenSceneFromPath(const std::filesystem::path& path);
+  void OpenScene(const std::string& vfs_path);
   void LoadProjectFromPath(const std::filesystem::path& path);
   void RenderStartupDialog();
   void UpdateWindowTitle();
   void AutoSave();
   void ScanProjectAssets();
+  void ExportGame();
+  void ExportGame(const std::filesystem::path& path);
 
   Application& app_;
 
   // Project
-  std::filesystem::path current_scene_path_;
+  std::string current_scene_path_;
   bool scene_dirty_ = false;
   bool prev_scene_dirty_ = false;
   float auto_save_timer_ = 0.0f;
@@ -149,9 +151,9 @@ class EditorLayer : public Layer {
 
   // Prefab editing
   bool editing_prefab_ = false;
-  std::filesystem::path editing_prefab_path_;
-  std::filesystem::path prefab_return_scene_path_;
-  void OpenPrefabForEditing(const std::filesystem::path& path);
+  std::string editing_prefab_path_;
+  std::string prefab_return_scene_path_;
+  void OpenPrefabForEditing(const std::string& vfs_path);
   void SavePrefab();
   void ClosePrefabEditor();
 
@@ -165,7 +167,7 @@ class EditorLayer : public Layer {
     StopPlaying
   };
   DeferredAction deferred_action_ = DeferredAction::None;
-  std::filesystem::path deferred_path_;
+  std::string deferred_path_;
   void ProcessDeferredActions();
 
   // Code editor

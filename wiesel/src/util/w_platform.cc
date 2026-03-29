@@ -195,4 +195,26 @@ void OpenFileInDefaultEditor(const std::filesystem::path& path) {
 #endif
 }
 
+void EnableAnsiColors() {
+#ifdef _WIN32
+  HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  if (hOut != INVALID_HANDLE_VALUE) {
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+  }
+#endif
+}
+
+void AllocateConsole() {
+#ifdef _WIN32
+  ::AllocConsole();
+  FILE* f = nullptr;
+  freopen_s(&f, "CONOUT$", "w", stdout);
+  freopen_s(&f, "CONOUT$", "w", stderr);
+  freopen_s(&f, "CONIN$", "r", stdin);
+#endif
+}
+
 }  // namespace Wiesel

@@ -30,7 +30,7 @@ class Prefab {
 
   // Instantiate a prefab into a scene, returns the root entity
   static Entity InstantiateFromFile(std::shared_ptr<Scene> scene,
-                                    const std::filesystem::path& path);
+                                    const std::string& vfs_path);
 
   // Serialize an entity subtree to JSON (used internally and by the editor)
   static nlohmann::json SerializeEntityTree(Entity entity);

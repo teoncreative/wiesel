@@ -90,7 +90,10 @@ fs::path DotNetProject::Save() {
     fs::create_directories(output_dir);
   }
 
-  csproj_path_ = output_dir / (assembly_name_ + ".csproj");
+  // Put .csproj and obj/ in an out/ directory next to the output DLL
+  fs::path project_dir = output_dir / "out" / assembly_name_;
+  fs::create_directories(project_dir);
+  csproj_path_ = project_dir / (assembly_name_ + ".csproj");
 
   std::ofstream f(csproj_path_);
   f << "<Project Sdk=\"Microsoft.NET.Sdk\">\n";
@@ -99,6 +102,9 @@ fs::path DotNetProject::Save() {
   f << "    <AssemblyName>" << assembly_name_ << "</AssemblyName>\n";
   f << "    <OutputType>Library</OutputType>\n";
   f << "    <OutputPath>" << output_dir.generic_string() << "</OutputPath>\n";
+  f << "    <BaseIntermediateOutputPath>"
+    << (project_dir / "obj").generic_string()
+    << "/</BaseIntermediateOutputPath>\n";
   f << "    <AppendTargetFrameworkToOutputPath>false"
        "</AppendTargetFrameworkToOutputPath>\n";
   f << "    <AppendRuntimeIdentifierToOutputPath>false"
@@ -111,6 +117,7 @@ fs::path DotNetProject::Save() {
   if (generate_docs_) {
     f << "    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n";
   }
+  f << "    <GenerateDependencyFile>false</GenerateDependencyFile>\n";
   f << "  </PropertyGroup>\n";
 
   // Source files
@@ -150,6 +157,9 @@ CompileResult DotNetProject::Build(bool debug) {
   std::string configuration = debug ? "Debug" : "Release";
   std::string command = "dotnet build \"" + csproj_path_.string() + "\" -c " +
                         configuration + " --nologo -v quiet";
+  if (!debug) {
+    command += " -p:DebugType=none -p:DebugSymbols=false";
+  }
 
   auto tmp = fs::temp_directory_path() / "wiesel_cmd_out.txt";
   std::string full_command = command + " > \"" + tmp.string() + "\" 2>&1";

@@ -31,22 +31,20 @@ class SceneManager {
   std::shared_ptr<Scene> GetActiveScene() const { return active_scene_; }
 
   // Register a scene file path with a name (e.g. "MainMenu", "Level1")
-  void RegisterScene(const std::string& name,
-                     const std::filesystem::path& path);
+  void RegisterScene(const std::string& name, const std::string& vfs_path);
   void UnregisterScene(const std::string& name);
 
   void ClearRegisteredScenes() { registered_scenes_.clear(); }
 
   // Get all registered scenes
-  const std::map<std::string, std::filesystem::path>& GetRegisteredScenes()
-      const {
+  const std::map<std::string, std::string>& GetRegisteredScenes() const {
     return registered_scenes_;
   }
 
   // Scene switching - queues a scene load for the next frame
   // This is safe to call from scripts during update
   void LoadScene(const std::string& name);
-  void LoadSceneFromPath(const std::filesystem::path& path);
+  void LoadSceneFromPath(const std::string& vfs_path);
 
   // Load with an intermediate loading screen scene
   // 1. Immediately loads loading_scene
@@ -55,8 +53,6 @@ class SceneManager {
   // 4. When ready, call ActivateLoadedScene() to switch
   void LoadSceneWithLoading(const std::string& target_scene,
                             const std::string& loading_scene);
-  void LoadSceneWithLoadingPath(const std::filesystem::path& target_path,
-                                const std::filesystem::path& loading_path);
 
   // Query async loading state (for loading screen scripts)
   float GetLoadProgress() const { return load_progress_; }
@@ -69,8 +65,7 @@ class SceneManager {
   // Check if a scene switch is pending
   bool HasPendingSceneLoad() const { return !pending_scene_path_.empty(); }
 
-  const std::filesystem::path& GetPendingScenePath() const {
-    return pending_scene_path_;
+  const std::string& GetPendingScenePath() const { return pending_scene_path_;
   }
 
   // Per-frame lifecycle - layers call these
@@ -97,11 +92,11 @@ class SceneManager {
 
  private:
   std::shared_ptr<Scene> active_scene_;
-  std::map<std::string, std::filesystem::path> registered_scenes_;
-  std::filesystem::path pending_scene_path_;
+  std::map<std::string, std::string> registered_scenes_;
+  std::string pending_scene_path_;
 
   // Async loading state
-  std::filesystem::path target_scene_path_;
+  std::string target_scene_path_;
   std::shared_ptr<Scene> target_scene_;
   float load_progress_ = 0.0f;
   bool scene_ready_ = false;

@@ -11,7 +11,6 @@
 
 #include "w_application.h"
 
-#include <imgui.h>
 #include <chrono>
 #include <thread>
 
@@ -63,6 +62,12 @@ Application::~Application() {
 
 void Application::OnEvent(Event& event) {
   PROFILE_ZONE_SCOPED_N("Application::OnEvent");
+
+  // Track input activity for idle detection
+  if (event.IsInCategory(EventCategory::kEventCategoryInput)) {
+    had_input_this_frame_ = true;
+  }
+
   EventDispatcher dispatcher(event);
 
   dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_FN(OnWindowClose));
@@ -121,28 +126,9 @@ void Application::Run() {
       fps_timer_ = 0.0f;
     }
 
-    // Idle detection: check if any input happened this frame
-    ImGuiIO& io = ImGui::GetIO();
-    bool has_input = io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f ||
-                     io.MouseWheel != 0.0f;
-    for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++) {
-      if (io.MouseDown[i]) {
-        has_input = true;
-        break;
-      }
-    }
-    if (!has_input) {
-      for (int i = 0; i < io.InputQueueCharacters.Size; i++) {
-        has_input = true;
-        break;
-      }
-    }
-    for (int i = ImGuiKey_NamedKey_BEGIN;
-         i < ImGuiKey_NamedKey_END && !has_input; i++) {
-      if (ImGui::IsKeyDown(static_cast<ImGuiKey>(i))) {
-        has_input = true;
-      }
-    }
+    // Idle detection: uses had_input_this_frame_ set by OnEvent
+    bool has_input = had_input_this_frame_;
+    had_input_this_frame_ = false;
 
     if (has_input) {
       idle_timer_ = 0.0f;

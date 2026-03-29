@@ -205,7 +205,7 @@ void ProjectLoader::ScanAssets(Project& project) {
     }
 
     if (type == AssetType::Scene) {
-      Engine::scene_manager().RegisterScene(name, entry.path());
+      Engine::scene_manager().RegisterScene(name, vfs_path);
 
       try {
         VfsFile file = Engine::vfs()->Open(vfs_path);

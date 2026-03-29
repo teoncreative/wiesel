@@ -153,7 +153,10 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       cxxopts::value<std::string>())("project", "Path to project file (editor)",
                                      cxxopts::value<std::string>())(
       "game-info", "Path to gameinfo.wgame file",
-      cxxopts::value<std::string>())("h,help", "Print usage information");
+                                     cxxopts::value<std::string>())(
+      "enable-stdio", "Keep console window visible (runtime)",
+      cxxopts::value<bool>()->default_value("false"))(
+      "h,help", "Print usage information");
 
   try {
     auto result = options.parse(argc, argv);
@@ -166,6 +169,7 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
 
     // Parse flags
     config.editor_enabled = result["editor"].as<bool>();
+    config.enable_stdio = result["enable-stdio"].as<bool>();
 
     // Parse optional paths
     if (result.count("engine-assets")) {

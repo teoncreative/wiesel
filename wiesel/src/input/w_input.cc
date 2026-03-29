@@ -72,7 +72,7 @@ static const InputAxisMapping* FindAxis(const InputContext* ctx,
   if (!ctx) {
     return nullptr;
   }
-  for (auto& a : ctx->axes) {
+  for (const InputAxisMapping& a : ctx->axes) {
     if (a.name == name) {
       return &a;
     }
