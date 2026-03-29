@@ -14,27 +14,27 @@
 namespace Wiesel {
 
 glm::vec3 TransformComponent::GetForward() {
-  return -transform_matrix_[2];
+  return -glm::normalize(transform_matrix_[2]);
 }
 
 glm::vec3 TransformComponent::GetBackward() {
-  return transform_matrix_[2];
+  return glm::normalize(transform_matrix_[2]);
 }
 
 glm::vec3 TransformComponent::GetLeft() {
-  return -transform_matrix_[0];
+  return -glm::normalize(transform_matrix_[0]);
 }
 
 glm::vec3 TransformComponent::GetRight() {
-  return transform_matrix_[0];
+  return glm::normalize(transform_matrix_[0]);
 }
 
 glm::vec3 TransformComponent::GetUp() {
-  return transform_matrix_[1];
+  return glm::normalize(transform_matrix_[1]);
 }
 
 glm::vec3 TransformComponent::GetDown() {
-  return -transform_matrix_[1];
+  return -glm::normalize(transform_matrix_[1]);
 }
 
 // --- AnimatorComponent ---
