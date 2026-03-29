@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
 #include "scene/w_scene.h"
@@ -241,6 +243,10 @@ class ScriptInstance {
   ScriptInstance(std::shared_ptr<ScriptData> data, MonoBehavior* behavior);
   ~ScriptInstance();
 
+  // Invalidate the Mono handle before domain unload.
+  // Prevents the destructor from accessing a dead domain.
+  void Detach();
+
   MonoObject* handle() const { return handle_; }
 
   MonoBehavior* behavior() const { return behavior_; }
@@ -292,6 +298,7 @@ class ScriptInstance {
 
   bool has_started_ = false;
   bool errored_ = false;
+  bool detached_ = false;
   MonoObject* handle_;
   MonoBehavior* behavior_;
   std::shared_ptr<ScriptData> script_data_;
@@ -321,7 +328,6 @@ class ScriptManager {
 
   // Async compile on background thread, SwapDomain on main thread when done.
   void ReloadAsync(bool force_recompile_core = false);
-  bool FinishReloadIfReady();
 
   bool IsCompiling() const { return compiling_; }
   const CompileResult& last_compile_result() const {
@@ -412,8 +418,7 @@ class ScriptManager {
   bool enable_debugger_ = false;
 
   // Async compilation
-  bool compiling_ = false;
-  std::future<CompileResult> compile_future_;
+  std::atomic<bool> compiling_{false};
   CompileResult last_compile_result_;
 };
 

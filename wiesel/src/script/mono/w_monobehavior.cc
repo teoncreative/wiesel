@@ -53,8 +53,12 @@ void MonoBehavior::InstantiateScript() {
 }
 
 bool MonoBehavior::OnReloadScripts(ScriptsReloadedEvent& event) {
-  std::map<std::string, std::function<MonoObject*()>> copy =
-      script_instance_->attached_variables_;
+  std::map<std::string, std::function<MonoObject*()>> copy;
+  if (script_instance_) {
+    copy = script_instance_->attached_variables_;
+    // Detach before destroying so the destructor doesn't touch the dead domain
+    script_instance_->Detach();
+  }
   script_instance_ = nullptr;
   InstantiateScript();
   script_instance_->attached_variables_ = copy;

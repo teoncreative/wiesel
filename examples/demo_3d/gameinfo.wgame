@@ -132,7 +132,6 @@
         ]
       }
     },
-    "mouse_axis_limit_y": 75.0,
     "mouse_sensitivity_x": 80.0,
     "mouse_sensitivity_y": 80.0
   },

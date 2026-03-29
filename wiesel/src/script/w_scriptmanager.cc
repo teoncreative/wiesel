@@ -109,10 +109,17 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data,
 }
 
 ScriptInstance::~ScriptInstance() {
+  if (detached_) {
+    return;  // Domain was unloaded, nothing to clean up
+  }
   if (!errored_) {
     OnDestroy();
   }
   mono_gchandle_free(gc_handle_);
+}
+
+void ScriptInstance::Detach() {
+  detached_ = true;
 }
 
 void ScriptInstance::OnStart() {
@@ -599,56 +606,41 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
   bool debug = enable_debugger_;
   compiling_ = true;
 
-  compile_future_ = std::async(
-      std::launch::async,
-      [core_sources, app_sources, need_core, debug]() -> CompileResult {
-        if (need_core && !core_sources.empty()) {
-          LOG_INFO("Compiling core ({} files)...", core_sources.size());
-          DotNetProject core("Core");
-          core.SetOutputPath("./Core.dll");
-          core.SetSources(core_sources);
-          core.SetGenerateDocs(true);
-          CompileResult result = core.Build(debug);
-          if (!result.success) {
-            return result;
-          }
-        }
+  std::thread([this, core_sources, app_sources, need_core, debug]() {
+    CompileResult result{true, 0, "", ""};
 
-        if (!app_sources.empty()) {
-          // Collect link libs after Core is compiled so Core.dll is included
-          std::vector<std::string> link_libs = CollectLinkLibs("App.dll");
-          LOG_INFO("Compiling app ({} files)...", app_sources.size());
-          DotNetProject app("App");
-          app.SetOutputPath("./App.dll");
-          app.SetSources(app_sources);
-          app.SetReferences(link_libs);
-          return app.Build(debug);
-        }
+    if (need_core && !core_sources.empty()) {
+      LOG_INFO("Compiling core ({} files)...", core_sources.size());
+      DotNetProject core("Core");
+      core.SetOutputPath("./Core.dll");
+      core.SetSources(core_sources);
+      core.SetGenerateDocs(true);
+      result = core.Build(debug);
+    }
 
-        return {true, 0, "", ""};
-      });
-}
+    if (result.success && !app_sources.empty()) {
+      std::vector<std::string> link_libs = CollectLinkLibs("App.dll");
+      LOG_INFO("Compiling app ({} files)...", app_sources.size());
+      DotNetProject app("App");
+      app.SetOutputPath("./App.dll");
+      app.SetSources(app_sources);
+      app.SetReferences(link_libs);
+      result = app.Build(debug);
+    }
 
-bool ScriptManager::FinishReloadIfReady() {
-  if (!compiling_) {
-    return false;
-  }
-  if (compile_future_.wait_for(std::chrono::milliseconds(0)) !=
-      std::future_status::ready) {
-    return false;
-  }
+    Engine::app().SubmitToMainThread([this, result]() {
+      last_compile_result_ = result;
+      compiling_ = false;
 
-  last_compile_result_ = compile_future_.get();
-  compiling_ = false;
+      if (!result.success) {
+        LOG_ERROR("Compilation failed (exit code {}):\n{}", result.exit_code,
+                  result.output);
+        return;
+      }
 
-  if (!last_compile_result_.success) {
-    LOG_ERROR("Compilation failed (exit code {}):\n{}",
-              last_compile_result_.exit_code, last_compile_result_.output);
-    return true;
-  }
-
-  SwapDomain();
-  return true;
+      SwapDomain();
+    });
+  }).detach();
 }
 
 void ScriptManager::SwapDomain() {
@@ -678,7 +670,7 @@ void ScriptManager::SwapDomain() {
   LoadCoreDll();
 
   // Register script assets
-  RegisterScriptAssets("engine://scripts");
+  RegisterScriptAssets("engine://scripts/");
   RegisterScriptAssets("app://");
 
   // Load App.dll (already compiled)

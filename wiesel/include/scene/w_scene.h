@@ -168,7 +168,8 @@ class Scene {
    */
   std::vector<entt::entity>& GetSceneHierarchy() { return scene_hierarchy_; }
 
-  void LinkEntities(entt::entity parent, entt::entity child);
+  void LinkEntities(entt::entity parent, entt::entity child,
+                    bool convert_to_local = true);
   void UnlinkEntities(entt::entity parent, entt::entity child);
 
   void ProcessDestroyQueue();

@@ -40,7 +40,7 @@ void ConsoleLayer::OnEvent(Event& event) {
 
   // Consume all keyboard events so the game doesn't react to typing
   if (event.IsInCategory(EventCategory::kEventCategoryKeyboard)) {
-    event.m_Handled = true;
+    event.handled_ = true;
   }
 }
 

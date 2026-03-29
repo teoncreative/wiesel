@@ -22,7 +22,7 @@ void IBehavior::SetEnabled(bool enabled) {
   enabled_ = enabled;
 }
 
-void BehaviorsComponent::OnEvent(Wiesel::Event& event) {
+void BehaviorsComponent::OnEvent(Event& event) {
   for (const auto& entry : behaviors_) {
     entry.second->OnEvent(event);
   }

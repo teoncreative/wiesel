@@ -984,7 +984,7 @@ void Scene::OnEvent(Event& event) {
           input.cursor_timer_ = 0.0f;
         }
       }
-      event.m_Handled = true;
+      event.handled_ = true;
       return;
     }
 
@@ -1026,7 +1026,7 @@ void Scene::OnEvent(Event& event) {
       if (handled) {
         input.cursor_visible_ = true;
         input.cursor_timer_ = 0.0f;
-        event.m_Handled = true;
+        event.handled_ = true;
         return;
       }
     }
@@ -1038,7 +1038,8 @@ void Scene::OnEvent(Event& event) {
   }
 }
 
-void Scene::LinkEntities(entt::entity parent, entt::entity child) {
+void Scene::LinkEntities(entt::entity parent, entt::entity child,
+                         bool convert_to_local) {
   entt::entity loop_entity = parent;
   while (loop_entity != entt::null) {
     if (loop_entity == child) {
@@ -1057,15 +1058,17 @@ void Scene::LinkEntities(entt::entity parent, entt::entity child) {
   }
   parent_tree.childs.push_back(child);
   child_tree.parent = parent;
-  auto& child_transform = registry_.get<TransformComponent>(child);
-  auto& parent_transform = registry_.get<TransformComponent>(parent);
-  glm::vec3 posDiff =
-      child_transform.GetPosition() - parent_transform.GetPosition();
-  glm::vec3 rotDiff =
-      child_transform.GetRotation() - parent_transform.GetRotation();
+  if (convert_to_local) {
+    auto& child_transform = registry_.get<TransformComponent>(child);
+    auto& parent_transform = registry_.get<TransformComponent>(parent);
+    glm::vec3 posDiff =
+        child_transform.GetPosition() - parent_transform.GetPosition();
+    glm::vec3 rotDiff =
+        child_transform.GetRotation() - parent_transform.GetRotation();
 
-  child_transform.SetPosition(posDiff);
-  child_transform.SetRotation(rotDiff);
+    child_transform.SetPosition(posDiff);
+    child_transform.SetRotation(rotDiff);
+  }
 }
 
 void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {

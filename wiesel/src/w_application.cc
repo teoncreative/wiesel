@@ -70,7 +70,7 @@ void Application::OnEvent(Event& event) {
 
   for (auto it = layers_.rbegin(); it != layers_.rend(); ++it) {
     const auto& layer = *it;
-    if (event.m_Handled) {
+    if (event.handled_) {
       break;
     }
 
@@ -80,7 +80,7 @@ void Application::OnEvent(Event& event) {
     }
   }
 
-  if (!event.m_Handled) {
+  if (!event.handled_) {
     PROFILE_ZONE_SCOPED_N("InputManager::OnEvent");
     InputManager::OnEvent(event);
   }

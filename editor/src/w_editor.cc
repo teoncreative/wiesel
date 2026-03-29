@@ -432,9 +432,6 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   Engine::discord_rpc().RunCallbacks();
 #endif
 
-  // Poll async script compilation
-  Engine::script_manager().FinishReloadIfReady();
-
   // Only let scripts read input when the Game panel is focused during play
   InputManager::SetEnabled(editor_state_ == EditorState::Playing &&
                            game_panel_focused_);
@@ -463,7 +460,8 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   if (script_watcher_.Poll()) {
     script_reload_pending_ = true;
   }
-  if (script_reload_pending_ && window_focused_) {
+  if (script_reload_pending_ && window_focused_ &&
+      editor_state_ != EditorState::Playing) {
     script_reload_pending_ = false;
     LOG_INFO("Script changes detected, reloading...");
     Engine::script_manager().ReloadAsync();
@@ -528,7 +526,8 @@ void EditorLayer::OnEvent(Event& event) {
   } else {
     auto type = event.GetEventType();
     if (type == WindowResizeEvent::GetStaticType() ||
-        type == PipelineRecreatedEvent::GetStaticType()) {
+        type == PipelineRecreatedEvent::GetStaticType() ||
+        type == ScriptsReloadedEvent::GetStaticType()) {
       scene()->OnEvent(event);
     }
   }
@@ -3821,9 +3820,6 @@ void EditorLayer::RenderProjectSettingsPopup() {
       input_changed |=
           ImGui::DragFloat(PrefixLabel("Sensitivity Y").c_str(),
                            &input.mouse_sensitivity_y, 1.0f, 1.0f, 500.0f);
-      input_changed |=
-          ImGui::DragFloat(PrefixLabel("Y Axis Limit").c_str(),
-                           &input.mouse_axis_limit_y, 1.0f, 1.0f, 90.0f);
 
       int gp_count = InputManager::GetConnectedGamepadCount();
       if (gp_count > 0) {
@@ -4391,10 +4387,27 @@ void EditorLayer::RenderMainMenuBar() {
           has_compile_error
               ? ImGui::CalcTextSize("Compile Error").x + spacing
               : 0.0f;
-      float total_right = error_width + status_width + summary_width + spacing
-                          + info_width + 16.0f;
+      bool has_pending_reload = script_reload_pending_ &&
+                                editor_state_ == EditorState::Playing;
+      float pending_width =
+          has_pending_reload
+              ? ImGui::CalcTextSize("Reload Pending").x + spacing
+              : 0.0f;
+      float total_right = pending_width + error_width + status_width +
+                          summary_width + spacing + info_width + 16.0f;
 
       ImGui::SameLine(ImGui::GetWindowWidth() - total_right);
+
+      if (has_pending_reload) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.2f, 1.0f));
+        ImGui::Text("Reload Pending");
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetTooltip("Script changes detected.\n"
+                            "Reload will happen when you stop playing.");
+        }
+        ImGui::PopStyleColor();
+        ImGui::SameLine(0, spacing);
+      }
 
       if (has_compile_error) {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));

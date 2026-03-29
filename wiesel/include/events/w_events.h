@@ -56,7 +56,7 @@ class Event {
  public:
   virtual ~Event() = default;
 
-  bool m_Handled = false;
+  bool handled_ = false;
 
   virtual const char* GetEventName() const = 0;
   virtual EventType GetEventType() const = 0;
@@ -69,20 +69,20 @@ class Event {
 
 class EventDispatcher {
  public:
-  EventDispatcher(Event& event) : m_Event(event) {}
+  EventDispatcher(Event& event) : event_(event) {}
 
   // F will be deduced by the compiler
   template <typename T, typename F>
   bool Dispatch(const F& func) {
-    if (m_Event.GetEventType() == T::GetStaticType()) {
-      m_Event.m_Handled |= func(static_cast<T&>(m_Event));
+    if (event_.GetEventType() == T::GetStaticType()) {
+      event_.handled_ |= func(static_cast<T&>(event_));
       return true;
     }
     return false;
   }
 
  private:
-  Event& m_Event;
+  Event& event_;
 };
 
 #define EVENT_CLASS_TYPE(type)                        \

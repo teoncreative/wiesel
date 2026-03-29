@@ -579,7 +579,7 @@ void InitializeComponentSerializers() {
           // Serialize field values from the ScriptInstance
           auto* mono_behavior = dynamic_cast<MonoBehavior*>(behavior);
           if (mono_behavior && mono_behavior->script_instance()) {
-            auto* instance = mono_behavior->script_instance();
+            ScriptInstance* instance = mono_behavior->script_instance();
             json fields_json;
             for (auto& [field_name, field_data] :
                  instance->script_data().fields()) {
