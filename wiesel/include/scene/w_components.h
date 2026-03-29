@@ -174,11 +174,13 @@ struct TransformComponent : public IComponent {
 
   // Translate with space selection
   void Translate(const glm::vec3& delta, Space space = Space::Local) {
-    if (space == Space::World) {
-      // Convert world-space delta to local space
-      glm::mat3 world_rot = glm::mat3(transform_matrix_);
-      glm::mat3 inv_rot = glm::inverse(world_rot);
-      position_ += inv_rot * delta;
+    if (space == Space::Local) {
+      glm::mat3 rot = glm::mat3(transform_matrix_);
+      // Strip scale by normalizing each column
+      rot[0] = glm::normalize(rot[0]);  // local Right
+      rot[1] = glm::normalize(rot[1]);  // local Up
+      rot[2] = glm::normalize(rot[2]);  // local Forward
+      position_ += rot * delta;
     } else {
       position_ += delta;
     }

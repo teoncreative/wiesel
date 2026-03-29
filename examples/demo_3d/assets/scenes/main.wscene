@@ -97,6 +97,8 @@
       "Behaviors": [
         {
           "fields": {
+            "camRotX": 0.0,
+            "camRotY": 0.0,
             "mouseSensitivity": 2.0,
             "moveSpeed": 5.0
           },
@@ -131,12 +133,12 @@
         ],
         "position": [
           0.0,
-          2.5450000762939453,
+          1.4292762279510498,
           0.0
         ],
         "rotation": [
           0.0,
-          0.0,
+          -0.0,
           0.0
         ],
         "scale": [
@@ -149,15 +151,7 @@
       "uuid": "05e92d9b-aa9d-4742-96c9-bf7a13388235"
     },
     {
-      "Behaviors": [
-        {
-          "fields": {
-            "mouseSensitivity": 2.0,
-            "moveSpeed": 5.0
-          },
-          "name": "PlayerScript"
-        }
-      ],
+      "Behaviors": [],
       "Camera": {
         "background_color": [
           0.0,
@@ -184,8 +178,8 @@
         ],
         "position": [
           0.0,
-          0.5138716697692871,
-          -0.33347296714782715
+          0.5760455131530762,
+          -0.36704370379447937
         ],
         "rotation": [
           0.0,

@@ -66,7 +66,6 @@ struct InputSettings {
   std::map<std::string, InputContext> contexts;  // name -> context
   float mouse_sensitivity_x = 80.0f;
   float mouse_sensitivity_y = 80.0f;
-  float mouse_axis_limit_y = 75.0f;
 };
 
 // Runtime game configuration - loaded from gameinfo.wgame.

@@ -196,7 +196,6 @@ static void SerializeInputSettings(nlohmann::json& j,
   nlohmann::json ij;
   ij["mouse_sensitivity_x"] = input.mouse_sensitivity_x;
   ij["mouse_sensitivity_y"] = input.mouse_sensitivity_y;
-  ij["mouse_axis_limit_y"] = input.mouse_axis_limit_y;
 
   nlohmann::json contexts_json = nlohmann::json::object();
   for (auto& [ctx_name, ctx] : input.contexts) {
@@ -228,7 +227,6 @@ static void DeserializeInputSettings(const nlohmann::json& j,
   auto& ij = j["input"];
   input.mouse_sensitivity_x = ij.value("mouse_sensitivity_x", 80.0f);
   input.mouse_sensitivity_y = ij.value("mouse_sensitivity_y", 80.0f);
-  input.mouse_axis_limit_y = ij.value("mouse_axis_limit_y", 75.0f);
 
   if (ij.contains("contexts") && ij["contexts"].is_object()) {
     for (auto& [ctx_name, ctx_json] : ij["contexts"].items()) {

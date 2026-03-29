@@ -27,7 +27,6 @@ static float mouse_axis_x_ = 0.0f;
 static float mouse_axis_y_ = 0.0f;
 static float mouse_axis_sens_x_ = 80.0f;
 static float mouse_axis_sens_y_ = 80.0f;
-static float mouse_axis_limit_y_ = 75.0f;
 
 // Gamepads
 static constexpr int kMaxGamepads = 16;
@@ -126,10 +125,8 @@ static bool OnMouseMoved(MouseMovedEvent& event) {
   mouse_x_ = event.GetX();
   mouse_y_ = event.GetY();
   if (event.GetCursorMode() == CursorModeRelative) {
-    mouse_axis_x_ -= mouse_axis_sens_x_ * event.GetDeltaX();
-    mouse_axis_y_ -= mouse_axis_sens_y_ * event.GetDeltaY();
-    mouse_axis_y_ =
-        std::clamp(mouse_axis_y_, -mouse_axis_limit_y_, mouse_axis_limit_y_);
+    mouse_axis_x_ += -mouse_axis_sens_x_ * event.GetDeltaX();
+    mouse_axis_y_ += -mouse_axis_sens_y_ * event.GetDeltaY();
   }
   return false;
 }
@@ -250,7 +247,6 @@ void InputManager::LoadFromSettings(const InputSettings& settings) {
 
   mouse_axis_sens_x_ = settings.mouse_sensitivity_x;
   mouse_axis_sens_y_ = settings.mouse_sensitivity_y;
-  mouse_axis_limit_y_ = settings.mouse_axis_limit_y;
 
   LOG_INFO("Input: loaded {} contexts", contexts_.size());
 }
@@ -278,6 +274,10 @@ void InputManager::OnEvent(Event& event) {
 }
 
 void InputManager::Update() {
+  // Reset per-frame mouse deltas
+  mouse_axis_x_ = 0.0f;
+  mouse_axis_y_ = 0.0f;
+
   // Update previous_pressed for keyboard
   for (auto& [code, data] : keys_) {
     data.previous_pressed = data.pressed;
