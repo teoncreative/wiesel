@@ -313,7 +313,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         for (const entt::entity& entity :
              scene->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
           auto& tc = scene->GetComponent<TransformComponent>(entity);
-          draw_billboard(tc.GetPosition(), camera_icon_desc);
+          draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
         }
 
         // Draw light billboards (reuse camera icon for now until we have light icons)
@@ -321,13 +321,13 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
              scene->GetAllEntitiesWith<LightDirectComponent,
                                        TransformComponent>()) {
           auto& tc = scene->GetComponent<TransformComponent>(entity);
-          draw_billboard(tc.GetPosition(), camera_icon_desc);
+          draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
         }
         for (const entt::entity& entity :
              scene->GetAllEntitiesWith<LightPointComponent,
                                        TransformComponent>()) {
           auto& tc = scene->GetComponent<TransformComponent>(entity);
-          draw_billboard(tc.GetPosition(), camera_icon_desc);
+          draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
         }
       });
 
