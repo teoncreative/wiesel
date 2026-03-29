@@ -4430,12 +4430,23 @@ VkPresentModeKHR Renderer::ChooseSwapPresentMode(
      * VK_PRESENT_MODE_MAILBOX_KHR: This is another variation of the second mode. Instead of blocking the application when the queue is full, the images that are already queued are simply replaced with the newer ones. This mode can be used to render frames as fast as possible while still avoiding tearing, resulting in fewer latency issues than standard vertical sync. This is commonly known as "triple buffering", although the existence of three buffers alone does not necessarily mean that the framerate is unlocked.
      */
   if (!options().vsync) {
-    return VK_PRESENT_MODE_IMMEDIATE_KHR;
-  }
-
-  for (const auto& availablePresentMode : available_present_modes) {
-    if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      return availablePresentMode;
+    // Prefer IMMEDIATE (no vsync), fall back to MAILBOX (low-latency triple buffer)
+    for (VkPresentModeKHR mode : available_present_modes) {
+      if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+        return mode;
+      }
+    }
+    for (VkPresentModeKHR mode : available_present_modes) {
+      if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+        return mode;
+      }
+    }
+  } else {
+    // Prefer MAILBOX (triple buffered vsync), fall back to FIFO (standard vsync)
+    for (VkPresentModeKHR mode : available_present_modes) {
+      if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+        return mode;
+      }
     }
   }
 

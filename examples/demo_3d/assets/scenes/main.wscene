@@ -94,7 +94,15 @@
       "uuid": "45a2b5fa-a56a-44ac-8bc7-b160f089e371"
     },
     {
-      "Behaviors": [],
+      "Behaviors": [
+        {
+          "fields": {
+            "mouseSensitivity": 2.0,
+            "moveSpeed": 5.0
+          },
+          "name": "PlayerScript"
+        }
+      ],
       "Model": {
         "asset_handle": "00000000-0000-4000-8000-000000000005",
         "enable_rendering": true,
@@ -122,14 +130,14 @@
           0.0
         ],
         "position": [
-          1.515749454498291,
-          1.444864273071289,
-          -0.42441415786743164
+          0.0,
+          2.5450000762939453,
+          0.0
         ],
         "rotation": [
-          -3.181314468383789,
-          9.116848945617676,
-          3.3621952533721924
+          0.0,
+          0.0,
+          0.0
         ],
         "scale": [
           0.9999426603317261,
@@ -137,16 +145,17 @@
           0.9999419450759888
         ]
       },
-      "name": "Capsule",
+      "name": "Player",
       "uuid": "05e92d9b-aa9d-4742-96c9-bf7a13388235"
     },
     {
       "Behaviors": [
         {
           "fields": {
-            "CameraMoveSpeed": 0.0
+            "mouseSensitivity": 2.0,
+            "moveSpeed": 5.0
           },
-          "name": "CameraScript"
+          "name": "PlayerScript"
         }
       ],
       "Camera": {
@@ -174,9 +183,9 @@
           0.0
         ],
         "position": [
-          -10.603439331054688,
-          6.438986778259277,
-          11.785051345825195
+          0.0,
+          0.5138716697692871,
+          -0.33347296714782715
         ],
         "rotation": [
           0.0,
@@ -190,6 +199,7 @@
         ]
       },
       "name": "Camera",
+      "parent": "05e92d9b-aa9d-4742-96c9-bf7a13388235",
       "uuid": "4638c962-8f7c-4e3b-bb76-c4b2dc9a2b7b"
     },
     {
