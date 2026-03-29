@@ -1,9 +1,7 @@
 namespace WieselEngine
 {
-    public class LightPointComponent
+    public class LightPointComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public LightPointComponent(ulong scenePtr, ulong entityId)
         {

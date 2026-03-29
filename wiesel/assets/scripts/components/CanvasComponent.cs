@@ -5,10 +5,8 @@ namespace WieselEngine
     public enum LayoutDirection { None, Row, Column }
     public enum ChildAlignment { Start, Center, End }
 
-    public class CanvasComponent
+    public class CanvasComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public LayoutDirection Direction
         {

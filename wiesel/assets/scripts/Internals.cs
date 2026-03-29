@@ -742,6 +742,12 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong[] Scene_FindEntitiesByTag(ulong scenePtr, string tag);
 
+        // Child entity access
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Entity_GetChildCount(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong Entity_GetChild(ulong scenePtr, ulong entityId, int index);
+
         // Console
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Console_RegisterCommand(string name, string description, System.Action<string[]> callback);

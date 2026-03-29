@@ -2,10 +2,8 @@ using System;
 
 namespace WieselEngine
 {
-    public class TextComponent
+    public class TextComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
         private HandledVector4f color;
 
         public string Text

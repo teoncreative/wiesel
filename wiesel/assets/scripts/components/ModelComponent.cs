@@ -2,10 +2,8 @@ using System;
 
 namespace WieselEngine
 {
-    public class ModelComponent
+    public class ModelComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public bool EnableRendering
         {

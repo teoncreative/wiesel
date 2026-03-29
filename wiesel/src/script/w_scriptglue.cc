@@ -525,6 +525,38 @@ MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
   return arr;
 }
 
+// --- Child entity access ---
+
+int Internals_Entity_GetChildCount(uint64_t scene_ptr, uint64_t entity_id) {
+  if (scene_ptr == 0) {
+    return 0;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasComponent<TreeComponent>(handle)) {
+    return 0;
+  }
+  TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
+  return static_cast<int>(tree.childs.size());
+}
+
+uint64_t Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
+                                   int index) {
+  if (scene_ptr == 0) {
+    return UINT64_MAX;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasComponent<TreeComponent>(handle)) {
+    return UINT64_MAX;
+  }
+  TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
+  if (index < 0 || index >= static_cast<int>(tree.childs.size())) {
+    return UINT64_MAX;
+  }
+  return static_cast<uint64_t>(tree.childs[index]);
+}
+
 // --- CameraComponent bindings ---
 
 #define GET_CAM_OR_RETURN(scene_ptr, entity_id, retval)   \
@@ -2563,6 +2595,8 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Entity_AddTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_RemoveTag);
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntitiesByTag);
+  WIESEL_ADD_INTERNAL_CALL(Entity_GetChildCount);
+  WIESEL_ADD_INTERNAL_CALL(Entity_GetChild);
 
   WIESEL_ADD_INTERNAL_CALL(Camera_GetProjectionMode);
   WIESEL_ADD_INTERNAL_CALL(Camera_SetProjectionMode);

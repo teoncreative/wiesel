@@ -10,10 +10,8 @@ namespace WieselEngine
         World = 1
     }
 
-    public class TransformComponent
+    public class TransformComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
         private HandledVector3f position;
         private HandledVector3f rotation;
         private HandledVector3f scale;
@@ -119,6 +117,10 @@ namespace WieselEngine
 
         public void Translate(Vector3f delta, Space space = Space.Local) {
             Internals.TransformComponent_Translate(scenePtr, entityId, delta.X, delta.Y, delta.Z, (int)space);
+        }
+
+        public void Translate(float x, float y, float z, Space space = Space.Local) {
+            Internals.TransformComponent_Translate(scenePtr, entityId, x, y, z, (int)space);
         }
 
         private float GetPositionX()

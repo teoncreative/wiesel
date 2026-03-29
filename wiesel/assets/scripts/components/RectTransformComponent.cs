@@ -12,10 +12,8 @@ namespace WieselEngine
 
     public enum SizeMode { Fixed, Percent }
 
-    public class RectTransformComponent
+    public class RectTransformComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
         private HandledVector2f position;
         private HandledVector2f size;
         private HandledVector2f scale;

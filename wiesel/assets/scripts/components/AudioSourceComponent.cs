@@ -1,9 +1,7 @@
 namespace WieselEngine
 {
-    public class AudioSourceComponent
+    public class AudioSourceComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public AudioSourceComponent(ulong scenePtr, ulong entityId)
         {

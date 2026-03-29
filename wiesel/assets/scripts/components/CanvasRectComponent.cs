@@ -2,10 +2,8 @@ using System;
 
 namespace WieselEngine
 {
-    public class CanvasRectComponent
+    public class CanvasRectComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
         private HandledVector4f color;
 
         public Vector4f Color

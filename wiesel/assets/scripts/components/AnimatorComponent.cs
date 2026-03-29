@@ -2,10 +2,8 @@ using System;
 
 namespace WieselEngine
 {
-    public class AnimatorComponent
+    public class AnimatorComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public AnimatorComponent(ulong scenePtr, ulong entityId)
         {

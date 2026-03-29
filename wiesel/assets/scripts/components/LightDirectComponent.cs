@@ -1,9 +1,7 @@
 namespace WieselEngine
 {
-    public class LightDirectComponent
+    public class LightDirectComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public LightDirectComponent(ulong scenePtr, ulong entityId)
         {

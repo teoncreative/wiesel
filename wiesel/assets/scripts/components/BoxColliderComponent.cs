@@ -2,10 +2,8 @@ using System;
 
 namespace WieselEngine
 {
-    public class BoxColliderComponent
+    public class BoxColliderComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public Vector3f Offset
         {

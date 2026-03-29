@@ -1,9 +1,7 @@
 namespace WieselEngine
 {
-    public class RigidBodyComponent
+    public class RigidBodyComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public RigidBodyComponent(ulong scenePtr, ulong entityId)
         {

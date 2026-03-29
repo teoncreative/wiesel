@@ -1,9 +1,7 @@
 namespace WieselEngine
 {
-    public class SpriteRendererComponent
+    public class SpriteRendererComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public SpriteRendererComponent(ulong scenePtr, ulong entityId)
         {

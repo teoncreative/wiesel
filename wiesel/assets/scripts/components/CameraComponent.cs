@@ -6,10 +6,8 @@ namespace WieselEngine
         Orthographic = 1
     }
 
-    public class CameraComponent
+    public class CameraComponent : Component
     {
-        private ulong scenePtr;
-        private ulong entityId;
 
         public CameraComponent(ulong scenePtr, ulong entityId)
         {
