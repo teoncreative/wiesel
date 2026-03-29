@@ -147,36 +147,55 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
   scene_->SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));
   scene_->SetPreloadAssets(root.value("preload_assets", false));
 
-  // First pass: create all entities
-  for (const auto& entity_json : root["entities"]) {
-    DeserializeEntity(entity_json);
+  // First pass: create all entities (UUID + name only, no components)
+  // Build UUID -> entity lookup map for fast resolution
+  std::unordered_map<UUID, entt::entity> uuid_map;
+  for (const nlohmann::json& entity_json : root["entities"]) {
+    std::string uuid_str = entity_json.value("uuid", "");
+    std::string name = entity_json.value("name", "Entity");
+    UUID uuid = UUID::FromString(uuid_str);
+    Entity entity = scene_->CreateEntityWithUUID(uuid, name);
+    uuid_map[uuid] = entity.handle();
   }
 
-  // Second pass: restore parent-child relationships
-  for (const auto& entity_json : root["entities"]) {
-    if (entity_json.contains("parent") && entity_json["parent"].is_string()) {
-      std::string parent_uuid_str = entity_json["parent"].get<std::string>();
-      std::string child_uuid_str = entity_json["uuid"].get<std::string>();
+  // Second pass: deserialize all components (all entities exist now,
+  // so cross-entity references can resolve)
+  for (const nlohmann::json& entity_json : root["entities"]) {
+    std::string uuid_str = entity_json.value("uuid", "");
+    UUID uuid = UUID::FromString(uuid_str);
 
-      UUID parent_uuid = UUID::FromString(parent_uuid_str);
-      UUID child_uuid = UUID::FromString(child_uuid_str);
+    auto it = uuid_map.find(uuid);
+    if (it == uuid_map.end()) {
+      continue;
+    }
 
-      entt::entity parent_entity = entt::null;
-      entt::entity child_entity = entt::null;
+    Entity entity{it->second, scene_.get()};
 
-      auto view = scene_->GetAllEntitiesWith<IdComponent>();
-      for (auto e : view) {
-        auto& id = scene_->GetComponent<IdComponent>(e);
-        if (id.Id == parent_uuid) {
-          parent_entity = e;
-        }
-        if (id.Id == child_uuid) {
-          child_entity = e;
-        }
+    if (entity_json.contains("tags") && entity_json["tags"].is_array()) {
+      TagComponent& tag_comp = entity.GetComponent<TagComponent>();
+      for (const nlohmann::json& t : entity_json["tags"]) {
+        tag_comp.AddTag(t.get<std::string>());
       }
+    }
 
-      if (parent_entity != entt::null && child_entity != entt::null) {
-        scene_->LinkEntities(parent_entity, child_entity);
+    ComponentSerializerRegistry::DeserializeAll(entity, entity_json,
+                                                scene_.get());
+  }
+
+  // Third pass: restore parent-child relationships
+  for (const nlohmann::json& entity_json : root["entities"]) {
+    if (entity_json.contains("parent") && entity_json["parent"].is_string()) {
+      UUID parent_uuid =
+          UUID::FromString(entity_json["parent"].get<std::string>());
+      UUID child_uuid =
+          UUID::FromString(entity_json["uuid"].get<std::string>());
+
+      auto parent_it = uuid_map.find(parent_uuid);
+      auto child_it = uuid_map.find(child_uuid);
+
+      if (parent_it != uuid_map.end() && child_it != uuid_map.end()) {
+        // Positions are already in local space from serialization
+        scene_->LinkEntities(parent_it->second, child_it->second, false);
       }
     }
   }
