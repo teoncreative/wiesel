@@ -13,6 +13,7 @@
 
 #include "rendering/w_framebuffer.h"
 #include "rendering/w_texture.h"
+#include "util/w_logger.h"
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -234,10 +235,9 @@ void RenderPass::Bake() {
   renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
   renderPassInfo.pDependencies = dependencies.data();
 
-  if (vkCreateRenderPass(Engine::renderer()->logical_device_, &renderPassInfo,
-                         nullptr, &render_pass_) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create render pass!");
-  }
+  WIESEL_CHECK_VKRESULT(vkCreateRenderPass(Engine::renderer()->logical_device_,
+                                           &renderPassInfo, nullptr,
+                                           &render_pass_));
 
   Engine::renderer()->SetObjectName(VK_OBJECT_TYPE_RENDER_PASS,
                                     reinterpret_cast<uint64_t>(render_pass_),
@@ -291,7 +291,12 @@ std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(
       views.push_back(item->image_views_[index]->handle_);
     }
   }
-  // TODO check if views match the expected framebuffer attachment size
+  if (views.size() != attachments_.size()) {
+    LOG_ERROR(
+        "Framebuffer view count ({}) does not match render pass attachment "
+        "count ({}) in '{}'",
+        views.size(), attachments_.size(), debug_name);
+  }
   return std::make_shared<Framebuffer>(views, extent, *this);
 }
 
@@ -301,7 +306,12 @@ std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(
   for (const auto& item : output_views) {
     views.push_back(item->handle_);
   }
-  // TODO check if views match the expected framebuffer attachment size
+  if (views.size() != attachments_.size()) {
+    LOG_ERROR(
+        "Framebuffer view count ({}) does not match render pass attachment "
+        "count ({}) in '{}'",
+        views.size(), attachments_.size(), debug_name);
+  }
   return std::make_shared<Framebuffer>(views, extent, *this);
 }
 
@@ -312,7 +322,12 @@ std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(
   for (const auto& item : output_views) {
     views.push_back(item->handle_);
   }
-  // TODO check if views match the expected framebuffer attachment size
+  if (views.size() != attachments_.size()) {
+    LOG_ERROR(
+        "Framebuffer view count ({}) does not match render pass attachment "
+        "count ({}) in '{}'",
+        views.size(), attachments_.size(), debug_name);
+  }
   return std::make_shared<Framebuffer>(views, extent, *this);
 }
 }  // namespace Wiesel

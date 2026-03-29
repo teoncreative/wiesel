@@ -279,7 +279,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
 
   // Upload instances
   void* mapped = nullptr;
-  vkMapMemory(device, tlas_instance_memory_, 0, instances_size, 0, &mapped);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(device, tlas_instance_memory_, 0,
+                                    instances_size, 0, &mapped));
   memcpy(mapped, instances.data(), instances_size);
   vkUnmapMemory(device, tlas_instance_memory_);
 

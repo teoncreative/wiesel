@@ -14,6 +14,7 @@
 #include <BulletCollision/CollisionDispatch/btGhostObject.h>
 #include <btBulletDynamicsCommon.h>
 #include <entt/entt.hpp>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include "w_pch.h"
@@ -101,13 +102,13 @@ class PhysicsWorld {
 
   Scene* scene_;
 
-  // Bullet core (order matters for destruction)
-  btDefaultCollisionConfiguration* collision_config_ = nullptr;
-  btCollisionDispatcher* dispatcher_ = nullptr;
-  btDbvtBroadphase* broadphase_ = nullptr;
-  btSequentialImpulseConstraintSolver* solver_ = nullptr;
-  btDiscreteDynamicsWorld* dynamics_world_ = nullptr;
-  btGhostPairCallback* ghost_pair_callback_ = nullptr;
+  // Bullet core (reverse-declaration order = destruction order)
+  std::unique_ptr<btGhostPairCallback> ghost_pair_callback_;
+  std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world_;
+  std::unique_ptr<btSequentialImpulseConstraintSolver> solver_;
+  std::unique_ptr<btDbvtBroadphase> broadphase_;
+  std::unique_ptr<btCollisionDispatcher> dispatcher_;
+  std::unique_ptr<btDefaultCollisionConfiguration> collision_config_;
 
   // Entity → Bullet data
   struct BodyData {

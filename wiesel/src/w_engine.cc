@@ -988,6 +988,9 @@ void Engine::PreDecodeTextures(Model& model, const aiScene& scene) {
             decoded->channels = 4;
             int size = decoded->width * decoded->height;
             decoded->pixels = static_cast<stbi_uc*>(malloc(size * 4));
+            if (!decoded->pixels) {
+              return {task.key, nullptr};
+            }
             aiTexel* texels = task.tex->pcData;
             for (int i = 0; i < size; i++) {
               decoded->pixels[i * 4 + 0] = texels[i].r;

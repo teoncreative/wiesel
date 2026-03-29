@@ -140,6 +140,7 @@ file(
 file(
         GLOB GLSLANG_FILES
         "${VENDOR_DIR}/glslang/glslang/CInterface/*.cpp"
+        "${VENDOR_DIR}/glslang/glslang/ResourceLimits/*.cpp"
         "${VENDOR_DIR}/glslang/SPIRV/CInterface/*.cpp"
         "${VENDOR_DIR}/glslang/SPIRV/*.cpp"
 )

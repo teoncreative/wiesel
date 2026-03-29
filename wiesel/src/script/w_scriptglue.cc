@@ -40,27 +40,27 @@ namespace Wiesel {
                          reinterpret_cast<void*>(Internals_##name))
 
 void Internals_Log_Info(MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   LOG_INFO("{}", cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 float Internals_Input_GetAxis(MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   float value = InputManager::GetAxis(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return value;
 }
 
 bool Internals_Input_GetKey(MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   bool value = InputManager::GetAction(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return value;
 }
 
 void Internals_Input_SetCursorMode(uint16_t mode) {
-  Engine::window()->SetCursorMode((CursorMode)mode);
+  Engine::window()->SetCursorMode(static_cast<CursorMode>(mode));
 }
 
 uint16_t Internals_Input_GetCursorMode() {
@@ -69,16 +69,16 @@ uint16_t Internals_Input_GetCursorMode() {
 }
 
 bool Internals_Input_GetKeyDown(MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   bool value = InputManager::GetActionDown(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return value;
 }
 
 bool Internals_Input_GetKeyUp(MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   bool value = InputManager::GetActionUp(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return value;
 }
 
@@ -113,9 +113,9 @@ void Internals_AudioSource_Play(uint64_t scene_ptr, uint64_t entity_id) {
 void Internals_AudioSource_PlayClip(uint64_t scene_ptr, uint64_t entity_id,
                                     MonoString* clip_handle) {
   GET_AUDIO_SRC_OR_RETURN(scene_ptr, entity_id, );
-  const char* cstr = mono_string_to_utf8(clip_handle);
+  char* cstr = mono_string_to_utf8(clip_handle);
   AssetHandle clip = AssetHandle::FromString(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   if (src.playing_handle_.IsValid()) {
     Engine::audio().Stop(src.playing_handle_);
   }
@@ -401,9 +401,9 @@ void Internals_Entity_AddComponent(uint64_t scene_ptr, uint64_t entity_id,
   if (!scene->HasEntity(handle)) {
     return;
   }
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   Engine::script_manager().AddComponentByName(scene, handle, cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Entity_RemoveComponent(uint64_t scene_ptr, uint64_t entity_id,
@@ -416,9 +416,9 @@ void Internals_Entity_RemoveComponent(uint64_t scene_ptr, uint64_t entity_id,
   if (!scene->HasEntity(handle)) {
     return;
   }
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   Engine::script_manager().RemoveComponentByName(scene, handle, cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 // --- Mouse bindings ---
@@ -471,9 +471,9 @@ bool Internals_Entity_HasTag(uint64_t scene_ptr, uint64_t entity_id,
   if (!scene->HasComponent<TagComponent>(handle)) {
     return false;
   }
-  const char* cstr = mono_string_to_utf8(tag);
+  char* cstr = mono_string_to_utf8(tag);
   bool result = scene->GetComponent<TagComponent>(handle).HasTag(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return result;
 }
 
@@ -487,9 +487,9 @@ void Internals_Entity_AddTag(uint64_t scene_ptr, uint64_t entity_id,
   if (!scene->HasComponent<TagComponent>(handle)) {
     return;
   }
-  const char* cstr = mono_string_to_utf8(tag);
+  char* cstr = mono_string_to_utf8(tag);
   scene->GetComponent<TagComponent>(handle).AddTag(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Entity_RemoveTag(uint64_t scene_ptr, uint64_t entity_id,
@@ -502,9 +502,9 @@ void Internals_Entity_RemoveTag(uint64_t scene_ptr, uint64_t entity_id,
   if (!scene->HasComponent<TagComponent>(handle)) {
     return;
   }
-  const char* cstr = mono_string_to_utf8(tag);
+  char* cstr = mono_string_to_utf8(tag);
   scene->GetComponent<TagComponent>(handle).RemoveTag(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
@@ -513,9 +513,9 @@ MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
     return nullptr;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  const char* cstr = mono_string_to_utf8(tag);
+  char* cstr = mono_string_to_utf8(tag);
   auto entities = scene->FindEntitiesByTag(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 
   MonoArray* arr = mono_array_new(Engine::script_manager().app_domain(),
                                   mono_get_uint64_class(), entities.size());
@@ -763,9 +763,9 @@ void Internals_SpriteRenderer_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
 void Internals_SpriteAnimator_Play(uint64_t sp, uint64_t eid, MonoString* state,
                                    bool restart) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  const char* cstr = mono_string_to_utf8(state);
+  char* cstr = mono_string_to_utf8(state);
   spr_a.Play(cstr, restart);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_Stop(uint64_t sp, uint64_t eid) {
@@ -794,59 +794,59 @@ int Internals_SpriteAnimator_GetCurrentFrame(uint64_t sp, uint64_t eid) {
 void Internals_SpriteAnimator_SetBool(uint64_t sp, uint64_t eid,
                                       MonoString* name, bool val) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   spr_a.state_machine_.SetBool(cstr, val);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetInt(uint64_t sp, uint64_t eid,
                                      MonoString* name, int val) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   spr_a.state_machine_.SetInt(cstr, val);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetFloat(uint64_t sp, uint64_t eid,
                                        MonoString* name, float val) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   spr_a.state_machine_.SetFloat(cstr, val);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetTrigger(uint64_t sp, uint64_t eid,
                                          MonoString* name) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   spr_a.state_machine_.SetTrigger(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 bool Internals_SpriteAnimator_GetBool(uint64_t sp, uint64_t eid,
                                       MonoString* name) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   bool val = spr_a.state_machine_.GetBool(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return val;
 }
 
 int Internals_SpriteAnimator_GetInt(uint64_t sp, uint64_t eid,
                                     MonoString* name) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   int val = spr_a.state_machine_.GetInt(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return val;
 }
 
 float Internals_SpriteAnimator_GetFloat(uint64_t sp, uint64_t eid,
                                         MonoString* name) {
   GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0.0f);
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   float val = spr_a.state_machine_.GetFloat(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return val;
 }
 
@@ -856,20 +856,20 @@ float Internals_SpriteAnimator_GetFloat(uint64_t sp, uint64_t eid,
 
 void Internals_Audio_PlayPath(MonoString* path, int bus, float volume,
                               float pitch, bool loop) {
-  const char* cstr = mono_string_to_utf8(path);
+  char* cstr = mono_string_to_utf8(path);
   SoundParams params;
   params.bus = static_cast<AudioBus>(bus);
   params.volume = volume;
   params.pitch = pitch;
   params.loop = loop;
   Engine::audio().Play(cstr, params);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Audio_PlayAtPath(MonoString* path, float x, float y, float z,
                                 int bus, float volume, float minDist,
                                 float maxDist) {
-  const char* cstr = mono_string_to_utf8(path);
+  char* cstr = mono_string_to_utf8(path);
   SoundParams params;
   params.bus = static_cast<AudioBus>(bus);
   params.volume = volume;
@@ -878,14 +878,14 @@ void Internals_Audio_PlayAtPath(MonoString* path, float x, float y, float z,
   params.min_distance = minDist;
   params.max_distance = maxDist;
   Engine::audio().Play(cstr, params);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Audio_PlayClip(MonoString* handle_str, int bus, float volume,
                               float pitch, bool loop) {
-  const char* cstr = mono_string_to_utf8(handle_str);
+  char* cstr = mono_string_to_utf8(handle_str);
   AssetHandle clip = AssetHandle::FromString(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   SoundParams params;
   params.bus = static_cast<AudioBus>(bus);
   params.volume = volume;
@@ -897,23 +897,23 @@ void Internals_Audio_PlayClip(MonoString* handle_str, int bus, float volume,
 void Internals_Audio_PlayAtClip(MonoString* handle_str, float x, float y,
                                 float z, int bus, float volume, float minDist,
                                 float maxDist) {
-  const char* cstr = mono_string_to_utf8(handle_str);
+  char* cstr = mono_string_to_utf8(handle_str);
   AssetHandle clip = AssetHandle::FromString(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   Engine::audio().PlaySoundAt(clip, {x, y, z}, static_cast<AudioBus>(bus),
                               volume, minDist, maxDist);
 }
 
 void Internals_Audio_PlayMusic(MonoString* path, float volume) {
-  const char* cstr = mono_string_to_utf8(path);
+  char* cstr = mono_string_to_utf8(path);
   Engine::audio().PlayMusic(cstr, volume);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Audio_PlayMusicClip(MonoString* handle_str, float volume) {
-  const char* cstr = mono_string_to_utf8(handle_str);
+  char* cstr = mono_string_to_utf8(handle_str);
   AssetHandle clip = AssetHandle::FromString(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   Engine::audio().PlayMusic(clip, volume);
 }
 
@@ -1154,9 +1154,9 @@ uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
     return UINT64_MAX;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   entt::entity entity = scene->FindEntityByName(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   if (entity == entt::null) {
     return UINT64_MAX;
   }
@@ -1172,9 +1172,9 @@ uint64_t Internals_Scene_CreateEntity(uint64_t scene_ptr, MonoString* name) {
     LOG_ERROR("Scene_CreateEntity: no active scene");
     return 0;
   }
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   Entity entity = scene->CreateEntity(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return static_cast<uint32_t>(entity.handle());
 }
 
@@ -1193,19 +1193,19 @@ void Internals_Scene_DestroyEntity(uint64_t scene_ptr, uint64_t entity_id) {
 
 MonoObject* Internals_Behavior_GetComponent(Scene* scene, entt::entity entity,
                                             MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   MonoObject* component =
       Engine::script_manager().GetComponentByName(scene, entity, cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return component;
 }
 
 bool Internals_Behavior_HasComponent(Scene* scene, entt::entity entity,
                                      MonoString* str) {
-  const char* cstr = mono_string_to_utf8(str);
+  char* cstr = mono_string_to_utf8(str);
   bool hasComponent =
       Engine::script_manager().HasComponentByName(scene, entity, cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return hasComponent;
 }
 
@@ -2057,11 +2057,11 @@ MonoString* Internals_Text_GetText(Scene* s, entt::entity e) {
 }
 
 void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
-  const char* str = mono_string_to_utf8(v);
+  char* str = mono_string_to_utf8(v);
   auto& c = s->GetComponent<TextComponent>(e);
   c.text = str;
   c.gpu_dirty_ = true;
-  mono_free((void*)str);
+  mono_free(str);
 }
 
 float Internals_Text_GetFontSize(Scene* s, entt::entity e) {
@@ -2117,57 +2117,57 @@ void Internals_Text_SetColorA(Scene* s, entt::entity e, float v) {
 // --- AnimatorComponent ---
 void Internals_Animator_SetBool(Scene* s, entt::entity e, MonoString* name,
                                 bool value) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   s->GetComponent<AnimatorComponent>(e).SetBool(cstr, value);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Animator_SetInt(Scene* s, entt::entity e, MonoString* name,
                                int value) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   s->GetComponent<AnimatorComponent>(e).SetInt(cstr, value);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Animator_SetFloat(Scene* s, entt::entity e, MonoString* name,
                                  float value) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   s->GetComponent<AnimatorComponent>(e).SetFloat(cstr, value);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Animator_SetTrigger(Scene* s, entt::entity e, MonoString* name) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   s->GetComponent<AnimatorComponent>(e).SetTrigger(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 bool Internals_Animator_GetBool(Scene* s, entt::entity e, MonoString* name) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   bool val = s->GetComponent<AnimatorComponent>(e).GetBool(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return val;
 }
 
 int Internals_Animator_GetInt(Scene* s, entt::entity e, MonoString* name) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   int val = s->GetComponent<AnimatorComponent>(e).GetInt(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return val;
 }
 
 float Internals_Animator_GetFloat(Scene* s, entt::entity e, MonoString* name) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   float val = s->GetComponent<AnimatorComponent>(e).GetFloat(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
   return val;
 }
 
 void Internals_Animator_Play(Scene* s, entt::entity e, MonoString* stateName,
                              float blendTime) {
-  const char* cstr = mono_string_to_utf8(stateName);
+  char* cstr = mono_string_to_utf8(stateName);
   s->GetComponent<AnimatorComponent>(e).Play(cstr, blendTime);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 MonoString* Internals_Animator_GetCurrentState(Scene* s, entt::entity e) {
@@ -2186,24 +2186,24 @@ void Internals_Animator_SetIsPlaying(Scene* s, entt::entity e, bool value) {
 
 // SceneManager internal calls
 void Internals_SceneManager_LoadScene(MonoString* name) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   Engine::scene_manager().LoadScene(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_SceneManager_LoadScenePath(MonoString* path) {
-  const char* cstr = mono_string_to_utf8(path);
+  char* cstr = mono_string_to_utf8(path);
   Engine::scene_manager().LoadSceneFromPath(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_SceneManager_LoadSceneWithLoading(MonoString* target,
                                                  MonoString* loading) {
-  const char* t = mono_string_to_utf8(target);
-  const char* l = mono_string_to_utf8(loading);
+  char* t = mono_string_to_utf8(target);
+  char* l = mono_string_to_utf8(loading);
   Engine::scene_manager().LoadSceneWithLoading(t, l);
-  mono_free((void*)t);
-  mono_free((void*)l);
+  mono_free(t);
+  mono_free(l);
 }
 
 float Internals_SceneManager_GetLoadProgress() {
@@ -2223,10 +2223,10 @@ uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
     return 0;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  const char* cstr = mono_string_to_utf8(path);
+  char* cstr = mono_string_to_utf8(path);
 
   std::string vfs_path = cstr;
-  mono_free((void*)cstr);
+  mono_free(cstr);
 
   std::shared_ptr<Scene> shared_scene =
       Engine::scene_manager().GetActiveScene();
@@ -2243,12 +2243,12 @@ uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
 void Internals_Console_RegisterCommand(MonoString* name,
                                        MonoString* description,
                                        MonoObject* callback) {
-  const char* name_cstr = mono_string_to_utf8(name);
-  const char* desc_cstr = mono_string_to_utf8(description);
+  char* name_cstr = mono_string_to_utf8(name);
+  char* desc_cstr = mono_string_to_utf8(description);
   std::string name_str = name_cstr;
   std::string desc_str = desc_cstr;
-  mono_free((void*)name_cstr);
-  mono_free((void*)desc_cstr);
+  mono_free(name_cstr);
+  mono_free(desc_cstr);
 
   uint32_t gc_handle = mono_gchandle_new(callback, true);
 
@@ -2276,42 +2276,42 @@ void Internals_Console_RegisterCommand(MonoString* name,
         if (exception) {
           MonoString* exc_str = mono_object_to_string(exception, nullptr);
           if (exc_str) {
-            const char* exc_cstr = mono_string_to_utf8(exc_str);
+            char* exc_cstr = mono_string_to_utf8(exc_str);
             Engine::console().LogError(exc_cstr);
-            mono_free((void*)exc_cstr);
+            mono_free(exc_cstr);
           }
         }
       });
 }
 
 void Internals_Console_UnregisterCommand(MonoString* name) {
-  const char* cstr = mono_string_to_utf8(name);
+  char* cstr = mono_string_to_utf8(name);
   Engine::console().Unregister(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Console_Execute(MonoString* command_line) {
-  const char* cstr = mono_string_to_utf8(command_line);
+  char* cstr = mono_string_to_utf8(command_line);
   Engine::console().Execute(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Console_LogInfo(MonoString* message) {
-  const char* cstr = mono_string_to_utf8(message);
+  char* cstr = mono_string_to_utf8(message);
   Engine::console().LogInfo(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Console_LogWarning(MonoString* message) {
-  const char* cstr = mono_string_to_utf8(message);
+  char* cstr = mono_string_to_utf8(message);
   Engine::console().LogWarning(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void Internals_Console_LogError(MonoString* message) {
-  const char* cstr = mono_string_to_utf8(message);
+  char* cstr = mono_string_to_utf8(message);
   Engine::console().LogError(cstr);
-  mono_free((void*)cstr);
+  mono_free(cstr);
 }
 
 void RegisterScriptGlue() {

@@ -114,7 +114,9 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
             (std::istreambuf_iterator<char>(meta_file.Stream())),
             std::istreambuf_iterator<char>());
         meta_data = GameLoader::ReadMetaFile(nlohmann::json::parse(content));
-      } catch (...) {}
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to parse .meta file '{}': {}", meta_vfs, e.what());
+      }
     }
 
     if (!meta_data.handle.IsValid()) {
@@ -211,7 +213,9 @@ void GameLoader::ScanAssets() {
             scenes_to_preload.push_back(vfs_path);
           }
         }
-      } catch (...) {}
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to read scene '{}': {}", vfs_path, e.what());
+      }
     }
 
     if (type == AssetType::Prefab || type == AssetType::Scene) {

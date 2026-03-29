@@ -139,7 +139,9 @@ static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
         scene->RequestAsset(th);
       }
     }
-  } catch (...) {}
+  } catch (const std::exception& e) {
+    LOG_ERROR("Failed to collect material assets: {}", e.what());
+  }
 }
 
 // ---------------------------------------------------------------------------

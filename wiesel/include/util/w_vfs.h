@@ -96,6 +96,12 @@ T VfsFile::Read() {
   return value;
 }
 
+struct VfsEntry {
+  std::string name;      // filename only, e.g. "player.gltf"
+  std::string vfs_path;  // full VFS path, e.g. "app://models/player.gltf"
+  bool is_dir = false;
+};
+
 class VirtualFileSystem {
  public:
   // Auto-detects whether path is a directory or a .pak archive.
@@ -105,14 +111,46 @@ class VirtualFileSystem {
 
   VfsFile Open(const std::string& virtual_path);
   bool FileExists(const std::string& virtual_path);
+  bool DirectoryExists(const std::string& virtual_path);
   std::vector<std::string> ListFiles(const std::string& virtual_dir,
                                      bool recursive = false);
+
+  // List files and directories in a single directory level.
+  // Filters out .meta sidecar files.
+  std::vector<VfsEntry> ListDirectory(const std::string& virtual_dir);
 
   std::optional<std::filesystem::path> GetPhysicalPath(
       const std::string& virtual_path);
 
+  // File operations via VFS paths. Only work for physical (non-archive) mounts.
+  // Returns true on success.
+  bool RenameFile(const std::string& old_vfs_path,
+                  const std::string& new_vfs_path);
+  bool CopyFile(const std::string& src_vfs_path,
+                const std::string& dest_vfs_path);
+  bool CopyDirectory(const std::string& src_vfs_path,
+                     const std::string& dest_vfs_path);
+  bool DeleteFile(const std::string& vfs_path);
+  bool DeleteDirectory(const std::string& vfs_path);
+  bool CreateDirectory(const std::string& vfs_path);
+
+  // Write string content to a VFS path. Creates parent directories.
+  // Only works for physical (non-archive) mounts.
+  bool WriteFile(const std::string& vfs_path, const std::string& content);
+
   void Unmount(const std::string& mount_point);
   void Clear();
+
+  // VFS path utilities (pure string operations, no VFS state needed)
+
+  // "app://scenes/main.wscene" -> "main.wscene"
+  static std::string FileName(const std::string& vfs_path);
+  // "app://scenes/main.wscene" -> "main"
+  static std::string Stem(const std::string& vfs_path);
+  // "app://scenes/main.wscene" -> ".wscene"
+  static std::string Extension(const std::string& vfs_path);
+  // "app://scenes/main.wscene" -> "app://scenes"
+  static std::string Parent(const std::string& vfs_path);
 
  private:
   struct MountPoint {
@@ -130,6 +168,13 @@ class VirtualFileSystem {
   std::map<std::string, Wpak::Archive> archives_;
 
   std::string NormalizePath(const std::string& path);
+
+ public:
+  // Resolve a VFS path to physical even if the file doesn't exist yet.
+  std::optional<std::filesystem::path> ResolvePhysicalPath(
+      const std::string& vfs_path);
+
+ private:
 };
 
 }  // namespace Wiesel

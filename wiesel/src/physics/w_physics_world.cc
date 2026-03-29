@@ -33,22 +33,24 @@ static entt::entity PtrToEntity(void* ptr) {
 }
 
 PhysicsWorld::PhysicsWorld(Scene* scene) : scene_(scene) {
-  collision_config_ = new btDefaultCollisionConfiguration();
-  dispatcher_ = new btCollisionDispatcher(collision_config_);
-  broadphase_ = new btDbvtBroadphase();
-  solver_ = new btSequentialImpulseConstraintSolver();
-  dynamics_world_ = new btDiscreteDynamicsWorld(dispatcher_, broadphase_,
-                                                solver_, collision_config_);
+  collision_config_ = std::make_unique<btDefaultCollisionConfiguration>();
+  dispatcher_ =
+      std::make_unique<btCollisionDispatcher>(collision_config_.get());
+  broadphase_ = std::make_unique<btDbvtBroadphase>();
+  solver_ = std::make_unique<btSequentialImpulseConstraintSolver>();
+  dynamics_world_ = std::make_unique<btDiscreteDynamicsWorld>(
+      dispatcher_.get(), broadphase_.get(), solver_.get(),
+      collision_config_.get());
   dynamics_world_->setGravity(btVector3(0, -20.0f, 0));
 
   // Required for btGhostObject overlap detection
-  ghost_pair_callback_ = new btGhostPairCallback();
+  ghost_pair_callback_ = std::make_unique<btGhostPairCallback>();
   broadphase_->getOverlappingPairCache()->setInternalGhostPairCallback(
-      ghost_pair_callback_);
+      ghost_pair_callback_.get());
 }
 
 PhysicsWorld::~PhysicsWorld() {
-  // Remove all bodies
+  // Remove all bodies before destroying the world
   for (auto& [entity, data] : bodies_) {
     if (data.is_ghost) {
       dynamics_world_->removeCollisionObject(data.bt_object);
@@ -61,13 +63,6 @@ PhysicsWorld::~PhysicsWorld() {
     delete data.motion_state;
   }
   bodies_.clear();
-
-  delete dynamics_world_;
-  delete solver_;
-  delete broadphase_;
-  delete dispatcher_;
-  delete collision_config_;
-  delete ghost_pair_callback_;
 }
 
 btVector3 PhysicsWorld::ToBt(const glm::vec3& v) {

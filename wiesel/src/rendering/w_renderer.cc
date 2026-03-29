@@ -194,7 +194,8 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, buffer_size, 0, &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    buffer_size, 0, &data));
   memcpy(data, vertices.data(), buffer_size);
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -263,7 +264,7 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, buffer_size, 0, &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0, buffer_size, 0, &data));
   memcpy(data, indices.data(), (size_t)buffer_size);
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -302,11 +303,7 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
   std::shared_ptr<UniformBuffer> uniformBuffer =
       std::make_shared<UniformBuffer>();
 
-  uniformBuffer->data_ = malloc(size);
   uniformBuffer->size_ = size;
-  // TODO not use host coherent memory, use staging buffer and copy when it changes
-  // like how I did in GlistEngine
-  // This is slow af
   CreateBuffer(
       size,
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -326,7 +323,6 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
 std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
     VkDeviceSize size) {
   std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
-  buffer->data_ = malloc(size);
   buffer->size_ = size;
   CreateBuffer(
       size,
@@ -377,8 +373,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
-              &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    texture->size_, 0, &data));
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -437,8 +433,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
-              &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    texture->size_, 0, &data));
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -515,8 +511,8 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
-              &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    texture->size_, 0, &data));
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -586,8 +582,8 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, texture->size_, 0,
-              &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    texture->size_, 0, &data));
   memcpy(data, buffer, static_cast<size_t>(texture->size_));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -684,7 +680,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, total_size, 0, &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0, total_size, 0, &data));
   memcpy(data, all_pixels, static_cast<size_t>(total_size));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -904,7 +900,8 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
                staging_buffer, stagingMemory);
 
   void* data;
-  vkMapMemory(logical_device_, stagingMemory, 0, total_size, 0, &data);
+  WIESEL_CHECK_VKRESULT(
+      vkMapMemory(logical_device_, stagingMemory, 0, total_size, 0, &data));
   memcpy(data, cube_pixels.data(), total_size);
   vkUnmapMemory(logical_device_, stagingMemory);
 
@@ -1049,7 +1046,8 @@ void Renderer::SetAttachmentTextureBuffer(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  vkMapMemory(logical_device_, staging_buffer_memory, 0, size, 0, &data);
+  WIESEL_CHECK_VKRESULT(
+      vkMapMemory(logical_device_, staging_buffer_memory, 0, size, 0, &data));
   memcpy(data, buffer, static_cast<size_t>(size));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -2759,7 +2757,8 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
   WIESEL_CHECK_VKRESULT(
       vkAllocateMemory(logical_device_, &alloc_info, nullptr, &image_memory));
 
-  vkBindImageMemory(logical_device_, image, image_memory, 0);
+  WIESEL_CHECK_VKRESULT(
+      vkBindImageMemory(logical_device_, image, image_memory, 0));
 }
 
 std::shared_ptr<ImageView> Renderer::CreateImageView(
@@ -3134,9 +3133,10 @@ void Renderer::BeginRender() {
   slice_pool_used_[current_frame_] = 0;
 
   // Wait for this frame slot's previous work to complete
-  vkWaitForFences(logical_device_, 1, &fences_[current_frame_], VK_TRUE,
-                  UINT64_MAX);
-  vkResetFences(logical_device_, 1, &fences_[current_frame_]);
+  WIESEL_CHECK_VKRESULT(vkWaitForFences(
+      logical_device_, 1, &fences_[current_frame_], VK_TRUE, UINT64_MAX));
+  WIESEL_CHECK_VKRESULT(
+      vkResetFences(logical_device_, 1, &fences_[current_frame_]));
 
   command_buffers_[current_frame_]->Reset();
   command_buffers_[current_frame_]->Begin();
@@ -3184,7 +3184,8 @@ bool Renderer::BeginPresent() {
     empty_submit.pSignalSemaphores = empty_signal;
     {
       std::lock_guard<std::mutex> lock(queue_submit_mutex_);
-      vkQueueSubmit(graphics_queue_, 1, &empty_submit, fences_[current_frame_]);
+      WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &empty_submit,
+                                          fences_[current_frame_]));
     }
     frame_counter_++;
     current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
@@ -3694,8 +3695,8 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 
   // Read back the value
   void* data;
-  vkMapMemory(logical_device_, pick_staging_memory_, 0, sizeof(float), 0,
-              &data);
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, pick_staging_memory_, 0,
+                                    sizeof(float), 0, &data));
   float value = *static_cast<float*>(data);
   vkUnmapMemory(logical_device_, pick_staging_memory_);
 
@@ -3741,8 +3742,8 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 
     EndSingleTimeCommands(cmd2);
 
-    vkMapMemory(logical_device_, pick_staging_memory_, 0, sizeof(float), 0,
-                &data);
+    WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, pick_staging_memory_, 0,
+                                      sizeof(float), 0, &data));
     value = *static_cast<float*>(data);
     vkUnmapMemory(logical_device_, pick_staging_memory_);
   } else {
@@ -4324,7 +4325,8 @@ VkCommandBuffer Renderer::BeginSingleTimeCommands(VkCommandPool pool) {
   allocInfo.commandBufferCount = 1;
 
   VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(logical_device_, &allocInfo, &commandBuffer);
+  WIESEL_CHECK_VKRESULT(
+      vkAllocateCommandBuffers(logical_device_, &allocInfo, &commandBuffer));
 
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -4348,7 +4350,7 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
 
 void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
                                      VkCommandPool pool) {
-  vkEndCommandBuffer(commandBuffer);
+  WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -4367,7 +4369,8 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
         vkQueueSubmit(graphics_queue_, 1, &submitInfo, fence));
   }
 
-  vkWaitForFences(logical_device_, 1, &fence, VK_TRUE, UINT64_MAX);
+  WIESEL_CHECK_VKRESULT(
+      vkWaitForFences(logical_device_, 1, &fence, VK_TRUE, UINT64_MAX));
   vkDestroyFence(logical_device_, fence, nullptr);
 
   vkFreeCommandBuffers(logical_device_, pool, 1, &commandBuffer);

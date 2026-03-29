@@ -223,7 +223,8 @@ void RTPipeline::CreateSBT() {
 
   // Map and fill
   void* mapped = nullptr;
-  vkMapMemory(device, sbt_memory_, 0, sbtSize, 0, &mapped);
+  WIESEL_CHECK_VKRESULT(
+      vkMapMemory(device, sbt_memory_, 0, sbtSize, 0, &mapped));
   auto* dst = static_cast<uint8_t*>(mapped);
   memset(dst, 0, sbtSize);
 

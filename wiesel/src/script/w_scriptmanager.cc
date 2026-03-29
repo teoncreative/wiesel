@@ -35,6 +35,9 @@
 
 namespace Wiesel {
 
+static constexpr const char* kCoreDllPath = "./Core.dll";
+static constexpr const char* kAppDllPath = "./App.dll";
+
 MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj, void** args,
                        bool* had_exception) {
   MonoObject* exception = nullptr;
@@ -42,10 +45,10 @@ MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj, void** args,
   if (exception) {
     MonoString* exc_str = mono_object_to_string(exception, nullptr);
     if (exc_str) {
-      const char* cstr = mono_string_to_utf8(exc_str);
+      char* cstr = mono_string_to_utf8(exc_str);
       LOG_ERROR("C# Exception: {}", cstr);
       Engine::console().LogError(cstr);
-      mono_free((void*)cstr);
+      mono_free(cstr);
     }
     if (had_exception) {
       *had_exception = true;
@@ -558,10 +561,10 @@ void ScriptManager::Reload() {
   bool debug = enable_debugger_;
 
   // Compile Core if needed
-  if (!core_sources.empty() && !std::filesystem::exists("./Core.dll")) {
+  if (!core_sources.empty() && !std::filesystem::exists(kCoreDllPath)) {
     LOG_INFO("Compiling core ({} files)...", core_sources.size());
     DotNetProject core("Core");
-    core.SetOutputPath("./Core.dll");
+    core.SetOutputPath(kCoreDllPath);
     core.SetSources(core_sources);
     core.SetGenerateDocs(true);
     last_compile_result_ = core.Build(debug);
@@ -575,7 +578,7 @@ void ScriptManager::Reload() {
   if (!app_sources.empty()) {
     LOG_INFO("Compiling app ({} files)...", app_sources.size());
     DotNetProject app("App");
-    app.SetOutputPath("./App.dll");
+    app.SetOutputPath(kAppDllPath);
     app.SetSources(app_sources);
     app.SetReferences(link_libs);
     last_compile_result_ = app.Build(debug);
@@ -596,7 +599,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
   std::vector<std::string> core_sources = CollectCsFiles("engine://scripts");
   std::vector<std::string> app_sources = CollectCsFiles("app://");
   bool need_core =
-      force_recompile_core || !std::filesystem::exists("./Core.dll");
+      force_recompile_core || !std::filesystem::exists(kCoreDllPath);
 
   if (app_sources.empty() && !need_core) {
     return;
@@ -612,7 +615,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
     if (need_core && !core_sources.empty()) {
       LOG_INFO("Compiling core ({} files)...", core_sources.size());
       DotNetProject core("Core");
-      core.SetOutputPath("./Core.dll");
+      core.SetOutputPath(kCoreDllPath);
       core.SetSources(core_sources);
       core.SetGenerateDocs(true);
       result = core.Build(debug);
@@ -622,7 +625,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
       std::vector<std::string> link_libs = CollectLinkLibs("App.dll");
       LOG_INFO("Compiling app ({} files)...", app_sources.size());
       DotNetProject app("App");
-      app.SetOutputPath("./App.dll");
+      app.SetOutputPath(kAppDllPath);
       app.SetSources(app_sources);
       app.SetReferences(link_libs);
       result = app.Build(debug);
@@ -674,8 +677,8 @@ void ScriptManager::SwapDomain() {
   RegisterScriptAssets("app://");
 
   // Load App.dll (already compiled)
-  if (std::filesystem::exists("./App.dll")) {
-    LoadAppDll("./App.dll");
+  if (std::filesystem::exists(kAppDllPath)) {
+    LoadAppDll(kAppDllPath);
   }
 
   LOG_INFO("Scripts loaded ({} scripts)", script_names_.size());
@@ -685,7 +688,7 @@ void ScriptManager::SwapDomain() {
 
 void ScriptManager::LoadCoreDll() {
   PROFILE_ZONE_SCOPED_N("ScriptManager::LoadCoreDll");
-  std::string dll_path = "./Core.dll";
+  std::string dll_path = kCoreDllPath;
 
   if (!std::filesystem::exists(dll_path)) {
     LOG_ERROR("Core.dll not found");
@@ -693,7 +696,10 @@ void ScriptManager::LoadCoreDll() {
   }
 
   core_assembly_ = mono_domain_assembly_open(root_domain_, dll_path.c_str());
-  assert(core_assembly_);
+  if (!core_assembly_) {
+    LOG_ERROR("Failed to load Core.dll assembly from '{}'", dll_path);
+    return;
+  }
 
   core_assembly_image_ = mono_assembly_get_image(core_assembly_);
   behavior_class_ = mono_class_from_name(core_assembly_image_, "WieselEngine",
@@ -792,6 +798,8 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
     while ((field = mono_class_get_fields(klass, &iter))) {
       std::string field_name = mono_field_get_name(field);
       uint32_t field_flags = mono_field_get_flags(field);
+      // Mono field access mask: 0x0007 isolates the access level bits.
+      // 0x0006 = public. Only expose public fields to the inspector.
       if ((field_flags & 0x0007) != 0x0006) {
         continue;
       }
