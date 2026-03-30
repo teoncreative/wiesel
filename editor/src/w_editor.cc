@@ -839,18 +839,17 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
       ImGui::EndMenu();
     }
     if (ImGui::MenuItem("Save as Prefab...")) {
-      Dialogs::SaveFileDialog({{"Wiesel Prefab", "wprefab"}},
-                              [this, entity_id](const std::string& file) {
-                                if (file.empty()) {
-                                  return;
-                                }
-                                std::filesystem::path path(file);
-                                if (path.extension() != ".wprefab") {
-                                  path += ".wprefab";
-                                }
-                                Entity ent{entity_id, scene().get()};
-                                Prefab::SaveToFile(ent, path);
-                              });
+      file_picker_.OpenSave(
+          "Save as Prefab", ".wprefab",
+          [this, entity_id](const std::string& vfs_path) {
+            auto physical = Engine::vfs()->ResolvePhysicalPath(vfs_path);
+            if (!physical) {
+              return;
+            }
+            Entity ent{entity_id, scene().get()};
+            Prefab::SaveToFile(ent, *physical);
+            ScanProjectAssets();
+          });
     }
     ImGui::Separator();
     if (ImGui::MenuItem("Delete")) {
@@ -3386,6 +3385,10 @@ void EditorLayer::RenderMainMenuBar() {
       if (ImGui::MenuItem("Save Scene", "Ctrl+S", false,
                           !current_scene_path_.empty())) {
         SaveScene();
+      }
+      if (ImGui::MenuItem("Save Scene As...", nullptr, false,
+                          project() != nullptr)) {
+        SaveSceneAs();
       }
       ImGui::Separator();
 

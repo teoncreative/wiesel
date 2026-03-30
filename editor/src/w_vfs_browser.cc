@@ -453,7 +453,7 @@ void VfsFilePicker::Render() {
                            ? ImVec4(0.3f, 0.35f, 0.45f, 1.0f)
                            : VfsBrowser::GetAssetColor(entry.asset_type);
         const char* abbrev =
-            entry.is_dir ? "" : VfsBrowser::GetAssetAbbrev(entry.asset_type);
+            entry.is_dir ? "DIR" : VfsBrowser::GetAssetAbbrev(entry.asset_type);
 
         if (browser_.DrawTile(entry.name.c_str(), color, abbrev, is_sel,
                               entry.is_dir, thumb_ptr, meta_ptr, &dbl)) {
