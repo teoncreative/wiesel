@@ -484,6 +484,7 @@ void InitializeComponentSerializers() {
         collider["offset"] = SerializeUtil::Vec3(bc.offset);
         collider["half_extents"] = SerializeUtil::Vec3(bc.half_extents);
         collider["is_trigger"] = bc.is_trigger;
+        collider["is_one_way"] = bc.is_one_way;
         collider["collision_group"] = bc.collision_group;
         return collider;
       },
@@ -494,6 +495,7 @@ void InitializeComponentSerializers() {
         bc.half_extents = SerializeUtil::Vec3(
             bcj.value("half_extents", json::array()), {0.5f, 0.5f, 0.5f});
         bc.is_trigger = bcj.value("is_trigger", false);
+        bc.is_one_way = bcj.value("is_one_way", false);
         bc.collision_group = bcj.value("collision_group", 1);
       },
   });
@@ -514,6 +516,7 @@ void InitializeComponentSerializers() {
         collider["offset"] = SerializeUtil::Vec3(sc.offset);
         collider["radius"] = sc.radius;
         collider["is_trigger"] = sc.is_trigger;
+        collider["is_one_way"] = sc.is_one_way;
         collider["collision_group"] = sc.collision_group;
         return collider;
       },
@@ -523,6 +526,7 @@ void InitializeComponentSerializers() {
         sc.offset = SerializeUtil::Vec3(scj.value("offset", json::array()));
         sc.radius = scj.value("radius", 0.5f);
         sc.is_trigger = scj.value("is_trigger", false);
+        sc.is_one_way = scj.value("is_one_way", false);
         sc.collision_group = scj.value("collision_group", 1);
       },
   });
@@ -545,6 +549,7 @@ void InitializeComponentSerializers() {
         collider["height"] = cc.height;
         collider["axis"] = static_cast<int>(cc.axis);
         collider["is_trigger"] = cc.is_trigger;
+        collider["is_one_way"] = cc.is_one_way;
         collider["collision_group"] = cc.collision_group;
         return collider;
       },
@@ -556,7 +561,33 @@ void InitializeComponentSerializers() {
         cc.height = ccj.value("height", 1.0f);
         cc.axis = static_cast<CapsuleAxis>(ccj.value("axis", 1));
         cc.is_trigger = ccj.value("is_trigger", false);
+        cc.is_one_way = ccj.value("is_one_way", false);
         cc.collision_group = ccj.value("collision_group", 1);
+      },
+  });
+
+  // -------------------------------------------------------------------
+  // 9b. MeshCollider
+  // -------------------------------------------------------------------
+  ComponentSerializerRegistry::Register({
+      "MeshCollider",
+      // Has
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<MeshColliderComponent>();
+      },
+      // Serialize
+      [](Entity& entity) -> json {
+        auto& mc = entity.GetComponent<MeshColliderComponent>();
+        json collider;
+        collider["is_one_way"] = mc.is_one_way;
+        collider["collision_group"] = mc.collision_group;
+        return collider;
+      },
+      // Deserialize
+      [](Entity& entity, const json& mcj, Scene* /*scene*/) {
+        auto& mc = entity.AddComponent<MeshColliderComponent>();
+        mc.is_one_way = mcj.value("is_one_way", false);
+        mc.collision_group = mcj.value("collision_group", 1);
       },
   });
 

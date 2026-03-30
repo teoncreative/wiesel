@@ -794,6 +794,7 @@ void RenderComponentImGui(BoxColliderComponent& component, Entity entity) {
                       reinterpret_cast<float*>(&component.half_extents), 0.05f,
                       0.0f, 1000.0f);
     ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
+    ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
     ImGui::TreePop();
   }
   if (!visible) {
@@ -810,6 +811,7 @@ void RenderComponentImGui(SphereColliderComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.05f,
                      0.0f, 1000.0f);
     ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
+    ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
     ImGui::TreePop();
   }
   if (!visible) {
@@ -847,6 +849,7 @@ void RenderComponentImGui(CapsuleColliderComponent& component, Entity entity) {
     }
 
     ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
+    ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
     ImGui::TreePop();
   }
   if (!visible) {
@@ -859,6 +862,25 @@ void RenderAddComponentImGui_CapsuleColliderComponent(Entity entity) {
   if (ImGui::MenuItem("Capsule Collider") &&
       !entity.HasComponent<CapsuleColliderComponent>()) {
     entity.AddComponent<CapsuleColliderComponent>();
+  }
+}
+
+void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Mesh Collider", &visible)) {
+    ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<MeshColliderComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_MeshColliderComponent(Entity entity) {
+  if (ImGui::MenuItem("Mesh Collider") &&
+      !entity.HasComponent<MeshColliderComponent>()) {
+    entity.AddComponent<MeshColliderComponent>();
   }
 }
 
@@ -2172,6 +2194,9 @@ void InitializeEditorComponents() {
   RegisterComponentType<CapsuleColliderComponent>(
       "Capsule Collider", "Physics", RenderComponentImGui,
       RenderAddComponentImGui_CapsuleColliderComponent, nullptr);
+  RegisterComponentType<MeshColliderComponent>(
+      "Mesh Collider", "Physics", RenderComponentImGui,
+      RenderAddComponentImGui_MeshColliderComponent, nullptr);
   RegisterComponentType<RigidBodyComponent>(
       "Rigid Body", "Physics", RenderComponentImGui,
       RenderAddComponentImGui_RigidBodyComponent, nullptr);

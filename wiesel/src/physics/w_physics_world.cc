@@ -26,19 +26,23 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
 
+#include "asset/w_asset_manager.h"
 #include "behavior/w_behavior.h"
 #include "physics/w_collider.h"
 #include "physics/w_jolt_layers.h"
 #include "physics/w_rigidbody.h"
+#include "rendering/w_mesh.h"
 #include "scene/w_components.h"
 #include "scene/w_scene.h"
 #include "script/mono/w_monobehavior.h"
 #include "script/w_scriptmanager.h"
+#include "w_engine.h"
 
 JPH_SUPPRESS_WARNINGS
 
@@ -89,9 +93,45 @@ struct ContactEvent {
 
 class WieselContactListener : public JPH::ContactListener {
  public:
+  // Track which body IDs are one-way platforms
+  std::mutex one_way_mutex_;
+  std::set<uint32_t> one_way_bodies_;
+
+  void SetOneWay(uint32_t body_id_raw, bool enabled) {
+    std::lock_guard<std::mutex> lock(one_way_mutex_);
+    if (enabled) {
+      one_way_bodies_.insert(body_id_raw);
+    } else {
+      one_way_bodies_.erase(body_id_raw);
+    }
+  }
+
   ValidateResult OnContactValidate(
       const Body& inBody1, const Body& inBody2, RVec3Arg inBaseOffset,
       const CollideShapeResult& inCollisionResult) override {
+    // One-way platform: only allow contact if the other body is above
+    // (contact normal points upward from the platform's perspective)
+    {
+      std::lock_guard<std::mutex> lock(one_way_mutex_);
+      bool b1_one_way =
+          one_way_bodies_.contains(inBody1.GetID().GetIndexAndSequenceNumber());
+      bool b2_one_way =
+          one_way_bodies_.contains(inBody2.GetID().GetIndexAndSequenceNumber());
+      if (b1_one_way || b2_one_way) {
+        // The penetration axis points from body 1 to body 2.
+        // For a one-way platform, only accept if the normal has a
+        // significant upward component (object is on top).
+        Vec3 normal = inCollisionResult.mPenetrationAxis.Normalized();
+        // If the one-way body is body1, the normal points from it to body2.
+        // Accept only if normal points up (body2 is above body1).
+        // If one-way is body2, normal points from body1 to body2,
+        // accept only if normal points down (body1 is above body2).
+        float up_component = b1_one_way ? normal.GetY() : -normal.GetY();
+        if (up_component < 0.3f) {
+          return ValidateResult::RejectContact;
+        }
+      }
+    }
     return ValidateResult::AcceptAllContactsForThisBodyPair;
   }
 
@@ -267,6 +307,55 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
     return shape;
   }
 
+  if (registry.any_of<MeshColliderComponent>(entity)) {
+    if (!registry.any_of<ModelComponent>(entity)) {
+      LOG_WARN("MeshCollider on entity {} has no ModelComponent",
+               static_cast<uint32_t>(entity));
+      return nullptr;
+    }
+    auto& model_comp = registry.get<ModelComponent>(entity);
+    if (!model_comp.model_handle.IsValid()) {
+      return nullptr;
+    }
+    const std::shared_ptr<Model>& model_data =
+        Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
+    if (!model_data) {
+      return nullptr;
+    }
+
+    VertexList jolt_vertices;
+    IndexedTriangleList jolt_triangles;
+    uint32_t vertex_offset = 0;
+
+    for (auto& mesh : model_data->meshes) {
+      for (auto& v : mesh->vertices) {
+        jolt_vertices.push_back(Float3(v.ppos.x, v.ppos.y, v.ppos.z));
+      }
+      for (size_t i = 0; i + 2 < mesh->indices.size(); i += 3) {
+        jolt_triangles.push_back(
+            IndexedTriangle(vertex_offset + mesh->indices[i],
+                            vertex_offset + mesh->indices[i + 1],
+                            vertex_offset + mesh->indices[i + 2]));
+      }
+      vertex_offset += static_cast<uint32_t>(mesh->vertices.size());
+    }
+
+    if (jolt_triangles.empty()) {
+      return nullptr;
+    }
+
+    MeshShapeSettings settings(std::move(jolt_vertices),
+                               std::move(jolt_triangles));
+    auto result = settings.Create();
+    if (result.HasError()) {
+      LOG_ERROR("Failed to create MeshShape: {}", result.GetError().c_str());
+      return nullptr;
+    }
+    Shape* shape = const_cast<Shape*>(result.Get().GetPtr());
+    shape->AddRef();
+    return shape;
+  }
+
   if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
     if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
@@ -331,9 +420,24 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     auto& cap = registry.get<CapsuleColliderComponent>(entity);
     is_trigger = cap.is_trigger;
     collision_group = cap.collision_group;
+  } else if (registry.any_of<MeshColliderComponent>(entity)) {
+    auto& mc = registry.get<MeshColliderComponent>(entity);
+    collision_group = mc.collision_group;
   } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
     collision_group = hf.collision_group;
+  }
+
+  // Check one-way flag
+  bool is_one_way = false;
+  if (registry.any_of<BoxColliderComponent>(entity)) {
+    is_one_way = registry.get<BoxColliderComponent>(entity).is_one_way;
+  } else if (registry.any_of<SphereColliderComponent>(entity)) {
+    is_one_way = registry.get<SphereColliderComponent>(entity).is_one_way;
+  } else if (registry.any_of<CapsuleColliderComponent>(entity)) {
+    is_one_way = registry.get<CapsuleColliderComponent>(entity).is_one_way;
+  } else if (registry.any_of<MeshColliderComponent>(entity)) {
+    is_one_way = registry.get<MeshColliderComponent>(entity).is_one_way;
   }
 
   RigidBodyType rb_type = RigidBodyType::Static;
@@ -343,7 +447,8 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
   float linear_damping_val = 0.0f;
   float angular_damping_val = 0.05f;
 
-  bool force_static = registry.any_of<HeightfieldColliderComponent>(entity);
+  bool force_static = registry.any_of<HeightfieldColliderComponent>(entity) ||
+                      registry.any_of<MeshColliderComponent>(entity);
 
   if (!force_static && registry.any_of<RigidBodyComponent>(entity)) {
     auto& rb = registry.get<RigidBodyComponent>(entity);
@@ -439,6 +544,11 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
 
   bodies_[entity] = {body_id.GetIndexAndSequenceNumber(), is_trigger};
 
+  // Register one-way platform
+  if (is_one_way) {
+    contact_listener_->SetOneWay(body_id.GetIndexAndSequenceNumber(), true);
+  }
+
   // Update RigidBodyComponent with Jolt handles
   if (registry.any_of<RigidBodyComponent>(entity)) {
     auto& rb = registry.get<RigidBodyComponent>(entity);
@@ -456,6 +566,7 @@ void PhysicsWorld::DestroyBody(entt::entity entity) {
 
   BodyInterface& body_interface = physics_system_->GetBodyInterface();
   BodyID body_id(it->second.body_id_raw);
+  contact_listener_->SetOneWay(it->second.body_id_raw, false);
   body_interface.RemoveBody(body_id);
   body_interface.DestroyBody(body_id);
   bodies_.erase(it);
@@ -516,6 +627,12 @@ void PhysicsWorld::EnsureBodiesExist() {
   }
   for (auto handle :
        registry.view<TransformComponent, CapsuleColliderComponent>()) {
+    if (!bodies_.count(handle)) {
+      CreateBody(handle);
+    }
+  }
+  for (auto handle :
+       registry.view<TransformComponent, MeshColliderComponent>()) {
     if (!bodies_.count(handle)) {
       CreateBody(handle);
     }

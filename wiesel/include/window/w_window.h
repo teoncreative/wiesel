@@ -33,6 +33,14 @@ enum CursorMode : uint8_t {
   CursorModeUnlocked   // Cursor hidden and unlocked, absolute position
 };
 
+// Identifies who requested cursor capture, so the event loop can decide
+// whether to block editor UI (ImGui) events.
+enum class CursorCaptureSource : uint8_t {
+  None,    // No capture active
+  Editor,  // Editor viewport right-click look
+  Game,    // Game script via Input.SetCursorMode
+};
+
 struct WindowProperties {
   std::string title;
   WindowSize size;
@@ -62,6 +70,15 @@ class AppWindow {
 
   virtual void SetCursorMode(CursorMode mouse_mode);
   WIESEL_GETTER_FN virtual CursorMode GetCursorMode();
+
+  void SetCursorCaptureSource(CursorCaptureSource source) {
+    cursor_capture_source_ = source;
+  }
+
+  WIESEL_GETTER_FN CursorCaptureSource GetCursorCaptureSource() const {
+    return cursor_capture_source_;
+  }
+
   virtual void WarpCursor(double x, double y);
 
   virtual void GetCursorDelta(double& dx, double& dy) {
@@ -83,5 +100,6 @@ class AppWindow {
   WindowProperties properties_;
   WindowEventFn event_handler_;
   CursorMode cursor_mode_;
+  CursorCaptureSource cursor_capture_source_ = CursorCaptureSource::None;
 };
 }  // namespace Wiesel

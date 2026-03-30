@@ -449,6 +449,8 @@ void EditorLayer::ProcessDeferredActions() {
       break;
     case DeferredAction::StopPlaying:
       editor_state_ = EditorState::Edit;
+      Engine::window()->SetCursorMode(CursorModeNormal);
+      Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
       RestoreSnapshot();
       ImGui::SetWindowFocus("Scene");
       break;
@@ -1587,12 +1589,14 @@ void EditorLayer::RenderSceneViewportPanel() {
         if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
           if (scene_hovered && !scene_right_active) {
             scene_right_active = true;
+            Engine::window()->SetCursorCaptureSource(CursorCaptureSource::Editor);
             Engine::window()->SetCursorMode(CursorModeRelative);
           }
         } else {
           if (scene_right_active) {
             scene_right_active = false;
             Engine::window()->SetCursorMode(CursorModeNormal);
+            Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
           }
         }
 

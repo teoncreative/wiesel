@@ -196,7 +196,8 @@ void SdlAppWindow::OnUpdate() {
   {
     PROFILE_ZONE_SCOPED_N("SDL_PollEvent");
     while (SDL_PollEvent(&e)) {
-      if (ImGui::GetCurrentContext() && cursor_mode_ != CursorModeRelative) {
+      if (ImGui::GetCurrentContext() &&
+          cursor_capture_source_ != CursorCaptureSource::Game) {
         ImGui_ImplSDL3_ProcessEvent(&e);
       }
 

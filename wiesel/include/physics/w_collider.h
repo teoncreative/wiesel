@@ -31,6 +31,7 @@ struct BoxColliderComponent : public IComponent {
   glm::vec3 offset = {0.0f, 0.0f, 0.0f};
   glm::vec3 half_extents = {0.5f, 0.5f, 0.5f};
   bool is_trigger = false;
+  bool is_one_way = false;
   uint16_t collision_group = CollisionGroupDefault;
 };
 
@@ -41,6 +42,7 @@ struct SphereColliderComponent : public IComponent {
   glm::vec3 offset = {0.0f, 0.0f, 0.0f};
   float radius = 0.5f;
   bool is_trigger = false;
+  bool is_one_way = false;
   uint16_t collision_group = CollisionGroupDefault;
 };
 
@@ -60,6 +62,17 @@ struct CapsuleColliderComponent : public IComponent {
       1.0f;  // height of the cylindrical section (total = height + 2*radius)
   CapsuleAxis axis = CapsuleAxis::Y;
   bool is_trigger = false;
+  bool is_one_way = false;
+  uint16_t collision_group = CollisionGroupDefault;
+};
+
+struct MeshColliderComponent : public IComponent {
+  MeshColliderComponent() = default;
+  MeshColliderComponent(const MeshColliderComponent&) = default;
+
+  // Mesh data is read from the entity's ModelComponent at body creation time.
+  // No fields to configure other than collision group.
+  bool is_one_way = false;
   uint16_t collision_group = CollisionGroupDefault;
 };
 

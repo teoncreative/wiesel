@@ -59,7 +59,13 @@ bool Internals_Input_GetKey(MonoString* str) {
 }
 
 void Internals_Input_SetCursorMode(uint16_t mode) {
-  Engine::window()->SetCursorMode(static_cast<CursorMode>(mode));
+  auto cursor_mode = static_cast<CursorMode>(mode);
+  Engine::window()->SetCursorMode(cursor_mode);
+  if (cursor_mode == CursorModeRelative) {
+    Engine::window()->SetCursorCaptureSource(CursorCaptureSource::Game);
+  } else {
+    Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
+  }
 }
 
 uint16_t Internals_Input_GetCursorMode() {
