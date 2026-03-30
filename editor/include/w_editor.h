@@ -22,9 +22,11 @@
 #include "rendering/w_camera.h"
 #include "scene/w_scene.h"
 #include "w_application.h"
+#include "w_asset_browser_panel.h"
 #include "w_lsp_autocomplete.h"
 #include "w_lsp_client.h"
 #include "w_project.h"
+#include "w_vfs_browser.h"
 
 namespace Wiesel::Editor {
 
@@ -93,6 +95,17 @@ class EditorLayer : public Layer {
   void ExportGame();
   void ExportGame(const std::filesystem::path& path);
 
+  // OnBeginPresent sub-panels
+  void InitializeDockspaceLayout(ImGuiID dockspace_id);
+  void RenderSceneHierarchyPanel();
+  void RenderEntityInspectorPanel();
+  void RenderAssetBrowserPanel();
+  void RenderDeveloperConsolePanel();
+  void RenderRenderStatsPanel();
+  void RenderSceneViewportPanel();
+  void RenderGameViewportPanel();
+  bool DrawPlayStopButtons();
+
   Application& app_;
 
   // Project
@@ -141,8 +154,8 @@ class EditorLayer : public Layer {
   bool show_create_spritecontroller_ = false;
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced
-  std::string
-      browser_current_dir_;  // current asset browser directory relative to app://
+  AssetBrowserPanel asset_browser_panel_;
+  VfsFilePicker file_picker_;
 
   // Asset properties panel
   bool show_asset_properties_ = false;

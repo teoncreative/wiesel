@@ -762,42 +762,6 @@ bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
     if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
       behavior.SetEnabled(enabled);
     }
-    /*ImGui::InputText("##", behavior.GetFilePtr(),
-                     ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
-    if (!behavior.IsInternalBehavior()) {
-      if (ImGui::Button("...")) {
-        std::string name = behavior->GetName();
-        Dialogs::OpenFileDialog(
-            {{"Lua Script", "lua"}}, [&entity, &name](const std::string& file) {
-              Scene* engineScene = entity.GetScene();
-              entt::entity entityHandle = entity.GetHandle();
-              Application::Get()->SubmitToMainThread([engineScene, entityHandle,
-                                                      name, file]() {
-                Entity entity{entityHandle, engineScene};
-                if (entity.HasComponent<BehaviorsComponent>()) {
-                  auto& component = entity.GetComponent<BehaviorsComponent>();
-                  component.m_Behaviors.erase(name);
-                  auto newBehavior = std::make_shared<LuaBehavior>(entity, file);
-                  component.m_Behaviors[newBehavior->GetName()] = newBehavior;
-                }
-              });
-            });
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("Reload")) {
-        std::string name = behavior.GetName();
-        std::string file = behavior.GetFile();
-        bool wasEnabled = behavior.IsEnabled();
-        delete component.m_Behaviors[name];
-        auto* newBehavior = new MonoBehavior(entity, file);
-        newBehavior->SetEnabled(wasEnabled);
-        component.m_Behaviors[name] = newBehavior;
-
-        ImGui::TreePop();
-        return true;
-      }
-    }*/
     if (MonoBehavior* mono = dynamic_cast<MonoBehavior*>(&behavior)) {
       RenderScriptVariables(mono->script_instance());
     }

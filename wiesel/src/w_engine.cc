@@ -30,6 +30,7 @@
 #include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
 #include "rendering/w_sprite_loader.h"
+#include "asset/w_asset_serializer.h"
 #include "scene/w_component_serializer.h"
 #include "scene/w_entity.h"
 #include "scene/w_lights.h"
@@ -453,6 +454,7 @@ void Engine::InitEngine(const EngineProperties& props) {
 
   InitializeVfs();
   InitializeComponentSerializers();
+  InitializeAssetSerializers();
   InputManager::Init();
   InitializeAssetProperties();
   behavior_registry_ = std::make_shared<NativeBehaviorRegistry>();

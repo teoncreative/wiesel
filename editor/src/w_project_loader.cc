@@ -217,7 +217,9 @@ void ProjectLoader::ScanAssets(Project& project) {
             scenes_to_preload.push_back(vfs_path);
           }
         }
-      } catch (...) {}
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to read scene '{}': {}", vfs_path, e.what());
+      }
     }
 
     if (type == AssetType::Prefab || type == AssetType::Scene) {

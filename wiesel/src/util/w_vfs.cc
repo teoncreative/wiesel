@@ -19,6 +19,26 @@
 
 namespace Wiesel {
 
+// Join a base path and relative path without producing double slashes.
+static std::string VfsJoin(const std::string& base,
+                           const std::string& relative) {
+  if (base.empty()) {
+    return relative;
+  }
+  if (relative.empty()) {
+    return base;
+  }
+  bool base_has_slash = (base.back() == '/');
+  bool rel_has_slash = (relative.front() == '/');
+  if (base_has_slash && rel_has_slash) {
+    return base + relative.substr(1);
+  }
+  if (!base_has_slash && !rel_has_slash) {
+    return base + "/" + relative;
+  }
+  return base + relative;
+}
+
 VfsFile::VfsFile(std::vector<uint8_t> data, std::string path)
     : data_(std::move(data)), path_(std::move(path)) {}
 
@@ -287,7 +307,7 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
             seen.insert(dir_name);
             VfsEntry e;
             e.name = dir_name;
-            e.vfs_path = normalized + "/" + dir_name;
+            e.vfs_path = VfsJoin(normalized, dir_name);
             e.is_dir = true;
             results.push_back(std::move(e));
           }
@@ -304,7 +324,7 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
           seen.insert(remainder);
           VfsEntry e;
           e.name = remainder;
-          e.vfs_path = normalized + "/" + remainder;
+          e.vfs_path = VfsJoin(normalized, remainder);
           e.is_dir = false;
           results.push_back(std::move(e));
         }
@@ -329,7 +349,7 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
         e.name = name;
         std::filesystem::path rel =
             std::filesystem::relative(entry.path(), mp.physical_path);
-        e.vfs_path = mp.mount_point + "/" + rel.generic_string();
+        e.vfs_path = VfsJoin(mp.mount_point, rel.generic_string());
         e.is_dir = entry.is_directory();
         results.push_back(std::move(e));
       }
@@ -359,7 +379,7 @@ std::vector<std::string> VirtualFileSystem::ListFiles(
       if (archive_it != archives_.end()) {
         for (const auto& [name, entry] : archive_it->second.entries) {
           if (relative_path.empty() || name.find(relative_path) == 0) {
-            std::string full_virtual_path = mp.mount_point + "/" + name;
+            std::string full_virtual_path = VfsJoin(mp.mount_point, name);
             results.push_back(full_virtual_path);
           }
         }
@@ -376,7 +396,7 @@ std::vector<std::string> VirtualFileSystem::ListFiles(
               std::filesystem::path rel =
                   std::filesystem::relative(entry.path(), mp.physical_path);
               std::string virtual_path =
-                  mp.mount_point + "/" + rel.generic_string();
+                  VfsJoin(mp.mount_point, rel.generic_string());
               results.push_back(virtual_path);
             }
           }
@@ -387,7 +407,7 @@ std::vector<std::string> VirtualFileSystem::ListFiles(
               std::filesystem::path rel =
                   std::filesystem::relative(entry.path(), mp.physical_path);
               std::string virtual_path =
-                  mp.mount_point + "/" + rel.generic_string();
+                  VfsJoin(mp.mount_point, rel.generic_string());
               results.push_back(virtual_path);
             }
           }
@@ -432,8 +452,8 @@ std::optional<std::filesystem::path> VirtualFileSystem::GetPhysicalPath(
 
 // Resolve a VFS path to a physical path even if the target doesn't exist yet.
 // Falls back to mount point resolution when GetPhysicalPath returns nullopt.
-std::optional<std::filesystem::path>
-VirtualFileSystem::ResolvePhysicalPath(const std::string& vfs_path) {
+std::optional<std::filesystem::path> VirtualFileSystem::ResolvePhysicalPath(
+    const std::string& vfs_path) {
   auto physical = GetPhysicalPath(vfs_path);
   if (physical.has_value()) {
     return physical;
@@ -561,8 +581,7 @@ std::string VirtualFileSystem::NormalizePath(const std::string& path) {
   // Remove trailing slash (but preserve "scheme://")
   while (normalized.size() > 1 && normalized.back() == '/') {
     // Don't strip the slash that's part of "://"
-    if (normalized.size() >= 3 &&
-        normalized[normalized.size() - 2] == '/' &&
+    if (normalized.size() >= 3 && normalized[normalized.size() - 2] == '/' &&
         normalized[normalized.size() - 3] == ':') {
       break;
     }

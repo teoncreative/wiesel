@@ -14,10 +14,8 @@
 
 namespace Wiesel {
 
-// Loads a .wspriteanim asset (list of .wsprite handles + durations + loop).
+// Load asset data from JSON files via VFS
 bool LoadSpriteAnimAsset(const AssetHandle& handle);
-
-// Loads a .wspritecontroller asset (state machine definition).
 bool LoadSpriteControllerAsset(const AssetHandle& handle);
 
 }  // namespace Wiesel

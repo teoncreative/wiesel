@@ -15,11 +15,22 @@
 #ifndef WIESEL_SKYBOX_HPP
 #define WIESEL_SKYBOX_HPP
 
+#include <array>
+#include "asset/w_asset_handle.h"
 #include "rendering/w_texture.h"
 #include "util/w_utils.h"
 #include "w_pch.h"
 
 namespace Wiesel {
+
+enum class SkyboxType { Panorama, Cubemap, Cross };
+
+struct SkyboxAssetData {
+  SkyboxType type = SkyboxType::Panorama;
+  AssetHandle source_handle;  // for panorama/cross types
+  std::array<AssetHandle, 6>
+      face_handles;  // for cubemap: right, left, top, bottom, front, back
+};
 
 class Skybox {
  public:

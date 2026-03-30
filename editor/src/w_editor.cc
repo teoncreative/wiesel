@@ -15,7 +15,10 @@
 #include "w_editor.h"
 #include <wpak/wpak.h>
 #include <unordered_set>
+#include "asset/w_asset_serializer.h"
 #include "mono_compiler.h"
+#include "rendering/w_skybox.h"
+#include "rendering/w_sprite_asset.h"
 #include "util/w_discord_rpc.h"
 #include "w_csharp_lang.h"
 
@@ -110,7 +113,9 @@ std::vector<std::string> RecentProjects::Load() {
         }
       }
     }
-  } catch (...) {}
+  } catch (const std::exception& e) {
+    LOG_ERROR("Failed to load recent projects: {}", e.what());
+  }
   return result;
 }
 
@@ -201,7 +206,9 @@ static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
         if (!handle_str.empty()) {
           root["asset_handle"] = handle_str;
         }
-      } catch (...) {}
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to read scene: {}", e.what());
+      }
     }
   }
 
@@ -374,6 +381,39 @@ void EditorLayer::OnAttach() {
       }
     }
   }
+
+  // Wire up asset browser callbacks
+  AssetBrowserCallbacks ab_cb;
+  ab_cb.on_scan_assets = [this]() { ScanProjectAssets(); };
+  ab_cb.on_update_title = [this]() { UpdateWindowTitle(); };
+  ab_cb.on_new_scene = [this]() { NewScene(); };
+  ab_cb.on_open_scene = [this](const std::string& vfs) {
+    deferred_action_ = DeferredAction::OpenScene;
+    deferred_path_ = vfs;
+  };
+  ab_cb.on_open_prefab = [this](const std::string& vfs) {
+    deferred_action_ = DeferredAction::OpenPrefab;
+    deferred_path_ = vfs;
+  };
+  ab_cb.on_open_code_editor = [this](const std::filesystem::path& p) {
+    OpenCodeEditor(p);
+  };
+  ab_cb.on_select_asset = [this](AssetHandle h) {
+    properties_asset_handle_ = h;
+  };
+  ab_cb.on_slice_texture = [this](AssetHandle h) {
+    slice_texture_handle_ = h;
+    show_slice_sprites_ = true;
+  };
+  ab_cb.on_show_create_skybox = [this]() { show_create_skybox_ = true; };
+  ab_cb.on_show_create_sprite = [this]() { show_create_sprite_ = true; };
+  ab_cb.on_show_create_spriteanim = [this]() {
+    show_create_spriteanim_ = true;
+  };
+  ab_cb.on_show_create_spritecontroller = [this]() {
+    show_create_spritecontroller_ = true;
+  };
+  asset_browser_panel_.SetCallbacks(std::move(ab_cb));
 }
 
 void EditorLayer::OnDetach() {
@@ -834,7 +874,6 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
 
 void EditorLayer::OnBeginPresent() {
   PROFILE_ZONE_SCOPED_N("Editor::OnBeginPresent");
-  Renderer* renderer = Engine::renderer().get();
 
   RenderMainMenuBar();
 
@@ -846,45 +885,7 @@ void EditorLayer::OnBeginPresent() {
   }
 
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
-
-  // Build initial layout once
-  if (!layout_initialized_) {
-    layout_initialized_ = true;
-
-    ImGui::DockBuilderRemoveNode(dockspace_id);
-    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
-    ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
-
-    // Split: bottom (asset browser) | top
-    ImGuiID dock_bottom, dock_top;
-    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down,
-                                kAssetBrowserRatio, &dock_bottom, &dock_top);
-
-    // Split top: left (hierarchy) | center+right
-    ImGuiID dock_left, dock_center_right;
-    ImGui::DockBuilderSplitNode(dock_top, ImGuiDir_Left, kLeftPanelRatio,
-                                &dock_left, &dock_center_right);
-
-    // Split center_right: right (inspector + asset props) | center (viewport)
-    ImGuiID dock_right, dock_center;
-    ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right,
-                                kRightPanelRatio, &dock_right, &dock_center);
-
-    // Dock windows
-    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left);
-    ImGui::DockBuilderDockWindow("Game", dock_center);
-    ImGui::DockBuilderDockWindow("Scene", dock_center);
-    // Select Scene tab by default
-    ImGuiID scene_window_id = ImHashStr("Scene");
-    ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
-    ImGui::DockBuilderDockWindow("Entity Inspector", dock_right);
-    ImGui::DockBuilderDockWindow("Asset Properties", dock_right);
-    ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
-    ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
-    ImGui::DockBuilderDockWindow("Render Stats", dock_bottom);
-
-    ImGui::DockBuilderFinish(dockspace_id);
-  }
+  InitializeDockspaceLayout(dockspace_id);
 
   RenderProjectSettingsPopup();
   RenderAssetPropertiesPanel();
@@ -895,20 +896,64 @@ void EditorLayer::OnBeginPresent() {
   RenderSliceSpritesPopup();
   RenderCreateSpriteAnimPopup();
   RenderCreateSpriteControllerPopup();
+  file_picker_.Render();
 
+  RenderSceneHierarchyPanel();
+  RenderEntityInspectorPanel();
+  RenderAssetBrowserPanel();
+  RenderDeveloperConsolePanel();
+  RenderRenderStatsPanel();
+  RenderSceneViewportPanel();
+  RenderGameViewportPanel();
+}
+
+void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
+  if (!layout_initialized_) {
+    layout_initialized_ = true;
+
+    ImGui::DockBuilderRemoveNode(dockspace_id);
+    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
+
+    ImGuiID dock_bottom, dock_top;
+    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down,
+                                kAssetBrowserRatio, &dock_bottom, &dock_top);
+
+    ImGuiID dock_left, dock_center_right;
+    ImGui::DockBuilderSplitNode(dock_top, ImGuiDir_Left, kLeftPanelRatio,
+                                &dock_left, &dock_center_right);
+
+    ImGuiID dock_right, dock_center;
+    ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right,
+                                kRightPanelRatio, &dock_right, &dock_center);
+
+    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left);
+    ImGui::DockBuilderDockWindow("Game", dock_center);
+    ImGui::DockBuilderDockWindow("Scene", dock_center);
+    ImGuiID scene_window_id = ImHashStr("Scene");
+    ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
+    ImGui::DockBuilderDockWindow("Entity Inspector", dock_right);
+    ImGui::DockBuilderDockWindow("Asset Properties", dock_right);
+    ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
+    ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
+    ImGui::DockBuilderDockWindow("Render Stats", dock_bottom);
+
+    ImGui::DockBuilderFinish(dockspace_id);
+  }
+}
+
+void EditorLayer::RenderSceneHierarchyPanel() {
   bool& scene_open = panel_scene_hierarchy_;
   if (scene_open) {
     if (ImGui::Begin("Scene Hierarchy", &scene_open)) {
       bool ignoreMenu = false;
 
-      // Prefab editing banner
       if (editing_prefab_) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
                               ImVec4(0.3f, 0.6f, 0.9f, 1.0f));
         float width = ImGui::GetContentRegionAvail().x;
-        ImGui::Text("Editing: %s",
-                    editing_prefab_path_.filename().string().c_str());
+        ImGui::Text("Editing: %s", editing_prefab_path_.c_str());
         if (ImGui::Button("Save Prefab", ImVec2(width * 0.48f, 0))) {
           SavePrefab();
         }
@@ -920,7 +965,6 @@ void EditorLayer::OnBeginPresent() {
         ImGui::Separator();
       }
 
-      // When scrolling to selected, build set of ancestors to force-open
       if (scroll_to_selected_ && has_selected_entity_) {
         open_ancestors_.clear();
         entt::entity walk = selected_entity_;
@@ -938,24 +982,21 @@ void EditorLayer::OnBeginPresent() {
         }
       }
 
-      // Search bar
       ImGui::SetNextItemWidth(-1);
       ImGui::InputTextWithHint("##HierarchySearch", "Search entities...",
                                hierarchy_search_, sizeof(hierarchy_search_));
 
-      // Scene root node (always open, not collapsible)
       ImGuiTreeNodeFlags scene_flags =
           ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow |
           ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding |
           ImGuiTreeNodeFlags_Framed;
       std::string scene_label = "Scene";
       if (!current_scene_path_.empty()) {
-        scene_label = current_scene_path_.stem().string();
+        scene_label = VirtualFileSystem::Stem(current_scene_path_);
       }
       bool scene_open = ImGui::TreeNodeEx("##SceneRoot", scene_flags, "%s",
                                           scene_label.c_str());
 
-      // Right-click on scene root to add entities
       if (ImGui::BeginPopupContextItem("scene_root_context")) {
         if (ImGui::BeginMenu("Add")) {
           RenderAddEntityMenu(scene().get(), scene_dirty_);
@@ -978,7 +1019,6 @@ void EditorLayer::OnBeginPresent() {
 
       UpdateHierarchyOrder();
 
-      // Invisible drop zone covering remaining empty space to unparent entities
       ImVec2 avail = ImGui::GetContentRegionAvail();
       if (avail.y > 0) {
         ImGui::InvisibleButton("##HierarchyDropZone", ImVec2(avail.x, avail.y));
@@ -995,17 +1035,14 @@ void EditorLayer::OnBeginPresent() {
           ImGui::EndDragDropTarget();
         }
 
-        // Click empty space to deselect
         if (ImGui::IsItemClicked(0)) {
           has_selected_entity_ = false;
         }
 
-        // Right-click on empty space
         if (ImGui::IsItemClicked(1)) {
           ImGui::OpenPopup("right_click_hierarchy");
         }
       } else {
-        // No remaining space - still handle right-click and deselect
         if (!ignoreMenu && ImGui::IsWindowHovered() &&
             ImGui::IsMouseClicked(1, false)) {
           ImGui::OpenPopup("right_click_hierarchy");
@@ -1026,7 +1063,9 @@ void EditorLayer::OnBeginPresent() {
     }
     ImGui::End();
   }
+}
 
+void EditorLayer::RenderEntityInspectorPanel() {
   bool& components_open = panel_components_;
   if (components_open) {
     if (ImGui::Begin("Entity Inspector", &components_open)) {
@@ -1038,859 +1077,15 @@ void EditorLayer::OnBeginPresent() {
     }
     ImGui::End();
   }
+}
 
-  bool& asset_browser_open = panel_asset_browser_;
-  if (asset_browser_open) {
-    if (ImGui::Begin("Asset Browser", &asset_browser_open)) {
-      auto& mgr = Engine::asset_manager();
+void EditorLayer::RenderAssetBrowserPanel() {
+  asset_browser_panel_.current_scene_path = current_scene_path_;
+  asset_browser_panel_.Render(panel_asset_browser_);
+  current_scene_path_ = asset_browser_panel_.current_scene_path;
+}
 
-      static std::string
-          current_dir;  // relative to assets dir, e.g. "" or "models/" or "scenes/"
-      browser_current_dir_ = current_dir;
-      static std::string selected_file;
-      static float tile_size = 80.0f;
-
-      // Scan the physical filesystem for the current directory
-      struct FileEntry {
-        std::string name;
-        bool is_dir;
-        std::filesystem::path physical_path;
-        std::string vfs_path;
-        AssetType asset_type;
-      };
-
-      std::vector<FileEntry> entries;
-
-      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-      if (physical_app.has_value()) {
-        namespace fs = std::filesystem;
-        fs::path browse_dir = fs::absolute(*physical_app) / current_dir;
-        if (fs::exists(browse_dir) && fs::is_directory(browse_dir)) {
-          for (auto& entry : fs::directory_iterator(browse_dir)) {
-            // Hide .meta files from the browser
-            if (entry.is_regular_file() &&
-                entry.path().extension() == ".meta") {
-              continue;
-            }
-
-            FileEntry fe;
-            fe.name = entry.path().filename().string();
-            fe.is_dir = entry.is_directory();
-            fe.physical_path = entry.path();
-              // CHECK
-            fs::path rel = fs::relative(entry.path(), *physical_app);
-            fe.vfs_path = "app://" + rel.generic_string();
-            fe.asset_type = AssetType::None;
-
-            if (!fe.is_dir) {
-              auto ext = entry.path().extension().string();
-              fe.asset_type = ExtToAssetType(ext);
-              if (fe.asset_type == AssetType::None) {
-                if (ext == ".cs") {
-                  fe.asset_type = AssetType::Script;
-                }
-              }
-            }
-
-            entries.push_back(fe);
-          }
-        }
-        // Sort: directories first, then files, both alphabetically
-        std::ranges::sort(entries, [](const FileEntry& a, const FileEntry& b) {
-          if (a.is_dir != b.is_dir) {
-            return a.is_dir > b.is_dir;
-          }
-          return NaturalLess(a.name, b.name);
-        });
-      }
-
-      // Breadcrumb bar
-      {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-        if (ImGui::Button("Assets")) {
-          current_dir.clear();
-        }
-
-        if (!current_dir.empty()) {
-          // Split current_dir into parts
-          std::string accumulated;
-          std::string remaining = current_dir;
-          while (!remaining.empty()) {
-            auto slash = remaining.find_first_of("/\\");
-            std::string part;
-            if (slash != std::string::npos) {
-              part = remaining.substr(0, slash);
-              remaining = remaining.substr(slash + 1);
-            } else {
-              part = remaining;
-              remaining.clear();
-            }
-            if (part.empty()) {
-              continue;
-            }
-            accumulated += part + "/";
-
-            ImGui::SameLine(0, 2);
-            ImGui::TextUnformatted("/");
-            ImGui::SameLine(0, 2);
-
-            std::string btn_id = part + "##bc_" + accumulated;
-            if (ImGui::Button(btn_id.c_str())) {
-              current_dir = accumulated;
-            }
-          }
-        }
-        ImGui::PopStyleColor();
-      }
-
-      // Import button
-      ImGui::SameLine();
-      if (ImGui::Button("+ Import")) {
-        ImGui::OpenPopup("ImportAssetPopup");
-      }
-      ImGui::SameLine();
-      if (ImGui::Button("+ Folder")) {
-        ImGui::OpenPopup("NewFolderPopup");
-      }
-
-      // New folder popup
-      static char new_folder_name[128] = "";
-      if (ImGui::BeginPopup("NewFolderPopup")) {
-        ImGui::Text("Folder name:");
-        ImGui::InputText("##foldername", new_folder_name,
-                         sizeof(new_folder_name));
-        if (ImGui::Button("Create") && new_folder_name[0] != '\0') {
-          namespace fs = std::filesystem;
-          auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-          if (physical_app.has_value()) {
-            fs::path base = fs::absolute(*physical_app);
-            if (!current_dir.empty()) {
-              std::string rel = current_dir;
-              if (rel.rfind("app://", 0) == 0) {
-                rel = rel.substr(5);
-              } else if (rel.rfind("/", 0) == 0) {
-                rel = rel.substr(1);
-              }
-              base = base / rel;
-            }
-            fs::create_directories(base / new_folder_name);
-            new_folder_name[0] = '\0';
-          }
-          ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-          new_folder_name[0] = '\0';
-          ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-      }
-
-      // Create skybox popup
-
-      // Import file into the current asset browser directory
-      auto ImportFileToCurrentDir = [](const std::string& file,
-                                       AssetType type) {
-        namespace fs = std::filesystem;
-        if (file.empty()) {
-          return;
-        }
-
-        fs::path abs = fs::absolute(file);
-        auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-        if (!physical_app.has_value()) {
-          LOG_ERROR("No app:// mount point – open a project first");
-          return;
-        }
-        fs::path app_assets = fs::absolute(*physical_app);
-
-        // Determine destination directory from current browser path
-        fs::path dest_dir = app_assets;
-        if (!current_dir.empty()) {
-          // current_dir is like "app://models/" - strip "app://" prefix
-          std::string rel = current_dir;
-          if (rel.rfind("app://", 0) == 0) {
-            rel = rel.substr(5);
-          } else if (rel.rfind("/", 0) == 0) {
-            rel = rel.substr(1);
-          }
-          dest_dir = app_assets / rel;
-        }
-
-        std::error_code ec;
-        fs::create_directories(dest_dir, ec);
-
-        // For model files, copy all sibling files from the source directory
-        // (glTF needs .bin + textures, FBX may have companion files)
-        if (type == AssetType::Model) {
-          fs::path source_dir = abs.parent_path();
-          fs::path model_dest_dir = dest_dir / abs.stem();
-          fs::create_directories(model_dest_dir, ec);
-          // Copy all files from the source directory
-          for (const auto& entry : fs::directory_iterator(source_dir)) {
-            if (!entry.is_regular_file()) {
-              continue;
-            }
-            fs::path file_dest = model_dest_dir / entry.path().filename();
-            fs::copy_file(entry.path(), file_dest,
-                          fs::copy_options::skip_existing, ec);
-            if (ec) {
-              LOG_WARN("Failed to copy '{}': {}", entry.path().string(),
-                       ec.message());
-              ec.clear();
-            }
-          }
-          // Also copy subdirectories (some models have texture subfolders)
-          for (const auto& entry :
-               fs::recursive_directory_iterator(source_dir)) {
-            if (entry.is_directory()) {
-              continue;
-            }
-            auto rel_to_source = fs::relative(entry.path(), source_dir);
-            fs::path file_dest = model_dest_dir / rel_to_source;
-            fs::create_directories(file_dest.parent_path(), ec);
-            fs::copy_file(entry.path(), file_dest,
-                          fs::copy_options::skip_existing, ec);
-            ec.clear();
-          }
-          // Register the main model file
-          auto vfs_rel =
-              fs::relative(model_dest_dir / abs.filename(), app_assets);
-          std::string vfs_path = "app://" + vfs_rel.generic_string();
-          std::string name = abs.stem().string();
-          Engine::asset_manager().Register(name, type, vfs_path);
-          LOG_INFO("Imported model directory {} to {}", name, vfs_path);
-        } else {
-          fs::path dest = dest_dir / abs.filename();
-          fs::copy_file(abs, dest, fs::copy_options::skip_existing, ec);
-          if (ec) {
-            LOG_ERROR("Failed to import '{}' to '{}': {}", file, dest.string(),
-                      ec.message());
-            return;
-          }
-          auto vfs_rel = fs::relative(dest, app_assets);
-          std::string vfs_path = "app://" + vfs_rel.generic_string();
-          std::string name = abs.stem().string();
-          Engine::asset_manager().Register(name, type, vfs_path);
-          LOG_INFO("Imported {} to {}", name, vfs_path);
-        }
-      };
-
-      if (ImGui::BeginPopup("ImportAssetPopup")) {
-        if (ImGui::MenuItem("Model...")) {
-          Dialogs::OpenFileDialog(
-              {{"Model file", "obj,gltf,glb,fbx"}},
-              [ImportFileToCurrentDir](const std::string& file) {
-                ImportFileToCurrentDir(file, AssetType::Model);
-              });
-        }
-        if (ImGui::MenuItem("Texture...")) {
-          Dialogs::OpenFileDialog(
-              {{"Image file", "png,jpg,jpeg,tga,bmp"}},
-              [ImportFileToCurrentDir](const std::string& file) {
-                ImportFileToCurrentDir(file, AssetType::Texture);
-              });
-        }
-        ImGui::EndPopup();
-      }
-
-      // Tile size slider
-      ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
-      ImGui::SetNextItemWidth(100);
-      ImGui::SliderFloat("##tilesize", &tile_size, 48.0f, 128.0f, "");
-
-      ImGui::Separator();
-
-      static bool open_script_popup = false;
-
-      // Content area
-      if (ImGui::BeginChild("asset_content", ImVec2(0, 0),
-                            ImGuiChildFlags_None)) {
-        float panel_width = ImGui::GetContentRegionAvail().x;
-        float cell_size = tile_size + 8.0f;
-        int columns = std::max(1, (int)(panel_width / cell_size));
-        int col = 0;
-
-        auto DrawTile = [&](const char* label, ImVec4 icon_color,
-                            const char* type_abbrev, bool is_selected,
-                            bool is_folder,
-                            const ThumbnailEntry* thumbnail = nullptr,
-                            const AssetMetadata* asset_meta = nullptr,
-                            bool* double_clicked = nullptr) -> bool {
-          bool clicked = false;
-          ImGui::PushID(label);
-
-          ImVec2 cursor = ImGui::GetCursorScreenPos();
-          ImVec2 icon_min = cursor;
-          ImVec2 icon_max = ImVec2(cursor.x + tile_size, cursor.y + tile_size);
-
-          // Invisible button for interaction
-          if (ImGui::InvisibleButton("##tile",
-                                     ImVec2(tile_size, tile_size + 20))) {
-            clicked = true;
-          }
-          if (double_clicked && ImGui::IsItemHovered() &&
-              ImGui::IsMouseDoubleClicked(0)) {
-            *double_clicked = true;
-          }
-          bool hovered = ImGui::IsItemHovered();
-
-          ImDrawList* dl = ImGui::GetWindowDrawList();
-
-          // Selection/hover highlight
-          if (is_selected) {
-            dl->AddRectFilled(ImVec2(icon_min.x - 2, icon_min.y - 2),
-                              ImVec2(icon_max.x + 2, icon_max.y + 22),
-                              IM_COL32(60, 100, 160, 180), 4.0f);
-          } else if (hovered) {
-            dl->AddRectFilled(ImVec2(icon_min.x - 2, icon_min.y - 2),
-                              ImVec2(icon_max.x + 2, icon_max.y + 22),
-                              IM_COL32(70, 70, 70, 120), 4.0f);
-          }
-
-          // Icon: thumbnail image or colored rectangle
-          if (thumbnail && thumbnail->texture_id) {
-            ImVec2 img_size = thumbnail->FitSize(tile_size);
-            float ox = (tile_size - img_size.x) * 0.5f;
-            float oy = (tile_size - img_size.y) * 0.5f;
-            ImVec2 img_min(icon_min.x + ox, icon_min.y + oy);
-            ImVec2 img_max(img_min.x + img_size.x, img_min.y + img_size.y);
-            dl->AddImageRounded(
-                reinterpret_cast<ImTextureID>(thumbnail->texture_id), img_min,
-                img_max, thumbnail->uv0, thumbnail->uv1, IM_COL32_WHITE,
-                6.0f);
-          } else {
-            ImU32 col32 = ImGui::ColorConvertFloat4ToU32(icon_color);
-            dl->AddRectFilled(icon_min, icon_max, col32,
-                              is_folder ? 2.0f : 6.0f);
-
-            // Type abbreviation centered in icon
-            if (type_abbrev && type_abbrev[0]) {
-              ImVec2 text_sz = ImGui::CalcTextSize(type_abbrev);
-              ImVec2 text_pos(icon_min.x + (tile_size - text_sz.x) * 0.5f,
-                              icon_min.y + (tile_size - text_sz.y) * 0.5f);
-              dl->AddText(text_pos, IM_COL32(255, 255, 255, 200), type_abbrev);
-            }
-          }
-
-          // Label below icon (truncated)
-          float max_text_w = tile_size;
-          ImVec2 label_pos(icon_min.x, icon_max.y + 2);
-          std::string display_label = label;
-          ImVec2 label_sz = ImGui::CalcTextSize(display_label.c_str());
-          if (label_sz.x > max_text_w) {
-            while (display_label.size() > 3) {
-              display_label.pop_back();
-              std::string truncated = display_label + "..";
-              if (ImGui::CalcTextSize(truncated.c_str()).x <= max_text_w) {
-                display_label = truncated;
-                break;
-              }
-            }
-          }
-          dl->AddText(label_pos, IM_COL32(220, 220, 220, 255),
-                      display_label.c_str());
-
-          // Tooltip on hover
-          if (hovered) {
-            if (asset_meta) {
-              ImGui::BeginTooltip();
-              ImGui::TextUnformatted(asset_meta->name.c_str());
-              ImGui::Separator();
-              ImGui::Text("Type: %s", AssetTypeToString(asset_meta->type));
-              ImGui::Text("Handle: %s", asset_meta->handle.ToString().c_str());
-              ImGui::Text("Path: %s", asset_meta->virtual_source_path.c_str());
-
-              AssetLoadState load_state = asset_meta->load_state.load();
-              const char* state_str = "Unknown";
-              switch (load_state) {
-                case AssetLoadState::Unloaded:
-                  state_str = "Unloaded";
-                  break;
-                case AssetLoadState::Loading:
-                  state_str = "Loading";
-                  break;
-                case AssetLoadState::Loaded:
-                  state_str = "Loaded";
-                  break;
-                case AssetLoadState::Failed:
-                  state_str = "Failed";
-                  break;
-              }
-              ImGui::Text("State: %s", state_str);
-
-              auto physical_path = Engine::vfs()->GetPhysicalPath(
-                  asset_meta->virtual_source_path);
-              ImGui::Text("Source: %s",
-                          physical_path.has_value() ? "Filesystem" : "Archive");
-
-              ImGui::EndTooltip();
-            } else {
-              ImGui::SetTooltip("%s", label);
-            }
-          }
-
-          ImGui::PopID();
-          return clicked;
-        };
-
-        auto NextColumn = [&]() {
-          col++;
-          if (col < columns) {
-            ImGui::SameLine(0, 8.0f);
-          } else {
-            col = 0;
-          }
-        };
-
-        // Asset type colors
-        auto GetAssetColor = [](AssetType type) -> ImVec4 {
-          switch (type) {
-            case AssetType::Texture:
-              return {0.25f, 0.45f, 0.72f, 1.0f};
-            case AssetType::Model:
-              return {0.30f, 0.62f, 0.35f, 1.0f};
-            case AssetType::Material:
-              return {0.72f, 0.50f, 0.20f, 1.0f};
-            case AssetType::Shader:
-              return {0.55f, 0.30f, 0.68f, 1.0f};
-            case AssetType::Sprite:
-              return {0.20f, 0.60f, 0.65f, 1.0f};
-            case AssetType::Skybox:
-              return {0.25f, 0.55f, 0.55f, 1.0f};
-            case AssetType::Font:
-              return {0.65f, 0.60f, 0.25f, 1.0f};
-            case AssetType::Script:
-              return {0.55f, 0.70f, 0.30f, 1.0f};
-            case AssetType::Scene:
-              return {0.72f, 0.35f, 0.35f, 1.0f};
-            case AssetType::Prefab:
-              return {0.45f, 0.55f, 0.72f, 1.0f};
-            case AssetType::Audio:
-              return {0.72f, 0.45f, 0.60f, 1.0f};
-            case AssetType::SpriteAnim:
-              return {0.30f, 0.70f, 0.45f, 1.0f};
-            case AssetType::SpriteController:
-              return {0.45f, 0.55f, 0.75f, 1.0f};
-            default:
-              return {0.40f, 0.40f, 0.40f, 1.0f};
-          }
-        };
-
-        auto GetAssetAbbrev = [](AssetType type) -> const char* {
-          switch (type) {
-            case AssetType::Texture:
-              return "TEX";
-            case AssetType::Model:
-              return "MDL";
-            case AssetType::Material:
-              return "MAT";
-            case AssetType::Shader:
-              return "SHD";
-            case AssetType::Sprite:
-              return "SPR";
-            case AssetType::Skybox:
-              return "SKY";
-            case AssetType::Font:
-              return "FNT";
-            case AssetType::Script:
-              return "CS";
-            case AssetType::Scene:
-              return "SCN";
-            case AssetType::Prefab:
-              return "PFB";
-            case AssetType::Audio:
-              return "SND";
-            case AssetType::SpriteAnim:
-              return "ANM";
-            case AssetType::SpriteController:
-              return "CTR";
-            default:
-              return "?";
-          }
-        };
-
-        // Rename state
-        static std::string renaming_file;
-        static char rename_buf[256] = "";
-
-        // ".." back folder
-        if (!current_dir.empty()) {
-          if (DrawTile("..", ImVec4(0.35f, 0.35f, 0.4f, 1.0f), "..", false,
-                       true)) {
-            std::string trimmed = current_dir;
-            if (!trimmed.empty() && trimmed.back() == '/') {
-              trimmed.pop_back();
-            }
-            size_t slash = trimmed.find_last_of('/');
-            if (slash == std::string::npos) {
-              current_dir = "";
-            } else {
-              current_dir = trimmed.substr(0, slash + 1);
-            }
-          }
-          // Drop target on ".." to move files to parent directory
-          if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload =
-                    ImGui::AcceptDragDropPayload("BrowserFile")) {
-              namespace fs = std::filesystem;
-              std::string src_str(static_cast<const char*>(payload->Data));
-              fs::path src(src_str);
-              fs::path parent = src.parent_path().parent_path();
-              fs::path dest = parent / src.filename();
-              std::error_code ec;
-              fs::rename(src, dest, ec);
-              if (!ec) {
-                if (current_scene_path_ == fs::absolute(src)) {
-                  current_scene_path_ = fs::absolute(dest);
-                  UpdateWindowTitle();
-                }
-                ScanProjectAssets();
-              }
-            }
-            ImGui::EndDragDropTarget();
-          }
-          NextColumn();
-        }
-
-        // File and directory tiles
-        for (auto& fe : entries) {
-          bool is_sel = selected_file == fe.name;
-          bool dbl_clicked = false;
-
-          AssetHandle handle;
-          const AssetMetadata* meta = nullptr;
-
-          if (fe.is_dir) {
-            if (DrawTile(fe.name.c_str(), ImVec4(0.3f, 0.35f, 0.45f, 1.0f),
-                         "DIR", is_sel, true, nullptr, nullptr, &dbl_clicked)) {
-              selected_file = fe.name;
-            }
-            if (dbl_clicked) {
-              current_dir += fe.name + "/";
-            }
-          } else {
-            // Look up asset in AssetManager for thumbnails
-            std::string vfs_path = "app://" + current_dir + fe.name;
-            for (auto& h : mgr.GetAll()) {
-              const auto* m = mgr.GetMetadata(h);
-              if (m && m->virtual_source_path == vfs_path) {
-                handle = h;
-                meta = m;
-                break;
-              }
-            }
-
-            const ThumbnailEntry* thumbnail = nullptr;
-            ThumbnailEntry thumb_entry;
-            if (meta && (meta->type == AssetType::Texture ||
-                         meta->type == AssetType::Sprite)) {
-              thumb_entry = GetOrCreateThumbnail(handle, *meta);
-              if (thumb_entry.texture_id) {
-                thumbnail = &thumb_entry;
-              }
-            }
-
-            bool is_imported = handle.IsValid();
-            ImVec4 tile_color = GetAssetColor(fe.asset_type);
-            if (!is_imported && fe.asset_type != AssetType::None) {
-              // Dim unimported assets
-              tile_color.x *= 0.4f;
-              tile_color.y *= 0.4f;
-              tile_color.z *= 0.4f;
-            }
-            if (DrawTile(fe.name.c_str(), tile_color,
-                         GetAssetAbbrev(fe.asset_type), is_sel, false,
-                         thumbnail, meta, &dbl_clicked)) {
-              selected_file = fe.name;
-              // Auto-show in Asset Properties panel
-              if (handle.IsValid()) {
-                properties_asset_handle_ = handle;
-              }
-            }
-
-            if (dbl_clicked) {
-              if (fe.asset_type == AssetType::Scene) {
-                deferred_action_ = DeferredAction::OpenScene;
-                deferred_path_ = fe.vfs_path;
-              } else if (fe.asset_type == AssetType::Prefab) {
-                deferred_action_ = DeferredAction::OpenPrefab;
-                deferred_path_ = fe.vfs_path;
-              } else if (fe.asset_type == AssetType::Script) {
-                OpenCodeEditor(fe.physical_path);
-              }
-            }
-
-            // Drag source for asset files
-            if (handle.IsValid() && ImGui::BeginDragDropSource(
-                                        ImGuiDragDropFlags_SourceAllowNullID)) {
-              ImGui::SetDragDropPayload("AssetHandle", &handle,
-                                        sizeof(AssetHandle));
-              ImGui::Text("%s", fe.name.c_str());
-              ImGui::EndDragDropSource();
-            }
-          }
-
-          // Drag source for moving files/folders in the browser
-          if (ImGui::BeginDragDropSource(
-                  ImGuiDragDropFlags_SourceAllowNullID)) {
-            std::string path_str = fe.physical_path.string();
-            ImGui::SetDragDropPayload("BrowserFile", path_str.c_str(),
-                                      path_str.size() + 1);
-            ImGui::Text("%s %s", fe.is_dir ? "[DIR]" : "", fe.name.c_str());
-            ImGui::EndDragDropSource();
-          }
-
-          // Drop target on directories to move files into them
-          if (fe.is_dir && ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload =
-                    ImGui::AcceptDragDropPayload("BrowserFile")) {
-              namespace fs = std::filesystem;
-              std::string src_str(static_cast<const char*>(payload->Data));
-              fs::path src(src_str);
-              fs::path dest = fe.physical_path / src.filename();
-              std::error_code ec;
-              fs::rename(src, dest, ec);
-              if (!ec) {
-                if (current_scene_path_ == fs::absolute(src)) {
-                  current_scene_path_ = fs::absolute(dest);
-                  UpdateWindowTitle();
-                }
-                ScanProjectAssets();
-              }
-            }
-            ImGui::EndDragDropTarget();
-          }
-
-          // Right-click context menu for files and folders
-          if (is_sel &&
-              ImGui::BeginPopupContextItem(("##ctx_" + fe.name).c_str())) {
-            // Import option for unimported files
-            if (!fe.is_dir && !handle.IsValid() &&
-                fe.asset_type != AssetType::None) {
-              if (ImGui::MenuItem("Import")) {
-                std::string import_vfs = "app://" + current_dir + fe.name;
-                AssetHandle new_handle = ProjectLoader::ImportAsset(
-                    fe.name, fe.asset_type, import_vfs);
-                if (new_handle.IsValid()) {
-                  if (fe.asset_type == AssetType::Prefab ||
-                      fe.asset_type == AssetType::Scene) {
-                    mgr.SetLoadState(new_handle, AssetLoadState::Unloaded,
-                                     AssetLoadState::Loaded);
-                  }
-                }
-              }
-              ImGui::Separator();
-            }
-            if (!fe.is_dir && fe.asset_type == AssetType::Texture &&
-                handle.IsValid()) {
-              if (ImGui::MenuItem("Slice into Sprites")) {
-                slice_texture_handle_ = handle;
-                show_slice_sprites_ = true;
-                ImGui::CloseCurrentPopup();
-              }
-              ImGui::Separator();
-            }
-            if (ImGui::MenuItem("Rename")) {
-              renaming_file = fe.name;
-              auto stem = fe.physical_path.stem().string();
-              snprintf(rename_buf, sizeof(rename_buf), "%s", stem.c_str());
-            }
-            if (!fe.is_dir && ImGui::MenuItem("Duplicate")) {
-              namespace fs = std::filesystem;
-              std::string stem = fe.physical_path.stem().string();
-              std::string ext = fe.physical_path.extension().string();
-              fs::path copy_path =
-                  fe.physical_path.parent_path() / (stem + "_copy" + ext);
-              int n = 1;
-              while (fs::exists(copy_path)) {
-                copy_path = fe.physical_path.parent_path() /
-                            (stem + "_copy" + std::to_string(n++) + ext);
-              }
-              std::error_code ec;
-              fs::copy_file(fe.physical_path, copy_path, ec);
-              if (!ec) {
-                ScanProjectAssets();
-              }
-            }
-            if (fe.is_dir && ImGui::MenuItem("Duplicate")) {
-              namespace fs = std::filesystem;
-              std::string name = fe.name + "_copy";
-              fs::path copy_path = fe.physical_path.parent_path() / name;
-              int n = 1;
-              while (fs::exists(copy_path)) {
-                copy_path = fe.physical_path.parent_path() /
-                            (fe.name + "_copy" + std::to_string(n++));
-              }
-              std::error_code ec;
-              fs::copy(fe.physical_path, copy_path, fs::copy_options::recursive,
-                       ec);
-              if (!ec) {
-                ScanProjectAssets();
-              }
-            }
-            if (!fe.is_dir && handle.IsValid() &&
-                AssetPropertyRegistry::HasProperties(fe.asset_type)) {
-              // Properties panel auto-selects on click, no menu item needed.
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Delete")) {
-              namespace fs = std::filesystem;
-              std::error_code ec;
-              fs::remove_all(fe.physical_path, ec);
-              if (!ec) {
-                selected_file.clear();
-                ScanProjectAssets();
-              }
-            }
-            ImGui::EndPopup();
-          }
-
-          NextColumn();
-        }
-
-        // Rename popup
-        if (!renaming_file.empty()) {
-          ImGui::OpenPopup("RenamePopup");
-        }
-        if (ImGui::BeginPopup("RenamePopup")) {
-          ImGui::Text("Rename:");
-          ImGui::InputText("##rename", rename_buf, sizeof(rename_buf));
-          if (ImGui::Button("OK") && rename_buf[0] != '\0') {
-            namespace fs = std::filesystem;
-            auto physical_app_path = Engine::vfs()->GetPhysicalPath("app://");
-            if (physical_app_path.has_value()) {
-              fs::path old_path = fs::absolute(*physical_app_path) /
-                                  current_dir / renaming_file;
-              std::string ext = old_path.extension().string();
-              fs::path new_path =
-                  old_path.parent_path() / (std::string(rename_buf) + ext);
-              std::error_code ec;
-              fs::rename(old_path, new_path, ec);
-              if (!ec) {
-                // If renaming the current scene, update the path
-                if (current_scene_path_ == fs::absolute(old_path)) {
-                  current_scene_path_ = fs::absolute(new_path);
-                  UpdateWindowTitle();
-                }
-                ScanProjectAssets();
-              }
-            }
-            renaming_file.clear();
-            ImGui::CloseCurrentPopup();
-          }
-          ImGui::SameLine();
-          if (ImGui::Button("Cancel")) {
-            renaming_file.clear();
-            ImGui::CloseCurrentPopup();
-          }
-          ImGui::EndPopup();
-        }
-
-        // Right-click on empty space
-        static bool open_folder_popup = false;
-        if (ImGui::BeginPopupContextWindow("##browser_ctx",
-                                           ImGuiPopupFlags_NoOpenOverItems)) {
-          if (ImGui::BeginMenu("Create")) {
-            if (ImGui::MenuItem("Scene")) {
-              NewScene();
-            }
-            if (ImGui::MenuItem("Folder")) {
-              open_folder_popup = true;
-              ImGui::CloseCurrentPopup();
-            }
-            if (ImGui::MenuItem("C# Script")) {
-              open_script_popup = true;
-              ImGui::CloseCurrentPopup();
-            }
-            if (ImGui::MenuItem("Skybox")) {
-              show_create_skybox_ = true;
-              ImGui::CloseCurrentPopup();
-            }
-            if (ImGui::MenuItem("Sprite")) {
-              show_create_sprite_ = true;
-              ImGui::CloseCurrentPopup();
-            }
-            if (ImGui::MenuItem("Sprite Animation")) {
-              show_create_spriteanim_ = true;
-              ImGui::CloseCurrentPopup();
-            }
-            if (ImGui::MenuItem("Sprite Controller")) {
-              show_create_spritecontroller_ = true;
-              ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndMenu();
-          }
-          ImGui::EndPopup();
-        }
-        if (open_folder_popup) {
-          ImGui::OpenPopup("NewFolderPopup");
-          open_folder_popup = false;
-        }
-      }
-      ImGui::EndChild();
-
-      // New C# script popup (must be in same scope as OpenPopup)
-      if (open_script_popup) {
-        ImGui::OpenPopup("NewScriptPopup");
-        open_script_popup = false;
-      }
-      static char new_script_name[128] = "NewScript";
-      if (ImGui::BeginPopup("NewScriptPopup")) {
-        ImGui::Text("Script name:");
-        ImGui::InputText("##scriptname", new_script_name,
-                         sizeof(new_script_name));
-        if (ImGui::Button("Create") && new_script_name[0] != '\0') {
-          namespace fs = std::filesystem;
-          auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-          if (physical_app.has_value()) {
-            fs::path base = fs::absolute(*physical_app);
-            if (!browser_current_dir_.empty()) {
-              base = base / browser_current_dir_;
-            }
-            fs::path script_path =
-                base / (std::string(new_script_name) + ".cs");
-            if (!fs::exists(script_path)) {
-              VfsFile tmpl =
-                  Engine::vfs()->Open("/engine/templates/script.cs.template");
-              std::string content;
-              if (tmpl) {
-                content = std::string(
-                    reinterpret_cast<const char*>(tmpl.Data()), tmpl.Size());
-              } else {
-                content =
-                    "using WieselEngine;\n\npublic class {{CLASS_NAME}} : "
-                    "MonoBehavior\n{\n}\n";
-              }
-              std::string class_name = new_script_name;
-              size_t pos = 0;
-              while ((pos = content.find("{{CLASS_NAME}}", pos)) !=
-                     std::string::npos) {
-                content.replace(pos, 14, class_name);
-                pos += class_name.length();
-              }
-              std::ofstream out(script_path);
-              if (out.is_open()) {
-                out << content;
-              }
-              ScanProjectAssets();
-            }
-          }
-          new_script_name[0] = '\0';
-          ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-          new_script_name[0] = '\0';
-          ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-      }
-    }
-    ImGui::End();
-  }
-
-  // Developer Console Panel
+void EditorLayer::RenderDeveloperConsolePanel() {
   {
     bool& console_open = panel_console_;
     if (console_open) {
@@ -1989,8 +1184,9 @@ void EditorLayer::OnBeginPresent() {
       ImGui::End();
     }
   }
+}
 
-  // Render Stats Panel
+void EditorLayer::RenderRenderStatsPanel() {
   {
     bool& stats_open = panel_stats_;
     if (stats_open) {
@@ -2198,38 +1394,10 @@ void EditorLayer::OnBeginPresent() {
       ImGui::End();
     }
   }
+}
 
-  // Helper lambda: draws Play/Stop buttons, returns true if state changed
-  auto DrawPlayStopButtons = [&]() -> bool {
-    bool changed = false;
-    if (editor_state_ == EditorState::Edit) {
-      bool compiling = Engine::script_manager().IsCompiling();
-      if (compiling) {
-        ImGui::BeginDisabled();
-      }
-      if (ImGui::Button(compiling ? "Compiling..." : "Play")) {
-        AutoSave();
-        TakeSnapshot();
-        editor_state_ = EditorState::Playing;
-        scene()->ResetFirstUpdate();
-        ImGui::SetWindowFocus("Game");
-        changed = true;
-      }
-      if (compiling) {
-        ImGui::EndDisabled();
-      }
-    } else {
-      if (ImGui::Button("Stop")) {
-        deferred_action_ = DeferredAction::StopPlaying;
-        changed = true;
-      }
-    }
-    return changed;
-  };
-
-  //
-  // Scene Panel (editor free camera)
-  //
+void EditorLayer::RenderSceneViewportPanel() {
+  Renderer* renderer = Engine::renderer().get();
 
   bool& scene_view_open = panel_scene_view_;
   if (scene_view_open) {
@@ -2704,8 +1872,11 @@ void EditorLayer::OnBeginPresent() {
     }
     ImGui::End();
   }
+}
 
-  // ======== Game Panel (primary scene camera, only when playing) ========
+void EditorLayer::RenderGameViewportPanel() {
+  Renderer* renderer = Engine::renderer().get();
+
   bool& game_view_open = panel_game_view_;
   if (game_view_open) {
     {
@@ -2780,23 +1951,23 @@ void EditorLayer::OnBeginPresent() {
               }
             }
 
-            auto finalOutputDesc = renderer->GetFinalOutputDescriptor();
-            auto finalOutputImage = renderer->GetFinalOutputImage();
-            if (finalOutputDesc && finalOutputImage) {
+            auto final_output_desc = renderer->GetFinalOutputDescriptor();
+            auto final_output_image = renderer->GetFinalOutputImage();
+            if (final_output_desc && final_output_image) {
               ImTextureID gameDesc = reinterpret_cast<ImTextureID>(
-                  finalOutputDesc->descriptor_set_);
+              final_output_desc->descriptor_set_);
 
-              float imageAspect = static_cast<float>(finalOutputImage->width_) /
-                                  static_cast<float>(finalOutputImage->height_);
-              float availAspect = avail.x / avail.y;
+              float image_aspect = static_cast<float>(final_output_image->width_) /
+                                  static_cast<float>(final_output_image->height_);
+              float avail_aspect = avail.x / avail.y;
 
               ImVec2 drawSize;
-              if (availAspect > imageAspect) {
+              if (avail_aspect > image_aspect) {
                 drawSize.y = avail.y;
-                drawSize.x = drawSize.y * imageAspect;
+                drawSize.x = drawSize.y * image_aspect;
               } else {
                 drawSize.x = avail.x;
-                drawSize.y = drawSize.x / imageAspect;
+                drawSize.y = drawSize.x / image_aspect;
               }
               ImGui::Image(gameDesc, drawSize);
 
@@ -2816,7 +1987,7 @@ void EditorLayer::OnBeginPresent() {
 
               // Resolution overlay (top-right)
               std::string resStr = std::format(
-                  "{}x{}", finalOutputImage->width_, finalOutputImage->height_);
+                  "{}x{}", final_output_image->width_, final_output_image->height_);
               ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
               ImVec2 resPos =
                   ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
@@ -2829,6 +2000,33 @@ void EditorLayer::OnBeginPresent() {
       ImGui::End();
     }
   }
+}
+
+bool EditorLayer::DrawPlayStopButtons() {
+  bool changed = false;
+  if (editor_state_ == EditorState::Edit) {
+    bool compiling = Engine::script_manager().IsCompiling();
+    if (compiling) {
+      ImGui::BeginDisabled();
+    }
+    if (ImGui::Button(compiling ? "Compiling..." : "Play")) {
+      AutoSave();
+      TakeSnapshot();
+      editor_state_ = EditorState::Playing;
+      scene()->ResetFirstUpdate();
+      ImGui::SetWindowFocus("Game");
+      changed = true;
+    }
+    if (compiling) {
+      ImGui::EndDisabled();
+    }
+  } else {
+    if (ImGui::Button("Stop")) {
+      deferred_action_ = DeferredAction::StopPlaying;
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 void EditorLayer::OnPostPresent() {
@@ -3053,15 +2251,6 @@ void EditorLayer::RenderCreateSkyboxPopup() {
 
     ImGui::Separator();
 
-    // Resolve handle to VFS path
-    auto resolve = [](const AssetHandle& h) -> std::string {
-      if (!h.IsValid()) {
-        return "";
-      }
-      const auto* meta = Engine::asset_manager().GetMetadata(h);
-      return meta ? meta->virtual_source_path : "";
-    };
-
     bool can_create = name_buf[0] != '\0';
     if (skybox_type == 0 || skybox_type == 2) {
       can_create = can_create && source_handle.IsValid();
@@ -3075,50 +2264,28 @@ void EditorLayer::RenderCreateSkyboxPopup() {
     }
 
     if (ImGui::Button("Create") && can_create) {
-      nlohmann::json j;
-      j["asset_handle"] = AssetHandle::Generate().ToString();
-
+      auto data = std::make_shared<SkyboxAssetData>();
       if (skybox_type == 0) {
-        j["type"] = "panorama";
-        j["source"] = resolve(source_handle);
+        data->type = SkyboxType::Panorama;
+        data->source_handle = source_handle;
       } else if (skybox_type == 1) {
-        j["type"] = "cubemap";
-        j["faces"] = {
-            {"right", resolve(face_handles[0])},
-            {"left", resolve(face_handles[1])},
-            {"top", resolve(face_handles[2])},
-            {"bottom", resolve(face_handles[3])},
-            {"front", resolve(face_handles[4])},
-            {"back", resolve(face_handles[5])},
-        };
+        data->type = SkyboxType::Cubemap;
+        for (int i = 0; i < 6; i++) {
+          data->face_handles[i] = face_handles[i];
+        }
       } else {
-        j["type"] = "cross";
-        j["source"] = resolve(source_handle);
+        data->type = SkyboxType::Cross;
+        data->source_handle = source_handle;
       }
 
-      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-      if (physical_app.has_value()) {
-        namespace fs = std::filesystem;
-        fs::path base = fs::absolute(*physical_app);
-        if (!browser_current_dir_.empty()) {
-          base = base / browser_current_dir_;
-        }
-        fs::path file_path = base / (std::string(name_buf) + ".wskybox");
-        {
-          std::ofstream out(file_path);
-          if (out.is_open()) {
-            out << j.dump(2);
-          }
-        }
+      std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
+                             std::string(name_buf) + ".wskybox";
+      AssetHandle new_handle = AssetSerializerRegistry::Create<SkyboxAssetData>(
+          name_buf, AssetType::Skybox, vfs_path, data);
+      if (new_handle.IsValid()) {
         ScanProjectAssets();
-
-        // Auto-select the new skybox on the scene
-        std::string handle_str = j["asset_handle"].get<std::string>();
-        AssetHandle new_handle = AssetHandle::FromString(handle_str);
-        if (new_handle.IsValid()) {
-          scene()->SetSkyboxAsset(new_handle);
-          scene_dirty_ = true;
-        }
+        scene()->SetSkyboxAsset(new_handle);
+        scene_dirty_ = true;
       }
 
       name_buf[0] = '\0';
@@ -3138,20 +2305,17 @@ void EditorLayer::RenderCreateSkyboxPopup() {
   }
 }
 
-// Helper: write a .wsprite JSON file and rescan assets
-static void WriteSpriteFile(const std::filesystem::path& file_path,
-                            const AssetHandle& texture_handle,
-                            float x, float y, float w, float h,
-                            float pivot_x, float pivot_y) {
-  nlohmann::json j;
-  j["asset_handle"] = AssetHandle::Generate().ToString();
-  j["texture"] = texture_handle.ToString();
-  j["rect"] = {x, y, w, h};
-  j["pivot"] = {pivot_x, pivot_y};
-  std::ofstream out(file_path);
-  if (out.is_open()) {
-    out << j.dump(2);
-  }
+static AssetHandle CreateSpriteAsset(const std::string& vfs_path,
+                                     const AssetHandle& texture_handle,
+                                     float x, float y, float w, float h,
+                                     float pivot_x, float pivot_y) {
+  auto data = std::make_shared<SpriteAssetData>();
+  data->texture_handle = texture_handle;
+  data->rect = {x, y, w, h};
+  data->pivot = {pivot_x, pivot_y};
+  std::string name = VirtualFileSystem::Stem(vfs_path);
+  return AssetSerializerRegistry::Create<SpriteAssetData>(
+      name, AssetType::Sprite, vfs_path, data);
 }
 
 void EditorLayer::RenderCreateSpritePopup() {
@@ -3219,19 +2383,12 @@ void EditorLayer::RenderCreateSpritePopup() {
     ImGui::Separator();
     bool can_create = name_buf[0] != '\0' && texture_handle.IsValid();
     if (ImGui::Button("Create") && can_create) {
-      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-      if (physical_app.has_value()) {
-        namespace fs = std::filesystem;
-        fs::path base = fs::absolute(*physical_app);
-        if (!browser_current_dir_.empty()) {
-          base = base / browser_current_dir_;
-        }
-        fs::path file_path = base / (std::string(name_buf) + ".wsprite");
-        WriteSpriteFile(file_path, texture_handle,
-                        rect[0], rect[1], rect[2], rect[3],
-                        pivot[0], pivot[1]);
-        ScanProjectAssets();
-      }
+      std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
+                             std::string(name_buf) + ".wsprite";
+      CreateSpriteAsset(vfs_path, texture_handle,
+                      rect[0], rect[1], rect[2], rect[3],
+                      pivot[0], pivot[1]);
+      ScanProjectAssets();
       name_buf[0] = '\0';
       texture_handle = {};
       ImGui::CloseCurrentPopup();
@@ -3349,27 +2506,19 @@ void EditorLayer::RenderSliceSpritesPopup() {
     ImGui::Separator();
     bool can_create = prefix_buf[0] != '\0';
     if (ImGui::Button("Slice") && can_create) {
-      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-      if (physical_app.has_value()) {
-        namespace fs = std::filesystem;
-        fs::path base = fs::absolute(*physical_app);
-        if (!browser_current_dir_.empty()) {
-          base = base / browser_current_dir_;
+      std::string base_vfs = asset_browser_panel_.browser().CurrentVfsDir();
+      for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < columns; c++) {
+          int idx = r * columns + c;
+          std::string name =
+              std::string(prefix_buf) + "_" + std::to_string(idx);
+          std::string vfs_path = base_vfs + name + ".wsprite";
+          CreateSpriteAsset(vfs_path, slice_texture_handle_,
+                          c * cell_w, r * cell_h, cell_w, cell_h,
+                          pivot[0], pivot[1]);
         }
-
-        for (int r = 0; r < rows; r++) {
-          for (int c = 0; c < columns; c++) {
-            int idx = r * columns + c;
-            std::string name =
-                std::string(prefix_buf) + "_" + std::to_string(idx);
-            fs::path file_path = base / (name + ".wsprite");
-            WriteSpriteFile(file_path, slice_texture_handle_,
-                            c * cell_w, r * cell_h, cell_w, cell_h,
-                            pivot[0], pivot[1]);
-          }
-        }
-        ScanProjectAssets();
       }
+      ScanProjectAssets();
       prefix_buf[0] = '\0';
       slice_texture_handle_ = {};
       ImGui::CloseCurrentPopup();
@@ -3481,43 +2630,24 @@ void EditorLayer::RenderCreateSpriteControllerPopup() {
 
     bool can_create = name_buf[0] != '\0' && !state_entries.empty();
     if (ImGui::Button("Create") && can_create) {
-      nlohmann::json j;
-      j["asset_handle"] = AssetHandle::Generate().ToString();
-      j["default_state"] = default_state_name;
-
-      nlohmann::json states_json = nlohmann::json::array();
+      auto data = std::make_shared<SpriteControllerAssetData>();
+      data->default_state = default_state_name;
       for (auto& s : state_entries) {
         if (s.name[0] == '\0') {
           continue;
         }
-        nlohmann::json sj;
-        sj["name"] = s.name;
-        if (s.anim_handle.IsValid()) {
-          sj["animation"] = s.anim_handle.ToString();
-        }
-        sj["speed"] = s.speed;
-        states_json.push_back(sj);
+        SpriteControllerAssetData::State state;
+        state.name = s.name;
+        state.animation_handle = s.anim_handle;
+        state.speed = s.speed;
+        data->states.push_back(std::move(state));
       }
-      j["states"] = states_json;
-      j["transitions"] = nlohmann::json::array();
 
-      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-      if (physical_app.has_value()) {
-        namespace fs = std::filesystem;
-        fs::path base = fs::absolute(*physical_app);
-        if (!browser_current_dir_.empty()) {
-          base = base / browser_current_dir_;
-        }
-        fs::path file_path =
-            base / (std::string(name_buf) + ".wspritecontroller");
-        {
-          std::ofstream out(file_path);
-          if (out.is_open()) {
-            out << j.dump(2);
-          }
-        }
-        ScanProjectAssets();
-      }
+      std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
+                             std::string(name_buf) + ".wspritecontroller";
+      AssetSerializerRegistry::Create<SpriteControllerAssetData>(
+          name_buf, AssetType::SpriteController, vfs_path, data);
+      ScanProjectAssets();
 
       name_buf[0] = '\0';
       default_state_name.clear();
@@ -4380,7 +3510,7 @@ void EditorLayer::RenderMainMenuBar() {
       if (project()) {
         info = project()->GetSettings().name;
         if (!current_scene_path_.empty()) {
-          info += " - " + current_scene_path_.filename().string();
+          info += " - " + VirtualFileSystem::Stem(current_scene_path_);
         }
         if (scene_dirty_) {
           info += " *";
@@ -4543,7 +3673,9 @@ void EditorLayer::RenderMainMenuBar() {
       has_selected_entity_ = true;
       scroll_to_selected_ = true;
       scene_dirty_ = true;
-    } catch (...) {}
+    } catch (const std::exception& e) {
+      LOG_ERROR("Failed to paste entity: {}", e.what());
+    }
   }
 
   // Entity duplicate (Ctrl+D)
@@ -4602,7 +3734,7 @@ void EditorLayer::NewProject() {
 
         // Create the default scene file
         ClearScene();
-        current_scene_path_ = project->GetScenesDirectory() / "main.wscene";
+        current_scene_path_ = "app://scenes/main.wscene";
         SaveScene();
 
         ScanProjectAssets();
@@ -4649,29 +3781,24 @@ void EditorLayer::SaveProject() {
 }
 
 void EditorLayer::NewScene() {
-  auto project = active_project_;
-  if (!project) {
+  if (!project()) {
     return;
   }
 
-  // Auto-save current scene before creating new one
   AutoSave();
 
-  // Generate a unique name
-  namespace fs = std::filesystem;
-  fs::path scenes_dir = project->GetScenesDirectory();
-  fs::create_directories(scenes_dir);
+  Engine::vfs()->CreateDirectory("app://scenes");
 
   std::string base_name = "new_scene";
-  fs::path scene_path = scenes_dir / (base_name + ".wscene");
+  std::string vfs_path = "app://scenes/" + base_name + ".wscene";
   int counter = 1;
-  while (fs::exists(scene_path)) {
-    scene_path =
-        scenes_dir / (base_name + "_" + std::to_string(counter++) + ".wscene");
+  while (Engine::vfs()->FileExists(vfs_path)) {
+    vfs_path = "app://scenes/" + base_name + "_" +
+               std::to_string(counter++) + ".wscene";
   }
 
   ClearScene();
-  current_scene_path_ = fs::absolute(scene_path);
+  current_scene_path_ = vfs_path;
   SaveScene();
   ScanProjectAssets();
   UpdateWindowTitle();
@@ -4682,12 +3809,7 @@ void EditorLayer::OpenScene(const std::string& vfs_path) {
 
   Engine::scene_manager().LoadSceneFromPath(vfs_path);
 
-  // Resolve physical path for editor state (save target)
-  std::optional<std::filesystem::path> physical =
-      Engine::vfs()->GetPhysicalPath(vfs_path);
-  if (physical.has_value()) {
-    current_scene_path_ = *physical;
-  }
+  current_scene_path_ = vfs_path;
   scene_dirty_ = false;
 
   // Track last opened scene in project
@@ -4710,71 +3832,41 @@ void EditorLayer::SaveScene() {
   }
 
   // Ensure parent directory exists
-  std::filesystem::create_directories(current_scene_path_.parent_path());
+  Engine::vfs()->CreateDirectory(VirtualFileSystem::Parent(current_scene_path_));
 
-  if (SaveSceneToFile(scene(), current_scene_path_)) {
+  // Resolve VFS to physical for SaveSceneToFile (needs std::ofstream)
+  auto physical = Engine::vfs()->ResolvePhysicalPath(current_scene_path_);
+  if (!physical) {
+    LOG_ERROR("Cannot resolve scene path: {}", current_scene_path_);
+    return;
+  }
+
+  if (SaveSceneToFile(scene(), *physical)) {
     scene_dirty_ = false;
     UpdateWindowTitle();
-
     auto_save_timer_ = 0.0f;
 
-    // Register with SceneManager
-    auto project = active_project_;
-    if (project) {
-      project->Save();
+    if (project()) {
+      project()->Save();
 
-      auto rel = std::filesystem::relative(current_scene_path_,
-                                           project->GetAssetsDirectory());
-      std::string scene_name = current_scene_path_.stem().string();
+      std::string scene_name = VirtualFileSystem::Stem(current_scene_path_);
       Engine::scene_manager().RegisterScene(scene_name, current_scene_path_);
 
-      // Register scene asset if not already in asset browser
-      auto vfs_path = "app://" + rel.generic_string();
-      auto& mgr = Engine::asset_manager();
-      bool found = false;
-      for (auto& h : mgr.GetAll()) {
-        const auto* meta = mgr.GetMetadata(h);
-        if (meta && meta->virtual_source_path == vfs_path) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        mgr.Register(scene_name, AssetType::Scene, vfs_path);
+      AssetManager& mgr = Engine::asset_manager();
+      if (!mgr.FindBySourcePath(current_scene_path_).IsValid()) {
+        mgr.Register(scene_name, AssetType::Scene, current_scene_path_);
       }
     }
   }
 }
 
 void EditorLayer::SaveSceneAs() {
-  Dialogs::SaveFileDialog(
-      {{"Wiesel Scene", "wscene"}}, [this](const std::string& file) {
-        if (file.empty()) {
-          return;
-        }
-
-        std::filesystem::path path(file);
-        if (path.extension() != ".wscene") {
-          path += ".wscene";
-        }
-
-        // If a project is open, ensure the scene is saved inside the assets dir
-        auto project = active_project_;
-        if (project) {
-          namespace fs = std::filesystem;
-          fs::path abs = fs::absolute(path);
-          fs::path assets = fs::absolute(project->GetAssetsDirectory());
-          auto rel = fs::relative(abs, assets);
-          if (rel.string().find("..") != std::string::npos) {
-            // Outside project assets - redirect into assets/scenes/
-            path = project->GetScenesDirectory() / path.filename();
-          }
-        }
-
-        current_scene_path_ = std::filesystem::absolute(path);
-        SaveScene();
-        ScanProjectAssets();
-      });
+  file_picker_.OpenSave("Save Scene As", ".wscene",
+                        [this](const std::string& vfs_path) {
+                          current_scene_path_ = vfs_path;
+                          SaveScene();
+                          ScanProjectAssets();
+                        });
 }
 
 void EditorLayer::ClearScene() {
@@ -4810,9 +3902,9 @@ void EditorLayer::UpdateWindowTitle() {
     title += " - " + project->GetSettings().name;
   }
   if (editing_prefab_) {
-    title += " - [Prefab] " + editing_prefab_path_.filename().string();
+    title += " - [Prefab] " + editing_prefab_path_;
   } else if (!current_scene_path_.empty()) {
-    title += " - " + current_scene_path_.filename().string();
+    title += " - " + VirtualFileSystem::Stem(current_scene_path_);
   }
   if (scene_dirty_) {
     title += " *";
@@ -4825,12 +3917,15 @@ void EditorLayer::AutoSave() {
     return;
   }
 
-  if (SaveSceneToFile(scene(), current_scene_path_)) {
+  auto physical = Engine::vfs()->ResolvePhysicalPath(current_scene_path_);
+  if (!physical) {
+    return;
+  }
+  if (SaveSceneToFile(scene(), *physical)) {
     scene_dirty_ = false;
     auto_save_timer_ = 0.0f;
     UpdateWindowTitle();
-
-    LOG_DEBUG("Auto-saved scene: {}", current_scene_path_.filename().string());
+    LOG_DEBUG("Auto-saved scene: {}", current_scene_path_);
   }
 }
 
@@ -5345,7 +4440,7 @@ void EditorLayer::RenderStartupDialog() {
   ImGui::End();
 }
 
-void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
+void EditorLayer::OpenPrefabForEditing(const std::string& vfs_path) {
   namespace fs = std::filesystem;
 
   // Save current scene state
@@ -5354,9 +4449,9 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
 
   // Clear scene and load prefab as a temporary scene
   ClearScene();
-  Entity root = Prefab::InstantiateFromFile(scene(), path);
+  Entity root = Prefab::InstantiateFromFile(scene(), vfs_path);
   if (root.handle() == entt::null) {
-    LOG_ERROR("Failed to open prefab for editing: {}", path.string());
+    LOG_ERROR("Failed to open prefab for editing: {}", vfs_path);
     // Restore previous scene
     if (!prefab_return_scene_path_.empty()) {
       OpenScene(prefab_return_scene_path_);
@@ -5365,7 +4460,7 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
   }
 
   editing_prefab_ = true;
-  editing_prefab_path_ = fs::absolute(path);
+  editing_prefab_path_ = vfs_path;
   current_scene_path_.clear();
   scene_dirty_ = false;
   UpdateWindowTitle();
@@ -5377,7 +4472,7 @@ void EditorLayer::OpenPrefabForEditing(const std::filesystem::path& path) {
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
-  LOG_INFO("Editing prefab: {}", path.string());
+  LOG_INFO("Editing prefab: {}", vfs_path);
 }
 
 void EditorLayer::SavePrefab() {
@@ -5395,7 +4490,7 @@ void EditorLayer::SavePrefab() {
   Entity root = {hierarchy[0], scene().get()};
   if (Prefab::SaveToFile(root, editing_prefab_path_)) {
     scene_dirty_ = false;
-    LOG_INFO("Prefab saved: {}", editing_prefab_path_.string());
+    LOG_INFO("Prefab saved: {}", editing_prefab_path_);
   }
 }
 
