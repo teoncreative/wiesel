@@ -11,148 +11,165 @@
 
 #include "physics/w_rigidbody.h"
 
-#include <btBulletDynamicsCommon.h>
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Body/BodyInterface.h>
+#include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+
+JPH_SUPPRESS_WARNINGS
 
 namespace Wiesel {
 
-static btRigidBody* GetBody(void* ptr) {
-  return static_cast<btRigidBody*>(ptr);
+static JPH::BodyInterface& GetBodyInterface(void* sys) {
+  return static_cast<JPH::PhysicsSystem*>(sys)->GetBodyInterface();
+}
+
+static JPH::BodyID GetBodyID(uint32_t raw) {
+  return JPH::BodyID(raw);
+}
+
+static JPH::Vec3 ToJolt(const glm::vec3& v) {
+  return JPH::Vec3(v.x, v.y, v.z);
+}
+
+static glm::vec3 ToGlm(JPH::Vec3 v) {
+  return glm::vec3(v.GetX(), v.GetY(), v.GetZ());
 }
 
 bool RigidBodyComponent::HasBody() const {
-  return bt_body_ptr != nullptr;
+  return physics_system_ptr != nullptr && body_id_raw != ~0u;
 }
 
 glm::vec3 RigidBodyComponent::GetLinearVelocity() const {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return glm::vec3(0.0f);
   }
-  const btVector3& v = body->getLinearVelocity();
-  return {v.x(), v.y(), v.z()};
+  return ToGlm(GetBodyInterface(physics_system_ptr)
+                   .GetLinearVelocity(GetBodyID(body_id_raw)));
 }
 
 void RigidBodyComponent::SetLinearVelocity(const glm::vec3& v) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->setLinearVelocity(btVector3(v.x, v.y, v.z));
-  body->activate(true);
+  GetBodyInterface(physics_system_ptr)
+      .SetLinearVelocity(GetBodyID(body_id_raw), ToJolt(v));
 }
 
 glm::vec3 RigidBodyComponent::GetAngularVelocity() const {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return glm::vec3(0.0f);
   }
-  const btVector3& v = body->getAngularVelocity();
-  return {v.x(), v.y(), v.z()};
+  return ToGlm(GetBodyInterface(physics_system_ptr)
+                   .GetAngularVelocity(GetBodyID(body_id_raw)));
 }
 
 void RigidBodyComponent::SetAngularVelocity(const glm::vec3& v) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->setAngularVelocity(btVector3(v.x, v.y, v.z));
-  body->activate(true);
+  GetBodyInterface(physics_system_ptr)
+      .SetAngularVelocity(GetBodyID(body_id_raw), ToJolt(v));
 }
 
 void RigidBodyComponent::AddForce(const glm::vec3& force) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->activate(true);
-  body->applyCentralForce(btVector3(force.x, force.y, force.z));
+  auto& bi = GetBodyInterface(physics_system_ptr);
+  bi.ActivateBody(GetBodyID(body_id_raw));
+  bi.AddForce(GetBodyID(body_id_raw), ToJolt(force));
 }
 
 void RigidBodyComponent::AddImpulse(const glm::vec3& impulse) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->activate(true);
-  body->applyCentralImpulse(btVector3(impulse.x, impulse.y, impulse.z));
+  auto& bi = GetBodyInterface(physics_system_ptr);
+  bi.ActivateBody(GetBodyID(body_id_raw));
+  bi.AddImpulse(GetBodyID(body_id_raw), ToJolt(impulse));
 }
 
 void RigidBodyComponent::AddForceAtPosition(const glm::vec3& force,
                                             const glm::vec3& position) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->activate(true);
-  body->applyForce(btVector3(force.x, force.y, force.z),
-                   btVector3(position.x, position.y, position.z));
+  auto& bi = GetBodyInterface(physics_system_ptr);
+  bi.ActivateBody(GetBodyID(body_id_raw));
+  bi.AddForce(GetBodyID(body_id_raw), ToJolt(force),
+              JPH::RVec3(position.x, position.y, position.z));
 }
 
 void RigidBodyComponent::AddImpulseAtPosition(const glm::vec3& impulse,
                                               const glm::vec3& position) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->activate(true);
-  body->applyImpulse(btVector3(impulse.x, impulse.y, impulse.z),
-                     btVector3(position.x, position.y, position.z));
+  auto& bi = GetBodyInterface(physics_system_ptr);
+  bi.ActivateBody(GetBodyID(body_id_raw));
+  bi.AddImpulse(GetBodyID(body_id_raw), ToJolt(impulse),
+                JPH::RVec3(position.x, position.y, position.z));
 }
 
 void RigidBodyComponent::AddTorque(const glm::vec3& torque) {
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
+  if (!HasBody()) {
     return;
   }
-  body->activate(true);
-  body->applyTorque(btVector3(torque.x, torque.y, torque.z));
+  auto& bi = GetBodyInterface(physics_system_ptr);
+  bi.ActivateBody(GetBodyID(body_id_raw));
+  bi.AddTorque(GetBodyID(body_id_raw), ToJolt(torque));
 }
 
 void RigidBodyComponent::SetFrictionRuntime(float v) {
   friction = v;
-  auto* body = GetBody(bt_body_ptr);
-  if (body) {
-    body->setFriction(v);
+  if (HasBody()) {
+    GetBodyInterface(physics_system_ptr).SetFriction(GetBodyID(body_id_raw), v);
   }
 }
 
 void RigidBodyComponent::SetRestitutionRuntime(float v) {
   restitution = v;
-  auto* body = GetBody(bt_body_ptr);
-  if (body) {
-    body->setRestitution(v);
+  if (HasBody()) {
+    GetBodyInterface(physics_system_ptr)
+        .SetRestitution(GetBodyID(body_id_raw), v);
   }
 }
 
 void RigidBodyComponent::SetLinearDampingRuntime(float v) {
   linear_damping = v;
-  auto* body = GetBody(bt_body_ptr);
-  if (body) {
-    body->setDamping(v, angular_damping);
+  if (HasBody()) {
+    auto* system = static_cast<JPH::PhysicsSystem*>(physics_system_ptr);
+    JPH::BodyLockWrite lock(system->GetBodyLockInterface(),
+                            GetBodyID(body_id_raw));
+    if (lock.Succeeded()) {
+      lock.GetBody().GetMotionProperties()->SetLinearDamping(v);
+    }
   }
 }
 
 void RigidBodyComponent::SetAngularDampingRuntime(float v) {
   angular_damping = v;
-  auto* body = GetBody(bt_body_ptr);
-  if (body) {
-    body->setDamping(linear_damping, v);
+  if (HasBody()) {
+    auto* system = static_cast<JPH::PhysicsSystem*>(physics_system_ptr);
+    JPH::BodyLockWrite lock(system->GetBodyLockInterface(),
+                            GetBodyID(body_id_raw));
+    if (lock.Succeeded()) {
+      lock.GetBody().GetMotionProperties()->SetAngularDamping(v);
+    }
   }
 }
 
 void RigidBodyComponent::SetMassRuntime(float v) {
   mass = v;
-  is_dirty = true;
-  auto* body = GetBody(bt_body_ptr);
-  if (!body) {
-    return;
+  if (HasBody() && v > 0.0f) {
+    auto* system = static_cast<JPH::PhysicsSystem*>(physics_system_ptr);
+    JPH::BodyLockWrite lock(system->GetBodyLockInterface(),
+                            GetBodyID(body_id_raw));
+    if (lock.Succeeded() && lock.GetBody().GetMotionProperties()) {
+      lock.GetBody().GetMotionProperties()->SetInverseMass(1.0f / v);
+    }
   }
-  btVector3 inertia(0, 0, 0);
-  if (v > 0.0f) {
-    body->getCollisionShape()->calculateLocalInertia(v, inertia);
-  }
-  body->setMassProps(v, inertia);
-  body->updateInertiaTensor();
 }
 
 }  // namespace Wiesel

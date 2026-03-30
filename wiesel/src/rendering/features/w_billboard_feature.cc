@@ -108,7 +108,7 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/quad_shader.frag"});
 
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, true, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, true, false, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);

@@ -36,7 +36,7 @@ MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
                                        "main", ShaderSourceSource,
                                        "engine://shaders/motion_blur.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("Postprocess2Input"));

@@ -178,7 +178,7 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/quad_shader.frag"});
 
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, true, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, true, false, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);
@@ -774,9 +774,9 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
               nh = fh = size;
             }
 
-            // 8 corners in view space (camera looks down -Z)
-            float n = -cam.near_plane;
-            float f = -vis_far;
+            // 8 corners in view space (camera looks down +Z)
+            float n = cam.near_plane;
+            float f = vis_far;
             glm::vec3 view_corners[8] = {
                 {-nw, -nh, n}, {nw, -nh, n}, {nw, nh, n}, {-nw, nh, n},
                 {-fw, -fh, f}, {fw, -fh, f}, {fw, fh, f}, {-fw, fh, f},

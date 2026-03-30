@@ -38,7 +38,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/bloom_extract.frag"});
   extract_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   extract_pipeline_->SetRenderPass(render_pass_);
   extract_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   extract_pipeline_->AddPushConstant(push_constants_,
@@ -52,7 +52,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/bloom_blur.frag"});
   blur_h_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   blur_h_pipeline_->SetRenderPass(render_pass_);
   blur_h_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   blur_h_pipeline_->AddShader(fullscreen_vert);
@@ -68,7 +68,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
                                "engine://shaders/bloom_blur.frag",
                                {"BLUR_VERTICAL"}});
   blur_v_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   blur_v_pipeline_->SetRenderPass(render_pass_);
   blur_v_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   blur_v_pipeline_->AddShader(fullscreen_vert);
@@ -80,7 +80,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/bloom_composite.frag"});
   composite_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   composite_pipeline_->SetRenderPass(render_pass_);
   composite_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("Postprocess2Input"));

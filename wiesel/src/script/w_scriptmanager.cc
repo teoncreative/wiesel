@@ -17,7 +17,6 @@
 #include "input/w_input.h"
 #include "mono_wrappers.h"
 #include "physics/w_collider.h"
-#include "physics/w_collision_system.h"
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"

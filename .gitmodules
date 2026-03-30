@@ -31,9 +31,6 @@
 [submodule "vendor/VulkanMemoryAllocator"]
 	path = vendor/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-[submodule "vendor/bullet3"]
-	path = vendor/bullet3
-	url = https://github.com/bulletphysics/bullet3.git
 [submodule "vendor/recastnavigation"]
 	path = vendor/recastnavigation
 	url = https://github.com/recastnavigation/recastnavigation.git
@@ -52,3 +49,6 @@
 [submodule "vendor/ImGuiColorTextEdit"]
 	path = vendor/ImGuiColorTextEdit
 	url = https://github.com/teoncreative/ImGuiColorTextEdit
+[submodule "vendor/JoltPhysics"]
+	path = vendor/JoltPhysics
+	url = https://github.com/jrouwe/JoltPhysics.git

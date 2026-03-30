@@ -33,12 +33,16 @@ struct RigidBodyComponent : public IComponent {
   bool lock_rotation_x = false;
   bool lock_rotation_y = false;
   bool lock_rotation_z = false;
-  bool is_dirty = true;
+
+  // Set to true when body properties change that require body recreation
+  // (e.g. type change). Transform changes are handled via TransformComponent.
+  bool needs_recreate = true;
 
   // Runtime only - set by PhysicsWorld after body creation
-  void* bt_body_ptr = nullptr;
+  uint32_t body_id_raw = ~0u;
+  void* physics_system_ptr = nullptr;
 
-  // Runtime API - reads/writes Bullet state through bt_body_ptr.
+  // Runtime API - reads/writes Jolt state through body_id_raw.
   // Returns zero vectors when no body exists yet.
   bool HasBody() const;
 
@@ -55,7 +59,7 @@ struct RigidBodyComponent : public IComponent {
                             const glm::vec3& position);
   void AddTorque(const glm::vec3& torque);
 
-  // Setters that update both the component field AND the live Bullet body
+  // Setters that update both the component field AND the live Jolt body
   void SetFrictionRuntime(float v);
   void SetRestitutionRuntime(float v);
   void SetLinearDampingRuntime(float v);

@@ -46,7 +46,7 @@ ToonFeature::ToonFeature(std::shared_ptr<Renderer> renderer)
                                        "main", ShaderSourceSource,
                                        "engine://shaders/toon_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(toon_input_layout_);
   pipeline_->AddPushConstant(push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);

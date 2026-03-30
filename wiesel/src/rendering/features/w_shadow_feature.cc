@@ -34,7 +34,7 @@ ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
                                        "main", ShaderSourceSource,
                                        "engine://shaders/shadow_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, true, true});
+      SamplingMode::DISABLED, CullModeBack, false, false, true, true});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());

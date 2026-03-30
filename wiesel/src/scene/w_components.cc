@@ -14,11 +14,11 @@
 namespace Wiesel {
 
 glm::vec3 TransformComponent::GetForward() {
-  return -glm::normalize(transform_matrix_[2]);
+  return glm::normalize(transform_matrix_[2]);
 }
 
 glm::vec3 TransformComponent::GetBackward() {
-  return glm::normalize(transform_matrix_[2]);
+  return -glm::normalize(transform_matrix_[2]);
 }
 
 glm::vec3 TransformComponent::GetLeft() {

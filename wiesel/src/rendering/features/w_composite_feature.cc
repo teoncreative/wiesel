@@ -39,7 +39,7 @@ CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/quad_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
+      renderer_->options().msaa_mode, CullModeBack, false, true, true, false});
   pipeline_->SetRenderPass(render_pass_);
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   pipeline_->AddShader(fullscreen_vert);

@@ -45,13 +45,13 @@ vec3 getNoise(vec2 uv) {
 void main() {
     float linearDepth = texture(samplerDepth, inUV).r;
 
-    // Reconstruct view-space position (camera looks down -Z)
+    // Reconstruct view-space position (camera looks down +Z, left-handed)
     vec2 ndc = inUV * 2.0 - 1.0;
     vec4 clip = vec4(ndc, 1.0, 1.0);
     vec4 vd   = cam.invProjection * clip;
     vec3 viewRay = vd.xyz / vd.w;
-    vec3 viewPos = viewRay * (-linearDepth / viewRay.z);
-    // viewPos.z is now negative (standard view space)
+    vec3 viewPos = viewRay * (linearDepth / viewRay.z);
+    // viewPos.z is now positive (left-handed view space)
 
     // Decode world-space normal → view space
     vec3 worldNormal = normalize(texture(samplerNormal, inUV).rgb * 2.0 - 1.0);

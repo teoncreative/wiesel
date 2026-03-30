@@ -18,7 +18,6 @@
 #include "audio/w_audio.h"
 #include "input/w_input.h"
 #include "physics/w_collider.h"
-#include "physics/w_collision_system.h"
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
@@ -1481,7 +1480,7 @@ int32_t Internals_RigidBody_GetType(Scene* scene, entt::entity entity) {
 void Internals_RigidBody_SetType(Scene* scene, entt::entity entity, int32_t v) {
   auto& rb = scene->GetComponent<RigidBodyComponent>(entity);
   rb.type = (RigidBodyType)v;
-  rb.is_dirty = true;
+  rb.needs_recreate = true;
 }
 
 float Internals_RigidBody_GetMass(Scene* scene, entt::entity entity) {

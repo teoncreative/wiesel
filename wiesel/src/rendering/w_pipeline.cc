@@ -220,7 +220,7 @@ void Pipeline::Bake() {
       rasterizer.cullMode = VK_CULL_MODE_FRONT_AND_BACK;
       break;
   }
-  rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
   bool use_depth_bias = properties_.depth_bias_constant != 0.0f ||
                         properties_.depth_bias_slope != 0.0f;

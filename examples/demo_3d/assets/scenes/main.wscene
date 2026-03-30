@@ -81,6 +81,7 @@
           "fields": {
             "camRotX": 0.0,
             "camRotY": 0.0,
+            "jumpForce": 8.0,
             "mouseSensitivity": 2.0,
             "moveSpeed": 5.0
           },
@@ -110,13 +111,13 @@
       "RigidBody": {
         "angular_damping": 0.05000000074505806,
         "friction": 0.5,
-        "linear_damping": 0.0,
+        "linear_damping": 0.5,
         "lock_position_x": false,
         "lock_position_y": false,
         "lock_position_z": false,
-        "lock_rotation_x": false,
-        "lock_rotation_y": false,
-        "lock_rotation_z": false,
+        "lock_rotation_x": true,
+        "lock_rotation_y": true,
+        "lock_rotation_z": true,
         "mass": 1.0,
         "restitution": 0.0,
         "type": 2
@@ -287,6 +288,40 @@
       },
       "name": "Point Light",
       "uuid": "034e6dd7-8698-4cfd-95bc-72218df07966"
+    },
+    {
+      "Model": {
+        "asset_handle": "00000000-0000-4000-8000-000000000001",
+        "enable_rendering": true,
+        "material_slots": [
+          null
+        ],
+        "receive_shadows": true
+      },
+      "Transform": {
+        "pivot": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Cube",
+      "uuid": "11344cc5-b2a8-41b7-87cc-cdc250ae516b"
     }
   ]
 }

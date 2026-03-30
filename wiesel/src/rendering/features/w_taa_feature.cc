@@ -36,7 +36,7 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
                                            "main", ShaderSourceSource,
                                            "engine://shaders/taa.frag"});
   taa_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   taa_pipeline_->SetRenderPass(render_pass_);
   taa_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("TAA"));
   taa_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
@@ -49,7 +49,7 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/quad_shader.frag"});
   copy_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, false, false, false});
+      SamplingMode::DISABLED, CullModeBack, false, false, false, false});
   copy_pipeline_->SetRenderPass(render_pass_);
   copy_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   copy_pipeline_->AddShader(fullscreen_vert);

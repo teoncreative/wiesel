@@ -138,7 +138,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     float zMargin = radius;
     glm::mat4 lightOrthoMatrix =
         glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y,
-                   -lightZMax - zMargin, -lightZMin + zMargin);
+                   lightZMin - zMargin, lightZMax + zMargin);
     lightOrthoMatrix[1][1] *= -1;
 
     // Texel-space snapping: prevents shadow edge swimming when camera moves
@@ -154,8 +154,7 @@ void CameraComponent::ComputeCascades(const glm::vec3& lightDir) {
     lightOrthoMatrix[3][1] += (roundedOrigin.y - shadowOrigin.y) / halfDim;
 
     // Store split distance and matrix in cascade
-    shadow_map_cascades[i].SplitDepth =
-        (effectiveNear + splitDist * clipRange) * -1.0f;
+    shadow_map_cascades[i].SplitDepth = effectiveNear + splitDist * clipRange;
     shadow_map_cascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
     lastSplitDist = cascadeSplits[i];
   }

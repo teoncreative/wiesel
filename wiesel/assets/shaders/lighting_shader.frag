@@ -357,7 +357,7 @@ void main() {
     uint cascadeIndex = 0;
     if (shadowMatrices.enableShadows != 0 && sunAmbient > 0.0) {
         for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
-            if (viewPos.z < cam.cascadeSplits[i]) {
+            if (viewPos.z > cam.cascadeSplits[i]) {
                 cascadeIndex = i + 1;
             }
         }

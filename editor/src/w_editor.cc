@@ -347,11 +347,10 @@ void EditorLayer::OnAttach() {
   // Initialize editor free camera
   editor_camera_transform_.SetPosition(glm::vec3(0.0f, 5.0f, -10.0f));
   editor_camera_transform_.SetScale(glm::vec3(1.0f));
+  editor_yaw_ = 0.0f;
+  editor_pitch_ = -15.0f;
   editor_camera_transform_.SetRotation(
       glm::vec3(editor_pitch_, editor_yaw_, 0.0f));
-  editor_yaw_ =
-      180.0f;  // facing +Z (quat look = -sin(y),-cos(y) so 180 gives +Z)
-  editor_pitch_ = -15.0f;  // slightly looking down
 
   editor_camera_.viewport_size = {1920, 1080};
   editor_camera_.far_plane = 500.0f;
@@ -516,12 +515,12 @@ bool EditorLayer::OnMouseMoved(MouseMovedEvent& event) {
       // 2D mode: right-click drag = pan
       float pan_speed = editor_2d_zoom_ * 0.003f;
       editor_camera_transform_.Move(event.GetDeltaX() * pan_speed, 0, 0);
-      editor_camera_transform_.Move(0, -event.GetDeltaX() * pan_speed, 0);
+      editor_camera_transform_.Move(0, event.GetDeltaX() * pan_speed, 0);
       editor_camera_transform_.MarkChanged();
     } else {
       // Free mode: right-click drag = look
-      editor_yaw_ -= event.GetDeltaX() * mouse_sensitivity_;
-      editor_pitch_ -= event.GetDeltaY() * mouse_sensitivity_;
+      editor_yaw_ += event.GetDeltaX() * mouse_sensitivity_;
+      editor_pitch_ += event.GetDeltaY() * mouse_sensitivity_;
       editor_pitch_ = glm::clamp(editor_pitch_, -89.0f, 89.0f);
       editor_camera_transform_.SetRotation(editor_pitch_, editor_yaw_, 0.0f);
     }
@@ -1447,11 +1446,11 @@ void EditorLayer::RenderSceneViewportPanel() {
         editor_camera_mode_ = EditorCameraMode::Mode2D;
         editor_camera_.projection_mode = ProjectionMode::Orthographic;
         editor_camera_.ortho_size = editor_2d_zoom_;
-        // Look straight down -Z, position Z behind sprites
+        // Look straight down +Z, position Z behind sprites
         editor_pitch_ = 0.0f;
-        editor_yaw_ = 180.0f;
-        editor_camera_transform_.SetPosition(glm::vec3(0.0f, 180.0f, 5.0f));
-        editor_camera_transform_.SetRotation(glm::vec3(0.0f, 180.0f, 0.0f));
+        editor_yaw_ = 0.0f;
+        editor_camera_transform_.SetPosition(glm::vec3(0.0f, 180.0f, -5.0f));
+        editor_camera_transform_.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
         editor_camera_transform_.MarkChanged();
         editor_camera_.view_changed = true;
         editor_camera_.resources_dirty = true;
@@ -1629,7 +1628,7 @@ void EditorLayer::RenderSceneViewportPanel() {
                 glm::quat(glm::radians(editor_camera_transform_.GetRotation()));
             glm::mat4 R = glm::toMat4(q);
             glm::vec3 cam_right = glm::vec3(R[0]);
-            glm::vec3 cam_forward = -glm::vec3(R[2]);
+            glm::vec3 cam_forward = glm::vec3(R[2]);
 
             if (ImGui::IsKeyDown(ImGuiKey_W)) {
               editor_camera_transform_.Move(cam_forward * speed);
@@ -1667,7 +1666,7 @@ void EditorLayer::RenderSceneViewportPanel() {
               glm::quat q = glm::quat(
                   glm::radians(editor_camera_transform_.GetRotation()));
               glm::mat4 R = glm::toMat4(q);
-              glm::vec3 cam_forward = -glm::vec3(R[2]);
+              glm::vec3 cam_forward = glm::vec3(R[2]);
               editor_camera_transform_.Move(cam_forward * scroll *
                                             camera_speed_ * 0.3f);
             }

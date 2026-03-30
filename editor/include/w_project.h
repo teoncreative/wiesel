@@ -27,7 +27,7 @@ struct ProjectSettings {
   // Editor state (persisted but only used by editor)
   struct EditorCameraState {
     glm::vec3 position = {0, 5, -10};
-    float yaw = 180.0f;
+    float yaw = 0.0f;
     float pitch = -15.0f;
     float speed = 10.0f;
     float sensitivity = 160.0f;

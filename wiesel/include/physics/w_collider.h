@@ -69,8 +69,7 @@ struct HeightfieldColliderComponent : public IComponent {
 
   int width = 0;
   int length = 0;
-  std::vector<float>
-      height_data;  // row-major, owned here (Bullet reads pointer)
+  std::vector<float> height_data;  // row-major, owned here (Jolt reads pointer)
   float min_height = 0.0f;
   float max_height = 1.0f;
   glm::vec3 scale = {1.0f, 1.0f, 1.0f};  // XZ per cell + Y multiplier

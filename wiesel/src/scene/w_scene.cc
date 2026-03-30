@@ -287,7 +287,7 @@ void Scene::OnUpdate(float_t delta_time) {
       }
       auto& transform = registry_.get<TransformComponent>(entity);
       audio.SetListenerPosition(transform.GetPosition());
-      glm::vec3 forward = -glm::vec3(cam.inv_view_matrix[2]);
+      glm::vec3 forward = glm::vec3(cam.inv_view_matrix[2]);
       glm::vec3 up = glm::vec3(cam.inv_view_matrix[1]);
       audio.SetListenerDirection(glm::normalize(forward), glm::normalize(up));
 

@@ -117,7 +117,7 @@ std::unique_ptr<Project> Project::Load(
       ec.position = {ecj["position"][0], ecj["position"][1],
                      ecj["position"][2]};
     }
-    ec.yaw = ecj.value("yaw", 180.0f);
+    ec.yaw = ecj.value("yaw", 0.0f);
     ec.pitch = ecj.value("pitch", -15.0f);
     ec.speed = ecj.value("speed", 10.0f);
     ec.sensitivity = ecj.value("sensitivity", 160.0f);

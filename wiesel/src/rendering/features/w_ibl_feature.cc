@@ -21,34 +21,36 @@
 
 namespace Wiesel {
 
-// 6 cubemap face view matrices (lookAt from origin)
+// 6 cubemap face view matrices (lookAt from origin).
+// Vulkan cubemap layout follows a fixed RH convention regardless of the
+// engine's world-space handedness, so we use explicit RH lookAt/perspective.
 static glm::mat4 CubeFaceView(uint32_t face) {
   switch (face) {
     case 0:
-      return glm::lookAt(glm::vec3(0), glm::vec3(1, 0, 0),
-                         glm::vec3(0, -1, 0));  // +X
+      return glm::lookAtRH(glm::vec3(0), glm::vec3(1, 0, 0),
+                           glm::vec3(0, -1, 0));  // +X
     case 1:
-      return glm::lookAt(glm::vec3(0), glm::vec3(-1, 0, 0),
-                         glm::vec3(0, -1, 0));  // -X
+      return glm::lookAtRH(glm::vec3(0), glm::vec3(-1, 0, 0),
+                           glm::vec3(0, -1, 0));  // -X
     case 2:
-      return glm::lookAt(glm::vec3(0), glm::vec3(0, 1, 0),
-                         glm::vec3(0, 0, 1));  // +Y
+      return glm::lookAtRH(glm::vec3(0), glm::vec3(0, 1, 0),
+                           glm::vec3(0, 0, 1));  // +Y
     case 3:
-      return glm::lookAt(glm::vec3(0), glm::vec3(0, -1, 0),
-                         glm::vec3(0, 0, -1));  // -Y
+      return glm::lookAtRH(glm::vec3(0), glm::vec3(0, -1, 0),
+                           glm::vec3(0, 0, -1));  // -Y
     case 4:
-      return glm::lookAt(glm::vec3(0), glm::vec3(0, 0, 1),
-                         glm::vec3(0, -1, 0));  // +Z
+      return glm::lookAtRH(glm::vec3(0), glm::vec3(0, 0, 1),
+                           glm::vec3(0, -1, 0));  // +Z
     case 5:
-      return glm::lookAt(glm::vec3(0), glm::vec3(0, 0, -1),
-                         glm::vec3(0, -1, 0));  // -Z
+      return glm::lookAtRH(glm::vec3(0), glm::vec3(0, 0, -1),
+                           glm::vec3(0, -1, 0));  // -Z
     default:
       return glm::mat4(1.0f);
   }
 }
 
 static glm::mat4 CubeProjection() {
-  return glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+  return glm::perspectiveRH_ZO(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 }
 
 IBLFeature::IBLFeature(std::shared_ptr<Renderer> renderer)

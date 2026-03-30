@@ -254,7 +254,7 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/quad_shader.frag"});
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeFront, false, true, true, false});
+      SamplingMode::DISABLED, CullModeBack, false, true, true, false});
   comp_pipeline_->SetRenderPass(comp_render_pass_);
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   comp_pipeline_->AddShader(fullscreen_vert);
@@ -722,7 +722,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         glm::vec3 cam_pos = glm::vec3(cam_world[3]);
         glm::vec3 cam_right = glm::normalize(glm::vec3(cam_world[0]));
         glm::vec3 cam_up = glm::normalize(glm::vec3(cam_world[1]));
-        glm::vec3 cam_forward = -glm::normalize(glm::vec3(cam_world[2]));
+        glm::vec3 cam_forward = glm::normalize(glm::vec3(cam_world[2]));
         glm::vec3 center = cam_pos + cam_forward * canvas.plane_distance;
 
         info.model_matrix = glm::mat4(1.0f);

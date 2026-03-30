@@ -869,29 +869,42 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     int type_idx = (int)component.type;
     if (ImGui::Combo(PrefixLabel("Type").c_str(), &type_idx, types, 3)) {
       component.type = (RigidBodyType)type_idx;
-      component.is_dirty = true;
+      component.needs_recreate = true;
     }
     if (component.type == RigidBodyType::Dynamic) {
-      if (ImGui::DragFloat(PrefixLabel("Mass").c_str(), &component.mass, 0.1f,
-                           0.01f, 10000.0f)) {
-        component.is_dirty = true;
+      float mass = component.mass;
+      if (ImGui::DragFloat(PrefixLabel("Mass").c_str(), &mass, 0.1f, 0.01f,
+                           10000.0f)) {
+        component.SetMassRuntime(mass);
       }
     }
-    if (ImGui::DragFloat(PrefixLabel("Friction").c_str(), &component.friction,
-                         0.01f, 0.0f, 1.0f)) {
-      component.is_dirty = true;
+    {
+      float friction = component.friction;
+      if (ImGui::DragFloat(PrefixLabel("Friction").c_str(), &friction, 0.01f,
+                           0.0f, 1.0f)) {
+        component.SetFrictionRuntime(friction);
+      }
     }
-    if (ImGui::DragFloat(PrefixLabel("Restitution").c_str(),
-                         &component.restitution, 0.01f, 0.0f, 1.0f)) {
-      component.is_dirty = true;
+    {
+      float restitution = component.restitution;
+      if (ImGui::DragFloat(PrefixLabel("Restitution").c_str(), &restitution,
+                           0.01f, 0.0f, 1.0f)) {
+        component.SetRestitutionRuntime(restitution);
+      }
     }
-    if (ImGui::DragFloat(PrefixLabel("Linear Damping").c_str(),
-                         &component.linear_damping, 0.01f, 0.0f, 1.0f)) {
-      component.is_dirty = true;
+    {
+      float linear_damping = component.linear_damping;
+      if (ImGui::DragFloat(PrefixLabel("Linear Damping").c_str(),
+                           &linear_damping, 0.01f, 0.0f, 1.0f)) {
+        component.SetLinearDampingRuntime(linear_damping);
+      }
     }
-    if (ImGui::DragFloat(PrefixLabel("Angular Damping").c_str(),
-                         &component.angular_damping, 0.01f, 0.0f, 1.0f)) {
-      component.is_dirty = true;
+    {
+      float angular_damping = component.angular_damping;
+      if (ImGui::DragFloat(PrefixLabel("Angular Damping").c_str(),
+                           &angular_damping, 0.01f, 0.0f, 1.0f)) {
+        component.SetAngularDampingRuntime(angular_damping);
+      }
     }
     ImGui::Text("Freeze Position");
     ImGui::SameLine();

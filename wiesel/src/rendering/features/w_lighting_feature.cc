@@ -56,7 +56,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/lighting_shader.frag"});
   lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      renderer_->options().msaa_mode, CullModeFront, false, true, true, false});
+      renderer_->options().msaa_mode, CullModeBack, false, true, true, false});
   lighting_pipeline_->SetRenderPass(render_pass_);
   lighting_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("GeometryOutput"));
@@ -79,7 +79,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
                                  {"USE_IBL"}});
 
     ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
-        PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+        PipelineProperties{renderer_->options().msaa_mode, CullModeBack, false,
                            true, true, false});
     ibl_lighting_pipeline_->SetRenderPass(render_pass_);
     ibl_lighting_pipeline_->AddInputLayout(
@@ -111,7 +111,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     rt_shadow_desc_layout_->Bake();
 
     rt_lighting_pipeline_ = std::make_shared<Pipeline>(
-        PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+        PipelineProperties{renderer_->options().msaa_mode, CullModeBack, false,
                            true, true, false});
     rt_lighting_pipeline_->SetRenderPass(render_pass_);
     rt_lighting_pipeline_->AddInputLayout(
@@ -135,7 +135,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
                                  {"USE_RT_SHADOWS", "USE_IBL"}});
 
     rt_ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
-        PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
+        PipelineProperties{renderer_->options().msaa_mode, CullModeBack, false,
                            true, true, false});
     rt_ibl_lighting_pipeline_->SetRenderPass(render_pass_);
     rt_ibl_lighting_pipeline_->AddInputLayout(

@@ -11,17 +11,26 @@
 
 #pragma once
 
-#include <BulletCollision/CollisionDispatch/btGhostObject.h>
-#include <btBulletDynamicsCommon.h>
 #include <entt/entt.hpp>
 #include <memory>
 #include <set>
 #include <unordered_map>
 #include "w_pch.h"
 
+namespace JPH {
+class PhysicsSystem;
+class TempAllocator;
+class JobSystem;
+class Shape;
+}  // namespace JPH
+
 namespace Wiesel {
 
 class Scene;
+class BroadPhaseLayerInterfaceImpl;
+class ObjectVsBroadPhaseLayerFilterImpl;
+class ObjectLayerPairFilterImpl;
+class WieselContactListener;
 struct TransformComponent;
 
 struct RaycastHit {
@@ -71,12 +80,15 @@ class PhysicsWorld {
   // Create bodies for any new entities that have collider + optional rigidbody
   void EnsureBodiesExist();
 
+  // Rebuild a body whose properties changed (type, mass, etc.)
+  void RecreateBodyIfNeeded(entt::entity entity);
+
   // Simulation
   void StepSimulation(float delta_time);
-  void SyncTransformsFromECS();  // ECS -> Bullet (kinematic + ghost)
-  void SyncTransformsToECS();    // Bullet -> ECS (dynamic)
+  void SyncTransformsFromECS();  // ECS -> Jolt (kinematic + sensor)
+  void SyncTransformsToECS();    // Jolt -> ECS (dynamic)
 
-  // Contact detection - walks manifolds/ghosts, dispatches callbacks
+  // Contact detection - processes buffered contacts, dispatches callbacks
   void DetectContacts();
 
   // Queries
@@ -92,30 +104,27 @@ class PhysicsWorld {
   void SetGravity(const glm::vec3& gravity);
   glm::vec3 GetGravity() const;
 
+  JPH::PhysicsSystem* GetPhysicsSystem() const { return physics_system_; }
+
  private:
-  static btVector3 ToBt(const glm::vec3& v);
-  static glm::vec3 ToGlm(const btVector3& v);
-  btTransform MakeBtTransform(entt::entity entity, const glm::vec3& offset);
-  void WriteBtTransform(const btTransform& bt_tf, entt::entity entity,
-                        const glm::vec3& offset, bool skip_rotation = false);
-  btCollisionShape* CreateShapeForEntity(entt::entity entity);
+  glm::vec3 GetColliderOffset(entt::entity entity) const;
+  JPH::Shape* CreateShapeForEntity(entt::entity entity) const;
 
   Scene* scene_;
 
-  // Bullet core (reverse-declaration order = destruction order)
-  std::unique_ptr<btGhostPairCallback> ghost_pair_callback_;
-  std::unique_ptr<btDiscreteDynamicsWorld> dynamics_world_;
-  std::unique_ptr<btSequentialImpulseConstraintSolver> solver_;
-  std::unique_ptr<btDbvtBroadphase> broadphase_;
-  std::unique_ptr<btCollisionDispatcher> dispatcher_;
-  std::unique_ptr<btDefaultCollisionConfiguration> collision_config_;
+  // Jolt core
+  JPH::PhysicsSystem* physics_system_ = nullptr;
+  JPH::TempAllocator* temp_allocator_ = nullptr;
+  JPH::JobSystem* job_system_ = nullptr;
+  std::unique_ptr<BroadPhaseLayerInterfaceImpl> bp_layer_interface_;
+  std::unique_ptr<ObjectVsBroadPhaseLayerFilterImpl> obj_vs_bp_filter_;
+  std::unique_ptr<ObjectLayerPairFilterImpl> obj_layer_pair_filter_;
+  std::unique_ptr<WieselContactListener> contact_listener_;
 
-  // Entity → Bullet data
+  // Entity -> Jolt body data
   struct BodyData {
-    btCollisionObject* bt_object = nullptr;
-    btCollisionShape* bt_shape = nullptr;
-    btDefaultMotionState* motion_state = nullptr;
-    bool is_ghost = false;
+    uint32_t body_id_raw = ~0u;
+    bool is_sensor = false;
   };
 
   std::unordered_map<entt::entity, BodyData> bodies_;
