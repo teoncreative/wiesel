@@ -51,8 +51,9 @@ struct InputAxisMapping {
   int32_t gamepad_axis = -1;           // GamepadAxis (-1 = none)
   bool invert_axis = false;            // Flip gamepad axis direction
   float dead_zone = 0.15f;
-  float gravity = 3.0f;      // How fast digital axis returns to 0
-  float sensitivity = 3.0f;  // How fast digital axis reaches 1/-1
+  bool smooth = false;       // Enable smoothing for digital axes
+  float gravity = 3.0f;      // How fast digital axis returns to 0 (when smooth)
+  float sensitivity = 3.0f;  // How fast digital axis reaches 1/-1 (when smooth)
 };
 
 // A named set of input bindings (e.g. "keyboard", "gamepad", "keyboard_p2")

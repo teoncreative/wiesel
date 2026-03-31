@@ -17,6 +17,7 @@
 #include "asset/w_asset_utils.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
+#include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_project_loader.h"
 
@@ -30,7 +31,7 @@ void AssetBrowserPanel::Render(bool& open) {
   if (!open) {
     return;
   }
-  if (!ImGui::Begin("Asset Browser", &open)) {
+  if (!ImGui::Begin(ICON_BROWSER " Asset Browser", &open)) {
     ImGui::End();
     return;
   }

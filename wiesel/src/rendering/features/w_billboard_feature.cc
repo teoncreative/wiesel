@@ -127,7 +127,7 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
   quad_ib_ = renderer_->CreateIndexBuffer(indices);
 
   // Load icon textures
-  LoadIconTexture("camera", "engine://textures/icons/camera_icon.png");
+  LoadIconTexture("camera", "engine://textures/billboard/camera_icon.png");
 }
 
 void BillboardFeature::LoadIconTexture(const std::string& name,

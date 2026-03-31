@@ -23,6 +23,25 @@ namespace Wiesel {
 
 struct FrustumPlanes {
   glm::vec4 Left, Right, Bottom, Top, Near, Far;
+
+  // Test if an AABB (already in world space) is outside the frustum.
+  // Returns true if the box is completely outside any plane (should be culled).
+  bool IsBoxOutside(const glm::vec3& aabb_min,
+                    const glm::vec3& aabb_max) const {
+    const glm::vec4* planes_arr = &Left;
+    for (int i = 0; i < 6; i++) {
+      glm::vec3 n(planes_arr[i]);
+      float d = planes_arr[i].w;
+      // Find the AABB corner most in the direction of the plane normal
+      glm::vec3 p_vertex(n.x >= 0 ? aabb_max.x : aabb_min.x,
+                         n.y >= 0 ? aabb_max.y : aabb_min.y,
+                         n.z >= 0 ? aabb_max.z : aabb_min.z);
+      if (glm::dot(n, p_vertex) + d < 0.0f) {
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 struct Cascade {

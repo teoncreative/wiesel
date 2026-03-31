@@ -49,6 +49,9 @@ struct PlayerSlot {
   std::string context_name;  // which InputContext this player uses
   int gamepad_index = -1;    // index into gamepads_ array (-1 = keyboard/mouse)
 
+  // Smoothed axis values for digital inputs (keyboard)
+  std::unordered_map<std::string, float> smoothed_axes;
+
   InputMode GetInputMode() const {
     return gamepad_index >= 0 ? kInputModeGamepad : kInputModeKeyboardAndMouse;
   }

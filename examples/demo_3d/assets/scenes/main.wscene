@@ -9,6 +9,7 @@
           0.5,
           13.300000190734863
         ],
+        "is_one_way": false,
         "is_trigger": false,
         "offset": [
           0.0,
@@ -124,6 +125,7 @@
       },
       "SphereCollider": {
         "collision_group": 1,
+        "is_one_way": false,
         "is_trigger": false,
         "offset": [
           0.0,
@@ -186,7 +188,7 @@
         "position": [
           0.0,
           0.5760455131530762,
-          -0.36704370379447937
+          0.5577433109283447
         ],
         "rotation": [
           0.0,

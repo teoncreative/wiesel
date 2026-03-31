@@ -10,11 +10,13 @@
 //
 
 #include "rendering/features/w_transparency_feature.h"
+#include "asset/w_asset_manager.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 
@@ -100,6 +102,8 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
       "Transparency", render_pass_,
       [pipeline, scene, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
+        const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+        auto& assets = Engine::asset_manager();
         for (const auto& entity :
              scene->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = scene->GetComponent<ModelComponent>(entity);
@@ -107,6 +111,14 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
             continue;
           }
           auto& transform = scene->GetComponent<TransformComponent>(entity);
+          const auto& model_data = assets.GetOrLoad<Model>(model.model_handle);
+          if (model_data && model_data->bounds.Valid()) {
+            AABB world_bounds =
+                model_data->bounds.Transformed(transform.GetTransformMatrix());
+            if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
+              continue;
+            }
+          }
           renderer->DrawModelTransparent(model, transform, entity);
         }
       });

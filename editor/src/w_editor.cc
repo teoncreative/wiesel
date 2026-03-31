@@ -60,6 +60,7 @@
 #include "util/w_gamepadcodes.h"
 #include "util/w_natural_sort.h"
 #include "util/w_platform.h"
+#include "w_editor_icons.h"
 #include "w_engine.h"
 
 namespace Wiesel::Editor {
@@ -318,10 +319,9 @@ void EditorLayer::OnAttach() {
 
   // Load monospace font for code editor
   {
-    auto font_file = Engine::vfs()->Open("engine://fonts/RobotoMono-variable.ttf");
+    auto font_file = Engine::vfs()->Open("engine://fonts/RobotoMono.ttf");
     if (font_file) {
       ImGuiIO& io = ImGui::GetIO();
-      // ImGui takes ownership of the data, so we need a persistent copy
       void* font_data = IM_ALLOC(font_file.Size());
       memcpy(font_data, font_file.Data(), font_file.Size());
       code_editor_font_ = io.Fonts->AddFontFromMemoryTTF(
@@ -331,6 +331,9 @@ void EditorLayer::OnAttach() {
       }
     }
   }
+
+  // Register editor icon font (must be after all other fonts are added)
+  InitEditorIcons();
 
   // Editor idle throttling
   app_.SetIdleMaxFPS(15.0f);
@@ -452,7 +455,7 @@ void EditorLayer::ProcessDeferredActions() {
       Engine::window()->SetCursorMode(CursorModeNormal);
       Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
       RestoreSnapshot();
-      ImGui::SetWindowFocus("Scene");
+      ImGui::SetWindowFocus(ICON_CAMERA " Scene");
       break;
     default:
       break;
@@ -927,15 +930,15 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
     ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right,
                                 kRightPanelRatio, &dock_right, &dock_center);
 
-    ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_left);
-    ImGui::DockBuilderDockWindow("Game", dock_center);
-    ImGui::DockBuilderDockWindow("Scene", dock_center);
-    ImGuiID scene_window_id = ImHashStr("Scene");
+    ImGui::DockBuilderDockWindow(ICON_HIERARCHY " Scene Hierarchy", dock_left);
+    ImGui::DockBuilderDockWindow(ICON_CAMERA " Game", dock_center);
+    ImGui::DockBuilderDockWindow(ICON_CAMERA " Scene", dock_center);
+    ImGuiID scene_window_id = ImHashStr(ICON_CAMERA " Scene");
     ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
     ImGui::DockBuilderDockWindow("Entity Inspector", dock_right);
     ImGui::DockBuilderDockWindow("Asset Properties", dock_right);
-    ImGui::DockBuilderDockWindow("Asset Browser", dock_bottom);
-    ImGui::DockBuilderDockWindow("Developer Console", dock_bottom);
+    ImGui::DockBuilderDockWindow(ICON_BROWSER " Asset Browser", dock_bottom);
+    ImGui::DockBuilderDockWindow(ICON_CONSOLE " Developer Console", dock_bottom);
     ImGui::DockBuilderDockWindow("Render Stats", dock_bottom);
 
     ImGui::DockBuilderFinish(dockspace_id);
@@ -945,7 +948,7 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
 void EditorLayer::RenderSceneHierarchyPanel() {
   bool& scene_open = panel_scene_hierarchy_;
   if (scene_open) {
-    if (ImGui::Begin("Scene Hierarchy", &scene_open)) {
+    if (ImGui::Begin(ICON_HIERARCHY " Scene Hierarchy", &scene_open)) {
       bool ignoreMenu = false;
 
       if (editing_prefab_) {
@@ -1120,7 +1123,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
         return 0;
       };
 
-      if (ImGui::Begin("Developer Console", &console_open)) {
+      if (ImGui::Begin(ICON_CONSOLE " Developer Console", &console_open)) {
         auto& cmd = Engine::console();
         const auto& log = cmd.GetLog();
 
@@ -1403,7 +1406,7 @@ void EditorLayer::RenderSceneViewportPanel() {
   if (scene_view_open) {
     ImGuiWindowFlags sceneFlags =
         ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
-    scene_panel_visible_ = ImGui::Begin("Scene", &scene_view_open, sceneFlags);
+    scene_panel_visible_ = ImGui::Begin(ICON_CAMERA " Scene", &scene_view_open, sceneFlags);
     if (scene_panel_visible_) {
       // Play/Stop buttons + gizmo controls
       DrawPlayStopButtons();
@@ -1882,7 +1885,7 @@ void EditorLayer::RenderGameViewportPanel() {
   bool& game_view_open = panel_game_view_;
   if (game_view_open) {
     {
-      bool gameVisible = ImGui::Begin("Game", &game_view_open);
+      bool gameVisible = ImGui::Begin(ICON_CAMERA " Game", &game_view_open);
       game_panel_visible_ = gameVisible;
       game_panel_focused_ = ImGui::IsWindowFocused();
       if (gameVisible) {
@@ -2016,7 +2019,7 @@ bool EditorLayer::DrawPlayStopButtons() {
       TakeSnapshot();
       editor_state_ = EditorState::Playing;
       scene()->ResetFirstUpdate();
-      ImGui::SetWindowFocus("Game");
+      ImGui::SetWindowFocus(ICON_CAMERA " Game");
       changed = true;
     }
     if (compiling) {
@@ -3168,8 +3171,8 @@ void EditorLayer::RenderProjectSettingsPopup() {
           if (ImGui::BeginTabItem("Axes")) {
             input_tab = 1;
 
-            // Table: Name | +Keys | -Keys | Stick | Delete
-            if (ImGui::BeginTable("##axes_table", 5,
+            // Table: Name | +Keys | -Keys | Stick | Smooth | Delete
+            if (ImGui::BeginTable("##axes_table", 6,
                                   ImGuiTableFlags_Borders |
                                       ImGuiTableFlags_RowBg |
                                       ImGuiTableFlags_Resizable)) {
@@ -3179,6 +3182,8 @@ void EditorLayer::RenderProjectSettingsPopup() {
               ImGui::TableSetupColumn("-Keys");
               ImGui::TableSetupColumn("Stick", ImGuiTableColumnFlags_WidthFixed,
                                       100);
+              ImGui::TableSetupColumn("Smooth", ImGuiTableColumnFlags_WidthFixed,
+                                      80);
               ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed,
                                       20);
               ImGui::TableHeadersRow();
@@ -3301,6 +3306,26 @@ void EditorLayer::RenderProjectSettingsPopup() {
                 }
                 ImGui::PopID();
 
+                // Smooth
+                ImGui::TableNextColumn();
+                ImGui::PushID("smooth");
+                if (ImGui::Checkbox("##smooth", &axis.smooth)) {
+                  input_changed = true;
+                }
+                if (axis.smooth) {
+                  ImGui::SetNextItemWidth(60);
+                  if (ImGui::DragFloat("Grav", &axis.gravity, 0.1f, 0.1f,
+                                       50.0f)) {
+                    input_changed = true;
+                  }
+                  ImGui::SetNextItemWidth(60);
+                  if (ImGui::DragFloat("Sens", &axis.sensitivity, 0.1f, 0.1f,
+                                       50.0f)) {
+                    input_changed = true;
+                  }
+                }
+                ImGui::PopID();
+
                 // Delete
                 ImGui::TableNextColumn();
                 if (ImGui::SmallButton("X")) {
@@ -3420,12 +3445,12 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     if (ImGui::BeginMenu("Window")) {
-      ImGui::MenuItem("Scene", nullptr, &panel_scene_view_);
-      ImGui::MenuItem("Game", nullptr, &panel_game_view_);
-      ImGui::MenuItem("Scene Hierarchy", nullptr, &panel_scene_hierarchy_);
+      ImGui::MenuItem(ICON_CAMERA " Scene", nullptr, &panel_scene_view_);
+      ImGui::MenuItem(ICON_CAMERA " Game", nullptr, &panel_game_view_);
+      ImGui::MenuItem(ICON_HIERARCHY " Scene Hierarchy", nullptr, &panel_scene_hierarchy_);
       ImGui::MenuItem("Entity Inspector", nullptr, &panel_components_);
-      ImGui::MenuItem("Asset Browser", nullptr, &panel_asset_browser_);
-      ImGui::MenuItem("Console", nullptr, &panel_console_);
+      ImGui::MenuItem(ICON_BROWSER " Asset Browser", nullptr, &panel_asset_browser_);
+      ImGui::MenuItem(ICON_CONSOLE " Console", nullptr, &panel_console_);
       ImGui::MenuItem("Stats", nullptr, &panel_stats_);
       ImGui::MenuItem("LSP Debug", nullptr, &panel_lsp_debug_);
       ImGui::Separator();

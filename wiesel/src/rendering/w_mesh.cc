@@ -42,6 +42,13 @@ void Mesh::Allocate() {
   allocated_ = true;
 }
 
+void Mesh::ComputeBounds() {
+  bounds = {};
+  for (auto& v : vertices) {
+    bounds.Expand(v.ppos);
+  }
+}
+
 void Mesh::Deallocate() {
   if (!allocated_) {
     return;

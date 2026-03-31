@@ -9,7 +9,7 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "util/w_math.h"
+#include "math/w_math.h"
 
 #include <glm/glm.hpp>
 

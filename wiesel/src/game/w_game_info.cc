@@ -70,6 +70,9 @@ static nlohmann::json SerializeAxis(const InputAxisMapping& axis) {
     }
   }
 
+  if (axis.smooth) {
+    axj["smooth"] = true;
+  }
   axj["gravity"] = axis.gravity;
   axj["sensitivity"] = axis.sensitivity;
   return axj;
@@ -106,6 +109,7 @@ static InputAction DeserializeAction(const nlohmann::json& aj) {
 static InputAxisMapping DeserializeAxis(const nlohmann::json& axj) {
   InputAxisMapping axis;
   axis.name = axj.value("name", "");
+  axis.smooth = axj.value("smooth", false);
   axis.gravity = axj.value("gravity", 3.0f);
   axis.sensitivity = axj.value("sensitivity", 3.0f);
 

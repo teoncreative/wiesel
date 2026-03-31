@@ -19,9 +19,7 @@
 #include "rendering/w_sampler.h"
 #include "ui/w_font.h"
 
-#include "util/imgui/imgui_theme.h"
 #include "util/w_spirv.h"
-#include "util/w_vectors.h"
 #include "w_engine.h"
 
 // clang-format off

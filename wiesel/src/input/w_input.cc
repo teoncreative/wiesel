@@ -406,12 +406,38 @@ float InputManager::GetAxis(int player, const std::string& axis_name) {
         break;
       }
     }
+
+    float target = 0.0f;
     if (pos && !neg) {
-      return 1.0f;
+      target = 1.0f;
+    } else if (neg && !pos) {
+      target = -1.0f;
     }
-    if (neg && !pos) {
-      return -1.0f;
+
+    if (!mapping->smooth) {
+      return target;
     }
+
+    // Smoothed: lerp toward target using gravity/sensitivity
+    float& current = slot.smoothed_axes[axis_name];
+    float dt = Engine::app().GetDeltaTime();
+
+    if (std::abs(target) > 0.0f) {
+      float step = mapping->sensitivity * dt;
+      if (current < target) {
+        current = std::min(current + step, target);
+      } else if (current > target) {
+        current = std::max(current - step, target);
+      }
+    } else {
+      float step = mapping->gravity * dt;
+      if (current > 0.0f) {
+        current = std::max(current - step, 0.0f);
+      } else if (current < 0.0f) {
+        current = std::min(current + step, 0.0f);
+      }
+    }
+    return current;
   }
 
   // Digital gamepad axis (DPad buttons as axis)

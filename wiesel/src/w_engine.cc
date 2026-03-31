@@ -149,11 +149,11 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       "engine-assets", "Path to engine assets directory or pak file",
       cxxopts::value<std::string>())(
       "editor-assets", "Path to editor assets directory or pak file",
-      cxxopts::value<std::string>())(
-      "app-assets", "Path to application assets directory",
-      cxxopts::value<std::string>())("project", "Path to project file (editor)",
+      cxxopts::value<std::string>())("app-assets",
+                                     "Path to application assets directory",
                                      cxxopts::value<std::string>())(
-      "game-info", "Path to gameinfo.wgame file",
+      "project", "Path to project file (editor)",
+      cxxopts::value<std::string>())("game-info", "Path to gameinfo.wgame file",
                                      cxxopts::value<std::string>())(
       "enable-stdio", "Keep console window visible (runtime)",
       cxxopts::value<bool>()->default_value("false"))(
@@ -789,8 +789,9 @@ bool Engine::LoadModel(AssetHandle handle) {
              std::chrono::duration<double>(t3 - t2).count());
     meta->load_progress.store(0.8f);
 
-    // Pre-compute per-mesh world transforms from node hierarchy
+    // Pre-compute per-mesh world transforms and bounding volumes
     model->ComputeMeshNodeTransforms();
+    model->ComputeBounds();
 
     // Check if any mesh has transparency
     for (const auto& m : model->meshes) {

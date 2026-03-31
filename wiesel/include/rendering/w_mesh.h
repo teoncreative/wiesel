@@ -20,6 +20,7 @@
 
 #include "animation/w_animation.h"
 #include "asset/w_asset_handle.h"
+#include "math/w_aabb.h"
 #include "rendering/w_buffer.h"
 #include "rendering/w_descriptor.h"
 #include "rendering/w_material.h"
@@ -28,6 +29,7 @@
 #include "w_pch.h"
 
 namespace Wiesel {
+
 struct Mesh {
   Mesh();
   Mesh(const std::vector<Vertex3D>& vertices,
@@ -36,9 +38,11 @@ struct Mesh {
 
   void Allocate();
   void Deallocate();
+  void ComputeBounds();
 
   std::vector<Vertex3D> vertices;
   std::vector<Index> indices;
+  AABB bounds;
   std::string model_path;
   std::shared_ptr<Material> mat;  // cached material pointer (set during import)
   AssetHandle material_handle;    // asset handle for this mesh's material
@@ -119,6 +123,16 @@ struct Model {
   bool has_skeleton = false;
   bool has_animations = false;
   bool has_transparent_meshes = false;
+
+  AABB bounds;
+
+  void ComputeBounds() {
+    bounds = {};
+    for (auto& mesh : meshes) {
+      mesh->ComputeBounds();
+      bounds.Expand(mesh->bounds);
+    }
+  }
 
   // Compute mesh_node_transforms from node hierarchy (call after ProcessNode)
   void ComputeMeshNodeTransforms() {

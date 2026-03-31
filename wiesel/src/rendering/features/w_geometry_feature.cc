@@ -10,11 +10,13 @@
 //
 
 #include "rendering/features/w_geometry_feature.h"
+#include "asset/w_asset_manager.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 
@@ -289,12 +291,22 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   uint32_t geo = graph.AddPass(
       "Geometry", render_pass_, [pipeline, scene, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
+        const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+        auto& assets = Engine::asset_manager();
         for (const auto& entity :
              scene->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
           auto& model = scene->GetComponent<ModelComponent>(entity);
           auto& transform = scene->GetComponent<TransformComponent>(entity);
           if (!model.enable_rendering || !model.model_handle) {
             continue;
+          }
+          const auto& model_data = assets.GetOrLoad<Model>(model.model_handle);
+          if (model_data && model_data->bounds.Valid()) {
+            AABB world_bounds =
+                model_data->bounds.Transformed(transform.GetTransformMatrix());
+            if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
+              continue;
+            }
           }
           renderer->DrawModel(model, transform, false, entity);
         }
