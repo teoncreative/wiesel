@@ -9,46 +9,45 @@ namespace WieselEngine
     public class CameraComponent : Component
     {
 
-        public CameraComponent(ulong scenePtr, ulong entityId)
+        public CameraComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
         }
 
         public ProjectionMode Projection
         {
-            get { return (ProjectionMode)Internals.Camera_GetProjectionMode(scenePtr, entityId); }
-            set { Internals.Camera_SetProjectionMode(scenePtr, entityId, (int)value); }
+            get { return (ProjectionMode)Internals.Camera_GetProjectionMode(entity.ScenePtr, entity.Id); }
+            set { Internals.Camera_SetProjectionMode(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public float FieldOfView
         {
-            get { return Internals.Camera_GetFOV(scenePtr, entityId); }
-            set { Internals.Camera_SetFOV(scenePtr, entityId, value); }
+            get { return Internals.Camera_GetFOV(entity.ScenePtr, entity.Id); }
+            set { Internals.Camera_SetFOV(entity.ScenePtr, entity.Id, value); }
         }
 
         public float OrthoSize
         {
-            get { return Internals.Camera_GetOrthoSize(scenePtr, entityId); }
-            set { Internals.Camera_SetOrthoSize(scenePtr, entityId, value); }
+            get { return Internals.Camera_GetOrthoSize(entity.ScenePtr, entity.Id); }
+            set { Internals.Camera_SetOrthoSize(entity.ScenePtr, entity.Id, value); }
         }
 
         public float NearPlane
         {
-            get { return Internals.Camera_GetNearPlane(scenePtr, entityId); }
-            set { Internals.Camera_SetNearPlane(scenePtr, entityId, value); }
+            get { return Internals.Camera_GetNearPlane(entity.ScenePtr, entity.Id); }
+            set { Internals.Camera_SetNearPlane(entity.ScenePtr, entity.Id, value); }
         }
 
         public float FarPlane
         {
-            get { return Internals.Camera_GetFarPlane(scenePtr, entityId); }
-            set { Internals.Camera_SetFarPlane(scenePtr, entityId, value); }
+            get { return Internals.Camera_GetFarPlane(entity.ScenePtr, entity.Id); }
+            set { Internals.Camera_SetFarPlane(entity.ScenePtr, entity.Id, value); }
         }
 
         public bool Enabled
         {
-            get { return Internals.Camera_GetEnabled(scenePtr, entityId); }
-            set { Internals.Camera_SetEnabled(scenePtr, entityId, value); }
+            get { return Internals.Camera_GetEnabled(entity.ScenePtr, entity.Id); }
+            set { Internals.Camera_SetEnabled(entity.ScenePtr, entity.Id, value); }
         }
 
         public Vector4f BackgroundColor
@@ -56,17 +55,17 @@ namespace WieselEngine
             get
             {
                 return new Vector4f(
-                    Internals.Camera_GetBgColorR(scenePtr, entityId),
-                    Internals.Camera_GetBgColorG(scenePtr, entityId),
-                    Internals.Camera_GetBgColorB(scenePtr, entityId),
-                    Internals.Camera_GetBgColorA(scenePtr, entityId));
+                    Internals.Camera_GetBgColorR(entity.ScenePtr, entity.Id),
+                    Internals.Camera_GetBgColorG(entity.ScenePtr, entity.Id),
+                    Internals.Camera_GetBgColorB(entity.ScenePtr, entity.Id),
+                    Internals.Camera_GetBgColorA(entity.ScenePtr, entity.Id));
             }
             set
             {
-                Internals.Camera_SetBgColorR(scenePtr, entityId, value.X);
-                Internals.Camera_SetBgColorG(scenePtr, entityId, value.Y);
-                Internals.Camera_SetBgColorB(scenePtr, entityId, value.Z);
-                Internals.Camera_SetBgColorA(scenePtr, entityId, value.W);
+                Internals.Camera_SetBgColorR(entity.ScenePtr, entity.Id, value.X);
+                Internals.Camera_SetBgColorG(entity.ScenePtr, entity.Id, value.Y);
+                Internals.Camera_SetBgColorB(entity.ScenePtr, entity.Id, value.Z);
+                Internals.Camera_SetBgColorA(entity.ScenePtr, entity.Id, value.W);
             }
         }
     }

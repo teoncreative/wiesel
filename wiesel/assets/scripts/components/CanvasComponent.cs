@@ -10,32 +10,31 @@ namespace WieselEngine
 
         public LayoutDirection Direction
         {
-            get { return (LayoutDirection)Internals.Canvas_GetDirection(scenePtr, entityId); }
-            set { Internals.Canvas_SetDirection(scenePtr, entityId, (int)value); }
+            get { return (LayoutDirection)Internals.Canvas_GetDirection(entity.ScenePtr, entity.Id); }
+            set { Internals.Canvas_SetDirection(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public ChildAlignment Alignment
         {
-            get { return (ChildAlignment)Internals.Canvas_GetAlignment(scenePtr, entityId); }
-            set { Internals.Canvas_SetAlignment(scenePtr, entityId, (int)value); }
+            get { return (ChildAlignment)Internals.Canvas_GetAlignment(entity.ScenePtr, entity.Id); }
+            set { Internals.Canvas_SetAlignment(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public float Spacing
         {
-            get { return Internals.Canvas_GetSpacing(scenePtr, entityId); }
-            set { Internals.Canvas_SetSpacing(scenePtr, entityId, value); }
+            get { return Internals.Canvas_GetSpacing(entity.ScenePtr, entity.Id); }
+            set { Internals.Canvas_SetSpacing(entity.ScenePtr, entity.Id, value); }
         }
 
         public int SortOrder
         {
-            get { return Internals.Canvas_GetSortOrder(scenePtr, entityId); }
-            set { Internals.Canvas_SetSortOrder(scenePtr, entityId, value); }
+            get { return Internals.Canvas_GetSortOrder(entity.ScenePtr, entity.Id); }
+            set { Internals.Canvas_SetSortOrder(entity.ScenePtr, entity.Id, value); }
         }
 
-        public CanvasComponent(ulong scenePtr, ulong entityId)
+        public CanvasComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
         }
     }
 }

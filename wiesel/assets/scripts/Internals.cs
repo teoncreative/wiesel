@@ -469,10 +469,10 @@ namespace WieselEngine
 
         // Scene
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern ulong Scene_CreateEntity(ulong scenePtr, string name);
+        public static extern Entity Scene_CreateEntity(ulong scenePtr, string name);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern ulong Scene_FindEntity(ulong scenePtr, string name);
+        public static extern Entity Scene_FindEntity(ulong scenePtr, string name);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Scene_DestroyEntity(ulong scenePtr, ulong entityId);
@@ -740,13 +740,13 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Entity_RemoveTag(ulong scenePtr, ulong entityId, string tag);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern ulong[] Scene_FindEntitiesByTag(ulong scenePtr, string tag);
+        public static extern Entity[] Scene_FindEntitiesByTag(ulong scenePtr, string tag);
 
         // Child entity access
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int Entity_GetChildCount(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern ulong Entity_GetChild(ulong scenePtr, ulong entityId, int index);
+        public static extern Entity Entity_GetChild(ulong scenePtr, ulong entityId, int index);
 
         // UIDocument
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

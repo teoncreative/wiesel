@@ -58,159 +58,158 @@ namespace WieselEngine
             }
         }
 
-        public TransformComponent(ulong scenePtr, ulong entityId)
+        public TransformComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
             this.position = new HandledVector3f(GetPositionX, SetPositionX, GetPositionY, SetPositionY, GetPositionZ, SetPositionZ);
             this.rotation = new HandledVector3f(GetRotationX, SetRotationX, GetRotationY, SetRotationY, GetRotationZ, SetRotationZ);
             this.scale = new HandledVector3f(GetScaleX, SetScaleX, GetScaleY, SetScaleY, GetScaleZ, SetScaleZ);
         }
 
         public Vector3f GetForward() {
-            return (Vector3f) Internals.TransformComponent_GetForward(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetForward(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetBackward() {
-            return (Vector3f) Internals.TransformComponent_GetBackward(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetBackward(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetLeft() {
-            return (Vector3f) Internals.TransformComponent_GetLeft(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetLeft(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetRight() {
-            return (Vector3f) Internals.TransformComponent_GetRight(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetRight(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetUp() {
-            return (Vector3f) Internals.TransformComponent_GetUp(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetUp(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetDown() {
-            return (Vector3f) Internals.TransformComponent_GetDown(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetDown(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetWorldPosition() {
-            return (Vector3f) Internals.TransformComponent_GetWorldPosition(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetWorldPosition(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f GetWorldScale() {
-            return (Vector3f) Internals.TransformComponent_GetWorldScale(scenePtr, entityId);
+            return (Vector3f) Internals.TransformComponent_GetWorldScale(entity.ScenePtr, entity.Id);
         }
 
         public Vector3f LocalToWorldDirection(Vector3f dir) {
-            return (Vector3f) Internals.TransformComponent_LocalToWorldDirection(scenePtr, entityId, dir.X, dir.Y, dir.Z);
+            return (Vector3f) Internals.TransformComponent_LocalToWorldDirection(entity.ScenePtr, entity.Id, dir.X, dir.Y, dir.Z);
         }
 
         public Vector3f WorldToLocalDirection(Vector3f dir) {
-            return (Vector3f) Internals.TransformComponent_WorldToLocalDirection(scenePtr, entityId, dir.X, dir.Y, dir.Z);
+            return (Vector3f) Internals.TransformComponent_WorldToLocalDirection(entity.ScenePtr, entity.Id, dir.X, dir.Y, dir.Z);
         }
 
         public Vector3f LocalToWorldPoint(Vector3f point) {
-            return (Vector3f) Internals.TransformComponent_LocalToWorldPoint(scenePtr, entityId, point.X, point.Y, point.Z);
+            return (Vector3f) Internals.TransformComponent_LocalToWorldPoint(entity.ScenePtr, entity.Id, point.X, point.Y, point.Z);
         }
 
         public Vector3f WorldToLocalPoint(Vector3f point) {
-            return (Vector3f) Internals.TransformComponent_WorldToLocalPoint(scenePtr, entityId, point.X, point.Y, point.Z);
+            return (Vector3f) Internals.TransformComponent_WorldToLocalPoint(entity.ScenePtr, entity.Id, point.X, point.Y, point.Z);
         }
 
         public void Translate(Vector3f delta, Space space = Space.Local) {
-            Internals.TransformComponent_Translate(scenePtr, entityId, delta.X, delta.Y, delta.Z, (int)space);
+            Internals.TransformComponent_Translate(entity.ScenePtr, entity.Id, delta.X, delta.Y, delta.Z, (int)space);
         }
 
         public void Translate(float x, float y, float z, Space space = Space.Local) {
-            Internals.TransformComponent_Translate(scenePtr, entityId, x, y, z, (int)space);
+            Internals.TransformComponent_Translate(entity.ScenePtr, entity.Id, x, y, z, (int)space);
         }
 
         private float GetPositionX()
         {
-            return Internals.TransformComponent_GetPositionX(scenePtr, entityId);
+            return Internals.TransformComponent_GetPositionX(entity.ScenePtr, entity.Id);
         }
 
         private float GetPositionY()
         {
-            return Internals.TransformComponent_GetPositionY(scenePtr, entityId);
+            return Internals.TransformComponent_GetPositionY(entity.ScenePtr, entity.Id);
         }
 
         private float GetPositionZ()
         {
-            return Internals.TransformComponent_GetPositionZ(scenePtr, entityId);
+            return Internals.TransformComponent_GetPositionZ(entity.ScenePtr, entity.Id);
         }
 
         private void SetPositionX(float x)
         {
-            Internals.TransformComponent_SetPositionX(scenePtr, entityId, x);
+            Internals.TransformComponent_SetPositionX(entity.ScenePtr, entity.Id, x);
         }
 
         private void SetPositionY(float y)
         {
-            Internals.TransformComponent_SetPositionY(scenePtr, entityId, y);
+            Internals.TransformComponent_SetPositionY(entity.ScenePtr, entity.Id, y);
         }
 
         private void SetPositionZ(float z)
         {
-            Internals.TransformComponent_SetPositionZ(scenePtr, entityId, z);
+            Internals.TransformComponent_SetPositionZ(entity.ScenePtr, entity.Id, z);
         }
 
         private float GetRotationX()
         {
-            return Internals.TransformComponent_GetRotationX(scenePtr, entityId);
+            return Internals.TransformComponent_GetRotationX(entity.ScenePtr, entity.Id);
         }
 
         private float GetRotationY()
         {
-            return Internals.TransformComponent_GetRotationY(scenePtr, entityId);
+            return Internals.TransformComponent_GetRotationY(entity.ScenePtr, entity.Id);
         }
 
         private float GetRotationZ()
         {
-            return Internals.TransformComponent_GetRotationZ(scenePtr, entityId);
+            return Internals.TransformComponent_GetRotationZ(entity.ScenePtr, entity.Id);
         }
 
         private void SetRotationX(float x)
         {
-            Internals.TransformComponent_SetRotationX(scenePtr, entityId, x);
+            Internals.TransformComponent_SetRotationX(entity.ScenePtr, entity.Id, x);
         }
 
         private void SetRotationY(float y)
         {
-            Internals.TransformComponent_SetRotationY(scenePtr, entityId, y);
+            Internals.TransformComponent_SetRotationY(entity.ScenePtr, entity.Id, y);
         }
 
         private void SetRotationZ(float z)
         {
-            Internals.TransformComponent_SetRotationZ(scenePtr, entityId, z);
+            Internals.TransformComponent_SetRotationZ(entity.ScenePtr, entity.Id, z);
         }
 
         private float GetScaleX()
         {
-            return Internals.TransformComponent_GetScaleX(scenePtr, entityId);
+            return Internals.TransformComponent_GetScaleX(entity.ScenePtr, entity.Id);
         }
 
         private float GetScaleY()
         {
-            return Internals.TransformComponent_GetScaleY(scenePtr, entityId);
+            return Internals.TransformComponent_GetScaleY(entity.ScenePtr, entity.Id);
         }
 
         private float GetScaleZ()
         {
-            return Internals.TransformComponent_GetScaleZ(scenePtr, entityId);
+            return Internals.TransformComponent_GetScaleZ(entity.ScenePtr, entity.Id);
         }
 
         private void SetScaleX(float x)
         {
-            Internals.TransformComponent_SetScaleX(scenePtr, entityId, x);
+            Internals.TransformComponent_SetScaleX(entity.ScenePtr, entity.Id, x);
         }
 
         private void SetScaleY(float y)
         {
-            Internals.TransformComponent_SetScaleY(scenePtr, entityId, y);
+            Internals.TransformComponent_SetScaleY(entity.ScenePtr, entity.Id, y);
         }
 
         private void SetScaleZ(float z)
         {
-            Internals.TransformComponent_SetScaleZ(scenePtr, entityId, z);
+            Internals.TransformComponent_SetScaleZ(entity.ScenePtr, entity.Id, z);
         }
     }
 }

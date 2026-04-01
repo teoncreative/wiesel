@@ -3,22 +3,21 @@ namespace WieselEngine
     public class RigidBodyComponent : Component
     {
 
-        public RigidBodyComponent(ulong scenePtr, ulong entityId)
+        public RigidBodyComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
         }
 
         public int Type
         {
-            get { return Internals.RigidBody_GetType(scenePtr, entityId); }
-            set { Internals.RigidBody_SetType(scenePtr, entityId, value); }
+            get { return Internals.RigidBody_GetType(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetType(entity.ScenePtr, entity.Id, value); }
         }
 
         public float Mass
         {
-            get { return Internals.RigidBody_GetMass(scenePtr, entityId); }
-            set { Internals.RigidBody_SetMass(scenePtr, entityId, value); }
+            get { return Internals.RigidBody_GetMass(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetMass(entity.ScenePtr, entity.Id, value); }
         }
 
         public Vector3f LinearVelocity
@@ -26,13 +25,13 @@ namespace WieselEngine
             get
             {
                 return new Vector3f(
-                    Internals.RigidBody_GetLinearVelocityX(scenePtr, entityId),
-                    Internals.RigidBody_GetLinearVelocityY(scenePtr, entityId),
-                    Internals.RigidBody_GetLinearVelocityZ(scenePtr, entityId));
+                    Internals.RigidBody_GetLinearVelocityX(entity.ScenePtr, entity.Id),
+                    Internals.RigidBody_GetLinearVelocityY(entity.ScenePtr, entity.Id),
+                    Internals.RigidBody_GetLinearVelocityZ(entity.ScenePtr, entity.Id));
             }
             set
             {
-                Internals.RigidBody_SetLinearVelocity(scenePtr, entityId, value.X, value.Y, value.Z);
+                Internals.RigidBody_SetLinearVelocity(entity.ScenePtr, entity.Id, value.X, value.Y, value.Z);
             }
         }
 
@@ -41,48 +40,48 @@ namespace WieselEngine
             get
             {
                 return new Vector3f(
-                    Internals.RigidBody_GetAngularVelocityX(scenePtr, entityId),
-                    Internals.RigidBody_GetAngularVelocityY(scenePtr, entityId),
-                    Internals.RigidBody_GetAngularVelocityZ(scenePtr, entityId));
+                    Internals.RigidBody_GetAngularVelocityX(entity.ScenePtr, entity.Id),
+                    Internals.RigidBody_GetAngularVelocityY(entity.ScenePtr, entity.Id),
+                    Internals.RigidBody_GetAngularVelocityZ(entity.ScenePtr, entity.Id));
             }
             set
             {
-                Internals.RigidBody_SetAngularVelocity(scenePtr, entityId, value.X, value.Y, value.Z);
+                Internals.RigidBody_SetAngularVelocity(entity.ScenePtr, entity.Id, value.X, value.Y, value.Z);
             }
         }
 
         public float Friction
         {
-            get { return Internals.RigidBody_GetFriction(scenePtr, entityId); }
-            set { Internals.RigidBody_SetFriction(scenePtr, entityId, value); }
+            get { return Internals.RigidBody_GetFriction(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetFriction(entity.ScenePtr, entity.Id, value); }
         }
 
         public float Restitution
         {
-            get { return Internals.RigidBody_GetRestitution(scenePtr, entityId); }
-            set { Internals.RigidBody_SetRestitution(scenePtr, entityId, value); }
+            get { return Internals.RigidBody_GetRestitution(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetRestitution(entity.ScenePtr, entity.Id, value); }
         }
 
         public float LinearDamping
         {
-            get { return Internals.RigidBody_GetLinearDamping(scenePtr, entityId); }
-            set { Internals.RigidBody_SetLinearDamping(scenePtr, entityId, value); }
+            get { return Internals.RigidBody_GetLinearDamping(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetLinearDamping(entity.ScenePtr, entity.Id, value); }
         }
 
         public float AngularDamping
         {
-            get { return Internals.RigidBody_GetAngularDamping(scenePtr, entityId); }
-            set { Internals.RigidBody_SetAngularDamping(scenePtr, entityId, value); }
+            get { return Internals.RigidBody_GetAngularDamping(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetAngularDamping(entity.ScenePtr, entity.Id, value); }
         }
 
         public void AddForce(Vector3f force)
         {
-            Internals.RigidBody_AddForce(scenePtr, entityId, force.X, force.Y, force.Z);
+            Internals.RigidBody_AddForce(entity.ScenePtr, entity.Id, force.X, force.Y, force.Z);
         }
 
         public void AddImpulse(Vector3f impulse)
         {
-            Internals.RigidBody_AddImpulse(scenePtr, entityId, impulse.X, impulse.Y, impulse.Z);
+            Internals.RigidBody_AddImpulse(entity.ScenePtr, entity.Id, impulse.X, impulse.Y, impulse.Z);
         }
     }
 }

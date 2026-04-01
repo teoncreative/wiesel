@@ -27,8 +27,8 @@ namespace WieselEngine
 
         public float Rotation
         {
-            get { return Internals.RectTransform_GetRotation(scenePtr, entityId); }
-            set { Internals.RectTransform_SetRotation(scenePtr, entityId, value); }
+            get { return Internals.RectTransform_GetRotation(entity.ScenePtr, entity.Id); }
+            set { Internals.RectTransform_SetRotation(entity.ScenePtr, entity.Id, value); }
         }
 
         public Vector2f Size
@@ -45,26 +45,26 @@ namespace WieselEngine
 
         public AnchorPreset Anchor
         {
-            get { return (AnchorPreset)Internals.RectTransform_GetAnchor(scenePtr, entityId); }
-            set { Internals.RectTransform_SetAnchor(scenePtr, entityId, (int)value); }
+            get { return (AnchorPreset)Internals.RectTransform_GetAnchor(entity.ScenePtr, entity.Id); }
+            set { Internals.RectTransform_SetAnchor(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public AnchorPreset Pivot
         {
-            get { return (AnchorPreset)Internals.RectTransform_GetPivot(scenePtr, entityId); }
-            set { Internals.RectTransform_SetPivot(scenePtr, entityId, (int)value); }
+            get { return (AnchorPreset)Internals.RectTransform_GetPivot(entity.ScenePtr, entity.Id); }
+            set { Internals.RectTransform_SetPivot(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public SizeMode SizeModeX
         {
-            get { return (SizeMode)Internals.RectTransform_GetSizeModeX(scenePtr, entityId); }
-            set { Internals.RectTransform_SetSizeModeX(scenePtr, entityId, (int)value); }
+            get { return (SizeMode)Internals.RectTransform_GetSizeModeX(entity.ScenePtr, entity.Id); }
+            set { Internals.RectTransform_SetSizeModeX(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public SizeMode SizeModeY
         {
-            get { return (SizeMode)Internals.RectTransform_GetSizeModeY(scenePtr, entityId); }
-            set { Internals.RectTransform_SetSizeModeY(scenePtr, entityId, (int)value); }
+            get { return (SizeMode)Internals.RectTransform_GetSizeModeY(entity.ScenePtr, entity.Id); }
+            set { Internals.RectTransform_SetSizeModeY(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public Vector4f Padding
@@ -76,45 +76,44 @@ namespace WieselEngine
         public Vector2f ComputedPosition
         {
             get { return new Vector2f(
-                Internals.RectTransform_GetComputedPositionX(scenePtr, entityId),
-                Internals.RectTransform_GetComputedPositionY(scenePtr, entityId)); }
+                Internals.RectTransform_GetComputedPositionX(entity.ScenePtr, entity.Id),
+                Internals.RectTransform_GetComputedPositionY(entity.ScenePtr, entity.Id)); }
         }
 
         public Vector2f ComputedSize
         {
             get { return new Vector2f(
-                Internals.RectTransform_GetComputedSizeX(scenePtr, entityId),
-                Internals.RectTransform_GetComputedSizeY(scenePtr, entityId)); }
+                Internals.RectTransform_GetComputedSizeX(entity.ScenePtr, entity.Id),
+                Internals.RectTransform_GetComputedSizeY(entity.ScenePtr, entity.Id)); }
         }
 
-        public RectTransformComponent(ulong scenePtr, ulong entityId)
+        public RectTransformComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
             this.position = new HandledVector2f(
-                () => Internals.RectTransform_GetPositionX(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetPositionX(scenePtr, entityId, v),
-                () => Internals.RectTransform_GetPositionY(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetPositionY(scenePtr, entityId, v));
+                () => Internals.RectTransform_GetPositionX(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetPositionX(entity.ScenePtr, entity.Id, v),
+                () => Internals.RectTransform_GetPositionY(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetPositionY(entity.ScenePtr, entity.Id, v));
             this.size = new HandledVector2f(
-                () => Internals.RectTransform_GetSizeX(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetSizeX(scenePtr, entityId, v),
-                () => Internals.RectTransform_GetSizeY(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetSizeY(scenePtr, entityId, v));
+                () => Internals.RectTransform_GetSizeX(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetSizeX(entity.ScenePtr, entity.Id, v),
+                () => Internals.RectTransform_GetSizeY(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetSizeY(entity.ScenePtr, entity.Id, v));
             this.scale = new HandledVector2f(
-                () => Internals.RectTransform_GetScaleX(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetScaleX(scenePtr, entityId, v),
-                () => Internals.RectTransform_GetScaleY(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetScaleY(scenePtr, entityId, v));
+                () => Internals.RectTransform_GetScaleX(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetScaleX(entity.ScenePtr, entity.Id, v),
+                () => Internals.RectTransform_GetScaleY(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetScaleY(entity.ScenePtr, entity.Id, v));
             this.padding = new HandledVector4f(
-                () => Internals.RectTransform_GetPaddingLeft(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetPaddingLeft(scenePtr, entityId, v),
-                () => Internals.RectTransform_GetPaddingTop(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetPaddingTop(scenePtr, entityId, v),
-                () => Internals.RectTransform_GetPaddingRight(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetPaddingRight(scenePtr, entityId, v),
-                () => Internals.RectTransform_GetPaddingBottom(scenePtr, entityId),
-                (v) => Internals.RectTransform_SetPaddingBottom(scenePtr, entityId, v));
+                () => Internals.RectTransform_GetPaddingLeft(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetPaddingLeft(entity.ScenePtr, entity.Id, v),
+                () => Internals.RectTransform_GetPaddingTop(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetPaddingTop(entity.ScenePtr, entity.Id, v),
+                () => Internals.RectTransform_GetPaddingRight(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetPaddingRight(entity.ScenePtr, entity.Id, v),
+                () => Internals.RectTransform_GetPaddingBottom(entity.ScenePtr, entity.Id),
+                (v) => Internals.RectTransform_SetPaddingBottom(entity.ScenePtr, entity.Id, v));
         }
     }
 }

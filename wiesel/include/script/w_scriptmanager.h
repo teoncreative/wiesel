@@ -105,22 +105,21 @@ class FieldData {
 
 class ScriptData {
  public:
-  ScriptData(MonoClass* klass, MonoMethod* on_start_method,
-             MonoMethod* on_update_method, MonoMethod* set_handle_method,
-             MonoMethod* key_pressed_method, MonoMethod* key_released_method,
-             MonoMethod* mouse_moved_method, MonoMethod* trigger_enter_method,
-             MonoMethod* trigger_stay_method, MonoMethod* trigger_exit_method,
-             MonoMethod* collision_enter_method,
-             MonoMethod* collision_stay_method,
-             MonoMethod* collision_exit_method, MonoMethod* on_disable_method,
-             MonoMethod* on_destroy_method, MonoMethod* on_pointer_click_method,
-             MonoMethod* on_pointer_down_method,
-             MonoMethod* on_pointer_up_method,
-             MonoMethod* on_pointer_enter_method,
-             MonoMethod* on_pointer_exit_method, MonoMethod* on_select_method,
-             MonoMethod* on_deselect_method, MonoMethod* on_submit_method,
-             MonoMethod* on_cancel_method,
-             std::unordered_map<std::string, FieldData> fields)
+  ScriptData(
+      MonoClass* klass, MonoMethod* on_start_method,
+      MonoMethod* on_update_method, MonoMethod* set_handle_method,
+      MonoMethod* key_pressed_method, MonoMethod* key_released_method,
+      MonoMethod* mouse_moved_method, MonoMethod* trigger_enter_method,
+      MonoMethod* trigger_stay_method, MonoMethod* trigger_exit_method,
+      MonoMethod* collision_enter_method, MonoMethod* collision_stay_method,
+      MonoMethod* collision_exit_method, MonoMethod* on_disable_method,
+      MonoMethod* on_destroy_method, MonoMethod* on_pointer_click_method,
+      MonoMethod* on_pointer_down_method, MonoMethod* on_pointer_up_method,
+      MonoMethod* on_pointer_enter_method, MonoMethod* on_pointer_exit_method,
+      MonoMethod* on_select_method, MonoMethod* on_deselect_method,
+      MonoMethod* on_submit_method, MonoMethod* on_cancel_method,
+      MonoMethod* on_ui_data_changed_method, MonoMethod* on_ui_event_method,
+      std::unordered_map<std::string, FieldData> fields)
       : mono_class_(klass),
         on_update_method_(on_update_method),
         on_start_method_(on_start_method),
@@ -145,6 +144,8 @@ class ScriptData {
         on_deselect_method_(on_deselect_method),
         on_submit_method_(on_submit_method),
         on_cancel_method_(on_cancel_method),
+        on_ui_data_changed_method_(on_ui_data_changed_method),
+        on_ui_event_method_(on_ui_event_method),
         fields_(fields) {}
 
   MonoClass* mono_class() const { return mono_class_; }
@@ -207,6 +208,12 @@ class ScriptData {
 
   MonoMethod* on_cancel_method() const { return on_cancel_method_; }
 
+  MonoMethod* on_ui_data_changed_method() const {
+    return on_ui_data_changed_method_;
+  }
+
+  MonoMethod* on_ui_event_method() const { return on_ui_event_method_; }
+
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
  private:
@@ -234,6 +241,8 @@ class ScriptData {
   MonoMethod* on_deselect_method_;
   MonoMethod* on_submit_method_;
   MonoMethod* on_cancel_method_;
+  MonoMethod* on_ui_data_changed_method_;
+  MonoMethod* on_ui_event_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
 };
@@ -287,6 +296,9 @@ class ScriptInstance {
   void OnDeselect();
   bool OnSubmit();
   bool OnCancel();
+
+  void OnUIDataChanged(const std::string& variable_name);
+  void OnUIEvent(const std::string& event_name);
 
   template <class T>
   void AttachExternComponent(std::string variable, entt::entity entity);
@@ -359,6 +371,9 @@ class ScriptManager {
   MonoClass* behavior_class() { return behavior_class_; }
 
   const std::vector<std::string>& script_names() { return script_names_; }
+
+  // Create a C# Entity object from a scene + entity handle.
+  MonoObject* CreateCSharpEntity(Scene* scene, entt::entity entity);
 
   MonoObject* GetComponentByName(Scene* scene, entt::entity entity,
                                  const std::string& name);

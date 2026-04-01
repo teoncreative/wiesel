@@ -6,6 +6,7 @@ namespace WieselEngine
         private ulong entityId;
 
         public ulong Id { get { return entityId; } }
+        public ulong ScenePtr { get { return scenePtr; } }
 
         public Entity(ulong scenePtr, ulong entityId)
         {
@@ -55,9 +56,7 @@ namespace WieselEngine
 
         public Entity GetChild(int index)
         {
-            ulong childId = Internals.Entity_GetChild(scenePtr, entityId, index);
-            if (childId == ulong.MaxValue) return null;
-            return new Entity(scenePtr, childId);
+            return Internals.Entity_GetChild(scenePtr, entityId, index);
         }
 
         public T GetChildComponent<T>(int index)

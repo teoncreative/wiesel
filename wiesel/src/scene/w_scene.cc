@@ -986,6 +986,44 @@ void Scene::UpdateSceneState(float_t delta_time) {
                 meta ? meta->GetProperties<UIDocumentAssetProperties>()
                      : nullptr;
             doc.data_model.Init(doc.rml_context_, ui_props);
+
+            // Wire callbacks to dispatch to C# behaviors on this entity
+            if (ui_props) {
+              for (const auto& decl : ui_props->variables) {
+                if (decl.mode == UIVariableMode::TwoWay) {
+                  doc.data_model.OnChanged(
+                      decl.name, [this, entity, name = decl.name]() {
+                        if (registry_.valid(entity) &&
+                            registry_.any_of<BehaviorsComponent>(entity)) {
+                          auto& bc = registry_.get<BehaviorsComponent>(entity);
+                          for (auto& [bname, behavior] : bc.behaviors_) {
+                            auto* mb = dynamic_cast<MonoBehavior*>(behavior);
+                            if (mb && mb->script_instance()) {
+                              mb->script_instance()->OnUIDataChanged(name);
+                            }
+                          }
+                        }
+                      });
+                }
+              }
+              for (const auto& event_name : ui_props->events) {
+                doc.data_model.BindEvent(
+                    event_name,
+                    [this, entity, name = event_name](Rml::Event& /*ev*/) {
+                      if (registry_.valid(entity) &&
+                          registry_.any_of<BehaviorsComponent>(entity)) {
+                        auto& bc = registry_.get<BehaviorsComponent>(entity);
+                        for (auto& [bname, behavior] : bc.behaviors_) {
+                          auto* mb = dynamic_cast<MonoBehavior*>(behavior);
+                          if (mb && mb->script_instance()) {
+                            mb->script_instance()->OnUIEvent(name);
+                          }
+                        }
+                      }
+                    });
+              }
+            }
+
             doc.rml_document_ =
                 doc.rml_context_->LoadDocument(doc_asset->vfs_path);
             if (doc.rml_document_) {

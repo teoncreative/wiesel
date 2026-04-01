@@ -164,6 +164,9 @@ static nlohmann::json SerializeUIDocumentProperties(const void* p) {
     vars.push_back(var);
   }
   j["variables"] = vars;
+  if (!props->events.empty()) {
+    j["events"] = props->events;
+  }
   return j;
 }
 
@@ -186,6 +189,11 @@ static std::shared_ptr<void> DeserializeUIDocumentProperties(
         decl.default_value = var["default"].get<std::string>();
       }
       props->variables.push_back(decl);
+    }
+  }
+  if (j.contains("events") && j["events"].is_array()) {
+    for (const auto& ev : j["events"]) {
+      props->events.push_back(ev.get<std::string>());
     }
   }
   return props;
@@ -261,6 +269,36 @@ static bool RenderUIDocumentPropertiesImGui(void* p) {
     UIVariableDecl decl;
     decl.name = "var_" + std::to_string(props->variables.size());
     props->variables.push_back(decl);
+    changed = true;
+  }
+
+  ImGui::SeparatorText("Events");
+
+  int ev_remove_idx = -1;
+  for (int i = 0; i < static_cast<int>(props->events.size()); i++) {
+    ImGui::PushID(1000 + i);
+    char ev_buf[128];
+    strncpy(ev_buf, props->events[i].c_str(), sizeof(ev_buf) - 1);
+    ev_buf[sizeof(ev_buf) - 1] = '\0';
+    ImGui::SetNextItemWidth(200);
+    if (ImGui::InputText("##event", ev_buf, sizeof(ev_buf))) {
+      props->events[i] = ev_buf;
+      changed = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("X")) {
+      ev_remove_idx = i;
+      changed = true;
+    }
+    ImGui::PopID();
+  }
+
+  if (ev_remove_idx >= 0) {
+    props->events.erase(props->events.begin() + ev_remove_idx);
+  }
+
+  if (ImGui::Button("+ Add Event")) {
+    props->events.push_back("on_event_" + std::to_string(props->events.size()));
     changed = true;
   }
 

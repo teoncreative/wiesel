@@ -523,10 +523,13 @@ MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
   auto entities = scene->FindEntitiesByTag(cstr);
   mono_free(cstr);
 
+  MonoClass* entity_class = Engine::script_manager().entity_class();
   MonoArray* arr = mono_array_new(Engine::script_manager().app_domain(),
-                                  mono_get_uint64_class(), entities.size());
+                                  entity_class, entities.size());
   for (size_t i = 0; i < entities.size(); i++) {
-    mono_array_set(arr, uint64_t, i, static_cast<uint64_t>(entities[i]));
+    MonoObject* obj =
+        Engine::script_manager().CreateCSharpEntity(scene, entities[i]);
+    mono_array_setref(arr, i, obj);
   }
   return arr;
 }
@@ -546,21 +549,21 @@ int Internals_Entity_GetChildCount(uint64_t scene_ptr, uint64_t entity_id) {
   return static_cast<int>(tree.childs.size());
 }
 
-uint64_t Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
-                                   int index) {
+MonoObject* Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
+                                      int index) {
   if (scene_ptr == 0) {
-    return UINT64_MAX;
+    return nullptr;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   if (!scene->HasComponent<TreeComponent>(handle)) {
-    return UINT64_MAX;
+    return nullptr;
   }
   TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
   if (index < 0 || index >= static_cast<int>(tree.childs.size())) {
-    return UINT64_MAX;
+    return nullptr;
   }
-  return static_cast<uint64_t>(tree.childs[index]);
+  return Engine::script_manager().CreateCSharpEntity(scene, tree.childs[index]);
 }
 
 // --- CameraComponent bindings ---
@@ -1155,33 +1158,33 @@ float Internals_Time_GetElapsedTime() {
 
 // --- Scene ---
 
-uint64_t Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
+MonoObject* Internals_Scene_FindEntity(uint64_t scene_ptr, MonoString* name) {
   if (scene_ptr == 0) {
-    return UINT64_MAX;
+    return nullptr;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   char* cstr = mono_string_to_utf8(name);
   entt::entity entity = scene->FindEntityByName(cstr);
   mono_free(cstr);
   if (entity == entt::null) {
-    return UINT64_MAX;
+    return nullptr;
   }
-  return static_cast<uint64_t>(entity);
+  return Engine::script_manager().CreateCSharpEntity(scene, entity);
 }
 
-uint64_t Internals_Scene_CreateEntity(uint64_t scene_ptr, MonoString* name) {
+MonoObject* Internals_Scene_CreateEntity(uint64_t scene_ptr, MonoString* name) {
   if (scene_ptr == 0) {
-    return 0;
+    return nullptr;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
   if (!scene) {
     LOG_ERROR("Scene_CreateEntity: no active scene");
-    return 0;
+    return nullptr;
   }
   char* cstr = mono_string_to_utf8(name);
   Entity entity = scene->CreateEntity(cstr);
   mono_free(cstr);
-  return static_cast<uint32_t>(entity.handle());
+  return Engine::script_manager().CreateCSharpEntity(scene, entity.handle());
 }
 
 void Internals_Scene_DestroyEntity(uint64_t scene_ptr, uint64_t entity_id) {

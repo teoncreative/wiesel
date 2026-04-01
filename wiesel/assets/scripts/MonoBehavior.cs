@@ -2,159 +2,203 @@ using System;
 
 namespace WieselEngine
 {
+    /// <summary>
+    /// Base class for all C# scripts attached to entities.
+    /// Override virtual methods to respond to lifecycle events, input, physics, and UI.
+    /// </summary>
     public class MonoBehavior
     {
         private ulong behaviorPtr;
-        private ulong scenePtr;
-        private ulong entityId;
 
-        protected ulong ScenePtr { get { return scenePtr; } }
-        protected ulong EntityId { get { return entityId; } }
-
-        public Entity Entity { get { return new Entity(scenePtr, entityId); } }
+        /// <summary>The entity this script is attached to. Set by the engine.</summary>
+        public Entity Entity;
 
         public static implicit operator Entity(MonoBehavior behavior)
         {
             return behavior.Entity;
         }
 
-        public Entity GetEntity(ulong otherEntityId)
-        {
-            return new Entity(scenePtr, otherEntityId);
-        }
+        // -- Lifecycle --
 
+        /// <summary>Called once when the script is first activated, before the first OnUpdate.</summary>
         public virtual void OnStart()
         {
         }
 
+        /// <summary>Called every frame with the time in seconds since the last frame.</summary>
         public virtual void OnUpdate(float deltaTime)
         {
         }
 
+        /// <summary>Called when the script is disabled or the entity is about to be removed.</summary>
         public virtual void OnDisable()
         {
         }
 
+        /// <summary>Called when the entity is destroyed. Always called after OnDisable.</summary>
         public virtual void OnDestroy()
         {
         }
 
+        // -- Input --
+
+        /// <summary>Called when a key is pressed. Return true to consume the event.</summary>
         public virtual bool OnKeyPressed(KeyCode keyCode, bool repeat)
         {
             return false;
         }
 
+        /// <summary>Called when a key is released. Return true to consume the event.</summary>
         public virtual bool OnKeyReleased(KeyCode keyCode)
         {
             return false;
         }
 
+        /// <summary>Called when the mouse moves. Return true to consume the event.</summary>
         public virtual bool OnMouseMoved(float x, float y, CursorMode cursorMode)
         {
             return false;
         }
 
-        public virtual void OnTriggerEnter(ulong otherEntityId)
+        // -- Physics: Triggers --
+
+        /// <summary>Called once when this entity's trigger collider first overlaps another.</summary>
+        public virtual void OnTriggerEnter(Entity other)
         {
         }
 
-        public virtual void OnTriggerStay(ulong otherEntityId)
+        /// <summary>Called every physics step while this entity's trigger overlaps another.</summary>
+        public virtual void OnTriggerStay(Entity other)
         {
         }
 
-        public virtual void OnTriggerExit(ulong otherEntityId)
+        /// <summary>Called once when this entity's trigger stops overlapping another.</summary>
+        public virtual void OnTriggerExit(Entity other)
         {
         }
 
-        // Pointer events (requires InteractableComponent on the entity)
+        // -- Physics: Collisions --
+
+        /// <summary>Called once when this entity first makes contact with another.</summary>
+        public virtual void OnCollisionEnter(Entity other)
+        {
+        }
+
+        /// <summary>Called every physics step while this entity is in contact with another.</summary>
+        public virtual void OnCollisionStay(Entity other)
+        {
+        }
+
+        /// <summary>Called once when this entity stops contacting another.</summary>
+        public virtual void OnCollisionExit(Entity other)
+        {
+        }
+
+        // -- UI Pointer Events (requires InteractableComponent) --
+
+        /// <summary>Called when the entity is clicked. Return true to consume.</summary>
         public virtual bool OnPointerClick(float x, float y)
         {
             return false;
         }
 
+        /// <summary>Called when a pointer button is pressed on this entity.</summary>
         public virtual bool OnPointerDown(float x, float y)
         {
             return false;
         }
 
+        /// <summary>Called when a pointer button is released on this entity.</summary>
         public virtual bool OnPointerUp(float x, float y)
         {
             return false;
         }
 
+        /// <summary>Called when the pointer enters this entity's bounds.</summary>
         public virtual void OnPointerEnter()
         {
         }
 
+        /// <summary>Called when the pointer leaves this entity's bounds.</summary>
         public virtual void OnPointerExit()
         {
         }
 
-        public virtual void OnCollisionEnter(ulong otherEntityId)
+        // -- RmlUi Data Binding (requires UIDocumentComponent on same entity) --
+
+        /// <summary>
+        /// Called when the UI changes a TwoWay data variable
+        /// (e.g. user types in an input field bound with data-value).
+        /// </summary>
+        public virtual void OnUIDataChanged(string variableName)
         {
         }
 
-        public virtual void OnCollisionStay(ulong otherEntityId)
+        /// <summary>
+        /// Called when a UI event fires (e.g. data-event-click="eventName" in RML).
+        /// Event names must be declared in the .rml asset properties.
+        /// </summary>
+        public virtual void OnUIEvent(string eventName)
         {
         }
 
-        public virtual void OnCollisionExit(ulong otherEntityId)
-        {
-        }
+        // -- Component access --
 
+        /// <summary>Get a component of type T from this entity.</summary>
         public T GetComponent<T>()
         {
-            return (T)Internals.Behavior_GetComponent(scenePtr, entityId, typeof(T).Name);
+            return (T)Internals.Behavior_GetComponent(Entity.ScenePtr, Entity.Id, typeof(T).Name);
         }
 
+        /// <summary>Check if this entity has a component of type T.</summary>
         public bool HasComponent<T>()
         {
-            return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
+            return Internals.Behavior_HasComponent(Entity.ScenePtr, Entity.Id, typeof(T).Name);
         }
 
+        /// <summary>Add a component of type T to this entity at runtime.</summary>
         public void AddComponent<T>()
         {
-            Internals.Entity_AddComponent(scenePtr, entityId, typeof(T).Name);
+            Internals.Entity_AddComponent(Entity.ScenePtr, Entity.Id, typeof(T).Name);
         }
 
+        /// <summary>Remove a component of type T from this entity.</summary>
         public void RemoveComponent<T>()
         {
-            Internals.Entity_RemoveComponent(scenePtr, entityId, typeof(T).Name);
+            Internals.Entity_RemoveComponent(Entity.ScenePtr, Entity.Id, typeof(T).Name);
         }
 
+        // -- Scene operations --
+
+        /// <summary>Create a new empty entity in the current scene.</summary>
         public Entity CreateEntity(string name)
         {
-            ulong id = Internals.Scene_CreateEntity(scenePtr, name);
-            if (id == 0) return null;
-            return new Entity(scenePtr, id);
+            return Internals.Scene_CreateEntity(Entity.ScenePtr, name);
         }
 
+        /// <summary>Find an entity by name. Returns null if not found.</summary>
         public Entity FindEntity(string name)
         {
-            ulong id = Internals.Scene_FindEntity(scenePtr, name);
-            if (id == ulong.MaxValue) return null;
-            return new Entity(scenePtr, id);
+            return Internals.Scene_FindEntity(Entity.ScenePtr, name);
         }
 
-        public void DestroyEntity(Entity entity)
+        /// <summary>Queue an entity for destruction at end of frame.</summary>
+        public void DestroyEntity(Entity target)
         {
-            Internals.Scene_DestroyEntity(scenePtr, entity.Id);
+            Internals.Scene_DestroyEntity(Entity.ScenePtr, target.Id);
         }
 
+        /// <summary>Queue this entity for destruction at end of frame.</summary>
         public void Destroy()
         {
-            Internals.Scene_DestroyEntity(scenePtr, entityId);
+            Internals.Scene_DestroyEntity(Entity.ScenePtr, Entity.Id);
         }
 
+        /// <summary>Find all entities with the given tag. Returns empty array if none found.</summary>
         public Entity[] FindEntitiesByTag(string tag)
         {
-            ulong[] ids = Internals.Scene_FindEntitiesByTag(scenePtr, tag);
-            if (ids == null || ids.Length == 0) return new Entity[0];
-            Entity[] result = new Entity[ids.Length];
-            for (int i = 0; i < ids.Length; i++)
-            {
-                result[i] = new Entity(scenePtr, ids[i]);
-            }
+            Entity[] result = Internals.Scene_FindEntitiesByTag(Entity.ScenePtr, tag);
+            if (result == null) return new Entity[0];
             return result;
         }
 

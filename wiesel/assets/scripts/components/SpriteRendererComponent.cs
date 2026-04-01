@@ -3,22 +3,21 @@ namespace WieselEngine
     public class SpriteRendererComponent : Component
     {
 
-        public SpriteRendererComponent(ulong scenePtr, ulong entityId)
+        public SpriteRendererComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
         }
 
         public bool FlipX
         {
-            get { return Internals.SpriteRenderer_GetFlipX(scenePtr, entityId); }
-            set { Internals.SpriteRenderer_SetFlipX(scenePtr, entityId, value); }
+            get { return Internals.SpriteRenderer_GetFlipX(entity.ScenePtr, entity.Id); }
+            set { Internals.SpriteRenderer_SetFlipX(entity.ScenePtr, entity.Id, value); }
         }
 
         public bool FlipY
         {
-            get { return Internals.SpriteRenderer_GetFlipY(scenePtr, entityId); }
-            set { Internals.SpriteRenderer_SetFlipY(scenePtr, entityId, value); }
+            get { return Internals.SpriteRenderer_GetFlipY(entity.ScenePtr, entity.Id); }
+            set { Internals.SpriteRenderer_SetFlipY(entity.ScenePtr, entity.Id, value); }
         }
 
         public Vector4f Tint
@@ -26,24 +25,24 @@ namespace WieselEngine
             get
             {
                 return new Vector4f(
-                    Internals.SpriteRenderer_GetTintR(scenePtr, entityId),
-                    Internals.SpriteRenderer_GetTintG(scenePtr, entityId),
-                    Internals.SpriteRenderer_GetTintB(scenePtr, entityId),
-                    Internals.SpriteRenderer_GetTintA(scenePtr, entityId));
+                    Internals.SpriteRenderer_GetTintR(entity.ScenePtr, entity.Id),
+                    Internals.SpriteRenderer_GetTintG(entity.ScenePtr, entity.Id),
+                    Internals.SpriteRenderer_GetTintB(entity.ScenePtr, entity.Id),
+                    Internals.SpriteRenderer_GetTintA(entity.ScenePtr, entity.Id));
             }
             set
             {
-                Internals.SpriteRenderer_SetTintR(scenePtr, entityId, value.X);
-                Internals.SpriteRenderer_SetTintG(scenePtr, entityId, value.Y);
-                Internals.SpriteRenderer_SetTintB(scenePtr, entityId, value.Z);
-                Internals.SpriteRenderer_SetTintA(scenePtr, entityId, value.W);
+                Internals.SpriteRenderer_SetTintR(entity.ScenePtr, entity.Id, value.X);
+                Internals.SpriteRenderer_SetTintG(entity.ScenePtr, entity.Id, value.Y);
+                Internals.SpriteRenderer_SetTintB(entity.ScenePtr, entity.Id, value.Z);
+                Internals.SpriteRenderer_SetTintA(entity.ScenePtr, entity.Id, value.W);
             }
         }
 
         public int SortLayer
         {
-            get { return Internals.SpriteRenderer_GetSortLayer(scenePtr, entityId); }
-            set { Internals.SpriteRenderer_SetSortLayer(scenePtr, entityId, value); }
+            get { return Internals.SpriteRenderer_GetSortLayer(entity.ScenePtr, entity.Id); }
+            set { Internals.SpriteRenderer_SetSortLayer(entity.ScenePtr, entity.Id, value); }
         }
     }
 }

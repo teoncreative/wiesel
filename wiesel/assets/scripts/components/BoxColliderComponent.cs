@@ -10,15 +10,15 @@ namespace WieselEngine
             get
             {
                 return new Vector3f(
-                    Internals.BoxCollider_GetOffsetX(scenePtr, entityId),
-                    Internals.BoxCollider_GetOffsetY(scenePtr, entityId),
-                    Internals.BoxCollider_GetOffsetZ(scenePtr, entityId));
+                    Internals.BoxCollider_GetOffsetX(entity.ScenePtr, entity.Id),
+                    Internals.BoxCollider_GetOffsetY(entity.ScenePtr, entity.Id),
+                    Internals.BoxCollider_GetOffsetZ(entity.ScenePtr, entity.Id));
             }
             set
             {
-                Internals.BoxCollider_SetOffsetX(scenePtr, entityId, value.X);
-                Internals.BoxCollider_SetOffsetY(scenePtr, entityId, value.Y);
-                Internals.BoxCollider_SetOffsetZ(scenePtr, entityId, value.Z);
+                Internals.BoxCollider_SetOffsetX(entity.ScenePtr, entity.Id, value.X);
+                Internals.BoxCollider_SetOffsetY(entity.ScenePtr, entity.Id, value.Y);
+                Internals.BoxCollider_SetOffsetZ(entity.ScenePtr, entity.Id, value.Z);
             }
         }
 
@@ -27,28 +27,27 @@ namespace WieselEngine
             get
             {
                 return new Vector3f(
-                    Internals.BoxCollider_GetHalfExtentsX(scenePtr, entityId),
-                    Internals.BoxCollider_GetHalfExtentsY(scenePtr, entityId),
-                    Internals.BoxCollider_GetHalfExtentsZ(scenePtr, entityId));
+                    Internals.BoxCollider_GetHalfExtentsX(entity.ScenePtr, entity.Id),
+                    Internals.BoxCollider_GetHalfExtentsY(entity.ScenePtr, entity.Id),
+                    Internals.BoxCollider_GetHalfExtentsZ(entity.ScenePtr, entity.Id));
             }
             set
             {
-                Internals.BoxCollider_SetHalfExtentsX(scenePtr, entityId, value.X);
-                Internals.BoxCollider_SetHalfExtentsY(scenePtr, entityId, value.Y);
-                Internals.BoxCollider_SetHalfExtentsZ(scenePtr, entityId, value.Z);
+                Internals.BoxCollider_SetHalfExtentsX(entity.ScenePtr, entity.Id, value.X);
+                Internals.BoxCollider_SetHalfExtentsY(entity.ScenePtr, entity.Id, value.Y);
+                Internals.BoxCollider_SetHalfExtentsZ(entity.ScenePtr, entity.Id, value.Z);
             }
         }
 
         public bool IsTrigger
         {
-            get { return Internals.BoxCollider_GetIsTrigger(scenePtr, entityId); }
-            set { Internals.BoxCollider_SetIsTrigger(scenePtr, entityId, value); }
+            get { return Internals.BoxCollider_GetIsTrigger(entity.ScenePtr, entity.Id); }
+            set { Internals.BoxCollider_SetIsTrigger(entity.ScenePtr, entity.Id, value); }
         }
 
-        public BoxColliderComponent(ulong scenePtr, ulong entityId)
+        public BoxColliderComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
         }
     }
 }

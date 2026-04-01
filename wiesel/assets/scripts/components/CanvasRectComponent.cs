@@ -12,19 +12,18 @@ namespace WieselEngine
             set { color.X = value.X; color.Y = value.Y; color.Z = value.Z; color.W = value.W; }
         }
 
-        public CanvasRectComponent(ulong scenePtr, ulong entityId)
+        public CanvasRectComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
             this.color = new HandledVector4f(
-                () => Internals.CanvasRect_GetColorR(scenePtr, entityId),
-                (v) => Internals.CanvasRect_SetColorR(scenePtr, entityId, v),
-                () => Internals.CanvasRect_GetColorG(scenePtr, entityId),
-                (v) => Internals.CanvasRect_SetColorG(scenePtr, entityId, v),
-                () => Internals.CanvasRect_GetColorB(scenePtr, entityId),
-                (v) => Internals.CanvasRect_SetColorB(scenePtr, entityId, v),
-                () => Internals.CanvasRect_GetColorA(scenePtr, entityId),
-                (v) => Internals.CanvasRect_SetColorA(scenePtr, entityId, v));
+                () => Internals.CanvasRect_GetColorR(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasRect_SetColorR(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasRect_GetColorG(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasRect_SetColorG(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasRect_GetColorB(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasRect_SetColorB(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasRect_GetColorA(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasRect_SetColorA(entity.ScenePtr, entity.Id, v));
         }
     }
 }

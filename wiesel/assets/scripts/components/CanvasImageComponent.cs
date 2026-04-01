@@ -19,28 +19,27 @@ namespace WieselEngine
             set { uvRect.X = value.X; uvRect.Y = value.Y; uvRect.Z = value.Z; uvRect.W = value.W; }
         }
 
-        public CanvasImageComponent(ulong scenePtr, ulong entityId)
+        public CanvasImageComponent(Entity entity)
         {
-            this.scenePtr = scenePtr;
-            this.entityId = entityId;
+            this.entity = entity;
             this.tint = new HandledVector4f(
-                () => Internals.CanvasImage_GetTintR(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetTintR(scenePtr, entityId, v),
-                () => Internals.CanvasImage_GetTintG(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetTintG(scenePtr, entityId, v),
-                () => Internals.CanvasImage_GetTintB(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetTintB(scenePtr, entityId, v),
-                () => Internals.CanvasImage_GetTintA(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetTintA(scenePtr, entityId, v));
+                () => Internals.CanvasImage_GetTintR(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetTintR(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasImage_GetTintG(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetTintG(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasImage_GetTintB(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetTintB(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasImage_GetTintA(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetTintA(entity.ScenePtr, entity.Id, v));
             this.uvRect = new HandledVector4f(
-                () => Internals.CanvasImage_GetUVRectX(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetUVRectX(scenePtr, entityId, v),
-                () => Internals.CanvasImage_GetUVRectY(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetUVRectY(scenePtr, entityId, v),
-                () => Internals.CanvasImage_GetUVRectZ(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetUVRectZ(scenePtr, entityId, v),
-                () => Internals.CanvasImage_GetUVRectW(scenePtr, entityId),
-                (v) => Internals.CanvasImage_SetUVRectW(scenePtr, entityId, v));
+                () => Internals.CanvasImage_GetUVRectX(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetUVRectX(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasImage_GetUVRectY(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetUVRectY(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasImage_GetUVRectZ(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetUVRectZ(entity.ScenePtr, entity.Id, v),
+                () => Internals.CanvasImage_GetUVRectW(entity.ScenePtr, entity.Id),
+                (v) => Internals.CanvasImage_SetUVRectW(entity.ScenePtr, entity.Id, v));
         }
     }
 }

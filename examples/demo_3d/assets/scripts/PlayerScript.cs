@@ -121,7 +121,7 @@ public class PlayerScript : MonoBehavior
         }
     }
 
-    public override void OnCollisionEnter(ulong otherEntity)
+    public override void OnCollisionEnter(Entity other)
     {
         grounded = true;
     }

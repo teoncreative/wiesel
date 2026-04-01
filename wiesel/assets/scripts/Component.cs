@@ -2,34 +2,31 @@ namespace WieselEngine
 {
     public abstract class Component
     {
-        protected ulong scenePtr;
-        protected ulong entityId;
+        protected Entity entity;
 
         public Entity Entity
         {
-            get { return new Entity(scenePtr, entityId); }
+            get { return entity; }
         }
 
         public T GetComponent<T>()
         {
-            return (T)Internals.Behavior_GetComponent(scenePtr, entityId, typeof(T).Name);
+            return entity.GetComponent<T>();
         }
 
         public bool HasComponent<T>()
         {
-            return Internals.Behavior_HasComponent(scenePtr, entityId, typeof(T).Name);
+            return entity.HasComponent<T>();
         }
 
         public int ChildCount
         {
-            get { return Internals.Entity_GetChildCount(scenePtr, entityId); }
+            get { return entity.ChildCount; }
         }
 
         public Entity GetChild(int index)
         {
-            ulong childId = Internals.Entity_GetChild(scenePtr, entityId, index);
-            if (childId == ulong.MaxValue) return null;
-            return new Entity(scenePtr, childId);
+            return entity.GetChild(index);
         }
 
         public T GetChildComponent<T>(int index)

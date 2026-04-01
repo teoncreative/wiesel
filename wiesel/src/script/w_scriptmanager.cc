@@ -93,19 +93,18 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data,
   handle_ = mono_object_new(Engine::script_manager().app_domain(),
                             data->mono_class());
 
-  // Set entity/scene fields BEFORE calling the constructor, so that
+  // Set entity/behavior fields BEFORE calling the constructor, so that
   // GetComponent etc. work if called from the C# constructor.
-  uint64_t behaviorPtr = (uint64_t)behavior;
-  uint64_t scenePtr = (uint64_t)behavior->scene();
-  uint64_t entityId = (uint64_t)behavior->handle();
+  uint64_t behaviorPtr = reinterpret_cast<uint64_t>(behavior);
   MonoClass* baseClass = Engine::script_manager().behavior_class();
   MonoClassField* field =
       mono_class_get_field_from_name(baseClass, "behaviorPtr");
   mono_field_set_value(handle_, field, &behaviorPtr);
-  field = mono_class_get_field_from_name(baseClass, "scenePtr");
-  mono_field_set_value(handle_, field, &scenePtr);
-  field = mono_class_get_field_from_name(baseClass, "entityId");
-  mono_field_set_value(handle_, field, &entityId);
+
+  MonoObject* entity_obj = Engine::script_manager().CreateCSharpEntity(
+      behavior->scene(), behavior->handle());
+  field = mono_class_get_field_from_name(baseClass, "Entity");
+  mono_field_set_value(handle_, field, entity_obj);
 
   mono_runtime_object_init(handle_);
   gc_handle_ = mono_gchandle_new(handle_, true);
@@ -221,9 +220,9 @@ void ScriptInstance::OnTriggerEnter(entt::entity other) {
     return;
   }
   mono_domain_set(Engine::script_manager().app_domain(), true);
-  void* args[1];
-  uint64_t otherId = (uint64_t)other;
-  args[0] = &otherId;
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(behavior_->scene(), other);
+  void* args[1] = {entity_obj};
   InvokeSafe(script_data_->on_trigger_enter_method(), handle_, args, &errored_);
 }
 
@@ -232,9 +231,9 @@ void ScriptInstance::OnTriggerStay(entt::entity other) {
     return;
   }
   mono_domain_set(Engine::script_manager().app_domain(), true);
-  void* args[1];
-  uint64_t otherId = (uint64_t)other;
-  args[0] = &otherId;
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(behavior_->scene(), other);
+  void* args[1] = {entity_obj};
   InvokeSafe(script_data_->on_trigger_stay_method(), handle_, args, &errored_);
 }
 
@@ -243,9 +242,9 @@ void ScriptInstance::OnTriggerExit(entt::entity other) {
     return;
   }
   mono_domain_set(Engine::script_manager().app_domain(), true);
-  void* args[1];
-  uint64_t otherId = (uint64_t)other;
-  args[0] = &otherId;
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(behavior_->scene(), other);
+  void* args[1] = {entity_obj};
   InvokeSafe(script_data_->on_trigger_exit_method(), handle_, args, &errored_);
 }
 
@@ -254,9 +253,9 @@ void ScriptInstance::OnCollisionEnter(entt::entity other) {
     return;
   }
   mono_domain_set(Engine::script_manager().app_domain(), true);
-  void* args[1];
-  uint64_t otherId = (uint64_t)other;
-  args[0] = &otherId;
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(behavior_->scene(), other);
+  void* args[1] = {entity_obj};
   InvokeSafe(script_data_->on_collision_enter_method(), handle_, args,
              &errored_);
 }
@@ -266,9 +265,9 @@ void ScriptInstance::OnCollisionStay(entt::entity other) {
     return;
   }
   mono_domain_set(Engine::script_manager().app_domain(), true);
-  void* args[1];
-  uint64_t otherId = (uint64_t)other;
-  args[0] = &otherId;
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(behavior_->scene(), other);
+  void* args[1] = {entity_obj};
   InvokeSafe(script_data_->on_collision_stay_method(), handle_, args,
              &errored_);
 }
@@ -278,9 +277,9 @@ void ScriptInstance::OnCollisionExit(entt::entity other) {
     return;
   }
   mono_domain_set(Engine::script_manager().app_domain(), true);
-  void* args[1];
-  uint64_t otherId = (uint64_t)other;
-  args[0] = &otherId;
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(behavior_->scene(), other);
+  void* args[1] = {entity_obj};
   InvokeSafe(script_data_->on_collision_exit_method(), handle_, args,
              &errored_);
 }
@@ -394,6 +393,30 @@ bool ScriptInstance::OnCancel() {
   return *(bool*)mono_object_unbox(result);
 }
 
+void ScriptInstance::OnUIDataChanged(const std::string& variable_name) {
+  if (errored_ || !script_data_->on_ui_data_changed_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  MonoString* name_str =
+      mono_string_new(mono_domain_get(), variable_name.c_str());
+  void* args[1];
+  args[0] = name_str;
+  InvokeSafe(script_data_->on_ui_data_changed_method(), handle_, args,
+             &errored_);
+}
+
+void ScriptInstance::OnUIEvent(const std::string& event_name) {
+  if (errored_ || !script_data_->on_ui_event_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  MonoString* name_str = mono_string_new(mono_domain_get(), event_name.c_str());
+  void* args[1];
+  args[0] = name_str;
+  InvokeSafe(script_data_->on_ui_event_method(), handle_, args, &errored_);
+}
+
 // explicitly instantiate needed types, this is required:
 template void ScriptInstance::AttachExternComponent<TransformComponent>(
     std::string, entt::entity);
@@ -428,6 +451,23 @@ void ScriptInstance::UpdateAttachments() {
 
 ScriptManager::~ScriptManager() {
   Destroy();
+}
+
+MonoObject* ScriptManager::CreateCSharpEntity(Scene* scene,
+                                              entt::entity entity) {
+  if (!entity_class_) {
+    return nullptr;
+  }
+  MonoObject* obj = mono_object_new(app_domain_, entity_class_);
+  MonoMethod* ctor = mono_class_get_method_from_name(entity_class_, ".ctor", 2);
+  if (!ctor) {
+    return nullptr;
+  }
+  uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
+  uint64_t entity_id = static_cast<uint64_t>(entity);
+  void* args[2] = {&scene_ptr, &entity_id};
+  InvokeSafe(ctor, obj, args);
+  return obj;
 }
 
 MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
@@ -853,6 +893,10 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
         mono_class_get_method_from_name(klass, "OnSubmit", 0);
     MonoMethod* on_cancel =
         mono_class_get_method_from_name(klass, "OnCancel", 0);
+    MonoMethod* on_ui_data_changed =
+        mono_class_get_method_from_name(klass, "OnUIDataChanged", 1);
+    MonoMethod* on_ui_event =
+        mono_class_get_method_from_name(klass, "OnUIEvent", 1);
 
     script_data_.insert(std::pair(
         class_name,
@@ -862,11 +906,25 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
             on_trigger_exit, on_collision_enter, on_collision_stay,
             on_collision_exit, on_disable, on_destroy, on_ptr_click,
             on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, on_select,
-            on_deselect, on_submit, on_cancel, fields)));
+            on_deselect, on_submit, on_cancel, on_ui_data_changed, on_ui_event,
+            fields)));
     script_names_.push_back(class_name);
     LOG_INFO("Registered script: {}", class_name);
   }
   return true;
+}
+
+// Helper: create a C# component wrapper by calling its (Entity) constructor.
+static MonoObject* CreateComponentWrapper(MonoClass* klass, Scene* scene,
+                                          entt::entity entity) {
+  MonoObject* obj =
+      mono_object_new(Engine::script_manager().app_domain(), klass);
+  MonoObject* entity_obj =
+      Engine::script_manager().CreateCSharpEntity(scene, entity);
+  void* args[1] = {entity_obj};
+  MonoMethod* method = mono_class_get_method_from_name(klass, ".ctor", 1);
+  InvokeSafe(method, obj, args);
+  return obj;
 }
 
 void ScriptManager::RegisterComponents() {
@@ -879,18 +937,8 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<TransformComponent>(
       "TransformComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj =
-            mono_object_new(app_domain_, transform_component_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-
-        MonoMethod* method = mono_class_get_method_from_name(
-            transform_component_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(transform_component_class_, scene,
+                                      entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<TransformComponent>(entity);
@@ -899,17 +947,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<ModelComponent>(
       "ModelComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, model_component_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-
-        MonoMethod* method =
-            mono_class_get_method_from_name(model_component_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(model_component_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<ModelComponent>(entity);
@@ -918,17 +956,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<BoxColliderComponent>(
       "BoxColliderComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, box_collider_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-
-        MonoMethod* method =
-            mono_class_get_method_from_name(box_collider_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(box_collider_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<BoxColliderComponent>(entity);
@@ -937,17 +965,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<SphereColliderComponent>(
       "SphereColliderComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, sphere_collider_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-
-        MonoMethod* method =
-            mono_class_get_method_from_name(sphere_collider_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(sphere_collider_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<SphereColliderComponent>(entity);
@@ -956,17 +974,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<RigidBodyComponent>(
       "RigidBodyComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, rigidbody_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-
-        MonoMethod* method =
-            mono_class_get_method_from_name(rigidbody_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(rigidbody_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<RigidBodyComponent>(entity);
@@ -975,16 +983,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<RectangleTransformComponent>(
       "RectTransformComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, rect_transform_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-        MonoMethod* method =
-            mono_class_get_method_from_name(rect_transform_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(rect_transform_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<RectangleTransformComponent>(entity);
@@ -993,16 +992,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<CanvasComponent>(
       "CanvasComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, canvas_component_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-        MonoMethod* method = mono_class_get_method_from_name(
-            canvas_component_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(canvas_component_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<CanvasComponent>(entity);
@@ -1011,16 +1001,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<CanvasRectComponent>(
       "CanvasRectComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, canvas_rect_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-        MonoMethod* method =
-            mono_class_get_method_from_name(canvas_rect_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(canvas_rect_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<CanvasRectComponent>(entity);
@@ -1029,16 +1010,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<CanvasImageComponent>(
       "CanvasImageComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, canvas_image_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-        MonoMethod* method =
-            mono_class_get_method_from_name(canvas_image_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(canvas_image_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<CanvasImageComponent>(entity);
@@ -1047,16 +1019,7 @@ void ScriptManager::RegisterComponents() {
   RegisterComponent<TextComponent>(
       "TextComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        MonoObject* obj = mono_object_new(app_domain_, text_component_class_);
-        void* args[2];
-        uint64_t scenePtr = (uint64_t)scene;
-        uint64_t entityId = (uint64_t)entity;
-        args[0] = &scenePtr;
-        args[1] = &entityId;
-        MonoMethod* method =
-            mono_class_get_method_from_name(text_component_class_, ".ctor", 2);
-        InvokeSafe(method, obj, args);
-        return obj;
+        return CreateComponentWrapper(text_component_class_, scene, entity);
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<TextComponent>(entity);
@@ -1066,17 +1029,8 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<AnimatorComponent>(
         "AnimatorComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj =
-              mono_object_new(app_domain_, animator_component_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method = mono_class_get_method_from_name(
-              animator_component_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(animator_component_class_, scene,
+                                        entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<AnimatorComponent>(entity);
@@ -1087,16 +1041,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<AudioSourceComponent>(
         "AudioSourceComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj = mono_object_new(app_domain_, audio_source_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method =
-              mono_class_get_method_from_name(audio_source_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(audio_source_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<AudioSourceComponent>(entity);
@@ -1107,16 +1052,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<CameraComponent>(
         "CameraComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj = mono_object_new(app_domain_, camera_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method =
-              mono_class_get_method_from_name(camera_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(camera_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<CameraComponent>(entity);
@@ -1127,16 +1063,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<LightDirectComponent>(
         "LightDirectComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj = mono_object_new(app_domain_, light_direct_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method =
-              mono_class_get_method_from_name(light_direct_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(light_direct_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<LightDirectComponent>(entity);
@@ -1147,16 +1074,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<LightPointComponent>(
         "LightPointComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj = mono_object_new(app_domain_, light_point_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method =
-              mono_class_get_method_from_name(light_point_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(light_point_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<LightPointComponent>(entity);
@@ -1167,17 +1085,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<SpriteRendererComponent>(
         "SpriteRendererComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj =
-              mono_object_new(app_domain_, sprite_renderer_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method = mono_class_get_method_from_name(
-              sprite_renderer_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(sprite_renderer_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<SpriteRendererComponent>(entity);
@@ -1188,17 +1096,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<SpriteAnimatorComponent>(
         "SpriteAnimatorComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj =
-              mono_object_new(app_domain_, sprite_animator_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method = mono_class_get_method_from_name(
-              sprite_animator_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(sprite_animator_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<SpriteAnimatorComponent>(entity);
@@ -1209,16 +1107,7 @@ void ScriptManager::RegisterComponents() {
     RegisterComponent<UIDocumentComponent>(
         "UIDocumentComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
-          MonoObject* obj = mono_object_new(app_domain_, ui_document_class_);
-          void* args[2];
-          uint64_t scenePtr = (uint64_t)scene;
-          uint64_t entityId = (uint64_t)entity;
-          args[0] = &scenePtr;
-          args[1] = &entityId;
-          MonoMethod* method =
-              mono_class_get_method_from_name(ui_document_class_, ".ctor", 2);
-          InvokeSafe(method, obj, args);
-          return obj;
+          return CreateComponentWrapper(ui_document_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<UIDocumentComponent>(entity);

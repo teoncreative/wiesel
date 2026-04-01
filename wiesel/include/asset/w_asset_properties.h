@@ -68,6 +68,7 @@ struct UIVariableDecl {
 
 struct UIDocumentAssetProperties {
   std::vector<UIVariableDecl> variables;
+  std::vector<std::string> events;  // Event names (data-event-click="name")
 };
 
 }  // namespace Wiesel
