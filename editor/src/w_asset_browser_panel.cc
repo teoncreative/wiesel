@@ -289,7 +289,9 @@ void AssetBrowserPanel::Render(bool& open) {
           } else if (fe.asset_type == AssetType::Prefab &&
                      callbacks_.on_open_prefab) {
             callbacks_.on_open_prefab(fe.vfs_path);
-          } else if (fe.asset_type == AssetType::Script &&
+          } else if ((fe.asset_type == AssetType::Script ||
+                      fe.asset_type == AssetType::UIDocument ||
+                      fe.asset_type == AssetType::UIStylesheet) &&
                      callbacks_.on_open_code_editor) {
             auto phys = Engine::vfs()->GetPhysicalPath(fe.vfs_path);
             if (phys) {

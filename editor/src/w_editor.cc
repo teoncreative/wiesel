@@ -21,6 +21,7 @@
 #include "rendering/w_sprite_asset.h"
 #include "util/w_discord_rpc.h"
 #include "w_csharp_lang.h"
+#include "w_rml_lang.h"
 
 // clang-format off
 // Import order important
@@ -525,6 +526,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
       for (auto entity : registry.view<UIDocumentComponent>()) {
         auto& doc = registry.get<UIDocumentComponent>(entity);
         if (doc.rml_context_) {
+          doc.data_model.Shutdown();
           Rml::RemoveContext(doc.context_name_);
           doc.rml_context_ = nullptr;
           doc.rml_document_ = nullptr;
@@ -4124,17 +4126,31 @@ void EditorLayer::OpenCodeEditor(const std::filesystem::path& path) {
   code_editor_uri_ = LspClient::PathToUri(path);
   text_editor_.SetText(content);
   text_editor_.SetFilePath(path.string());
-  static auto csharp_lang = CreateCSharpLanguageDefinition();
-  text_editor_.SetLanguageDefinition(csharp_lang);
+
+  // Pick language definition based on file extension
+  auto ext = path.extension().string();
+  if (ext == ".rml") {
+    static auto rml_lang = CreateRmlLanguageDefinition();
+    text_editor_.SetLanguageDefinition(rml_lang);
+  } else if (ext == ".rcss") {
+    static auto rcss_lang = CreateRcssLanguageDefinition();
+    text_editor_.SetLanguageDefinition(rcss_lang);
+  } else {
+    static auto csharp_lang = CreateCSharpLanguageDefinition();
+    text_editor_.SetLanguageDefinition(csharp_lang);
+  }
+
   text_editor_.SetShowWhitespaces(false);
   code_editor_unsaved_ = false;
   code_editor_open_ = true;
 
-  // Start LSP if needed and notify of opened file
-  StartLsp();
-  semantic_tokens_received_ = false;
-  if (lsp_initialized_) {
-    lsp_client_.DidOpen(code_editor_uri_, content);
+  // Start LSP only for C# files
+  if (ext == ".cs") {
+    StartLsp();
+    semantic_tokens_received_ = false;
+    if (lsp_initialized_) {
+      lsp_client_.DidOpen(code_editor_uri_, content);
+    }
   }
 }
 
