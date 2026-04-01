@@ -11,8 +11,8 @@
 
 #include "ui/w_ui_event_system.h"
 
-#include "RmlUi/Core/Context.h"
-#include "asset/w_asset_manager.h"
+#include <RmlUi/Core/Context.h>
+
 #include "behavior/w_behavior.h"
 #include "input/w_input.h"
 #include "rendering/w_camera.h"
@@ -21,7 +21,6 @@
 #include "ui/w_interactable.h"
 #include "ui/w_navigable.h"
 #include "ui/w_ui_document.h"
-#include "util/w_logger.h"
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -30,74 +29,10 @@ namespace Wiesel {
 // Helpers
 // ---------------------------------------------------------------------------
 
-static bool PointInRect(float px, float py, const glm::vec2& pos,
+static bool PointInRect(const glm::vec2& point, const glm::vec2& pos,
                         const glm::vec2& size) {
-  return px >= pos.x && px <= pos.x + size.x && py >= pos.y &&
-         py <= pos.y + size.y;
-}
-
-static glm::vec2 ViewportToCanvasSpace(float mouse_x, float mouse_y,
-                                       const glm::vec2& display_size,
-                                       const glm::vec2& render_res,
-                                       entt::registry& registry) {
-  float cx = mouse_x;
-  float cy = mouse_y;
-
-  if (display_size.x > 0 && display_size.y > 0 && render_res.x > 0 &&
-      render_res.y > 0) {
-    cx = mouse_x * (render_res.x / display_size.x);
-    cy = mouse_y * (render_res.y / display_size.y);
-  }
-
-  for (auto e : registry.view<CanvasComponent, CanvasScalerComponent>()) {
-    auto& scaler = registry.get<CanvasScalerComponent>(e);
-    if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize &&
-        render_res.x > 0 && render_res.y > 0) {
-      float scale_w = render_res.x / scaler.reference_resolution.x;
-      float scale_h = render_res.y / scaler.reference_resolution.y;
-      float t = scaler.match_width_or_height;
-      float scale_factor = scale_w * (1.0f - t) + scale_h * t;
-      cx /= scale_factor;
-      cy /= scale_factor;
-      break;
-    }
-  }
-
-  return {cx, cy};
-}
-
-struct CameraRay {
-  glm::vec3 origin;
-  glm::vec3 direction;
-  bool valid = false;
-};
-
-static CameraRay BuildCameraRay(
-    float mouse_x, float mouse_y, const glm::vec2& display_size,
-    const std::shared_ptr<CameraData>& camera_data) {
-  CameraRay ray;
-  if (!camera_data || display_size.x <= 0 || display_size.y <= 0) {
-    return ray;
-  }
-
-  float ndc_x = (mouse_x / display_size.x) * 2.0f - 1.0f;
-  float ndc_y = (mouse_y / display_size.y) * 2.0f - 1.0f;
-
-  glm::mat4 inv_proj = glm::inverse(camera_data->projection);
-  glm::mat4 inv_view = glm::inverse(camera_data->view_matrix);
-
-  glm::vec4 near_ndc = {ndc_x, ndc_y, -1.0f, 1.0f};
-  glm::vec4 far_ndc = {ndc_x, ndc_y, 1.0f, 1.0f};
-
-  glm::vec4 near_view = inv_proj * near_ndc;
-  near_view /= near_view.w;
-  glm::vec4 far_view = inv_proj * far_ndc;
-  far_view /= far_view.w;
-
-  ray.origin = glm::vec3(inv_view * near_view);
-  ray.direction = glm::normalize(glm::vec3(inv_view * far_view) - ray.origin);
-  ray.valid = true;
-  return ray;
+  return point.x >= pos.x && point.x <= pos.x + size.x && point.y >= pos.y &&
+         point.y <= pos.y + size.y;
 }
 
 static entt::entity FindCanvasRoot(entt::registry& registry,
@@ -116,35 +51,133 @@ static entt::entity FindCanvasRoot(entt::registry& registry,
   return entt::null;
 }
 
-// Returns the player_index for the canvas that owns this entity.
-static int GetCanvasPlayerIndex(entt::registry& registry, entt::entity entity) {
-  entt::entity canvas = FindCanvasRoot(registry, entity);
-  if (canvas != entt::null) {
-    return registry.get<CanvasComponent>(canvas).player_index;
-  }
-  return 0;
-}
+// ---------------------------------------------------------------------------
+// Phase 1+2: Transform viewport mouse to canvas-space coordinates.
+// Works for all render modes: ScreenSpace uses display/render scaling +
+// canvas scaler inverse. WorldSpace uses ray-plane intersection.
+// Returns {coords, valid}. Invalid means mouse doesn't map to this canvas.
+// ---------------------------------------------------------------------------
 
-struct HitCandidate {
-  entt::entity entity;
-  int32_t draw_order;
+struct CanvasMouseResult {
+  glm::vec2 coords;
+  bool valid = false;
 };
 
-// Hit test against all interactables owned by canvases with the given
-// player_index. Pass player_index = -1 to match all canvases.
-static entt::entity HitTest(Scene& scene, float mouse_x, float mouse_y,
-                            int player_index) {
+static CanvasMouseResult TransformToCanvasSpace(float mouse_x, float mouse_y,
+                                                entt::entity canvas_entity,
+                                                Scene& scene) {
   auto& registry = scene.GetRegistry();
+  auto& canvas = registry.get<CanvasComponent>(canvas_entity);
+
+  if (canvas.render_mode == CanvasRenderMode::WorldSpace) {
+    // Build camera ray from viewport mouse
+    glm::vec2 display_size = scene.GetViewportDisplaySize();
+    auto camera_data = Engine::renderer()->GetCameraData();
+    if (!camera_data || display_size.x <= 0 || display_size.y <= 0) {
+      return {};
+    }
+    if (!registry.any_of<TransformComponent>(canvas_entity)) {
+      return {};
+    }
+
+    float ndc_x = (mouse_x / display_size.x) * 2.0f - 1.0f;
+    float ndc_y = (mouse_y / display_size.y) * 2.0f - 1.0f;
+
+    glm::mat4 inv_proj = glm::inverse(camera_data->projection);
+    glm::mat4 inv_view = glm::inverse(camera_data->view_matrix);
+
+    glm::vec4 near_ndc = {ndc_x, ndc_y, -1.0f, 1.0f};
+    glm::vec4 far_ndc = {ndc_x, ndc_y, 1.0f, 1.0f};
+    glm::vec4 near_view = inv_proj * near_ndc;
+    near_view /= near_view.w;
+    glm::vec4 far_view = inv_proj * far_ndc;
+    far_view /= far_view.w;
+
+    glm::vec3 ray_origin = glm::vec3(inv_view * near_view);
+    glm::vec3 ray_dir =
+        glm::normalize(glm::vec3(inv_view * far_view) - ray_origin);
+
+    // Ray-plane intersection
+    auto& transform = registry.get<TransformComponent>(canvas_entity);
+    glm::mat4 model = transform.GetTransformMatrix();
+    glm::vec3 plane_normal = glm::normalize(glm::vec3(model[2]));
+    glm::vec3 plane_origin = glm::vec3(model[3]);
+
+    float denom = glm::dot(plane_normal, ray_dir);
+    if (std::abs(denom) < 1e-6f) {
+      return {};
+    }
+    float t = glm::dot(plane_origin - ray_origin, plane_normal) / denom;
+    if (t < 0) {
+      return {};
+    }
+
+    glm::vec3 hit_world = ray_origin + ray_dir * t;
+    glm::mat4 inv_model = glm::inverse(model);
+    glm::vec3 hit_local = glm::vec3(inv_model * glm::vec4(hit_world, 1.0f));
+
+    // Convert local hit to canvas pixel coords
+    glm::vec2 ref_size = {1920, 1080};
+    float ppu = 100.0f;
+    if (registry.any_of<CanvasScalerComponent>(canvas_entity)) {
+      auto& scaler = registry.get<CanvasScalerComponent>(canvas_entity);
+      ref_size = scaler.reference_resolution;
+      ppu = std::max(1.0f, scaler.reference_pixels_per_unit);
+    }
+    glm::vec2 ws = ref_size / ppu;
+
+    glm::vec2 normalized = glm::vec2(hit_local.x, hit_local.y) / ws;
+    normalized.y = -normalized.y;
+    glm::vec2 canvas_coords = (normalized + glm::vec2(0.5f)) * ref_size;
+
+    return {canvas_coords, true};
+  }
+
+  // ScreenSpace: apply display->render scale + canvas scaler inverse
   glm::vec2 display_size = scene.GetViewportDisplaySize();
   glm::vec2 render_res = scene.GetRenderResolution();
   if (render_res.x <= 0 || render_res.y <= 0) {
     render_res = display_size;
   }
 
-  glm::vec2 canvas_mouse = ViewportToCanvasSpace(mouse_x, mouse_y, display_size,
-                                                 render_res, registry);
-  CameraRay ray = BuildCameraRay(mouse_x, mouse_y, display_size,
-                                 Engine::renderer()->GetCameraData());
+  float cx = mouse_x;
+  float cy = mouse_y;
+
+  if (display_size.x > 0 && display_size.y > 0 && render_res.x > 0 &&
+      render_res.y > 0) {
+    cx = mouse_x * (render_res.x / display_size.x);
+    cy = mouse_y * (render_res.y / display_size.y);
+  }
+
+  if (registry.any_of<CanvasScalerComponent>(canvas_entity)) {
+    auto& scaler = registry.get<CanvasScalerComponent>(canvas_entity);
+    if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize &&
+        render_res.x > 0 && render_res.y > 0) {
+      float scale_w = render_res.x / scaler.reference_resolution.x;
+      float scale_h = render_res.y / scaler.reference_resolution.y;
+      float t = scaler.match_width_or_height;
+      float scale_factor = scale_w * (1.0f - t) + scale_h * t;
+      cx /= scale_factor;
+      cy /= scale_factor;
+    }
+  }
+
+  return {{cx, cy}, true};
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3a: Hit test interactable elements under a specific canvas.
+// Uses pre-transformed canvas-space coords. Returns highest draw_order hit.
+// ---------------------------------------------------------------------------
+
+struct HitCandidate {
+  entt::entity entity;
+  int32_t draw_order;
+};
+
+static entt::entity HitTestCanvas(entt::entity canvas_entity,
+                                  glm::vec2 canvas_mouse, Scene& scene) {
+  auto& registry = scene.GetRegistry();
 
   std::vector<HitCandidate> candidates;
 
@@ -155,77 +188,77 @@ static entt::entity HitTest(Scene& scene, float mouse_x, float mouse_y,
       continue;
     }
 
-    entt::entity canvas_root = FindCanvasRoot(registry, entity);
-    if (canvas_root == entt::null) {
-      continue;
-    }
-
-    auto& canvas = registry.get<CanvasComponent>(canvas_root);
-
-    // Filter by player
-    if (player_index >= 0 && canvas.player_index != player_index) {
+    if (FindCanvasRoot(registry, entity) != canvas_entity) {
       continue;
     }
 
     auto& rt = registry.get<RectangleTransformComponent>(entity);
-
-    if (canvas.render_mode == CanvasRenderMode::WorldSpace) {
-      if (!ray.valid || !registry.any_of<TransformComponent>(canvas_root)) {
-        continue;
-      }
-
-      auto& canvas_transform = registry.get<TransformComponent>(canvas_root);
-      glm::mat4 model = canvas_transform.GetTransformMatrix();
-      glm::vec3 plane_normal = glm::normalize(glm::vec3(model[2]));
-      glm::vec3 plane_origin = glm::vec3(model[3]);
-
-      float denom = glm::dot(plane_normal, ray.direction);
-      if (std::abs(denom) < 1e-6f) {
-        continue;
-      }
-      float t = glm::dot(plane_origin - ray.origin, plane_normal) / denom;
-      if (t < 0) {
-        continue;
-      }
-
-      glm::vec3 hit_world = ray.origin + ray.direction * t;
-      glm::mat4 inv_model = glm::inverse(model);
-      glm::vec3 hit_local = glm::vec3(inv_model * glm::vec4(hit_world, 1.0f));
-
-      glm::vec2 ref_size = {1920, 1080};
-      float ppu = 100.0f;
-      if (registry.any_of<CanvasScalerComponent>(canvas_root)) {
-        auto& scaler = registry.get<CanvasScalerComponent>(canvas_root);
-        ref_size = scaler.reference_resolution;
-        ppu = std::max(1.0f, scaler.reference_pixels_per_unit);
-      }
-      glm::vec2 ws = ref_size / ppu;
-
-      glm::vec2 normalized = glm::vec2(hit_local.x, hit_local.y) / ws;
-      normalized.y = -normalized.y;
-      glm::vec2 canvas_pos = (normalized + glm::vec2(0.5f)) * ref_size;
-
-      if (PointInRect(canvas_pos.x, canvas_pos.y, rt.computed_position,
-                      rt.computed_size)) {
-        candidates.push_back({entity, rt.draw_order});
-      }
-    } else {
-      if (PointInRect(canvas_mouse.x, canvas_mouse.y, rt.computed_position,
-                      rt.computed_size)) {
-        candidates.push_back({entity, rt.draw_order});
-      }
+    if (PointInRect(canvas_mouse, rt.computed_position, rt.computed_size)) {
+      candidates.push_back({entity, rt.draw_order});
     }
   }
 
-  std::sort(candidates.begin(), candidates.end(),
-            [](const HitCandidate& a, const HitCandidate& b) {
-              return a.draw_order > b.draw_order;
-            });
+  std::ranges::sort(candidates,
+                    [](const HitCandidate& a, const HitCandidate& b) {
+                      return a.draw_order > b.draw_order;
+                    });
 
   if (!candidates.empty()) {
     return candidates[0].entity;
   }
   return entt::null;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3b: Forward mouse events to UIDocument contexts under a canvas.
+// Uses pre-transformed canvas-space coords.
+// ---------------------------------------------------------------------------
+
+static void ForwardToUIDocuments(entt::entity canvas_entity,
+                                 glm::vec2 canvas_mouse, Scene& scene,
+                                 bool mouse_down, bool mouse_up) {
+  auto& registry = scene.GetRegistry();
+
+  for (auto entity :
+       registry.view<UIDocumentComponent, RectangleTransformComponent>()) {
+    if (FindCanvasRoot(registry, entity) != canvas_entity) {
+      continue;
+    }
+
+    auto& doc = registry.get<UIDocumentComponent>(entity);
+    if (!doc.rml_context_ || !doc.visible) {
+      continue;
+    }
+    auto& rt = registry.get<RectangleTransformComponent>(entity);
+
+    // Canvas-space to document-local coords
+    glm::vec2 local = canvas_mouse - rt.computed_position;
+
+    bool inside = local.x >= 0 && local.y >= 0 &&
+                  local.x < rt.computed_size.x && local.y < rt.computed_size.y;
+
+    // Scale from canvas-space to offscreen render resolution
+    float scale_x = 1.0f;
+    float scale_y = 1.0f;
+    if (doc.offscreen_size_.x > 0 && rt.computed_size.x > 0) {
+      scale_x = doc.offscreen_size_.x / rt.computed_size.x;
+      scale_y = doc.offscreen_size_.y / rt.computed_size.y;
+    }
+
+    int rml_x = static_cast<int>(local.x * scale_x);
+    int rml_y = static_cast<int>(local.y * scale_y);
+
+    doc.rml_context_->ProcessMouseMove(rml_x, rml_y, 0);
+
+    if (inside) {
+      if (mouse_down) {
+        doc.rml_context_->ProcessMouseButtonDown(0, 0);
+      }
+      if (mouse_up) {
+        doc.rml_context_->ProcessMouseButtonUp(0, 0);
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +365,6 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
     if (InputManager::GetInputMode(player) == kInputModeGamepad) {
       ProcessGamepadInput(scene, delta_time, player, entity);
     } else {
-      // Player switched to keyboard/mouse - clear their selection
       auto it = player_nav_.find(player);
       if (it != player_nav_.end() && it->second.selected_entity != entt::null) {
         ClearSelection(scene, player);
@@ -344,7 +376,7 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
 }
 
 // ---------------------------------------------------------------------------
-// Mouse input processing
+// Mouse input processing (per-canvas, phase-based)
 // ---------------------------------------------------------------------------
 void UIEventSystem::ProcessMouseInput(Scene& scene) {
   auto& registry = scene.GetRegistry();
@@ -355,27 +387,40 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
       InputManager::IsMouseButtonDown(MouseCode::kMouseButtonLeft);
   bool mouse_up = InputManager::IsMouseButtonUp(MouseCode::kMouseButtonLeft);
 
-  // Only hit test against canvases owned by keyboard/mouse players
-  // Find which players are in mouse mode and hit test for them
+  // Per-canvas processing: transform coords once, then hit test + forward
   entt::entity hit_entity = entt::null;
-  for (auto entity : registry.view<CanvasComponent>()) {
-    auto& canvas = registry.get<CanvasComponent>(entity);
-    if (InputManager::GetInputMode(canvas.player_index) ==
+
+  for (auto canvas_entity : registry.view<CanvasComponent>()) {
+    auto& canvas = registry.get<CanvasComponent>(canvas_entity);
+    if (InputManager::GetInputMode(canvas.player_index) !=
         kInputModeKeyboardAndMouse) {
-      entt::entity hit = HitTest(scene, mouse_x, mouse_y, canvas.player_index);
-      if (hit != entt::null) {
-        // Pick frontmost across all mouse-mode canvases
-        if (hit_entity == entt::null) {
+      continue;
+    }
+
+    // Phase 1+2: Transform viewport mouse to canvas space
+    auto result =
+        TransformToCanvasSpace(mouse_x, mouse_y, canvas_entity, scene);
+    if (!result.valid) {
+      continue;
+    }
+
+    // Phase 3a: Hit test interactable elements
+    entt::entity hit = HitTestCanvas(canvas_entity, result.coords, scene);
+    if (hit != entt::null) {
+      if (hit_entity == entt::null) {
+        hit_entity = hit;
+      } else {
+        auto& rt_hit = registry.get<RectangleTransformComponent>(hit);
+        auto& rt_cur = registry.get<RectangleTransformComponent>(hit_entity);
+        if (rt_hit.draw_order > rt_cur.draw_order) {
           hit_entity = hit;
-        } else {
-          auto& rt_hit = registry.get<RectangleTransformComponent>(hit);
-          auto& rt_cur = registry.get<RectangleTransformComponent>(hit_entity);
-          if (rt_hit.draw_order > rt_cur.draw_order) {
-            hit_entity = hit;
-          }
         }
       }
     }
+
+    // Phase 3b: Forward to UIDocument contexts
+    ForwardToUIDocuments(canvas_entity, result.coords, scene, mouse_down,
+                         mouse_up);
   }
 
   // Hover enter/exit
@@ -403,7 +448,6 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
 
   // Pointer down
   if (mouse_down) {
-    // Text input focus
     entt::entity new_focus = entt::null;
     if (hit_entity != entt::null &&
         registry.any_of<TextInputComponent>(hit_entity)) {
@@ -449,54 +493,6 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
     }
     pressed_entity_ = entt::null;
   }
-
-  // Forward mouse events to UIDocument contexts
-  // Use canvas-space coordinates (same space as computed_position/computed_size)
-  glm::vec2 display_size = scene.GetViewportDisplaySize();
-  glm::vec2 render_res = scene.GetRenderResolution();
-  if (render_res.x <= 0 || render_res.y <= 0) {
-    render_res = display_size;
-  }
-  glm::vec2 canvas_mouse = ViewportToCanvasSpace(mouse_x, mouse_y, display_size,
-                                                 render_res, registry);
-
-  for (auto entity :
-       registry.view<UIDocumentComponent, RectangleTransformComponent>()) {
-    auto& doc = registry.get<UIDocumentComponent>(entity);
-    if (!doc.rml_context_ || !doc.visible) {
-      continue;
-    }
-    auto& rt = registry.get<RectangleTransformComponent>(entity);
-
-    // Canvas-space to document-local coords
-    float local_x = canvas_mouse.x - rt.computed_position.x;
-    float local_y = canvas_mouse.y - rt.computed_position.y;
-
-    bool inside = local_x >= 0 && local_y >= 0 &&
-                  local_x < rt.computed_size.x && local_y < rt.computed_size.y;
-
-    // Scale from canvas-space to offscreen render resolution
-    float scale_x = 1.0f;
-    float scale_y = 1.0f;
-    if (doc.offscreen_size_.x > 0 && rt.computed_size.x > 0) {
-      scale_x = doc.offscreen_size_.x / rt.computed_size.x;
-      scale_y = doc.offscreen_size_.y / rt.computed_size.y;
-    }
-
-    int rml_x = static_cast<int>(local_x * scale_x);
-    int rml_y = static_cast<int>(local_y * scale_y);
-
-    doc.rml_context_->ProcessMouseMove(rml_x, rml_y, 0);
-
-    if (inside) {
-      if (mouse_down) {
-        doc.rml_context_->ProcessMouseButtonDown(0, 0);
-      }
-      if (mouse_up) {
-        doc.rml_context_->ProcessMouseButtonUp(0, 0);
-      }
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -508,7 +504,6 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
   auto& registry = scene.GetRegistry();
   auto& nav = player_nav_[player_index];
 
-  // Validate current selection still exists and belongs to this canvas
   if (nav.selected_entity != entt::null) {
     if (!registry.valid(nav.selected_entity) ||
         FindCanvasRoot(registry, nav.selected_entity) != canvas_entity) {
@@ -516,7 +511,6 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
     }
   }
 
-  // Select first navigable element if nothing is selected
   if (nav.selected_entity == entt::null) {
     entt::entity first = FindFirstNavigable(scene, canvas_entity);
     if (first != entt::null) {
@@ -525,7 +519,6 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
     return;
   }
 
-  // Get the gamepad assigned to this player
   const auto& slot = InputManager::GetPlayerSlot(player_index);
   int gp = slot.gamepad_index;
   if (gp < 0 || !InputManager::GetGamepadState(gp).connected) {
@@ -534,7 +527,6 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
 
   const auto& state = InputManager::GetGamepadState(gp);
 
-  // Navigation direction from d-pad or left stick
   glm::vec2 nav_dir = {0.0f, 0.0f};
 
   bool dpad_up = state.buttons[static_cast<int>(GamepadButtonDPadUp)].pressed;
@@ -571,7 +563,6 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
     }
   }
 
-  // Navigation with repeat
   bool nav_active = (nav_dir.x != 0.0f || nav_dir.y != 0.0f);
   if (nav_active) {
     bool should_navigate = false;
@@ -664,7 +655,6 @@ void UIEventSystem::NavigateTo(Scene& scene, int player_index,
     return;
   }
 
-  // Deselect old
   if (nav.selected_entity != entt::null &&
       registry.valid(nav.selected_entity)) {
     if (registry.any_of<InteractableComponent>(nav.selected_entity)) {
@@ -677,7 +667,6 @@ void UIEventSystem::NavigateTo(Scene& scene, int player_index,
     });
   }
 
-  // Select new
   nav.selected_entity = target;
   if (target != entt::null) {
     if (registry.any_of<InteractableComponent>(target)) {
@@ -688,7 +677,6 @@ void UIEventSystem::NavigateTo(Scene& scene, int player_index,
       return false;
     });
 
-    // Auto-focus text inputs
     if (registry.any_of<TextInputComponent>(target)) {
       FocusEntity(registry, target);
     }
@@ -704,7 +692,6 @@ entt::entity UIEventSystem::FindNeighbor(Scene& scene, entt::entity from,
     return entt::null;
   }
 
-  // Check explicit overrides first
   auto& nav_comp = registry.get<NavigableComponent>(from);
   entt::entity explicit_target = entt::null;
   if (direction.x > 0.5f) {
@@ -723,7 +710,6 @@ entt::entity UIEventSystem::FindNeighbor(Scene& scene, entt::entity from,
     return explicit_target;
   }
 
-  // Auto-navigation: find best candidate in the given direction
   if (!registry.any_of<RectangleTransformComponent>(from)) {
     return entt::null;
   }
@@ -749,7 +735,6 @@ entt::entity UIEventSystem::FindNeighbor(Scene& scene, entt::entity from,
       continue;
     }
 
-    // Must be in the same canvas
     if (FindCanvasRoot(registry, entity) != canvas_root) {
       continue;
     }
@@ -766,12 +751,10 @@ entt::entity UIEventSystem::FindNeighbor(Scene& scene, entt::entity from,
     glm::vec2 norm_offset = offset / dist;
     float dot = glm::dot(norm_offset, norm_dir);
 
-    // Must be in the general direction
     if (dot < 0.3f) {
       continue;
     }
 
-    // Score: favor alignment and proximity
     float score = dot / (1.0f + dist * 0.01f);
     if (score > best_score) {
       best_score = score;
@@ -779,8 +762,7 @@ entt::entity UIEventSystem::FindNeighbor(Scene& scene, entt::entity from,
     }
   }
 
-  // Wrap-around: if no candidate found, find the farthest element in the
-  // opposite direction (wraps to the other end)
+  // Wrap-around
   if (best == entt::null) {
     float farthest_dist = -1.0f;
     for (auto entity : view) {
@@ -802,7 +784,6 @@ entt::entity UIEventSystem::FindNeighbor(Scene& scene, entt::entity from,
       glm::vec2 offset = center - from_center;
 
       float dot = glm::dot(glm::normalize(offset), norm_dir);
-      // Element is in the opposite direction
       if (dot < -0.3f) {
         float dist = glm::length(offset);
         if (dist > farthest_dist) {
@@ -831,7 +812,6 @@ entt::entity UIEventSystem::FindFirstNavigable(Scene& scene,
       continue;
     }
 
-    // Must belong to the specified canvas
     if (FindCanvasRoot(registry, entity) != canvas_root) {
       continue;
     }
