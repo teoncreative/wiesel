@@ -404,8 +404,14 @@ class Renderer {
 
   VkFormat FindDepthFormat();
 
+  std::shared_ptr<RenderPass> GetPresentRenderPass() const {
+    return present_render_pass_;
+  }
+
   void SetViewport(VkExtent2D extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
   void SetViewport(glm::vec2 extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
+  void SetScissor(int x, int y, int width, int height,
+                  VkCommandBuffer cmd = VK_NULL_HANDLE);
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadow_pass, entt::entity entity_handle = entt::null);
@@ -432,6 +438,10 @@ class Renderer {
                       TextComponent& text,
                       std::shared_ptr<DescriptorSetLayout> layout,
                       float entity_id = 0);
+  void DrawCanvasDescriptor(glm::vec2 position, glm::vec2 size,
+                            std::shared_ptr<DescriptorSet> descriptor,
+                            std::shared_ptr<DescriptorSetLayout> layout,
+                            float entity_id = 0);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(
       std::shared_ptr<Pipeline> pipeline,

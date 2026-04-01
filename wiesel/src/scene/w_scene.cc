@@ -16,6 +16,7 @@
 #include <ranges>
 #include "input/w_input.h"
 
+#include <RmlUi/Core.h>
 #include "ai/w_agent_controller.h"
 #include "animation/w_animation.h"
 #include "animation/w_animation_controller.h"
@@ -47,6 +48,7 @@
 #include "script/mono/w_monobehavior.h"
 #include "systems/w_canvas_system.h"
 #include "ui/w_interactable.h"
+#include "ui/w_ui_document.h"
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -956,6 +958,54 @@ void Scene::UpdateSceneState(float_t delta_time) {
   UpdateSpriteAnimators(delta_time);
   UpdateSkeletalAnimations(delta_time);
   UpdateCameras();
+
+  // Load/unload UIDocuments - each gets its own Rml::Context
+  {
+    auto& assets = Engine::asset_manager();
+    for (auto entity : registry_.view<UIDocumentComponent>()) {
+      auto& doc = registry_.get<UIDocumentComponent>(entity);
+      if (doc.document_handle.IsValid() &&
+          (!doc.rml_context_ || doc.loaded_handle_ != doc.document_handle)) {
+        // Destroy old context
+        if (doc.rml_context_) {
+          Rml::RemoveContext(doc.context_name_);
+          doc.rml_context_ = nullptr;
+          doc.rml_document_ = nullptr;
+        }
+        // Create new per-document context
+        auto doc_asset = assets.GetOrLoad<UIDocumentAsset>(doc.document_handle);
+        if (doc_asset && !doc_asset->vfs_path.empty()) {
+          doc.context_name_ =
+              "ui_" + std::to_string(static_cast<uint32_t>(entity));
+          doc.rml_context_ =
+              Rml::CreateContext(doc.context_name_, Rml::Vector2i(256, 256));
+          if (doc.rml_context_) {
+            doc.rml_document_ =
+                doc.rml_context_->LoadDocument(doc_asset->vfs_path);
+            if (doc.rml_document_) {
+              doc.rml_document_->Show();
+              LOG_INFO("Created RmlUi context '{}' with document '{}'",
+                       doc.context_name_, doc_asset->vfs_path);
+            } else {
+              LOG_ERROR("Failed to load RmlUi document: {}",
+                        doc_asset->vfs_path);
+            }
+          } else {
+            LOG_ERROR("Failed to create RmlUi context");
+          }
+        }
+        doc.loaded_handle_ = doc.document_handle;
+      }
+      // Sync visibility
+      if (doc.rml_document_) {
+        if (doc.visible && !doc.rml_document_->IsVisible()) {
+          doc.rml_document_->Show();
+        } else if (!doc.visible && doc.rml_document_->IsVisible()) {
+          doc.rml_document_->Hide();
+        }
+      }
+    }
+  }
 }
 
 void Scene::OnEvent(Event& event) {

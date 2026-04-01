@@ -22,6 +22,7 @@ class Scene;
 class AssetManager;
 class ScriptManager;
 class SceneManager;
+class UIManager;
 class NativeBehaviorRegistry;
 class AudioManager;
 class ThreadPool;
@@ -92,6 +93,8 @@ class Engine {
     return *scene_manager_;
   }
 
+  WIESEL_GETTER_FN static UIManager& ui_manager() { return *ui_manager_; }
+
   WIESEL_GETTER_FN static std::shared_ptr<GameInfo> game_info() {
     return game_info_;
   }
@@ -161,6 +164,7 @@ class Engine {
   static std::shared_ptr<ThreadPool> thread_pool_;
   static std::shared_ptr<AudioManager> audio_manager_;
   static std::shared_ptr<SceneManager> scene_manager_;
+  static std::shared_ptr<UIManager> ui_manager_;
   static std::shared_ptr<GameInfo> game_info_;
   static Application* application_;
 #ifdef WIESEL_DISCORD_RPC

@@ -31,16 +31,13 @@
 #include "ui/w_canvas.h"
 #include "ui/w_interactable.h"
 #include "ui/w_navigable.h"
+#include "ui/w_ui_document.h"
 #include "util/w_logger.h"
 #include "w_engine.h"
 
 namespace Wiesel {
 
 using json = nlohmann::json;
-
-// ---------------------------------------------------------------------------
-// SerializeUtil
-// ---------------------------------------------------------------------------
 
 json SerializeUtil::Vec2(const glm::vec2& v) {
   return {v.x, v.y};
@@ -76,10 +73,6 @@ glm::vec4 SerializeUtil::Vec4(const json& v, glm::vec4 fallback) {
           v[3].get<float>()};
 }
 
-// ---------------------------------------------------------------------------
-// ComponentSerializerRegistry
-// ---------------------------------------------------------------------------
-
 std::vector<ComponentSerializerDesc>& ComponentSerializerRegistry::Registry() {
   static std::vector<ComponentSerializerDesc> registry;
   return registry;
@@ -106,10 +99,7 @@ void ComponentSerializerRegistry::DeserializeAll(Entity& entity, const json& in,
   }
 }
 
-// ---------------------------------------------------------------------------
 // Helper: request async load for all textures referenced by a material
-// ---------------------------------------------------------------------------
-
 static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
   const auto* meta = Engine::asset_manager().GetMetadata(material_handle);
   if (!meta || meta->virtual_source_path.empty()) {
@@ -144,14 +134,7 @@ static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// InitializeComponentSerializers - registers every component type
-// ---------------------------------------------------------------------------
-
 void InitializeComponentSerializers() {
-  // -------------------------------------------------------------------
-  // 1. Transform
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Transform",
       // Has
@@ -179,9 +162,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 2. Camera
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Camera",
       // Has
@@ -224,9 +204,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 3. Model
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Model",
       // Has
@@ -353,9 +330,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 4. LightDirect
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "LightDirect",
       // Has
@@ -385,9 +359,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 5. LightPoint
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "LightPoint",
       // Has
@@ -423,9 +394,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 6. RigidBody
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "RigidBody",
       // Has
@@ -468,9 +436,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 7. BoxCollider
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "BoxCollider",
       // Has
@@ -500,9 +465,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 8. SphereCollider
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "SphereCollider",
       // Has
@@ -531,9 +493,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 9. CapsuleCollider
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "CapsuleCollider",
       // Has
@@ -566,9 +525,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 9b. MeshCollider
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "MeshCollider",
       // Has
@@ -591,9 +547,31 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 10. Behaviors (C# scripts with field values)
-  // -------------------------------------------------------------------
+  ComponentSerializerRegistry::Register({
+      "UIDocument",
+      // Has
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<UIDocumentComponent>();
+      },
+      // Serialize
+      [](Entity& entity) -> json {
+        auto& doc = entity.GetComponent<UIDocumentComponent>();
+        json j;
+        j["document"] = doc.document_handle.ToString();
+        j["visible"] = doc.visible;
+        return j;
+      },
+      // Deserialize
+      [](Entity& entity, const json& dj, Scene* /*scene*/) {
+        auto& doc = entity.AddComponent<UIDocumentComponent>();
+        if (dj.contains("document") && dj["document"].is_string()) {
+          doc.document_handle =
+              AssetHandle::FromString(dj["document"].get<std::string>());
+        }
+        doc.visible = dj.value("visible", true);
+      },
+  });
+
   ComponentSerializerRegistry::Register({
       "Behaviors",
       // Has
@@ -803,9 +781,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 11. RectangleTransform
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "RectangleTransform",
       // Has
@@ -860,9 +835,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 12. Canvas
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Canvas",
       // Has
@@ -919,9 +891,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 13. CanvasScaler
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "CanvasScaler",
       // Has
@@ -955,9 +924,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 14. CanvasRect
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "CanvasRect",
       // Has
@@ -982,9 +948,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 15. CanvasImage
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "CanvasImage",
       // Has
@@ -1023,9 +986,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 16. Text
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Text",
       // Has
@@ -1079,9 +1039,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 17. TextInput
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "TextInput",
       // Has
@@ -1123,9 +1080,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 18. AudioSource
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "AudioSource",
       // Has
@@ -1172,9 +1126,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 19. ReverbZone
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "ReverbZone",
       // Has
@@ -1201,9 +1152,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 20. Button
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Button",
       // Has
@@ -1293,9 +1241,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 21. Interactable
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Interactable",
       // Has
@@ -1318,9 +1263,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 22. Navigable
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "Navigable",
       // Has
@@ -1364,9 +1306,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 23. SpriteRenderer
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "SpriteRenderer",
       // Has
@@ -1422,9 +1361,6 @@ void InitializeComponentSerializers() {
       },
   });
 
-  // -------------------------------------------------------------------
-  // 25. SpriteAnimator
-  // -------------------------------------------------------------------
   ComponentSerializerRegistry::Register({
       "SpriteAnimator",
       // Has

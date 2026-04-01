@@ -13,6 +13,7 @@
 #include <algorithm>
 #include "scene/w_entity.h"
 #include "ui/w_font.h"
+#include "ui/w_ui_document.h"
 
 namespace Wiesel {
 
@@ -77,6 +78,13 @@ void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
       resolved_size.y = rt.size_mode_y == SizeMode::Percent
                             ? rt.size.y * effective_size.y
                             : rt.size.y;
+      // Canvas root with zero size defaults to fill the effective screen
+      if (resolved_size.x <= 0.0f) {
+        resolved_size.x = effective_size.x;
+      }
+      if (resolved_size.y <= 0.0f) {
+        resolved_size.y = effective_size.y;
+      }
       rt.computed_size = resolved_size * rt.scale;
       glm::vec2 pivot_offset = ComputeAnchorOrigin(rt.pivot, rt.computed_size);
       rt.computed_position = anchor_origin - pivot_offset + rt.position;
@@ -165,6 +173,11 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
           resolved_size = font->MeasureText(text.text, text.font_size);
         }
       }
+    }
+    // UIDocument with zero size fills parent
+    if (scene.HasComponent<UIDocumentComponent>(child) &&
+        resolved_size.x <= 0.0f && resolved_size.y <= 0.0f) {
+      resolved_size = content_size;
     }
     rt.computed_size = resolved_size * rt.scale;
 

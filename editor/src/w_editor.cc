@@ -815,25 +815,6 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     ImGui::EndDragDropTarget();
   }
 
-  // Accept asset drops onto entities in the hierarchy
-  if (ImGui::BeginDragDropTarget()) {
-    if (const ImGuiPayload* payload =
-            ImGui::AcceptDragDropPayload("AssetHandle")) {
-      AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-      const AssetMetadata* meta = Engine::asset_manager().GetMetadata(dropped);
-      if (meta) {
-        if (meta->type == AssetType::Model) {
-          if (!entity.HasComponent<ModelComponent>()) {
-            entity.AddComponent<ModelComponent>();
-          }
-          entity.GetComponent<ModelComponent>().model_handle = dropped;
-          scene_dirty_ = true;
-        }
-      }
-    }
-    ImGui::EndDragDropTarget();
-  }
-
   // Context menu
   if (ImGui::BeginPopupContextItem()) {
     selected_entity_ = entity_id;

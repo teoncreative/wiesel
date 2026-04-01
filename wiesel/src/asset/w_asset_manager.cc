@@ -50,6 +50,10 @@ const char* AssetTypeToString(AssetType type) {
       return "SpriteAnim";
     case AssetType::SpriteController:
       return "SpriteController";
+    case AssetType::UIDocument:
+      return "UIDocument";
+    case AssetType::UIStylesheet:
+      return "UIStylesheet";
     default:
       return "Unknown";
   }
@@ -94,6 +98,12 @@ AssetType AssetTypeFromString(std::string_view s) {
   }
   if (s == "SpriteController") {
     return AssetType::SpriteController;
+  }
+  if (s == "UIDocument") {
+    return AssetType::UIDocument;
+  }
+  if (s == "UIStylesheet") {
+    return AssetType::UIStylesheet;
   }
   return AssetType::None;
 }

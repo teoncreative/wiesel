@@ -11,6 +11,7 @@
 
 #include "ui/w_ui_event_system.h"
 
+#include "RmlUi/Core/Context.h"
 #include "asset/w_asset_manager.h"
 #include "behavior/w_behavior.h"
 #include "input/w_input.h"
@@ -19,6 +20,7 @@
 #include "ui/w_canvas.h"
 #include "ui/w_interactable.h"
 #include "ui/w_navigable.h"
+#include "ui/w_ui_document.h"
 #include "util/w_logger.h"
 #include "w_engine.h"
 
@@ -446,6 +448,54 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
                          });
     }
     pressed_entity_ = entt::null;
+  }
+
+  // Forward mouse events to UIDocument contexts
+  // Use canvas-space coordinates (same space as computed_position/computed_size)
+  glm::vec2 display_size = scene.GetViewportDisplaySize();
+  glm::vec2 render_res = scene.GetRenderResolution();
+  if (render_res.x <= 0 || render_res.y <= 0) {
+    render_res = display_size;
+  }
+  glm::vec2 canvas_mouse = ViewportToCanvasSpace(mouse_x, mouse_y, display_size,
+                                                 render_res, registry);
+
+  for (auto entity :
+       registry.view<UIDocumentComponent, RectangleTransformComponent>()) {
+    auto& doc = registry.get<UIDocumentComponent>(entity);
+    if (!doc.rml_context_ || !doc.visible) {
+      continue;
+    }
+    auto& rt = registry.get<RectangleTransformComponent>(entity);
+
+    // Canvas-space to document-local coords
+    float local_x = canvas_mouse.x - rt.computed_position.x;
+    float local_y = canvas_mouse.y - rt.computed_position.y;
+
+    bool inside = local_x >= 0 && local_y >= 0 &&
+                  local_x < rt.computed_size.x && local_y < rt.computed_size.y;
+
+    // Scale from canvas-space to offscreen render resolution
+    float scale_x = 1.0f;
+    float scale_y = 1.0f;
+    if (doc.offscreen_size_.x > 0 && rt.computed_size.x > 0) {
+      scale_x = doc.offscreen_size_.x / rt.computed_size.x;
+      scale_y = doc.offscreen_size_.y / rt.computed_size.y;
+    }
+
+    int rml_x = static_cast<int>(local_x * scale_x);
+    int rml_y = static_cast<int>(local_y * scale_y);
+
+    doc.rml_context_->ProcessMouseMove(rml_x, rml_y, 0);
+
+    if (inside) {
+      if (mouse_down) {
+        doc.rml_context_->ProcessMouseButtonDown(0, 0);
+      }
+      if (mouse_up) {
+        doc.rml_context_->ProcessMouseButtonUp(0, 0);
+      }
+    }
   }
 }
 

@@ -6,6 +6,7 @@ layout(set = 0, binding = 0, std140) uniform ElementData {
     vec4 color;
     vec4 uvRect;
     float entityId;
+    float premultiplied;
 };
 
 layout(set = 1, binding = 1, std140) uniform Camera {
@@ -33,6 +34,7 @@ layout(push_constant) uniform PushConstants {
 layout(location = 0) out vec2 outUV;
 layout(location = 1) out vec4 outColor;
 layout(location = 2) out float outEntityId;
+layout (location = 3) out float outPremultiplied;
 
 const vec2 quadPos[6] = vec2[6](
     vec2(0, 0),
@@ -49,6 +51,7 @@ void main() {
     outUV = mix(uvRect.xy, uvRect.zw, localPos);
     outColor = color;
     outEntityId = entityId;
+    outPremultiplied = premultiplied;
 
     // Map element pixel position onto the canvas quad
     vec2 pixelPos = position + localPos * size;

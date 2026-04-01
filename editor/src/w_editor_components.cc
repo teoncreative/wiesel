@@ -31,6 +31,7 @@
 #include "ui/w_canvas.h"
 #include "ui/w_interactable.h"
 #include "ui/w_navigable.h"
+#include "ui/w_ui_document.h"
 #include "util/imgui/w_imguiutil.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
@@ -530,22 +531,6 @@ void RenderScriptVariables(ScriptInstance* instance) {
             mono_string_new(Engine::script_manager().app_domain(), str.c_str());
         value.Set(instance->handle(), newVal);
       }
-      // Accept asset drag-drop onto string fields (sets the VFS path)
-      if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload =
-                ImGui::AcceptDragDropPayload("AssetHandle")) {
-          AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-          const AssetMetadata* meta =
-              Engine::asset_manager().GetMetadata(dropped);
-          if (meta && !meta->virtual_source_path.empty()) {
-            MonoString* newVal =
-                mono_string_new(Engine::script_manager().app_domain(),
-                                meta->virtual_source_path.c_str());
-            value.Set(instance->handle(), newVal);
-          }
-        }
-        ImGui::EndDragDropTarget();
-      }
     } else if (value.field_type() == FieldType::Entity) {
       MonoObject* entity_obj = value.Get<MonoObject*>(instance->handle());
       std::string entity_label = "(None)";
@@ -631,7 +616,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
       ImGui::InputText(label.c_str(), &prefab_label,
                        ImGuiInputTextFlags_ReadOnly);
 
-      // Drag-drop target: accept prefab assets (AssetHandle or file path)
+      // Drag-drop target: accept prefab assets
+      // TODO replace with assest handle and use our common code AcceptAssetDragDrop
       if (ImGui::BeginDragDropTarget()) {
         std::string dropped_path;
 
@@ -884,6 +870,28 @@ void RenderAddComponentImGui_MeshColliderComponent(Entity entity) {
   }
 }
 
+void RenderComponentImGui(UIDocumentComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("UI Document", &visible)) {
+    AssetDropField("Document", AssetType::UIDocument,
+                   component.document_handle);
+    ImGui::Checkbox(PrefixLabel("Visible").c_str(), &component.visible);
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<UIDocumentComponent>();
+    visible = true;
+  }
+}
+
+void RenderAddComponentImGui_UIDocumentComponent(Entity entity) {
+  if (ImGui::MenuItem("UI Document") &&
+      !entity.HasComponent<UIDocumentComponent>()) {
+    entity.AddComponent<UIDocumentComponent>();
+    entity.AddComponent<RectangleTransformComponent>();
+  }
+}
+
 void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Rigid Body", &visible)) {
@@ -1025,6 +1033,16 @@ void RenderComponentImGui(RectangleTransformComponent& component,
   if (!visible) {
     entity.RemoveComponent<RectangleTransformComponent>();
     visible = true;
+  }
+}
+
+static void EnsureRectangleTransform(Entity entity,
+                                     bool default_zero_size = false) {
+  if (!entity.HasComponent<RectangleTransformComponent>()) {
+    auto& transform = entity.AddComponent<RectangleTransformComponent>();
+    if (default_zero_size) {
+      transform.size = {0, 0};  // auto sized
+    }
   }
 }
 
@@ -1226,6 +1244,7 @@ void RenderComponentImGui(TextComponent& component, Entity entity) {
 void RenderAddComponentImGui_CanvasComponent(Entity entity) {
   if (ImGui::MenuItem("Canvas")) {
     entity.AddComponent<CanvasComponent>();
+    EnsureRectangleTransform(entity, true);
   }
 }
 
@@ -1235,11 +1254,6 @@ void RenderAddComponentImGui_RectangleTransformComponent(Entity entity) {
   }
 }
 
-static void EnsureRectangleTransform(Entity entity) {
-  if (!entity.HasComponent<RectangleTransformComponent>()) {
-    entity.AddComponent<RectangleTransformComponent>();
-  }
-}
 
 void RenderAddComponentImGui_CanvasRectComponent(Entity entity) {
   if (ImGui::MenuItem("Canvas Rect")) {
@@ -2200,6 +2214,9 @@ void InitializeEditorComponents() {
   RegisterComponentType<RigidBodyComponent>(
       "Rigid Body", "Physics", RenderComponentImGui,
       RenderAddComponentImGui_RigidBodyComponent, nullptr);
+  RegisterComponentType<UIDocumentComponent>(
+      "UI Document", "UI", RenderComponentImGui,
+      RenderAddComponentImGui_UIDocumentComponent, nullptr);
   RegisterComponentType<RectangleTransformComponent>(
       "Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
   RegisterComponentType<CanvasComponent>(

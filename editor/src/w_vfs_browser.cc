@@ -318,6 +318,10 @@ ImVec4 VfsBrowser::GetAssetColor(AssetType type) {
       return {0.30f, 0.70f, 0.45f, 1.0f};
     case AssetType::SpriteController:
       return {0.45f, 0.55f, 0.75f, 1.0f};
+    case AssetType::UIDocument:
+      return {0.85f, 0.40f, 0.20f, 1.0f};
+    case AssetType::UIStylesheet:
+      return {0.20f, 0.50f, 0.85f, 1.0f};
     default:
       return {0.40f, 0.40f, 0.40f, 1.0f};
   }
@@ -351,6 +355,10 @@ const char* VfsBrowser::GetAssetAbbrev(AssetType type) {
       return "ANM";
     case AssetType::SpriteController:
       return "CTR";
+    case AssetType::UIDocument:
+      return "RML";
+    case AssetType::UIStylesheet:
+      return "CSS";
     default:
       return "?";
   }

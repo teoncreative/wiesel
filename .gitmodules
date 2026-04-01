@@ -52,3 +52,6 @@
 [submodule "vendor/JoltPhysics"]
 	path = vendor/JoltPhysics
 	url = https://github.com/jrouwe/JoltPhysics.git
+[submodule "vendor/RmlUi"]
+	path = vendor/RmlUi
+	url = https://github.com/mikke89/RmlUi.git

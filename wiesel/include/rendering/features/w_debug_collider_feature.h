@@ -34,8 +34,6 @@ class DebugColliderFeature : public RenderFeature {
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
-  // Always enabled so resources are always set up (pipeline output chain).
-  // The actual drawing is skipped inside AddPasses when debug_colliders is off.
 
  private:
   void GenerateBoxGeometry();

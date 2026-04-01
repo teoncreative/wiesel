@@ -37,6 +37,8 @@
 #include "scene/w_scene_manager.h"
 #include "script/w_scriptmanager.h"
 #include "ui/w_font.h"
+#include "ui/w_ui_document.h"
+#include "ui/w_ui_manager.h"
 #include "util/w_dialogs.h"
 #include "util/w_platform.h"
 #include "util/w_thread_pool.h"
@@ -302,6 +304,7 @@ std::shared_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
 std::shared_ptr<ThreadPool> Engine::thread_pool_;
 std::shared_ptr<AudioManager> Engine::audio_manager_;
 std::shared_ptr<SceneManager> Engine::scene_manager_;
+std::shared_ptr<UIManager> Engine::ui_manager_;
 std::shared_ptr<GameInfo> Engine::game_info_;
 AssetHandle Engine::primitive_cube_;
 AssetHandle Engine::primitive_sphere_;
@@ -452,6 +455,38 @@ void Engine::InitEngine(const EngineProperties& props) {
           [](AssetHandle handle) { return LoadSpriteControllerAsset(handle); },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
+  // UIDocument (.rml) loader
+  asset_manager_->RegisterLoader(
+      AssetType::UIDocument,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) {
+            const auto* meta = asset_manager_->GetMetadata(handle);
+            if (!meta || meta->virtual_source_path.empty()) {
+              return false;
+            }
+            auto asset = std::make_shared<UIDocumentAsset>();
+            asset->vfs_path = meta->virtual_source_path;
+            asset_manager_->Store<UIDocumentAsset>(handle, asset);
+            return true;
+          },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
+  // UIStylesheet (.rcss) loader
+  asset_manager_->RegisterLoader(
+      AssetType::UIStylesheet,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) {
+            const auto* meta = asset_manager_->GetMetadata(handle);
+            if (!meta || meta->virtual_source_path.empty()) {
+              return false;
+            }
+            auto asset = std::make_shared<UIStylesheetAsset>();
+            asset->vfs_path = meta->virtual_source_path;
+            asset_manager_->Store<UIStylesheetAsset>(handle, asset);
+            return true;
+          },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
   InitializeVfs();
   InitializeComponentSerializers();
   InitializeAssetSerializers();
@@ -494,6 +529,8 @@ void Engine::InitRenderer(const RendererProperties&& props) {
   renderer_ = std::make_shared<Renderer>(window_);
   renderer_->Initialize(std::move(props));
   RegisterPrimitives();
+  ui_manager_ = std::make_shared<UIManager>();
+  ui_manager_->Init();
 }
 
 void Engine::InitApplication() {

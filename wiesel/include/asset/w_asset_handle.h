@@ -36,6 +36,8 @@ enum class AssetType : uint8_t {
   Audio,
   SpriteAnim,
   SpriteController,
+  UIDocument,
+  UIStylesheet,
   Count
 };
 

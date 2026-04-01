@@ -187,9 +187,19 @@ void AssetBrowserPanel::Render(bool& open) {
       }
       // Drop target on ".." to move files to parent directory
       if (ImGui::BeginDragDropTarget()) {
+        std::string src_vfs;
         if (const ImGuiPayload* payload =
-                ImGui::AcceptDragDropPayload("BrowserFile")) {
-          std::string src_vfs(static_cast<const char*>(payload->Data));
+                ImGui::AcceptDragDropPayload("AssetHandle")) {
+          AssetHandle h = *static_cast<const AssetHandle*>(payload->Data);
+          const AssetMetadata* m = Engine::asset_manager().GetMetadata(h);
+          if (m) {
+            src_vfs = m->virtual_source_path;
+          }
+        } else if (const ImGuiPayload* payload =
+                       ImGui::AcceptDragDropPayload("BrowserFile")) {
+          src_vfs = std::string(static_cast<const char*>(payload->Data));
+        }
+        if (!src_vfs.empty()) {
           auto last_slash = src_vfs.rfind('/');
           if (last_slash != std::string::npos) {
             std::string filename = src_vfs.substr(last_slash + 1);
@@ -288,29 +298,37 @@ void AssetBrowserPanel::Render(bool& open) {
           }
         }
 
-        // Drag source for asset files
+        // Drag source for asset files (preferred) or raw browser files (fallback)
         if (handle.IsValid() &&
             ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
           ImGui::SetDragDropPayload("AssetHandle", &handle,
                                     sizeof(AssetHandle));
           ImGui::Text("%s", fe.name.c_str());
           ImGui::EndDragDropSource();
+        } else if (ImGui::BeginDragDropSource(
+                       ImGuiDragDropFlags_SourceAllowNullID)) {
+          ImGui::SetDragDropPayload("BrowserFile", fe.vfs_path.c_str(),
+                                    fe.vfs_path.size() + 1);
+          ImGui::Text("%s %s", fe.is_dir ? "[DIR]" : "", fe.name.c_str());
+          ImGui::EndDragDropSource();
         }
-      }
-
-      // Drag source for moving files/folders in the browser
-      if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-        ImGui::SetDragDropPayload("BrowserFile", fe.vfs_path.c_str(),
-                                  fe.vfs_path.size() + 1);
-        ImGui::Text("%s %s", fe.is_dir ? "[DIR]" : "", fe.name.c_str());
-        ImGui::EndDragDropSource();
       }
 
       // Drop target on directories to move files into them
       if (fe.is_dir && ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload =
-                ImGui::AcceptDragDropPayload("BrowserFile")) {
-          std::string src_vfs(static_cast<const char*>(payload->Data));
+        std::string src_vfs;
+        if (const ImGuiPayload* p =
+                ImGui::AcceptDragDropPayload("AssetHandle")) {
+          AssetHandle h = *static_cast<const AssetHandle*>(p->Data);
+          const AssetMetadata* m = Engine::asset_manager().GetMetadata(h);
+          if (m) {
+            src_vfs = m->virtual_source_path;
+          }
+        } else if (const ImGuiPayload* p =
+                       ImGui::AcceptDragDropPayload("BrowserFile")) {
+          src_vfs = std::string(static_cast<const char*>(p->Data));
+        }
+        if (!src_vfs.empty()) {
           auto last_slash = src_vfs.rfind('/');
           std::string filename = (last_slash != std::string::npos)
                                      ? src_vfs.substr(last_slash + 1)

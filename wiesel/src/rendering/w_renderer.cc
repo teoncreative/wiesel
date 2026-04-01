@@ -38,6 +38,8 @@
 #include "asset/w_asset_manager.h"
 #include "events/w_engineevents.h"
 
+#include "ui/w_rmlui_renderer.h"
+
 namespace Wiesel {
 
 std::vector<SamplingMode> ConvertToSamplingModes(VkSampleCountFlags flags) {
@@ -244,6 +246,9 @@ template std::shared_ptr<MemoryBuffer>
 
 template std::shared_ptr<MemoryBuffer>
     Renderer::CreateVertexBuffer<BillboardVertex>(std::vector<BillboardVertex>);
+
+template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<RmlVertex>(
+    std::vector<RmlVertex>);
 
 std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
     std::vector<Index> indices) {
@@ -3125,6 +3130,16 @@ void Renderer::SetViewport(glm::vec2 extent, VkCommandBuffer cmd) {
   vkCmdSetScissor(cb, 0, 1, &scissor);
 }
 
+void Renderer::SetScissor(int x, int y, int width, int height,
+                          VkCommandBuffer cmd) {
+  VkCommandBuffer cb = ResolveCmd(cmd);
+  VkRect2D scissor{};
+  scissor.offset = {std::max(x, 0), std::max(y, 0)};
+  scissor.extent = {static_cast<uint32_t>(std::max(width, 0)),
+                    static_cast<uint32_t>(std::max(height, 0))};
+  vkCmdSetScissor(cb, 0, 1, &scissor);
+}
+
 void Renderer::BeginRender() {
   PROFILE_ZONE_SCOPED();
   stats_.Reset();
@@ -3993,6 +4008,22 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
       stats_.draw_calls++;
     }
   }
+}
+
+void Renderer::DrawCanvasDescriptor(
+    glm::vec2 position, glm::vec2 size,
+    std::shared_ptr<DescriptorSet> descriptor,
+    std::shared_ptr<DescriptorSetLayout> /*layout*/, float entity_id) {
+  if (!descriptor) {
+    return;
+  }
+
+  VkDescriptorSet sets[] = {descriptor->descriptor_set_};
+  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
+  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
+  stats_.draw_calls++;
 }
 
 void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,

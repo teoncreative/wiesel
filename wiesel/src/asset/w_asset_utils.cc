@@ -54,6 +54,12 @@ AssetType ExtToAssetType(const std::string& ext) {
   if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") {
     return AssetType::Audio;
   }
+  if (ext == ".rml") {
+    return AssetType::UIDocument;
+  }
+  if (ext == ".rcss") {
+    return AssetType::UIStylesheet;
+  }
   return AssetType::None;
 }
 

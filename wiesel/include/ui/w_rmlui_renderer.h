@@ -1,0 +1,136 @@
+//
+//   Copyright 2026 Metehan Gezer
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+
+#pragma once
+
+#include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/RenderInterface.h>
+
+#include "rendering/w_buffer.h"
+#include "rendering/w_descriptor.h"
+#include "rendering/w_pipeline.h"
+#include "rendering/w_texture.h"
+#include "w_pch.h"
+
+namespace Wiesel {
+
+class Renderer;
+class RenderPass;
+
+// RmlUi vertex format for Vulkan rendering
+struct RmlVertex {
+  glm::vec2 position;
+  uint32_t color;
+  glm::vec2 tex_coord;
+
+  static VkVertexInputBindingDescription GetBindingDescription() {
+    return {0, sizeof(RmlVertex), VK_VERTEX_INPUT_RATE_VERTEX};
+  }
+
+  static std::vector<VkVertexInputAttributeDescription>
+  GetAttributeDescriptions() {
+    return {
+        {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(RmlVertex, position)},
+        {1, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(RmlVertex, color)},
+        {2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(RmlVertex, tex_coord)},
+    };
+  }
+};
+
+// Compiled geometry stored by the render backend
+struct RmlCompiledGeometry {
+  std::shared_ptr<MemoryBuffer> vertex_buffer;
+  std::shared_ptr<IndexBuffer> index_buffer;
+  uint32_t index_count = 0;
+};
+
+// Vulkan render backend for RmlUi.
+// Uses the engine's Renderer for buffer/texture/pipeline management.
+class RmlRenderInterface : public Rml::RenderInterface {
+ public:
+  explicit RmlRenderInterface(std::shared_ptr<Renderer> renderer);
+  ~RmlRenderInterface() override;
+
+  // Initialize pipelines and descriptor layouts.
+  // render_pass: the render pass this backend will draw into (owned by the feature).
+  void Init(std::shared_ptr<RenderPass> render_pass);
+
+  // Set the viewport size (in pixels) before rendering a frame.
+  void SetViewportSize(glm::vec2 size) { viewport_size_ = size; }
+
+  // Set the active command buffer for the current frame's rendering.
+  void SetCommandBuffer(VkCommandBuffer cmd) { active_cmd_ = cmd; }
+
+  // Rml::RenderInterface implementation
+  Rml::CompiledGeometryHandle CompileGeometry(
+      Rml::Span<const Rml::Vertex> vertices,
+      Rml::Span<const int> indices) override;
+  void RenderGeometry(Rml::CompiledGeometryHandle geometry,
+                      Rml::Vector2f translation,
+                      Rml::TextureHandle texture) override;
+  void ReleaseGeometry(Rml::CompiledGeometryHandle geometry) override;
+
+  Rml::TextureHandle LoadTexture(Rml::Vector2i& texture_dimensions,
+                                 const Rml::String& source) override;
+  Rml::TextureHandle GenerateTexture(Rml::Span<const Rml::byte> source,
+                                     Rml::Vector2i source_dimensions) override;
+  void ReleaseTexture(Rml::TextureHandle texture) override;
+
+  void EnableScissorRegion(bool enable) override;
+  void SetScissorRegion(Rml::Rectanglei region) override;
+
+  void SetTransform(const Rml::Matrix4f* transform) override;
+
+  // Render a Rml::Context into a framebuffer at the given size.
+  // Handles setting cmd/viewport, calling context->Render(), cleanup.
+  void RenderToTexture(VkCommandBuffer cmd, Rml::Context* context,
+                       glm::vec2 size);
+
+  // Get the render pass for creating compatible framebuffers.
+  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
+
+ private:
+  std::shared_ptr<Renderer> renderer_;
+  std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<RenderPass> render_pass_;
+  std::shared_ptr<DescriptorSetLayout> descriptor_layout_;
+
+  // Per-texture descriptor cache
+  std::unordered_map<Rml::TextureHandle, std::shared_ptr<DescriptorSet>>
+      texture_descriptors_;
+
+  // Blank texture for untextured geometry
+  std::shared_ptr<Texture> blank_texture_;
+  std::shared_ptr<DescriptorSet> blank_descriptor_;
+
+  // Active state during rendering
+  VkCommandBuffer active_cmd_ = VK_NULL_HANDLE;
+  glm::vec2 viewport_size_{1920, 1080};
+  bool scissor_enabled_ = false;
+  glm::mat4 transform_{1.0f};
+
+  // Stored textures (prevent deallocation)
+  std::unordered_map<Rml::TextureHandle, std::shared_ptr<Texture>>
+      loaded_textures_;
+  Rml::TextureHandle next_texture_id_ = 1;
+
+  // Push constant data
+  struct PushConstantData {
+    glm::vec2 translation;
+    glm::vec2 screen_size;
+  };
+
+  std::shared_ptr<PushConstantData> push_constant_data_;
+
+  std::shared_ptr<DescriptorSet> GetOrCreateDescriptor(
+      Rml::TextureHandle texture);
+};
+
+}  // namespace Wiesel

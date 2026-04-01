@@ -21,13 +21,15 @@
 #include "scene/w_scene.h"
 #include "ui/w_canvas.h"
 #include "ui/w_font.h"
+#include "ui/w_ui_document.h"
+#include "ui/w_ui_manager.h"
 #include "w_engine.h"
 
 namespace Wiesel {
 
 // Collect all canvas-drawable entities and sort by draw_order so children
 // render on top of parents regardless of component type.
-enum class CanvasElementType { Rect, Image, Button, Text };
+enum class CanvasElementType { Rect, Image, Button, Text, UIDocument };
 
 struct CanvasDrawEntry {
   entt::entity entity;
@@ -102,6 +104,16 @@ static void DrawCanvasElement(
       auto& text = scene->GetComponent<TextComponent>(entry.entity);
       auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
       renderer->DrawCanvasText(rt, text, textured_layout, eid);
+      break;
+    }
+    case CanvasElementType::UIDocument: {
+      auto& doc = scene->GetComponent<UIDocumentComponent>(entry.entity);
+      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
+      if (doc.offscreen_descriptor_ && doc.visible) {
+        renderer->DrawCanvasDescriptor(rt.computed_position, rt.computed_size,
+                                       doc.offscreen_descriptor_,
+                                       textured_layout, eid);
+      }
       break;
     }
   }
@@ -260,6 +272,10 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
   comp_pipeline_->Bake();
+
+  // Get the RmlUi render pass from UIManager's render interface
+  rmlui_render_pass_ =
+      Engine::ui_manager().GetRenderInterface()->GetRenderPass();
 }
 
 void CanvasFeature::SetupResources(RenderContext& ctx) {
@@ -562,6 +578,12 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
     classify_entry(entity, CanvasElementType::Text, rt.draw_order);
   }
+  for (const auto& entity :
+       ctx.scene.GetAllEntitiesWith<UIDocumentComponent,
+                                    RectangleTransformComponent>()) {
+    auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
+    classify_entry(entity, CanvasElementType::UIDocument, rt.draw_order);
+  }
 
   std::ranges::sort(overlay_list,
                     [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
@@ -575,6 +597,92 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                     [](const CanvasDrawEntry& a, const CanvasDrawEntry& b) {
                       return a.draw_order < b.draw_order;
                     });
+
+  // Pre-render RmlUi documents to offscreen textures.
+  // This must happen before render passes since it creates GPU resources.
+  {
+    auto& renderer = *renderer_;
+    auto rml_render_pass = rmlui_render_pass_;
+    for (auto entity :
+         ctx.scene.GetAllEntitiesWith<UIDocumentComponent,
+                                      RectangleTransformComponent>()) {
+      auto& doc = ctx.scene.GetComponent<UIDocumentComponent>(entity);
+      auto& rt = ctx.scene.GetComponent<RectangleTransformComponent>(entity);
+      if (!doc.rml_context_ || !doc.rml_document_ || !doc.visible) {
+        continue;
+      }
+
+      glm::vec2 size = rt.computed_size;
+      if (size.x < 1 || size.y < 1) {
+        continue;
+      }
+
+      uint32_t w = static_cast<uint32_t>(size.x);
+      uint32_t h = static_cast<uint32_t>(size.y);
+
+      // Render at actual viewport resolution for crisp output, but use
+      // DPI ratio so dp-based layouts match the canvas scaler's reference.
+      // computed_size = reference-resolution-scaled size from canvas layout.
+      // We render at viewport scale for quality, DPI ratio handles the rest.
+      float dpi_ratio = 1.0f;
+      if (size.x > 0 && effective_screen.x > 0) {
+        dpi_ratio = ctx.viewport_size.x / effective_screen.x;
+      }
+
+      // Use full viewport-scaled size for the offscreen texture
+      uint32_t render_w = static_cast<uint32_t>(size.x * dpi_ratio);
+      uint32_t render_h = static_cast<uint32_t>(size.y * dpi_ratio);
+      if (render_w < 1) {
+        render_w = w;
+      }
+      if (render_h < 1) {
+        render_h = h;
+      }
+
+      // Recreate offscreen at render resolution if needed
+      glm::vec2 render_size{render_w, render_h};
+      if (!doc.offscreen_texture_ || doc.offscreen_size_ != render_size) {
+        doc.offscreen_texture_ = renderer.CreateAttachmentTexture(
+            {render_w, render_h, AttachmentTextureType::Offscreen, 1,
+             renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true});
+
+        std::array<AttachmentTexture*, 1> att{doc.offscreen_texture_.get()};
+        doc.offscreen_framebuffer_ =
+            rml_render_pass->CreateFramebuffer(0, att, {render_w, render_h});
+
+        // Rebuild descriptor with new texture
+        doc.offscreen_ubo_ =
+            renderer.CreateUniformBuffer(sizeof(CanvasElementUniformData));
+        doc.offscreen_descriptor_ = std::make_shared<DescriptorSet>();
+        doc.offscreen_descriptor_->SetLayout(canvas_textured_layout_);
+        doc.offscreen_descriptor_->AddUniformBuffer(0, doc.offscreen_ubo_);
+        doc.offscreen_descriptor_->AddCombinedImageSampler(
+            1, doc.offscreen_texture_->image_views_[0],
+            renderer.GetDefaultLinearSampler());
+        doc.offscreen_descriptor_->Bake();
+
+        doc.offscreen_size_ = render_size;
+      }
+
+      doc.rml_context_->SetDimensions(Rml::Vector2i(
+          static_cast<int>(render_w), static_cast<int>(render_h)));
+      doc.rml_context_->SetDensityIndependentPixelRatio(dpi_ratio);
+      doc.rml_context_->Update();
+
+      // Update UBO with canvas element position/size for drawing
+      if (doc.offscreen_ubo_) {
+        CanvasElementUniformData ubo_data{};
+        ubo_data.position = rt.computed_position;
+        ubo_data.size = rt.computed_size;
+        ubo_data.color = {1, 1, 1, 1};
+        ubo_data.uv_rect = {0, 0, 1, 1};
+        ubo_data.entity_id = static_cast<float>(static_cast<uint32_t>(entity));
+        ubo_data.premultiplied = 1.0f;
+        memcpy(doc.offscreen_ubo_->data_, &ubo_data,
+               sizeof(CanvasElementUniformData));
+      }
+    }
+  }
 
   auto sorted_overlay =
       std::make_shared<std::vector<CanvasDrawEntry>>(std::move(overlay_list));
@@ -855,6 +963,40 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   auto camera_quad_draws = std::make_shared<std::vector<CameraQuadDraw>>();
 
+  // Render RmlUi documents to their offscreen textures
+  {
+    auto rml_render_pass = rmlui_render_pass_;
+    for (auto entity :
+         ctx.scene.GetAllEntitiesWith<UIDocumentComponent,
+                                      RectangleTransformComponent>()) {
+      auto& doc = ctx.scene.GetComponent<UIDocumentComponent>(entity);
+      if (!doc.rml_context_ || !doc.rml_document_ || !doc.visible ||
+          !doc.offscreen_framebuffer_) {
+        continue;
+      }
+
+      glm::vec2 doc_size = doc.offscreen_size_;
+      auto fb = doc.offscreen_framebuffer_;
+      Rml::Context* rml_ctx = doc.rml_context_;
+
+      // Import offscreen texture into render graph for dependency tracking
+      RGResource rml_tex = graph.ImportTexture(
+          "RmlUiDoc_" + std::to_string(static_cast<uint32_t>(entity)),
+          doc.offscreen_texture_);
+
+      uint32_t rml_pass = graph.AddPass(
+          "RmlUiOffscreen", rml_render_pass,
+          [doc_size, rml_ctx](VkCommandBuffer cmd) {
+            Engine::ui_manager().GetRenderInterface()->RenderToTexture(
+                cmd, rml_ctx, doc_size);
+          });
+      graph.PassWritesColor(rml_pass, rml_tex);
+      graph.SetPassFramebuffer(rml_pass, fb);
+      graph.SetPassViewport(rml_pass, doc_size);
+      graph.SetPassClearColor(rml_pass, {0, 0, 0, 0});
+    }
+  }
+
   uint32_t world_canvas_pass = graph.AddPass(
       "CanvasWorld", world_render_pass_,
       [world_rect_pipeline, world_image_pipeline, world_text_pipeline, scene,
@@ -900,6 +1042,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                 break;
               case CanvasElementType::Image:
               case CanvasElementType::Button:
+              case CanvasElementType::UIDocument:
                 world_image_pipeline->Bind(PipelineBindPointGraphics);
                 break;
               case CanvasElementType::Text:
@@ -1066,6 +1209,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                   break;
                 case CanvasElementType::Image:
                 case CanvasElementType::Button:
+                case CanvasElementType::UIDocument:
                   image_pipeline->Bind(PipelineBindPointGraphics);
                   break;
                 case CanvasElementType::Text:
@@ -1233,6 +1377,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                 break;
               case CanvasElementType::Image:
               case CanvasElementType::Button:
+              case CanvasElementType::UIDocument:
                 image_pipeline->Bind(PipelineBindPointGraphics);
                 break;
               case CanvasElementType::Text:
