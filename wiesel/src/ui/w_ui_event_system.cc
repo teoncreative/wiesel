@@ -12,6 +12,7 @@
 #include "ui/w_ui_event_system.h"
 
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Element.h>
 
 #include "behavior/w_behavior.h"
 #include "input/w_input.h"
@@ -214,9 +215,11 @@ static entt::entity HitTestCanvas(entt::entity canvas_entity,
 // Uses pre-transformed canvas-space coords.
 // ---------------------------------------------------------------------------
 
-static void ForwardToUIDocuments(entt::entity canvas_entity,
-                                 glm::vec2 canvas_mouse, Scene& scene,
-                                 bool mouse_down, bool mouse_up) {
+// Returns the entity that was clicked (mouse_down inside), or entt::null.
+static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
+                                         glm::vec2 canvas_mouse, Scene& scene,
+                                         bool mouse_down, bool mouse_up) {
+  entt::entity clicked_entity = entt::null;
   auto& registry = scene.GetRegistry();
 
   for (auto entity :
@@ -253,12 +256,14 @@ static void ForwardToUIDocuments(entt::entity canvas_entity,
     if (inside) {
       if (mouse_down) {
         doc.rml_context_->ProcessMouseButtonDown(0, 0);
+        clicked_entity = entity;
       }
       if (mouse_up) {
         doc.rml_context_->ProcessMouseButtonUp(0, 0);
       }
     }
   }
+  return clicked_entity;
 }
 
 // ---------------------------------------------------------------------------
@@ -419,8 +424,11 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
     }
 
     // Phase 3b: Forward to UIDocument contexts
-    ForwardToUIDocuments(canvas_entity, result.coords, scene, mouse_down,
-                         mouse_up);
+    entt::entity clicked_doc = ForwardToUIDocuments(
+        canvas_entity, result.coords, scene, mouse_down, mouse_up);
+    if (mouse_down) {
+      focused_rml_entity_ = clicked_doc;  // null if clicked outside any doc
+    }
   }
 
   // Hover enter/exit
@@ -846,6 +854,198 @@ void UIEventSystem::UpdateButtonStates(entt::registry& registry) {
       btn.state_ = ButtonState::Normal;
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard/text forwarding to focused RmlUi document
+// ---------------------------------------------------------------------------
+
+// Map engine keycodes (GLFW-style, defined in w_keycodes.h) to RmlUi
+static Rml::Input::KeyIdentifier EngineKeyToRml(int key_code) {
+  // Printable ASCII range
+  if (key_code >= 'A' && key_code <= 'Z') {
+    return static_cast<Rml::Input::KeyIdentifier>(Rml::Input::KI_A +
+                                                  (key_code - 'A'));
+  }
+  if (key_code >= '0' && key_code <= '9') {
+    return static_cast<Rml::Input::KeyIdentifier>(Rml::Input::KI_0 +
+                                                  (key_code - '0'));
+  }
+
+  switch (key_code) {
+    case 32:
+      return Rml::Input::KI_SPACE;
+    case 39:
+      return Rml::Input::KI_OEM_7;  // '
+    case 44:
+      return Rml::Input::KI_OEM_COMMA;  // ,
+    case 45:
+      return Rml::Input::KI_OEM_MINUS;  // -
+    case 46:
+      return Rml::Input::KI_OEM_PERIOD;  // .
+    case 47:
+      return Rml::Input::KI_OEM_2;  // /
+    case 59:
+      return Rml::Input::KI_OEM_1;  // ;
+    case 61:
+      return Rml::Input::KI_OEM_PLUS;  // =
+    case 256:
+      return Rml::Input::KI_ESCAPE;
+    case 257:
+      return Rml::Input::KI_RETURN;
+    case 258:
+      return Rml::Input::KI_TAB;
+    case 259:
+      return Rml::Input::KI_BACK;  // Backspace
+    case 260:
+      return Rml::Input::KI_INSERT;
+    case 261:
+      return Rml::Input::KI_DELETE;
+    case 262:
+      return Rml::Input::KI_RIGHT;
+    case 263:
+      return Rml::Input::KI_LEFT;
+    case 264:
+      return Rml::Input::KI_DOWN;
+    case 265:
+      return Rml::Input::KI_UP;
+    case 266:
+      return Rml::Input::KI_PRIOR;  // Page Up
+    case 267:
+      return Rml::Input::KI_NEXT;  // Page Down
+    case 268:
+      return Rml::Input::KI_HOME;
+    case 269:
+      return Rml::Input::KI_END;
+    case 290:
+      return Rml::Input::KI_F1;
+    case 291:
+      return Rml::Input::KI_F2;
+    case 292:
+      return Rml::Input::KI_F3;
+    case 293:
+      return Rml::Input::KI_F4;
+    case 294:
+      return Rml::Input::KI_F5;
+    case 295:
+      return Rml::Input::KI_F6;
+    case 296:
+      return Rml::Input::KI_F7;
+    case 297:
+      return Rml::Input::KI_F8;
+    case 298:
+      return Rml::Input::KI_F9;
+    case 299:
+      return Rml::Input::KI_F10;
+    case 300:
+      return Rml::Input::KI_F11;
+    case 301:
+      return Rml::Input::KI_F12;
+    case 340:
+      return Rml::Input::KI_LSHIFT;
+    case 341:
+      return Rml::Input::KI_LCONTROL;
+    case 342:
+      return Rml::Input::KI_LMENU;  // Left Alt
+    case 344:
+      return Rml::Input::KI_RSHIFT;
+    case 345:
+      return Rml::Input::KI_RCONTROL;
+    case 346:
+      return Rml::Input::KI_RMENU;  // Right Alt
+    default:
+      return Rml::Input::KI_UNKNOWN;
+  }
+}
+
+static int GetRmlKeyModifiers() {
+  int mod = 0;
+  auto* window = Engine::window().get();
+  if (window->IsShiftDown()) {
+    mod |= Rml::Input::KM_SHIFT;
+  }
+  if (window->IsCtrlDown()) {
+    mod |= Rml::Input::KM_CTRL;
+  }
+  if (window->IsAltDown()) {
+    mod |= Rml::Input::KM_ALT;
+  }
+  return mod;
+}
+
+bool UIEventSystem::ProcessKeyDown(Scene& scene, int key_code, int modifiers) {
+  if (focused_rml_entity_ == entt::null) {
+    return false;
+  }
+  auto& registry = scene.GetRegistry();
+  if (!registry.valid(focused_rml_entity_) ||
+      !registry.any_of<UIDocumentComponent>(focused_rml_entity_)) {
+    focused_rml_entity_ = entt::null;
+    return false;
+  }
+  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
+  if (!doc.rml_context_) {
+    return false;
+  }
+  return doc.rml_context_->ProcessKeyDown(EngineKeyToRml(key_code),
+                                          GetRmlKeyModifiers());
+}
+
+bool UIEventSystem::ProcessKeyUp(Scene& scene, int key_code, int modifiers) {
+  if (focused_rml_entity_ == entt::null) {
+    return false;
+  }
+  auto& registry = scene.GetRegistry();
+  if (!registry.valid(focused_rml_entity_) ||
+      !registry.any_of<UIDocumentComponent>(focused_rml_entity_)) {
+    focused_rml_entity_ = entt::null;
+    return false;
+  }
+  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
+  if (!doc.rml_context_) {
+    return false;
+  }
+  return doc.rml_context_->ProcessKeyUp(EngineKeyToRml(key_code),
+                                        GetRmlKeyModifiers());
+}
+
+bool UIEventSystem::ProcessTextInput(Scene& scene, const std::string& text) {
+  if (focused_rml_entity_ == entt::null) {
+    return false;
+  }
+  auto& registry = scene.GetRegistry();
+  if (!registry.valid(focused_rml_entity_) ||
+      !registry.any_of<UIDocumentComponent>(focused_rml_entity_)) {
+    focused_rml_entity_ = entt::null;
+    return false;
+  }
+  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
+  if (!doc.rml_context_) {
+    return false;
+  }
+  return doc.rml_context_->ProcessTextInput(text);
+}
+
+bool UIEventSystem::HasRmlTextInputFocus(Scene& scene) const {
+  if (focused_rml_entity_ == entt::null) {
+    return false;
+  }
+  auto& registry = scene.GetRegistry();
+  if (!registry.valid(focused_rml_entity_) ||
+      !registry.any_of<UIDocumentComponent>(focused_rml_entity_)) {
+    return false;
+  }
+  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
+  if (!doc.rml_context_) {
+    return false;
+  }
+  Rml::Element* focused = doc.rml_context_->GetFocusElement();
+  if (!focused) {
+    return false;
+  }
+  // Check if the focused element is a text input type
+  const Rml::String& tag = focused->GetTagName();
+  return tag == "input" || tag == "textarea" || tag == "select";
 }
 
 }  // namespace Wiesel

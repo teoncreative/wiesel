@@ -31,6 +31,19 @@ class UIEventSystem {
  public:
   void Update(Scene& scene, float delta_time);
 
+  // Forward keyboard/text events to the focused UIDocument context.
+  // Returns true if the event was consumed (game should not process it).
+  bool ProcessKeyDown(Scene& scene, int key_code, int modifiers);
+  bool ProcessKeyUp(Scene& scene, int key_code, int modifiers);
+  bool ProcessTextInput(Scene& scene, const std::string& text);
+
+  // Returns true if a UIDocument was last clicked
+  bool HasRmlFocus() const { return focused_rml_entity_ != entt::null; }
+
+  // Returns true if the focused RmlUi document has an active text input
+  // (i.e. keyboard events should be consumed, not passed to game)
+  bool HasRmlTextInputFocus(Scene& scene) const;
+
   entt::entity GetFocusedEntity() const { return focused_entity_; }
 
   void SetFocusedEntity(entt::entity entity) { focused_entity_ = entity; }
@@ -44,6 +57,8 @@ class UIEventSystem {
   entt::entity hovered_entity_ = entt::null;
   entt::entity pressed_entity_ = entt::null;
   entt::entity focused_entity_ = entt::null;
+  entt::entity focused_rml_entity_ =
+      entt::null;  // UIDocument with keyboard focus
   bool mouse_dirty_ = true;
   float last_mouse_x_ = -1.0f;
   float last_mouse_y_ = -1.0f;

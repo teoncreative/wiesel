@@ -72,7 +72,7 @@ struct CameraComponent {
   glm::mat4 view_matrix;
   glm::mat4 projection;
   glm::mat4 inv_projection;
-  glm::vec2 viewport_size;
+  glm::vec2 viewport_size{0.0f, 0.0f};
   bool resources_dirty = false;
   glm::mat4 inv_view_matrix;
   bool enabled = true;

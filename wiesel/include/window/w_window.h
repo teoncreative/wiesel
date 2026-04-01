@@ -81,6 +81,18 @@ class AppWindow {
 
   virtual void WarpCursor(double x, double y);
 
+  // Keyboard modifier state
+  virtual bool IsShiftDown() const { return false; }
+
+  virtual bool IsCtrlDown() const { return false; }
+
+  virtual bool IsAltDown() const { return false; }
+
+  // Clipboard
+  virtual void SetClipboardText(const std::string& text) {}
+
+  virtual std::string GetClipboardText() { return ""; }
+
   virtual void GetCursorDelta(double& dx, double& dy) {
     dx = 0;
     dy = 0;

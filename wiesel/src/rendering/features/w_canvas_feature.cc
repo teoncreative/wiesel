@@ -601,7 +601,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // Pre-render RmlUi documents to offscreen textures.
   // This must happen before render passes since it creates GPU resources.
   {
-    auto& renderer = *renderer_;
+    Renderer& renderer = *renderer_;
     auto rml_render_pass = rmlui_render_pass_;
     for (auto entity :
          ctx.scene.GetAllEntitiesWith<UIDocumentComponent,
@@ -622,10 +622,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
       // Render at actual viewport resolution for crisp output, but use
       // DPI ratio so dp-based layouts match the canvas scaler's reference.
-      // computed_size = reference-resolution-scaled size from canvas layout.
-      // We render at viewport scale for quality, DPI ratio handles the rest.
       float dpi_ratio = 1.0f;
-      if (size.x > 0 && effective_screen.x > 0) {
+      if (size.x > 0 && effective_screen.x > 0 && ctx.viewport_size.x > 0 &&
+          ctx.viewport_size.y > 0 && ctx.viewport_size.x < 16384 &&
+          ctx.viewport_size.y < 16384) {
         dpi_ratio = ctx.viewport_size.x / effective_screen.x;
       }
 

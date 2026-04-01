@@ -447,6 +447,32 @@ void SdlAppWindow::ResetCursorDelta() {
   cursor_delta_y_ = 0.0;
 }
 
+bool SdlAppWindow::IsShiftDown() const {
+  return (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+}
+
+bool SdlAppWindow::IsCtrlDown() const {
+  return (SDL_GetModState() & SDL_KMOD_CTRL) != 0;
+}
+
+bool SdlAppWindow::IsAltDown() const {
+  return (SDL_GetModState() & SDL_KMOD_ALT) != 0;
+}
+
+void SdlAppWindow::SetClipboardText(const std::string& text) {
+  SDL_SetClipboardText(text.c_str());
+}
+
+std::string SdlAppWindow::GetClipboardText() {
+  char* clip = SDL_GetClipboardText();
+  std::string result;
+  if (clip) {
+    result = clip;
+    SDL_free(clip);
+  }
+  return result;
+}
+
 const char** SdlAppWindow::GetRequiredInstanceExtensions(
     uint32_t* extensionsCount) {
   Uint32 count = 0;

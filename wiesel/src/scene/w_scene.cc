@@ -1015,6 +1015,35 @@ void Scene::OnEvent(Event& event) {
   dispatcher.Dispatch<PipelineRecreatedEvent>(
       WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
+  // Forward key events to the focused RmlUi document.
+  // Only consume events if RmlUi has an actual text input focused.
+  if (ui_event_system_.HasRmlFocus()) {
+    bool consume = ui_event_system_.HasRmlTextInputFocus(*this);
+
+    if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
+      auto& key = static_cast<KeyPressedEvent&>(event);
+      ui_event_system_.ProcessKeyDown(*this, key.GetKeyCode(), 0);
+      if (consume) {
+        event.handled_ = true;
+        return;
+      }
+    }
+    if (event.GetEventType() == KeyReleasedEvent::GetStaticType()) {
+      auto& key = static_cast<KeyReleasedEvent&>(event);
+      ui_event_system_.ProcessKeyUp(*this, key.GetKeyCode(), 0);
+      // Never consume releases so held keys get properly released
+    }
+    if (event.GetEventType() == KeyTypedEvent::GetStaticType()) {
+      auto& typed = static_cast<KeyTypedEvent&>(event);
+      std::string text(1, static_cast<char>(typed.GetKeyCode()));
+      ui_event_system_.ProcessTextInput(*this, text);
+      if (consume) {
+        event.handled_ = true;
+        return;
+      }
+    }
+  }
+
   // Route keyboard input to focused text input
   entt::entity focused = ui_event_system_.GetFocusedEntity();
   if (focused != entt::null && registry_.valid(focused) &&

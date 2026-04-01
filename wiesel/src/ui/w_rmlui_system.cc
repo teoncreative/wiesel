@@ -10,8 +10,6 @@
 
 #include "ui/w_rmlui_system.h"
 
-#include <SDL3/SDL_clipboard.h>
-
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -43,16 +41,11 @@ bool RmlSystemInterface::LogMessage(Rml::Log::Type type,
 }
 
 void RmlSystemInterface::SetClipboardText(const Rml::String& text) {
-  SDL_SetClipboardText(text.c_str());  // TODO Move to window
+  Engine::window()->SetClipboardText(text);
 }
 
 void RmlSystemInterface::GetClipboardText(Rml::String& text) {
-  // TODO Move to window
-  char* clipboard = SDL_GetClipboardText();
-  if (clipboard) {
-    text = clipboard;
-    SDL_free(clipboard);
-  }
+  text = Engine::window()->GetClipboardText();
 }
 
 }  // namespace Wiesel

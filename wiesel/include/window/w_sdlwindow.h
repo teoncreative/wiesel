@@ -41,6 +41,12 @@ class SdlAppWindow : public AppWindow {
   void GetCursorDelta(double& dx, double& dy) override;
   void ResetCursorDelta() override;
 
+  bool IsShiftDown() const override;
+  bool IsCtrlDown() const override;
+  bool IsAltDown() const override;
+  void SetClipboardText(const std::string& text) override;
+  std::string GetClipboardText() override;
+
  private:
   static KeyCode TranslateKeyCode(SDL_Scancode scancode);
 
