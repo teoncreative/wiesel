@@ -14,6 +14,7 @@
 #include "rendering/w_descriptor.h"
 #include "rendering/w_texture.h"
 #include "scene/w_components.h"
+#include "ui/w_ui_data_model.h"
 
 namespace Rml {
 class Context;
@@ -50,6 +51,9 @@ struct UIDocumentComponent : public IComponent {
   AssetHandle loaded_handle_;
   std::string context_name_;
   std::string loaded_vfs_path_;
+
+  // Runtime - data binding model
+  UIDataModel data_model;
 
   // Runtime - offscreen rendering (managed by CanvasFeature)
   std::shared_ptr<AttachmentTexture> offscreen_texture_;

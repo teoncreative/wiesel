@@ -28,6 +28,7 @@
 #include "scene/w_scene_manager.h"
 #include "script/mono/w_monobehavior.h"
 #include "ui/w_canvas.h"
+#include "ui/w_ui_document.h"
 #include "util/w_logger.h"
 #include "util/w_platform.h"
 #include "w_engine.h"
@@ -2319,6 +2320,86 @@ void Internals_Console_LogError(MonoString* message) {
   mono_free(cstr);
 }
 
+// --- UIDocumentComponent bindings ---
+
+#define GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, retval) \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);  \
+  if (!scene->HasComponent<UIDocumentComponent>(handle))   \
+    return retval;                                         \
+  auto& ui_doc = scene->GetComponent<UIDocumentComponent>(handle)
+
+void Internals_UIDocument_SetInt(uint64_t scene_ptr, uint64_t entity_id,
+                                 MonoString* name, int value) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
+  char* cname = mono_string_to_utf8(name);
+  ui_doc.data_model.SetInt(cname, value);
+  mono_free(cname);
+}
+
+int Internals_UIDocument_GetInt(uint64_t scene_ptr, uint64_t entity_id,
+                                MonoString* name) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, 0);
+  char* cname = mono_string_to_utf8(name);
+  int result = ui_doc.data_model.GetInt(cname);
+  mono_free(cname);
+  return result;
+}
+
+void Internals_UIDocument_SetFloat(uint64_t scene_ptr, uint64_t entity_id,
+                                   MonoString* name, float value) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
+  char* cname = mono_string_to_utf8(name);
+  ui_doc.data_model.SetFloat(cname, value);
+  mono_free(cname);
+}
+
+float Internals_UIDocument_GetFloat(uint64_t scene_ptr, uint64_t entity_id,
+                                    MonoString* name) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, 0.0f);
+  char* cname = mono_string_to_utf8(name);
+  float result = ui_doc.data_model.GetFloat(cname);
+  mono_free(cname);
+  return result;
+}
+
+void Internals_UIDocument_SetString(uint64_t scene_ptr, uint64_t entity_id,
+                                    MonoString* name, MonoString* value) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
+  char* cname = mono_string_to_utf8(name);
+  char* cvalue = mono_string_to_utf8(value);
+  ui_doc.data_model.SetString(cname, cvalue);
+  mono_free(cname);
+  mono_free(cvalue);
+}
+
+MonoString* Internals_UIDocument_GetString(uint64_t scene_ptr,
+                                           uint64_t entity_id,
+                                           MonoString* name) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id,
+                       mono_string_new(mono_domain_get(), ""));
+  char* cname = mono_string_to_utf8(name);
+  std::string result = ui_doc.data_model.GetString(cname);
+  mono_free(cname);
+  return mono_string_new(mono_domain_get(), result.c_str());
+}
+
+void Internals_UIDocument_SetBool(uint64_t scene_ptr, uint64_t entity_id,
+                                  MonoString* name, bool value) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
+  char* cname = mono_string_to_utf8(name);
+  ui_doc.data_model.SetBool(cname, value);
+  mono_free(cname);
+}
+
+bool Internals_UIDocument_GetBool(uint64_t scene_ptr, uint64_t entity_id,
+                                  MonoString* name) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, false);
+  char* cname = mono_string_to_utf8(name);
+  bool result = ui_doc.data_model.GetBool(cname);
+  mono_free(cname);
+  return result;
+}
+
 void RegisterScriptGlue() {
   PROFILE_ZONE_SCOPED_N("RegisterScriptGlue");
   WIESEL_ADD_INTERNAL_CALL(Log_Info);
@@ -2683,6 +2764,16 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Console_LogInfo);
   WIESEL_ADD_INTERNAL_CALL(Console_LogWarning);
   WIESEL_ADD_INTERNAL_CALL(Console_LogError);
+
+  // UIDocument
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_SetInt);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_GetInt);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_SetFloat);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_GetFloat);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_SetString);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_GetString);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_SetBool);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_GetBool);
 }
 
 }  // namespace Wiesel

@@ -667,6 +667,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       doc.rml_context_->SetDimensions(Rml::Vector2i(
           static_cast<int>(render_w), static_cast<int>(render_h)));
       doc.rml_context_->SetDensityIndependentPixelRatio(dpi_ratio);
+      doc.data_model.Flush();
       doc.rml_context_->Update();
 
       // Update UBO with canvas element position/size for drawing
@@ -964,6 +965,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   auto camera_quad_draws = std::make_shared<std::vector<CameraQuadDraw>>();
 
   // Render RmlUi documents to their offscreen textures
+  std::vector<RGResource> rml_offscreen_textures;
   {
     auto rml_render_pass = rmlui_render_pass_;
     for (auto entity :
@@ -994,6 +996,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       graph.SetPassFramebuffer(rml_pass, fb);
       graph.SetPassViewport(rml_pass, doc_size);
       graph.SetPassClearColor(rml_pass, {0, 0, 0, 0});
+
+      rml_offscreen_textures.push_back(rml_tex);
     }
   }
 
@@ -1142,6 +1146,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassWritesColor(world_canvas_pass, canvas_world_out);
+  for (const auto& rml_tex : rml_offscreen_textures) {
+    graph.PassReadsTexture(world_canvas_pass, rml_tex);
+  }
   graph.SetPassFramebuffer(world_canvas_pass,
                            pool->GetFramebuffer("canvas_world"));
   graph.SetPassViewport(world_canvas_pass, ctx.viewport_size);
@@ -1228,6 +1235,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         });
 
     graph.PassWritesColor(per_canvas_pass, canvas_tex_rg);
+    for (const auto& rml_tex : rml_offscreen_textures) {
+      graph.PassReadsTexture(per_canvas_pass, rml_tex);
+    }
     graph.SetPassFramebuffer(per_canvas_pass, canvas_res->framebuffer);
     graph.SetPassViewport(per_canvas_pass, canvas_viewport);
     graph.SetPassClearColor(per_canvas_pass, {0, 0, 0, 0});
@@ -1396,6 +1406,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassWritesColor(canvas_pass, canvas_out);
+  for (const auto& rml_tex : rml_offscreen_textures) {
+    graph.PassReadsTexture(canvas_pass, rml_tex);
+  }
   graph.SetPassFramebuffer(canvas_pass, pool->GetFramebuffer("canvas"));
   graph.SetPassViewport(canvas_pass, ctx.viewport_size);
   graph.SetPassClearColor(canvas_pass, {0, 0, 0, 0});

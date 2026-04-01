@@ -1,0 +1,31 @@
+{
+  "handle": "716be8e8-087c-4acc-8ab9-209d23cb2f5d",
+  "properties": {
+    "variables": [
+      {
+        "default": "0",
+        "mode": 1,
+        "name": "stamina_0",
+        "type": 0
+      },
+      {
+        "default": "0",
+        "mode": 1,
+        "name": "stamina_1",
+        "type": 0
+      },
+      {
+        "default": "0",
+        "mode": 1,
+        "name": "stamina_2",
+        "type": 0
+      },
+      {
+        "default": "0",
+        "mode": 1,
+        "name": "stamina_3",
+        "type": 0
+      }
+    ]
+  }
+}

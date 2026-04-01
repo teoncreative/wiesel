@@ -1,0 +1,72 @@
+/* RmlUi defaults to display: inline - override for common elements */
+body, div, p, h1, h2, h3 {
+    display: block;
+}
+
+body {
+    font-family: Source Sans 3;
+    font-size: 16dp;
+    color: white;
+    width: 100%;
+    height: 100%;
+}
+
+.hud-panel {
+    position: absolute;
+    top: 20dp;
+    left: 20dp;
+    padding: 15dp 20dp;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 8dp;
+}
+
+.hud-panel h1 {
+    font-size: 22dp;
+    font-weight: bold;
+    margin-bottom: 8dp;
+    color: #4fc3f7;
+}
+
+.stamina-label {
+    font-size: 13dp;
+    color: #aaaaaa;
+    margin-bottom: 6dp;
+}
+
+.stamina-bars {
+    display: flex;
+    flex-direction: row;
+    gap: 4dp;
+}
+
+.bar-bg {
+    display: block;
+    width: 40dp;
+    height: 8dp;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3dp;
+}
+
+.bar-fill {
+    display: block;
+    height: 8dp;
+    background-color: #4fc3f7;
+    border-radius: 3dp;
+}
+
+.bottom-bar {
+    position: absolute;
+    bottom: 20dp;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    padding: 10dp 25dp;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 6dp;
+    text-align: center;
+}
+
+.bottom-bar p {
+    font-size: 13dp;
+    color: #aaaaaa;
+}

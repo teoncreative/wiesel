@@ -968,6 +968,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
           (!doc.rml_context_ || doc.loaded_handle_ != doc.document_handle)) {
         // Destroy old context
         if (doc.rml_context_) {
+          doc.data_model.Shutdown();
           Rml::RemoveContext(doc.context_name_);
           doc.rml_context_ = nullptr;
           doc.rml_document_ = nullptr;
@@ -980,6 +981,11 @@ void Scene::UpdateSceneState(float_t delta_time) {
           doc.rml_context_ =
               Rml::CreateContext(doc.context_name_, Rml::Vector2i(256, 256));
           if (doc.rml_context_) {
+            const auto* meta = assets.GetMetadata(doc.document_handle);
+            const auto* ui_props =
+                meta ? meta->GetProperties<UIDocumentAssetProperties>()
+                     : nullptr;
+            doc.data_model.Init(doc.rml_context_, ui_props);
             doc.rml_document_ =
                 doc.rml_context_->LoadDocument(doc_asset->vfs_path);
             if (doc.rml_document_) {

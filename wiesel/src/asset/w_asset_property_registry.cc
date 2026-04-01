@@ -149,6 +149,124 @@ static bool RenderFontPropertiesImGui(void* p) {
   return changed;
 }
 
+// --- UIDocument properties ---
+
+static nlohmann::json SerializeUIDocumentProperties(const void* p) {
+  auto* props = static_cast<const UIDocumentAssetProperties*>(p);
+  nlohmann::json j;
+  nlohmann::json vars = nlohmann::json::array();
+  for (const auto& v : props->variables) {
+    nlohmann::json var;
+    var["name"] = v.name;
+    var["type"] = static_cast<int>(v.type);
+    var["mode"] = static_cast<int>(v.mode);
+    var["default"] = v.default_value;
+    vars.push_back(var);
+  }
+  j["variables"] = vars;
+  return j;
+}
+
+static std::shared_ptr<void> DeserializeUIDocumentProperties(
+    const nlohmann::json& j) {
+  auto props = std::make_shared<UIDocumentAssetProperties>();
+  if (j.contains("variables") && j["variables"].is_array()) {
+    for (const auto& var : j["variables"]) {
+      UIVariableDecl decl;
+      if (var.contains("name")) {
+        decl.name = var["name"].get<std::string>();
+      }
+      if (var.contains("type")) {
+        decl.type = static_cast<UIVariableType>(var["type"].get<int>());
+      }
+      if (var.contains("mode")) {
+        decl.mode = static_cast<UIVariableMode>(var["mode"].get<int>());
+      }
+      if (var.contains("default")) {
+        decl.default_value = var["default"].get<std::string>();
+      }
+      props->variables.push_back(decl);
+    }
+  }
+  return props;
+}
+
+static bool RenderUIDocumentPropertiesImGui(void* p) {
+  auto* props = static_cast<UIDocumentAssetProperties*>(p);
+  bool changed = false;
+
+  ImGui::SeparatorText("Data Variables");
+
+  int remove_idx = -1;
+  for (int i = 0; i < static_cast<int>(props->variables.size()); i++) {
+    auto& v = props->variables[i];
+    ImGui::PushID(i);
+
+    // Name
+    char name_buf[128];
+    strncpy(name_buf, v.name.c_str(), sizeof(name_buf) - 1);
+    name_buf[sizeof(name_buf) - 1] = '\0';
+    ImGui::SetNextItemWidth(120);
+    if (ImGui::InputText("##name", name_buf, sizeof(name_buf))) {
+      v.name = name_buf;
+      changed = true;
+    }
+    ImGui::SameLine();
+
+    // Type
+    const char* type_names[] = {"Int", "Float", "String", "Bool"};
+    int type_idx = static_cast<int>(v.type);
+    ImGui::SetNextItemWidth(70);
+    if (ImGui::Combo("##type", &type_idx, type_names, 4)) {
+      v.type = static_cast<UIVariableType>(type_idx);
+      changed = true;
+    }
+    ImGui::SameLine();
+
+    // Mode
+    const char* mode_names[] = {"TwoWay", "ReadOnly"};
+    int mode_idx = static_cast<int>(v.mode);
+    ImGui::SetNextItemWidth(80);
+    if (ImGui::Combo("##mode", &mode_idx, mode_names, 2)) {
+      v.mode = static_cast<UIVariableMode>(mode_idx);
+      changed = true;
+    }
+    ImGui::SameLine();
+
+    // Default value
+    char def_buf[128];
+    strncpy(def_buf, v.default_value.c_str(), sizeof(def_buf) - 1);
+    def_buf[sizeof(def_buf) - 1] = '\0';
+    ImGui::SetNextItemWidth(80);
+    if (ImGui::InputText("##default", def_buf, sizeof(def_buf))) {
+      v.default_value = def_buf;
+      changed = true;
+    }
+    ImGui::SameLine();
+
+    // Remove button
+    if (ImGui::SmallButton("X")) {
+      remove_idx = i;
+      changed = true;
+    }
+
+    ImGui::PopID();
+  }
+
+  if (remove_idx >= 0) {
+    props->variables.erase(props->variables.begin() + remove_idx);
+  }
+
+  if (ImGui::Button("+ Add Variable")) {
+    UIVariableDecl decl;
+    decl.name = "var_" + std::to_string(props->variables.size());
+    props->variables.push_back(decl);
+    changed = true;
+  }
+
+  return changed;
+}
+
 // --- Registration ---
 
 void InitializeAssetProperties() {
@@ -166,6 +284,14 @@ void InitializeAssetProperties() {
                         },
                         SerializeFontProperties, DeserializeFontProperties,
                         RenderFontPropertiesImGui});
+
+  AssetPropertyRegistry::Register(
+      AssetType::UIDocument,
+      {[]() -> std::shared_ptr<void> {
+         return std::make_shared<UIDocumentAssetProperties>();
+       },
+       SerializeUIDocumentProperties, DeserializeUIDocumentProperties,
+       RenderUIDocumentPropertiesImGui});
 }
 
 }  // namespace Wiesel

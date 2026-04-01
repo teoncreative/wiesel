@@ -330,6 +330,7 @@ class ScriptManager {
   void ReloadAsync(bool force_recompile_core = false);
 
   bool IsCompiling() const { return compiling_; }
+
   const CompileResult& last_compile_result() const {
     return last_compile_result_;
   }
@@ -403,6 +404,7 @@ class ScriptManager {
   MonoClass* camera_class_ = nullptr;
   MonoClass* light_direct_class_ = nullptr;
   MonoClass* light_point_class_ = nullptr;
+  MonoClass* ui_document_class_ = nullptr;
   MonoClass* vector3f_class_ = nullptr;
   MonoClass* entity_class_ = nullptr;
   MonoClass* prefab_class_ = nullptr;

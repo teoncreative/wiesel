@@ -28,6 +28,7 @@
 #include "script/mono/w_monobehavior.h"
 #include "script/w_scriptglue.h"
 #include "ui/w_canvas.h"
+#include "ui/w_ui_document.h"
 #include "util/w_logger.h"
 #include "util/w_platform.h"
 #include "w_engine.h"
@@ -665,11 +666,12 @@ void ScriptManager::SwapDomain() {
   script_data_.clear();
   script_names_.clear();
 
-  RegisterComponents();
   RegisterScriptGlue();
 
-  // Load Core.dll (already compiled)
+  // Load Core.dll (already compiled) - must happen before RegisterComponents
+  // because it sets the MonoClass pointers used by RegisterComponent.
   LoadCoreDll();
+  RegisterComponents();
 
   // Register script assets
   RegisterScriptAssets("engine://scripts/");
@@ -741,6 +743,8 @@ void ScriptManager::LoadCoreDll() {
       core_assembly_image_, "WieselEngine", "LightDirectComponent");
   light_point_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "LightPointComponent");
+  ui_document_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "UIDocumentComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
   entity_class_ =
@@ -1198,6 +1202,26 @@ void ScriptManager::RegisterComponents() {
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<SpriteAnimatorComponent>(entity);
+        });
+  }
+
+  if (ui_document_class_) {
+    RegisterComponent<UIDocumentComponent>(
+        "UIDocumentComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          MonoObject* obj = mono_object_new(app_domain_, ui_document_class_);
+          void* args[2];
+          uint64_t scenePtr = (uint64_t)scene;
+          uint64_t entityId = (uint64_t)entity;
+          args[0] = &scenePtr;
+          args[1] = &entityId;
+          MonoMethod* method =
+              mono_class_get_method_from_name(ui_document_class_, ".ctor", 2);
+          InvokeSafe(method, obj, args);
+          return obj;
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<UIDocumentComponent>(entity);
         });
   }
 }

@@ -44,4 +44,30 @@ struct FontAssetProperties {
   FontAAMode aa_mode = FontAAMode::Grayscale;
 };
 
+// --- UIDocument asset properties ---
+
+enum class UIVariableType : uint8_t {
+  Int = 0,
+  Float = 1,
+  String = 2,
+  Bool = 3,
+};
+
+enum class UIVariableMode : uint8_t {
+  TwoWay = 0,
+  ReadOnly = 1,
+};
+
+struct UIVariableDecl {
+  std::string name;
+  UIVariableType type = UIVariableType::Int;
+  UIVariableMode mode = UIVariableMode::ReadOnly;
+  // Default value stored as string, converted at registration time
+  std::string default_value = "0";
+};
+
+struct UIDocumentAssetProperties {
+  std::vector<UIVariableDecl> variables;
+};
+
 }  // namespace Wiesel

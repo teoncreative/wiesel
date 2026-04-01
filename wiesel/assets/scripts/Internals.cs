@@ -748,6 +748,24 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern ulong Entity_GetChild(ulong scenePtr, ulong entityId, int index);
 
+        // UIDocument
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void UIDocument_SetInt(ulong scenePtr, ulong entityId, string name, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int UIDocument_GetInt(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void UIDocument_SetFloat(ulong scenePtr, ulong entityId, string name, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float UIDocument_GetFloat(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void UIDocument_SetString(ulong scenePtr, ulong entityId, string name, string value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string UIDocument_GetString(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void UIDocument_SetBool(ulong scenePtr, ulong entityId, string name, bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool UIDocument_GetBool(ulong scenePtr, ulong entityId, string name);
+
         // Console
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Console_RegisterCommand(string name, string description, System.Action<string[]> callback);
