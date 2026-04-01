@@ -60,6 +60,9 @@
 #include "util/w_gamepadcodes.h"
 #include "util/w_natural_sort.h"
 #include "util/w_platform.h"
+#include <RmlUi/Core.h>
+#include <RmlUi/Core/Factory.h>
+#include "ui/w_ui_document.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
@@ -174,6 +177,7 @@ static struct SceneHierarchyData {
 } hierarchy_data_;
 
 static FileWatcher script_watcher_;
+static FileWatcher ui_file_watcher_;
 static bool script_reload_pending_ = false;
 static bool window_focused_ = true;
 
@@ -511,6 +515,31 @@ void EditorLayer::OnUpdate(float_t delta_time) {
     script_reload_pending_ = false;
     LOG_INFO("Script changes detected, reloading...");
     Engine::script_manager().ReloadAsync();
+  }
+
+  // UI file hot reload: .rml/.rcss changes
+  if (ui_file_watcher_.Poll()) {
+    bool has_ui = false;
+    if (scene()) {
+      auto& registry = scene()->GetRegistry();
+      for (auto entity : registry.view<UIDocumentComponent>()) {
+        auto& doc = registry.get<UIDocumentComponent>(entity);
+        if (doc.rml_context_) {
+          Rml::RemoveContext(doc.context_name_);
+          doc.rml_context_ = nullptr;
+          doc.rml_document_ = nullptr;
+          doc.offscreen_texture_ = nullptr;
+          doc.offscreen_descriptor_ = nullptr;
+          doc.offscreen_framebuffer_ = nullptr;
+          doc.offscreen_size_ = {0, 0};
+          has_ui = true;
+        }
+      }
+    }
+    if (has_ui) {
+      Rml::Factory::ClearStyleSheetCache();
+      LOG_INFO("UI files changed, reloading documents");
+    }
   }
 }
 
@@ -3964,6 +3993,10 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   if (app_dir.has_value()) {
     script_watcher_.SetExtensionFilter(".cs");
     script_watcher_.Watch(*app_dir, true);
+
+    // Watch for UI file hot reload (.rml/.rcss)
+    ui_file_watcher_.SetPatternFilter("\\.(rml|rcss)$");
+    ui_file_watcher_.Watch(*app_dir, true);
   }
 
   // Open last scene or start scene (prefer last_scene, fall back to start)

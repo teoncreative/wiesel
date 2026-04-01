@@ -70,6 +70,10 @@ void FileWatcher::handleFileAction(efsw::WatchID watch_id,
     if (p.extension().string() != extension_filter_) {
       return;
     }
+  } else if (regex_filter_) {
+    if (!std::regex_search(filename, *regex_filter_)) {
+      return;
+    }
   }
   changed_.store(true);
 }

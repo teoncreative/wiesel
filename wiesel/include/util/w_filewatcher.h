@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <regex>
 #include <string>
 
 namespace Wiesel {
@@ -30,7 +31,17 @@ class FileWatcher : public efsw::FileWatchListener {
 
   void Watch(const std::filesystem::path& directory, bool recursive = true);
 
-  void SetExtensionFilter(const std::string& ext) { extension_filter_ = ext; }
+  // Filter by exact extension (e.g. ".cs")
+  void SetExtensionFilter(const std::string& ext) {
+    extension_filter_ = ext;
+    regex_filter_.reset();
+  }
+
+  // Filter by regex pattern on filename (e.g. "\\.(rml|rcss)$")
+  void SetPatternFilter(const std::string& pattern) {
+    regex_filter_ = std::make_unique<std::regex>(pattern);
+    extension_filter_.clear();
+  }
 
   void Stop();
 
@@ -50,6 +61,7 @@ class FileWatcher : public efsw::FileWatchListener {
   bool watching_ = false;
   std::atomic<bool> changed_{false};
   std::string extension_filter_;
+  std::unique_ptr<std::regex> regex_filter_;
 };
 
 }  // namespace Wiesel

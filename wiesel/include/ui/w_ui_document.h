@@ -49,6 +49,7 @@ struct UIDocumentComponent : public IComponent {
   Rml::ElementDocument* rml_document_ = nullptr;
   AssetHandle loaded_handle_;
   std::string context_name_;
+  std::string loaded_vfs_path_;
 
   // Runtime - offscreen rendering (managed by CanvasFeature)
   std::shared_ptr<AttachmentTexture> offscreen_texture_;
