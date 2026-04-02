@@ -2403,6 +2403,17 @@ bool Internals_UIDocument_GetBool(uint64_t scene_ptr, uint64_t entity_id,
   return result;
 }
 
+void Internals_UIDocument_SetVisible(uint64_t scene_ptr, uint64_t entity_id,
+                                     bool visible) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
+  ui_doc.visible = visible;
+}
+
+bool Internals_UIDocument_GetVisible(uint64_t scene_ptr, uint64_t entity_id) {
+  GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, false);
+  return ui_doc.visible;
+}
+
 void RegisterScriptGlue() {
   PROFILE_ZONE_SCOPED_N("RegisterScriptGlue");
   WIESEL_ADD_INTERNAL_CALL(Log_Info);
@@ -2777,6 +2788,8 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(UIDocument_GetString);
   WIESEL_ADD_INTERNAL_CALL(UIDocument_SetBool);
   WIESEL_ADD_INTERNAL_CALL(UIDocument_GetBool);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_SetVisible);
+  WIESEL_ADD_INTERNAL_CALL(UIDocument_GetVisible);
 }
 
 }  // namespace Wiesel

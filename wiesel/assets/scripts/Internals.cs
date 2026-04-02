@@ -765,6 +765,10 @@ namespace WieselEngine
         public static extern void UIDocument_SetBool(ulong scenePtr, ulong entityId, string name, bool value);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool UIDocument_GetBool(ulong scenePtr, ulong entityId, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void UIDocument_SetVisible(ulong scenePtr, ulong entityId, bool visible);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool UIDocument_GetVisible(ulong scenePtr, ulong entityId);
 
         // Console
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

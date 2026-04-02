@@ -25,6 +25,7 @@
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "events/w_keyevents.h"
+#include "events/w_mouseevents.h"
 #include "rendering/features/w_billboard_feature.h"
 #include "rendering/features/w_bloom_feature.h"
 #include "rendering/features/w_canvas_feature.h"
@@ -49,6 +50,8 @@
 #include "systems/w_canvas_system.h"
 #include "ui/w_interactable.h"
 #include "ui/w_ui_document.h"
+#include "ui/w_ui_manager.h"
+#include "util/w_keycodes.h"
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -978,8 +981,16 @@ void Scene::UpdateSceneState(float_t delta_time) {
         if (doc_asset && !doc_asset->vfs_path.empty()) {
           doc.context_name_ =
               "ui_" + std::to_string(static_cast<uint32_t>(entity));
-          doc.rml_context_ =
-              Rml::CreateContext(doc.context_name_, Rml::Vector2i(256, 256));
+          // Use viewport size as initial context dimensions.
+          // RmlUi does initial layout at creation time - too small causes
+          // incorrect text wrapping and block sizing.
+          glm::vec2 vp = GetRenderResolution();
+          if (vp.x < 1 || vp.y < 1) {
+            vp = {1920, 1080};
+          }
+          doc.rml_context_ = Rml::CreateContext(
+              doc.context_name_,
+              Rml::Vector2i(static_cast<int>(vp.x), static_cast<int>(vp.y)));
           if (doc.rml_context_) {
             const auto* meta = assets.GetMetadata(doc.document_handle);
             const auto* ui_props =
@@ -1058,6 +1069,29 @@ void Scene::OnEvent(Event& event) {
   dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
   dispatcher.Dispatch<PipelineRecreatedEvent>(
       WIESEL_BIND_FN(OnPipelineRecreatedEvent));
+
+  // F8: Toggle RmlUi debugger on the first visible UIDocument context
+  if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
+    auto& key = static_cast<KeyPressedEvent&>(event);
+    if (key.GetKeyCode() == KeyF8) {
+      for (auto entity : registry_.view<UIDocumentComponent>()) {
+        auto& doc = registry_.get<UIDocumentComponent>(entity);
+        if (doc.rml_context_ && doc.visible) {
+          Engine::ui_manager().ToggleDebugger(doc.rml_context_);
+          break;
+        }
+      }
+    }
+  }
+
+  // Forward scroll events to the focused RmlUi document.
+  if (event.GetEventType() == MouseScrolledEvent::GetStaticType()) {
+    auto& scroll = static_cast<MouseScrolledEvent&>(event);
+    if (ui_event_system_.ProcessMouseScroll(*this, scroll.GetYOffset())) {
+      event.handled_ = true;
+      return;
+    }
+  }
 
   // Forward key events to the focused RmlUi document.
   // Only consume events if RmlUi has an actual text input focused.

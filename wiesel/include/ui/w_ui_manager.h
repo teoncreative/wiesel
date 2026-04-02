@@ -15,6 +15,10 @@
 #include "ui/w_rmlui_system.h"
 #include "w_pch.h"
 
+namespace Rml {
+class Context;
+}
+
 namespace Wiesel {
 
 // Manages global RmlUi initialization, font loading, and the shared
@@ -30,11 +34,16 @@ class UIManager {
 
   RmlRenderInterface* GetRenderInterface() { return &render_interface_; }
 
+  // RmlUi debugger - call with a context to inspect
+  void ToggleDebugger(Rml::Context* context);
+  bool IsDebuggerVisible() const;
+
  private:
   RmlSystemInterface system_interface_;
   RmlFileInterface file_interface_;
   RmlRenderInterface render_interface_;
   bool initialized_ = false;
+  bool debugger_initialized_ = false;
 };
 
 }  // namespace Wiesel

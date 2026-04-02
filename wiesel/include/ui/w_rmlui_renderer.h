@@ -114,17 +114,17 @@ class RmlRenderInterface : public Rml::RenderInterface {
   VkCommandBuffer active_cmd_ = VK_NULL_HANDLE;
   glm::vec2 viewport_size_{1920, 1080};
   bool scissor_enabled_ = false;
-  glm::mat4 transform_{1.0f};
+  Rml::Matrix4f transform_rml_ = Rml::Matrix4f::Identity();
 
   // Stored textures (prevent deallocation)
   std::unordered_map<Rml::TextureHandle, std::shared_ptr<Texture>>
       loaded_textures_;
   Rml::TextureHandle next_texture_id_ = 1;
 
-  // Push constant data
+  // Push constant data - matches the vertex shader layout
   struct PushConstantData {
-    glm::vec2 translation;
-    glm::vec2 screen_size;
+    glm::mat4
+        transform;  // projection * rml_transform, with translation baked in
   };
 
   std::shared_ptr<PushConstantData> push_constant_data_;

@@ -1026,6 +1026,24 @@ bool UIEventSystem::ProcessTextInput(Scene& scene, const std::string& text) {
   return doc.rml_context_->ProcessTextInput(text);
 }
 
+bool UIEventSystem::ProcessMouseScroll(Scene& scene, float delta) {
+  auto& registry = scene.GetRegistry();
+  bool consumed = false;
+
+  // Forward scroll to all visible UIDocuments (RmlUi handles hit testing)
+  for (auto entity :
+       registry.view<UIDocumentComponent, RectangleTransformComponent>()) {
+    auto& doc = registry.get<UIDocumentComponent>(entity);
+    if (!doc.rml_context_ || !doc.visible) {
+      continue;
+    }
+    if (doc.rml_context_->ProcessMouseWheel(-delta, 0)) {
+      consumed = true;
+    }
+  }
+  return consumed;
+}
+
 bool UIEventSystem::HasRmlTextInputFocus(Scene& scene) const {
   if (focused_rml_entity_ == entt::null) {
     return false;

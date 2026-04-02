@@ -7,6 +7,12 @@ namespace WieselEngine
             this.entity = entity;
         }
 
+        public bool Visible
+        {
+            get { return Internals.UIDocument_GetVisible(entity.ScenePtr, entity.Id); }
+            set { Internals.UIDocument_SetVisible(entity.ScenePtr, entity.Id, value); }
+        }
+
         public void SetInt(string name, int value)
         {
             Internals.UIDocument_SetInt(entity.ScenePtr, entity.Id, name, value);

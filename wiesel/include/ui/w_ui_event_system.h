@@ -36,6 +36,7 @@ class UIEventSystem {
   bool ProcessKeyDown(Scene& scene, int key_code, int modifiers);
   bool ProcessKeyUp(Scene& scene, int key_code, int modifiers);
   bool ProcessTextInput(Scene& scene, const std::string& text);
+  bool ProcessMouseScroll(Scene& scene, float delta);
 
   // Returns true if a UIDocument was last clicked
   bool HasRmlFocus() const { return focused_rml_entity_ != entt::null; }

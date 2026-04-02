@@ -11,6 +11,7 @@
 #include "ui/w_ui_manager.h"
 
 #include <RmlUi/Core.h>
+#include <RmlUi/Debugger.h>
 
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -65,8 +66,30 @@ void UIManager::Shutdown() {
   if (!initialized_) {
     return;
   }
+  if (debugger_initialized_) {
+    Rml::Debugger::Shutdown();
+    debugger_initialized_ = false;
+  }
   Rml::Shutdown();
   initialized_ = false;
+}
+
+void UIManager::ToggleDebugger(Rml::Context* context) {
+  if (!context) {
+    return;
+  }
+  if (!debugger_initialized_) {
+    Rml::Debugger::Initialise(context);
+    debugger_initialized_ = true;
+    Rml::Debugger::SetVisible(true);
+  } else {
+    Rml::Debugger::SetContext(context);
+    Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
+  }
+}
+
+bool UIManager::IsDebuggerVisible() const {
+  return debugger_initialized_ && Rml::Debugger::IsVisible();
 }
 
 }  // namespace Wiesel

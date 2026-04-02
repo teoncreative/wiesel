@@ -118,8 +118,22 @@ void RmlRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry,
   pipeline_->Bind(PipelineBindPointGraphics, active_cmd_);
 
   // Update push constant data and push
-  push_constant_data_->translation = {translation.x, translation.y};
-  push_constant_data_->screen_size = viewport_size_;
+  Rml::Matrix4f rml_projection = Rml::Matrix4f::ProjectOrtho(
+      0.0f, viewport_size_.x, viewport_size_.y, 0.0f, -10000.0f, 10000.0f);
+
+  Rml::Matrix4f correction;
+  correction.SetColumns(Rml::Vector4f(1.0f, 0.0f, 0.0f, 0.0f),
+                        Rml::Vector4f(0.0f, -1.0f, 0.0f, 0.0f),
+                        Rml::Vector4f(0.0f, 0.0f, 0.5f, 0.0f),
+                        Rml::Vector4f(0.0f, 0.0f, 0.5f, 1.0f));
+
+  Rml::Matrix4f rml_translate =
+      Rml::Matrix4f::Translate(translation.x, translation.y, 0.0f);
+
+  Rml::Matrix4f final_mat =
+      correction * rml_projection * transform_rml_ * rml_translate;
+
+  memcpy(&push_constant_data_->transform, &final_mat, sizeof(glm::mat4));
   pipeline_->PushConstants(active_cmd_);
 
   // Bind texture descriptor
@@ -222,10 +236,9 @@ void RmlRenderInterface::SetScissorRegion(Rml::Rectanglei region) {
 
 void RmlRenderInterface::SetTransform(const Rml::Matrix4f* transform) {
   if (transform) {
-    // RmlUi stores in column-major, same as glm
-    memcpy(&transform_, transform, sizeof(glm::mat4));
+    transform_rml_ = *transform;
   } else {
-    transform_ = glm::mat4(1.0f);
+    transform_rml_ = Rml::Matrix4f::Identity();
   }
 }
 
