@@ -59,14 +59,7 @@ class RmlRenderInterface : public Rml::RenderInterface {
   ~RmlRenderInterface() override;
 
   // Initialize pipelines and descriptor layouts.
-  // render_pass: the render pass this backend will draw into (owned by the feature).
   void Init(std::shared_ptr<RenderPass> render_pass);
-
-  // Set the viewport size (in pixels) before rendering a frame.
-  void SetViewportSize(glm::vec2 size) { viewport_size_ = size; }
-
-  // Set the active command buffer for the current frame's rendering.
-  void SetCommandBuffer(VkCommandBuffer cmd) { active_cmd_ = cmd; }
 
   // Rml::RenderInterface implementation
   Rml::CompiledGeometryHandle CompileGeometry(
@@ -86,21 +79,35 @@ class RmlRenderInterface : public Rml::RenderInterface {
   void EnableScissorRegion(bool enable) override;
   void SetScissorRegion(Rml::Rectanglei region) override;
 
+  void EnableClipMask(bool enable) override;
+  void RenderToClipMask(Rml::ClipMaskOperation operation,
+                        Rml::CompiledGeometryHandle geometry,
+                        Rml::Vector2f translation) override;
+
   void SetTransform(const Rml::Matrix4f* transform) override;
 
   // Render a Rml::Context into a framebuffer at the given size.
-  // Handles setting cmd/viewport, calling context->Render(), cleanup.
   void RenderToTexture(VkCommandBuffer cmd, Rml::Context* context,
                        glm::vec2 size);
 
-  // Get the render pass for creating compatible framebuffers.
   std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
 
  private:
+  void RenderGeometryWithPipeline(Pipeline* pipeline,
+                                  Rml::CompiledGeometryHandle geometry,
+                                  Rml::Vector2f translation,
+                                  Rml::TextureHandle texture);
+  void BuildProjection();
+
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<DescriptorSetLayout> descriptor_layout_;
+
+  // Pipelines
+  std::shared_ptr<Pipeline> pipeline_;               // Normal, no stencil
+  std::shared_ptr<Pipeline> pipeline_stencil_test_;  // Stencil EQUAL test
+  std::shared_ptr<Pipeline> pipeline_stencil_set_;   // Stencil REPLACE write
+  std::shared_ptr<Pipeline> pipeline_stencil_incr_;  // Stencil INCR write
 
   // Per-texture descriptor cache
   std::unordered_map<Rml::TextureHandle, std::shared_ptr<DescriptorSet>>
@@ -116,18 +123,27 @@ class RmlRenderInterface : public Rml::RenderInterface {
   bool scissor_enabled_ = false;
   Rml::Matrix4f transform_rml_ = Rml::Matrix4f::Identity();
 
+  // Clip mask state
+  bool clip_mask_enabled_ = false;
+  int stencil_ref_ = 0;
+
+  // Full-screen quad for stencil clearing (mid-pass)
+  Rml::CompiledGeometryHandle fullscreen_quad_ = 0;
+
   // Stored textures (prevent deallocation)
   std::unordered_map<Rml::TextureHandle, std::shared_ptr<Texture>>
       loaded_textures_;
   Rml::TextureHandle next_texture_id_ = 1;
 
-  // Push constant data - matches the vertex shader layout
+ public:
   struct PushConstantData {
-    glm::mat4
-        transform;  // projection * rml_transform, with translation baked in
+    glm::mat4 transform;
+    glm::vec2 translate;
   };
 
+ private:
   std::shared_ptr<PushConstantData> push_constant_data_;
+  Rml::Matrix4f projection_;
 
   std::shared_ptr<DescriptorSet> GetOrCreateDescriptor(
       Rml::TextureHandle texture);

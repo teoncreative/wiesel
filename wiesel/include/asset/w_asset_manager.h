@@ -140,6 +140,11 @@ class AssetManager {
   // Load all assets of a given type
   void LoadAllOfType(AssetType type, bool async = false);
 
+  // Asset observer callbacks
+  using AssetCallback = std::function<void(AssetHandle, const AssetMetadata&)>;
+  void OnAssetRegistered(AssetCallback callback);
+  void OnAssetUnregistered(AssetCallback callback);
+
   // Lifecycle
 
   void Clear();
@@ -161,6 +166,10 @@ class AssetManager {
   // Reverse: dependent -> set of parents
   std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>>
       dependent_to_parents_;
+
+  // Observer callbacks
+  std::vector<AssetCallback> on_registered_callbacks_;
+  std::vector<AssetCallback> on_unregistered_callbacks_;
 };
 
 // Template implementations

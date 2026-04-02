@@ -1,0 +1,331 @@
+body, div, p, h1, h2, h3, form, label, select, option, progress, tabset, panel {
+    display: block;
+    box-sizing: border-box;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+scrollbarvertical {
+    width: 8dp;
+    background-color: #1e2230;
+}
+
+scrollbarvertical slidertrack {
+    width: 8dp;
+    background-color: #1e2230;
+    border-radius: 4dp;
+}
+
+scrollbarvertical sliderbar {
+    width: 8dp;
+    height: 40dp;
+    background-color: #3c4155;
+    border-radius: 4dp;
+}
+
+scrollbarvertical sliderbar:hover {
+    background-color: #4b5064;
+}
+
+scrollbarvertical sliderarrowdec,
+scrollbarvertical sliderarrowinc {
+    height: 0dp;
+}
+
+scrollbarhorizontal {
+    height: 0dp;
+}
+
+body {
+    font-family: 'Source Sans 3';
+    font-size: 15dp;
+    color: rgba(224, 224, 224, 255);
+    width: 1280dp;
+    height: 720dp;
+}
+
+.overlay {
+    width: 1280dp;
+    height: 720dp;
+    background-color: rgba(0, 0, 0, 216);
+}
+
+.settings-panel {
+    position: absolute;
+    left: 140dp;
+    top: 36dp;
+    width: 1000dp;
+    height: 648dp;
+    background-color: rgba(20, 22, 30, 242);
+    border-radius: 10dp;
+    overflow: hidden;
+}
+
+.header {
+    width: 1000dp;
+    height: 60dp;
+    padding: 18dp 28dp;
+    background-color: #1e2230;
+    border-bottom-width: 1dp;
+    border-bottom-color: #3c4155;
+}
+
+.header h1 {
+    font-size: 24dp;
+    font-weight: bold;
+    color: #ffffff;
+    margin: 0;
+}
+
+/* Tabset: fills remaining space between header and button bar */
+tabset {
+    width: 1000dp;
+    height: 528dp;
+}
+
+/* Tab bar across the top */
+tabs {
+    display: block;
+    width: 1000dp;
+    height: 44dp;
+    background-color: #191c28;
+    padding: 0 20dp;
+    border-bottom-width: 1dp;
+    border-bottom-color: #32374b;
+}
+
+tab {
+    display: inline-block;
+    padding: 12dp 22dp;
+    color: #808090;
+    font-size: 14dp;
+    cursor: pointer;
+}
+
+tab:hover {
+    color: #b0b0c0;
+    background-color: rgba(255, 255, 255, 8);
+}
+
+tab:selected {
+    color: #4fc3f7;
+    border-bottom-width: 2dp;
+    border-bottom-color: #4fc3f7;
+}
+
+/* Panel content area - scrollable */
+panels {
+    display: block;
+    width: 1000dp;
+    height: 484dp;
+}
+
+panel {
+    width: 1000dp;
+    height: 484dp;
+    padding: 16dp 28dp;
+    overflow-y: scroll;
+}
+
+/* Section headers */
+.section-title {
+    width: 928dp;
+    font-size: 13dp;
+    font-weight: bold;
+    color: #4fc3f7;
+    text-transform: uppercase;
+    margin-top: 10dp;
+    margin-bottom: 8dp;
+    padding-bottom: 6dp;
+    border-bottom-width: 1dp;
+    border-bottom-color: rgba(79, 195, 247, 51);
+}
+
+/* Setting row */
+.setting-row {
+    width: 928dp;
+    height: 36dp;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.setting-label {
+    width: 240dp;
+    flex-shrink: 0;
+    color: #c0c0cc;
+    font-size: 14dp;
+}
+
+.setting-value {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8dp;
+}
+
+/* Dropdown */
+select {
+    width: 180dp;
+    background-color: #282c3c;
+    border-width: 1dp;
+    border-color: #3c4155;
+    border-radius: 4dp;
+    padding: 6dp 12dp;
+    color: rgba(224, 224, 224, 255);
+    font-size: 13dp;
+}
+
+select:hover {
+    border-color: rgba(79, 195, 247, 128);
+}
+
+selectbox {
+    background-color: #1e2230;
+    border-width: 1dp;
+    border-color: #3c4155;
+    border-radius: 4dp;
+    padding: 4dp 0;
+    margin-top: 2dp;
+}
+
+option {
+    padding: 6dp 12dp;
+    color: rgba(224, 224, 224, 255);
+    font-size: 13dp;
+}
+
+option:hover {
+    background-color: #2a3040;
+}
+
+option:checked {
+    color: #4fc3f7;
+}
+
+/* Slider */
+input.slider {
+    width: 200dp;
+}
+
+input.slider slidertrack {
+    height: 4dp;
+    background-color: #3c4155;
+    border-radius: 2dp;
+}
+
+input.slider sliderbar {
+    width: 14dp;
+    height: 14dp;
+    background-color: #4fc3f7;
+    border-radius: 7dp;
+    margin-top: -5dp;
+}
+
+input.slider sliderbar:hover {
+    background-color: #81d4fa;
+}
+
+input.slider sliderarrowdec,
+input.slider sliderarrowinc {
+    width: 0;
+}
+
+/* Toggle switch */
+.toggle {
+    width: 42dp;
+    height: 22dp;
+    background-color: #3c4155;
+    border-radius: 11dp;
+    cursor: pointer;
+}
+
+.toggle.on {
+    background-color: #4fc3f7;
+}
+
+.toggle-knob {
+    width: 18dp;
+    height: 18dp;
+    background-color: #ffffff;
+    border-radius: 9dp;
+    margin-top: 2dp;
+    margin-left: 2dp;
+}
+
+.toggle.on .toggle-knob {
+    margin-left: 22dp;
+}
+
+/* Value text next to sliders */
+.value-text {
+    width: 40dp;
+    color: #808090;
+    font-size: 13dp;
+    text-align: right;
+}
+
+/* Keybind button */
+.keybind-btn {
+    width: 100dp;
+    background-color: #282c3c;
+    border-width: 1dp;
+    border-color: #3c4155;
+    border-radius: 4dp;
+    padding: 5dp 14dp;
+    color: rgba(224, 224, 224, 255);
+    font-size: 13dp;
+    text-align: center;
+    cursor: pointer;
+}
+
+.keybind-btn:hover {
+    border-color: rgba(79, 195, 247, 128);
+    background-color: #32374b;
+}
+
+/* Bottom button bar */
+.button-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 10dp;
+    width: 1000dp;
+    height: 60dp;
+    padding: 12dp 28dp;
+    background-color: #191c28;
+    border-top-width: 1dp;
+    border-top-color: #32374b;
+}
+
+button {
+    padding: 8dp 24dp;
+    border-radius: 4dp;
+    font-size: 14dp;
+    cursor: pointer;
+}
+
+button.primary {
+    background-color: #1976d2;
+    color: white;
+}
+
+button.primary:hover {
+    background-color: #2196f3;
+}
+
+button.primary:active {
+    background-color: #0d47a1;
+}
+
+button.secondary {
+    background-color: #3c4155;
+    color: #c0c0cc;
+}
+
+button.secondary:hover {
+    background-color: #4b5064;
+}

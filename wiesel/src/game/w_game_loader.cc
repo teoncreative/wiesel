@@ -148,17 +148,17 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
   return handle;
 }
 
-void GameLoader::ScanAssets() {
+void GameLoader::ScanVfsPrefix(const std::string& prefix,
+                               RegisterFn register_fn,
+                               std::vector<std::string>& scenes_to_preload) {
   namespace fs = std::filesystem;
   AssetManager& mgr = Engine::asset_manager();
-  Engine::scene_manager().ClearRegisteredScenes();
-  std::vector<std::string> scenes_to_preload;
 
   VirtualFileSystem* vfs = Engine::vfs().get();
-  std::vector<std::string> all_files = vfs->ListFiles("app://", true);
+  std::vector<std::string> all_files = vfs->ListFiles(prefix, true);
 
   for (const std::string& vfs_path : all_files) {
-    fs::path rel_path(vfs_path.substr(6));  // strip "app://"
+    fs::path rel_path(vfs_path.substr(prefix.size()));
     std::string ext = rel_path.extension().string();
     if (ext == ".meta") {
       continue;
@@ -171,7 +171,7 @@ void GameLoader::ScanAssets() {
 
     std::string name = rel_path.stem().string();
 
-    AssetHandle handle = RegisterAsset(name, type, vfs_path);
+    AssetHandle handle = register_fn(name, type, vfs_path);
     if (!handle.IsValid()) {
       continue;
     }
@@ -223,6 +223,15 @@ void GameLoader::ScanAssets() {
                        AssetLoadState::Loaded);
     }
   }
+}
+
+void GameLoader::ScanAssets() {
+  Engine::scene_manager().ClearRegisteredScenes();
+  std::vector<std::string> scenes_to_preload;
+
+  // Scan engine assets first, then project assets
+  ScanVfsPrefix("engine://", RegisterAsset, scenes_to_preload);
+  ScanVfsPrefix("app://", RegisterAsset, scenes_to_preload);
 
   // Preload assets for scenes that have preload_assets enabled.
   for (const auto& preload_vfs : scenes_to_preload) {

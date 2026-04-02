@@ -13,6 +13,7 @@
 #include <RmlUi/Core.h>
 #include <RmlUi/Debugger.h>
 
+#include "asset/w_asset_manager.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
 #include "w_engine.h"
@@ -38,20 +39,42 @@ void UIManager::Init() {
     return;
   }
 
-  // Load default fonts (no render interface needed for this)
-  if (!Rml::LoadFontFace("engine://fonts/SourceSans3.ttf")) {
-    LOG_WARN("Failed to load default RmlUi font");
-  }
-  if (!Rml::LoadFontFace("engine://fonts/SourceSans3-Italic.ttf")) {
-    LOG_WARN("Failed to load italic RmlUi font");
+  // Load fonts already registered, and listen for future font registrations
+  for (AssetHandle handle :
+       Engine::asset_manager().GetAllOfType(AssetType::Font)) {
+    const auto* meta = Engine::asset_manager().GetMetadata(handle);
+    if (meta && !meta->virtual_source_path.empty()) {
+      if (Rml::LoadFontFace(meta->virtual_source_path)) {
+        loaded_fonts_.insert(handle);
+      } else {
+        LOG_WARN("Failed to load RmlUi font: {}", meta->virtual_source_path);
+      }
+    }
   }
 
-  // Create render pass and initialize the render interface
+  Engine::asset_manager().OnAssetRegistered([this](AssetHandle handle,
+                                                   const AssetMetadata& meta) {
+    if (meta.type != AssetType::Font || !initialized_) {
+      return;
+    }
+    if (!meta.virtual_source_path.empty() && !loaded_fonts_.contains(handle)) {
+      if (Rml::LoadFontFace(meta.virtual_source_path)) {
+        loaded_fonts_.insert(handle);
+        LOG_INFO("Loaded RmlUi font: {}", meta.name);
+      }
+    }
+  });
+
+  // Create render pass with color + depth/stencil for clip masking
   auto render_pass =
       std::make_shared<RenderPass>(PassType::PostProcess, "RmlUi Offscreen");
   render_pass->AttachOutput(
       {.type = AttachmentTextureType::Offscreen,
        .format = Engine::renderer()->GetSwapChainImageFormat(),
+       .msaa_mode = SamplingMode::DISABLED});
+  render_pass->AttachOutput(
+      {.type = AttachmentTextureType::DepthStencil,
+       .format = Engine::renderer()->FindDepthStencilFormat(),
        .msaa_mode = SamplingMode::DISABLED});
   render_pass->Bake();
 
@@ -70,6 +93,7 @@ void UIManager::Shutdown() {
     Rml::Debugger::Shutdown();
     debugger_initialized_ = false;
   }
+  loaded_fonts_.clear();
   Rml::Shutdown();
   initialized_ = false;
 }

@@ -141,6 +141,11 @@ void Pipeline::Bake() {
   std::vector<VkDynamicState> dynamicStates;
   dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
   dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+  if (properties_.enable_stencil_test) {
+    dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+    dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+    dynamicStates.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+  }
   for (const auto& item : dynamic_states_) {
     if (std::find(dynamicStates.begin(), dynamicStates.end(), item) ==
         dynamicStates.end()) {
@@ -253,8 +258,10 @@ void Pipeline::Bake() {
     }
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        properties_.color_write_enabled
+            ? (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+               VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
+            : 0;
     if (properties_.enable_alpha_blending) {
       colorBlendAttachment.blendEnable = VK_TRUE;
       colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -295,6 +302,20 @@ void Pipeline::Bake() {
   depthStencil.depthBoundsTestEnable = VK_FALSE;
   depthStencil.minDepthBounds = 0.0f;
   depthStencil.maxDepthBounds = 1.0f;
+  depthStencil.stencilTestEnable =
+      properties_.enable_stencil_test ? VK_TRUE : VK_FALSE;
+  if (properties_.enable_stencil_test) {
+    VkStencilOpState stencil_op{};
+    stencil_op.failOp = VK_STENCIL_OP_KEEP;
+    stencil_op.passOp = properties_.stencil_pass_op;
+    stencil_op.depthFailOp = VK_STENCIL_OP_KEEP;
+    stencil_op.compareOp = properties_.stencil_compare_op;
+    stencil_op.compareMask = 0xFF;
+    stencil_op.writeMask = 0xFF;
+    stencil_op.reference = 0;
+    depthStencil.front = stencil_op;
+    depthStencil.back = stencil_op;
+  }
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

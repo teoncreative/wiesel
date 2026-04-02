@@ -50,6 +50,14 @@ struct PipelineProperties {
   float line_width = 1.0f;
   float depth_bias_constant = 0.0f;
   float depth_bias_slope = 0.0f;
+
+  // Stencil
+  bool enable_stencil_test = false;
+  VkStencilOp stencil_pass_op = VK_STENCIL_OP_KEEP;
+  VkCompareOp stencil_compare_op = VK_COMPARE_OP_ALWAYS;
+
+  // Color write mask (set false to disable color writes, e.g. for stencil-only pass)
+  bool color_write_enabled = true;
 };
 
 struct PushConstant {

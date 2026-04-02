@@ -267,7 +267,8 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0, buffer_size, 0, &data));
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    buffer_size, 0, &data));
   memcpy(data, indices.data(), (size_t)buffer_size);
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -683,7 +684,8 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
                staging_buffer, staging_buffer_memory);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0, total_size, 0, &data));
+  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
+                                    total_size, 0, &data));
   memcpy(data, all_pixels, static_cast<size_t>(total_size));
   vkUnmapMemory(logical_device_, staging_buffer_memory);
 
@@ -1022,9 +1024,9 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
     } else if (props.type == AttachmentTextureType::Color ||
                props.type == AttachmentTextureType::Resolve ||
                props.type == AttachmentTextureType::Offscreen) {
-      TransitionImageLayout(
-          texture->images_[i], props.image_format, VK_IMAGE_LAYOUT_UNDEFINED,
-          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      TransitionImageLayout(texture->images_[i], props.image_format,
+                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                             props.mip_levels, 0, actual_layers);
     } else if (props.type == AttachmentTextureType::SwapChain) {
       TransitionImageLayout(
@@ -2859,6 +2861,12 @@ VkFormat Renderer::FindDepthFormat() {
   return FindSupportedFormat(
       {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
        VK_FORMAT_D24_UNORM_S8_UINT},
+      VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+VkFormat Renderer::FindDepthStencilFormat() {
+  return FindSupportedFormat(
+      {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
       VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 

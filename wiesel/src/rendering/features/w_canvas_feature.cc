@@ -645,8 +645,12 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         doc.offscreen_texture_ = renderer.CreateAttachmentTexture(
             {render_w, render_h, AttachmentTextureType::Offscreen, 1,
              renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true});
+        doc.offscreen_stencil_ = renderer.CreateAttachmentTexture(
+            {render_w, render_h, AttachmentTextureType::DepthStencil, 1,
+             renderer.FindDepthStencilFormat(), SamplingMode::DISABLED, false});
 
-        std::array<AttachmentTexture*, 1> att{doc.offscreen_texture_.get()};
+        std::array<AttachmentTexture*, 2> att{doc.offscreen_texture_.get(),
+                                              doc.offscreen_stencil_.get()};
         doc.offscreen_framebuffer_ =
             rml_render_pass->CreateFramebuffer(0, att, {render_w, render_h});
 

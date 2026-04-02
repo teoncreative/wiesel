@@ -15,6 +15,7 @@
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
+#include "util/w_logger.h"
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
@@ -24,35 +25,40 @@ RmlRenderInterface::RmlRenderInterface(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
 
 RmlRenderInterface::~RmlRenderInterface() {
+  if (fullscreen_quad_) {
+    ReleaseGeometry(fullscreen_quad_);
+    fullscreen_quad_ = 0;
+  }
   loaded_textures_.clear();
   texture_descriptors_.clear();
+}
+
+static std::shared_ptr<Pipeline> CreateRmlPipeline(
+    PipelineProperties props, std::shared_ptr<RenderPass> render_pass,
+    std::shared_ptr<DescriptorSetLayout> layout,
+    std::shared_ptr<RmlRenderInterface::PushConstantData> push_data,
+    std::shared_ptr<Shader> vert, std::shared_ptr<Shader> frag) {
+  auto pipeline = std::make_shared<Pipeline>(props);
+  pipeline->SetRenderPass(render_pass);
+  pipeline->AddInputLayout(layout);
+  pipeline->AddPushConstant(push_data, VK_SHADER_STAGE_VERTEX_BIT);
+  pipeline->SetVertexData(RmlVertex::GetBindingDescription(),
+                          RmlVertex::GetAttributeDescriptions());
+  pipeline->AddShader(vert);
+  pipeline->AddShader(frag);
+  pipeline->Bake();
+  return pipeline;
 }
 
 void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   render_pass_ = std::move(render_pass);
 
-  // Descriptor layout: one texture sampler
   descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                  VK_SHADER_STAGE_FRAGMENT_BIT);
   descriptor_layout_->Bake();
 
-  // Pipeline
-  PipelineProperties props;
-  props.sampling_mode = SamplingMode::DISABLED;
-  props.cull_mode = CullModeNone;
-  props.enable_wireframe = false;
-  props.enable_alpha_blending = true;
-  props.enable_depth_test = false;
-  props.enable_depth_write = false;
-
-  pipeline_ = std::make_shared<Pipeline>(props);
-  pipeline_->SetRenderPass(render_pass_);
-  pipeline_->AddInputLayout(descriptor_layout_);
   push_constant_data_ = std::make_shared<PushConstantData>();
-  pipeline_->AddPushConstant(push_constant_data_, VK_SHADER_STAGE_VERTEX_BIT);
-  pipeline_->SetVertexData(RmlVertex::GetBindingDescription(),
-                           RmlVertex::GetAttributeDescriptions());
 
   auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                                        ShaderSourceSource,
@@ -60,11 +66,49 @@ void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   auto frag = renderer_->CreateShader({ShaderTypeFragment, ShaderLangGLSL,
                                        "main", ShaderSourceSource,
                                        "engine://shaders/rmlui_shader.frag"});
-  pipeline_->AddShader(vert);
-  pipeline_->AddShader(frag);
-  pipeline_->Bake();
 
-  // 1x1 white texture for untextured geometry
+  PipelineProperties base_props;
+  base_props.sampling_mode = SamplingMode::DISABLED;
+  base_props.cull_mode = CullModeNone;
+  base_props.enable_wireframe = false;
+  base_props.enable_alpha_blending = true;
+  base_props.enable_depth_test = false;
+  base_props.enable_depth_write = false;
+
+  // 1. Normal pipeline (no stencil)
+  pipeline_ = CreateRmlPipeline(base_props, render_pass_, descriptor_layout_,
+                                push_constant_data_, vert, frag);
+
+  // 2. Stencil test pipeline (EQUAL compare, color write ON)
+  PipelineProperties stencil_test_props = base_props;
+  stencil_test_props.enable_stencil_test = true;
+  stencil_test_props.stencil_compare_op = VK_COMPARE_OP_EQUAL;
+  stencil_test_props.stencil_pass_op = VK_STENCIL_OP_KEEP;
+  pipeline_stencil_test_ =
+      CreateRmlPipeline(stencil_test_props, render_pass_, descriptor_layout_,
+                        push_constant_data_, vert, frag);
+
+  // 3. Stencil set pipeline (ALWAYS compare, REPLACE op, no color write)
+  PipelineProperties stencil_set_props = base_props;
+  stencil_set_props.enable_stencil_test = true;
+  stencil_set_props.stencil_compare_op = VK_COMPARE_OP_ALWAYS;
+  stencil_set_props.stencil_pass_op = VK_STENCIL_OP_REPLACE;
+  stencil_set_props.color_write_enabled = false;
+  pipeline_stencil_set_ =
+      CreateRmlPipeline(stencil_set_props, render_pass_, descriptor_layout_,
+                        push_constant_data_, vert, frag);
+
+  // 4. Stencil incr pipeline (ALWAYS compare, INCR op, no color write)
+  PipelineProperties stencil_incr_props = base_props;
+  stencil_incr_props.enable_stencil_test = true;
+  stencil_incr_props.stencil_compare_op = VK_COMPARE_OP_ALWAYS;
+  stencil_incr_props.stencil_pass_op = VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+  stencil_incr_props.color_write_enabled = false;
+  pipeline_stencil_incr_ =
+      CreateRmlPipeline(stencil_incr_props, render_pass_, descriptor_layout_,
+                        push_constant_data_, vert, frag);
+
+  // Blank texture for untextured geometry
   uint32_t white_pixel = 0xFFFFFFFF;
   TextureProps tex_props;
   tex_props.width = 1;
@@ -78,25 +122,80 @@ void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   blank_descriptor_->AddCombinedImageSampler(0, blank_texture_->image_view_,
                                              blank_texture_->sampler_);
   blank_descriptor_->Bake();
+
+  // Full-screen quad for mid-pass stencil clearing
+  std::vector<Rml::Vertex> quad_verts(4);
+  quad_verts[0].position = {-10000, -10000};
+  quad_verts[1].position = {10000, -10000};
+  quad_verts[2].position = {10000, 10000};
+  quad_verts[3].position = {-10000, 10000};
+  for (auto& v : quad_verts) {
+    v.colour = Rml::ColourbPremultiplied(255, 255, 255, 255);
+    v.tex_coord = {0, 0};
+  }
+  std::vector<int> quad_indices = {0, 1, 2, 0, 2, 3};
+  fullscreen_quad_ = CompileGeometry(
+      Rml::Span<const Rml::Vertex>(quad_verts.data(), quad_verts.size()),
+      Rml::Span<const int>(quad_indices.data(), quad_indices.size()));
+}
+
+void RmlRenderInterface::BuildProjection() {
+  Rml::Matrix4f rml_projection = Rml::Matrix4f::ProjectOrtho(
+      0.0f, viewport_size_.x, viewport_size_.y, 0.0f, -10000.0f, 10000.0f);
+
+  Rml::Matrix4f correction;
+  correction.SetColumns(Rml::Vector4f(1.0f, 0.0f, 0.0f, 0.0f),
+                        Rml::Vector4f(0.0f, -1.0f, 0.0f, 0.0f),
+                        Rml::Vector4f(0.0f, 0.0f, 0.5f, 0.0f),
+                        Rml::Vector4f(0.0f, 0.0f, 0.5f, 1.0f));
+
+  projection_ = correction * rml_projection;
+}
+
+void RmlRenderInterface::RenderGeometryWithPipeline(
+    Pipeline* pipeline, Rml::CompiledGeometryHandle geometry,
+    Rml::Vector2f translation, Rml::TextureHandle texture) {
+  auto* compiled = reinterpret_cast<RmlCompiledGeometry*>(geometry);
+  if (!compiled || !active_cmd_) {
+    return;
+  }
+
+  pipeline->Bind(PipelineBindPointGraphics, active_cmd_);
+
+  // Match official RmlUi Vulkan backend: translation added to position in
+  // shader, then multiplied by projection * transform.
+  Rml::Matrix4f final_mat = projection_ * transform_rml_;
+  memcpy(&push_constant_data_->transform, &final_mat, sizeof(glm::mat4));
+  push_constant_data_->translate = {translation.x, translation.y};
+  pipeline->PushConstants(active_cmd_);
+
+  auto desc = GetOrCreateDescriptor(texture);
+  VkDescriptorSet ds = desc->descriptor_set_;
+  vkCmdBindDescriptorSets(active_cmd_, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipeline->layout_, 0, 1, &ds, 0, nullptr);
+
+  VkBuffer vb = compiled->vertex_buffer->buffer_handle_;
+  VkDeviceSize offset = 0;
+  vkCmdBindVertexBuffers(active_cmd_, 0, 1, &vb, &offset);
+  vkCmdBindIndexBuffer(active_cmd_, compiled->index_buffer->buffer_handle_, 0,
+                       VK_INDEX_TYPE_UINT32);
+  vkCmdDrawIndexed(active_cmd_, compiled->index_count, 1, 0, 0, 0);
 }
 
 Rml::CompiledGeometryHandle RmlRenderInterface::CompileGeometry(
     Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
   auto* compiled = new RmlCompiledGeometry();
 
-  // Convert Rml::Vertex to our vertex format
   std::vector<RmlVertex> verts(vertices.size());
   for (size_t i = 0; i < vertices.size(); i++) {
     const Rml::Vertex& rv = vertices[i];
     verts[i].position = {rv.position.x, rv.position.y};
-    // Pack as R8G8B8A8 matching VK_FORMAT_R8G8B8A8_UNORM
     verts[i].color = rv.colour.red | (rv.colour.green << 8) |
                      (rv.colour.blue << 16) | (rv.colour.alpha << 24);
     verts[i].tex_coord = {rv.tex_coord.x, rv.tex_coord.y};
   }
   compiled->vertex_buffer = renderer_->CreateVertexBuffer(verts);
 
-  // Convert int indices to uint32
   std::vector<Index> idx(indices.size());
   for (size_t i = 0; i < indices.size(); i++) {
     idx[i] = static_cast<Index>(indices[i]);
@@ -110,45 +209,22 @@ Rml::CompiledGeometryHandle RmlRenderInterface::CompileGeometry(
 void RmlRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry,
                                         Rml::Vector2f translation,
                                         Rml::TextureHandle texture) {
-  auto* compiled = reinterpret_cast<RmlCompiledGeometry*>(geometry);
-  if (!compiled || !active_cmd_) {
+  if (!active_cmd_) {
     return;
   }
 
-  pipeline_->Bind(PipelineBindPointGraphics, active_cmd_);
+  Pipeline* active_pipeline =
+      clip_mask_enabled_ ? pipeline_stencil_test_.get() : pipeline_.get();
 
-  // Update push constant data and push
-  Rml::Matrix4f rml_projection = Rml::Matrix4f::ProjectOrtho(
-      0.0f, viewport_size_.x, viewport_size_.y, 0.0f, -10000.0f, 10000.0f);
+  if (clip_mask_enabled_) {
+    vkCmdSetStencilReference(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                             static_cast<uint32_t>(stencil_ref_));
+    vkCmdSetStencilCompareMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                               0xFF);
+    vkCmdSetStencilWriteMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
+  }
 
-  Rml::Matrix4f correction;
-  correction.SetColumns(Rml::Vector4f(1.0f, 0.0f, 0.0f, 0.0f),
-                        Rml::Vector4f(0.0f, -1.0f, 0.0f, 0.0f),
-                        Rml::Vector4f(0.0f, 0.0f, 0.5f, 0.0f),
-                        Rml::Vector4f(0.0f, 0.0f, 0.5f, 1.0f));
-
-  Rml::Matrix4f rml_translate =
-      Rml::Matrix4f::Translate(translation.x, translation.y, 0.0f);
-
-  Rml::Matrix4f final_mat =
-      correction * rml_projection * transform_rml_ * rml_translate;
-
-  memcpy(&push_constant_data_->transform, &final_mat, sizeof(glm::mat4));
-  pipeline_->PushConstants(active_cmd_);
-
-  // Bind texture descriptor
-  auto desc = GetOrCreateDescriptor(texture);
-  VkDescriptorSet ds = desc->descriptor_set_;
-  vkCmdBindDescriptorSets(active_cmd_, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipeline_->layout_, 0, 1, &ds, 0, nullptr);
-
-  // Bind vertex/index buffers and draw
-  VkBuffer vb = compiled->vertex_buffer->buffer_handle_;
-  VkDeviceSize offset = 0;
-  vkCmdBindVertexBuffers(active_cmd_, 0, 1, &vb, &offset);
-  vkCmdBindIndexBuffer(active_cmd_, compiled->index_buffer->buffer_handle_, 0,
-                       VK_INDEX_TYPE_UINT32);
-  vkCmdDrawIndexed(active_cmd_, compiled->index_count, 1, 0, 0, 0);
+  RenderGeometryWithPipeline(active_pipeline, geometry, translation, texture);
 }
 
 void RmlRenderInterface::ReleaseGeometry(Rml::CompiledGeometryHandle geometry) {
@@ -221,7 +297,6 @@ void RmlRenderInterface::ReleaseTexture(Rml::TextureHandle texture) {
 void RmlRenderInterface::EnableScissorRegion(bool enable) {
   scissor_enabled_ = enable;
   if (!enable && active_cmd_) {
-    // Reset scissor to full viewport
     renderer_->SetScissor(0, 0, static_cast<int>(viewport_size_.x),
                           static_cast<int>(viewport_size_.y), active_cmd_);
   }
@@ -231,6 +306,74 @@ void RmlRenderInterface::SetScissorRegion(Rml::Rectanglei region) {
   if (active_cmd_ && scissor_enabled_) {
     renderer_->SetScissor(region.Left(), region.Top(), region.Width(),
                           region.Height(), active_cmd_);
+  }
+}
+
+void RmlRenderInterface::EnableClipMask(bool enable) {
+  clip_mask_enabled_ = enable;
+  if (!enable) {
+    stencil_ref_ = 0;
+  }
+}
+
+void RmlRenderInterface::RenderToClipMask(Rml::ClipMaskOperation operation,
+                                          Rml::CompiledGeometryHandle geometry,
+                                          Rml::Vector2f translation) {
+  if (!active_cmd_) {
+    return;
+  }
+
+  using Rml::ClipMaskOperation;
+
+  switch (operation) {
+    case ClipMaskOperation::Set: {
+      // Clear stencil to 0 via fullscreen quad with REPLACE ref=0
+      vkCmdSetStencilReference(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
+      vkCmdSetStencilCompareMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                                 0xFF);
+      vkCmdSetStencilWriteMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                               0xFF);
+      RenderGeometryWithPipeline(pipeline_stencil_set_.get(), fullscreen_quad_,
+                                 {0, 0}, 0);
+
+      // Write 1 where the mask geometry is
+      vkCmdSetStencilReference(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK, 1);
+      RenderGeometryWithPipeline(pipeline_stencil_set_.get(), geometry,
+                                 translation, 0);
+      stencil_ref_ = 1;
+      break;
+    }
+
+    case ClipMaskOperation::SetInverse: {
+      // Fill stencil with 1
+      vkCmdSetStencilReference(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK, 1);
+      vkCmdSetStencilCompareMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                                 0xFF);
+      vkCmdSetStencilWriteMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                               0xFF);
+      RenderGeometryWithPipeline(pipeline_stencil_set_.get(), fullscreen_quad_,
+                                 {0, 0}, 0);
+
+      // Write 0 where the mask geometry is (punch hole)
+      vkCmdSetStencilReference(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
+      RenderGeometryWithPipeline(pipeline_stencil_set_.get(), geometry,
+                                 translation, 0);
+      stencil_ref_ = 1;
+      break;
+    }
+
+    case ClipMaskOperation::Intersect: {
+      // Increment stencil where the geometry is
+      vkCmdSetStencilReference(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK, 0);
+      vkCmdSetStencilCompareMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                                 0xFF);
+      vkCmdSetStencilWriteMask(active_cmd_, VK_STENCIL_FACE_FRONT_AND_BACK,
+                               0xFF);
+      RenderGeometryWithPipeline(pipeline_stencil_incr_.get(), geometry,
+                                 translation, 0);
+      stencil_ref_++;
+      break;
+    }
   }
 }
 
@@ -276,6 +419,9 @@ void RmlRenderInterface::RenderToTexture(VkCommandBuffer cmd,
   }
   active_cmd_ = cmd;
   viewport_size_ = size;
+  clip_mask_enabled_ = false;
+  stencil_ref_ = 0;
+  BuildProjection();
   context->Render();
   active_cmd_ = VK_NULL_HANDLE;
 }

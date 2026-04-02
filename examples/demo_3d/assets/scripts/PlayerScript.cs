@@ -10,15 +10,17 @@ public class PlayerScript : MonoBehavior
     TransformComponent cameraTransform;
     RigidBodyComponent rigidBody;
     UIDocumentComponent hud;
+    UIDocumentComponent settings;
     public float camRotX = 0;
     public float camRotY = 0;
     bool grounded = false;
+    bool settingsOpen = false;
 
     // Stamina system: 4 charges, recharges one at a time (lowest empty first)
     const int maxCharges = 4;
-    const float rechargeTime = 3.0f; // seconds per charge
+    const float rechargeTime = 3.0f;
     int readyCharges = 4;
-    float rechargingTimer = 0; // timer for the charge currently recharging
+    float rechargingTimer = 0;
 
     public override void OnStart()
     {
@@ -26,26 +28,51 @@ public class PlayerScript : MonoBehavior
         cameraTransform = Entity.GetChild(0).GetComponent<TransformComponent>();
         rigidBody = GetComponent<RigidBodyComponent>();
 
-        Console.Log("On Start called");
         Entity hudEntity = FindEntity("HUD");
         if (hudEntity != null)
         {
             hud = hudEntity.GetComponent<UIDocumentComponent>();
         }
-        Console.Log("hudEntity: " + (hudEntity != null));
-        Console.Log("hud: " + (hud != null));
+
+        Entity settingsEntity = FindEntity("Settings");
+        if (settingsEntity != null)
+        {
+            settings = settingsEntity.GetComponent<UIDocumentComponent>();
+            settings.Visible = false;
+        }
+
+        Input.SetCursorMode(CursorMode.Relative);
     }
 
     public override void OnUpdate(float deltaTime)
     {
-        Move(deltaTime);
-        Look();
+        if (!settingsOpen)
+        {
+            Move(deltaTime);
+            Look();
+        }
         UpdateStamina(deltaTime);
+    }
+
+    void ToggleSettings()
+    {
+        settingsOpen = !settingsOpen;
+        if (settings != null)
+        {
+            settings.Visible = settingsOpen;
+        }
+        if (settingsOpen)
+        {
+            Input.SetCursorMode(CursorMode.Normal);
+        }
+        else
+        {
+            Input.SetCursorMode(CursorMode.Relative);
+        }
     }
 
     void UpdateStamina(float deltaTime)
     {
-        // Recharge one bar at a time - the lowest empty one
         if (readyCharges < maxCharges)
         {
             rechargingTimer += deltaTime;
@@ -56,25 +83,21 @@ public class PlayerScript : MonoBehavior
             }
         }
 
-        // Push state to HUD
         if (hud != null)
         {
             for (int i = 0; i < maxCharges; i++)
             {
                 if (i < readyCharges)
                 {
-                    // Full bar (ready) - 100%
                     hud.SetInt("stamina_" + i, 100);
                 }
                 else if (i == readyCharges)
                 {
-                    // Currently recharging bar - show progress
                     int fill = (int)(rechargingTimer / rechargeTime * 100);
                     hud.SetInt("stamina_" + i, fill);
                 }
                 else
                 {
-                    // Empty bar - 0%
                     hud.SetInt("stamina_" + i, 0);
                 }
             }
@@ -86,8 +109,6 @@ public class PlayerScript : MonoBehavior
         if (readyCharges > 0)
         {
             readyCharges--;
-            // If we just emptied a full bar, reset recharge timer
-            // so the newly empty bar starts recharging from 0
             if (readyCharges < maxCharges && rechargingTimer == 0)
             {
                 rechargingTimer = 0;
@@ -143,14 +164,8 @@ public class PlayerScript : MonoBehavior
     {
         if (keyCode == KeyCode.Escape)
         {
-            if (Input.GetCursorMode() == CursorMode.Relative)
-            {
-                Input.SetCursorMode(CursorMode.Normal);
-            }
-            else
-            {
-                Input.SetCursorMode(CursorMode.Relative);
-            }
+            ToggleSettings();
+            return true;
         }
         return false;
     }

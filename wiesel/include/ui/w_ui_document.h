@@ -57,6 +57,7 @@ struct UIDocumentComponent : public IComponent {
 
   // Runtime - offscreen rendering (managed by CanvasFeature)
   std::shared_ptr<AttachmentTexture> offscreen_texture_;
+  std::shared_ptr<AttachmentTexture> offscreen_stencil_;
   std::shared_ptr<DescriptorSet> offscreen_descriptor_;
   std::shared_ptr<UniformBuffer> offscreen_ubo_;
   std::shared_ptr<Framebuffer> offscreen_framebuffer_;

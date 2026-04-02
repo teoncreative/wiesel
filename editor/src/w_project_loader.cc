@@ -147,88 +147,17 @@ bool ProjectLoader::MountProject(Project& project) {
 
 void ProjectLoader::ScanAssets(Project& project) {
   namespace fs = std::filesystem;
-  AssetManager& mgr = Engine::asset_manager();
   Engine::scene_manager().ClearRegisteredScenes();
   std::vector<std::string> scenes_to_preload;
 
+  // Scan engine assets, then project assets.
+  // Both use ImportAsset which creates .meta files if missing.
+  GameLoader::ScanVfsPrefix("engine://", ImportAsset, scenes_to_preload);
+  GameLoader::ScanVfsPrefix("app://", ImportAsset, scenes_to_preload);
+
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
-  if (!fs::exists(assets_dir)) {
-    return;
-  }
 
-  for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
-    if (!entry.is_regular_file()) {
-      continue;
-    }
-
-    std::string ext = entry.path().extension().string();
-    if (ext == ".meta") {
-      continue;
-    }
-
-    AssetType type = ExtToAssetType(ext);
-    if (type == AssetType::None) {
-      continue;
-    }
-
-    auto rel = fs::relative(entry.path(), assets_dir);
-    std::string vfs_path = "app://" + rel.generic_string();
-    std::string name = entry.path().stem().string();
-
-    AssetHandle handle = ImportAsset(name, type, vfs_path);
-    if (!handle.IsValid()) {
-      continue;
-    }
-
-    // Type-specific post-processing
-
-    if (type == AssetType::Material) {
-      if (!mgr.Get<Material>(handle)) {
-        try {
-          VfsFile file = Engine::vfs()->Open(vfs_path);
-          if (file) {
-            std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                                std::istreambuf_iterator<char>());
-            auto j = nlohmann::json::parse(content);
-            auto mat = Material::Deserialize(j);
-            mat->name = name;
-            mat->asset_handle = handle;
-            mgr.Store<Material>(handle, mat);
-            mgr.SetLoadState(handle, AssetLoadState::Unloaded,
-                             AssetLoadState::Loaded);
-          }
-        } catch (const std::exception& e) {
-          LOG_ERROR("Failed to deserialize material '{}': {}", vfs_path,
-                    e.what());
-        }
-      }
-    }
-
-    if (type == AssetType::Scene) {
-      Engine::scene_manager().RegisterScene(name, vfs_path);
-
-      try {
-        VfsFile file = Engine::vfs()->Open(vfs_path);
-        if (file) {
-          std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                              std::istreambuf_iterator<char>());
-          auto j = nlohmann::json::parse(content);
-          if (j.value("preload_assets", false)) {
-            scenes_to_preload.push_back(vfs_path);
-          }
-        }
-      } catch (const std::exception& e) {
-        LOG_ERROR("Failed to read scene '{}': {}", vfs_path, e.what());
-      }
-    }
-
-    if (type == AssetType::Prefab || type == AssetType::Scene) {
-      mgr.SetLoadState(handle, AssetLoadState::Unloaded,
-                       AssetLoadState::Loaded);
-    }
-  }
-
-  // Clean up orphaned .meta files
+  // Clean up orphaned .meta files (project assets only)
   for (auto& entry : fs::recursive_directory_iterator(assets_dir)) {
     if (!entry.is_regular_file()) {
       continue;

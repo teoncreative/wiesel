@@ -33,6 +33,13 @@ class GameLoader {
   // Skips assets without pre-existing handles.
   static void ScanAssets();
 
+  // Scan a single VFS prefix for assets using a custom registration function.
+  // The register_fn takes (name, type, vfs_path) and returns a handle.
+  using RegisterFn = std::function<AssetHandle(const std::string&, AssetType,
+                                               const std::string&)>;
+  static void ScanVfsPrefix(const std::string& prefix, RegisterFn register_fn,
+                            std::vector<std::string>& scenes_to_preload);
+
   // Apply render options to the renderer.
   static void ApplyRenderOptions(const GameInfo& info);
 

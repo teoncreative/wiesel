@@ -531,6 +531,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
           doc.rml_context_ = nullptr;
           doc.rml_document_ = nullptr;
           doc.offscreen_texture_ = nullptr;
+          doc.offscreen_stencil_ = nullptr;
           doc.offscreen_descriptor_ = nullptr;
           doc.offscreen_framebuffer_ = nullptr;
           doc.offscreen_size_ = {0, 0};

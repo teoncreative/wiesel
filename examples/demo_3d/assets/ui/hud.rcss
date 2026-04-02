@@ -16,7 +16,7 @@ body {
     top: 20dp;
     left: 20dp;
     padding: 15dp 20dp;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(0, 0, 0, 153);
     border-radius: 8dp;
 }
 

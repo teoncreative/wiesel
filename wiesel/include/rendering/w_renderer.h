@@ -403,6 +403,7 @@ class Renderer {
   }
 
   VkFormat FindDepthFormat();
+  VkFormat FindDepthStencilFormat();
 
   std::shared_ptr<RenderPass> GetPresentRenderPass() const {
     return present_render_pass_;
@@ -562,6 +563,11 @@ class Renderer {
   void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
   void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool pool);
 
+  VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates,
+                               VkImageTiling tiling,
+                               VkFormatFeatureFlags features);
+  bool HasStencilComponent(VkFormat format);
+
  private:
   void CreateVulkanInstance();
   void LoadInstanceExtensions();
@@ -605,10 +611,6 @@ class Renderer {
   std::vector<const char*> GetRequiredExtensions();
   QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 
-  VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates,
-                               VkImageTiling tiling,
-                               VkFormatFeatureFlags features);
-  bool HasStencilComponent(VkFormat format);
   void GenerateMipmaps(VkImage image, VkFormat image_format, int32_t tex_width,
                        int32_t tex_height, uint32_t mip_levels);
   void GenerateMipmaps(VkCommandBuffer cmd, VkImage image,

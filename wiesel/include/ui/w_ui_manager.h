@@ -10,6 +10,9 @@
 
 #pragma once
 
+#include <unordered_set>
+
+#include "asset/w_asset_handle.h"
 #include "ui/w_rmlui_file.h"
 #include "ui/w_rmlui_renderer.h"
 #include "ui/w_rmlui_system.h"
@@ -44,6 +47,7 @@ class UIManager {
   RmlRenderInterface render_interface_;
   bool initialized_ = false;
   bool debugger_initialized_ = false;
+  std::unordered_set<AssetHandle> loaded_fonts_;
 };
 
 }  // namespace Wiesel

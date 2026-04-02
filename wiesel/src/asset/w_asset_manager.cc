@@ -138,6 +138,11 @@ AssetHandle AssetManager::Register(const std::string& name, AssetType type,
 
   LOG_DEBUG("Registered asset '{}' [{}] path='{}' = {}", name,
             AssetTypeToString(type), virtual_source_path, handle.ToString());
+
+  for (const auto& cb : on_registered_callbacks_) {
+    cb(handle, registry_[handle]->metadata);
+  }
+
   return handle;
 }
 
@@ -168,6 +173,10 @@ bool AssetManager::Register(AssetHandle handle, const std::string& name,
     name_index_.try_emplace(name, handle);
   }
 
+  for (const auto& cb : on_registered_callbacks_) {
+    cb(handle, registry_[handle]->metadata);
+  }
+
   return true;
 }
 
@@ -175,6 +184,10 @@ void AssetManager::Unregister(AssetHandle handle) {
   auto it = registry_.find(handle);
   if (it == registry_.end()) {
     return;
+  }
+
+  for (const auto& cb : on_unregistered_callbacks_) {
+    cb(handle, it->second->metadata);
   }
 
   const auto& meta = it->second->metadata;
@@ -188,6 +201,14 @@ void AssetManager::Unregister(AssetHandle handle) {
     }
   }
   registry_.erase(it);
+}
+
+void AssetManager::OnAssetRegistered(AssetCallback callback) {
+  on_registered_callbacks_.push_back(std::move(callback));
+}
+
+void AssetManager::OnAssetUnregistered(AssetCallback callback) {
+  on_unregistered_callbacks_.push_back(std::move(callback));
 }
 
 // Metadata queries

@@ -1,0 +1,23 @@
+<rml>
+<head>
+    <link type="text/rcss" href="settings.rcss"/>
+    <title>Settings</title>
+</head>
+<body>
+    <div class="overlay">
+        <div class="settings-panel">
+            <!-- Content -->
+            <div class="content">
+
+                <div class="setting-row">
+                    <div class="setting-label">Resolution</div>
+                    <div class="setting-value">
+                        <select>
+                            <option value="2560x1440" selected>2560 x 1440</option>
+                        </select>
+                    </div>
+                </div>
+        </div>
+    </div>
+</body>
+</rml>
