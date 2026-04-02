@@ -36,17 +36,6 @@ class ProjectLoader {
   // Convenience: mount, scan, compile scripts, apply options.
   // Pass load_start_scene=true to also open the start scene.
   static bool LoadAll(Project& project, bool load_start_scene = true);
-
-  // Import a single asset file via VFS. Handles JSON-embedded handles for
-  // JSON asset types and .meta sidecar files for binary assets.
-  // Can generate new handles and write them back (editor-only capability).
-  static AssetHandle ImportAsset(const std::string& name, AssetType type,
-                                 const std::string& vfs_path);
-
-  static void WriteMetaFile(const std::filesystem::path& meta_path,
-                            const AssetHandle& handle,
-                            AssetType type = AssetType::None,
-                            const void* properties = nullptr);
 };
 
 }  // namespace Wiesel

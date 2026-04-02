@@ -58,23 +58,29 @@ GameLoader::MetaFileData GameLoader::ReadMetaFile(
   }
 }
 
-bool GameLoader::MountAssets(const std::filesystem::path& assets_dir) {
-  namespace fs = std::filesystem;
-  auto* vfs = Engine::vfs().get();
-  if (fs::exists(assets_dir)) {
-    vfs->Unmount("app://");
-    vfs->Mount("app://", fs::absolute(assets_dir).string());
-    return true;
+void GameLoader::WriteMetaFile(const std::filesystem::path& meta_path,
+                               const AssetHandle& handle, AssetType type,
+                               const void* properties) {
+  nlohmann::json j;
+  j["handle"] = handle.ToString();
+  if (properties) {
+    const auto* desc = AssetPropertyRegistry::Get(type);
+    if (desc) {
+      j["properties"] = desc->Serialize(properties);
+    }
   }
-  return false;
+  std::ofstream file(meta_path);
+  if (file.is_open()) {
+    file << j.dump(2);
+  }
 }
 
-// Read-only: register a single asset. Returns the handle if the asset
-// already has one (from .meta or embedded JSON). Never generates new handles.
-static AssetHandle RegisterAsset(const std::string& name, AssetType type,
-                                 const std::string& vfs_path) {
+AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
+                                    const std::string& vfs_path) {
   AssetManager& mgr = Engine::asset_manager();
   AssetHandle handle;
+
+  auto physical = Engine::vfs()->GetPhysicalPath(vfs_path);
 
   if (IsJsonAssetType(type)) {
     try {
@@ -90,13 +96,20 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
       if (!handle_str.empty()) {
         handle = AssetHandle::FromString(handle_str);
       }
-    } catch (const std::exception& e) {
-      LOG_ERROR("Failed to read '{}': {}", vfs_path, e.what());
-      return {};
-    }
 
-    if (!handle.IsValid()) {
-      LOG_WARN("Asset '{}' has no handle, skipping", vfs_path);
+      if (!handle.IsValid()) {
+        if (!physical.has_value()) {
+          return {};
+        }
+        handle = AssetHandle::Generate();
+        j["asset_handle"] = handle.ToString();
+        std::ofstream out(*physical);
+        if (out.is_open()) {
+          out << j.dump(2);
+        }
+      }
+    } catch (const std::exception& e) {
+      LOG_ERROR("Failed to import '{}': {}", vfs_path, e.what());
       return {};
     }
 
@@ -104,32 +117,27 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
       mgr.Register(handle, name, type, vfs_path);
     }
   } else {
-    // Binary assets: read .meta sidecar via VFS
-    GameLoader::MetaFileData meta_data;
-    std::string meta_vfs = vfs_path + ".meta";
-    VfsFile meta_file = Engine::vfs()->Open(meta_vfs);
-    if (meta_file) {
-      try {
-        std::string content(
-            (std::istreambuf_iterator<char>(meta_file.Stream())),
-            std::istreambuf_iterator<char>());
-        meta_data = GameLoader::ReadMetaFile(nlohmann::json::parse(content));
-      } catch (const std::exception& e) {
-        LOG_ERROR("Failed to parse .meta file '{}': {}", meta_vfs, e.what());
+    MetaFileData meta_data;
+    std::filesystem::path meta_path;
+    if (physical.has_value()) {
+      meta_path = physical->string() + ".meta";
+      meta_data = ReadMetaFile(meta_path);
+    }
+
+    if (meta_data.handle.IsValid()) {
+      handle = meta_data.handle;
+      if (!mgr.HasAsset(handle)) {
+        mgr.Register(handle, name, type, vfs_path);
+      }
+    } else if (!physical.has_value()) {
+      return {};
+    } else {
+      handle = mgr.Register(name, type, vfs_path);
+      if (handle.IsValid()) {
+        WriteMetaFile(meta_path, handle, type);
       }
     }
 
-    if (!meta_data.handle.IsValid()) {
-      LOG_WARN("Asset '{}' has no .meta handle, skipping", vfs_path);
-      return {};
-    }
-
-    handle = meta_data.handle;
-    if (!mgr.HasAsset(handle)) {
-      mgr.Register(handle, name, type, vfs_path);
-    }
-
-    // Set up asset properties from .meta
     if (handle.IsValid()) {
       auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
       if (metadata) {
@@ -139,6 +147,20 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
             metadata->properties = desc->Deserialize(meta_data.properties);
           } else {
             metadata->properties = desc->Create();
+            if (type == AssetType::Texture) {
+              auto* tp = static_cast<TextureAssetProperties*>(
+                  metadata->properties.get());
+              std::string nl = name;
+              std::ranges::transform(nl, nl.begin(), ::tolower);
+              if (nl.find("normal") != std::string::npos ||
+                  nl.find("roughness") != std::string::npos ||
+                  nl.find("metallic") != std::string::npos ||
+                  nl.find("metalness") != std::string::npos ||
+                  nl.find("height") != std::string::npos ||
+                  nl.find("ao") != std::string::npos) {
+                tp->asset_type = TextureAssetType::NormalMap;
+              }
+            }
           }
         }
       }
@@ -146,6 +168,17 @@ static AssetHandle RegisterAsset(const std::string& name, AssetType type,
   }
 
   return handle;
+}
+
+bool GameLoader::MountAssets(const std::filesystem::path& assets_dir) {
+  namespace fs = std::filesystem;
+  auto* vfs = Engine::vfs().get();
+  if (fs::exists(assets_dir)) {
+    vfs->Unmount("app://");
+    vfs->Mount("app://", fs::absolute(assets_dir).string());
+    return true;
+  }
+  return false;
 }
 
 void GameLoader::ScanVfsPrefix(const std::string& prefix,
@@ -229,9 +262,11 @@ void GameLoader::ScanAssets() {
   Engine::scene_manager().ClearRegisteredScenes();
   std::vector<std::string> scenes_to_preload;
 
-  // Scan engine assets first, then project assets
-  ScanVfsPrefix("engine://", RegisterAsset, scenes_to_preload);
-  ScanVfsPrefix("app://", RegisterAsset, scenes_to_preload);
+  // Scan engine assets first, then project assets.
+  // ImportAsset creates .meta files when physical storage is available,
+  // RegisterAsset is read-only (e.g. from pak files).
+  ScanVfsPrefix("engine://", ImportAsset, scenes_to_preload);
+  ScanVfsPrefix("app://", ImportAsset, scenes_to_preload);
 
   // Preload assets for scenes that have preload_assets enabled.
   for (const auto& preload_vfs : scenes_to_preload) {

@@ -4396,7 +4396,7 @@ void EditorLayer::RenderAssetPropertiesPanel() {
             Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
         if (physical.has_value()) {
           std::filesystem::path meta_path = physical->string() + ".meta";
-          ProjectLoader::WriteMetaFile(meta_path, meta->handle, meta->type,
+          GameLoader::WriteMetaFile(meta_path, meta->handle, meta->type,
                                        meta->properties.get());
         }
       }

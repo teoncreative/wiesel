@@ -56,6 +56,16 @@ class GameLoader {
   static bool LoadAll(const GameInfo& info,
                       const std::filesystem::path& assets_dir);
 
+  // Import a single asset: reads or creates .meta, registers in AssetManager.
+  // Creates .meta files when the VFS path has physical storage.
+  static AssetHandle ImportAsset(const std::string& name, AssetType type,
+                                 const std::string& vfs_path);
+
+  // Write a .meta sidecar file for a binary asset.
+  static void WriteMetaFile(const std::filesystem::path& meta_path,
+                            const AssetHandle& handle, AssetType type,
+                            const void* properties = nullptr);
+
   struct MetaFileData {
     AssetHandle handle;
     nlohmann::json properties;  // empty if none

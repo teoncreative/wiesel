@@ -26,121 +26,6 @@
 
 namespace Wiesel {
 
-void ProjectLoader::WriteMetaFile(const std::filesystem::path& meta_path,
-                                  const AssetHandle& handle, AssetType type,
-                                  const void* properties) {
-  nlohmann::json j;
-  j["handle"] = handle.ToString();
-  if (properties) {
-    const auto* desc = AssetPropertyRegistry::Get(type);
-    if (desc) {
-      j["properties"] = desc->Serialize(properties);
-    }
-  }
-  std::ofstream file(meta_path);
-  if (file.is_open()) {
-    file << j.dump(2);
-  }
-}
-
-AssetHandle ProjectLoader::ImportAsset(const std::string& name, AssetType type,
-                                       const std::string& vfs_path) {
-  AssetManager& mgr = Engine::asset_manager();
-  AssetHandle handle;
-
-  auto physical = Engine::vfs()->GetPhysicalPath(vfs_path);
-
-  if (IsJsonAssetType(type)) {
-    // JSON assets store their handle inside the file
-    try {
-      VfsFile file = Engine::vfs()->Open(vfs_path);
-      if (!file) {
-        return {};
-      }
-      std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                          std::istreambuf_iterator<char>());
-      auto j = nlohmann::json::parse(content);
-
-      std::string handle_str = j.value("asset_handle", "");
-      if (!handle_str.empty()) {
-        handle = AssetHandle::FromString(handle_str);
-      }
-
-      if (!handle.IsValid()) {
-        if (!physical.has_value()) {
-          return {};
-        }
-        handle = AssetHandle::Generate();
-        j["asset_handle"] = handle.ToString();
-        std::ofstream out(*physical);
-        if (out.is_open()) {
-          out << j.dump(2);
-        }
-      }
-    } catch (const std::exception& e) {
-      LOG_ERROR("Failed to import '{}': {}", vfs_path, e.what());
-      return {};
-    }
-
-    if (!mgr.HasAsset(handle)) {
-      mgr.Register(handle, name, type, vfs_path);
-    }
-  } else {
-    // Binary assets use .meta sidecar files
-    GameLoader::MetaFileData meta_data;
-    std::filesystem::path meta_path;
-    if (physical.has_value()) {
-      meta_path = physical->string() + ".meta";
-      meta_data = GameLoader::ReadMetaFile(meta_path);
-    }
-
-    if (meta_data.handle.IsValid()) {
-      handle = meta_data.handle;
-      if (!mgr.HasAsset(handle)) {
-        mgr.Register(handle, name, type, vfs_path);
-      }
-    } else if (!physical.has_value()) {
-      return {};
-    } else {
-      handle = mgr.Register(name, type, vfs_path);
-      if (handle.IsValid()) {
-        WriteMetaFile(meta_path, handle, type);
-      }
-    }
-
-    // Set up asset properties from .meta or create defaults
-    if (handle.IsValid()) {
-      auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
-      if (metadata) {
-        const auto* desc = AssetPropertyRegistry::Get(type);
-        if (desc) {
-          if (!meta_data.properties.empty()) {
-            metadata->properties = desc->Deserialize(meta_data.properties);
-          } else {
-            metadata->properties = desc->Create();
-            if (type == AssetType::Texture) {
-              auto* tp = static_cast<TextureAssetProperties*>(
-                  metadata->properties.get());
-              std::string nl = name;
-              std::ranges::transform(nl, nl.begin(), ::tolower);
-              if (nl.find("normal") != std::string::npos ||
-                  nl.find("roughness") != std::string::npos ||
-                  nl.find("metallic") != std::string::npos ||
-                  nl.find("metalness") != std::string::npos ||
-                  nl.find("height") != std::string::npos ||
-                  nl.find("ao") != std::string::npos) {
-                tp->asset_type = TextureAssetType::NormalMap;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return handle;
-}
-
 bool ProjectLoader::MountProject(Project& project) {
   return GameLoader::MountAssets(project.GetAssetsDirectory());
 }
@@ -152,8 +37,10 @@ void ProjectLoader::ScanAssets(Project& project) {
 
   // Scan engine assets, then project assets.
   // Both use ImportAsset which creates .meta files if missing.
-  GameLoader::ScanVfsPrefix("engine://", ImportAsset, scenes_to_preload);
-  GameLoader::ScanVfsPrefix("app://", ImportAsset, scenes_to_preload);
+  GameLoader::ScanVfsPrefix("engine://", GameLoader::ImportAsset,
+                            scenes_to_preload);
+  GameLoader::ScanVfsPrefix("app://", GameLoader::ImportAsset,
+                            scenes_to_preload);
 
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
 
