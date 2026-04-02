@@ -23,6 +23,16 @@ class DeletionQueue {
     entries_.push_back({std::move(fn), frames_to_wait});
   }
 
+  // Defer destruction of any movable object (e.g. VmaBuffer, VmaImage).
+  // The object is moved into the queue and destroyed when the wait expires.
+  // Defer destruction of a unique_ptr-owned object (e.g. VmaBuffer, VmaImage).
+  // The unique_ptr is moved into the queue and reset when the wait expires.
+  template <typename T>
+  void Defer(std::unique_ptr<T> obj, uint32_t frames_to_wait = 2) {
+    auto held = std::shared_ptr<T>(std::move(obj));
+    Push([held]() mutable { held.reset(); }, frames_to_wait);
+  }
+
   // Call once per frame after presenting. Ticks down all counters and
   // executes deletions whose wait has expired.
   // Safe against re-entrant Push() calls from within fn().

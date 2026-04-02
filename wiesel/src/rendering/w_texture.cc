@@ -35,31 +35,20 @@ Texture::~Texture() {
     return;
   }
 
-  VkImage image = image_;
-  VkDeviceMemory memory = device_memory_;
   VkDescriptorSet imgui_desc = imgui_descriptor_;
   // Capture shared_ptrs so Vulkan resources stay alive until deletion queue fires
   auto sampler = std::move(sampler_);
   auto image_view = std::move(image_view_);
 
   image_ = VK_NULL_HANDLE;
-  device_memory_ = VK_NULL_HANDLE;
   imgui_descriptor_ = nullptr;
 
-  renderer->GetDeletionQueue().Push(
-      [renderer, image, memory, imgui_desc, sampler, image_view]() {
-        VkDevice device = renderer->GetLogicalDevice();
-        if (imgui_desc) {
-          ImGui_ImplVulkan_RemoveTexture(imgui_desc);
-        }
-        // sampler and image_view shared_ptrs release here, triggering their destructors
-        if (image) {
-          vkDestroyImage(device, image, nullptr);
-        }
-        if (memory) {
-          vkFreeMemory(device, memory, nullptr);
-        }
-      });
+  renderer->GetDeletionQueue().Defer(std::move(vma_image_));
+  renderer->GetDeletionQueue().Push([imgui_desc, sampler, image_view]() {
+    if (imgui_desc) {
+      ImGui_ImplVulkan_RemoveTexture(imgui_desc);
+    }
+  });
 }
 
 VkDescriptorSet Texture::GetImGuiDescriptor() {
@@ -84,28 +73,18 @@ AttachmentTexture::~AttachmentTexture() {
     return;
   }
 
-  // image_views_ contains shared_ptr<ImageView> which self-defer
-  auto views = std::move(image_views_);
-  auto images = std::move(images_);
-  auto memories = std::move(device_memories_);
-  auto type = type_;
   is_allocated_ = false;
+  images_.clear();
 
-  renderer->GetDeletionQueue().Push(
-      [renderer, views, images, memories, type]() {
-        VkDevice device = renderer->GetLogicalDevice();
-        // views will be destroyed when this lambda's captures are freed,
-        // triggering ImageView::~ImageView which also defers - but that's fine,
-        // the inner defer will execute next flush.
-        if (type != AttachmentTextureType::SwapChain) {
-          for (VkImage image : images) {
-            vkDestroyImage(device, image, nullptr);
-          }
-          for (VkDeviceMemory memory : memories) {
-            vkFreeMemory(device, memory, nullptr);
-          }
-        }
-      });
+  // Defer image views (shared_ptrs, copyable)
+  auto views = std::move(image_views_);
+  renderer->GetDeletionQueue().Push([views]() {});
+
+  // Defer VMA images
+  for (auto& img : vma_images_) {
+    renderer->GetDeletionQueue().Defer(std::move(img));
+  }
+  vma_images_.clear();
 }
 
 ImageView::~ImageView() {

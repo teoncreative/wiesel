@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "rendering/w_vma.h"
 #include "w_pch.h"
 
 namespace Wiesel {
@@ -26,9 +27,9 @@ class MemoryBuffer {
   virtual ~MemoryBuffer();
 
   MemoryType type_;
-  VkBuffer buffer_handle_;
-  VkDeviceMemory memory_handle_;
-  uint32_t size_;
+  VkBuffer buffer_handle_ = VK_NULL_HANDLE;
+  std::unique_ptr<VmaBuffer> vma_buffer_;
+  uint32_t size_ = 0;
   VkDeviceAddress device_address_ = 0;
 };
 
@@ -46,7 +47,7 @@ class UniformBuffer : public MemoryBuffer {
   UniformBuffer();
   ~UniformBuffer() override;
 
-  void* data_;
+  void* data_ = nullptr;
 };
 
 }  // namespace Wiesel

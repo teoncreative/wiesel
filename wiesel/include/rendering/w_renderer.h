@@ -242,6 +242,10 @@ class Renderer {
 
   WIESEL_GETTER_FN VkDevice GetLogicalDevice();
 
+  WIESEL_GETTER_FN struct VmaAllocator_T* GetAllocator() {
+    return vma_allocator_;
+  }
+
   WIESEL_GETTER_FN float GetAspectRatio() const { return aspect_ratio_; }
 
   WIESEL_GETTER_FN const WindowSize& GetWindowSize() const {
@@ -480,7 +484,7 @@ class Renderer {
 
   void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                     VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                    VkDeviceMemory& buffer_memory);
+                    VmaAllocation& allocation, VkDeviceSize alignment = 0);
 
   void CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
   void CopyBuffer(VkCommandBuffer cmd, VkBuffer src_buffer, VkBuffer dst_buffer,
@@ -507,7 +511,7 @@ class Renderer {
                    SamplingMode msaa_mode, VkFormat format,
                    VkImageTiling tiling, VkImageUsageFlags usage,
                    VkMemoryPropertyFlags properties, VkImage& image,
-                   VkDeviceMemory& image_memory, VkImageCreateFlags flags = 0,
+                   VmaAllocation& allocation, VkImageCreateFlags flags = 0,
                    uint32_t array_layers = 1);
 
   std::shared_ptr<ImageView> CreateImageView(
@@ -547,7 +551,7 @@ class Renderer {
   // Staging buffers are deferred until the batch is flushed via DeferStagingCleanup.
   void BeginBatchUpload();
   void EndBatchUpload();
-  void DeferStagingCleanup(VkBuffer buffer, VkDeviceMemory memory);
+  void DeferStagingCleanup(VkBuffer buffer, VmaAllocation allocation);
 
   VkCommandBuffer BeginSingleTimeCommands();
   VkCommandBuffer BeginSingleTimeCommands(VkCommandPool pool);
@@ -574,6 +578,7 @@ class Renderer {
   void CreateSurface();
   void PickPhysicalDevice();
   void CreateLogicalDevice();
+  void InitMemoryAllocator();
   void LoadDeviceExtensions();
   void CreateDescriptorLayouts();
   void CreateSwapChain();
@@ -598,7 +603,7 @@ class Renderer {
 
   struct StagingResource {
     VkBuffer buffer;
-    VkDeviceMemory memory;
+    VmaAllocation allocation;
   };
 
   static thread_local VkCommandPool tl_command_pool_;
@@ -657,6 +662,7 @@ class Renderer {
   VkInstance instance_{};
   VkPhysicalDevice physical_device_ = VK_NULL_HANDLE;
   VkDevice logical_device_{};
+  struct VmaAllocator_T* vma_allocator_ = nullptr;
   VkSurfaceKHR surface_{};
   VkQueue graphics_queue_{};
   VkQueue present_queue_{};
@@ -709,7 +715,7 @@ class Renderer {
 
   // Entity picking readback
   VkBuffer pick_staging_buffer_ = VK_NULL_HANDLE;
-  VkDeviceMemory pick_staging_memory_ = VK_NULL_HANDLE;
+  VmaAllocation pick_staging_alloc_ = VK_NULL_HANDLE;
   bool pick_pending_ = false;
 
   RenderStats stats_;

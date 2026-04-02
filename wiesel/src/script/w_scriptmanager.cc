@@ -14,6 +14,7 @@
 #include <imgui.h>
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
+#include "behavior/w_behavior.h"
 #include "input/w_input.h"
 #include "mono_wrappers.h"
 #include "physics/w_collider.h"
@@ -475,19 +476,32 @@ MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
   if (!scene || entity == entt::null) {
     return nullptr;
   }
-  // Check if the component exists first
+  // Check registered engine components first
   auto checker_it = component_checkers_.find(name);
   if (checker_it != component_checkers_.end() && checker_it->second) {
     if (!checker_it->second(scene, entity)) {
-      return nullptr;  // returns null to C#
+      return nullptr;
     }
   }
 
-  auto& fn = component_getters_[name];
-  if (fn == nullptr) {
-    return nullptr;
+  auto getter_it = component_getters_.find(name);
+  if (getter_it != component_getters_.end() && getter_it->second) {
+    return getter_it->second(scene, entity);
   }
-  return fn(scene, entity);
+
+  // Fall back to checking MonoBehavior scripts by class name
+  if (scene->HasComponent<BehaviorsComponent>(entity)) {
+    auto& bc = scene->GetComponent<BehaviorsComponent>(entity);
+    auto it = bc.behaviors_.find(name);
+    if (it != bc.behaviors_.end()) {
+      auto* mb = dynamic_cast<MonoBehavior*>(it->second);
+      if (mb && mb->script_instance()) {
+        return mb->script_instance()->handle();
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 template <class T>
@@ -502,11 +516,18 @@ MonoObject* ScriptManager::GetComponent(Wiesel::Scene* scene,
 
 bool ScriptManager::HasComponentByName(Scene* scene, entt::entity entity,
                                        const std::string& name) {
-  auto& fn = component_checkers_[name];
-  if (fn == nullptr) {
-    return false;
+  auto checker_it = component_checkers_.find(name);
+  if (checker_it != component_checkers_.end() && checker_it->second) {
+    return checker_it->second(scene, entity);
   }
-  return fn(scene, entity);
+
+  // Check MonoBehavior scripts by class name
+  if (scene->HasComponent<BehaviorsComponent>(entity)) {
+    auto& bc = scene->GetComponent<BehaviorsComponent>(entity);
+    return bc.behaviors_.find(name) != bc.behaviors_.end();
+  }
+
+  return false;
 }
 
 void ScriptManager::Init(const ScriptManagerProperties&& props) {

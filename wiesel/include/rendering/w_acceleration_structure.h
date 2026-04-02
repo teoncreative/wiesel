@@ -24,7 +24,7 @@ class Scene;
 struct AccelerationStructure {
   VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
   VkBuffer buffer = VK_NULL_HANDLE;
-  VkDeviceMemory memory = VK_NULL_HANDLE;
+  VmaAllocation allocation = VK_NULL_HANDLE;
   VkDeviceAddress device_address = 0;
 };
 
@@ -45,18 +45,18 @@ class AccelerationStructureManager {
 
  private:
   void DestroyAS(AccelerationStructure& as);
-  VkBuffer CreateScratchBuffer(VkDeviceSize size, VkDeviceMemory& memory);
+  VkBuffer CreateScratchBuffer(VkDeviceSize size, VmaAllocation& allocation);
 
   std::shared_ptr<Renderer> renderer_;
   std::unordered_map<Mesh*, std::shared_ptr<AccelerationStructure>> blas_cache_;
   std::shared_ptr<AccelerationStructure> tlas_;
 
   VkBuffer tlas_instance_buffer_ = VK_NULL_HANDLE;
-  VkDeviceMemory tlas_instance_memory_ = VK_NULL_HANDLE;
+  VmaAllocation tlas_instance_alloc_ = VK_NULL_HANDLE;
   uint32_t tlas_instance_capacity_ = 0;
 
   VkBuffer tlas_scratch_buffer_ = VK_NULL_HANDLE;
-  VkDeviceMemory tlas_scratch_memory_ = VK_NULL_HANDLE;
+  VmaAllocation tlas_scratch_alloc_ = VK_NULL_HANDLE;
   VkDeviceSize tlas_scratch_capacity_ = 0;
 };
 

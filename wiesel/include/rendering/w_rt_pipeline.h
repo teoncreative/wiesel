@@ -94,7 +94,7 @@ class RTPipeline {
 
   // Shader Binding Table
   VkBuffer sbt_buffer_ = VK_NULL_HANDLE;
-  VkDeviceMemory sbt_memory_ = VK_NULL_HANDLE;
+  VmaAllocation sbt_alloc_ = VK_NULL_HANDLE;
   VkStridedDeviceAddressRegionKHR raygen_region_{};
   VkStridedDeviceAddressRegionKHR miss_region_{};
   VkStridedDeviceAddressRegionKHR hit_region_{};

@@ -1135,9 +1135,10 @@ void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
 
     if (is_world_space) {
       // WorldSpace mode: show pixels-per-unit instead of scale mode
-      ImGui::DragFloat2(
+      ImGui::InputFloat2(
           PrefixLabel("Reference Resolution").c_str(),
-          reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
+          reinterpret_cast<float*>(&component.reference_resolution), "%.0f",
+          ImGuiInputTextFlags_EnterReturnsTrue);
       ImGui::DragFloat(PrefixLabel("Ref Pixels Per Unit").c_str(),
                        &component.reference_pixels_per_unit, 1.0f, 1.0f,
                        1000.0f);
@@ -1148,9 +1149,10 @@ void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
         component.scale_mode = static_cast<ScaleMode>(mode);
       }
       if (component.scale_mode == ScaleMode::ScaleWithScreenSize) {
-        ImGui::DragFloat2(
+        ImGui::InputFloat2(
             PrefixLabel("Reference Resolution").c_str(),
-            reinterpret_cast<float*>(&component.reference_resolution), 1.0f);
+            reinterpret_cast<float*>(&component.reference_resolution), "%.0f",
+            ImGuiInputTextFlags_EnterReturnsTrue);
         ImGui::SliderFloat(PrefixLabel("Match").c_str(),
                            &component.match_width_or_height, 0.0f, 1.0f,
                            "Width %.2f Height");

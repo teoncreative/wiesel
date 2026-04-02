@@ -3,7 +3,7 @@
     <link type="text/rcss" href="settings.rcss"/>
     <title>Settings</title>
 </head>
-<body>
+<body data-model="model">
     <div class="overlay">
         <div class="settings-panel">
 
@@ -18,132 +18,51 @@
             <panel>
                 <div class="section-title">Display</div>
                 <div class="setting-row">
-                    <div class="setting-label">Resolution</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="3840x2160">3840 x 2160</option>
-                            <option value="2560x1440" selected>2560 x 1440</option>
-                            <option value="1920x1080">1920 x 1080</option>
-                            <option value="1600x900">1600 x 900</option>
-                            <option value="1280x720">1280 x 720</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Display Mode</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="fullscreen">Fullscreen</option>
-                            <option value="borderless" selected>Borderless Windowed</option>
-                            <option value="windowed">Windowed</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
                     <div class="setting-label">VSync</div>
                     <div class="setting-value">
-                        <div class="toggle on"><div class="toggle-knob"></div></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Frame Rate Limit</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="unlimited" selected>Unlimited</option>
-                            <option value="240">240 FPS</option>
-                            <option value="144">144 FPS</option>
-                            <option value="120">120 FPS</option>
-                            <option value="60">60 FPS</option>
-                            <option value="30">30 FPS</option>
-                        </select>
+                        <div class="toggle" data-class-on="vsync" data-event-click="toggle_vsync"><div class="toggle-knob"></div></div>
                     </div>
                 </div>
 
                 <div class="section-title">Quality</div>
                 <div class="setting-row">
-                    <div class="setting-label">Overall Quality</div>
+                    <div class="setting-label">Shadows</div>
                     <div class="setting-value">
-                        <select>
-                            <option value="ultra" selected>Ultra</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
-                        </select>
+                        <div class="toggle" data-class-on="shadows" data-event-click="toggle_shadows"><div class="toggle-knob"></div></div>
                     </div>
                 </div>
-                <div class="setting-row">
-                    <div class="setting-label">Shadow Quality</div>
+                <div class="setting-row" data-if="rt_supported && shadows">
+                    <div class="setting-label">RT Shadows</div>
                     <div class="setting-value">
-                        <select>
-                            <option value="ultra" selected>Ultra</option>
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
-                            <option value="off">Off</option>
-                        </select>
+                        <div class="toggle" data-class-on="rt_shadows" data-event-click="toggle_rt_shadows"><div class="toggle-knob"></div></div>
                     </div>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">Anti-Aliasing</div>
                     <div class="setting-value">
-                        <select>
-                            <option value="taa" selected>TAA</option>
-                            <option value="fxaa">FXAA</option>
-                            <option value="msaa4x">MSAA 4x</option>
-                            <option value="msaa2x">MSAA 2x</option>
-                            <option value="off">Off</option>
+                        <select data-value="aa_mode">
+                            <option value="0">Off</option>
+                            <option value="1">FXAA</option>
+                            <option value="2">TAA</option>
                         </select>
                     </div>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">Ambient Occlusion</div>
                     <div class="setting-value">
-                        <select>
-                            <option value="ssao" selected>SSAO</option>
-                            <option value="off">Off</option>
-                        </select>
+                        <div class="toggle" data-class-on="ssao" data-event-click="toggle_ssao"><div class="toggle-knob"></div></div>
                     </div>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">Motion Blur</div>
                     <div class="setting-value">
-                        <div class="toggle on"><div class="toggle-knob"></div></div>
+                        <div class="toggle" data-class-on="motion_blur" data-event-click="toggle_motion_blur"><div class="toggle-knob"></div></div>
                     </div>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">Bloom</div>
                     <div class="setting-value">
-                        <div class="toggle on"><div class="toggle-knob"></div></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Render Scale</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="50" max="200" step="10" value="100"/>
-                        <div class="value-text">100%</div>
-                    </div>
-                </div>
-
-                <div class="section-title">Post Processing</div>
-                <div class="setting-row">
-                    <div class="setting-label">Brightness</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="50"/>
-                        <div class="value-text">50</div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Contrast</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="50"/>
-                        <div class="value-text">50</div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Gamma</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="50"/>
-                        <div class="value-text">2.2</div>
+                        <div class="toggle" data-class-on="bloom" data-event-click="toggle_bloom"><div class="toggle-knob"></div></div>
                     </div>
                 </div>
             </panel>
@@ -155,48 +74,22 @@
                 <div class="setting-row">
                     <div class="setting-label">Master Volume</div>
                     <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="80"/>
-                        <div class="value-text">80%</div>
+                        <input class="slider" type="range" min="0" max="100" step="1" data-attr-value="master_volume" data-value="master_volume"/>
+                        <div class="value-text">{{master_volume}}%</div>
                     </div>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">Music Volume</div>
                     <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="60"/>
-                        <div class="value-text">60%</div>
+                        <input class="slider" type="range" min="0" max="100" step="1" data-attr-value="music_volume" data-value="music_volume"/>
+                        <div class="value-text">{{music_volume}}%</div>
                     </div>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">SFX Volume</div>
                     <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="100"/>
-                        <div class="value-text">100%</div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Voice Volume</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="1" value="100"/>
-                        <div class="value-text">100%</div>
-                    </div>
-                </div>
-
-                <div class="section-title">Output</div>
-                <div class="setting-row">
-                    <div class="setting-label">Audio Output</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="stereo" selected>Stereo</option>
-                            <option value="surround51">Surround 5.1</option>
-                            <option value="surround71">Surround 7.1</option>
-                            <option value="mono">Mono</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Subtitles</div>
-                    <div class="setting-value">
-                        <div class="toggle"><div class="toggle-knob"></div></div>
+                        <input class="slider" type="range" min="0" max="100" step="1" data-attr-value="sfx_volume" data-value="sfx_volume"/>
+                        <div class="value-text">{{sfx_volume}}%</div>
                     </div>
                 </div>
             </panel>
@@ -208,20 +101,8 @@
                 <div class="setting-row">
                     <div class="setting-label">Mouse Sensitivity</div>
                     <div class="setting-value">
-                        <input class="slider" type="range" min="1" max="100" step="1" value="50"/>
-                        <div class="value-text">50</div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Invert Y Axis</div>
-                    <div class="setting-value">
-                        <div class="toggle"><div class="toggle-knob"></div></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Raw Mouse Input</div>
-                    <div class="setting-value">
-                        <div class="toggle on"><div class="toggle-knob"></div></div>
+                        <input class="slider" type="range" min="1" max="100" step="1" data-attr-value="sensitivity" data-value="sensitivity"/>
+                        <div class="value-text">{{sensitivity}}</div>
                     </div>
                 </div>
 
@@ -258,14 +139,6 @@
                     <div class="setting-label">Interact</div>
                     <div class="setting-value"><div class="keybind-btn">E</div></div>
                 </div>
-                <div class="setting-row">
-                    <div class="setting-label">Inventory</div>
-                    <div class="setting-value"><div class="keybind-btn">Tab</div></div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Pause</div>
-                    <div class="setting-value"><div class="keybind-btn">Esc</div></div>
-                </div>
             </panel>
 
             <!-- Gameplay -->
@@ -279,102 +152,13 @@
                         <div class="value-text">90</div>
                     </div>
                 </div>
-                <div class="setting-row">
-                    <div class="setting-label">Camera Shake</div>
-                    <div class="setting-value">
-                        <div class="toggle on"><div class="toggle-knob"></div></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Head Bob</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="0" max="100" step="10" value="50"/>
-                        <div class="value-text">50%</div>
-                    </div>
-                </div>
-
-                <div class="section-title">Interface</div>
-                <div class="setting-row">
-                    <div class="setting-label">Crosshair Style</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="dot">Dot</option>
-                            <option value="cross" selected>Cross</option>
-                            <option value="circle">Circle</option>
-                            <option value="none">None</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">HUD Scale</div>
-                    <div class="setting-value">
-                        <input class="slider" type="range" min="50" max="150" step="10" value="100"/>
-                        <div class="value-text">100%</div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Language</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="en" selected>English</option>
-                            <option value="es">Espanol</option>
-                            <option value="fr">Francais</option>
-                            <option value="de">Deutsch</option>
-                            <option value="ja">Japanese</option>
-                            <option value="zh">Chinese</option>
-                            <option value="ko">Korean</option>
-                            <option value="tr">Turkish</option>
-                        </select>
-                    </div>
-                </div>
-            </panel>
-
-            <!-- Accessibility -->
-            <tab>Accessibility</tab>
-            <panel>
-                <div class="section-title">Visual</div>
-                <div class="setting-row">
-                    <div class="setting-label">Colorblind Mode</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="off" selected>Off</option>
-                            <option value="protanopia">Protanopia</option>
-                            <option value="deuteranopia">Deuteranopia</option>
-                            <option value="tritanopia">Tritanopia</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Text Size</div>
-                    <div class="setting-value">
-                        <select>
-                            <option value="small">Small</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="large">Large</option>
-                            <option value="xlarge">Extra Large</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Screen Reader</div>
-                    <div class="setting-value">
-                        <div class="toggle"><div class="toggle-knob"></div></div>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-label">Reduce Motion</div>
-                    <div class="setting-value">
-                        <div class="toggle"><div class="toggle-knob"></div></div>
-                    </div>
-                </div>
             </panel>
 
             </tabset>
 
             <div class="button-bar">
-                <button class="secondary">Reset to Default</button>
-                <button class="secondary">Cancel</button>
-                <button class="primary">Apply</button>
+                <button class="secondary" data-event-click="cancel">Cancel</button>
+                <button class="primary" data-event-click="apply">Apply</button>
             </div>
 
         </div>

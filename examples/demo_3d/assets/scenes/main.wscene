@@ -520,6 +520,11 @@
       "uuid": "53e8c5c6-7faf-49e6-afae-8e9cb8d270fb"
     },
     {
+      "Behaviors": [
+        {
+          "name": "SettingsScript"
+        }
+      ],
       "RectangleTransform": {
         "anchor": 0,
         "padding": [

@@ -789,5 +789,59 @@ namespace WieselEngine
         public static extern void Cursor_SetState(string state);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern string Cursor_GetState();
+
+        // Settings - Graphics
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_GetVSync();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetVSync(bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_GetSSAO();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetSSAO(bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_GetBloom();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetBloom(bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_GetMotionBlur();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetMotionBlur(bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_GetShadows();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetShadows(bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_GetRTShadows();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetRTShadows(bool value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Settings_IsRTSupported();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Settings_GetAAMode();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetAAMode(int mode);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Settings_GetBloomIntensity();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetBloomIntensity(float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Settings_GetMotionBlurStrength();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetMotionBlurStrength(float value);
+
+        // Settings - Audio
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Settings_GetMasterVolume();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetMasterVolume(float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Settings_GetMusicVolume();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetMusicVolume(float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float Settings_GetSFXVolume();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetSFXVolume(float value);
     }
 }

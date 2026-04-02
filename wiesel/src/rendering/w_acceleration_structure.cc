@@ -11,6 +11,8 @@
 
 #include "rendering/w_acceleration_structure.h"
 
+#include <vk_mem_alloc.h>
+
 #include "asset/w_asset_manager.h"
 #include "rendering/w_deletion_queue.h"
 #include "rendering/w_renderer.h"
@@ -36,13 +38,13 @@ AccelerationStructureManager::~AccelerationStructureManager() {
   }
 
   if (tlas_instance_buffer_ != VK_NULL_HANDLE) {
-    vkDestroyBuffer(device, tlas_instance_buffer_, nullptr);
-    vkFreeMemory(device, tlas_instance_memory_, nullptr);
+    vmaDestroyBuffer(renderer_->GetAllocator(), tlas_instance_buffer_,
+                     tlas_instance_alloc_);
   }
 
   if (tlas_scratch_buffer_ != VK_NULL_HANDLE) {
-    vkDestroyBuffer(device, tlas_scratch_buffer_, nullptr);
-    vkFreeMemory(device, tlas_scratch_memory_, nullptr);
+    vmaDestroyBuffer(renderer_->GetAllocator(), tlas_scratch_buffer_,
+                     tlas_scratch_alloc_);
   }
 }
 
@@ -53,20 +55,24 @@ void AccelerationStructureManager::DestroyAS(AccelerationStructure& as) {
     as.handle = VK_NULL_HANDLE;
   }
   if (as.buffer != VK_NULL_HANDLE) {
-    vkDestroyBuffer(device, as.buffer, nullptr);
-    vkFreeMemory(device, as.memory, nullptr);
+    vmaDestroyBuffer(renderer_->GetAllocator(), as.buffer, as.allocation);
     as.buffer = VK_NULL_HANDLE;
-    as.memory = VK_NULL_HANDLE;
+    as.allocation = VK_NULL_HANDLE;
   }
 }
 
 VkBuffer AccelerationStructureManager::CreateScratchBuffer(
-    VkDeviceSize size, VkDeviceMemory& memory) {
+    VkDeviceSize size, VmaAllocation& allocation) {
   VkBuffer buffer;
+  // Scratch buffers must be aligned to minAccelerationStructureScratchOffsetAlignment
+  VkDeviceSize scratch_alignment =
+      renderer_->GetASProperties()
+          .minAccelerationStructureScratchOffsetAlignment;
   renderer_->CreateBuffer(size,
                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, memory);
+                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer,
+                          allocation, scratch_alignment);
   return buffer;
 }
 
@@ -126,7 +132,7 @@ AccelerationStructureManager::GetOrBuildBLAS(std::shared_ptr<Mesh> mesh) {
       size_info.accelerationStructureSize,
       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
           VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, blas->buffer, blas->memory);
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, blas->buffer, blas->allocation);
 
   // Create AS
   VkAccelerationStructureCreateInfoKHR create_info{};
@@ -138,9 +144,9 @@ AccelerationStructureManager::GetOrBuildBLAS(std::shared_ptr<Mesh> mesh) {
       device, &create_info, nullptr, &blas->handle));
 
   // Create scratch buffer
-  VkDeviceMemory scratch_memory;
+  VmaAllocation scratch_alloc;
   VkBuffer scratch_buffer =
-      CreateScratchBuffer(size_info.buildScratchSize, scratch_memory);
+      CreateScratchBuffer(size_info.buildScratchSize, scratch_alloc);
 
   VkBufferDeviceAddressInfo scratch_addr_info{};
   scratch_addr_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -173,8 +179,7 @@ AccelerationStructureManager::GetOrBuildBLAS(std::shared_ptr<Mesh> mesh) {
                                                               &addr_info);
 
   // Cleanup scratch
-  vkDestroyBuffer(device, scratch_buffer, nullptr);
-  vkFreeMemory(device, scratch_memory, nullptr);
+  vmaDestroyBuffer(renderer_->GetAllocator(), scratch_buffer, scratch_alloc);
 
   blas_cache_[mesh.get()] = blas;
   return blas;
@@ -250,8 +255,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
               device, old_tlas->handle, nullptr);
         }
         if (old_tlas->buffer != VK_NULL_HANDLE) {
-          vkDestroyBuffer(device, old_tlas->buffer, nullptr);
-          vkFreeMemory(device, old_tlas->memory, nullptr);
+          vmaDestroyBuffer(renderer_ref->GetAllocator(), old_tlas->buffer,
+                           old_tlas->allocation);
         }
       });
     }
@@ -264,8 +269,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
       sizeof(VkAccelerationStructureInstanceKHR) * instances.size();
   if (instances.size() > tlas_instance_capacity_) {
     if (tlas_instance_buffer_ != VK_NULL_HANDLE) {
-      vkDestroyBuffer(device, tlas_instance_buffer_, nullptr);
-      vkFreeMemory(device, tlas_instance_memory_, nullptr);
+      vmaDestroyBuffer(renderer_->GetAllocator(), tlas_instance_buffer_,
+                       tlas_instance_alloc_);
     }
     renderer_->CreateBuffer(
         instances_size,
@@ -273,16 +278,16 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
             VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        tlas_instance_buffer_, tlas_instance_memory_);
+        tlas_instance_buffer_, tlas_instance_alloc_);
     tlas_instance_capacity_ = static_cast<uint32_t>(instances.size());
   }
 
   // Upload instances
   void* mapped = nullptr;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(device, tlas_instance_memory_, 0,
-                                    instances_size, 0, &mapped));
+  WIESEL_CHECK_VKRESULT(
+      vmaMapMemory(renderer_->GetAllocator(), tlas_instance_alloc_, &mapped));
   memcpy(mapped, instances.data(), instances_size);
-  vkUnmapMemory(device, tlas_instance_memory_);
+  vmaUnmapMemory(renderer_->GetAllocator(), tlas_instance_alloc_);
 
   VkBufferDeviceAddressInfo instance_addr_info{};
   instance_addr_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -330,8 +335,8 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
             device, old_tlas->handle, nullptr);
       }
       if (old_tlas->buffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(device, old_tlas->buffer, nullptr);
-        vkFreeMemory(device, old_tlas->memory, nullptr);
+        vmaDestroyBuffer(renderer_ref->GetAllocator(), old_tlas->buffer,
+                         old_tlas->allocation);
       }
     });
   }
@@ -341,7 +346,7 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
       size_info.accelerationStructureSize,
       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
           VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tlas_->buffer, tlas_->memory);
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tlas_->buffer, tlas_->allocation);
 
   VkAccelerationStructureCreateInfoKHR create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -355,11 +360,11 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   if (size_info.buildScratchSize > tlas_scratch_capacity_) {
     if (tlas_scratch_buffer_ != VK_NULL_HANDLE) {
       // Previous frame must be done since we're in a new frame's recording
-      vkDestroyBuffer(device, tlas_scratch_buffer_, nullptr);
-      vkFreeMemory(device, tlas_scratch_memory_, nullptr);
+      vmaDestroyBuffer(renderer_->GetAllocator(), tlas_scratch_buffer_,
+                       tlas_scratch_alloc_);
     }
     tlas_scratch_buffer_ =
-        CreateScratchBuffer(size_info.buildScratchSize, tlas_scratch_memory_);
+        CreateScratchBuffer(size_info.buildScratchSize, tlas_scratch_alloc_);
     tlas_scratch_capacity_ = size_info.buildScratchSize;
   }
 

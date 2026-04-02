@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "rendering/w_vma.h"
 #include "util/w_utils.h"
 #include "w_pch.h"
 #include "w_sampler.h"
@@ -167,9 +168,9 @@ class Texture {
   ~Texture();
 
   TextureType type_;
-  VkImage image_;
+  VkImage image_ = VK_NULL_HANDLE;
   VkFormat format_;
-  VkDeviceMemory device_memory_;
+  std::unique_ptr<VmaImage> vma_image_;
   std::shared_ptr<ImageView> image_view_;
   std::shared_ptr<Sampler> sampler_;
   uint32_t mip_levels_;
@@ -230,9 +231,9 @@ class AttachmentTexture {
 
   AttachmentTextureType type_;
   std::vector<VkImage> images_;
+  std::vector<std::unique_ptr<VmaImage>> vma_images_;
   std::vector<std::shared_ptr<ImageView>> image_views_;
   std::shared_ptr<Sampler> sampler_;
-  std::vector<VkDeviceMemory> device_memories_;
   VkFormat format_;
   uint32_t width_;
   uint32_t height_;

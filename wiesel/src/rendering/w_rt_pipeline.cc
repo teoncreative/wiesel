@@ -10,6 +10,9 @@
 //
 
 #include "rendering/w_rt_pipeline.h"
+
+#include <vk_mem_alloc.h>
+
 #include "rendering/w_renderer.h"
 
 namespace Wiesel {
@@ -29,8 +32,7 @@ RTPipeline::~RTPipeline() {
     vkDestroyPipelineLayout(device, layout_, nullptr);
   }
   if (sbt_buffer_ != VK_NULL_HANDLE) {
-    vkDestroyBuffer(device, sbt_buffer_, nullptr);
-    vkFreeMemory(device, sbt_memory_, nullptr);
+    vmaDestroyBuffer(renderer_->GetAllocator(), sbt_buffer_, sbt_alloc_);
   }
 }
 
@@ -213,18 +215,20 @@ void RTPipeline::CreateSBT() {
   uint32_t hitSize = alignUp(handleSizeAligned * hitCount, baseAlignment);
   uint32_t sbtSize = raygenSize + missSize + hitSize;
 
-  // Create SBT buffer
+  // Create SBT buffer - must be aligned to shaderGroupBaseAlignment
+  VkDeviceSize sbt_alignment =
+      renderer_->GetRTProperties().shaderGroupBaseAlignment;
   renderer_->CreateBuffer(sbtSize,
                           VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                          sbt_buffer_, sbt_memory_);
+                          sbt_buffer_, sbt_alloc_, sbt_alignment);
 
   // Map and fill
   void* mapped = nullptr;
   WIESEL_CHECK_VKRESULT(
-      vkMapMemory(device, sbt_memory_, 0, sbtSize, 0, &mapped));
+      vmaMapMemory(renderer_->GetAllocator(), sbt_alloc_, &mapped));
   auto* dst = static_cast<uint8_t*>(mapped);
   memset(dst, 0, sbtSize);
 
@@ -248,7 +252,7 @@ void RTPipeline::CreateSBT() {
     handleIdx++;
   }
 
-  vkUnmapMemory(device, sbt_memory_);
+  vmaUnmapMemory(renderer_->GetAllocator(), sbt_alloc_);
 
   // Get device address
   VkBufferDeviceAddressInfo addrInfo{};

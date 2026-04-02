@@ -11,6 +11,8 @@
 
 #include "rendering/w_buffer.h"
 
+#include <vk_mem_alloc.h>
+
 #include "w_engine.h"
 
 namespace Wiesel {
@@ -21,7 +23,7 @@ MemoryBuffer::~MemoryBuffer() {
   if (type_ == MemoryTypeUniformBuffer) {
     return;
   }
-  if (!buffer_handle_) {
+  if (!vma_buffer_) {
     return;
   }
   auto renderer = Engine::renderer();
@@ -29,26 +31,14 @@ MemoryBuffer::~MemoryBuffer() {
     return;
   }
 
-  VkBuffer buffer = buffer_handle_;
-  VkDeviceMemory memory = memory_handle_;
   buffer_handle_ = VK_NULL_HANDLE;
-  memory_handle_ = VK_NULL_HANDLE;
-
-  renderer->GetDeletionQueue().Push([renderer, buffer, memory]() {
-    VkDevice device = renderer->GetLogicalDevice();
-    if (buffer) {
-      vkDestroyBuffer(device, buffer, nullptr);
-    }
-    if (memory) {
-      vkFreeMemory(device, memory, nullptr);
-    }
-  });
+  renderer->GetDeletionQueue().Defer(std::move(vma_buffer_));
 }
 
 UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {}
 
 UniformBuffer::~UniformBuffer() {
-  if (!buffer_handle_) {
+  if (!vma_buffer_) {
     return;
   }
   auto renderer = Engine::renderer();
@@ -56,20 +46,14 @@ UniformBuffer::~UniformBuffer() {
     return;
   }
 
-  VkBuffer buffer = buffer_handle_;
-  VkDeviceMemory memory = memory_handle_;
-  buffer_handle_ = VK_NULL_HANDLE;
-  memory_handle_ = VK_NULL_HANDLE;
+  // Must unmap before VMA destroys the allocation
+  if (data_) {
+    vmaUnmapMemory(renderer->GetAllocator(), vma_buffer_->Allocation());
+    data_ = nullptr;
+  }
 
-  renderer->GetDeletionQueue().Push([renderer, buffer, memory]() {
-    VkDevice device = renderer->GetLogicalDevice();
-    if (buffer) {
-      vkDestroyBuffer(device, buffer, nullptr);
-    }
-    if (memory) {
-      vkFreeMemory(device, memory, nullptr);
-    }
-  });
+  buffer_handle_ = VK_NULL_HANDLE;
+  renderer->GetDeletionQueue().Defer(std::move(vma_buffer_));
 }
 
 }  // namespace Wiesel

@@ -2415,6 +2415,110 @@ bool Internals_UIDocument_GetVisible(uint64_t scene_ptr, uint64_t entity_id) {
   return ui_doc.visible;
 }
 
+// --- Settings bindings ---
+
+// Graphics
+bool Internals_Settings_GetVSync() {
+  return Engine::renderer()->options().vsync;
+}
+
+void Internals_Settings_SetVSync(bool value) {
+  Engine::renderer()->options().vsync = value;
+}
+
+bool Internals_Settings_GetSSAO() {
+  return Engine::renderer()->options().ssao_enabled;
+}
+
+void Internals_Settings_SetSSAO(bool value) {
+  Engine::renderer()->options().ssao_enabled = value;
+}
+
+bool Internals_Settings_GetBloom() {
+  return Engine::renderer()->options().bloom_enabled;
+}
+
+void Internals_Settings_SetBloom(bool value) {
+  Engine::renderer()->options().bloom_enabled = value;
+}
+
+bool Internals_Settings_GetMotionBlur() {
+  return Engine::renderer()->options().motion_blur_enabled;
+}
+
+void Internals_Settings_SetMotionBlur(bool value) {
+  Engine::renderer()->options().motion_blur_enabled = value;
+}
+
+bool Internals_Settings_GetShadows() {
+  return Engine::renderer()->options().shadows_enabled;
+}
+
+void Internals_Settings_SetShadows(bool value) {
+  Engine::renderer()->options().shadows_enabled = value;
+}
+
+bool Internals_Settings_GetRTShadows() {
+  return Engine::renderer()->options().rt_shadows_enabled;
+}
+
+void Internals_Settings_SetRTShadows(bool value) {
+  Engine::renderer()->options().rt_shadows_enabled = value;
+}
+
+bool Internals_Settings_IsRTSupported() {
+  return Engine::renderer()->IsRayTracingSupported();
+}
+
+int Internals_Settings_GetAAMode() {
+  return static_cast<int>(Engine::renderer()->options().aa_mode.Get());
+}
+
+void Internals_Settings_SetAAMode(int mode) {
+  Engine::renderer()->options().aa_mode = static_cast<AntiAliasingMode>(mode);
+}
+
+float Internals_Settings_GetBloomIntensity() {
+  return Engine::renderer()->options().bloom_intensity;
+}
+
+void Internals_Settings_SetBloomIntensity(float value) {
+  Engine::renderer()->options().bloom_intensity = value;
+}
+
+float Internals_Settings_GetMotionBlurStrength() {
+  return Engine::renderer()->options().motion_blur_strength;
+}
+
+void Internals_Settings_SetMotionBlurStrength(float value) {
+  Engine::renderer()->options().motion_blur_strength = value;
+}
+
+// Audio
+float Internals_Settings_GetMasterVolume() {
+  return Engine::audio().GetMasterVolume();
+}
+
+void Internals_Settings_SetMasterVolume(float value) {
+  Engine::audio().SetMasterVolume(value);
+}
+
+float Internals_Settings_GetMusicVolume() {
+  return Engine::audio().GetMusicVolume();
+}
+
+void Internals_Settings_SetMusicVolume(float value) {
+  Engine::audio().SetMusicVolume(value);
+}
+
+float Internals_Settings_GetSFXVolume() {
+  return Engine::audio().GetSFXVolume();
+}
+
+void Internals_Settings_SetSFXVolume(float value) {
+  Engine::audio().SetSFXVolume(value);
+}
+
 // --- Cursor bindings ---
 
 void Internals_Cursor_SetState(MonoString* state) {
@@ -2808,6 +2912,33 @@ void RegisterScriptGlue() {
   // Cursor
   WIESEL_ADD_INTERNAL_CALL(Cursor_SetState);
   WIESEL_ADD_INTERNAL_CALL(Cursor_GetState);
+
+  // Settings
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetVSync);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetVSync);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetSSAO);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetSSAO);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetBloom);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetBloom);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetMotionBlur);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetMotionBlur);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetShadows);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetShadows);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetRTShadows);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetRTShadows);
+  WIESEL_ADD_INTERNAL_CALL(Settings_IsRTSupported);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetAAMode);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetAAMode);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetBloomIntensity);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetBloomIntensity);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetMotionBlurStrength);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetMotionBlurStrength);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetMasterVolume);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetMasterVolume);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetMusicVolume);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetMusicVolume);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetSFXVolume);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetSFXVolume);
 }
 
 }  // namespace Wiesel

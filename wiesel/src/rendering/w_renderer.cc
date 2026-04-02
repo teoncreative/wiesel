@@ -156,6 +156,7 @@ void Renderer::Initialize(const RendererProperties&& properties) {
 
   CreateLogicalDevice();
   LoadDeviceExtensions();
+  InitMemoryAllocator();
   CreateGlobalUniformBuffers();
   // ---
   CreateCommandPools();
@@ -187,17 +188,16 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
 
   VkDeviceSize buffer_size = sizeof(T) * vertices.size();
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    buffer_size, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, vertices.data(), buffer_size);
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   VkBufferUsageFlags vertex_usage =
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -206,8 +206,13 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
   }
+  VkBuffer buffer;
+  VmaAllocation alloc;
   CreateBuffer(buffer_size, vertex_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-               memoryBuffer->buffer_handle_, memoryBuffer->memory_handle_);
+               buffer, alloc);
+  memoryBuffer->buffer_handle_ = buffer;
+  memoryBuffer->vma_buffer_ =
+      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc);
 
   CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
 
@@ -220,10 +225,9 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
   }
 
   if (tl_batch_active_) {
-    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+    DeferStagingCleanup(staging_buffer, staging_alloc);
   } else {
-    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+    vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
   return memoryBuffer;
 }
@@ -260,17 +264,16 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
   VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
 
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    buffer_size, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, indices.data(), (size_t)buffer_size);
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   VkBufferUsageFlags index_usage =
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
@@ -279,8 +282,13 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
   }
+  VkBuffer buffer;
+  VmaAllocation alloc;
   CreateBuffer(buffer_size, index_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-               memoryBuffer->buffer_handle_, memoryBuffer->memory_handle_);
+               buffer, alloc);
+  memoryBuffer->buffer_handle_ = buffer;
+  memoryBuffer->vma_buffer_ =
+      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc);
 
   CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
 
@@ -293,10 +301,9 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
   }
 
   if (tl_batch_active_) {
-    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+    DeferStagingCleanup(staging_buffer, staging_alloc);
   } else {
-    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+    vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
 
   return memoryBuffer;
@@ -308,16 +315,20 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
       std::make_shared<UniformBuffer>();
 
   uniformBuffer->size_ = size;
+  VkBuffer buffer;
+  VmaAllocation alloc;
   CreateBuffer(
       size,
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      uniformBuffer->buffer_handle_, uniformBuffer->memory_handle_);
+      buffer, alloc);
+  uniformBuffer->buffer_handle_ = buffer;
+  uniformBuffer->vma_buffer_ =
+      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc);
 
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_,
-                                    uniformBuffer->memory_handle_, 0, size, 0,
-                                    &uniformBuffer->data_));
+  WIESEL_CHECK_VKRESULT(
+      vmaMapMemory(vma_allocator_, alloc, &uniformBuffer->data_));
 
   memset(uniformBuffer->data_, 0, size);
 
@@ -328,14 +339,17 @@ std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
     VkDeviceSize size) {
   std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
   buffer->size_ = size;
+  VkBuffer buf;
+  VmaAllocation alloc;
   CreateBuffer(
       size,
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      buffer->buffer_handle_, buffer->memory_handle_);
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, buffer->memory_handle_, 0,
-                                    size, 0, &buffer->data_));
+      buf, alloc);
+  buffer->buffer_handle_ = buf;
+  buffer->vma_buffer_ = std::make_unique<VmaBuffer>(vma_allocator_, buf, alloc);
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, alloc, &buffer->data_));
   memset(buffer->data_, 0, size);
   return buffer;
 }
@@ -370,24 +384,27 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
 
   VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    texture->size_, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
+  VkImage image;
+  VmaAllocation image_alloc;
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, format, VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
-              texture->device_memory_);
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
+  texture->image_ = image;
+  texture->vma_image_ =
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
 
   TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -396,8 +413,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
                     static_cast<uint32_t>(texture->width_),
                     static_cast<uint32_t>(texture->height_));
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
 
   // todo loading pregenerated mipmaps
   GenerateMipmaps(texture->image_, VK_FORMAT_R8G8B8A8_UNORM, texture->width_,
@@ -430,24 +446,27 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
 
   VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    texture->size_, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
+  VkImage image;
+  VmaAllocation image_alloc;
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, format, VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
-              texture->device_memory_);
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
+  texture->image_ = image;
+  texture->vma_image_ =
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -463,10 +482,9 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
   }
 
   if (tl_batch_active_) {
-    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+    DeferStagingCleanup(staging_buffer, staging_alloc);
   } else {
-    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+    vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
 
   texture->sampler_ = std::make_shared<Sampler>(1, sampler_props);
@@ -508,27 +526,30 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
   }
 
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    texture->size_, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, pixels, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   stbi_image_free(pixels);
 
+  VkImage image;
+  VmaAllocation image_alloc;
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, texture_props.image_format,
               VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
-              texture->device_memory_);
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
+  texture->image_ = image;
+  texture->vma_image_ =
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -545,10 +566,9 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
   }
 
   if (tl_batch_active_) {
-    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+    DeferStagingCleanup(staging_buffer, staging_alloc);
   } else {
-    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+    vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
 
   texture->sampler_ =
@@ -579,25 +599,28 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
   }
 
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(texture->size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    texture->size_, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, buffer, static_cast<size_t>(texture->size_));
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
+  VkImage image;
+  VmaAllocation image_alloc;
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, texture_props.image_format,
               VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
-              texture->device_memory_);
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
+  texture->image_ = image;
+  texture->vma_image_ =
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -613,10 +636,9 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
   }
 
   if (tl_batch_active_) {
-    DeferStagingCleanup(staging_buffer, staging_buffer_memory);
+    DeferStagingCleanup(staging_buffer, staging_alloc);
   } else {
-    vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-    vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+    vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
 
   texture->sampler_ =
@@ -677,25 +699,29 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     stbi_image_free(pixels);
   }
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   CreateBuffer(total_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, staging_buffer_memory, 0,
-                                    total_size, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, all_pixels, static_cast<size_t>(total_size));
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
+  VkImage image;
+  VmaAllocation image_alloc;
   CreateImage(texture->width_, texture->height_, texture->mip_levels_,
               SamplingMode::DISABLED, texture_props.image_format,
               VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
-              texture->device_memory_, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc,
+              VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
+  texture->image_ = image;
+  texture->vma_image_ =
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -718,8 +744,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     EndSingleTimeCommands(cmd);
   }
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   delete[] all_pixels;
 
   texture->sampler_ =
@@ -897,25 +922,30 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
 
   // Create staging buffer
   VkBuffer staging_buffer;
-  VkDeviceMemory stagingMemory;
+  VmaAllocation staging_alloc;
 
   CreateBuffer(total_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, stagingMemory);
+               staging_buffer, staging_alloc);
 
   void* data;
   WIESEL_CHECK_VKRESULT(
-      vkMapMemory(logical_device_, stagingMemory, 0, total_size, 0, &data));
+      vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, cube_pixels.data(), total_size);
-  vkUnmapMemory(logical_device_, stagingMemory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   // Create cube image
+  VkImage image;
+  VmaAllocation image_alloc;
   CreateImage(faceSize, faceSize, texture->mip_levels_, SamplingMode::DISABLED,
               texture_props.image_format, VK_IMAGE_TILING_OPTIMAL,
               VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->image_,
-              texture->device_memory_, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc,
+              VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
+  texture->image_ = image;
+  texture->vma_image_ =
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
 
   // Transition entire cube
   TransitionImageLayout(
@@ -931,8 +961,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         texture->mip_levels_, 0, 6);
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, stagingMemory, nullptr);
+  vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
 
   texture->sampler_ =
       std::make_shared<Sampler>(texture->mip_levels_, sampler_props);
@@ -986,7 +1015,7 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
   texture->aspect_flags_ = aspectFlags;
   texture->mip_levels_ = props.mip_levels;
   texture->images_.resize(props.image_count);
-  texture->device_memories_.resize(props.image_count);
+  texture->vma_images_.reserve(props.image_count);
   texture->image_views_.resize(props.image_count);
 
   uint32_t actual_layers =
@@ -997,11 +1026,16 @@ std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
   }
 
   for (uint32_t i = 0; i < props.image_count; i++) {
+    VkImage image;
+    VmaAllocation alloc;
     CreateImage(props.width, props.height, props.mip_levels,
                 props.sampling_mode, props.image_format,
                 VK_IMAGE_TILING_OPTIMAL, usage,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->images_[i],
-                texture->device_memories_[i], create_flags, actual_layers);
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, alloc, create_flags,
+                actual_layers);
+    texture->images_[i] = image;
+    texture->vma_images_.push_back(
+        std::make_unique<VmaImage>(vma_allocator_, image, alloc));
 
     VkImageViewType view_type;
     if (props.is_cubemap) {
@@ -1043,18 +1077,17 @@ void Renderer::SetAttachmentTextureBuffer(
     std::shared_ptr<AttachmentTexture> texture, void* buffer,
     size_t sizePerPixel) {
   VkBuffer staging_buffer;
-  VkDeviceMemory staging_buffer_memory;
+  VmaAllocation staging_alloc;
   size_t size = texture->width_ * texture->height_ * sizePerPixel;
   CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               staging_buffer, staging_buffer_memory);
+               staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(
-      vkMapMemory(logical_device_, staging_buffer_memory, 0, size, 0, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, buffer, static_cast<size_t>(size));
-  vkUnmapMemory(logical_device_, staging_buffer_memory);
+  vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   TransitionImageLayout(texture->images_[0], texture->format_,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1068,8 +1101,7 @@ void Renderer::SetAttachmentTextureBuffer(
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1);
 
-  vkDestroyBuffer(logical_device_, staging_buffer, nullptr);
-  vkFreeMemory(logical_device_, staging_buffer_memory, nullptr);
+  vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
 }
 
 VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
@@ -1767,10 +1799,9 @@ void Renderer::Cleanup() {
   pick_entity_id_image_ = nullptr;
 
   if (pick_staging_buffer_ != VK_NULL_HANDLE) {
-    vkDestroyBuffer(logical_device_, pick_staging_buffer_, nullptr);
-    vkFreeMemory(logical_device_, pick_staging_memory_, nullptr);
+    vmaDestroyBuffer(vma_allocator_, pick_staging_buffer_, pick_staging_alloc_);
     pick_staging_buffer_ = VK_NULL_HANDLE;
-    pick_staging_memory_ = VK_NULL_HANDLE;
+    pick_staging_alloc_ = VK_NULL_HANDLE;
   }
 
   LOG_DEBUG("Destroying graphics");
@@ -1804,6 +1835,10 @@ void Renderer::Cleanup() {
   // Flush any items added to the deletion queue during cleanup
   // (e.g. descriptors deferred by CameraResourcePool::SetDescriptor).
   deletion_queue_.FlushAll();
+
+  LOG_DEBUG("Destroying VMA allocator");
+  vmaDestroyAllocator(vma_allocator_);
+  vma_allocator_ = nullptr;
 
   LOG_DEBUG("Destroying device");
   vkDestroyDevice(logical_device_, nullptr);
@@ -2007,6 +2042,18 @@ void Renderer::CreateLogicalDevice() {
                    &present_queue_);
   vkGetDeviceQueue(logical_device_, GetGraphicsQueueFamilyIndex(), 0,
                    &graphics_queue_);
+}
+
+void Renderer::InitMemoryAllocator() {
+  VmaAllocatorCreateInfo vma_info{};
+  vma_info.physicalDevice = physical_device_;
+  vma_info.device = logical_device_;
+  vma_info.instance = instance_;
+  vma_info.vulkanApiVersion = VK_API_VERSION_1_2;
+  if (rt_supported_) {
+    vma_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  }
+  WIESEL_CHECK_VKRESULT(vmaCreateAllocator(&vma_info, &vma_allocator_));
 }
 
 void Renderer::LoadDeviceExtensions() {
@@ -2430,7 +2477,7 @@ std::shared_ptr<Shader> Renderer::CreateShader(ShaderProperties properties) {
 
 void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                             VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                            VkDeviceMemory& buffer_memory) {
+                            VmaAllocation& allocation, VkDeviceSize alignment) {
   PROFILE_ZONE_SCOPED();
   VkBufferCreateInfo buffer_info{};
   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -2438,29 +2485,21 @@ void Renderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
   buffer_info.usage = usage;
   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  WIESEL_CHECK_VKRESULT(
-      vkCreateBuffer(logical_device_, &buffer_info, nullptr, &buffer));
-
-  VkMemoryRequirements mem_requirements;
-  vkGetBufferMemoryRequirements(logical_device_, buffer, &mem_requirements);
-
-  VkMemoryAllocateInfo alloc_info{};
-  alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  alloc_info.allocationSize = mem_requirements.size;
-  alloc_info.memoryTypeIndex =
-      FindMemoryType(mem_requirements.memoryTypeBits, properties);
-
-  VkMemoryAllocateFlagsInfo allocate_flags_info{};
-  if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
-    allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
-    allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-    alloc_info.pNext = &allocate_flags_info;
+  VmaAllocationCreateInfo alloc_info{};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+  if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+    alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
   }
 
-  WIESEL_CHECK_VKRESULT(
-      vkAllocateMemory(logical_device_, &alloc_info, nullptr, &buffer_memory));
-  WIESEL_CHECK_VKRESULT(
-      vkBindBufferMemory(logical_device_, buffer, buffer_memory, 0));
+  if (alignment > 0) {
+    WIESEL_CHECK_VKRESULT(
+        vmaCreateBufferWithAlignment(vma_allocator_, &buffer_info, &alloc_info,
+                                     alignment, &buffer, &allocation, nullptr));
+  } else {
+    WIESEL_CHECK_VKRESULT(vmaCreateBuffer(vma_allocator_, &buffer_info,
+                                          &alloc_info, &buffer, &allocation,
+                                          nullptr));
+  }
 }
 
 void Renderer::CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer,
@@ -2702,7 +2741,7 @@ void Renderer::CreatePermanentResources() {
   CreateBuffer(sizeof(float), VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-               pick_staging_buffer_, pick_staging_memory_);
+               pick_staging_buffer_, pick_staging_alloc_);
 
   // Identity bone UBO (shared by all static / non-animated models)
   identity_bone_ubo_ = CreateUniformBuffer(sizeof(BoneMatricesUniformData));
@@ -2721,8 +2760,7 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
                            SamplingMode sampling_mode, VkFormat format,
                            VkImageTiling tiling, VkImageUsageFlags usage,
                            VkMemoryPropertyFlags properties, VkImage& image,
-                           VkDeviceMemory& image_memory,
-                           VkImageCreateFlags flags, uint32_t array_layers) {
+                           VmaAllocation& allocation, VkImageCreateFlags flags, uint32_t array_layers) {
   PROFILE_ZONE_SCOPED();
   VkImageCreateInfo image_info{};
   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -2747,23 +2785,13 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
   image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   image_info.samples = ToVkSampleCountFlagBits(sampling_mode);
   image_info.flags = flags;
-  WIESEL_CHECK_VKRESULT(
-      vkCreateImage(logical_device_, &image_info, nullptr, &image));
 
-  VkMemoryRequirements mem_requirements;
-  vkGetImageMemoryRequirements(logical_device_, image, &mem_requirements);
-
-  VkMemoryAllocateInfo alloc_info{};
-  alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  alloc_info.allocationSize = mem_requirements.size;
-  alloc_info.memoryTypeIndex =
-      FindMemoryType(mem_requirements.memoryTypeBits, properties);
+  VmaAllocationCreateInfo alloc_info{};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
   WIESEL_CHECK_VKRESULT(
-      vkAllocateMemory(logical_device_, &alloc_info, nullptr, &image_memory));
-
-  WIESEL_CHECK_VKRESULT(
-      vkBindImageMemory(logical_device_, image, image_memory, 0));
+      vmaCreateImage(vma_allocator_, &image_info, &alloc_info,
+                                       &image, &allocation, nullptr));
 }
 
 std::shared_ptr<ImageView> Renderer::CreateImageView(
@@ -3716,10 +3744,10 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 
   // Read back the value
   void* data;
-  WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, pick_staging_memory_, 0,
-                                    sizeof(float), 0, &data));
+  WIESEL_CHECK_VKRESULT(
+      vmaMapMemory(vma_allocator_, pick_staging_alloc_, &data));
   float value = *static_cast<float*>(data);
-  vkUnmapMemory(logical_device_, pick_staging_memory_);
+  vmaUnmapMemory(vma_allocator_, pick_staging_alloc_);
 
   pick_entity_id_image_ = nullptr;
 
@@ -3763,10 +3791,10 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 
     EndSingleTimeCommands(cmd2);
 
-    WIESEL_CHECK_VKRESULT(vkMapMemory(logical_device_, pick_staging_memory_, 0,
-                                      sizeof(float), 0, &data));
+    WIESEL_CHECK_VKRESULT(
+        vmaMapMemory(vma_allocator_, pick_staging_alloc_, &data));
     value = *static_cast<float*>(data);
-    vkUnmapMemory(logical_device_, pick_staging_memory_);
+    vmaUnmapMemory(vma_allocator_, pick_staging_alloc_);
   } else {
     pick_fallback_image_ = nullptr;
   }
@@ -4333,14 +4361,13 @@ void Renderer::EndBatchUpload() {
 
   // Now that GPU is done, free all deferred staging buffers
   for (auto& staging : tl_deferred_staging_) {
-    vkDestroyBuffer(logical_device_, staging.buffer, nullptr);
-    vkFreeMemory(logical_device_, staging.memory, nullptr);
+    vmaDestroyBuffer(vma_allocator_, staging.buffer, staging.allocation);
   }
   tl_deferred_staging_.clear();
 }
 
-void Renderer::DeferStagingCleanup(VkBuffer buffer, VkDeviceMemory memory) {
-  tl_deferred_staging_.push_back({buffer, memory});
+void Renderer::DeferStagingCleanup(VkBuffer buffer, VmaAllocation allocation) {
+  tl_deferred_staging_.push_back({buffer, allocation});
 }
 
 VkCommandBuffer Renderer::BeginSingleTimeCommands() {
