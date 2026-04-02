@@ -78,6 +78,7 @@ class EditorLayer : public Layer {
   void RenderSliceSpritesPopup();
   void RenderCreateSpriteAnimPopup();
   void RenderCreateSpriteControllerPopup();
+  void RenderCreateCursorSetPopup();
   void RenderEntityInspector(entt::entity handle);
   void NewProject();
   void OpenProject();
@@ -152,6 +153,7 @@ class EditorLayer : public Layer {
   bool show_create_spriteanim_ = false;
   bool show_create_sprite_ = false;
   bool show_create_spritecontroller_ = false;
+  bool show_create_cursorset_ = false;
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced
   AssetBrowserPanel asset_browser_panel_;

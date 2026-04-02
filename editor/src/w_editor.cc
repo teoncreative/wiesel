@@ -16,6 +16,7 @@
 #include <wpak/wpak.h>
 #include <unordered_set>
 #include "asset/w_asset_serializer.h"
+#include "cursor/w_cursor.h"
 #include "mono_compiler.h"
 #include "rendering/w_skybox.h"
 #include "rendering/w_sprite_asset.h"
@@ -413,6 +414,7 @@ void EditorLayer::OnAttach() {
     show_slice_sprites_ = true;
   };
   ab_cb.on_show_create_skybox = [this]() { show_create_skybox_ = true; };
+  ab_cb.on_show_create_cursorset = [this]() { show_create_cursorset_ = true; };
   ab_cb.on_show_create_sprite = [this]() { show_create_sprite_ = true; };
   ab_cb.on_show_create_spriteanim = [this]() {
     show_create_spriteanim_ = true;
@@ -912,6 +914,7 @@ void EditorLayer::OnBeginPresent() {
   RenderSliceSpritesPopup();
   RenderCreateSpriteAnimPopup();
   RenderCreateSpriteControllerPopup();
+  RenderCreateCursorSetPopup();
   file_picker_.Render();
 
   RenderSceneHierarchyPanel();
@@ -2323,6 +2326,159 @@ void EditorLayer::RenderCreateSkyboxPopup() {
   }
 }
 
+void EditorLayer::RenderCreateCursorSetPopup() {
+  if (show_create_cursorset_) {
+    ImGui::OpenPopup("Create Cursor Set");
+    show_create_cursorset_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Create Cursor Set", &popup_open,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
+    static char name_buf[128] = "cursors";
+    static int mode = 0;
+
+    struct StateEntry {
+      char name[64] = "";
+      AssetHandle texture;
+      int hotspot_x = 0;
+      int hotspot_y = 0;
+      float frame_duration = 0.1f;
+      std::vector<AssetHandle> frames;
+      bool use_animation = false;
+    };
+    static std::vector<StateEntry> states;
+
+    if (states.empty()) {
+      StateEntry default_state;
+      strncpy(default_state.name, "default", sizeof(default_state.name));
+      states.push_back(default_state);
+    }
+
+    ImGui::InputText("Name", name_buf, sizeof(name_buf));
+
+    const char* mode_names[] = {"Auto (Hardware)", "Force Software"};
+    ImGui::Combo("Mode", &mode, mode_names, 2);
+
+    ImGui::SeparatorText("Cursor States");
+
+    int remove_idx = -1;
+    for (int i = 0; i < static_cast<int>(states.size()); i++) {
+      auto& s = states[i];
+      ImGui::PushID(i);
+
+      ImGui::SetNextItemWidth(120);
+      ImGui::InputText("##name", s.name, sizeof(s.name));
+      ImGui::SameLine();
+
+      if (!s.use_animation) {
+        AssetCombo("Texture", AssetType::Texture, s.texture);
+      } else {
+        ImGui::Text("Frames: %d", static_cast<int>(s.frames.size()));
+        ImGui::SameLine();
+        if (ImGui::SmallButton("+ Frame")) {
+          s.frames.push_back({});
+        }
+        for (int f = 0; f < static_cast<int>(s.frames.size()); f++) {
+          ImGui::PushID(1000 + f);
+          AssetCombo(("Frame " + std::to_string(f)).c_str(),
+                     AssetType::Texture, s.frames[f]);
+          ImGui::PopID();
+        }
+        ImGui::SetNextItemWidth(80);
+        ImGui::DragFloat("Frame Duration", &s.frame_duration, 0.01f, 0.01f,
+                         1.0f, "%.2fs");
+      }
+
+      ImGui::Checkbox("Animated", &s.use_animation);
+
+      ImGui::SetNextItemWidth(60);
+      ImGui::DragInt("Hotspot X", &s.hotspot_x, 1, 0, 256);
+      ImGui::SameLine();
+      ImGui::SetNextItemWidth(60);
+      ImGui::DragInt("Hotspot Y", &s.hotspot_y, 1, 0, 256);
+
+      ImGui::SameLine();
+      if (i > 0 && ImGui::SmallButton("X")) {
+        remove_idx = i;
+      }
+
+      ImGui::Separator();
+      ImGui::PopID();
+    }
+
+    if (remove_idx >= 0) {
+      states.erase(states.begin() + remove_idx);
+    }
+
+    if (ImGui::Button("+ Add State")) {
+      StateEntry new_state;
+      snprintf(new_state.name, sizeof(new_state.name), "state_%d",
+               static_cast<int>(states.size()));
+      states.push_back(new_state);
+    }
+
+    ImGui::Separator();
+
+    bool can_create = name_buf[0] != '\0' && !states.empty();
+    if (ImGui::Button("Create") && can_create) {
+      auto data = std::make_shared<CursorSetData>();
+      data->mode =
+          (mode == 0) ? CursorSetMode::Auto : CursorSetMode::ForceSoftware;
+
+      for (const auto& s : states) {
+        if (s.name[0] == '\0') {
+          continue;
+        }
+        CursorStateEntry entry;
+        entry.hotspot = {s.hotspot_x, s.hotspot_y};
+        entry.frame_duration = s.frame_duration;
+
+        if (s.use_animation && !s.frames.empty()) {
+          for (const auto& f : s.frames) {
+            CursorFrame frame;
+            frame.texture = f;
+            entry.frames.push_back(frame);
+          }
+        } else if (s.texture.IsValid()) {
+          CursorFrame frame;
+          frame.texture = s.texture;
+          entry.frames.push_back(frame);
+        }
+
+        data->states[s.name] = std::move(entry);
+      }
+
+      std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
+                             std::string(name_buf) + ".wcursorset";
+      AssetHandle new_handle = AssetSerializerRegistry::Create<CursorSetData>(
+          name_buf, AssetType::CursorSet, vfs_path, data);
+      if (new_handle.IsValid()) {
+        ScanProjectAssets();
+        if (scene()) {
+          scene()->SetCursorSetAsset(new_handle);
+          scene_dirty_ = true;
+        }
+      }
+
+      name_buf[0] = '\0';
+      states.clear();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      name_buf[0] = '\0';
+      states.clear();
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+}
+
 static AssetHandle CreateSpriteAsset(const std::string& vfs_path,
                                      const AssetHandle& texture_handle,
                                      float x, float y, float w, float h,
@@ -2847,6 +3003,16 @@ void EditorLayer::RenderProjectSettingsPopup() {
         if (AssetCombo(PrefixLabel("Skybox").c_str(), AssetType::Skybox,
                        skybox_handle, true, "(Default)")) {
           scene()->SetSkyboxAsset(skybox_handle);
+          scene_dirty_ = true;
+        }
+      }
+
+      ImGui::SeparatorText("Cursor");
+      {
+        AssetHandle cursor_handle = scene()->GetCursorSetAsset();
+        if (AssetCombo(PrefixLabel("Cursor Set").c_str(),
+                       AssetType::CursorSet, cursor_handle, true, "(None)")) {
+          scene()->SetCursorSetAsset(cursor_handle);
           scene_dirty_ = true;
         }
       }
@@ -3662,11 +3828,7 @@ void EditorLayer::RenderMainMenuBar() {
     ImGui::Text("Git Commit: %s", WIESEL_GIT_COMMIT);
     ImGui::Text("Build Type: %s", WIESEL_BUILD_TYPE);
 
-#ifdef WIESEL_BACKEND_SDL3
     ImGui::Text("Window Backend: SDL3");
-#else
-    ImGui::Text("Window Backend: GLFW");
-#endif
 
     auto props = Engine::renderer()->GetPhysicalDeviceProperties();
     uint32_t vk_major = VK_API_VERSION_MAJOR(props.apiVersion);

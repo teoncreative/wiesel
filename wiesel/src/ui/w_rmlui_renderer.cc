@@ -155,6 +155,7 @@ void RmlRenderInterface::BuildProjection() {
 void RmlRenderInterface::RenderGeometryWithPipeline(
     Pipeline* pipeline, Rml::CompiledGeometryHandle geometry,
     Rml::Vector2f translation, Rml::TextureHandle texture) {
+  PROFILE_ZONE_SCOPED_N("RmlUi::RenderGeometry");
   auto* compiled = reinterpret_cast<RmlCompiledGeometry*>(geometry);
   if (!compiled || !active_cmd_) {
     return;
@@ -184,6 +185,7 @@ void RmlRenderInterface::RenderGeometryWithPipeline(
 
 Rml::CompiledGeometryHandle RmlRenderInterface::CompileGeometry(
     Rml::Span<const Rml::Vertex> vertices, Rml::Span<const int> indices) {
+  PROFILE_ZONE_SCOPED_N("RmlUi::CompileGeometry");
   auto* compiled = new RmlCompiledGeometry();
 
   std::vector<RmlVertex> verts(vertices.size());
@@ -319,6 +321,7 @@ void RmlRenderInterface::EnableClipMask(bool enable) {
 void RmlRenderInterface::RenderToClipMask(Rml::ClipMaskOperation operation,
                                           Rml::CompiledGeometryHandle geometry,
                                           Rml::Vector2f translation) {
+  PROFILE_ZONE_SCOPED_N("RmlUi::RenderToClipMask");
   if (!active_cmd_) {
     return;
   }
@@ -414,6 +417,7 @@ std::shared_ptr<DescriptorSet> RmlRenderInterface::GetOrCreateDescriptor(
 void RmlRenderInterface::RenderToTexture(VkCommandBuffer cmd,
                                          Rml::Context* context,
                                          glm::vec2 size) {
+  PROFILE_ZONE_SCOPED_N("RmlUi::RenderToTexture");
   if (!context || !cmd) {
     return;
   }

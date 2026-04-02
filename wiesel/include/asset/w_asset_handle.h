@@ -38,6 +38,7 @@ enum class AssetType : uint8_t {
   SpriteController,
   UIDocument,
   UIStylesheet,
+  CursorSet,
   Count
 };
 

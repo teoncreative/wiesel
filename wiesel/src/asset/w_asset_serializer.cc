@@ -11,6 +11,7 @@
 #include "asset/w_asset_serializer.h"
 
 #include "animation/w_animation_controller.h"
+#include "cursor/w_cursor.h"
 #include "rendering/w_skybox.h"
 #include "rendering/w_sprite_asset.h"
 #include "util/w_logger.h"
@@ -441,11 +442,112 @@ static void RegisterSkyboxSerializer() {
   });
 }
 
+static void RegisterCursorSetSerializer() {
+  AssetSerializerRegistry::Register({
+      AssetType::CursorSet,
+      // Serialize
+      [](AssetHandle handle) -> nlohmann::json {
+        auto data = Engine::asset_manager().Get<CursorSetData>(handle);
+        nlohmann::json j;
+        if (!data) {
+          return j;
+        }
+        j["mode"] =
+            data->mode == CursorSetMode::ForceSoftware ? "software" : "auto";
+        nlohmann::json states_j = nlohmann::json::object();
+        for (const auto& [name, entry] : data->states) {
+          nlohmann::json state_j;
+          state_j["hotspot"] = {entry.hotspot.x, entry.hotspot.y};
+          state_j["size"] = {entry.size.x, entry.size.y};
+          if (entry.frames.size() == 1) {
+            state_j["texture"] = entry.frames[0].texture.ToString();
+          } else if (entry.frames.size() > 1) {
+            state_j["frame_duration"] = entry.frame_duration;
+            nlohmann::json frames_j = nlohmann::json::array();
+            for (const auto& frame : entry.frames) {
+              frames_j.push_back(frame.texture.ToString());
+            }
+            state_j["frames"] = frames_j;
+          }
+          states_j[name] = state_j;
+        }
+        j["states"] = states_j;
+        return j;
+      },
+      // Deserialize
+      [](AssetHandle handle, const nlohmann::json& j) -> bool {
+        auto data = std::make_shared<CursorSetData>();
+
+        if (j.contains("mode")) {
+          std::string mode_str = j["mode"].get<std::string>();
+          if (mode_str == "software") {
+            data->mode = CursorSetMode::ForceSoftware;
+          }
+        }
+
+        if (j.contains("states") && j["states"].is_object()) {
+          for (auto& [name, state_j] : j["states"].items()) {
+            CursorStateEntry entry;
+
+            if (state_j.contains("hotspot") && state_j["hotspot"].is_array() &&
+                state_j["hotspot"].size() >= 2) {
+              entry.hotspot = {state_j["hotspot"][0].get<int>(),
+                               state_j["hotspot"][1].get<int>()};
+            }
+            if (state_j.contains("size") && state_j["size"].is_array() &&
+                state_j["size"].size() >= 2) {
+              entry.size = {state_j["size"][0].get<int>(),
+                            state_j["size"][1].get<int>()};
+            }
+            if (state_j.contains("frame_duration")) {
+              entry.frame_duration = state_j["frame_duration"].get<float>();
+            }
+
+            // Single texture
+            if (state_j.contains("texture")) {
+              CursorFrame frame;
+              frame.texture = AssetHandle::FromString(
+                  state_j["texture"].get<std::string>());
+              if (frame.texture.IsValid()) {
+                Engine::asset_manager().AddDependency(handle, frame.texture);
+              }
+              entry.frames.push_back(frame);
+            }
+
+            // Multiple frames
+            if (state_j.contains("frames") && state_j["frames"].is_array()) {
+              for (const auto& frame_j : state_j["frames"]) {
+                CursorFrame frame;
+                if (frame_j.is_string()) {
+                  frame.texture =
+                      AssetHandle::FromString(frame_j.get<std::string>());
+                } else if (frame_j.is_object() && frame_j.contains("texture")) {
+                  frame.texture = AssetHandle::FromString(
+                      frame_j["texture"].get<std::string>());
+                }
+                if (frame.texture.IsValid()) {
+                  Engine::asset_manager().AddDependency(handle, frame.texture);
+                }
+                entry.frames.push_back(frame);
+              }
+            }
+
+            data->states[name] = std::move(entry);
+          }
+        }
+
+        Engine::asset_manager().Store(handle, data);
+        return true;
+      },
+  });
+}
+
 void InitializeAssetSerializers() {
   RegisterSpriteSerializer();
   RegisterSpriteAnimSerializer();
   RegisterSpriteControllerSerializer();
   RegisterSkyboxSerializer();
+  RegisterCursorSetSerializer();
 }
 
 }  // namespace Wiesel

@@ -47,6 +47,10 @@ class SdlAppWindow : public AppWindow {
   void SetClipboardText(const std::string& text) override;
   std::string GetClipboardText() override;
 
+  void SetCustomCursor(const uint8_t* pixels, int width, int height,
+                       int hotspot_x, int hotspot_y) override;
+  void ResetCustomCursor() override;
+
  private:
   static KeyCode TranslateKeyCode(SDL_Scancode scancode);
 
@@ -55,6 +59,7 @@ class SdlAppWindow : public AppWindow {
   WindowSize scale_;
 
   SDL_Window* handle_{};
+  SDL_Cursor* custom_cursor_ = nullptr;
   bool should_close_ = false;
   double prev_cursor_x_ = 0.0, prev_cursor_y_ = 0.0;
   bool cursor_relative_first_ = true;

@@ -16,6 +16,7 @@
 
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
+#include "cursor/w_cursor.h"
 #include "input/w_input.h"
 #include "w_engine.h"
 
@@ -169,6 +170,7 @@ void Application::Run() {
     window_->OnUpdate();
 
     Engine::audio().Update();
+    Engine::cursor_manager().Update(delta_time_);
     ExecuteQueue();
 
     if (!is_minimized_) {

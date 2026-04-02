@@ -54,6 +54,8 @@ const char* AssetTypeToString(AssetType type) {
       return "UIDocument";
     case AssetType::UIStylesheet:
       return "UIStylesheet";
+    case AssetType::CursorSet:
+      return "CursorSet";
     default:
       return "Unknown";
   }

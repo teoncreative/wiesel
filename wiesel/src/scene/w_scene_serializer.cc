@@ -111,6 +111,9 @@ std::string SceneSerializer::SerializeToString() const {
   if (scene_->GetSkyboxAsset().IsValid()) {
     root["skybox"] = scene_->GetSkyboxAsset().ToString();
   }
+  if (scene_->GetCursorSetAsset().IsValid()) {
+    root["cursor_set"] = scene_->GetCursorSetAsset().ToString();
+  }
   if (scene_->GetKeepAssetsLoaded()) {
     root["keep_assets_loaded"] = true;
   }
@@ -142,6 +145,14 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
       auto skybox_handle = AssetHandle::FromString(skybox_str);
       scene_->RequestAsset(skybox_handle);
       scene_->SetSkyboxAsset(skybox_handle);
+    }
+  }
+  if (root.contains("cursor_set") && root["cursor_set"].is_string()) {
+    std::string cursor_str = root["cursor_set"].get<std::string>();
+    if (!cursor_str.empty()) {
+      auto cursor_handle = AssetHandle::FromString(cursor_str);
+      scene_->RequestAsset(cursor_handle);
+      scene_->SetCursorSetAsset(cursor_handle);
     }
   }
   scene_->SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));

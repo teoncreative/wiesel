@@ -17,6 +17,7 @@
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
 #include <chrono>
+#include <cxxopts.hpp>
 #include <fstream>
 #include <future>
 #include <thread>
@@ -25,6 +26,7 @@
 #include "asset/w_asset_properties.h"
 #include "asset/w_asset_property_registry.h"
 #include "asset/w_asset_serializer.h"
+#include "cursor/w_cursor.h"
 #include "game/w_game_info.h"
 #include "input/w_input.h"
 #include "rendering/w_primitives.h"
@@ -42,12 +44,7 @@
 #include "util/w_dialogs.h"
 #include "util/w_platform.h"
 #include "util/w_thread_pool.h"
-#ifdef WIESEL_BACKEND_SDL3
 #include "window/w_sdlwindow.h"
-#else
-#include "window/w_glfwwindow.h"
-#endif
-#include <cxxopts.hpp>
 
 namespace Wiesel {
 
@@ -305,6 +302,7 @@ std::shared_ptr<ThreadPool> Engine::thread_pool_;
 std::shared_ptr<AudioManager> Engine::audio_manager_;
 std::shared_ptr<SceneManager> Engine::scene_manager_;
 std::shared_ptr<UIManager> Engine::ui_manager_;
+std::shared_ptr<CursorManager> Engine::cursor_manager_;
 std::shared_ptr<GameInfo> Engine::game_info_;
 AssetHandle Engine::primitive_cube_;
 AssetHandle Engine::primitive_sphere_;
@@ -513,11 +511,7 @@ void Engine::InitEngine(const EngineProperties& props) {
 }
 
 void Engine::InitWindow(const WindowProperties&& props) {
-#ifdef WIESEL_BACKEND_SDL3
   window_ = std::make_shared<SdlAppWindow>(std::move(props));
-#else
-  window_ = std::make_shared<GlfwAppWindow>(std::move(props));
-#endif
   Dialogs::Init();
 }
 
@@ -531,6 +525,7 @@ void Engine::InitRenderer(const RendererProperties&& props) {
   RegisterPrimitives();
   ui_manager_ = std::make_shared<UIManager>();
   ui_manager_->Init();
+  cursor_manager_ = std::make_shared<CursorManager>();
 }
 
 void Engine::InitApplication() {

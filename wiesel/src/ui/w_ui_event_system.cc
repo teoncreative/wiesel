@@ -336,6 +336,7 @@ entt::entity UIEventSystem::GetSelectedEntity(int player_index) const {
 // Update
 // ---------------------------------------------------------------------------
 void UIEventSystem::Update(Scene& scene, float delta_time) {
+  PROFILE_ZONE_SCOPED_N("UIEventSystem::Update");
   auto& registry = scene.GetRegistry();
 
   // Detect if mouse moved (skip hit testing if it hasn't)
@@ -384,6 +385,7 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
 // Mouse input processing (per-canvas, phase-based)
 // ---------------------------------------------------------------------------
 void UIEventSystem::ProcessMouseInput(Scene& scene) {
+  PROFILE_ZONE_SCOPED_N("UIEventSystem::ProcessMouseInput");
   auto& registry = scene.GetRegistry();
 
   float mouse_x = last_mouse_x_;
@@ -860,7 +862,7 @@ void UIEventSystem::UpdateButtonStates(entt::registry& registry) {
 // Keyboard/text forwarding to focused RmlUi document
 // ---------------------------------------------------------------------------
 
-// Map engine keycodes (GLFW-style, defined in w_keycodes.h) to RmlUi
+// Map engine keycodes (defined in w_keycodes.h) to RmlUi
 static Rml::Input::KeyIdentifier EngineKeyToRml(int key_code) {
   // Printable ASCII range
   if (key_code >= 'A' && key_code <= 'Z') {

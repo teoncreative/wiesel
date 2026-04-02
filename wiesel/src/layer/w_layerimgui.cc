@@ -18,12 +18,7 @@
 #include <ImGuizmo.h>
 // clang-format on
 
-#ifdef WIESEL_BACKEND_SDL3
 #include <backends/imgui_impl_sdl3.h>
-#else
-#include <GLFW/glfw3.h>
-#include "backends/imgui_impl_glfw.h"
-#endif
 #include "events/w_engineevents.h"
 #include "rendering/w_renderer.h"
 #include "util/imgui/imgui_theme.h"
@@ -130,11 +125,7 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
 
   // Shutdown both backends
   ImGui_ImplVulkan_Shutdown();
-#ifdef WIESEL_BACKEND_SDL3
   ImGui_ImplSDL3_Shutdown();
-#else
-  ImGui_ImplGlfw_Shutdown();
-#endif
 
   // Reinitialize window backend (must be done before Vulkan backend)
   Engine::renderer()->window_->ImGuiInit();

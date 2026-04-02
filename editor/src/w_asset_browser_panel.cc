@@ -359,7 +359,7 @@ void AssetBrowserPanel::Render(bool& open) {
           if (ImGui::MenuItem("Import")) {
             std::string import_vfs = browser_.CurrentVfsDir() + fe.name;
             AssetHandle new_handle =
-                ProjectLoader::ImportAsset(fe.name, fe.asset_type, import_vfs);
+                GameLoader::ImportAsset(fe.name, fe.asset_type, import_vfs);
             if (new_handle.IsValid()) {
               if (fe.asset_type == AssetType::Prefab ||
                   fe.asset_type == AssetType::Scene) {
@@ -509,6 +509,12 @@ void AssetBrowserPanel::Render(bool& open) {
         if (ImGui::MenuItem("Sprite Controller")) {
           if (callbacks_.on_show_create_spritecontroller) {
             callbacks_.on_show_create_spritecontroller();
+          }
+          ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Cursor Set")) {
+          if (callbacks_.on_show_create_cursorset) {
+            callbacks_.on_show_create_cursorset();
           }
           ImGui::CloseCurrentPopup();
         }

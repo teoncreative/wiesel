@@ -81,6 +81,12 @@ class AppWindow {
 
   virtual void WarpCursor(double x, double y);
 
+  // Custom cursor: set from RGBA pixel data. Pass nullptr to reset to default.
+  virtual void SetCustomCursor(const uint8_t* pixels, int width, int height,
+                               int hotspot_x, int hotspot_y) {}
+
+  virtual void ResetCustomCursor() {}
+
   // Keyboard modifier state
   virtual bool IsShiftDown() const { return false; }
 

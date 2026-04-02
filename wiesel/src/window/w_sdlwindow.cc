@@ -21,7 +21,7 @@
 
 namespace Wiesel {
 
-// Map SDL3 scancodes to engine KeyCode (GLFW-compatible values)
+// Map SDL3 scancodes to engine KeyCode
 KeyCode SdlAppWindow::TranslateKeyCode(SDL_Scancode scancode) {
   // clang-format off
   switch (scancode) {
@@ -471,6 +471,29 @@ std::string SdlAppWindow::GetClipboardText() {
     SDL_free(clip);
   }
   return result;
+}
+
+void SdlAppWindow::SetCustomCursor(const uint8_t* pixels, int width, int height,
+                                   int hotspot_x, int hotspot_y) {
+  ResetCustomCursor();
+  SDL_Surface* surface =
+      SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_ABGR8888,
+                            const_cast<uint8_t*>(pixels), width * 4);
+  if (surface) {
+    custom_cursor_ = SDL_CreateColorCursor(surface, hotspot_x, hotspot_y);
+    SDL_DestroySurface(surface);
+    if (custom_cursor_) {
+      SDL_SetCursor(custom_cursor_);
+    }
+  }
+}
+
+void SdlAppWindow::ResetCustomCursor() {
+  if (custom_cursor_) {
+    SDL_SetCursor(SDL_GetDefaultCursor());
+    SDL_DestroyCursor(custom_cursor_);
+    custom_cursor_ = nullptr;
+  }
 }
 
 const char** SdlAppWindow::GetRequiredInstanceExtensions(

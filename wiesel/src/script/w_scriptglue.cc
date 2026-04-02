@@ -16,6 +16,7 @@
 #include <imgui.h>
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
+#include "cursor/w_cursor.h"
 #include "input/w_input.h"
 #include "physics/w_collider.h"
 #include "physics/w_physics_world.h"
@@ -2414,6 +2415,19 @@ bool Internals_UIDocument_GetVisible(uint64_t scene_ptr, uint64_t entity_id) {
   return ui_doc.visible;
 }
 
+// --- Cursor bindings ---
+
+void Internals_Cursor_SetState(MonoString* state) {
+  char* cstr = mono_string_to_utf8(state);
+  Engine::cursor_manager().SetCursorState(cstr);
+  mono_free(cstr);
+}
+
+MonoString* Internals_Cursor_GetState() {
+  const auto& state = Engine::cursor_manager().GetCursorState();
+  return mono_string_new(mono_domain_get(), state.c_str());
+}
+
 void RegisterScriptGlue() {
   PROFILE_ZONE_SCOPED_N("RegisterScriptGlue");
   WIESEL_ADD_INTERNAL_CALL(Log_Info);
@@ -2790,6 +2804,10 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(UIDocument_GetBool);
   WIESEL_ADD_INTERNAL_CALL(UIDocument_SetVisible);
   WIESEL_ADD_INTERNAL_CALL(UIDocument_GetVisible);
+
+  // Cursor
+  WIESEL_ADD_INTERNAL_CALL(Cursor_SetState);
+  WIESEL_ADD_INTERNAL_CALL(Cursor_GetState);
 }
 
 }  // namespace Wiesel

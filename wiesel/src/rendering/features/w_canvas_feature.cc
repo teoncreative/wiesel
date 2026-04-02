@@ -601,6 +601,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // Pre-render RmlUi documents to offscreen textures.
   // This must happen before render passes since it creates GPU resources.
   {
+    PROFILE_ZONE_SCOPED_N("CanvasFeature::RmlUiPreRender");
     Renderer& renderer = *renderer_;
     auto rml_render_pass = rmlui_render_pass_;
     for (auto entity :

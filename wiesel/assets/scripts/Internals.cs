@@ -783,5 +783,11 @@ namespace WieselEngine
         public static extern void Console_LogWarning(string message);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Console_LogError(string message);
+
+        // Cursor
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Cursor_SetState(string state);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string Cursor_GetState();
     }
 }

@@ -5,8 +5,6 @@ option(ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
 option(ENABLE_VULKAN_VALIDATION "Enables Vulkan validation layer" OFF)
 option(ENABLE_TRACY "Enables tracy profiler" OFF)
 option(ENABLE_GPU_PROFILING "Enable per-pass GPU timing queries" OFF)
-set(WIESEL_WINDOW_BACKEND "SDL3" CACHE STRING "Window backend: GLFW or SDL3")
-set_property(CACHE WIESEL_WINDOW_BACKEND PROPERTY STRINGS "GLFW" "SDL3")
 
 if (UNIX)
     execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
@@ -89,15 +87,6 @@ set(INCLUDE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include)
 file(GLOB_RECURSE SOURCES "${SOURCES_DIRECTORY}/*.cc")
 file(GLOB_RECURSE HEADERS "${INCLUDE_DIRECTORY}/*.h")
 
-# Exclude inactive window backend
-if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
-    list(FILTER SOURCES EXCLUDE REGEX "w_glfwwindow\\.cc$")
-    list(FILTER HEADERS EXCLUDE REGEX "w_glfwwindow\\.h$")
-else()
-    list(FILTER SOURCES EXCLUDE REGEX "w_sdlwindow\\.cc$")
-    list(FILTER HEADERS EXCLUDE REGEX "w_sdlwindow\\.h$")
-endif()
-
 message("ENGINE_DIRECTORY: " ${ENGINE_DIRECTORY})
 message("SOURCES_DIRECTORY: " ${SOURCES_DIRECTORY})
 message("INCLUDE_DIRECTORY: " ${INCLUDE_DIRECTORY})
@@ -117,12 +106,9 @@ file(
         "${VENDOR_DIR}/imgui/misc/cpp/*.h"
         "${VENDOR_DIR}/imgui/*.h"
 )
-if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
-    file(GLOB IMGUI_BACKEND_FILES "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp")
-else()
-    file(GLOB IMGUI_BACKEND_FILES "${VENDOR_DIR}/imgui/backends/imgui_impl_glfw.cpp")
-endif()
-list(APPEND IMGUI_FILES ${IMGUI_BACKEND_FILES})
+list(APPEND IMGUI_FILES
+        "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp"
+)
 file(
         GLOB IMGUIZMO_FILES
         "${VENDOR_DIR}/imguizmo/GraphEditor.cpp"
@@ -207,14 +193,7 @@ target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/glm)
 if (VULKAN_FOUND)
     message(STATUS "Found Vulkan. Including and linking...")
     target_link_libraries(wiesel PUBLIC Vulkan::Vulkan)
-    if(WIESEL_WINDOW_BACKEND STREQUAL "SDL3")
-        target_link_libraries(wiesel PUBLIC SDL3::SDL3-static)
-        target_compile_definitions(wiesel PUBLIC WIESEL_BACKEND_SDL3=1)
-    else()
-        target_include_directories(wiesel PUBLIC ${GLFW_INCLUDE_DIRS})
-        target_link_libraries(wiesel PUBLIC glfw ${GLFW_LIBRARIES})
-        target_compile_definitions(wiesel PUBLIC WIESEL_BACKEND_GLFW=1)
-    endif()
+    target_link_libraries(wiesel PUBLIC SDL3::SDL3-static)
 endif (VULKAN_FOUND)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)

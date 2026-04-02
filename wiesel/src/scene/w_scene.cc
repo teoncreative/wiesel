@@ -24,6 +24,7 @@
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
+#include "cursor/w_cursor.h"
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
 #include "rendering/features/w_billboard_feature.h"
@@ -72,6 +73,11 @@ std::shared_ptr<Skybox> Scene::GetSkybox() {
     return skybox_;
   }
   return default_skybox_;
+}
+
+void Scene::SetCursorSetAsset(AssetHandle handle) {
+  cursor_set_asset_ = handle;
+  Engine::cursor_manager().SetCursorSet(handle);
 }
 
 void Scene::SetSkyboxAsset(AssetHandle handle) {

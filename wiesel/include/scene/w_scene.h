@@ -92,6 +92,10 @@ class Scene {
 
   bool HasCustomSkybox() const { return skybox_ != nullptr; }
 
+  void SetCursorSetAsset(AssetHandle handle);
+
+  AssetHandle GetCursorSetAsset() const { return cursor_set_asset_; }
+
   void SetRenderResolution(glm::vec2 resolution) {
     render_resolution_ = resolution;
   }
@@ -248,6 +252,7 @@ class Scene {
   std::shared_ptr<Skybox> skybox_;
   std::shared_ptr<Skybox> default_skybox_;
   AssetHandle skybox_asset_;
+  AssetHandle cursor_set_asset_;
   bool keep_assets_loaded_ =
       false;  // If true, assets are never unloaded on scene switch
   bool preload_assets_ =
