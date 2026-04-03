@@ -97,7 +97,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1FileWatcher.html',''); 
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__filewatcher_8hpp_source.html">w_filewatcher.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__filewatcher_8h_source.html">w_filewatcher.h</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for Wiesel::FileWatcher:</div>
 <div class="dyncontent">
@@ -127,6 +127,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a747cbcc2a61612a6c3f10fe9b1bdac3e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a96679762e5a063d465b11c41556be1b4" id="r_a96679762e5a063d465b11c41556be1b4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1FileWatcher.html#a96679762e5a063d465b11c41556be1b4">Watch</a> (const std::filesystem::path &amp;directory, bool recursive=true)</td></tr>
 <tr class="separator:a96679762e5a063d465b11c41556be1b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ace1192d033dda7ae6041fde66f9fc039" id="r_ace1192d033dda7ae6041fde66f9fc039"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1FileWatcher.html#ace1192d033dda7ae6041fde66f9fc039">SetExtensionFilter</a> (const std::string &amp;ext)</td></tr>
+<tr class="separator:ace1192d033dda7ae6041fde66f9fc039"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad25ec55deacd67962eb04de8b5b4d0f6" id="r_ad25ec55deacd67962eb04de8b5b4d0f6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1FileWatcher.html#ad25ec55deacd67962eb04de8b5b4d0f6">SetPatternFilter</a> (const std::string &amp;pattern)</td></tr>
+<tr class="separator:ad25ec55deacd67962eb04de8b5b4d0f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a71ef1259ffef55421c5d27a705fc2191" id="r_a71ef1259ffef55421c5d27a705fc2191"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1FileWatcher.html#a71ef1259ffef55421c5d27a705fc2191">Stop</a> ()</td></tr>
 <tr class="separator:a71ef1259ffef55421c5d27a705fc2191"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa044fa1a0996db1ecac4af2b5ba04b49" id="r_aa044fa1a0996db1ecac4af2b5ba04b49"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1FileWatcher.html#aa044fa1a0996db1ecac4af2b5ba04b49">Poll</a> ()</td></tr>
@@ -239,9 +243,6 @@ Public Member Functions</h2></td></tr>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">bool Wiesel::FileWatcher::IsWatching </td>
@@ -250,11 +251,6 @@ Public Member Functions</h2></td></tr>
           <td> const</td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -269,6 +265,42 @@ Public Member Functions</h2></td></tr>
           <td class="memname">bool Wiesel::FileWatcher::Poll </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ace1192d033dda7ae6041fde66f9fc039" name="ace1192d033dda7ae6041fde66f9fc039"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ace1192d033dda7ae6041fde66f9fc039">&#9670;&#160;</a></span>SetExtensionFilter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::FileWatcher::SetExtensionFilter </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>ext</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ad25ec55deacd67962eb04de8b5b4d0f6" name="ad25ec55deacd67962eb04de8b5b4d0f6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad25ec55deacd67962eb04de8b5b4d0f6">&#9670;&#160;</a></span>SetPatternFilter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::FileWatcher::SetPatternFilter </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>pattern</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -322,7 +354,7 @@ Public Member Functions</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__filewatcher_8hpp_source.html">w_filewatcher.hpp</a></li>
+<li><a class="el" href="w__filewatcher_8h_source.html">w_filewatcher.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

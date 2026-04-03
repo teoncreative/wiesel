@@ -18,9 +18,8 @@ var structWiesel_1_1RigidBodyComponent =
     [ "SetMassRuntime", "structWiesel_1_1RigidBodyComponent.html#a4b5754460ab7cb5b8f04c7e5a92d6e72", null ],
     [ "SetRestitutionRuntime", "structWiesel_1_1RigidBodyComponent.html#a2236938edcaf8350c698b9c79ee2babb", null ],
     [ "angular_damping", "structWiesel_1_1RigidBodyComponent.html#a242e9d841b37c8f9bed5a04d2f1176b0", null ],
-    [ "bt_body_ptr", "structWiesel_1_1RigidBodyComponent.html#a810602ab1db91da8b77c2506c41c61de", null ],
+    [ "body_id_raw", "structWiesel_1_1RigidBodyComponent.html#ab8db88972792bcb996b43a488c4621cb", null ],
     [ "friction", "structWiesel_1_1RigidBodyComponent.html#a6e7d8ba9f4f2f702dab42ffad117437e", null ],
-    [ "is_dirty", "structWiesel_1_1RigidBodyComponent.html#a7f028a0dccfef017ff0c7f0b69d67dd0", null ],
     [ "linear_damping", "structWiesel_1_1RigidBodyComponent.html#abfc3331b4c87d64016216264c790e2c7", null ],
     [ "lock_position_x", "structWiesel_1_1RigidBodyComponent.html#ac5a15de603c0c7bbdb5968a1b98b4269", null ],
     [ "lock_position_y", "structWiesel_1_1RigidBodyComponent.html#afdc4130c461f431ff9d0cffb6a594159", null ],
@@ -29,6 +28,8 @@ var structWiesel_1_1RigidBodyComponent =
     [ "lock_rotation_y", "structWiesel_1_1RigidBodyComponent.html#ad765f0ddbb495a8ae178de594fae09f4", null ],
     [ "lock_rotation_z", "structWiesel_1_1RigidBodyComponent.html#ae95b514e71aa07265961e0f09d372577", null ],
     [ "mass", "structWiesel_1_1RigidBodyComponent.html#a3f6a4e38dbe6f406907942b18fdfe061", null ],
+    [ "needs_recreate", "structWiesel_1_1RigidBodyComponent.html#a1b732ac1fa492545826fb5a80dc0523d", null ],
+    [ "physics_system_ptr", "structWiesel_1_1RigidBodyComponent.html#a69df17a90da69f02508dd2de778771c4", null ],
     [ "restitution", "structWiesel_1_1RigidBodyComponent.html#ae94e1502af024ec77c56b14104bc46f2", null ],
     [ "type", "structWiesel_1_1RigidBodyComponent.html#ac2c755a72d19faa7dae69b987e24936e", null ]
 ];

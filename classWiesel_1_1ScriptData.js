@@ -1,6 +1,6 @@
 var classWiesel_1_1ScriptData =
 [
-    [ "ScriptData", "classWiesel_1_1ScriptData.html#a5d620c623a04fdca5ce28791d7470b5d", null ],
+    [ "ScriptData", "classWiesel_1_1ScriptData.html#a8af25be4a8d6b07e5da2852b937006a4", null ],
     [ "fields", "classWiesel_1_1ScriptData.html#a9d48ceac77f682f6c352bbbfada5cc3b", null ],
     [ "mono_class", "classWiesel_1_1ScriptData.html#a564332b3420f45151a8d2dd1e2730fde", null ],
     [ "on_cancel_method", "classWiesel_1_1ScriptData.html#a0487f45de83f71ffa314358d4dfa526b", null ],
@@ -24,6 +24,8 @@ var classWiesel_1_1ScriptData =
     [ "on_trigger_enter_method", "classWiesel_1_1ScriptData.html#ab56e20d5ca5229ee97fa3fb84bd99a42", null ],
     [ "on_trigger_exit_method", "classWiesel_1_1ScriptData.html#aa99f36678e620885db3fdf430e0f89a8", null ],
     [ "on_trigger_stay_method", "classWiesel_1_1ScriptData.html#ac27478c576502875179e32604e11746f", null ],
+    [ "on_ui_data_changed_method", "classWiesel_1_1ScriptData.html#a3a0c58c4e9433ecbe2a9d75069136099", null ],
+    [ "on_ui_event_method", "classWiesel_1_1ScriptData.html#a5d44f6696d20e2aded2388ecbdb91b33", null ],
     [ "on_update_method", "classWiesel_1_1ScriptData.html#af5f5974128746c7041f14ccce2eb7347", null ],
     [ "set_handle_method", "classWiesel_1_1ScriptData.html#a2e46c69cc50a64c39004d9d9c21fe629", null ]
 ];

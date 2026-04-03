@@ -92,18 +92,24 @@ $(document).ready(function(){initNavTree('classWiesel_1_1GameLoader.html',''); i
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="classWiesel_1_1GameLoader-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">Wiesel::GameLoader Class Reference</div></div>
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__game__loader_8hpp_source.html">w_game_loader.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__game__loader_8h_source.html">w_game_loader.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1GameLoader_1_1MetaFileData.html">MetaFileData</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:a453f75f6a60f6b2334bd0b71a9d01b8b" id="r_a453f75f6a60f6b2334bd0b71a9d01b8b"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#a453f75f6a60f6b2334bd0b71a9d01b8b">RegisterFn</a> = std::function&lt; <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>(const std::string &amp;, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a>, const std::string &amp;)&gt;</td></tr>
+<tr class="separator:a453f75f6a60f6b2334bd0b71a9d01b8b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -111,17 +117,42 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:a6473891b62a1d48492b100946aa6e490"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9de389f5ea57eb5c745db1a18301edda" id="r_a9de389f5ea57eb5c745db1a18301edda"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#a9de389f5ea57eb5c745db1a18301edda">ScanAssets</a> ()</td></tr>
 <tr class="separator:a9de389f5ea57eb5c745db1a18301edda"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab3ba9afde843f7a940d19f251a0147f4" id="r_ab3ba9afde843f7a940d19f251a0147f4"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#ab3ba9afde843f7a940d19f251a0147f4">ScanVfsPrefix</a> (const std::string &amp;prefix, <a class="el" href="classWiesel_1_1GameLoader.html#a453f75f6a60f6b2334bd0b71a9d01b8b">RegisterFn</a> register_fn, std::vector&lt; std::string &gt; &amp;scenes_to_preload)</td></tr>
+<tr class="separator:ab3ba9afde843f7a940d19f251a0147f4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab87184f44f45b6ab190b37fa1c777bcb" id="r_ab87184f44f45b6ab190b37fa1c777bcb"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#ab87184f44f45b6ab190b37fa1c777bcb">ApplyRenderOptions</a> (const <a class="el" href="structWiesel_1_1GameInfo.html">GameInfo</a> &amp;info)</td></tr>
 <tr class="separator:ab87184f44f45b6ab190b37fa1c777bcb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a593984e65999d4dd2868b83a9deef956" id="r_a593984e65999d4dd2868b83a9deef956"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#a593984e65999d4dd2868b83a9deef956">CaptureRenderOptions</a> (<a class="el" href="structWiesel_1_1RenderOptionsSerialized.html">RenderOptionsSerialized</a> &amp;out_opts)</td></tr>
+<tr class="separator:a593984e65999d4dd2868b83a9deef956"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5795caf72abb82be7d4621cd259da984" id="r_a5795caf72abb82be7d4621cd259da984"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#a5795caf72abb82be7d4621cd259da984">ApplyInputSettings</a> (const <a class="el" href="structWiesel_1_1GameInfo.html">GameInfo</a> &amp;info)</td></tr>
 <tr class="separator:a5795caf72abb82be7d4621cd259da984"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afd75d1f16a0d72943553c700de9833a1" id="r_afd75d1f16a0d72943553c700de9833a1"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#afd75d1f16a0d72943553c700de9833a1">LoadStartScene</a> (const <a class="el" href="structWiesel_1_1GameInfo.html">GameInfo</a> &amp;info)</td></tr>
 <tr class="separator:afd75d1f16a0d72943553c700de9833a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acac4124e478783b2cb88ae59224bcf36" id="r_acac4124e478783b2cb88ae59224bcf36"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#acac4124e478783b2cb88ae59224bcf36">LoadAll</a> (const <a class="el" href="structWiesel_1_1GameInfo.html">GameInfo</a> &amp;info, const std::filesystem::path &amp;assets_dir)</td></tr>
 <tr class="separator:acac4124e478783b2cb88ae59224bcf36"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48d9e0dabf1aea9ffbc59919f574e188" id="r_a48d9e0dabf1aea9ffbc59919f574e188"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#a48d9e0dabf1aea9ffbc59919f574e188">ImportAsset</a> (const std::string &amp;name, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, const std::string &amp;vfs_path)</td></tr>
+<tr class="separator:a48d9e0dabf1aea9ffbc59919f574e188"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5302a5a79be4580a697eebf85aa244a8" id="r_a5302a5a79be4580a697eebf85aa244a8"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#a5302a5a79be4580a697eebf85aa244a8">WriteMetaFile</a> (const std::filesystem::path &amp;meta_path, const <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &amp;handle, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, const void *properties=nullptr)</td></tr>
+<tr class="separator:a5302a5a79be4580a697eebf85aa244a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad936ad2bedbc7015a65eeb7427225087" id="r_ad936ad2bedbc7015a65eeb7427225087"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structWiesel_1_1GameLoader_1_1MetaFileData.html">MetaFileData</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#ad936ad2bedbc7015a65eeb7427225087">ReadMetaFile</a> (const std::filesystem::path &amp;meta_path)</td></tr>
 <tr class="separator:ad936ad2bedbc7015a65eeb7427225087"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aca8cddef71a9cd2890b429bb99acf8d0" id="r_aca8cddef71a9cd2890b429bb99acf8d0"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structWiesel_1_1GameLoader_1_1MetaFileData.html">MetaFileData</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1GameLoader.html#aca8cddef71a9cd2890b429bb99acf8d0">ReadMetaFile</a> (const nlohmann::json &amp;j)</td></tr>
+<tr class="separator:aca8cddef71a9cd2890b429bb99acf8d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Typedef Documentation</h2>
+<a id="a453f75f6a60f6b2334bd0b71a9d01b8b" name="a453f75f6a60f6b2334bd0b71a9d01b8b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a453f75f6a60f6b2334bd0b71a9d01b8b">&#9670;&#160;</a></span>RegisterFn</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">using <a class="el" href="classWiesel_1_1GameLoader.html#a453f75f6a60f6b2334bd0b71a9d01b8b">Wiesel::GameLoader::RegisterFn</a> =  std::function&lt;<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>(const std::string&amp;, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a>, const std::string&amp;)&gt;</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="a5795caf72abb82be7d4621cd259da984" name="a5795caf72abb82be7d4621cd259da984"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a5795caf72abb82be7d4621cd259da984">&#9670;&#160;</a></span>ApplyInputSettings()</h2>
@@ -164,6 +195,74 @@ Static Public Member Functions</h2></td></tr>
           <td class="paramtype">const <a class="el" href="structWiesel_1_1GameInfo.html">GameInfo</a> &amp;&#160;</td>
           <td class="paramname"><em>info</em></td><td>)</td>
           <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a593984e65999d4dd2868b83a9deef956" name="a593984e65999d4dd2868b83a9deef956"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a593984e65999d4dd2868b83a9deef956">&#9670;&#160;</a></span>CaptureRenderOptions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void Wiesel::GameLoader::CaptureRenderOptions </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structWiesel_1_1RenderOptionsSerialized.html">RenderOptionsSerialized</a> &amp;&#160;</td>
+          <td class="paramname"><em>out_opts</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a48d9e0dabf1aea9ffbc59919f574e188" name="a48d9e0dabf1aea9ffbc59919f574e188"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a48d9e0dabf1aea9ffbc59919f574e188">&#9670;&#160;</a></span>ImportAsset()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> Wiesel::GameLoader::ImportAsset </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a>&#160;</td>
+          <td class="paramname"><em>type</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>vfs_path</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
   </td>
@@ -263,8 +362,34 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="aca8cddef71a9cd2890b429bb99acf8d0" name="aca8cddef71a9cd2890b429bb99acf8d0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aca8cddef71a9cd2890b429bb99acf8d0">&#9670;&#160;</a></span>ReadMetaFile() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="structWiesel_1_1GameLoader_1_1MetaFileData.html">MetaFileData</a> Wiesel::GameLoader::ReadMetaFile </td>
+          <td>(</td>
+          <td class="paramtype">const nlohmann::json &amp;&#160;</td>
+          <td class="paramname"><em>j</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="ad936ad2bedbc7015a65eeb7427225087" name="ad936ad2bedbc7015a65eeb7427225087"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad936ad2bedbc7015a65eeb7427225087">&#9670;&#160;</a></span>ReadMetaFile()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad936ad2bedbc7015a65eeb7427225087">&#9670;&#160;</a></span>ReadMetaFile() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -314,8 +439,98 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="ab3ba9afde843f7a940d19f251a0147f4" name="ab3ba9afde843f7a940d19f251a0147f4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab3ba9afde843f7a940d19f251a0147f4">&#9670;&#160;</a></span>ScanVfsPrefix()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void Wiesel::GameLoader::ScanVfsPrefix </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>prefix</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1GameLoader.html#a453f75f6a60f6b2334bd0b71a9d01b8b">RegisterFn</a>&#160;</td>
+          <td class="paramname"><em>register_fn</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>scenes_to_preload</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a5302a5a79be4580a697eebf85aa244a8" name="a5302a5a79be4580a697eebf85aa244a8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5302a5a79be4580a697eebf85aa244a8">&#9670;&#160;</a></span>WriteMetaFile()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void Wiesel::GameLoader::WriteMetaFile </td>
+          <td>(</td>
+          <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
+          <td class="paramname"><em>meta_path</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &amp;&#160;</td>
+          <td class="paramname"><em>handle</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a>&#160;</td>
+          <td class="paramname"><em>type</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>properties</em> = <code>nullptr</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__game__loader_8hpp_source.html">w_game_loader.hpp</a></li>
+<li><a class="el" href="w__game__loader_8h_source.html">w_game_loader.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

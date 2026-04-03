@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('structWiesel_1_1RenderStats.html','');
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__renderer_8hpp_source.html">w_renderer.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__renderer_8h_source.html">w_renderer.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -123,6 +123,20 @@ Public Attributes</h2></td></tr>
 <tr class="separator:afee2ef1b733d55e2643dd6e8461c3280"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab0a186004af5590a59fd6d0e5a85ba5e" id="r_ab0a186004af5590a59fd6d0e5a85ba5e"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#ab0a186004af5590a59fd6d0e5a85ba5e">frames_in_flight</a> = 0</td></tr>
 <tr class="separator:ab0a186004af5590a59fd6d0e5a85ba5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5bdecb77428a41ed3977dacd35cfa108" id="r_a5bdecb77428a41ed3977dacd35cfa108"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#a5bdecb77428a41ed3977dacd35cfa108">gpu_memory_used</a> = 0</td></tr>
+<tr class="separator:a5bdecb77428a41ed3977dacd35cfa108"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a09750951f1b9f3e01ed2741b658376af" id="r_a09750951f1b9f3e01ed2741b658376af"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#a09750951f1b9f3e01ed2741b658376af">gpu_memory_budget</a> = 0</td></tr>
+<tr class="separator:a09750951f1b9f3e01ed2741b658376af"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5449eb481ef2c363bb5027aa7b0c9c06" id="r_a5449eb481ef2c363bb5027aa7b0c9c06"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#a5449eb481ef2c363bb5027aa7b0c9c06">gpu_allocation_count</a> = 0</td></tr>
+<tr class="separator:a5449eb481ef2c363bb5027aa7b0c9c06"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae83cb5d0e1bc4066f2a28c3aedbeaaef" id="r_ae83cb5d0e1bc4066f2a28c3aedbeaaef"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#ae83cb5d0e1bc4066f2a28c3aedbeaaef">gpu_allocations_per_second</a> = 0</td></tr>
+<tr class="separator:ae83cb5d0e1bc4066f2a28c3aedbeaaef"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3357134adcc3451feec083c75d983d03" id="r_a3357134adcc3451feec083c75d983d03"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#a3357134adcc3451feec083c75d983d03">texture_memory</a> = 0</td></tr>
+<tr class="separator:a3357134adcc3451feec083c75d983d03"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a323a5f4611be0ed65285d888e85dec8e" id="r_a323a5f4611be0ed65285d888e85dec8e"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#a323a5f4611be0ed65285d888e85dec8e">texture_count</a> = 0</td></tr>
+<tr class="separator:a323a5f4611be0ed65285d888e85dec8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a27e4838210caf1464cbff588db3e0e48" id="r_a27e4838210caf1464cbff588db3e0e48"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RenderStats.html#a27e4838210caf1464cbff588db3e0e48">deletion_queue_pending</a> = 0</td></tr>
+<tr class="separator:a27e4838210caf1464cbff588db3e0e48"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="a1b3ec384d43bf72c840f30b7651824d0" name="a1b3ec384d43bf72c840f30b7651824d0"></a>
@@ -130,9 +144,6 @@ Public Attributes</h2></td></tr>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void Wiesel::RenderStats::Reset </td>
@@ -141,16 +152,25 @@ Public Attributes</h2></td></tr>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
 </div>
 <h2 class="groupheader">Member Data Documentation</h2>
+<a id="a27e4838210caf1464cbff588db3e0e48" name="a27e4838210caf1464cbff588db3e0e48"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a27e4838210caf1464cbff588db3e0e48">&#9670;&#160;</a></span>deletion_queue_pending</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t Wiesel::RenderStats::deletion_queue_pending = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="afeb28d8ddfda346964a6551d1d78b321" name="afeb28d8ddfda346964a6551d1d78b321"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#afeb28d8ddfda346964a6551d1d78b321">&#9670;&#160;</a></span>draw_calls</h2>
 
@@ -187,6 +207,62 @@ Public Attributes</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">uint32_t Wiesel::RenderStats::frames_in_flight = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a5449eb481ef2c363bb5027aa7b0c9c06" name="a5449eb481ef2c363bb5027aa7b0c9c06"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5449eb481ef2c363bb5027aa7b0c9c06">&#9670;&#160;</a></span>gpu_allocation_count</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t Wiesel::RenderStats::gpu_allocation_count = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ae83cb5d0e1bc4066f2a28c3aedbeaaef" name="ae83cb5d0e1bc4066f2a28c3aedbeaaef"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae83cb5d0e1bc4066f2a28c3aedbeaaef">&#9670;&#160;</a></span>gpu_allocations_per_second</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t Wiesel::RenderStats::gpu_allocations_per_second = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a09750951f1b9f3e01ed2741b658376af" name="a09750951f1b9f3e01ed2741b658376af"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a09750951f1b9f3e01ed2741b658376af">&#9670;&#160;</a></span>gpu_memory_budget</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t Wiesel::RenderStats::gpu_memory_budget = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a5bdecb77428a41ed3977dacd35cfa108" name="a5bdecb77428a41ed3977dacd35cfa108"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5bdecb77428a41ed3977dacd35cfa108">&#9670;&#160;</a></span>gpu_memory_used</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t Wiesel::RenderStats::gpu_memory_used = 0</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -235,6 +311,34 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a323a5f4611be0ed65285d888e85dec8e" name="a323a5f4611be0ed65285d888e85dec8e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a323a5f4611be0ed65285d888e85dec8e">&#9670;&#160;</a></span>texture_count</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t Wiesel::RenderStats::texture_count = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a3357134adcc3451feec083c75d983d03" name="a3357134adcc3451feec083c75d983d03"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3357134adcc3451feec083c75d983d03">&#9670;&#160;</a></span>texture_memory</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t Wiesel::RenderStats::texture_memory = 0</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a4362aa29e3b97015743ba0085ec21d35" name="a4362aa29e3b97015743ba0085ec21d35"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4362aa29e3b97015743ba0085ec21d35">&#9670;&#160;</a></span>triangles</h2>
 
@@ -264,7 +368,7 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li><a class="el" href="w__renderer_8hpp_source.html">w_renderer.hpp</a></li>
+<li><a class="el" href="w__renderer_8h_source.html">w_renderer.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

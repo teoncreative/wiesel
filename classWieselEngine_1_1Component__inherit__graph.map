@@ -1,0 +1,39 @@
+<map id="WieselEngine.Component" name="WieselEngine.Component">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,488,195,513"/>
+<area shape="rect" id="Node000002" href="$classWieselEngine_1_1AnimatorComponent.html" title=" " alt="" coords="253,5,503,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="98,474,102,390,109,333,120,272,138,209,163,148,197,91,241,41,259,29,262,33,244,45,201,94,168,150,143,211,125,273,114,334,107,390,103,474"/>
+<area shape="rect" id="Node000003" href="$classWieselEngine_1_1AudioSourceComponent.html" title=" " alt="" coords="281,55,475,95"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="100,474,108,401,130,301,148,248,172,196,203,147,241,105,259,93,279,83,282,88,262,97,244,109,207,151,177,198,153,250,135,303,113,402,105,475"/>
+<area shape="rect" id="Node000004" href="$classWieselEngine_1_1BoxColliderComponent.html" title=" " alt="" coords="283,119,473,159"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="102,474,114,411,138,329,157,285,179,243,207,203,241,169,260,156,282,147,284,152,263,161,244,173,211,207,184,246,161,288,143,331,119,413,107,475"/>
+<area shape="rect" id="Node000005" href="$classWieselEngine_1_1CameraComponent.html" title=" " alt="" coords="258,184,498,209"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="104,474,118,419,144,349,162,313,184,278,211,246,241,219,260,207,263,212,244,223,214,250,189,281,167,316,149,352,123,421,109,475"/>
+<area shape="rect" id="Node000006" href="$classWieselEngine_1_1CanvasComponent.html" title=" " alt="" coords="259,233,497,259"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="107,474,124,428,152,372,191,316,215,291,241,269,266,256,268,261,244,274,218,295,195,319,157,375,129,430,112,475"/>
+<area shape="rect" id="Node000007" href="$classWieselEngine_1_1CanvasImageComponent.html" title=" " alt="" coords="277,283,479,323"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="113,474,163,404,199,365,241,333,275,317,278,322,244,338,203,369,167,407,118,478"/>
+<area shape="rect" id="Node000008" href="$classWieselEngine_1_1CanvasRectComponent.html" title=" " alt="" coords="245,348,511,373"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="120,476,172,428,205,404,242,384,277,371,279,376,244,388,208,408,175,433,124,480"/>
+<area shape="rect" id="Node000009" href="$classWieselEngine_1_1LightDirectComponent.html" title=" " alt="" coords="285,398,471,438"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="145,481,242,447,286,436,287,441,243,453,147,486"/>
+<area shape="rect" id="Node000010" href="$classWieselEngine_1_1LightPointComponent.html" title=" " alt="" coords="251,463,505,488"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="208,488,250,484,251,490,209,493"/>
+<area shape="rect" id="Node000011" href="$classWieselEngine_1_1ModelComponent.html" title=" " alt="" coords="263,512,493,537"/>
+<area shape="poly" id="edge10_Node000001_Node000011" title=" " alt="" coords="209,507,264,512,263,517,208,513"/>
+<area shape="rect" id="Node000012" href="$classWieselEngine_1_1RectTransformComponent.html" title=" " alt="" coords="274,562,482,602"/>
+<area shape="poly" id="edge11_Node000001_Node000012" title=" " alt="" coords="150,516,243,546,292,559,291,565,242,551,148,521"/>
+<area shape="rect" id="Node000013" href="$classWieselEngine_1_1RigidBodyComponent.html" title=" " alt="" coords="251,627,505,652"/>
+<area shape="poly" id="edge12_Node000001_Node000013" title=" " alt="" coords="124,521,176,568,209,592,244,612,280,624,278,629,242,616,206,596,173,572,121,525"/>
+<area shape="rect" id="Node000014" href="$classWieselEngine_1_1SphereColliderComponent.html" title=" " alt="" coords="273,677,483,717"/>
+<area shape="poly" id="edge13_Node000001_Node000014" title=" " alt="" coords="118,524,168,593,203,630,244,661,274,675,272,680,241,666,200,634,164,596,114,527"/>
+<area shape="rect" id="Node000015" href="$classWieselEngine_1_1SpriteAnimatorComponent.html" title=" " alt="" coords="272,741,484,781"/>
+<area shape="poly" id="edge14_Node000001_Node000015" title=" " alt="" coords="112,525,130,570,158,624,196,680,219,705,244,726,273,742,271,747,241,731,215,709,192,683,153,627,125,572,107,527"/>
+<area shape="rect" id="Node000016" href="$classWieselEngine_1_1SpriteRendererComponent.html" title=" " alt="" coords="273,805,483,845"/>
+<area shape="poly" id="edge15_Node000001_Node000016" title=" " alt="" coords="109,526,123,582,149,654,167,692,188,728,214,762,244,791,274,807,271,812,241,795,210,765,184,731,162,694,144,656,118,584,104,528"/>
+<area shape="rect" id="Node000017" href="$classWieselEngine_1_1TextComponent.html" title=" " alt="" coords="270,869,486,895"/>
+<area shape="poly" id="edge16_Node000001_Node000017" title=" " alt="" coords="106,527,116,594,139,684,157,731,180,777,209,819,244,855,271,870,268,875,241,859,205,822,175,779,152,733,134,685,111,595,101,527"/>
+<area shape="rect" id="Node000018" href="$classWieselEngine_1_1TransformComponent.html" title=" " alt="" coords="251,919,505,944"/>
+<area shape="poly" id="edge17_Node000001_Node000018" title=" " alt="" coords="105,526,111,602,119,651,132,705,150,760,174,813,205,862,244,904,263,916,260,921,241,908,201,865,169,815,145,761,127,706,114,652,106,603,99,527"/>
+<area shape="rect" id="Node000019" href="$classWieselEngine_1_1UIDocumentComponent.html" title=" " alt="" coords="243,968,513,993"/>
+<area shape="poly" id="edge18_Node000001_Node000019" title=" " alt="" coords="103,527,107,611,114,666,126,727,143,789,168,849,201,905,244,953,262,965,259,970,241,957,197,908,163,852,138,790,120,728,109,667,102,611,98,527"/>
+</map>

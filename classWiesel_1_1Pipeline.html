@@ -99,7 +99,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1Pipeline.html',''); ini
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__pipeline_8hpp_source.html">w_pipeline.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__pipeline_8h_source.html">w_pipeline.h</a>&gt;</code></p>
 <div class="dynheader">
 Collaboration diagram for Wiesel::Pipeline:</div>
 <div class="dyncontent">
@@ -144,8 +144,12 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a028c845fbe409e80f0362c732a0122ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a54897bcd8e7269d64c09e277ff6fe75c" id="r_a54897bcd8e7269d64c09e277ff6fe75c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Pipeline.html#a54897bcd8e7269d64c09e277ff6fe75c">Bake</a> ()</td></tr>
 <tr class="separator:a54897bcd8e7269d64c09e277ff6fe75c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad75717bc9dd3c8f69dc2c15493a08aa9" id="r_ad75717bc9dd3c8f69dc2c15493a08aa9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Pipeline.html#ad75717bc9dd3c8f69dc2c15493a08aa9">Bind</a> (<a class="el" href="namespaceWiesel.html#afe543a1b8016ee71dbdd6e616b9118ed">PipelineBindPoint</a> bind_point)</td></tr>
-<tr class="separator:ad75717bc9dd3c8f69dc2c15493a08aa9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abcf72fef550195a2b92025c09cc66a02" id="r_abcf72fef550195a2b92025c09cc66a02"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Pipeline.html#abcf72fef550195a2b92025c09cc66a02">Bind</a> (<a class="el" href="namespaceWiesel.html#afe543a1b8016ee71dbdd6e616b9118ed">PipelineBindPoint</a> bind_point, VkCommandBuffer cmd=VK_NULL_HANDLE)</td></tr>
+<tr class="separator:abcf72fef550195a2b92025c09cc66a02"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa9e0f1d7a61060363274aa28d3bca7b3" id="r_aa9e0f1d7a61060363274aa28d3bca7b3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Pipeline.html#aa9e0f1d7a61060363274aa28d3bca7b3">PushConstants</a> (VkCommandBuffer cmd=VK_NULL_HANDLE)</td></tr>
+<tr class="separator:aa9e0f1d7a61060363274aa28d3bca7b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a06d3827c8455e368b0d15e5397db09d8" id="r_a06d3827c8455e368b0d15e5397db09d8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Pipeline.html#a06d3827c8455e368b0d15e5397db09d8">BindDescriptorSets</a> (VkCommandBuffer cmd, const std::vector&lt; std::shared_ptr&lt; <a class="el" href="classWiesel_1_1DescriptorSet.html">DescriptorSet</a> &gt; &gt; &amp;sets)</td></tr>
+<tr class="separator:a06d3827c8455e368b0d15e5397db09d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -262,9 +266,6 @@ Public Attributes</h2></td></tr>
 <div class="memproto">
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void Wiesel::Pipeline::AddPushConstant </td>
@@ -284,11 +285,6 @@ template&lt;typename T &gt; </div>
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -318,9 +314,6 @@ template&lt;typename T &gt; </div>
 <div class="memproto">
 <div class="memtemplate">
 template&lt;typename T &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void Wiesel::Pipeline::AddShader </td>
@@ -346,11 +339,6 @@ template&lt;typename T &gt; </div>
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -372,8 +360,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="ad75717bc9dd3c8f69dc2c15493a08aa9" name="ad75717bc9dd3c8f69dc2c15493a08aa9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad75717bc9dd3c8f69dc2c15493a08aa9">&#9670;&#160;</a></span>Bind()</h2>
+<a id="abcf72fef550195a2b92025c09cc66a02" name="abcf72fef550195a2b92025c09cc66a02"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abcf72fef550195a2b92025c09cc66a02">&#9670;&#160;</a></span>Bind()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -382,7 +370,63 @@ template&lt;typename T &gt; </div>
           <td class="memname">void Wiesel::Pipeline::Bind </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="namespaceWiesel.html#afe543a1b8016ee71dbdd6e616b9118ed">PipelineBindPoint</a>&#160;</td>
-          <td class="paramname"><em>bind_point</em></td><td>)</td>
+          <td class="paramname"><em>bind_point</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">VkCommandBuffer&#160;</td>
+          <td class="paramname"><em>cmd</em> = <code>VK_NULL_HANDLE</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a06d3827c8455e368b0d15e5397db09d8" name="a06d3827c8455e368b0d15e5397db09d8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a06d3827c8455e368b0d15e5397db09d8">&#9670;&#160;</a></span>BindDescriptorSets()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::Pipeline::BindDescriptorSets </td>
+          <td>(</td>
+          <td class="paramtype">VkCommandBuffer&#160;</td>
+          <td class="paramname"><em>cmd</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::vector&lt; std::shared_ptr&lt; <a class="el" href="classWiesel_1_1DescriptorSet.html">DescriptorSet</a> &gt; &gt; &amp;&#160;</td>
+          <td class="paramname"><em>sets</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aa9e0f1d7a61060363274aa28d3bca7b3" name="aa9e0f1d7a61060363274aa28d3bca7b3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa9e0f1d7a61060363274aa28d3bca7b3">&#9670;&#160;</a></span>PushConstants()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::Pipeline::PushConstants </td>
+          <td>(</td>
+          <td class="paramtype">VkCommandBuffer&#160;</td>
+          <td class="paramname"><em>cmd</em> = <code>VK_NULL_HANDLE</code></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -634,7 +678,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__pipeline_8hpp_source.html">w_pipeline.hpp</a></li>
+<li><a class="el" href="w__pipeline_8h_source.html">w_pipeline.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

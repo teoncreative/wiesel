@@ -97,12 +97,24 @@ $(document).ready(function(){initNavTree('classWiesel_1_1UIEventSystem.html','')
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__ui__event__system_8hpp_source.html">w_ui_event_system.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__ui__event__system_8h_source.html">w_ui_event_system.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a8ea68383de6bc483d7eba4da19027cc1" id="r_a8ea68383de6bc483d7eba4da19027cc1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#a8ea68383de6bc483d7eba4da19027cc1">Update</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;scene, float delta_time)</td></tr>
 <tr class="separator:a8ea68383de6bc483d7eba4da19027cc1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a86bd8811791ce4000833ab24595c83a9" id="r_a86bd8811791ce4000833ab24595c83a9"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#a86bd8811791ce4000833ab24595c83a9">ProcessKeyDown</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;scene, int key_code, int modifiers)</td></tr>
+<tr class="separator:a86bd8811791ce4000833ab24595c83a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afeefa3c761f94ae252ecc272bac70024" id="r_afeefa3c761f94ae252ecc272bac70024"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#afeefa3c761f94ae252ecc272bac70024">ProcessKeyUp</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;scene, int key_code, int modifiers)</td></tr>
+<tr class="separator:afeefa3c761f94ae252ecc272bac70024"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe22fcf0004e00bfc5ec3cebbce59655" id="r_afe22fcf0004e00bfc5ec3cebbce59655"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#afe22fcf0004e00bfc5ec3cebbce59655">ProcessTextInput</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;scene, const std::string &amp;text)</td></tr>
+<tr class="separator:afe22fcf0004e00bfc5ec3cebbce59655"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0ced0d21eb347e6ace486ee94c520fbf" id="r_a0ced0d21eb347e6ace486ee94c520fbf"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#a0ced0d21eb347e6ace486ee94c520fbf">ProcessMouseScroll</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;scene, float delta)</td></tr>
+<tr class="separator:a0ced0d21eb347e6ace486ee94c520fbf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a276dbc297d6c90f573ead2cab9287804" id="r_a276dbc297d6c90f573ead2cab9287804"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#a276dbc297d6c90f573ead2cab9287804">HasRmlFocus</a> () const</td></tr>
+<tr class="separator:a276dbc297d6c90f573ead2cab9287804"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a51dfe69f421e8ed57208887fdc2f153d" id="r_a51dfe69f421e8ed57208887fdc2f153d"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#a51dfe69f421e8ed57208887fdc2f153d">HasRmlTextInputFocus</a> (<a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;scene) const</td></tr>
+<tr class="separator:a51dfe69f421e8ed57208887fdc2f153d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad531cca52f8ad791404d7b41a15e0ecb" id="r_ad531cca52f8ad791404d7b41a15e0ecb"><td class="memItemLeft" align="right" valign="top">entt::entity&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#ad531cca52f8ad791404d7b41a15e0ecb">GetFocusedEntity</a> () const</td></tr>
 <tr class="separator:ad531cca52f8ad791404d7b41a15e0ecb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4316f4cec58118d832ce2757c0e3ebda" id="r_a4316f4cec58118d832ce2757c0e3ebda"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIEventSystem.html#a4316f4cec58118d832ce2757c0e3ebda">SetFocusedEntity</a> (entt::entity entity)</td></tr>
@@ -118,9 +130,6 @@ Public Member Functions</h2></td></tr>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void Wiesel::UIEventSystem::ClearFocus </td>
@@ -129,11 +138,6 @@ Public Member Functions</h2></td></tr>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -143,9 +147,6 @@ Public Member Functions</h2></td></tr>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">entt::entity Wiesel::UIEventSystem::GetFocusedEntity </td>
@@ -154,11 +155,6 @@ Public Member Functions</h2></td></tr>
           <td> const</td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -181,14 +177,170 @@ Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a276dbc297d6c90f573ead2cab9287804" name="a276dbc297d6c90f573ead2cab9287804"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a276dbc297d6c90f573ead2cab9287804">&#9670;&#160;</a></span>HasRmlFocus()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::UIEventSystem::HasRmlFocus </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a51dfe69f421e8ed57208887fdc2f153d" name="a51dfe69f421e8ed57208887fdc2f153d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a51dfe69f421e8ed57208887fdc2f153d">&#9670;&#160;</a></span>HasRmlTextInputFocus()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::UIEventSystem::HasRmlTextInputFocus </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;&#160;</td>
+          <td class="paramname"><em>scene</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a86bd8811791ce4000833ab24595c83a9" name="a86bd8811791ce4000833ab24595c83a9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a86bd8811791ce4000833ab24595c83a9">&#9670;&#160;</a></span>ProcessKeyDown()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::UIEventSystem::ProcessKeyDown </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;&#160;</td>
+          <td class="paramname"><em>scene</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>key_code</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>modifiers</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="afeefa3c761f94ae252ecc272bac70024" name="afeefa3c761f94ae252ecc272bac70024"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afeefa3c761f94ae252ecc272bac70024">&#9670;&#160;</a></span>ProcessKeyUp()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::UIEventSystem::ProcessKeyUp </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;&#160;</td>
+          <td class="paramname"><em>scene</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>key_code</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>modifiers</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a0ced0d21eb347e6ace486ee94c520fbf" name="a0ced0d21eb347e6ace486ee94c520fbf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0ced0d21eb347e6ace486ee94c520fbf">&#9670;&#160;</a></span>ProcessMouseScroll()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::UIEventSystem::ProcessMouseScroll </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;&#160;</td>
+          <td class="paramname"><em>scene</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">float&#160;</td>
+          <td class="paramname"><em>delta</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="afe22fcf0004e00bfc5ec3cebbce59655" name="afe22fcf0004e00bfc5ec3cebbce59655"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afe22fcf0004e00bfc5ec3cebbce59655">&#9670;&#160;</a></span>ProcessTextInput()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::UIEventSystem::ProcessTextInput </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1Scene.html">Scene</a> &amp;&#160;</td>
+          <td class="paramname"><em>scene</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>text</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a4316f4cec58118d832ce2757c0e3ebda" name="a4316f4cec58118d832ce2757c0e3ebda"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4316f4cec58118d832ce2757c0e3ebda">&#9670;&#160;</a></span>SetFocusedEntity()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void Wiesel::UIEventSystem::SetFocusedEntity </td>
@@ -198,11 +350,6 @@ Public Member Functions</h2></td></tr>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -236,7 +383,7 @@ Public Member Functions</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__ui__event__system_8hpp_source.html">w_ui_event_system.hpp</a></li>
+<li><a class="el" href="w__ui__event__system_8h_source.html">w_ui_event_system.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

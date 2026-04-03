@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1RenderPass.html',''); i
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__renderpass_8hpp_source.html">w_renderpass.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__renderpass_8h_source.html">w_renderpass.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -112,10 +112,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a20f74bf00757813d735f489dbe7d525c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4e335e5c3cf0f9d01915fe0c2559efe1" id="r_a4e335e5c3cf0f9d01915fe0c2559efe1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#a4e335e5c3cf0f9d01915fe0c2559efe1">Bake</a> ()</td></tr>
 <tr class="separator:a4e335e5c3cf0f9d01915fe0c2559efe1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af33c82885650b7a5a041601ff357d9a2" id="r_af33c82885650b7a5a041601ff357d9a2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#af33c82885650b7a5a041601ff357d9a2">Begin</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Framebuffer.html">Framebuffer</a> &gt; framebuffer, const <a class="el" href="namespaceWiesel.html#a7260c23de08b90fe55858ba130cab3c9">Colorf</a> &amp;clear_color)</td></tr>
-<tr class="separator:af33c82885650b7a5a041601ff357d9a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a332ce1f6de09f6443be7724c159fba2b" id="r_a332ce1f6de09f6443be7724c159fba2b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#a332ce1f6de09f6443be7724c159fba2b">End</a> ()</td></tr>
-<tr class="separator:a332ce1f6de09f6443be7724c159fba2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a650afaa1609029708f1372b54961bdc2" id="r_a650afaa1609029708f1372b54961bdc2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#a650afaa1609029708f1372b54961bdc2">Begin</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Framebuffer.html">Framebuffer</a> &gt; framebuffer, const <a class="el" href="namespaceWiesel.html#a7260c23de08b90fe55858ba130cab3c9">Colorf</a> &amp;clear_color, VkCommandBuffer cmd=VK_NULL_HANDLE)</td></tr>
+<tr class="separator:a650afaa1609029708f1372b54961bdc2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a66c0bf3b3cc1ac00e51b7225322282bf" id="r_a66c0bf3b3cc1ac00e51b7225322282bf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#a66c0bf3b3cc1ac00e51b7225322282bf">End</a> (VkCommandBuffer cmd=VK_NULL_HANDLE)</td></tr>
+<tr class="separator:a66c0bf3b3cc1ac00e51b7225322282bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a98917c6edf03bcc1f091f21dac56ca1a" id="r_a98917c6edf03bcc1f091f21dac56ca1a"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Framebuffer.html">Framebuffer</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#a98917c6edf03bcc1f091f21dac56ca1a">CreateFramebuffer</a> (uint32_t index, std::span&lt; <a class="el" href="classWiesel_1_1AttachmentTexture.html">AttachmentTexture</a> *const &gt; output_attachments, glm::vec2 extent)</td></tr>
 <tr class="separator:a98917c6edf03bcc1f091f21dac56ca1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6531ceb502d99e18f143ea0bd2168cd4" id="r_a6531ceb502d99e18f143ea0bd2168cd4"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Framebuffer.html">Framebuffer</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1RenderPass.html#a6531ceb502d99e18f143ea0bd2168cd4">CreateFramebuffer</a> (std::span&lt; <a class="el" href="classWiesel_1_1ImageView.html">ImageView</a> * &gt; output_views, glm::vec2 extent)</td></tr>
@@ -232,8 +232,8 @@ Friends</h2></td></tr>
 
 </div>
 </div>
-<a id="af33c82885650b7a5a041601ff357d9a2" name="af33c82885650b7a5a041601ff357d9a2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af33c82885650b7a5a041601ff357d9a2">&#9670;&#160;</a></span>Begin()</h2>
+<a id="a650afaa1609029708f1372b54961bdc2" name="a650afaa1609029708f1372b54961bdc2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a650afaa1609029708f1372b54961bdc2">&#9670;&#160;</a></span>Begin()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -248,7 +248,13 @@ Friends</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const <a class="el" href="namespaceWiesel.html#a7260c23de08b90fe55858ba130cab3c9">Colorf</a> &amp;&#160;</td>
-          <td class="paramname"><em>clear_color</em>&#160;</td>
+          <td class="paramname"><em>clear_color</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">VkCommandBuffer&#160;</td>
+          <td class="paramname"><em>cmd</em> = <code>VK_NULL_HANDLE</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -321,9 +327,6 @@ Friends</h2></td></tr>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Framebuffer.html">Framebuffer</a> &gt; Wiesel::RenderPass::CreateFramebuffer </td>
@@ -349,11 +352,6 @@ Friends</h2></td></tr>
           <td></td><td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -392,8 +390,8 @@ Friends</h2></td></tr>
 
 </div>
 </div>
-<a id="a332ce1f6de09f6443be7724c159fba2b" name="a332ce1f6de09f6443be7724c159fba2b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a332ce1f6de09f6443be7724c159fba2b">&#9670;&#160;</a></span>End()</h2>
+<a id="a66c0bf3b3cc1ac00e51b7225322282bf" name="a66c0bf3b3cc1ac00e51b7225322282bf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a66c0bf3b3cc1ac00e51b7225322282bf">&#9670;&#160;</a></span>End()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -401,7 +399,8 @@ Friends</h2></td></tr>
         <tr>
           <td class="memname">void Wiesel::RenderPass::End </td>
           <td>(</td>
-          <td class="paramname"></td><td>)</td>
+          <td class="paramtype">VkCommandBuffer&#160;</td>
+          <td class="paramname"><em>cmd</em> = <code>VK_NULL_HANDLE</code></td><td>)</td>
           <td></td>
         </tr>
       </table>
@@ -414,9 +413,6 @@ Friends</h2></td></tr>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">const VkRenderPass &amp; Wiesel::RenderPass::GetVulkanHandle </td>
@@ -425,11 +421,6 @@ Friends</h2></td></tr>
           <td> const</td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
 </div><div class="memdoc">
 
 </div>
@@ -458,7 +449,7 @@ Friends</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__renderpass_8hpp_source.html">w_renderpass.hpp</a></li>
+<li><a class="el" href="w__renderpass_8h_source.html">w_renderpass.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

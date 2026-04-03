@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['bytes_0',['bytes',['../classWiesel_1_1UUID.html#a6220c3fb7398dc25da2df7d574f764ec',1,'Wiesel::UUID']]]
+  ['assetcallback_0',['AssetCallback',['../classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d',1,'Wiesel::AssetManager']]]
 ];

@@ -1,0 +1,14 @@
+<map id="w_vfs.h" name="w_vfs.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="187,5,259,31"/>
+<area shape="rect" id="Node000002" href="$w__engine_8h.html" title=" " alt="" coords="73,79,169,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="197,41,139,81,136,76,194,36"/>
+<area shape="rect" id="Node000004" href="$w__vfs__browser_8h.html" title=" " alt="" coords="227,79,357,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="245,39,283,77,279,80,242,43"/>
+<area shape="rect" id="Node000003" href="$w__game__application_8h.html" title=" " alt="" coords="5,152,173,177"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="113,118,97,153,92,151,108,116"/>
+<area shape="rect" id="Node000005" href="$w__asset__browser__panel_8h.html" title=" " alt="" coords="197,152,387,177"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="295,118,295,152,289,152,289,118"/>
+<area shape="rect" id="Node000006" href="$w__editor_8h.html" title=" " alt="" coords="313,225,402,251"/>
+<area shape="poly" id="edge6_Node000004_Node000006" title=" " alt="" coords="347,107,377,125,401,151,406,172,399,193,386,212,373,227,369,223,382,208,394,190,400,172,396,153,374,129,344,112"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="314,186,349,223,345,227,310,189"/>
+</map>

@@ -1,0 +1,12 @@
+<map id="w_model_loader.h" name="w_model_loader.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="50,5,190,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,83,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="110,33,68,71,65,67,106,29"/>
+<area shape="rect" id="Node000003" href="$w__asset__handle_8h.html" title=" " alt="" coords="107,79,285,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="134,29,175,67,172,71,130,33"/>
+<area shape="rect" id="Node000004" href="$w__uuid_8h.html" title=" " alt="" coords="98,152,203,177"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="191,106,168,142,163,139,186,103"/>
+<area shape="rect" id="Node000005" href="$w__pch_8h.html" title=" " alt="" coords="159,225,233,251"/>
+<area shape="poly" id="edge5_Node000003_Node000005" title=" " alt="" coords="203,103,217,152,216,184,209,213,204,212,211,183,212,152,198,105"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="160,176,184,212,179,215,156,179"/>
+</map>

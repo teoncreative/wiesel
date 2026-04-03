@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['loadfn_0',['LoadFn',['../classWiesel_1_1FunctionAssetLoader.html#a868fb9b2f2839ed7124971d95f0169de',1,'Wiesel::FunctionAssetLoader']]]
+  ['json_0',['json',['../namespaceWiesel_1_1Editor.html#ac6995fbe49520e469b31f4adcdfbeb60',1,'Wiesel::Editor']]]
 ];

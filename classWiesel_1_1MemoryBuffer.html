@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1MemoryBuffer.html','');
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__buffer_8hpp_source.html">w_buffer.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__buffer_8h_source.html">w_buffer.h</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for Wiesel::MemoryBuffer:</div>
 <div class="dyncontent">
@@ -123,11 +123,11 @@ Public Member Functions</h2></td></tr>
 Public Attributes</h2></td></tr>
 <tr class="memitem:aa7f5917007d3345261cc2817f5f6f91a" id="r_aa7f5917007d3345261cc2817f5f6f91a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWiesel.html#a12b3fade5218a7941fd26dd9eff2d709">MemoryType</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#aa7f5917007d3345261cc2817f5f6f91a">type_</a></td></tr>
 <tr class="separator:aa7f5917007d3345261cc2817f5f6f91a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a862d1cd62b5e36d9c71a7738b6f50e9d" id="r_a862d1cd62b5e36d9c71a7738b6f50e9d"><td class="memItemLeft" align="right" valign="top">VkBuffer&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#a862d1cd62b5e36d9c71a7738b6f50e9d">buffer_handle_</a></td></tr>
+<tr class="memitem:a862d1cd62b5e36d9c71a7738b6f50e9d" id="r_a862d1cd62b5e36d9c71a7738b6f50e9d"><td class="memItemLeft" align="right" valign="top">VkBuffer&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#a862d1cd62b5e36d9c71a7738b6f50e9d">buffer_handle_</a> = VK_NULL_HANDLE</td></tr>
 <tr class="separator:a862d1cd62b5e36d9c71a7738b6f50e9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1d6fc5bd783a07ad768a9f7d5d1a775b" id="r_a1d6fc5bd783a07ad768a9f7d5d1a775b"><td class="memItemLeft" align="right" valign="top">VkDeviceMemory&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#a1d6fc5bd783a07ad768a9f7d5d1a775b">memory_handle_</a></td></tr>
-<tr class="separator:a1d6fc5bd783a07ad768a9f7d5d1a775b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae4fc071f2c43adecfd1cb1d8de174db6" id="r_ae4fc071f2c43adecfd1cb1d8de174db6"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#ae4fc071f2c43adecfd1cb1d8de174db6">size_</a></td></tr>
+<tr class="memitem:a8804cbb4602ec621077fc2c4a45263d9" id="r_a8804cbb4602ec621077fc2c4a45263d9"><td class="memItemLeft" align="right" valign="top">std::unique_ptr&lt; <a class="el" href="classWiesel_1_1VmaBuffer.html">VmaBuffer</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#a8804cbb4602ec621077fc2c4a45263d9">vma_buffer_</a></td></tr>
+<tr class="separator:a8804cbb4602ec621077fc2c4a45263d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae4fc071f2c43adecfd1cb1d8de174db6" id="r_ae4fc071f2c43adecfd1cb1d8de174db6"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#ae4fc071f2c43adecfd1cb1d8de174db6">size_</a> = 0</td></tr>
 <tr class="separator:ae4fc071f2c43adecfd1cb1d8de174db6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6ef9b3362adeab9cdbff4dc6596dd3f3" id="r_a6ef9b3362adeab9cdbff4dc6596dd3f3"><td class="memItemLeft" align="right" valign="top">VkDeviceAddress&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1MemoryBuffer.html#a6ef9b3362adeab9cdbff4dc6596dd3f3">device_address_</a> = 0</td></tr>
 <tr class="separator:a6ef9b3362adeab9cdbff4dc6596dd3f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -192,7 +192,7 @@ Public Attributes</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">VkBuffer Wiesel::MemoryBuffer::buffer_handle_</td>
+          <td class="memname">VkBuffer Wiesel::MemoryBuffer::buffer_handle_ = VK_NULL_HANDLE</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -213,20 +213,6 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a1d6fc5bd783a07ad768a9f7d5d1a775b" name="a1d6fc5bd783a07ad768a9f7d5d1a775b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1d6fc5bd783a07ad768a9f7d5d1a775b">&#9670;&#160;</a></span>memory_handle_</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">VkDeviceMemory Wiesel::MemoryBuffer::memory_handle_</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="ae4fc071f2c43adecfd1cb1d8de174db6" name="ae4fc071f2c43adecfd1cb1d8de174db6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ae4fc071f2c43adecfd1cb1d8de174db6">&#9670;&#160;</a></span>size_</h2>
 
@@ -234,7 +220,7 @@ Public Attributes</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">uint32_t Wiesel::MemoryBuffer::size_</td>
+          <td class="memname">uint32_t Wiesel::MemoryBuffer::size_ = 0</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -255,8 +241,22 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a8804cbb4602ec621077fc2c4a45263d9" name="a8804cbb4602ec621077fc2c4a45263d9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8804cbb4602ec621077fc2c4a45263d9">&#9670;&#160;</a></span>vma_buffer_</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::unique_ptr&lt;<a class="el" href="classWiesel_1_1VmaBuffer.html">VmaBuffer</a>&gt; Wiesel::MemoryBuffer::vma_buffer_</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__buffer_8hpp_source.html">w_buffer.hpp</a></li>
+<li><a class="el" href="w__buffer_8h_source.html">w_buffer.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

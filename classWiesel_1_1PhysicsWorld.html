@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1PhysicsWorld.html','');
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__physics__world_8hpp_source.html">w_physics_world.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__physics__world_8h_source.html">w_physics_world.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -116,6 +116,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a6b5be323decec2961616383081af02d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:affec3b4fbddba696dc3556749d10c363" id="r_affec3b4fbddba696dc3556749d10c363"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1PhysicsWorld.html#affec3b4fbddba696dc3556749d10c363">EnsureBodiesExist</a> ()</td></tr>
 <tr class="separator:affec3b4fbddba696dc3556749d10c363"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac1a2bab5569aa8b3a7c88fdf94667336" id="r_ac1a2bab5569aa8b3a7c88fdf94667336"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1PhysicsWorld.html#ac1a2bab5569aa8b3a7c88fdf94667336">RecreateBodyIfNeeded</a> (entt::entity entity)</td></tr>
+<tr class="separator:ac1a2bab5569aa8b3a7c88fdf94667336"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa6281ae585a99dd54b9944c250d5e92e" id="r_aa6281ae585a99dd54b9944c250d5e92e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1PhysicsWorld.html#aa6281ae585a99dd54b9944c250d5e92e">StepSimulation</a> (float delta_time)</td></tr>
 <tr class="separator:aa6281ae585a99dd54b9944c250d5e92e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a810cb689f692f0a6d70c62bffd0d0f68" id="r_a810cb689f692f0a6d70c62bffd0d0f68"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1PhysicsWorld.html#a810cb689f692f0a6d70c62bffd0d0f68">SyncTransformsFromECS</a> ()</td></tr>
@@ -136,6 +138,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a87b7ed4269a453749df43298027d067b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3a36770c5847a6496c40a0c6fc324650" id="r_a3a36770c5847a6496c40a0c6fc324650"><td class="memItemLeft" align="right" valign="top">glm::vec3&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1PhysicsWorld.html#a3a36770c5847a6496c40a0c6fc324650">GetGravity</a> () const</td></tr>
 <tr class="separator:a3a36770c5847a6496c40a0c6fc324650"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aae7d408e5ee6b4567923f73892903053" id="r_aae7d408e5ee6b4567923f73892903053"><td class="memItemLeft" align="right" valign="top">JPH::PhysicsSystem *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1PhysicsWorld.html#aae7d408e5ee6b4567923f73892903053">GetPhysicsSystem</a> () const</td></tr>
+<tr class="separator:aae7d408e5ee6b4567923f73892903053"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="acad8054cf917a382d3e43eefa61dc8db" name="acad8054cf917a382d3e43eefa61dc8db"></a>
@@ -286,6 +290,23 @@ Public Member Functions</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">glm::vec3 Wiesel::PhysicsWorld::GetGravity </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aae7d408e5ee6b4567923f73892903053" name="aae7d408e5ee6b4567923f73892903053"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aae7d408e5ee6b4567923f73892903053">&#9670;&#160;</a></span>GetPhysicsSystem()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">JPH::PhysicsSystem * Wiesel::PhysicsWorld::GetPhysicsSystem </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td> const</td>
@@ -463,6 +484,24 @@ Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="ac1a2bab5569aa8b3a7c88fdf94667336" name="ac1a2bab5569aa8b3a7c88fdf94667336"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac1a2bab5569aa8b3a7c88fdf94667336">&#9670;&#160;</a></span>RecreateBodyIfNeeded()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::PhysicsWorld::RecreateBodyIfNeeded </td>
+          <td>(</td>
+          <td class="paramtype">entt::entity&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a87b7ed4269a453749df43298027d067b" name="a87b7ed4269a453749df43298027d067b"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a87b7ed4269a453749df43298027d067b">&#9670;&#160;</a></span>SetGravity()</h2>
 
@@ -534,7 +573,7 @@ Public Member Functions</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__physics__world_8hpp_source.html">w_physics_world.hpp</a></li>
+<li><a class="el" href="w__physics__world_8h_source.html">w_physics_world.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

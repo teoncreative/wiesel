@@ -1,0 +1,8 @@
+<map id="w_lsp_client.h" name="w_lsp_client.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,120,31"/>
+<area shape="rect" id="Node000002" href="$w__editor_8h.html" title=" " alt="" coords="18,152,107,177"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="48,43,31,79,30,99,35,118,55,150,50,153,30,120,24,99,25,78,43,41"/>
+<area shape="rect" id="Node000003" href="$w__lsp__autocomplete_8h.html" title=" " alt="" coords="40,79,208,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="84,40,116,77,112,80,80,43"/>
+<area shape="poly" id="edge3_Node000003_Node000002" title=" " alt="" coords="107,116,75,154,71,150,103,113"/>
+</map>

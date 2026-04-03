@@ -98,17 +98,19 @@ $(document).ready(function(){initNavTree('structWiesel_1_1Model.html',''); initR
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__mesh_8hpp_source.html">w_mesh.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__mesh_8h_source.html">w_mesh.h</a>&gt;</code></p>
 <div class="dynheader">
 Collaboration diagram for Wiesel::Model:</div>
 <div class="dyncontent">
 <div class="center"><img src="structWiesel_1_1Model__coll__graph.png" border="0" usemap="#aWiesel_1_1Model_coll__map" alt="Collaboration graph"/></div>
 <map name="aWiesel_1_1Model_coll__map" id="aWiesel_1_1Model_coll__map">
-<area shape="rect" title=" " alt="" coords="100,93,215,119"/>
+<area shape="rect" title=" " alt="" coords="188,93,303,119"/>
 <area shape="rect" href="structWiesel_1_1Skeleton.html" title=" " alt="" coords="5,5,136,31"/>
-<area shape="poly" title=" " alt="" coords="94,38,147,91,143,95,90,42"/>
+<area shape="poly" title=" " alt="" coords="108,34,223,91,220,95,105,39"/>
 <area shape="rect" href="structWiesel_1_1NodeHierarchy.html" title=" " alt="" coords="160,5,331,31"/>
-<area shape="poly" title=" " alt="" coords="226,42,171,95,168,91,222,38"/>
+<area shape="poly" title=" " alt="" coords="248,45,248,93,243,93,243,45"/>
+<area shape="rect" href="structWiesel_1_1AABB.html" title=" " alt="" coords="355,5,466,31"/>
+<area shape="poly" title=" " alt="" coords="393,43,357,72,328,86,298,96,296,91,326,81,355,67,390,39"/>
 </map>
 <center><span class="legend">[<a target="top" href="graph_legend.html">legend</a>]</span></center></div>
 <table class="memberdecls">
@@ -118,6 +120,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a8af1c54e2b90bce570c53e6013d4210d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae4e3810eda385a15130a2b1b12788e5b" id="r_ae4e3810eda385a15130a2b1b12788e5b"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#ae4e3810eda385a15130a2b1b12788e5b">~Model</a> ()=default</td></tr>
 <tr class="separator:ae4e3810eda385a15130a2b1b12788e5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa5ebd31163270c28b7b8330b5191b3d5" id="r_aa5ebd31163270c28b7b8330b5191b3d5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#aa5ebd31163270c28b7b8330b5191b3d5">ComputeBounds</a> ()</td></tr>
+<tr class="separator:aa5ebd31163270c28b7b8330b5191b3d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9303cd2b6463e287186899a0d6850411" id="r_a9303cd2b6463e287186899a0d6850411"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a9303cd2b6463e287186899a0d6850411">GetCollisionGeometry</a> (std::vector&lt; glm::vec3 &gt; &amp;out_vertices, std::vector&lt; <a class="el" href="namespaceWiesel.html#ad29bec122d477febf047e8b178a0f213">Index</a> &gt; &amp;out_indices) const</td></tr>
+<tr class="separator:a9303cd2b6463e287186899a0d6850411"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa9747c2a79249fd25b1b9c10f7041372" id="r_aa9747c2a79249fd25b1b9c10f7041372"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#aa9747c2a79249fd25b1b9c10f7041372">ComputeMeshNodeTransforms</a> ()</td></tr>
 <tr class="separator:aa9747c2a79249fd25b1b9c10f7041372"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -129,10 +135,6 @@ Public Attributes</h2></td></tr>
 <tr class="separator:aa4c6b2c139aa4ad9959f2736f242d658"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a737ab85bf97f1a6426d60964db49c009" id="r_a737ab85bf97f1a6426d60964db49c009"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a737ab85bf97f1a6426d60964db49c009">textures_path</a></td></tr>
 <tr class="separator:a737ab85bf97f1a6426d60964db49c009"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a33e44e63226440c317a4257a521ac2fd" id="r_a33e44e63226440c317a4257a521ac2fd"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Texture.html">Texture</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a33e44e63226440c317a4257a521ac2fd">textures</a></td></tr>
-<tr class="separator:a33e44e63226440c317a4257a521ac2fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a59bf0bae626fe284f88a75cce78f96f3" id="r_a59bf0bae626fe284f88a75cce78f96f3"><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, std::shared_ptr&lt; <a class="el" href="structWiesel_1_1DecodedTextureData.html">DecodedTextureData</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a59bf0bae626fe284f88a75cce78f96f3">decoded_texture_cache</a></td></tr>
-<tr class="separator:a59bf0bae626fe284f88a75cce78f96f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a991069ef58c36f59ff6505adf88dd658" id="r_a991069ef58c36f59ff6505adf88dd658"><td class="memItemLeft" align="right" valign="top">std::vector&lt; glm::mat4 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a991069ef58c36f59ff6505adf88dd658">mesh_node_transforms</a></td></tr>
 <tr class="separator:a991069ef58c36f59ff6505adf88dd658"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b7f3b98d5689f7fcfcb7a71894791a3" id="r_a7b7f3b98d5689f7fcfcb7a71894791a3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structWiesel_1_1Skeleton.html">Skeleton</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a7b7f3b98d5689f7fcfcb7a71894791a3">skeleton</a></td></tr>
@@ -147,6 +149,8 @@ Public Attributes</h2></td></tr>
 <tr class="separator:a95f0f04f10fadcdac399d75d5ef72db5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a29851806deec7ceb58a358d4d49c63cf" id="r_a29851806deec7ceb58a358d4d49c63cf"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a29851806deec7ceb58a358d4d49c63cf">has_transparent_meshes</a> = false</td></tr>
 <tr class="separator:a29851806deec7ceb58a358d4d49c63cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a09f7ffbc68054b49273417fcb0fef4e0" id="r_a09f7ffbc68054b49273417fcb0fef4e0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structWiesel_1_1AABB.html">AABB</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1Model.html#a09f7ffbc68054b49273417fcb0fef4e0">bounds</a></td></tr>
+<tr class="separator:a09f7ffbc68054b49273417fcb0fef4e0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a8af1c54e2b90bce570c53e6013d4210d" name="a8af1c54e2b90bce570c53e6013d4210d"></a>
@@ -200,14 +204,28 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="aa5ebd31163270c28b7b8330b5191b3d5" name="aa5ebd31163270c28b7b8330b5191b3d5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa5ebd31163270c28b7b8330b5191b3d5">&#9670;&#160;</a></span>ComputeBounds()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::Model::ComputeBounds </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aa9747c2a79249fd25b1b9c10f7041372" name="aa9747c2a79249fd25b1b9c10f7041372"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa9747c2a79249fd25b1b9c10f7041372">&#9670;&#160;</a></span>ComputeMeshNodeTransforms()</h2>
 
 <div class="memitem">
 <div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void Wiesel::Model::ComputeMeshNodeTransforms </td>
@@ -216,11 +234,34 @@ Public Attributes</h2></td></tr>
           <td></td>
         </tr>
       </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a9303cd2b6463e287186899a0d6850411" name="a9303cd2b6463e287186899a0d6850411"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9303cd2b6463e287186899a0d6850411">&#9670;&#160;</a></span>GetCollisionGeometry()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Wiesel::Model::GetCollisionGeometry </td>
+          <td>(</td>
+          <td class="paramtype">std::vector&lt; glm::vec3 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>out_vertices</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; <a class="el" href="namespaceWiesel.html#ad29bec122d477febf047e8b178a0f213">Index</a> &gt; &amp;&#160;</td>
+          <td class="paramname"><em>out_indices</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
 </div><div class="memdoc">
 
 </div>
@@ -240,14 +281,14 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a59bf0bae626fe284f88a75cce78f96f3" name="a59bf0bae626fe284f88a75cce78f96f3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a59bf0bae626fe284f88a75cce78f96f3">&#9670;&#160;</a></span>decoded_texture_cache</h2>
+<a id="a09f7ffbc68054b49273417fcb0fef4e0" name="a09f7ffbc68054b49273417fcb0fef4e0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a09f7ffbc68054b49273417fcb0fef4e0">&#9670;&#160;</a></span>bounds</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">std::map&lt;std::string, std::shared_ptr&lt;<a class="el" href="structWiesel_1_1DecodedTextureData.html">DecodedTextureData</a>&gt; &gt; Wiesel::Model::decoded_texture_cache</td>
+          <td class="memname"><a class="el" href="structWiesel_1_1AABB.html">AABB</a> Wiesel::Model::bounds</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -366,20 +407,6 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a33e44e63226440c317a4257a521ac2fd" name="a33e44e63226440c317a4257a521ac2fd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a33e44e63226440c317a4257a521ac2fd">&#9670;&#160;</a></span>textures</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::map&lt;std::string, std::shared_ptr&lt;<a class="el" href="classWiesel_1_1Texture.html">Texture</a>&gt; &gt; Wiesel::Model::textures</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="a737ab85bf97f1a6426d60964db49c009" name="a737ab85bf97f1a6426d60964db49c009"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a737ab85bf97f1a6426d60964db49c009">&#9670;&#160;</a></span>textures_path</h2>
 
@@ -395,7 +422,7 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li><a class="el" href="w__mesh_8hpp_source.html">w_mesh.hpp</a></li>
+<li><a class="el" href="w__mesh_8h_source.html">w_mesh.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

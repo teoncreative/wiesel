@@ -7,7 +7,7 @@ var searchData=
   ['fontasset_4',['FontAsset',['../classWiesel_1_1FontAsset.html',1,'Wiesel']]],
   ['fontassetproperties_5',['FontAssetProperties',['../structWiesel_1_1FontAssetProperties.html',1,'Wiesel']]],
   ['fontcache_6',['FontCache',['../classWiesel_1_1FontCache.html',1,'Wiesel']]],
-  ['frame_7',['Frame',['../structWiesel_1_1SpriteAsset_1_1Frame.html',1,'Wiesel::SpriteAsset']]],
+  ['frame_7',['Frame',['../structWiesel_1_1SpriteAnimAssetData_1_1Frame.html',1,'Wiesel::SpriteAnimAssetData']]],
   ['framebuffer_8',['Framebuffer',['../classWiesel_1_1Framebuffer.html',1,'Wiesel']]],
   ['frustumplanes_9',['FrustumPlanes',['../structWiesel_1_1FrustumPlanes.html',1,'Wiesel']]],
   ['functionassetloader_10',['FunctionAssetLoader',['../classWiesel_1_1FunctionAssetLoader.html',1,'Wiesel']]],

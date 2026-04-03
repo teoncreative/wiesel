@@ -1,0 +1,13 @@
+<map id="w_events.h" name="w_events.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="133,5,229,31"/>
+<area shape="rect" id="Node000002" href="$w__keycodes_8h.html" title=" " alt="" coords="5,79,144,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="166,33,105,73,102,69,163,28"/>
+<area shape="rect" id="Node000003" href="$w__pch_8h.html" title=" " alt="" coords="124,152,199,177"/>
+<area shape="poly" id="edge6_Node000001_Node000003" title=" " alt="" coords="182,31,167,139,162,138,177,31"/>
+<area shape="rect" id="Node000004" href="$w__utils_8h.html" title=" " alt="" coords="219,79,325,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="198,29,248,68,245,72,194,33"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="90,102,138,141,135,145,87,106"/>
+<area shape="poly" id="edge5_Node000004_Node000003" title=" " alt="" coords="256,106,193,147,190,142,253,102"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="223,152,358,177"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="278,104,287,138,282,140,273,105"/>
+</map>

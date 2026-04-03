@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['gamepadaxis_0',['GamepadAxis',['../namespaceWiesel.html#a488fdd1a0ad17c07f357588591aba857',1,'Wiesel']]],
-  ['gamepadbutton_1',['GamepadButton',['../namespaceWiesel.html#ac055cf12f229c1126968aca93ca1079a',1,'Wiesel']]]
+  ['deletefn_0',['DeleteFn',['../classWiesel_1_1DeletionQueue.html#a7c71f1641f5426ee9923de44e2a381a7',1,'Wiesel::DeletionQueue']]]
 ];

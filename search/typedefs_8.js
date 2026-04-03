@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['nativebehaviorfactory_0',['NativeBehaviorFactory',['../namespaceWiesel.html#a0a27ada6f4f17d8bbbbb32147b894b80',1,'Wiesel']]]
+  ['loadfn_0',['LoadFn',['../classWiesel_1_1FunctionAssetLoader.html#a868fb9b2f2839ed7124971d95f0169de',1,'Wiesel::FunctionAssetLoader']]]
 ];

@@ -1,0 +1,7 @@
+<map id="WieselEngine.AnimatorComponent" name="WieselEngine.AnimatorComponent">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,168,255,193"/>
+<area shape="rect" id="Node000002" href="$classWieselEngine_1_1Component.html" title=" " alt="" coords="81,93,179,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="133,133,133,168,127,168,127,133"/>
+<area shape="rect" id="Node000003" href="$classWieselEngine_1_1Entity.html" title=" " alt="" coords="54,5,206,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="133,45,133,93,127,93,127,45"/>
+</map>

@@ -25,6 +25,7 @@ var classWiesel_1_1Application =
     [ "fps_", "classWiesel_1_1Application.html#a30125a82bb661e464e2c8381ecd8d403", null ],
     [ "fps_timer_", "classWiesel_1_1Application.html#a310011948884e5de81d62008b5003b15", null ],
     [ "frame_count_", "classWiesel_1_1Application.html#ab35d1a8d180eb5fea061e8b3d48bced7", null ],
+    [ "had_input_this_frame_", "classWiesel_1_1Application.html#a6dec6a0daed6ae833d51a774eab6ca31", null ],
     [ "idle_max_fps_", "classWiesel_1_1Application.html#a2cc35e32cfa6592e30338639c05405e3", null ],
     [ "idle_timeout_", "classWiesel_1_1Application.html#a867b724ecbe813a5d89f87e0b1330caf", null ],
     [ "idle_timer_", "classWiesel_1_1Application.html#a34b007e4b46f85fcd59a9486f917278f", null ],

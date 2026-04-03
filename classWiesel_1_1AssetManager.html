@@ -92,18 +92,24 @@ $(document).ready(function(){initNavTree('classWiesel_1_1AssetManager.html','');
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="classWiesel_1_1AssetManager-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">Wiesel::AssetManager Class Reference</div></div>
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__asset__manager_8hpp_source.html">w_asset_manager.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__asset__manager_8h_source.html">w_asset_manager.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1AssetManager_1_1AssetStats.html">AssetStats</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:a8dbc60f4183becbfda5c5e13b3fe9c3d" id="r_a8dbc60f4183becbfda5c5e13b3fe9c3d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">using</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d">AssetCallback</a> = std::function&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>(<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> <a class="el" href="structWiesel_1_1AssetMetadata.html">AssetMetadata</a> &amp;)&gt;</td></tr>
+<tr class="separator:a8dbc60f4183becbfda5c5e13b3fe9c3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -138,27 +144,34 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a71da423baff758d978e270a80aa56bcd" id="r_a71da423baff758d978e270a80aa56bcd"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a71da423baff758d978e270a80aa56bcd"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">Store</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle, std::shared_ptr&lt; T &gt; resource)</td></tr>
 <tr class="separator:a71da423baff758d978e270a80aa56bcd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a43687818b9cb08b3674400437e7339ab" id="r_a43687818b9cb08b3674400437e7339ab"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; </td></tr>
-<tr class="memitem:a43687818b9cb08b3674400437e7339ab"><td class="memTemplItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a43687818b9cb08b3674400437e7339ab">Get</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
+<tr class="memitem:a43687818b9cb08b3674400437e7339ab" id="r_a43687818b9cb08b3674400437e7339ab"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </td></tr>
+<tr class="memitem:a43687818b9cb08b3674400437e7339ab"><td class="memTemplItemLeft" align="right" valign="top">std::shared_ptr&lt; T &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a43687818b9cb08b3674400437e7339ab">Get</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
 <tr class="separator:a43687818b9cb08b3674400437e7339ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afbe79574450e4ce97df4de153ea3af74" id="r_afbe79574450e4ce97df4de153ea3af74"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; </td></tr>
-<tr class="memitem:afbe79574450e4ce97df4de153ea3af74"><td class="memTemplItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#afbe79574450e4ce97df4de153ea3af74">GetOrLoad</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
+<tr class="memitem:afbe79574450e4ce97df4de153ea3af74" id="r_afbe79574450e4ce97df4de153ea3af74"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </td></tr>
+<tr class="memitem:afbe79574450e4ce97df4de153ea3af74"><td class="memTemplItemLeft" align="right" valign="top">std::shared_ptr&lt; T &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#afbe79574450e4ce97df4de153ea3af74">GetOrLoad</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
 <tr class="separator:afbe79574450e4ce97df4de153ea3af74"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac619fd66c82fa1e5f023a3ee990ca7e8" id="r_ac619fd66c82fa1e5f023a3ee990ca7e8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">uint32_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#ac619fd66c82fa1e5f023a3ee990ca7e8">GetVersion</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
+<tr class="separator:ac619fd66c82fa1e5f023a3ee990ca7e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac38b3e9edab625836804c0e68ae2ebe2" id="r_ac38b3e9edab625836804c0e68ae2ebe2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#ac38b3e9edab625836804c0e68ae2ebe2">IsLoaded</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
 <tr class="separator:ac38b3e9edab625836804c0e68ae2ebe2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae672f6a47d205bad6fa12aba2967b60f" id="r_ae672f6a47d205bad6fa12aba2967b60f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#ae672f6a47d205bad6fa12aba2967b60f">Unload</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle)</td></tr>
 <tr class="separator:ae672f6a47d205bad6fa12aba2967b60f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a407024b6d7597ba7d9caba154c585a0a" id="r_a407024b6d7597ba7d9caba154c585a0a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a407024b6d7597ba7d9caba154c585a0a">UnloadAll</a> ()</td></tr>
 <tr class="separator:a407024b6d7597ba7d9caba154c585a0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abcc8572353ec49603931c919fb740a2e" id="r_abcc8572353ec49603931c919fb740a2e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#abcc8572353ec49603931c919fb740a2e">ReloadAllOfType</a> (<a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type)</td></tr>
+<tr class="separator:abcc8572353ec49603931c919fb740a2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a47780454694f517406936175a8e3ace3" id="r_a47780454694f517406936175a8e3ace3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a47780454694f517406936175a8e3ace3">AddDependency</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">dependent</a>, <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> parent)</td></tr>
 <tr class="separator:a47780454694f517406936175a8e3ace3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3afe65bd217531c3c3a77786d15a437b" id="r_a3afe65bd217531c3c3a77786d15a437b"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a3afe65bd217531c3c3a77786d15a437b">RemoveDependencies</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">dependent</a>)</td></tr>
 <tr class="separator:a3afe65bd217531c3c3a77786d15a437b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaaea6bc6fc844f208a29000f542569ac" id="r_aaaea6bc6fc844f208a29000f542569ac"><td class="memItemLeft" align="right" valign="top">std::vector&lt; <a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#aaaea6bc6fc844f208a29000f542569ac">GetDependents</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> parent) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
 <tr class="separator:aaaea6bc6fc844f208a29000f542569ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae015e9f54d63f78be99e740057f29141" id="r_ae015e9f54d63f78be99e740057f29141"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; </td></tr>
-<tr class="memitem:ae015e9f54d63f78be99e740057f29141"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#ae015e9f54d63f78be99e740057f29141">RegisterAndStore</a> (<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;name, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;virtual_source_path, std::shared_ptr&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; resource)</td></tr>
+<tr class="memitem:ae015e9f54d63f78be99e740057f29141" id="r_ae015e9f54d63f78be99e740057f29141"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </td></tr>
+<tr class="memitem:ae015e9f54d63f78be99e740057f29141"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#ae015e9f54d63f78be99e740057f29141">RegisterAndStore</a> (<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;name, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;virtual_source_path, std::shared_ptr&lt; T &gt; resource)</td></tr>
 <tr class="separator:ae015e9f54d63f78be99e740057f29141"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a338972861d69386c0f5d234f3461cb2f" id="r_a338972861d69386c0f5d234f3461cb2f"><td class="memTemplParams" colspan="2">template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </td></tr>
+<tr class="memitem:a338972861d69386c0f5d234f3461cb2f"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">bool</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a338972861d69386c0f5d234f3461cb2f">RegisterAndStore</a> (<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> handle, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;name, <a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;virtual_source_path, std::shared_ptr&lt; T &gt; resource)</td></tr>
+<tr class="separator:a338972861d69386c0f5d234f3461cb2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3da12c95ac209597f6dda704211f9e02" id="r_a3da12c95ac209597f6dda704211f9e02"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a3da12c95ac209597f6dda704211f9e02">RegisterLoader</a> (<a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, std::shared_ptr&lt; <a class="el" href="classWiesel_1_1IAssetLoader.html">IAssetLoader</a> &gt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">loader</a>)</td></tr>
 <tr class="separator:a3da12c95ac209597f6dda704211f9e02"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac7a0b3d8839d5ad56a59b725c5bd47c6" id="r_ac7a0b3d8839d5ad56a59b725c5bd47c6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1IAssetLoader.html">IAssetLoader</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#ac7a0b3d8839d5ad56a59b725c5bd47c6">GetLoader</a> (<a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type) <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a></td></tr>
@@ -169,9 +182,28 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a5ece066bbf23fde30b1d3d5c0d2941aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1c3565f99c333823d96ff0c7fda3ddc2" id="r_a1c3565f99c333823d96ff0c7fda3ddc2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a1c3565f99c333823d96ff0c7fda3ddc2">LoadAllOfType</a> (<a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a> type, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">bool</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">async</a>=<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">false</a>)</td></tr>
 <tr class="separator:a1c3565f99c333823d96ff0c7fda3ddc2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2df03dbe568e190016eecd2a7dba54c2" id="r_a2df03dbe568e190016eecd2a7dba54c2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a2df03dbe568e190016eecd2a7dba54c2">OnAssetRegistered</a> (<a class="el" href="classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d">AssetCallback</a> callback)</td></tr>
+<tr class="separator:a2df03dbe568e190016eecd2a7dba54c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4128d97249a886038bba94f6f981918e" id="r_a4128d97249a886038bba94f6f981918e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a4128d97249a886038bba94f6f981918e">OnAssetUnregistered</a> (<a class="el" href="classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d">AssetCallback</a> callback)</td></tr>
+<tr class="separator:a4128d97249a886038bba94f6f981918e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a08b3e69e185ab74dc7d8978069c4a658" id="r_a08b3e69e185ab74dc7d8978069c4a658"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AssetManager.html#a08b3e69e185ab74dc7d8978069c4a658">Clear</a> ()</td></tr>
 <tr class="separator:a08b3e69e185ab74dc7d8978069c4a658"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Typedef Documentation</h2>
+<a id="a8dbc60f4183becbfda5c5e13b3fe9c3d" name="a8dbc60f4183becbfda5c5e13b3fe9c3d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8dbc60f4183becbfda5c5e13b3fe9c3d">&#9670;&#160;</a></span>AssetCallback</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">using</a> <a class="el" href="classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d">Wiesel::AssetManager::AssetCallback</a> =  std::function&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a>(<a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>, <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> <a class="el" href="structWiesel_1_1AssetMetadata.html">AssetMetadata</a>&amp;)&gt;</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a4c445e19bd697787601d391eb3a30c70" name="a4c445e19bd697787601d391eb3a30c70"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a4c445e19bd697787601d391eb3a30c70">&#9670;&#160;</a></span>AssetManager()</h2>
@@ -286,10 +318,10 @@ Public Member Functions</h2></td></tr>
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; </div>
+template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; Wiesel::AssetManager::Get </td>
+          <td class="memname">std::shared_ptr&lt; T &gt; Wiesel::AssetManager::Get </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td>
           <td class="paramname"><em>handle</em></td><td>)</td>
@@ -430,10 +462,10 @@ template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; </div>
+template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </div>
       <table class="memname">
         <tr>
-          <td class="memname">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; Wiesel::AssetManager::GetOrLoad </td>
+          <td class="memname">std::shared_ptr&lt; T &gt; Wiesel::AssetManager::GetOrLoad </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td>
           <td class="paramname"><em>handle</em></td><td>)</td>
@@ -454,6 +486,24 @@ template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758
           <td class="memname"><a class="el" href="structWiesel_1_1AssetManager_1_1AssetStats.html">AssetStats</a> Wiesel::AssetManager::GetStats </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ac619fd66c82fa1e5f023a3ee990ca7e8" name="ac619fd66c82fa1e5f023a3ee990ca7e8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac619fd66c82fa1e5f023a3ee990ca7e8">&#9670;&#160;</a></span>GetVersion()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">uint32_t</a> Wiesel::AssetManager::GetVersion </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td>
+          <td class="paramname"><em>handle</em></td><td>)</td>
           <td> const</td>
         </tr>
       </table>
@@ -561,6 +611,42 @@ template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758
 
 </div>
 </div>
+<a id="a2df03dbe568e190016eecd2a7dba54c2" name="a2df03dbe568e190016eecd2a7dba54c2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2df03dbe568e190016eecd2a7dba54c2">&#9670;&#160;</a></span>OnAssetRegistered()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a> Wiesel::AssetManager::OnAssetRegistered </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d">AssetCallback</a>&#160;</td>
+          <td class="paramname"><em>callback</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a4128d97249a886038bba94f6f981918e" name="a4128d97249a886038bba94f6f981918e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4128d97249a886038bba94f6f981918e">&#9670;&#160;</a></span>OnAssetUnregistered()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a> Wiesel::AssetManager::OnAssetUnregistered </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d">AssetCallback</a>&#160;</td>
+          <td class="paramname"><em>callback</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aed12f7388947f8ede0c000d8439828c3" name="aed12f7388947f8ede0c000d8439828c3"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aed12f7388947f8ede0c000d8439828c3">&#9670;&#160;</a></span>Register() <span class="overload">[1/2]</span></h2>
 
@@ -635,13 +721,61 @@ template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758
 
 </div>
 </div>
-<a id="ae015e9f54d63f78be99e740057f29141" name="ae015e9f54d63f78be99e740057f29141"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae015e9f54d63f78be99e740057f29141">&#9670;&#160;</a></span>RegisterAndStore()</h2>
+<a id="a338972861d69386c0f5d234f3461cb2f" name="a338972861d69386c0f5d234f3461cb2f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a338972861d69386c0f5d234f3461cb2f">&#9670;&#160;</a></span>RegisterAndStore() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt; </div>
+template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">bool</a> Wiesel::AssetManager::RegisterAndStore </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a>&#160;</td>
+          <td class="paramname"><em>handle</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a>&#160;</td>
+          <td class="paramname"><em>type</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">const</a> std::string &amp;&#160;</td>
+          <td class="paramname"><em>virtual_source_path</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::shared_ptr&lt; T &gt;&#160;</td>
+          <td class="paramname"><em>resource</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ae015e9f54d63f78be99e740057f29141" name="ae015e9f54d63f78be99e740057f29141"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae015e9f54d63f78be99e740057f29141">&#9670;&#160;</a></span>RegisterAndStore() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">typename</a> T &gt; </div>
       <table class="memname">
         <tr>
           <td class="memname"><a class="el" href="structWiesel_1_1AssetHandle.html">AssetHandle</a> Wiesel::AssetManager::RegisterAndStore </td>
@@ -664,7 +798,7 @@ template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">T</a> &gt;&#160;</td>
+          <td class="paramtype">std::shared_ptr&lt; T &gt;&#160;</td>
           <td class="paramname"><em>resource</em>&#160;</td>
         </tr>
         <tr>
@@ -699,6 +833,24 @@ template&lt;<a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758
           <td></td>
           <td>)</td>
           <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="abcc8572353ec49603931c919fb740a2e" name="abcc8572353ec49603931c919fb740a2e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abcc8572353ec49603931c919fb740a2e">&#9670;&#160;</a></span>ReloadAllOfType()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWiesel_1_1AssetManager.html#a71da423baff758d978e270a80aa56bcd">void</a> Wiesel::AssetManager::ReloadAllOfType </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="namespaceWiesel.html#a08cb98b1e950a984b82430cd1db7798f">AssetType</a>&#160;</td>
+          <td class="paramname"><em>type</em></td><td>)</td>
+          <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -841,7 +993,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__asset__manager_8hpp_source.html">w_asset_manager.hpp</a></li>
+<li><a class="el" href="w__asset__manager_8h_source.html">w_asset_manager.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

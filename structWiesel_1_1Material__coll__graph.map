@@ -1,7 +1,10 @@
 <map id="Wiesel::Material" name="Wiesel::Material">
-<area shape="rect" id="Node000001" title=" " alt="" coords="19,181,147,207"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="19,357,147,383"/>
 <area shape="rect" id="Node000002" href="$structWiesel_1_1AssetHandle.html" title=" " alt="" coords="5,93,161,119"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="86,133,86,181,81,181,81,133"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="82,132,77,181,78,283,85,357,79,358,72,283,71,181,77,132"/>
+<area shape="rect" id="Node000004" href="$structWiesel_1_1TextureSlot.html" title=" " alt="" coords="177,181,323,207"/>
+<area shape="poly" id="edge4_Node000004_Node000002" title=" " alt="" coords="119,123,229,179,226,183,117,127"/>
 <area shape="rect" id="Node000003" href="$classWiesel_1_1UUID.html" title=" " alt="" coords="29,5,137,31"/>
 <area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="86,45,86,93,81,93,81,45"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="232,218,96,359,93,355,228,215"/>
 </map>

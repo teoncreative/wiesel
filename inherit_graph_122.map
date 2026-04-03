@@ -1,3 +1,41 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$classWiesel_1_1Pipeline.html" title=" " alt="" coords="5,5,132,31"/>
+<area shape="rect" id="Node000000" href="$structWiesel_1_1IComponent.html" title=" " alt="" coords="5,465,159,491"/>
+<area shape="rect" id="Node000001" href="$structWiesel_1_1AgentController.html" title=" " alt="" coords="244,5,420,31"/>
+<area shape="poly" id="edge40_Node000000_Node000001" title=" " alt="" coords="84,452,100,360,126,236,142,174,161,117,182,71,205,40,223,28,242,20,244,25,225,32,209,44,187,74,166,119,147,175,131,237,105,361,90,452"/>
+<area shape="rect" id="Node000002" href="$structWiesel_1_1AgentMemory.html" title=" " alt="" coords="249,55,415,80"/>
+<area shape="poly" id="edge41_Node000000_Node000002" title=" " alt="" coords="81,452,85,379,102,281,117,229,139,178,168,130,205,89,225,76,247,68,249,73,227,81,208,93,172,133,144,180,122,230,107,282,90,380,86,452"/>
+<area shape="rect" id="Node000003" href="$structWiesel_1_1AnimatorComponent.html" title=" " alt="" coords="227,104,437,129"/>
+<area shape="poly" id="edge42_Node000000_Node000003" title=" " alt="" coords="82,451,89,387,108,302,124,257,145,214,172,173,205,139,226,125,229,130,208,143,176,177,150,216,129,259,114,304,95,388,87,452"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1BehaviorsComponent.html" title=" " alt="" coords="225,153,439,179"/>
+<area shape="poly" id="edge43_Node000000_Node000004" title=" " alt="" coords="84,451,94,396,115,324,131,286,151,250,176,217,205,188,223,177,226,181,208,192,180,220,156,253,136,289,120,326,99,397,89,452"/>
+<area shape="rect" id="Node000005" href="$structWiesel_1_1BoxColliderComponent.html" title=" " alt="" coords="220,203,444,228"/>
+<area shape="poly" id="edge44_Node000000_Node000005" title=" " alt="" coords="86,451,100,404,123,346,157,287,179,260,205,237,225,226,227,230,208,241,183,264,162,290,128,348,105,406,92,452"/>
+<area shape="rect" id="Node000006" href="$structWiesel_1_1CapsuleColliderComponent.html" title=" " alt="" coords="207,252,457,277"/>
+<area shape="poly" id="edge45_Node000000_Node000006" title=" " alt="" coords="90,451,107,414,131,369,164,325,205,288,230,275,232,280,208,292,168,328,136,372,111,416,95,453"/>
+<area shape="rect" id="Node000007" href="$structWiesel_1_1HeightfieldColliderComponent.html" title=" " alt="" coords="235,302,429,342"/>
+<area shape="poly" id="edge46_Node000000_Node000007" title=" " alt="" coords="98,453,143,401,172,375,205,352,233,339,236,344,208,356,176,379,147,405,102,456"/>
+<area shape="rect" id="Node000008" href="$structWiesel_1_1IdComponent.html" title=" " alt="" coords="251,367,413,392"/>
+<area shape="poly" id="edge47_Node000000_Node000008" title=" " alt="" coords="110,455,154,427,206,401,250,388,252,393,208,406,156,431,113,459"/>
+<area shape="rect" id="Node000009" href="$structWiesel_1_1InteractableComponent.html" title=" " alt="" coords="219,416,445,441"/>
+<area shape="poly" id="edge48_Node000000_Node000009" title=" " alt="" coords="157,460,206,450,264,439,265,444,207,455,159,465"/>
+<area shape="rect" id="Node000010" href="$structWiesel_1_1MeshColliderComponent.html" title=" " alt="" coords="215,465,449,491"/>
+<area shape="poly" id="edge49_Node000000_Node000010" title=" " alt="" coords="172,475,215,475,215,481,172,481"/>
+<area shape="rect" id="Node000011" href="$structWiesel_1_1ModelComponent.html" title=" " alt="" coords="237,515,427,540"/>
+<area shape="poly" id="edge50_Node000000_Node000011" title=" " alt="" coords="161,491,267,512,266,517,160,496"/>
+<area shape="rect" id="Node000012" href="$structWiesel_1_1NavigableComponent.html" title=" " alt="" coords="225,564,439,589"/>
+<area shape="poly" id="edge51_Node000000_Node000012" title=" " alt="" coords="114,497,157,524,208,549,249,561,247,566,206,554,154,529,111,501"/>
+<area shape="rect" id="Node000013" href="$structWiesel_1_1RectangleTransformComponent.html" title=" " alt="" coords="230,614,434,654"/>
+<area shape="poly" id="edge52_Node000000_Node000013" title=" " alt="" coords="103,500,147,550,176,576,208,598,236,611,234,616,205,603,173,580,143,554,99,503"/>
+<area shape="rect" id="Node000014" href="$structWiesel_1_1RigidBodyComponent.html" title=" " alt="" coords="225,679,439,704"/>
+<area shape="poly" id="edge53_Node000000_Node000014" title=" " alt="" coords="95,503,111,540,136,584,168,628,208,664,232,676,230,681,205,668,164,631,131,587,107,542,90,505"/>
+<area shape="rect" id="Node000015" href="$structWiesel_1_1SphereColliderComponent.html" title=" " alt="" coords="210,728,454,753"/>
+<area shape="poly" id="edge54_Node000000_Node000015" title=" " alt="" coords="92,503,105,550,128,607,162,665,183,691,208,713,230,725,227,730,205,717,180,695,158,668,123,609,100,551,87,505"/>
+<area shape="rect" id="Node000016" href="$structWiesel_1_1TagComponent.html" title=" " alt="" coords="247,777,417,803"/>
+<area shape="poly" id="edge55_Node000000_Node000016" title=" " alt="" coords="89,504,100,559,121,629,136,666,156,702,180,735,208,763,227,774,247,782,245,787,224,779,205,767,176,738,151,705,132,668,116,631,94,560,84,505"/>
+<area shape="rect" id="Node000017" href="$structWiesel_1_1TransformComponent.html" title=" " alt="" coords="225,827,439,852"/>
+<area shape="poly" id="edge56_Node000000_Node000017" title=" " alt="" coords="87,504,95,568,114,652,130,696,150,739,176,778,208,812,227,824,225,829,205,816,172,781,146,741,125,698,109,653,90,569,82,505"/>
+<area shape="rect" id="Node000018" href="$structWiesel_1_1TreeComponent.html" title=" " alt="" coords="244,876,420,901"/>
+<area shape="poly" id="edge57_Node000000_Node000018" title=" " alt="" coords="86,504,91,576,108,673,123,725,144,775,173,821,208,861,225,873,245,881,243,886,223,878,205,865,168,825,140,777,118,727,102,674,85,577,81,505"/>
+<area shape="rect" id="Node000019" href="$structWiesel_1_1UIDocumentComponent.html" title=" " alt="" coords="217,925,447,951"/>
+<area shape="poly" id="edge58_Node000000_Node000019" title=" " alt="" coords="90,503,105,595,131,718,148,780,166,836,187,881,209,911,226,923,223,927,205,915,182,883,161,838,143,781,126,719,100,596,84,504"/>
 </map>

@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('structWiesel_1_1EngineProperties.html'
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__engine_8hpp_source.html">w_engine.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__engine_8h_source.html">w_engine.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -109,6 +109,8 @@ Static Public Member Functions</h2></td></tr>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a21553202ee2ae0b9fda744a7c14516d6" id="r_a21553202ee2ae0b9fda744a7c14516d6"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1EngineProperties.html#a21553202ee2ae0b9fda744a7c14516d6">editor_enabled</a> = false</td></tr>
 <tr class="separator:a21553202ee2ae0b9fda744a7c14516d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a60bf5662670658de978b85f57976bea6" id="r_a60bf5662670658de978b85f57976bea6"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1EngineProperties.html#a60bf5662670658de978b85f57976bea6">enable_stdio</a> = false</td></tr>
+<tr class="separator:a60bf5662670658de978b85f57976bea6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a136ff0b1fbd30a67e1ba4ca4a06540c7" id="r_a136ff0b1fbd30a67e1ba4ca4a06540c7"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1EngineProperties.html#a136ff0b1fbd30a67e1ba4ca4a06540c7">engine_assets_path</a></td></tr>
 <tr class="separator:a136ff0b1fbd30a67e1ba4ca4a06540c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af19adbaa6187ba7408ed71850ff86313" id="r_af19adbaa6187ba7408ed71850ff86313"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1EngineProperties.html#af19adbaa6187ba7408ed71850ff86313">editor_assets_path</a></td></tr>
@@ -121,8 +123,6 @@ Public Attributes</h2></td></tr>
 <tr class="separator:ae8a1aef3dec83bae4b7c44a926b02344"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a686ba56fb23e582494752e00ad229357" id="r_a686ba56fb23e582494752e00ad229357"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1EngineProperties.html#a686ba56fb23e582494752e00ad229357">user_data_path</a></td></tr>
 <tr class="separator:a686ba56fb23e582494752e00ad229357"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1e26c9573cda195d2576254be6406423" id="r_a1e26c9573cda195d2576254be6406423"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1EngineProperties.html#a1e26c9573cda195d2576254be6406423">dev_mode</a> = false</td></tr>
-<tr class="separator:a1e26c9573cda195d2576254be6406423"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="a53ce4370d0ef9a708674e41ca3437c11" name="a53ce4370d0ef9a708674e41ca3437c11"></a>
@@ -176,20 +176,6 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a1e26c9573cda195d2576254be6406423" name="a1e26c9573cda195d2576254be6406423"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1e26c9573cda195d2576254be6406423">&#9670;&#160;</a></span>dev_mode</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool Wiesel::EngineProperties::dev_mode = false</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
 <a id="af19adbaa6187ba7408ed71850ff86313" name="af19adbaa6187ba7408ed71850ff86313"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#af19adbaa6187ba7408ed71850ff86313">&#9670;&#160;</a></span>editor_assets_path</h2>
 
@@ -212,6 +198,20 @@ Public Attributes</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">bool Wiesel::EngineProperties::editor_enabled = false</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a60bf5662670658de978b85f57976bea6" name="a60bf5662670658de978b85f57976bea6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a60bf5662670658de978b85f57976bea6">&#9670;&#160;</a></span>enable_stdio</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::EngineProperties::enable_stdio = false</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -275,7 +275,7 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li><a class="el" href="w__engine_8hpp_source.html">w_engine.hpp</a></li>
+<li><a class="el" href="w__engine_8h_source.html">w_engine.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1Prefab.html',''); initR
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__prefab_8hpp_source.html">w_prefab.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__prefab_8h_source.html">w_prefab.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -109,8 +109,8 @@ Public Member Functions</h2></td></tr>
 Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a24a55c9bf350c48156593423e2bdf5eb" id="r_a24a55c9bf350c48156593423e2bdf5eb"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Prefab.html#a24a55c9bf350c48156593423e2bdf5eb">SaveToFile</a> (<a class="el" href="classWiesel_1_1Entity.html">Entity</a> entity, const std::filesystem::path &amp;path)</td></tr>
 <tr class="separator:a24a55c9bf350c48156593423e2bdf5eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a309b62bb975e14cab388c4fd7445204f" id="r_a309b62bb975e14cab388c4fd7445204f"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classWiesel_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Prefab.html#a309b62bb975e14cab388c4fd7445204f">InstantiateFromFile</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene, const std::filesystem::path &amp;path)</td></tr>
-<tr class="separator:a309b62bb975e14cab388c4fd7445204f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0fe492b5e5d04f0f836a3e4d6a141497" id="r_a0fe492b5e5d04f0f836a3e4d6a141497"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classWiesel_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Prefab.html#a0fe492b5e5d04f0f836a3e4d6a141497">InstantiateFromFile</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene, const std::string &amp;vfs_path)</td></tr>
+<tr class="separator:a0fe492b5e5d04f0f836a3e4d6a141497"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca1d800aba5f6a61898161333e4366b2" id="r_aca1d800aba5f6a61898161333e4366b2"><td class="memItemLeft" align="right" valign="top">static nlohmann::json&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Prefab.html#aca1d800aba5f6a61898161333e4366b2">SerializeEntityTree</a> (<a class="el" href="classWiesel_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="separator:aca1d800aba5f6a61898161333e4366b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0006e3dcdd4737978795157bc6035eb4" id="r_a0006e3dcdd4737978795157bc6035eb4"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classWiesel_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Prefab.html#a0006e3dcdd4737978795157bc6035eb4">DeserializeEntityTree</a> (std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Scene.html">Scene</a> &gt; scene, const nlohmann::json &amp;json)</td></tr>
@@ -179,8 +179,8 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a309b62bb975e14cab388c4fd7445204f" name="a309b62bb975e14cab388c4fd7445204f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a309b62bb975e14cab388c4fd7445204f">&#9670;&#160;</a></span>InstantiateFromFile()</h2>
+<a id="a0fe492b5e5d04f0f836a3e4d6a141497" name="a0fe492b5e5d04f0f836a3e4d6a141497"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0fe492b5e5d04f0f836a3e4d6a141497">&#9670;&#160;</a></span>InstantiateFromFile()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -197,8 +197,8 @@ Static Public Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const std::filesystem::path &amp;&#160;</td>
-          <td class="paramname"><em>path</em>&#160;</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>vfs_path</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -278,7 +278,7 @@ Static Public Member Functions</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__prefab_8hpp_source.html">w_prefab.hpp</a></li>
+<li><a class="el" href="w__prefab_8h_source.html">w_prefab.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

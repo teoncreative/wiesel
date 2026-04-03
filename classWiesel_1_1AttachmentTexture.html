@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('classWiesel_1_1AttachmentTexture.html'
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__texture_8hpp_source.html">w_texture.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__texture_8h_source.html">w_texture.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -113,12 +113,12 @@ Public Attributes</h2></td></tr>
 <tr class="separator:a20e2ddae8e1a4236589d76362e0d5dd1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea00280500ba084701b1ba135ed10c0f" id="r_aea00280500ba084701b1ba135ed10c0f"><td class="memItemLeft" align="right" valign="top">std::vector&lt; VkImage &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#aea00280500ba084701b1ba135ed10c0f">images_</a></td></tr>
 <tr class="separator:aea00280500ba084701b1ba135ed10c0f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a635d50d1c54e87716e858506dc27428b" id="r_a635d50d1c54e87716e858506dc27428b"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::unique_ptr&lt; <a class="el" href="classWiesel_1_1VmaImage.html">VmaImage</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#a635d50d1c54e87716e858506dc27428b">vma_images_</a></td></tr>
+<tr class="separator:a635d50d1c54e87716e858506dc27428b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae75923c24b36211b087a8aa468948ee9" id="r_ae75923c24b36211b087a8aa468948ee9"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::shared_ptr&lt; <a class="el" href="classWiesel_1_1ImageView.html">ImageView</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#ae75923c24b36211b087a8aa468948ee9">image_views_</a></td></tr>
 <tr class="separator:ae75923c24b36211b087a8aa468948ee9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a25ce7eaef6bfd1d94c5ba74d66230f56" id="r_a25ce7eaef6bfd1d94c5ba74d66230f56"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="classWiesel_1_1Sampler.html">Sampler</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#a25ce7eaef6bfd1d94c5ba74d66230f56">sampler_</a></td></tr>
 <tr class="separator:a25ce7eaef6bfd1d94c5ba74d66230f56"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a29cd33b1b9a7da2fd3913f9bc0b18bcf" id="r_a29cd33b1b9a7da2fd3913f9bc0b18bcf"><td class="memItemLeft" align="right" valign="top">std::vector&lt; VkDeviceMemory &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#a29cd33b1b9a7da2fd3913f9bc0b18bcf">device_memories_</a></td></tr>
-<tr class="separator:a29cd33b1b9a7da2fd3913f9bc0b18bcf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1c7caa46c826e48c479e2947b7ad37da" id="r_a1c7caa46c826e48c479e2947b7ad37da"><td class="memItemLeft" align="right" valign="top">VkFormat&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#a1c7caa46c826e48c479e2947b7ad37da">format_</a></td></tr>
 <tr class="separator:a1c7caa46c826e48c479e2947b7ad37da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8e4ba943e0c3975c9594aea3da3be537" id="r_a8e4ba943e0c3975c9594aea3da3be537"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1AttachmentTexture.html#a8e4ba943e0c3975c9594aea3da3be537">width_</a></td></tr>
@@ -202,20 +202,6 @@ Public Attributes</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">VkImageLayout Wiesel::AttachmentTexture::current_layout_ = VK_IMAGE_LAYOUT_UNDEFINED</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a29cd33b1b9a7da2fd3913f9bc0b18bcf" name="a29cd33b1b9a7da2fd3913f9bc0b18bcf"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a29cd33b1b9a7da2fd3913f9bc0b18bcf">&#9670;&#160;</a></span>device_memories_</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::vector&lt;VkDeviceMemory&gt; Wiesel::AttachmentTexture::device_memories_</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -348,6 +334,20 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a635d50d1c54e87716e858506dc27428b" name="a635d50d1c54e87716e858506dc27428b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a635d50d1c54e87716e858506dc27428b">&#9670;&#160;</a></span>vma_images_</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;std::unique_ptr&lt;<a class="el" href="classWiesel_1_1VmaImage.html">VmaImage</a>&gt; &gt; Wiesel::AttachmentTexture::vma_images_</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a8e4ba943e0c3975c9594aea3da3be537" name="a8e4ba943e0c3975c9594aea3da3be537"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8e4ba943e0c3975c9594aea3da3be537">&#9670;&#160;</a></span>width_</h2>
 
@@ -363,7 +363,7 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li><a class="el" href="w__texture_8hpp_source.html">w_texture.hpp</a></li>
+<li><a class="el" href="w__texture_8h_source.html">w_texture.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

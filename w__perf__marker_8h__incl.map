@@ -1,0 +1,9 @@
+<map id="w_perf_marker.h" name="w_perf_marker.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="75,5,205,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,61,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="124,33,64,73,61,69,121,28"/>
+<area shape="rect" id="Node000003" href="$w__color_8h.html" title=" " alt="" coords="86,79,194,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="143,31,143,65,137,65,137,31"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="218,79,377,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="166,28,260,71,258,75,164,33"/>
+</map>

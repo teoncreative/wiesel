@@ -25,9 +25,10 @@
 var NAVTREE =
 [
   [ "WieselEngine", "index.html", [
-    [ "Namespaces", "namespaces.html", [
-      [ "Namespace List", "namespaces.html", "namespaces_dup" ],
-      [ "Namespace Members", "namespacemembers.html", [
+    [ "Topics", "topics.html", "topics" ],
+    [ "Packages", "namespaces.html", [
+      [ "Package List", "namespaces.html", "namespaces_dup" ],
+      [ "Package Members", "namespacemembers.html", [
         [ "All", "namespacemembers.html", "namespacemembers_dup" ],
         [ "Functions", "namespacemembers_func.html", null ],
         [ "Variables", "namespacemembers_vars.html", null ],
@@ -46,6 +47,7 @@ var NAVTREE =
         [ "Variables", "functions_vars.html", "functions_vars" ],
         [ "Typedefs", "functions_type.html", null ],
         [ "Enumerations", "functions_enum.html", null ],
+        [ "Properties", "functions_prop.html", null ],
         [ "Related Symbols", "functions_rela.html", null ]
       ] ]
     ] ],
@@ -53,7 +55,7 @@ var NAVTREE =
       [ "File List", "files.html", "files_dup" ],
       [ "File Members", "globals.html", [
         [ "All", "globals.html", null ],
-        [ "Functions", "globals_func.html", null ],
+        [ "Typedefs", "globals_type.html", null ],
         [ "Macros", "globals_defs.html", null ]
       ] ]
     ] ]
@@ -62,31 +64,42 @@ var NAVTREE =
 
 var NAVTREEINDEX =
 [
-"annotated.html",
-"classWiesel_1_1AssetManager.html#afbe79574450e4ce97df4de153ea3af74",
-"classWiesel_1_1DeletionQueue.html#a346ccb271cc8ce015a47e8e4c6097afd",
-"classWiesel_1_1FontAsset.html#a51bb77df7732a51aa56675a9d540cf97",
+"AnimatorComponent_8cs.html",
+"classMonoStringWrapper.html#a9fd87087b5669f3d7bb705a27c80af97",
+"classWieselEngine_1_1Internals.html#a1c4076c049c97c6ab81f116fb7c81ccd",
+"classWieselEngine_1_1Internals.html#a6a69fd9694d1f340f759923f287ddccf",
+"classWieselEngine_1_1Internals.html#abee083d5f4331d8e1649848393499420",
+"classWieselEngine_1_1MonoBehavior.html#a6224512ab6aef0c297191e72c73ef830",
+"classWieselEngine_1_1Vector3f.html#a4016ac09ad3f7dfd66a5a08a2819808a",
+"classWiesel_1_1Application.html#ac10deba93a0ea93dfeb300e7b7a46494",
+"classWiesel_1_1CameraResourcePool.html#a5045daede49ab7542e4fa5684b056326",
+"classWiesel_1_1Editor_1_1IIconSource.html",
+"classWiesel_1_1Font.html#acccf2b9ac1861d4a26497b9f9c43bb1c",
 "classWiesel_1_1JoystickConnectedEvent.html#ae6f8aa0863ae133a1458e37faf5c74cd",
-"classWiesel_1_1Pipeline.html#a0a37ca7da4a988c6b0645f232e17cd93",
-"classWiesel_1_1RenderResourceRegistry.html",
-"classWiesel_1_1Renderer.html#af052dc4c23aaa6a8366ed4b6680dd460",
-"classWiesel_1_1ScriptData.html#a0487f45de83f71ffa314358d4dfa526b",
-"classWiesel_1_1Skybox.html#a0f03fbb570f7be95a51657558e1c2f05",
-"classWiesel_1_1UniformBuffer.html#a08e43e06772140cc620168e7dcf2418a",
-"namespaceWiesel.html#a0b26735393d9a90e10be908c80d9ce43",
-"namespaceWiesel.html#addb7239279b9f406f7e192f8c32c3c85",
-"structWiesel_1_1AnimationController.html",
-"structWiesel_1_1BoneInfo.html#af70adf904611534872e63f7debf00d98",
-"structWiesel_1_1CanvasScreenPushConstant.html",
-"structWiesel_1_1HeightfieldColliderComponent.html",
-"structWiesel_1_1MaterialFeature.html#af369bf17b86f552867580d6fb96a6aa5",
-"structWiesel_1_1PipelineProperties.html#ac5aae80873f02b0f84dc17ced2441e52",
-"structWiesel_1_1RenderStats.html#a192223daecdae45d3de6c49996cf0a2a",
-"structWiesel_1_1SpriteAssetData.html",
-"structWiesel_1_1TransformComponent.html#a51ef95de126f125f8b4cd4a8a25479ae",
-"w__attributes_8hpp.html#a85d205c4f00d74230eca9a1973e02b6f",
-"w__logger_8hpp.html",
-"w__thread__pool_8hpp_source.html"
+"classWiesel_1_1PhysicsWorld.html#af82550f6c733d6079420a44d90c2a10d",
+"classWiesel_1_1RenderPipeline.html#a0271ccdcaf9c663ab52f4ac8156e45d9",
+"classWiesel_1_1Renderer.html#ad5495a62cbadf6d59241edf57a49baed",
+"classWiesel_1_1Scene.html#acea51902cf1bf3a76246b0f279a61d25",
+"classWiesel_1_1ScriptManager.html#a4686205d61f4a1df8da6aef803426e4c",
+"classWiesel_1_1ThreadPool.html#a324f11bc9ca5904e61a8cf9e1c0d213f",
+"classWiesel_1_1VirtualFileSystem.html#affbb7c04bb2671d3c451d1ff7c9c6803",
+"namespaceWiesel.html#a1aebe976ef232afa2f1c4d0760626f7a",
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa9afbfd35b289eb4fc7f1bc148d7b422e",
+"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887af5f286e73bda105e538310b3190f75c5",
+"structWiesel_1_1AnimParam.html#ad6d83a43ac7a01f5f7b379db6087e9e5",
+"structWiesel_1_1AudioSourceComponent.html#a1d202fd16b68200faff744e30f53eaa5",
+"structWiesel_1_1CanvasComponent.html#aae9c7db705679aecfeba969731f21626",
+"structWiesel_1_1Editor_1_1EditorIconDef.html",
+"structWiesel_1_1InteractableComponent.html#acffe2f904344c8f25b22536c3669ff1c",
+"structWiesel_1_1Mesh.html#a7be1926347c78938ce5d09be9801a741",
+"structWiesel_1_1ProjectSettings.html#a80fde7ec8286ca43975c60936014f0e2",
+"structWiesel_1_1RendererOptions.html#a093b43b75dd60b051b912ea8b178d10c",
+"structWiesel_1_1SoundParams.html#a08d5854f7dca991c6d1c965932801aec",
+"structWiesel_1_1ThumbnailEntry.html#a81403912d200d35e1db222df69221291",
+"structWiesel_1_1WindowSize.html#a4aabbf81e45be876d7316b4c7d8ce56b",
+"w__dialogs_8h.html#a9b0998b0c806ee1676a2848529f613c5",
+"w__physics__world_8h_source.html",
+"w__ui__manager_8h_source.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

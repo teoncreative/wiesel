@@ -1,3 +1,49 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$structWiesel_1_1LightPointComponent.html" title=" " alt="" coords="5,5,220,31"/>
+<area shape="rect" id="Node000000" href="$classWiesel_1_1Event.html" title=" " alt="" coords="5,530,116,555"/>
+<area shape="rect" id="Node000001" href="$classWiesel_1_1AppRecreateSwapChainsEvent.html" title=" " alt="" coords="164,5,400,45"/>
+<area shape="poly" id="edge14_Node000000_Node000001" title=" " alt="" coords="61,516,71,415,90,277,104,207,120,144,139,92,162,56,177,43,180,47,166,59,144,94,125,145,109,209,96,278,76,415,67,516"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1AssetUnloadedEvent.html" title=" " alt="" coords="177,70,387,95"/>
+<area shape="poly" id="edge15_Node000000_Node000002" title=" " alt="" coords="62,516,73,424,93,302,106,240,122,184,141,138,162,106,180,93,183,97,166,110,145,140,127,185,111,241,98,303,78,425,67,517"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1JoystickAxisMovedEvent.html" title=" " alt="" coords="183,120,381,160"/>
+<area shape="poly" id="edge16_Node000000_Node000003" title=" " alt="" coords="58,516,60,448,73,355,86,305,104,256,129,210,162,170,182,156,185,160,166,174,134,213,109,258,91,307,78,356,66,448,64,516"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1JoystickButtonPressedEvent.html" title=" " alt="" coords="173,184,391,224"/>
+<area shape="poly" id="edge17_Node000000_Node000004" title=" " alt="" coords="60,516,66,458,81,383,94,342,112,303,134,266,162,234,179,222,182,226,166,238,138,269,117,305,99,344,87,384,71,459,65,517"/>
+<area shape="rect" id="Node000005" href="$classWiesel_1_1JoystickButtonReleasedEvent.html" title=" " alt="" coords="168,248,396,288"/>
+<area shape="poly" id="edge18_Node000000_Node000005" title=" " alt="" coords="63,516,72,469,90,410,119,350,139,322,162,298,180,286,183,290,166,302,143,326,124,353,95,412,77,470,68,517"/>
+<area shape="rect" id="Node000006" href="$classWiesel_1_1JoystickConnectedEvent.html" title=" " alt="" coords="185,312,379,352"/>
+<area shape="poly" id="edge19_Node000000_Node000006" title=" " alt="" coords="67,515,80,481,100,439,127,397,162,362,183,349,186,354,166,366,132,401,105,442,85,483,72,517"/>
+<area shape="rect" id="Node000007" href="$classWiesel_1_1JoystickDisconnectedEvent.html" title=" " alt="" coords="175,376,389,416"/>
+<area shape="poly" id="edge20_Node000000_Node000007" title=" " alt="" coords="75,517,111,470,135,446,163,426,186,414,189,419,165,430,139,450,115,474,79,520"/>
+<area shape="rect" id="Node000008" href="$classWiesel_1_1JoystickHatChangedEvent.html" title=" " alt="" coords="179,440,385,480"/>
+<area shape="poly" id="edge21_Node000000_Node000008" title=" " alt="" coords="95,521,163,490,199,477,201,483,165,494,98,526"/>
+<area shape="rect" id="Node000009" href="$classWiesel_1_1KeyEvent.html" title=" " alt="" coords="215,505,349,530"/>
+<area shape="poly" id="edge22_Node000000_Node000009" title=" " alt="" coords="129,532,214,522,215,528,130,538"/>
+<area shape="rect" id="Node000013" href="$classWiesel_1_1MouseButtonEvent.html" title=" " alt="" coords="183,554,381,579"/>
+<area shape="poly" id="edge26_Node000000_Node000013" title=" " alt="" coords="130,547,183,553,183,559,129,553"/>
+<area shape="rect" id="Node000016" href="$classWiesel_1_1MouseMovedEvent.html" title=" " alt="" coords="183,603,381,629"/>
+<area shape="poly" id="edge29_Node000000_Node000016" title=" " alt="" coords="97,559,165,589,205,601,204,606,163,595,95,564"/>
+<area shape="rect" id="Node000017" href="$classWiesel_1_1MouseScrolledEvent.html" title=" " alt="" coords="179,653,385,678"/>
+<area shape="poly" id="edge30_Node000000_Node000017" title=" " alt="" coords="82,565,118,604,140,623,165,639,193,650,191,655,163,644,137,627,114,608,78,568"/>
+<area shape="rect" id="Node000018" href="$classWiesel_1_1PipelineRecreatedEvent.html" title=" " alt="" coords="186,703,378,743"/>
+<area shape="poly" id="edge31_Node000000_Node000018" title=" " alt="" coords="75,567,110,629,135,661,166,689,187,701,184,705,162,693,131,665,105,632,70,570"/>
+<area shape="rect" id="Node000019" href="$classWiesel_1_1ScriptsReloadedEvent.html" title=" " alt="" coords="174,767,390,793"/>
+<area shape="poly" id="edge32_Node000000_Node000019" title=" " alt="" coords="69,568,80,610,99,660,127,710,145,733,166,753,187,765,184,770,162,757,141,737,122,713,94,662,75,611,64,570"/>
+<area shape="rect" id="Node000020" href="$classWiesel_1_1WindowCloseEvent.html" title=" " alt="" coords="183,817,381,842"/>
+<area shape="poly" id="edge33_Node000000_Node000020" title=" " alt="" coords="67,569,74,619,91,683,104,716,121,748,141,778,166,803,184,815,181,819,162,807,137,781,116,751,99,718,86,685,69,620,61,569"/>
+<area shape="rect" id="Node000021" href="$classWiesel_1_1WindowFocusGainedEvent.html" title=" " alt="" coords="177,867,387,907"/>
+<area shape="poly" id="edge34_Node000000_Node000021" title=" " alt="" coords="65,569,71,628,86,704,99,745,116,784,138,821,166,853,181,864,178,869,162,857,134,824,111,786,94,746,81,705,65,628,60,569"/>
+<area shape="rect" id="Node000022" href="$classWiesel_1_1WindowFocusLostEvent.html" title=" " alt="" coords="169,931,395,957"/>
+<area shape="poly" id="edge35_Node000000_Node000022" title=" " alt="" coords="68,569,81,649,102,754,131,853,148,891,166,917,183,929,180,933,162,921,143,894,126,855,97,755,76,650,63,569"/>
+<area shape="rect" id="Node000023" href="$classWiesel_1_1WindowResizeEvent.html" title=" " alt="" coords="179,981,385,1006"/>
+<area shape="poly" id="edge36_Node000000_Node000023" title=" " alt="" coords="67,569,78,659,98,779,112,839,128,894,146,938,166,967,181,978,178,983,162,971,141,941,123,896,107,841,93,780,73,660,62,569"/>
+<area shape="rect" id="Node000010" href="$classWiesel_1_1KeyPressedEvent.html" title=" " alt="" coords="465,406,651,431"/>
+<area shape="poly" id="edge23_Node000009_Node000010" title=" " alt="" coords="361,504,399,490,413,478,422,466,431,453,447,440,473,429,475,434,449,445,435,456,426,469,417,482,401,494,363,509"/>
+<area shape="rect" id="Node000011" href="$classWiesel_1_1KeyReleasedEvent.html" title=" " alt="" coords="461,455,655,481"/>
+<area shape="poly" id="edge24_Node000009_Node000011" title=" " alt="" coords="362,500,486,478,487,483,363,506"/>
+<area shape="rect" id="Node000012" href="$classWiesel_1_1KeyTypedEvent.html" title=" " alt="" coords="471,505,645,530"/>
+<area shape="poly" id="edge25_Node000009_Node000012" title=" " alt="" coords="363,515,471,515,471,520,363,520"/>
+<area shape="rect" id="Node000014" href="$classWiesel_1_1MouseButtonPressedEvent.html" title=" " alt="" coords="453,555,663,595"/>
+<area shape="poly" id="edge27_Node000013_Node000014" title=" " alt="" coords="395,567,452,569,452,574,395,573"/>
+<area shape="rect" id="Node000015" href="$classWiesel_1_1MouseButtonReleasedEvent.html" title=" " alt="" coords="448,619,668,659"/>
+<area shape="poly" id="edge28_Node000013_Node000015" title=" " alt="" coords="360,580,401,589,449,604,489,616,487,621,447,609,399,595,359,585"/>
 </map>

@@ -1,5 +1,5 @@
 var structWiesel_1_1ShadowMapMatricesUniformData =
 [
-    [ "EnableShadows", "structWiesel_1_1ShadowMapMatricesUniformData.html#a8c411ad7e45963aa25a37481d827ca49", null ],
-    [ "ViewProjectionMatrix", "structWiesel_1_1ShadowMapMatricesUniformData.html#a57dc7ed7a909bce71c9ecf174992ef16", null ]
+    [ "enable_shadows", "structWiesel_1_1ShadowMapMatricesUniformData.html#a71c1db4cd1a62e1ce477d8737e1283e5", null ],
+    [ "view_projection_matrix", "structWiesel_1_1ShadowMapMatricesUniformData.html#af8dd18977299cca7d9ab3db78a314154", null ]
 ];

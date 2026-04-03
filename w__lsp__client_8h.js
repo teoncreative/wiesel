@@ -1,0 +1,36 @@
+var w__lsp__client_8h =
+[
+    [ "Wiesel::Editor::LspCompletionItem", "structWiesel_1_1Editor_1_1LspCompletionItem.html", "structWiesel_1_1Editor_1_1LspCompletionItem" ],
+    [ "Wiesel::Editor::LspDiagnostic", "structWiesel_1_1Editor_1_1LspDiagnostic.html", "structWiesel_1_1Editor_1_1LspDiagnostic" ],
+    [ "Wiesel::Editor::LspHoverResult", "structWiesel_1_1Editor_1_1LspHoverResult.html", "structWiesel_1_1Editor_1_1LspHoverResult" ],
+    [ "Wiesel::Editor::LspSemanticToken", "structWiesel_1_1Editor_1_1LspSemanticToken.html", "structWiesel_1_1Editor_1_1LspSemanticToken" ],
+    [ "Wiesel::Editor::LspClient", "classWiesel_1_1Editor_1_1LspClient.html", "classWiesel_1_1Editor_1_1LspClient" ],
+    [ "Wiesel::Editor::LspClient::LogEntry", "structWiesel_1_1Editor_1_1LspClient_1_1LogEntry.html", "structWiesel_1_1Editor_1_1LspClient_1_1LogEntry" ],
+    [ "json", "w__lsp__client_8h.html#ac6995fbe49520e469b31f4adcdfbeb60", null ],
+    [ "SemanticTokenType", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912b", [
+      [ "Namespace", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912bab3ba0fe968ce39dcfc6fe8cc0f1b02da", null ],
+      [ "Type", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912baa1fa27779242b4902f7ae3bdd5c6d508", null ],
+      [ "Class", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba9bd81329febf6efe22788e03ddeaf0af", null ],
+      [ "Enum", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912bacf20423ed48998082c20099488a0917c", null ],
+      [ "Interface", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba3c1aac82863ed9e5a9aca8ce687f711d", null ],
+      [ "Struct", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba886ef5dbd655a6c97726d7091c6b173e", null ],
+      [ "TypeParameter", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912babacdd231dc91b0d271df56df65d1eab3", null ],
+      [ "Parameter", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba83f499a540b1323009c200d6f8cc9396", null ],
+      [ "Variable", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba47c14840d8e15331fa420b9b2f757cd9", null ],
+      [ "Property", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba5ad234cb2cde4266195252a23ca7d84e", null ],
+      [ "EnumMember", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba692ec2aadc30b3b8cc45b63c507e48a1", null ],
+      [ "Event", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912baa4ecfc70574394990cf17bd83df499f7", null ],
+      [ "Function", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba86408593c34af77fdd90df932f8b5261", null ],
+      [ "Method", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba4c3880bb027f159e801041b1021e88e8", null ],
+      [ "Macro", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba4374cf34c5d58482ffae982196bd2114", null ],
+      [ "Keyword", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba220f3d3750583b9db48568a0b5b9a5f1", null ],
+      [ "Modifier", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba898c079d2e62a4b1971dfbad9d860838", null ],
+      [ "Comment", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba0be8406951cdfda82f00f79328cf4efc", null ],
+      [ "String", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba27118326006d3829667a400ad23d5d98", null ],
+      [ "Number", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912bab2ee912b91d69b435159c7c3f6df7f5f", null ],
+      [ "Regexp", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912bac2e2674e3d72303850db2268d7013497", null ],
+      [ "Operator", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912bae1b3ec89ead7f83a9245ed5c9cacfdbf", null ],
+      [ "Decorator", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912ba5041ffe849fcde6f23f9d99c2e949265", null ],
+      [ "Count", "w__lsp__client_8h.html#ac401a579c7e1183eb3e6bc3abcd1912bae93f994f01c537c4e2f7d8528c3eb5e9", null ]
+    ] ]
+];

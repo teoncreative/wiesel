@@ -1,3 +1,5 @@
 <map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="Node000000" href="$structWiesel_1_1AnimationState.html" title=" " alt="" coords="5,5,180,31"/>
+<area shape="rect" id="Node000000" title=" " alt="" coords="5,5,124,31"/>
+<area shape="rect" id="Node000001" href="$structWiesel_1_1is__component.html" title="Type trait to detect component references." alt="" coords="172,5,375,31"/>
+<area shape="poly" id="edge8_Node000000_Node000001" title=" " alt="" coords="138,15,172,15,172,21,138,21"/>
 </map>

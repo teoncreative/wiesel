@@ -1,13 +1,13 @@
 <map id="Wiesel::RendererOptions" name="Wiesel::RendererOptions">
-<area shape="rect" id="Node000001" title=" " alt="" coords="408,259,591,285"/>
-<area shape="rect" id="Node000002" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="23,147,201,173"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="216,161,299,172,343,182,385,195,414,208,442,225,485,257,482,261,439,230,412,213,383,200,342,187,299,177,215,166"/>
-<area shape="rect" id="Node000003" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="29,202,195,227"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="210,224,384,249,429,257,428,262,384,255,209,230"/>
-<area shape="rect" id="Node000004" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="14,252,210,292"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="224,269,408,269,408,275,224,275"/>
-<area shape="rect" id="Node000005" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="5,316,219,356"/>
-<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="232,314,384,289,426,282,427,287,384,295,233,320"/>
-<area shape="rect" id="Node000006" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="23,389,201,414"/>
-<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="215,398,299,388,342,378,383,363,414,345,443,324,485,283,489,287,446,328,417,350,385,368,343,383,300,393,216,404"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="425,311,608,337"/>
+<area shape="rect" id="Node000002" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="23,157,201,182"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="215,162,261,165,309,172,357,183,403,202,438,226,469,256,510,309,505,313,465,259,435,230,400,206,355,189,308,177,260,170,215,168"/>
+<area shape="rect" id="Node000003" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="29,254,195,279"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="209,275,402,301,446,309,445,314,401,307,209,281"/>
+<area shape="rect" id="Node000004" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="14,304,210,344"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="224,321,425,321,425,327,224,327"/>
+<area shape="rect" id="Node000005" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="5,368,219,408"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="232,368,401,341,444,334,445,339,402,347,233,373"/>
+<area shape="rect" id="Node000006" href="$classWiesel_1_1Setting.html" title=" " alt="" coords="23,441,201,466"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="215,452,307,443,355,432,400,416,432,399,461,377,503,335,506,339,464,381,435,403,402,421,356,437,308,448,215,458"/>
 </map>

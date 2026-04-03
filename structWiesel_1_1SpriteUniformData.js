@@ -1,7 +1,7 @@
 var structWiesel_1_1SpriteUniformData =
 [
-    [ "FlipX", "structWiesel_1_1SpriteUniformData.html#a397af7911aeb9e436bded094f56341ff", null ],
-    [ "FlipY", "structWiesel_1_1SpriteUniformData.html#adbf09c3065fa055e68969215b97f5fda", null ],
-    [ "ModelMatrix", "structWiesel_1_1SpriteUniformData.html#a1fe35028baf80a0a90ea3fc31ccca337", null ],
-    [ "Tint", "structWiesel_1_1SpriteUniformData.html#a6e12f88c946ae14361690a1ffe265a16", null ]
+    [ "flip_x", "structWiesel_1_1SpriteUniformData.html#acb8c090a8ce28201dc40a7586952a2c3", null ],
+    [ "flip_y", "structWiesel_1_1SpriteUniformData.html#a4c9e8ab7558cf83b8a02063bc7a92a5d", null ],
+    [ "model_matrix", "structWiesel_1_1SpriteUniformData.html#a3863a034659525eea487133f0ed54793", null ],
+    [ "tint", "structWiesel_1_1SpriteUniformData.html#afd232692e89f2f3cccb830920b0c6552", null ]
 ];

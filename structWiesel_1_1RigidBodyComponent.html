@@ -98,7 +98,7 @@ $(document).ready(function(){initNavTree('structWiesel_1_1RigidBodyComponent.htm
 </div><!--header-->
 <div class="contents">
 
-<p><code>#include &lt;<a class="el" href="w__rigidbody_8hpp_source.html">w_rigidbody.hpp</a>&gt;</code></p>
+<p><code>#include &lt;<a class="el" href="w__rigidbody_8h_source.html">w_rigidbody.h</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for Wiesel::RigidBodyComponent:</div>
 <div class="dyncontent">
@@ -186,10 +186,12 @@ Public Attributes</h2></td></tr>
 <tr class="separator:ad765f0ddbb495a8ae178de594fae09f4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae95b514e71aa07265961e0f09d372577" id="r_ae95b514e71aa07265961e0f09d372577"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RigidBodyComponent.html#ae95b514e71aa07265961e0f09d372577">lock_rotation_z</a> = false</td></tr>
 <tr class="separator:ae95b514e71aa07265961e0f09d372577"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7f028a0dccfef017ff0c7f0b69d67dd0" id="r_a7f028a0dccfef017ff0c7f0b69d67dd0"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RigidBodyComponent.html#a7f028a0dccfef017ff0c7f0b69d67dd0">is_dirty</a> = true</td></tr>
-<tr class="separator:a7f028a0dccfef017ff0c7f0b69d67dd0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a810602ab1db91da8b77c2506c41c61de" id="r_a810602ab1db91da8b77c2506c41c61de"><td class="memItemLeft" align="right" valign="top">void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RigidBodyComponent.html#a810602ab1db91da8b77c2506c41c61de">bt_body_ptr</a> = nullptr</td></tr>
-<tr class="separator:a810602ab1db91da8b77c2506c41c61de"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b732ac1fa492545826fb5a80dc0523d" id="r_a1b732ac1fa492545826fb5a80dc0523d"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RigidBodyComponent.html#a1b732ac1fa492545826fb5a80dc0523d">needs_recreate</a> = true</td></tr>
+<tr class="separator:a1b732ac1fa492545826fb5a80dc0523d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab8db88972792bcb996b43a488c4621cb" id="r_ab8db88972792bcb996b43a488c4621cb"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RigidBodyComponent.html#ab8db88972792bcb996b43a488c4621cb">body_id_raw</a> = ~0u</td></tr>
+<tr class="separator:ab8db88972792bcb996b43a488c4621cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a69df17a90da69f02508dd2de778771c4" id="r_a69df17a90da69f02508dd2de778771c4"><td class="memItemLeft" align="right" valign="top">void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1RigidBodyComponent.html#a69df17a90da69f02508dd2de778771c4">physics_system_ptr</a> = nullptr</td></tr>
+<tr class="separator:a69df17a90da69f02508dd2de778771c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a55a09e1c10da608d63d63cab1bde5a5a" name="a55a09e1c10da608d63d63cab1bde5a5a"></a>
@@ -546,14 +548,14 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
-<a id="a810602ab1db91da8b77c2506c41c61de" name="a810602ab1db91da8b77c2506c41c61de"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a810602ab1db91da8b77c2506c41c61de">&#9670;&#160;</a></span>bt_body_ptr</h2>
+<a id="ab8db88972792bcb996b43a488c4621cb" name="ab8db88972792bcb996b43a488c4621cb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab8db88972792bcb996b43a488c4621cb">&#9670;&#160;</a></span>body_id_raw</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void* Wiesel::RigidBodyComponent::bt_body_ptr = nullptr</td>
+          <td class="memname">uint32_t Wiesel::RigidBodyComponent::body_id_raw = ~0u</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -568,20 +570,6 @@ Public Attributes</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">float Wiesel::RigidBodyComponent::friction = 0.5f</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a7f028a0dccfef017ff0c7f0b69d67dd0" name="a7f028a0dccfef017ff0c7f0b69d67dd0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7f028a0dccfef017ff0c7f0b69d67dd0">&#9670;&#160;</a></span>is_dirty</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool Wiesel::RigidBodyComponent::is_dirty = true</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -700,6 +688,34 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a1b732ac1fa492545826fb5a80dc0523d" name="a1b732ac1fa492545826fb5a80dc0523d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1b732ac1fa492545826fb5a80dc0523d">&#9670;&#160;</a></span>needs_recreate</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool Wiesel::RigidBodyComponent::needs_recreate = true</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a69df17a90da69f02508dd2de778771c4" name="a69df17a90da69f02508dd2de778771c4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a69df17a90da69f02508dd2de778771c4">&#9670;&#160;</a></span>physics_system_ptr</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void* Wiesel::RigidBodyComponent::physics_system_ptr = nullptr</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="ae94e1502af024ec77c56b14104bc46f2" name="ae94e1502af024ec77c56b14104bc46f2"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ae94e1502af024ec77c56b14104bc46f2">&#9670;&#160;</a></span>restitution</h2>
 
@@ -729,7 +745,7 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li><a class="el" href="w__rigidbody_8hpp_source.html">w_rigidbody.hpp</a></li>
+<li><a class="el" href="w__rigidbody_8h_source.html">w_rigidbody.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
