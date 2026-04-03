@@ -26,6 +26,7 @@
 #include "rendering/w_material.h"
 #include "rendering/w_texture.h"
 #include "scene/w_components.h"
+#include "util/w_logger.h"
 #include "w_pch.h"
 
 namespace Wiesel {

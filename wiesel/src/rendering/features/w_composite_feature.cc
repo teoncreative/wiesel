@@ -121,7 +121,7 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   auto grid_out =
       registry.Has("GridOut") ? registry.Get("GridOut") : RGResource{};
 
-  // Composite pass (canvas is blended later by CanvasFeature)
+  // Composite pass
   auto pipeline = pipeline_;
   bool has_transparency = transparency_out.IsValid();
   bool has_grid = grid_out.IsValid();

@@ -18,11 +18,13 @@
 #include "../../wiesel/include/asset/w_sprite_loader.h"
 #include "animation/w_animation.h"
 #include "asset/w_asset_manager.h"
+#include "asset/w_asset_serializer.h"
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "behavior/w_native_behavior.h"
 #include "mono_wrappers.h"
 #include "physics/w_collider.h"
+#include "physics/w_mesh_collider_asset.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_sprite.h"
@@ -860,8 +862,66 @@ void RenderAddComponentImGui_CapsuleColliderComponent(Entity entity) {
 void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Mesh Collider", &visible)) {
+    AssetDropField("Collider Asset", AssetType::MeshCollider,
+                   component.collider_handle);
+
+    // Show baked asset info
+    if (component.collider_handle.IsValid()) {
+      auto baked = Engine::asset_manager().Get<MeshColliderAssetData>(
+          component.collider_handle);
+      if (baked) {
+        ImGui::TextDisabled("  %zu vertices, %zu triangles",
+                            baked->vertices.size(), baked->indices.size() / 3);
+      }
+    }
+
     ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
+
+    // Bake from model button (when no baked asset or to create one)
+    if (entity.HasComponent<ModelComponent>()) {
+      auto& model_comp = entity.GetComponent<ModelComponent>();
+      if (model_comp.model_handle.IsValid()) {
+        if (ImGui::Button("Bake from Model")) {
+          auto data = BakeMeshColliderFromModel(model_comp.model_handle);
+          if (data) {
+            const auto* model_meta =
+                Engine::asset_manager().GetMetadata(model_comp.model_handle);
+            std::string name =
+                model_meta ? model_meta->name + "_collider" : "mesh_collider";
+            std::string dir;
+            if (model_meta) {
+              std::string src = model_meta->virtual_source_path;
+              size_t sl = src.rfind('/');
+              dir = (sl != std::string::npos) ? src.substr(0, sl) : "app://";
+            } else {
+              dir = "app://";
+            }
+            std::string vfs_path = dir + "/" + name + ".wmeshcol";
+            AssetHandle handle =
+                AssetSerializerRegistry::Create<MeshColliderAssetData>(
+                    name, AssetType::MeshCollider, vfs_path, data);
+            if (handle.IsValid()) {
+              AssetSerializerRegistry::Save(handle);
+              component.collider_handle = handle;
+            }
+          }
+        }
+      }
+    }
+
     if (ImGui::Button("Regenerate Collider")) {
+      // Re-bake asset if one is assigned
+      if (component.collider_handle.IsValid()) {
+        auto baked = Engine::asset_manager().Get<MeshColliderAssetData>(
+            component.collider_handle);
+        if (baked && baked->source_model.IsValid()) {
+          auto new_data = BakeMeshColliderFromModel(baked->source_model);
+          if (new_data) {
+            Engine::asset_manager().Store(component.collider_handle, new_data);
+            AssetSerializerRegistry::Save(component.collider_handle);
+          }
+        }
+      }
       auto& physics = entity.GetScene()->GetPhysicsWorld();
       physics.DestroyBody(entity.handle());
       physics.CreateBody(entity.handle());

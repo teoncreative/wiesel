@@ -31,6 +31,7 @@ class TransparencyFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline> ibl_pipeline_;
 };
 
 }  // namespace Wiesel

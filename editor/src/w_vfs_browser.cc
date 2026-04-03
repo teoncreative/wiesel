@@ -322,6 +322,10 @@ ImVec4 VfsBrowser::GetAssetColor(AssetType type) {
       return {0.85f, 0.40f, 0.20f, 1.0f};
     case AssetType::UIStylesheet:
       return {0.20f, 0.50f, 0.85f, 1.0f};
+    case AssetType::CursorSet:
+      return {0.65f, 0.45f, 0.70f, 1.0f};
+    case AssetType::MeshCollider:
+      return {0.50f, 0.72f, 0.50f, 1.0f};
     default:
       return {0.40f, 0.40f, 0.40f, 1.0f};
   }
@@ -359,6 +363,10 @@ const char* VfsBrowser::GetAssetAbbrev(AssetType type) {
       return "RML";
     case AssetType::UIStylesheet:
       return "CSS";
+    case AssetType::CursorSet:
+      return "CUR";
+    case AssetType::MeshCollider:
+      return "COL";
     default:
       return "?";
   }

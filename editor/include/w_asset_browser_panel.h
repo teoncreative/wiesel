@@ -33,6 +33,7 @@ struct AssetBrowserCallbacks {
   std::function<void()> on_show_create_spriteanim;
   std::function<void()> on_show_create_spritecontroller;
   std::function<void()> on_show_create_cursorset;
+  std::function<void()> on_show_create_meshcollider;
 };
 
 class AssetBrowserPanel {

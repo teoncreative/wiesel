@@ -51,6 +51,27 @@ TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
+
+  // IBL variant: same but with irradiance/prefilter/brdfLUT samplers
+  auto ibl_frag =
+      renderer_->CreateShader({ShaderTypeFragment,
+                               ShaderLangGLSL,
+                               "main",
+                               ShaderSourceSource,
+                               "engine://shaders/transparency_shader.frag",
+                               {"USE_IBL"}});
+  ibl_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
+      SamplingMode::DISABLED, CullModeNone, false, true, true, false});
+  ibl_pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
+                               Vertex3D::GetAttributeDescriptions());
+  ibl_pipeline_->SetRenderPass(render_pass_);
+  ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("GeometryMesh"));
+  ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
+  ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
+  ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("IBL"));
+  ibl_pipeline_->AddShader(vert);
+  ibl_pipeline_->AddShader(ibl_frag);
+  ibl_pipeline_->Bake();
 }
 
 void TransparencyFeature::SetupResources(RenderContext& ctx) {
@@ -66,14 +87,12 @@ void TransparencyFeature::SetupResources(RenderContext& ctx) {
           {rw, rh, AttachmentTextureType::Offscreen, 1,
            renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
-  // Framebuffer: transparency color + geometry depth stencil (reused, read-only)
   std::array<AttachmentTexture*, 2> attachments{
       pool.GetTexture("transparency.color").get(),
       pool.GetTexture("geometry.depth_stencil").get()};
   pool.SetFramebuffer("transparency", render_pass_->CreateFramebuffer(
                                           0, attachments, {rw, rh}));
 
-  // Output descriptor for composite
   auto output_desc = std::make_shared<DescriptorSet>();
   output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   output_desc->AddCombinedImageSampler(
@@ -90,18 +109,21 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   auto* scene = &ctx.scene;
-  auto pipeline = pipeline_;
 
   RGResource transparency_out = graph.ImportTexture(
       "TransparencyOut", pool->GetTexture("transparency.color"));
 
-  // Depend on LightingOut for ordering (ensures geometry + lighting run first)
-  auto lighting_out = registry.Get("LightingOut");
+  RGResource lighting_out = registry.Get("LightingOut");
+
+  bool use_ibl =
+      pool->HasDescriptor("ibl.descriptor") && renderer_->options().ibl_enabled;
+  auto active_pipeline = use_ibl ? ibl_pipeline_ : pipeline_;
+  auto ibl_desc = use_ibl ? pool->GetDescriptor("ibl.descriptor") : nullptr;
 
   uint32_t pass = graph.AddPass(
       "Transparency", render_pass_,
-      [pipeline, scene, renderer](VkCommandBuffer) {
-        pipeline->Bind(PipelineBindPointGraphics);
+      [active_pipeline, scene, renderer, ibl_desc](VkCommandBuffer) {
+        active_pipeline->Bind(PipelineBindPointGraphics);
         const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
         auto& assets = Engine::asset_manager();
         for (const auto& entity :
@@ -119,7 +141,7 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
               continue;
             }
           }
-          renderer->DrawModelTransparent(model, transform, entity);
+          renderer->DrawModelTransparent(model, transform, entity, ibl_desc);
         }
       });
 

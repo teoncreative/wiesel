@@ -440,13 +440,15 @@ class Renderer {
 
   void DrawModel(ModelComponent& model, const TransformComponent& transform,
                  bool shadow_pass, entt::entity entity_handle = entt::null);
-  void DrawModelTransparent(ModelComponent& model,
-                            const TransformComponent& transform,
-                            entt::entity entity_handle = entt::null);
+  void DrawModelTransparent(
+      ModelComponent& model, const TransformComponent& transform,
+      entt::entity entity_handle = entt::null,
+      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
   void DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                    std::shared_ptr<DescriptorSet> mesh_descriptors,
                    std::shared_ptr<DescriptorSet> bone_descriptors,
-                   std::shared_ptr<DescriptorSet> global_descriptors);
+                   std::shared_ptr<DescriptorSet> global_descriptors,
+                   std::shared_ptr<DescriptorSet> ibl_descriptors = nullptr);
   void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
   void DrawSprite(SpriteRendererComponent& sprite,
                   const TransformComponent& transform);

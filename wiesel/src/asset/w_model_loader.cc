@@ -317,6 +317,17 @@ bool LoadTextureAsset(AssetHandle handle) {
     return false;
   }
 
+  // Scan for semi-transparent pixels (0 < alpha < 255)
+  bool has_semi_transparency = false;
+  int pixel_count = w * h;
+  for (int p = 0; p < pixel_count; p++) {
+    uint8_t a = pixels[p * 4 + 3];
+    if (a > 0 && a < 255) {
+      has_semi_transparency = true;
+      break;
+    }
+  }
+
   meta->load_progress.store(0.5f);
 
   // Read asset properties (filtering, mipmaps, etc.)
@@ -365,6 +376,9 @@ bool LoadTextureAsset(AssetHandle handle) {
   sampler.address_mode = vk_wrap;
 
   auto texture = renderer->CreateTexture(pixels, 4, props, sampler);
+  if (texture) {
+    texture->has_semi_transparency_ = has_semi_transparency;
+  }
 
   if (free_pixels) {
     stbi_image_free(pixels);
@@ -697,15 +711,6 @@ static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
       vfs_path = NormalizeTexturePath(s, model.textures_path);
     }
 
-    // Check transparency from pre-decoded cache before it gets consumed
-    if (tex_type == TextureTypeDiffuse || tex_type == TextureTypeBaseColor) {
-      auto cache_it = tl_decoded_texture_cache.find(vfs_path);
-      if (cache_it != tl_decoded_texture_cache.end() && cache_it->second &&
-          cache_it->second->has_semi_transparency) {
-        mesh->has_transparency = true;
-      }
-    }
-
     // Register texture asset if not already registered
     AssetHandle tex_handle = asset_manager.FindBySourcePath(vfs_path);
     if (!tex_handle.IsValid()) {
@@ -730,6 +735,14 @@ static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
     if (tex_handle.IsValid() &&
         asset_manager.GetLoadState(tex_handle) != AssetLoadState::Loaded) {
       asset_manager.LoadSync(tex_handle);
+    }
+
+    // Check loaded texture for semi-transparency (diffuse/albedo only)
+    if (tex_type == TextureTypeDiffuse || tex_type == TextureTypeBaseColor) {
+      auto tex = asset_manager.Get<Texture>(tex_handle);
+      if (tex && tex->has_semi_transparency_) {
+        mesh->has_transparency = true;
+      }
     }
 
     Material::Set(mesh->mat, tex_handle, tex_type);

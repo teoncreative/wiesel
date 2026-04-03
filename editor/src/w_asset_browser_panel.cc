@@ -518,6 +518,12 @@ void AssetBrowserPanel::Render(bool& open) {
           }
           ImGui::CloseCurrentPopup();
         }
+        if (ImGui::MenuItem("Mesh Collider")) {
+          if (callbacks_.on_show_create_meshcollider) {
+            callbacks_.on_show_create_meshcollider();
+          }
+          ImGui::CloseCurrentPopup();
+        }
         ImGui::EndMenu();
       }
       ImGui::EndPopup();

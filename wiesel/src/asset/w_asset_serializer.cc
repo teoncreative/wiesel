@@ -12,6 +12,7 @@
 
 #include "animation/w_animation_controller.h"
 #include "cursor/w_cursor.h"
+#include "physics/w_mesh_collider_asset.h"
 #include "rendering/w_skybox.h"
 #include "rendering/w_sprite_asset.h"
 #include "util/w_logger.h"
@@ -542,12 +543,66 @@ static void RegisterCursorSetSerializer() {
   });
 }
 
+static void RegisterMeshColliderSerializer() {
+  AssetSerializerRegistry::Register({
+      AssetType::MeshCollider,
+      // Serialize
+      [](AssetHandle handle) -> nlohmann::json {
+        auto data = Engine::asset_manager().Get<MeshColliderAssetData>(handle);
+        nlohmann::json j;
+        if (!data) {
+          return j;
+        }
+        j["source_model"] = data->source_model.ToString();
+
+        // Flat float array: [x0, y0, z0, x1, y1, z1, ...]
+        nlohmann::json verts = nlohmann::json::array();
+        for (const auto& v : data->vertices) {
+          verts.push_back(v.x);
+          verts.push_back(v.y);
+          verts.push_back(v.z);
+        }
+        j["vertices"] = verts;
+        j["indices"] = data->indices;
+        return j;
+      },
+      // Deserialize
+      [](AssetHandle handle, const nlohmann::json& j) -> bool {
+        auto data = std::make_shared<MeshColliderAssetData>();
+
+        if (j.contains("source_model")) {
+          data->source_model =
+              AssetHandle::FromString(j["source_model"].get<std::string>());
+        }
+
+        if (j.contains("vertices") && j["vertices"].is_array()) {
+          const auto& verts = j["vertices"];
+          size_t count = verts.size() / 3;
+          data->vertices.reserve(count);
+          for (size_t i = 0; i + 2 < verts.size(); i += 3) {
+            data->vertices.push_back({verts[i].get<float>(),
+                                      verts[i + 1].get<float>(),
+                                      verts[i + 2].get<float>()});
+          }
+        }
+
+        if (j.contains("indices") && j["indices"].is_array()) {
+          data->indices = j["indices"].get<std::vector<uint32_t>>();
+        }
+
+        Engine::asset_manager().Store(handle, data);
+        return true;
+      },
+  });
+}
+
 void InitializeAssetSerializers() {
   RegisterSpriteSerializer();
   RegisterSpriteAnimSerializer();
   RegisterSpriteControllerSerializer();
   RegisterSkyboxSerializer();
   RegisterCursorSetSerializer();
+  RegisterMeshColliderSerializer();
 }
 
 }  // namespace Wiesel

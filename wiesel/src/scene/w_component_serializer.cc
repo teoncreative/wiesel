@@ -536,6 +536,9 @@ void InitializeComponentSerializers() {
         json collider;
         collider["is_one_way"] = mc.is_one_way;
         collider["collision_group"] = mc.collision_group;
+        if (mc.collider_handle.IsValid()) {
+          collider["collider_handle"] = mc.collider_handle.ToString();
+        }
         return collider;
       },
       // Deserialize
@@ -543,6 +546,10 @@ void InitializeComponentSerializers() {
         auto& mc = entity.AddComponent<MeshColliderComponent>();
         mc.is_one_way = mcj.value("is_one_way", false);
         mc.collision_group = mcj.value("collision_group", 1);
+        if (mcj.contains("collider_handle")) {
+          mc.collider_handle = AssetHandle::FromString(
+              mcj["collider_handle"].get<std::string>());
+        }
       },
   });
 

@@ -56,6 +56,8 @@ const char* AssetTypeToString(AssetType type) {
       return "UIStylesheet";
     case AssetType::CursorSet:
       return "CursorSet";
+    case AssetType::MeshCollider:
+      return "MeshCollider";
     default:
       return "Unknown";
   }
@@ -106,6 +108,9 @@ AssetType AssetTypeFromString(std::string_view s) {
   }
   if (s == "UIStylesheet") {
     return AssetType::UIStylesheet;
+  }
+  if (s == "MeshCollider") {
+    return AssetType::MeshCollider;
   }
   return AssetType::None;
 }

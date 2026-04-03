@@ -181,6 +181,7 @@ class Texture {
   VkDeviceSize size_;
 
   bool is_allocated_;
+  bool has_semi_transparency_ = false;
   std::string path_;
 
   // Call after GPU allocation to track memory usage

@@ -18,6 +18,7 @@
 #include "asset/w_asset_serializer.h"
 #include "cursor/w_cursor.h"
 #include "mono_compiler.h"
+#include "physics/w_mesh_collider_asset.h"
 #include "rendering/w_skybox.h"
 #include "rendering/w_sprite_asset.h"
 #include "util/imgui/imgui_theme.h"
@@ -431,6 +432,9 @@ void EditorLayer::OnAttach() {
   };
   ab_cb.on_show_create_spritecontroller = [this]() {
     show_create_spritecontroller_ = true;
+  };
+  ab_cb.on_show_create_meshcollider = [this]() {
+    show_create_meshcollider_ = true;
   };
   asset_browser_panel_.SetCallbacks(std::move(ab_cb));
 }
@@ -925,6 +929,7 @@ void EditorLayer::OnBeginPresent() {
   RenderCreateSpriteAnimPopup();
   RenderCreateSpriteControllerPopup();
   RenderCreateCursorSetPopup();
+  RenderCreateMeshColliderPopup();
   file_picker_.Render();
 
   RenderSceneHierarchyPanel();
@@ -2504,6 +2509,56 @@ void EditorLayer::RenderCreateCursorSetPopup() {
     if (ImGui::Button("Cancel")) {
       name_buf[0] = '\0';
       states.clear();
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
+  }
+}
+
+void EditorLayer::RenderCreateMeshColliderPopup() {
+  if (show_create_meshcollider_) {
+    ImGui::OpenPopup("Create Mesh Collider");
+    show_create_meshcollider_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Create Mesh Collider", &popup_open,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
+    static char name_buf[128] = "mesh_collider";
+    static AssetHandle source_model;
+
+    ImGui::InputText("Name", name_buf, sizeof(name_buf));
+    AssetCombo("Source Model", AssetType::Model, source_model);
+
+    ImGui::Separator();
+
+    bool can_create = name_buf[0] != '\0' && source_model.IsValid();
+    if (ImGui::Button("Bake") && can_create) {
+      auto data = BakeMeshColliderFromModel(source_model);
+      if (data) {
+        std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
+                               std::string(name_buf) + ".wmeshcol";
+        AssetHandle new_handle =
+            AssetSerializerRegistry::Create<MeshColliderAssetData>(
+                name_buf, AssetType::MeshCollider, vfs_path, data);
+        if (new_handle.IsValid()) {
+          AssetSerializerRegistry::Save(new_handle);
+          ScanProjectAssets();
+        }
+      }
+
+      name_buf[0] = '\0';
+      source_model = {};
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel")) {
+      name_buf[0] = '\0';
+      source_model = {};
       ImGui::CloseCurrentPopup();
     }
 

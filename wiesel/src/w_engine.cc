@@ -16,16 +16,17 @@
 
 #include <cxxopts.hpp>
 #include <thread>
-#include "asset/w_model_loader.h"
-#include "asset/w_sprite_loader.h"
 #include "asset/w_asset_loader.h"
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
 #include "asset/w_asset_property_registry.h"
 #include "asset/w_asset_serializer.h"
+#include "asset/w_model_loader.h"
+#include "asset/w_sprite_loader.h"
 #include "cursor/w_cursor.h"
 #include "game/w_game_info.h"
 #include "input/w_input.h"
+#include "physics/w_mesh_collider_asset.h"
 #include "rendering/w_primitives.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
@@ -423,6 +424,22 @@ void Engine::InitEngine(const EngineProperties& props) {
           },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
+  // MeshCollider (.wmeshcol) loader: reads JSON, builds Jolt shape.
+  asset_manager_->RegisterLoader(
+      AssetType::MeshCollider,
+      std::make_shared<FunctionAssetLoader>(
+          [](AssetHandle handle) {
+            if (!AssetSerializerRegistry::Load(handle)) {
+              return false;
+            }
+            auto data = asset_manager_->Get<MeshColliderAssetData>(handle);
+            if (data) {
+              BuildCollisionShape(*data);
+            }
+            return data != nullptr;
+          },
+          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
+
   InitializeVfs();
   InitializeComponentSerializers();
   InitializeAssetSerializers();
@@ -582,8 +599,8 @@ void Engine::InitGameConfig(const std::string& game_name) {
   if (game_config_) {
     game_config_->Save();
   }
-  game_config_ = std::make_unique<UserConfig>(
-      GetUserDataDirectory(game_name), "game_config.json");
+  game_config_ = std::make_unique<UserConfig>(GetUserDataDirectory(game_name),
+                                              "game_config.json");
   game_config_->Load();
 }
 

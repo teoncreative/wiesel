@@ -37,6 +37,7 @@
 #include "behavior/w_behavior.h"
 #include "physics/w_collider.h"
 #include "physics/w_jolt_layers.h"
+#include "physics/w_mesh_collider_asset.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
 #include "scene/w_components.h"
@@ -309,52 +310,30 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
   }
 
   if (registry.any_of<MeshColliderComponent>(entity)) {
-    if (!registry.any_of<ModelComponent>(entity)) {
-      LOG_WARN("MeshCollider on entity {} has no ModelComponent",
+    auto& mesh_comp = registry.get<MeshColliderComponent>(entity);
+
+    if (!mesh_comp.collider_handle.IsValid()) {
+      LOG_WARN("MeshCollider on entity {} has no collider asset assigned",
                static_cast<uint32_t>(entity));
       return nullptr;
     }
-    auto& model_comp = registry.get<ModelComponent>(entity);
-    if (!model_comp.model_handle.IsValid()) {
-      return nullptr;
-    }
-    const std::shared_ptr<Model>& model_data =
-        Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
-    if (!model_data) {
-      return nullptr;
-    }
 
-    std::vector<glm::vec3> positions;
-    std::vector<Index> tri_indices;
-    model_data->GetCollisionGeometry(positions, tri_indices);
-
-    if (tri_indices.empty()) {
+    auto& mgr = Engine::asset_manager();
+    if (!mgr.IsLoaded(mesh_comp.collider_handle)) {
+      mgr.LoadSync(mesh_comp.collider_handle);
+    }
+    auto baked = mgr.Get<MeshColliderAssetData>(mesh_comp.collider_handle);
+    if (!baked || !baked->cached_shape) {
+      LOG_WARN("MeshCollider on entity {}: asset not loaded or shape invalid",
+               static_cast<uint32_t>(entity));
       return nullptr;
     }
 
-    VertexList jolt_vertices;
-    jolt_vertices.reserve(positions.size());
-    for (auto& p : positions) {
-      jolt_vertices.push_back(Float3(p.x, p.y, p.z));
-    }
+    // Retrieve the pre-built Jolt shape from the asset
+    RefConst<Shape> mesh_shape(
+        static_cast<const Shape*>(baked->cached_shape.get()));
 
-    IndexedTriangleList jolt_triangles;
-    jolt_triangles.reserve(tri_indices.size() / 3);
-    for (size_t i = 0; i + 2 < tri_indices.size(); i += 3) {
-      jolt_triangles.push_back(IndexedTriangle(
-          tri_indices[i], tri_indices[i + 1], tri_indices[i + 2]));
-    }
-
-    MeshShapeSettings settings(std::move(jolt_vertices),
-                               std::move(jolt_triangles));
-    auto result = settings.Create();
-    if (result.HasError()) {
-      LOG_ERROR("Failed to create MeshShape: {}", result.GetError().c_str());
-      return nullptr;
-    }
-
-    // Apply entity scale to mesh collider
-    RefConst<Shape> mesh_shape = result.Get();
+    // Apply entity scale
     if (registry.any_of<TransformComponent>(entity)) {
       glm::vec3 scale = registry.get<TransformComponent>(entity).GetScale();
       if (scale != glm::vec3(1.0f)) {

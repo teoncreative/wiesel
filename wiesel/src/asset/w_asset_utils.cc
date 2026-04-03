@@ -63,6 +63,9 @@ AssetType ExtToAssetType(const std::string& ext) {
   if (ext == ".wcursorset") {
     return AssetType::CursorSet;
   }
+  if (ext == ".wmeshcol") {
+    return AssetType::MeshCollider;
+  }
   return AssetType::None;
 }
 
@@ -70,7 +73,8 @@ bool IsJsonAssetType(AssetType type) {
   return type == AssetType::Scene || type == AssetType::Prefab ||
          type == AssetType::Material || type == AssetType::Skybox ||
          type == AssetType::Sprite || type == AssetType::SpriteAnim ||
-         type == AssetType::SpriteController || type == AssetType::CursorSet;
+         type == AssetType::SpriteController || type == AssetType::CursorSet ||
+         type == AssetType::MeshCollider;
 }
 
 }  // namespace Wiesel

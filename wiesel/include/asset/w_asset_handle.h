@@ -39,6 +39,7 @@ enum class AssetType : uint8_t {
   UIDocument,
   UIStylesheet,
   CursorSet,
+  MeshCollider,
   Count
 };
 

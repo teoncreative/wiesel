@@ -70,8 +70,11 @@ struct MeshColliderComponent : public IComponent {
   MeshColliderComponent() = default;
   MeshColliderComponent(const MeshColliderComponent&) = default;
 
-  // Mesh data is read from the entity's ModelComponent at body creation time.
-  // No fields to configure other than collision group.
+  // Optional baked mesh collider asset. When valid, physics uses the
+  // pre-extracted geometry. When invalid, falls back to extracting from
+  // the entity's ModelComponent at body creation time.
+  AssetHandle collider_handle;
+
   bool is_one_way = false;
   uint16_t collision_group = CollisionGroupDefault;
 };

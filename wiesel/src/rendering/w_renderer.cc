@@ -3586,9 +3586,9 @@ void Renderer::DrawModel(ModelComponent& model,
   }
 }
 
-void Renderer::DrawModelTransparent(ModelComponent& model,
-                                    const TransformComponent& transform,
-                                    entt::entity entity_handle) {
+void Renderer::DrawModelTransparent(
+    ModelComponent& model, const TransformComponent& transform,
+    entt::entity entity_handle, std::shared_ptr<DescriptorSet> ibl_descriptor) {
   PROFILE_ZONE_SCOPED();
   AssetManager& assets = Engine::asset_manager();
   const std::shared_ptr<Model>& ptr =
@@ -3642,14 +3642,16 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
            sizeof(MatricesUniformData));
 
     std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
-    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
+    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc,
+                ibl_descriptor);
   }
 }
 
 void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                            std::shared_ptr<DescriptorSet> mesh_descriptors,
                            std::shared_ptr<DescriptorSet> bone_descriptors,
-                           std::shared_ptr<DescriptorSet> global_descriptors) {
+                           std::shared_ptr<DescriptorSet> global_descriptors,
+                           std::shared_ptr<DescriptorSet> ibl_descriptors) {
   if (!mesh->allocated_) {
     return;
   }
@@ -3660,12 +3662,19 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
   vkCmdBindIndexBuffer(cmd, mesh->index_buffer->buffer_handle_, 0,
                        mesh->index_buffer->index_type_);
 
-  VkDescriptorSet sets[3] = {mesh_descriptors->descriptor_set_,
-                             global_descriptors->descriptor_set_,
-                             bone_descriptors->descriptor_set_};
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          bound_pipeline_->layout_, 0, 3, sets, 0, nullptr);
+  if (ibl_descriptors) {
+    VkDescriptorSet sets[4] = {
+        mesh_descriptors->descriptor_set_, global_descriptors->descriptor_set_,
+        bone_descriptors->descriptor_set_, ibl_descriptors->descriptor_set_};
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            bound_pipeline_->layout_, 0, 4, sets, 0, nullptr);
+  } else {
+    VkDescriptorSet sets[3] = {mesh_descriptors->descriptor_set_,
+                               global_descriptors->descriptor_set_,
+                               bone_descriptors->descriptor_set_};
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            bound_pipeline_->layout_, 0, 3, sets, 0, nullptr);
+  }
 
   uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
   vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);

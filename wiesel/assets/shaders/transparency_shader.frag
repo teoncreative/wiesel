@@ -42,6 +42,12 @@ layout (set = 0, binding = 0, std140) uniform Matrices {
     vec4 materialParams; // x=roughness, y=metallic, z=specular
 };
 
+#ifdef USE_IBL
+layout (set = 3, binding = 0) uniform samplerCube irradianceMap;
+layout (set = 3, binding = 1) uniform samplerCube prefilterMap;
+layout (set = 3, binding = 2) uniform sampler2D brdfLUT;
+#endif
+
 layout(set = 0, binding = 1) uniform sampler2D baseTexture; // diffuse
 layout(set = 0, binding = 2) uniform sampler2D normalMap;
 layout(set = 0, binding = 3) uniform sampler2D specularMap;
@@ -196,12 +202,20 @@ void main() {
         result += (ambient + lit) * light.base.color * light.base.density;
     }
 
-    // Scene ambient with Fresnel rim
-    float NdotV = max(dot(normal, viewDir), 0.0);
-    vec3 F_ambient = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
-    vec3 kD_ambient = (1.0 - F_ambient) * (1.0 - matMetallic);
-    vec3 sceneAmbient = (kD_ambient * diffuseColor + F_ambient) *
-    cam.ambient.rgb * cam.ambient.w;
+    // Scene ambient
+    #ifdef USE_IBL
+    // Diffuse irradiance only - no specular IBL for transparent surfaces.
+    // Specular environment reflections require per-room probes or SSR to
+    // look correct indoors; the global skybox cubemap produces artifacts.
+    vec3 irradiance = texture(irradianceMap, normal).rgb;
+    vec3 sceneAmbient = diffuseColor * (1.0 - matMetallic) * irradiance * cam.ambient.w;
+    #else
+    vec3 sceneAmbient = diffuseColor * (1.0 - matMetallic) * cam.ambient.rgb * cam.ambient.w;
+    #endif
 
-    outFragColor = vec4(clamp(result + sceneAmbient, 0.0, 1.0), baseColor.a);
+    // Premultiplied alpha: composite blend is src*1 + dst*(1-srcAlpha),
+    // so RGB must be pre-multiplied by alpha. Pixels with alpha=0 on the
+    // cleared (0,0,0,0) background contribute nothing.
+    vec3 finalColor = clamp(result + sceneAmbient, 0.0, 1.0);
+    outFragColor = vec4(finalColor * baseColor.a, baseColor.a);
 }
