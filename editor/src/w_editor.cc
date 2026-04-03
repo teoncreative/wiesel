@@ -4419,18 +4419,27 @@ void EditorLayer::StartLsp() {
   std::string command = "csharp-ls";
   if (!lsp_client_.Start(command, project_dir)) {
     notifications_.PushWarning(
-        "csharp-ls not found. Installing via "
-        "'dotnet tool install -g csharp-ls'... "
-        "Restart editor when done.");
-
+        "csharp-ls not found. Attempting to install...");
+      
     // Auto-install in background
     Engine::thread_pool().Submit([this]() {
-      int result = std::system("dotnet tool install -g csharp-ls");
+      int result = std::system(
+          "dotnet tool install -g csharp-ls "
+          "--add-source https://api.nuget.org/v3/index.json");
       if (result != 0) {
-        std::system("dotnet tool update -g csharp-ls");
+        result = std::system(
+            "dotnet tool update -g csharp-ls "
+            "--add-source https://api.nuget.org/v3/index.json");
       }
-      notifications_.PushInfo(
-          "csharp-ls install finished. Restart editor for intellisense.");
+      if (result == 0) {
+        notifications_.PushInfo(
+            "csharp-ls installed successfully. Restart editor for "
+            "intellisense.");
+      } else {
+        notifications_.PushError(
+            "Failed to install csharp-ls. Install manually: "
+            "dotnet tool install -g csharp-ls");
+      }
     });
     return;
   }
