@@ -13,6 +13,7 @@
 #include <imgui.h>
 #include <vulkan/vulkan.h>
 #include <unordered_map>
+#include <unordered_set>
 #include "asset/w_asset_handle.h"
 
 namespace Wiesel {
@@ -72,6 +73,7 @@ class ThumbnailCache {
 
  private:
   std::unordered_map<AssetHandle, ThumbnailEntry> cache_;
+  std::unordered_set<AssetHandle> pending_;  // async loads in flight
   static ThumbnailCache* instance_;
 };
 

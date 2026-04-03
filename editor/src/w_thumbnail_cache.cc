@@ -1,3 +1,4 @@
+
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -20,6 +21,23 @@ namespace Wiesel {
 
 ThumbnailCache* ThumbnailCache::instance_ = nullptr;
 
+// Try to build a thumbnail entry from an already-loaded texture.
+// Returns true if successful, false if texture not ready yet.
+static bool TryBuildTextureEntry(AssetHandle handle, ThumbnailEntry& entry) {
+  auto texture = Engine::asset_manager().Get<Texture>(handle);
+  if (!texture || !texture->is_allocated_ || !texture->image_view_ ||
+      !texture->sampler_) {
+    return false;
+  }
+  entry.texture_id = ImGui_ImplVulkan_AddTexture(
+      texture->sampler_->handle(), texture->image_view_->handle_,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  entry.width = texture->width_;
+  entry.height = texture->height_;
+  entry.attempted = true;
+  return true;
+}
+
 ThumbnailEntry ThumbnailCache::GetOrCreate(AssetHandle handle,
                                            const AssetMetadata& meta) {
   auto it = cache_.find(handle);
@@ -31,39 +49,35 @@ ThumbnailEntry ThumbnailCache::GetOrCreate(AssetHandle handle,
   AssetManager& mgr = Engine::asset_manager();
 
   if (meta.type == AssetType::Texture) {
-    auto texture = mgr.Get<Texture>(handle);
-    if (!texture && !meta.virtual_source_path.empty()) {
-      mgr.LoadSync(handle);
-      texture = mgr.Get<Texture>(handle);
+    if (TryBuildTextureEntry(handle, entry)) {
+      cache_[handle] = entry;
+      pending_.erase(handle);
+    } else if (!pending_.contains(handle)) {
+      // Kick off async load, return empty for now
+      pending_.insert(handle);
+      mgr.LoadAsync(handle);
     }
-    if (!texture || !texture->is_allocated_ || !texture->image_view_ ||
-        !texture->sampler_) {
-      return entry;
-    }
-    entry.texture_id = ImGui_ImplVulkan_AddTexture(
-        texture->sampler_->handle(), texture->image_view_->handle_,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    entry.width = texture->width_;
-    entry.height = texture->height_;
-    entry.attempted = true;
   } else if (meta.type == AssetType::Sprite) {
     auto sprite_data = mgr.Get<SpriteAssetData>(handle);
     if (!sprite_data) {
-      mgr.LoadSync(handle);
-      sprite_data = mgr.Get<SpriteAssetData>(handle);
-    }
-    if (!sprite_data || !sprite_data->texture_handle.IsValid()) {
+      if (!pending_.contains(handle)) {
+        pending_.insert(handle);
+        mgr.LoadAsync(handle);
+      }
       return entry;
     }
 
-    std::shared_ptr<Texture> texture =
-        mgr.Get<Texture>(sprite_data->texture_handle);
-    if (!texture) {
-      mgr.LoadSync(sprite_data->texture_handle);
-      texture = mgr.Get<Texture>(sprite_data->texture_handle);
+    if (!sprite_data->texture_handle.IsValid()) {
+      return entry;
     }
+
+    auto texture = mgr.Get<Texture>(sprite_data->texture_handle);
     if (!texture || !texture->is_allocated_ || !texture->image_view_ ||
         !texture->sampler_) {
+      if (pending_.find(sprite_data->texture_handle) == pending_.end()) {
+        pending_.insert(sprite_data->texture_handle);
+        mgr.LoadAsync(sprite_data->texture_handle);
+      }
       return entry;
     }
 
@@ -79,11 +93,12 @@ ThumbnailEntry ThumbnailCache::GetOrCreate(AssetHandle handle,
     entry.uv0 = ImVec2(uv.x, uv.y);
     entry.uv1 = ImVec2(uv.x + uv.z, uv.y + uv.w);
     entry.attempted = true;
+
+    cache_[handle] = entry;
+    pending_.erase(handle);
+    pending_.erase(sprite_data->texture_handle);
   }
 
-  if (entry.attempted) {
-    cache_[handle] = entry;
-  }
   return entry;
 }
 
@@ -95,6 +110,7 @@ void ThumbnailCache::Remove(AssetHandle handle) {
     }
     cache_.erase(it);
   }
+  pending_.erase(handle);
 }
 
 void ThumbnailCache::RemoveStale() {
@@ -117,6 +133,7 @@ void ThumbnailCache::Clear() {
     }
   }
   cache_.clear();
+  pending_.clear();
 }
 
 }  // namespace Wiesel
