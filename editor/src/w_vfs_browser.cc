@@ -175,7 +175,7 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
                         IM_COL32_WHITE, 6.0f);
   } else {
     ImU32 col32 = ImGui::ColorConvertFloat4ToU32(icon_color);
-    dl->AddRectFilled(icon_min, icon_max, col32, is_folder ? 2.0f : 6.0f);
+    dl->AddRectFilled(icon_min, icon_max, col32, 6.0f);
 
     if (type_abbrev && type_abbrev[0]) {
       ImVec2 text_sz = ImGui::CalcTextSize(type_abbrev);
@@ -435,7 +435,7 @@ void VfsFilePicker::Render() {
       // ".." to go up
       if (!browser_.current_dir().empty()) {
         bool dbl = false;
-        browser_.DrawTile("..", ImVec4(0.35f, 0.35f, 0.4f, 1.0f), "..", false,
+        browser_.DrawTile("..", ImVec4(0.38f, 0.38f, 0.38f, 1.0f), "..", false,
                           true, nullptr, nullptr, &dbl);
         if (dbl) {
           browser_.NavigateUp();
@@ -466,7 +466,7 @@ void VfsFilePicker::Render() {
         }
 
         ImVec4 color = entry.is_dir
-                           ? ImVec4(0.3f, 0.35f, 0.45f, 1.0f)
+                           ? ImVec4(0.38f, 0.38f, 0.38f, 1.0f)
                            : VfsBrowser::GetAssetColor(entry.asset_type);
         const char* abbrev =
             entry.is_dir ? "DIR" : VfsBrowser::GetAssetAbbrev(entry.asset_type);

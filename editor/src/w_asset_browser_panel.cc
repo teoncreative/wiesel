@@ -236,9 +236,9 @@ void AssetBrowserPanel::Render(bool& open) {
       const AssetMetadata* meta = nullptr;
 
       if (fe.is_dir) {
-        if (browser_.DrawTile(fe.name.c_str(), ImVec4(0.3f, 0.35f, 0.45f, 1.0f),
-                              "DIR", is_sel, true, nullptr, nullptr,
-                              &dbl_clicked)) {
+        if (browser_.DrawTile(fe.name.c_str(),
+                              ImVec4(0.38f, 0.38f, 0.38f, 1.0f), "DIR", is_sel,
+                              true, nullptr, nullptr, &dbl_clicked)) {
           selected_file_ = fe.name;
         }
         if (dbl_clicked) {
