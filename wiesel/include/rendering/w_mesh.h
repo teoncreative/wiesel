@@ -171,7 +171,6 @@ struct ModelComponent : public IComponent {
   // Copy settings but NOT render data. Each entity gets its own allocation
   ModelComponent(const ModelComponent& other)
       : model_handle(other.model_handle),
-        default_texture(other.default_texture),
         receive_shadows(other.receive_shadows),
         enable_rendering(other.enable_rendering),
         material_slot_handles(other.material_slot_handles) {
@@ -184,8 +183,6 @@ struct ModelComponent : public IComponent {
   }
 
   AssetHandle model_handle;
-  std::shared_ptr<Texture>
-      default_texture;  // fallback diffuse texture for meshes without one
   bool receive_shadows = true;
   bool enable_rendering = true;
 

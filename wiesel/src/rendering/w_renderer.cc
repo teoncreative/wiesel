@@ -3408,19 +3408,6 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
       effective_mat = mesh->mat;
     }
 
-    // Apply default texture to meshes that lack a diffuse texture
-    if (model.default_texture && effective_mat &&
-        !effective_mat->base_texture.HasTexture()) {
-      // TODO: default_texture should also be an AssetHandle
-      effective_mat->base_texture.cached = model.default_texture;
-      // Update vertex flags so the shader samples the texture
-      for (auto& v : mesh->vertices) {
-        v.flags |= VertexFlagHasTexture;
-      }
-      // Re-upload vertex data with updated flags
-      mesh->Deallocate();
-      mesh->Allocate();
-    }
     model.geometry_descriptors.push_back(
         CreateMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
     model.shadow_descriptors.push_back(CreateShadowMeshDescriptors(
