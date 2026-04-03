@@ -2519,6 +2519,58 @@ void Internals_Settings_SetSFXVolume(float value) {
   Engine::audio().SetSFXVolume(value);
 }
 
+int Internals_Settings_GetShadowQuality() {
+  int res = Engine::renderer()->options().shadow_map_resolution;
+  if (res >= 4096) {
+    return 3;
+  }
+  if (res >= 2048) {
+    return 2;
+  }
+  if (res >= 1024) {
+    return 1;
+  }
+  return 0;
+}
+
+void Internals_Settings_SetShadowQuality(int quality) {
+  int res = 512;
+  switch (quality) {
+    case 1:
+      res = 1024;
+      break;
+    case 2:
+      res = 2048;
+      break;
+    case 3:
+      res = 4096;
+      break;
+  }
+  Engine::renderer()->options().shadow_map_resolution = res;
+}
+
+int Internals_Settings_GetAnisotropicFiltering() {
+  return Engine::renderer()->options().anisotropic_filtering;
+}
+
+void Internals_Settings_SetAnisotropicFiltering(int value) {
+  Engine::renderer()->options().anisotropic_filtering = value;
+}
+
+int Internals_Settings_GetTextureQuality() {
+  return Engine::renderer()->options().texture_quality;
+}
+
+void Internals_Settings_SetTextureQuality(int value) {
+  int old_value = Engine::renderer()->options().texture_quality;
+  Engine::renderer()->options().texture_quality = value;
+  if (old_value != value) {
+    // Reload all textures at the new quality level
+    Engine::app().SubmitToMainThread(
+        []() { Engine::asset_manager().ReloadAllOfType(AssetType::Texture); });
+  }
+}
+
 // --- Cursor bindings ---
 
 void Internals_Cursor_SetState(MonoString* state) {
@@ -2939,6 +2991,12 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Settings_SetMusicVolume);
   WIESEL_ADD_INTERNAL_CALL(Settings_GetSFXVolume);
   WIESEL_ADD_INTERNAL_CALL(Settings_SetSFXVolume);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetShadowQuality);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetShadowQuality);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetAnisotropicFiltering);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetAnisotropicFiltering);
+  WIESEL_ADD_INTERNAL_CALL(Settings_GetTextureQuality);
+  WIESEL_ADD_INTERNAL_CALL(Settings_SetTextureQuality);
 }
 
 }  // namespace Wiesel

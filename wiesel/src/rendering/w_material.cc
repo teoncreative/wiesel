@@ -16,6 +16,27 @@
 
 namespace Wiesel {
 
+// --- TextureSlot ---
+
+bool TextureSlot::Resolve(std::shared_ptr<Texture>& out) const {
+  if (!handle.IsValid()) {
+    out = cached;
+    return false;
+  }
+
+  uint32_t current = Engine::asset_manager().GetVersion(handle);
+  if (resolved_version != current) {
+    auto old = cached;
+    cached = Engine::asset_manager().Get<Texture>(handle);
+    resolved_version = current;
+    out = cached;
+    return old != cached;  // true if texture actually changed
+  }
+
+  out = cached;
+  return false;
+}
+
 // --- Material ---
 
 Material::Material() {
@@ -23,13 +44,6 @@ Material::Material() {
 }
 
 Material::~Material() {
-  base_texture = nullptr;
-  normal_map = nullptr;
-  specular_map = nullptr;
-  height_map = nullptr;
-  albedo_map = nullptr;
-  roughness_map = nullptr;
-  metallic_map = nullptr;
 }
 
 void Material::InitDefaults() {
@@ -152,13 +166,11 @@ nlohmann::json Material::Serialize() const {
   j["metallic"] = GetMetallic();
   j["specular"] = GetSpecular();
 
-  // Serialize texture references as asset paths
+  // Serialize texture references as asset handles
   nlohmann::json textures;
-  auto& mgr = Engine::asset_manager();
-  auto serialize_tex = [&](const char* key,
-                           const std::shared_ptr<Texture>& tex) {
-    if (tex && !tex->path_.empty()) {
-      textures[key] = tex->path_;
+  auto serialize_tex = [&](const char* key, const TextureSlot& slot) {
+    if (slot.HasTexture()) {
+      textures[key] = slot.handle.ToString();
     }
   };
   serialize_tex("diffuse", base_texture);
@@ -201,8 +213,30 @@ std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
     mat->SetSpecular(j["specular"].get<float>());
   }
 
-  // Texture paths are stored but loading is deferred until the material is used
-  // (textures are loaded by the model import pipeline or resolved separately)
+  // Deserialize texture handles
+  if (j.contains("textures") && j["textures"].is_object()) {
+    auto& texj = j["textures"];
+    auto load_tex = [&](const char* key, TextureSlot& slot) {
+      if (texj.contains(key)) {
+        std::string val = texj[key].get<std::string>();
+        // Try as asset handle first, then as VFS path
+        AssetHandle h = AssetHandle::FromString(val);
+        if (!h.IsValid()) {
+          h = Engine::asset_manager().FindBySourcePath(val);
+        }
+        if (h.IsValid()) {
+          slot = TextureSlot(h);
+        }
+      }
+    };
+    load_tex("diffuse", mat->base_texture);
+    load_tex("normal", mat->normal_map);
+    load_tex("specular_map", mat->specular_map);
+    load_tex("height", mat->height_map);
+    load_tex("albedo", mat->albedo_map);
+    load_tex("roughness_map", mat->roughness_map);
+    load_tex("metallic_map", mat->metallic_map);
+  }
 
   if (j.contains("features") && j["features"].is_array()) {
     for (const auto& f : j["features"]) {
@@ -214,25 +248,26 @@ std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
 }
 
 void Material::Set(std::shared_ptr<Material> material,
-                   std::shared_ptr<Texture> texture, TextureType type) {
+                   AssetHandle texture_handle, TextureType type) {
+  TextureSlot slot(texture_handle);
   switch (type) {
     case TextureTypeNone:
       break;
     case TextureTypeDiffuse:
-      material->base_texture = texture;
+      material->base_texture = slot;
       break;
     case TextureTypeSpecular:
-      material->specular_map = texture;
+      material->specular_map = slot;
       break;
     case TextureTypeAmbient:
       break;
     case TextureTypeEmissive:
       break;
     case TextureTypeHeight:
-      material->height_map = texture;
+      material->height_map = slot;
       break;
     case TextureTypeNormals:
-      material->normal_map = texture;
+      material->normal_map = slot;
       break;
     case TextureTypeShininess:
       break;
@@ -245,18 +280,18 @@ void Material::Set(std::shared_ptr<Material> material,
     case TextureTypeReflection:
       break;
     case TextureTypeBaseColor:
-      material->albedo_map = texture;
+      material->albedo_map = slot;
       break;
     case TextureTypeNormalCamera:
-      material->normal_map = texture;
+      material->normal_map = slot;
       break;
     case TextureTypeEmissionColor:
       break;
     case TextureTypeMetalness:
-      material->metallic_map = texture;
+      material->metallic_map = slot;
       break;
     case TextureTypeDiffuseRoughness:
-      material->roughness_map = texture;
+      material->roughness_map = slot;
       break;
     case TextureTypeAmbientOcclusion:
       break;

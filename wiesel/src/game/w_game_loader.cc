@@ -22,7 +22,6 @@
 #include "asset/w_asset_property_registry.h"
 #include "asset/w_asset_utils.h"
 #include "input/w_input.h"
-#include "rendering/w_material.h"
 #include "rendering/w_renderer.h"
 #include "scene/w_scene_manager.h"
 #include "scene/w_scene_serializer.h"
@@ -212,24 +211,8 @@ void GameLoader::ScanVfsPrefix(const std::string& prefix,
     // Type-specific post-processing
 
     if (type == AssetType::Material) {
-      if (!mgr.Get<Material>(handle)) {
-        try {
-          VfsFile file = Engine::vfs()->Open(vfs_path);
-          if (file) {
-            std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                                std::istreambuf_iterator<char>());
-            auto j = nlohmann::json::parse(content);
-            auto mat = Material::Deserialize(j);
-            mat->name = name;
-            mat->asset_handle = handle;
-            mgr.Store<Material>(handle, mat);
-            mgr.SetLoadState(handle, AssetLoadState::Unloaded,
-                             AssetLoadState::Loaded);
-          }
-        } catch (const std::exception& e) {
-          LOG_ERROR("Failed to deserialize material '{}': {}", vfs_path,
-                    e.what());
-        }
+      if (!mgr.IsLoaded(handle)) {
+        mgr.LoadSync(handle);
       }
     }
 
@@ -301,6 +284,9 @@ void GameLoader::ApplyRenderOptions(const GameInfo& info) {
   settings.vsync = opts.vsync;
   settings.aa_mode = static_cast<AntiAliasingMode>(opts.aa_mode);
   settings.msaa_mode = static_cast<SamplingMode>(opts.msaa_mode);
+  settings.shadow_map_resolution = opts.shadow_resolution;
+  settings.anisotropic_filtering = opts.anisotropic_filtering;
+  settings.texture_quality = opts.texture_quality;
 }
 
 void GameLoader::CaptureRenderOptions(RenderOptionsSerialized& out_opts) {
@@ -321,6 +307,9 @@ void GameLoader::CaptureRenderOptions(RenderOptionsSerialized& out_opts) {
       static_cast<int>(static_cast<AntiAliasingMode>(settings.aa_mode));
   out_opts.msaa_mode =
       static_cast<int>(static_cast<SamplingMode>(settings.msaa_mode));
+  out_opts.shadow_resolution = settings.shadow_map_resolution;
+  out_opts.anisotropic_filtering = settings.anisotropic_filtering;
+  out_opts.texture_quality = settings.texture_quality;
 }
 
 void GameLoader::ApplyInputSettings(const GameInfo& info) {

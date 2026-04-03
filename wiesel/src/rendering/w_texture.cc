@@ -17,6 +17,10 @@
 
 namespace Wiesel {
 
+// Global texture memory tracking (atomic for thread safety)
+std::atomic<uint64_t> g_texture_memory_total{0};
+std::atomic<uint32_t> g_texture_count{0};
+
 Texture::Texture(TextureType texture_type, const std::string& path)
     : type_(texture_type), path_(path) {
   width_ = 0;
@@ -30,6 +34,8 @@ Texture::~Texture() {
   if (!is_allocated_) {
     return;
   }
+  g_texture_memory_total -= size_;
+  g_texture_count--;
   auto renderer = Engine::renderer();
   if (!renderer) {
     return;
@@ -49,6 +55,20 @@ Texture::~Texture() {
       ImGui_ImplVulkan_RemoveTexture(imgui_desc);
     }
   });
+}
+
+void Texture::MarkAllocated() {
+  is_allocated_ = true;
+  g_texture_memory_total += size_;
+  g_texture_count++;
+}
+
+uint64_t Texture::GetTotalTextureMemory() {
+  return g_texture_memory_total.load();
+}
+
+uint32_t Texture::GetTotalTextureCount() {
+  return g_texture_count.load();
 }
 
 VkDescriptorSet Texture::GetImGuiDescriptor() {

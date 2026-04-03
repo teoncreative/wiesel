@@ -54,13 +54,16 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
   auto& renderer = *renderer_;
   auto& camera = ctx.camera;
 
+  uint32_t shadow_dim =
+      static_cast<uint32_t>(renderer.options().shadow_map_resolution.Get());
+
   // Layered depth texture for all cascades
   pool.SetTexture(
       "shadow.depth_stencil",
       renderer.CreateAttachmentTexture(
-          {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM,
-           AttachmentTextureType::DepthStencil, 1, renderer.FindDepthFormat(),
-           SamplingMode::DISABLED, true, WIESEL_SHADOW_CASCADE_COUNT}));
+          {shadow_dim, shadow_dim, AttachmentTextureType::DepthStencil, 1,
+           renderer.FindDepthFormat(), SamplingMode::DISABLED, true,
+           WIESEL_SHADOW_CASCADE_COUNT}));
 
   auto shadow_depth = pool.GetTexture("shadow.depth_stencil");
 
@@ -80,8 +83,7 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
     pool.SetImageView("ShadowDepthView" + std::to_string(i), cascade_view);
     pool.SetFramebuffer(
         "shadow.fb." + std::to_string(i),
-        render_pass_->CreateFramebuffer(
-            views, {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM}));
+        render_pass_->CreateFramebuffer(views, {shadow_dim, shadow_dim}));
   }
 
   // Shadow global descriptor
@@ -139,7 +141,9 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
     }
     graph.SetPassFramebuffer(
         shadow, pool.GetFramebuffer("shadow.fb." + std::to_string(i)));
-    graph.SetPassViewport(shadow, {WIESEL_SHADOWMAP_DIM, WIESEL_SHADOWMAP_DIM});
+    float shadow_size =
+        static_cast<float>(renderer_->options().shadow_map_resolution.Get());
+    graph.SetPassViewport(shadow, {shadow_size, shadow_size});
     graph.SetPassClearColor(shadow, {0, 0, 0, 1});
   }
 

@@ -20,6 +20,7 @@
 #include "mono_compiler.h"
 #include "rendering/w_skybox.h"
 #include "rendering/w_sprite_asset.h"
+#include "util/imgui/imgui_theme.h"
 #include "util/w_discord_rpc.h"
 #include "w_csharp_lang.h"
 #include "w_rml_lang.h"
@@ -67,6 +68,7 @@
 #include "ui/w_ui_document.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
+#include "util/w_thread_pool.h"
 
 namespace Wiesel::Editor {
 
@@ -305,6 +307,14 @@ EditorLayer::~EditorLayer() = default;
 void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
   ThumbnailCache::Set(&thumbnail_cache_instance_);
+
+  // Load editor preferences and apply saved theme
+  editor_config_ = std::make_unique<UserConfig>(
+      GetUserDataDirectory("WieselEditor"), "editor_config.json");
+  editor_config_->Load();
+  auto saved_theme = static_cast<ImGui::Moonlight::Theme>(
+      editor_config_->Get<int>("editor.theme", 0));
+  ImGui::Moonlight::ApplyTheme(saved_theme);
 
   // Set editor window icon from engine logo
   {
@@ -1240,6 +1250,28 @@ void EditorLayer::RenderRenderStatsPanel() {
                                                                     : "TAA");
         ImGui::Text("Swap Chain Images: %u", stats.swap_chain_images);
         ImGui::Text("Frames in Flight: %u", stats.frames_in_flight);
+
+        ImGui::SeparatorText("GPU Memory");
+        {
+          float used_mb =
+              static_cast<float>(stats.gpu_memory_used) / (1024.0f * 1024.0f);
+          float budget_mb =
+              static_cast<float>(stats.gpu_memory_budget) / (1024.0f * 1024.0f);
+          float ratio = budget_mb > 0 ? used_mb / budget_mb : 0.0f;
+          ImGui::Text("VRAM: %.1f / %.1f MB (%.0f%%)", used_mb, budget_mb,
+                      ratio * 100.0f);
+          ImGui::ProgressBar(ratio, ImVec2(-1, 0));
+        }
+        ImGui::Text("VMA Allocations: %u (%u/s)", stats.gpu_allocation_count,
+                    stats.gpu_allocations_per_second);
+        {
+          float tex_mb =
+              static_cast<float>(stats.texture_memory) / (1024.0f * 1024.0f);
+          ImGui::Text("Textures: %u (%.1f MB)", stats.texture_count, tex_mb);
+        }
+        ImGui::Text("Deletion Queue: %u", stats.deletion_queue_pending);
+        ImGui::Text("Thread Pool Queue: %zu",
+                    Engine::thread_pool().GetQueueSize());
 
         ImGui::SeparatorText("Assets");
         auto asset_stats = Engine::asset_manager().GetStats();
@@ -3106,6 +3138,60 @@ void EditorLayer::RenderProjectSettingsPopup() {
         }
       }
 
+      ImGui::SeparatorText("Quality");
+      {
+        const char* shadow_labels[] = {"Low (512)", "Medium (1024)",
+                                       "High (2048)", "Ultra (4096)"};
+        int shadow_res = settings.shadow_map_resolution;
+        int shadow_idx = 3;
+        if (shadow_res <= 512) {
+          shadow_idx = 0;
+        } else if (shadow_res <= 1024) {
+          shadow_idx = 1;
+        } else if (shadow_res <= 2048) {
+          shadow_idx = 2;
+        }
+        if (ImGui::Combo(PrefixLabel("Shadow Quality").c_str(), &shadow_idx,
+                         shadow_labels, IM_ARRAYSIZE(shadow_labels))) {
+          int resolutions[] = {512, 1024, 2048, 4096};
+          settings.shadow_map_resolution = resolutions[shadow_idx];
+        }
+      }
+
+      {
+        const char* aniso_labels[] = {"Off", "2x", "4x", "8x", "16x"};
+        int aniso_values[] = {1, 2, 4, 8, 16};
+        int aniso_current = settings.anisotropic_filtering;
+        int aniso_idx = 4;
+        for (int i = 0; i < 5; i++) {
+          if (aniso_values[i] == aniso_current) {
+            aniso_idx = i;
+            break;
+          }
+        }
+        if (ImGui::Combo(PrefixLabel("Anisotropic Filtering").c_str(),
+                         &aniso_idx, aniso_labels,
+                         IM_ARRAYSIZE(aniso_labels))) {
+          settings.anisotropic_filtering = aniso_values[aniso_idx];
+        }
+      }
+
+      {
+        const char* tex_labels[] = {"Full", "High (1/2)", "Medium (1/4)",
+                                    "Low (1/8)"};
+        int tex_quality = settings.texture_quality;
+        if (ImGui::Combo(PrefixLabel("Texture Quality").c_str(), &tex_quality,
+                         tex_labels, IM_ARRAYSIZE(tex_labels))) {
+          int old_quality = settings.texture_quality;
+          settings.texture_quality = tex_quality;
+          if (old_quality != tex_quality) {
+            Engine::app().SubmitToMainThread([]() {
+              Engine::asset_manager().ReloadAllOfType(AssetType::Texture);
+            });
+          }
+        }
+      }
+
       ImGui::SeparatorText("Post Processing");
       ImGui::Checkbox(PrefixLabel("Enable Bloom").c_str(),
                       &settings.bloom_enabled);
@@ -3620,6 +3706,21 @@ void EditorLayer::RenderMainMenuBar() {
                           project() != nullptr)) {
         show_project_settings_ = true;
       }
+      ImGui::Separator();
+      if (ImGui::BeginMenu("Theme")) {
+        auto current = ImGui::Moonlight::GetCurrentTheme();
+        for (int i = 0; i < static_cast<int>(ImGui::Moonlight::Theme::Count);
+             i++) {
+          auto theme = static_cast<ImGui::Moonlight::Theme>(i);
+          if (ImGui::MenuItem(ImGui::Moonlight::GetThemeName(theme), nullptr,
+                              current == theme)) {
+            ImGui::Moonlight::ApplyTheme(theme);
+            editor_config_->Set("editor.theme", static_cast<int>(theme));
+            editor_config_->Save();
+          }
+        }
+        ImGui::EndMenu();
+      }
       ImGui::EndMenu();
     }
 
@@ -3857,52 +3958,48 @@ void EditorLayer::RenderMainMenuBar() {
     }
   }
 
-  // Entity copy (Ctrl+C)
+  // Entity copy (Ctrl+C) - copies full entity tree including children
   if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false) &&
       has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
     Entity entity{selected_entity_, scene().get()};
-    nlohmann::json j;
-    j["name"] = entity.GetName();
-    ComponentSerializerRegistry::SerializeAll(entity, j);
+    nlohmann::json j = Prefab::SerializeEntityTree(entity);
     entity_clipboard_ = j.dump();
   }
 
-  // Entity paste (Ctrl+V)
+  // Entity paste (Ctrl+V) - pastes full entity tree with new UUIDs
   if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false) &&
       !entity_clipboard_.empty() && !ImGui::GetIO().WantTextInput) {
     try {
       nlohmann::json j = nlohmann::json::parse(entity_clipboard_);
-      std::string name = j.value("name", "Entity") + " (Copy)";
-      Entity new_entity = scene()->CreateEntity(name);
-      ComponentSerializerRegistry::DeserializeAll(new_entity, j, nullptr);
-      selected_entity_ = new_entity.handle();
-      has_selected_entity_ = true;
-      scroll_to_selected_ = true;
-      scene_dirty_ = true;
+      Entity new_entity = Prefab::DeserializeEntityTree(scene(), j);
+      if (new_entity) {
+        selected_entity_ = new_entity.handle();
+        has_selected_entity_ = true;
+        scroll_to_selected_ = true;
+        scene_dirty_ = true;
+      }
     } catch (const std::exception& e) {
       LOG_ERROR("Failed to paste entity: {}", e.what());
     }
   }
 
-  // Entity duplicate (Ctrl+D)
+  // Entity duplicate (Ctrl+D) - duplicates full entity tree
   if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false) &&
       has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
     Entity entity{selected_entity_, scene().get()};
-    nlohmann::json j;
-    j["name"] = entity.GetName();
-    ComponentSerializerRegistry::SerializeAll(entity, j);
-    std::string name = j.value("name", "Entity") + " (Copy)";
-    Entity new_entity = scene()->CreateEntity(name);
-    ComponentSerializerRegistry::DeserializeAll(new_entity, j, nullptr);
-    // Parent to same parent as original
-    Entity parent = entity.GetParent();
-    if (parent) {
-      scene()->LinkEntities(parent.handle(), new_entity);
+    nlohmann::json j = Prefab::SerializeEntityTree(entity);
+    Entity new_entity = Prefab::DeserializeEntityTree(scene(), j);
+    if (new_entity) {
+      // Parent to same parent as original
+      Entity parent = entity.GetParent();
+      if (parent) {
+        scene()->LinkEntities(parent.handle(), new_entity);
+      }
+      selected_entity_ = new_entity.handle();
+      has_selected_entity_ = true;
+      scroll_to_selected_ = true;
+      scene_dirty_ = true;
     }
-    selected_entity_ = new_entity.handle();
-    has_selected_entity_ = true;
-    scroll_to_selected_ = true;
-    scene_dirty_ = true;
   }
 
   // Delete selected entity

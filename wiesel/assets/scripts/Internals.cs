@@ -784,6 +784,20 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Console_LogError(string message);
 
+        // Settings - Quality
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Settings_GetShadowQuality();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetShadowQuality(int quality);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Settings_GetAnisotropicFiltering();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetAnisotropicFiltering(int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Settings_GetTextureQuality();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Settings_SetTextureQuality(int value);
+
         // Cursor
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Cursor_SetState(string state);

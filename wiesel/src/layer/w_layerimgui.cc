@@ -63,7 +63,7 @@ void ImGuiLayer::OnAttach() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   //ImGui::StyleColorsDark(&ImGui::GetStyle());
-  ImGui::Moonlight::StyleColorsMoonlight();
+  ImGui::Moonlight::ApplyTheme();
   ImGui::Moonlight::LoadFont();
 
   auto& io = ImGui::GetIO();

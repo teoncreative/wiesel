@@ -8,7 +8,7 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#include "rendering/w_sprite_loader.h"
+#include "asset/w_sprite_loader.h"
 
 #include <nlohmann/json.hpp>
 

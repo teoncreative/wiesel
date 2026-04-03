@@ -93,6 +93,36 @@ inline MaterialFeature AlphaClip() {
 }
 }  // namespace MaterialFeatures
 
+// --- Texture Slot ---
+// Holds an AssetHandle + lazily-resolved cached pointer.
+// Cache is invalidated when the asset's version changes (e.g. on reload).
+
+class AssetManager;
+
+struct TextureSlot {
+  AssetHandle handle;
+  mutable std::shared_ptr<Texture> cached;
+  mutable uint32_t resolved_version = 0;
+
+  TextureSlot() = default;
+
+  explicit TextureSlot(AssetHandle h) : handle(h) {}
+
+  // Resolve the handle to a Texture pointer.
+  // Returns true if the texture changed since last resolve (triggers descriptor rebuild).
+  bool Resolve(std::shared_ptr<Texture>& out) const;
+
+  // Check if the slot has a valid handle assigned.
+  bool HasTexture() const { return handle.IsValid(); }
+
+  // Clear the slot.
+  void Clear() {
+    handle = {};
+    cached.reset();
+    resolved_version = 0;
+  }
+};
+
 // --- Material ---
 
 struct Material {
@@ -105,14 +135,14 @@ struct Material {
 
   void MarkDirty() { version++; }
 
-  // Texture slots (backward compatible with existing mesh import)
-  std::shared_ptr<Texture> base_texture;
-  std::shared_ptr<Texture> normal_map;
-  std::shared_ptr<Texture> specular_map;
-  std::shared_ptr<Texture> height_map;
-  std::shared_ptr<Texture> albedo_map;
-  std::shared_ptr<Texture> roughness_map;
-  std::shared_ptr<Texture> metallic_map;
+  // Texture slots - hold AssetHandles with lazy-resolved cached pointers
+  TextureSlot base_texture;
+  TextureSlot normal_map;
+  TextureSlot specular_map;
+  TextureSlot height_map;
+  TextureSlot albedo_map;
+  TextureSlot roughness_map;
+  TextureSlot metallic_map;
 
   // Material properties (scalar/vector values)
   std::unordered_map<std::string, MaterialPropertyValue> properties;
@@ -152,7 +182,8 @@ struct Material {
   static std::shared_ptr<Material> Deserialize(const nlohmann::json& j);
 
   static void Set(std::shared_ptr<Material> material,
-                  std::shared_ptr<Texture> texture, TextureType type);
+                  AssetHandle texture_handle, TextureType type);
+
 };
 
 // --- Material Instance ---

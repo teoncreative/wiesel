@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <shared_mutex>
 #include <unordered_set>
 #include "asset/w_asset_handle.h"
 #include "asset/w_asset_loader.h"
@@ -105,9 +106,14 @@ class AssetManager {
   template <typename T>
   std::shared_ptr<T> GetOrLoad(AssetHandle handle) const;
 
+  // Per-asset version, bumped when the resource is replaced (e.g. on reload).
+  // Used by TextureSlot to detect stale cached pointers.
+  uint32_t GetVersion(AssetHandle handle) const;
+
   bool IsLoaded(AssetHandle handle) const;
   void Unload(AssetHandle handle);
   void UnloadAll();
+  void ReloadAllOfType(AssetType type);
 
   // Dependency tracking: when parent is unloaded, all dependents are
   // unloaded too. Call this during asset loading to register that
@@ -153,6 +159,7 @@ class AssetManager {
   struct AssetEntry {
     AssetMetadata metadata;
     std::shared_ptr<void> resource;
+    uint32_t version = 0;
   };
 
   std::unordered_map<AssetHandle, std::unique_ptr<AssetEntry>> registry_;
@@ -170,12 +177,18 @@ class AssetManager {
   // Observer callbacks
   std::vector<AssetCallback> on_registered_callbacks_;
   std::vector<AssetCallback> on_unregistered_callbacks_;
+
+  // Thread safety: protects registry_, path_index_, name_index_, dependency
+  // maps, and entry fields (resource, version). Loaders and callbacks are
+  // accessed outside the lock to avoid deadlocks.
+  mutable std::shared_mutex registry_mutex_;
 };
 
 // Template implementations
 
 template <typename T>
 void AssetManager::Store(AssetHandle handle, std::shared_ptr<T> resource) {
+  std::unique_lock lock(registry_mutex_);
   if (!handle.IsValid()) {
     DCON_LOG_ERROR("AssetManager::Store called with invalid handle");
     return;
@@ -187,10 +200,12 @@ void AssetManager::Store(AssetHandle handle, std::shared_ptr<T> resource) {
     return;
   }
   it->second->resource = std::static_pointer_cast<void>(resource);
+  it->second->version++;
 }
 
 template <typename T>
 std::shared_ptr<T> AssetManager::Get(AssetHandle handle) const {
+  std::shared_lock lock(registry_mutex_);
   if (!handle.IsValid()) {
     return nullptr;
   }
@@ -203,19 +218,22 @@ std::shared_ptr<T> AssetManager::Get(AssetHandle handle) const {
 
 template <typename T>
 std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
-  if (!handle.IsValid()) {
-    return nullptr;
+  {
+    std::shared_lock lock(registry_mutex_);
+    if (!handle.IsValid()) {
+      return nullptr;
+    }
+    auto it = registry_.find(handle);
+    if (it == registry_.end()) {
+      return nullptr;
+    }
+    if (it->second->resource) {
+      return std::static_pointer_cast<T>(it->second->resource);
+    }
   }
-  auto it = registry_.find(handle);
-  if (it == registry_.end()) {
-    return nullptr;
-  }
-  if (!it->second->resource) {
-    // Trigger async load via the registered loader
-    const_cast<AssetManager*>(this)->LoadAsync(handle);
-    return nullptr;
-  }
-  return std::static_pointer_cast<T>(it->second->resource);
+  // Trigger async load via the registered loader (outside lock)
+  const_cast<AssetManager*>(this)->LoadAsync(handle);
+  return nullptr;
 }
 
 template <typename T>

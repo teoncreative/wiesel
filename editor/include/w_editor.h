@@ -21,6 +21,7 @@
 #include "events/w_mouseevents.h"
 #include "rendering/w_camera.h"
 #include "scene/w_scene.h"
+#include "util/w_user_config.h"
 #include "w_application.h"
 #include "w_asset_browser_panel.h"
 #include "w_lsp_autocomplete.h"
@@ -206,6 +207,9 @@ class EditorLayer : public Layer {
 
   // Scene snapshot for Play/Stop restore (full scene JSON)
   std::string play_mode_snapshot_;
+
+  // Editor preferences (theme, layout, etc.)
+  std::unique_ptr<UserConfig> editor_config_;
 };
 }  // namespace Wiesel::Editor
 

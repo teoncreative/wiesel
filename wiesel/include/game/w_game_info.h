@@ -34,6 +34,9 @@ struct RenderOptionsSerialized {
   bool vsync = false;
   int aa_mode = 0;    // 0=None, 1=FXAA, 2=TAA
   int msaa_mode = 0;  // SamplingMode enum value
+  int shadow_resolution = 4096;
+  int anisotropic_filtering = 16;
+  int texture_quality = 0;  // mip bias: 0=Full, 1=Half, 2=Quarter, 3=Eighth
 };
 
 // Input action: a named action mapped to keyboard keys and/or gamepad buttons

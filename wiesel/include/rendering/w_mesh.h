@@ -106,11 +106,6 @@ struct Model {
   std::vector<std::shared_ptr<Mesh>> meshes;
   std::string model_path;
   std::string textures_path;
-  std::map<std::string, std::shared_ptr<Texture>> textures;
-
-  // Pre-decoded texture cache (populated in parallel, consumed during ProcessNode)
-  std::map<std::string, std::shared_ptr<DecodedTextureData>>
-      decoded_texture_cache;
 
   // Pre-computed world transform per mesh (from node hierarchy)
   // Used for static models to position each mesh correctly
@@ -131,6 +126,29 @@ struct Model {
     for (auto& mesh : meshes) {
       mesh->ComputeBounds();
       bounds.Expand(mesh->bounds);
+    }
+  }
+
+  // Extract collision geometry with per-mesh node transforms applied.
+  // Outputs positions and triangle indices suitable for physics or debug wireframe.
+  void GetCollisionGeometry(std::vector<glm::vec3>& out_vertices,
+                            std::vector<Index>& out_indices) const {
+    uint32_t vertex_offset = 0;
+    for (size_t mi = 0; mi < meshes.size(); mi++) {
+      auto& mesh = meshes[mi];
+      glm::mat4 node_xform = glm::mat4(1.0f);
+      if (!has_skeleton && mi < mesh_node_transforms.size()) {
+        node_xform = mesh_node_transforms[mi];
+      }
+      for (auto& v : mesh->vertices) {
+        out_vertices.push_back(glm::vec3(node_xform * glm::vec4(v.ppos, 1.0f)));
+      }
+      for (size_t i = 0; i + 2 < mesh->indices.size(); i += 3) {
+        out_indices.push_back(vertex_offset + mesh->indices[i]);
+        out_indices.push_back(vertex_offset + mesh->indices[i + 1]);
+        out_indices.push_back(vertex_offset + mesh->indices[i + 2]);
+      }
+      vertex_offset += static_cast<uint32_t>(mesh->vertices.size());
     }
   }
 

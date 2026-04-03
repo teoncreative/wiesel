@@ -183,6 +183,13 @@ class Texture {
   bool is_allocated_;
   std::string path_;
 
+  // Call after GPU allocation to track memory usage
+  void MarkAllocated();
+
+  // Global texture memory stats (thread-safe)
+  static uint64_t GetTotalTextureMemory();
+  static uint32_t GetTotalTextureCount();
+
   // Lazily-created ImGui descriptor for texture preview in editor UI.
   // Automatically cleaned up in destructor.
   VkDescriptorSet imgui_descriptor_ = nullptr;

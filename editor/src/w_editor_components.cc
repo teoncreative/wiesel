@@ -15,6 +15,7 @@
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <typeindex>
+#include "../../wiesel/include/asset/w_sprite_loader.h"
 #include "animation/w_animation.h"
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
@@ -25,7 +26,6 @@
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_sprite.h"
-#include "rendering/w_sprite_loader.h"
 #include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
 #include "ui/w_canvas.h"
@@ -306,7 +306,7 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
               if (!base->name.empty()) {
                 slot_label = base->name;
               }
-              if (base->base_texture) {
+              if (base->base_texture.HasTexture()) {
                 slot_label += " (textured)";
               }
             }
@@ -347,11 +347,17 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
               // Show base material texture previews
               if (base) {
                 if (ImGui::TreeNode("Textures")) {
-                  RenderTexturePreview("Diffuse", base->base_texture.get());
-                  RenderTexturePreview("Normal", base->normal_map.get());
-                  RenderTexturePreview("Roughness", base->roughness_map.get());
-                  RenderTexturePreview("Metallic", base->metallic_map.get());
-                  RenderTexturePreview("Specular", base->specular_map.get());
+                  std::shared_ptr<Texture> tex;
+                  base->base_texture.Resolve(tex);
+                  RenderTexturePreview("Diffuse", tex.get());
+                  base->normal_map.Resolve(tex);
+                  RenderTexturePreview("Normal", tex.get());
+                  base->roughness_map.Resolve(tex);
+                  RenderTexturePreview("Roughness", tex.get());
+                  base->metallic_map.Resolve(tex);
+                  RenderTexturePreview("Metallic", tex.get());
+                  base->specular_map.Resolve(tex);
+                  RenderTexturePreview("Specular", tex.get());
                   ImGui::TreePop();
                 }
               }
@@ -855,6 +861,11 @@ void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Mesh Collider", &visible)) {
     ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
+    if (ImGui::Button("Regenerate Collider")) {
+      auto& physics = entity.GetScene()->GetPhysicsWorld();
+      physics.DestroyBody(entity.handle());
+      physics.CreateBody(entity.handle());
+    }
     ImGui::TreePop();
   }
   if (!visible) {
@@ -1255,7 +1266,6 @@ void RenderAddComponentImGui_RectangleTransformComponent(Entity entity) {
     entity.AddComponent<RectangleTransformComponent>();
   }
 }
-
 
 void RenderAddComponentImGui_CanvasRectComponent(Entity entity) {
   if (ImGui::MenuItem("Canvas Rect")) {

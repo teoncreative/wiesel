@@ -28,6 +28,7 @@
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
@@ -323,25 +324,25 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
       return nullptr;
     }
 
-    VertexList jolt_vertices;
-    IndexedTriangleList jolt_triangles;
-    uint32_t vertex_offset = 0;
+    std::vector<glm::vec3> positions;
+    std::vector<Index> tri_indices;
+    model_data->GetCollisionGeometry(positions, tri_indices);
 
-    for (auto& mesh : model_data->meshes) {
-      for (auto& v : mesh->vertices) {
-        jolt_vertices.push_back(Float3(v.ppos.x, v.ppos.y, v.ppos.z));
-      }
-      for (size_t i = 0; i + 2 < mesh->indices.size(); i += 3) {
-        jolt_triangles.push_back(
-            IndexedTriangle(vertex_offset + mesh->indices[i],
-                            vertex_offset + mesh->indices[i + 1],
-                            vertex_offset + mesh->indices[i + 2]));
-      }
-      vertex_offset += static_cast<uint32_t>(mesh->vertices.size());
+    if (tri_indices.empty()) {
+      return nullptr;
     }
 
-    if (jolt_triangles.empty()) {
-      return nullptr;
+    VertexList jolt_vertices;
+    jolt_vertices.reserve(positions.size());
+    for (auto& p : positions) {
+      jolt_vertices.push_back(Float3(p.x, p.y, p.z));
+    }
+
+    IndexedTriangleList jolt_triangles;
+    jolt_triangles.reserve(tri_indices.size() / 3);
+    for (size_t i = 0; i + 2 < tri_indices.size(); i += 3) {
+      jolt_triangles.push_back(IndexedTriangle(
+          tri_indices[i], tri_indices[i + 1], tri_indices[i + 2]));
     }
 
     MeshShapeSettings settings(std::move(jolt_vertices),
@@ -351,7 +352,22 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
       LOG_ERROR("Failed to create MeshShape: {}", result.GetError().c_str());
       return nullptr;
     }
-    Shape* shape = const_cast<Shape*>(result.Get().GetPtr());
+
+    // Apply entity scale to mesh collider
+    RefConst<Shape> mesh_shape = result.Get();
+    if (registry.any_of<TransformComponent>(entity)) {
+      glm::vec3 scale = registry.get<TransformComponent>(entity).GetScale();
+      if (scale != glm::vec3(1.0f)) {
+        auto scaled_result =
+            ScaledShapeSettings(mesh_shape, Vec3(scale.x, scale.y, scale.z))
+                .Create();
+        if (!scaled_result.HasError()) {
+          mesh_shape = scaled_result.Get();
+        }
+      }
+    }
+
+    Shape* shape = const_cast<Shape*>(mesh_shape.GetPtr());
     shape->AddRef();
     return shape;
   }

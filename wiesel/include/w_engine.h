@@ -27,6 +27,7 @@ class CursorManager;
 class NativeBehaviorRegistry;
 class AudioManager;
 class ThreadPool;
+class UserConfig;
 struct GameInfo;
 #ifdef WIESEL_DISCORD_RPC
 class DiscordRPC;
@@ -105,6 +106,14 @@ class Engine {
   }
 
   static void SetGameInfo(std::shared_ptr<GameInfo> info);
+
+  // Returns nullptr if no game is loaded yet.
+  WIESEL_GETTER_FN static UserConfig* game_config() {
+    return game_config_.get();
+  }
+
+  static void InitGameConfig(const std::string& game_name);
+
 #ifdef WIESEL_DISCORD_RPC
   WIESEL_GETTER_FN static DiscordRPC& discord_rpc() { return *discord_rpc_; }
 #endif
@@ -112,37 +121,9 @@ class Engine {
     return properties_;
   }
 
-  static aiScene* LoadAssimpModel(const std::string& path,
-                                  bool convert_to_left_handed = true);
-
-  static bool LoadTextureAsset(AssetHandle handle);
-  static bool LoadModel(AssetHandle handle);
-  static void LoadModelAsync(AssetHandle handle);
-
   static void BroadcastEvent(Event& event);
 
  private:
-  static glm::mat4 ConvertMatrix(const aiMatrix4x4& from);
-  static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
-                          aiMaterial* mat, aiTextureType type,
-                          const aiScene& scene);
-  static std::shared_ptr<Texture> LoadEmbeddedTexture(Model& model,
-                                                      int tex_index,
-                                                      TextureType tex_type,
-                                                      const aiScene& scene);
-  static std::shared_ptr<Texture> LoadExternalTexture(
-      Model& model, const std::string& texture_path, TextureType tex_type);
-  static void PreDecodeTextures(Model& model, const aiScene& scene);
-  static std::shared_ptr<Texture> CreateTextureFromEmbedded(aiTexture* aiTex,
-                                                            TextureType type);
-  static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width,
-                                          int height);
-  static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
-                                           const aiScene& aiScene);
-  static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
-                          std::vector<std::shared_ptr<Mesh>>& meshes,
-                          int32_t parent_node_index);
-  static void ExtractAnimations(Model& model, const aiScene& scene);
 
   static void InitializeVfs();
   static void RegisterPrimitives();
@@ -163,18 +144,20 @@ class Engine {
   static std::shared_ptr<AppWindow> window_;
   static std::shared_ptr<VirtualFileSystem> vfs_;
   static DeveloperConsole console_;
-  static std::shared_ptr<AssetManager> asset_manager_;
-  static std::shared_ptr<ScriptManager> script_manager_;
-  static std::shared_ptr<NativeBehaviorRegistry> behavior_registry_;
-  static std::shared_ptr<ThreadPool> thread_pool_;
-  static std::shared_ptr<AudioManager> audio_manager_;
-  static std::shared_ptr<SceneManager> scene_manager_;
-  static std::shared_ptr<UIManager> ui_manager_;
-  static std::shared_ptr<CursorManager> cursor_manager_;
+  static std::unique_ptr<AssetManager> asset_manager_;
+
+  static std::unique_ptr<ScriptManager> script_manager_;
+  static std::unique_ptr<NativeBehaviorRegistry> behavior_registry_;
+  static std::unique_ptr<ThreadPool> thread_pool_;
+  static std::unique_ptr<AudioManager> audio_manager_;
+  static std::unique_ptr<SceneManager> scene_manager_;
+  static std::unique_ptr<UIManager> ui_manager_;
+  static std::unique_ptr<CursorManager> cursor_manager_;
   static std::shared_ptr<GameInfo> game_info_;
+  static std::unique_ptr<UserConfig> game_config_;
   static Application* application_;
 #ifdef WIESEL_DISCORD_RPC
-  static std::shared_ptr<DiscordRPC> discord_rpc_;
+  static std::unique_ptr<DiscordRPC> discord_rpc_;
 #endif
 };
 

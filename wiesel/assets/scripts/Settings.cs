@@ -68,6 +68,29 @@ namespace WieselEngine
             set { Internals.Settings_SetAAMode((int)value); }
         }
 
+        // -- Quality --
+
+        /// <summary>Shadow quality: 0=Low(512), 1=Medium(1024), 2=High(2048), 3=Ultra(4096)</summary>
+        public static int ShadowQuality
+        {
+            get { return Internals.Settings_GetShadowQuality(); }
+            set { Internals.Settings_SetShadowQuality(value); }
+        }
+
+        /// <summary>Anisotropic filtering level: 1(off), 2, 4, 8, 16</summary>
+        public static int AnisotropicFiltering
+        {
+            get { return Internals.Settings_GetAnisotropicFiltering(); }
+            set { Internals.Settings_SetAnisotropicFiltering(value); }
+        }
+
+        /// <summary>Texture quality: 0=Full, 1=Half, 2=Quarter, 3=Eighth (mip bias)</summary>
+        public static int TextureQuality
+        {
+            get { return Internals.Settings_GetTextureQuality(); }
+            set { Internals.Settings_SetTextureQuality(value); }
+        }
+
         // -- Audio --
 
         public static float MasterVolume

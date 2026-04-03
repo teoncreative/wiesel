@@ -63,6 +63,8 @@ class DeletionQueue {
     }
   }
 
+  size_t Size() const { return entries_.size(); }
+
  private:
   struct Entry {
     DeleteFn fn;

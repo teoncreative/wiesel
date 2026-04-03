@@ -126,8 +126,7 @@ class Scene {
   template <typename T, typename... Args>
   T& AddComponent(entt::entity handle, Args&&... args) {
     if (HasComponent<T>(handle)) {
-      //throw std::runtime_error("Entity already has component!");
-      std::terminate();
+      throw std::runtime_error("Entity already has component!");
     }
     auto& component = registry_.emplace<T>(handle, std::forward<Args>(args)...);
     OnAddComponent(handle, component);
@@ -135,9 +134,8 @@ class Scene {
   }
 
   template <typename T>
-  T& GetComponent(
-      entt::entity
-          handle) {  // This function is intentionally not marked as const!
+  T& GetComponent(entt::entity handle) {
+    // This function is intentionally not marked as const!
     return registry_.get<T>(handle);
   }
 

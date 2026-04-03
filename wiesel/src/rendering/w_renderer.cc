@@ -32,6 +32,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #include <stb_image.h>
+
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include <stb_image_resize2.h>
 // clang-format on
 
 #include "animation/w_animation.h"
@@ -114,6 +117,9 @@ void Renderer::Initialize(const RendererProperties&& properties) {
   options_.motion_blur_enabled.SetHook(&recreate_resources_);
   options_.shadows_enabled.SetHook(&recreate_resources_);
   options_.aa_mode.SetHook(&recreate_resources_);
+  options_.shadow_map_resolution.SetHook(&recreate_resources_);
+  options_.anisotropic_filtering.SetHook(&recreate_resources_);
+  options_.texture_quality.SetHook(&recreate_resources_);
   CreateVulkanInstance();
   LoadInstanceExtensions();
 #ifdef VULKAN_VALIDATION
@@ -425,7 +431,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
   texture->image_view_ = CreateImageView(
       texture->image_, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
-  texture->is_allocated_ = true;
+  texture->MarkAllocated();
   return texture;
 }
 
@@ -491,7 +497,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
   texture->image_view_ = CreateImageView(
       texture->image_, format, VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
-  texture->is_allocated_ = true;
+  texture->MarkAllocated();
   return texture;
 }
 
@@ -516,6 +522,28 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
     LOG_WARN("Failed to load texture from {}", path);
     return nullptr;
   }
+
+  // Downscale based on texture quality setting
+  uint8_t* upload_pixels = pixels;
+  std::unique_ptr<uint8_t[]> resized;
+  int quality = options_.texture_quality.Get();
+  if (quality > 0 && texture_props.generate_mipmaps && texture->width_ > 4 &&
+      texture->height_ > 4) {
+    uint32_t new_w = std::max(texture->width_ >> quality, 1u);
+    uint32_t new_h = std::max(texture->height_ >> quality, 1u);
+    if (new_w < texture->width_ || new_h < texture->height_) {
+      resized = std::make_unique<uint8_t[]>(new_w * new_h * STBI_rgb_alpha);
+      stbir_resize_uint8_linear(
+          pixels, texture->width_, texture->height_,
+          texture->width_ * STBI_rgb_alpha, resized.get(), new_w, new_h,
+          new_w * STBI_rgb_alpha,
+          static_cast<stbir_pixel_layout>(STBI_rgb_alpha));
+      texture->width_ = new_w;
+      texture->height_ = new_h;
+      upload_pixels = resized.get();
+    }
+  }
+
   texture->size_ = texture->width_ * texture->height_ * STBI_rgb_alpha;
   if (texture_props.generate_mipmaps) {
     texture->mip_levels_ = static_cast<uint32_t>(std::floor(std::log2(
@@ -534,7 +562,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
 
   void* data;
   WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
-  memcpy(data, pixels, static_cast<size_t>(texture->size_));
+  memcpy(data, upload_pixels, static_cast<size_t>(texture->size_));
   vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   stbi_image_free(pixels);
@@ -577,7 +605,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
       CreateImageView(texture->image_, texture_props.image_format,
                       VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
-  texture->is_allocated_ = true;
+  texture->MarkAllocated();
   return texture;
 }
 
@@ -586,8 +614,34 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
     const SamplerProps& sampler_props) {
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
-  texture->width_ = texture_props.width;
-  texture->height_ = texture_props.height;
+
+  // Downscale based on texture quality setting (0=full, 1=half, 2=quarter, 3=eighth)
+  uint32_t w = texture_props.width;
+  uint32_t h = texture_props.height;
+  void* src_pixels = buffer;
+  std::unique_ptr<uint8_t[]> resized_pixels;
+
+  int quality = options_.texture_quality.Get();
+  if (quality > 0 && texture_props.generate_mipmaps && w > 4 && h > 4) {
+    uint32_t new_w = std::max(w >> quality, 1u);
+    uint32_t new_h = std::max(h >> quality, 1u);
+    if (new_w < w || new_h < h) {
+      LOG_INFO("Texture quality downscale: {}x{} -> {}x{} (quality={})", w, h,
+               new_w, new_h, quality);
+      resized_pixels =
+          std::make_unique<uint8_t[]>(new_w * new_h * size_per_pixel);
+      stbir_resize_uint8_linear(
+          static_cast<const uint8_t*>(buffer), w, h, w * size_per_pixel,
+          resized_pixels.get(), new_w, new_h, new_w * size_per_pixel,
+          static_cast<stbir_pixel_layout>(size_per_pixel));
+      w = new_w;
+      h = new_h;
+      src_pixels = resized_pixels.get();
+    }
+  }
+
+  texture->width_ = w;
+  texture->height_ = h;
   texture->size_ = texture->width_ * texture->height_ * size_per_pixel;
 
   if (texture_props.generate_mipmaps) {
@@ -607,7 +661,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
 
   void* data;
   WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
-  memcpy(data, buffer, static_cast<size_t>(texture->size_));
+  memcpy(data, src_pixels, static_cast<size_t>(texture->size_));
   vmaUnmapMemory(vma_allocator_, staging_alloc);
 
   VkImage image;
@@ -647,7 +701,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
       CreateImageView(texture->image_, texture_props.image_format,
                       VK_IMAGE_ASPECT_COLOR_BIT, texture->mip_levels_);
 
-  texture->is_allocated_ = true;
+  texture->MarkAllocated();
   return texture;
 }
 
@@ -752,7 +806,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
   texture->image_view_ = CreateImageView(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
       texture->mip_levels_, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6);
-  texture->is_allocated_ = true;
+  texture->MarkAllocated();
   return texture;
 }
 
@@ -970,7 +1024,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
       texture->image_, texture_props.image_format, VK_IMAGE_ASPECT_COLOR_BIT,
       texture->mip_levels_, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6);
 
-  texture->is_allocated_ = true;
+  texture->MarkAllocated();
   return texture;
 }
 
@@ -1189,166 +1243,32 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
     writes.emplace_back(set);
   }
 
-  {  // base texture
+  // Texture slots: binding 1-7
+  TextureSlot* texture_slots[] = {
+      &material->base_texture, &material->normal_map, &material->specular_map,
+      &material->height_map,   &material->albedo_map, &material->roughness_map,
+      &material->metallic_map,
+  };
+
+  for (int i = 0; i < kMaterialTextureCount; i++) {
+    std::shared_ptr<Texture> tex;
+    texture_slots[i]->Resolve(tex);
+
     VkDescriptorImageInfo image_info;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->base_texture == nullptr) {
+    if (!tex) {
       image_info.imageView = blank_texture_->image_view_->handle_;
       image_info.sampler = blank_texture_->sampler_->handle();
     } else {
-      image_info.imageView = material->base_texture->image_view_->handle_;
-      image_info.sampler = material->base_texture->sampler_->handle();
+      image_info.imageView = tex->image_view_->handle_;
+      image_info.sampler = tex->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
-    set.dstBinding = 1;
-    set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set.descriptorCount = 1;
-    set.pImageInfo = &image_infos.back();
-    set.pNext = nullptr;
-    writes.emplace_back(set);
-  }
-
-  {  // normal texture
-    VkDescriptorImageInfo image_info;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->normal_map == nullptr) {
-      image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_->handle();
-    } else {
-      image_info.imageView = material->normal_map->image_view_->handle_;
-      image_info.sampler = material->normal_map->sampler_->handle();
-    }
-    image_infos.emplace_back(image_info);
-
-    VkWriteDescriptorSet set{};
-    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = object->descriptor_set_;
-    set.dstBinding = 2;
-    set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set.descriptorCount = 1;
-    set.pImageInfo = &image_infos.back();
-    set.pNext = nullptr;
-    writes.emplace_back(set);
-  }
-
-  {  // specular texture
-    VkDescriptorImageInfo image_info;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->specular_map == nullptr) {
-      image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_->handle();
-    } else {
-      image_info.imageView = material->specular_map->image_view_->handle_;
-      image_info.sampler = material->specular_map->sampler_->handle();
-    }
-    image_infos.emplace_back(image_info);
-
-    VkWriteDescriptorSet set{};
-    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = object->descriptor_set_;
-    set.dstBinding = 3;
-    set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set.descriptorCount = 1;
-    set.pImageInfo = &image_infos.back();
-    set.pNext = nullptr;
-    writes.emplace_back(set);
-  }
-
-  {  // height texture
-    VkDescriptorImageInfo image_info;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->height_map == nullptr) {
-      image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_->handle();
-    } else {
-      image_info.imageView = material->height_map->image_view_->handle_;
-      image_info.sampler = material->height_map->sampler_->handle();
-    }
-    image_infos.emplace_back(image_info);
-
-    VkWriteDescriptorSet set{};
-    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = object->descriptor_set_;
-    set.dstBinding = 4;
-    set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set.descriptorCount = 1;
-    set.pImageInfo = &image_infos.back();
-    set.pNext = nullptr;
-    writes.emplace_back(set);
-  }
-
-  {  // albedo texture
-    VkDescriptorImageInfo image_info;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->albedo_map == nullptr) {
-      image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_->handle();
-    } else {
-      image_info.imageView = material->albedo_map->image_view_->handle_;
-      image_info.sampler = material->albedo_map->sampler_->handle();
-    }
-    image_infos.emplace_back(image_info);
-
-    VkWriteDescriptorSet set{};
-    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = object->descriptor_set_;
-    set.dstBinding = 5;
-    set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set.descriptorCount = 1;
-    set.pImageInfo = &image_infos.back();
-    set.pNext = nullptr;
-    writes.emplace_back(set);
-  }
-
-  {  // roughness texture
-    VkDescriptorImageInfo image_info;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->roughness_map == nullptr) {
-      image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_->handle();
-    } else {
-      image_info.imageView = material->roughness_map->image_view_->handle_;
-      image_info.sampler = material->roughness_map->sampler_->handle();
-    }
-    image_infos.emplace_back(image_info);
-
-    VkWriteDescriptorSet set{};
-    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = object->descriptor_set_;
-    set.dstBinding = 6;
-    set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    set.descriptorCount = 1;
-    set.pImageInfo = &image_infos.back();
-    set.pNext = nullptr;
-    writes.emplace_back(set);
-  }
-
-  {  // metallic texture
-    VkDescriptorImageInfo image_info;
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->metallic_map == nullptr) {
-      image_info.imageView = blank_texture_->image_view_->handle_;
-      image_info.sampler = blank_texture_->sampler_->handle();
-    } else {
-      image_info.imageView = material->metallic_map->image_view_->handle_;
-      image_info.sampler = material->metallic_map->sampler_->handle();
-    }
-    image_infos.emplace_back(image_info);
-
-    VkWriteDescriptorSet set{};
-    set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    set.dstSet = object->descriptor_set_;
-    set.dstBinding = 7;
+    set.dstBinding = static_cast<uint32_t>(i + 1);
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
@@ -1418,15 +1338,17 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
     writes.emplace_back(set);
   }
 
-  {  // metallic texture
+  {  // base texture for shadow alpha test
+    std::shared_ptr<Texture> tex;
+    material->base_texture.Resolve(tex);
     VkDescriptorImageInfo image_info;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    if (material->base_texture == nullptr) {
+    if (!tex) {
       image_info.imageView = blank_texture_->image_view_->handle_;
       image_info.sampler = blank_texture_->sampler_->handle();
     } else {
-      image_info.imageView = material->base_texture->image_view_->handle_;
-      image_info.sampler = material->base_texture->sampler_->handle();
+      image_info.imageView = tex->image_view_->handle_;
+      image_info.sampler = tex->sampler_->handle();
     }
     image_infos.emplace_back(image_info);
 
@@ -3357,6 +3279,45 @@ void Renderer::EndPresent() {
   }
 
   deletion_queue_.Flush();
+  stats_.deletion_queue_pending = static_cast<uint32_t>(deletion_queue_.Size());
+
+  // Query GPU memory usage from VMA
+  VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
+  vmaGetHeapBudgets(vma_allocator_, budgets);
+  VkPhysicalDeviceMemoryProperties mem_props;
+  vkGetPhysicalDeviceMemoryProperties(physical_device_, &mem_props);
+  uint64_t used = 0;
+  uint64_t budget = 0;
+  for (uint32_t i = 0; i < mem_props.memoryHeapCount; i++) {
+    if (mem_props.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+      used += budgets[i].usage;
+      budget += budgets[i].budget;
+    }
+  }
+  stats_.gpu_memory_used = used;
+  stats_.gpu_memory_budget = budget;
+
+  VmaTotalStatistics vma_stats;
+  vmaCalculateStatistics(vma_allocator_, &vma_stats);
+  uint32_t current_alloc_count = vma_stats.total.statistics.allocationCount;
+  stats_.gpu_allocation_count = current_alloc_count;
+  stats_.texture_memory = Texture::GetTotalTextureMemory();
+  stats_.texture_count = Texture::GetTotalTextureCount();
+
+  // Track allocations per second
+  uint32_t new_allocs = current_alloc_count > prev_alloc_count_
+                            ? current_alloc_count - prev_alloc_count_
+                            : 0;
+  prev_alloc_count_ = current_alloc_count;
+  alloc_rate_accumulator_ += new_allocs;
+  alloc_rate_timer_ += stats_.frame_time_ms / 1000.0f;
+  if (alloc_rate_timer_ >= 1.0f) {
+    stats_.gpu_allocations_per_second = alloc_rate_accumulator_;
+    alloc_rate_accumulator_ = 0;
+    alloc_rate_timer_ = 0.0f;
+  }
+
+  invalidate_model_descriptors_ = false;
   frame_counter_++;
   current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
 }
@@ -3449,8 +3410,9 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
 
     // Apply default texture to meshes that lack a diffuse texture
     if (model.default_texture && effective_mat &&
-        !effective_mat->base_texture) {
-      effective_mat->base_texture = model.default_texture;
+        !effective_mat->base_texture.HasTexture()) {
+      // TODO: default_texture should also be an AssetHandle
+      effective_mat->base_texture.cached = model.default_texture;
       // Update vertex flags so the shader samples the texture
       for (auto& v : mesh->vertices) {
         v.flags |= VertexFlagHasTexture;
@@ -3502,8 +3464,9 @@ void Renderer::DrawModel(ModelComponent& model,
     return;
   }
 
-  // Lazily allocate per-entity render data (or re-allocate if model changed)
-  if (model.render_model != model.model_handle || !model.uniform_buffer) {
+  // Lazily allocate per-entity render data (or re-allocate if model/textures changed)
+  if (model.render_model != model.model_handle || !model.uniform_buffer ||
+      invalidate_model_descriptors_) {
     AllocateModelRenderData(model, *ptr);
   }
 
@@ -3574,7 +3537,51 @@ void Renderer::DrawModel(ModelComponent& model,
              sizeof(MatricesUniformData));
     }
 
+    // Check if any texture in this mesh's material has changed
     std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
+    {
+      std::shared_ptr<Material> eff_mat = nullptr;
+      if (i < model.material_slot_handles.size() &&
+          model.material_slot_handles[i].IsValid()) {
+        eff_mat = Engine::asset_manager().Get<Material>(
+            model.material_slot_handles[i]);
+      }
+      if (!eff_mat) {
+        eff_mat = ptr->meshes[i]->mat;
+      }
+      if (eff_mat) {
+        // Resolve all texture slots - if any changed, rebuild descriptors
+        bool any_changed = false;
+        TextureSlot* slots[] = {
+            &eff_mat->base_texture, &eff_mat->normal_map,
+            &eff_mat->specular_map, &eff_mat->height_map,
+            &eff_mat->albedo_map,   &eff_mat->roughness_map,
+            &eff_mat->metallic_map,
+        };
+        for (auto* slot : slots) {
+          std::shared_ptr<Texture> tex;
+          if (slot->Resolve(tex)) {
+            any_changed = true;
+          }
+        }
+        if (any_changed) {
+          // Defer old descriptors so in-flight frames can finish using them
+          if (model.geometry_descriptors[i]) {
+            auto old_geom = model.geometry_descriptors[i];
+            deletion_queue_.Push([old_geom]() { (void)old_geom; });
+          }
+          if (model.shadow_descriptors[i]) {
+            auto old_shadow = model.shadow_descriptors[i];
+            deletion_queue_.Push([old_shadow]() { (void)old_shadow; });
+          }
+          model.geometry_descriptors[i] =
+              CreateMeshDescriptors(model.mesh_uniform_buffers_[i], eff_mat);
+          model.shadow_descriptors[i] = CreateShadowMeshDescriptors(
+              model.mesh_uniform_buffers_[i], eff_mat);
+          descriptors = model.geometry_descriptors[i];
+        }
+      }
+    }
     DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
   }
 }
@@ -3590,7 +3597,8 @@ void Renderer::DrawModelTransparent(ModelComponent& model,
     return;
   }
 
-  if (model.render_model != model.model_handle || !model.uniform_buffer) {
+  if (model.render_model != model.model_handle || !model.uniform_buffer ||
+      invalidate_model_descriptors_) {
     AllocateModelRenderData(model, *ptr);
   }
 

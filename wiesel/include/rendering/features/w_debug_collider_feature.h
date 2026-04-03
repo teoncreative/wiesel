@@ -87,16 +87,19 @@ class DebugColliderFeature : public RenderFeature {
       const std::string& label, const glm::vec4& bg_color,
       const glm::vec4& text_color);
 
-  // Cached heightfield debug geometry
-  struct HeightfieldDebugData {
+  // Cached debug geometry for complex colliders
+  struct CachedDebugData {
     std::shared_ptr<MemoryBuffer> vb;
     std::shared_ptr<IndexBuffer> ib;
     uint32_t index_count = 0;
     glm::mat4 model = glm::mat4(1.0f);
   };
 
-  std::vector<HeightfieldDebugData> hf_cache_;
+  std::vector<CachedDebugData> hf_cache_;
   bool hf_cache_valid_ = false;
+
+  std::vector<CachedDebugData> mesh_collider_cache_;
+  bool mesh_collider_cache_valid_ = false;
 };
 
 }  // namespace Wiesel

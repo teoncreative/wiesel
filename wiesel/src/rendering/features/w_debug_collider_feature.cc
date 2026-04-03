@@ -10,12 +10,14 @@
 //
 
 #include "rendering/features/w_debug_collider_feature.h"
+#include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "physics/w_collider.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_camera.h"
 #include "rendering/w_descriptor.h"
 #include "rendering/w_descriptorlayout.h"
+#include "rendering/w_mesh.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -526,7 +528,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         }
       }
 
-      HeightfieldDebugData data;
+      CachedDebugData data;
       data.vb = renderer_->CreateVertexBuffer(vertices);
       data.ib = renderer_->CreateIndexBuffer(indices);
       data.index_count = static_cast<uint32_t>(indices.size());
@@ -539,7 +541,65 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
     hf_cache_.clear();
     hf_cache_valid_ = false;
   }
-  std::vector<HeightfieldDebugData>& hf_data = hf_cache_;
+  std::vector<CachedDebugData>& hf_data = hf_cache_;
+
+  // Build mesh collider debug geometry once (cached)
+  if (show_colliders && !mesh_collider_cache_valid_) {
+    mesh_collider_cache_.clear();
+    for (const auto& entity :
+         scene->GetAllEntitiesWith<MeshColliderComponent, ModelComponent,
+                                   TransformComponent>()) {
+      auto& model_comp = scene->GetComponent<ModelComponent>(entity);
+      if (!model_comp.model_handle.IsValid()) {
+        continue;
+      }
+      const std::shared_ptr<Model>& model_data =
+          Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
+      if (!model_data) {
+        continue;
+      }
+
+      std::vector<glm::vec3> vertices;
+      std::vector<Index> tri_indices;
+      model_data->GetCollisionGeometry(vertices, tri_indices);
+
+      if (tri_indices.empty()) {
+        continue;
+      }
+
+      // Convert triangle indices to line-list edges for wireframe
+      std::vector<Index> line_indices;
+      line_indices.reserve(tri_indices.size() * 2);
+      for (size_t i = 0; i + 2 < tri_indices.size(); i += 3) {
+        Index a = tri_indices[i];
+        Index b = tri_indices[i + 1];
+        Index c = tri_indices[i + 2];
+        line_indices.push_back(a);
+        line_indices.push_back(b);
+        line_indices.push_back(b);
+        line_indices.push_back(c);
+        line_indices.push_back(c);
+        line_indices.push_back(a);
+      }
+
+      auto& tc = scene->GetComponent<TransformComponent>(entity);
+      glm::mat4 model = glm::translate(glm::mat4(1.0f), tc.GetWorldPosition()) *
+                        glm::scale(glm::mat4(1.0f), tc.GetScale());
+
+      CachedDebugData data;
+      data.vb = renderer_->CreateVertexBuffer(vertices);
+      data.ib = renderer_->CreateIndexBuffer(line_indices);
+      data.index_count = static_cast<uint32_t>(line_indices.size());
+      data.model = model;
+      mesh_collider_cache_.push_back(std::move(data));
+    }
+    mesh_collider_cache_valid_ = true;
+  }
+  if (!show_colliders) {
+    mesh_collider_cache_.clear();
+    mesh_collider_cache_valid_ = false;
+  }
+  std::vector<CachedDebugData>& mesh_data = mesh_collider_cache_;
 
   // Import resources
   RGResource debug_out = graph.ImportTexture(
@@ -553,8 +613,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       [pipeline, filled_pipe, no_depth_pipe, push_constant, scene, renderer, vp,
        show_colliders, show_triggers, show_reverb, show_cameras, box_vb, box_ib,
        box_ic, sphere_vb, sphere_ib, sphere_ic, fbox_vb, fbox_ib, fbox_ic,
-       fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc,
-       &hf_data](VkCommandBuffer cmd) {
+       fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc, &hf_data,
+       &mesh_data](VkCommandBuffer cmd) {
         if (!show_colliders && !show_triggers && !show_reverb &&
             !show_cameras) {
           return;
@@ -710,9 +770,18 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           // Heightfield colliders: wireframe only
           if (show_colliders) {
             pipeline->Bind(PipelineBindPointGraphics);
-            for (const HeightfieldDebugData& hf : hf_data) {
+            for (const CachedDebugData& hf : hf_data) {
               draw_wireframe(hf.vb, hf.ib, hf.index_count, hf.model,
                              terrain_wire);
+            }
+          }
+
+          // Mesh colliders: wireframe only
+          if (show_colliders) {
+            pipeline->Bind(PipelineBindPointGraphics);
+            for (const CachedDebugData& mc : mesh_data) {
+              draw_wireframe(mc.vb, mc.ib, mc.index_count, mc.model,
+                             static_wire);
             }
           }
         }

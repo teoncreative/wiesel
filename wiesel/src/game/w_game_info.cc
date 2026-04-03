@@ -165,6 +165,9 @@ static void SerializeRenderOptions(nlohmann::json& j,
       {"vsync", opts.vsync},
       {"aa_mode", opts.aa_mode},
       {"msaa_mode", opts.msaa_mode},
+      {"shadow_resolution", opts.shadow_resolution},
+      {"anisotropic_filtering", opts.anisotropic_filtering},
+      {"texture_quality", opts.texture_quality},
   };
 }
 
@@ -191,6 +194,9 @@ static void DeserializeRenderOptions(const nlohmann::json& j,
   opts.vsync = ro.value("vsync", false);
   opts.aa_mode = ro.value("aa_mode", 0);
   opts.msaa_mode = ro.value("msaa_mode", 0);
+  opts.shadow_resolution = ro.value("shadow_resolution", 4096);
+  opts.anisotropic_filtering = ro.value("anisotropic_filtering", 16);
+  opts.texture_quality = ro.value("texture_quality", 0);
 }
 
 // --- Input settings serialization ---

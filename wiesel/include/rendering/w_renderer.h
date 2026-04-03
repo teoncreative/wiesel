@@ -127,6 +127,11 @@ struct RendererOptions {
 
   // IBL
   Setting<bool> ibl_enabled = true;
+
+  // Quality
+  Setting<int> shadow_map_resolution = WIESEL_SHADOWMAP_DIM;
+  Setting<int> anisotropic_filtering = 16;
+  Setting<int> texture_quality = 0;  // 0=Full, 1=Half, 2=Quarter, 3=Eighth
 };
 
 struct RendererProperties {};
@@ -140,6 +145,19 @@ struct RenderStats {
   float frame_time_ms = 0.0f;
   uint32_t swap_chain_images = 0;
   uint32_t frames_in_flight = 0;
+
+  // GPU memory (VMA)
+  uint64_t gpu_memory_used = 0;
+  uint64_t gpu_memory_budget = 0;
+  uint32_t gpu_allocation_count = 0;
+  uint32_t gpu_allocations_per_second = 0;
+
+  // Texture-specific memory tracking
+  uint64_t texture_memory = 0;
+  uint32_t texture_count = 0;
+
+  // Deletion queue
+  uint32_t deletion_queue_pending = 0;
 
   void Reset() {
     draw_calls = 0;
@@ -234,6 +252,8 @@ class Renderer {
   }
 
   void SetRecreateResources(bool value) { recreate_resources_ = value; }
+
+  void InvalidateModelDescriptors() { invalidate_model_descriptors_ = true; }
 
   void ClearRecreateResources() { recreate_resources_ = false; }
 
@@ -545,6 +565,10 @@ class Renderer {
   VkCommandPool CreateTransientCommandPool();
   static void SetThreadCommandPool(VkCommandPool pool);
 
+  static bool HasThreadCommandPool() {
+    return tl_command_pool_ != VK_NULL_HANDLE;
+  }
+
   // Batch upload mode: all single-time commands are recorded into one command
   // buffer and submitted together when EndBatchUpload is called.
   // This avoids per-texture/per-mesh GPU sync during model loading.
@@ -680,6 +704,11 @@ class Renderer {
   uint32_t current_frame_ = 0;
   uint64_t frame_counter_ = 0;
 
+  // VMA allocation rate tracking
+  uint32_t prev_alloc_count_ = 0;
+  float alloc_rate_timer_ = 0.0f;
+  uint32_t alloc_rate_accumulator_ = 0;
+
   std::shared_ptr<CommandPool> command_pool_;
   std::vector<std::shared_ptr<CommandBuffer>> command_buffers_;
 
@@ -706,6 +735,7 @@ class Renderer {
   bool recreate_pipeline_;
   bool recreate_swap_chain_;
   bool recreate_resources_ = false;
+  bool invalidate_model_descriptors_ = false;
 
   std::shared_ptr<CameraData> camera_;
   glm::vec2 viewport_size_;

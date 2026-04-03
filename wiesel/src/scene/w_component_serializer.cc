@@ -25,7 +25,6 @@
 #include "rendering/w_mesh.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
-#include "rendering/w_sprite_loader.h"
 #include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
 #include "ui/w_canvas.h"

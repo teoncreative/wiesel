@@ -10,18 +10,26 @@
 
 #pragma once
 
-// Moonlight ImGui theme by deathsu/Madam-Herta
-// https://github.com/Madam-Herta/Moonlight/
-
 namespace ImGui {
 namespace Moonlight {
+
+enum class Theme {
+  DarkGray,
+  OLED,
+  Count,
+};
+
+const char* GetThemeName(Theme theme);
 
 // Load SourceSansProRegular and sets it as a default font.
 // You may want to call ImGui::GetIO().Fonts->Clear() before this
 void LoadFont(float size = 19.0f);
 
-// Sets the ImGui style to Moonlight
-void StyleColorsMoonlight();
+// Apply a theme by enum
+void ApplyTheme(Theme theme = Theme::DarkGray);
+
+// Get the currently active theme
+Theme GetCurrentTheme();
 
 }  // namespace Moonlight
 }  // namespace ImGui
