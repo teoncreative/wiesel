@@ -1,0 +1,68 @@
+/**
+@mainpage Wiesel Engine Documentation
+
+@section intro Overview
+
+Wiesel is a cross-platform game engine built with C++ and Vulkan, featuring a
+deferred PBR rendering pipeline, C# scripting via Mono, and a full-featured editor.
+
+@section api API Reference
+
+The API is split into two main sections:
+
+@subsection engine_api C++ Engine API
+
+Core engine systems written in C++. Use these when building native plugins,
+editor extensions, or working on the engine itself.
+
+- @ref Rendering "Rendering" - Renderer, pipelines, textures, materials, shaders, render features
+- @ref Scene "Scene" - Entities, components, scene management, serialization
+- @ref Physics "Physics" - Rigid bodies, colliders, mesh collider assets, raycasting
+- @ref Audio "Audio" - Audio manager, spatial sound, reverb zones
+- @ref Asset "Asset System" - Asset manager, loaders, serializers, VFS, handles
+- @ref Animation "Animation" - Skeletal animation, state machines, sprite animation
+- @ref UI "UI System" - Canvas, RmlUi integration, text rendering, input routing
+- @ref Input "Input" - Keyboard, mouse, gamepad, input contexts, multi-player
+- @ref Editor "Editor" - Editor layers, component inspectors, asset browser
+
+@subsection scripting_api C# Scripting API
+
+Game-facing API for C# scripts. Attach scripts to entities by inheriting from
+@ref WieselEngine.MonoBehavior.
+
+- @ref WieselEngine.MonoBehavior "MonoBehavior" - Script lifecycle (OnStart, OnUpdate, OnDestroy, etc.)
+- @ref WieselEngine.Entity "Entity" - Find, create, destroy entities, get components
+- @ref WieselEngine.Input "Input" - Keyboard, mouse, gamepad queries
+- @ref WieselEngine.Physics "Physics" - Raycasting and overlap queries
+- @ref WieselEngine.Audio "Audio" - Play sounds, music, spatial audio
+- @ref WieselEngine.Settings "Settings" - Runtime graphics/audio settings
+- @ref WieselEngine.SceneManager "SceneManager" - Scene loading and transitions
+- @ref WieselEngine.Console "Console" - Developer console commands
+- @ref WieselEngine.Time "Time" - Delta time, total time, frame count
+
+<b>Components:</b>
+@ref WieselEngine.TransformComponent,
+@ref WieselEngine.ModelComponent,
+@ref WieselEngine.CameraComponent,
+@ref WieselEngine.RigidBodyComponent,
+@ref WieselEngine.BoxColliderComponent,
+@ref WieselEngine.SphereColliderComponent,
+@ref WieselEngine.LightDirectComponent,
+@ref WieselEngine.LightPointComponent,
+@ref WieselEngine.AudioSourceComponent,
+@ref WieselEngine.AnimatorComponent,
+@ref WieselEngine.SpriteRendererComponent,
+@ref WieselEngine.SpriteAnimatorComponent,
+@ref WieselEngine.TextComponent,
+@ref WieselEngine.UIDocumentComponent,
+@ref WieselEngine.CanvasComponent
+
+@section samples Sample Projects
+
+Sample projects are maintained in a separate repository:
+https://github.com/teoncreative/wiesel-samples
+
+@section license License
+
+Apache License 2.0
+*/

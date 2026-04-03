@@ -6,6 +6,38 @@
  * game logic. Scripts derive from MonoBehavior and are attached to
  * entities as components.
  *
- * @{
- * @}
+ * @section scripting_lifecycle Script Lifecycle
+ *
+ * - MonoBehavior.OnStart() - called once when the entity enters the scene
+ * - MonoBehavior.OnUpdate(float deltaTime) - called every frame
+ * - MonoBehavior.OnFixedUpdate(float fixedDeltaTime) - called at fixed physics rate
+ * - MonoBehavior.OnDestroy() - called when the entity is destroyed
+ *
+ * @section scripting_components Components
+ *
+ * Access components via GetComponent<T>() on MonoBehavior or Entity:
+ *
+ * - TransformComponent - position, rotation, scale
+ * - ModelComponent - 3D model rendering
+ * - CameraComponent - camera projection and FOV
+ * - RigidBodyComponent - physics body
+ * - BoxColliderComponent, SphereColliderComponent - collision shapes
+ * - LightDirectComponent, LightPointComponent - lighting
+ * - AudioSourceComponent - positional audio
+ * - AnimatorComponent - skeletal animation
+ * - SpriteRendererComponent, SpriteAnimatorComponent - 2D sprites
+ * - TextComponent - text rendering
+ * - UIDocumentComponent - RmlUi documents with data binding
+ * - CanvasComponent - UI canvas layout
+ *
+ * @section scripting_statics Static APIs
+ *
+ * - Input - keyboard, mouse, gamepad queries
+ * - Physics - raycasting and overlap queries
+ * - Audio - fire-and-forget sound playback
+ * - Settings - runtime graphics and audio options
+ * - SceneManager - scene loading and transitions
+ * - Console - developer console commands
+ * - Time - delta time, total time, frame count
+ * - Cursor - custom cursor states
  */

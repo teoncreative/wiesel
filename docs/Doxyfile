@@ -1,22 +1,26 @@
-PROJECT_NAME = WieselEngine
+PROJECT_NAME = "Wiesel Engine"
+PROJECT_BRIEF = "Cross-platform game engine with Vulkan, C# scripting, and a full editor"
 OUTPUT_DIRECTORY = docs
 
-# Input sources - engine C++ API and C# scripting API
-INPUT = wiesel/include \
+# Input sources - engine C++ API, editor, and C# scripting API
+INPUT = docs/mainpage.dox \
+        wiesel/include \
         wiesel/src \
-        libs/monolib/include \
         editor/include \
         wiesel/assets/scripts
 
 RECURSIVE = YES
 
-# Only process headers for C++, all .cs files for C# API
+# Process headers for C++, all .cs files for C# API, .dox for group/page definitions
 FILE_PATTERNS = *.h *.cs *.dox
 
-EXCLUDE_PATTERNS = vendor/*
-
-# Group C# files into a separate module
-INPUT_FILTER =
+# Exclude third-party, internal libraries, build dirs, and meta files
+EXCLUDE_PATTERNS = */vendor/* \
+                   */libs/* \
+                   */cmake-build-*/* \
+                   */build/* \
+                   */_deps/* \
+                   *.meta
 
 GENERATE_TREEVIEW = YES
 DISABLE_INDEX = NO
@@ -25,10 +29,24 @@ HTML_EXTRA_STYLESHEET = docs/styles/doxygen-awesome.css
 FULL_PATH_NAMES = NO
 EXTRACT_ALL = YES
 
-# Enable grouping/modules for separating Engine API and Scripting API
+# Enable grouping/modules
 GROUP_GRAPHS = YES
 
+# C# support
 EXTENSION_MAPPING = cs=Csharp
-
-# Optimize for C++ and C# mixed docs
 OPTIMIZE_OUTPUT_JAVA = YES
+
+# Use markdown for main page
+USE_MDFILE_AS_MAINPAGE =
+
+# Source browser
+SOURCE_BROWSER = NO
+VERBATIM_HEADERS = NO
+
+# Inheritance and collaboration graphs
+HAVE_DOT = NO
+
+# Suppress build noise
+QUIET = YES
+WARNINGS = YES
+WARN_IF_UNDOCUMENTED = NO
