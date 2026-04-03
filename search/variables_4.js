@@ -38,13 +38,14 @@ var searchData=
   ['direction_35',['direction',['../structWiesel_1_1LightDirect.html#aab00209014b86aca484e775b6c876bf8',1,'Wiesel::LightDirect::direction'],['../structWiesel_1_1CanvasComponent.html#ae3f8413147e069322d8e3216299937c5',1,'Wiesel::CanvasComponent::direction']]],
   ['disabled_5fcolor_36',['disabled_color',['../structWiesel_1_1ButtonComponent.html#ac7f9a6bcc728fdb3403e24b3300c990b',1,'Wiesel::ButtonComponent']]],
   ['disabled_5ftexture_37',['disabled_texture',['../structWiesel_1_1ButtonComponent.html#a486af79fbedc1a57c05b7c03deba0ad2',1,'Wiesel::ButtonComponent']]],
-  ['display_5fname_38',['display_name',['../structWiesel_1_1MaterialProperty.html#ab6aa6cd8fd1f34b6978b9491ab633117',1,'Wiesel::MaterialProperty']]],
-  ['distance_39',['distance',['../structWiesel_1_1RaycastHit.html#acf2a75d5cc0582e1f218406a2415d275',1,'Wiesel::RaycastHit::distance'],['../structWieselEngine_1_1RaycastHit.html#af703a433386e87a71b92def574589a3f',1,'WieselEngine.RaycastHit.Distance']]],
-  ['document_5fhandle_40',['document_handle',['../structWiesel_1_1UIDocumentComponent.html#a3b6e717ba4dd2891c02baf0123f5fd63',1,'Wiesel::UIDocumentComponent']]],
-  ['does_5fshadow_5fpass_41',['does_shadow_pass',['../structWiesel_1_1CameraComponent.html#a580e9f616299886b90e66b01acf867a2',1,'Wiesel::CameraComponent::does_shadow_pass'],['../structWiesel_1_1CameraData.html#a0f84a1899c6c8b167d9b67b354b3c9d0',1,'Wiesel::CameraData::does_shadow_pass']]],
-  ['down_42',['Down',['../classWieselEngine_1_1Vector3f.html#a1471116dc21247218a724ef5f191b36d',1,'WieselEngine::Vector3f']]],
-  ['draw_5fcalls_43',['draw_calls',['../structWiesel_1_1RenderStats.html#afeb28d8ddfda346964a6551d1d78b321',1,'Wiesel::RenderStats']]],
-  ['draw_5forder_44',['draw_order',['../structWiesel_1_1RectangleTransformComponent.html#a973a221daaf538bafdf53a52a5382d37',1,'Wiesel::RectangleTransformComponent']]],
-  ['duration_45',['duration',['../structWiesel_1_1AnimationClip.html#a77488a88048b1e9d83bcdd1e180cd2c5',1,'Wiesel::AnimationClip::duration'],['../structWiesel_1_1SpriteAnimAssetData_1_1Frame.html#ae803778f3e1bf41e78fa70f2976f7732',1,'Wiesel::SpriteAnimAssetData::Frame::duration']]],
-  ['dynamic_5fstates_5f_46',['dynamic_states_',['../classWiesel_1_1Pipeline.html#af7cb5a1016abeaab17faf890088edbd3',1,'Wiesel::Pipeline']]]
+  ['dismissed_38',['dismissed',['../structWiesel_1_1EditorNotification.html#afce253fa111e663fe54ab960fe1b7721',1,'Wiesel::EditorNotification']]],
+  ['display_5fname_39',['display_name',['../structWiesel_1_1MaterialProperty.html#ab6aa6cd8fd1f34b6978b9491ab633117',1,'Wiesel::MaterialProperty']]],
+  ['distance_40',['distance',['../structWieselEngine_1_1RaycastHit.html#af703a433386e87a71b92def574589a3f',1,'WieselEngine.RaycastHit.Distance'],['../structWiesel_1_1RaycastHit.html#acf2a75d5cc0582e1f218406a2415d275',1,'Wiesel::RaycastHit::distance']]],
+  ['document_5fhandle_41',['document_handle',['../structWiesel_1_1UIDocumentComponent.html#a3b6e717ba4dd2891c02baf0123f5fd63',1,'Wiesel::UIDocumentComponent']]],
+  ['does_5fshadow_5fpass_42',['does_shadow_pass',['../structWiesel_1_1CameraComponent.html#a580e9f616299886b90e66b01acf867a2',1,'Wiesel::CameraComponent::does_shadow_pass'],['../structWiesel_1_1CameraData.html#a0f84a1899c6c8b167d9b67b354b3c9d0',1,'Wiesel::CameraData::does_shadow_pass']]],
+  ['down_43',['Down',['../classWieselEngine_1_1Vector3f.html#a1471116dc21247218a724ef5f191b36d',1,'WieselEngine::Vector3f']]],
+  ['draw_5fcalls_44',['draw_calls',['../structWiesel_1_1RenderStats.html#afeb28d8ddfda346964a6551d1d78b321',1,'Wiesel::RenderStats']]],
+  ['draw_5forder_45',['draw_order',['../structWiesel_1_1RectangleTransformComponent.html#a973a221daaf538bafdf53a52a5382d37',1,'Wiesel::RectangleTransformComponent']]],
+  ['duration_46',['duration',['../structWiesel_1_1AnimationClip.html#a77488a88048b1e9d83bcdd1e180cd2c5',1,'Wiesel::AnimationClip::duration'],['../structWiesel_1_1SpriteAnimAssetData_1_1Frame.html#ae803778f3e1bf41e78fa70f2976f7732',1,'Wiesel::SpriteAnimAssetData::Frame::duration']]],
+  ['dynamic_5fstates_5f_47',['dynamic_states_',['../classWiesel_1_1Pipeline.html#af7cb5a1016abeaab17faf890088edbd3',1,'Wiesel::Pipeline']]]
 ];

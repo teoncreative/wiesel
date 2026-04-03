@@ -10,7 +10,7 @@ var searchData=
   ['enummember_7',['EnumMember',['../namespaceWiesel_1_1Editor.html#ac401a579c7e1183eb3e6bc3abcd1912ba692ec2aadc30b3b8cc45b63c507e48a1',1,'Wiesel::Editor']]],
   ['equal_8',['Equal',['../namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887af5f286e73bda105e538310b3190f75c5',1,'WieselEngine']]],
   ['equals_9',['Equals',['../namespaceWiesel.html#a8ba879d9cc438ebb614ecb66d7c3a98aa0ccb67e7eaae09d9e4078d161eeca100',1,'Wiesel']]],
-  ['error_10',['Error',['../namespaceWiesel.html#a2c3ad462c639b419e5b3a00c8f332a03a902b0d55fddef6f8d651fe1035b7d4bd',1,'Wiesel']]],
+  ['error_10',['error',['../namespaceWiesel.html#a2c3ad462c639b419e5b3a00c8f332a03a902b0d55fddef6f8d651fe1035b7d4bd',1,'Wiesel::Error'],['../namespaceWiesel.html#aa2daa5a6ab337646bf5e20e09600f675a902b0d55fddef6f8d651fe1035b7d4bd',1,'Wiesel::Error']]],
   ['escape_11',['Escape',['../namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887a013ec032d3460d4be4431c6ab1f8f224',1,'WieselEngine']]],
   ['event_12',['Event',['../namespaceWiesel_1_1Editor.html#ac401a579c7e1183eb3e6bc3abcd1912baa4ecfc70574394990cf17bd83df499f7',1,'Wiesel::Editor']]]
 ];

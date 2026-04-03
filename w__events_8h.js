@@ -14,8 +14,10 @@ var w__events_8h =
     ] ],
     [ "EventType", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcf", [
       [ "AppRecreateSwapChains", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfa70ce1bd94aa9c16114f9611dc099e584", null ],
-      [ "WindowClose", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfac984201d37197ab297a14d19efee4b07", null ],
-      [ "WindowResize", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfa9f8f27bff2915738c4fe1b970e12f89c", null ],
+      [ "WindowClosed", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfa7c87dff2b968b5c85baf1def063c776d", null ],
+      [ "WindowResized", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfacbaad9b233665221bfc0a4a450a594cf", null ],
+      [ "WindowMinimized", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfa9bf74bf107523ad953a037d8c1730b9a", null ],
+      [ "WindowRestored", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfacc7bbd52fbb70e0de22201dc41d78177", null ],
       [ "KeyPressed", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfac17e6984c1e5a887a49831beadee6bca", null ],
       [ "KeyReleased", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfa4a77f07c8ad223b71ab4ce78a63841ab", null ],
       [ "KeyTyped", "w__events_8h.html#adc25558cdf36ff75b7903b843b394fcfa9afbfd35b289eb4fc7f1bc148d7b422e", null ],

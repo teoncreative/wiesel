@@ -64,7 +64,7 @@ var searchData=
   ['appwindow_61',['AppWindow',['../classWiesel_1_1AppWindow.html#a6ecf71aa9fc85d25183b0cffa5d18a21',1,'Wiesel::AppWindow']]],
   ['areassetsready_62',['AreAssetsReady',['../classWiesel_1_1Scene.html#a1f9d62d88f3c3355a05b4c52be712517',1,'Wiesel::Scene']]],
   ['aschars_63',['AsChars',['../classWiesel_1_1VfsFile.html#a204e16871470fe9e41c69ff52afde868',1,'Wiesel::VfsFile']]],
-  ['aspect_5fratio_64',['aspect_ratio',['../classWiesel_1_1WindowResizeEvent.html#a59bbd9383f8c6acc3efb4541c498ea0e',1,'Wiesel::WindowResizeEvent']]],
+  ['aspect_5fratio_64',['aspect_ratio',['../classWiesel_1_1WindowResizedEvent.html#a737db9bf97d4d6538256fd53711f4030',1,'Wiesel::WindowResizedEvent']]],
   ['asset_5fmanager_65',['asset_manager',['../classWiesel_1_1Engine.html#a77e1fbf929e2bb96758c060113845eb3',1,'Wiesel::Engine']]],
   ['assethandle_66',['assethandle',['../structWiesel_1_1AssetHandle.html#ae9b0e6570876e668e37ebf82d3d0c5b5',1,'Wiesel::AssetHandle::AssetHandle(UUID uuid)'],['../structWiesel_1_1AssetHandle.html#a635a8734f112b77f6f94c34926335ba0',1,'Wiesel::AssetHandle::AssetHandle()']]],
   ['assetmanager_67',['AssetManager',['../classWiesel_1_1AssetManager.html#a4c445e19bd697787601d391eb3a30c70',1,'Wiesel::AssetManager']]],

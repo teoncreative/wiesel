@@ -18,7 +18,7 @@ var searchData=
   ['node_5fname_5fto_5findex_15',['node_name_to_index',['../structWiesel_1_1NodeHierarchy.html#a23a61651e275a723bb1bb55e97737643',1,'Wiesel::NodeHierarchy']]],
   ['node_5ftransforms_16',['node_transforms',['../structWiesel_1_1AnimatorComponent.html#a01205f06c7112ca7c09a78b1b15896fc',1,'Wiesel::AnimatorComponent']]],
   ['nodes_17',['nodes',['../structWiesel_1_1NodeHierarchy.html#a5a59d9c5c6bef4c2391b7d974317c5c4',1,'Wiesel::NodeHierarchy']]],
-  ['normal_18',['normal',['../structWiesel_1_1RaycastHit.html#ad2e09e60ceae307d5d2067672100b51d',1,'Wiesel::RaycastHit::normal'],['../structWiesel_1_1Vertex3D.html#a4e2952a381ad4c952a86e969bc75ff8f',1,'Wiesel::Vertex3D::normal'],['../structWieselEngine_1_1RaycastHit.html#ad00bd5f8bb28bf6a4a8e6a50aca788e5',1,'WieselEngine.RaycastHit.Normal']]],
+  ['normal_18',['normal',['../structWieselEngine_1_1RaycastHit.html#ad00bd5f8bb28bf6a4a8e6a50aca788e5',1,'WieselEngine.RaycastHit.Normal'],['../structWiesel_1_1RaycastHit.html#ad2e09e60ceae307d5d2067672100b51d',1,'Wiesel::RaycastHit::normal'],['../structWiesel_1_1Vertex3D.html#a4e2952a381ad4c952a86e969bc75ff8f',1,'Wiesel::Vertex3D::normal']]],
   ['normal_5fcolor_19',['normal_color',['../structWiesel_1_1ButtonComponent.html#a4cbf66149456affa907b947f0320ca27',1,'Wiesel::ButtonComponent']]],
   ['normal_5fmap_20',['normal_map',['../structWiesel_1_1Material.html#a5e18e475c6f9dd8e9620833861321837',1,'Wiesel::Material']]],
   ['normal_5fmatrix_21',['normal_matrix',['../structWiesel_1_1MatricesUniformData.html#a5fdb14468a211d192fa480b751bb7bcb',1,'Wiesel::MatricesUniformData']]],

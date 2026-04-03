@@ -102,6 +102,7 @@ var hierarchy =
     [ "Wiesel::DeveloperConsole", "classWiesel_1_1DeveloperConsole.html", null ],
     [ "Wiesel::ProjectSettings::EditorCameraState", "structWiesel_1_1ProjectSettings_1_1EditorCameraState.html", null ],
     [ "Wiesel::Editor::EditorIconDef", "structWiesel_1_1Editor_1_1EditorIconDef.html", null ],
+    [ "Wiesel::EditorNotification", "structWiesel_1_1EditorNotification.html", null ],
     [ "Wiesel::Engine", "classWiesel_1_1Engine.html", null ],
     [ "Wiesel::EngineProperties", "structWiesel_1_1EngineProperties.html", null ],
     [ "Wiesel::Entity", "classWiesel_1_1Entity.html", null ],
@@ -128,10 +129,12 @@ var hierarchy =
       [ "Wiesel::MouseScrolledEvent", "classWiesel_1_1MouseScrolledEvent.html", null ],
       [ "Wiesel::PipelineRecreatedEvent", "classWiesel_1_1PipelineRecreatedEvent.html", null ],
       [ "Wiesel::ScriptsReloadedEvent", "classWiesel_1_1ScriptsReloadedEvent.html", null ],
-      [ "Wiesel::WindowCloseEvent", "classWiesel_1_1WindowCloseEvent.html", null ],
+      [ "Wiesel::WindowClosedEvent", "classWiesel_1_1WindowClosedEvent.html", null ],
       [ "Wiesel::WindowFocusGainedEvent", "classWiesel_1_1WindowFocusGainedEvent.html", null ],
       [ "Wiesel::WindowFocusLostEvent", "classWiesel_1_1WindowFocusLostEvent.html", null ],
-      [ "Wiesel::WindowResizeEvent", "classWiesel_1_1WindowResizeEvent.html", null ]
+      [ "Wiesel::WindowMinimizedEvent", "classWiesel_1_1WindowMinimizedEvent.html", null ],
+      [ "Wiesel::WindowResizedEvent", "classWiesel_1_1WindowResizedEvent.html", null ],
+      [ "Wiesel::WindowRestoredEvent", "classWiesel_1_1WindowRestoredEvent.html", null ]
     ] ],
     [ "Wiesel::EventDispatcher", "classWiesel_1_1EventDispatcher.html", null ],
     [ "Wiesel::EventHandlerComponent", "structWiesel_1_1EventHandlerComponent.html", null ],
@@ -243,6 +246,7 @@ var hierarchy =
     [ "Wiesel::NaturalSortCompare", "structWiesel_1_1NaturalSortCompare.html", null ],
     [ "Wiesel::NodeHierarchy", "structWiesel_1_1NodeHierarchy.html", null ],
     [ "Wiesel::NodeInfo", "structWiesel_1_1NodeInfo.html", null ],
+    [ "Wiesel::NotificationManager", "classWiesel_1_1NotificationManager.html", null ],
     [ "JPH::ObjectLayerPairFilter", null, [
       [ "Wiesel::ObjectLayerPairFilterImpl", "classWiesel_1_1ObjectLayerPairFilterImpl.html", null ]
     ] ],

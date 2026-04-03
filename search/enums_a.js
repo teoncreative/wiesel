@@ -1,7 +1,4 @@
 var searchData=
 [
-  ['passtype_0',['PassType',['../namespaceWiesel.html#a3a4dc529a9c91e974ef506984adfda2e',1,'Wiesel']]],
-  ['pipelinebindpoint_1',['PipelineBindPoint',['../namespaceWiesel.html#afe543a1b8016ee71dbdd6e616b9118ed',1,'Wiesel']]],
-  ['primitivetopology_2',['PrimitiveTopology',['../namespaceWiesel.html#a8c22b92b718f9d06053083a8b4db1fac',1,'Wiesel']]],
-  ['projectionmode_3',['projectionmode',['../namespaceWiesel.html#afc2c52b5ebcf0c90b8df5907f26ea969',1,'Wiesel::ProjectionMode'],['../namespaceWieselEngine.html#ab3ab8c15a6025f036215693065b27edd',1,'WieselEngine.ProjectionMode']]]
+  ['notificationtype_0',['NotificationType',['../namespaceWiesel.html#aa2daa5a6ab337646bf5e20e09600f675',1,'Wiesel']]]
 ];

@@ -9,6 +9,7 @@ var dir_07800c8bc9e485b30bf8571db4a636e5 =
     [ "w_icon_source.h", "w__icon__source_8h.html", "w__icon__source_8h" ],
     [ "w_lsp_autocomplete.h", "w__lsp__autocomplete_8h.html", "w__lsp__autocomplete_8h" ],
     [ "w_lsp_client.h", "w__lsp__client_8h.html", "w__lsp__client_8h" ],
+    [ "w_notifications.h", "w__notifications_8h.html", "w__notifications_8h" ],
     [ "w_project.h", "w__project_8h.html", "w__project_8h" ],
     [ "w_project_loader.h", "w__project__loader_8h.html", "w__project__loader_8h" ],
     [ "w_rml_lang.h", "w__rml__lang_8h.html", "w__rml__lang_8h" ],
