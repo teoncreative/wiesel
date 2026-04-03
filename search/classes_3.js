@@ -7,6 +7,5 @@ var searchData=
   ['deletionqueue_4',['DeletionQueue',['../classWiesel_1_1DeletionQueue.html',1,'Wiesel']]],
   ['descriptorset_5',['DescriptorSet',['../classWiesel_1_1DescriptorSet.html',1,'Wiesel']]],
   ['descriptorsetlayout_6',['DescriptorSetLayout',['../classWiesel_1_1DescriptorSetLayout.html',1,'Wiesel']]],
-  ['developerconsole_7',['DeveloperConsole',['../classWiesel_1_1DeveloperConsole.html',1,'Wiesel']]],
-  ['dotnetproject_8',['DotNetProject',['../classDotNetProject.html',1,'']]]
+  ['developerconsole_7',['DeveloperConsole',['../classWiesel_1_1DeveloperConsole.html',1,'Wiesel']]]
 ];

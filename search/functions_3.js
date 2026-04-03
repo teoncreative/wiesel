@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['data_0',['data',['../classWiesel_1_1UserConfig.html#a8359e902fd386798e64bd25378190032',1,'Wiesel::UserConfig::data()'],['../classWiesel_1_1VfsFile.html#a7d2a97b60a169013062c78be5456ab87',1,'Wiesel::VfsFile::Data()'],['../classWiesel_1_1UserConfig.html#af4cca3e2542bb5f46b12457bf4dd7f80',1,'Wiesel::UserConfig::data()']]],
+  ['data_0',['data',['../classWiesel_1_1UserConfig.html#af4cca3e2542bb5f46b12457bf4dd7f80',1,'Wiesel::UserConfig::data() const'],['../classWiesel_1_1UserConfig.html#a8359e902fd386798e64bd25378190032',1,'Wiesel::UserConfig::data()'],['../classWiesel_1_1VfsFile.html#a7d2a97b60a169013062c78be5456ab87',1,'Wiesel::VfsFile::Data()']]],
   ['deallocate_1',['Deallocate',['../structWiesel_1_1Mesh.html#abaafab0f80631c2b8990aa7514f14305',1,'Wiesel::Mesh']]],
   ['debugcolliderfeature_2',['DebugColliderFeature',['../classWiesel_1_1DebugColliderFeature.html#a11762f9472723fcaf47fac05ca6edfb2',1,'Wiesel::DebugColliderFeature']]],
   ['declaretransient_3',['DeclareTransient',['../classWiesel_1_1RenderGraph.html#a6851b5094394713cdd879958b6aa61b3',1,'Wiesel::RenderGraph']]],
@@ -31,16 +31,15 @@ var searchData=
   ['dispatch_28',['Dispatch',['../classWiesel_1_1EventDispatcher.html#a48300501f19b4764d4d5b813f404f5c9',1,'Wiesel::EventDispatcher']]],
   ['distance_29',['distance',['../classWieselEngine_1_1Vector3f.html#a6dc0b8f90e1f62236bcc3bfc03ac9618',1,'WieselEngine.Vector3f.Distance()'],['../classWieselEngine_1_1Vector2f.html#a3ceb0505a0331a9f2e71cf1b9f6ec08a',1,'WieselEngine.Vector2f.Distance(Vector2f a, Vector2f b)']]],
   ['dot_30',['dot',['../classWieselEngine_1_1Vector2f.html#aaf215004d23962151346233bb438018a',1,'WieselEngine.Vector2f.Dot()'],['../classWieselEngine_1_1Vector3f.html#a69b9705ab0d19f7c66c64c4456d012ea',1,'WieselEngine.Vector3f.Dot()']]],
-  ['dotnetproject_31',['DotNetProject',['../classDotNetProject.html#a28f822727533afa33cba15826093f6c1',1,'DotNetProject']]],
-  ['drawcanvasdescriptor_32',['DrawCanvasDescriptor',['../classWiesel_1_1Renderer.html#af8e6e58a44692e0a8d2dd14c79c81e82',1,'Wiesel::Renderer']]],
-  ['drawcanvasrect_33',['DrawCanvasRect',['../classWiesel_1_1Renderer.html#ac3040fce3fea49ee91888ff9f4af1d7d',1,'Wiesel::Renderer']]],
-  ['drawcanvastext_34',['DrawCanvasText',['../classWiesel_1_1Renderer.html#ac9aaea616123adede85377f1ebeb1640',1,'Wiesel::Renderer']]],
-  ['drawfullscreen_35',['DrawFullscreen',['../classWiesel_1_1Renderer.html#af6caa84142a34592f5a77f4f408c0427',1,'Wiesel::Renderer']]],
-  ['drawmeshcmd_36',['DrawMeshCmd',['../classWiesel_1_1Renderer.html#a22567400762a5fa2caf759596ff26e5a',1,'Wiesel::Renderer']]],
-  ['drawmodel_37',['DrawModel',['../classWiesel_1_1Renderer.html#ae7685b0d3f231709e448e12d07d8abbe',1,'Wiesel::Renderer']]],
-  ['drawmodeltransparent_38',['DrawModelTransparent',['../classWiesel_1_1Renderer.html#abb845c7dabd314b875c2b73205549625',1,'Wiesel::Renderer']]],
-  ['drawskybox_39',['DrawSkybox',['../classWiesel_1_1Renderer.html#a48c8787e63968c65ddb273b10c8b651f',1,'Wiesel::Renderer']]],
-  ['drawsprite_40',['DrawSprite',['../classWiesel_1_1Renderer.html#ad2e28b13a6e1fd8d9aa0b28b08cfdaa2',1,'Wiesel::Renderer']]],
-  ['drawtexturedrect_41',['DrawTexturedRect',['../classWiesel_1_1Renderer.html#ab6b0168f8ce46f2679ae2bb041ca4d34',1,'Wiesel::Renderer']]],
-  ['drawtile_42',['DrawTile',['../classWiesel_1_1Editor_1_1VfsBrowser.html#afd746c6f6dd703ba6d0ce379bab7036c',1,'Wiesel::Editor::VfsBrowser']]]
+  ['drawcanvasdescriptor_31',['DrawCanvasDescriptor',['../classWiesel_1_1Renderer.html#af8e6e58a44692e0a8d2dd14c79c81e82',1,'Wiesel::Renderer']]],
+  ['drawcanvasrect_32',['DrawCanvasRect',['../classWiesel_1_1Renderer.html#ac3040fce3fea49ee91888ff9f4af1d7d',1,'Wiesel::Renderer']]],
+  ['drawcanvastext_33',['DrawCanvasText',['../classWiesel_1_1Renderer.html#ac9aaea616123adede85377f1ebeb1640',1,'Wiesel::Renderer']]],
+  ['drawfullscreen_34',['DrawFullscreen',['../classWiesel_1_1Renderer.html#af6caa84142a34592f5a77f4f408c0427',1,'Wiesel::Renderer']]],
+  ['drawmeshcmd_35',['DrawMeshCmd',['../classWiesel_1_1Renderer.html#a22567400762a5fa2caf759596ff26e5a',1,'Wiesel::Renderer']]],
+  ['drawmodel_36',['DrawModel',['../classWiesel_1_1Renderer.html#ae7685b0d3f231709e448e12d07d8abbe',1,'Wiesel::Renderer']]],
+  ['drawmodeltransparent_37',['DrawModelTransparent',['../classWiesel_1_1Renderer.html#abb845c7dabd314b875c2b73205549625',1,'Wiesel::Renderer']]],
+  ['drawskybox_38',['DrawSkybox',['../classWiesel_1_1Renderer.html#a48c8787e63968c65ddb273b10c8b651f',1,'Wiesel::Renderer']]],
+  ['drawsprite_39',['DrawSprite',['../classWiesel_1_1Renderer.html#ad2e28b13a6e1fd8d9aa0b28b08cfdaa2',1,'Wiesel::Renderer']]],
+  ['drawtexturedrect_40',['DrawTexturedRect',['../classWiesel_1_1Renderer.html#ab6b0168f8ce46f2679ae2bb041ca4d34',1,'Wiesel::Renderer']]],
+  ['drawtile_41',['DrawTile',['../classWiesel_1_1Editor_1_1VfsBrowser.html#afd746c6f6dd703ba6d0ce379bab7036c',1,'Wiesel::Editor::VfsBrowser']]]
 ];

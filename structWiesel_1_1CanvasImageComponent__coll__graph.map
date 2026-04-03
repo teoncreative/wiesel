@@ -1,7 +1,0 @@
-<map id="Wiesel::CanvasImageComponent" name="Wiesel::CanvasImageComponent">
-<area shape="rect" id="Node000001" title=" " alt="" coords="5,181,244,207"/>
-<area shape="rect" id="Node000002" href="$structWiesel_1_1AssetHandle.html" title=" " alt="" coords="47,93,203,119"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="127,133,127,181,122,181,122,133"/>
-<area shape="rect" id="Node000003" href="$classWiesel_1_1UUID.html" title=" " alt="" coords="71,5,179,31"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="127,45,127,93,122,93,122,45"/>
-</map>

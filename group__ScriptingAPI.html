@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>WieselEngine: C# Scripting API</title>
+<title>Wiesel Engine: C# Scripting API</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -26,8 +26,9 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">WieselEngine
+   <div id="projectname">Wiesel Engine
    </div>
+   <div id="projectbrief">Cross-platform game engine with Vulkan, C# scripting, and a full editor</div>
   </td>
  </tr>
  </tbody>
@@ -97,7 +98,44 @@ $(document).ready(function(){initNavTree('group__ScriptingAPI.html',''); initRes
 <p>C# API for game scripting in the <a class="el" href="namespaceWiesel.html">Wiesel</a> Engine.  
 </p>
 <p>C# API for game scripting in the <a class="el" href="namespaceWiesel.html">Wiesel</a> Engine. </p>
-<p>The scripting API provides C# classes and components for building game logic. Scripts derive from MonoBehavior and are attached to entities as components. </p>
+<p>The scripting API provides C# classes and components for building game logic. Scripts derive from MonoBehavior and are attached to entities as components.</p>
+<h1><a class="anchor" id="scripting_lifecycle"></a>
+Script Lifecycle</h1>
+<ul>
+<li>MonoBehavior.OnStart() - called once when the entity enters the scene</li>
+<li>MonoBehavior.OnUpdate(float deltaTime) - called every frame</li>
+<li>MonoBehavior.OnFixedUpdate(float fixedDeltaTime) - called at fixed physics rate</li>
+<li>MonoBehavior.OnDestroy() - called when the entity is destroyed</li>
+</ul>
+<h1><a class="anchor" id="scripting_components"></a>
+Components</h1>
+<p>Access components via GetComponent&lt;T&gt;() on MonoBehavior or Entity:</p>
+<ul>
+<li>TransformComponent - position, rotation, scale</li>
+<li>ModelComponent - 3D model rendering</li>
+<li>CameraComponent - camera projection and FOV</li>
+<li>RigidBodyComponent - physics body</li>
+<li>BoxColliderComponent, SphereColliderComponent - collision shapes</li>
+<li>LightDirectComponent, LightPointComponent - lighting</li>
+<li>AudioSourceComponent - positional audio</li>
+<li>AnimatorComponent - skeletal animation</li>
+<li>SpriteRendererComponent, SpriteAnimatorComponent - 2D sprites</li>
+<li>TextComponent - text rendering</li>
+<li>UIDocumentComponent - RmlUi documents with data binding</li>
+<li>CanvasComponent - UI canvas layout</li>
+</ul>
+<h1><a class="anchor" id="scripting_statics"></a>
+Static APIs</h1>
+<ul>
+<li>Input - keyboard, mouse, gamepad queries</li>
+<li>Physics - raycasting and overlap queries</li>
+<li>Audio - fire-and-forget sound playback</li>
+<li>Settings - runtime graphics and audio options</li>
+<li>SceneManager - scene loading and transitions</li>
+<li>Console - developer console commands</li>
+<li>Time - delta time, total time, frame count</li>
+<li>Cursor - custom cursor states </li>
+</ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

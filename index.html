@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>WieselEngine: Main Page</title>
+<title>Wiesel Engine: Wiesel Engine Documentation</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -26,8 +26,9 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">WieselEngine
+   <div id="projectname">Wiesel Engine
    </div>
+   <div id="projectbrief">Cross-platform game engine with Vulkan, C# scripting, and a full editor</div>
   </td>
  </tr>
  </tbody>
@@ -89,10 +90,52 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 </div>
 </div>
 
-<div class="header">
-  <div class="headertitle"><div class="title">WieselEngine Documentation</div></div>
+<div><div class="header">
+  <div class="headertitle"><div class="title"><a class="el" href="namespaceWiesel.html">Wiesel</a> Engine Documentation </div></div>
 </div><!--header-->
 <div class="contents">
+<div class="textblock"><h1><a class="anchor" id="intro"></a>
+Overview</h1>
+<p><a class="el" href="namespaceWiesel.html">Wiesel</a> is a cross-platform game engine built with C++ and Vulkan, featuring a deferred PBR rendering pipeline, C# scripting via Mono, and a full-featured editor.</p>
+<h1><a class="anchor" id="api"></a>
+API Reference</h1>
+<p>The API is split into two main sections:</p>
+<h2><a class="anchor" id="engine_api"></a>
+C++ Engine API</h2>
+<p>Core engine systems written in C++. Use these when building native plugins, editor extensions, or working on the engine itself.</p>
+<ul>
+<li>Rendering - Renderer, pipelines, textures, materials, shaders, render features</li>
+<li>Scene - Entities, components, scene management, serialization</li>
+<li>Physics - Rigid bodies, colliders, mesh collider assets, raycasting</li>
+<li>Audio - Audio manager, spatial sound, reverb zones</li>
+<li>Asset System - Asset manager, loaders, serializers, VFS, handles</li>
+<li>Animation - Skeletal animation, state machines, sprite animation</li>
+<li>UI System - Canvas, RmlUi integration, text rendering, input routing</li>
+<li>Input - Keyboard, mouse, gamepad, input contexts, multi-player</li>
+<li>Editor - Editor layers, component inspectors, asset browser</li>
+</ul>
+<h2><a class="anchor" id="scripting_api"></a>
+C# Scripting API</h2>
+<p>Game-facing API for C# scripts. Attach scripts to entities by inheriting from <a class="el" href="classWieselEngine_1_1MonoBehavior.html">WieselEngine.MonoBehavior</a>.</p>
+<ul>
+<li><a class="el" href="classWieselEngine_1_1MonoBehavior.html">MonoBehavior</a> - Script lifecycle (OnStart, OnUpdate, OnDestroy, etc.)</li>
+<li><a class="el" href="classWieselEngine_1_1Entity.html">Entity</a> - Find, create, destroy entities, get components</li>
+<li><a class="el" href="classWieselEngine_1_1Input.html">Input</a> - Keyboard, mouse, gamepad queries</li>
+<li>Physics - Raycasting and overlap queries</li>
+<li><a class="el" href="classWieselEngine_1_1Audio.html">Audio</a> - Play sounds, music, spatial audio</li>
+<li>Settings - Runtime graphics/audio settings</li>
+<li>SceneManager - Scene loading and transitions</li>
+<li>Console - Developer console commands</li>
+<li>Time - Delta time, total time, frame count</li>
+</ul>
+<p><b>Components:</b> <a class="el" href="classWieselEngine_1_1TransformComponent.html">WieselEngine.TransformComponent</a>, <a class="el" href="classWieselEngine_1_1ModelComponent.html">WieselEngine.ModelComponent</a>, <a class="el" href="classWieselEngine_1_1CameraComponent.html">WieselEngine.CameraComponent</a>, <a class="el" href="classWieselEngine_1_1RigidBodyComponent.html">WieselEngine.RigidBodyComponent</a>, <a class="el" href="classWieselEngine_1_1BoxColliderComponent.html">WieselEngine.BoxColliderComponent</a>, <a class="el" href="classWieselEngine_1_1SphereColliderComponent.html">WieselEngine.SphereColliderComponent</a>, <a class="el" href="classWieselEngine_1_1LightDirectComponent.html">WieselEngine.LightDirectComponent</a>, <a class="el" href="classWieselEngine_1_1LightPointComponent.html">WieselEngine.LightPointComponent</a>, <a class="el" href="classWieselEngine_1_1AudioSourceComponent.html">WieselEngine.AudioSourceComponent</a>, <a class="el" href="classWieselEngine_1_1AnimatorComponent.html">WieselEngine.AnimatorComponent</a>, <a class="el" href="classWieselEngine_1_1SpriteRendererComponent.html">WieselEngine.SpriteRendererComponent</a>, <a class="el" href="classWieselEngine_1_1SpriteAnimatorComponent.html">WieselEngine.SpriteAnimatorComponent</a>, <a class="el" href="classWieselEngine_1_1TextComponent.html">WieselEngine.TextComponent</a>, <a class="el" href="classWieselEngine_1_1UIDocumentComponent.html">WieselEngine.UIDocumentComponent</a>, <a class="el" href="classWieselEngine_1_1CanvasComponent.html">WieselEngine.CanvasComponent</a></p>
+<h1><a class="anchor" id="samples"></a>
+Sample Projects</h1>
+<p>Sample projects are maintained in a separate repository: <a href="https://github.com/teoncreative/wiesel-samples">https://github.com/teoncreative/wiesel-samples</a></p>
+<h1><a class="anchor" id="license"></a>
+License</h1>
+<p>Apache License 2.0 </p>
+</div></div><!-- PageDoc -->
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

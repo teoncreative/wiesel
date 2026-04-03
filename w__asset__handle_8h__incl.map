@@ -1,8 +1,0 @@
-<map id="w_asset_handle.h" name="w_asset_handle.h">
-<area shape="rect" id="Node000001" title=" " alt="" coords="34,5,173,31"/>
-<area shape="rect" id="Node000002" href="$w__uuid_8h.html" title=" " alt="" coords="5,79,111,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="98,32,75,69,70,66,94,30"/>
-<area shape="rect" id="Node000003" href="$w__pch_8h.html" title=" " alt="" coords="66,152,141,177"/>
-<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="111,30,125,78,124,111,116,140,111,139,119,110,119,79,106,32"/>
-<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="68,103,91,139,86,142,63,106"/>
-</map>

@@ -38,13 +38,12 @@ var searchData=
   ['boxcollider_5fsetoffsetx_35',['BoxCollider_SetOffsetX',['../classWieselEngine_1_1Internals.html#aeea0ba3bcb649d73848cffdc58cff92b',1,'WieselEngine::Internals']]],
   ['boxcollider_5fsetoffsety_36',['BoxCollider_SetOffsetY',['../classWieselEngine_1_1Internals.html#a7f95d4a5b1816705385625d8294d1be8',1,'WieselEngine::Internals']]],
   ['boxcollider_5fsetoffsetz_37',['BoxCollider_SetOffsetZ',['../classWieselEngine_1_1Internals.html#acc7164357de5bb01058ce89127082706',1,'WieselEngine::Internals']]],
-  ['boxcollidercomponent_38',['boxcollidercomponent',['../structWiesel_1_1BoxColliderComponent.html#a999c1d40d0b2798682052fc3aac6a9dc',1,'Wiesel::BoxColliderComponent::BoxColliderComponent()'],['../classWieselEngine_1_1BoxColliderComponent.html#ae9abe8085adb474c60fe0b58f7012996',1,'WieselEngine.BoxColliderComponent.BoxColliderComponent()'],['../structWiesel_1_1BoxColliderComponent.html#a7be9cc586157d595dabb87320cbf1f7b',1,'Wiesel::BoxColliderComponent::BoxColliderComponent()']]],
+  ['boxcollidercomponent_38',['boxcollidercomponent',['../structWiesel_1_1BoxColliderComponent.html#a7be9cc586157d595dabb87320cbf1f7b',1,'Wiesel::BoxColliderComponent::BoxColliderComponent()'],['../classWieselEngine_1_1BoxColliderComponent.html#ae9abe8085adb474c60fe0b58f7012996',1,'WieselEngine.BoxColliderComponent.BoxColliderComponent()'],['../structWiesel_1_1BoxColliderComponent.html#a999c1d40d0b2798682052fc3aac6a9dc',1,'Wiesel::BoxColliderComponent::BoxColliderComponent()']]],
   ['breadcrumbs_39',['Breadcrumbs',['../classWiesel_1_1Editor_1_1VfsBrowser.html#a48e885fadeb3e027914cf29a1c9b397c',1,'Wiesel::Editor::VfsBrowser']]],
   ['broadcastevent_40',['BroadcastEvent',['../classWiesel_1_1Engine.html#a975248039d14f4a49300f4fc571cd3c1',1,'Wiesel::Engine']]],
   ['broadphaselayerinterfaceimpl_41',['BroadPhaseLayerInterfaceImpl',['../classWiesel_1_1BroadPhaseLayerInterfaceImpl.html#a8ce3f963012790a22b7e3d47e9a71c55',1,'Wiesel::BroadPhaseLayerInterfaceImpl']]],
   ['browser_42',['browser',['../classWiesel_1_1Editor_1_1AssetBrowserPanel.html#afe4f765f9ad0c642dfacfa51cb8a4202',1,'Wiesel::Editor::AssetBrowserPanel::browser()'],['../classWiesel_1_1Editor_1_1AssetBrowserPanel.html#a16a76bd2e15388f1704ab364d576ec00',1,'Wiesel::Editor::AssetBrowserPanel::browser() const']]],
-  ['build_43',['Build',['../classDotNetProject.html#a9144a07e4f80b708b27f34adc841abbd',1,'DotNetProject']]],
-  ['buildcollisionshape_44',['BuildCollisionShape',['../namespaceWiesel.html#afb150a0f7a323f01ff1bddac6011e517',1,'Wiesel']]],
-  ['buildrendergraph_45',['buildrendergraph',['../classWiesel_1_1RenderPipeline.html#a81ffa7931c71a66e47b4576624fb41c9',1,'Wiesel::RenderPipeline::BuildRenderGraph()'],['../classWiesel_1_1Scene.html#aa16a03f42c5849fbf37b4f86c9622a7a',1,'Wiesel::Scene::BuildRenderGraph()']]],
-  ['buildtlas_46',['BuildTLAS',['../classWiesel_1_1AccelerationStructureManager.html#adfc8ebe7369f7102ab9f18194567b086',1,'Wiesel::AccelerationStructureManager']]]
+  ['buildcollisionshape_43',['BuildCollisionShape',['../namespaceWiesel.html#afb150a0f7a323f01ff1bddac6011e517',1,'Wiesel']]],
+  ['buildrendergraph_44',['buildrendergraph',['../classWiesel_1_1RenderPipeline.html#a81ffa7931c71a66e47b4576624fb41c9',1,'Wiesel::RenderPipeline::BuildRenderGraph()'],['../classWiesel_1_1Scene.html#aa16a03f42c5849fbf37b4f86c9622a7a',1,'Wiesel::Scene::BuildRenderGraph()']]],
+  ['buildtlas_45',['BuildTLAS',['../classWiesel_1_1AccelerationStructureManager.html#adfc8ebe7369f7102ab9f18194567b086',1,'Wiesel::AccelerationStructureManager']]]
 ];

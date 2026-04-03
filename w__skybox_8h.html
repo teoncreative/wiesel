@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>WieselEngine: w_skybox.h File Reference</title>
+<title>Wiesel Engine: w_skybox.h File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -26,8 +26,9 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">WieselEngine
+   <div id="projectname">Wiesel Engine
    </div>
+   <div id="projectbrief">Cross-platform game engine with Vulkan, C# scripting, and a full editor</div>
   </td>
  </tr>
  </tbody>
@@ -98,113 +99,11 @@ $(document).ready(function(){initNavTree('w__skybox_8h.html',''); initResizable(
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><code>#include &lt;array&gt;</code><br />
-<code>#include &quot;<a class="el" href="w__asset__handle_8h_source.html">asset/w_asset_handle.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__texture_8h_source.html">rendering/w_texture.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__utils_8h_source.html">util/w_utils.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__pch_8h_source.html">w_pch.h</a>&quot;</code><br />
-</div><div class="textblock"><div class="dynheader">
-Include dependency graph for w_skybox.h:</div>
-<div class="dyncontent">
-<div class="center"><img src="w__skybox_8h__incl.png" border="0" usemap="#aw__skybox_8h" alt=""/></div>
-<map name="aw__skybox_8h" id="aw__skybox_8h">
-<area shape="rect" title=" " alt="" coords="252,5,351,31"/>
-<area shape="rect" title=" " alt="" coords="5,79,61,104"/>
-<area shape="poly" title=" " alt="" coords="257,33,76,81,74,76,256,28"/>
-<area shape="rect" href="w__asset__handle_8h.html" title=" " alt="" coords="86,79,263,104"/>
-<area shape="poly" title=" " alt="" coords="282,33,209,74,206,69,280,28"/>
-<area shape="rect" href="w__pch_8h.html" title=" " alt="" coords="315,225,389,251"/>
-<area shape="poly" title=" " alt="" coords="307,30,349,211,344,212,301,32"/>
-<area shape="rect" href="w__texture_8h.html" title=" " alt="" coords="380,79,545,104"/>
-<area shape="poly" title=" " alt="" coords="328,28,425,71,423,75,326,33"/>
-<area shape="rect" href="w__utils_8h.html" title=" " alt="" coords="689,152,794,177"/>
-<area shape="poly" title=" " alt="" coords="351,25,448,45,558,76,641,110,709,143,707,148,639,115,556,81,447,50,350,30"/>
-<area shape="rect" href="w__uuid_8h.html" title=" " alt="" coords="107,152,213,177"/>
-<area shape="poly" title=" " alt="" coords="175,105,168,139,163,138,170,104"/>
-<area shape="poly" title=" " alt="" coords="191,102,329,215,326,219,187,107"/>
-<area shape="poly" title=" " alt="" coords="192,175,309,218,307,223,190,180"/>
-<area shape="poly" title=" " alt="" coords="439,106,408,126,379,154,365,183,358,212,352,211,360,181,375,150,405,122,436,102"/>
-<area shape="rect" href="w__vma_8h.html" title=" " alt="" coords="389,152,536,177"/>
-<area shape="poly" title=" " alt="" coords="465,104,465,138,460,138,460,104"/>
-<area shape="poly" title=" " alt="" coords="508,101,684,146,682,151,507,107"/>
-<area shape="rect" href="w__sampler_8h.html" title=" " alt="" coords="560,152,664,177"/>
-<area shape="poly" title=" " alt="" coords="488,102,576,144,574,148,486,106"/>
-<area shape="poly" title=" " alt="" coords="446,180,383,220,380,215,443,175"/>
-<area shape="poly" title=" " alt="" coords="689,178,404,230,403,225,688,173"/>
-<area shape="rect" title=" " alt="" coords="674,225,809,251"/>
-<area shape="poly" title=" " alt="" coords="744,178,744,212,739,212,739,178"/>
-<area shape="poly" title=" " alt="" coords="571,180,403,226,402,220,570,175"/>
-</map>
-</div>
-</div><div class="textblock"><div class="dynheader">
-This graph shows which files directly or indirectly include this file:</div>
-<div class="dyncontent">
-<div class="center"><img src="w__skybox_8h__dep__incl.png" border="0" usemap="#aw__skybox_8hdep" alt=""/></div>
-<map name="aw__skybox_8hdep" id="aw__skybox_8hdep">
-<area shape="rect" title=" " alt="" coords="116,5,215,31"/>
-<area shape="rect" href="w__ibl__feature_8h.html" title=" " alt="" coords="5,79,128,104"/>
-<area shape="poly" title=" " alt="" coords="140,41,84,81,81,76,137,36"/>
-<area shape="rect" href="w__renderer_8h.html" title=" " alt="" coords="448,299,555,324"/>
-<area shape="poly" title=" " alt="" coords="165,44,164,74,167,108,176,144,193,176,219,204,249,227,283,247,318,264,388,287,448,300,447,306,386,292,316,269,280,252,246,232,215,208,189,179,171,146,162,109,159,74,160,44"/>
-<area shape="rect" href="w__scene_8h.html" title=" " alt="" coords="712,79,803,104"/>
-<area shape="poly" title=" " alt="" coords="229,24,712,82,711,87,228,30"/>
-<area shape="rect" href="w__application_8h.html" title=" " alt="" coords="854,519,978,544"/>
-<area shape="poly" title=" " alt="" coords="569,319,638,333,718,357,800,393,839,416,874,443,889,461,901,481,915,517,910,519,897,484,885,464,870,447,836,421,798,398,716,362,637,338,568,324"/>
-<area shape="rect" href="w__engine_8h.html" title=" " alt="" coords="837,592,933,617"/>
-<area shape="poly" title=" " alt="" coords="471,334,434,361,399,396,387,414,380,433,380,451,389,469,419,494,465,517,524,536,591,553,727,580,838,595,837,601,726,585,589,559,523,541,463,521,416,498,385,472,375,452,375,432,382,412,395,392,431,357,468,329"/>
-<area shape="rect" href="w__layer_8h.html" title=" " alt="" coords="571,372,655,397"/>
-<area shape="poly" title=" " alt="" coords="533,329,596,370,594,374,530,334"/>
-<area shape="rect" href="w__editor_8h.html" title=" " alt="" coords="1154,592,1243,617"/>
-<area shape="poly" title=" " alt="" coords="975,545,1154,590,1153,595,974,550"/>
-<area shape="poly" title=" " alt="" coords="908,558,893,593,888,591,903,556"/>
-<area shape="rect" href="w__game__application_8h.html" title=" " alt="" coords="887,665,1055,691"/>
-<area shape="poly" title=" " alt="" coords="931,555,948,591,970,664,965,666,943,593,926,557"/>
-<area shape="poly" title=" " alt="" coords="911,624,958,663,955,667,908,628"/>
-<area shape="poly" title=" " alt="" coords="670,389,753,406,799,422,841,443,864,460,884,480,911,517,907,520,879,484,860,464,839,448,797,427,752,411,668,394"/>
-<area shape="rect" href="w__layerconsole_8h.html" title=" " alt="" coords="546,445,681,471"/>
-<area shape="poly" title=" " alt="" coords="616,411,616,445,611,445,611,411"/>
-<area shape="rect" href="w__layerimgui_8h.html" title=" " alt="" coords="705,445,828,471"/>
-<area shape="poly" title=" " alt="" coords="651,401,743,443,740,448,649,405"/>
-<area shape="rect" href="w__layerscene_8h.html" title=" " alt="" coords="399,445,521,471"/>
-<area shape="poly" title=" " alt="" coords="578,405,486,448,484,443,575,401"/>
-<area shape="poly" title=" " alt="" coords="804,474,893,516,890,521,802,479"/>
-<area shape="poly" title=" " alt="" coords="817,99,902,119,939,133,962,150,977,174,987,199,998,252,997,307,987,362,972,413,955,458,925,520,920,517,950,456,967,411,982,360,991,307,993,252,982,200,972,176,958,154,936,138,901,125,816,105"/>
-<area shape="poly" title=" " alt="" coords="816,92,964,101,1053,110,1142,124,1225,142,1293,166,1319,181,1340,197,1353,216,1357,236,1357,460,1354,485,1344,507,1329,528,1310,546,1268,575,1229,594,1227,590,1266,570,1307,542,1324,524,1339,505,1349,483,1352,459,1352,237,1348,218,1336,201,1316,185,1291,171,1223,147,1141,129,1052,116,964,106,816,97"/>
-<area shape="rect" href="w__canvas__system_8h.html" title=" " alt="" coords="203,152,357,177"/>
-<area shape="poly" title=" " alt="" coords="699,104,357,155,356,149,698,99"/>
-<area shape="rect" href="w__entity_8h.html" title=" " alt="" coords="860,152,948,177"/>
-<area shape="poly" title=" " alt="" coords="794,107,881,149,879,154,792,112"/>
-<area shape="rect" href="w__prefab_8h.html" title=" " alt="" coords="381,152,475,177"/>
-<area shape="poly" title=" " alt="" coords="699,108,476,156,475,151,698,103"/>
-<area shape="rect" href="w__scene__manager_8h.html" title=" " alt="" coords="500,152,655,177"/>
-<area shape="poly" title=" " alt="" coords="717,111,608,154,606,149,715,106"/>
-<area shape="rect" href="w__scene__serializer_8h.html" title=" " alt="" coords="679,152,835,177"/>
-<area shape="poly" title=" " alt="" coords="760,118,760,152,755,152,755,118"/>
-<area shape="rect" href="w__scriptmanager_8h.html" title=" " alt="" coords="1169,225,1314,251"/>
-<area shape="poly" title=" " alt="" coords="817,102,906,123,1005,149,1121,188,1213,223,1211,228,1119,193,1003,155,905,128,816,108"/>
-<area shape="rect" href="w__agent__controller_8h.html" title=" " alt="" coords="616,299,773,324"/>
-<area shape="poly" title=" " alt="" coords="847,184,803,202,760,227,742,245,725,265,703,300,698,297,721,261,738,241,757,223,800,197,845,179"/>
-<area shape="rect" href="w__agent__goal_8h.html" title=" " alt="" coords="570,225,694,251"/>
-<area shape="poly" title=" " alt="" coords="848,183,677,228,675,223,847,178"/>
-<area shape="rect" href="w__behavior_8h.html" title=" " alt="" coords="1031,225,1139,251"/>
-<area shape="poly" title=" " alt="" coords="947,180,1057,223,1055,228,945,185"/>
-<area shape="rect" href="w__editor__components_8h.html" title=" " alt="" coords="770,225,947,251"/>
-<area shape="poly" title=" " alt="" coords="891,191,868,227,864,224,887,188"/>
-<area shape="rect" href="w__lights_8h.html" title=" " alt="" coords="457,225,545,251"/>
-<area shape="poly" title=" " alt="" coords="847,180,558,228,546,230,545,225,557,223,846,175"/>
-<area shape="poly" title=" " alt="" coords="653,259,687,297,683,300,649,263"/>
-<area shape="poly" title=" " alt="" coords="1107,260,1143,308,1161,339,1176,371,1192,435,1200,499,1202,592,1197,592,1195,499,1187,436,1171,373,1157,341,1139,311,1102,263"/>
-<area shape="rect" href="w__monobehavior_8h.html" title=" " alt="" coords="1171,299,1317,324"/>
-<area shape="poly" title=" " alt="" coords="1124,254,1219,296,1217,301,1122,259"/>
-<area shape="rect" href="w__native__behavior_8h.html" title=" " alt="" coords="1005,372,1161,397"/>
-<area shape="poly" title=" " alt="" coords="1088,265,1086,372,1080,372,1082,265"/>
-<area shape="poly" title=" " alt="" coords="1076,411,978,666,973,664,1071,409"/>
-<area shape="poly" title=" " alt="" coords="504,264,504,299,499,299,499,264"/>
-<area shape="poly" title=" " alt="" coords="1245,264,1246,298,1241,299,1240,265"/>
-</map>
-</div>
-</div>
-<p><a href="w__skybox_8h_source.html">Go to the source code of this file.</a></p>
-<table class="memberdecls">
+<code>#include &quot;<a class="el" href="w__asset__handle_8h.html">asset/w_asset_handle.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__texture_8h.html">rendering/w_texture.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__utils_8h.html">util/w_utils.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__pch_8h.html">w_pch.h</a>&quot;</code><br />
+</div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1SkyboxAssetData.html">Wiesel::SkyboxAssetData</a></td></tr>

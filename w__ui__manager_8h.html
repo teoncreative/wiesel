@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>WieselEngine: w_ui_manager.h File Reference</title>
+<title>Wiesel Engine: w_ui_manager.h File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -26,8 +26,9 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">WieselEngine
+   <div id="projectname">Wiesel Engine
    </div>
+   <div id="projectbrief">Cross-platform game engine with Vulkan, C# scripting, and a full editor</div>
   </td>
  </tr>
  </tbody>
@@ -97,92 +98,12 @@ $(document).ready(function(){initNavTree('w__ui__manager_8h.html',''); initResiz
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><code>#include &lt;unordered_set&gt;</code><br />
-<code>#include &quot;<a class="el" href="w__asset__handle_8h_source.html">asset/w_asset_handle.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__rmlui__file_8h_source.html">ui/w_rmlui_file.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__rmlui__renderer_8h_source.html">ui/w_rmlui_renderer.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__rmlui__system_8h_source.html">ui/w_rmlui_system.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="w__pch_8h_source.html">w_pch.h</a>&quot;</code><br />
-</div><div class="textblock"><div class="dynheader">
-Include dependency graph for w_ui_manager.h:</div>
-<div class="dyncontent">
-<div class="center"><img src="w__ui__manager_8h__incl.png" border="0" usemap="#aw__ui__manager_8h" alt=""/></div>
-<map name="aw__ui__manager_8h" id="aw__ui__manager_8h">
-<area shape="rect" title=" " alt="" coords="484,5,612,31"/>
-<area shape="rect" title=" " alt="" coords="5,79,120,104"/>
-<area shape="poly" title=" " alt="" coords="484,31,139,81,134,82,133,77,138,76,483,26"/>
-<area shape="rect" href="w__asset__handle_8h.html" title=" " alt="" coords="195,299,373,324"/>
-<area shape="poly" title=" " alt="" coords="533,33,469,83,431,117,394,154,339,225,299,288,295,286,335,222,390,150,427,113,466,79,530,29"/>
-<area shape="rect" href="w__pch_8h.html" title=" " alt="" coords="685,445,760,471"/>
-<area shape="poly" title=" " alt="" coords="484,32,387,51,280,80,233,98,194,118,169,140,162,152,160,164,160,312,164,342,177,362,197,379,224,395,260,410,310,422,434,439,565,449,672,453,672,458,565,454,434,444,309,427,258,415,221,400,193,383,172,366,159,344,155,313,155,163,157,150,165,137,191,114,230,93,278,75,386,46,483,27"/>
-<area shape="rect" href="w__rmlui__file_8h.html" title=" " alt="" coords="1278,79,1407,104"/>
-<area shape="poly" title=" " alt="" coords="612,22,1264,80,1264,86,612,28"/>
-<area shape="rect" href="w__rmlui__renderer_8h.html" title=" " alt="" coords="741,79,904,104"/>
-<area shape="poly" title=" " alt="" coords="593,28,766,73,764,78,591,33"/>
-<area shape="rect" href="w__rmlui__system_8h.html" title=" " alt="" coords="1639,79,1796,104"/>
-<area shape="poly" title=" " alt="" coords="612,21,1625,82,1625,87,612,26"/>
-<area shape="rect" href="w__uuid_8h.html" title=" " alt="" coords="246,372,351,397"/>
-<area shape="poly" title=" " alt="" coords="289,324,296,358,291,359,284,325"/>
-<area shape="poly" title=" " alt="" coords="270,326,253,341,237,360,230,379,231,387,235,395,256,406,298,416,419,433,557,445,672,452,671,457,557,450,418,438,297,422,255,411,231,399,226,389,224,378,233,357,249,338,266,322"/>
-<area shape="poly" title=" " alt="" coords="352,392,672,446,671,451,351,397"/>
-<area shape="rect" title=" " alt="" coords="1553,152,1746,177"/>
-<area shape="poly" title=" " alt="" coords="1393,101,1587,146,1586,151,1391,107"/>
-<area shape="poly" title=" " alt="" coords="769,107,692,129,602,167,558,193,516,223,479,259,449,300,442,320,440,346,445,373,457,396,471,406,492,416,548,431,613,443,672,450,671,455,612,448,547,437,490,421,468,411,453,399,440,375,435,346,437,319,444,297,475,255,512,219,555,188,600,162,690,124,767,101"/>
-<area shape="rect" title=" " alt="" coords="1125,152,1288,177"/>
-<area shape="poly" title=" " alt="" coords="885,101,1131,147,1131,152,884,107"/>
-<area shape="rect" title=" " alt="" coords="1312,152,1528,177"/>
-<area shape="poly" title=" " alt="" coords="905,100,1311,148,1310,153,904,105"/>
-<area shape="rect" href="w__buffer_8h.html" title=" " alt="" coords="459,299,613,324"/>
-<area shape="poly" title=" " alt="" coords="809,106,564,292,560,288,806,102"/>
-<area shape="rect" href="w__descriptor_8h.html" title=" " alt="" coords="817,225,999,251"/>
-<area shape="poly" title=" " alt="" coords="832,103,896,212,892,215,827,106"/>
-<area shape="rect" href="w__pipeline_8h.html" title=" " alt="" coords="931,152,1101,177"/>
-<area shape="poly" title=" " alt="" coords="855,102,973,145,971,150,853,107"/>
-<area shape="rect" href="w__texture_8h.html" title=" " alt="" coords="739,299,837,324"/>
-<area shape="poly" title=" " alt="" coords="823,105,795,285,789,285,818,104"/>
-<area shape="poly" title=" " alt="" coords="516,326,494,341,474,358,463,378,463,387,467,396,480,406,500,416,553,431,615,443,672,450,671,455,614,448,552,437,498,421,477,411,463,399,458,388,458,376,469,355,490,336,513,322"/>
-<area shape="rect" href="w__vma_8h.html" title=" " alt="" coords="477,372,624,397"/>
-<area shape="poly" title=" " alt="" coords="541,324,548,358,543,359,536,325"/>
-<area shape="poly" title=" " alt="" coords="579,395,683,438,681,442,577,400"/>
-<area shape="poly" title=" " alt="" coords="819,253,766,271,741,284,719,301,699,322,687,344,684,368,689,397,707,433,703,435,684,398,679,368,682,342,694,319,716,297,738,280,764,266,817,248"/>
-<area shape="rect" href="w__sampler_8h.html" title=" " alt="" coords="699,372,869,397"/>
-<area shape="poly" title=" " alt="" coords="817,250,768,267,746,282,729,300,724,316,729,332,742,348,757,362,754,366,738,351,725,334,719,316,724,297,743,278,765,263,815,245"/>
-<area shape="rect" href="w__utils_8h.html" title=" " alt="" coords="995,372,1101,397"/>
-<area shape="poly" title=" " alt="" coords="922,249,969,297,1029,360,1025,364,965,301,918,253"/>
-<area shape="rect" href="w__image_8h.html" title=" " alt="" coords="861,299,955,324"/>
-<area shape="poly" title=" " alt="" coords="911,251,911,285,905,285,905,251"/>
-<area shape="poly" title=" " alt="" coords="776,399,744,437,740,433,772,396"/>
-<area shape="poly" title=" " alt="" coords="996,400,774,448,773,443,995,395"/>
-<area shape="rect" title=" " alt="" coords="981,445,1115,471"/>
-<area shape="poly" title=" " alt="" coords="1051,398,1051,432,1045,432,1045,398"/>
-<area shape="poly" title=" " alt="" coords="914,324,917,360,914,380,905,399,877,424,844,441,808,452,774,457,773,452,807,447,842,437,874,420,901,396,909,379,912,360,908,325"/>
-<area shape="poly" title=" " alt="" coords="932,322,1014,363,1012,368,929,326"/>
-<area shape="poly" title=" " alt="" coords="1095,175,1178,193,1220,207,1257,223,1288,243,1308,266,1313,280,1315,294,1311,309,1304,325,1289,342,1269,357,1215,384,1145,405,1066,422,904,445,774,456,774,451,903,440,1065,417,1144,400,1213,379,1266,353,1286,338,1299,323,1306,308,1309,294,1308,281,1304,269,1284,247,1255,228,1218,212,1177,199,1094,180"/>
-<area shape="poly" title=" " alt="" coords="1020,177,1047,358,1042,359,1015,178"/>
-<area shape="rect" href="w__renderpass_8h.html" title=" " alt="" coords="1366,225,1557,251"/>
-<area shape="poly" title=" " alt="" coords="1088,175,1376,220,1376,226,1087,180"/>
-<area shape="rect" href="w__shader_8h.html" title=" " alt="" coords="1549,299,1643,324"/>
-<area shape="poly" title=" " alt="" coords="1102,173,1114,175,1216,178,1350,179,1417,182,1480,190,1532,203,1571,223,1583,236,1591,252,1598,284,1593,285,1586,254,1578,239,1568,227,1530,208,1479,195,1417,187,1350,184,1216,183,1113,180,1101,179"/>
-<area shape="rect" href="w__descriptorlayout_8h.html" title=" " alt="" coords="1131,299,1290,324"/>
-<area shape="poly" title=" " alt="" coords="1033,175,1186,288,1182,292,1030,180"/>
-<area shape="poly" title=" " alt="" coords="1451,253,1406,300,1391,328,1382,354,1372,378,1348,400,1315,411,1257,421,1095,438,774,457,774,452,1095,432,1256,416,1313,406,1345,395,1367,375,1377,352,1386,326,1402,297,1447,249"/>
-<area shape="poly" title=" " alt="" coords="1366,251,1226,271,1163,285,1120,301,1102,314,1087,329,1063,362,1059,359,1083,326,1099,310,1117,296,1162,280,1225,266,1365,246"/>
-<area shape="rect" href="w__color_8h.html" title=" " alt="" coords="1417,299,1525,324"/>
-<area shape="poly" title=" " alt="" coords="1466,251,1470,285,1465,286,1460,251"/>
-<area shape="poly" title=" " alt="" coords="1484,248,1563,290,1561,294,1482,253"/>
-<area shape="poly" title=" " alt="" coords="1366,249,1136,268,851,301,851,296,1135,263,1365,243"/>
-<area shape="poly" title=" " alt="" coords="820,322,847,335,873,353,888,374,889,386,884,399,861,422,833,438,803,449,774,455,773,450,802,444,831,433,858,418,879,396,884,385,883,376,869,357,845,340,817,326"/>
-<area shape="poly" title=" " alt="" coords="751,327,603,371,601,365,749,321"/>
-<area shape="poly" title=" " alt="" coords="790,324,788,359,783,358,785,324"/>
-<area shape="poly" title=" " alt="" coords="830,321,993,366,992,371,829,327"/>
-<area shape="poly" title=" " alt="" coords="1203,326,1167,363,1141,383,1113,400,1069,417,1023,431,930,449,843,458,774,460,773,455,843,453,929,444,1022,426,1067,412,1111,395,1138,379,1163,359,1199,322"/>
-<area shape="poly" title=" " alt="" coords="1186,326,1088,369,1086,364,1183,322"/>
-<area shape="rect" title=" " alt="" coords="1771,152,1989,177"/>
-<area shape="poly" title=" " alt="" coords="1745,102,1842,144,1840,149,1742,106"/>
-</map>
-</div>
-</div>
-<p><a href="w__ui__manager_8h_source.html">Go to the source code of this file.</a></p>
-<table class="memberdecls">
+<code>#include &quot;<a class="el" href="w__asset__handle_8h.html">asset/w_asset_handle.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__rmlui__file_8h.html">ui/w_rmlui_file.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__rmlui__renderer_8h.html">ui/w_rmlui_renderer.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__rmlui__system_8h.html">ui/w_rmlui_system.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__pch_8h.html">w_pch.h</a>&quot;</code><br />
+</div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1UIManager.html">Wiesel::UIManager</a></td></tr>

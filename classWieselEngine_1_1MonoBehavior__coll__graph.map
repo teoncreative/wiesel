@@ -1,5 +1,0 @@
-<map id="WieselEngine.MonoBehavior" name="WieselEngine.MonoBehavior">
-<area shape="rect" id="Node000001" title="Base class for all C# scripts attached to entities. Override virtual methods to respond to lifecycle ..." alt="" coords="5,93,213,119"/>
-<area shape="rect" id="Node000002" href="$classWieselEngine_1_1Entity.html" title=" " alt="" coords="33,5,185,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="112,45,112,93,107,93,107,45"/>
-</map>

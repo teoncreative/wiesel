@@ -359,10 +359,5 @@ var annotated_dup =
       [ "Vector2f", "classWieselEngine_1_1Vector2f.html", "classWieselEngine_1_1Vector2f" ],
       [ "Vector3f", "classWieselEngine_1_1Vector3f.html", "classWieselEngine_1_1Vector3f" ],
       [ "Vector4f", "classWieselEngine_1_1Vector4f.html", "classWieselEngine_1_1Vector4f" ]
-    ] ],
-    [ "CompileResult", "structCompileResult.html", "structCompileResult" ],
-    [ "DotNetProject", "classDotNetProject.html", "classDotNetProject" ],
-    [ "MonoObjectWrapper", "classMonoObjectWrapper.html", "classMonoObjectWrapper" ],
-    [ "MonoStringWrapper", "classMonoStringWrapper.html", "classMonoStringWrapper" ],
-    [ "ScopedMonoStringWrapper", "classScopedMonoStringWrapper.html", "classScopedMonoStringWrapper" ]
+    ] ]
 ];

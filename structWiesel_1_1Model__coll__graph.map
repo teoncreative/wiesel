@@ -1,9 +1,0 @@
-<map id="Wiesel::Model" name="Wiesel::Model">
-<area shape="rect" id="Node000001" title=" " alt="" coords="188,93,303,119"/>
-<area shape="rect" id="Node000002" href="$structWiesel_1_1Skeleton.html" title=" " alt="" coords="5,5,136,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="108,34,223,91,220,95,105,39"/>
-<area shape="rect" id="Node000003" href="$structWiesel_1_1NodeHierarchy.html" title=" " alt="" coords="160,5,331,31"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="248,45,248,93,243,93,243,45"/>
-<area shape="rect" id="Node000004" href="$structWiesel_1_1AABB.html" title=" " alt="" coords="355,5,466,31"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="393,43,357,72,328,86,298,96,296,91,326,81,355,67,390,39"/>
-</map>

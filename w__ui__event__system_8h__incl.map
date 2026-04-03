@@ -1,9 +1,0 @@
-<map id="w_ui_event_system.h" name="w_ui_event_system.h">
-<area shape="rect" id="Node000001" title=" " alt="" coords="107,5,269,31"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,112,104"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="168,33,93,74,91,69,166,28"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="136,79,240,104"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="191,31,191,65,185,65,185,31"/>
-<area shape="rect" id="Node000004" title=" " alt="" coords="264,79,315,104"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="206,28,263,68,260,73,203,33"/>
-</map>

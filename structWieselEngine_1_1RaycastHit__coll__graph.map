@@ -1,8 +1,0 @@
-<map id="WieselEngine.RaycastHit" name="WieselEngine.RaycastHit">
-<area shape="rect" id="Node000001" title=" " alt="" coords="53,171,238,196"/>
-<area shape="rect" id="Node000002" href="$classWieselEngine_1_1Entity.html" title=" " alt="" coords="5,37,157,62"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="95,73,142,169,137,172,91,76"/>
-<area shape="rect" id="Node000003" href="$classWieselEngine_1_1Vector3f.html" title=" " alt="" coords="181,37,349,62"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="247,74,158,172,154,169,244,71"/>
-<area shape="poly" id="edge3_Node000003_Node000003" title=" " alt="" coords="317,32,357,34,370,39,376,49,369,61,351,66,303,65,303,59,351,61,366,56,371,49,367,43,355,39,316,37"/>
-</map>
