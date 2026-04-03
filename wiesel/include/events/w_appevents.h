@@ -31,29 +31,47 @@ class AssetUnloadedEvent : public Event {
   AssetHandle handle_;
 };
 
-class WindowCloseEvent : public Event {
+class WindowClosedEvent : public Event {
  public:
-  WindowCloseEvent() {}
+  WindowClosedEvent() {}
 
-  EVENT_CLASS_TYPE(WindowClose)
+  EVENT_CLASS_TYPE(WindowClosed)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
  private:
 };
 
-class WindowResizeEvent : public Event {
+class WindowResizedEvent : public Event {
  public:
-  WindowResizeEvent(WindowSize window_size, float_t aspect_ratio)
+  WindowResizedEvent(WindowSize window_size, float_t aspect_ratio)
       : window_size_(window_size), aspect_ratio_(aspect_ratio) {}
 
   WIESEL_GETTER_FN const WindowSize& window_size() { return window_size_; }
 
   WIESEL_GETTER_FN float aspect_ratio() const { return aspect_ratio_; }
 
-  EVENT_CLASS_TYPE(WindowResize)
+  EVENT_CLASS_TYPE(WindowResized)
   EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
  private:
   WindowSize window_size_;
   float_t aspect_ratio_;
+};
+
+class WindowMinimizedEvent : public Event {
+ public:
+  WindowMinimizedEvent() {}
+
+  EVENT_CLASS_TYPE(WindowMinimized)
+  EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
+ private:
+};
+
+class WindowRestoredEvent : public Event {
+ public:
+  WindowRestoredEvent() {}
+
+  EVENT_CLASS_TYPE(WindowRestored)
+  EVENT_CLASS_CATEGORY(EventCategory::kEventCategoryApp)
+ private:
 };
 
 class WindowFocusGainedEvent : public Event {

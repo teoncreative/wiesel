@@ -26,6 +26,7 @@
 #include "w_asset_browser_panel.h"
 #include "w_lsp_autocomplete.h"
 #include "w_lsp_client.h"
+#include "w_notifications.h"
 #include "w_project.h"
 #include "w_vfs_browser.h"
 
@@ -161,6 +162,7 @@ class EditorLayer : public Layer {
   AssetHandle slice_texture_handle_;  // texture being sliced
   AssetBrowserPanel asset_browser_panel_;
   VfsFilePicker file_picker_;
+  NotificationManager notifications_;
 
   // Asset properties panel
   bool show_asset_properties_ = false;

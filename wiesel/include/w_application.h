@@ -41,8 +41,10 @@ class Application {
   void PushLayer(const std::shared_ptr<Layer>& layer);
   void RemoveLayer(const std::shared_ptr<Layer>& layer);
 
-  bool OnWindowClose(WindowCloseEvent& event);
-  bool OnWindowResize(WindowResizeEvent& event);
+  bool OnWindowClose(WindowClosedEvent& event);
+  bool OnWindowResize(WindowResizedEvent& event);
+  bool OnWindowMinimized(WindowMinimizedEvent& event);
+  bool OnWindowRestored(WindowRestoredEvent& event);
 
   WIESEL_GETTER_FN std::shared_ptr<AppWindow> GetWindow();
 

@@ -203,7 +203,19 @@ void SdlAppWindow::OnUpdate() {
 
       switch (e.type) {
         case SDL_EVENT_QUIT: {
-          WindowCloseEvent event;
+          WindowClosedEvent event;
+          GetEventHandler()(event);
+          break;
+        }
+
+        case SDL_EVENT_WINDOW_MINIMIZED: {
+          WindowMinimizedEvent event{};
+          GetEventHandler()(event);
+          break;
+        }
+
+        case SDL_EVENT_WINDOW_RESTORED: {
+          WindowRestoredEvent event{};
           GetEventHandler()(event);
           break;
         }
@@ -219,13 +231,13 @@ void SdlAppWindow::OnUpdate() {
           scale_.height = framebuffer_size_.height /
                           static_cast<float>(window_size_.height);
 
-          WindowResizeEvent event({w, h}, w / static_cast<float>(h));
+          WindowResizedEvent event({w, h}, w / static_cast<float>(h));
           GetEventHandler()(event);
           break;
         }
 
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
-          WindowCloseEvent event;
+          WindowClosedEvent event;
           GetEventHandler()(event);
           break;
         }

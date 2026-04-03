@@ -21,8 +21,10 @@ namespace Wiesel {
 
 enum class EventType {
   AppRecreateSwapChains,
-  WindowClose,
-  WindowResize,
+  WindowClosed,
+  WindowResized,
+  WindowMinimized,
+  WindowRestored,
   KeyPressed,
   KeyReleased,
   KeyTyped,

@@ -1072,7 +1072,7 @@ void Scene::UpdateSceneState(float_t delta_time) {
 void Scene::OnEvent(Event& event) {
   PROFILE_ZONE_SCOPED_N("Scene::OnEvent");
   EventDispatcher dispatcher{event};
-  dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
+  dispatcher.Dispatch<WindowResizedEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
   dispatcher.Dispatch<PipelineRecreatedEvent>(
       WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
@@ -1291,7 +1291,7 @@ void Scene::ProcessDestroyQueue() {
   }
 }
 
-bool Scene::OnWindowResizeEvent(WindowResizeEvent& event) {
+bool Scene::OnWindowResizeEvent(WindowResizedEvent& event) {
   if (render_resolution_.x > 0 && render_resolution_.y > 0) {
     return false;  // fixed resolution, don't react to window resize
   }

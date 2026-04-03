@@ -619,7 +619,7 @@ void EditorLayer::OnEvent(Event& event) {
     scene()->OnEvent(event);
   } else {
     auto type = event.GetEventType();
-    if (type == WindowResizeEvent::GetStaticType() ||
+    if (type == WindowResizedEvent::GetStaticType() ||
         type == PipelineRecreatedEvent::GetStaticType() ||
         type == ScriptsReloadedEvent::GetStaticType()) {
       scene()->OnEvent(event);
@@ -931,6 +931,8 @@ void EditorLayer::OnBeginPresent() {
   RenderCreateCursorSetPopup();
   RenderCreateMeshColliderPopup();
   file_picker_.Render();
+  notifications_.RenderToasts();
+  notifications_.RenderHistoryPanel();
 
   RenderSceneHierarchyPanel();
   RenderEntityInspectorPanel();
@@ -1163,39 +1165,33 @@ void EditorLayer::RenderDeveloperConsolePanel() {
           cmd.Clear();
         }
         ImGui::SameLine();
+        if (ImGui::Button("Copy Log")) {
+          std::string full_log;
+          for (const auto& line : log) {
+            full_log += line.text;
+            full_log += '\n';
+          }
+          ImGui::SetClipboardText(full_log.c_str());
+        }
+        ImGui::SameLine();
         static bool auto_scroll = true;
         ImGui::Checkbox("Auto-scroll", &auto_scroll);
 
         ImGui::Separator();
 
-        // Log output
+        // Log output - selectable/copyable text
         float footer_height = ImGui::GetStyle().ItemSpacing.y +
                               ImGui::GetFrameHeightWithSpacing();
-        if (ImGui::BeginChild("ConsoleLog", ImVec2(0, -footer_height),
-                              ImGuiChildFlags_None,
-                              ImGuiWindowFlags_HorizontalScrollbar)) {
-          for (const auto& line : log) {
-            ImVec4 color;
-            switch (line.level) {
-              case ConsoleLogLevel::Warning:
-                color = ImVec4(1.0f, 0.8f, 0.2f, 1.0f);
-                break;
-              case ConsoleLogLevel::Error:
-                color = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
-                break;
-              default:
-                color = ImVec4(0.8f, 0.8f, 0.8f, 1.0f);
-                break;
-            }
-            ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::TextUnformatted(line.text.c_str());
-            ImGui::PopStyleColor();
-          }
-          if (auto_scroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
-            ImGui::SetScrollHereY(1.0f);
-          }
+        std::string full_log;
+        for (const auto& line : log) {
+          full_log += line.text;
+          full_log += '\n';
         }
-        ImGui::EndChild();
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        ImGui::InputTextMultiline(
+            "##ConsoleLog", full_log.data(), full_log.size() + 1,
+            ImVec2(-1, -footer_height), ImGuiInputTextFlags_ReadOnly);
+        ImGui::PopStyleColor();
 
         // Input line with history
         ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue |
@@ -1586,15 +1582,15 @@ void EditorLayer::RenderSceneViewportPanel() {
 
       // Handle viewport resize - editor camera always tracks panel size
       ImVec2 avail = ImGui::GetContentRegionAvail();
-      {
-        uint32_t newW = static_cast<uint32_t>(avail.x);
-        uint32_t newH = static_cast<uint32_t>(avail.y);
-        if (newW > 0 && newH > 0 &&
-            (newW != editor_camera_.viewport_size.x ||
-             newH != editor_camera_.viewport_size.y)) {
-          editor_camera_.viewport_size = {newW, newH};
+      if (avail.x > 0 && avail.y > 0) {
+        uint32_t new_width = static_cast<uint32_t>(avail.x);
+        uint32_t new_height = static_cast<uint32_t>(avail.y);
+        if (new_width > 0 && new_height > 0 &&
+            (new_width != editor_camera_.viewport_size.x ||
+             new_height != editor_camera_.viewport_size.y)) {
+          editor_camera_.viewport_size = {new_width, new_height};
           editor_camera_.aspect_ratio =
-              static_cast<float>(newW) / static_cast<float>(newH);
+              static_cast<float>(new_width) / static_cast<float>(new_height);
           editor_camera_.view_changed = true;
           editor_camera_.resources_dirty = true;
         }
@@ -3902,10 +3898,26 @@ void EditorLayer::RenderMainMenuBar() {
           has_pending_reload
               ? ImGui::CalcTextSize("Reload Pending").x + spacing
               : 0.0f;
-      float total_right = pending_width + error_width + status_width +
-                          summary_width + spacing + info_width + 16.0f;
+      size_t unread = notifications_.UnreadCount();
+      float notif_width =
+          unread > 0
+              ? ImGui::CalcTextSize(
+                    (std::to_string(unread) + " notification" +
+                     (unread > 1 ? "s" : ""))
+                        .c_str())
+                        .x +
+                    spacing
+              : 0.0f;
+      float total_right = notif_width + pending_width + error_width +
+                          status_width + summary_width + spacing + info_width +
+                          16.0f;
 
       ImGui::SameLine(ImGui::GetWindowWidth() - total_right);
+
+      if (unread > 0) {
+        notifications_.RenderHistoryButton();
+        ImGui::SameLine(0, spacing);
+      }
 
       if (has_pending_reload) {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.2f, 1.0f));
@@ -3944,22 +3956,23 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     // Compile error popup
-    ImGui::SetNextWindowSizeConstraints(ImVec2(800, 400), ImVec2(800, 400));
-    if (ImGui::BeginPopup("compile_error_popup")) {
+    ImGui::SetNextWindowSize(ImVec2(1200, 500));
+    if (ImGui::BeginPopup("compile_error_popup",
+                           ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
       const auto& result = Engine::script_manager().last_compile_result();
       if (result.success) {
         ImGui::CloseCurrentPopup();
       } else {
         ImGui::Text("Compilation failed (exit code %d)", result.exit_code);
         ImGui::Separator();
-        ImGui::BeginChild("compile_output",
-                           ImVec2(0, -ImGui::GetFrameHeightWithSpacing()),
-                           ImGuiChildFlags_None,
-                           ImGuiWindowFlags_HorizontalScrollbar);
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-        ImGui::TextUnformatted(result.output.c_str());
-        ImGui::PopStyleColor();
-        ImGui::EndChild();
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        std::string output_copy = result.output;
+        ImGui::InputTextMultiline(
+            "##compile_output", output_copy.data(), output_copy.size() + 1,
+            ImVec2(-1, -ImGui::GetFrameHeightWithSpacing()),
+            ImGuiInputTextFlags_ReadOnly);
+        ImGui::PopStyleColor(2);
         if (!result.command.empty()) {
           ImGui::TextWrapped("Command: %s", result.command.c_str());
         }
@@ -4404,15 +4417,28 @@ void EditorLayer::StartLsp() {
   LOG_INFO("LSP: generated .csproj at {}", lsp_project.GetCsprojPath().string());
 
   std::string command = "csharp-ls";
-  if (lsp_client_.Start(command, project_dir)) {
-    lsp_client_.Initialize(project_dir);
-    lsp_initialized_ = true;
-    lsp_autocomplete_ = std::make_unique<LspAutocompleteProvider>(lsp_client_);
-    text_editor_.SetAutocompleteProvider(lsp_autocomplete_.get());
-    LOG_INFO("LSP: csharp-ls started");
-  } else {
-    LOG_WARN("LSP: Failed to start csharp-ls. Intellisense unavailable.");
+  if (!lsp_client_.Start(command, project_dir)) {
+    notifications_.PushWarning(
+        "csharp-ls not found. Installing via "
+        "'dotnet tool install -g csharp-ls'... "
+        "Restart editor when done.");
+
+    // Auto-install in background
+    Engine::thread_pool().Submit([this]() {
+      int result = std::system("dotnet tool install -g csharp-ls");
+      if (result != 0) {
+        std::system("dotnet tool update -g csharp-ls");
+      }
+      notifications_.PushInfo(
+          "csharp-ls install finished. Restart editor for intellisense.");
+    });
+    return;
   }
+  lsp_client_.Initialize(project_dir);
+  lsp_initialized_ = true;
+  lsp_autocomplete_ = std::make_unique<LspAutocompleteProvider>(lsp_client_);
+  text_editor_.SetAutocompleteProvider(lsp_autocomplete_.get());
+  LOG_INFO("LSP: csharp-ls started");
 }
 
 void EditorLayer::StopLsp() {

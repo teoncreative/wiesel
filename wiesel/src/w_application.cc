@@ -71,8 +71,10 @@ void Application::OnEvent(Event& event) {
 
   EventDispatcher dispatcher(event);
 
-  dispatcher.Dispatch<WindowCloseEvent>(WIESEL_BIND_FN(OnWindowClose));
-  dispatcher.Dispatch<WindowResizeEvent>(WIESEL_BIND_FN(OnWindowResize));
+  dispatcher.Dispatch<WindowClosedEvent>(WIESEL_BIND_FN(OnWindowClose));
+  dispatcher.Dispatch<WindowResizedEvent>(WIESEL_BIND_FN(OnWindowResize));
+  dispatcher.Dispatch<WindowMinimizedEvent>(WIESEL_BIND_FN(OnWindowMinimized));
+  dispatcher.Dispatch<WindowRestoredEvent>(WIESEL_BIND_FN(OnWindowRestored));
 
   for (auto it = layers_.rbegin(); it != layers_.rend(); ++it) {
     const auto& layer = *it;
@@ -168,17 +170,21 @@ void Application::Run() {
     // If Update() runs after OnUpdate(), the single-frame Down/Up signals are lost.
     InputManager::Update();
     window_->OnUpdate();
+    if (window_resized_) {
+      window_->GetWindowFramebufferSize(window_size_);
+      renderer->RecreateSwapChain();
+      window_resized_ = false;
+    }
 
     Engine::audio().Update();
     Engine::cursor_manager().Update(delta_time_);
     ExecuteQueue();
 
+    float_t scaled_delta = delta_time_ * time_scale_;
+    for (const auto& layer : layers_) {
+      layer->OnUpdate(scaled_delta);
+    }
     if (!is_minimized_) {
-      float_t scaled_delta = delta_time_ * time_scale_;
-      for (const auto& layer : layers_) {
-        layer->OnUpdate(scaled_delta);
-      }
-
       renderer->BeginRender();
       renderer->stats_.frame_time_ms = delta_time_ * 1000.0f;
       for (const auto& layer : layers_) {
@@ -197,17 +203,6 @@ void Application::Run() {
         layer->OnPostPresent();
       }
     }
-
-    if (window_resized_) {
-      window_->GetWindowFramebufferSize(window_size_);
-      if (window_size_.width == 0 || window_size_.height == 0) {
-        is_minimized_ = true;
-      } else {
-        is_minimized_ = false;
-        renderer->RecreateSwapChain();
-      }
-      window_resized_ = false;
-    }
   }
 }
 
@@ -216,13 +211,23 @@ void Application::Close() {
   is_running_ = false;
 }
 
-bool Application::OnWindowClose(WindowCloseEvent& event) {
+bool Application::OnWindowClose(WindowClosedEvent& event) {
   Close();
   return true;
 }
 
-bool Application::OnWindowResize(WindowResizeEvent& event) {
+bool Application::OnWindowResize(WindowResizedEvent& event) {
   window_resized_ = true;
+  return false;
+}
+
+bool Application::OnWindowMinimized(WindowMinimizedEvent& event) {
+  is_minimized_ = true;
+  return false;
+}
+
+bool Application::OnWindowRestored(WindowRestoredEvent& event) {
+  is_minimized_ = false;
   return false;
 }
 

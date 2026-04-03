@@ -225,7 +225,7 @@ class Scene {
   }
 
  private:
-  bool OnWindowResizeEvent(WindowResizeEvent& event);
+  bool OnWindowResizeEvent(WindowResizedEvent& event);
   bool OnPipelineRecreatedEvent(PipelineRecreatedEvent& event);
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(entt::entity entity);
