@@ -3981,22 +3981,48 @@ void EditorLayer::RenderMainMenuBar() {
   }
   if (ImGui::BeginPopupModal("About Wiesel", nullptr,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
-    ImGui::Text("Wiesel Engine");
-    ImGui::Separator();
-
+    // Engine info
+    ImGui::SeparatorText("Engine");
     ImGui::Text("Git Branch: %s", WIESEL_GIT_BRANCH);
     ImGui::Text("Git Commit: %s", WIESEL_GIT_COMMIT);
     ImGui::Text("Build Type: %s", WIESEL_BUILD_TYPE);
-
     ImGui::Text("Window Backend: SDL3");
 
+    // GPU info
+    ImGui::SeparatorText("GPU");
     auto props = Engine::renderer()->GetPhysicalDeviceProperties();
     uint32_t vk_major = VK_API_VERSION_MAJOR(props.apiVersion);
     uint32_t vk_minor = VK_API_VERSION_MINOR(props.apiVersion);
     uint32_t vk_patch = VK_API_VERSION_PATCH(props.apiVersion);
     ImGui::Text("GPU: %s", props.deviceName);
     ImGui::Text("Vulkan: %u.%u.%u", vk_major, vk_minor, vk_patch);
-    ImGui::Text("FPS: %.1f", app_.GetFPS());
+
+    // Project info
+    ImGui::SeparatorText("Project");
+    if (active_project_) {
+      ImGui::Text("Name: %s", active_project_->GetSettings().name.c_str());
+      ImGui::Text("Path: %s",
+                  active_project_->GetProjectDirectory().string().c_str());
+      ImGui::Text("Assets: %s",
+                  active_project_->GetAssetsDirectory().string().c_str());
+      if (!current_scene_path_.empty()) {
+        ImGui::Text("Scene: %s", current_scene_path_.c_str());
+      }
+      auto asset_stats = Engine::asset_manager().GetStats();
+      ImGui::Text("Assets: %zu loaded, %zu total", asset_stats.loaded,
+                  asset_stats.total);
+    } else {
+      ImGui::TextDisabled("No project open");
+    }
+
+    // Paths
+    ImGui::SeparatorText("Paths");
+    ImGui::Text("Engine Assets: %s",
+                Engine::properties().engine_assets_path.string().c_str());
+    ImGui::Text("User Data: %s",
+                Engine::properties().user_data_path.string().c_str());
+    ImGui::Text("Working Dir: %s",
+                std::filesystem::current_path().string().c_str());
 
     ImGui::Separator();
     if (ImGui::Button("Close", ImVec2(120, 0))) {
