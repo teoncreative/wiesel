@@ -133,10 +133,6 @@ option(WIESEL_DISCORD_RPC "Enable Discord Rich Presence" ON)
 
 add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${IMGUI_FILES} ${IMGUIZMO_FILES} ${GLSLANG_FILES})
 
-# glslang sources are compiled directly into wiesel - tell them we're exporting, not importing
-target_compile_definitions(wiesel PRIVATE GLSLANG_IS_SHARED_LIBRARY=0)
-
-
 if (MSVC)
     target_compile_options(wiesel PRIVATE
             $<$<CONFIG:Release>:/O2 /GL /DNDEBUG>
