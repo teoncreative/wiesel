@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 project(Wiesel)
 
-option(ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
+option(WIESEL_ENABLE_SANITIZE_ADDRESS "Enable AddressSanitizer for Engine" OFF)
 option(ENABLE_VULKAN_VALIDATION "Enables Vulkan validation layer" OFF)
-option(ENABLE_TRACY "Enables tracy profiler" OFF)
-option(ENABLE_GPU_PROFILING "Enable per-pass GPU timing queries" OFF)
+option(WIESEL_ENABLE_TRACY "Enables tracy profiler" OFF)
+option(WIESEL_ENABLE_GPU_PROFILING "Enable per-pass GPU timing queries" OFF)
+option(WIESEL_ENABLE_DISCORD_RPC "Enable Discord Rich Presence" ON)
 
 if (UNIX)
     execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE DEVICEARCHITECTURE)
@@ -128,9 +129,6 @@ file(
         "${VENDOR_DIR}/glslang/SPIRV/*.cpp"
 )
 
-# Discord RPC (optional)
-option(WIESEL_DISCORD_RPC "Enable Discord Rich Presence" ON)
-
 add_library(wiesel STATIC ${SOURCES} ${HEADERS} ${IMGUI_FILES} ${IMGUIZMO_FILES} ${GLSLANG_FILES})
 
 if (MSVC)
@@ -138,7 +136,7 @@ if (MSVC)
             $<$<CONFIG:Release>:/O2 /GL /DNDEBUG>
             $<$<CONFIG:Debug>:/Od /Zi /DDEBUG>
     )
-    if (ENABLE_SANITIZE_ADDRESS)
+    if (WIESEL_ENABLE_SANITIZE_ADDRESS)
         target_compile_options(wiesel PRIVATE /fsanitize=address)
     endif()
 else()
@@ -149,13 +147,13 @@ else()
             $<$<CONFIG:Release>:-O2 -march=native -DNDEBUG -ffast-math>
             $<$<CONFIG:Debug>:-g -O0 -DDEBUG>
     )
-    if (ENABLE_SANITIZE_ADDRESS)
+    if (WIESEL_ENABLE_SANITIZE_ADDRESS)
         target_compile_options(wiesel PRIVATE -fsanitize=address)
         target_link_options(wiesel PRIVATE -fsanitize=address)
     endif()
 endif()
 
-if (ENABLE_VULKAN_VALIDATION)
+if (WIESEL_ENABLE_VULKAN_VALIDATION)
     target_compile_options(wiesel PUBLIC -DVULKAN_VALIDATION=1)
 endif()
 
@@ -178,10 +176,10 @@ endif()
 
 target_include_directories(wiesel PUBLIC ${LIBS_DIR}/tracy/public)
 target_link_libraries(wiesel PUBLIC ${LIB_TRACY})
-if(ENABLE_TRACY)
+if (WIESEL_ENABLE_TRACY)
     target_compile_definitions(wiesel PUBLIC TRACY_ENABLE)
 endif()
-if(ENABLE_GPU_PROFILING)
+if (WIESEL_ENABLE_GPU_PROFILING)
     target_compile_definitions(wiesel PUBLIC WIESEL_GPU_PROFILING=1)
 endif()
 
@@ -197,7 +195,7 @@ target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/miniaudio)
-if(WIESEL_DISCORD_RPC)
+if (WIESEL_ENABLE_DISCORD_RPC)
     target_compile_definitions(wiesel PUBLIC WIESEL_DISCORD_RPC=1)
     target_link_libraries(wiesel PUBLIC discord-rpc)
 endif()

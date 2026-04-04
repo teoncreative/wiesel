@@ -46,7 +46,7 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(NO_FONT_INTERFACE_DEFAULT ON CACHE BOOL "" FORCE)
 add_subdirectory(${VENDOR_DIR}/RmlUi)
 # Discord RPC
-if (WIESEL_DISCORD_RPC)
+if (WIESEL_ENABLE_DISCORD_RPC)
     set(DISCORD_RPC_SOURCES
             ${VENDOR_DIR}/discord-rpc/src/discord_rpc.cpp
             ${VENDOR_DIR}/discord-rpc/src/rpc_connection.cpp

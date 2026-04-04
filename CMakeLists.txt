@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(wiesel-parent)
 
+# Options
+option(WIESEL_ENABLE_DISCORD_RPC "Enable Discord Rich Presence" ON)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)  # avoid compiler-specific extensions
