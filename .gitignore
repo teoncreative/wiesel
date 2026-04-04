@@ -118,3 +118,4 @@ Desktop.ini
 .DS_Store
 *.csproj
 examples/
+!.github/workflows/*
