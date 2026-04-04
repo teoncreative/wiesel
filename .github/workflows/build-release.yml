@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write
 
+env:
+  VULKAN_SDK_VERSION: 1.3.290.0
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -18,12 +21,26 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Vulkan SDK
-        uses: humbletim/setup-vulkan-sdk@v1.2.0
+      - name: Cache Vulkan SDK
+        id: cache-vulkan
+        uses: actions/cache@v4
         with:
-          vulkan-query-version: 1.3.290.0
-          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
-          vulkan-use-cache: true
+          path: C:\VulkanSDK
+          key: vulkan-sdk-${{ env.VULKAN_SDK_VERSION }}-windows
+
+      - name: Install Vulkan SDK
+        if: steps.cache-vulkan.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $installer = "VulkanSDK-${{ env.VULKAN_SDK_VERSION }}-Installer.exe"
+          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/${{ env.VULKAN_SDK_VERSION }}/windows/$installer" -OutFile $installer
+          Start-Process -FilePath ".\$installer" -ArgumentList "--root C:\VulkanSDK\${{ env.VULKAN_SDK_VERSION }} --accept-licenses --default-answer --confirm-command install" -Wait
+
+      - name: Set Vulkan SDK env
+        shell: pwsh
+        run: |
+          echo "VULKAN_SDK=C:\VulkanSDK\${{ env.VULKAN_SDK_VERSION }}" >> $env:GITHUB_ENV
+          echo "C:\VulkanSDK\${{ env.VULKAN_SDK_VERSION }}\Bin" >> $env:GITHUB_PATH
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
@@ -75,17 +92,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libvulkan-dev vulkan-validationlayers \
-            libsdl2-dev libfreetype-dev \
+            libfreetype-dev \
             mono-devel mono-mcs \
-            dotnet-sdk-8.0 \
             libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev
 
-      - name: Setup Vulkan SDK
-        uses: humbletim/setup-vulkan-sdk@v1.2.0
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
-          vulkan-query-version: 1.3.290.0
-          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
-          vulkan-use-cache: true
+          dotnet-version: '8.0.x'
+
+      - name: Cache Vulkan SDK
+        id: cache-vulkan
+        uses: actions/cache@v4
+        with:
+          path: ~/vulkan-sdk
+          key: vulkan-sdk-${{ env.VULKAN_SDK_VERSION }}-linux
+
+      - name: Install Vulkan SDK
+        if: steps.cache-vulkan.outputs.cache-hit != 'true'
+        run: |
+          wget -qO- "https://sdk.lunarg.com/sdk/download/${{ env.VULKAN_SDK_VERSION }}/linux/vulkansdk-linux-x86_64-${{ env.VULKAN_SDK_VERSION }}.tar.xz" | tar xJf - -C /tmp
+          mkdir -p ~/vulkan-sdk
+          cp -r /tmp/${{ env.VULKAN_SDK_VERSION }}/* ~/vulkan-sdk/
+
+      - name: Set Vulkan SDK env
+        run: |
+          echo "VULKAN_SDK=$HOME/vulkan-sdk/x86_64" >> $GITHUB_ENV
+          echo "$HOME/vulkan-sdk/x86_64/bin" >> $GITHUB_PATH
 
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
