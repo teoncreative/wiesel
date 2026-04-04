@@ -52,9 +52,10 @@ jobs:
         run: |
           choco install mono -y --no-progress
           echo "C:\Program Files\Mono\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "MONO_ROOT=C:\Program Files\Mono" >> $env:GITHUB_ENV
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=0
 
       - name: Build bundle-editor
         run: cmake --build build --config Release --target bundle-editor -j $env:NUMBER_OF_PROCESSORS
@@ -92,7 +93,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libvulkan-dev vulkan-validationlayers \
-            libfreetype-dev \
+            libfreetype-dev libgtk-3-dev \
             mono-devel mono-mcs \
             libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev
 
@@ -121,7 +122,9 @@ jobs:
           echo "$HOME/vulkan-sdk/x86_64/bin" >> $GITHUB_PATH
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=0
+        env:
+          MONO_ROOT: /usr
 
       - name: Build bundle-editor
         run: cmake --build build --config Release --target bundle-editor -j$(nproc)
