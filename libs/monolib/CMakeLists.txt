@@ -55,8 +55,8 @@ if(WIN32)
 else()
     add_custom_command(TARGET monolib PRE_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/mono
-            COMMAND ${CMAKE_COMMAND} -E create_symlink ${MONO_ROOT}/etc ${CMAKE_BINARY_DIR}/mono/etc
-            COMMAND ${CMAKE_COMMAND} -E create_symlink ${MONO_ROOT}/lib ${CMAKE_BINARY_DIR}/mono/lib
+            COMMAND bash -c "[ -e ${CMAKE_BINARY_DIR}/mono/etc ] || ${CMAKE_COMMAND} -E create_symlink ${MONO_ROOT}/etc ${CMAKE_BINARY_DIR}/mono/etc"
+            COMMAND bash -c "[ -e ${CMAKE_BINARY_DIR}/mono/lib ] || ${CMAKE_COMMAND} -E create_symlink ${MONO_ROOT}/lib ${CMAKE_BINARY_DIR}/mono/lib"
             COMMENT "Symlinking mono etc/lib to the build directory"
     )
 endif()
