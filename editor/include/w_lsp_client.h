@@ -41,6 +41,23 @@ struct LspHoverResult {
   std::string contents;
 };
 
+struct LspSignatureParameter {
+  std::string label;
+  std::string documentation;
+};
+
+struct LspSignatureInfo {
+  std::string label;
+  std::string documentation;
+  std::vector<LspSignatureParameter> parameters;
+};
+
+struct LspSignatureHelp {
+  std::vector<LspSignatureInfo> signatures;
+  int active_signature = 0;
+  int active_parameter = 0;
+};
+
 struct LspSemanticToken {
   int line;
   int column;
@@ -95,6 +112,8 @@ class LspClient {
   void DidClose(const std::string& uri);
   void RequestCompletion(const std::string& uri, int line, int character);
   void RequestHover(const std::string& uri, int line, int character);
+  void RequestSignatureHelp(const std::string& uri, int line, int character,
+                            const std::string& trigger_char = "");
   void RequestSemanticTokens(const std::string& uri);
 
   // Poll results (call from main thread)
@@ -106,6 +125,9 @@ class LspClient {
 
   bool HasHover() const;
   LspHoverResult TakeHover();
+
+  bool HasSignatureHelp() const;
+  LspSignatureHelp TakeSignatureHelp();
 
   bool HasSemanticTokens() const;
   std::vector<LspSemanticToken> TakeSemanticTokens();
@@ -149,12 +171,21 @@ class LspClient {
   std::vector<LspCompletionItem> completions_;
   std::unordered_map<std::string, std::vector<LspDiagnostic>> diagnostics_;
   LspHoverResult hover_;
+  LspSignatureHelp signature_help_;
   bool has_completions_ = false;
   bool has_hover_ = false;
+  bool has_signature_help_ = false;
   std::vector<LspSemanticToken> semantic_tokens_;
   bool has_semantic_tokens_ = false;
   std::vector<std::string> token_type_legend_;
+  std::string signature_trigger_chars_;  // e.g. "(,<"
 
+ public:
+  const std::string& GetSignatureTriggerChars() const {
+    return signature_trigger_chars_;
+  }
+
+ private:
   // Write mutex (main thread writes requests)
   std::mutex write_mutex_;
 

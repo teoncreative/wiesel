@@ -189,7 +189,22 @@ void LspClient::SendRequest(const std::string& method, const json& params) {
       {"params", params},
   };
 
-  AddLog(true, "[" + std::to_string(id) + "] " + method + "\n" + msg.dump(2));
+  // Human-readable request summary
+  std::string summary = "[" + std::to_string(id) + "] -> " + method;
+  if (params.contains("textDocument") &&
+      params["textDocument"].contains("uri")) {
+    std::string uri = params["textDocument"]["uri"].get<std::string>();
+    size_t last_slash = uri.rfind('/');
+    summary +=
+        " " +
+        (last_slash != std::string::npos ? uri.substr(last_slash + 1) : uri);
+  }
+  if (params.contains("position")) {
+    summary += " L" + std::to_string(params["position"]["line"].get<int>()) +
+               ":C" +
+               std::to_string(params["position"]["character"].get<int>());
+  }
+  AddLog(true, summary);
 
   {
     std::lock_guard<std::mutex> lock(results_mutex_);
@@ -219,7 +234,20 @@ void LspClient::SendNotification(const std::string& method,
       {"params", params},
   };
 
-  AddLog(true, method + "\n" + msg.dump(2));
+  // Human-readable notification summary
+  std::string summary = "-> " + method;
+  if (params.contains("textDocument") &&
+      params["textDocument"].contains("uri")) {
+    std::string uri = params["textDocument"]["uri"].get<std::string>();
+    size_t last_slash = uri.rfind('/');
+    summary +=
+        " " +
+        (last_slash != std::string::npos ? uri.substr(last_slash + 1) : uri);
+  }
+  if (method == "textDocument/didChange") {
+    summary += " (full sync)";
+  }
+  AddLog(true, summary);
 
   std::string body = msg.dump();
   std::string header =
@@ -260,7 +288,7 @@ void LspClient::ReaderThread() {
     }
 #endif
 
-    AddLog(false, "(read " + std::to_string(bytes_read) + " bytes)");
+    //AddLog(false, "(read " + std::to_string(bytes_read) + " bytes)");
     buffer.append(chunk, bytes_read);
 
     // Parse LSP messages from buffer
@@ -331,7 +359,7 @@ void LspClient::HandleMessage(const json& msg) {
 #else
     write(stdin_fd_, packet.data(), packet.size());
 #endif
-    AddLog(true, "response to " + method + " -> null");
+    AddLog(false, "[" + id.dump() + "] <- " + method + " (null)");
   } else if (has_id && has_result) {
     int id = msg["id"].get<int>();
     std::string method;
@@ -342,24 +370,89 @@ void LspClient::HandleMessage(const json& msg) {
         method = it->second;
       }
     }
-    std::string result_str = msg["result"].dump(2);
-    if (result_str.size() > 2000) {
-      result_str = result_str.substr(0, 2000) + "\n... (truncated)";
+    const json& result = msg["result"];
+
+    // Null result - server has no data for this request
+    if (result.is_null()) {
+      AddLog(false, "[" + std::to_string(id) + "] <- " + method + " (null)");
+      std::lock_guard<std::mutex> lock(results_mutex_);
+      pending_requests_.erase(id);
+      // Still notify so polling doesn't hang
+      if (method == "textDocument/hover") {
+        hover_ = {};
+        has_hover_ = true;
+      } else if (method == "textDocument/signatureHelp") {
+        signature_help_ = {};
+        has_signature_help_ = true;
+      }
+      return;
     }
-    AddLog(false,
-           "[" + std::to_string(id) + "] " + method + " -> ok\n" + result_str);
-    HandleResponse(id, msg["result"]);
+
+    // Human-readable response summary
+    std::string summary = "[" + std::to_string(id) + "] <- " + method;
+    if (method == "textDocument/completion") {
+      int count = result.is_array() ? static_cast<int>(result.size()) : 0;
+      if (result.is_object() && result.contains("items")) {
+        count = static_cast<int>(result["items"].size());
+      }
+      summary += " (" + std::to_string(count) + " items)";
+    } else if (method == "textDocument/hover") {
+      if (result.is_null()) {
+        summary += " (null)";
+      } else if (result.contains("contents")) {
+        auto& c = result["contents"];
+        std::string preview = c.is_string() ? c.get<std::string>()
+                              : c.is_object() && c.contains("value")
+                                  ? c["value"].get<std::string>()
+                                  : "...";
+        if (preview.size() > 80) {
+          preview = preview.substr(0, 80) + "...";
+        }
+        summary += " \"" + preview + "\"";
+      }
+    } else if (method == "textDocument/signatureHelp") {
+      if (result.is_null()) {
+        summary += " (null)";
+      } else if (result.contains("signatures")) {
+        int count = static_cast<int>(result["signatures"].size());
+        summary += " (" + std::to_string(count) + " signatures)";
+        if (count > 0) {
+          summary +=
+              " active=" + std::to_string(result.value("activeParameter", 0));
+        }
+      }
+    } else if (method == "textDocument/semanticTokens/full") {
+      if (result.contains("data")) {
+        summary +=
+            " (" + std::to_string(result["data"].size() / 5) + " tokens)";
+      }
+    } else if (method == "initialize") {
+      summary += " (server ready)";
+    } else {
+      summary += " (ok)";
+    }
+    AddLog(false, summary);
+    HandleResponse(id, result);
   } else if (has_id && has_error) {
     int id = msg["id"].get<int>();
-    AddLog(false,
-           "[" + std::to_string(id) + "] error\n" + msg["error"].dump(2));
+    std::string err_msg = msg["error"].value("message", "unknown error");
+    AddLog(false, "[" + std::to_string(id) + "] ERROR: " + err_msg);
   } else if (has_method) {
     std::string method = msg["method"].get<std::string>();
-    std::string params_str = msg.value("params", json::object()).dump(2);
-    if (params_str.size() > 500) {
-      params_str = params_str.substr(0, 500) + "\n... (truncated)";
+    std::string summary = "<- " + method;
+    const json& params = msg.value("params", json::object());
+    if (method == "textDocument/publishDiagnostics") {
+      int count = params.contains("diagnostics")
+                      ? static_cast<int>(params["diagnostics"].size())
+                      : 0;
+      std::string uri = params.value("uri", "");
+      size_t last_slash = uri.rfind('/');
+      summary +=
+          " " +
+          (last_slash != std::string::npos ? uri.substr(last_slash + 1) : uri) +
+          " (" + std::to_string(count) + " diagnostics)";
     }
-    AddLog(false, method + "\n" + params_str);
+    AddLog(false, summary);
     HandleNotification(method, msg.value("params", json::object()));
   }
 }
@@ -409,6 +502,48 @@ void LspClient::HandleResponse(int id, const json& result) {
     std::lock_guard<std::mutex> lock(results_mutex_);
     hover_ = std::move(hover);
     has_hover_ = true;
+  } else if (method == "textDocument/signatureHelp") {
+    LspSignatureHelp sig_help;
+    if (result.contains("signatures") && result["signatures"].is_array()) {
+      for (const auto& sig : result["signatures"]) {
+        LspSignatureInfo info;
+        info.label = sig.value("label", "");
+        if (sig.contains("documentation")) {
+          auto& doc = sig["documentation"];
+          if (doc.is_string()) {
+            info.documentation = doc.get<std::string>();
+          } else if (doc.is_object() && doc.contains("value")) {
+            info.documentation = doc["value"].get<std::string>();
+          }
+        }
+        if (sig.contains("parameters") && sig["parameters"].is_array()) {
+          for (const auto& param : sig["parameters"]) {
+            LspSignatureParameter p;
+            if (param.contains("label")) {
+              auto& lbl = param["label"];
+              if (lbl.is_string()) {
+                p.label = lbl.get<std::string>();
+              }
+            }
+            if (param.contains("documentation")) {
+              auto& doc = param["documentation"];
+              if (doc.is_string()) {
+                p.documentation = doc.get<std::string>();
+              } else if (doc.is_object() && doc.contains("value")) {
+                p.documentation = doc["value"].get<std::string>();
+              }
+            }
+            info.parameters.push_back(std::move(p));
+          }
+        }
+        sig_help.signatures.push_back(std::move(info));
+      }
+    }
+    sig_help.active_signature = result.value("activeSignature", 0);
+    sig_help.active_parameter = result.value("activeParameter", 0);
+    std::lock_guard<std::mutex> lock(results_mutex_);
+    signature_help_ = std::move(sig_help);
+    has_signature_help_ = true;
   } else if (method == "initialize") {
     // Capture semantic token type legend from server capabilities
     if (result.contains("capabilities") &&
@@ -428,6 +563,33 @@ void LspClient::HandleResponse(int id, const json& result) {
       }
     } else {
       AddLog(false, "semantic tokens: NOT supported by server");
+    }
+
+    // Log which capabilities the server supports
+    if (result.contains("capabilities")) {
+      const json& caps = result["capabilities"];
+      std::string supported;
+      if (caps.contains("hoverProvider")) {
+        supported += " hover";
+      }
+      if (caps.contains("signatureHelpProvider")) {
+        supported += " signatureHelp";
+        const json& sh = caps["signatureHelpProvider"];
+        if (sh.contains("triggerCharacters")) {
+          signature_trigger_chars_.clear();
+          supported += "(triggers:";
+          for (const auto& t : sh["triggerCharacters"]) {
+            std::string c = t.get<std::string>();
+            signature_trigger_chars_ += c;
+            supported += c;
+          }
+          supported += ")";
+        }
+      }
+      if (caps.contains("completionProvider")) {
+        supported += " completion";
+      }
+      AddLog(false, "server capabilities:" + supported);
     }
   } else if (method == "textDocument/semanticTokens/full") {
     std::vector<LspSemanticToken> tokens;
@@ -494,6 +656,10 @@ void LspClient::Initialize(const fs::path& root_path) {
        {{"textDocument",
          {{"completion", {{"completionItem", {{"snippetSupport", false}}}}},
           {"hover", {{"contentFormat", {"plaintext"}}}},
+          {"signatureHelp",
+           {{"signatureInformation",
+             {{"documentationFormat", {"plaintext"}},
+              {"parameterInformation", {{"labelOffsetSupport", false}}}}}}},
           {"publishDiagnostics", {{"relatedInformation", false}}},
           {"semanticTokens",
            {{"requests", {{"full", true}}},
@@ -543,6 +709,22 @@ void LspClient::RequestHover(const std::string& uri, int line, int character) {
                {"position", {{"line", line}, {"character", character}}}});
 }
 
+void LspClient::RequestSignatureHelp(const std::string& uri, int line,
+                                     int character,
+                                     const std::string& trigger_char) {
+  json params = {{"textDocument", {{"uri", uri}}},
+                 {"position", {{"line", line}, {"character", character}}}};
+  if (!trigger_char.empty()) {
+    params["context"] = {{"triggerKind", 2},  // TriggerCharacter
+                         {"triggerCharacter", trigger_char},
+                         {"isRetrigger", false}};
+  } else {
+    params["context"] = {{"triggerKind", 1},  // Invoked
+                         {"isRetrigger", false}};
+  }
+  SendRequest("textDocument/signatureHelp", params);
+}
+
 void LspClient::RequestSemanticTokens(const std::string& uri) {
   SendRequest("textDocument/semanticTokens/full",
               {{"textDocument", {{"uri", uri}}}});
@@ -586,6 +768,17 @@ LspHoverResult LspClient::TakeHover() {
   std::lock_guard<std::mutex> lock(results_mutex_);
   has_hover_ = false;
   return std::move(hover_);
+}
+
+bool LspClient::HasSignatureHelp() const {
+  std::lock_guard<std::mutex> lock(results_mutex_);
+  return has_signature_help_;
+}
+
+LspSignatureHelp LspClient::TakeSignatureHelp() {
+  std::lock_guard<std::mutex> lock(results_mutex_);
+  has_signature_help_ = false;
+  return std::move(signature_help_);
 }
 
 bool LspClient::HasSemanticTokens() const {

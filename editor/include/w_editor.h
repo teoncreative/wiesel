@@ -202,9 +202,25 @@ class EditorLayer : public Layer {
   std::unique_ptr<LspAutocompleteProvider> lsp_autocomplete_;
   bool lsp_initialized_ = false;
   bool semantic_tokens_received_ = false;
+
+  // Hover state
+  int hover_line_ = -1;
+  int hover_col_ = -1;
+  float hover_timer_ = 0.0f;
+  bool hover_requested_ = false;
+  std::string hover_text_;
+
+  // Signature help state
+  bool signature_active_ = false;
+  bool signature_pending_ = false;
+  char signature_trigger_ = 0;
+  int signature_line_ = -1;
+  int signature_col_ = -1;
+  LspSignatureHelp signature_help_;
   void OpenCodeEditor(const std::filesystem::path& path);
   void RenderCodeEditor();
   void RenderLspDebugPanel();
+  void RenderEditorSettingsPanel();
   void SaveCodeEditorFile();
   void StartLsp();
   void StopLsp();

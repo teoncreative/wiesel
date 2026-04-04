@@ -173,6 +173,7 @@ static bool panel_stats_ = true;
 static bool panel_scene_view_ = true;
 static bool panel_game_view_ = true;
 static bool panel_lsp_debug_ = false;
+static bool panel_editor_settings_ = false;
 static bool layout_initialized_ = false;
 
 static struct SceneHierarchyData {
@@ -923,6 +924,7 @@ void EditorLayer::OnBeginPresent() {
   RenderAssetPropertiesPanel();
   RenderCodeEditor();
   RenderLspDebugPanel();
+  RenderEditorSettingsPanel();
   RenderCreateSkyboxPopup();
   RenderCreateSpritePopup();
   RenderSliceSpritesPopup();
@@ -3758,19 +3760,8 @@ void EditorLayer::RenderMainMenuBar() {
         show_project_settings_ = true;
       }
       ImGui::Separator();
-      if (ImGui::BeginMenu("Theme")) {
-        auto current = ImGui::Moonlight::GetCurrentTheme();
-        for (int i = 0; i < static_cast<int>(ImGui::Moonlight::Theme::Count);
-             i++) {
-          auto theme = static_cast<ImGui::Moonlight::Theme>(i);
-          if (ImGui::MenuItem(ImGui::Moonlight::GetThemeName(theme), nullptr,
-                              current == theme)) {
-            ImGui::Moonlight::ApplyTheme(theme);
-            editor_config_->Set("editor.theme", static_cast<int>(theme));
-            editor_config_->Save();
-          }
-        }
-        ImGui::EndMenu();
+      if (ImGui::MenuItem("Editor Settings")) {
+        panel_editor_settings_ = true;
       }
       ImGui::EndMenu();
     }
@@ -4397,7 +4388,7 @@ void EditorLayer::StartLsp() {
   DotNetProject lsp_project("App");
   lsp_project.SetOutputPath((project_dir / "App.dll").string());
 
-  // Collect all .cs files from the assets directory
+  // Collect all .cs files from the project assets directory
   for (const auto& entry :
        std::filesystem::recursive_directory_iterator(assets_dir)) {
     if (entry.is_regular_file() && entry.path().extension() == ".cs") {
@@ -4405,7 +4396,7 @@ void EditorLayer::StartLsp() {
     }
   }
 
-  // Reference Core.dll from the working directory (build output)
+  // Reference Core.dll for engine types (MonoBehavior, Entity, components, etc.)
   std::filesystem::path core_dll = std::filesystem::absolute("Core.dll");
   if (std::filesystem::exists(core_dll)) {
     lsp_project.AddReference(core_dll.string());
@@ -4416,33 +4407,27 @@ void EditorLayer::StartLsp() {
   lsp_project.Save();
   LOG_INFO("LSP: generated .csproj at {}", lsp_project.GetCsprojPath().string());
 
-  std::string command = "csharp-ls";
-  if (!lsp_client_.Start(command, project_dir)) {
+  // Generate a .sln in the project root so csharp-ls can discover the project.
+  // Restore NuGet packages for full semantic analysis
+  std::string restore_cmd =
+      "dotnet restore \"" + lsp_project.GetCsprojPath().string() + "\"";
+  Engine::thread_pool().Submit([restore_cmd]() {
+    std::system(restore_cmd.c_str());
+  });
+
+  std::string lsp_command =
+      editor_config_->Get<std::string>("lsp.csharp.command", "");
+  if (lsp_command.empty()) {
     notifications_.PushWarning(
-        "csharp-ls not found. Attempting to install...");
-      
-    // Auto-install in background
-    Engine::thread_pool().Submit([this]() {
-      int result = std::system(
-          "dotnet tool install -g csharp-ls "
-          "--add-source https://api.nuget.org/v3/index.json");
-      if (result != 0) {
-        result = std::system(
-            "dotnet tool update -g csharp-ls "
-            "--add-source https://api.nuget.org/v3/index.json");
-      }
-      if (result == 0) {
-        notifications_.PushInfo(
-            "csharp-ls installed successfully. Restart editor for "
-            "intellisense.");
-      } else {
-        notifications_.PushError(
-            "Failed to install csharp-ls. Install manually: "
-            "dotnet tool install -g csharp-ls");
-      }
-    });
+        "No C# LSP server configured. Set one in Edit > Editor Settings.");
     return;
   }
+
+  if (!lsp_client_.Start(lsp_command, project_dir)) {
+    notifications_.PushError("Failed to start LSP: " + lsp_command);
+    return;
+  }
+  LOG_INFO("LSP: started with command: {}", lsp_command);
   lsp_client_.Initialize(project_dir);
   lsp_initialized_ = true;
   lsp_autocomplete_ = std::make_unique<LspAutocompleteProvider>(lsp_client_);
@@ -4639,6 +4624,155 @@ void EditorLayer::RenderCodeEditor() {
     code_editor_unsaved_ = true;
   }
 
+  // Notify LSP of content changes so hover/signature/diagnostics stay current
+  if (text_editor_.IsTextChanged() && lsp_initialized_) {
+    lsp_client_.DidChange(code_editor_uri_, text_editor_.GetText());
+  }
+
+  // Hover tooltip - request on cursor idle, show when result arrives
+  if (lsp_initialized_) {
+    // Hover: track mouse position over the editor, request after 0.5s idle
+    ImVec2 mouse_pos = ImGui::GetMousePos();
+    auto mouse_coord = text_editor_.GetCoordinatesAt(mouse_pos);
+    if (mouse_coord.mLine != hover_line_ ||
+        mouse_coord.mColumn != hover_col_) {
+      hover_line_ = mouse_coord.mLine;
+      hover_col_ = mouse_coord.mColumn;
+      hover_timer_ = 0.0f;
+      hover_requested_ = false;
+      hover_text_.clear();
+    }
+
+    bool editor_hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
+    if (editor_hovered) {
+      hover_timer_ += ImGui::GetIO().DeltaTime;
+      if (!hover_requested_ && hover_timer_ > 0.5f) {
+        lsp_client_.RequestHover(code_editor_uri_, hover_line_, hover_col_);
+        hover_requested_ = true;
+      }
+    }
+
+    if (lsp_client_.HasHover()) {
+      auto result = lsp_client_.TakeHover();
+      hover_text_ = result.contents;
+      auto is_ws = [](char c) {
+        return c == ' ' || c == '\n' || c == '\r' || c == '\t';
+      };
+      while (!hover_text_.empty() && is_ws(hover_text_.front())) {
+        hover_text_.erase(0, 1);
+      }
+      while (!hover_text_.empty() && is_ws(hover_text_.back())) {
+        hover_text_.pop_back();
+      }
+    }
+
+    if (!hover_text_.empty() && hover_requested_ && editor_hovered) {
+      ImGui::BeginTooltip();
+      text_editor_.RenderMarkdown(hover_text_, code_editor_font_);
+      ImGui::EndTooltip();
+    }
+
+    // Signature help - request when typing inside parens
+    if (lsp_client_.HasSignatureHelp()) {
+      signature_help_ = lsp_client_.TakeSignatureHelp();
+      signature_active_ = !signature_help_.signatures.empty();
+    }
+
+    // Signature help: fire pending request (deferred one frame so didChange
+    // is processed by the server first)
+    if (signature_pending_) {
+      lsp_client_.RequestSignatureHelp(code_editor_uri_, signature_line_,
+                                       signature_col_,
+                                       std::string(1, signature_trigger_));
+      signature_pending_ = false;
+    }
+
+    // Check if we should request signature help
+    if (text_editor_.IsTextChanged()) {
+      auto cursor = text_editor_.GetCursorPosition();
+      std::vector<std::string> lines = text_editor_.GetTextLines();
+      if (cursor.mLine < static_cast<int>(lines.size())) {
+        const std::string& line = lines[cursor.mLine];
+        int idx = cursor.mColumn - 1;
+        if (idx >= 0 && idx < static_cast<int>(line.size())) {
+          char ch = line[idx];
+          const std::string& triggers =
+              lsp_client_.GetSignatureTriggerChars();
+          if (triggers.find(ch) != std::string::npos) {
+            // Defer to next frame so didChange arrives first
+            signature_pending_ = true;
+            signature_trigger_ = ch;
+            signature_line_ = cursor.mLine;
+            signature_col_ = cursor.mColumn;
+          } else if (ch == ')' || ch == '>' || ch == '}' || ch == ']') {
+            signature_active_ = false;
+          }
+        }
+      }
+    }
+
+    // Render signature help popup
+    if (signature_active_ && !signature_help_.signatures.empty()) {
+      int idx = std::clamp(signature_help_.active_signature, 0,
+                           static_cast<int>(signature_help_.signatures.size()) - 1);
+      const auto& sig = signature_help_.signatures[idx];
+
+      // Position above the cursor line, not at mouse position
+      auto cursor = text_editor_.GetCursorPosition();
+      ImVec2 origin = text_editor_.GetContentOrigin();
+      float line_height = ImGui::GetTextLineHeightWithSpacing();
+      ImVec2 sig_pos(origin.x, origin.y + cursor.mLine * line_height - line_height - 4.0f);
+      ImGui::SetNextWindowPos(sig_pos, ImGuiCond_Always, ImVec2(0, 1));
+      ImGui::BeginTooltip();
+      if (code_editor_font_) {
+        ImGui::PushFont(code_editor_font_);
+      }
+      // Render signature with active parameter highlighted
+      if (!sig.parameters.empty() &&
+          signature_help_.active_parameter < static_cast<int>(sig.parameters.size())) {
+        const auto& active_param =
+            sig.parameters[signature_help_.active_parameter];
+        size_t param_pos = sig.label.find(active_param.label);
+        if (param_pos != std::string::npos) {
+          std::string before = sig.label.substr(0, param_pos);
+          if (!before.empty()) {
+            text_editor_.RenderCodeLine(before.c_str(),
+                                        before.c_str() + before.size());
+            ImGui::SameLine(0, 0);
+          }
+          ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s",
+                             active_param.label.c_str());
+          ImGui::SameLine(0, 0);
+          std::string after =
+              sig.label.substr(param_pos + active_param.label.size());
+          if (!after.empty()) {
+            text_editor_.RenderCodeLine(after.c_str(),
+                                        after.c_str() + after.size());
+          }
+        } else {
+          text_editor_.RenderCodeLine(sig.label.c_str(),
+                                      sig.label.c_str() + sig.label.size());
+        }
+        if (!active_param.documentation.empty()) {
+          ImGui::TextDisabled("%s", active_param.documentation.c_str());
+        }
+      } else {
+        text_editor_.RenderCodeLine(sig.label.c_str(),
+                                    sig.label.c_str() + sig.label.size());
+      }
+      if (code_editor_font_) {
+        ImGui::PopFont();
+      }
+      if (!sig.documentation.empty()) {
+        ImGui::Separator();
+        ImGui::PushTextWrapPos(400.0f);
+        ImGui::TextDisabled("%s", sig.documentation.c_str());
+        ImGui::PopTextWrapPos();
+      }
+      ImGui::EndTooltip();
+    }
+  }
+
   if (code_editor_font_) {
     ImGui::PopFont();
   }
@@ -4690,6 +4824,150 @@ void EditorLayer::RenderLspDebugPanel() {
   ImGui::EndChild();
 
   ImGui::End();
+}
+
+void EditorLayer::RenderEditorSettingsPanel() {
+  if (panel_editor_settings_) {
+    ImGui::OpenPopup("Editor Settings");
+    panel_editor_settings_ = false;
+  }
+
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(600, 420), ImGuiCond_Appearing);
+
+  bool popup_open = true;
+  if (ImGui::BeginPopupModal("Editor Settings", &popup_open,
+                             ImGuiWindowFlags_NoScrollbar)) {
+    static const char* categories[] = {"Appearance", "C# Language Server"};
+    static int selected_category = 0;
+
+    // Left panel: category list
+    ImGui::BeginChild("categories", ImVec2(160, 0), ImGuiChildFlags_Borders);
+    for (int i = 0; i < 2; i++) {
+      if (ImGui::Selectable(categories[i], selected_category == i)) {
+        selected_category = i;
+      }
+    }
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+
+    // Right panel: settings
+    ImGui::BeginChild("settings_content", ImVec2(0, 0), ImGuiChildFlags_Borders);
+
+    if (selected_category == 0) {
+      // --- Appearance ---
+      auto current = ImGui::Moonlight::GetCurrentTheme();
+      const char* theme_name = ImGui::Moonlight::GetThemeName(current);
+      if (ImGui::BeginCombo("Theme", theme_name)) {
+        for (int i = 0;
+             i < static_cast<int>(ImGui::Moonlight::Theme::Count); i++) {
+          auto theme = static_cast<ImGui::Moonlight::Theme>(i);
+          bool selected = (current == theme);
+          if (ImGui::Selectable(ImGui::Moonlight::GetThemeName(theme),
+                                selected)) {
+            ImGui::Moonlight::ApplyTheme(theme);
+            editor_config_->Set("editor.theme", static_cast<int>(theme));
+            editor_config_->Save();
+          }
+        }
+        ImGui::EndCombo();
+      }
+    } else if (selected_category == 1) {
+      // --- C# LSP ---
+      static char lsp_cmd_buf[512] = {};
+      static bool lsp_buf_initialized = false;
+      if (!lsp_buf_initialized) {
+        std::string saved =
+            editor_config_->Get<std::string>("lsp.csharp.command", "");
+        strncpy(lsp_cmd_buf, saved.c_str(), sizeof(lsp_cmd_buf) - 1);
+        lsp_buf_initialized = true;
+      }
+
+      ImGui::TextWrapped(
+          "Command to launch the C# LSP server. Examples:\n"
+          "  csharp-ls\n"
+          "  \"path/to/OmniSharp.exe\" --languageserver");
+      ImGui::Spacing();
+      ImGui::InputText("Command", lsp_cmd_buf, sizeof(lsp_cmd_buf));
+
+      ImGui::Spacing();
+      if (ImGui::Button("Auto-Detect")) {
+        std::string detected;
+        std::filesystem::path exe_dir = GetExecutableDirectory();
+#ifdef _WIN32
+        std::filesystem::path omnisharp =
+            exe_dir / "omnisharp" / "OmniSharp.exe";
+#else
+        std::filesystem::path omnisharp = exe_dir / "omnisharp" / "run";
+#endif
+        if (std::filesystem::exists(omnisharp)) {
+          detected = "\"" + omnisharp.string() + "\" --languageserver";
+        }
+        if (detected.empty()) {
+#ifdef _WIN32
+          if (std::system("where csharp-ls >nul 2>nul") == 0) {
+            detected = "csharp-ls";
+          }
+#else
+          if (std::system("which csharp-ls >/dev/null 2>&1") == 0) {
+            detected = "csharp-ls";
+          }
+#endif
+        }
+        if (!detected.empty()) {
+          strncpy(lsp_cmd_buf, detected.c_str(), sizeof(lsp_cmd_buf) - 1);
+          notifications_.PushInfo("Auto-detected: " + detected);
+        } else {
+          notifications_.PushWarning("No C# LSP server found on this system.");
+        }
+      }
+
+      ImGui::SameLine();
+      if (ImGui::Button("Install csharp-ls")) {
+        notifications_.PushInfo("Installing csharp-ls...");
+        Engine::thread_pool().Submit([this]() {
+          int result = std::system(
+              "dotnet tool install -g csharp-ls "
+              "--add-source https://api.nuget.org/v3/index.json");
+          if (result != 0) {
+            result = std::system(
+                "dotnet tool update -g csharp-ls "
+                "--add-source https://api.nuget.org/v3/index.json");
+          }
+          if (result == 0) {
+            notifications_.PushInfo("csharp-ls installed successfully.");
+          } else {
+            notifications_.PushError("Failed to install csharp-ls.");
+          }
+        });
+      }
+
+      ImGui::Spacing();
+      ImGui::Separator();
+      ImGui::Spacing();
+
+      if (ImGui::Button("Save & Restart LSP")) {
+        std::string cmd(lsp_cmd_buf);
+        editor_config_->Set("lsp.csharp.command", cmd);
+        editor_config_->Save();
+        StopLsp();
+        if (active_project_) {
+          StartLsp();
+        }
+      }
+      ImGui::SameLine();
+      ImGui::TextDisabled(
+          "Status: %s",
+          lsp_initialized_
+              ? (lsp_client_.IsRunning() ? "Running" : "Stopped")
+              : "Not started");
+    }
+
+    ImGui::EndChild();
+    ImGui::EndPopup();
+  }
 }
 
 void EditorLayer::RenderAssetPropertiesPanel() {
