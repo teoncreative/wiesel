@@ -40,8 +40,8 @@ target_include_directories(monolib PUBLIC ${MONO_INCLUDE_DIRS} include)
 target_link_directories(monolib PUBLIC ${MONO_LIBRARY_DIRS})
 target_link_libraries(monolib PUBLIC ${MONO_LIBRARIES} ${MONO_LDFLAGS})
 
-# Copy Mono runtime (etc + lib) to the build directory.
-# bin/ is no longer needed since we use dotnet build instead of mcs.
+# Link/copy Mono runtime (etc + lib) to the build directory.
+# Windows: copy (no symlinks). Unix: symlink for fast dev builds.
 if(WIN32)
     target_link_libraries(monolib PUBLIC winmm Ws2_32 Version bcrypt)
     add_custom_command(TARGET monolib PRE_BUILD
@@ -54,11 +54,9 @@ if(WIN32)
     )
 else()
     add_custom_command(TARGET monolib PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory /opt/homebrew/opt/mono/etc ${CMAKE_BINARY_DIR}/mono/etc
-            COMMENT "Copying mono etc to the build directory"
-    )
-    add_custom_command(TARGET monolib PRE_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory /opt/homebrew/opt/mono/lib ${CMAKE_BINARY_DIR}/mono/lib
-            COMMENT "Copying mono lib to the build directory"
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/mono
+            COMMAND ${CMAKE_COMMAND} -E create_symlink ${MONO_ROOT}/etc ${CMAKE_BINARY_DIR}/mono/etc
+            COMMAND ${CMAKE_COMMAND} -E create_symlink ${MONO_ROOT}/lib ${CMAKE_BINARY_DIR}/mono/lib
+            COMMENT "Symlinking mono etc/lib to the build directory"
     )
 endif()
