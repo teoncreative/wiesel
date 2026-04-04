@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['data_0',['data',['../classWiesel_1_1UserConfig.html#af4cca3e2542bb5f46b12457bf4dd7f80',1,'Wiesel::UserConfig::data() const'],['../classWiesel_1_1UserConfig.html#a8359e902fd386798e64bd25378190032',1,'Wiesel::UserConfig::data()'],['../classWiesel_1_1VfsFile.html#a7d2a97b60a169013062c78be5456ab87',1,'Wiesel::VfsFile::Data()']]],
+  ['data_0',['data',['../classWiesel_1_1UserConfig.html#a8359e902fd386798e64bd25378190032',1,'Wiesel::UserConfig::data()'],['../classWiesel_1_1VfsFile.html#a7d2a97b60a169013062c78be5456ab87',1,'Wiesel::VfsFile::Data()'],['../classWiesel_1_1UserConfig.html#af4cca3e2542bb5f46b12457bf4dd7f80',1,'Wiesel::UserConfig::data()']]],
   ['deallocate_1',['Deallocate',['../structWiesel_1_1Mesh.html#abaafab0f80631c2b8990aa7514f14305',1,'Wiesel::Mesh']]],
   ['debugcolliderfeature_2',['DebugColliderFeature',['../classWiesel_1_1DebugColliderFeature.html#a11762f9472723fcaf47fac05ca6edfb2',1,'Wiesel::DebugColliderFeature']]],
   ['declaretransient_3',['DeclareTransient',['../classWiesel_1_1RenderGraph.html#a6851b5094394713cdd879958b6aa61b3',1,'Wiesel::RenderGraph']]],

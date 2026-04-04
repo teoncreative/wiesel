@@ -34,11 +34,12 @@ var searchData=
   ['hasrmltextinputfocus_31',['HasRmlTextInputFocus',['../classWiesel_1_1UIEventSystem.html#a51dfe69f421e8ed57208887fdc2f153d',1,'Wiesel::UIEventSystem']]],
   ['hassemantictokens_32',['HasSemanticTokens',['../classWiesel_1_1Editor_1_1LspClient.html#a6f28ea1598d9a3f12a2190630e1af8f4',1,'Wiesel::Editor::LspClient']]],
   ['hasserializer_33',['HasSerializer',['../classWiesel_1_1AssetSerializerRegistry.html#acc27178a1e7ba49b2a2bbf3711ee9132',1,'Wiesel::AssetSerializerRegistry']]],
-  ['hasstencilcomponent_34',['HasStencilComponent',['../classWiesel_1_1Renderer.html#af926eb597218d298c0d7b5697bbb13fe',1,'Wiesel::Renderer']]],
-  ['hastag_35',['hastag',['../structWiesel_1_1TagComponent.html#a912b83466ba2f11b01d3c4d2397ebcca',1,'Wiesel::TagComponent::HasTag()'],['../classWieselEngine_1_1Entity.html#a73c14aa60928ca638389ea1e1620b701',1,'WieselEngine.Entity.HasTag()']]],
-  ['hastexture_36',['hastexture',['../structWiesel_1_1TextureSlot.html#ac87b1829c847ad867f6ad876a4818844',1,'Wiesel::TextureSlot::HasTexture()'],['../classWiesel_1_1CameraResourcePool.html#a412b9957d03ee4b47038e14a18bc06cb',1,'Wiesel::CameraResourcePool::HasTexture()']]],
-  ['hasthreadcommandpool_37',['HasThreadCommandPool',['../classWiesel_1_1Renderer.html#aa08fc4f19348185ee5eb7e844b4dbd8e',1,'Wiesel::Renderer']]],
-  ['hastlas_38',['HasTLAS',['../classWiesel_1_1AccelerationStructureManager.html#aaa4d780d4c51d1409ac26e3b39ce4218',1,'Wiesel::AccelerationStructureManager']]],
-  ['heightfieldcollidercomponent_39',['heightfieldcollidercomponent',['../structWiesel_1_1HeightfieldColliderComponent.html#aa8004929c5256c9f24dd66a85b6942a2',1,'Wiesel::HeightfieldColliderComponent::HeightfieldColliderComponent()=default'],['../structWiesel_1_1HeightfieldColliderComponent.html#a50b7f37ad9de666d85c4e7d8ea6c04d6',1,'Wiesel::HeightfieldColliderComponent::HeightfieldColliderComponent(const HeightfieldColliderComponent &amp;)=default']]],
-  ['hi_40',['hi',['../classWiesel_1_1UUID.html#aaeda2370d71ff5c23dd418bbb9a10b90',1,'Wiesel::UUID']]]
+  ['hassignaturehelp_34',['HasSignatureHelp',['../classWiesel_1_1Editor_1_1LspClient.html#a1b829a68e863e092dba0053e38d61697',1,'Wiesel::Editor::LspClient']]],
+  ['hasstencilcomponent_35',['HasStencilComponent',['../classWiesel_1_1Renderer.html#af926eb597218d298c0d7b5697bbb13fe',1,'Wiesel::Renderer']]],
+  ['hastag_36',['hastag',['../structWiesel_1_1TagComponent.html#a912b83466ba2f11b01d3c4d2397ebcca',1,'Wiesel::TagComponent::HasTag()'],['../classWieselEngine_1_1Entity.html#a73c14aa60928ca638389ea1e1620b701',1,'WieselEngine.Entity.HasTag()']]],
+  ['hastexture_37',['hastexture',['../structWiesel_1_1TextureSlot.html#ac87b1829c847ad867f6ad876a4818844',1,'Wiesel::TextureSlot::HasTexture()'],['../classWiesel_1_1CameraResourcePool.html#a412b9957d03ee4b47038e14a18bc06cb',1,'Wiesel::CameraResourcePool::HasTexture()']]],
+  ['hasthreadcommandpool_38',['HasThreadCommandPool',['../classWiesel_1_1Renderer.html#aa08fc4f19348185ee5eb7e844b4dbd8e',1,'Wiesel::Renderer']]],
+  ['hastlas_39',['HasTLAS',['../classWiesel_1_1AccelerationStructureManager.html#aaa4d780d4c51d1409ac26e3b39ce4218',1,'Wiesel::AccelerationStructureManager']]],
+  ['heightfieldcollidercomponent_40',['heightfieldcollidercomponent',['../structWiesel_1_1HeightfieldColliderComponent.html#aa8004929c5256c9f24dd66a85b6942a2',1,'Wiesel::HeightfieldColliderComponent::HeightfieldColliderComponent()=default'],['../structWiesel_1_1HeightfieldColliderComponent.html#a50b7f37ad9de666d85c4e7d8ea6c04d6',1,'Wiesel::HeightfieldColliderComponent::HeightfieldColliderComponent(const HeightfieldColliderComponent &amp;)=default']]],
+  ['hi_41',['hi',['../classWiesel_1_1UUID.html#aaeda2370d71ff5c23dd418bbb9a10b90',1,'Wiesel::UUID']]]
 ];

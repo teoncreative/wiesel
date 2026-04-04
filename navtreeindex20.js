@@ -1,5 +1,13 @@
 var NAVTREEINDEX20 =
 {
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcf":[2,0,4,341],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa02b4aaebee2b092452625eb27f8a85f1":[2,0,4,341,12],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa05b3dce6e0f8da4f434551354c06927f":[2,0,4,341,20],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa0f45700d0cbb836b50fb77296cf0b040":[2,0,4,341,22],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa11783af6be768504300caada41bca2d9":[2,0,4,341,17],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa234f5a67f7c3d14c6ffe80119141584f":[2,0,4,341,18],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa4a77f07c8ad223b71ab4ce78a63841ab":[2,0,4,341,6],
+"namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa50edb169910041bb3c06f6e8322d74c1":[2,0,4,341,11],
 "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa70ce1bd94aa9c16114f9611dc099e584":[2,0,4,341,0],
 "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa7349f643d689997b7c54bf93e4095f5c":[2,0,4,341,8],
 "namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcfa7584c169de594c27f00084b93186fd7c":[2,0,4,341,9],
@@ -241,13 +249,5 @@ var NAVTREEINDEX20 =
 "namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ad911ed9256592fc29bf18c68453614c4":[2,0,5,42,99],
 "namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887add6a4a8cb6db295d53aa87fdae673d3b":[2,0,5,42,58],
 "namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887add7536794b63bf90eccfd37f9b147d7f":[2,0,5,42,27],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ade1fdb50305767babf996219fc9ce47b":[2,0,5,42,105],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887adfcf28d0734569a6a693bc8194de62bf":[2,0,5,42,25],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887adff6f12878b78fc180f3baa5bf9cbc46":[2,0,5,42,110],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ae1dffc8709f31a4987c8a88334107e89":[2,0,5,42,70],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ae1e1d3d40573127e9ee0480caf1283d6":[2,0,5,42,36],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ae53b55851b9ff4979f2c3ff434a4a138":[2,0,5,42,84],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ae7e0e72401a9f2718ed0f39f2861d702":[2,0,5,42,73],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ae902674982fc99aa343cdd94da7476c3":[2,0,5,42,81],
-"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887aebd7820c520d05eca2d775c37d141273":[2,0,5,42,93]
+"namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ade1fdb50305767babf996219fc9ce47b":[2,0,5,42,105]
 };

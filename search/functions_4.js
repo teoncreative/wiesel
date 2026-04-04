@@ -15,7 +15,7 @@ var searchData=
   ['ensurebodiesexist_12',['EnsureBodiesExist',['../classWiesel_1_1PhysicsWorld.html#affec3b4fbddba696dc3556749d10c363',1,'Wiesel::PhysicsWorld']]],
   ['ensuredefaultskybox_13',['EnsureDefaultSkybox',['../classWiesel_1_1Scene.html#a9865d1342dcd42e33f6557256b1f8161',1,'Wiesel::Scene']]],
   ['ensuredefaultstate_14',['EnsureDefaultState',['../structWiesel_1_1StateMachineRuntime.html#a73eb9a80a1644fa53f6add91b3b1d5dc',1,'Wiesel::StateMachineRuntime']]],
-  ['entity_15',['entity',['../classWiesel_1_1IBehavior.html#a865cc9e710ce15d410b68e3f017c105a',1,'Wiesel::IBehavior::entity()'],['../classWieselEngine_1_1Entity.html#a484b6de1eed4c413f75b0600ba99f325',1,'WieselEngine.Entity.Entity()'],['../classWiesel_1_1Entity.html#a9ab68084e2300fb1683c1af1b77a891a',1,'Wiesel::Entity::Entity()']]],
+  ['entity_15',['entity',['../classWiesel_1_1Entity.html#a9ab68084e2300fb1683c1af1b77a891a',1,'Wiesel::Entity::Entity()'],['../classWiesel_1_1IBehavior.html#a865cc9e710ce15d410b68e3f017c105a',1,'Wiesel::IBehavior::entity()'],['../classWieselEngine_1_1Entity.html#a484b6de1eed4c413f75b0600ba99f325',1,'WieselEngine.Entity.Entity()']]],
   ['entity_5faddcomponent_16',['Entity_AddComponent',['../classWieselEngine_1_1Internals.html#a7010e35f6f195ff5071b7bc731bc8630',1,'WieselEngine::Internals']]],
   ['entity_5faddtag_17',['Entity_AddTag',['../classWieselEngine_1_1Internals.html#a98cd62184f07b22932ce2a41ebd31384',1,'WieselEngine::Internals']]],
   ['entity_5fclass_18',['entity_class',['../classWiesel_1_1ScriptManager.html#aa9dcf8471062014878af8c86ca1cefb8',1,'Wiesel::ScriptManager']]],

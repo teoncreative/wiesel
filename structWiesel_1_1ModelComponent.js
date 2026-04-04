@@ -4,7 +4,6 @@ var structWiesel_1_1ModelComponent =
     [ "ModelComponent", "structWiesel_1_1ModelComponent.html#adf075fd654a18132f864c00fcac84c3c", null ],
     [ "bone_descriptor_", "structWiesel_1_1ModelComponent.html#aca66e380167a34f8a604dcb014f238e7", null ],
     [ "bone_ubo_", "structWiesel_1_1ModelComponent.html#a3e68085345ca1af2b8e4b1a12d92c47f", null ],
-    [ "default_texture", "structWiesel_1_1ModelComponent.html#aeafb241f1a1d162465d06be8619a315d", null ],
     [ "enable_rendering", "structWiesel_1_1ModelComponent.html#a098cd06010dccc760827a7e6fa604d2d", null ],
     [ "geometry_descriptors", "structWiesel_1_1ModelComponent.html#a5b2de47c22c61826e97a70e3870007b5", null ],
     [ "material_instances", "structWiesel_1_1ModelComponent.html#a8d5a9001064d086ec25881f343d12a28", null ],
