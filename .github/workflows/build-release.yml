@@ -47,12 +47,30 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Cache Mono
+        id: cache-mono
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\Mono
+          key: mono-windows-latest
+
       - name: Install Mono
+        if: steps.cache-mono.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: choco install mono -y --no-progress
+
+      - name: Set Mono env
         shell: pwsh
         run: |
-          choco install mono -y --no-progress
           echo "C:\Program Files\Mono\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "MONO_ROOT=C:\Program Files\Mono" >> $env:GITHUB_ENV
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-build-windows-${{ hashFiles('wiesel/CMakeLists.txt', 'vendor/CMakeLists.txt', 'CMakeLists.txt') }}
+          restore-keys: cmake-build-windows-
 
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=0
@@ -87,6 +105,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 1
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-cache
+          key: apt-cache-linux-v1
 
       - name: Install system dependencies
         run: |
@@ -120,6 +145,13 @@ jobs:
         run: |
           echo "VULKAN_SDK=$HOME/vulkan-sdk/x86_64" >> $GITHUB_ENV
           echo "$HOME/vulkan-sdk/x86_64/bin" >> $GITHUB_PATH
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-build-linux-${{ hashFiles('wiesel/CMakeLists.txt', 'vendor/CMakeLists.txt', 'CMakeLists.txt') }}
+          restore-keys: cmake-build-linux-
 
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=0
