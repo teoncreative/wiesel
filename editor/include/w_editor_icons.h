@@ -31,11 +31,11 @@ struct EditorIconDef {
 };
 
 inline constexpr EditorIconDef kEditorIcons[] = {
-    {"folder", "engine://textures/ui/folder.png", 0xE000},
-    {"camera", "engine://textures/ui/camera.png", 0xE001},
-    {"console", "engine://textures/ui/console.png", 0xE002},
-    {"hierarchy", "engine://textures/ui/scene_hierarchy.png", 0xE003},
-    {"browser", "engine://textures/ui/browser.png", 0xE004},
+    {"folder", "editor://textures/ui/folder.png", 0xE000},
+    {"camera", "editor://textures/ui/camera.png", 0xE001},
+    {"console", "editor://textures/ui/console.png", 0xE002},
+    {"hierarchy", "editor://textures/ui/scene_hierarchy.png", 0xE003},
+    {"browser", "editor://textures/ui/browser.png", 0xE004},
 };
 
 // Initialize the editor icon font system. Call once in EditorLayer::OnAttach
