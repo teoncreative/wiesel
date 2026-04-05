@@ -28,6 +28,7 @@ class NativeBehaviorRegistry;
 class AudioManager;
 class ThreadPool;
 class UserConfig;
+class InputManager;
 struct GameInfo;
 #ifdef WIESEL_DISCORD_RPC
 class DiscordRPC;
@@ -73,7 +74,9 @@ class Engine {
 
   WIESEL_GETTER_FN static Application& app() { return *application_; }
 
-  WIESEL_GETTER_FN static DeveloperConsole& console() { return console_; }
+  WIESEL_GETTER_FN static DeveloperConsole& console() { return *console_; }
+
+  WIESEL_GETTER_FN static InputManager& input() { return *input_manager_; }
 
   WIESEL_GETTER_FN static AssetManager& asset_manager() {
     return *asset_manager_;
@@ -143,7 +146,8 @@ class Engine {
   static std::shared_ptr<Renderer> renderer_;
   static std::shared_ptr<AppWindow> window_;
   static std::shared_ptr<VirtualFileSystem> vfs_;
-  static DeveloperConsole console_;
+  static std::unique_ptr<DeveloperConsole> console_;
+  static std::unique_ptr<InputManager> input_manager_;
   static std::unique_ptr<AssetManager> asset_manager_;
 
   static std::unique_ptr<ScriptManager> script_manager_;

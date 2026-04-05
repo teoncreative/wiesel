@@ -15,47 +15,22 @@
 
 namespace Wiesel {
 
-// --- Global state ---
-
-// Keyboard
-static std::map<KeyCode, KeyData> keys_;
-static int mouse_x_ = 0;
-static int mouse_y_ = 0;
-static constexpr int kMaxMouseButtons = 8;
-static KeyData mouse_buttons_[kMaxMouseButtons] = {};
-static float mouse_axis_x_ = 0.0f;
-static float mouse_axis_y_ = 0.0f;
-static float mouse_axis_sens_x_ = 80.0f;
-static float mouse_axis_sens_y_ = 80.0f;
-
-// Gamepads
-static constexpr int kMaxGamepads = 16;
-static GamepadState gamepads_[kMaxGamepads];
-
-// Players
-static PlayerSlot players_[kMaxPlayers];
-
-// Contexts (loaded from project settings)
-static std::map<std::string, InputContext> contexts_;
-
-static bool input_enabled_ = true;
-
 // --- Helpers ---
 
-static const InputContext* GetContext(const std::string& name) {
+const InputContext* InputManager::GetContext(const std::string& name) {
   auto it = contexts_.find(name);
   return it != contexts_.end() ? &it->second : nullptr;
 }
 
-static const InputContext* GetPlayerContext(int player) {
+const InputContext* InputManager::GetPlayerContext(int player) {
   if (player < 0 || player >= kMaxPlayers || !players_[player].active) {
     return nullptr;
   }
   return GetContext(players_[player].context_name);
 }
 
-static const InputAction* FindAction(const InputContext* ctx,
-                                     const std::string& name) {
+const InputAction* InputManager::FindAction(const InputContext* ctx,
+                                            const std::string& name) {
   if (!ctx) {
     return nullptr;
   }
@@ -67,8 +42,8 @@ static const InputAction* FindAction(const InputContext* ctx,
   return nullptr;
 }
 
-static const InputAxisMapping* FindAxis(const InputContext* ctx,
-                                        const std::string& name) {
+const InputAxisMapping* InputManager::FindAxis(const InputContext* ctx,
+                                               const std::string& name) {
   if (!ctx) {
     return nullptr;
   }
@@ -81,16 +56,17 @@ static const InputAxisMapping* FindAxis(const InputContext* ctx,
 }
 
 // Check if action is pressed for a given player slot
-static bool IsActionActive(const PlayerSlot& slot, const InputAction* action,
-                           bool (*check_key)(KeyCode),
-                           bool (*check_btn)(int, GamepadButton)) {
+bool InputManager::IsActionActive(
+    const PlayerSlot& slot, const InputAction* action,
+    const std::function<bool(KeyCode)>& check_key,
+    const std::function<bool(int, GamepadButton)>& check_btn) {
   if (!action) {
     return false;
   }
 
   // Keyboard keys (only if player is not bound to a specific gamepad)
   if (slot.gamepad_index < 0) {
-    for (auto code : action->keys) {
+    for (int32_t code : action->keys) {
       if (check_key(code)) {
         return true;
       }
@@ -99,7 +75,7 @@ static bool IsActionActive(const PlayerSlot& slot, const InputAction* action,
 
   // Gamepad buttons
   if (slot.gamepad_index >= 0) {
-    for (auto btn : action->buttons) {
+    for (int32_t btn : action->buttons) {
       if (check_btn(slot.gamepad_index, btn)) {
         return true;
       }
@@ -111,17 +87,17 @@ static bool IsActionActive(const PlayerSlot& slot, const InputAction* action,
 
 // --- Event handlers ---
 
-static bool OnKeyPressed(KeyPressedEvent& event) {
+bool InputManager::OnKeyPressed(KeyPressedEvent& event) {
   keys_[event.GetKeyCode()].pressed = true;
   return false;
 }
 
-static bool OnKeyReleased(KeyReleasedEvent& event) {
+bool InputManager::OnKeyReleased(KeyReleasedEvent& event) {
   keys_[event.GetKeyCode()].pressed = false;
   return false;
 }
 
-static bool OnMouseMoved(MouseMovedEvent& event) {
+bool InputManager::OnMouseMoved(MouseMovedEvent& event) {
   mouse_x_ = event.GetX();
   mouse_y_ = event.GetY();
   if (event.GetCursorMode() == CursorModeRelative) {
@@ -131,7 +107,7 @@ static bool OnMouseMoved(MouseMovedEvent& event) {
   return false;
 }
 
-static bool OnMouseButtonPressed(MouseButtonPressedEvent& event) {
+bool InputManager::OnMouseButtonPressed(MouseButtonPressedEvent& event) {
   int btn = static_cast<int>(event.GetMouseButton());
   if (btn >= 0 && btn < kMaxMouseButtons) {
     mouse_buttons_[btn].pressed = true;
@@ -139,7 +115,7 @@ static bool OnMouseButtonPressed(MouseButtonPressedEvent& event) {
   return false;
 }
 
-static bool OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
+bool InputManager::OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
   int btn = static_cast<int>(event.GetMouseButton());
   if (btn >= 0 && btn < kMaxMouseButtons) {
     mouse_buttons_[btn].pressed = false;
@@ -147,7 +123,7 @@ static bool OnMouseButtonReleased(MouseButtonReleasedEvent& event) {
   return false;
 }
 
-static bool OnJoystickConnect(JoystickConnectedEvent& event) {
+bool InputManager::OnJoystickConnect(JoystickConnectedEvent& event) {
   int jid = event.GetJoystickId();
   if (jid >= 0 && jid < kMaxGamepads) {
     gamepads_[jid].connected = true;
@@ -158,7 +134,7 @@ static bool OnJoystickConnect(JoystickConnectedEvent& event) {
   return false;
 }
 
-static bool OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
+bool InputManager::OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
   int jid = event.GetJoystickId();
   if (jid >= 0 && jid < kMaxGamepads) {
     gamepads_[jid] = {};
@@ -167,7 +143,7 @@ static bool OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
   return false;
 }
 
-static bool OnJoystickButtonPressed(JoystickButtonPressedEvent& event) {
+bool InputManager::OnJoystickButtonPressed(JoystickButtonPressedEvent& event) {
   int jid = event.GetJoystickId();
   int btn = event.GetButton();
   if (jid >= 0 && jid < kMaxGamepads && btn >= 0 && btn < GamepadButtonCount) {
@@ -176,7 +152,8 @@ static bool OnJoystickButtonPressed(JoystickButtonPressedEvent& event) {
   return false;
 }
 
-static bool OnJoystickButtonReleased(JoystickButtonReleasedEvent& event) {
+bool InputManager::OnJoystickButtonReleased(
+    JoystickButtonReleasedEvent& event) {
   int jid = event.GetJoystickId();
   int btn = event.GetButton();
   if (jid >= 0 && jid < kMaxGamepads && btn >= 0 && btn < GamepadButtonCount) {
@@ -185,7 +162,7 @@ static bool OnJoystickButtonReleased(JoystickButtonReleasedEvent& event) {
   return false;
 }
 
-static bool OnJoystickAxisMoved(JoystickAxisMovedEvent& event) {
+bool InputManager::OnJoystickAxisMoved(JoystickAxisMovedEvent& event) {
   int jid = event.GetJoystickId();
   int axis = event.GetAxis();
   if (jid >= 0 && jid < kMaxGamepads && axis >= 0 && axis < GamepadAxisCount) {
@@ -196,28 +173,28 @@ static bool OnJoystickAxisMoved(JoystickAxisMovedEvent& event) {
 
 // --- Raw key checks ---
 
-static bool RawKeyPressed(KeyCode code) {
+bool InputManager::RawKeyPressed(KeyCode code) {
   return keys_[code].pressed;
 }
 
-static bool RawKeyDown(KeyCode code) {
+bool InputManager::RawKeyDown(KeyCode code) {
   auto& kd = keys_[code];
   return kd.pressed && !kd.previous_pressed;
 }
 
-static bool RawKeyUp(KeyCode code) {
+bool InputManager::RawKeyUp(KeyCode code) {
   auto& kd = keys_[code];
   return !kd.pressed && kd.previous_pressed;
 }
 
-static bool RawBtnPressed(int gp, GamepadButton btn) {
+bool InputManager::RawBtnPressed(int gp, GamepadButton btn) {
   if (gp < 0 || gp >= kMaxGamepads) {
     return false;
   }
   return gamepads_[gp].buttons[btn].pressed;
 }
 
-static bool RawBtnDown(int gp, GamepadButton btn) {
+bool InputManager::RawBtnDown(int gp, GamepadButton btn) {
   if (gp < 0 || gp >= kMaxGamepads) {
     return false;
   }
@@ -225,7 +202,7 @@ static bool RawBtnDown(int gp, GamepadButton btn) {
   return bd.pressed && !bd.previous_pressed;
 }
 
-static bool RawBtnUp(int gp, GamepadButton btn) {
+bool InputManager::RawBtnUp(int gp, GamepadButton btn) {
   if (gp < 0 || gp >= kMaxGamepads) {
     return false;
   }
@@ -235,7 +212,7 @@ static bool RawBtnUp(int gp, GamepadButton btn) {
 
 // --- InputManager ---
 
-void InputManager::Init() {
+InputManager::InputManager() {
   // Default: player 0 uses "keyboard" context with no gamepad
   players_[0].active = true;
   players_[0].context_name = "keyboard";
@@ -254,23 +231,23 @@ void InputManager::LoadFromSettings(const InputSettings& settings) {
 void InputManager::OnEvent(Event& event) {
   EventDispatcher dispatcher(event);
 
-  dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_GLOBAL_FN(OnKeyPressed));
-  dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_GLOBAL_FN(OnKeyReleased));
-  dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_GLOBAL_FN(OnMouseMoved));
+  dispatcher.Dispatch<KeyPressedEvent>(WIESEL_BIND_FN(OnKeyPressed));
+  dispatcher.Dispatch<KeyReleasedEvent>(WIESEL_BIND_FN(OnKeyReleased));
+  dispatcher.Dispatch<MouseMovedEvent>(WIESEL_BIND_FN(OnMouseMoved));
   dispatcher.Dispatch<MouseButtonPressedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnMouseButtonPressed));
+      WIESEL_BIND_FN(OnMouseButtonPressed));
   dispatcher.Dispatch<MouseButtonReleasedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnMouseButtonReleased));
+      WIESEL_BIND_FN(OnMouseButtonReleased));
   dispatcher.Dispatch<JoystickConnectedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnJoystickConnect));
+      WIESEL_BIND_FN(OnJoystickConnect));
   dispatcher.Dispatch<JoystickDisconnectedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnJoystickDisconnect));
+      WIESEL_BIND_FN(OnJoystickDisconnect));
   dispatcher.Dispatch<JoystickButtonPressedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnJoystickButtonPressed));
+      WIESEL_BIND_FN(OnJoystickButtonPressed));
   dispatcher.Dispatch<JoystickButtonReleasedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnJoystickButtonReleased));
+      WIESEL_BIND_FN(OnJoystickButtonReleased));
   dispatcher.Dispatch<JoystickAxisMovedEvent>(
-      WIESEL_BIND_GLOBAL_FN(OnJoystickAxisMoved));
+      WIESEL_BIND_FN(OnJoystickAxisMoved));
 }
 
 void InputManager::Update() {
@@ -328,7 +305,10 @@ bool InputManager::GetAction(int player, const std::string& action) {
 
   auto* ctx = GetPlayerContext(player);
   auto* act = FindAction(ctx, action);
-  return IsActionActive(players_[player], act, RawKeyPressed, RawBtnPressed);
+  return IsActionActive(
+      players_[player], act,
+      [this](KeyCode code) { return RawKeyPressed(code); },
+      [this](int gp, GamepadButton btn) { return RawBtnPressed(gp, btn); });
 }
 
 bool InputManager::GetActionDown(int player, const std::string& action) {
@@ -341,7 +321,9 @@ bool InputManager::GetActionDown(int player, const std::string& action) {
 
   auto* ctx = GetPlayerContext(player);
   auto* act = FindAction(ctx, action);
-  return IsActionActive(players_[player], act, RawKeyDown, RawBtnDown);
+  return IsActionActive(
+      players_[player], act, [this](KeyCode code) { return RawKeyDown(code); },
+      [this](int gp, GamepadButton btn) { return RawBtnDown(gp, btn); });
 }
 
 bool InputManager::GetActionUp(int player, const std::string& action) {
@@ -354,7 +336,9 @@ bool InputManager::GetActionUp(int player, const std::string& action) {
 
   const InputContext* ctx = GetPlayerContext(player);
   const InputAction* act = FindAction(ctx, action);
-  return IsActionActive(players_[player], act, RawKeyUp, RawBtnUp);
+  return IsActionActive(
+      players_[player], act, [this](KeyCode code) { return RawKeyUp(code); },
+      [this](int gp, GamepadButton btn) { return RawBtnUp(gp, btn); });
 }
 
 float InputManager::GetAxis(int player, const std::string& axis_name) {

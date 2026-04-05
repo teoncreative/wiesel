@@ -314,7 +314,7 @@ void GameLoader::CaptureRenderOptions(RenderOptionsSerialized& out_opts) {
 
 void GameLoader::ApplyInputSettings(const GameInfo& info) {
   if (!info.input.contexts.empty()) {
-    InputManager::LoadFromSettings(info.input);
+    Engine::input().LoadFromSettings(info.input);
   }
 }
 

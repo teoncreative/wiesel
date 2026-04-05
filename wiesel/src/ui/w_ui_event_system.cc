@@ -340,9 +340,9 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
   auto& registry = scene.GetRegistry();
 
   // Detect if mouse moved (skip hit testing if it hasn't)
-  float mx = static_cast<float>(InputManager::GetMouseX()) -
+  float mx = static_cast<float>(Engine::input().GetMouseX()) -
              scene.GetViewportOrigin().x;
-  float my = static_cast<float>(InputManager::GetMouseY()) -
+  float my = static_cast<float>(Engine::input().GetMouseY()) -
              scene.GetViewportOrigin().y;
   if (mx != last_mouse_x_ || my != last_mouse_y_) {
     mouse_dirty_ = true;
@@ -352,8 +352,8 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
 
   // Mouse button changes always need processing
   bool mouse_down =
-      InputManager::IsMouseButtonDown(MouseCode::kMouseButtonLeft);
-  bool mouse_up = InputManager::IsMouseButtonUp(MouseCode::kMouseButtonLeft);
+      Engine::input().IsMouseButtonDown(MouseCode::kMouseButtonLeft);
+  bool mouse_up = Engine::input().IsMouseButtonUp(MouseCode::kMouseButtonLeft);
   if (mouse_down || mouse_up) {
     mouse_dirty_ = true;
   }
@@ -368,7 +368,7 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
     auto& canvas = registry.get<CanvasComponent>(entity);
     int player = canvas.player_index;
 
-    if (InputManager::GetInputMode(player) == kInputModeGamepad) {
+    if (Engine::input().GetInputMode(player) == kInputModeGamepad) {
       ProcessGamepadInput(scene, delta_time, player, entity);
     } else {
       auto it = player_nav_.find(player);
@@ -391,15 +391,15 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
   float mouse_x = last_mouse_x_;
   float mouse_y = last_mouse_y_;
   bool mouse_down =
-      InputManager::IsMouseButtonDown(MouseCode::kMouseButtonLeft);
-  bool mouse_up = InputManager::IsMouseButtonUp(MouseCode::kMouseButtonLeft);
+      Engine::input().IsMouseButtonDown(MouseCode::kMouseButtonLeft);
+  bool mouse_up = Engine::input().IsMouseButtonUp(MouseCode::kMouseButtonLeft);
 
   // Per-canvas processing: transform coords once, then hit test + forward
   entt::entity hit_entity = entt::null;
 
   for (auto canvas_entity : registry.view<CanvasComponent>()) {
     auto& canvas = registry.get<CanvasComponent>(canvas_entity);
-    if (InputManager::GetInputMode(canvas.player_index) !=
+    if (Engine::input().GetInputMode(canvas.player_index) !=
         kInputModeKeyboardAndMouse) {
       continue;
     }
@@ -529,13 +529,13 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
     return;
   }
 
-  const auto& slot = InputManager::GetPlayerSlot(player_index);
+  const auto& slot = Engine::input().GetPlayerSlot(player_index);
   int gp = slot.gamepad_index;
-  if (gp < 0 || !InputManager::GetGamepadState(gp).connected) {
+  if (gp < 0 || !Engine::input().GetGamepadState(gp).connected) {
     return;
   }
 
-  const auto& state = InputManager::GetGamepadState(gp);
+  const auto& state = Engine::input().GetGamepadState(gp);
 
   glm::vec2 nav_dir = {0.0f, 0.0f};
 

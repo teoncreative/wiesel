@@ -48,14 +48,14 @@ void Internals_Log_Info(MonoString* str) {
 
 float Internals_Input_GetAxis(MonoString* str) {
   char* cstr = mono_string_to_utf8(str);
-  float value = InputManager::GetAxis(cstr);
+  float value = Engine::input().GetAxis(cstr);
   mono_free(cstr);
   return value;
 }
 
 bool Internals_Input_GetKey(MonoString* str) {
   char* cstr = mono_string_to_utf8(str);
-  bool value = InputManager::GetAction(cstr);
+  bool value = Engine::input().GetAction(cstr);
   mono_free(cstr);
   return value;
 }
@@ -77,14 +77,14 @@ uint16_t Internals_Input_GetCursorMode() {
 
 bool Internals_Input_GetKeyDown(MonoString* str) {
   char* cstr = mono_string_to_utf8(str);
-  bool value = InputManager::GetActionDown(cstr);
+  bool value = Engine::input().GetActionDown(cstr);
   mono_free(cstr);
   return value;
 }
 
 bool Internals_Input_GetKeyUp(MonoString* str) {
   char* cstr = mono_string_to_utf8(str);
-  bool value = InputManager::GetActionUp(cstr);
+  bool value = Engine::input().GetActionUp(cstr);
   mono_free(cstr);
   return value;
 }
@@ -431,11 +431,11 @@ void Internals_Entity_RemoveComponent(uint64_t scene_ptr, uint64_t entity_id,
 // --- Mouse bindings ---
 
 int Internals_Input_GetMouseX() {
-  return InputManager::GetMouseX();
+  return Engine::input().GetMouseX();
 }
 
 int Internals_Input_GetMouseY() {
-  return InputManager::GetMouseY();
+  return Engine::input().GetMouseY();
 }
 
 bool Internals_Input_GetMouseButton(int button) {
@@ -453,17 +453,17 @@ bool Internals_Input_GetMouseButtonUp(int button) {
 // --- Gamepad bindings ---
 
 bool Internals_Input_GetGamepadButton(int gamepad_index, int button) {
-  return InputManager::IsGamepadButtonPressed(
+  return Engine::input().IsGamepadButtonPressed(
       gamepad_index, static_cast<GamepadButton>(button));
 }
 
 float Internals_Input_GetGamepadAxis(int gamepad_index, int axis) {
-  return InputManager::GetGamepadAxis(gamepad_index,
-                                      static_cast<GamepadAxis>(axis));
+  return Engine::input().GetGamepadAxis(gamepad_index,
+                                        static_cast<GamepadAxis>(axis));
 }
 
 int Internals_Input_GetConnectedGamepadCount() {
-  return InputManager::GetConnectedGamepadCount();
+  return Engine::input().GetConnectedGamepadCount();
 }
 
 // --- Entity tag bindings ---

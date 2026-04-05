@@ -21,6 +21,7 @@
 #include "util/w_command.h"
 #include "util/w_logger.h"
 #include "util/w_utils.h"
+#include "w_engine.h"
 #include "w_pch.h"
 
 namespace Wiesel {

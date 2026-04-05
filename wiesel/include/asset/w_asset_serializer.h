@@ -17,6 +17,7 @@
 #include <vector>
 #include "asset/w_asset_handle.h"
 #include "asset/w_asset_manager.h"
+#include "w_engine.h"
 
 namespace Wiesel {
 

@@ -32,6 +32,8 @@ struct CommandEntry {
 
 class DeveloperConsole {
  public:
+  DeveloperConsole();
+
   void Register(const std::string& name, const std::string& description,
                 CommandCallback callback);
   void Unregister(const std::string& name);
@@ -66,9 +68,6 @@ class DeveloperConsole {
   void Toggle() { visible_ = !visible_; }
 
  private:
-  friend class Engine;
-  DeveloperConsole();
-
   std::vector<std::string> Tokenize(const std::string& command_line);
 
   std::map<std::string, CommandEntry> commands_;

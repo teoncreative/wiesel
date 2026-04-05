@@ -501,7 +501,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 #endif
 
   // Only let scripts read input when the Game panel is focused during play
-  InputManager::SetEnabled(editor_state_ == EditorState::Playing &&
+  Engine::input().SetEnabled(editor_state_ == EditorState::Playing &&
                            game_panel_focused_);
 
   // Process pending scene loads (both edit and play mode)
@@ -3280,7 +3280,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
           ImGui::DragFloat(PrefixLabel("Sensitivity Y").c_str(),
                            &input.mouse_sensitivity_y, 1.0f, 1.0f, 500.0f);
 
-      int gp_count = InputManager::GetConnectedGamepadCount();
+      int gp_count = Engine::input().GetConnectedGamepadCount();
       if (gp_count > 0) {
         ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
                            "Gamepads: %d connected", gp_count);
@@ -3343,7 +3343,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
           // Skip rendering rest since ctx is gone
           ImGui::EndChild();
           if (input_changed) {
-            InputManager::LoadFromSettings(input);
+            Engine::input().LoadFromSettings(input);
             changed = true;
           }
           // Early out handled below
@@ -3675,7 +3675,7 @@ void EditorLayer::RenderProjectSettingsPopup() {
 
     input_done:
       if (input_changed) {
-        InputManager::LoadFromSettings(input);
+        Engine::input().LoadFromSettings(input);
         changed = true;
       }
     }

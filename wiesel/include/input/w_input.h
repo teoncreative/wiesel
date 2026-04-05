@@ -11,12 +11,17 @@
 
 #pragma once
 
+#include "events/w_appevents.h"
 #include "events/w_events.h"
+#include "events/w_keyevents.h"
+#include "events/w_mouseevents.h"
 #include "util/w_gamepadcodes.h"
 #include "util/w_keycodes.h"
 #include "util/w_mousecodes.h"
 
 namespace Wiesel {
+class MouseMovedEvent;
+
 struct KeyData {
   KeyData() : pressed(false), previous_pressed(false) {}
 
@@ -30,6 +35,8 @@ enum InputMode { kInputModeKeyboardAndMouse, kInputModeGamepad };
 
 struct InputSettings;
 struct InputContext;
+struct InputAction;
+struct InputAxisMapping;
 
 // Max players supported
 constexpr int kMaxPlayers = 4;
@@ -57,53 +64,103 @@ struct PlayerSlot {
   }
 };
 
+constexpr int kMaxMouseButtons = 8;
+constexpr int kMaxGamepads = 16;
+
 class InputManager {
  public:
+  InputManager();
+
   // --- Single-player convenience (player 0) ---
-  static bool GetAction(const std::string& action);
-  static bool GetActionDown(const std::string& action);
-  static bool GetActionUp(const std::string& action);
-  static float GetAxis(const std::string& axis_name);
+  bool GetAction(const std::string& action);
+  bool GetActionDown(const std::string& action);
+  bool GetActionUp(const std::string& action);
+  float GetAxis(const std::string& axis_name);
 
   // --- Multi-player ---
-  static bool GetAction(int player, const std::string& action);
-  static bool GetActionDown(int player, const std::string& action);
-  static bool GetActionUp(int player, const std::string& action);
-  static float GetAxis(int player, const std::string& axis_name);
+  bool GetAction(int player, const std::string& action);
+  bool GetActionDown(int player, const std::string& action);
+  bool GetActionUp(int player, const std::string& action);
+  float GetAxis(int player, const std::string& axis_name);
 
   // --- Player management ---
-  static void AssignPlayer(int player, const std::string& context,
-                           int gamepad_index = -1);
-  static void UnassignPlayer(int player);
-  static const PlayerSlot& GetPlayerSlot(int player);
+  void AssignPlayer(int player, const std::string& context,
+                    int gamepad_index = -1);
+  void UnassignPlayer(int player);
+  const PlayerSlot& GetPlayerSlot(int player);
 
   // --- Raw key queries (not context-aware) ---
-  static bool IsKeyPressed(KeyCode code);
-  static bool IsGamepadButtonPressed(int gamepad_index, GamepadButton button);
-  static float GetGamepadAxis(int gamepad_index, GamepadAxis axis);
+  bool IsKeyPressed(KeyCode code);
+  bool IsGamepadButtonPressed(int gamepad_index, GamepadButton button);
+  float GetGamepadAxis(int gamepad_index, GamepadAxis axis);
 
   // --- Mouse ---
-  static int GetMouseX();
-  static int GetMouseY();
-  static bool IsMouseButtonPressed(MouseCode button);
-  static bool IsMouseButtonDown(MouseCode button);
-  static bool IsMouseButtonUp(MouseCode button);
+  int GetMouseX();
+  int GetMouseY();
+  bool IsMouseButtonPressed(MouseCode button);
+  bool IsMouseButtonDown(MouseCode button);
+  bool IsMouseButtonUp(MouseCode button);
 
   // --- Gamepad info ---
-  static int GetConnectedGamepadCount();
-  static const GamepadState& GetGamepadState(int index);
+  int GetConnectedGamepadCount();
+  const GamepadState& GetGamepadState(int index);
 
   // --- Input mode (per-player, derived from device assignment) ---
-  static InputMode GetInputMode(int player = 0);
+  InputMode GetInputMode(int player = 0);
 
   // --- System ---
-  static void Init();
-  static void Update();
-  static void OnEvent(Event& event);
-  static void LoadFromSettings(const InputSettings& settings);
+  void Update();
+  void OnEvent(Event& event);
+  void LoadFromSettings(const InputSettings& settings);
 
-  static void SetEnabled(bool enabled);
-  static bool IsEnabled();
+  void SetEnabled(bool enabled);
+  bool IsEnabled();
+
+ private:
+  // --- Helpers ---
+  const InputContext* GetContext(const std::string& name);
+  const InputContext* GetPlayerContext(int player);
+  const InputAction* FindAction(const InputContext* ctx,
+                                const std::string& name);
+  const InputAxisMapping* FindAxis(const InputContext* ctx,
+                                   const std::string& name);
+  bool IsActionActive(const PlayerSlot& slot, const InputAction* action,
+                      const std::function<bool(KeyCode)>& check_key,
+                      const std::function<bool(int, GamepadButton)>& check_btn);
+
+  // --- Raw key checks ---
+  bool RawKeyPressed(KeyCode code);
+  bool RawKeyDown(KeyCode code);
+  bool RawKeyUp(KeyCode code);
+  bool RawBtnPressed(int gp, GamepadButton btn);
+  bool RawBtnDown(int gp, GamepadButton btn);
+  bool RawBtnUp(int gp, GamepadButton btn);
+
+  // --- Event handlers ---
+  bool OnKeyPressed(KeyPressedEvent& event);
+  bool OnKeyReleased(KeyReleasedEvent& event);
+  bool OnMouseMoved(MouseMovedEvent& event);
+  bool OnMouseButtonPressed(MouseButtonPressedEvent& event);
+  bool OnMouseButtonReleased(MouseButtonReleasedEvent& event);
+  bool OnJoystickConnect(JoystickConnectedEvent& event);
+  bool OnJoystickDisconnect(JoystickDisconnectedEvent& event);
+  bool OnJoystickButtonPressed(JoystickButtonPressedEvent& event);
+  bool OnJoystickButtonReleased(JoystickButtonReleasedEvent& event);
+  bool OnJoystickAxisMoved(JoystickAxisMovedEvent& event);
+
+  // --- Data ---
+  std::map<KeyCode, KeyData> keys_;
+  int mouse_x_ = 0;
+  int mouse_y_ = 0;
+  KeyData mouse_buttons_[kMaxMouseButtons] = {};
+  float mouse_axis_x_ = 0.0f;
+  float mouse_axis_y_ = 0.0f;
+  float mouse_axis_sens_x_ = 80.0f;
+  float mouse_axis_sens_y_ = 80.0f;
+  GamepadState gamepads_[kMaxGamepads] = {};
+  PlayerSlot players_[kMaxPlayers] = {};
+  std::map<std::string, InputContext> contexts_;
+  bool input_enabled_ = true;
 };
 
 }  // namespace Wiesel

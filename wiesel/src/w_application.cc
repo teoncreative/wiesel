@@ -87,7 +87,7 @@ void Application::OnEvent(Event& event) {
 
   if (!event.handled_) {
     PROFILE_ZONE_SCOPED_N("InputManager::OnEvent");
-    InputManager::OnEvent(event);
+    Engine::input().OnEvent(event);
   }
 }
 
@@ -161,11 +161,11 @@ void Application::Run() {
     }
 
     // INPUT ORDERING (fragile - do not reorder):
-    // 1. InputManager::Update() saves previous_pressed from last frame
+    // 1. Engine::input().Update() saves previous_pressed from last frame
     // 2. window_->OnUpdate() polls OS events, dispatches press/release to InputManager
     // 3. Layer updates read IsMouseButtonDown/Up (pressed && !previous_pressed)
     // If Update() runs after OnUpdate(), the single-frame Down/Up signals are lost.
-    InputManager::Update();
+    Engine::input().Update();
     window_->OnUpdate();
     if (window_resized_) {
       window_->GetWindowFramebufferSize(window_size_);
