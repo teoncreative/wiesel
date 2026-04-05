@@ -369,7 +369,8 @@ void Engine::InitEngine(const EngineProperties& props) {
                   {{u0, v0}}, {{u1, v0}}, {{u1, v1}},
                   {{u0, v0}}, {{u1, v1}}, {{u0, v1}},
               };
-              gpu->vertex_buffer = Engine::renderer()->CreateVertexBuffer(uvs);
+              gpu->vertex_buffer = Engine::renderer()->CreateVertexBuffer(
+                  "SpriteGpuData::vertex_buffer", uvs);
 
               asset_manager_->Store(handle, gpu);
             }
@@ -560,6 +561,8 @@ void Engine::CleanupAssets() {
 }
 
 void Engine::CleanupRenderer() {
+  cursor_manager_ = nullptr;
+  ui_manager_ = nullptr;
   renderer_->Cleanup();
   renderer_ = nullptr;
 }

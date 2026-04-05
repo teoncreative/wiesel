@@ -105,8 +105,8 @@ void GridFeature::SetupResources(RenderContext& ctx) {
   pool.SetDescriptor("grid.output", output_desc);
 
   // Grid UBO
-  pool.SetBuffer("grid.ubo",
-                 renderer.CreateUniformBuffer(sizeof(GridUniformData)));
+  pool.SetBuffer("grid.ubo", renderer.CreateUniformBuffer(
+                                 "grid.ubo", sizeof(GridUniformData)));
 
   // Grid draw descriptor (UBO for the grid shader)
   auto grid_desc = std::make_shared<DescriptorSet>();

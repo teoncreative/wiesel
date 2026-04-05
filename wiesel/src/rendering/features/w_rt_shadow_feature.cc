@@ -38,7 +38,8 @@ RTShadowFeature::RTShadowFeature(std::shared_ptr<Renderer> renderer)
   rt_descriptor_layout_->Bake();
 
   // UBO for shadow light data
-  shadow_lights_ubo_ = renderer_->CreateUniformBuffer(sizeof(RTShadowLightUBO));
+  shadow_lights_ubo_ = renderer_->CreateUniformBuffer(
+      "RTShadowFeature::shadow_lights_ubo_", sizeof(RTShadowLightUBO));
 
   // Compile RT shaders
   auto raygen = renderer_->CreateShader({ShaderTypeRayGen, ShaderLangGLSL,

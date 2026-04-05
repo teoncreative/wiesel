@@ -196,13 +196,15 @@ Rml::CompiledGeometryHandle RmlRenderInterface::CompileGeometry(
                      (rv.colour.blue << 16) | (rv.colour.alpha << 24);
     verts[i].tex_coord = {rv.tex_coord.x, rv.tex_coord.y};
   }
-  compiled->vertex_buffer = renderer_->CreateVertexBuffer(verts);
+  compiled->vertex_buffer = renderer_->CreateVertexBuffer(
+      "RmlCompiledGeometry::vertex_buffer", verts);
 
   std::vector<Index> idx(indices.size());
   for (size_t i = 0; i < indices.size(); i++) {
     idx[i] = static_cast<Index>(indices[i]);
   }
-  compiled->index_buffer = renderer_->CreateIndexBuffer(idx);
+  compiled->index_buffer =
+      renderer_->CreateIndexBuffer("RmlCompiledGeometry::index_buffer", idx);
   compiled->index_count = static_cast<uint32_t>(indices.size());
 
   return reinterpret_cast<Rml::CompiledGeometryHandle>(compiled);

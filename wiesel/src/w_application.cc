@@ -44,9 +44,6 @@ Application::Application(const WindowProperties&& window_props,
 Application::~Application() {
   LOG_DEBUG("Destroying Application");
 
-  // Wait for GPU to finish before destroying any resources.
-  Engine::renderer()->WaitForGPU();
-
   for (const auto& item : layers_ | std::views::reverse) {
     item->OnDetach();
   }

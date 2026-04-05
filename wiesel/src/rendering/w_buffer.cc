@@ -26,13 +26,8 @@ MemoryBuffer::~MemoryBuffer() {
   if (!vma_buffer_) {
     return;
   }
-  auto renderer = Engine::renderer();
-  if (!renderer) {
-    return;
-  }
-
   buffer_handle_ = VK_NULL_HANDLE;
-  renderer->GetDeletionQueue().Defer(std::move(vma_buffer_));
+  Engine::renderer()->GetDeletionQueue().Defer(std::move(vma_buffer_));
 }
 
 UniformBuffer::UniformBuffer() : MemoryBuffer(MemoryTypeUniformBuffer) {}
@@ -42,9 +37,6 @@ UniformBuffer::~UniformBuffer() {
     return;
   }
   auto renderer = Engine::renderer();
-  if (!renderer) {
-    return;
-  }
 
   // Must unmap before VMA destroys the allocation
   if (data_) {

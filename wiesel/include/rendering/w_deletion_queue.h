@@ -17,20 +17,15 @@ namespace Wiesel {
 
 class DeletionQueue {
  public:
-  using DeleteFn = std::function<void()>;
+  using DeleteFn = std::move_only_function<void()>;
 
-  void Push(DeleteFn&& fn, uint32_t frames_to_wait = 2) {
+  void Push(DeleteFn fn, uint32_t frames_to_wait = 2) {
     entries_.push_back({std::move(fn), frames_to_wait});
   }
 
-  // Defer destruction of any movable object (e.g. VmaBuffer, VmaImage).
-  // The object is moved into the queue and destroyed when the wait expires.
-  // Defer destruction of a unique_ptr-owned object (e.g. VmaBuffer, VmaImage).
-  // The unique_ptr is moved into the queue and reset when the wait expires.
   template <typename T>
   void Defer(std::unique_ptr<T> obj, uint32_t frames_to_wait = 2) {
-    auto held = std::shared_ptr<T>(std::move(obj));
-    Push([held]() mutable { held.reset(); }, frames_to_wait);
+    Push([held = std::move(obj)]() mutable { held.reset(); }, frames_to_wait);
   }
 
   // Call once per frame after presenting. Ticks down all counters and

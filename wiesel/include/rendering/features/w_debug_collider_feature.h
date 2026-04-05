@@ -25,6 +25,12 @@ struct DebugColliderPushConstant {
   glm::vec4 color;
 };
 
+// Filled geometry (triangle lists for translucent overlays, with UVs)
+struct OverlayVertex {
+  glm::vec3 position;
+  glm::vec2 uv;
+};
+
 class DebugColliderFeature : public RenderFeature {
  public:
   explicit DebugColliderFeature(std::shared_ptr<Renderer> renderer);
@@ -65,12 +71,6 @@ class DebugColliderFeature : public RenderFeature {
   std::shared_ptr<MemoryBuffer> sphere_vertex_buffer_;
   std::shared_ptr<IndexBuffer> sphere_index_buffer_;
   uint32_t sphere_index_count_ = 0;
-
-  // Filled geometry (triangle lists for translucent overlays, with UVs)
-  struct OverlayVertex {
-    glm::vec3 position;
-    glm::vec2 uv;
-  };
 
   std::shared_ptr<MemoryBuffer> filled_box_vb_;
   std::shared_ptr<IndexBuffer> filled_box_ib_;

@@ -25,8 +25,11 @@ namespace Wiesel {
 // Destructor calls vmaDestroyBuffer.
 class VmaBuffer {
  public:
-  VmaBuffer(VmaAllocator allocator, VkBuffer buffer, VmaAllocation allocation)
-      : allocator_(allocator), buffer_(buffer), allocation_(allocation) {}
+  VmaBuffer(VmaAllocator allocator, VkBuffer buffer, VmaAllocation allocation,
+            const std::string& debug_name = "")
+      : allocator_(allocator), buffer_(buffer), allocation_(allocation) {
+    SetDebugName(debug_name);
+  }
 
   ~VmaBuffer();
 
@@ -39,6 +42,10 @@ class VmaBuffer {
 
   VmaAllocation Allocation() const { return allocation_; }
 
+  VmaAllocator Allocator() const { return allocator_; }
+
+  void SetDebugName(const std::string& name);
+
  private:
   VmaAllocator allocator_;
   VkBuffer buffer_;
@@ -49,8 +56,11 @@ class VmaBuffer {
 // Non-copyable, non-movable. Same semantics as VmaBuffer.
 class VmaImage {
  public:
-  VmaImage(VmaAllocator allocator, VkImage image, VmaAllocation allocation)
-      : allocator_(allocator), image_(image), allocation_(allocation) {}
+  VmaImage(VmaAllocator allocator, VkImage image, VmaAllocation allocation,
+           const std::string& debug_name = "")
+      : allocator_(allocator), image_(image), allocation_(allocation) {
+    SetDebugName(debug_name);
+  }
 
   ~VmaImage();
 
@@ -62,6 +72,8 @@ class VmaImage {
   VkImage Handle() const { return image_; }
 
   VmaAllocation Allocation() const { return allocation_; }
+
+  void SetDebugName(const std::string& name);
 
  private:
   VmaAllocator allocator_;

@@ -37,8 +37,10 @@ void Mesh::Allocate() {
     Deallocate();
   }
 
-  vertex_buffer = Engine::renderer()->CreateVertexBuffer(vertices);
-  index_buffer = Engine::renderer()->CreateIndexBuffer(indices);
+  vertex_buffer =
+      Engine::renderer()->CreateVertexBuffer("Mesh::vertex_buffer", vertices);
+  index_buffer =
+      Engine::renderer()->CreateIndexBuffer("Mesh::index_buffer", indices);
   allocated_ = true;
 }
 

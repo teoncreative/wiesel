@@ -186,11 +186,11 @@ VkDevice Renderer::GetLogicalDevice() {
 
 template <typename T>
 std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
-    std::vector<T> vertices) {
-  std::shared_ptr<MemoryBuffer> memoryBuffer =
+    const std::string& debug_name, std::vector<T> vertices) {
+  std::shared_ptr<MemoryBuffer> memory_buffer =
       std::make_shared<MemoryBuffer>(MemoryTypeVertexBuffer);
 
-  memoryBuffer->size_ = vertices.size();
+  memory_buffer->size_ = vertices.size();
 
   VkDeviceSize buffer_size = sizeof(T) * vertices.size();
   VkBuffer staging_buffer;
@@ -216,18 +216,18 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
   VmaAllocation alloc;
   CreateBuffer(buffer_size, vertex_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                buffer, alloc);
-  memoryBuffer->buffer_handle_ = buffer;
-  memoryBuffer->vma_buffer_ =
-      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc);
+  memory_buffer->buffer_handle_ = buffer;
+  memory_buffer->vma_buffer_ =
+      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc, debug_name);
 
-  CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
+  CopyBuffer(staging_buffer, memory_buffer->buffer_handle_, buffer_size);
 
   if (rt_supported_) {
-    VkBufferDeviceAddressInfo addrInfo{};
-    addrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    addrInfo.buffer = memoryBuffer->buffer_handle_;
-    memoryBuffer->device_address_ =
-        vkGetBufferDeviceAddress(logical_device_, &addrInfo);
+    VkBufferDeviceAddressInfo addr_info{};
+    addr_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addr_info.buffer = memory_buffer->buffer_handle_;
+    memory_buffer->device_address_ =
+        vkGetBufferDeviceAddress(logical_device_, &addr_info);
   }
 
   if (tl_batch_active_) {
@@ -235,38 +235,40 @@ std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
   } else {
     vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
-  return memoryBuffer;
+  return memory_buffer;
 }
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<Vertex3D>(
-    std::vector<Vertex3D>);
+    const std::string& debug_name, std::vector<Vertex3D>);
 
 template std::shared_ptr<MemoryBuffer>
-    Renderer::CreateVertexBuffer<Vertex2DNoColor>(std::vector<Vertex2DNoColor>);
+Renderer::CreateVertexBuffer<Vertex2DNoColor>(const std::string& debug_name,
+                                              std::vector<Vertex2DNoColor>);
 
 template std::shared_ptr<MemoryBuffer>
-    Renderer::CreateVertexBuffer<VertexSprite>(std::vector<VertexSprite>);
+Renderer::CreateVertexBuffer<VertexSprite>(const std::string& debug_name,
+                                           std::vector<VertexSprite>);
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<glm::vec3>(
-    std::vector<glm::vec3>);
+    const std::string& debug_name, std::vector<glm::vec3>);
 
 template std::shared_ptr<MemoryBuffer>
-    Renderer::CreateVertexBuffer<DebugColliderFeature::OverlayVertex>(
-        std::vector<DebugColliderFeature::OverlayVertex>);
+Renderer::CreateVertexBuffer<OverlayVertex>(const std::string& debug_name,
+                                            std::vector<OverlayVertex>);
 
 template std::shared_ptr<MemoryBuffer>
-    Renderer::CreateVertexBuffer<BillboardVertex>(std::vector<BillboardVertex>);
+Renderer::CreateVertexBuffer<BillboardVertex>(const std::string& debug_name, std::vector<BillboardVertex>);
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<RmlVertex>(
-    std::vector<RmlVertex>);
+    const std::string& debug_name, std::vector<RmlVertex>);
 
 std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
-    std::vector<Index> indices) {
-  std::shared_ptr<IndexBuffer> memoryBuffer = std::make_shared<IndexBuffer>();
+    const std::string& debug_name, std::vector<Index> indices) {
+  std::shared_ptr<IndexBuffer> index_buffer = std::make_shared<IndexBuffer>();
 
   static_assert(sizeof(Index) == sizeof(uint32_t));
-  memoryBuffer->index_type_ = VK_INDEX_TYPE_UINT32;
-  memoryBuffer->size_ = indices.size();
+  index_buffer->index_type_ = VK_INDEX_TYPE_UINT32;
+  index_buffer->size_ = indices.size();
   VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
 
   VkBuffer staging_buffer;
@@ -292,18 +294,18 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
   VmaAllocation alloc;
   CreateBuffer(buffer_size, index_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                buffer, alloc);
-  memoryBuffer->buffer_handle_ = buffer;
-  memoryBuffer->vma_buffer_ =
-      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc);
+  index_buffer->buffer_handle_ = buffer;
+  index_buffer->vma_buffer_ =
+      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc, debug_name);
 
-  CopyBuffer(staging_buffer, memoryBuffer->buffer_handle_, buffer_size);
+  CopyBuffer(staging_buffer, index_buffer->buffer_handle_, buffer_size);
 
   if (rt_supported_) {
-    VkBufferDeviceAddressInfo addrInfo{};
-    addrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    addrInfo.buffer = memoryBuffer->buffer_handle_;
-    memoryBuffer->device_address_ =
-        vkGetBufferDeviceAddress(logical_device_, &addrInfo);
+    VkBufferDeviceAddressInfo addr_info{};
+    addr_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addr_info.buffer = index_buffer->buffer_handle_;
+    index_buffer->device_address_ =
+        vkGetBufferDeviceAddress(logical_device_, &addr_info);
   }
 
   if (tl_batch_active_) {
@@ -312,15 +314,15 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
     vmaDestroyBuffer(vma_allocator_, staging_buffer, staging_alloc);
   }
 
-  return memoryBuffer;
+  return index_buffer;
 }
 
 std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
-    VkDeviceSize size) {
-  std::shared_ptr<UniformBuffer> uniformBuffer =
+    const std::string& debug_name, VkDeviceSize size) {
+  std::shared_ptr<UniformBuffer> uniform_buffer =
       std::make_shared<UniformBuffer>();
 
-  uniformBuffer->size_ = size;
+  uniform_buffer->size_ = size;
   VkBuffer buffer;
   VmaAllocation alloc;
   CreateBuffer(
@@ -329,20 +331,20 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
       buffer, alloc);
-  uniformBuffer->buffer_handle_ = buffer;
-  uniformBuffer->vma_buffer_ =
-      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc);
+  uniform_buffer->buffer_handle_ = buffer;
+  uniform_buffer->vma_buffer_ =
+      std::make_unique<VmaBuffer>(vma_allocator_, buffer, alloc, debug_name);
 
   WIESEL_CHECK_VKRESULT(
-      vmaMapMemory(vma_allocator_, alloc, &uniformBuffer->data_));
+      vmaMapMemory(vma_allocator_, alloc, &uniform_buffer->data_));
 
-  memset(uniformBuffer->data_, 0, size);
+  memset(uniform_buffer->data_, 0, size);
 
-  return uniformBuffer;
+  return uniform_buffer;
 }
 
 std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
-    VkDeviceSize size) {
+    const std::string& debug_name, VkDeviceSize size) {
   std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
   buffer->size_ = size;
   VkBuffer buf;
@@ -355,6 +357,7 @@ std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
       buf, alloc);
   buffer->buffer_handle_ = buf;
   buffer->vma_buffer_ = std::make_unique<VmaBuffer>(vma_allocator_, buf, alloc);
+  buffer->vma_buffer_->SetDebugName(debug_name);
   WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, alloc, &buffer->data_));
   memset(buffer->data_, 0, size);
   return buffer;
@@ -375,7 +378,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.pos_changed = true;
 }
 
-std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
+std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_name) {
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -409,8 +412,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
-  texture->vma_image_ =
-      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
+  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, debug_name);
 
   TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -436,7 +438,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture() {
 }
 
 std::shared_ptr<Texture> Renderer::CreateBlankTexture(
-    const TextureProps& texture_props, const SamplerProps& sampler_props) {
+    const std::string& debug_name, const TextureProps& texture_props, const SamplerProps& sampler_props) {
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -471,8 +473,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
-  texture->vma_image_ =
-      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
+  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, debug_name);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -577,7 +578,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
   texture->vma_image_ =
-      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, "Image");
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -674,7 +675,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
   texture->vma_image_ =
-      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, "Image");
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -775,7 +776,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
               VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
   texture->image_ = image;
   texture->vma_image_ =
-      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, "Image");
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -999,7 +1000,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
               VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, 6);
   texture->image_ = image;
   texture->vma_image_ =
-      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc);
+      std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, "Image");
 
   // Transition entire cube
   TransitionImageLayout(
@@ -1707,9 +1708,9 @@ void Renderer::Cleanup() {
   if (!initialized_) {
     return;
   }
+  LOG_DEBUG("Cleaning up the renderer");
 
   WaitForGPU();
-  LOG_DEBUG("Destroying Renderer");
 
   camera_ = nullptr;
   quad_index_buffer_ = nullptr;
@@ -1755,10 +1756,35 @@ void Renderer::Cleanup() {
   tracy_ctx_ = nullptr;
 
   // Flush any items added to the deletion queue during cleanup
-  // (e.g. descriptors deferred by CameraResourcePool::SetDescriptor).
   deletion_queue_.FlushAll();
 
-  LOG_DEBUG("Destroying VMA allocator");
+  LOG_DEBUG("Destroying VMA allocator (textures alive: {}, deletion queue: {})",
+            Texture::GetTotalTextureCount(), deletion_queue_.Size());
+
+  // Dump all live VMA allocations for leak debugging
+  {
+    char* stats_json = nullptr;
+    vmaBuildStatsString(vma_allocator_, &stats_json, VK_TRUE);
+    if (stats_json) {
+      // Only log if there are actual allocations remaining
+      VmaTotalStatistics vma_stats;
+      vmaCalculateStatistics(vma_allocator_, &vma_stats);
+      if (vma_stats.total.statistics.allocationCount > 0) {
+        LOG_WARN("VMA leak: {} allocations, {} bytes still alive",
+                 vma_stats.total.statistics.allocationCount,
+                 vma_stats.total.statistics.allocationBytes);
+        // Write full dump to file for inspection
+        std::ofstream dump("vma_leak_dump.json");
+        if (dump.is_open()) {
+          dump << stats_json;
+          LOG_WARN("VMA allocation dump written to vma_leak_dump.json");
+        }
+      }
+      std::cout << std::flush;
+      vmaFreeStatsString(vma_allocator_, stats_json);
+    }
+  }
+
   vmaDestroyAllocator(vma_allocator_);
   vma_allocator_ = nullptr;
 
@@ -2599,7 +2625,7 @@ void Renderer::CreateCommandBuffers() {
 }
 
 void Renderer::CreatePermanentResources() {
-  blank_texture_ = CreateBlankTexture();
+  blank_texture_ = CreateBlankTexture("Renderer::blank_texture_");
 
   std::vector<Index> quad_indices = {0, 2, 1, 0, 3, 2};
   std::vector<Vertex2DNoColor> quad_vertices = {
@@ -2609,9 +2635,10 @@ void Renderer::CreatePermanentResources() {
       {{-1.0f, 1.0f}, {0.0f, 1.0f}},
   };
 
-  quad_index_buffer_ = Engine::renderer()->CreateIndexBuffer(quad_indices);
-
-  quad_vertex_buffer_ = Engine::renderer()->CreateVertexBuffer(quad_vertices);
+  quad_index_buffer_ = Engine::renderer()->CreateIndexBuffer(
+      "Renderer::quad_index_buffer_", quad_indices);
+  quad_vertex_buffer_ = Engine::renderer()->CreateVertexBuffer(
+      "Renderer::quad_vertex_buffer_", quad_vertices);
 
   default_linear_sampler_ = std::make_shared<Sampler>(1, SamplerProps{});
   default_nearest_sampler_ = std::make_shared<Sampler>(
@@ -2623,8 +2650,8 @@ void Renderer::CreatePermanentResources() {
                       VK_COMPARE_OP_LESS_OR_EQUAL});
 
   // SSAO
-  ssao_kernel_uniform_buffer_ =
-      CreateUniformBuffer(sizeof(SSAOKernelUniformData));
+  ssao_kernel_uniform_buffer_ = CreateUniformBuffer(
+      "Renderer::ssao_kernel_uniform_buffer_", sizeof(SSAOKernelUniformData));
   std::default_random_engine rnd_engine((unsigned)time(nullptr));
   std::uniform_real_distribution<float> rnd_dist(0.0f, 1.0f);
 
@@ -2666,7 +2693,7 @@ void Renderer::CreatePermanentResources() {
                pick_staging_buffer_, pick_staging_alloc_);
 
   // Identity bone UBO (shared by all static / non-animated models)
-  identity_bone_ubo_ = CreateUniformBuffer(sizeof(BoneMatricesUniformData));
+  identity_bone_ubo_ = CreateUniformBuffer("Renderer::identity_bone_ubo_", sizeof(BoneMatricesUniformData));
   {
     BoneMatricesUniformData identity{};
     for (auto& m : identity.bone_matrices) {
@@ -2986,10 +3013,12 @@ void Renderer::CleanupPresentGraphics() {
 }
 
 void Renderer::CreateGlobalUniformBuffers() {
-  lights_uniform_buffer_ = CreateUniformBuffer(sizeof(LightsUniformData));
-  camera_uniform_buffer_ = CreateUniformBuffer(sizeof(CameraUniformData));
+  lights_uniform_buffer_ = CreateUniformBuffer(
+      "Renderer::lights_uniform_buffer_", sizeof(LightsUniformData));
+  camera_uniform_buffer_ = CreateUniformBuffer(
+      "Renderer::camera_uniform_buffer_", sizeof(CameraUniformData));
   shadow_camera_uniform_buffer_ =
-      CreateUniformBuffer(sizeof(ShadowMapMatricesUniformData));
+      CreateUniformBuffer("Renderer::shadow_camera_uniform_buffer_", sizeof(ShadowMapMatricesUniformData));
 }
 
 void Renderer::CleanupGlobalUniformBuffers() {
@@ -3379,14 +3408,15 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
   model.mesh_uniform_buffers_.resize(model_data.meshes.size());
   for (size_t i = 0; i < model_data.meshes.size(); i++) {
     model.mesh_uniform_buffers_[i] =
-        CreateUniformBuffer(sizeof(MatricesUniformData));
+        CreateUniformBuffer("Model Mesh UBO", sizeof(MatricesUniformData));
   }
 
   // Keep a shared UBO for backward compat (single-mesh models, etc.)
   if (!model.mesh_uniform_buffers_.empty()) {
     model.uniform_buffer = model.mesh_uniform_buffers_[0];
   } else {
-    model.uniform_buffer = CreateUniformBuffer(sizeof(MatricesUniformData));
+    model.uniform_buffer =
+        CreateUniformBuffer("Model UBO", sizeof(MatricesUniformData));
   }
 
   // Create per-mesh descriptor sets, each bound to its own UBO
@@ -3421,7 +3451,8 @@ void Renderer::AllocateModelRenderData(ModelComponent& model,
   // Bone animation GPU resources
   if (model_data.has_skeleton) {
     // Animated model: per-entity bone UBO, initialized to identity
-    model.bone_ubo_ = CreateUniformBuffer(sizeof(BoneMatricesUniformData));
+    model.bone_ubo_ =
+        CreateUniformBuffer("Model Bone UBO", sizeof(BoneMatricesUniformData));
     {
       BoneMatricesUniformData identity{};
       for (auto& m : identity.bone_matrices) {
@@ -3827,7 +3858,8 @@ void Renderer::DrawSprite(SpriteRendererComponent& sprite,
 
     // Allocate per-instance UBO if needed
     if (!sprite.ubo_) {
-      sprite.ubo_ = CreateUniformBuffer(sizeof(SpriteUniformData));
+      sprite.ubo_ =
+          CreateUniformBuffer("Sprite UBO", sizeof(SpriteUniformData));
     }
 
     // Rebuild descriptor set for the new sprite
@@ -3879,7 +3911,7 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
                               float entity_id) {
   // Lazily allocate GPU resources
   if (!rect.ubo_) {
-    rect.ubo_ = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+    rect.ubo_ = CreateUniformBuffer("Rectangle Transform UBO", sizeof(CanvasElementUniformData));
     rect.descriptor_ = std::make_shared<DescriptorSet>();
     rect.descriptor_->SetLayout(layout);
     rect.descriptor_->AddUniformBuffer(0, rect.ubo_);
@@ -3914,7 +3946,8 @@ Renderer::SliceDrawResource& Renderer::AcquireSliceResource(
   }
   auto& res = pool[idx];
   if (!res.ubo) {
-    res.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+    res.ubo =
+        CreateUniformBuffer("Slice UBO", sizeof(CanvasElementUniformData));
   }
   VkImageView view = texture->image_view_->handle_;
   VkSampler sampler =
@@ -4109,7 +4142,8 @@ void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
     // Grow pool if needed, reuse existing allocations
     while (text.glyph_gpu_.size() < total_needed) {
       TextGlyphGPU gpu;
-      gpu.ubo = CreateUniformBuffer(sizeof(CanvasElementUniformData));
+      gpu.ubo =
+          CreateUniformBuffer("Text UBO", sizeof(CanvasElementUniformData));
       gpu.descriptor = std::make_shared<DescriptorSet>();
       gpu.descriptor->SetLayout(layout);
       gpu.descriptor->AddUniformBuffer(0, gpu.ubo);

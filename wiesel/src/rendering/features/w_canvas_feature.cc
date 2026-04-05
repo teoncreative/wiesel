@@ -656,8 +656,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             rml_render_pass->CreateFramebuffer(0, att, {render_w, render_h});
 
         // Rebuild descriptor with new texture
-        doc.offscreen_ubo_ =
-            renderer.CreateUniformBuffer(sizeof(CanvasElementUniformData));
+        doc.offscreen_ubo_ = renderer.CreateUniformBuffer(
+            "CanvasFeature offscreen_ubo_", sizeof(CanvasElementUniformData));
         doc.offscreen_descriptor_ = std::make_shared<DescriptorSet>();
         doc.offscreen_descriptor_->SetLayout(canvas_textured_layout_);
         doc.offscreen_descriptor_->AddUniformBuffer(0, doc.offscreen_ubo_);
@@ -939,8 +939,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       border.canvas_entity = canvas_entity;
 
       for (int ei = 0; ei < 4; ei++) {
-        border.edge_ubos[ei] =
-            renderer_->CreateUniformBuffer(sizeof(CanvasElementUniformData));
+        border.edge_ubos[ei] = renderer_->CreateUniformBuffer(
+            "CanvasFeature edge_ubos", sizeof(CanvasElementUniformData));
         CanvasElementUniformData data{};
         data.position = edges[ei].pos;
         data.size = edges[ei].size;
@@ -1279,8 +1279,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         continue;
       }
 
-      auto ubo =
-          renderer_->CreateUniformBuffer(sizeof(CanvasElementUniformData));
+      auto ubo = renderer_->CreateUniformBuffer(
+          "CanvasFeature canvas ubo", sizeof(CanvasElementUniformData));
       CanvasElementUniformData data{};
       data.position = {0.0f, 0.0f};
       data.size = ci.canvas_size;

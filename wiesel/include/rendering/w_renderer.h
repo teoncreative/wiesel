@@ -175,19 +175,28 @@ class Renderer {
 
   void Initialize(const RendererProperties&& props);
 
+  // Add debug_name parameters to more functions
+  // I want it to be more granular, than what it currently is.
+  // Currently very lazy to do more than absolutely necessary.
+
   template <typename T>
-  std::shared_ptr<MemoryBuffer> CreateVertexBuffer(std::vector<T> vertices);
+  std::shared_ptr<MemoryBuffer> CreateVertexBuffer(
+      const std::string& debug_name, std::vector<T> vertices);
 
-  std::shared_ptr<IndexBuffer> CreateIndexBuffer(std::vector<Index> indices);
+  std::shared_ptr<IndexBuffer> CreateIndexBuffer(const std::string& debug_name,
+                                                 std::vector<Index> indices);
 
-  std::shared_ptr<UniformBuffer> CreateUniformBuffer(VkDeviceSize size);
-  std::shared_ptr<UniformBuffer> CreateStorageBuffer(VkDeviceSize size);
+  std::shared_ptr<UniformBuffer> CreateUniformBuffer(
+      const std::string& debug_name, VkDeviceSize size);
+  std::shared_ptr<UniformBuffer> CreateStorageBuffer(
+      const std::string& debug_name, VkDeviceSize size);
 
   void SetupCameraComponent(CameraComponent& component);
 
-  std::shared_ptr<Texture> CreateBlankTexture();
+  std::shared_ptr<Texture> CreateBlankTexture(const std::string& debug_name);
   std::shared_ptr<Texture> CreateBlankTexture(
-      const TextureProps& texture_props, const SamplerProps& sampler_props);
+      const std::string& debug_name, const TextureProps& texture_props,
+      const SamplerProps& sampler_props);
   std::shared_ptr<Texture> CreateTexture(const std::string& path,
                                          const TextureProps& texture_props,
                                          const SamplerProps& sampler_props);

@@ -214,8 +214,10 @@ void DebugColliderFeature::GenerateBoxGeometry() {
       0, 4, 1, 5, 2, 6, 3, 7,  // connecting edges
   };
 
-  box_vertex_buffer_ = renderer_->CreateVertexBuffer(vertices);
-  box_index_buffer_ = renderer_->CreateIndexBuffer(indices);
+  box_vertex_buffer_ = renderer_->CreateVertexBuffer(
+      "DebugColliderFeature::box_vertex_buffer_", vertices);
+  box_index_buffer_ = renderer_->CreateIndexBuffer(
+      "DebugColliderFeature::box_index_buffer_", indices);
   box_index_count_ = static_cast<uint32_t>(indices.size());
 }
 
@@ -246,8 +248,10 @@ void DebugColliderFeature::GenerateSphereGeometry() {
   add_ring(0, 2, 1);  // XZ ring
   add_ring(1, 2, 0);  // YZ ring
 
-  sphere_vertex_buffer_ = renderer_->CreateVertexBuffer(vertices);
-  sphere_index_buffer_ = renderer_->CreateIndexBuffer(indices);
+  sphere_vertex_buffer_ = renderer_->CreateVertexBuffer(
+      "DebugColliderFeature::sphere_vertex_buffer_", vertices);
+  sphere_index_buffer_ = renderer_->CreateIndexBuffer(
+      "DebugColliderFeature::sphere_index_buffer_", indices);
   sphere_index_count_ = static_cast<uint32_t>(indices.size());
 }
 
@@ -297,8 +301,10 @@ void DebugColliderFeature::GenerateFilledBoxGeometry() {
     indices.push_back(base + 0);
   }
 
-  filled_box_vb_ = renderer_->CreateVertexBuffer(vertices);
-  filled_box_ib_ = renderer_->CreateIndexBuffer(indices);
+  filled_box_vb_ = renderer_->CreateVertexBuffer(
+      "DebugColliderFeature::filled_box_vb_", vertices);
+  filled_box_ib_ = renderer_->CreateIndexBuffer(
+      "DebugColliderFeature::filled_box_ib_", indices);
   filled_box_ic_ = static_cast<uint32_t>(indices.size());
 }
 
@@ -338,8 +344,10 @@ void DebugColliderFeature::GenerateFilledSphereGeometry() {
     }
   }
 
-  filled_sphere_vb_ = renderer_->CreateVertexBuffer(vertices);
-  filled_sphere_ib_ = renderer_->CreateIndexBuffer(indices);
+  filled_sphere_vb_ = renderer_->CreateVertexBuffer(
+      "DebugColliderFeature::filled_sphere_vb_", vertices);
+  filled_sphere_ib_ = renderer_->CreateIndexBuffer(
+      "DebugColliderFeature::filled_sphere_ib_", indices);
   filled_sphere_ic_ = static_cast<uint32_t>(indices.size());
 }
 
@@ -529,8 +537,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       }
 
       CachedDebugData data;
-      data.vb = renderer_->CreateVertexBuffer(vertices);
-      data.ib = renderer_->CreateIndexBuffer(indices);
+      data.vb = renderer_->CreateVertexBuffer("CachedDebugData::vb", vertices);
+      data.ib = renderer_->CreateIndexBuffer("CachedDebugData::ib", indices);
       data.index_count = static_cast<uint32_t>(indices.size());
       data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
       hf_cache_.push_back(std::move(data));
@@ -587,8 +595,9 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                         glm::scale(glm::mat4(1.0f), tc.GetScale());
 
       CachedDebugData data;
-      data.vb = renderer_->CreateVertexBuffer(vertices);
-      data.ib = renderer_->CreateIndexBuffer(line_indices);
+      data.vb = renderer_->CreateVertexBuffer("CachedDebugData::vb", vertices);
+      data.ib =
+          renderer_->CreateIndexBuffer("CachedDebugData::ib", line_indices);
       data.index_count = static_cast<uint32_t>(line_indices.size());
       data.model = model;
       mesh_collider_cache_.push_back(std::move(data));
@@ -878,7 +887,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                   glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
             }
 
-            auto frust_vb = renderer->CreateVertexBuffer(frustum_verts);
+            auto frust_vb = renderer->CreateVertexBuffer(
+                "DebugColliderFeature::frustum_vb", frustum_verts);
 
             push_constant->mvp = vp;
             push_constant->model = glm::mat4(1.0f);

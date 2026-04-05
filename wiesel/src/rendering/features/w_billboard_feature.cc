@@ -123,8 +123,10 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
       {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f}},
   };
   std::vector<Index> indices = {0, 1, 2, 2, 3, 0};
-  quad_vb_ = renderer_->CreateVertexBuffer(vertices);
-  quad_ib_ = renderer_->CreateIndexBuffer(indices);
+  quad_vb_ =
+      renderer_->CreateVertexBuffer("BillboardFeature::quad_vb_", vertices);
+  quad_ib_ =
+      renderer_->CreateIndexBuffer("BillboardFeature::quad_ib_", indices);
 
   // Load icon textures
   LoadIconTexture("camera", "engine://textures/billboard/camera_icon.png");

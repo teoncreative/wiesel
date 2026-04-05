@@ -11,7 +11,6 @@
 
 #pragma once
 
-// https://github.com/TheCherno/Hazel
 // Platform detection using predefined macros
 #ifdef _WIN32
 /* Windows x64/x86 */
@@ -29,10 +28,9 @@
  * to ensure that we're running on MAC
  * and not some other Apple platform */
 #if TARGET_IPHONE_SIMULATOR == 1
-#error "IOS simulator is not supported!"
+#define WIESEL_PLATFORM_IOS_SIMULATOR
 #elif TARGET_OS_IPHONE == 1
 #define WIESEL_PLATFORM_IOS
-#error "IOS is not supported!"
 #elif TARGET_OS_MAC == 1
 #define WIESEL_PLATFORM_MACOS
 #else
@@ -43,10 +41,8 @@
  * it has __linux__ defined */
 #elif defined(__ANDROID__)
 #define WIESEL_PLATFORM_ANDROID
-#error "Android is not supported!"
 #elif defined(__linux__)
 #define WIESEL_PLATFORM_LINUX
-#error "Linux is not supported!"
 #else
 /* Unknown compiler/platform */
 #error "Unknown platform!"

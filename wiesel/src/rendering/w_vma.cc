@@ -1,3 +1,4 @@
+
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -20,8 +21,24 @@ VmaBuffer::~VmaBuffer() {
   vmaDestroyBuffer(allocator_, buffer_, allocation_);
 }
 
+void VmaBuffer::SetDebugName(const std::string& name) {
+#ifndef NDEBUG
+  if (!name.empty() && allocation_) {
+    vmaSetAllocationName(allocator_, allocation_, name.c_str());
+  }
+#endif
+}
+
 VmaImage::~VmaImage() {
   vmaDestroyImage(allocator_, image_, allocation_);
+}
+
+void VmaImage::SetDebugName(const std::string& name) {
+#ifndef NDEBUG
+  if (!name.empty() && allocation_) {
+    vmaSetAllocationName(allocator_, allocation_, name.c_str());
+  }
+#endif
 }
 
 }  // namespace Wiesel
