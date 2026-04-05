@@ -117,10 +117,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            gcc-14 g++-14 \
             libvulkan-dev vulkan-validationlayers \
             libfreetype-dev libgtk-3-dev \
             mono-devel mono-mcs \
             libx11-dev libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
