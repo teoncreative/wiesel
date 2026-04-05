@@ -65,7 +65,7 @@ var searchData=
   ['setcustomcursor_62',['setcustomcursor',['../classWiesel_1_1AppWindow.html#a0e3c0e2b8c0748dd0df219663447239e',1,'Wiesel::AppWindow::SetCustomCursor()'],['../classWiesel_1_1SdlAppWindow.html#a29925a182009e5c341bc5e63dffacc76',1,'Wiesel::SdlAppWindow::SetCustomCursor()']]],
   ['setdebugname_63',['setdebugname',['../classWiesel_1_1VmaImage.html#a508b7ee00e0f535f4c0d73d255bb2a34',1,'Wiesel::VmaImage::SetDebugName()'],['../classWiesel_1_1VmaBuffer.html#a42e8127415c82c32cc72c45bc4f567cf',1,'Wiesel::VmaBuffer::SetDebugName()']]],
   ['setdescriptor_64',['SetDescriptor',['../classWiesel_1_1CameraResourcePool.html#a34199c057490f1369fafe94e370c151b',1,'Wiesel::CameraResourcePool']]],
-  ['setenabled_65',['setenabled',['../classWiesel_1_1IBehavior.html#a4f6c8cacc3a43c74f245378ef7d835e0',1,'Wiesel::IBehavior::SetEnabled()'],['../classWiesel_1_1InputManager.html#a147c4094877b521835ed779e66103ae6',1,'Wiesel::InputManager::SetEnabled()']]],
+  ['setenabled_65',['setenabled',['../classWiesel_1_1IBehavior.html#a4f6c8cacc3a43c74f245378ef7d835e0',1,'Wiesel::IBehavior::SetEnabled()'],['../classWiesel_1_1InputManager.html#aa3e9320c7722a87c0fd1151d01477042',1,'Wiesel::InputManager::SetEnabled()']]],
   ['setentity_66',['SetEntity',['../classWiesel_1_1AgentGoal.html#a23f54257b05a3c7580aba1f6314caf98',1,'Wiesel::AgentGoal']]],
   ['seteventhandler_67',['SetEventHandler',['../classWiesel_1_1AppWindow.html#a5e917babcea958ae36c43b1cc5196f20',1,'Wiesel::AppWindow']]],
   ['setextensionfilter_68',['SetExtensionFilter',['../classWiesel_1_1FileWatcher.html#ace1192d033dda7ae6041fde66f9fc039',1,'Wiesel::FileWatcher']]],

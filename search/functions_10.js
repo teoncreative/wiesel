@@ -74,7 +74,7 @@ var searchData=
   ['renderaddpopup_71',['RenderAddPopup',['../namespaceWiesel.html#ad6a81a5164b4c0204e6a59cd87e14917',1,'Wiesel']]],
   ['renderbreadcrumbs_72',['RenderBreadcrumbs',['../classWiesel_1_1Editor_1_1VfsBrowser.html#a294518b4c45c81c3ee50e97f998bb8cc',1,'Wiesel::Editor::VfsBrowser']]],
   ['renderentity_73',['RenderEntity',['../classWiesel_1_1Editor_1_1EditorLayer.html#a8c0a022b130b67adcd6a1ed5d5b10a10',1,'Wiesel::Editor::EditorLayer']]],
-  ['renderer_74',['renderer',['../classWiesel_1_1Engine.html#ac9f3edfd2b48a9876f45aa628b4f2a36',1,'Wiesel::Engine::renderer()'],['../classWiesel_1_1Renderer.html#a40a8a601863577f6419f189724485a4a',1,'Wiesel::Renderer::Renderer()']]],
+  ['renderer_74',['renderer',['../classWiesel_1_1Renderer.html#a40a8a601863577f6419f189724485a4a',1,'Wiesel::Renderer::Renderer()'],['../classWiesel_1_1Engine.html#ac9f3edfd2b48a9876f45aa628b4f2a36',1,'Wiesel::Engine::renderer()']]],
   ['renderexistingcomponents_75',['RenderExistingComponents',['../namespaceWiesel.html#a0bec7af3cb5ad6d151410da1a0dfaee9',1,'Wiesel']]],
   ['renderfromexternal_76',['RenderFromExternal',['../classWiesel_1_1Scene.html#a3f8bcad33343678c599f966d854d7a9d',1,'Wiesel::Scene']]],
   ['rendergeometry_77',['RenderGeometry',['../classWiesel_1_1RmlRenderInterface.html#ac1406e12481f3412401317a92b51631f',1,'Wiesel::RmlRenderInterface']]],

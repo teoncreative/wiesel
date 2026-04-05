@@ -56,7 +56,7 @@ var searchData=
   ['loadassimpscene_53',['LoadAssimpScene',['../namespaceWiesel.html#ac574e1dfa16822a07191e18a65be0149',1,'Wiesel']]],
   ['loadasync_54',['LoadAsync',['../classWiesel_1_1AssetManager.html#a5ece066bbf23fde30b1d3d5c0d2941aa',1,'Wiesel::AssetManager']]],
   ['loadfont_55',['LoadFont',['../namespaceImGui_1_1Moonlight.html#a626ac639325340b80367043d99506b15',1,'ImGui::Moonlight']]],
-  ['loadfromsettings_56',['LoadFromSettings',['../classWiesel_1_1InputManager.html#a37c0bcc680dfd25100b1ebcd1675b159',1,'Wiesel::InputManager']]],
+  ['loadfromsettings_56',['LoadFromSettings',['../classWiesel_1_1InputManager.html#a215e56e79b581b0c3ba192e172e110c0',1,'Wiesel::InputManager']]],
   ['loadgame_57',['LoadGame',['../classWiesel_1_1GameApplication.html#a3bef5b6ad667f57602e6cd9a7b79aae0',1,'Wiesel::GameApplication']]],
   ['loadmodelasset_58',['LoadModelAsset',['../namespaceWiesel.html#ad8472be259537ab1413e681739d69e9a',1,'Wiesel']]],
   ['loadscene_59',['LoadScene',['../classWiesel_1_1SceneManager.html#a32ad9c5be93e32a06d40e65f85612df8',1,'Wiesel::SceneManager']]],

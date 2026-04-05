@@ -1,5 +1,6 @@
 var classWiesel_1_1DeveloperConsole =
 [
+    [ "DeveloperConsole", "classWiesel_1_1DeveloperConsole.html#a4ebc7ae77dd6850a9f8bc39ef6833328", null ],
     [ "Clear", "classWiesel_1_1DeveloperConsole.html#a3ba2143065a7a2b96c9ad6e64bba898b", null ],
     [ "Execute", "classWiesel_1_1DeveloperConsole.html#a7eb087d5676f788661e8b6b88bcc6ff8", null ],
     [ "GetCommands", "classWiesel_1_1DeveloperConsole.html#a1afd0e593a3497beabef360410fec487", null ],
@@ -12,6 +13,5 @@ var classWiesel_1_1DeveloperConsole =
     [ "Register", "classWiesel_1_1DeveloperConsole.html#a1147c331b24e0299e7bffbba6593f5b7", null ],
     [ "SetVisible", "classWiesel_1_1DeveloperConsole.html#a2b89378a1206156322097ca3a26973a6", null ],
     [ "Toggle", "classWiesel_1_1DeveloperConsole.html#a235fdf3085a3afb9470c1bdc6c840fb4", null ],
-    [ "Unregister", "classWiesel_1_1DeveloperConsole.html#ad78e0579bfb79534f2b2f8f78b8c6055", null ],
-    [ "Engine", "classWiesel_1_1DeveloperConsole.html#a3e1914489e4bed4f9f23cdeab34a43dc", null ]
+    [ "Unregister", "classWiesel_1_1DeveloperConsole.html#ad78e0579bfb79534f2b2f8f78b8c6055", null ]
 ];

@@ -146,7 +146,7 @@ var annotated_dup =
       [ "InputAction", "structWiesel_1_1InputAction.html", "structWiesel_1_1InputAction" ],
       [ "InputAxisMapping", "structWiesel_1_1InputAxisMapping.html", "structWiesel_1_1InputAxisMapping" ],
       [ "InputContext", "structWiesel_1_1InputContext.html", "structWiesel_1_1InputContext" ],
-      [ "InputManager", "classWiesel_1_1InputManager.html", null ],
+      [ "InputManager", "classWiesel_1_1InputManager.html", "classWiesel_1_1InputManager" ],
       [ "InputSettings", "structWiesel_1_1InputSettings.html", "structWiesel_1_1InputSettings" ],
       [ "InteractableComponent", "structWiesel_1_1InteractableComponent.html", "structWiesel_1_1InteractableComponent" ],
       [ "is_component", "structWiesel_1_1is__component.html", null ],
