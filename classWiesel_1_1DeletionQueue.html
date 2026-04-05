@@ -104,13 +104,13 @@ $(document).ready(function(){initNavTree('classWiesel_1_1DeletionQueue.html','')
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:a7c71f1641f5426ee9923de44e2a381a7" id="r_a7c71f1641f5426ee9923de44e2a381a7"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1DeletionQueue.html#a7c71f1641f5426ee9923de44e2a381a7">DeleteFn</a> = std::function&lt; void()&gt;</td></tr>
-<tr class="separator:a7c71f1641f5426ee9923de44e2a381a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af9d07849eeb695521dcac80b42eb16a5" id="r_af9d07849eeb695521dcac80b42eb16a5"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1DeletionQueue.html#af9d07849eeb695521dcac80b42eb16a5">DeleteFn</a> = std::move_only_function&lt; void()&gt;</td></tr>
+<tr class="separator:af9d07849eeb695521dcac80b42eb16a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ad705350ae871a6ae7b6008966f1a4e83" id="r_ad705350ae871a6ae7b6008966f1a4e83"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1DeletionQueue.html#ad705350ae871a6ae7b6008966f1a4e83">Push</a> (<a class="el" href="classWiesel_1_1DeletionQueue.html#a7c71f1641f5426ee9923de44e2a381a7">DeleteFn</a> &amp;&amp;fn, uint32_t frames_to_wait=2)</td></tr>
-<tr class="separator:ad705350ae871a6ae7b6008966f1a4e83"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1f483aac41e8b728dc4be66311754008" id="r_a1f483aac41e8b728dc4be66311754008"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1DeletionQueue.html#a1f483aac41e8b728dc4be66311754008">Push</a> (<a class="el" href="classWiesel_1_1DeletionQueue.html#af9d07849eeb695521dcac80b42eb16a5">DeleteFn</a> fn, uint32_t frames_to_wait=2)</td></tr>
+<tr class="separator:a1f483aac41e8b728dc4be66311754008"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab6d377466f77e03f898745b025032c2b" id="r_ab6d377466f77e03f898745b025032c2b"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ab6d377466f77e03f898745b025032c2b"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classWiesel_1_1DeletionQueue.html#ab6d377466f77e03f898745b025032c2b">Defer</a> (std::unique_ptr&lt; T &gt; obj, uint32_t frames_to_wait=2)</td></tr>
 <tr class="separator:ab6d377466f77e03f898745b025032c2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -122,14 +122,14 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a497205d957527ff354ba9089a5872be8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Typedef Documentation</h2>
-<a id="a7c71f1641f5426ee9923de44e2a381a7" name="a7c71f1641f5426ee9923de44e2a381a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7c71f1641f5426ee9923de44e2a381a7">&#9670;&#160;</a></span>DeleteFn</h2>
+<a id="af9d07849eeb695521dcac80b42eb16a5" name="af9d07849eeb695521dcac80b42eb16a5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af9d07849eeb695521dcac80b42eb16a5">&#9670;&#160;</a></span>DeleteFn</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">using <a class="el" href="classWiesel_1_1DeletionQueue.html#a7c71f1641f5426ee9923de44e2a381a7">Wiesel::DeletionQueue::DeleteFn</a> =  std::function&lt;void()&gt;</td>
+          <td class="memname">using <a class="el" href="classWiesel_1_1DeletionQueue.html#af9d07849eeb695521dcac80b42eb16a5">Wiesel::DeletionQueue::DeleteFn</a> =  std::move_only_function&lt;void()&gt;</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -201,8 +201,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="ad705350ae871a6ae7b6008966f1a4e83" name="ad705350ae871a6ae7b6008966f1a4e83"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad705350ae871a6ae7b6008966f1a4e83">&#9670;&#160;</a></span>Push()</h2>
+<a id="a1f483aac41e8b728dc4be66311754008" name="a1f483aac41e8b728dc4be66311754008"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1f483aac41e8b728dc4be66311754008">&#9670;&#160;</a></span>Push()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -210,7 +210,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="memname">void Wiesel::DeletionQueue::Push </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="classWiesel_1_1DeletionQueue.html#a7c71f1641f5426ee9923de44e2a381a7">DeleteFn</a> &amp;&amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="classWiesel_1_1DeletionQueue.html#af9d07849eeb695521dcac80b42eb16a5">DeleteFn</a>&#160;</td>
           <td class="paramname"><em>fn</em>, </td>
         </tr>
         <tr>

@@ -201,6 +201,7 @@ var namespaceWiesel =
     [ "NotificationManager", "classWiesel_1_1NotificationManager.html", "classWiesel_1_1NotificationManager" ],
     [ "ObjectLayerPairFilterImpl", "classWiesel_1_1ObjectLayerPairFilterImpl.html", "classWiesel_1_1ObjectLayerPairFilterImpl" ],
     [ "ObjectVsBroadPhaseLayerFilterImpl", "classWiesel_1_1ObjectVsBroadPhaseLayerFilterImpl.html", "classWiesel_1_1ObjectVsBroadPhaseLayerFilterImpl" ],
+    [ "OverlayVertex", "structWiesel_1_1OverlayVertex.html", "structWiesel_1_1OverlayVertex" ],
     [ "PassTimingResult", "structWiesel_1_1PassTimingResult.html", "structWiesel_1_1PassTimingResult" ],
     [ "PerCanvasResources", "structWiesel_1_1PerCanvasResources.html", "structWiesel_1_1PerCanvasResources" ],
     [ "PerfMarker", "classWiesel_1_1PerfMarker.html", null ],

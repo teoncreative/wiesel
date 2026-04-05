@@ -256,6 +256,7 @@ var hierarchy =
     [ "JPH::ObjectVsBroadPhaseLayerFilter", null, [
       [ "Wiesel::ObjectVsBroadPhaseLayerFilterImpl", "classWiesel_1_1ObjectVsBroadPhaseLayerFilterImpl.html", null ]
     ] ],
+    [ "Wiesel::OverlayVertex", "structWiesel_1_1OverlayVertex.html", null ],
     [ "Wiesel::PassTimingResult", "structWiesel_1_1PassTimingResult.html", null ],
     [ "Wiesel::PerCanvasResources", "structWiesel_1_1PerCanvasResources.html", null ],
     [ "Wiesel::PerfMarker", "classWiesel_1_1PerfMarker.html", null ],
