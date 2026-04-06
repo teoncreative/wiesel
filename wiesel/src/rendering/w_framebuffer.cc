@@ -35,8 +35,14 @@ Framebuffer::Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent,
 }
 
 Framebuffer::~Framebuffer() {
-  vkDestroyFramebuffer(Engine::renderer()->GetLogicalDevice(), handle_,
-                       nullptr);
+  auto renderer = Engine::renderer();
+  if (!renderer) {
+    return;
+  }
+  VkFramebuffer fb = handle_;
+  VkDevice device = renderer->GetLogicalDevice();
+  renderer->GetDeletionQueue().Push(
+      [device, fb]() { vkDestroyFramebuffer(device, fb, nullptr); });
 }
 
 }  // namespace Wiesel

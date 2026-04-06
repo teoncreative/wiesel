@@ -21,6 +21,8 @@
 
 namespace Wiesel {
 
+class RenderGraph;
+
 struct FrustumPlanes {
   glm::vec4 Left, Right, Bottom, Top, Near, Far;
 
@@ -73,7 +75,12 @@ struct CameraComponent {
   glm::mat4 projection;
   glm::mat4 inv_projection;
   glm::vec2 viewport_size{0.0f, 0.0f};
-  bool resources_dirty = false;
+
+  // Resource versioning: tracks which pipeline version and viewport size
+  // this camera's resources were built for. Automatically triggers rebuild
+  // when the pipeline is recreated or viewport changes.
+  uint32_t resource_pipeline_version = 0;
+  glm::vec2 resource_viewport_size = {0.0f, 0.0f};
   glm::mat4 inv_view_matrix;
   bool enabled = true;
 
@@ -81,6 +88,9 @@ struct CameraComponent {
 
   // Dynamic resource storage
   CameraResourcePool resource_pool;
+
+  // Per-camera render graph (rebuilt each frame)
+  std::shared_ptr<RenderGraph> render_graph;
 
   // Per-camera pipeline override (nullptr = use scene default)
   std::shared_ptr<RenderPipeline> render_pipeline;

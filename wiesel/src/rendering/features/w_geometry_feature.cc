@@ -44,7 +44,7 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
                               .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                               .msaa_mode = renderer_->options().msaa_mode});
   render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32_SFLOAT,
+                              .format = VK_FORMAT_R32_UINT,
                               .msaa_mode = renderer_->options().msaa_mode});
   render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
                               .format = renderer_->FindDepthFormat(),
@@ -69,7 +69,7 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
                                 .format = VK_FORMAT_R16G16B16A16_SFLOAT,
                                 .msaa_mode = SamplingMode::DISABLED});
     render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R32_SFLOAT,
+                                .format = VK_FORMAT_R32_UINT,
                                 .msaa_mode = SamplingMode::DISABLED});
   }
   render_pass_->Bake();
@@ -132,7 +132,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
   pool.SetTexture("geometry.entity_id",
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R32_SFLOAT, msaa, true}));
+                       VK_FORMAT_R32_UINT, msaa, true}));
   pool.SetTexture("geometry.depth_stencil",
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::DepthStencil, 1,
@@ -171,7 +171,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
     pool.SetTexture("geometry.entity_id_resolve",
                     renderer.CreateAttachmentTexture(
                         {rw, rh, AttachmentTextureType::Resolve, 1,
-                         VK_FORMAT_R32_SFLOAT, SamplingMode::DISABLED, true}));
+                         VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
 
     std::array<AttachmentTexture*, 15> textures = {
         pool.GetTexture("geometry.view_pos").get(),
@@ -283,33 +283,34 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
                                  : pool.GetTexture("geometry.entity_id"));
 
   // Capture stable pointers for the deferred lambda execution.
-  // Scene and Renderer are alive for the entire frame.
-  auto* scene = &ctx.scene;
+  // Scenes and Renderer are alive for the entire frame.
+  MultiScene& scenes = ctx.scenes;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
 
   uint32_t geo = graph.AddPass(
-      "Geometry", render_pass_, [pipeline, scene, renderer](VkCommandBuffer) {
+      "Geometry", render_pass_, [pipeline, &scenes, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
         const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
         auto& assets = Engine::asset_manager();
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-          auto& model = scene->GetComponent<ModelComponent>(entity);
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
-          if (!model.enable_rendering || !model.model_handle) {
-            continue;
-          }
-          const auto& model_data = assets.GetOrLoad<Model>(model.model_handle);
-          if (model_data && model_data->bounds.Valid()) {
-            AABB world_bounds =
-                model_data->bounds.Transformed(transform.GetTransformMatrix());
-            if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
-              continue;
-            }
-          }
-          renderer->DrawModel(model, transform, false, entity);
-        }
+        scenes.ForEach<ModelComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& model = scene.GetComponent<ModelComponent>(entity);
+              auto& transform = scene.GetComponent<TransformComponent>(entity);
+              if (!model.enable_rendering || !model.model_handle) {
+                return;
+              }
+              const auto& model_data =
+                  assets.GetOrLoad<Model>(model.model_handle);
+              if (model_data && model_data->bounds.Valid()) {
+                AABB world_bounds = model_data->bounds.Transformed(
+                    transform.GetTransformMatrix());
+                if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
+                  return;
+                }
+              }
+              renderer->DrawModel(model, transform, false, entity);
+            });
       });
 
   graph.PassWritesColor(geo, geo_view_pos);

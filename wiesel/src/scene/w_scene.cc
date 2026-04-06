@@ -27,29 +27,12 @@
 #include "cursor/w_cursor.h"
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
-#include "rendering/features/w_billboard_feature.h"
-#include "rendering/features/w_bloom_feature.h"
 #include "rendering/features/w_canvas_feature.h"
-#include "rendering/features/w_composite_feature.h"
-#include "rendering/features/w_debug_collider_feature.h"
-#include "rendering/features/w_fxaa_feature.h"
-#include "rendering/features/w_geometry_feature.h"
-#include "rendering/features/w_grid_feature.h"
-#include "rendering/features/w_ibl_feature.h"
-#include "rendering/features/w_lighting_feature.h"
-#include "rendering/features/w_motion_blur_feature.h"
-#include "rendering/features/w_rt_shadow_feature.h"
-#include "rendering/features/w_shadow_feature.h"
-#include "rendering/features/w_sprite_feature.h"
-#include "rendering/features/w_ssao_feature.h"
-#include "rendering/features/w_taa_feature.h"
-#include "rendering/features/w_transparency_feature.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_renderer.h"
 #include "scene/w_entity.h"
 #include "script/mono/w_monobehavior.h"
 #include "systems/w_canvas_system.h"
-#include "ui/w_interactable.h"
 #include "ui/w_ui_document.h"
 #include "ui/w_ui_manager.h"
 #include "util/w_keycodes.h"
@@ -1073,8 +1056,6 @@ void Scene::OnEvent(Event& event) {
   PROFILE_ZONE_SCOPED_N("Scene::OnEvent");
   EventDispatcher dispatcher{event};
   dispatcher.Dispatch<WindowResizedEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
-  dispatcher.Dispatch<PipelineRecreatedEvent>(
-      WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
   // F8: Toggle RmlUi debugger on the first visible UIDocument context
   if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
@@ -1300,19 +1281,11 @@ bool Scene::OnWindowResizeEvent(WindowResizedEvent& event) {
     component.viewport_size.x = event.window_size().width;
     component.viewport_size.y = event.window_size().height;
     component.aspect_ratio = event.aspect_ratio();
-    component.resources_dirty = true;
     component.view_changed = true;
   }
   return false;
 }
 
-bool Scene::OnPipelineRecreatedEvent(PipelineRecreatedEvent& event) {
-  for (const auto& entity : registry_.view<CameraComponent>()) {
-    auto& component = registry_.get<CameraComponent>(entity);
-    component.resources_dirty = true;
-  }
-  return false;
-}
 
 glm::mat4 Scene::MakeLocal(const TransformComponent& t) {
   PROFILE_ZONE_SCOPED();
@@ -1345,22 +1318,13 @@ void Scene::UpdateMatrices(entt::entity entity) {
   tc.SetTransformMatrix(GetWorldMatrix(entity));
 }
 
-void Scene::InvalidateRenderGraphs() {
-  render_graphs_.clear();
-}
-
 void Scene::Cleanup() {
-  LOG_DEBUG("Scene::Cleanup - render_graphs: {}, external: {}",
-            render_graphs_.size(), external_render_graph_ != nullptr);
-  render_graphs_.clear();
-  external_render_graph_ = nullptr;
-  default_pipeline_ = nullptr;
-
-  // Clear camera resource pools so their descriptor sets are freed.
+  // Clear camera render graphs and resource pools.
   auto camera_view = registry_.view<CameraComponent>();
   LOG_DEBUG("Scene::Cleanup - cameras: {}", camera_view.size());
   for (entt::entity entity : camera_view) {
     auto& camera = registry_.get<CameraComponent>(entity);
+    camera.render_graph = nullptr;
     camera.resource_pool.Clear();
     camera.render_pipeline = nullptr;
   }
@@ -1395,206 +1359,6 @@ void Scene::Cleanup() {
   current_camera_ = nullptr;
 }
 
-void Scene::BuildRenderGraph(entt::entity camera_entity) {
-  PROFILE_ZONE_SCOPED_N("Scene::BuildRenderGraph");
-  std::shared_ptr<Renderer> renderer = Engine::renderer();
-  auto& camera = registry_.get<CameraComponent>(camera_entity);
-
-  std::shared_ptr<RenderGraph>& graph = render_graphs_[camera_entity];
-  if (!graph) {
-    graph = std::make_shared<RenderGraph>(*renderer);
-  } else {
-    graph->Clear();
-  }
-
-  bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RenderContext ctx{
-      *renderer,   *this, camera, camera.resource_pool, camera.viewport_size,
-      use_resolve, false, false,  camera_entity};
-
-  auto& pipeline =
-      camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-  pipeline.BuildRenderGraph(*graph, ctx);
-  graph->Compile();
-}
-
-bool Scene::Render() {
-  PROFILE_ZONE_SCOPED();
-  EnsureDefaultSkybox();
-  bool has_camera = false;
-  std::shared_ptr<Renderer> renderer = Engine::renderer();
-
-  // Ensure we have a default pipeline
-  if (!default_pipeline_) {
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-  }
-
-  // Check if feature toggles or MSAA changed - rebuild pipeline and dirty cameras
-  if (renderer->NeedsRecreateResources()) {
-    renderer->ClearRecreateResources();
-    // Recreate the full pipeline (render passes + pipelines depend on MSAA mode)
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-    for (const auto& e : GetAllEntitiesWith<CameraComponent>()) {
-      auto& cam = registry_.get<CameraComponent>(e);
-      cam.render_pipeline = nullptr;  // force re-assignment of new pipeline
-      cam.resources_dirty = true;
-    }
-  }
-
-  for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
-    auto& camera = registry_.get<CameraComponent>(cameraEntity);
-    auto& camera_transform = registry_.get<TransformComponent>(cameraEntity);
-    if (!camera.enabled) {
-      continue;
-    }
-
-    // Apply scene render resolution if set
-    if (render_resolution_.x > 0 && render_resolution_.y > 0) {
-      if (render_resolution_.x != camera.viewport_size.x ||
-          render_resolution_.y != camera.viewport_size.y) {
-        camera.viewport_size = render_resolution_;
-        camera.aspect_ratio = render_resolution_.x / render_resolution_.y;
-        camera.view_changed = true;
-        camera.resources_dirty = true;
-      }
-    }
-
-    // Compute canvas layout using the camera's viewport size so the layout
-    // matches the push constant the canvas shader receives.
-    {
-      CanvasSystem canvas_system;
-      canvas_system.Update(*this, camera.viewport_size);
-    }
-
-    if (camera.resources_dirty) {
-      vkDeviceWaitIdle(renderer->GetLogicalDevice());
-      bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-      RenderContext ctx{*renderer,
-                        *this,
-                        camera,
-                        camera.resource_pool,
-                        camera.viewport_size,
-                        use_resolve,
-                        false,
-                        false,
-                        cameraEntity};
-      auto& pipeline =
-          camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-      pipeline.SetupResources(ctx);
-      camera.resources_dirty = false;
-      render_graphs_.erase(cameraEntity);
-    }
-
-    PROFILE_PLOT("Game Width", static_cast<double>(camera.viewport_size.x));
-    PROFILE_PLOT("Game Height", static_cast<double>(camera.viewport_size.y));
-
-    current_camera_->TransferFrom(camera, camera_transform);
-    renderer->SetCameraData(current_camera_);
-    renderer->UpdateUniformData();
-
-    // Rebuild render graph each frame to pick up settings changes
-    BuildRenderGraph(cameraEntity);
-    render_graphs_[cameraEntity]->Execute(renderer->GetCommandBuffer().handle_);
-
-    // Store current VP for next frame's motion blur
-    camera.prev_view_projection = camera.projection * camera.view_matrix;
-
-    has_camera = true;
-  }
-  return has_camera;
-}
-
-bool Scene::RenderFromExternal(CameraComponent& camera,
-                               TransformComponent& transform, bool show_grid) {
-  EnsureDefaultSkybox();
-  PROFILE_ZONE_SCOPED();
-  std::shared_ptr<Renderer> renderer = Engine::renderer();
-
-  if (!default_pipeline_) {
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-  }
-
-  // Check if feature toggles or MSAA changed - rebuild pipeline and dirty editor camera
-  if (renderer->NeedsRecreateResources()) {
-    renderer->ClearRecreateResources();
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-    camera.render_pipeline = nullptr;
-    camera.resources_dirty = true;
-    external_render_graph_ = nullptr;
-  }
-
-  // Compute canvas layout using camera viewport (must match shader push constant)
-  {
-    CanvasSystem canvas_system;
-    canvas_system.Update(*this, camera.viewport_size);
-  }
-
-  // Compute transform matrix (no entity hierarchy for external camera)
-  glm::vec3 rotRad = glm::radians(transform.GetRotation());
-  glm::mat4 R = glm::toMat4(glm::quat(rotRad));
-  glm::mat4 T = glm::translate(glm::mat4(1.0f), transform.GetPosition());
-  glm::mat4 S = glm::scale(glm::mat4(1.0f), transform.GetScale());
-  transform.SetTransformMatrix(T * R * S);
-
-  // Update camera matrices
-  if (camera.view_changed) {
-    camera.UpdateProjection();
-    camera.view_changed = false;
-  }
-  camera.UpdateView(transform.GetTransformMatrix());
-  camera.UpdateAll();
-
-  // Compute shadow cascades for external camera (same as ECS cameras)
-  auto& lights = Engine::renderer()->lights_uniform_data_;
-  if (lights.direct_light_count > 0 && renderer->options().shadows_enabled) {
-    camera.ComputeCascades(-glm::normalize(lights.direct_lights[0].direction));
-  } else {
-    camera.does_shadow_pass = false;
-  }
-
-  // Setup resources if dirty
-  if (camera.resources_dirty) {
-    vkDeviceWaitIdle(renderer->GetLogicalDevice());
-    bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-    RenderContext ctx{*renderer,
-                      *this,
-                      camera,
-                      camera.resource_pool,
-                      camera.viewport_size,
-                      use_resolve,
-                      true,
-                      show_grid};
-    auto& pipeline =
-        camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-    pipeline.SetupResources(ctx);
-    camera.resources_dirty = false;
-    external_render_graph_ = nullptr;
-  }
-
-  current_camera_->TransferFrom(camera, transform);
-  renderer->SetCameraData(current_camera_);
-  renderer->UpdateUniformData();
-
-  // Build and execute render graph
-  if (!external_render_graph_) {
-    external_render_graph_ = std::make_shared<RenderGraph>(*renderer);
-  } else {
-    external_render_graph_->Clear();
-  }
-  bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RenderContext ctx{
-      *renderer,   *this, camera,   camera.resource_pool, camera.viewport_size,
-      use_resolve, true,  show_grid};
-  auto& pipeline =
-      camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-  pipeline.BuildRenderGraph(*external_render_graph_, ctx);
-  external_render_graph_->Compile();
-  external_render_graph_->Execute(renderer->GetCommandBuffer().handle_);
-
-  camera.prev_view_projection = camera.projection * camera.view_matrix;
-  return true;
-}
-
 void Scene::ResetPhysicsWorld() {
   glm::vec3 gravity = physics_world_->GetGravity();
   physics_world_.reset();
@@ -1615,49 +1379,15 @@ void Scene::ResetScriptStates() {
   }
 }
 
-void Scene::SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline) {
-  default_pipeline_ = std::move(pipeline);
-  // Invalidate all camera resources so they get rebuilt with the new pipeline
-  for (const auto& entity : registry_.view<CameraComponent>()) {
-    auto& camera = registry_.get<CameraComponent>(entity);
-    if (!camera.render_pipeline) {
-      camera.resource_pool.Clear();
-      camera.resources_dirty = true;
-    }
-  }
-}
-
 void Scene::SetRenderPipeline(entt::entity camera_entity,
                               std::shared_ptr<RenderPipeline> pipeline) {
   auto& camera = registry_.get<CameraComponent>(camera_entity);
   camera.render_pipeline = std::move(pipeline);
   camera.resource_pool.Clear();
-  camera.resources_dirty = true;
+  camera.resource_pipeline_version = 0;  // force rebuild on next render
 }
 
-std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(
-    std::shared_ptr<Renderer> renderer) {
-  auto pipeline = std::make_shared<RenderPipeline>(renderer);
-  pipeline->AddFeature<ShadowFeature>(renderer);
-  pipeline->AddFeature<GeometryFeature>(renderer);
-  if (renderer->IsRayTracingSupported()) {
-    pipeline->AddFeature<RTShadowFeature>(renderer);
-  }
-  pipeline->AddFeature<SSAOFeature>(renderer);
-  pipeline->AddFeature<IBLFeature>(renderer);
-  pipeline->AddFeature<LightingFeature>(renderer);
-  pipeline->AddFeature<TransparencyFeature>(renderer);
-  pipeline->AddFeature<GridFeature>(renderer);
-  pipeline->AddFeature<SpriteFeature>(renderer);
-  pipeline->AddFeature<CompositeFeature>(renderer);
-  pipeline->AddFeature<TAAFeature>(renderer);
-  pipeline->AddFeature<BloomFeature>(renderer);
-  pipeline->AddFeature<MotionBlurFeature>(renderer);
-  pipeline->AddFeature<FXAAFeature>(renderer);
-  pipeline->AddFeature<CanvasFeature>(renderer);
-  pipeline->AddFeature<DebugColliderFeature>(renderer);
-  pipeline->AddFeature<BillboardFeature>(renderer);
-  return pipeline;
+void MultiScene::SetSceneIndex(uint8_t index) {
+  Engine::renderer()->SetCurrentSceneIndex(index);
 }
-
 }  // namespace Wiesel

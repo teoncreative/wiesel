@@ -173,7 +173,8 @@ struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat3 normal_matrix;
   // GLM_FORCE_DEFAULT_ALIGNED_GENTYPES makes glm::mat3 = 48 bytes (vec4-aligned columns)
   // which matches std140 layout. entityId follows at offset 112.
-  float entity_id = 0.0f;
+  // Packed: (scene_index << 24) | (entity_handle + 1). 0 = no entity.
+  uint32_t entity_id = 0;
   float _pad1[3]{};  // pad to next vec4 boundary (offset 128)
   alignas(16) glm::vec4 color_tint{1.0f, 1.0f, 1.0f, 1.0f};
   alignas(16) glm::vec4 material_params{

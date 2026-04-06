@@ -523,11 +523,12 @@ void RenderGraph::DestroyQueryPool() {
     return;
   }
   VkDevice device = renderer_.GetLogicalDevice();
-  vkDeviceWaitIdle(device);
   for (uint32_t i = 0; i < kTimingFrames; i++) {
     if (query_pools_[i]) {
-      vkDestroyQueryPool(device, query_pools_[i], nullptr);
+      VkQueryPool pool = query_pools_[i];
       query_pools_[i] = VK_NULL_HANDLE;
+      renderer_.GetDeletionQueue().Push(
+          [device, pool]() { vkDestroyQueryPool(device, pool, nullptr); });
     }
   }
   query_pool_created_ = false;

@@ -241,7 +241,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("BillboardFeature::AddPasses");
 
   CameraResourcePool* pool = &ctx.resources;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
   auto push_constant = push_constant_;
@@ -272,8 +272,8 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   // Draw pass
   uint32_t draw_pass = graph.AddPass(
       "Billboards", render_pass_,
-      [pipeline, push_constant, scene, renderer, vp, cam_pos, cam_right, cam_up,
-       fov, is_ortho, ortho_size, quad_vb, quad_ib,
+      [pipeline, push_constant, &scenes, renderer, vp, cam_pos, cam_right,
+       cam_up, fov, is_ortho, ortho_size, quad_vb, quad_ib,
        camera_icon_desc](VkCommandBuffer cmd) {
         if (!camera_icon_desc) {
           return;
@@ -312,25 +312,23 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         };
 
         // Draw camera billboards
-        for (const entt::entity& entity :
-             scene->GetAllEntitiesWith<CameraComponent, TransformComponent>()) {
-          auto& tc = scene->GetComponent<TransformComponent>(entity);
-          draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
-        }
+        scenes.ForEach<CameraComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& tc = scene.GetComponent<TransformComponent>(entity);
+              draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
+            });
 
         // Draw light billboards (reuse camera icon for now until we have light icons)
-        for (const entt::entity& entity :
-             scene->GetAllEntitiesWith<LightDirectComponent,
-                                       TransformComponent>()) {
-          auto& tc = scene->GetComponent<TransformComponent>(entity);
-          draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
-        }
-        for (const entt::entity& entity :
-             scene->GetAllEntitiesWith<LightPointComponent,
-                                       TransformComponent>()) {
-          auto& tc = scene->GetComponent<TransformComponent>(entity);
-          draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
-        }
+        scenes.ForEach<LightDirectComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& tc = scene.GetComponent<TransformComponent>(entity);
+              draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
+            });
+        scenes.ForEach<LightPointComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& tc = scene.GetComponent<TransformComponent>(entity);
+              draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
+            });
       });
 
   graph.PassWritesColor(draw_pass, billboard_out);

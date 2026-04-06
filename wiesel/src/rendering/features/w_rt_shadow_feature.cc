@@ -88,7 +88,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("RTShadowFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   std::shared_ptr<RTPipeline> rt_pipeline = rt_pipeline_;
   std::shared_ptr<DescriptorSetLayout> rt_layout = rt_descriptor_layout_;
   std::shared_ptr<UniformBuffer> lights_ubo = shadow_lights_ubo_;
@@ -106,7 +106,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
 
   uint32_t pass_idx = graph.AddPass(
       "RTShadow", nullptr,
-      [pool, renderer, scene, rt_pipeline, rt_layout, lights_ubo, trace_width,
+      [pool, renderer, &scenes, rt_pipeline, rt_layout, lights_ubo, trace_width,
        trace_height](VkCommandBuffer cmd) {
         auto as_manager = renderer->GetASManager();
         if (!as_manager) {
@@ -114,7 +114,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
         }
 
         // Build TLAS for the current frame
-        as_manager->BuildTLAS(cmd, *scene);
+        as_manager->BuildTLAS(cmd, scenes.primary());
         if (!as_manager->HasTLAS()) {
           return;
         }
@@ -123,34 +123,32 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
         RTShadowLightUBO ubo_data{};
         ubo_data.count = 0;
 
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<LightDirectComponent,
-                                       TransformComponent>()) {
-          if (ubo_data.count >= kMaxRTShadowLights) {
-            break;
-          }
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldDir = -glm::normalize(glm::vec3(
-              transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
-          ubo_data.lights[ubo_data.count].pos_or_dir =
-              glm::vec4(worldDir, 0.0f);
-          ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
-          ubo_data.count++;
-        }
+        scenes.ForEach<LightDirectComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              if (ubo_data.count >= kMaxRTShadowLights) {
+                return;
+              }
+              auto& transform = scene.GetComponent<TransformComponent>(entity);
+              glm::vec3 worldDir = -glm::normalize(glm::vec3(
+                  transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
+              ubo_data.lights[ubo_data.count].pos_or_dir =
+                  glm::vec4(worldDir, 0.0f);
+              ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
+              ubo_data.count++;
+            });
 
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<LightPointComponent,
-                                       TransformComponent>()) {
-          if (ubo_data.count >= kMaxRTShadowLights) {
-            break;
-          }
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldPos = transform.GetWorldPosition();
-          ubo_data.lights[ubo_data.count].pos_or_dir =
-              glm::vec4(worldPos, 1.0f);
-          ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
-          ubo_data.count++;
-        }
+        scenes.ForEach<LightPointComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              if (ubo_data.count >= kMaxRTShadowLights) {
+                return;
+              }
+              auto& transform = scene.GetComponent<TransformComponent>(entity);
+              glm::vec3 worldPos = transform.GetWorldPosition();
+              ubo_data.lights[ubo_data.count].pos_or_dir =
+                  glm::vec4(worldPos, 1.0f);
+              ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
+              ubo_data.count++;
+            });
 
         vkCmdUpdateBuffer(cmd, lights_ubo->buffer_handle_, 0,
                           sizeof(RTShadowLightUBO), &ubo_data);

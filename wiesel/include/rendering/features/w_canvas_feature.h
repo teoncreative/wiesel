@@ -31,7 +31,7 @@ struct alignas(16) CanvasElementUniformData {
   alignas(8) glm::vec2 size;
   alignas(16) glm::vec4 color;
   alignas(16) glm::vec4 uv_rect;
-  float entity_id;
+  uint32_t entity_id;
   float premultiplied;  // 1.0 = already premultiplied alpha, 0.0 = standard
   float _pad[2];
 };

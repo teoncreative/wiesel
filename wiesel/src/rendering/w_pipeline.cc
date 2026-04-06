@@ -43,9 +43,17 @@ static VkCompareOp ToVkCompareOp(CompareOp op) {
 Pipeline::Pipeline(PipelineProperties properties) : properties_(properties) {}
 
 Pipeline::~Pipeline() {
-  vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_, nullptr);
-  vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_,
-                          nullptr);
+  auto renderer = Engine::renderer();
+  if (!renderer) {
+    return;
+  }
+  VkPipeline pipeline = pipeline_;
+  VkPipelineLayout layout = layout_;
+  VkDevice device = renderer->GetLogicalDevice();
+  renderer->GetDeletionQueue().Push([device, pipeline, layout]() {
+    vkDestroyPipeline(device, pipeline, nullptr);
+    vkDestroyPipelineLayout(device, layout, nullptr);
+  });
   is_allocated_ = false;
 }
 

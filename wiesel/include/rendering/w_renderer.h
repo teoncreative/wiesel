@@ -464,20 +464,20 @@ class Renderer {
   void DrawCanvasRect(const RectangleTransformComponent& rt,
                       CanvasRectComponent& rect,
                       std::shared_ptr<DescriptorSetLayout> layout,
-                      float entity_id = 0);
+                      uint32_t entity_id = 0);
   void DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                         std::shared_ptr<Texture> texture, glm::vec4 tint,
                         glm::vec4 uv_rect,
                         std::shared_ptr<DescriptorSetLayout> layout,
-                        float entity_id = 0);
+                        uint32_t entity_id = 0);
   void DrawCanvasText(const RectangleTransformComponent& rt,
                       TextComponent& text,
                       std::shared_ptr<DescriptorSetLayout> layout,
-                      float entity_id = 0);
+                      uint32_t entity_id = 0);
   void DrawCanvasDescriptor(glm::vec2 position, glm::vec2 size,
                             std::shared_ptr<DescriptorSet> descriptor,
                             std::shared_ptr<DescriptorSetLayout> layout,
-                            float entity_id = 0);
+                            uint32_t entity_id = 0);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(
       std::shared_ptr<Pipeline> pipeline,
@@ -487,7 +487,13 @@ class Renderer {
       uint32_t x, uint32_t y,
       std::shared_ptr<AttachmentTexture> entity_id_texture,
       std::shared_ptr<AttachmentTexture> fallback_entity_id_texture = nullptr);
-  bool ExecuteEntityPick(entt::entity& out_entity);
+  bool ExecuteEntityPick(entt::entity& out_entity, uint8_t& out_scene_index);
+
+  // Set the scene index used to tag entity IDs during rendering.
+  // Must be called before rendering each scene.
+  void SetCurrentSceneIndex(uint8_t index) { current_scene_index_ = index; }
+
+  uint8_t GetCurrentSceneIndex() const { return current_scene_index_; }
 
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
 
@@ -682,6 +688,7 @@ class Renderer {
   friend class RenderGraph;
   friend class Mesh;
   friend class Scene;
+  friend class SceneManager;
   friend class CommandBuffer;
   friend class AccelerationStructureManager;
   friend class Application;
@@ -760,6 +767,7 @@ class Renderer {
   bool pick_pending_ = false;
 
   RenderStats stats_;
+  uint8_t current_scene_index_ = 0;
   uint32_t pick_x_ = 0;
   uint32_t pick_y_ = 0;
   std::shared_ptr<AttachmentTexture> pick_entity_id_image_;

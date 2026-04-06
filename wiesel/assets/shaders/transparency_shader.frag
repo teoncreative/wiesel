@@ -37,7 +37,7 @@ struct LightPoint {
 layout (set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
-    float entityId;
+    uint entityId;
     vec4 colorTint;
     vec4 materialParams; // x=roughness, y=metallic, z=specular
 };
@@ -91,7 +91,7 @@ layout(location = 6) in flat uint inFlags;
 layout(location = 7) in vec3 inViewDir;
 layout(location = 8) in vec3 inViewPos;
 layout(location = 9) in mat3 inTBN;
-layout(location = 12) in flat float inEntityId;
+layout (location = 12) in flat uint inEntityId;
 
 layout(location = 0) out vec4 outFragColor;
 

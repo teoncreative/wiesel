@@ -37,9 +37,14 @@ RenderPass::RenderPass(PassType pass_type, const std::string& debug_name)
     : pass_type_(pass_type), debug_name(debug_name) {}
 
 RenderPass::~RenderPass() {
-  vkDestroyRenderPass(Engine::renderer()->logical_device_, render_pass_,
-                      nullptr);
-  //Engine::renderer()->DestroyRenderPass(*this);
+  auto renderer = Engine::renderer();
+  if (!renderer) {
+    return;
+  }
+  VkRenderPass pass = render_pass_;
+  VkDevice device = renderer->logical_device_;
+  renderer->GetDeletionQueue().Push(
+      [device, pass]() { vkDestroyRenderPass(device, pass, nullptr); });
 }
 
 void RenderPass::AttachOutput(std::shared_ptr<AttachmentTexture> attachment) {

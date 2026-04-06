@@ -202,5 +202,14 @@ namespace WieselEngine
             return result;
         }
 
+        /// <summary>
+        /// Move this entity (and optionally its children) to another scene.
+        /// This entity handle becomes invalid after the move. Returns the new Entity in the target scene.
+        /// </summary>
+        public Entity MoveToScene(Scene targetScene, bool moveChildren = true)
+        {
+            return SceneManager.MoveEntityToScene(Entity, targetScene, moveChildren);
+        }
+
     }
 }

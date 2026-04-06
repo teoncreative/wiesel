@@ -30,15 +30,13 @@ void SceneLayer::OnDetach() {}
 void SceneLayer::OnUpdate(float_t delta_time) {
   auto& sm = Engine::scene_manager();
   sm.BeginFrame();
-  auto scene = sm.GetActiveScene();
-  if (scene) {
+  for (auto& scene : sm.GetLoadedScenes()) {
     scene->OnUpdate(delta_time);
   }
 }
 
 void SceneLayer::OnEvent(Event& event) {
-  auto scene = Engine::scene_manager().GetActiveScene();
-  if (scene) {
+  for (auto& scene : Engine::scene_manager().GetLoadedScenes()) {
     scene->OnEvent(event);
   }
 }
@@ -56,10 +54,7 @@ void SceneLayer::OnPostPresent() {
 }
 
 void SceneLayer::OnPrePresent() {
-  auto scene = Engine::scene_manager().GetActiveScene();
-  if (scene) {
-    scene->Render();
-  }
+  Engine::scene_manager().RenderGameView();
 }
 
 }  // namespace Wiesel

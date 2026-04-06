@@ -99,11 +99,21 @@ Entity Prefab::DeserializeEntityTree(std::shared_ptr<Scene> scene,
   return DeserializeSingleEntity(scene, json["root"]);
 }
 
-Entity Prefab::InstantiateFromFile(std::shared_ptr<Scene> scene,
-                                   const std::string& vfs_path) {
-  VfsFile file = Engine::vfs()->Open(vfs_path);
+Entity Prefab::Instantiate(std::shared_ptr<Scene> scene, AssetHandle handle) {
+  if (!handle.IsValid()) {
+    LOG_ERROR("Prefab::Instantiate: invalid asset handle");
+    return Entity{entt::null, scene.get()};
+  }
+
+  const auto* meta = Engine::asset_manager().GetMetadata(handle);
+  if (!meta) {
+    LOG_ERROR("Prefab::Instantiate: asset not found: {}", handle.ToString());
+    return Entity{entt::null, scene.get()};
+  }
+
+  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
   if (!file) {
-    LOG_ERROR("Failed to open prefab file: {}", vfs_path);
+    LOG_ERROR("Failed to open prefab file: {}", meta->virtual_source_path);
     return Entity{entt::null, scene.get()};
   }
 

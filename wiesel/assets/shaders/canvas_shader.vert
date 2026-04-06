@@ -5,7 +5,7 @@ layout(set = 0, binding = 0, std140) uniform ElementData {
     vec2 size;
     vec4 color;
     vec4 uvRect;
-    float entityId;
+    uint entityId;
     float premultiplied;
 };
 
@@ -15,7 +15,7 @@ layout(push_constant) uniform PushConstants {
 
 layout(location = 0) out vec2 outUV;
 layout(location = 1) out vec4 outColor;
-layout(location = 2) out float outEntityId;
+layout (location = 2) out flat uint outEntityId;
 layout (location = 3) out float outPremultiplied;
 
 const vec2 quadPos[6] = vec2[6](

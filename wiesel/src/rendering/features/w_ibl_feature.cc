@@ -307,7 +307,7 @@ void IBLFeature::SetupResources(RenderContext& ctx) {
   GenerateBRDFLUT();
 
   // Check if skybox changed
-  auto skybox = ctx.scene.GetSkybox();
+  auto skybox = ctx.scenes.primary().GetSkybox();
   if (!skybox || !skybox->texture_) {
     LOG_DEBUG("IBL: no skybox or texture available");
     maps_generated_ = false;

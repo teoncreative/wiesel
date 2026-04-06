@@ -373,7 +373,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
     component.aspect_ratio =
         component.viewport_size.x / component.viewport_size.y;
   }
-  component.resources_dirty = true;
+  component.resource_pipeline_version = 0;  // force rebuild on next render
   component.view_changed = true;
   component.pos_changed = true;
 }
@@ -3539,7 +3539,8 @@ void Renderer::DrawModel(ModelComponent& model,
       }
       if (entity_handle != entt::null) {
         matrices.entity_id =
-            static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+            (static_cast<uint32_t>(current_scene_index_) << 24) |
+            (static_cast<uint32_t>(entity_handle) + 1);
       }
 
       // Set per-mesh material properties
@@ -3645,8 +3646,8 @@ void Renderer::DrawModelTransparent(
       matrices.normal_matrix = transform.GetNormalMatrix();
     }
     if (entity_handle != entt::null) {
-      matrices.entity_id =
-          static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
+      matrices.entity_id = (static_cast<uint32_t>(current_scene_index_) << 24) |
+                           (static_cast<uint32_t>(entity_handle) + 1);
     }
 
     if (i < model.material_instances.size() && model.material_instances[i]) {
@@ -3713,8 +3714,10 @@ void Renderer::RequestEntityPick(
   pick_pending_ = true;
 }
 
-bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
+bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
+                                 uint8_t& out_scene_index) {
   out_entity = entt::null;
+  out_scene_index = 0;
   if (!pick_pending_ || !pick_entity_id_image_) {
     return false;
   }
@@ -3781,13 +3784,13 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
   void* data;
   WIESEL_CHECK_VKRESULT(
       vmaMapMemory(vma_allocator_, pick_staging_alloc_, &data));
-  float value = *static_cast<float*>(data);
+  uint32_t value = *static_cast<uint32_t*>(data);
   vmaUnmapMemory(vma_allocator_, pick_staging_alloc_);
 
   pick_entity_id_image_ = nullptr;
 
   // If primary texture had no hit, try fallback (canvas entity IDs)
-  if (value < 0.5f && pick_fallback_image_) {
+  if (value == 0 && pick_fallback_image_) {
     auto fallback = pick_fallback_image_;
     pick_fallback_image_ = nullptr;
 
@@ -3828,14 +3831,15 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
 
     WIESEL_CHECK_VKRESULT(
         vmaMapMemory(vma_allocator_, pick_staging_alloc_, &data));
-    value = *static_cast<float*>(data);
+    value = *static_cast<uint32_t*>(data);
     vmaUnmapMemory(vma_allocator_, pick_staging_alloc_);
   } else {
     pick_fallback_image_ = nullptr;
   }
 
-  if (value > 0.5f) {
-    uint32_t id = static_cast<uint32_t>(value) - 1;
+  if (value != 0) {
+    out_scene_index = static_cast<uint8_t>(value >> 24);
+    uint32_t id = (value & 0x00FFFFFFu) - 1;
     out_entity = static_cast<entt::entity>(id);
   }
   return true;
@@ -3908,7 +3912,7 @@ void Renderer::DrawSprite(SpriteRendererComponent& sprite,
 void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
                               CanvasRectComponent& rect,
                               std::shared_ptr<DescriptorSetLayout> layout,
-                              float entity_id) {
+                              uint32_t entity_id) {
   // Lazily allocate GPU resources
   if (!rect.ubo_) {
     rect.ubo_ = CreateUniformBuffer("Rectangle Transform UBO", sizeof(CanvasElementUniformData));
@@ -3970,7 +3974,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                                 std::shared_ptr<Texture> texture,
                                 glm::vec4 tint, glm::vec4 uv_rect,
                                 std::shared_ptr<DescriptorSetLayout> layout,
-                                float entity_id) {
+                                uint32_t entity_id) {
   if (!texture || !texture->is_allocated_) {
     return;
   }
@@ -4086,7 +4090,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
 void Renderer::DrawCanvasDescriptor(
     glm::vec2 position, glm::vec2 size,
     std::shared_ptr<DescriptorSet> descriptor,
-    std::shared_ptr<DescriptorSetLayout> /*layout*/, float entity_id) {
+    std::shared_ptr<DescriptorSetLayout> /*layout*/, uint32_t entity_id) {
   if (!descriptor) {
     return;
   }
@@ -4102,7 +4106,7 @@ void Renderer::DrawCanvasDescriptor(
 void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
                               TextComponent& text,
                               std::shared_ptr<DescriptorSetLayout> layout,
-                              float entity_id) {
+                              uint32_t entity_id) {
   if (text.text.empty()) {
     return;
   }

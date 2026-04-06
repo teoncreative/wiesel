@@ -79,7 +79,7 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("SpriteFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
-  auto* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   auto pipeline = pipeline_;
 
   // Import sprite output texture from pool
@@ -87,22 +87,22 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
       graph.ImportTexture("SpriteOut", pool->GetTexture("sprite.color"));
 
   uint32_t sprite = graph.AddPass(
-      "Sprite", render_pass_, [pipeline, scene, renderer](VkCommandBuffer) {
+      "Sprite", render_pass_, [pipeline, &scenes, renderer](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
 
         // Collect and sort sprites by sort_layer
         struct SpriteEntry {
+          Scene* scene;
           entt::entity entity;
           uint8_t layer;
         };
         std::vector<SpriteEntry> sorted;
 
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<SpriteRendererComponent,
-                                       TransformComponent>()) {
-          auto& spr = scene->GetComponent<SpriteRendererComponent>(entity);
-          sorted.push_back({entity, spr.sort_layer_});
-        }
+        scenes.ForEach<SpriteRendererComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& spr = scene.GetComponent<SpriteRendererComponent>(entity);
+              sorted.push_back({&scene, entity, spr.sort_layer_});
+            });
 
         std::sort(sorted.begin(), sorted.end(),
                   [](const SpriteEntry& a, const SpriteEntry& b) {
@@ -111,9 +111,9 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
 
         for (auto& entry : sorted) {
           auto& spr =
-              scene->GetComponent<SpriteRendererComponent>(entry.entity);
+              entry.scene->GetComponent<SpriteRendererComponent>(entry.entity);
           auto& transform =
-              scene->GetComponent<TransformComponent>(entry.entity);
+              entry.scene->GetComponent<TransformComponent>(entry.entity);
           renderer->DrawSprite(spr, transform);
         }
       });

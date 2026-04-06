@@ -108,7 +108,7 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("TransparencyFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
-  auto* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
 
   RGResource transparency_out = graph.ImportTexture(
       "TransparencyOut", pool->GetTexture("transparency.color"));
@@ -122,27 +122,29 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
 
   uint32_t pass = graph.AddPass(
       "Transparency", render_pass_,
-      [active_pipeline, scene, renderer, ibl_desc](VkCommandBuffer) {
+      [active_pipeline, &scenes, renderer, ibl_desc](VkCommandBuffer) {
         active_pipeline->Bind(PipelineBindPointGraphics);
         const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
         auto& assets = Engine::asset_manager();
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-          auto& model = scene->GetComponent<ModelComponent>(entity);
-          if (!model.enable_rendering) {
-            continue;
-          }
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
-          const auto& model_data = assets.GetOrLoad<Model>(model.model_handle);
-          if (model_data && model_data->bounds.Valid()) {
-            AABB world_bounds =
-                model_data->bounds.Transformed(transform.GetTransformMatrix());
-            if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
-              continue;
-            }
-          }
-          renderer->DrawModelTransparent(model, transform, entity, ibl_desc);
-        }
+        scenes.ForEach<ModelComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& model = scene.GetComponent<ModelComponent>(entity);
+              if (!model.enable_rendering) {
+                return;
+              }
+              auto& transform = scene.GetComponent<TransformComponent>(entity);
+              const auto& model_data =
+                  assets.GetOrLoad<Model>(model.model_handle);
+              if (model_data && model_data->bounds.Valid()) {
+                AABB world_bounds = model_data->bounds.Transformed(
+                    transform.GetTransformMatrix());
+                if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
+                  return;
+                }
+              }
+              renderer->DrawModelTransparent(model, transform, entity,
+                                             ibl_desc);
+            });
       });
 
   graph.PassWritesColor(pass, transparency_out);

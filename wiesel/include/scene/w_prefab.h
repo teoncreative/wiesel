@@ -16,6 +16,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "asset/w_asset_handle.h"
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
@@ -29,8 +30,7 @@ class Prefab {
   static bool SaveToFile(Entity entity, const std::filesystem::path& path);
 
   // Instantiate a prefab into a scene, returns the root entity
-  static Entity InstantiateFromFile(std::shared_ptr<Scene> scene,
-                                    const std::string& vfs_path);
+  static Entity Instantiate(std::shared_ptr<Scene> scene, AssetHandle handle);
 
   // Serialize an entity subtree to JSON (used internally and by the editor)
   static nlohmann::json SerializeEntityTree(Entity entity);

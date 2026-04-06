@@ -462,7 +462,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   auto pipeline = pipeline_;
   auto filled_pipe = filled_pipeline_;
   auto push_constant = push_constant_;
@@ -499,13 +499,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Build heightfield debug geometry once (cached)
   if (show_colliders && !hf_cache_valid_) {
     hf_cache_.clear();
-    for (const auto& entity :
-         scene->GetAllEntitiesWith<HeightfieldColliderComponent,
-                                   TransformComponent>()) {
-      auto& hf = scene->GetComponent<HeightfieldColliderComponent>(entity);
-      auto& tc = scene->GetComponent<TransformComponent>(entity);
-      if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
-        continue;
+    scenes.ForEach<HeightfieldColliderComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& hf = scene.GetComponent<HeightfieldColliderComponent>(entity);
+          auto& tc = scene.GetComponent<TransformComponent>(entity);
+          if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
+            return;
       }
 
       std::vector<glm::vec3> vertices;
@@ -542,7 +541,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       data.index_count = static_cast<uint32_t>(indices.size());
       data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
       hf_cache_.push_back(std::move(data));
-    }
+    });
     hf_cache_valid_ = true;
   }
   if (!show_colliders) {
@@ -554,17 +553,16 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Build mesh collider debug geometry once (cached)
   if (show_colliders && !mesh_collider_cache_valid_) {
     mesh_collider_cache_.clear();
-    for (const auto& entity :
-         scene->GetAllEntitiesWith<MeshColliderComponent, ModelComponent,
-                                   TransformComponent>()) {
-      auto& model_comp = scene->GetComponent<ModelComponent>(entity);
+    scenes.ForEach<MeshColliderComponent, ModelComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& model_comp = scene.GetComponent<ModelComponent>(entity);
       if (!model_comp.model_handle.IsValid()) {
-        continue;
+            return;
       }
       const std::shared_ptr<Model>& model_data =
           Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
       if (!model_data) {
-        continue;
+        return;
       }
 
       std::vector<glm::vec3> vertices;
@@ -572,7 +570,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       model_data->GetCollisionGeometry(vertices, tri_indices);
 
       if (tri_indices.empty()) {
-        continue;
+        return;
       }
 
       // Convert triangle indices to line-list edges for wireframe
@@ -590,7 +588,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         line_indices.push_back(a);
       }
 
-      auto& tc = scene->GetComponent<TransformComponent>(entity);
+      auto& tc = scene.GetComponent<TransformComponent>(entity);
       glm::mat4 model = glm::translate(glm::mat4(1.0f), tc.GetWorldPosition()) *
                         glm::scale(glm::mat4(1.0f), tc.GetScale());
 
@@ -601,7 +599,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       data.index_count = static_cast<uint32_t>(line_indices.size());
       data.model = model;
       mesh_collider_cache_.push_back(std::move(data));
-    }
+    });
     mesh_collider_cache_valid_ = true;
   }
   if (!show_colliders) {
@@ -619,7 +617,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   uint32_t draw_pass = graph.AddPass(
       "DebugColliders", render_pass_,
-      [pipeline, filled_pipe, no_depth_pipe, push_constant, scene, renderer, vp,
+      [pipeline, filled_pipe, no_depth_pipe, push_constant, &scenes, renderer, vp,
        show_colliders, show_triggers, show_reverb, show_cameras, box_vb, box_ib,
        box_ic, sphere_vb, sphere_ib, sphere_ic, fbox_vb, fbox_ib, fbox_ic,
        fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc, &hf_data,
@@ -681,11 +679,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           constexpr glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
 
           // Helper: pick wireframe color based on rigidbody state
-          auto get_collider_color = [&](entt::entity entity) -> glm::vec4 {
-            if (!scene->HasComponent<RigidBodyComponent>(entity)) {
+          auto get_collider_color = [&](Scene& scene,
+                                        entt::entity entity) -> glm::vec4 {
+            if (!scene.HasComponent<RigidBodyComponent>(entity)) {
               return static_wire;
             }
-            auto& rb = scene->GetComponent<RigidBodyComponent>(entity);
+            auto& rb = scene.GetComponent<RigidBodyComponent>(entity);
             if (rb.type == RigidBodyType::Kinematic) {
               return kinematic_wire;
             }
@@ -693,8 +692,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           };
 
           // Helper: draw a collider or trigger with the appropriate style
-          auto draw_collider = [&](entt::entity entity, bool is_trigger,
-                                   const glm::mat4& model,
+          auto draw_collider = [&](Scene& scene, entt::entity entity,
+                                   bool is_trigger, const glm::mat4& model,
                                    std::shared_ptr<MemoryBuffer> wire_vb,
                                    std::shared_ptr<IndexBuffer> wire_ib,
                                    uint32_t wire_ic,
@@ -716,45 +715,43 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             } else {
               pipeline->Bind(PipelineBindPointGraphics);
               draw_wireframe(wire_vb, wire_ib, wire_ic, model,
-                             get_collider_color(entity));
+                             get_collider_color(scene, entity));
             }
           };
 
           // Box colliders/triggers
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<BoxColliderComponent,
-                                         TransformComponent>()) {
-            auto& box = scene->GetComponent<BoxColliderComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
+          scenes.ForEach<BoxColliderComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& box = scene.GetComponent<BoxColliderComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
             glm::mat4 model =
                 glm::translate(glm::mat4(1.0f),
                                tc.GetWorldPosition() + box.offset) *
                 glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
-            draw_collider(entity, box.is_trigger, model, box_vb, box_ib, box_ic,
-                          fbox_vb, fbox_ib, fbox_ic);
-          }
+                draw_collider(scene, entity, box.is_trigger, model, box_vb,
+                              box_ib, box_ic, fbox_vb, fbox_ib, fbox_ic);
+          });
 
           // Sphere colliders/triggers
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<SphereColliderComponent,
-                                         TransformComponent>()) {
-            auto& sphere = scene->GetComponent<SphereColliderComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
+          scenes.ForEach<SphereColliderComponent,
+                         TransformComponent>([&](Scene& scene,
+                                                 entt::entity entity) {
+            auto& sphere = scene.GetComponent<SphereColliderComponent>(entity);
+            auto& tc = scene.GetComponent<TransformComponent>(entity);
             glm::mat4 model =
                 glm::translate(glm::mat4(1.0f),
                                tc.GetWorldPosition() + sphere.offset) *
                 glm::scale(glm::mat4(1.0f), glm::vec3(sphere.radius * 2.0f));
-            draw_collider(entity, sphere.is_trigger, model, sphere_vb,
-                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
-                          fsphere_ic);
-          }
+            draw_collider(scene, entity, sphere.is_trigger, model, sphere_vb,
+                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib, fsphere_ic);
+              });
 
           // Capsule colliders/triggers
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<CapsuleColliderComponent,
-                                         TransformComponent>()) {
-            auto& cap = scene->GetComponent<CapsuleColliderComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
+          scenes.ForEach<CapsuleColliderComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& cap =
+                    scene.GetComponent<CapsuleColliderComponent>(entity);
+            auto& tc = scene.GetComponent<TransformComponent>(entity);
             float total_h = cap.height + cap.radius * 2.0f;
             glm::vec3 scale_vec;
             switch (cap.axis) {
@@ -772,9 +769,10 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                 glm::translate(glm::mat4(1.0f),
                                tc.GetWorldPosition() + cap.offset) *
                 glm::scale(glm::mat4(1.0f), scale_vec);
-            draw_collider(entity, cap.is_trigger, model, sphere_vb, sphere_ib,
-                          sphere_ic, fsphere_vb, fsphere_ib, fsphere_ic);
-          }
+            draw_collider(scene, entity, cap.is_trigger, model, sphere_vb,
+                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
+                          fsphere_ic);
+          });
 
           // Heightfield colliders: wireframe only
           if (show_colliders) {
@@ -802,11 +800,10 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           const glm::vec4 reverb_active_fill(0.7f, 0.3f, 1.0f, 0.2f);
           const glm::vec4 reverb_active_wire(0.9f, 0.5f, 1.0f, 1.0f);
 
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<ReverbZoneComponent,
-                                         TransformComponent>()) {
-            auto& zone = scene->GetComponent<ReverbZoneComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
+          scenes.ForEach<ReverbZoneComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& zone = scene.GetComponent<ReverbZoneComponent>(entity);
+            auto& tc = scene.GetComponent<TransformComponent>(entity);
 
             glm::mat4 model =
                 glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
@@ -818,7 +815,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             pipeline->Bind(PipelineBindPointGraphics);
             draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
                            zone.active_ ? reverb_active_wire : reverb_wire);
-          }
+          });
         }
 
         // Camera frustum wireframes (editor scene view only)
@@ -827,12 +824,12 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           glm::vec4 cam_color = {0.7f, 0.7f, 0.7f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
-          for (auto cam_entity :
-               scene->GetAllEntitiesWith<CameraComponent,
-                                         TransformComponent>()) {
-            auto& cam = scene->GetComponent<CameraComponent>(cam_entity);
+          scenes.ForEach<CameraComponent,
+                         TransformComponent>([&](Scene& scene,
+                                                 entt::entity cam_entity) {
+            auto& cam = scene.GetComponent<CameraComponent>(cam_entity);
             auto& cam_transform =
-                scene->GetComponent<TransformComponent>(cam_entity);
+                scene.GetComponent<TransformComponent>(cam_entity);
 
             float vis_far = std::min(cam.far_plane, 50.0f);
             float aspect =
@@ -901,7 +898,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
                                  box_ib->index_type_);
             vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
-          }
+          });
         }
       });
 

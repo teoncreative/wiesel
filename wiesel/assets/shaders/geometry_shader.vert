@@ -5,7 +5,7 @@
 layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;
     mat3 normalMatrix;
-    float entityId;
+    uint entityId;
     // implicit 12 bytes padding to vec4 boundary
     vec4 colorTint;
     vec4 materialParams; // x=roughness, y=metallic, z=specular
@@ -51,7 +51,7 @@ layout(location = 6) out uint outFlags;
 layout(location = 7) out vec3 outViewDir;
 layout(location = 8) out vec3 outViewPos; // view-space pos
 layout(location = 9) out mat3 outTBN;
-layout(location = 12) out flat float outEntityId;
+layout (location = 12) out flat uint outEntityId;
 
 void main() {
     vec4 localPos = vec4(inVertexPosition, 1.0);

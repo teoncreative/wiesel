@@ -23,6 +23,7 @@ namespace Wiesel {
 
 class Renderer;
 class Scene;
+class MultiScene;
 struct CameraComponent;
 class RenderPipeline;
 
@@ -65,7 +66,7 @@ class CameraResourcePool {
 // Context passed to features during resource setup and pass building.
 struct RenderContext {
   Renderer& renderer;
-  Scene& scene;
+  MultiScene& scenes;
   CameraComponent& camera;
   CameraResourcePool& resources;
   glm::vec2 viewport_size;

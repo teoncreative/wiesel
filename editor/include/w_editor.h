@@ -60,7 +60,8 @@ class EditorLayer : public Layer {
   bool OnWindowFocusLost(WindowFocusLostEvent& event);
   bool OnAssetUnloaded(AssetUnloadedEvent& event);
 
-  void RenderEntity(Entity& entity, entt::entity entity_id, int depth,
+  void RenderEntity(Entity& entity, entt::entity entity_id,
+                    std::shared_ptr<Scene> entity_scene, int depth,
                     bool& ignore_menu);
   void UpdateHierarchyOrder();
 
@@ -71,6 +72,13 @@ class EditorLayer : public Layer {
  private:
   void TakeSnapshot();
   void RestoreSnapshot();
+
+  // Entity picking helpers
+  entt::entity FindSpriteAtNDC(glm::vec2 ndc);
+  void FindSpritesInScene(const std::shared_ptr<Scene>& scene,
+                          const glm::mat4& vp, glm::vec2 pick_ndc,
+                          entt::entity& best, float& best_depth,
+                          std::shared_ptr<Scene>& best_scene);
 
   // Toolbar / Menu
   void RenderMainMenuBar();

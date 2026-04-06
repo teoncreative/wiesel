@@ -237,7 +237,7 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("LightingFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   bool use_resolve = ctx.use_msaa_resolve;
 
   // Import lighting output texture from pool
@@ -284,11 +284,11 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   bool is_ortho = ctx.camera.projection_mode == ProjectionMode::Orthographic;
   uint32_t lighting = graph.AddPass(
       "Lighting", render_pass_,
-      [pool, renderer, scene, skybox_pipeline, lighting_pipeline,
+      [pool, renderer, &scenes, skybox_pipeline, lighting_pipeline,
        use_rt_shadows, use_ibl, is_ortho](VkCommandBuffer) {
         if (!is_ortho) {
           skybox_pipeline->Bind(PipelineBindPointGraphics);
-          auto skybox = scene->GetSkybox();
+          auto skybox = scenes.primary().GetSkybox();
           if (skybox) {
             renderer->DrawSkybox(skybox);
           }

@@ -105,7 +105,7 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   }
 
   // Capture stable pointers for deferred lambda execution.
-  auto* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
   auto push_constant = push_constant_;
@@ -114,7 +114,7 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     uint32_t shadow = graph.AddPass(
         "Shadow " + std::to_string(i), render_pass_,
-        [pipeline, push_constant, scene, renderer, does_shadow,
+        [pipeline, push_constant, &scenes, renderer, does_shadow,
          i](VkCommandBuffer) {
           if (!does_shadow) {
             return;
@@ -124,17 +124,17 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
                  sizeof(ShadowMapMatricesUniformData));
           push_constant->cascade_index = i;
           pipeline->Bind(PipelineBindPointGraphics);
-          for (const auto& entity :
-               scene
-                   ->GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-            auto& model = scene->GetComponent<ModelComponent>(entity);
-            auto& transform = scene->GetComponent<TransformComponent>(entity);
-            if (!model.receive_shadows || !model.enable_rendering ||
-                !model.model_handle) {
-              continue;
-            }
-            renderer->DrawModel(model, transform, true);
-          }
+          scenes.ForEach<ModelComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& model = scene.GetComponent<ModelComponent>(entity);
+                auto& transform =
+                    scene.GetComponent<TransformComponent>(entity);
+                if (!model.receive_shadows || !model.enable_rendering ||
+                    !model.model_handle) {
+                  return;
+                }
+                renderer->DrawModel(model, transform, true);
+              });
         });
     if (shadow_depth.IsValid()) {
       graph.PassWritesDepth(shadow, shadow_depth);

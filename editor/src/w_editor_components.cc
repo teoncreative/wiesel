@@ -494,7 +494,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
       component.aspect_ratio =
           component.viewport_size.x / component.viewport_size.y;
       component.view_changed = true;
-      component.resources_dirty = true;
+      component.resource_pipeline_version = 0;
     }
 
     ImGui::TreePop();

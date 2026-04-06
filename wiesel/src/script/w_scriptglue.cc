@@ -2195,15 +2195,30 @@ void Internals_Animator_SetIsPlaying(Scene* s, entt::entity e, bool value) {
 }
 
 // SceneManager internal calls
-void Internals_SceneManager_LoadScene(MonoString* name) {
+void Internals_SceneManager_LoadScene(MonoString* name, int mode) {
   char* cstr = mono_string_to_utf8(name);
-  Engine::scene_manager().LoadScene(cstr);
+  Engine::scene_manager().LoadScene(cstr, static_cast<LoadSceneMode>(mode));
   mono_free(cstr);
 }
 
-void Internals_SceneManager_LoadScenePath(MonoString* path) {
+void Internals_SceneManager_LoadScenePath(MonoString* path, int mode) {
   char* cstr = mono_string_to_utf8(path);
-  Engine::scene_manager().LoadSceneFromPath(cstr);
+  Engine::scene_manager().LoadSceneFromPath(cstr,
+                                            static_cast<LoadSceneMode>(mode));
+  mono_free(cstr);
+}
+
+void Internals_SceneManager_LoadSceneAsync(MonoString* name, int mode) {
+  char* cstr = mono_string_to_utf8(name);
+  Engine::scene_manager().LoadSceneAsync(cstr,
+                                         static_cast<LoadSceneMode>(mode));
+  mono_free(cstr);
+}
+
+void Internals_SceneManager_LoadSceneAsyncPath(MonoString* path, int mode) {
+  char* cstr = mono_string_to_utf8(path);
+  Engine::scene_manager().LoadSceneAsyncFromPath(
+      cstr, static_cast<LoadSceneMode>(mode));
   mono_free(cstr);
 }
 
@@ -2228,25 +2243,86 @@ void Internals_SceneManager_ActivateLoadedScene() {
   Engine::scene_manager().ActivateLoadedScene();
 }
 
-uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
+MonoObject* Internals_Prefab_Instantiate(uint64_t scene_ptr,
+                                         MonoString* handle_str) {
   if (scene_ptr == 0) {
-    return 0;
+    return nullptr;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  char* cstr = mono_string_to_utf8(path);
-
-  std::string vfs_path = cstr;
+  char* cstr = mono_string_to_utf8(handle_str);
+  AssetHandle handle = AssetHandle::FromString(cstr);
   mono_free(cstr);
 
   std::shared_ptr<Scene> shared_scene =
-      Engine::scene_manager().GetActiveScene();
+      Engine::scene_manager().FindSceneByPtr(scene);
   if (!shared_scene) {
-    LOG_ERROR("Prefab_Instantiate: no active scene");
-    return 0;
+    LOG_ERROR("Prefab_Instantiate: scene not found in loaded scenes");
+    return nullptr;
   }
 
-  Entity entity = Prefab::InstantiateFromFile(shared_scene, vfs_path);
-  return static_cast<uint32_t>(entity.handle());
+  Entity entity = Prefab::Instantiate(shared_scene, handle);
+  if (!entity) {
+    return nullptr;
+  }
+  return Engine::script_manager().CreateCSharpEntity(scene, entity.handle());
+}
+
+void Internals_SceneManager_UnloadScene(MonoString* name) {
+  char* cstr = mono_string_to_utf8(name);
+  Engine::scene_manager().UnloadScene(std::string(cstr));
+  mono_free(cstr);
+}
+
+int Internals_SceneManager_GetLoadedSceneCount() {
+  return static_cast<int>(Engine::scene_manager().GetLoadedScenes().size());
+}
+
+uint64_t Internals_SceneManager_GetLoadedScene(int index) {
+  auto& scenes = Engine::scene_manager().GetLoadedScenes();
+  if (index < 0 || index >= static_cast<int>(scenes.size())) {
+    return 0;
+  }
+  return reinterpret_cast<uint64_t>(scenes[index].get());
+}
+
+uint64_t Internals_SceneManager_FindScene(MonoString* name) {
+  char* cstr = mono_string_to_utf8(name);
+  auto scene = Engine::scene_manager().FindScene(cstr);
+  mono_free(cstr);
+  return scene ? reinterpret_cast<uint64_t>(scene.get()) : 0;
+}
+
+MonoString* Internals_Scene_GetName(uint64_t scene_ptr) {
+  if (scene_ptr == 0) {
+    return nullptr;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  return mono_string_new(mono_domain_get(), scene->GetName().c_str());
+}
+
+MonoObject* Internals_SceneManager_MoveEntityToScene(uint64_t scene_ptr,
+                                                     uint64_t entity_id,
+                                                     uint64_t target_scene_ptr,
+                                                     bool move_children) {
+  if (scene_ptr == 0 || target_scene_ptr == 0) {
+    return nullptr;
+  }
+  Scene* source = reinterpret_cast<Scene*>(scene_ptr);
+  auto target = Engine::scene_manager().FindSceneByPtr(
+      reinterpret_cast<Scene*>(target_scene_ptr));
+  if (!target) {
+    LOG_ERROR("MoveEntityToScene: target scene not found");
+    return nullptr;
+  }
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  Entity entity{handle, source};
+  Entity new_entity =
+      Engine::scene_manager().MoveEntityToScene(entity, target, move_children);
+  if (!new_entity) {
+    return nullptr;
+  }
+  return Engine::script_manager().CreateCSharpEntity(target.get(),
+                                                     new_entity.handle());
 }
 
 // Console
@@ -2793,10 +2869,18 @@ void RegisterScriptGlue() {
   // SceneManager
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScene);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScenePath);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadSceneAsync);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadSceneAsyncPath);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadSceneWithLoading);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_GetLoadProgress);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_IsSceneReady);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_ActivateLoadedScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_UnloadScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_GetLoadedSceneCount);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_GetLoadedScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_FindScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_MoveEntityToScene);
+  WIESEL_ADD_INTERNAL_CALL(Scene_GetName);
   WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
   // Scene
   WIESEL_ADD_INTERNAL_CALL(Time_GetDeltaTime);

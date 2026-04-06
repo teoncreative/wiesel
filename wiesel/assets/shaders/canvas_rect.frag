@@ -2,10 +2,10 @@
 
 layout(location = 0) in vec2 inUV;
 layout(location = 1) in vec4 inColor;
-layout(location = 2) in float inEntityId;
+layout (location = 2) in flat uint inEntityId;
 
 layout(location = 0) out vec4 outFragColor;
-layout(location = 1) out float outEntityId;
+layout (location = 1) out uint outEntityId;
 
 void main() {
     outFragColor = vec4(inColor.rgb * inColor.a, inColor.a);

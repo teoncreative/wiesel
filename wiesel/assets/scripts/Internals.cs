@@ -439,10 +439,17 @@ namespace WieselEngine
 
 
         // SceneManager
+        // Synchronous scene loading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void SceneManager_LoadScene(string name);
+        public static extern void SceneManager_LoadScene(string name, int mode);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void SceneManager_LoadScenePath(string path);
+        public static extern void SceneManager_LoadScenePath(string path, int mode);
+
+        // Async scene loading (queued for next frame)
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_LoadSceneAsync(string name, int mode);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_LoadSceneAsyncPath(string path, int mode);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void SceneManager_LoadSceneWithLoading(string targetScene, string loadingScene);
@@ -452,10 +459,22 @@ namespace WieselEngine
         public static extern bool SceneManager_IsSceneReady();
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void SceneManager_ActivateLoadedScene();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void SceneManager_UnloadScene(string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int SceneManager_GetLoadedSceneCount();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong SceneManager_GetLoadedScene(int index);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong SceneManager_FindScene(string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern Entity SceneManager_MoveEntityToScene(ulong scenePtr, ulong entityId, ulong targetScenePtr, bool moveChildren);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string Scene_GetName(ulong scenePtr);
 
         // Prefab
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern ulong Prefab_Instantiate(ulong scenePtr, string path);
+        public static extern Entity Prefab_Instantiate(ulong scenePtr, string assetHandle);
 
         // Time
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
