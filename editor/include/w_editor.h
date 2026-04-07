@@ -15,12 +15,15 @@
 #ifndef WIESEL_PARENT_W_EDITOR_H
 #define WIESEL_PARENT_W_EDITOR_H
 
+#include <ImGuizmo.h>
 #include "TextEditor.h"
+
 #include "behavior/w_behavior.h"
 #include "events/w_appevents.h"
 #include "events/w_mouseevents.h"
 #include "rendering/w_camera.h"
 #include "scene/w_scene.h"
+#include "util/w_filewatcher.h"
 #include "util/w_user_config.h"
 #include "w_application.h"
 #include "w_asset_browser_panel.h"
@@ -45,6 +48,11 @@ class RecentProjects {
 };
 
 enum class EditorState { Edit, Playing };
+
+struct HierarchyDragPayload {
+  entt::entity entity = entt::null;
+  int scene_index = -1;
+};
 
 class EditorLayer : public Layer {
  public:
@@ -119,6 +127,52 @@ class EditorLayer : public Layer {
   bool DrawPlayStopButtons();
 
   Application& app_;
+  std::shared_ptr<Project> active_project_;
+
+  // Selection state
+  entt::entity selected_entity_ = entt::null;
+  std::shared_ptr<Scene> selected_entity_scene_;
+  bool has_selected_entity_ = false;
+  bool scroll_to_selected_ = false;
+
+  // Hierarchy state
+  char hierarchy_search_[256] = {};
+  entt::entity renaming_entity_ = entt::null;
+  char rename_entity_buf_[256] = {};
+  std::unordered_set<entt::entity> open_ancestors_;
+  std::string entity_clipboard_;
+
+  struct SceneHierarchyData {
+    entt::entity move_from = entt::null;
+    std::shared_ptr<Scene> move_from_scene;
+    entt::entity move_to = entt::null;
+    std::shared_ptr<Scene> move_to_scene;
+    bool bottom_part = false;
+  };
+
+  SceneHierarchyData hierarchy_data_;
+
+  // Gizmo state
+  ImGuizmo::OPERATION current_op_ = ImGuizmo::TRANSLATE;
+  ImGuizmo::MODE current_mode_ = ImGuizmo::LOCAL;
+
+  // Panel visibility
+  bool panel_scene_hierarchy_ = true;
+  bool panel_components_ = true;
+  bool panel_asset_browser_ = true;
+  bool panel_console_ = true;
+  bool panel_stats_ = true;
+  bool panel_scene_view_ = true;
+  bool panel_game_view_ = true;
+  bool panel_lsp_debug_ = false;
+  bool panel_editor_settings_ = false;
+  bool layout_initialized_ = false;
+
+  // File watchers
+  FileWatcher script_watcher_;
+  FileWatcher ui_file_watcher_;
+  bool script_reload_pending_ = false;
+  bool window_focused_ = true;
 
   // Project
   std::string current_scene_path_;

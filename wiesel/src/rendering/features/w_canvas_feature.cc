@@ -704,7 +704,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // ---- Unified per-canvas info computation ----
   // Compute ALL per-canvas info once. Every consumer references this single map.
   struct CanvasRenderInfo {
-    entt::entity entity;
+    Entity entity{entt::null, nullptr};
     CanvasRenderMode render_mode;
     glm::mat4 model_matrix;
     glm::vec2 canvas_size;  // reference resolution for layout/shader
@@ -717,17 +717,17 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   // Collect ALL unique canvas roots from all three lists
   std::unordered_set<Entity> all_canvas_roots;
-  for (const auto& e : *sorted_overlay) {
+  for (const CanvasDrawEntry& e : *sorted_overlay) {
     if (e.canvas_root != entt::null) {
       all_canvas_roots.insert(Entity{e.canvas_root, e.scene});
     }
   }
-  for (const auto& e : *sorted_world) {
+  for (const CanvasDrawEntry& e : *sorted_world) {
     if (e.canvas_root != entt::null) {
       all_canvas_roots.insert(Entity{e.canvas_root, e.scene});
     }
   }
-  for (const auto& e : *sorted_camera) {
+  for (const CanvasDrawEntry& e : *sorted_camera) {
     if (e.canvas_root != entt::null) {
       all_canvas_roots.insert(Entity{e.canvas_root, e.scene});
     }
@@ -758,19 +758,19 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   std::shared_ptr<CameraData> camera_data = renderer_->GetCameraData();
 
-  for (const auto& [scene_ptr, ce] : all_canvas_roots) {
-    Scene& root_scene = *scene_ptr;
-    auto& canvas = root_scene.GetComponent<CanvasComponent>(ce);
-    auto& canvas_rt = root_scene.GetComponent<RectangleTransformComponent>(ce);
+  for (Entity entity : all_canvas_roots) {
+    Scene& root_scene = *entity.GetScene();
+    auto& canvas = entity.GetComponent<CanvasComponent>();
+    auto& canvas_rt = entity.GetComponent<RectangleTransformComponent>();
 
     CanvasRenderInfo info{};
-    info.entity = ce;
+    info.entity = entity;
     info.render_mode = canvas.render_mode;
     info.plane_distance = canvas.plane_distance;
 
     // canvas_size: scaler reference_resolution if available, else RectTransform computed_size
-    if (root_scene.HasComponent<CanvasScalerComponent>(ce)) {
-      auto& scaler = root_scene.GetComponent<CanvasScalerComponent>(ce);
+    if (entity.HasComponent<CanvasScalerComponent>()) {
+      auto& scaler = entity.GetComponent<CanvasScalerComponent>();
       if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
         info.canvas_size = scaler.reference_resolution;
       } else {
@@ -783,8 +783,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     // world_size: derived from canvas_size and reference_pixels_per_unit
     if (info.render_mode == CanvasRenderMode::WorldSpace) {
       float ppu = 100.0f;
-      if (root_scene.HasComponent<CanvasScalerComponent>(ce)) {
-        ppu = std::max(1.0f, root_scene.GetComponent<CanvasScalerComponent>(ce)
+      if (entity.HasComponent<CanvasScalerComponent>()) {
+        ppu = std::max(1.0f, entity.GetComponent<CanvasScalerComponent>()
                                  .reference_pixels_per_unit);
       }
       info.world_size = info.canvas_size / ppu;
@@ -797,8 +797,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     // texture_size: for offscreen rendering of camera/overlay-in-editor canvases.
     // Use scaler reference resolution if available, otherwise viewport.
     if (info.render_mode != CanvasRenderMode::WorldSpace) {
-      if (root_scene.HasComponent<CanvasScalerComponent>(ce)) {
-        auto& scaler = root_scene.GetComponent<CanvasScalerComponent>(ce);
+      if (entity.HasComponent<CanvasScalerComponent>()) {
+        auto& scaler = entity.GetComponent<CanvasScalerComponent>();
         if (scaler.scale_mode == ScaleMode::ScaleWithScreenSize) {
           info.texture_size = scaler.reference_resolution;
         } else {
@@ -813,9 +813,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     if (is_external || info.render_mode == CanvasRenderMode::WorldSpace) {
       // Editor: all modes use entity Transform
       // Game WorldSpace: uses entity Transform
-      if (root_scene.HasComponent<TransformComponent>(ce)) {
-        info.model_matrix = root_scene.GetComponent<TransformComponent>(ce)
-                                .GetTransformMatrix();
+      if (entity.HasComponent<TransformComponent>()) {
+        info.model_matrix =
+            entity.GetComponent<TransformComponent>().GetTransformMatrix();
       } else {
         info.model_matrix = glm::mat4(1.0f);
       }
@@ -865,7 +865,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       uint32_t tw = static_cast<uint32_t>(std::max(1.0f, info.texture_size.x));
       uint32_t th = static_cast<uint32_t>(std::max(1.0f, info.texture_size.y));
 
-      auto& res = per_canvas_resources_[ce];
+      auto& res = per_canvas_resources_[entity];
       if (!res.texture || res.width != tw || res.height != th) {
         res.texture = renderer_->CreateAttachmentTexture(
             {tw, th, AttachmentTextureType::Offscreen, 1,
@@ -894,7 +894,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       info.per_canvas_res = std::make_shared<PerCanvasResources>(res);
     }
 
-    (*canvas_infos)[{scene_ptr, ce}] = info;
+    (*canvas_infos)[entity] = info;
   }
 
   // Get camera global descriptor for world-space rendering

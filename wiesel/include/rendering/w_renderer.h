@@ -250,6 +250,10 @@ class Renderer {
 
   WIESEL_GETTER_FN RendererOptions& options() { return options_; }
 
+  WIESEL_GETTER_FN LightsUniformData& lights_data() {
+    return lights_uniform_data_;
+  }
+
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
 
   WIESEL_GETTER_FN bool IsRecreatePipeline() const {

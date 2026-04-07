@@ -20,12 +20,11 @@
 #include "physics/w_physics_world.h"
 #include "rendering/w_camera.h"
 #include "rendering/w_skybox.h"
+#include "systems/w_system.h"
 #include "ui/w_ui_event_system.h"
 #include "w_pch.h"
 
 namespace Wiesel {
-
-enum class SystemType { Update };
 
 class Entity;
 class CanvasSystem;
@@ -164,6 +163,8 @@ class Scene {
 
   PhysicsWorld& GetPhysicsWorld() { return *physics_world_; }
 
+  UIEventSystem& GetUIEventSystem() { return ui_event_system_; }
+
   /*
    * Returns the scene hierarchy. This is used by the editor.
    */
@@ -181,46 +182,34 @@ class Scene {
 
   std::shared_ptr<CameraData> GetCurrentCamera() { return current_camera_; }
 
-  void UpdateLights();
-
   void ResetPhysicsWorld();
   void ResetScriptStates();
 
   void ResetFirstUpdate() { first_update_ = true; }
 
-  template <typename Entity, typename... Components, typename Func>
-  void BindSystem(SystemType type, Func func) {
-    systems_[type].push_back([this, func](float_t delta_time) {
-      for (auto handle : registry_.view<Components...>()) {
-        Entity entity{handle, this};
-        func(delta_time, entity, registry_.get<Components>(handle)...);
-      }
-    });
+  // Register an ECS system. Systems are executed in priority order each frame.
+  void AddSystem(std::unique_ptr<ISystem> system);
+
+  template <typename T, typename... Args>
+  T& AddSystem(Args&&... args) {
+    auto system = std::make_unique<T>(std::forward<Args>(args)...);
+    T& ref = *system;
+    AddSystem(std::move(system));
+    return ref;
   }
 
-  template <typename Entity, typename... Components, typename Func>
-  void BindSystem(SystemType type, const std::string& tag, Func func) {
-    systems_[type].push_back([this, func, tag](float_t delta_time) {
-      for (auto handle : registry_.view<Components...>()) {
-        Entity entity{handle, this};
-        if (entity.GetName() != tag) {
-          continue;
-        }
-        func(delta_time, entity, registry_.get<Components>(handle)...);
+  template <typename T>
+  T* GetSystem() {
+    for (auto& system : systems_) {
+      if (auto* cast = dynamic_cast<T*>(system.get())) {
+        return cast;
       }
-    });
+    }
+    return nullptr;
   }
 
  private:
   bool OnWindowResizeEvent(WindowResizedEvent& event);
-  glm::mat4 MakeLocal(const TransformComponent& transform);
-  glm::mat4 GetWorldMatrix(entt::entity entity);
-  void UpdateTransforms();
-  void UpdateCameras();
-  void UpdateMatrices(entt::entity entity);
-  void MarkChildrenDirty(entt::entity entity);
-  void UpdateSpriteAnimators(float_t delta_time);
-  void UpdateSkeletalAnimations(float_t delta_time);
 
  private:
   std::string name_;
@@ -244,14 +233,11 @@ class Scene {
       false;  // If true, assets are loaded when the project opens
   UIEventSystem ui_event_system_;
   std::vector<AssetHandle> requested_assets_;
-  std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>>
-      systems_;
+  std::vector<std::unique_ptr<ISystem>> systems_;
   std::unique_ptr<PhysicsWorld> physics_world_;
   glm::vec2 render_resolution_{0.0f, 0.0f};
   glm::vec2 viewport_origin_{0.0f, 0.0f};
   glm::vec2 viewport_display_size_{0.0f, 0.0f};
-
-  void UpdateSceneState(float_t delta_time);
 };
 
 // Lightweight wrapper over multiple Scene pointers.

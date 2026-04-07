@@ -14,6 +14,7 @@
 
 #include "scene/w_prefab.h"
 
+#include "asset/w_asset_manager.h"
 #include "scene/w_component_serializer.h"
 #include "util/w_logger.h"
 #include "w_engine.h"

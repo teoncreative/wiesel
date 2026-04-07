@@ -87,14 +87,3 @@ struct hash<Wiesel::Entity> {
   }
 };
 }  // namespace std
-
-namespace std {
-template <>
-struct hash<Wiesel::Entity> {
-  size_t operator()(const Wiesel::Entity& e) const noexcept {
-    size_t h1 = std::hash<void*>{}(e.GetScene());
-    size_t h2 = std::hash<uint32_t>{}(static_cast<uint32_t>(e.handle()));
-    return h1 ^ (h2 << 1);
-  }
-};
-}  // namespace std

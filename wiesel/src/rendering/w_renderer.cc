@@ -1709,7 +1709,6 @@ void Renderer::Cleanup() {
     return;
   }
   LOG_DEBUG("Cleaning up the renderer");
-
   WaitForGPU();
 
   camera_ = nullptr;
