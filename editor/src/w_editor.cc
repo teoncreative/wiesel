@@ -21,6 +21,7 @@
 
 #include "util/w_tracy.h"
 
+#include "events/w_keyevents.h"
 #include "imgui_internal.h"
 #include "input/w_input.h"
 #include "rendering/w_renderer.h"
@@ -442,6 +443,28 @@ void EditorLayer::OnEvent(Event& event) {
   dispatcher.Dispatch<WindowFocusLostEvent>(WIESEL_BIND_FN(OnWindowFocusLost));
   dispatcher.Dispatch<AssetUnloadedEvent>(WIESEL_BIND_FN(OnAssetUnloaded));
 
+  // Ctrl+Z / Ctrl+Y for undo/redo (edit mode only, not when code editor focused)
+  if (editor_state_ == EditorState::Edit && !code_editor_focused_ &&
+      event.GetEventType() == KeyPressedEvent::GetStaticType()) {
+    auto& key_event = static_cast<KeyPressedEvent&>(event);
+    if (key_event.GetKeyCode() == KeyZ && Engine::window()->IsCtrlDown() &&
+        !key_event.IsRepeat()) {
+      if (Engine::window()->IsShiftDown()) {
+        PerformRedo();
+      } else {
+        PerformUndo();
+      }
+      event.handled_ = true;
+      return;
+    }
+    if (key_event.GetKeyCode() == KeyY && Engine::window()->IsCtrlDown() &&
+        !key_event.IsRepeat()) {
+      PerformRedo();
+      event.handled_ = true;
+      return;
+    }
+  }
+
   if (editor_state_ == EditorState::Playing) {
     bool is_input = event.IsInCategory(kEventCategoryInput);
     if (is_input && !game_panel_focused_) {
@@ -505,8 +528,34 @@ void EditorLayer::OnBeginPresent() {
   RenderAssetBrowserPanel();
   RenderDeveloperConsolePanel();
   RenderRenderStatsPanel();
+  RenderUndoHistoryPanel();
   RenderSceneViewportPanel();
   RenderGameViewportPanel();
+
+  // Status toast overlay (bottom-center, fades out)
+  if (status_toast_timer_ > 0.0f) {
+    status_toast_timer_ -= app_.GetDeltaTime();
+    float alpha = std::min(status_toast_timer_ / 0.3f, 1.0f);
+    ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoMove;
+    ImVec2 viewport_size = ImGui::GetMainViewport()->Size;
+    ImGui::SetNextWindowPos(
+        ImVec2(viewport_size.x * 0.5f, viewport_size.y - 40.0f),
+        ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+    ImGui::SetNextWindowBgAlpha(0.6f * alpha);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 6));
+    if (ImGui::Begin("##StatusToast", nullptr, flags)) {
+      ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, alpha));
+      ImGui::TextUnformatted(status_toast_text_.c_str());
+      ImGui::PopStyleColor();
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+  }
 }
 
 void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
@@ -572,6 +621,31 @@ void EditorLayer::OnPostPresent() {
   }
 
   Engine::scene_manager().EndFrame();
+}
+
+void EditorLayer::PerformUndo() {
+  if (command_stack_.CanUndo()) {
+    IEditorCommand* cmd = command_stack_.GetCurrent();
+    std::string desc = cmd ? cmd->GetDescription() : "action";
+    command_stack_.Undo();
+    ShowStatusToast("Undo: " + desc);
+    scene_dirty_ = true;
+  }
+}
+
+void EditorLayer::PerformRedo() {
+  if (command_stack_.CanRedo()) {
+    command_stack_.Redo();
+    IEditorCommand* cmd = command_stack_.GetCurrent();
+    std::string desc = cmd ? cmd->GetDescription() : "action";
+    ShowStatusToast("Redo: " + desc);
+    scene_dirty_ = true;
+  }
+}
+
+void EditorLayer::ShowStatusToast(const std::string& text) {
+  status_toast_text_ = text;
+  status_toast_timer_ = kStatusToastDuration;
 }
 
 void EditorLayer::TakeSnapshot() {

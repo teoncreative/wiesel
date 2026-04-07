@@ -40,12 +40,20 @@
 #include "w_application.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
+#include "w_undo_helpers.h"
 
 #include <ranges>
 
 #include "asset/w_asset_utils.h"
 
 namespace Wiesel {
+
+// Command stack pointer set by the editor each frame for undo/redo tracking.
+static Editor::CommandStack* s_command_stack = nullptr;
+
+void SetInspectorCommandStack(Editor::CommandStack* stack) {
+  s_command_stack = stack;
+}
 
 static void RenderTexturePreview(const char* label, Texture* tex) {
   if (!tex) {
@@ -186,12 +194,42 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
     changed |= ImGui::DragFloat3(
         PrefixLabel("Position").c_str(),
         reinterpret_cast<float*>(&component.PositionMut()), 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<glm::vec3> pos_tracker;
+      pos_tracker.Track(*s_command_stack, "Change Position",
+                        component.GetPosition(),
+                        [entity](const glm::vec3& v) mutable {
+                          auto& tc = entity.GetComponent<TransformComponent>();
+                          tc.SetPosition(v);
+                        });
+    }
+
     changed |= ImGui::DragFloat3(
         PrefixLabel("Rotation").c_str(),
         reinterpret_cast<float*>(&component.RotationMut()), 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<glm::vec3> rot_tracker;
+      rot_tracker.Track(*s_command_stack, "Change Rotation",
+                        component.GetRotation(),
+                        [entity](const glm::vec3& v) mutable {
+                          auto& tc = entity.GetComponent<TransformComponent>();
+                          tc.SetRotation(v);
+                        });
+    }
+
     changed |= ImGui::DragFloat3(
         PrefixLabel("Scale").c_str(),
         reinterpret_cast<float*>(&component.ScaleMut()), 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<glm::vec3> scale_tracker;
+      scale_tracker.Track(
+          *s_command_stack, "Change Scale", component.GetScale(),
+          [entity](const glm::vec3& v) mutable {
+            auto& tc = entity.GetComponent<TransformComponent>();
+            tc.SetScale(v);
+          });
+    }
+
     if (changed) {
       component.MarkChanged();
     }
@@ -268,7 +306,23 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
     }
 
     ImGui::Checkbox("Receive Shadows", &model.receive_shadows);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> recv_shadow_tracker;
+      recv_shadow_tracker.Track(
+          *s_command_stack, "Toggle Receive Shadows", model.receive_shadows,
+          [entity](const bool& v) mutable {
+            entity.GetComponent<ModelComponent>().receive_shadows = v;
+          });
+    }
     ImGui::Checkbox("Render", &model.enable_rendering);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> render_tracker;
+      render_tracker.Track(
+          *s_command_stack, "Toggle Render", model.enable_rendering,
+          [entity](const bool& v) mutable {
+            entity.GetComponent<ModelComponent>().enable_rendering = v;
+          });
+    }
 
     // Per-mesh material slots
     if (model.model_handle.IsValid()) {
@@ -327,11 +381,31 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
                                     &tint.x)) {
                 inst->SetColorTint(tint);
               }
+              if (s_command_stack) {
+                static Editor::UndoTracker<glm::vec4> tracker;
+                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
+                tracker.Track(*s_command_stack, "Change Color Tint", tint,
+                              [inst_weak](const glm::vec4& v) {
+                                if (auto p = inst_weak.lock()) {
+                                  p->SetColorTint(v);
+                                }
+                              });
+              }
 
               float roughness = inst->GetRoughness();
               if (ImGui::SliderFloat(PrefixLabel("Roughness").c_str(),
                                      &roughness, 0.0f, 1.0f)) {
                 inst->SetRoughness(roughness);
+              }
+              if (s_command_stack) {
+                static Editor::UndoTracker<float> tracker;
+                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
+                tracker.Track(*s_command_stack, "Change Roughness", roughness,
+                              [inst_weak](const float& v) {
+                                if (auto p = inst_weak.lock()) {
+                                  p->SetRoughness(v);
+                                }
+                              });
               }
 
               float metallic = inst->GetMetallic();
@@ -339,11 +413,31 @@ void RenderComponentImGui(ModelComponent& component, Entity entity) {
                                      0.0f, 1.0f)) {
                 inst->SetMetallic(metallic);
               }
+              if (s_command_stack) {
+                static Editor::UndoTracker<float> tracker;
+                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
+                tracker.Track(*s_command_stack, "Change Metallic", metallic,
+                              [inst_weak](const float& v) {
+                                if (auto p = inst_weak.lock()) {
+                                  p->SetMetallic(v);
+                                }
+                              });
+              }
 
               float specular = inst->GetSpecular();
               if (ImGui::SliderFloat(PrefixLabel("Specular").c_str(), &specular,
                                      0.0f, 1.0f)) {
                 inst->SetSpecular(specular);
+              }
+              if (s_command_stack) {
+                static Editor::UndoTracker<float> tracker;
+                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
+                tracker.Track(*s_command_stack, "Change Specular", specular,
+                              [inst_weak](const float& v) {
+                                if (auto p = inst_weak.lock()) {
+                                  p->SetSpecular(v);
+                                }
+                              });
               }
 
               // Show base material texture previews
@@ -412,15 +506,66 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Directional Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Light Ambient",
+                    component.light_data.base.ambient,
+                    [entity](const float& v) mutable {
+                      entity.GetComponent<LightDirectComponent>()
+                          .light_data.base.ambient = v;
+                    });
+    }
+
     ImGui::DragFloat(PrefixLabel("Diffuse").c_str(),
                      &component.light_data.base.diffuse, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Light Diffuse",
+                    component.light_data.base.diffuse,
+                    [entity](const float& v) mutable {
+                      entity.GetComponent<LightDirectComponent>()
+                          .light_data.base.diffuse = v;
+                    });
+    }
+
     ImGui::DragFloat(PrefixLabel("Specular").c_str(),
                      &component.light_data.base.specular, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Light Specular",
+                    component.light_data.base.specular,
+                    [entity](const float& v) mutable {
+                      entity.GetComponent<LightDirectComponent>()
+                          .light_data.base.specular = v;
+                    });
+    }
+
     ImGui::DragFloat(PrefixLabel("Density").c_str(),
                      &component.light_data.base.density, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Light Density",
+                    component.light_data.base.density,
+                    [entity](const float& v) mutable {
+                      entity.GetComponent<LightDirectComponent>()
+                          .light_data.base.density = v;
+                    });
+    }
+
     ImGui::ColorPicker3(
         PrefixLabel("Color").c_str(),
         reinterpret_cast<float*>(&component.light_data.base.color));
+    if (s_command_stack) {
+      static Editor::UndoTracker<glm::vec3> tracker;
+      tracker.Track(
+          *s_command_stack, "Change Light Color",
+          component.light_data.base.color,
+          [entity](const glm::vec3& v) mutable {
+            entity.GetComponent<LightDirectComponent>().light_data.base.color =
+                v;
+          });
+    }
+
     ImGui::TreePop();
   }
   if (!visible) {
@@ -434,23 +579,102 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
   if (ImGui::ClosableTreeNode("Point Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(
+          *s_command_stack, "Change Light Ambient",
+          component.light_data.base.ambient, [entity](const float& v) mutable {
+            entity.GetComponent<LightPointComponent>().light_data.base.ambient =
+                v;
+          });
+    }
+
     ImGui::DragFloat(PrefixLabel("Diffuse").c_str(),
                      &component.light_data.base.diffuse, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(
+          *s_command_stack, "Change Light Diffuse",
+          component.light_data.base.diffuse, [entity](const float& v) mutable {
+            entity.GetComponent<LightPointComponent>().light_data.base.diffuse =
+                v;
+          });
+    }
+
     ImGui::DragFloat(PrefixLabel("Specular").c_str(),
                      &component.light_data.base.specular, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Light Specular",
+                    component.light_data.base.specular,
+                    [entity](const float& v) mutable {
+                      entity.GetComponent<LightPointComponent>()
+                          .light_data.base.specular = v;
+                    });
+    }
+
     ImGui::DragFloat(PrefixLabel("Density").c_str(),
                      &component.light_data.base.density, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(
+          *s_command_stack, "Change Light Density",
+          component.light_data.base.density, [entity](const float& v) mutable {
+            entity.GetComponent<LightPointComponent>().light_data.base.density =
+                v;
+          });
+    }
+
     if (ImGui::TreeNode("Attenuation")) {
       ImGui::DragFloat(PrefixLabel("Constant").c_str(),
                        &component.light_data.constant, 0.1f);
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Attenuation Constant",
+            component.light_data.constant, [entity](const float& v) mutable {
+              entity.GetComponent<LightPointComponent>().light_data.constant =
+                  v;
+            });
+      }
+
       ImGui::DragFloat(PrefixLabel("Linear").c_str(),
                        &component.light_data.linear, 0.1f);
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Attenuation Linear",
+            component.light_data.linear, [entity](const float& v) mutable {
+              entity.GetComponent<LightPointComponent>().light_data.linear = v;
+            });
+      }
+
       ImGui::DragFloat(PrefixLabel("Exp").c_str(), &component.light_data.exp,
                        0.1f);
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Attenuation Exp",
+            component.light_data.exp, [entity](const float& v) mutable {
+              entity.GetComponent<LightPointComponent>().light_data.exp = v;
+            });
+      }
+
       ImGui::TreePop();
     }
     ImGui::ColorPicker3(
         "Color", reinterpret_cast<float*>(&component.light_data.base.color));
+    if (s_command_stack) {
+      static Editor::UndoTracker<glm::vec3> tracker;
+      tracker.Track(
+          *s_command_stack, "Change Light Color",
+          component.light_data.base.color,
+          [entity](const glm::vec3& v) mutable {
+            entity.GetComponent<LightPointComponent>().light_data.base.color =
+                v;
+          });
+    }
+
     ImGui::TreePop();
   }
   if (!visible) {
@@ -475,18 +699,77 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
     if (component.projection_mode == ProjectionMode::Perspective) {
       changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
                                   &component.field_of_view, 1.0f, 1.0f, 179.0f);
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(*s_command_stack, "Change FOV", component.field_of_view,
+                      [entity](const float& v) mutable {
+                        auto& cam = entity.GetComponent<CameraComponent>();
+                        cam.field_of_view = v;
+                        cam.view_changed = true;
+                        cam.resource_pipeline_version = 0;
+                      });
+      }
     } else {
       changed |= ImGui::DragFloat(PrefixLabel("Size").c_str(),
                                   &component.ortho_size, 0.1f, 0.01f, 1000.0f);
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(*s_command_stack, "Change Ortho Size",
+                      component.ortho_size, [entity](const float& v) mutable {
+                        auto& cam = entity.GetComponent<CameraComponent>();
+                        cam.ortho_size = v;
+                        cam.view_changed = true;
+                        cam.resource_pipeline_version = 0;
+                      });
+      }
+
       ImGui::ColorEdit4(PrefixLabel("Background").c_str(),
                         &component.background_color.r);
+      if (s_command_stack) {
+        static Editor::UndoTracker<glm::vec4> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Background Color",
+            component.background_color, [entity](const glm::vec4& v) mutable {
+              entity.GetComponent<CameraComponent>().background_color = v;
+            });
+      }
     }
 
     changed |= ImGui::DragFloat(PrefixLabel("Near Plane").c_str(),
                                 &component.near_plane, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Near Plane", component.near_plane,
+                    [entity](const float& v) mutable {
+                      auto& cam = entity.GetComponent<CameraComponent>();
+                      cam.near_plane = v;
+                      cam.view_changed = true;
+                      cam.resource_pipeline_version = 0;
+                    });
+    }
+
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
                                 &component.far_plane, 0.1f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Far Plane", component.far_plane,
+                    [entity](const float& v) mutable {
+                      auto& cam = entity.GetComponent<CameraComponent>();
+                      cam.far_plane = v;
+                      cam.view_changed = true;
+                      cam.resource_pipeline_version = 0;
+                    });
+    }
+
     ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &component.enabled);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(*s_command_stack, "Toggle Camera Enabled",
+                    component.enabled, [entity](const bool& v) mutable {
+                      entity.GetComponent<CameraComponent>().enabled = v;
+                    });
+    }
+
     ImGui::Text("Viewport: %dx%d", static_cast<int>(component.viewport_size.x),
                 static_cast<int>(component.viewport_size.y));
 
@@ -978,12 +1261,28 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
                            10000.0f)) {
         component.SetMassRuntime(mass);
       }
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Mass", component.mass,
+            [entity](const float& v) mutable {
+              entity.GetComponent<RigidBodyComponent>().SetMassRuntime(v);
+            });
+      }
     }
     {
       float friction = component.friction;
       if (ImGui::DragFloat(PrefixLabel("Friction").c_str(), &friction, 0.01f,
                            0.0f, 1.0f)) {
         component.SetFrictionRuntime(friction);
+      }
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Friction", component.friction,
+            [entity](const float& v) mutable {
+              entity.GetComponent<RigidBodyComponent>().SetFrictionRuntime(v);
+            });
       }
     }
     {
@@ -992,12 +1291,30 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
                            0.01f, 0.0f, 1.0f)) {
         component.SetRestitutionRuntime(restitution);
       }
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Restitution", component.restitution,
+            [entity](const float& v) mutable {
+              entity.GetComponent<RigidBodyComponent>().SetRestitutionRuntime(
+                  v);
+            });
+      }
     }
     {
       float linear_damping = component.linear_damping;
       if (ImGui::DragFloat(PrefixLabel("Linear Damping").c_str(),
                            &linear_damping, 0.01f, 0.0f, 1.0f)) {
         component.SetLinearDampingRuntime(linear_damping);
+      }
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(
+            *s_command_stack, "Change Linear Damping", component.linear_damping,
+            [entity](const float& v) mutable {
+              entity.GetComponent<RigidBodyComponent>().SetLinearDampingRuntime(
+                  v);
+            });
       }
     }
     {
@@ -1006,22 +1323,79 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
                            &angular_damping, 0.01f, 0.0f, 1.0f)) {
         component.SetAngularDampingRuntime(angular_damping);
       }
+      if (s_command_stack) {
+        static Editor::UndoTracker<float> tracker;
+        tracker.Track(*s_command_stack, "Change Angular Damping",
+                      component.angular_damping,
+                      [entity](const float& v) mutable {
+                        entity.GetComponent<RigidBodyComponent>()
+                            .SetAngularDampingRuntime(v);
+                      });
+      }
     }
     ImGui::Text("Freeze Position");
     ImGui::SameLine();
     ImGui::Checkbox("X##fp", &component.lock_position_x);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(
+          *s_command_stack, "Toggle Freeze Position X",
+          component.lock_position_x, [entity](const bool& v) mutable {
+            entity.GetComponent<RigidBodyComponent>().lock_position_x = v;
+          });
+    }
     ImGui::SameLine();
     ImGui::Checkbox("Y##fp", &component.lock_position_y);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(
+          *s_command_stack, "Toggle Freeze Position Y",
+          component.lock_position_y, [entity](const bool& v) mutable {
+            entity.GetComponent<RigidBodyComponent>().lock_position_y = v;
+          });
+    }
     ImGui::SameLine();
     ImGui::Checkbox("Z##fp", &component.lock_position_z);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(
+          *s_command_stack, "Toggle Freeze Position Z",
+          component.lock_position_z, [entity](const bool& v) mutable {
+            entity.GetComponent<RigidBodyComponent>().lock_position_z = v;
+          });
+    }
 
     ImGui::Text("Freeze Rotation");
     ImGui::SameLine();
     ImGui::Checkbox("X##fr", &component.lock_rotation_x);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(
+          *s_command_stack, "Toggle Freeze Rotation X",
+          component.lock_rotation_x, [entity](const bool& v) mutable {
+            entity.GetComponent<RigidBodyComponent>().lock_rotation_x = v;
+          });
+    }
     ImGui::SameLine();
     ImGui::Checkbox("Y##fr", &component.lock_rotation_y);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(
+          *s_command_stack, "Toggle Freeze Rotation Y",
+          component.lock_rotation_y, [entity](const bool& v) mutable {
+            entity.GetComponent<RigidBodyComponent>().lock_rotation_y = v;
+          });
+    }
     ImGui::SameLine();
     ImGui::Checkbox("Z##fr", &component.lock_rotation_z);
+    if (s_command_stack) {
+      static Editor::UndoTracker<bool> tracker;
+      tracker.Track(
+          *s_command_stack, "Toggle Freeze Rotation Z",
+          component.lock_rotation_z, [entity](const bool& v) mutable {
+            entity.GetComponent<RigidBodyComponent>().lock_rotation_z = v;
+          });
+    }
 
     ImGui::TreePop();
   }
@@ -1894,23 +2268,89 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
 
   ImGui::SliderFloat(PrefixLabel("Volume").c_str(), &component.volume, 0.0f,
                      1.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Volume", component.volume,
+                  [entity](const float& v) mutable {
+                    entity.GetComponent<AudioSourceComponent>().volume = v;
+                  });
+  }
+
   ImGui::SliderFloat(PrefixLabel("Pitch").c_str(), &component.pitch, 0.1f,
                      3.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Pitch", component.pitch,
+                  [entity](const float& v) mutable {
+                    entity.GetComponent<AudioSourceComponent>().pitch = v;
+                  });
+  }
+
   ImGui::SliderFloat(PrefixLabel("Spatial Blend").c_str(),
                      &component.spatial_blend, 0.0f, 1.0f,
                      component.spatial_blend < 0.01f
                          ? "2D"
                          : (component.spatial_blend > 0.99f ? "3D" : "%.2f"));
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Spatial Blend",
+                  component.spatial_blend, [entity](const float& v) mutable {
+                    entity.GetComponent<AudioSourceComponent>().spatial_blend =
+                        v;
+                  });
+  }
+
   ImGui::Checkbox(PrefixLabel("Loop").c_str(), &component.loop);
+  if (s_command_stack) {
+    static Editor::UndoTracker<bool> tracker;
+    tracker.Track(*s_command_stack, "Toggle Loop", component.loop,
+                  [entity](const bool& v) mutable {
+                    entity.GetComponent<AudioSourceComponent>().loop = v;
+                  });
+  }
+
   ImGui::Checkbox(PrefixLabel("Play On Start").c_str(),
                   &component.play_on_start);
+  if (s_command_stack) {
+    static Editor::UndoTracker<bool> tracker;
+    tracker.Track(*s_command_stack, "Toggle Play On Start",
+                  component.play_on_start, [entity](const bool& v) mutable {
+                    entity.GetComponent<AudioSourceComponent>().play_on_start =
+                        v;
+                  });
+  }
+
   ImGui::Checkbox(PrefixLabel("Mute").c_str(), &component.mute);
+  if (s_command_stack) {
+    static Editor::UndoTracker<bool> tracker;
+    tracker.Track(*s_command_stack, "Toggle Mute", component.mute,
+                  [entity](const bool& v) mutable {
+                    entity.GetComponent<AudioSourceComponent>().mute = v;
+                  });
+  }
 
   if (component.spatial_blend > 0.0f) {
     ImGui::DragFloat(PrefixLabel("Min Distance").c_str(),
                      &component.min_distance, 0.1f, 0.0f, 1000.0f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Min Distance",
+                    component.min_distance, [entity](const float& v) mutable {
+                      entity.GetComponent<AudioSourceComponent>().min_distance =
+                          v;
+                    });
+    }
+
     ImGui::DragFloat(PrefixLabel("Max Distance").c_str(),
                      &component.max_distance, 1.0f, 0.0f, 10000.0f);
+    if (s_command_stack) {
+      static Editor::UndoTracker<float> tracker;
+      tracker.Track(*s_command_stack, "Change Max Distance",
+                    component.max_distance, [entity](const float& v) mutable {
+                      entity.GetComponent<AudioSourceComponent>().max_distance =
+                          v;
+                    });
+    }
   }
 
   // Preview buttons
@@ -1955,19 +2395,75 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
   }
 
   // Sprite asset picker
-  AssetDropField("Sprite", AssetType::Sprite, component.sprite_handle_);
+  {
+    AssetHandle prev_handle = component.sprite_handle_;
+    if (AssetDropField("Sprite", AssetType::Sprite, component.sprite_handle_)) {
+      if (s_command_stack) {
+        AssetHandle new_handle = component.sprite_handle_;
+        s_command_stack->Execute(
+            std::make_unique<Editor::PropertyCommand<AssetHandle>>(
+                "Change Sprite",
+                [entity](const AssetHandle& v) mutable {
+                  entity.GetComponent<SpriteRendererComponent>()
+                      .sprite_handle_ = v;
+                },
+                prev_handle, new_handle));
+      }
+    }
+  }
 
   // Visual properties
   ImGui::Checkbox(PrefixLabel("Flip X").c_str(), &component.flip_x_);
+  if (s_command_stack) {
+    static Editor::UndoTracker<bool> tracker;
+    tracker.Track(*s_command_stack, "Toggle Flip X", component.flip_x_,
+                  [entity](const bool& v) mutable {
+                    entity.GetComponent<SpriteRendererComponent>().flip_x_ = v;
+                  });
+  }
+
   ImGui::SameLine();
   ImGui::Checkbox("Flip Y", &component.flip_y_);
+  if (s_command_stack) {
+    static Editor::UndoTracker<bool> tracker;
+    tracker.Track(*s_command_stack, "Toggle Flip Y", component.flip_y_,
+                  [entity](const bool& v) mutable {
+                    entity.GetComponent<SpriteRendererComponent>().flip_y_ = v;
+                  });
+  }
+
   ImGui::ColorEdit4(PrefixLabel("Tint").c_str(), &component.tint_.r);
+  if (s_command_stack) {
+    static Editor::UndoTracker<glm::vec4> tracker;
+    tracker.Track(*s_command_stack, "Change Sprite Tint", component.tint_,
+                  [entity](const glm::vec4& v) mutable {
+                    entity.GetComponent<SpriteRendererComponent>().tint_ = v;
+                  });
+  }
+
   int sort = component.sort_layer_;
   if (ImGui::InputInt(PrefixLabel("Sort Layer").c_str(), &sort)) {
     component.sort_layer_ = static_cast<uint8_t>(std::clamp(sort, 0, 255));
   }
+  if (s_command_stack) {
+    static Editor::UndoTracker<int> tracker;
+    tracker.Track(*s_command_stack, "Change Sort Layer",
+                  static_cast<int>(component.sort_layer_),
+                  [entity](const int& v) mutable {
+                    entity.GetComponent<SpriteRendererComponent>().sort_layer_ =
+                        static_cast<uint8_t>(std::clamp(v, 0, 255));
+                  });
+  }
+
   ImGui::DragFloat2(PrefixLabel("Pivot").c_str(), &component.pivot_.x, 0.01f,
                     0.0f, 1.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<glm::vec2> tracker;
+    tracker.Track(*s_command_stack, "Change Pivot", component.pivot_,
+                  [entity](const glm::vec2& v) mutable {
+                    entity.GetComponent<SpriteRendererComponent>().pivot_ = v;
+                  });
+  }
 
   ImGui::TreePop();
 }
@@ -2227,11 +2723,42 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
 
   ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.5f, 0.1f,
                    1000.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Reverb Radius", component.radius,
+                  [entity](const float& v) mutable {
+                    entity.GetComponent<ReverbZoneComponent>().radius = v;
+                  });
+  }
+
   ImGui::DragFloat(PrefixLabel("Delay (ms)").c_str(), &component.delay_ms, 5.0f,
                    10.0f, 2000.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Reverb Delay", component.delay_ms,
+                  [entity](const float& v) mutable {
+                    entity.GetComponent<ReverbZoneComponent>().delay_ms = v;
+                  });
+  }
+
   ImGui::SliderFloat(PrefixLabel("Decay").c_str(), &component.decay, 0.0f,
                      1.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Reverb Decay", component.decay,
+                  [entity](const float& v) mutable {
+                    entity.GetComponent<ReverbZoneComponent>().decay = v;
+                  });
+  }
+
   ImGui::SliderFloat(PrefixLabel("Wet").c_str(), &component.wet, 0.0f, 1.0f);
+  if (s_command_stack) {
+    static Editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Reverb Wet", component.wet,
+                  [entity](const float& v) mutable {
+                    entity.GetComponent<ReverbZoneComponent>().wet = v;
+                  });
+  }
 
   if (component.active_) {
     ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Active");

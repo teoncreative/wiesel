@@ -25,6 +25,7 @@ namespace Wiesel::Editor {
 std::shared_ptr<Scene> scene();
 
 static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
+                                CommandStack& commands,
                                 entt::entity parent = entt::null,
                                 const glm::vec3* spawn_pos = nullptr) {
   Entity created{entt::null, nullptr};
@@ -69,6 +70,13 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
     if (spawn_pos) {
       auto& tc = created.GetComponent<TransformComponent>();
       tc.SetPosition(*spawn_pos);
+    }
+    {
+      auto shared_scene = Engine::scene_manager().FindSceneByPtr(&scene);
+      if (shared_scene) {
+        commands.Execute(std::make_unique<EntityCreateCommand>(
+            shared_scene, created.handle()));
+      }
     }
     dirty = true;
     return true;
@@ -252,7 +260,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     selected_entity_scene_ = entity_scene;
     has_selected_entity_ = true;
     if (ImGui::BeginMenu("Add Child")) {
-      RenderAddEntityMenu(*entity_scene, scene_dirty_, entity_id);
+      RenderAddEntityMenu(*entity_scene, scene_dirty_, command_stack_,
+                          entity_id);
       ImGui::EndMenu();
     }
     if (ImGui::MenuItem("Save as Prefab...")) {
@@ -270,7 +279,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     }
     ImGui::Separator();
     if (ImGui::MenuItem("Delete")) {
-      entity_scene->RemoveEntity(entity);
+      command_stack_.Execute(
+          std::make_unique<EntityDeleteCommand>(entity_scene, entity_id));
       has_selected_entity_ = false;
       scene_dirty_ = true;
     }
@@ -360,7 +370,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         std::string ctx_id = "scene_root_context_" + std::to_string(scene_idx);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
           if (ImGui::BeginMenu("Add")) {
-            RenderAddEntityMenu(*current_scene, scene_dirty_);
+            RenderAddEntityMenu(*current_scene, scene_dirty_, command_stack_);
             ImGui::EndMenu();
           }
           ImGui::EndPopup();
@@ -424,7 +434,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
 
       if (ImGui::BeginPopup("right_click_hierarchy")) {
         if (ImGui::BeginMenu("Add")) {
-          RenderAddEntityMenu(*scene(), scene_dirty_);
+          RenderAddEntityMenu(*scene(), scene_dirty_, command_stack_);
           ImGui::EndMenu();
         }
         ImGui::EndPopup();

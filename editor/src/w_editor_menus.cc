@@ -1544,6 +1544,13 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     if (ImGui::BeginMenu("Edit")) {
+      if (ImGui::MenuItem("Undo", "Ctrl+Z", false, command_stack_.CanUndo())) {
+        PerformUndo();
+      }
+      if (ImGui::MenuItem("Redo", "Ctrl+Y", false, command_stack_.CanRedo())) {
+        PerformRedo();
+      }
+      ImGui::Separator();
       if (ImGui::MenuItem("Clear Scene")) {
         ClearScene();
       }
@@ -1568,6 +1575,7 @@ void EditorLayer::RenderMainMenuBar() {
                       &panel_asset_browser_);
       ImGui::MenuItem(ICON_CONSOLE " Console", nullptr, &panel_console_);
       ImGui::MenuItem("Stats", nullptr, &panel_stats_);
+      ImGui::MenuItem("Undo History", nullptr, &panel_undo_history_);
       ImGui::MenuItem("LSP Debug", nullptr, &panel_lsp_debug_);
       ImGui::Separator();
       if (ImGui::MenuItem("Reset Layout")) {
@@ -1899,7 +1907,7 @@ void EditorLayer::RenderStartupDialog() {
                          viewport->Pos.y + viewport->Size.y * 0.5f);
 
   ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(420, 0));
+  ImGui::SetNextWindowSize(ImVec2(520, 0));
   ImGui::Begin("Welcome to Wiesel", nullptr,
                ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking);
@@ -1927,13 +1935,21 @@ void EditorLayer::RenderStartupDialog() {
       namespace fs = std::filesystem;
       std::string name = fs::path(path).stem().string();
       std::string dir = fs::path(path).parent_path().string();
-      std::string label = name + "  (" + dir + ")";
-      if (ImGui::Selectable(label.c_str())) {
+      std::string label = name + "  " + dir;
+      std::string id = "##recent_" + path;
+
+      // Clip text to content region so it doesn't overflow into padding
+      ImVec2 cursor = ImGui::GetCursorScreenPos();
+      ImVec2 clip_max =
+          ImVec2(cursor.x + width, cursor.y + ImGui::GetFrameHeight());
+      ImGui::PushClipRect(cursor, clip_max, true);
+      if (ImGui::Selectable((label + id).c_str())) {
         if (fs::exists(path)) {
           deferred_action_ = DeferredAction::OpenProject;
           deferred_path_ = path;
         }
       }
+      ImGui::PopClipRect();
     }
   } else {
     ImGui::TextDisabled("No recent projects.");

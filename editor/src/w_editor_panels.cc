@@ -460,4 +460,63 @@ void EditorLayer::RenderAssetPropertiesPanel() {
   ImGui::End();
 }
 
+void EditorLayer::RenderUndoHistoryPanel() {
+  if (!panel_undo_history_) {
+    return;
+  }
+  if (ImGui::Begin("Undo History", &panel_undo_history_)) {
+    const auto& history = command_stack_.GetHistory();
+    int current = command_stack_.GetCurrentIndex();
+
+    if (ImGui::Button("Clear History")) {
+      command_stack_.Clear();
+    }
+    ImGui::Separator();
+
+    if (history.empty()) {
+      ImGui::TextDisabled("No actions recorded");
+    } else {
+      // Newest at top, oldest at bottom
+      for (int i = static_cast<int>(history.size()) - 1; i >= 0; --i) {
+        bool is_current = (i == current);
+        bool is_undone = (i > current);
+
+        if (is_undone) {
+          ImGui::PushStyleColor(
+              ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        }
+
+        std::string label =
+            std::to_string(i + 1) + ". " + history[i]->GetDescription();
+        if (ImGui::Selectable(label.c_str(), is_current)) {
+          if (i < current) {
+            while (command_stack_.GetCurrentIndex() > i) {
+              command_stack_.Undo();
+            }
+          } else if (i > current) {
+            while (command_stack_.GetCurrentIndex() < i) {
+              command_stack_.Redo();
+            }
+          }
+          scene_dirty_ = true;
+        }
+
+        if (is_undone) {
+          ImGui::PopStyleColor();
+        }
+      }
+
+      // Initial state at the bottom
+      bool is_initial = (current < 0);
+      if (ImGui::Selectable("-- Initial State --", is_initial)) {
+        while (command_stack_.CanUndo()) {
+          command_stack_.Undo();
+        }
+        scene_dirty_ = true;
+      }
+    }
+  }
+  ImGui::End();
+}
+
 }  // namespace Wiesel::Editor

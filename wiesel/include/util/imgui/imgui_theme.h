@@ -19,11 +19,15 @@ enum class Theme {
   Count,
 };
 
+static constexpr const char* kDefaultFontPath = "engine://fonts/Inter.ttf";
+// Named instance index for FreeType variable font selection.
+// Inter: 0=default, 1=Thin, 2=ExtraLight, 3=Light, 4=Regular, 5=Medium, ...
+static constexpr int kDefaultFontInstance = 5;
+static constexpr float kDefaultFontSize = 16.5f;
+
 const char* GetThemeName(Theme theme);
 
-// Load SourceSansProRegular and sets it as a default font.
-// You may want to call ImGui::GetIO().Fonts->Clear() before this
-void LoadFont(float size = 19.0f);
+void LoadFont();
 
 // Apply a theme by enum
 void ApplyTheme(Theme theme = Theme::DarkGray);

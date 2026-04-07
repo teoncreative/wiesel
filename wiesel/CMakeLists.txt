@@ -182,6 +182,7 @@ endif()
 if (WIESEL_ENABLE_GPU_PROFILING)
     target_compile_definitions(wiesel PUBLIC WIESEL_GPU_PROFILING=1)
 endif()
+target_compile_definitions(wiesel PUBLIC IMGUI_ENABLE_FREETYPE)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/glm)
 

@@ -12,6 +12,7 @@
 
 #include <imgui.h>
 
+#include "util/imgui/imgui_theme.h"
 #include "util/w_vfs.h"
 #include "w_engine.h"
 #include "w_icon_font_loader.h"
@@ -32,11 +33,13 @@ void InitEditorIcons() {
 
   ImGuiIO& io = ImGui::GetIO();
 
-  // We need valid TTF data for AddFont. Load SourceSans3 as the carrier
-  // (the custom loader intercepts our PUA codepoints).
-  auto font_file = Engine::vfs()->Open("engine://fonts/SourceSans3.ttf");
+  // We need valid TTF data for AddFont. Use codicon as carrier since it
+  // has no glyphs in our PUA range (0xE000-0xE0FF), avoiding conflicts
+  // with fonts like Inter that map alternate glyphs to PUA codepoints.
+  const char* carrier_path = "engine://fonts/codicon.ttf";
+  auto font_file = Engine::vfs()->Open(carrier_path);
   if (!font_file) {
-    LOG_ERROR("Failed to load SourceSans3.ttf for icon font");
+    LOG_ERROR("Failed to load {} for icon font", carrier_path);
     return;
   }
 
@@ -48,7 +51,6 @@ void InitEditorIcons() {
   config.DstFont = io.FontDefault;
   config.FontDataOwnedByAtlas = true;
   config.FontLoader = IconFontLoader::GetLoader();
-  // Match the default font's raw size (LoadFont uses size*2 with Scale=0.5)
   config.SizePixels = 38.0f;
   config.FontData = font_data;
   config.FontDataSize = static_cast<int>(font_file.Size());

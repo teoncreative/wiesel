@@ -95,7 +95,9 @@ void EditorLayer::RenderEntityInspector(entt::entity handle) {
     RenderAddPopup(entity);
     ImGui::EndPopup();
   }
+  SetInspectorCommandStack(&command_stack_);
   RenderExistingComponents(entity);
+  SetInspectorCommandStack(nullptr);
 }
 
 }  // namespace Wiesel::Editor

@@ -10,13 +10,6 @@
 
 #include "w_editor.h"
 
-// clang-format off
-// Import order important
-#include <backends/imgui_impl_vulkan.h>
-#include <imgui.h>
-#include <ImGuizmo.h>
-// clang-format on
-
 #include "imgui_internal.h"
 #include "physics/w_collider.h"
 #include "rendering/w_renderer.h"
@@ -51,6 +44,7 @@ static constexpr float kSettingsButtonWidth = 24.0f;
 // If parent != entt::null, the entity is linked as a child.
 // Returns true if an entity was created.
 static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
+                                CommandStack& commands,
                                 entt::entity parent = entt::null,
                                 const glm::vec3* spawn_pos = nullptr) {
   Entity created{entt::null, nullptr};
@@ -95,6 +89,11 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
     if (spawn_pos) {
       auto& tc = created.GetComponent<TransformComponent>();
       tc.SetPosition(*spawn_pos);
+    }
+    auto shared_scene = Engine::scene_manager().FindSceneByPtr(&scene);
+    if (shared_scene) {
+      commands.Execute(std::make_unique<EntityCreateCommand>(shared_scene,
+                                                             created.handle()));
     }
     dirty = true;
     return true;
@@ -429,6 +428,12 @@ void EditorLayer::RenderSceneViewportPanel() {
           TransformComponent& transform =
               selected_entity_scene_->GetComponent<TransformComponent>(
                   selected_entity_);
+
+          // Capture old transform for undo
+          glm::vec3 old_pos = transform.GetPosition();
+          glm::vec3 old_rot = transform.GetRotation();
+          glm::vec3 old_scale = transform.GetScale();
+
           glm::mat4 model = transform.GetTransformMatrix();
           ImGuizmo::SetOrthographic(false);
           ImGuizmo::SetDrawlist();
@@ -455,6 +460,10 @@ void EditorLayer::RenderSceneViewportPanel() {
             transform.SetPosition(translation);
             transform.SetRotation(rotation);
             transform.SetScale(scale);
+
+            command_stack_.Execute(std::make_unique<TransformCommand>(
+                selected_entity_scene_, selected_entity_, old_pos, old_rot,
+                old_scale, translation, rotation, scale));
             scene_dirty_ = true;
           }
 
@@ -580,7 +589,7 @@ void EditorLayer::RenderSceneViewportPanel() {
         }
         if (ImGui::BeginPopup("##QuickAdd")) {
           glm::vec3 cam_pos = editor_camera_transform_.GetPosition();
-          RenderAddEntityMenu(*scene(), scene_dirty_, entt::null, &cam_pos);
+          RenderAddEntityMenu(*scene(), scene_dirty_, command_stack_, entt::null, &cam_pos);
           ImGui::EndPopup();
         }
       }

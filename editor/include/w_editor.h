@@ -15,8 +15,14 @@
 #ifndef WIESEL_PARENT_W_EDITOR_H
 #define WIESEL_PARENT_W_EDITOR_H
 
-#include <ImGuizmo.h>
 #include "TextEditor.h"
+
+// clang-format off
+// Import order important
+#include <backends/imgui_impl_vulkan.h>
+#include <imgui.h>
+#include <ImGuizmo.h>
+// clang-format on
 
 #include "behavior/w_behavior.h"
 #include "events/w_appevents.h"
@@ -31,6 +37,7 @@
 #include "w_lsp_client.h"
 #include "w_notifications.h"
 #include "w_project.h"
+#include "w_undo.h"
 #include "w_vfs_browser.h"
 
 namespace Wiesel::Editor {
@@ -122,12 +129,22 @@ class EditorLayer : public Layer {
   void RenderAssetBrowserPanel();
   void RenderDeveloperConsolePanel();
   void RenderRenderStatsPanel();
+  void RenderUndoHistoryPanel();
   void RenderSceneViewportPanel();
   void RenderGameViewportPanel();
   bool DrawPlayStopButtons();
 
   Application& app_;
   std::shared_ptr<Project> active_project_;
+
+  // Undo/redo
+  CommandStack command_stack_;
+  std::string status_toast_text_;
+  float status_toast_timer_ = 0.0f;
+  static constexpr float kStatusToastDuration = 1.5f;
+  void ShowStatusToast(const std::string& text);
+  void PerformUndo();
+  void PerformRedo();
 
   // Selection state
   entt::entity selected_entity_ = entt::null;
@@ -166,6 +183,7 @@ class EditorLayer : public Layer {
   bool panel_game_view_ = true;
   bool panel_lsp_debug_ = false;
   bool panel_editor_settings_ = false;
+  bool panel_undo_history_ = false;
   bool layout_initialized_ = false;
 
   // File watchers

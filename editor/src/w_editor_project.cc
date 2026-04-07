@@ -158,6 +158,7 @@ void EditorLayer::NewScene() {
 
 void EditorLayer::OpenScene(const std::string& vfs_path) {
   AutoSave();
+  command_stack_.Clear();
 
   Engine::scene_manager().LoadSceneFromPath(vfs_path);
 
@@ -223,6 +224,7 @@ void EditorLayer::SaveSceneAs() {
 }
 
 void EditorLayer::ClearScene() {
+  command_stack_.Clear();
   // Stop playing if active
   if (editor_state_ == EditorState::Playing) {
     editor_state_ = EditorState::Edit;
