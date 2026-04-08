@@ -17,6 +17,7 @@
 
 #include "animation/w_state_machine.h"
 #include "asset/w_asset_handle.h"
+#include "core/w_reflect.h"
 #include "rendering/w_buffer.h"
 #include "rendering/w_descriptor.h"
 #include "scene/w_components.h"
@@ -37,15 +38,23 @@ struct SpriteGpuData {
 };
 
 // Displays a single .wsprite asset.
+WCLASS()
+
 class SpriteRendererComponent {
  public:
   friend class Renderer;
 
+  WPROPERTY(Serializable, Animatable)
   AssetHandle sprite_handle_;  // -> .wsprite
+  WPROPERTY(Serializable)
   glm::vec2 pivot_ = {0.5f, 0.5f};
+  WPROPERTY(Serializable, Animatable)
   glm::vec4 tint_ = {1, 1, 1, 1};
+  WPROPERTY(Serializable)
   bool flip_x_ = false;
+  WPROPERTY(Serializable)
   bool flip_y_ = false;
+  WPROPERTY(Serializable)
   uint8_t sort_layer_ = 0;
 
   // Per-instance GPU resources (lazily allocated by renderer)

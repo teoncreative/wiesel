@@ -173,6 +173,12 @@ endif()
 
 target_include_directories(wiesel PUBLIC ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
 
+# Generated reflection headers (from wiesel-codegen)
+if (DEFINED WIESEL_GENERATED_DIR)
+    target_include_directories(wiesel PUBLIC ${WIESEL_GENERATED_DIR})
+    add_dependencies(wiesel wiesel-reflect)
+endif ()
+
 if (NOT APPLE AND NOT MSVC)
     target_link_options(wiesel PRIVATE -pthread)
 endif()

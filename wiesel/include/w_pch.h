@@ -8,9 +8,11 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#pragma once
+#ifndef WIESEL_PCH_H
+#define WIESEL_PCH_H
 
 #define NOMINMAX
+
 #ifdef __cplusplus
 #include <vulkan/vulkan.h>
 #include <algorithm>  // Necessary for std::clamp
@@ -48,4 +50,6 @@
 #include "util/w_platformdetection.h"
 #include "util/w_tracy.h"
 
-#endif
+#endif  // __cplusplus
+
+#endif  // WIESEL_PCH_H

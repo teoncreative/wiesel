@@ -23,6 +23,7 @@
 #include "asset/w_asset_serializer.h"
 #include "asset/w_model_loader.h"
 #include "asset/w_sprite_loader.h"
+#include "core/w_reflect_init.h"
 #include "cursor/w_cursor.h"
 #include "game/w_game_info.h"
 #include "input/w_input.h"
@@ -444,6 +445,7 @@ void Engine::InitEngine(const EngineProperties& props) {
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
   InitializeVfs();
+  InitializeReflection();
   InitializeComponentSerializers();
   InitializeAssetSerializers();
   input_manager_ = std::make_unique<InputManager>();
@@ -616,4 +618,3 @@ void Engine::SetGameInfo(std::shared_ptr<GameInfo> info) {
 }
 
 }  // namespace Wiesel
-

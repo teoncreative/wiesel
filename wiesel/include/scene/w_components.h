@@ -13,6 +13,7 @@
 
 #include <entt/entt.hpp>
 #include "animation/w_animation_controller.h"
+#include "core/w_reflect.h"
 #include "events/w_events.h"
 #include "rendering/w_buffer.h"
 #include "rendering/w_descriptor.h"
@@ -48,13 +49,17 @@ struct TreeComponent : public IComponent {
   std::vector<entt::entity> childs;
 };
 
+WCLASS()
+
 struct TagComponent : public IComponent {
   TagComponent(const std::string& name) : name(name) {}
 
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
 
+  WPROPERTY(Serializable)
   std::string name;               // entity name
+  WPROPERTY(Serializable)
   std::vector<std::string> tags;  // game tags ("Enemy", "Player", etc.)
 
   bool HasTag(const std::string& tag) const {
