@@ -652,134 +652,39 @@ void EditorLayer::RenderSliceSpritesPopup() {
   }
 }
 
-void EditorLayer::RenderCreateSpriteAnimPopup() {
-  // TODO: rewrite without SpriteSheet references
-}
-
-void EditorLayer::RenderCreateSpriteControllerPopup() {
-  if (show_create_spritecontroller_) {
-    ImGui::OpenPopup("Create Sprite Controller");
-    show_create_spritecontroller_ = false;
+void EditorLayer::RenderCreateAnimControllerPopup() {
+  if (show_create_animcontroller_) {
+    ImGui::OpenPopup("Create Animation Controller");
+    show_create_animcontroller_ = false;
   }
 
   ImVec2 center = ImGui::GetMainViewport()->GetCenter();
   ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiCond_Appearing);
 
   bool popup_open = true;
-  if (ImGui::BeginPopupModal("Create Sprite Controller", &popup_open,
-                             ImGuiWindowFlags_None)) {
+  if (ImGui::BeginPopupModal("Create Animation Controller", &popup_open,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
     static char name_buf[128] = "controller";
-    static std::string default_state_name;
-
-    struct StateEntry {
-      char name[64] = "";
-      AssetHandle anim_handle;
-      float speed = 1.0f;
-    };
-
-    static std::vector<StateEntry> state_entries;
-
     ImGui::InputText("Name", name_buf, sizeof(name_buf));
 
-    ImGui::SeparatorText("States");
-
-    if (ImGui::BeginTable("##states", 4,
-                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                              ImGuiTableFlags_Resizable)) {
-      ImGui::TableSetupColumn("State Name", ImGuiTableColumnFlags_WidthFixed,
-                              120);
-      ImGui::TableSetupColumn("Animation");
-      ImGui::TableSetupColumn("Speed", ImGuiTableColumnFlags_WidthFixed, 60);
-      ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed, 20);
-      ImGui::TableHeadersRow();
-
-      int to_remove = -1;
-      for (int i = 0; i < static_cast<int>(state_entries.size()); i++) {
-        ImGui::PushID(i);
-        auto& state = state_entries[i];
-
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputText("##name", state.name, sizeof(state.name));
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        AssetCombo("##anim", AssetType::SpriteAnim, state.anim_handle, false);
-
-        ImGui::TableNextColumn();
-        ImGui::SetNextItemWidth(-1);
-        ImGui::InputFloat("##speed", &state.speed, 0.1f);
-
-        ImGui::TableNextColumn();
-        if (ImGui::SmallButton("X")) {
-          to_remove = i;
-        }
-
-        ImGui::PopID();
-      }
-      ImGui::EndTable();
-
-      if (to_remove >= 0) {
-        state_entries.erase(state_entries.begin() + to_remove);
-      }
-    }
-
-    if (ImGui::Button("+ Add State")) {
-      state_entries.push_back({});
-    }
-
-    // Default state selector
-    if (ImGui::BeginCombo("Default State", default_state_name.empty()
-                                               ? "(None)"
-                                               : default_state_name.c_str())) {
-      for (auto& s : state_entries) {
-        if (s.name[0] != '\0') {
-          if (ImGui::Selectable(s.name, default_state_name == s.name)) {
-            default_state_name = s.name;
-          }
-        }
-      }
-      ImGui::EndCombo();
-    }
-
-    ImGui::Separator();
-
-    bool can_create = name_buf[0] != '\0' && !state_entries.empty();
-    if (ImGui::Button("Create") && can_create) {
-      auto data = std::make_shared<SpriteControllerAssetData>();
-      data->default_state = default_state_name;
-      for (auto& s : state_entries) {
-        if (s.name[0] == '\0') {
-          continue;
-        }
-        SpriteControllerAssetData::State state;
-        state.name = s.name;
-        state.animation_handle = s.anim_handle;
-        state.speed = s.speed;
-        data->states.push_back(std::move(state));
-      }
-
+    if (ImGui::Button("Create") && name_buf[0] != '\0') {
+      auto data = std::make_shared<AnimControllerAssetData>();
       std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
-                             std::string(name_buf) + ".wspritecontroller";
-      AssetSerializerRegistry::Create<SpriteControllerAssetData>(
-          name_buf, AssetType::SpriteController, vfs_path, data);
-      ScanProjectAssets();
-
-      name_buf[0] = '\0';
-      default_state_name.clear();
-      state_entries.clear();
+                             std::string(name_buf) + ".wanimcontroller";
+      AssetHandle handle =
+          AssetSerializerRegistry::Create<AnimControllerAssetData>(
+              name_buf, AssetType::AnimController, vfs_path, data);
+      if (handle.IsValid()) {
+        anim_controller_editor_.Open(handle, data);
+        ScanProjectAssets();
+      }
+      std::strcpy(name_buf, "controller");
       ImGui::CloseCurrentPopup();
     }
     ImGui::SameLine();
     if (ImGui::Button("Cancel")) {
-      name_buf[0] = '\0';
-      default_state_name.clear();
-      state_entries.clear();
       ImGui::CloseCurrentPopup();
     }
-
     ImGui::EndPopup();
   }
 }
@@ -1931,6 +1836,7 @@ void EditorLayer::RenderStartupDialog() {
   if (!recent.empty()) {
     ImGui::Text("Recent Projects:");
     ImGui::Spacing();
+
     for (const std::string& path : recent) {
       namespace fs = std::filesystem;
       std::string name = fs::path(path).stem().string();
@@ -1938,18 +1844,12 @@ void EditorLayer::RenderStartupDialog() {
       std::string label = name + "  " + dir;
       std::string id = "##recent_" + path;
 
-      // Clip text to content region so it doesn't overflow into padding
-      ImVec2 cursor = ImGui::GetCursorScreenPos();
-      ImVec2 clip_max =
-          ImVec2(cursor.x + width, cursor.y + ImGui::GetFrameHeight());
-      ImGui::PushClipRect(cursor, clip_max, true);
       if (ImGui::Selectable((label + id).c_str())) {
         if (fs::exists(path)) {
           deferred_action_ = DeferredAction::OpenProject;
           deferred_path_ = path;
         }
       }
-      ImGui::PopClipRect();
     }
   } else {
     ImGui::TextDisabled("No recent projects.");

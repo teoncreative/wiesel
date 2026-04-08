@@ -16,6 +16,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include <imnodes.h>
 // clang-format on
 
 #include <backends/imgui_impl_sdl3.h>
@@ -62,6 +63,7 @@ void ImGuiLayer::OnAttach() {
   //this initializes the core structures of imgui
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+  ImNodes::CreateContext();
   //ImGui::StyleColorsDark(&ImGui::GetStyle());
   ImGui::Moonlight::ApplyTheme();
   ImGui::Moonlight::LoadFont();
@@ -98,7 +100,7 @@ void ImGuiLayer::OnAttach() {
 void ImGuiLayer::OnDetach() {
   LOG_DEBUG("Destroying imgui pool");
   vkDeviceWaitIdle(Engine::renderer()->logical_device_);
-  // Vulkan does this
+  ImNodes::DestroyContext();
   ImGui_ImplVulkan_Shutdown();
   vkDestroyDescriptorPool(Engine::renderer()->logical_device_, m_ImGuiPool,
                           nullptr);

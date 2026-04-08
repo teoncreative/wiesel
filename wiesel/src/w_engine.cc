@@ -22,7 +22,6 @@
 #include "asset/w_asset_property_registry.h"
 #include "asset/w_asset_serializer.h"
 #include "asset/w_model_loader.h"
-#include "asset/w_sprite_loader.h"
 #include "core/w_reflect_init.h"
 #include "cursor/w_cursor.h"
 #include "game/w_game_info.h"
@@ -382,18 +381,22 @@ void Engine::InitEngine(const EngineProperties& props) {
           },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
-  // SpriteAnim (.wspriteanim) loader
+  // AnimClip (.wanimclip) loader
   asset_manager_->RegisterLoader(
-      AssetType::SpriteAnim,
+      AssetType::AnimClip,
       std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) { return LoadSpriteAnimAsset(handle); },
+          [](AssetHandle handle) {
+            return AssetSerializerRegistry::Load(handle);
+          },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
-  // SpriteController (.wspritecontroller) loader
+  // AnimController (.wanimcontroller) loader
   asset_manager_->RegisterLoader(
-      AssetType::SpriteController,
+      AssetType::AnimController,
       std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) { return LoadSpriteControllerAsset(handle); },
+          [](AssetHandle handle) {
+            return AssetSerializerRegistry::Load(handle);
+          },
           [](AssetHandle handle) { asset_manager_->Unload(handle); }));
 
   // UIDocument (.rml) loader

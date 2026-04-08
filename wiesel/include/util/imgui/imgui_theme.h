@@ -22,7 +22,7 @@ enum class Theme {
 static constexpr const char* kDefaultFontPath = "engine://fonts/Inter.ttf";
 // Named instance index for FreeType variable font selection.
 // Inter: 0=default, 1=Thin, 2=ExtraLight, 3=Light, 4=Regular, 5=Medium, ...
-static constexpr int kDefaultFontInstance = 5;
+static constexpr int kDefaultFontInstance = 4;
 static constexpr float kDefaultFontSize = 16.5f;
 
 const char* GetThemeName(Theme theme);

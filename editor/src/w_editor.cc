@@ -21,6 +21,7 @@
 
 #include "util/w_tracy.h"
 
+#include "asset/w_asset_serializer.h"
 #include "events/w_keyevents.h"
 #include "imgui_internal.h"
 #include "input/w_input.h"
@@ -267,14 +268,21 @@ void EditorLayer::OnAttach() {
   ab_cb.on_show_create_skybox = [this]() { show_create_skybox_ = true; };
   ab_cb.on_show_create_cursorset = [this]() { show_create_cursorset_ = true; };
   ab_cb.on_show_create_sprite = [this]() { show_create_sprite_ = true; };
-  ab_cb.on_show_create_spriteanim = [this]() {
-    show_create_spriteanim_ = true;
-  };
-  ab_cb.on_show_create_spritecontroller = [this]() {
-    show_create_spritecontroller_ = true;
+  ab_cb.on_open_anim_controller = [this](AssetHandle handle) {
+    auto data = Engine::asset_manager().Get<AnimControllerAssetData>(handle);
+    if (!data) {
+      Engine::asset_manager().LoadSync(handle);
+      data = Engine::asset_manager().Get<AnimControllerAssetData>(handle);
+    }
+    if (data) {
+      anim_controller_editor_.Open(handle, data);
+    }
   };
   ab_cb.on_show_create_meshcollider = [this]() {
     show_create_meshcollider_ = true;
+  };
+  ab_cb.on_create_anim_controller = [this]() {
+    show_create_animcontroller_ = true;
   };
   asset_browser_panel_.SetCallbacks(std::move(ab_cb));
 }
@@ -510,13 +518,13 @@ void EditorLayer::OnBeginPresent() {
   RenderProjectSettingsPopup();
   RenderAssetPropertiesPanel();
   RenderCodeEditor();
+  anim_controller_editor_.Render();
   RenderLspDebugPanel();
   RenderEditorSettingsPanel();
   RenderCreateSkyboxPopup();
   RenderCreateSpritePopup();
   RenderSliceSpritesPopup();
-  RenderCreateSpriteAnimPopup();
-  RenderCreateSpriteControllerPopup();
+  RenderCreateAnimControllerPopup();
   RenderCreateCursorSetPopup();
   RenderCreateMeshColliderPopup();
   file_picker_.Render();

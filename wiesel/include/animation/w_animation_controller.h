@@ -118,6 +118,8 @@ struct AnimationTransition {
   std::string to_state;
   float blend_duration = 0.25f;  // seconds
   std::vector<TransitionCondition> conditions;
+  // Editor metadata
+  int32_t editor_id = -1;
 };
 
 struct AnimationController {

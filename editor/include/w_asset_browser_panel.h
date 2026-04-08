@@ -26,14 +26,14 @@ struct AssetBrowserCallbacks {
   std::function<void(const std::string& vfs_path)> on_open_scene;
   std::function<void(const std::string& vfs_path)> on_open_prefab;
   std::function<void(const std::filesystem::path&)> on_open_code_editor;
+  std::function<void(AssetHandle)> on_open_anim_controller;
   std::function<void(AssetHandle)> on_select_asset;
   std::function<void(AssetHandle)> on_slice_texture;
   std::function<void()> on_show_create_skybox;
   std::function<void()> on_show_create_sprite;
-  std::function<void()> on_show_create_spriteanim;
-  std::function<void()> on_show_create_spritecontroller;
   std::function<void()> on_show_create_cursorset;
   std::function<void()> on_show_create_meshcollider;
+  std::function<void()> on_create_anim_controller;
 };
 
 class AssetBrowserPanel {

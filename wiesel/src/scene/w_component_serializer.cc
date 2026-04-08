@@ -1367,43 +1367,39 @@ void InitializeComponentSerializers() {
       },
   });
 
+  // Unified Animator serializer
   ComponentSerializerRegistry::Register({
-      "SpriteAnimator",
+      "Animator",
       // Has
       [](Entity& entity) -> bool {
-        return entity.HasComponent<SpriteAnimatorComponent>();
+        return entity.HasComponent<AnimatorComponent>();
       },
       // Serialize
       [](Entity& entity) -> json {
-        auto& s = entity.GetComponent<SpriteAnimatorComponent>();
-        json sj;
-        if (s.controller_handle_.IsValid()) {
-          sj["controller_handle"] = s.controller_handle_.ToString();
+        auto& a = entity.GetComponent<AnimatorComponent>();
+        json aj;
+        if (a.controller_handle.IsValid()) {
+          aj["controller_handle"] = a.controller_handle.ToString();
         }
-        sj["playing"] = s.playing_;
-        return sj;
+        aj["playing"] = a.playing;
+        aj["playback_speed"] = a.playback_speed;
+        return aj;
       },
       // Deserialize
-      [](Entity& entity, const json& sj, Scene* scene) {
-        auto& s = entity.AddComponent<SpriteAnimatorComponent>();
-
-        std::string handle_str = sj.value("controller_handle", "");
+      [](Entity& entity, const json& aj, Scene* scene) {
+        auto& a = entity.AddComponent<AnimatorComponent>();
+        std::string handle_str = aj.value("controller_handle", "");
         if (!handle_str.empty()) {
-          s.controller_handle_ = AssetHandle::FromString(handle_str);
+          a.controller_handle = AssetHandle::FromString(handle_str);
           if (scene) {
-            scene->RequestAsset(s.controller_handle_);
+            scene->RequestAsset(a.controller_handle);
           }
-          // Ensure the controller is loaded
-          if (s.controller_handle_.IsValid()) {
-            auto ctrl = Engine::asset_manager().Get<SpriteControllerAssetData>(
-                s.controller_handle_);
-            if (!ctrl) {
-              Engine::asset_manager().LoadSync(s.controller_handle_);
-            }
+          if (a.controller_handle.IsValid()) {
+            Engine::asset_manager().LoadSync(a.controller_handle);
           }
         }
-
-        s.playing_ = sj.value("playing", true);
+        a.playing = aj.value("playing", true);
+        a.playback_speed = aj.value("playback_speed", 1.0f);
       },
   });
 }

@@ -124,9 +124,14 @@ struct Model {
 
   void ComputeBounds() {
     bounds = {};
-    for (auto& mesh : meshes) {
-      mesh->ComputeBounds();
-      bounds.Expand(mesh->bounds);
+    for (size_t i = 0; i < meshes.size(); i++) {
+      meshes[i]->ComputeBounds();
+      // Apply per-mesh node transform so bounds are in model space
+      if (!has_skeleton && i < mesh_node_transforms.size()) {
+        bounds.Expand(meshes[i]->bounds.Transformed(mesh_node_transforms[i]));
+      } else {
+        bounds.Expand(meshes[i]->bounds);
+      }
     }
   }
 

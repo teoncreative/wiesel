@@ -24,10 +24,9 @@ namespace Wiesel {
 // Returns nullptr if the field has no WPropertyMeta custom data.
 inline const WPropertyMeta* GetPropertyMeta(entt::meta_data data) {
   auto custom = data.custom();
-  if (auto* ptr = custom.try_cast<WPropertyMeta>()) {
-    return ptr;
-  }
-  return nullptr;
+  // entt 3.16: meta_custom has implicit operator Type*() conversion
+  const WPropertyMeta* ptr = custom;
+  return ptr;
 }
 
 // Check if a reflected field is serializable.

@@ -33,6 +33,7 @@
 #include "scene/w_entity.h"
 #include "script/mono/w_monobehavior.h"
 #include "systems/w_agent_system.h"
+#include "systems/w_animation_system.h"
 #include "systems/w_audio_listener_system.h"
 #include "systems/w_audio_source_system.h"
 #include "systems/w_behavior_system.h"
@@ -40,8 +41,6 @@
 #include "systems/w_canvas_system.h"
 #include "systems/w_light_system.h"
 #include "systems/w_physics_system.h"
-#include "systems/w_skeletal_animation_system.h"
-#include "systems/w_sprite_animation_system.h"
 #include "systems/w_text_input_system.h"
 #include "systems/w_transform_system.h"
 #include "systems/w_ui_document_system.h"
@@ -67,8 +66,7 @@ Scene::Scene() {
   AddSystem<PhysicsSimulationSystem>();
   AddSystem<TransformSystem>();
   AddSystem<LightSystem>();
-  AddSystem<SpriteAnimationSystem>();
-  AddSystem<SkeletalAnimationSystem>();
+  AddSystem<AnimationSystem>();
   AddSystem<CameraSystem>();
   AddSystem<UIDocumentSystem>();
 }
@@ -562,7 +560,6 @@ bool Scene::OnWindowResizeEvent(WindowResizedEvent& event) {
   }
   return false;
 }
-
 
 void Scene::Cleanup() {
   // Clear camera render graphs and resource pools.

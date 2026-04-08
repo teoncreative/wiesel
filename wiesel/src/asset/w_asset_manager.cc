@@ -46,10 +46,10 @@ const char* AssetTypeToString(AssetType type) {
       return "Prefab";
     case AssetType::Audio:
       return "Audio";
-    case AssetType::SpriteAnim:
-      return "SpriteAnim";
-    case AssetType::SpriteController:
-      return "SpriteController";
+    case AssetType::AnimClip:
+      return "AnimClip";
+    case AssetType::AnimController:
+      return "AnimController";
     case AssetType::UIDocument:
       return "UIDocument";
     case AssetType::UIStylesheet:
@@ -97,11 +97,11 @@ AssetType AssetTypeFromString(std::string_view s) {
   if (s == "Audio") {
     return AssetType::Audio;
   }
-  if (s == "SpriteAnim") {
-    return AssetType::SpriteAnim;
+  if (s == "AnimClip") {
+    return AssetType::AnimClip;
   }
-  if (s == "SpriteController") {
-    return AssetType::SpriteController;
+  if (s == "AnimController") {
+    return AssetType::AnimController;
   }
   if (s == "UIDocument") {
     return AssetType::UIDocument;

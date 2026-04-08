@@ -14,13 +14,13 @@
 
 namespace Wiesel {
 
-class SkeletalAnimationSystem : public ISystem {
+class AnimationSystem : public ISystem {
  public:
   void Update(Scene& scene, float delta_time) override;
 
-  const char* GetName() const override { return "SkeletalAnimation"; }
+  const char* GetName() const override { return "Animation"; }
 
-  int GetPriority() const override { return 1100; }
+  int GetPriority() const override { return 1050; }
 
   bool RunOnFirstUpdate() const override { return true; }
 };

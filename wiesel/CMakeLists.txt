@@ -205,6 +205,7 @@ endif (VULKAN_FOUND)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
+target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imnodes)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/miniaudio)
 if (WIESEL_ENABLE_DISCORD_RPC)

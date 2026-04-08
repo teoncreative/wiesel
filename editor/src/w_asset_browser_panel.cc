@@ -297,6 +297,9 @@ void AssetBrowserPanel::Render(bool& open) {
             if (phys) {
               callbacks_.on_open_code_editor(*phys);
             }
+          } else if (fe.asset_type == AssetType::AnimController &&
+                     callbacks_.on_open_anim_controller) {
+            callbacks_.on_open_anim_controller(handle);
           }
         }
 
@@ -500,15 +503,9 @@ void AssetBrowserPanel::Render(bool& open) {
           }
           ImGui::CloseCurrentPopup();
         }
-        if (ImGui::MenuItem("Sprite Animation")) {
-          if (callbacks_.on_show_create_spriteanim) {
-            callbacks_.on_show_create_spriteanim();
-          }
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("Sprite Controller")) {
-          if (callbacks_.on_show_create_spritecontroller) {
-            callbacks_.on_show_create_spritecontroller();
+        if (ImGui::MenuItem("Animation Controller")) {
+          if (callbacks_.on_create_anim_controller) {
+            callbacks_.on_create_anim_controller();
           }
           ImGui::CloseCurrentPopup();
         }

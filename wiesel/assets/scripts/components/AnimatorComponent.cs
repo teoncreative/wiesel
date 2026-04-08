@@ -1,10 +1,7 @@
-using System;
-
 namespace WieselEngine
 {
     public class AnimatorComponent : Component
     {
-
         public AnimatorComponent(Entity entity)
         {
             this.entity = entity;
@@ -19,6 +16,16 @@ namespace WieselEngine
         public string CurrentState
         {
             get { return Internals.Animator_GetCurrentState(entity.ScenePtr, entity.Id); }
+        }
+
+        public void Play(string stateName)
+        {
+            Internals.Animator_Play(entity.ScenePtr, entity.Id, stateName);
+        }
+
+        public void Stop()
+        {
+            Internals.Animator_Stop(entity.ScenePtr, entity.Id);
         }
 
         public void SetBool(string name, bool value)
@@ -54,11 +61,6 @@ namespace WieselEngine
         public void SetTrigger(string name)
         {
             Internals.Animator_SetTrigger(entity.ScenePtr, entity.Id, name);
-        }
-
-        public void Play(string stateName, float blendTime = 0.25f)
-        {
-            Internals.Animator_Play(entity.ScenePtr, entity.Id, stateName, blendTime);
         }
     }
 }

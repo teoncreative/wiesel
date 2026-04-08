@@ -15,7 +15,6 @@
 #ifndef WIESEL_SPRITE_H
 #define WIESEL_SPRITE_H
 
-#include "animation/w_state_machine.h"
 #include "asset/w_asset_handle.h"
 #include "core/w_reflect.h"
 #include "rendering/w_buffer.h"
@@ -64,28 +63,6 @@ class SpriteRendererComponent {
   std::shared_ptr<SpriteGpuData> gpu_data_;  // cached from asset manager
 };
 
-struct SpriteAnimAssetData;
-
-// Controls which .wsprite is shown on a sibling SpriteRendererComponent.
-class SpriteAnimatorComponent {
- public:
-  AssetHandle controller_handle_;  // -> .wspritecontroller
-
-  // Runtime state machine
-  StateMachineRuntime state_machine_;
-
-  // Playback state
-  uint32_t current_frame_index_ = 0;
-  float frame_timer_ = 0.0f;
-  bool playing_ = true;
-
-  // Currently resolved animation (from active state)
-  std::shared_ptr<SpriteAnimAssetData> current_anim_;
-  std::string current_state_name_;
-
-  void Play(const std::string& state_name, bool restart = true);
-  void Stop();
-};
 
 }  // namespace Wiesel
 

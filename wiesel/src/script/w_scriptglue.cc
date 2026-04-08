@@ -762,105 +762,109 @@ void Internals_SpriteRenderer_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
 
 #undef GET_SPRITE_RENDERER_OR_RETURN
 
-// --- SpriteAnimatorComponent bindings ---
+// --- AnimatorComponent bindings (replaces old SpriteAnimatorComponent) ---
 
-#define GET_SPRITE_ANIMATOR_OR_RETURN(scene_ptr, entity_id, retval) \
-  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);           \
-  if (!scene->HasComponent<SpriteAnimatorComponent>(handle))        \
-    return retval;                                                  \
-  auto& spr_a = scene->GetComponent<SpriteAnimatorComponent>(handle)
+#define GET_ANIMATOR_OR_RETURN(scene_ptr, entity_id, retval) \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);    \
+  if (!scene->HasComponent<AnimatorComponent>(handle))       \
+    return retval;                                           \
+  auto& anim = scene->GetComponent<AnimatorComponent>(handle)
 
 void Internals_SpriteAnimator_Play(uint64_t sp, uint64_t eid, MonoString* state,
-                                   bool restart) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+                                   bool /*restart*/) {
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(state);
-  spr_a.Play(cstr, restart);
+  anim.Play(cstr);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_Stop(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  spr_a.Stop();
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
+  anim.Stop();
 }
 
 bool Internals_SpriteAnimator_GetIsPlaying(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
-  return spr_a.playing_;
+  GET_ANIMATOR_OR_RETURN(sp, eid, false);
+  return anim.playing;
 }
 
 MonoString* Internals_SpriteAnimator_GetCurrentState(uint64_t sp,
                                                      uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(
+  GET_ANIMATOR_OR_RETURN(
       sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
   return mono_string_new(Engine::script_manager().app_domain(),
-                         spr_a.current_state_name_.c_str());
+                         anim.GetCurrentState().c_str());
 }
 
 int Internals_SpriteAnimator_GetCurrentFrame(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
-  return static_cast<int>(spr_a.current_frame_index_);
+  GET_ANIMATOR_OR_RETURN(sp, eid, 0);
+  if (scene->HasComponent<SpriteAnimRuntime>(handle)) {
+    return static_cast<int>(
+        scene->GetComponent<SpriteAnimRuntime>(handle).current_frame_index);
+  }
+  return 0;
 }
 
 void Internals_SpriteAnimator_SetBool(uint64_t sp, uint64_t eid,
                                       MonoString* name, bool val) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetBool(cstr, val);
+  anim.SetBool(cstr, val);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetInt(uint64_t sp, uint64_t eid,
                                      MonoString* name, int val) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetInt(cstr, val);
+  anim.SetInt(cstr, val);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetFloat(uint64_t sp, uint64_t eid,
                                        MonoString* name, float val) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetFloat(cstr, val);
+  anim.SetFloat(cstr, val);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetTrigger(uint64_t sp, uint64_t eid,
                                          MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetTrigger(cstr);
+  anim.SetTrigger(cstr);
   mono_free(cstr);
 }
 
 bool Internals_SpriteAnimator_GetBool(uint64_t sp, uint64_t eid,
                                       MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
+  GET_ANIMATOR_OR_RETURN(sp, eid, false);
   char* cstr = mono_string_to_utf8(name);
-  bool val = spr_a.state_machine_.GetBool(cstr);
+  bool val = anim.GetBool(cstr);
   mono_free(cstr);
   return val;
 }
 
 int Internals_SpriteAnimator_GetInt(uint64_t sp, uint64_t eid,
                                     MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
+  GET_ANIMATOR_OR_RETURN(sp, eid, 0);
   char* cstr = mono_string_to_utf8(name);
-  int val = spr_a.state_machine_.GetInt(cstr);
+  int val = anim.GetInt(cstr);
   mono_free(cstr);
   return val;
 }
 
 float Internals_SpriteAnimator_GetFloat(uint64_t sp, uint64_t eid,
                                         MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0.0f);
+  GET_ANIMATOR_OR_RETURN(sp, eid, 0.0f);
   char* cstr = mono_string_to_utf8(name);
-  float val = spr_a.state_machine_.GetFloat(cstr);
+  float val = anim.GetFloat(cstr);
   mono_free(cstr);
   return val;
 }
 
-#undef GET_SPRITE_ANIMATOR_OR_RETURN
+#undef GET_ANIMATOR_OR_RETURN
 
 // --- Audio bindings ---
 
@@ -2174,16 +2178,16 @@ float Internals_Animator_GetFloat(Scene* s, entt::entity e, MonoString* name) {
 }
 
 void Internals_Animator_Play(Scene* s, entt::entity e, MonoString* stateName,
-                             float blendTime) {
+                             float /*blendTime*/) {
   char* cstr = mono_string_to_utf8(stateName);
-  s->GetComponent<AnimatorComponent>(e).Play(cstr, blendTime);
+  s->GetComponent<AnimatorComponent>(e).Play(cstr);
   mono_free(cstr);
 }
 
 MonoString* Internals_Animator_GetCurrentState(Scene* s, entt::entity e) {
   auto& anim = s->GetComponent<AnimatorComponent>(e);
   return mono_string_new(Engine::script_manager().app_domain(),
-                         anim.current_state_name.c_str());
+                         anim.GetCurrentState().c_str());
 }
 
 bool Internals_Animator_GetIsPlaying(Scene* s, entt::entity e) {
@@ -2192,6 +2196,10 @@ bool Internals_Animator_GetIsPlaying(Scene* s, entt::entity e) {
 
 void Internals_Animator_SetIsPlaying(Scene* s, entt::entity e, bool value) {
   s->GetComponent<AnimatorComponent>(e).playing = value;
+}
+
+void Internals_Animator_Stop(Scene* s, entt::entity e) {
+  s->GetComponent<AnimatorComponent>(e).Stop();
 }
 
 // SceneManager internal calls
@@ -2863,6 +2871,7 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Animator_GetInt);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetFloat);
   WIESEL_ADD_INTERNAL_CALL(Animator_Play);
+  WIESEL_ADD_INTERNAL_CALL(Animator_Stop);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetCurrentState);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetIsPlaying);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetIsPlaying);

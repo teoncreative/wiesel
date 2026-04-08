@@ -17,8 +17,10 @@
 #include <future>
 #include <set>
 
+#include "animation/w_animation_clip_asset.h"
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
+#include "asset/w_asset_serializer.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
@@ -571,6 +573,36 @@ bool LoadModelAsset(AssetHandle handle) {
           }
         }
       }
+      // Extract animation clips to .wanimclip files
+      if (model->has_animations) {
+        for (const auto& clip : model->animation_clips) {
+          std::string clip_name =
+              clip.name.empty()
+                  ? "Clip_" + std::to_string(&clip - &model->animation_clips[0])
+                  : clip.name;
+          std::string clip_vfs =
+              model_dir + "/" + model_stem + "_" + clip_name + ".wanimclip";
+
+          AssetHandle existing = mgr.FindBySourcePath(clip_vfs);
+          if (existing.IsValid()) {
+            continue;  // already extracted
+          }
+
+          auto clip_data = std::make_shared<AnimClipAssetData>();
+          clip_data->duration = clip.duration;
+          clip_data->ticks_per_second = clip.ticks_per_second;
+          clip_data->loop = true;
+          clip_data->bone_channels = clip.channels;
+
+          AssetHandle clip_handle =
+              AssetSerializerRegistry::Create<AnimClipAssetData>(
+                  clip_name, AssetType::AnimClip, clip_vfs, clip_data);
+          if (clip_handle.IsValid()) {
+            LOG_INFO("Extracted animation clip: {}", clip_vfs);
+          }
+        }
+      }
+
       mgr.SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
       mgr.Store(handle, model);
     });

@@ -15,7 +15,6 @@
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <typeindex>
-#include "../../wiesel/include/asset/w_sprite_loader.h"
 #include "animation/w_animation.h"
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_serializer.h"
@@ -1761,292 +1760,61 @@ void RenderAddComponentImGui_TextInputComponent(Entity entity) {
 void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
   static bool visible = true;
   if (ImGui::ClosableTreeNode("Animator", &visible)) {
-    // Clip selector - show available clips from the model
-    std::shared_ptr<Model> model_ptr;
-    if (entity.HasComponent<ModelComponent>()) {
-      auto& model_comp = entity.GetComponent<ModelComponent>();
-      if (model_comp.model_handle.IsValid()) {
-        model_ptr =
-            Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
-      }
-    }
-
+    AssetDropField("Controller", AssetType::AnimController,
+                   component.controller_handle);
     ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing);
     ImGui::DragFloat(PrefixLabel("Speed").c_str(), &component.playback_speed,
                      0.01f, -10.0f, 10.0f);
 
-    bool use_controller = component.UseController();
+    // Current state
+    std::string state_label = component.GetCurrentState();
+    if (state_label.empty()) {
+      state_label = "(None)";
+    }
+    ImGui::Text("State: %s", state_label.c_str());
 
-    if (use_controller) {
-      // --- Controller mode ---
-      ImGui::Separator();
-      ImGui::TextDisabled("Controller Mode");
-
-      // Current state
-      std::string state_label = component.current_state_name.empty()
-                                    ? "(None)"
-                                    : component.current_state_name;
-      ImGui::Text("State: %s", state_label.c_str());
-
-      if (component.is_blending) {
-        ImGui::ProgressBar(component.blend_weight, ImVec2(-1, 0),
-                           "Blending...");
+    // Show blending progress if skeletal runtime is active
+    if (entity.HasComponent<SkeletalAnimRuntime>()) {
+      auto& skel = entity.GetComponent<SkeletalAnimRuntime>();
+      if (skel.is_blending) {
+        ImGui::ProgressBar(skel.blend_weight, ImVec2(-1, 0), "Blending...");
       }
-
-      ImGui::DragFloat(PrefixLabel("State Time").c_str(), &component.state_time,
-                       0.1f, 0.0f, 10000.0f);
-
-      // Default state
-      if (ImGui::BeginCombo(PrefixLabel("Default State").c_str(),
-                            component.controller.default_state.c_str())) {
-        for (const auto& state : component.controller.states) {
-          bool selected = (component.controller.default_state == state.name);
-          if (ImGui::Selectable(state.name.c_str(), selected)) {
-            component.controller.default_state = state.name;
-          }
-        }
-        ImGui::EndCombo();
-      }
-
-      // States
-      if (ImGui::TreeNode("States")) {
-        for (size_t i = 0; i < component.controller.states.size(); i++) {
-          auto& state = component.controller.states[i];
-          ImGui::PushID(static_cast<int>(i));
-          if (ImGui::TreeNode(state.name.c_str())) {
-            ImGui::InputText("Name", &state.name);
-            // Clip combo
-            if (model_ptr && !model_ptr->animation_clips.empty()) {
-              if (ImGui::BeginCombo("Clip", state.clip_name.c_str())) {
-                for (const auto& clip : model_ptr->animation_clips) {
-                  bool sel = (state.clip_name == clip.name);
-                  if (ImGui::Selectable(clip.name.c_str(), sel)) {
-                    state.clip_name = clip.name;
-                  }
-                }
-                ImGui::EndCombo();
-              }
-            } else {
-              ImGui::InputText("Clip", &state.clip_name);
-            }
-            ImGui::DragFloat("Speed", &state.speed, 0.01f, -10.0f, 10.0f);
-            ImGui::Checkbox("Looping", &state.looping);
-            if (ImGui::Button("Remove")) {
-              component.controller.states.erase(
-                  component.controller.states.begin() +
-                  static_cast<ptrdiff_t>(i));
-              ImGui::TreePop();
-              ImGui::PopID();
-              break;
-            }
-            ImGui::TreePop();
-          }
-          ImGui::PopID();
-        }
-        if (ImGui::Button("+ Add State")) {
-          AnimationState new_state;
-          new_state.name =
-              "State" + std::to_string(component.controller.states.size());
-          component.controller.states.push_back(new_state);
-        }
-        ImGui::TreePop();
-      }
-
-      // Transitions
-      if (ImGui::TreeNode("Transitions")) {
-        for (size_t i = 0; i < component.controller.transitions.size(); i++) {
-          auto& trans = component.controller.transitions[i];
-          ImGui::PushID(static_cast<int>(i));
-          std::string label =
-              (trans.from_state.empty() ? "Any" : trans.from_state) + " -> " +
-              trans.to_state;
-          if (ImGui::TreeNode(label.c_str())) {
-            // From state combo
-            if (ImGui::BeginCombo("From", trans.from_state.empty()
-                                              ? "(Any)"
-                                              : trans.from_state.c_str())) {
-              if (ImGui::Selectable("(Any)", trans.from_state.empty())) {
-                trans.from_state = "";
-              }
-              for (const auto& state : component.controller.states) {
-                bool sel = (trans.from_state == state.name);
-                if (ImGui::Selectable(state.name.c_str(), sel)) {
-                  trans.from_state = state.name;
-                }
-              }
-              ImGui::EndCombo();
-            }
-            // To state combo
-            if (ImGui::BeginCombo("To", trans.to_state.c_str())) {
-              for (const auto& state : component.controller.states) {
-                bool sel = (trans.to_state == state.name);
-                if (ImGui::Selectable(state.name.c_str(), sel)) {
-                  trans.to_state = state.name;
-                }
-              }
-              ImGui::EndCombo();
-            }
-            ImGui::DragFloat("Blend Duration", &trans.blend_duration, 0.01f,
-                             0.0f, 5.0f);
-
-            // Conditions
-            for (size_t j = 0; j < trans.conditions.size(); j++) {
-              auto& cond = trans.conditions[j];
-              ImGui::PushID(static_cast<int>(j));
-              ImGui::InputText("Param", &cond.param_name);
-              const char* op_names[] = {"==", "!=", ">", "<"};
-              int op_idx = static_cast<int>(cond.op);
-              if (ImGui::Combo("Op", &op_idx, op_names, 4)) {
-                cond.op = static_cast<ConditionOp>(op_idx);
-              }
-              const char* type_names[] = {"Bool", "Int", "Float", "Trigger"};
-              int type_idx = static_cast<int>(cond.param_type);
-              if (ImGui::Combo("Type", &type_idx, type_names, 4)) {
-                cond.param_type = static_cast<AnimParamType>(type_idx);
-              }
-              switch (cond.param_type) {
-                case AnimParamType::Bool:
-                case AnimParamType::Trigger:
-                  ImGui::Checkbox("Value", &cond.value.b);
-                  break;
-                case AnimParamType::Int:
-                  ImGui::InputInt("Value", &cond.value.i);
-                  break;
-                case AnimParamType::Float:
-                  ImGui::DragFloat("Value", &cond.value.f, 0.01f);
-                  break;
-              }
-              if (ImGui::Button("Remove Condition")) {
-                trans.conditions.erase(trans.conditions.begin() +
-                                       static_cast<ptrdiff_t>(j));
-                ImGui::PopID();
-                break;
-              }
-              ImGui::PopID();
-            }
-            if (ImGui::Button("+ Condition")) {
-              trans.conditions.push_back({});
-            }
-            ImGui::Separator();
-            if (ImGui::Button("Remove Transition")) {
-              component.controller.transitions.erase(
-                  component.controller.transitions.begin() +
-                  static_cast<ptrdiff_t>(i));
-              ImGui::TreePop();
-              ImGui::PopID();
-              break;
-            }
-            ImGui::TreePop();
-          }
-          ImGui::PopID();
-        }
-        if (ImGui::Button("+ Add Transition")) {
-          component.controller.transitions.push_back({});
-        }
-        ImGui::TreePop();
-      }
-
-      // Parameters
-      if (ImGui::TreeNode("Parameters")) {
-        static std::string new_param_name;
-        static int new_param_type = 0;
-
-        std::string to_remove;
-        for (auto& [name, param] : component.parameters) {
-          ImGui::PushID(name.c_str());
-          ImGui::Text("%s", name.c_str());
-          ImGui::SameLine();
-          switch (param.type) {
-            case AnimParamType::Bool:
-              ImGui::Checkbox("##val", &param.b);
-              break;
-            case AnimParamType::Int:
-              ImGui::InputInt("##val", &param.i);
-              break;
-            case AnimParamType::Float:
-              ImGui::DragFloat("##val", &param.f, 0.01f);
-              break;
-            case AnimParamType::Trigger:
-              if (ImGui::Button(param.b ? "ON" : "Fire")) {
-                param.b = true;
-              }
-              break;
-          }
-          ImGui::SameLine();
-          if (ImGui::Button("X")) {
-            to_remove = name;
-          }
-          ImGui::PopID();
-        }
-        if (!to_remove.empty()) {
-          component.parameters.erase(to_remove);
-        }
-
-        ImGui::Separator();
-        ImGui::InputText("##newname", &new_param_name);
-        ImGui::SameLine();
-        const char* ptypes[] = {"Bool", "Int", "Float", "Trigger"};
-        ImGui::SetNextItemWidth(80);
-        ImGui::Combo("##newtype", &new_param_type, ptypes, 4);
-        ImGui::SameLine();
-        if (ImGui::Button("+ Add") && !new_param_name.empty() &&
-            !component.parameters.contains(new_param_name)) {
-          switch (static_cast<AnimParamType>(new_param_type)) {
-            case AnimParamType::Bool:
-              component.parameters[new_param_name] = AnimParam::MakeBool(false);
-              break;
-            case AnimParamType::Int:
-              component.parameters[new_param_name] = AnimParam::MakeInt(0);
-              break;
-            case AnimParamType::Float:
-              component.parameters[new_param_name] = AnimParam::MakeFloat(0.0f);
-              break;
-            case AnimParamType::Trigger:
-              component.parameters[new_param_name] = AnimParam::MakeTrigger();
-              break;
-          }
-          new_param_name.clear();
-        }
-        ImGui::TreePop();
-      }
-
-    } else {
-      // --- Legacy single-clip mode ---
-      if (model_ptr && !model_ptr->animation_clips.empty()) {
-        const auto& clips = model_ptr->animation_clips;
-        std::string current = component.current_clip_name.empty()
-                                  ? "(None)"
-                                  : component.current_clip_name;
-        if (ImGui::BeginCombo(PrefixLabel("Clip").c_str(), current.c_str())) {
-          for (const auto& clip : clips) {
-            bool selected = (component.current_clip_name == clip.name);
-            if (ImGui::Selectable(clip.name.c_str(), selected)) {
-              component.current_clip_name = clip.name;
-            }
-            if (selected) {
-              ImGui::SetItemDefaultFocus();
-            }
-          }
-          ImGui::EndCombo();
-        }
-      } else {
-        ImGui::InputText(PrefixLabel("Clip").c_str(),
-                         &component.current_clip_name);
-        if (!model_ptr) {
-          ImGui::TextDisabled("No model loaded");
-        } else {
-          ImGui::TextDisabled("No animation clips found");
-        }
-      }
-
-      ImGui::Checkbox(PrefixLabel("Looping").c_str(), &component.looping);
-      ImGui::DragFloat(PrefixLabel("Time").c_str(), &component.playback_time,
-                       0.1f, 0.0f, 10000.0f);
+      ImGui::TextDisabled("Bones: %zu  Nodes: %zu", skel.bone_matrices.size(),
+                          skel.node_transforms.size());
     }
 
-    ImGui::TextDisabled("Bones: %zu  Nodes: %zu",
-                        component.bone_matrices.size(),
-                        component.node_transforms.size());
+    // Show sprite frame info if sprite runtime is active
+    if (entity.HasComponent<SpriteAnimRuntime>()) {
+      auto& spr = entity.GetComponent<SpriteAnimRuntime>();
+      ImGui::TextDisabled("Frame: %u", spr.current_frame_index);
+    }
+
+    // Parameters
+    if (ImGui::TreeNode("Parameters")) {
+      for (auto& [name, param] : component.state_machine.parameters) {
+        ImGui::PushID(name.c_str());
+        ImGui::Text("%s", name.c_str());
+        ImGui::SameLine();
+        switch (param.type) {
+          case AnimParamType::Bool:
+            ImGui::Checkbox("##val", &param.b);
+            break;
+          case AnimParamType::Int:
+            ImGui::InputInt("##val", &param.i);
+            break;
+          case AnimParamType::Float:
+            ImGui::DragFloat("##val", &param.f, 0.01f);
+            break;
+          case AnimParamType::Trigger:
+            if (ImGui::Button(param.b ? "ON" : "Fire")) {
+              param.b = true;
+            }
+            break;
+        }
+        ImGui::PopID();
+      }
+      ImGui::TreePop();
+    }
     ImGui::TreePop();
   }
   if (!visible) {
@@ -2475,101 +2243,6 @@ void RenderAddComponentImGui_SpriteRendererComponent(Entity entity) {
   }
 }
 
-void RenderComponentImGui(SpriteAnimatorComponent& component, Entity entity) {
-  static bool visible = true;
-  if (!ImGui::ClosableTreeNode("Sprite Animator", &visible)) {
-    if (!visible) {
-      entity.RemoveComponent<SpriteAnimatorComponent>();
-      visible = true;
-    }
-    return;
-  }
-
-  // Controller asset picker
-  AssetDropField("Controller", AssetType::SpriteController,
-                 component.controller_handle_);
-
-  // Playback
-  ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing_);
-  ImGui::Text("State: %s", component.current_state_name_.empty()
-                               ? "(None)"
-                               : component.current_state_name_.c_str());
-  ImGui::Text("Frame: %d", component.current_frame_index_);
-
-  // Parameters
-  if (ImGui::TreeNode("Parameters")) {
-    auto& params = component.state_machine_.parameters;
-    std::string param_to_remove;
-    for (auto& [name, param] : params) {
-      ImGui::PushID(name.c_str());
-      ImGui::Text("%s", name.c_str());
-      ImGui::SameLine(120);
-      switch (param.type) {
-        case AnimParamType::Bool:
-          ImGui::Checkbox("##v", &param.b);
-          break;
-        case AnimParamType::Int:
-          ImGui::SetNextItemWidth(80);
-          ImGui::InputInt("##v", &param.i);
-          break;
-        case AnimParamType::Float:
-          ImGui::SetNextItemWidth(80);
-          ImGui::InputFloat("##v", &param.f, 0.1f);
-          break;
-        case AnimParamType::Trigger:
-          if (ImGui::SmallButton("Fire")) {
-            param.b = true;
-          }
-          break;
-      }
-      ImGui::SameLine();
-      if (ImGui::SmallButton("X")) {
-        param_to_remove = name;
-      }
-      ImGui::PopID();
-    }
-    if (!param_to_remove.empty()) {
-      params.erase(param_to_remove);
-    }
-
-    // Add parameter
-    static char param_name[64] = "";
-    static int param_type = 0;
-    ImGui::InputText("##pn", param_name, sizeof(param_name));
-    ImGui::SameLine();
-    const char* ptypes[] = {"Bool", "Int", "Float", "Trigger"};
-    ImGui::SetNextItemWidth(80);
-    ImGui::Combo("##pt", &param_type, ptypes, 4);
-    ImGui::SameLine();
-    if (ImGui::Button("+ Param") && param_name[0] != '\0') {
-      switch (param_type) {
-        case 0:
-          params[param_name] = AnimParam::MakeBool(false);
-          break;
-        case 1:
-          params[param_name] = AnimParam::MakeInt(0);
-          break;
-        case 2:
-          params[param_name] = AnimParam::MakeFloat(0.0f);
-          break;
-        case 3:
-          params[param_name] = AnimParam::MakeTrigger();
-          break;
-      }
-      param_name[0] = '\0';
-    }
-    ImGui::TreePop();
-  }
-
-  ImGui::TreePop();
-}
-
-void RenderAddComponentImGui_SpriteAnimatorComponent(Entity entity) {
-  if (ImGui::MenuItem("Sprite Animator") &&
-      !entity.HasComponent<SpriteAnimatorComponent>()) {
-    entity.AddComponent<SpriteAnimatorComponent>();
-  }
-}
 
 void RenderComponentImGui(ButtonComponent& component, Entity entity) {
   static bool visible = true;
@@ -2851,9 +2524,6 @@ void InitializeEditorComponents() {
   RegisterComponentType<SpriteRendererComponent>(
       "Sprite Renderer", "Rendering", RenderComponentImGui,
       RenderAddComponentImGui_SpriteRendererComponent, nullptr);
-  RegisterComponentType<SpriteAnimatorComponent>(
-      "Sprite Animator", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_SpriteAnimatorComponent, nullptr);
   RegisterComponentType<ReverbZoneComponent>(
       "Reverb Zone", "Audio", RenderComponentImGui,
       RenderAddComponentImGui_ReverbZoneComponent, nullptr);

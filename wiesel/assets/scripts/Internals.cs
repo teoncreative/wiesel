@@ -429,7 +429,9 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float Animator_GetFloat(ulong scenePtr, ulong entityId, string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Animator_Play(ulong scenePtr, ulong entityId, string stateName, float blendTime);
+        public static extern void Animator_Play(ulong scenePtr, ulong entityId, string stateName);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Animator_Stop(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern string Animator_GetCurrentState(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

@@ -52,3 +52,6 @@
 [submodule "vendor/RmlUi"]
 	path = vendor/RmlUi
 	url = https://github.com/teoncreative/RmlUi.git
+[submodule "vendor/imnodes"]
+	path = vendor/imnodes
+	url = https://github.com/Nelarius/imnodes.git

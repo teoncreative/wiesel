@@ -16,6 +16,7 @@
 #define WIESEL_PARENT_W_EDITOR_H
 
 #include "TextEditor.h"
+#include "w_anim_controller_editor.h"
 
 // clang-format off
 // Import order important
@@ -101,8 +102,7 @@ class EditorLayer : public Layer {
   void RenderCreateSkyboxPopup();
   void RenderCreateSpritePopup();
   void RenderSliceSpritesPopup();
-  void RenderCreateSpriteAnimPopup();
-  void RenderCreateSpriteControllerPopup();
+  void RenderCreateAnimControllerPopup();
   void RenderCreateCursorSetPopup();
   void RenderCreateMeshColliderPopup();
   void RenderEntityInspector(entt::entity handle);
@@ -233,9 +233,8 @@ class EditorLayer : public Layer {
       -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
   bool show_create_skybox_ = false;
-  bool show_create_spriteanim_ = false;
   bool show_create_sprite_ = false;
-  bool show_create_spritecontroller_ = false;
+  bool show_create_animcontroller_ = false;
   bool show_create_cursorset_ = false;
   bool show_create_meshcollider_ = false;
   bool show_slice_sprites_ = false;
@@ -269,6 +268,9 @@ class EditorLayer : public Layer {
   DeferredAction deferred_action_ = DeferredAction::None;
   std::string deferred_path_;
   void ProcessDeferredActions();
+
+  // Animation controller editor
+  AnimControllerEditor anim_controller_editor_;
 
   // Code editor
   bool code_editor_open_ = false;

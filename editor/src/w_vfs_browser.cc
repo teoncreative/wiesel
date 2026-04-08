@@ -314,9 +314,9 @@ ImVec4 VfsBrowser::GetAssetColor(AssetType type) {
       return {0.45f, 0.55f, 0.72f, 1.0f};
     case AssetType::Audio:
       return {0.72f, 0.45f, 0.60f, 1.0f};
-    case AssetType::SpriteAnim:
+    case AssetType::AnimClip:
       return {0.30f, 0.70f, 0.45f, 1.0f};
-    case AssetType::SpriteController:
+    case AssetType::AnimController:
       return {0.45f, 0.55f, 0.75f, 1.0f};
     case AssetType::UIDocument:
       return {0.85f, 0.40f, 0.20f, 1.0f};
@@ -355,9 +355,9 @@ const char* VfsBrowser::GetAssetAbbrev(AssetType type) {
       return "PFB";
     case AssetType::Audio:
       return "SND";
-    case AssetType::SpriteAnim:
-      return "ANM";
-    case AssetType::SpriteController:
+    case AssetType::AnimClip:
+      return "CLP";
+    case AssetType::AnimController:
       return "CTR";
     case AssetType::UIDocument:
       return "RML";

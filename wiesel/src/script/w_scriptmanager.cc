@@ -797,7 +797,7 @@ void ScriptManager::LoadCoreDll() {
   sprite_renderer_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "SpriteRendererComponent");
   sprite_animator_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "SpriteAnimatorComponent");
+      core_assembly_image_, "WieselEngine", "AnimatorComponent");
   camera_class_ = mono_class_from_name(core_assembly_image_, "WieselEngine",
                                        "CameraComponent");
   light_direct_class_ = mono_class_from_name(
@@ -1114,13 +1114,13 @@ void ScriptManager::RegisterComponents() {
   }
 
   if (sprite_animator_class_) {
-    RegisterComponent<SpriteAnimatorComponent>(
-        "SpriteAnimatorComponent",
+    RegisterComponent<AnimatorComponent>(
+        "AnimatorComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
           return CreateComponentWrapper(sprite_animator_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
-          return scene->HasComponent<SpriteAnimatorComponent>(entity);
+          return scene->HasComponent<AnimatorComponent>(entity);
         });
   }
 

@@ -10,7 +10,9 @@
 
 #include "asset/w_asset_serializer.h"
 
+#include "animation/w_animation_clip_asset.h"
 #include "animation/w_animation_controller.h"
+#include "animation/w_animation_controller_asset.h"
 #include "cursor/w_cursor.h"
 #include "physics/w_mesh_collider_asset.h"
 #include "rendering/w_skybox.h"
@@ -137,62 +139,6 @@ static void RegisterSpriteSerializer() {
   });
 }
 
-static void RegisterSpriteAnimSerializer() {
-  AssetSerializerRegistry::Register({
-      AssetType::SpriteAnim,
-      // Serialize
-      [](AssetHandle handle) -> nlohmann::json {
-        auto data = Engine::asset_manager().Get<SpriteAnimAssetData>(handle);
-        nlohmann::json j;
-        if (data) {
-          j["loop"] = data->loop;
-          nlohmann::json frames = nlohmann::json::array();
-          for (const auto& frame : data->frames) {
-            nlohmann::json fj;
-            fj["sprite"] = frame.sprite_handle.ToString();
-            fj["duration"] = frame.duration;
-            frames.push_back(fj);
-          }
-          j["frames"] = frames;
-        }
-        return j;
-      },
-      // Deserialize
-      [](AssetHandle handle, const nlohmann::json& j) -> bool {
-        if (!j.contains("frames") || !j["frames"].is_array()) {
-          return false;
-        }
-        auto data = std::make_shared<SpriteAnimAssetData>();
-        data->loop = j.value("loop", true);
-        for (const auto& fj : j["frames"]) {
-          SpriteAnimAssetData::Frame frame;
-          std::string sprite_ref;
-          if (fj.is_object()) {
-            sprite_ref = fj.value("sprite", "");
-            frame.duration = fj.value("duration", 0.1f);
-          } else if (fj.is_string()) {
-            sprite_ref = fj.get<std::string>();
-            frame.duration = 0.1f;
-          } else {
-            continue;
-          }
-          if (sprite_ref.empty()) {
-            continue;
-          }
-          frame.sprite_handle = AssetHandle::FromString(sprite_ref);
-          if (frame.sprite_handle.IsValid()) {
-            Engine::asset_manager().AddDependency(handle, frame.sprite_handle);
-            data->frames.push_back(std::move(frame));
-          }
-        }
-        if (data->frames.empty()) {
-          return false;
-        }
-        Engine::asset_manager().Store(handle, data);
-        return true;
-      },
-  });
-}
 
 static void ParseTransitionConditions(const nlohmann::json& conds_json,
                                       std::vector<TransitionCondition>& out) {
@@ -280,84 +226,6 @@ static nlohmann::json SerializeTransitionConditions(
     arr.push_back(cj);
   }
   return arr;
-}
-
-static void RegisterSpriteControllerSerializer() {
-  AssetSerializerRegistry::Register({
-      AssetType::SpriteController,
-      // Serialize
-      [](AssetHandle handle) -> nlohmann::json {
-        auto data =
-            Engine::asset_manager().Get<SpriteControllerAssetData>(handle);
-        nlohmann::json j;
-        if (data) {
-          j["default_state"] = data->default_state;
-          nlohmann::json states = nlohmann::json::array();
-          for (const auto& s : data->states) {
-            nlohmann::json sj;
-            sj["name"] = s.name;
-            if (s.animation_handle.IsValid()) {
-              sj["animation"] = s.animation_handle.ToString();
-            }
-            sj["speed"] = s.speed;
-            states.push_back(sj);
-          }
-          j["states"] = states;
-          nlohmann::json transitions = nlohmann::json::array();
-          for (const auto& t : data->transitions) {
-            nlohmann::json tj;
-            tj["from"] = t.from_state;
-            tj["to"] = t.to_state;
-            tj["blend"] = t.blend_duration;
-            if (!t.conditions.empty()) {
-              tj["conditions"] = SerializeTransitionConditions(t.conditions);
-            }
-            transitions.push_back(tj);
-          }
-          j["transitions"] = transitions;
-        }
-        return j;
-      },
-      // Deserialize
-      [](AssetHandle handle, const nlohmann::json& j) -> bool {
-        auto data = std::make_shared<SpriteControllerAssetData>();
-        data->default_state = j.value("default_state", "");
-        if (j.contains("states") && j["states"].is_array()) {
-          for (const auto& sj : j["states"]) {
-            SpriteControllerAssetData::State state;
-            state.name = sj.value("name", "");
-            std::string anim_ref = sj.value("animation", "");
-            if (!anim_ref.empty()) {
-              state.animation_handle = AssetHandle::FromString(anim_ref);
-            }
-            state.speed = sj.value("speed", 1.0f);
-            if (!state.name.empty()) {
-              if (state.animation_handle.IsValid()) {
-                Engine::asset_manager().AddDependency(handle,
-                                                      state.animation_handle);
-              }
-              data->states.push_back(std::move(state));
-            }
-          }
-        }
-        if (j.contains("transitions") && j["transitions"].is_array()) {
-          for (const auto& tj : j["transitions"]) {
-            AnimationTransition trans;
-            trans.from_state = tj.value("from", "");
-            trans.to_state = tj.value("to", "");
-            trans.blend_duration = tj.value("blend", 0.0f);
-            if (tj.contains("conditions") && tj["conditions"].is_array()) {
-              ParseTransitionConditions(tj["conditions"], trans.conditions);
-            }
-            if (!trans.to_state.empty()) {
-              data->transitions.push_back(std::move(trans));
-            }
-          }
-        }
-        Engine::asset_manager().Store(handle, data);
-        return true;
-      },
-  });
 }
 
 static void RegisterSkyboxSerializer() {
@@ -596,10 +464,365 @@ static void RegisterMeshColliderSerializer() {
   });
 }
 
+static nlohmann::json SerializePropertyCurve(const PropertyCurve& curve) {
+  nlohmann::json cj;
+  cj["component"] = curve.target_component;
+  cj["field"] = curve.target_field;
+  cj["interp"] = (curve.interp == CurveInterp::Step) ? "Step" : "Linear";
+
+  auto serialize_keys = [](const auto& keys) {
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto& k : keys) {
+      nlohmann::json kj;
+      kj["t"] = k.time;
+      if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>, float>) {
+        kj["v"] = k.value;
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          int>) {
+        kj["v"] = k.value;
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          bool>) {
+        kj["v"] = k.value;
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          AssetHandle>) {
+        kj["v"] = k.value.ToString();
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          glm::vec2>) {
+        kj["v"] = {k.value.x, k.value.y};
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          glm::vec3>) {
+        kj["v"] = {k.value.x, k.value.y, k.value.z};
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          glm::vec4>) {
+        kj["v"] = {k.value.x, k.value.y, k.value.z, k.value.w};
+      } else if constexpr (std::is_same_v<std::decay_t<decltype(k.value)>,
+                                          glm::quat>) {
+        kj["v"] = {k.value.w, k.value.x, k.value.y, k.value.z};
+      }
+      arr.push_back(kj);
+    }
+    return arr;
+  };
+
+  if (!curve.float_keys.empty()) {
+    cj["value_type"] = "float";
+    cj["keys"] = serialize_keys(curve.float_keys);
+  } else if (!curve.vec2_keys.empty()) {
+    cj["value_type"] = "vec2";
+    cj["keys"] = serialize_keys(curve.vec2_keys);
+  } else if (!curve.vec3_keys.empty()) {
+    cj["value_type"] = "vec3";
+    cj["keys"] = serialize_keys(curve.vec3_keys);
+  } else if (!curve.vec4_keys.empty()) {
+    cj["value_type"] = "vec4";
+    cj["keys"] = serialize_keys(curve.vec4_keys);
+  } else if (!curve.quat_keys.empty()) {
+    cj["value_type"] = "quat";
+    cj["keys"] = serialize_keys(curve.quat_keys);
+  } else if (!curve.int_keys.empty()) {
+    cj["value_type"] = "int";
+    cj["keys"] = serialize_keys(curve.int_keys);
+  } else if (!curve.bool_keys.empty()) {
+    cj["value_type"] = "bool";
+    cj["keys"] = serialize_keys(curve.bool_keys);
+  } else if (!curve.asset_keys.empty()) {
+    cj["value_type"] = "asset";
+    cj["keys"] = serialize_keys(curve.asset_keys);
+  }
+  return cj;
+}
+
+static PropertyCurve ParsePropertyCurve(const nlohmann::json& cj) {
+  PropertyCurve curve;
+  curve.target_component = cj.value("component", "");
+  curve.target_field = cj.value("field", "");
+  std::string interp_str = cj.value("interp", "Linear");
+  curve.interp =
+      (interp_str == "Step") ? CurveInterp::Step : CurveInterp::Linear;
+
+  std::string value_type = cj.value("value_type", "");
+  if (!cj.contains("keys") || !cj["keys"].is_array()) {
+    return curve;
+  }
+
+  for (const auto& kj : cj["keys"]) {
+    float t = kj.value("t", 0.0f);
+    if (value_type == "float") {
+      curve.float_keys.push_back({t, kj.value("v", 0.0f)});
+    } else if (value_type == "vec2") {
+      auto v = kj["v"];
+      curve.vec2_keys.push_back({t, {v[0].get<float>(), v[1].get<float>()}});
+    } else if (value_type == "vec3") {
+      auto v = kj["v"];
+      curve.vec3_keys.push_back(
+          {t, {v[0].get<float>(), v[1].get<float>(), v[2].get<float>()}});
+    } else if (value_type == "vec4") {
+      auto v = kj["v"];
+      curve.vec4_keys.push_back({t,
+                                 {v[0].get<float>(), v[1].get<float>(),
+                                  v[2].get<float>(), v[3].get<float>()}});
+    } else if (value_type == "quat") {
+      auto v = kj["v"];
+      curve.quat_keys.push_back(
+          {t, glm::quat(v[0].get<float>(), v[1].get<float>(), v[2].get<float>(),
+                        v[3].get<float>())});
+    } else if (value_type == "int") {
+      curve.int_keys.push_back({t, kj.value("v", 0)});
+    } else if (value_type == "bool") {
+      curve.bool_keys.push_back({t, kj.value("v", false)});
+    } else if (value_type == "asset") {
+      std::string ref = kj.value("v", "");
+      curve.asset_keys.push_back({t, AssetHandle::FromString(ref)});
+    }
+  }
+  return curve;
+}
+
+static void RegisterAnimClipSerializer() {
+  AssetSerializerRegistry::Register({
+      AssetType::AnimClip,
+      // Serialize
+      [](AssetHandle handle) -> nlohmann::json {
+        auto data = Engine::asset_manager().Get<AnimClipAssetData>(handle);
+        nlohmann::json j;
+        if (!data) {
+          return j;
+        }
+        j["duration"] = data->duration;
+        j["ticks_per_second"] = data->ticks_per_second;
+        j["loop"] = data->loop;
+
+        if (!data->property_curves.empty()) {
+          nlohmann::json curves = nlohmann::json::array();
+          for (const auto& c : data->property_curves) {
+            curves.push_back(SerializePropertyCurve(c));
+          }
+          j["property_curves"] = curves;
+        }
+
+        if (!data->bone_channels.empty()) {
+          nlohmann::json channels = nlohmann::json::array();
+          for (const auto& ch : data->bone_channels) {
+            nlohmann::json chj;
+            chj["node"] = ch.node_name;
+            nlohmann::json pos = nlohmann::json::array();
+            for (const auto& k : ch.position_keys) {
+              pos.push_back(
+                  {{"t", k.time}, {"v", {k.value.x, k.value.y, k.value.z}}});
+            }
+            chj["position"] = pos;
+            nlohmann::json rot = nlohmann::json::array();
+            for (const auto& k : ch.rotation_keys) {
+              rot.push_back(
+                  {{"t", k.time},
+                   {"v", {k.value.w, k.value.x, k.value.y, k.value.z}}});
+            }
+            chj["rotation"] = rot;
+            nlohmann::json scl = nlohmann::json::array();
+            for (const auto& k : ch.scale_keys) {
+              scl.push_back(
+                  {{"t", k.time}, {"v", {k.value.x, k.value.y, k.value.z}}});
+            }
+            chj["scale"] = scl;
+            channels.push_back(chj);
+          }
+          j["bone_channels"] = channels;
+        }
+        return j;
+      },
+      // Deserialize
+      [](AssetHandle handle, const nlohmann::json& j) -> bool {
+        auto data = std::make_shared<AnimClipAssetData>();
+        data->duration = j.value("duration", 0.0f);
+        data->ticks_per_second = j.value("ticks_per_second", 25.0f);
+        data->loop = j.value("loop", true);
+
+        if (j.contains("property_curves") && j["property_curves"].is_array()) {
+          for (const auto& cj : j["property_curves"]) {
+            data->property_curves.push_back(ParsePropertyCurve(cj));
+          }
+        }
+
+        if (j.contains("bone_channels") && j["bone_channels"].is_array()) {
+          for (const auto& chj : j["bone_channels"]) {
+            AnimationChannel ch;
+            ch.node_name = chj.value("node", "");
+            if (chj.contains("position") && chj["position"].is_array()) {
+              for (const auto& kj : chj["position"]) {
+                auto v = kj["v"];
+                ch.position_keys.push_back(
+                    {kj["t"].get<float>(),
+                     {v[0].get<float>(), v[1].get<float>(),
+                      v[2].get<float>()}});
+              }
+            }
+            if (chj.contains("rotation") && chj["rotation"].is_array()) {
+              for (const auto& kj : chj["rotation"]) {
+                auto v = kj["v"];
+                ch.rotation_keys.push_back(
+                    {kj["t"].get<float>(),
+                     glm::quat(v[0].get<float>(), v[1].get<float>(),
+                               v[2].get<float>(), v[3].get<float>())});
+              }
+            }
+            if (chj.contains("scale") && chj["scale"].is_array()) {
+              for (const auto& kj : chj["scale"]) {
+                auto v = kj["v"];
+                ch.scale_keys.push_back({kj["t"].get<float>(),
+                                         {v[0].get<float>(), v[1].get<float>(),
+                                          v[2].get<float>()}});
+              }
+            }
+            data->bone_channels.push_back(std::move(ch));
+          }
+        }
+
+        Engine::asset_manager().Store(handle, data);
+        return true;
+      },
+  });
+}
+
+static void RegisterAnimControllerSerializer() {
+  AssetSerializerRegistry::Register({
+      AssetType::AnimController,
+      // Serialize
+      [](AssetHandle handle) -> nlohmann::json {
+        auto data =
+            Engine::asset_manager().Get<AnimControllerAssetData>(handle);
+        nlohmann::json j;
+        if (!data) {
+          return j;
+        }
+        j["default_state"] = data->default_state;
+        nlohmann::json states = nlohmann::json::array();
+        for (const auto& s : data->states) {
+          nlohmann::json sj;
+          sj["name"] = s.name;
+          if (s.clip_handle.IsValid()) {
+            sj["clip"] = s.clip_handle.ToString();
+          }
+          sj["speed"] = s.speed;
+          sj["editor_pos"] = {s.editor_pos.x, s.editor_pos.y};
+          sj["editor_id"] = s.editor_id;
+          states.push_back(sj);
+        }
+        j["states"] = states;
+        nlohmann::json transitions = nlohmann::json::array();
+        for (const auto& t : data->transitions) {
+          nlohmann::json tj;
+          tj["from"] = t.from_state;
+          tj["to"] = t.to_state;
+          tj["blend"] = t.blend_duration;
+          if (!t.conditions.empty()) {
+            tj["conditions"] = SerializeTransitionConditions(t.conditions);
+          }
+          tj["editor_id"] = t.editor_id;
+          transitions.push_back(tj);
+        }
+        j["transitions"] = transitions;
+
+        if (!data->default_parameters.empty()) {
+          nlohmann::json params;
+          for (const auto& [name, param] : data->default_parameters) {
+            nlohmann::json pj;
+            switch (param.type) {
+              case AnimParamType::Bool:
+                pj["type"] = "Bool";
+                pj["value"] = param.b;
+                break;
+              case AnimParamType::Int:
+                pj["type"] = "Int";
+                pj["value"] = param.i;
+                break;
+              case AnimParamType::Float:
+                pj["type"] = "Float";
+                pj["value"] = param.f;
+                break;
+              case AnimParamType::Trigger:
+                pj["type"] = "Trigger";
+                pj["value"] = false;
+                break;
+            }
+            params[name] = pj;
+          }
+          j["parameters"] = params;
+        }
+        return j;
+      },
+      // Deserialize
+      [](AssetHandle handle, const nlohmann::json& j) -> bool {
+        auto data = std::make_shared<AnimControllerAssetData>();
+        data->default_state = j.value("default_state", "");
+
+        if (j.contains("states") && j["states"].is_array()) {
+          for (const auto& sj : j["states"]) {
+            AnimControllerAssetData::State state;
+            state.name = sj.value("name", "");
+            std::string clip_ref = sj.value("clip", "");
+            if (!clip_ref.empty()) {
+              state.clip_handle = AssetHandle::FromString(clip_ref);
+            }
+            state.speed = sj.value("speed", 1.0f);
+            if (sj.contains("editor_pos") && sj["editor_pos"].is_array()) {
+              state.editor_pos = {sj["editor_pos"][0].get<float>(),
+                                  sj["editor_pos"][1].get<float>()};
+            }
+            state.editor_id = sj.value("editor_id", -1);
+            if (!state.name.empty()) {
+              if (state.clip_handle.IsValid()) {
+                Engine::asset_manager().AddDependency(handle,
+                                                      state.clip_handle);
+              }
+              data->states.push_back(std::move(state));
+            }
+          }
+        }
+
+        if (j.contains("transitions") && j["transitions"].is_array()) {
+          for (const auto& tj : j["transitions"]) {
+            AnimationTransition trans;
+            trans.from_state = tj.value("from", "");
+            trans.to_state = tj.value("to", "");
+            trans.blend_duration = tj.value("blend", 0.0f);
+            if (tj.contains("conditions") && tj["conditions"].is_array()) {
+              ParseTransitionConditions(tj["conditions"], trans.conditions);
+            }
+            trans.editor_id = tj.value("editor_id", -1);
+            if (!trans.to_state.empty()) {
+              data->transitions.push_back(std::move(trans));
+            }
+          }
+        }
+
+        if (j.contains("parameters") && j["parameters"].is_object()) {
+          for (auto& [name, pj] : j["parameters"].items()) {
+            std::string type_str = pj.value("type", "Bool");
+            if (type_str == "Bool") {
+              data->default_parameters[name] =
+                  AnimParam::MakeBool(pj.value("value", false));
+            } else if (type_str == "Int") {
+              data->default_parameters[name] =
+                  AnimParam::MakeInt(pj.value("value", 0));
+            } else if (type_str == "Float") {
+              data->default_parameters[name] =
+                  AnimParam::MakeFloat(pj.value("value", 0.0f));
+            } else if (type_str == "Trigger") {
+              data->default_parameters[name] = AnimParam::MakeTrigger();
+            }
+          }
+        }
+
+        Engine::asset_manager().Store(handle, data);
+        return true;
+      },
+  });
+}
+
 void InitializeAssetSerializers() {
   RegisterSpriteSerializer();
-  RegisterSpriteAnimSerializer();
-  RegisterSpriteControllerSerializer();
+  RegisterAnimClipSerializer();
+  RegisterAnimControllerSerializer();
   RegisterSkyboxSerializer();
   RegisterCursorSetSerializer();
   RegisterMeshColliderSerializer();

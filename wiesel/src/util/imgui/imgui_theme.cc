@@ -85,12 +85,12 @@ Theme GetCurrentTheme() {
 static void ApplySharedStyle() {
   ImGuiStyle& style = ImGui::GetStyle();
 
-  style.WindowRounding = 6.0f;
-  style.ChildRounding = 4.0f;
-  style.PopupRounding = 6.0f;
-  style.FrameRounding = 3.0f;
-  style.GrabRounding = 3.0f;
-  style.TabRounding = 4.0f;
+  style.WindowRounding = 8.0f;
+  style.ChildRounding = 6.0f;
+  style.PopupRounding = 8.0f;
+  style.FrameRounding = 4.0f;
+  style.GrabRounding = 4.0f;
+  style.TabRounding = 6.0f;
   style.ScrollbarRounding = 6.0f;
 
   style.WindowPadding = {10.0f, 10.0f};
