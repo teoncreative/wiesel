@@ -99,14 +99,14 @@ file(
         "${VENDOR_DIR}/imgui/imgui_demo.cpp" # remove
         "${VENDOR_DIR}/imgui/backends/imgui_impl_metal.cpp" # todo implement our own imgui backend instead
         "${VENDOR_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
+        "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp"
         "${VENDOR_DIR}/imgui/misc/cpp/imgui_stdlib.cpp"
+        "${VENDOR_DIR}/imgui/misc/freetype/imgui_freetype.cpp"
         "${VENDOR_DIR}/imgui/backends/*.h"
         "${VENDOR_DIR}/imgui/misc/cpp/*.h"
         "${VENDOR_DIR}/imgui/*.h"
 )
-list(APPEND IMGUI_FILES
-        "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp"
-)
+
 file(
         GLOB IMGUIZMO_FILES
         "${VENDOR_DIR}/imguizmo/GraphEditor.cpp"
@@ -156,6 +156,11 @@ endif()
 if (WIESEL_ENABLE_VULKAN_VALIDATION)
     target_compile_options(wiesel PUBLIC -DVULKAN_VALIDATION=1)
 endif()
+target_compile_definitions(wiesel PUBLIC GLM_ENABLE_EXPERIMENTAL)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_DEFAULT_ALIGNED_GENTYPES)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_LEFT_HANDED)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_RADIANS)
 
 target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.h)
 if (MSVC)

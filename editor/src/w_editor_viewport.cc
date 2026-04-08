@@ -435,7 +435,10 @@ void EditorLayer::RenderSceneViewportPanel() {
           glm::vec3 old_scale = transform.GetScale();
 
           glm::mat4 model = transform.GetTransformMatrix();
-          ImGuizmo::SetOrthographic(false);
+          ImGuizmo::SetOrthographic(editor_camera_mode_ ==
+                                    EditorCameraMode::Mode2D);
+          ImGuizmo::SetLeftHanded(true);
+          ImGuizmo::AllowAxisFlip(false);
           ImGuizmo::SetDrawlist();
           ImGuizmo::SetRect(image_min.x, image_min.y, image_size.x,
                             image_size.y);
@@ -549,9 +552,6 @@ void EditorLayer::RenderSceneViewportPanel() {
           }
 
         }  // end has_selected_entity_
-
-        // Canvas borders drawn by canvas render feature.
-        // Camera frustums drawn by debug collider render feature.
 
         // Entity picking: click on Scene panel to select (only when not right-clicking)
         if (!scene_right_active && ImGui::IsMouseClicked(0) && scene_hovered &&
