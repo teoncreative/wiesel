@@ -74,10 +74,7 @@ void RenderPass::Bake() {
            .samples = ToVkSampleCountFlagBits(item.msaa_mode),
            .loadOp = loads_depth ? VK_ATTACHMENT_LOAD_OP_LOAD
                                  : VK_ATTACHMENT_LOAD_OP_CLEAR,
-           .storeOp = pass_type_ == PassType::Geometry ||
-                              pass_type_ == PassType::Shadow
-                          ? VK_ATTACHMENT_STORE_OP_STORE
-                          : VK_ATTACHMENT_STORE_OP_DONT_CARE,
+           .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
            .initialLayout =

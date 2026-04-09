@@ -34,6 +34,7 @@ class GeometryFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline> pipeline_double_sided_;
 };
 
 }  // namespace Wiesel

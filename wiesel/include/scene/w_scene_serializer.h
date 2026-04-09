@@ -29,9 +29,6 @@ class SceneSerializer {
   bool DeserializeFromString(const std::string& json_str);
 
  private:
-  nlohmann::json SerializeEntity(Entity entity) const;
-  void DeserializeEntity(const nlohmann::json& entity_json);
-
   std::shared_ptr<Scene> scene_;
 };
 

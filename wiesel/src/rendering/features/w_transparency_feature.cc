@@ -10,13 +10,13 @@
 //
 
 #include "rendering/features/w_transparency_feature.h"
-#include "asset/w_asset_manager.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_render_utils.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
-#include "w_engine.h"
 
 namespace Wiesel {
 
@@ -124,26 +124,33 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
       "Transparency", render_pass_,
       [active_pipeline, &scenes, renderer, ibl_desc](VkCommandBuffer) {
         active_pipeline->Bind(PipelineBindPointGraphics);
-        const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
-        auto& assets = Engine::asset_manager();
-        scenes.ForEach<ModelComponent, TransformComponent>(
+
+        // Static mesh renderers (transparent pass)
+        scenes.ForEach<MeshRendererComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
-              auto& model = scene.GetComponent<ModelComponent>(entity);
-              if (!model.enable_rendering) {
+              auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+              if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
                 return;
               }
               auto& transform = scene.GetComponent<TransformComponent>(entity);
-              const auto& model_data =
-                  assets.GetOrLoad<Model>(model.model_handle);
-              if (model_data && model_data->bounds.Valid()) {
-                AABB world_bounds = model_data->bounds.Transformed(
-                    transform.GetTransformMatrix());
-                if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
-                  return;
-                }
+              renderer->DrawMeshRenderer(mr, transform, false, true, entity,
+                                         ibl_desc);
+            });
+
+        // Skinned mesh renderers (transparent pass)
+        scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& mr =
+                  scene.GetComponent<SkinnedMeshRendererComponent>(entity);
+              if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
+                return;
               }
-              renderer->DrawModelTransparent(model, transform, entity,
-                                             ibl_desc);
+              const TransformComponent* draw_transform =
+                  &scene.GetComponent<TransformComponent>(entity);
+              const SkeletalAnimRuntime* skel = nullptr;
+              ResolveSkeletonRoot(scene, mr, draw_transform, skel);
+              renderer->DrawSkinnedMeshRenderer(mr, *draw_transform, skel,
+                                                false, true, entity, ibl_desc);
             });
       });
 

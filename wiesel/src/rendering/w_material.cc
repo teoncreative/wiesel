@@ -43,8 +43,7 @@ Material::Material() {
   InitDefaults();
 }
 
-Material::~Material() {
-}
+Material::~Material() {}
 
 void Material::InitDefaults() {
   properties["color_tint"] = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -178,10 +177,15 @@ nlohmann::json Material::Serialize() const {
   serialize_tex("specular_map", specular_map);
   serialize_tex("height", height_map);
   serialize_tex("albedo", albedo_map);
+  serialize_tex("opacity", opacity_map);
   serialize_tex("roughness_map", roughness_map);
   serialize_tex("metallic_map", metallic_map);
   if (!textures.empty()) {
     j["textures"] = textures;
+  }
+
+  if (double_sided) {
+    j["double_sided"] = true;
   }
 
   if (!enabled_features.empty()) {
@@ -236,7 +240,10 @@ std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
     load_tex("albedo", mat->albedo_map);
     load_tex("roughness_map", mat->roughness_map);
     load_tex("metallic_map", mat->metallic_map);
+    load_tex("opacity", mat->opacity_map);
   }
+
+  mat->double_sided = j.value("double_sided", false);
 
   if (j.contains("features") && j["features"].is_array()) {
     for (const auto& f : j["features"]) {
@@ -271,7 +278,8 @@ void Material::Set(std::shared_ptr<Material> material,
       break;
     case TextureTypeShininess:
       break;
-    case TextureTypeOpacty:
+    case TextureTypeOpacity:
+      material->opacity_map = slot;
       break;
     case TextureTypeDisplacement:
       break;
@@ -340,7 +348,7 @@ glm::vec4 MaterialInstance::GetEffectiveVec4(const std::string& name) const {
   if (std::holds_alternative<glm::vec4>(val)) {
     return std::get<glm::vec4>(val);
   }
-  return glm::vec4(0.0f);
+  return glm::vec4(1.0f);
 }
 
 void MaterialInstance::SetOverride(const std::string& name,

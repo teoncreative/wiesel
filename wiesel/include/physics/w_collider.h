@@ -72,7 +72,7 @@ struct MeshColliderComponent : public IComponent {
 
   // Optional baked mesh collider asset. When valid, physics uses the
   // pre-extracted geometry. When invalid, falls back to extracting from
-  // the entity's ModelComponent at body creation time.
+  // the entity's MeshRendererComponent at body creation time.
   AssetHandle collider_handle;
 
   bool is_one_way = false;

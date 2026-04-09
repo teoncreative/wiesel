@@ -772,8 +772,6 @@ void ScriptManager::LoadCoreDll() {
   // Component classes
   transform_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "TransformComponent");
-  model_component_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "ModelComponent");
   box_collider_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "BoxColliderComponent");
   sphere_collider_class_ = mono_class_from_name(
@@ -963,15 +961,6 @@ void ScriptManager::RegisterComponents() {
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<TransformComponent>(entity);
-      });
-
-  RegisterComponent<ModelComponent>(
-      "ModelComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(model_component_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<ModelComponent>(entity);
       });
 
   RegisterComponent<BoxColliderComponent>(

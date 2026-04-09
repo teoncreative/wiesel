@@ -174,6 +174,12 @@ class Scene {
                     bool convert_to_local = true);
   void UnlinkEntities(entt::entity parent, entt::entity child);
 
+  // Instantiate a Model asset as an entity hierarchy.
+  // Creates entities for each node, adds MeshRenderer/SkinnedMeshRenderer
+  // on mesh nodes. Returns the root entity.
+  Entity InstantiateModel(AssetHandle model_handle,
+                          const std::string& name = "");
+
   void ProcessDestroyQueue();
 
   // Release all GPU resources (camera resource pools, etc.).

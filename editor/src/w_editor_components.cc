@@ -17,7 +17,7 @@
 #include <typeindex>
 #include "animation/w_animation.h"
 #include "asset/w_asset_manager.h"
-#include "asset/w_asset_serializer.h"
+#include "asset/w_asset_registry.h"
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "behavior/w_native_behavior.h"
@@ -26,6 +26,7 @@
 #include "physics/w_mesh_collider_asset.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
@@ -52,35 +53,6 @@ static Editor::CommandStack* s_command_stack = nullptr;
 
 void SetInspectorCommandStack(Editor::CommandStack* stack) {
   s_command_stack = stack;
-}
-
-static void RenderTexturePreview(const char* label, Texture* tex) {
-  if (!tex) {
-    ImGui::TextDisabled("  %s: No", label);
-    return;
-  }
-  VkDescriptorSet desc = tex->GetImGuiDescriptor();
-  if (!desc) {
-    ImGui::TextDisabled("  %s: (loading)", label);
-    return;
-  }
-  ImGui::Text("  %s:", label);
-  ImGui::SameLine();
-  ImVec2 thumb_size(16, 16);
-  ImGui::Image(reinterpret_cast<ImTextureID>(desc), thumb_size);
-  if (ImGui::IsItemHovered()) {
-    ImGui::BeginTooltip();
-    float max_preview = 256.0f;
-    float aspect =
-        (tex->width_ > 0 && tex->height_ > 0)
-            ? static_cast<float>(tex->width_) / static_cast<float>(tex->height_)
-            : 1.0f;
-    ImVec2 preview_size = (aspect >= 1.0f)
-                              ? ImVec2(max_preview, max_preview / aspect)
-                              : ImVec2(max_preview * aspect, max_preview);
-    ImGui::Image(reinterpret_cast<ImTextureID>(desc), preview_size);
-    ImGui::EndTooltip();
-  }
 }
 
 // Shared drag-drop handler: accepts AssetHandle or BrowserFile payloads,
@@ -233,270 +205,6 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
       component.MarkChanged();
     }
     ImGui::TreePop();
-  }
-}
-
-void RenderComponentImGui(ModelComponent& component, Entity entity) {
-  static bool visible = true;
-  if (ImGui::ClosableTreeNode("Model", &visible)) {
-    auto& model = entity.GetComponent<ModelComponent>();
-    auto& assets = Engine::asset_manager();
-
-    // Asset selector: show current asset name + dropdown to pick from registered model assets
-    const AssetMetadata* currentMeta =
-        model.model_handle.IsValid() ? assets.GetMetadata(model.model_handle)
-                                     : nullptr;
-    std::string currentName = currentMeta ? currentMeta->name : "(None)";
-
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 4);
-    if (ImGui::BeginCombo(PrefixLabel("Asset").c_str(), currentName.c_str())) {
-      // "None" option
-      if (ImGui::Selectable("(None)", !model.model_handle.IsValid())) {
-        model.model_handle = kNullAssetHandle;
-      }
-
-      // List all registered Model assets
-      auto modelAssets = assets.GetAllOfType(AssetType::Model);
-      for (auto& handle : modelAssets) {
-        const auto* meta = assets.GetMetadata(handle);
-        if (!meta) {
-          continue;
-        }
-        bool is_selected = model.model_handle == handle;
-        if (ImGui::Selectable(meta->name.c_str(), is_selected)) {
-          if (model.model_handle != handle) {
-            model.model_handle = handle;
-          }
-        }
-        if (is_selected) {
-          ImGui::SetItemDefaultFocus();
-        }
-      }
-      ImGui::EndCombo();
-    }
-
-    // Drop target: drag a Model asset from the Asset Browser onto the combo
-    AssetHandle dropped;
-    if (AcceptAssetDragDrop(AssetType::Model, dropped)) {
-      if (model.model_handle != dropped) {
-        model.model_handle = dropped;
-      }
-    }
-
-    // Show load state
-    if (model.model_handle.IsValid()) {
-      AssetLoadState state = assets.GetLoadState(model.model_handle);
-      const char* stateStr = "Unknown";
-      switch (state) {
-        case AssetLoadState::Unloaded:
-          stateStr = "Unloaded";
-          break;
-        case AssetLoadState::Loading:
-          stateStr = "Loading...";
-          break;
-        case AssetLoadState::Loaded:
-          stateStr = "Loaded";
-          break;
-        case AssetLoadState::Failed:
-          stateStr = "Failed";
-          break;
-      }
-      ImGui::TextDisabled("Status: %s", stateStr);
-    }
-
-    ImGui::Checkbox("Receive Shadows", &model.receive_shadows);
-    if (s_command_stack) {
-      static Editor::UndoTracker<bool> recv_shadow_tracker;
-      recv_shadow_tracker.Track(
-          *s_command_stack, "Toggle Receive Shadows", model.receive_shadows,
-          [entity](const bool& v) mutable {
-            entity.GetComponent<ModelComponent>().receive_shadows = v;
-          });
-    }
-    ImGui::Checkbox("Render", &model.enable_rendering);
-    if (s_command_stack) {
-      static Editor::UndoTracker<bool> render_tracker;
-      render_tracker.Track(
-          *s_command_stack, "Toggle Render", model.enable_rendering,
-          [entity](const bool& v) mutable {
-            entity.GetComponent<ModelComponent>().enable_rendering = v;
-          });
-    }
-
-    // Per-mesh material slots
-    if (model.model_handle.IsValid()) {
-      const std::shared_ptr<Model>& model_data =
-          assets.GetOrLoad<Model>(model.model_handle);
-      if (model_data) {
-        // Ensure material instances match mesh count
-        if (model.material_instances.size() != model_data->meshes.size()) {
-          model.material_instances.resize(model_data->meshes.size());
-          model.material_slot_handles.resize(model_data->meshes.size());
-          model.material_versions.resize(model_data->meshes.size(), 0);
-        }
-        for (size_t i = 0; i < model_data->meshes.size(); i++) {
-          if (!model.material_instances[i]) {
-            auto inst = std::make_shared<MaterialInstance>();
-            AssetHandle mat_handle =
-                model.material_slot_handles[i].IsValid()
-                    ? model.material_slot_handles[i]
-                    : model_data->meshes[i]->material_handle;
-            inst->base_material_handle = mat_handle;
-            model.material_instances[i] = inst;
-          }
-        }
-
-        if (ImGui::TreeNode("Materials")) {
-          for (size_t i = 0; i < model.material_instances.size(); i++) {
-            auto& inst = model.material_instances[i];
-            if (!inst) {
-              continue;
-            }
-
-            ImGui::PushID(static_cast<int>(i));
-
-            auto base = inst->GetBaseMaterial();
-            std::string slot_label = "Slot " + std::to_string(i);
-            if (base) {
-              if (!base->name.empty()) {
-                slot_label = base->name;
-              }
-              if (base->base_texture.HasTexture()) {
-                slot_label += " (textured)";
-              }
-            }
-
-            if (ImGui::TreeNode(slot_label.c_str())) {
-              // Show material asset info
-              if (base && base->asset_handle.IsValid()) {
-                const auto* meta = assets.GetMetadata(base->asset_handle);
-                if (meta) {
-                  ImGui::TextDisabled("Asset: %s", meta->name.c_str());
-                }
-              }
-
-              glm::vec4 tint = inst->GetColorTint();
-              if (ImGui::ColorEdit4(PrefixLabel("Color Tint").c_str(),
-                                    &tint.x)) {
-                inst->SetColorTint(tint);
-              }
-              if (s_command_stack) {
-                static Editor::UndoTracker<glm::vec4> tracker;
-                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
-                tracker.Track(*s_command_stack, "Change Color Tint", tint,
-                              [inst_weak](const glm::vec4& v) {
-                                if (auto p = inst_weak.lock()) {
-                                  p->SetColorTint(v);
-                                }
-                              });
-              }
-
-              float roughness = inst->GetRoughness();
-              if (ImGui::SliderFloat(PrefixLabel("Roughness").c_str(),
-                                     &roughness, 0.0f, 1.0f)) {
-                inst->SetRoughness(roughness);
-              }
-              if (s_command_stack) {
-                static Editor::UndoTracker<float> tracker;
-                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
-                tracker.Track(*s_command_stack, "Change Roughness", roughness,
-                              [inst_weak](const float& v) {
-                                if (auto p = inst_weak.lock()) {
-                                  p->SetRoughness(v);
-                                }
-                              });
-              }
-
-              float metallic = inst->GetMetallic();
-              if (ImGui::SliderFloat(PrefixLabel("Metallic").c_str(), &metallic,
-                                     0.0f, 1.0f)) {
-                inst->SetMetallic(metallic);
-              }
-              if (s_command_stack) {
-                static Editor::UndoTracker<float> tracker;
-                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
-                tracker.Track(*s_command_stack, "Change Metallic", metallic,
-                              [inst_weak](const float& v) {
-                                if (auto p = inst_weak.lock()) {
-                                  p->SetMetallic(v);
-                                }
-                              });
-              }
-
-              float specular = inst->GetSpecular();
-              if (ImGui::SliderFloat(PrefixLabel("Specular").c_str(), &specular,
-                                     0.0f, 1.0f)) {
-                inst->SetSpecular(specular);
-              }
-              if (s_command_stack) {
-                static Editor::UndoTracker<float> tracker;
-                auto inst_weak = std::weak_ptr<MaterialInstance>(inst);
-                tracker.Track(*s_command_stack, "Change Specular", specular,
-                              [inst_weak](const float& v) {
-                                if (auto p = inst_weak.lock()) {
-                                  p->SetSpecular(v);
-                                }
-                              });
-              }
-
-              // Show base material texture previews
-              if (base) {
-                if (ImGui::TreeNode("Textures")) {
-                  std::shared_ptr<Texture> tex;
-                  base->base_texture.Resolve(tex);
-                  RenderTexturePreview("Diffuse", tex.get());
-                  base->normal_map.Resolve(tex);
-                  RenderTexturePreview("Normal", tex.get());
-                  base->roughness_map.Resolve(tex);
-                  RenderTexturePreview("Roughness", tex.get());
-                  base->metallic_map.Resolve(tex);
-                  RenderTexturePreview("Metallic", tex.get());
-                  base->specular_map.Resolve(tex);
-                  RenderTexturePreview("Specular", tex.get());
-                  ImGui::TreePop();
-                }
-              }
-
-              if (inst->HasOverride("color_tint") ||
-                  inst->HasOverride("roughness") ||
-                  inst->HasOverride("metallic") ||
-                  inst->HasOverride("specular")) {
-                if (ImGui::Button("Reset to Default")) {
-                  inst->overrides.clear();
-                }
-              }
-
-              ImGui::TreePop();
-            }
-            ImGui::PopID();
-          }
-          ImGui::TreePop();
-        }
-      }
-    }
-
-    ImGui::TreePop();
-  }
-  if (!visible) {
-    // Defer GPU resource destruction - the GPU may still be reading these
-    // from in-flight frames. Move them into the deletion queue first.
-    auto& model = entity.GetComponent<ModelComponent>();
-    auto deferred_ubos = std::move(model.mesh_uniform_buffers_);
-    auto deferred_geo = std::move(model.geometry_descriptors);
-    auto deferred_shadow = std::move(model.shadow_descriptors);
-    auto deferred_bone_ubo = std::move(model.bone_ubo_);
-    auto deferred_bone_desc = std::move(model.bone_descriptor_);
-    auto deferred_uniform = std::move(model.uniform_buffer);
-    Engine::renderer()->GetDeletionQueue().Push(
-        [ubos = std::move(deferred_ubos), geo = std::move(deferred_geo),
-         shadow = std::move(deferred_shadow),
-         bone_ubo = std::move(deferred_bone_ubo),
-         bone_desc = std::move(deferred_bone_desc),
-         uniform = std::move(deferred_uniform)]() {
-          // Resources released when lambda is destroyed
-        });
-    entity.RemoveComponent<ModelComponent>();
-    visible = true;
   }
 }
 
@@ -1160,14 +868,14 @@ void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
     ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
 
     // Bake from model button (when no baked asset or to create one)
-    if (entity.HasComponent<ModelComponent>()) {
-      auto& model_comp = entity.GetComponent<ModelComponent>();
-      if (model_comp.model_handle.IsValid()) {
+    if (entity.HasComponent<MeshRendererComponent>()) {
+      auto& mesh_comp = entity.GetComponent<MeshRendererComponent>();
+      if (mesh_comp.model_handle.IsValid()) {
         if (ImGui::Button("Bake from Model")) {
-          auto data = BakeMeshColliderFromModel(model_comp.model_handle);
+          auto data = BakeMeshColliderFromModel(mesh_comp.model_handle);
           if (data) {
             const auto* model_meta =
-                Engine::asset_manager().GetMetadata(model_comp.model_handle);
+                Engine::asset_manager().GetMetadata(mesh_comp.model_handle);
             std::string name =
                 model_meta ? model_meta->name + "_collider" : "mesh_collider";
             std::string dir;
@@ -1179,11 +887,10 @@ void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
               dir = "app://";
             }
             std::string vfs_path = dir + "/" + name + ".wmeshcol";
-            AssetHandle handle =
-                AssetSerializerRegistry::Create<MeshColliderAssetData>(
-                    name, AssetType::MeshCollider, vfs_path, data);
+            AssetHandle handle = AssetRegistry::Create<MeshColliderAssetData>(
+                name, AssetType::MeshCollider, vfs_path, data);
             if (handle.IsValid()) {
-              AssetSerializerRegistry::Save(handle);
+              AssetRegistry::Save(handle);
               component.collider_handle = handle;
             }
           }
@@ -1200,7 +907,7 @@ void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
           auto new_data = BakeMeshColliderFromModel(baked->source_model);
           if (new_data) {
             Engine::asset_manager().Store(component.collider_handle, new_data);
-            AssetSerializerRegistry::Save(component.collider_handle);
+            AssetRegistry::Save(component.collider_handle);
           }
         }
       }
@@ -1829,9 +1536,67 @@ void RenderAddComponentImGui_AnimatorComponent(Entity entity) {
   }
 }
 
-void RenderAddComponentImGui_ModelComponent(Entity entity) {
-  if (ImGui::MenuItem("Model")) {
-    entity.AddComponent<ModelComponent>();
+// --- MeshRendererComponent ---
+
+void RenderComponentImGui(MeshRendererComponent& component, Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Mesh Renderer", &visible)) {
+    ImGui::Checkbox(PrefixLabel("Rendering").c_str(),
+                    &component.enable_rendering);
+    ImGui::Checkbox(PrefixLabel("Receive Shadows").c_str(),
+                    &component.receive_shadows);
+
+    // Show model + mesh info
+    if (component.model_handle.IsValid()) {
+      const auto* meta =
+          Engine::asset_manager().GetMetadata(component.model_handle);
+      ImGui::TextDisabled("Model: %s", meta ? meta->name.c_str() : "???");
+    }
+    ImGui::TextDisabled("Mesh Index: %d", component.mesh_index);
+
+    // Material
+    AssetDropField("Material", AssetType::Material, component.material_handle);
+
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<MeshRendererComponent>();
+    visible = true;
+  }
+}
+
+// --- SkinnedMeshRendererComponent ---
+
+void RenderComponentImGui(SkinnedMeshRendererComponent& component,
+                          Entity entity) {
+  static bool visible = true;
+  if (ImGui::ClosableTreeNode("Skinned Mesh Renderer", &visible)) {
+    ImGui::Checkbox(PrefixLabel("Rendering").c_str(),
+                    &component.enable_rendering);
+    ImGui::Checkbox(PrefixLabel("Receive Shadows").c_str(),
+                    &component.receive_shadows);
+
+    if (component.model_handle.IsValid()) {
+      const auto* meta =
+          Engine::asset_manager().GetMetadata(component.model_handle);
+      ImGui::TextDisabled("Model: %s", meta ? meta->name.c_str() : "???");
+    }
+    ImGui::TextDisabled("Mesh Index: %d", component.mesh_index);
+
+    if (component.skeleton_root != entt::null) {
+      ImGui::TextDisabled("Skeleton Root: %u",
+                          static_cast<uint32_t>(component.skeleton_root));
+    } else {
+      ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "No Skeleton Root");
+    }
+
+    AssetDropField("Material", AssetType::Material, component.material_handle);
+
+    ImGui::TreePop();
+  }
+  if (!visible) {
+    entity.RemoveComponent<SkinnedMeshRendererComponent>();
+    visible = true;
   }
 }
 
@@ -2243,7 +2008,6 @@ void RenderAddComponentImGui_SpriteRendererComponent(Entity entity) {
   }
 }
 
-
 void RenderComponentImGui(ButtonComponent& component, Entity entity) {
   static bool visible = true;
   if (!ImGui::ClosableTreeNode("Button", &visible)) {
@@ -2452,9 +2216,11 @@ void InitializeEditorComponents() {
   RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TransformComponent>(
       "Transform", "", RenderComponentImGui, nullptr, nullptr);
-  RegisterComponentType<ModelComponent>(
-      "Model", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_ModelComponent, nullptr);
+  RegisterComponentType<MeshRendererComponent>(
+      "Mesh Renderer", "Rendering", RenderComponentImGui, nullptr, nullptr);
+  RegisterComponentType<SkinnedMeshRendererComponent>(
+      "Skinned Mesh Renderer", "Rendering", RenderComponentImGui, nullptr,
+      nullptr);
   RegisterComponentType<AnimatorComponent>(
       "Animator", "Rendering", RenderComponentImGui,
       RenderAddComponentImGui_AnimatorComponent, nullptr);

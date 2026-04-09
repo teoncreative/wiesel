@@ -32,7 +32,16 @@ void CameraSystem::Update(Scene& scene, float delta_time) {
       camera.view_changed = false;
     }
     if (camera.pos_changed) {
-      camera.UpdateView(transform.GetTransformMatrix());
+      // Strip scale from the world transform - cameras should not be
+      // affected by entity scale (frustum, view matrix, etc.)
+      glm::mat4 world = transform.GetTransformMatrix();
+      glm::vec3 ws = transform.GetWorldScale();
+      if (ws.x != 0.0f && ws.y != 0.0f && ws.z != 0.0f) {
+        world[0] /= ws.x;
+        world[1] /= ws.y;
+        world[2] /= ws.z;
+      }
+      camera.UpdateView(world);
       camera.pos_changed = false;
     }
     if (camera.any_changed) {

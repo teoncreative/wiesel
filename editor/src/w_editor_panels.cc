@@ -13,8 +13,7 @@
 #include <imgui.h>
 
 #include "asset/w_asset_manager.h"
-#include "asset/w_asset_property_registry.h"
-#include "game/w_game_loader.h"
+#include "asset/w_asset_registry.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_rendergraph.h"
 #include "scene/w_scene_manager.h"
@@ -33,7 +32,7 @@ void EditorLayer::RenderRenderStatsPanel() {
   {
     bool& stats_open = panel_stats_;
     if (stats_open) {
-      if (ImGui::Begin("Render Stats", &stats_open)) {
+      if (ImGui::Begin(CODICON_DASHBOARD " Render Stats", &stats_open)) {
         std::shared_ptr<Renderer> renderer = Engine::renderer();
         const auto& stats = renderer->GetStats();
 
@@ -307,7 +306,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
         return 0;
       };
 
-      if (ImGui::Begin(ICON_CONSOLE " Developer Console", &console_open)) {
+      if (ImGui::Begin(CODICON_TERMINAL " Developer Console", &console_open)) {
         auto& cmd = Engine::console();
         const auto& log = cmd.GetLog();
 
@@ -373,98 +372,12 @@ void EditorLayer::RenderAssetBrowserPanel() {
   current_scene_path_ = asset_browser_panel_.current_scene_path;
 }
 
-void EditorLayer::RenderAssetPropertiesPanel() {
-  static bool panel_open = true;
-  if (!panel_open) {
-    return;
-  }
-
-  if (ImGui::Begin("Asset Properties", &panel_open)) {
-    const AssetMetadata* meta =
-        Engine::asset_manager().GetMetadata(properties_asset_handle_);
-    if (!meta || !properties_asset_handle_.IsValid()) {
-      ImGui::TextDisabled("No asset selected");
-      ImGui::End();
-      return;
-    }
-    ImGui::Text("Name: %s", meta->name.c_str());
-    ImGui::TextDisabled("Path: %s", meta->virtual_source_path.c_str());
-    ImGui::Separator();
-
-    // Large preview for texture/sprite assets
-    if (meta->type == AssetType::Texture || meta->type == AssetType::Sprite) {
-      ThumbnailEntry thumb =
-          ThumbnailCache::Get()->GetOrCreate(properties_asset_handle_, *meta);
-      if (thumb.texture_id) {
-        float avail_width = ImGui::GetContentRegionAvail().x;
-        float max_preview = std::min(avail_width, 256.0f);
-        ImVec2 preview_size = thumb.FitSize(max_preview);
-        // Center the preview
-        float indent = (avail_width - preview_size.x) * 0.5f;
-        if (indent > 0.0f) {
-          ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
-        }
-        ImGui::Image(reinterpret_cast<ImTextureID>(thumb.texture_id),
-                     preview_size, thumb.uv0, thumb.uv1);
-        if (thumb.width > 0 && thumb.height > 0) {
-          uint32_t display_w =
-              static_cast<uint32_t>(thumb.width * (thumb.uv1.x - thumb.uv0.x));
-          uint32_t display_h =
-              static_cast<uint32_t>(thumb.height * (thumb.uv1.y - thumb.uv0.y));
-          ImGui::TextDisabled("%u x %u", display_w, display_h);
-        }
-        ImGui::Separator();
-      }
-    }
-
-    const AssetPropertyDesc* desc = AssetPropertyRegistry::Get(meta->type);
-    if (desc && meta->properties) {
-      bool changed = desc->RenderImGui(meta->properties.get());
-      if (changed) {
-        // Write properties back to .meta file
-        std::optional<std::filesystem::path> physical =
-            Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
-        if (physical.has_value()) {
-          std::filesystem::path meta_path = physical->string() + ".meta";
-          GameLoader::WriteMetaFile(meta_path, meta->handle, meta->type,
-                                    meta->properties.get());
-        }
-      }
-    }
-
-    ImGui::Separator();
-    if (ImGui::Button("Reimport")) {
-      if (meta->type == AssetType::Font) {
-        FontCache::Invalidate(properties_asset_handle_);
-        std::shared_ptr<Scene> s = scene();
-        if (s) {
-          for (entt::entity e : s->GetAllEntitiesWith<TextComponent>()) {
-            auto& tc = s->GetComponent<TextComponent>(e);
-            if (tc.font_handle == properties_asset_handle_) {
-              tc.gpu_dirty_ = true;
-              tc.glyph_gpu_.clear();
-            }
-          }
-        }
-      }
-
-      Engine::asset_manager().Unload(properties_asset_handle_);
-      // Use sync load since we already waited for GPU
-      Engine::asset_manager().LoadSync(properties_asset_handle_);
-      // Rebuild render graphs with new resources
-    }
-    if (ImGui::IsItemHovered()) {
-      ImGui::SetTooltip("Reload this asset with the current properties.");
-    }
-  }
-  ImGui::End();
-}
 
 void EditorLayer::RenderUndoHistoryPanel() {
   if (!panel_undo_history_) {
     return;
   }
-  if (ImGui::Begin("Undo History", &panel_undo_history_)) {
+  if (ImGui::Begin(CODICON_HISTORY " Undo History", &panel_undo_history_)) {
     const auto& history = command_stack_.GetHistory();
     int current = command_stack_.GetCurrentIndex();
 

@@ -10,6 +10,7 @@
 
 #include "w_editor.h"
 
+#include "asset/w_asset_manager.h"
 #include "imgui_internal.h"
 #include "physics/w_collider.h"
 #include "rendering/w_renderer.h"
@@ -58,8 +59,9 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
     for (const char* shape : shapes) {
       if (ImGui::MenuItem(shape)) {
         created = scene.CreateEntity(shape);
-        auto& mc = created.AddComponent<ModelComponent>();
+        auto& mc = created.AddComponent<MeshRendererComponent>();
         mc.model_handle = Engine::GetPrimitive(shape);
+        mc.mesh_index = 0;
       }
     }
     ImGui::EndMenu();
@@ -110,80 +112,59 @@ void EditorLayer::RenderSceneViewportPanel() {
     ImGuiWindowFlags sceneFlags =
         ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
     scene_panel_visible_ =
-        ImGui::Begin(ICON_CAMERA " Scene", &scene_view_open, sceneFlags);
+        ImGui::Begin(CODICON_PREVIEW " Scene", &scene_view_open, sceneFlags);
     if (scene_panel_visible_) {
-      // Play/Stop buttons + gizmo controls
-      DrawPlayStopButtons();
-      ImGui::SameLine();
-      ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-      ImGui::SameLine();
-      if (ImGui::RadioButton("Translate", current_op_ == ImGuizmo::TRANSLATE)) {
-        current_op_ = ImGuizmo::TRANSLATE;
-      }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("Rotate", current_op_ == ImGuizmo::ROTATE)) {
-        current_op_ = ImGuizmo::ROTATE;
-      }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("Scale", current_op_ == ImGuizmo::SCALE)) {
-        current_op_ = ImGuizmo::SCALE;
-      }
-      ImGui::SameLine();
-      ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-      ImGui::SameLine();
-      if (ImGui::RadioButton("Local", current_mode_ == ImGuizmo::LOCAL)) {
-        current_mode_ = ImGuizmo::LOCAL;
-      }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("World", current_mode_ == ImGuizmo::WORLD)) {
-        current_mode_ = ImGuizmo::WORLD;
-      }
-      ImGui::SameLine();
-      ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
-      ImGui::SameLine();
-      if (ImGui::RadioButton("Free",
-                             editor_camera_mode_ == EditorCameraMode::Free)) {
-        editor_camera_mode_ = EditorCameraMode::Free;
-        editor_camera_.projection_mode = ProjectionMode::Perspective;
-        editor_camera_.view_changed = true;
-        editor_camera_.resource_pipeline_version = 0;
-        piloting_camera_ = entt::null;
-      }
-      ImGui::SameLine();
-      if (ImGui::RadioButton("2D",
-                             editor_camera_mode_ == EditorCameraMode::Mode2D)) {
-        editor_camera_mode_ = EditorCameraMode::Mode2D;
-        editor_camera_.projection_mode = ProjectionMode::Orthographic;
-        editor_camera_.ortho_size = editor_2d_zoom_;
-        // Look straight down +Z, position Z behind sprites
-        editor_pitch_ = 0.0f;
-        editor_yaw_ = 0.0f;
-        editor_camera_transform_.SetPosition(glm::vec3(0.0f, 180.0f, -5.0f));
-        editor_camera_transform_.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-        editor_camera_transform_.MarkChanged();
-        editor_camera_.view_changed = true;
-        editor_camera_.resource_pipeline_version = 0;
-        piloting_camera_ = entt::null;
-      }
+      // --- Centered Play/Pause/Stop toolbar ---
       {
-        float rightEdge = ImGui::GetWindowContentRegionMax().x;
-        ImGui::SameLine(rightEdge - kSettingsButtonWidth);
-        if (ImGui::Button("...##SceneSettings")) {
+        float toolbar_width = 70.0f;
+        float avail_w = ImGui::GetContentRegionAvail().x;
+        float settings_w = 30.0f;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                             (avail_w - toolbar_width) * 0.5f);
+
+        DrawPlayStopButtons();
+
+        // ... settings button on the right
+        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - settings_w);
+        if (ImGui::Button(CODICON_ELLIPSIS "##SceneSettings")) {
           ImGui::OpenPopup("SceneCameraSettings");
         }
         if (ImGui::BeginPopup("SceneCameraSettings")) {
-          ImGui::SeparatorText("Camera");
+          ImGui::SeparatorText("Camera Mode");
+          if (ImGui::RadioButton(
+                  "Free", editor_camera_mode_ == EditorCameraMode::Free)) {
+            editor_camera_mode_ = EditorCameraMode::Free;
+            editor_camera_.projection_mode = ProjectionMode::Perspective;
+            editor_camera_.view_changed = true;
+            editor_camera_.resource_pipeline_version = 0;
+            piloting_camera_ = entt::null;
+          }
+          if (ImGui::RadioButton(
+                  "2D", editor_camera_mode_ == EditorCameraMode::Mode2D)) {
+            editor_camera_mode_ = EditorCameraMode::Mode2D;
+            editor_camera_.projection_mode = ProjectionMode::Orthographic;
+            editor_camera_.ortho_size = editor_2d_zoom_;
+            editor_pitch_ = 0.0f;
+            editor_yaw_ = 0.0f;
+            editor_camera_transform_.SetPosition(
+                glm::vec3(0.0f, 180.0f, -5.0f));
+            editor_camera_transform_.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+            editor_camera_transform_.MarkChanged();
+            editor_camera_.view_changed = true;
+            editor_camera_.resource_pipeline_version = 0;
+            piloting_camera_ = entt::null;
+          }
+
+          ImGui::SeparatorText("Camera Settings");
           ImGui::DragFloat("Speed", &camera_speed_, 0.5f, 0.1f, 100.0f);
           ImGui::DragFloat("Sensitivity", &mouse_sensitivity_, 1.0f, 10.0f,
                            500.0f);
-
           if (editor_camera_mode_ == EditorCameraMode::Free) {
             ImGui::DragFloat("FOV", &editor_camera_.field_of_view, 1.0f, 1.0f,
                              179.0f);
           }
 
           ImGui::SeparatorText("Snap to Camera");
-          // Currently can only pilot a camera from the main scene
           for (auto entity : scene()
                                  ->GetAllEntitiesWith<CameraComponent,
                                                       TransformComponent>()) {
@@ -192,14 +173,10 @@ void EditorLayer::RenderSceneViewportPanel() {
             if (ImGui::Selectable(tag.name.c_str(), is_piloting)) {
               auto& cam = scene()->GetComponent<CameraComponent>(entity);
               auto& tc = scene()->GetComponent<TransformComponent>(entity);
-
-              // Snap editor camera to this entity
               editor_camera_transform_.SetPosition(tc.GetPosition());
               editor_camera_transform_.SetRotation(tc.GetRotation());
               editor_yaw_ = tc.GetRotation().y;
               editor_pitch_ = tc.GetRotation().x;
-
-              // Match projection
               if (cam.projection_mode == ProjectionMode::Orthographic) {
                 editor_camera_mode_ = EditorCameraMode::Mode2D;
                 editor_camera_.projection_mode = ProjectionMode::Orthographic;
@@ -215,7 +192,6 @@ void EditorLayer::RenderSceneViewportPanel() {
               editor_camera_.background_color = cam.background_color;
               editor_camera_.view_changed = true;
               editor_camera_.resource_pipeline_version = 0;
-
               piloting_camera_ = is_piloting ? entt::null : entity;
             }
           }
@@ -270,26 +246,81 @@ void EditorLayer::RenderSceneViewportPanel() {
 
         ImGui::Image(desc, image_size);
 
+        // Accept model asset drag-drop onto the viewport
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload* payload =
+                  ImGui::AcceptDragDropPayload("AssetHandle")) {
+            AssetHandle handle =
+                *static_cast<const AssetHandle*>(payload->Data);
+            InstantiateModelAsset(handle);
+          }
+          ImGui::EndDragDropTarget();
+        }
+
         ImVec2 image_min = ImGui::GetItemRectMin();
         ImVec2 image_max = ImGui::GetItemRectMax();
         bool scene_hovered = ImGui::IsItemHovered();
 
-        // FPS overlay (top-left)
-        ImVec2 text_pos = ImVec2(image_min.x + 6, image_min.y + 6);
-        std::string fps_str =
-            std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
-        ImGui::GetWindowDrawList()->AddText(text_pos, IM_COL32(0, 255, 0, 255),
-                                            fps_str.c_str());
+        // Gizmo toolbar overlay (top-left of viewport image, vertical)
+        {
+          float overlay_x = image_min.x + 6;
+          float overlay_y = image_min.y + 6;
 
-        // Resolution overlay (top-right)
-        std::string res_str =
-            std::format("{}x{}", (int)editor_camera_.viewport_size.x,
-                        (int)editor_camera_.viewport_size.y);
-        ImVec2 res_text_size = ImGui::CalcTextSize(res_str.c_str());
-        ImVec2 res_pos =
-            ImVec2(image_max.x - res_text_size.x - 6, image_min.y + 6);
-        ImGui::GetWindowDrawList()->AddText(res_pos, IM_COL32(0, 255, 0, 255),
-                                            res_str.c_str());
+          ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
+          ImGui::PushStyleColor(ImGuiCol_Button,
+                                ImVec4(0.15f, 0.15f, 0.15f, 0.8f));
+          ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                ImVec4(0.25f, 0.25f, 0.25f, 0.9f));
+          ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                ImVec4(0.35f, 0.35f, 0.35f, 1.0f));
+
+          auto gizmo_btn = [&](const char* label, bool active, float y) {
+            ImGui::SetCursorScreenPos(ImVec2(overlay_x, y));
+            if (active) {
+              ImGui::PushStyleColor(ImGuiCol_Button,
+                                    ImVec4(0.86f, 0.26f, 0.26f, 0.8f));
+            }
+            bool clicked = ImGui::Button(label);
+            if (active) {
+              ImGui::PopStyleColor();
+            }
+            return clicked;
+          };
+
+          float btn_h = ImGui::GetFrameHeight() + 2.0f;
+          float y = overlay_y;
+
+          if (gizmo_btn(CODICON_MOVE "##translate",
+                        current_op_ == ImGuizmo::TRANSLATE, y)) {
+            current_op_ = ImGuizmo::TRANSLATE;
+          }
+          y += btn_h;
+          if (gizmo_btn(CODICON_REFRESH "##rotate",
+                        current_op_ == ImGuizmo::ROTATE, y)) {
+            current_op_ = ImGuizmo::ROTATE;
+          }
+          y += btn_h;
+          if (gizmo_btn(CODICON_ARROW_BOTH "##scale",
+                        current_op_ == ImGuizmo::SCALE, y)) {
+            current_op_ = ImGuizmo::SCALE;
+          }
+          y += btn_h + 4.0f;  // extra gap before mode toggle
+          if (gizmo_btn(current_mode_ == ImGuizmo::LOCAL ? CODICON_HOME "##mode"
+                                                         : CODICON_GLOBE
+                            "##mode",
+                        false, y)) {
+            current_mode_ = (current_mode_ == ImGuizmo::LOCAL)
+                                ? ImGuizmo::WORLD
+                                : ImGuizmo::LOCAL;
+          }
+          if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(current_mode_ == ImGuizmo::LOCAL ? "Local"
+                                                               : "World");
+          }
+
+          ImGui::PopStyleColor(3);
+          ImGui::PopStyleVar();
+        }
 
         // Right-click mouse look
         static bool scene_right_active = false;
@@ -589,7 +620,8 @@ void EditorLayer::RenderSceneViewportPanel() {
         }
         if (ImGui::BeginPopup("##QuickAdd")) {
           glm::vec3 cam_pos = editor_camera_transform_.GetPosition();
-          RenderAddEntityMenu(*scene(), scene_dirty_, command_stack_, entt::null, &cam_pos);
+          RenderAddEntityMenu(*scene(), scene_dirty_, command_stack_,
+                              entt::null, &cam_pos);
           ImGui::EndPopup();
         }
       }
@@ -603,11 +635,18 @@ void EditorLayer::RenderGameViewportPanel() {
 
   bool& game_view_open = panel_game_view_;
   if (game_view_open) {
-    bool gameVisible = ImGui::Begin(ICON_CAMERA " Game", &game_view_open);
+    bool gameVisible =
+        ImGui::Begin(CODICON_CAMERA_VIDEO " Game", &game_view_open);
     game_panel_visible_ = gameVisible;
     game_panel_focused_ = ImGui::IsWindowFocused();
     if (gameVisible) {
-      DrawPlayStopButtons();
+      {
+        float toolbar_width = 70.0f;
+        float avail_w = ImGui::GetContentRegionAvail().x;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                             (avail_w - toolbar_width) * 0.5f);
+        DrawPlayStopButtons();
+      }
       {
         float comboWidth = kResolutionComboWidth;
         float rightEdge = ImGui::GetWindowContentRegionMax().x;
@@ -736,24 +775,49 @@ void EditorLayer::RenderGameViewportPanel() {
 bool EditorLayer::DrawPlayStopButtons() {
   bool changed = false;
   if (editor_state_ == EditorState::Edit) {
+    // Play button
     bool compiling = Engine::script_manager().IsCompiling();
     if (compiling) {
       ImGui::BeginDisabled();
     }
-    if (ImGui::Button(compiling ? "Compiling..." : "Play")) {
+    if (ImGui::Button(CODICON_PLAY "##play")) {
       AutoSave();
       TakeSnapshot();
       editor_state_ = EditorState::Playing;
       scene()->ResetFirstUpdate();
-      ImGui::SetWindowFocus(ICON_CAMERA " Game");
+      ImGui::SetWindowFocus(CODICON_CAMERA_VIDEO " Game");
       changed = true;
     }
     if (compiling) {
       ImGui::EndDisabled();
     }
-  } else {
-    if (ImGui::Button("Stop")) {
+    // Pause disabled in edit mode
+    ImGui::SameLine();
+    ImGui::BeginDisabled();
+    ImGui::Button(CODICON_PAUSE "##pause");
+    ImGui::EndDisabled();
+  } else if (editor_state_ == EditorState::Playing) {
+    // Stop button
+    if (ImGui::Button(CODICON_STOP "##stop")) {
       deferred_action_ = DeferredAction::StopPlaying;
+      changed = true;
+    }
+    // Pause button
+    ImGui::SameLine();
+    if (ImGui::Button(CODICON_PAUSE "##pause")) {
+      editor_state_ = EditorState::Paused;
+      changed = true;
+    }
+  } else if (editor_state_ == EditorState::Paused) {
+    // Stop button
+    if (ImGui::Button(CODICON_STOP "##stop")) {
+      deferred_action_ = DeferredAction::StopPlaying;
+      changed = true;
+    }
+    // Resume (play) button
+    ImGui::SameLine();
+    if (ImGui::Button(CODICON_PLAY "##resume")) {
+      editor_state_ = EditorState::Playing;
       changed = true;
     }
   }

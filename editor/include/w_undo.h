@@ -43,12 +43,16 @@ class IEditorCommand {
 // Undo/redo stack with cursor-based navigation.
 class CommandStack {
  public:
-  // Execute a new command and push onto history.
-  // Clears any redo entries. Attempts merge with previous command.
+  // Queue a command for execution. All commands are deferred and
+  // processed between frames via Flush().
   void Execute(std::unique_ptr<IEditorCommand> cmd);
 
+  // Queue undo/redo for deferred processing.
   void Undo();
   void Redo();
+
+  // Process all pending operations. Call once between frames.
+  void Flush();
 
   bool CanUndo() const { return current_ >= 0; }
 
@@ -70,13 +74,23 @@ class CommandStack {
   int GetCurrentIndex() const { return current_; }
 
  private:
+  enum class PendingAction { Execute, Undo, Redo };
+
+  struct PendingEntry {
+    PendingAction action;
+    std::unique_ptr<IEditorCommand> cmd;  // only for Execute
+  };
+
+  void DoExecute(std::unique_ptr<IEditorCommand> cmd);
+  void DoUndo();
+  void DoRedo();
+
   std::vector<std::unique_ptr<IEditorCommand>> history_;
+  std::vector<PendingEntry> pending_;
   int current_ = -1;
 };
 
-// -------------------------------------------------------------------
-// Built-in command types
-// -------------------------------------------------------------------
+// --- Built-in command types ---
 
 // Generic property change command.
 // Captures getter/setter lambdas and old/new values.
@@ -164,10 +178,9 @@ class EntityDeleteCommand : public IEditorCommand {
  private:
   std::shared_ptr<Scene> scene_;
   entt::entity entity_;
-  UUID uuid_;
   std::string name_;
   UUID parent_uuid_;
-  nlohmann::json components_;
+  nlohmann::json subtree_json_;  // serialized entity subtree
 };
 
 // Entity reparenting.

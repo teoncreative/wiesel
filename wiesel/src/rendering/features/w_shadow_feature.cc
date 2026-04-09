@@ -11,6 +11,8 @@
 
 #include "rendering/features/w_shadow_feature.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_render_utils.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -46,6 +48,22 @@ ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
+
+  pipeline_no_cull_ = std::make_shared<Pipeline>(PipelineProperties{
+      SamplingMode::DISABLED, CullModeNone, false, false, true, true});
+  pipeline_no_cull_->SetRenderPass(render_pass_);
+  pipeline_no_cull_->SetVertexData(Vertex3D::GetBindingDescription(),
+                                   Vertex3D::GetAttributeDescriptions());
+  pipeline_no_cull_->AddPushConstant(push_constant_,
+                                     VK_SHADER_STAGE_VERTEX_BIT);
+  pipeline_no_cull_->AddInputLayout(
+      renderer_->GetDescriptorLayout("GeometryMesh"));
+  pipeline_no_cull_->AddInputLayout(
+      renderer_->GetDescriptorLayout("GlobalShadow"));
+  pipeline_no_cull_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
+  pipeline_no_cull_->AddShader(vert);
+  pipeline_no_cull_->AddShader(frag);
+  pipeline_no_cull_->Bake();
 }
 
 void ShadowFeature::SetupResources(RenderContext& ctx) {
@@ -108,14 +126,65 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   MultiScene& scenes = ctx.scenes;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
+  auto pipeline_no_cull = pipeline_no_cull_;
   auto push_constant = push_constant_;
   bool does_shadow = ctx.camera.does_shadow_pass;
+
+  // Helper lambdas for drawing shadow casters with frustum culling
+  auto draw_static_meshes = [&scenes, renderer](bool double_sided_pass) {
+    const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+    scenes.ForEach<MeshRendererComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+          if (!mr.receive_shadows || !mr.enable_rendering ||
+              !mr.model_handle.IsValid()) {
+            return;
+          }
+          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
+              double_sided_pass) {
+            return;
+          }
+          auto& transform = scene.GetComponent<TransformComponent>(entity);
+          if (FrustumCullMesh(frustum, mr.model_handle, mr.mesh_index,
+                              transform.GetTransformMatrix())) {
+            return;
+          }
+          renderer->DrawMeshRenderer(mr, transform, true);
+        });
+  };
+
+  auto draw_skinned_meshes = [&scenes, renderer](bool double_sided_pass) {
+    const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+    scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& mr = scene.GetComponent<SkinnedMeshRendererComponent>(entity);
+          if (!mr.receive_shadows || !mr.enable_rendering ||
+              !mr.model_handle.IsValid()) {
+            return;
+          }
+          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
+              double_sided_pass) {
+            return;
+          }
+          const TransformComponent* draw_transform =
+              &scene.GetComponent<TransformComponent>(entity);
+          const SkeletalAnimRuntime* skel = nullptr;
+          if (!ResolveSkeletonRoot(scene, mr, draw_transform, skel)) {
+            return;
+          }
+          if (FrustumCullSkinned(frustum, skel,
+                                 draw_transform->GetTransformMatrix())) {
+            return;
+          }
+          renderer->DrawSkinnedMeshRenderer(mr, *draw_transform, skel, true);
+        });
+  };
 
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     uint32_t shadow = graph.AddPass(
         "Shadow " + std::to_string(i), render_pass_,
-        [pipeline, push_constant, &scenes, renderer, does_shadow,
-         i](VkCommandBuffer) {
+        [pipeline, pipeline_no_cull, push_constant, renderer, does_shadow,
+         draw_static_meshes, draw_skinned_meshes, i](VkCommandBuffer) {
           if (!does_shadow) {
             return;
           }
@@ -123,18 +192,16 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
                  &renderer->GetShadowCameraUniformData(),
                  sizeof(ShadowMapMatricesUniformData));
           push_constant->cascade_index = i;
+
+          // Phase 1: back-face culled (single-sided)
           pipeline->Bind(PipelineBindPointGraphics);
-          scenes.ForEach<ModelComponent, TransformComponent>(
-              [&](Scene& scene, entt::entity entity) {
-                auto& model = scene.GetComponent<ModelComponent>(entity);
-                auto& transform =
-                    scene.GetComponent<TransformComponent>(entity);
-                if (!model.receive_shadows || !model.enable_rendering ||
-                    !model.model_handle) {
-                  return;
-                }
-                renderer->DrawModel(model, transform, true);
-              });
+          draw_static_meshes(false);
+          draw_skinned_meshes(false);
+
+          // Phase 2: double-sided (no backface culling)
+          pipeline_no_cull->Bind(PipelineBindPointGraphics);
+          draw_static_meshes(true);
+          draw_skinned_meshes(true);
         });
     if (shadow_depth.IsValid()) {
       graph.PassWritesDepth(shadow, shadow_depth);

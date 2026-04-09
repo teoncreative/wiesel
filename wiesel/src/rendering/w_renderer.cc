@@ -257,7 +257,8 @@ Renderer::CreateVertexBuffer<OverlayVertex>(const std::string& debug_name,
                                             std::vector<OverlayVertex>);
 
 template std::shared_ptr<MemoryBuffer>
-Renderer::CreateVertexBuffer<BillboardVertex>(const std::string& debug_name, std::vector<BillboardVertex>);
+Renderer::CreateVertexBuffer<BillboardVertex>(const std::string& debug_name,
+                                              std::vector<BillboardVertex>);
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<RmlVertex>(
     const std::string& debug_name, std::vector<RmlVertex>);
@@ -378,7 +379,8 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
   component.pos_changed = true;
 }
 
-std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_name) {
+std::shared_ptr<Texture> Renderer::CreateBlankTexture(
+    const std::string& debug_name) {
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -412,7 +414,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_n
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
-  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, debug_name);
+  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image,
+                                                   image_alloc, debug_name);
 
   TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -438,7 +441,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_n
 }
 
 std::shared_ptr<Texture> Renderer::CreateBlankTexture(
-    const std::string& debug_name, const TextureProps& texture_props, const SamplerProps& sampler_props) {
+    const std::string& debug_name, const TextureProps& texture_props,
+    const SamplerProps& sampler_props) {
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -473,7 +477,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
-  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, debug_name);
+  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image,
+                                                   image_alloc, debug_name);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -985,8 +990,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
                staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(
-      vmaMapMemory(vma_allocator_, staging_alloc, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, cube_pixels.data(), total_size);
   vmaUnmapMemory(vma_allocator_, staging_alloc);
 
@@ -1220,11 +1224,11 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
                                                  &object->descriptor_set_));
 
   std::vector<VkWriteDescriptorSet> writes;
-  writes.reserve(8);
+  writes.reserve(1 + kMaterialTextureCount);
   std::vector<VkDescriptorBufferInfo> buffer_infos;
   buffer_infos.reserve(1);
   std::vector<VkDescriptorImageInfo> image_infos;
-  image_infos.reserve(7);
+  image_infos.reserve(kMaterialTextureCount);
 
   {
     buffer_infos.push_back({
@@ -1246,9 +1250,9 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 
   // Texture slots: binding 1-7
   TextureSlot* texture_slots[] = {
-      &material->base_texture, &material->normal_map, &material->specular_map,
-      &material->height_map,   &material->albedo_map, &material->roughness_map,
-      &material->metallic_map,
+      &material->base_texture, &material->normal_map,  &material->specular_map,
+      &material->height_map,   &material->albedo_map,  &material->roughness_map,
+      &material->metallic_map, &material->opacity_map,
   };
 
   for (int i = 0; i < kMaterialTextureCount; i++) {
@@ -1292,7 +1296,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
 
   VkDescriptorPoolSize pool_sizes[] = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaterialTextureCount},
   };
 
   VkDescriptorPoolCreateInfo pool_info{};
@@ -1315,11 +1319,11 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
                                                  &object->descriptor_set_));
 
   std::vector<VkWriteDescriptorSet> writes;
-  writes.reserve(2);
+  writes.reserve(1 + kMaterialTextureCount);
   std::vector<VkDescriptorBufferInfo> buffer_infos;
   buffer_infos.reserve(1);
   std::vector<VkDescriptorImageInfo> image_infos;
-  image_infos.reserve(1);
+  image_infos.reserve(kMaterialTextureCount);
 
   {
     buffer_infos.push_back({
@@ -1339,9 +1343,17 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
     writes.emplace_back(set);
   }
 
-  {  // base texture for shadow alpha test
+  // Bind all material textures (same as geometry descriptor)
+  TextureSlot* texture_slots[] = {
+      &material->base_texture, &material->normal_map,  &material->specular_map,
+      &material->height_map,   &material->albedo_map,  &material->roughness_map,
+      &material->metallic_map, &material->opacity_map,
+  };
+
+  for (int i = 0; i < kMaterialTextureCount; i++) {
     std::shared_ptr<Texture> tex;
-    material->base_texture.Resolve(tex);
+    texture_slots[i]->Resolve(tex);
+
     VkDescriptorImageInfo image_info;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (!tex) {
@@ -1356,7 +1368,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
-    set.dstBinding = 1;
+    set.dstBinding = static_cast<uint32_t>(i + 1);
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
@@ -2092,10 +2104,13 @@ void Renderer::CreateDescriptorLayouts() {
 
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                       VK_SHADER_STAGE_VERTEX_BIT);
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    for (int i = 0; i < kMaterialTextureCount; i++) {
+      layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                         VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
     layout->Bake();
     RegisterDescriptorLayout("ShadowMesh", std::move(layout));
   }
@@ -2692,7 +2707,8 @@ void Renderer::CreatePermanentResources() {
                pick_staging_buffer_, pick_staging_alloc_);
 
   // Identity bone UBO (shared by all static / non-animated models)
-  identity_bone_ubo_ = CreateUniformBuffer("Renderer::identity_bone_ubo_", sizeof(BoneMatricesUniformData));
+  identity_bone_ubo_ = CreateUniformBuffer("Renderer::identity_bone_ubo_",
+                                           sizeof(BoneMatricesUniformData));
   {
     BoneMatricesUniformData identity{};
     for (auto& m : identity.bone_matrices) {
@@ -2708,7 +2724,8 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
                            SamplingMode sampling_mode, VkFormat format,
                            VkImageTiling tiling, VkImageUsageFlags usage,
                            VkMemoryPropertyFlags properties, VkImage& image,
-                           VmaAllocation& allocation, VkImageCreateFlags flags, uint32_t array_layers) {
+                           VmaAllocation& allocation, VkImageCreateFlags flags,
+                           uint32_t array_layers) {
   PROFILE_ZONE_SCOPED();
   VkImageCreateInfo image_info{};
   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -2737,8 +2754,7 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
   VmaAllocationCreateInfo alloc_info{};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
-  WIESEL_CHECK_VKRESULT(
-      vmaCreateImage(vma_allocator_, &image_info, &alloc_info,
+  WIESEL_CHECK_VKRESULT(vmaCreateImage(vma_allocator_, &image_info, &alloc_info,
                                        &image, &allocation, nullptr));
 }
 
@@ -3017,7 +3033,8 @@ void Renderer::CreateGlobalUniformBuffers() {
   camera_uniform_buffer_ = CreateUniformBuffer(
       "Renderer::camera_uniform_buffer_", sizeof(CameraUniformData));
   shadow_camera_uniform_buffer_ =
-      CreateUniformBuffer("Renderer::shadow_camera_uniform_buffer_", sizeof(ShadowMapMatricesUniformData));
+      CreateUniformBuffer("Renderer::shadow_camera_uniform_buffer_",
+                          sizeof(ShadowMapMatricesUniformData));
 }
 
 void Renderer::CleanupGlobalUniformBuffers() {
@@ -3374,295 +3391,198 @@ void Renderer::UpdateUniformData() {
                        0, 1, &barrier, 0, nullptr, 0, nullptr);
 }
 
-void Renderer::AllocateModelRenderData(ModelComponent& model,
-                                       const Model& model_data) {
-  // Lazily create per-mesh material instances
-  if (model.material_instances.size() != model_data.meshes.size()) {
-    model.material_instances.resize(model_data.meshes.size());
-    model.material_slot_handles.resize(model_data.meshes.size());
-    model.material_versions.resize(model_data.meshes.size(), 0);
+// Templated helpers for MeshRendererComponent and SkinnedMeshRendererComponent
+// which share the same field layout but are separate types (entt requirement).
+
+template <typename T>
+static void AllocateMeshRendererGpu(Renderer* renderer, T& mr,
+                                    const std::shared_ptr<Material>& material) {
+  if (!mr.ubo) {
+    mr.ubo = renderer->CreateUniformBuffer("MeshRenderer::ubo",
+                                           sizeof(MatricesUniformData));
   }
-  for (size_t i = 0; i < model_data.meshes.size(); i++) {
-    if (!model.material_instances[i]) {
-      auto inst = std::make_shared<MaterialInstance>();
-      // Set material handle: use slot override if set, otherwise mesh default
-      AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
-                                   ? model.material_slot_handles[i]
-                                   : model_data.meshes[i]->material_handle;
-      if (mat_handle.IsValid()) {
-        inst->base_material_handle = mat_handle;
-      } else if (model_data.meshes[i]->mat) {
-        // Fallback: register an anonymous material if somehow no handle was set
-        auto fallback = model_data.meshes[i]->mat;
-        AssetHandle h = Engine::asset_manager().RegisterAndStore<Material>(
-            "Material_" + std::to_string(i), AssetType::Material, "", fallback);
-        inst->base_material_handle = h;
-      }
-      model.material_instances[i] = inst;
+  if (!mr.material_instance) {
+    mr.material_instance = std::make_shared<MaterialInstance>();
+    if (mr.material_handle.IsValid()) {
+      mr.material_instance->base_material_handle = mr.material_handle;
     }
   }
-
-  // Create per-mesh UBOs (each mesh needs its own for per-mesh material data)
-  model.mesh_uniform_buffers_.clear();
-  model.mesh_uniform_buffers_.resize(model_data.meshes.size());
-  for (size_t i = 0; i < model_data.meshes.size(); i++) {
-    model.mesh_uniform_buffers_[i] =
-        CreateUniformBuffer("Model Mesh UBO", sizeof(MatricesUniformData));
+  if (!mr.geometry_descriptor && material) {
+    mr.geometry_descriptor = renderer->CreateMeshDescriptors(mr.ubo, material);
   }
-
-  // Keep a shared UBO for backward compat (single-mesh models, etc.)
-  if (!model.mesh_uniform_buffers_.empty()) {
-    model.uniform_buffer = model.mesh_uniform_buffers_[0];
-  } else {
-    model.uniform_buffer =
-        CreateUniformBuffer("Model UBO", sizeof(MatricesUniformData));
+  if (!mr.shadow_descriptor && material) {
+    mr.shadow_descriptor =
+        renderer->CreateShadowMeshDescriptors(mr.ubo, material);
   }
-
-  // Create per-mesh descriptor sets, each bound to its own UBO
-  model.geometry_descriptors.clear();
-  model.shadow_descriptors.clear();
-  model.geometry_descriptors.reserve(model_data.meshes.size());
-  model.shadow_descriptors.reserve(model_data.meshes.size());
-
-  for (size_t i = 0; i < model_data.meshes.size(); i++) {
-    const auto& mesh = model_data.meshes[i];
-    // Resolve the effective material for this slot
-    std::shared_ptr<Material> effective_mat = nullptr;
-    if (i < model.material_slot_handles.size() &&
-        model.material_slot_handles[i].IsValid()) {
-      effective_mat =
-          Engine::asset_manager().Get<Material>(model.material_slot_handles[i]);
-    }
-    if (!effective_mat) {
-      effective_mat = mesh->mat;
-    }
-
-    model.geometry_descriptors.push_back(
-        CreateMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
-    model.shadow_descriptors.push_back(CreateShadowMeshDescriptors(
-        model.mesh_uniform_buffers_[i], effective_mat));
-    // Track material version for descriptor invalidation
-    if (effective_mat && i < model.material_versions.size()) {
-      model.material_versions[i] = effective_mat->version;
-    }
-  }
-
-  // Bone animation GPU resources
-  if (model_data.has_skeleton) {
-    // Animated model: per-entity bone UBO, initialized to identity
-    model.bone_ubo_ =
-        CreateUniformBuffer("Model Bone UBO", sizeof(BoneMatricesUniformData));
-    {
-      BoneMatricesUniformData identity{};
-      for (auto& m : identity.bone_matrices) {
-        m = glm::mat4(1.0f);
-      }
-      memcpy(model.bone_ubo_->data_, &identity,
-             sizeof(BoneMatricesUniformData));
-    }
-    model.bone_descriptor_ = CreateBoneDescriptors(model.bone_ubo_);
-  } else {
-    // Static model: share the identity bone descriptor
-    model.bone_ubo_ = nullptr;
-    model.bone_descriptor_ = identity_bone_descriptor_;
-  }
-
-  model.render_model = model.model_handle;
+  mr.gpu_allocated = true;
 }
 
-void Renderer::DrawModel(ModelComponent& model,
-                         const TransformComponent& transform, bool shadow_pass,
-                         entt::entity entity_handle) {
+template <typename T>
+static std::shared_ptr<Material> ResolveMeshMaterial(
+    T& mr, const std::shared_ptr<Mesh>& mesh) {
+  if (mr.material_handle.IsValid()) {
+    auto mat = Engine::asset_manager().Get<Material>(mr.material_handle);
+    if (mat) {
+      return mat;
+    }
+  }
+  return mesh->mat;
+}
+
+template <typename T>
+static void CheckMeshRendererTextureChanges(
+    Renderer* renderer, T& mr, const std::shared_ptr<Material>& material) {
+  if (!material) {
+    return;
+  }
+  bool any_changed = false;
+  TextureSlot* slots[] = {
+      &material->base_texture, &material->normal_map,  &material->specular_map,
+      &material->height_map,   &material->albedo_map,  &material->roughness_map,
+      &material->metallic_map, &material->opacity_map,
+  };
+  for (auto* slot : slots) {
+    std::shared_ptr<Texture> tex;
+    if (slot->Resolve(tex)) {
+      any_changed = true;
+    }
+  }
+  if (any_changed) {
+    if (mr.geometry_descriptor) {
+      auto old = mr.geometry_descriptor;
+      renderer->GetDeletionQueue().Push([old]() { (void)old; });
+    }
+    if (mr.shadow_descriptor) {
+      auto old = mr.shadow_descriptor;
+      renderer->GetDeletionQueue().Push([old]() { (void)old; });
+    }
+    mr.geometry_descriptor = renderer->CreateMeshDescriptors(mr.ubo, material);
+    mr.shadow_descriptor =
+        renderer->CreateShadowMeshDescriptors(mr.ubo, material);
+  }
+}
+
+template <typename T>
+static void UploadMeshRendererUbo(T& mr, const TransformComponent& transform,
+                                  bool shadow_pass, entt::entity entity_handle,
+                                  uint32_t scene_index) {
+  if (shadow_pass) {
+    glm::mat4 model_matrix = transform.GetTransformMatrix();
+    memcpy(mr.ubo->data_, &model_matrix, sizeof(glm::mat4));
+  } else {
+    MatricesUniformData matrices{};
+    matrices.model_matrix = transform.GetTransformMatrix();
+    matrices.normal_matrix = transform.GetNormalMatrix();
+    if (entity_handle != entt::null) {
+      matrices.entity_id = (static_cast<uint32_t>(scene_index) << 24) |
+                           (static_cast<uint32_t>(entity_handle) + 1);
+    }
+    if (mr.material_instance) {
+      matrices.color_tint = mr.material_instance->GetColorTint();
+      float alpha_cutoff =
+          mr.material_instance->GetEffectiveFloat("alpha_cutoff");
+      if (alpha_cutoff <= 0.0f) {
+        alpha_cutoff = 0.5f;
+      }
+      matrices.material_params =
+          glm::vec4(mr.material_instance->GetRoughness(),
+                    mr.material_instance->GetMetallic(),
+                    mr.material_instance->GetSpecular(), alpha_cutoff);
+    }
+    memcpy(mr.ubo->data_, &matrices, sizeof(MatricesUniformData));
+  }
+}
+
+void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
+                                const TransformComponent& transform,
+                                bool shadow_pass, bool transparent_pass,
+                                entt::entity entity_handle,
+                                std::shared_ptr<DescriptorSet> ibl_descriptor) {
   PROFILE_ZONE_SCOPED();
-  AssetManager& assets = Engine::asset_manager();
-  const std::shared_ptr<Model>& ptr =
-      assets.GetOrLoad<Model>(model.model_handle);
-  if (!ptr) {
+  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return;
   }
 
-  // Lazily allocate per-entity render data (or re-allocate if model/textures changed)
-  if (model.render_model != model.model_handle || !model.uniform_buffer ||
-      invalidate_model_descriptors_) {
-    AllocateModelRenderData(model, *ptr);
+  auto& mesh = model_data->meshes[mr.mesh_index];
+  // In geometry pass, skip transparent meshes. In transparent pass, skip opaque.
+  if (!shadow_pass) {
+    if (transparent_pass && !mesh->has_transparency) {
+      return;
+    }
+    if (!transparent_pass && mesh->has_transparency) {
+      return;
+    }
   }
 
-  // Upload bone matrices if this entity has a bone UBO
-  if (model.bone_ubo_ && model.bone_ubo_->data_) {
-    // bone_matrices are written by the animation system each frame
-    // (AnimatorComponent → bone_matrices → bone_ubo_)
-    // Nothing to do here; the scene's animation update already uploaded them.
+  auto material = ResolveMeshMaterial(mr, mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, material);
   }
 
-  // Determine the bone descriptor to bind
-  std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
-                                                 ? model.bone_descriptor_
-                                                 : identity_bone_descriptor_;
+  CheckMeshRendererTextureChanges(this, mr, material);
+  UploadMeshRendererUbo(mr, transform, shadow_pass, entity_handle,
+                        current_scene_index_);
 
-  // Cache global descriptor and command buffer outside mesh loop
-  std::shared_ptr<DescriptorSet> global_desc =
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  auto global_desc =
       shadow_pass
           ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
           : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
-  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  auto descriptors =
+      shadow_pass ? mr.shadow_descriptor : mr.geometry_descriptor;
 
+  DrawMeshCmd(cmd, mesh, descriptors, identity_bone_descriptor_, global_desc,
+              ibl_descriptor);
   stats_.models++;
-  for (size_t i = 0; i < ptr->meshes.size(); i++) {
-    // Skip transparent meshes in geometry pass (they use the forward transparency pass)
-    if (!shadow_pass && ptr->meshes[i]->has_transparency) {
-      continue;
-    }
-    if (shadow_pass) {
-      // Shadow pass: only model_matrix is needed by the shadow vertex shader.
-      // Skip normal_matrix inverse, material lookups, and entity_id.
-      glm::mat4 model_matrix;
-      if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        model_matrix =
-            transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
-      } else {
-        model_matrix = transform.GetTransformMatrix();
-      }
-      memcpy(model.mesh_uniform_buffers_[i]->data_, &model_matrix,
-             sizeof(glm::mat4));
-    } else {
-      MatricesUniformData matrices{};
-      if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        glm::mat4 mesh_model =
-            transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
-        matrices.model_matrix = mesh_model;
-        matrices.normal_matrix =
-            glm::mat3(glm::transpose(glm::inverse(mesh_model)));
-      } else {
-        matrices.model_matrix = transform.GetTransformMatrix();
-        matrices.normal_matrix = transform.GetNormalMatrix();
-      }
-      if (entity_handle != entt::null) {
-        matrices.entity_id =
-            (static_cast<uint32_t>(current_scene_index_) << 24) |
-            (static_cast<uint32_t>(entity_handle) + 1);
-      }
-
-      // Set per-mesh material properties
-      if (i < model.material_instances.size() && model.material_instances[i]) {
-        auto& inst = model.material_instances[i];
-        matrices.color_tint = inst->GetColorTint();
-        matrices.material_params =
-            glm::vec4(inst->GetRoughness(), inst->GetMetallic(),
-                      inst->GetSpecular(), 0.0f);
-      }
-
-      memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices,
-             sizeof(MatricesUniformData));
-    }
-
-    // Check if any texture in this mesh's material has changed
-    std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
-    {
-      std::shared_ptr<Material> eff_mat = nullptr;
-      if (i < model.material_slot_handles.size() &&
-          model.material_slot_handles[i].IsValid()) {
-        eff_mat = Engine::asset_manager().Get<Material>(
-            model.material_slot_handles[i]);
-      }
-      if (!eff_mat) {
-        eff_mat = ptr->meshes[i]->mat;
-      }
-      if (eff_mat) {
-        // Resolve all texture slots - if any changed, rebuild descriptors
-        bool any_changed = false;
-        TextureSlot* slots[] = {
-            &eff_mat->base_texture, &eff_mat->normal_map,
-            &eff_mat->specular_map, &eff_mat->height_map,
-            &eff_mat->albedo_map,   &eff_mat->roughness_map,
-            &eff_mat->metallic_map,
-        };
-        for (auto* slot : slots) {
-          std::shared_ptr<Texture> tex;
-          if (slot->Resolve(tex)) {
-            any_changed = true;
-          }
-        }
-        if (any_changed) {
-          // Defer old descriptors so in-flight frames can finish using them
-          if (model.geometry_descriptors[i]) {
-            auto old_geom = model.geometry_descriptors[i];
-            deletion_queue_.Push([old_geom]() { (void)old_geom; });
-          }
-          if (model.shadow_descriptors[i]) {
-            auto old_shadow = model.shadow_descriptors[i];
-            deletion_queue_.Push([old_shadow]() { (void)old_shadow; });
-          }
-          model.geometry_descriptors[i] =
-              CreateMeshDescriptors(model.mesh_uniform_buffers_[i], eff_mat);
-          model.shadow_descriptors[i] = CreateShadowMeshDescriptors(
-              model.mesh_uniform_buffers_[i], eff_mat);
-          descriptors = model.geometry_descriptors[i];
-        }
-      }
-    }
-    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
-  }
 }
 
-void Renderer::DrawModelTransparent(
-    ModelComponent& model, const TransformComponent& transform,
+void Renderer::DrawSkinnedMeshRenderer(
+    SkinnedMeshRendererComponent& mr, const TransformComponent& transform,
+    const SkeletalAnimRuntime* skel, bool shadow_pass, bool transparent_pass,
     entt::entity entity_handle, std::shared_ptr<DescriptorSet> ibl_descriptor) {
   PROFILE_ZONE_SCOPED();
-  AssetManager& assets = Engine::asset_manager();
-  const std::shared_ptr<Model>& ptr =
-      assets.GetOrLoad<Model>(model.model_handle);
-  if (!ptr || !ptr->has_transparent_meshes) {
+  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return;
   }
 
-  if (model.render_model != model.model_handle || !model.uniform_buffer ||
-      invalidate_model_descriptors_) {
-    AllocateModelRenderData(model, *ptr);
+  auto& mesh = model_data->meshes[mr.mesh_index];
+  if (!shadow_pass) {
+    if (transparent_pass && !mesh->has_transparency) {
+      return;
+    }
+    if (!transparent_pass && mesh->has_transparency) {
+      return;
+    }
   }
 
-  std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
-                                                 ? model.bone_descriptor_
-                                                 : identity_bone_descriptor_;
+  auto material = ResolveMeshMaterial(mr, mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, material);
+  }
 
-  std::shared_ptr<DescriptorSet> global_desc =
-      camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  CheckMeshRendererTextureChanges(this, mr, material);
+  UploadMeshRendererUbo(mr, transform, shadow_pass, entity_handle,
+                        current_scene_index_);
+
+  std::shared_ptr<DescriptorSet> bone_desc = identity_bone_descriptor_;
+  if (skel && skel->bone_descriptor) {
+    bone_desc = skel->bone_descriptor;
+  }
+
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  auto global_desc =
+      shadow_pass
+          ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
+          : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  auto descriptors =
+      shadow_pass ? mr.shadow_descriptor : mr.geometry_descriptor;
 
-  for (size_t i = 0; i < ptr->meshes.size(); i++) {
-    if (!ptr->meshes[i]->has_transparency) {
-      continue;
-    }
-
-    MatricesUniformData matrices{};
-    if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-      glm::mat4 mesh_model =
-          transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
-      matrices.model_matrix = mesh_model;
-      matrices.normal_matrix =
-          glm::mat3(glm::transpose(glm::inverse(mesh_model)));
-    } else {
-      matrices.model_matrix = transform.GetTransformMatrix();
-      matrices.normal_matrix = transform.GetNormalMatrix();
-    }
-    if (entity_handle != entt::null) {
-      matrices.entity_id = (static_cast<uint32_t>(current_scene_index_) << 24) |
-                           (static_cast<uint32_t>(entity_handle) + 1);
-    }
-
-    if (i < model.material_instances.size() && model.material_instances[i]) {
-      auto& inst = model.material_instances[i];
-      matrices.color_tint = inst->GetColorTint();
-      matrices.material_params = glm::vec4(
-          inst->GetRoughness(), inst->GetMetallic(), inst->GetSpecular(), 0.0f);
-    }
-
-    memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices,
-           sizeof(MatricesUniformData));
-
-    std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
-    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc,
-                ibl_descriptor);
-  }
+  DrawMeshCmd(cmd, mesh, descriptors, bone_desc, global_desc, ibl_descriptor);
+  stats_.models++;
 }
 
 void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
@@ -3914,7 +3834,8 @@ void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
                               uint32_t entity_id) {
   // Lazily allocate GPU resources
   if (!rect.ubo_) {
-    rect.ubo_ = CreateUniformBuffer("Rectangle Transform UBO", sizeof(CanvasElementUniformData));
+    rect.ubo_ = CreateUniformBuffer("Rectangle Transform UBO",
+                                    sizeof(CanvasElementUniformData));
     rect.descriptor_ = std::make_shared<DescriptorSet>();
     rect.descriptor_->SetLayout(layout);
     rect.descriptor_->AddUniformBuffer(0, rect.ubo_);

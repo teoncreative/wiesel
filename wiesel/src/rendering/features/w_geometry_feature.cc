@@ -12,6 +12,8 @@
 #include "rendering/features/w_geometry_feature.h"
 #include "asset/w_asset_manager.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_render_utils.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -92,6 +94,22 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->AddShader(vert);
   pipeline_->AddShader(frag);
   pipeline_->Bake();
+
+  pipeline_double_sided_ = std::make_shared<Pipeline>(
+      PipelineProperties{renderer_->options().msaa_mode, CullModeNone,
+                         renderer_->options().wireframe_enabled, false});
+  pipeline_double_sided_->SetVertexData(Vertex3D::GetBindingDescription(),
+                                        Vertex3D::GetAttributeDescriptions());
+  pipeline_double_sided_->SetRenderPass(render_pass_);
+  pipeline_double_sided_->AddInputLayout(
+      renderer_->GetDescriptorLayout("GeometryMesh"));
+  pipeline_double_sided_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Global"));
+  pipeline_double_sided_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Bone"));
+  pipeline_double_sided_->AddShader(vert);
+  pipeline_double_sided_->AddShader(frag);
+  pipeline_double_sided_->Bake();
 }
 
 void GeometryFeature::SetupResources(RenderContext& ctx) {
@@ -287,31 +305,71 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   MultiScene& scenes = ctx.scenes;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
+  auto pipeline_ds = pipeline_double_sided_;
 
-  uint32_t geo = graph.AddPass(
-      "Geometry", render_pass_, [pipeline, &scenes, renderer](VkCommandBuffer) {
-        pipeline->Bind(PipelineBindPointGraphics);
-        const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
-        auto& assets = Engine::asset_manager();
-        scenes.ForEach<ModelComponent, TransformComponent>(
-            [&](Scene& scene, entt::entity entity) {
-              auto& model = scene.GetComponent<ModelComponent>(entity);
-              auto& transform = scene.GetComponent<TransformComponent>(entity);
-              if (!model.enable_rendering || !model.model_handle) {
-                return;
-              }
-              const auto& model_data =
-                  assets.GetOrLoad<Model>(model.model_handle);
-              if (model_data && model_data->bounds.Valid()) {
-                AABB world_bounds = model_data->bounds.Transformed(
-                    transform.GetTransformMatrix());
-                if (frustum.IsBoxOutside(world_bounds.min, world_bounds.max)) {
-                  return;
-                }
-              }
-              renderer->DrawModel(model, transform, false, entity);
-            });
-      });
+  // Helper lambdas for drawing mesh renderers with frustum culling
+  auto draw_static_meshes = [&scenes, renderer](bool double_sided_pass) {
+    const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+    scenes.ForEach<MeshRendererComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+          if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
+            return;
+          }
+          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
+              double_sided_pass) {
+            return;
+          }
+          auto& transform = scene.GetComponent<TransformComponent>(entity);
+          if (FrustumCullMesh(frustum, mr.model_handle, mr.mesh_index,
+                              transform.GetTransformMatrix())) {
+            return;
+          }
+          renderer->DrawMeshRenderer(mr, transform, false, false, entity);
+        });
+  };
+
+  auto draw_skinned_meshes = [&scenes, renderer](bool double_sided_pass) {
+    const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+    scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& mr = scene.GetComponent<SkinnedMeshRendererComponent>(entity);
+          if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
+            return;
+          }
+          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
+              double_sided_pass) {
+            return;
+          }
+          const TransformComponent* draw_transform =
+              &scene.GetComponent<TransformComponent>(entity);
+          const SkeletalAnimRuntime* skel = nullptr;
+          if (!ResolveSkeletonRoot(scene, mr, draw_transform, skel)) {
+            return;
+          }
+          if (FrustumCullSkinned(frustum, skel,
+                                 draw_transform->GetTransformMatrix())) {
+            return;
+          }
+          renderer->DrawSkinnedMeshRenderer(mr, *draw_transform, skel, false,
+                                            false, entity);
+        });
+  };
+
+  uint32_t geo = graph.AddPass("Geometry", render_pass_,
+                               [pipeline, pipeline_ds, draw_static_meshes,
+                                draw_skinned_meshes](VkCommandBuffer) {
+                                 // Phase 1: back-face culled (single-sided)
+                                 pipeline->Bind(PipelineBindPointGraphics);
+
+                                 draw_static_meshes(false);
+                                 draw_skinned_meshes(false);
+
+                                 // Phase 2: double-sided (no backface culling)
+                                 pipeline_ds->Bind(PipelineBindPointGraphics);
+                                 draw_static_meshes(true);
+                                 draw_skinned_meshes(true);
+                               });
 
   graph.PassWritesColor(geo, geo_view_pos);
   graph.PassWritesColor(geo, geo_world_pos);

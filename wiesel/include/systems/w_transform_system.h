@@ -27,6 +27,8 @@ class TransformSystem : public ISystem {
 
   bool RunOnFirstUpdate() const override { return true; }
 
+  bool RunInEditor() const override { return true; }
+
  private:
   glm::mat4 MakeLocal(const TransformComponent& transform);
   glm::mat4 GetWorldMatrix(Scene& scene, entt::entity entity);

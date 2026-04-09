@@ -31,11 +31,16 @@ class ShadowFeature : public RenderFeature {
 
   std::shared_ptr<Pipeline> GetPipeline() const { return pipeline_; }
 
+  std::shared_ptr<Pipeline> GetNoCullPipeline() const {
+    return pipeline_no_cull_;
+  }
+
  private:
   static inline std::string name_ = "Shadow";
   std::shared_ptr<Renderer> renderer_;
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline> pipeline_no_cull_;
   std::shared_ptr<ShadowPipelinePushConstant> push_constant_;
 };
 

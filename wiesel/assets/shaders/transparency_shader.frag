@@ -7,6 +7,7 @@ uint kVertexFlagHasHeightMap = 1 << 3;
 uint kVertexFlagHasAlbedoMap = 1 << 4;
 uint kVertexFlagHasRoughnessMap = 1 << 5;
 uint kVertexFlagHasMetallicMap = 1 << 6;
+uint kVertexFlagHasOpacityMap = 1 << 7;
 
 struct LightBase {
     vec3 position;
@@ -55,6 +56,7 @@ layout(set = 0, binding = 4) uniform sampler2D heightMap;
 layout(set = 0, binding = 5) uniform sampler2D albedoMap;
 layout(set = 0, binding = 6) uniform sampler2D roughnessMap;
 layout(set = 0, binding = 7) uniform sampler2D metallicMap;
+layout (set = 0, binding = 8) uniform sampler2D opacityMap;
 
 // Set 1: global data (lights + camera)
 const int MAX_LIGHTS = 16;
@@ -110,12 +112,13 @@ void main() {
         baseColor = texture(baseTexture, inUV);
     } else if ((inFlags & kVertexFlagHasAlbedoMap) > 0) {
         baseColor = texture(albedoMap, inUV);
+    } else if ((inFlags & kVertexFlagHasOpacityMap) > 0) {
+        baseColor = texture(opacityMap, inUV);
     } else {
         baseColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
     baseColor *= colorTint;
 
-    // Discard fully transparent pixels
     if (baseColor.a < 0.01) {
         discard;
     }

@@ -88,7 +88,7 @@ enum TextureType {
 		 *  Usually 'white' means opaque and 'black' means
 		 *  'transparency'. Or quite the opposite. Have fun.
 		*/
-  TextureTypeOpacty = 8,
+  TextureTypeOpacity = 8,
 
   /** Displacement texture
 		 *

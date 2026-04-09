@@ -24,6 +24,7 @@
 #include "w_engine.h"
 #include "w_project_loader.h"
 #include "w_thumbnail_cache.h"
+#include "w_undo.h"
 
 namespace Wiesel::Editor {
 
@@ -658,6 +659,25 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
 
   // Open the export directory
   OpenFileInDefaultEditor(export_dir);
+}
+
+void EditorLayer::InstantiateModelAsset(AssetHandle handle) {
+  const auto* meta = Engine::asset_manager().GetMetadata(handle);
+  if (!meta || meta->type != AssetType::Model) {
+    return;
+  }
+  auto entity = scene()->InstantiateModel(handle, meta->name);
+  if (entity.handle() != entt::null) {
+    auto shared_scene = Engine::scene_manager().FindSceneByPtr(scene().get());
+    if (shared_scene) {
+      command_stack_.Execute(
+          std::make_unique<EntityCreateCommand>(shared_scene, entity.handle()));
+    }
+    selected_entity_ = entity.handle();
+    selected_entity_scene_ = shared_scene;
+    has_selected_entity_ = true;
+    scene_dirty_ = true;
+  }
 }
 
 }  // namespace Wiesel::Editor

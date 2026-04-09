@@ -22,15 +22,19 @@
 #include "animation/w_animation_controller.h"
 #include "animation/w_animator.h"
 #include "asset/w_asset_manager.h"
+#include "asset/w_asset_registry.h"
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "cursor/w_cursor.h"
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
 #include "rendering/features/w_canvas_feature.h"
+#include "rendering/w_camera.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_renderer.h"
 #include "scene/w_entity.h"
+#include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
 #include "systems/w_agent_system.h"
 #include "systems/w_animation_system.h"
@@ -41,6 +45,7 @@
 #include "systems/w_canvas_system.h"
 #include "systems/w_light_system.h"
 #include "systems/w_physics_system.h"
+#include "systems/w_skinned_mesh_system.h"
 #include "systems/w_text_input_system.h"
 #include "systems/w_transform_system.h"
 #include "systems/w_ui_document_system.h"
@@ -66,6 +71,7 @@ Scene::Scene() {
   AddSystem<PhysicsSimulationSystem>();
   AddSystem<TransformSystem>();
   AddSystem<LightSystem>();
+  AddSystem<SkinnedMeshSystem>();
   AddSystem<AnimationSystem>();
   AddSystem<CameraSystem>();
   AddSystem<UIDocumentSystem>();
@@ -239,7 +245,7 @@ void Scene::RequestAsset(AssetHandle handle) {
 
   // Only track asset types that have a registered loader
   const AssetMetadata* meta = Engine::asset_manager().GetMetadata(handle);
-  if (!meta || !Engine::asset_manager().GetLoader(meta->type)) {
+  if (!meta || !AssetRegistry::HasLoader(meta->type)) {
     return;
   }
 
@@ -319,8 +325,9 @@ void Scene::OnUpdate(float_t delta_time) {
 
 void Scene::OnUpdateEditor(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
+  // Only run systems marked as editor-safe.
   for (auto& system : systems_) {
-    if (!system->RunOnFirstUpdate()) {
+    if (!system->RunInEditor()) {
       continue;
     }
     system->Update(*this, delta_time);
@@ -572,17 +579,6 @@ void Scene::Cleanup() {
     camera.render_pipeline = nullptr;
   }
 
-  // Clear per-entity render data (descriptor sets, uniform buffers).
-  for (entt::entity entity : registry_.view<ModelComponent>()) {
-    auto& model = registry_.get<ModelComponent>(entity);
-    model.geometry_descriptors.clear();
-    model.shadow_descriptors.clear();
-    model.uniform_buffer = nullptr;
-    model.bone_ubo_ = nullptr;
-    model.bone_descriptor_ = nullptr;
-    model.mesh_uniform_buffers_.clear();
-  }
-
   for (entt::entity entity : registry_.view<CanvasRectComponent>()) {
     auto& rect = registry_.get<CanvasRectComponent>(entity);
     rect.descriptor_ = nullptr;
@@ -633,4 +629,179 @@ void Scene::SetRenderPipeline(entt::entity camera_entity,
 void MultiScene::SetSceneIndex(uint8_t index) {
   Engine::renderer()->SetCurrentSceneIndex(index);
 }
+
+Entity Scene::InstantiateModel(AssetHandle model_handle,
+                               const std::string& name) {
+  auto model_data = Engine::asset_manager().GetOrLoad<Model>(model_handle);
+  if (!model_data) {
+    LOG_ERROR("InstantiateModel: failed to load model");
+    return Entity{entt::null, this};
+  }
+
+  const auto& hierarchy = model_data->node_hierarchy;
+  if (hierarchy.nodes.empty()) {
+    LOG_ERROR("InstantiateModel: model has no nodes");
+    return Entity{entt::null, this};
+  }
+
+  // Create one entity per node in the hierarchy
+  std::vector<entt::entity> node_entities(
+      hierarchy.nodes.size(), static_cast<entt::entity>(entt::null));
+
+  for (int32_t i = 0; i < static_cast<int32_t>(hierarchy.nodes.size()); i++) {
+    const auto& node = hierarchy.nodes[i];
+    std::string node_name = node.name;
+    if (node_name.empty()) {
+      node_name = "Node_" + std::to_string(i);
+    }
+    // Use the provided name for the root node
+    if (i == hierarchy.root_index && !name.empty()) {
+      node_name = name;
+    }
+
+    Entity entity = CreateEntity(node_name);
+    node_entities[i] = entity.handle();
+
+    // Apply each node's local transform. Skip the root node - its transform
+    // is the FBX axis conversion (bone matrices already include it via the
+    // hierarchy). For direct children of root, rotate their position by root's
+    // rotation so they end up in the correct world position.
+    if (i != hierarchy.root_index) {
+      auto& tc = entity.GetComponent<TransformComponent>();
+      glm::vec3 pos, scale, skew;
+      glm::quat rot;
+      glm::vec4 persp;
+      if (glm::decompose(node.local_transform, scale, rot, pos, skew, persp)) {
+        if (node.parent_index == hierarchy.root_index) {
+          glm::mat3 root_rot =
+              glm::mat3(hierarchy.nodes[hierarchy.root_index].local_transform);
+          pos = root_rot * pos;
+        }
+        tc.SetPosition(pos);
+        tc.SetRotation(glm::degrees(glm::eulerAngles(rot)));
+        tc.SetScale(scale);
+      }
+    }
+
+    // Add mesh components. If a node has multiple meshes, create child
+    // entities for each additional mesh (entt allows one component per type).
+    for (size_t mi = 0; mi < node.mesh_indices.size(); mi++) {
+      int32_t mesh_idx = node.mesh_indices[mi];
+      if (mesh_idx < 0 ||
+          mesh_idx >= static_cast<int32_t>(model_data->meshes.size())) {
+        continue;
+      }
+
+      Entity mesh_entity = entity;
+      if (mi > 0) {
+        std::string mesh_name = node_name + "_mesh" + std::to_string(mi);
+        mesh_entity = CreateEntity(mesh_name);
+        LinkEntities(entity.handle(), mesh_entity.handle(), false);
+      }
+
+      auto& mesh = model_data->meshes[mesh_idx];
+      if (model_data->has_skeleton) {
+        auto& smr = mesh_entity.AddComponent<SkinnedMeshRendererComponent>();
+        smr.model_handle = model_handle;
+        smr.mesh_index = mesh_idx;
+        if (mesh->material_handle.IsValid()) {
+          smr.material_handle = mesh->material_handle;
+        }
+      } else {
+        auto& mr = mesh_entity.AddComponent<MeshRendererComponent>();
+        mr.model_handle = model_handle;
+        mr.mesh_index = mesh_idx;
+        if (mesh->material_handle.IsValid()) {
+          mr.material_handle = mesh->material_handle;
+        }
+      }
+    }
+
+    // Add camera components for matching nodes
+    for (const auto& cam : model_data->imported_cameras) {
+      if (cam.node_name == node.name) {
+        auto& cc = entity.AddComponent<CameraComponent>();
+        cc.field_of_view = cam.fov;
+        cc.near_plane = cam.near_plane;
+        cc.far_plane = cam.far_plane;
+        if (cam.aspect_ratio > 0.0f) {
+          cc.aspect_ratio = cam.aspect_ratio;
+        }
+        cc.enabled = false;
+
+        // Compute camera rotation from look_at/up vectors. The node's rotation
+        // plus the root's axis conversion give the full world orientation.
+        auto& tc = entity.GetComponent<TransformComponent>();
+        glm::vec3 p, s, sk;
+        glm::quat node_rot;
+        glm::vec4 pr;
+        glm::decompose(node.local_transform, s, node_rot, p, sk, pr);
+        // Include root rotation for nodes that are direct children of root
+        if (node.parent_index == hierarchy.root_index) {
+          glm::quat root_rot = glm::quat_cast(
+              glm::mat3(hierarchy.nodes[hierarchy.root_index].local_transform));
+          node_rot = root_rot * node_rot;
+        }
+
+        glm::vec3 world_forward = glm::normalize(-(node_rot * cam.look_at));
+        glm::vec3 world_up = glm::normalize(node_rot * cam.up);
+        glm::vec3 right = glm::normalize(glm::cross(world_up, world_forward));
+        world_up = glm::cross(world_forward, right);
+
+        // Columns: X=right, Y=up, Z=forward matches our camera convention
+        glm::mat3 cam_rot(right, world_up, world_forward);
+        glm::quat cam_quat = glm::quat_cast(cam_rot);
+        tc.SetRotation(glm::degrees(glm::eulerAngles(cam_quat)));
+
+        break;
+      }
+    }
+
+    // Add light components for matching nodes
+    for (const auto& light : model_data->imported_lights) {
+      if (light.node_name == node.name) {
+        if (light.type == Model::ImportedLight::Type::Directional) {
+          auto& lc = entity.AddComponent<LightDirectComponent>();
+          lc.light_data.base.color = light.color;
+          lc.light_data.base.density = light.intensity;
+        } else if (light.type == Model::ImportedLight::Type::Point ||
+                   light.type == Model::ImportedLight::Type::Spot) {
+          auto& lc = entity.AddComponent<LightPointComponent>();
+          lc.light_data.base.color = light.color;
+          lc.light_data.base.density = light.intensity;
+          lc.light_data.constant = light.attenuation_constant;
+          lc.light_data.linear = light.attenuation_linear;
+          lc.light_data.exp = light.attenuation_quadratic;
+        }
+        break;
+      }
+    }
+
+    // Link to parent
+    if (node.parent_index >= 0 &&
+        node.parent_index < static_cast<int32_t>(node_entities.size()) &&
+        node_entities[node.parent_index] != entt::null) {
+      LinkEntities(node_entities[node.parent_index], entity.handle(), false);
+    }
+  }
+
+  entt::entity root = node_entities[hierarchy.root_index];
+
+  // For skeletal models: add AnimatorComponent on the root, and set
+  // skeleton_root on all SkinnedMeshRendererComponents
+  if (model_data->has_skeleton) {
+    // Set skeleton_root on all skinned meshes that reference this model
+    int skinned_count = 0;
+    for (auto e : registry_.view<SkinnedMeshRendererComponent>()) {
+      auto& smr = registry_.get<SkinnedMeshRendererComponent>(e);
+      if (smr.model_handle == model_handle && smr.skeleton_root == entt::null) {
+        smr.skeleton_root = root;
+        skinned_count++;
+      }
+    }
+  }
+
+  return Entity{root, this};
+}
+
 }  // namespace Wiesel

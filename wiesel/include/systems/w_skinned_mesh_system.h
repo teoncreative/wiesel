@@ -14,13 +14,16 @@
 
 namespace Wiesel {
 
-class LightSystem : public ISystem {
+// Ensures SkeletalAnimRuntime exists and is initialized for all entities
+// that have SkinnedMeshRendererComponent pointing to a skeleton root.
+// Runs before rendering so render features never need to create components.
+class SkinnedMeshSystem : public ISystem {
  public:
   void Update(Scene& scene, float delta_time) override;
 
-  const char* GetName() const override { return "Light"; }
+  const char* GetName() const override { return "SkinnedMesh"; }
 
-  int GetPriority() const override { return 900; }
+  int GetPriority() const override { return 1040; }  // before Animation (1050)
 
   bool RunOnFirstUpdate() const override { return true; }
 

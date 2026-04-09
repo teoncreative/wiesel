@@ -12,15 +12,50 @@
 
 #include "scene/w_component_serializer.h"
 #include "scene/w_entity.h"
+#include "scene/w_prefab.h"
 #include "util/w_logger.h"
 
 namespace Wiesel::Editor {
 
-// -------------------------------------------------------------------
-// CommandStack
-// -------------------------------------------------------------------
+// --- CommandStack ---
 
 void CommandStack::Execute(std::unique_ptr<IEditorCommand> cmd) {
+  pending_.push_back({PendingAction::Execute, std::move(cmd)});
+}
+
+void CommandStack::Undo() {
+  pending_.push_back({PendingAction::Undo, nullptr});
+}
+
+void CommandStack::Redo() {
+  pending_.push_back({PendingAction::Redo, nullptr});
+}
+
+void CommandStack::Flush() {
+  if (pending_.empty()) {
+    return;
+  }
+
+  // Move to local to avoid issues if commands trigger more pending entries
+  std::vector<PendingEntry> batch;
+  batch.swap(pending_);
+
+  for (auto& entry : batch) {
+    switch (entry.action) {
+      case PendingAction::Execute:
+        DoExecute(std::move(entry.cmd));
+        break;
+      case PendingAction::Undo:
+        DoUndo();
+        break;
+      case PendingAction::Redo:
+        DoRedo();
+        break;
+    }
+  }
+}
+
+void CommandStack::DoExecute(std::unique_ptr<IEditorCommand> cmd) {
   // Try merging with the current command
   if (current_ >= 0 && current_ < static_cast<int>(history_.size())) {
     if (history_[current_]->MergeWith(*cmd)) {
@@ -28,10 +63,8 @@ void CommandStack::Execute(std::unique_ptr<IEditorCommand> cmd) {
     }
   }
 
-  // Execute the command
   cmd->Execute();
 
-  // Clear any redo entries (everything after current_)
   int erase_start = current_ + 1;
   if (erase_start >= 0 && erase_start < static_cast<int>(history_.size())) {
     history_.erase(history_.begin() + erase_start, history_.end());
@@ -41,7 +74,7 @@ void CommandStack::Execute(std::unique_ptr<IEditorCommand> cmd) {
   current_ = static_cast<int>(history_.size()) - 1;
 }
 
-void CommandStack::Undo() {
+void CommandStack::DoUndo() {
   if (!CanUndo()) {
     return;
   }
@@ -49,7 +82,7 @@ void CommandStack::Undo() {
   current_--;
 }
 
-void CommandStack::Redo() {
+void CommandStack::DoRedo() {
   if (!CanRedo()) {
     return;
   }
@@ -59,6 +92,7 @@ void CommandStack::Redo() {
 
 void CommandStack::Clear() {
   history_.clear();
+  pending_.clear();
   current_ = -1;
 }
 
@@ -69,9 +103,7 @@ IEditorCommand* CommandStack::GetCurrent() const {
   return nullptr;
 }
 
-// -------------------------------------------------------------------
-// TransformCommand
-// -------------------------------------------------------------------
+// --- TransformCommand ---
 
 TransformCommand::TransformCommand(std::shared_ptr<Scene> scene,
                                    entt::entity entity, glm::vec3 old_pos,
@@ -125,9 +157,7 @@ bool TransformCommand::MergeWith(const IEditorCommand& other) {
   return true;
 }
 
-// -------------------------------------------------------------------
-// EntityCreateCommand
-// -------------------------------------------------------------------
+// --- EntityCreateCommand ---
 
 EntityCreateCommand::EntityCreateCommand(std::shared_ptr<Scene> scene,
                                          entt::entity entity)
@@ -184,39 +214,39 @@ std::string EntityCreateCommand::GetDescription() const {
   return "Create " + name_;
 }
 
-// -------------------------------------------------------------------
-// EntityDeleteCommand
-// -------------------------------------------------------------------
+// --- EntityDeleteCommand ---
 
 EntityDeleteCommand::EntityDeleteCommand(std::shared_ptr<Scene> scene,
                                          entt::entity entity)
     : scene_(std::move(scene)), entity_(entity) {
-  // Capture full state before deletion
   Entity ent{entity_, scene_.get()};
-  uuid_ = ent.GetUUID();
   name_ = ent.GetName();
-  components_ = nlohmann::json::object();
-  ComponentSerializerRegistry::SerializeAll(ent, components_);
 
+  // Capture parent UUID so we can re-link on undo
   if (scene_->HasComponent<TreeComponent>(entity_)) {
     auto& tree = scene_->GetComponent<TreeComponent>(entity_);
     if (tree.parent != entt::null && scene_->HasEntity(tree.parent)) {
       parent_uuid_ = scene_->GetComponent<IdComponent>(tree.parent).Id;
     }
   }
+
+  // Serialize the entire entity subtree (entity + all children)
+  subtree_json_ = Prefab::SerializeEntityTree(ent);
 }
 
 void EntityDeleteCommand::Execute() {
   if (scene_->HasEntity(entity_)) {
-    scene_->RemoveEntity(Entity{entity_, scene_.get()});
+    // Re-capture before deletion in case state changed
+    Entity ent{entity_, scene_.get()};
+    subtree_json_ = Prefab::SerializeEntityTree(ent);
+    scene_->RemoveEntity(ent);
     scene_->ProcessDestroyQueue();
   }
 }
 
 void EntityDeleteCommand::Undo() {
-  Entity ent = scene_->CreateEntityWithUUID(uuid_, name_);
-  entity_ = ent.handle();
-  ComponentSerializerRegistry::DeserializeAll(ent, components_, scene_.get());
+  Entity root = Prefab::DeserializeEntityTree(scene_, subtree_json_);
+  entity_ = root.handle();
 
   if (!parent_uuid_.IsNil()) {
     entt::entity parent = scene_->FindEntityByUUID(parent_uuid_);
@@ -230,9 +260,7 @@ std::string EntityDeleteCommand::GetDescription() const {
   return "Delete " + name_;
 }
 
-// -------------------------------------------------------------------
-// ReparentCommand
-// -------------------------------------------------------------------
+// --- ReparentCommand ---
 
 ReparentCommand::ReparentCommand(std::shared_ptr<Scene> scene,
                                  entt::entity entity, entt::entity old_parent,
@@ -270,9 +298,7 @@ std::string ReparentCommand::GetDescription() const {
   return "Reparent Entity";
 }
 
-// -------------------------------------------------------------------
-// CompoundCommand
-// -------------------------------------------------------------------
+// --- CompoundCommand ---
 
 CompoundCommand::CompoundCommand(std::string description)
     : description_(std::move(description)) {}

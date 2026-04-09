@@ -12,6 +12,7 @@
 
 #include <imgui.h>
 
+#include "asset/w_asset_manager.h"
 #include "imgui_internal.h"
 #include "scene/w_lights.h"
 #include "scene/w_prefab.h"
@@ -39,8 +40,9 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
     for (const char* shape : shapes) {
       if (ImGui::MenuItem(shape)) {
         created = scene.CreateEntity(shape);
-        auto& mc = created.AddComponent<ModelComponent>();
+        auto& mc = created.AddComponent<MeshRendererComponent>();
         mc.model_handle = Engine::GetPrimitive(shape);
+        mc.mesh_index = 0;
       }
     }
     ImGui::EndMenu();
@@ -175,8 +177,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
                       std::to_string(static_cast<uint32_t>(entity_id));
 
   ImGuiTreeNodeFlags flags =
-      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth |
-      ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Framed;
+      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
   if (is_selected) {
     flags |= ImGuiTreeNodeFlags_Selected;
   }
@@ -203,6 +204,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     selected_entity_ = entity_id;
     selected_entity_scene_ = entity_scene;
     has_selected_entity_ = true;
+    inspector_mode_ = InspectorMode::Entity;
   }
 
   // Double-click to navigate editor camera to entity
@@ -302,7 +304,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
 void EditorLayer::RenderSceneHierarchyPanel() {
   bool& scene_open = panel_scene_hierarchy_;
   if (scene_open) {
-    if (ImGui::Begin(ICON_HIERARCHY " Scene Hierarchy", &scene_open)) {
+    if (ImGui::Begin(CODICON_SYMBOL_RULER " Scene Hierarchy", &scene_open)) {
       bool ignoreMenu = false;
 
       if (editing_prefab_) {
@@ -410,6 +412,13 @@ void EditorLayer::RenderSceneHierarchyPanel() {
                 scene_dirty_ = true;
               }
             }
+          }
+          // Accept model asset drop to instantiate
+          if (const ImGuiPayload* payload =
+                  ImGui::AcceptDragDropPayload("AssetHandle")) {
+            AssetHandle handle =
+                *static_cast<const AssetHandle*>(payload->Data);
+            InstantiateModelAsset(handle);
           }
           ImGui::EndDragDropTarget();
         }

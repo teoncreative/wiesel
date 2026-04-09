@@ -1,6 +1,6 @@
 #version 450
 
-#define MAX_BONES 128
+#define MAX_BONES 256
 
 layout(set = 0, binding = 0, std140) uniform Matrices {
     mat4 modelMatrix;

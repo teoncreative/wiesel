@@ -14,7 +14,7 @@
 
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
-#include "asset/w_asset_property_registry.h"
+#include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
 #include "input/w_input.h"
 #include "rendering/w_material.h"

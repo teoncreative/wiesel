@@ -17,6 +17,7 @@
 #include "animation/w_state_machine.h"
 #include "core/w_reflect.h"
 #include "events/w_events.h"
+#include "math/w_aabb.h"
 #include "rendering/w_buffer.h"
 #include "rendering/w_descriptor.h"
 #include "rendering/w_texture.h"
@@ -294,7 +295,7 @@ struct AnimatorComponent : public IComponent {
 };
 
 // Transient runtime data for skeletal animation. Emplaced automatically
-// by AnimationSystem when the entity has AnimatorComponent + ModelComponent.
+// by AnimationSystem when the entity has AnimatorComponent.
 struct SkeletalAnimRuntime {
   // Crossfade blending
   bool is_blending = false;
@@ -310,6 +311,10 @@ struct SkeletalAnimRuntime {
   std::vector<glm::mat4> bone_matrices;
   std::vector<glm::mat4> node_transforms;
 
+  // Max distance any bone reaches from origin in the current clip.
+  // Used to expand frustum culling bounds.
+  float max_bone_reach = 0.0f;
+
   // Bone overrides, applied after animation eval, before GPU upload
   struct BoneOverride {
     std::string bone_name;
@@ -320,6 +325,25 @@ struct SkeletalAnimRuntime {
   };
 
   std::vector<BoneOverride> bone_overrides;
+
+  // GPU resources for bone matrices (shared by all skinned meshes referencing
+  // this entity as skeleton_root). Allocated lazily by the renderer.
+  std::shared_ptr<UniformBuffer> bone_ubo;
+  std::shared_ptr<DescriptorSet> bone_descriptor;
+
+  // Rest pose AABB computed from skinned vertices with bone matrices applied.
+  // Used for frustum culling and debug bounds visualization.
+  AABB rest_pose_bounds;
+
+  // The model asset handle (needed for skeleton data access).
+  AssetHandle model_handle;
+
+  // Whether Initialize() has been called.
+  bool initialized = false;
+
+  // One-time setup: compute rest pose bone matrices, create bone UBO,
+  // compute rest pose AABB. Call once after model_handle is set.
+  void Initialize();
 };
 
 // Transient runtime data for sprite animation. Emplaced automatically

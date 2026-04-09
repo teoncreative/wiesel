@@ -13,7 +13,7 @@
 //
 
 #include "asset/w_asset_manager.h"
-
+#include "asset/w_asset_registry.h"
 #include "events/w_appevents.h"
 #include "util/w_thread_pool.h"
 #include "w_engine.h"
@@ -403,7 +403,7 @@ void AssetManager::ReloadAllOfType(AssetType type) {
         to_reload.push_back(handle);
       }
     }
-    if (loaders_.find(type) == loaders_.end()) {
+    if (!AssetRegistry::HasLoader(type)) {
       return;
     }
   }
@@ -470,23 +470,8 @@ void AssetManager::Clear() {
   dependent_to_parents_.clear();
 }
 
-void AssetManager::RegisterLoader(AssetType type,
-                                  std::shared_ptr<IAssetLoader> loader) {
-  std::unique_lock lock(registry_mutex_);
-  loaders_[type] = std::move(loader);
-}
-
-IAssetLoader* AssetManager::GetLoader(AssetType type) const {
-  std::shared_lock lock(registry_mutex_);
-  auto it = loaders_.find(type);
-  if (it != loaders_.end()) {
-    return it->second.get();
-  }
-  return nullptr;
-}
-
 bool AssetManager::LoadSync(AssetHandle handle) {
-  IAssetLoader* loader = nullptr;
+  AssetType type;
   {
     std::shared_lock lock(registry_mutex_);
     auto it = registry_.find(handle);
@@ -497,23 +482,22 @@ bool AssetManager::LoadSync(AssetHandle handle) {
     if (meta.load_state == AssetLoadState::Loaded) {
       return true;
     }
-    auto loader_it = loaders_.find(meta.type);
-    if (loader_it == loaders_.end() || !loader_it->second) {
-      LOG_WARN("No loader registered for asset type: {}",
-               AssetTypeToString(meta.type));
-      return false;
-    }
-    loader = loader_it->second.get();
+    type = meta.type;
   }
 
-  // CAS on atomic load_state - SetLoadState acquires its own lock
+  const auto* desc = AssetRegistry::Get(type);
+  if (!desc || !desc->Load) {
+    LOG_WARN("No loader registered for asset type: {}",
+             AssetTypeToString(type));
+    return false;
+  }
+
   if (!SetLoadState(handle, AssetLoadState::Unloaded,
                     AssetLoadState::Loading)) {
     return false;
   }
 
-  // Call loader outside lock - it calls Store<T> which acquires write lock
-  bool success = loader->Load(handle);
+  bool success = desc->Load(handle);
   if (success) {
     SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
   } else {
@@ -523,7 +507,7 @@ bool AssetManager::LoadSync(AssetHandle handle) {
 }
 
 void AssetManager::LoadAsync(AssetHandle handle) {
-  std::shared_ptr<IAssetLoader> loader_ptr;
+  AssetType type;
   {
     std::shared_lock lock(registry_mutex_);
     auto it = registry_.find(handle);
@@ -535,13 +519,14 @@ void AssetManager::LoadAsync(AssetHandle handle) {
         meta.load_state == AssetLoadState::Loading) {
       return;
     }
-    auto loader_it = loaders_.find(meta.type);
-    if (loader_it == loaders_.end() || !loader_it->second) {
-      LOG_WARN("No loader registered for asset type: {}",
-               AssetTypeToString(meta.type));
-      return;
-    }
-    loader_ptr = loader_it->second;
+    type = meta.type;
+  }
+
+  const auto* desc = AssetRegistry::Get(type);
+  if (!desc || !desc->Load) {
+    LOG_WARN("No loader registered for asset type: {}",
+             AssetTypeToString(type));
+    return;
   }
 
   if (!SetLoadState(handle, AssetLoadState::Unloaded,
@@ -549,8 +534,10 @@ void AssetManager::LoadAsync(AssetHandle handle) {
     return;
   }
 
-  Engine::thread_pool().Submit([this, handle, loader_ptr]() {
-    bool success = loader_ptr->Load(handle);
+  // Capture the Load function by value for thread safety
+  auto load_fn = desc->Load;
+  Engine::thread_pool().Submit([this, handle, load_fn]() {
+    bool success = load_fn(handle);
     if (success) {
       SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
     } else {

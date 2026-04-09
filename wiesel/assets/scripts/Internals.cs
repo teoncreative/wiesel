@@ -100,40 +100,6 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void TransformComponent_Translate(ulong scenePtr, ulong entityId, float x, float y, float z, int space);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool ModelComponent_GetEnableRendering(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetEnableRendering(ulong scenePtr, ulong entityId, bool value);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetColorTintR(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetColorTintG(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetColorTintB(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetColorTintA(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetColorTintR(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetColorTintG(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetColorTintB(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetColorTintA(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetRoughness(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetRoughness(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetMetallic(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetMetallic(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float ModelComponent_GetSpecular(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ModelComponent_SetSpecular(ulong scenePtr, ulong entityId, float v);
-
         // BoxColliderComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float BoxCollider_GetOffsetX(ulong scenePtr, ulong entityId);

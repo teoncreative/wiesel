@@ -19,7 +19,7 @@
 
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
-#include "asset/w_asset_property_registry.h"
+#include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
 #include "input/w_input.h"
 #include "rendering/w_renderer.h"
@@ -30,50 +30,6 @@
 
 namespace Wiesel {
 
-GameLoader::MetaFileData GameLoader::ReadMetaFile(const nlohmann::json& j) {
-  MetaFileData result;
-  result.handle = AssetHandle::FromString(j.value("handle", ""));
-  if (j.contains("properties") && j["properties"].is_object()) {
-    result.properties = j["properties"];
-  }
-  return result;
-}
-
-GameLoader::MetaFileData GameLoader::ReadMetaFile(
-    const std::filesystem::path& meta_path) {
-  if (!std::filesystem::exists(meta_path)) {
-    return {};
-  }
-  std::ifstream file(meta_path);
-  if (!file.is_open()) {
-    return {};
-  }
-  try {
-    nlohmann::json j;
-    file >> j;
-    return ReadMetaFile(j);
-  } catch (...) {
-    return {};
-  }
-}
-
-void GameLoader::WriteMetaFile(const std::filesystem::path& meta_path,
-                               const AssetHandle& handle, AssetType type,
-                               const void* properties) {
-  nlohmann::json j;
-  j["handle"] = handle.ToString();
-  if (properties) {
-    const auto* desc = AssetPropertyRegistry::Get(type);
-    if (desc) {
-      j["properties"] = desc->Serialize(properties);
-    }
-  }
-  std::ofstream file(meta_path);
-  if (file.is_open()) {
-    file << j.dump(2);
-  }
-}
-
 AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
                                     const std::string& vfs_path) {
   AssetManager& mgr = Engine::asset_manager();
@@ -81,7 +37,22 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
 
   auto physical = Engine::vfs()->GetPhysicalPath(vfs_path);
 
-  if (IsJsonAssetType(type)) {
+  // All asset types use .meta files for lightweight registration.
+  // Legacy JSON assets that embed asset_handle are migrated on first scan.
+  AssetRegistry::MetaFileData meta_data;
+  std::filesystem::path meta_path;
+  if (physical.has_value()) {
+    meta_path = physical->string() + ".meta";
+    meta_data = AssetRegistry::ReadMetaFile(meta_path);
+  }
+
+  if (meta_data.handle.IsValid()) {
+    handle = meta_data.handle;
+    if (!mgr.HasAsset(handle)) {
+      mgr.Register(handle, name, type, vfs_path);
+    }
+  } else if (AssetRegistry::HasSerializer(type)) {
+    // Migration: read handle from legacy JSON asset and create .meta
     try {
       VfsFile file = Engine::vfs()->Open(vfs_path);
       if (!file) {
@@ -90,75 +61,57 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
       std::string content((std::istreambuf_iterator<char>(file.Stream())),
                           std::istreambuf_iterator<char>());
       auto j = nlohmann::json::parse(content);
-
       std::string handle_str = j.value("asset_handle", "");
       if (!handle_str.empty()) {
         handle = AssetHandle::FromString(handle_str);
-      }
-
-      if (!handle.IsValid()) {
-        if (!physical.has_value()) {
-          return {};
-        }
-        handle = AssetHandle::Generate();
-        j["asset_handle"] = handle.ToString();
-        std::ofstream out(*physical);
-        if (out.is_open()) {
-          out << j.dump(2);
-        }
       }
     } catch (const std::exception& e) {
       LOG_ERROR("Failed to import '{}': {}", vfs_path, e.what());
       return {};
     }
 
+    if (!handle.IsValid()) {
+      handle = AssetHandle::Generate();
+    }
+
     if (!mgr.HasAsset(handle)) {
       mgr.Register(handle, name, type, vfs_path);
     }
-  } else {
-    MetaFileData meta_data;
-    std::filesystem::path meta_path;
+
     if (physical.has_value()) {
-      meta_path = physical->string() + ".meta";
-      meta_data = ReadMetaFile(meta_path);
+      AssetRegistry::WriteMetaFile(meta_path, handle, type);
     }
-
-    if (meta_data.handle.IsValid()) {
-      handle = meta_data.handle;
-      if (!mgr.HasAsset(handle)) {
-        mgr.Register(handle, name, type, vfs_path);
-      }
-    } else if (!physical.has_value()) {
-      return {};
-    } else {
-      handle = mgr.Register(name, type, vfs_path);
-      if (handle.IsValid()) {
-        WriteMetaFile(meta_path, handle, type);
-      }
-    }
-
+  } else if (!physical.has_value()) {
+    return {};
+  } else {
+    handle = mgr.Register(name, type, vfs_path);
     if (handle.IsValid()) {
-      auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
-      if (metadata) {
-        const auto* desc = AssetPropertyRegistry::Get(type);
-        if (desc) {
-          if (!meta_data.properties.empty()) {
-            metadata->properties = desc->Deserialize(meta_data.properties);
-          } else {
-            metadata->properties = desc->Create();
-            if (type == AssetType::Texture) {
-              auto* tp = static_cast<TextureAssetProperties*>(
-                  metadata->properties.get());
-              std::string nl = name;
-              std::ranges::transform(nl, nl.begin(), ::tolower);
-              if (nl.find("normal") != std::string::npos ||
-                  nl.find("roughness") != std::string::npos ||
-                  nl.find("metallic") != std::string::npos ||
-                  nl.find("metalness") != std::string::npos ||
-                  nl.find("height") != std::string::npos ||
-                  nl.find("ao") != std::string::npos) {
-                tp->asset_type = TextureAssetType::NormalMap;
-              }
+      AssetRegistry::WriteMetaFile(meta_path, handle, type);
+    }
+  }
+
+  if (handle.IsValid()) {
+    auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
+    if (metadata) {
+      const auto* desc = AssetRegistry::Get(type);
+      if (desc && desc->HasProperties()) {
+        if (!meta_data.properties.empty()) {
+          metadata->properties =
+              desc->DeserializeProperties(meta_data.properties);
+        } else {
+          metadata->properties = desc->CreateProperties();
+          if (type == AssetType::Texture) {
+            auto* tp = static_cast<TextureAssetProperties*>(
+                metadata->properties.get());
+            std::string nl = name;
+            std::ranges::transform(nl, nl.begin(), ::tolower);
+            if (nl.find("normal") != std::string::npos ||
+                nl.find("roughness") != std::string::npos ||
+                nl.find("metallic") != std::string::npos ||
+                nl.find("metalness") != std::string::npos ||
+                nl.find("height") != std::string::npos ||
+                nl.find("ao") != std::string::npos) {
+              tp->asset_type = TextureAssetType::NormalMap;
             }
           }
         }

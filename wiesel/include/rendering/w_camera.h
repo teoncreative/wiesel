@@ -82,7 +82,7 @@ struct CameraComponent {
   glm::mat4 view_matrix;
   glm::mat4 projection;
   glm::mat4 inv_projection;
-  glm::vec2 viewport_size{0.0f, 0.0f};
+  glm::vec2 viewport_size{1280.0f, 720.0f};
 
   // Resource versioning: tracks which pipeline version and viewport size
   // this camera's resources were built for. Automatically triggers rebuild

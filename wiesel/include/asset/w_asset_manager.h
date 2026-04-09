@@ -17,7 +17,6 @@
 #include <shared_mutex>
 #include <unordered_set>
 #include "asset/w_asset_handle.h"
-#include "asset/w_asset_loader.h"
 #include "util/w_command.h"
 #include "util/w_logger.h"
 #include "util/w_utils.h"
@@ -135,9 +134,6 @@ class AssetManager {
                         AssetType type, const std::string& virtual_source_path,
                         std::shared_ptr<T> resource);
 
-  // Asset loaders -/ register per-type loaders for sync/async loading
-  void RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader);
-  IAssetLoader* GetLoader(AssetType type) const;
 
   // Unified loading API
   // Sync: blocks until loaded. Async: returns immediately, loads in background.
@@ -166,7 +162,6 @@ class AssetManager {
   std::unordered_map<AssetHandle, std::unique_ptr<AssetEntry>> registry_;
   std::unordered_map<std::string, AssetHandle> path_index_;
   std::unordered_map<std::string, AssetHandle> name_index_;
-  std::unordered_map<AssetType, std::shared_ptr<IAssetLoader>> loaders_;
 
   // Dependency graph: parent -> set of dependents
   std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>>

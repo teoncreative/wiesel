@@ -18,6 +18,7 @@
 #include "rendering/w_descriptor.h"
 #include "rendering/w_descriptorlayout.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -482,6 +483,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   bool show_triggers = renderer_->options().show_triggers;
   bool show_reverb = renderer_->options().show_reverb_zones;
   bool show_cameras = renderer_->options().show_cameras && ctx.is_external;
+  bool show_bounds = renderer_->options().show_bounds;
 
   // Pre-create label descriptors
   auto trigger_desc = show_triggers
@@ -505,43 +507,45 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           auto& tc = scene.GetComponent<TransformComponent>(entity);
           if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
             return;
-      }
+          }
 
-      std::vector<glm::vec3> vertices;
-      std::vector<Index> indices;
-      vertices.reserve(hf.width * hf.length);
+          std::vector<glm::vec3> vertices;
+          std::vector<Index> indices;
+          vertices.reserve(hf.width * hf.length);
 
-      float half_w = (hf.width - 1) * 0.5f;
-      float half_l = (hf.length - 1) * 0.5f;
-      for (int row = 0; row < hf.length; row++) {
-        for (int col = 0; col < hf.width; col++) {
-          float x = (col - half_w) * hf.scale.x;
-          float y = hf.height_data[row * hf.width + col] * hf.scale.y;
-          float z = (row - half_l) * hf.scale.z;
-          vertices.push_back({x, y, z});
-        }
-      }
+          float half_w = (hf.width - 1) * 0.5f;
+          float half_l = (hf.length - 1) * 0.5f;
+          for (int row = 0; row < hf.length; row++) {
+            for (int col = 0; col < hf.width; col++) {
+              float x = (col - half_w) * hf.scale.x;
+              float y = hf.height_data[row * hf.width + col] * hf.scale.y;
+              float z = (row - half_l) * hf.scale.z;
+              vertices.push_back({x, y, z});
+            }
+          }
 
-      for (int row = 0; row < hf.length; row++) {
-        for (int col = 0; col < hf.width - 1; col++) {
-          indices.push_back(row * hf.width + col);
-          indices.push_back(row * hf.width + col + 1);
-        }
-      }
-      for (int row = 0; row < hf.length - 1; row++) {
-        for (int col = 0; col < hf.width; col++) {
-          indices.push_back(row * hf.width + col);
-          indices.push_back((row + 1) * hf.width + col);
-        }
-      }
+          for (int row = 0; row < hf.length; row++) {
+            for (int col = 0; col < hf.width - 1; col++) {
+              indices.push_back(row * hf.width + col);
+              indices.push_back(row * hf.width + col + 1);
+            }
+          }
+          for (int row = 0; row < hf.length - 1; row++) {
+            for (int col = 0; col < hf.width; col++) {
+              indices.push_back(row * hf.width + col);
+              indices.push_back((row + 1) * hf.width + col);
+            }
+          }
 
-      CachedDebugData data;
-      data.vb = renderer_->CreateVertexBuffer("CachedDebugData::vb", vertices);
-      data.ib = renderer_->CreateIndexBuffer("CachedDebugData::ib", indices);
-      data.index_count = static_cast<uint32_t>(indices.size());
-      data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
-      hf_cache_.push_back(std::move(data));
-    });
+          CachedDebugData data;
+          data.vb =
+              renderer_->CreateVertexBuffer("CachedDebugData::vb", vertices);
+          data.ib =
+              renderer_->CreateIndexBuffer("CachedDebugData::ib", indices);
+          data.index_count = static_cast<uint32_t>(indices.size());
+          data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
+          hf_cache_.push_back(std::move(data));
+        });
     hf_cache_valid_ = true;
   }
   if (!show_colliders) {
@@ -553,14 +557,14 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Build mesh collider debug geometry once (cached)
   if (show_colliders && !mesh_collider_cache_valid_) {
     mesh_collider_cache_.clear();
-    scenes.ForEach<MeshColliderComponent, ModelComponent, TransformComponent>(
-        [&](Scene& scene, entt::entity entity) {
-          auto& model_comp = scene.GetComponent<ModelComponent>(entity);
-      if (!model_comp.model_handle.IsValid()) {
-            return;
+    scenes.ForEach<MeshColliderComponent, MeshRendererComponent,
+                   TransformComponent>([&](Scene& scene, entt::entity entity) {
+      auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+      if (!mr.model_handle.IsValid()) {
+        return;
       }
       const std::shared_ptr<Model>& model_data =
-          Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
+          Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
       if (!model_data) {
         return;
       }
@@ -617,13 +621,13 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   uint32_t draw_pass = graph.AddPass(
       "DebugColliders", render_pass_,
-      [pipeline, filled_pipe, no_depth_pipe, push_constant, &scenes, renderer, vp,
-       show_colliders, show_triggers, show_reverb, show_cameras, box_vb, box_ib,
-       box_ic, sphere_vb, sphere_ib, sphere_ic, fbox_vb, fbox_ib, fbox_ic,
-       fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc, &hf_data,
-       &mesh_data](VkCommandBuffer cmd) {
+      [pipeline, filled_pipe, no_depth_pipe, push_constant, &scenes, renderer,
+       vp, show_colliders, show_triggers, show_reverb, show_cameras,
+       show_bounds, box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
+       fbox_vb, fbox_ib, fbox_ic, fsphere_vb, fsphere_ib, fsphere_ic,
+       trigger_desc, reverb_desc, &hf_data, &mesh_data](VkCommandBuffer cmd) {
         if (!show_colliders && !show_triggers && !show_reverb &&
-            !show_cameras) {
+            !show_cameras && !show_bounds) {
           return;
         }
 
@@ -724,26 +728,28 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
               [&](Scene& scene, entt::entity entity) {
                 auto& box = scene.GetComponent<BoxColliderComponent>(entity);
                 auto& tc = scene.GetComponent<TransformComponent>(entity);
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                               tc.GetWorldPosition() + box.offset) *
-                glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f),
+                                   tc.GetWorldPosition() + box.offset) *
+                    glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
                 draw_collider(scene, entity, box.is_trigger, model, box_vb,
                               box_ib, box_ic, fbox_vb, fbox_ib, fbox_ic);
-          });
+              });
 
           // Sphere colliders/triggers
-          scenes.ForEach<SphereColliderComponent,
-                         TransformComponent>([&](Scene& scene,
-                                                 entt::entity entity) {
-            auto& sphere = scene.GetComponent<SphereColliderComponent>(entity);
-            auto& tc = scene.GetComponent<TransformComponent>(entity);
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                               tc.GetWorldPosition() + sphere.offset) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(sphere.radius * 2.0f));
-            draw_collider(scene, entity, sphere.is_trigger, model, sphere_vb,
-                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib, fsphere_ic);
+          scenes.ForEach<SphereColliderComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& sphere =
+                    scene.GetComponent<SphereColliderComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f),
+                                   tc.GetWorldPosition() + sphere.offset) *
+                    glm::scale(glm::mat4(1.0f),
+                               glm::vec3(sphere.radius * 2.0f));
+                draw_collider(scene, entity, sphere.is_trigger, model,
+                              sphere_vb, sphere_ib, sphere_ic, fsphere_vb,
+                              fsphere_ib, fsphere_ic);
               });
 
           // Capsule colliders/triggers
@@ -751,28 +757,28 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
               [&](Scene& scene, entt::entity entity) {
                 auto& cap =
                     scene.GetComponent<CapsuleColliderComponent>(entity);
-            auto& tc = scene.GetComponent<TransformComponent>(entity);
-            float total_h = cap.height + cap.radius * 2.0f;
-            glm::vec3 scale_vec;
-            switch (cap.axis) {
-              case CapsuleAxis::X:
-                scale_vec = {total_h, cap.radius * 2.0f, cap.radius * 2.0f};
-                break;
-              case CapsuleAxis::Y:
-                scale_vec = {cap.radius * 2.0f, total_h, cap.radius * 2.0f};
-                break;
-              case CapsuleAxis::Z:
-                scale_vec = {cap.radius * 2.0f, cap.radius * 2.0f, total_h};
-                break;
-            }
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                               tc.GetWorldPosition() + cap.offset) *
-                glm::scale(glm::mat4(1.0f), scale_vec);
-            draw_collider(scene, entity, cap.is_trigger, model, sphere_vb,
-                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
-                          fsphere_ic);
-          });
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
+                float total_h = cap.height + cap.radius * 2.0f;
+                glm::vec3 scale_vec;
+                switch (cap.axis) {
+                  case CapsuleAxis::X:
+                    scale_vec = {total_h, cap.radius * 2.0f, cap.radius * 2.0f};
+                    break;
+                  case CapsuleAxis::Y:
+                    scale_vec = {cap.radius * 2.0f, total_h, cap.radius * 2.0f};
+                    break;
+                  case CapsuleAxis::Z:
+                    scale_vec = {cap.radius * 2.0f, cap.radius * 2.0f, total_h};
+                    break;
+                }
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f),
+                                   tc.GetWorldPosition() + cap.offset) *
+                    glm::scale(glm::mat4(1.0f), scale_vec);
+                draw_collider(scene, entity, cap.is_trigger, model, sphere_vb,
+                              sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
+                              fsphere_ic);
+              });
 
           // Heightfield colliders: wireframe only
           if (show_colliders) {
@@ -803,19 +809,19 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           scenes.ForEach<ReverbZoneComponent, TransformComponent>(
               [&](Scene& scene, entt::entity entity) {
                 auto& zone = scene.GetComponent<ReverbZoneComponent>(entity);
-            auto& tc = scene.GetComponent<TransformComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
 
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(zone.radius * 2.0f));
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
+                    glm::scale(glm::mat4(1.0f), glm::vec3(zone.radius * 2.0f));
 
-            draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
-                        zone.active_ ? reverb_active_fill : reverb_fill,
-                        reverb_desc);
-            pipeline->Bind(PipelineBindPointGraphics);
-            draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
-                           zone.active_ ? reverb_active_wire : reverb_wire);
-          });
+                draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
+                            zone.active_ ? reverb_active_fill : reverb_fill,
+                            reverb_desc);
+                pipeline->Bind(PipelineBindPointGraphics);
+                draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
+                               zone.active_ ? reverb_active_wire : reverb_wire);
+              });
         }
 
         // Camera frustum wireframes (editor scene view only)
@@ -824,81 +830,151 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           glm::vec4 cam_color = {0.7f, 0.7f, 0.7f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
-          scenes.ForEach<CameraComponent,
-                         TransformComponent>([&](Scene& scene,
-                                                 entt::entity cam_entity) {
-            auto& cam = scene.GetComponent<CameraComponent>(cam_entity);
-            auto& cam_transform =
-                scene.GetComponent<TransformComponent>(cam_entity);
+          scenes.ForEach<CameraComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity cam_entity) {
+                auto& cam = scene.GetComponent<CameraComponent>(cam_entity);
+                auto& cam_transform =
+                    scene.GetComponent<TransformComponent>(cam_entity);
 
-            float vis_far = std::min(cam.far_plane, 50.0f);
-            float aspect =
-                cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
+                float vis_far = std::min(cam.far_plane, 50.0f);
+                float aspect =
+                    cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
 
-            // Compute frustum corners directly in view space (no matrix inversion)
-            float nw, nh, fw, fh;
-            if (cam.projection_mode == ProjectionMode::Perspective) {
-              float tan_half_fov = tanf(glm::radians(cam.field_of_view * 0.5f));
-              nh = cam.near_plane * tan_half_fov;
-              nw = nh * aspect;
-              fh = vis_far * tan_half_fov;
-              fw = fh * aspect;
-            } else {
-              float size = cam.ortho_size;
-              nw = fw = size * aspect;
-              nh = fh = size;
-            }
+                // Compute frustum corners directly in view space (no matrix inversion)
+                float nw, nh, fw, fh;
+                if (cam.projection_mode == ProjectionMode::Perspective) {
+                  float tan_half_fov =
+                      tanf(glm::radians(cam.field_of_view * 0.5f));
+                  nh = cam.near_plane * tan_half_fov;
+                  nw = nh * aspect;
+                  fh = vis_far * tan_half_fov;
+                  fw = fh * aspect;
+                } else {
+                  float size = cam.ortho_size;
+                  nw = fw = size * aspect;
+                  nh = fh = size;
+                }
 
-            // 8 corners in view space (camera looks down +Z)
-            float n = cam.near_plane;
-            float f = vis_far;
-            glm::vec3 view_corners[8] = {
-                {-nw, -nh, n}, {nw, -nh, n}, {nw, nh, n}, {-nw, nh, n},
-                {-fw, -fh, f}, {fw, -fh, f}, {fw, fh, f}, {-fw, fh, f},
-            };
+                // 8 corners in view space (camera looks down +Z)
+                float n = cam.near_plane;
+                float f = vis_far;
+                glm::vec3 view_corners[8] = {
+                    {-nw, -nh, n}, {nw, -nh, n}, {nw, nh, n}, {-nw, nh, n},
+                    {-fw, -fh, f}, {fw, -fh, f}, {fw, fh, f}, {-fw, fh, f},
+                };
 
-            // Transform to clip space directly: vp * cam_world * corner
-            glm::mat4 cam_world = cam_transform.GetTransformMatrix();
-            glm::mat4 mvp_base = vp * cam_world;
+                glm::mat4 cam_world = cam.inv_view_matrix;
 
-            // Build a model matrix that maps unit box corners to the frustum
-            // corners. Since the frustum is a truncated pyramid, we can't do
-            // this with one affine matrix. Instead, compute clip-space corners
-            // and draw line segments directly.
-            //
-            // Map box corner index to frustum corner:
-            // box[-0.5,-0.5,-0.5] = near-bottom-left  = view_corners[0]
-            // box[ 0.5,-0.5,-0.5] = near-bottom-right = view_corners[1]
-            // box[ 0.5, 0.5,-0.5] = near-top-right    = view_corners[2]
-            // box[-0.5, 0.5,-0.5] = near-top-left     = view_corners[3]
-            // box[-0.5,-0.5, 0.5] = far-bottom-left   = view_corners[4]
-            // box[ 0.5,-0.5, 0.5] = far-bottom-right  = view_corners[5]
-            // box[ 0.5, 0.5, 0.5] = far-top-right     = view_corners[6]
-            // box[-0.5, 0.5, 0.5] = far-top-left      = view_corners[7]
+                // Build a model matrix that maps unit box corners to the frustum
+                // corners. Since the frustum is a truncated pyramid, we can't do
+                // this with one affine matrix. Instead, compute clip-space corners
+                // and draw line segments directly.
+                //
+                // Map box corner index to frustum corner:
+                // box[-0.5,-0.5,-0.5] = near-bottom-left  = view_corners[0]
+                // box[ 0.5,-0.5,-0.5] = near-bottom-right = view_corners[1]
+                // box[ 0.5, 0.5,-0.5] = near-top-right    = view_corners[2]
+                // box[-0.5, 0.5,-0.5] = near-top-left     = view_corners[3]
+                // box[-0.5,-0.5, 0.5] = far-bottom-left   = view_corners[4]
+                // box[ 0.5,-0.5, 0.5] = far-bottom-right  = view_corners[5]
+                // box[ 0.5, 0.5, 0.5] = far-top-right     = view_corners[6]
+                // box[-0.5, 0.5, 0.5] = far-top-left      = view_corners[7]
 
-            // We need to draw 12 edges. Since we can't use the unit box
-            // approach (non-affine mapping), create a temporary vertex buffer.
-            std::vector<glm::vec3> frustum_verts(8);
-            for (int i = 0; i < 8; i++) {
-              frustum_verts[i] =
-                  glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
-            }
+                // We need to draw 12 edges. Since we can't use the unit box
+                // approach (non-affine mapping), create a temporary vertex buffer.
+                std::vector<glm::vec3> frustum_verts(8);
+                for (int i = 0; i < 8; i++) {
+                  frustum_verts[i] =
+                      glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
+                }
 
-            auto frust_vb = renderer->CreateVertexBuffer(
-                "DebugColliderFeature::frustum_vb", frustum_verts);
+                auto frust_vb = renderer->CreateVertexBuffer(
+                    "DebugColliderFeature::frustum_vb", frustum_verts);
 
-            push_constant->mvp = vp;
-            push_constant->model = glm::mat4(1.0f);
-            push_constant->color = cam.enabled ? cam_color : cam_disabled_color;
-            no_depth_pipe->PushConstants(cmd);
+                push_constant->mvp = vp;
+                push_constant->model = glm::mat4(1.0f);
+                push_constant->color =
+                    cam.enabled ? cam_color : cam_disabled_color;
+                no_depth_pipe->PushConstants(cmd);
 
-            VkBuffer buffers[] = {frust_vb->buffer_handle_};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
-            vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
-                                 box_ib->index_type_);
-            vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
-          });
+                VkBuffer buffers[] = {frust_vb->buffer_handle_};
+                VkDeviceSize offsets[] = {0};
+                vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
+                vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
+                                     box_ib->index_type_);
+                vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
+              });
+        }
+
+        // --- Culling bounds ---
+        if (show_bounds) {
+          pipeline->Bind(PipelineBindPointGraphics);
+          auto& assets = Engine::asset_manager();
+          glm::vec4 bounds_color(0.2f, 0.8f, 0.2f, 0.7f);
+          glm::vec4 skel_bounds_color(0.8f, 0.6f, 0.2f, 0.7f);
+
+          // MeshRendererComponent bounds
+          scenes.ForEach<MeshRendererComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+                if (!mr.model_handle.IsValid() || mr.mesh_index < 0) {
+                  return;
+                }
+                auto& transform =
+                    scene.GetComponent<TransformComponent>(entity);
+                const auto& md = assets.GetOrLoad<Model>(mr.model_handle);
+                if (!md ||
+                    mr.mesh_index >= static_cast<int32_t>(md->meshes.size())) {
+                  return;
+                }
+                AABB wb = md->meshes[mr.mesh_index]->bounds.Transformed(
+                    transform.GetTransformMatrix());
+                glm::vec3 center = wb.Center();
+                glm::vec3 extents = wb.Extents();
+                glm::mat4 m = glm::translate(glm::mat4(1.0f), center) *
+                              glm::scale(glm::mat4(1.0f), extents * 2.0f);
+                draw_wireframe(box_vb, box_ib, box_ic, m, bounds_color);
+              });
+
+          // SkinnedMeshRendererComponent bounds
+          scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& mr =
+                    scene.GetComponent<SkinnedMeshRendererComponent>(entity);
+                if (!mr.model_handle.IsValid() || mr.mesh_index < 0) {
+                  return;
+                }
+                const TransformComponent* dt =
+                    &scene.GetComponent<TransformComponent>(entity);
+                const SkeletalAnimRuntime* skel = nullptr;
+                if (mr.skeleton_root != entt::null &&
+                    scene.GetRegistry().valid(mr.skeleton_root)) {
+                  if (scene.GetRegistry().all_of<TransformComponent>(
+                          mr.skeleton_root)) {
+                    dt = &scene.GetRegistry().get<TransformComponent>(
+                        mr.skeleton_root);
+                  }
+                  if (scene.GetRegistry().all_of<SkeletalAnimRuntime>(
+                          mr.skeleton_root)) {
+                    skel = &scene.GetRegistry().get<SkeletalAnimRuntime>(
+                        mr.skeleton_root);
+                  }
+                }
+                if (skel && skel->rest_pose_bounds.Valid()) {
+                  AABB wb = skel->rest_pose_bounds.Transformed(
+                      dt->GetTransformMatrix());
+                  if (skel->max_bone_reach > 0.0f) {
+                    glm::vec3 expand(skel->max_bone_reach);
+                    wb.min -= expand;
+                    wb.max += expand;
+                  }
+                  glm::vec3 center = wb.Center();
+                  glm::vec3 extents = wb.Extents();
+                  glm::mat4 m = glm::translate(glm::mat4(1.0f), center) *
+                                glm::scale(glm::mat4(1.0f), extents * 2.0f);
+                  draw_wireframe(box_vb, box_ib, box_ic, m, skel_bounds_color);
+                }
+              });
         }
       });
 

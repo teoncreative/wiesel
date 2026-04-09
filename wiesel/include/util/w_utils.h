@@ -56,6 +56,7 @@ enum Vertex3DFlag {
   VertexFlagHasAlbedoMap = BIT(4),
   VertexFlagHasRoughnessMap = BIT(5),
   VertexFlagHasMetallicMap = BIT(6),
+  VertexFlagHasOpacityMap = BIT(7),
 };
 
 struct Vertex3D {

@@ -23,6 +23,8 @@ class CameraSystem : public ISystem {
   int GetPriority() const override { return 1200; }
 
   bool RunOnFirstUpdate() const override { return true; }
+
+  bool RunInEditor() const override { return true; }
 };
 
 }  // namespace Wiesel

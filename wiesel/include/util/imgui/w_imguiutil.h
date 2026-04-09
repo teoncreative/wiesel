@@ -13,9 +13,19 @@
 
 #include "w_pch.h"
 
+struct VkDescriptorSet_T;
+typedef VkDescriptorSet_T* VkDescriptorSet;
+
 namespace Wiesel {
+
+class Texture;
+
 std::string PrefixLabel(const char* label);
-}
+
+// Render a small texture thumbnail with hover preview tooltip.
+void RenderTexturePreview(const char* label, Texture* tex);
+
+}  // namespace Wiesel
 
 namespace ImGui {
 bool ClosableTreeNode(const char* label, bool* visible);

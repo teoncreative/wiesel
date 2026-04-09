@@ -23,7 +23,7 @@ static constexpr const char* kDefaultFontPath = "engine://fonts/Inter.ttf";
 // Named instance index for FreeType variable font selection.
 // Inter: 0=default, 1=Thin, 2=ExtraLight, 3=Light, 4=Regular, 5=Medium, ...
 static constexpr int kDefaultFontInstance = 4;
-static constexpr float kDefaultFontSize = 16.5f;
+static constexpr float kDefaultFontSize = 15.0f;
 
 const char* GetThemeName(Theme theme);
 

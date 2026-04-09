@@ -22,6 +22,7 @@
 #include "rendering/w_descriptor.h"
 #include "rendering/w_framebuffer.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_texture.h"
 #include "scene/w_components.h"
@@ -99,6 +100,7 @@ struct RendererOptions {
   Setting<bool> only_ssao = false;
   Setting<int> debug_cascades = 0;  // 0=off, 1=cascades, 2=material
   Setting<bool> show_colliders = false;
+  Setting<bool> show_bounds = false;
   Setting<bool> show_triggers = false;
   Setting<bool> show_reverb_zones = false;
   Setting<bool> show_cameras = true;
@@ -451,18 +453,25 @@ class Renderer {
   void SetScissor(int x, int y, int width, int height,
                   VkCommandBuffer cmd = VK_NULL_HANDLE);
 
-  void DrawModel(ModelComponent& model, const TransformComponent& transform,
-                 bool shadow_pass, entt::entity entity_handle = entt::null);
-  void DrawModelTransparent(
-      ModelComponent& model, const TransformComponent& transform,
-      entt::entity entity_handle = entt::null,
-      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
   void DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                    std::shared_ptr<DescriptorSet> mesh_descriptors,
                    std::shared_ptr<DescriptorSet> bone_descriptors,
                    std::shared_ptr<DescriptorSet> global_descriptors,
                    std::shared_ptr<DescriptorSet> ibl_descriptors = nullptr);
-  void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
+
+  // Per-entity mesh renderer draw (static meshes)
+  void DrawMeshRenderer(
+      MeshRendererComponent& mesh_renderer, const TransformComponent& transform,
+      bool shadow_pass, bool transparent_pass = false,
+      entt::entity entity_handle = entt::null,
+      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
+  // Per-entity mesh renderer draw (skinned/animated meshes)
+  void DrawSkinnedMeshRenderer(
+      SkinnedMeshRendererComponent& mesh_renderer,
+      const TransformComponent& transform,
+      const SkeletalAnimRuntime* skel_runtime, bool shadow_pass,
+      bool transparent_pass = false, entt::entity entity_handle = entt::null,
+      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
   void DrawSprite(SpriteRendererComponent& sprite,
                   const TransformComponent& transform);
   void DrawCanvasRect(const RectangleTransformComponent& rt,

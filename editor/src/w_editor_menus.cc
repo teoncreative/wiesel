@@ -15,7 +15,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 
 #include "asset/w_asset_manager.h"
-#include "asset/w_asset_serializer.h"
+#include "asset/w_asset_registry.h"
 #include "cursor/w_cursor.h"
 #include "game/w_game_loader.h"
 #include "input/w_input.h"
@@ -142,8 +142,8 @@ static AssetHandle CreateSpriteAsset(const std::string& vfs_path,
   data->rect = {x, y, w, h};
   data->pivot = {pivot_x, pivot_y};
   std::string name = VirtualFileSystem::Stem(vfs_path);
-  return AssetSerializerRegistry::Create<SpriteAssetData>(
-      name, AssetType::Sprite, vfs_path, data);
+  return AssetRegistry::Create<SpriteAssetData>(name, AssetType::Sprite,
+                                                vfs_path, data);
 }
 
 void EditorLayer::RenderCreateSkyboxPopup() {
@@ -212,7 +212,7 @@ void EditorLayer::RenderCreateSkyboxPopup() {
 
       std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
                              std::string(name_buf) + ".wskybox";
-      AssetHandle new_handle = AssetSerializerRegistry::Create<SkyboxAssetData>(
+      AssetHandle new_handle = AssetRegistry::Create<SkyboxAssetData>(
           name_buf, AssetType::Skybox, vfs_path, data);
       if (new_handle.IsValid()) {
         ScanProjectAssets();
@@ -366,7 +366,7 @@ void EditorLayer::RenderCreateCursorSetPopup() {
 
       std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
                              std::string(name_buf) + ".wcursorset";
-      AssetHandle new_handle = AssetSerializerRegistry::Create<CursorSetData>(
+      AssetHandle new_handle = AssetRegistry::Create<CursorSetData>(
           name_buf, AssetType::CursorSet, vfs_path, data);
       if (new_handle.IsValid()) {
         ScanProjectAssets();
@@ -417,11 +417,10 @@ void EditorLayer::RenderCreateMeshColliderPopup() {
       if (data) {
         std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
                                std::string(name_buf) + ".wmeshcol";
-        AssetHandle new_handle =
-            AssetSerializerRegistry::Create<MeshColliderAssetData>(
-                name_buf, AssetType::MeshCollider, vfs_path, data);
+        AssetHandle new_handle = AssetRegistry::Create<MeshColliderAssetData>(
+            name_buf, AssetType::MeshCollider, vfs_path, data);
         if (new_handle.IsValid()) {
-          AssetSerializerRegistry::Save(new_handle);
+          AssetRegistry::Save(new_handle);
           ScanProjectAssets();
         }
       }
@@ -671,9 +670,8 @@ void EditorLayer::RenderCreateAnimControllerPopup() {
       auto data = std::make_shared<AnimControllerAssetData>();
       std::string vfs_path = asset_browser_panel_.browser().CurrentVfsDir() +
                              std::string(name_buf) + ".wanimcontroller";
-      AssetHandle handle =
-          AssetSerializerRegistry::Create<AnimControllerAssetData>(
-              name_buf, AssetType::AnimController, vfs_path, data);
+      AssetHandle handle = AssetRegistry::Create<AnimControllerAssetData>(
+          name_buf, AssetType::AnimController, vfs_path, data);
       if (handle.IsValid()) {
         anim_controller_editor_.Open(handle, data);
         ScanProjectAssets();
@@ -1389,34 +1387,11 @@ void EditorLayer::RenderProjectSettingsPopup() {
 void EditorLayer::RenderMainMenuBar() {
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("File")) {
-      if (ImGui::BeginMenu("Project")) {
-        if (ImGui::MenuItem("New Project...")) {
-          NewProject();
-        }
-        if (ImGui::MenuItem("Open Project...")) {
-          OpenProject();
-        }
-        if (ImGui::MenuItem("Save Project", nullptr, false,
-                            active_project_ != nullptr)) {
-          SaveProject();
-        }
-        auto recent = RecentProjects::Load();
-        if (!recent.empty()) {
-          ImGui::Separator();
-          for (const auto& path : recent) {
-            std::string label = std::filesystem::path(path).stem().string();
-            if (ImGui::MenuItem(label.c_str())) {
-              if (std::filesystem::exists(path)) {
-                deferred_action_ = DeferredAction::OpenProject;
-                deferred_path_ = path;
-              }
-            }
-            if (ImGui::IsItemHovered()) {
-              ImGui::SetTooltip("%s", path.c_str());
-            }
-          }
-        }
-        ImGui::EndMenu();
+      if (ImGui::MenuItem("New Project...")) {
+        NewProject();
+      }
+      if (ImGui::MenuItem("Open Project...")) {
+        OpenProject();
       }
 
       ImGui::Separator();
@@ -1425,14 +1400,16 @@ void EditorLayer::RenderMainMenuBar() {
                           active_project_ != nullptr)) {
         NewScene();
       }
-      if (ImGui::MenuItem("Save Scene", "Ctrl+S", false,
-                          !current_scene_path_.empty())) {
+      if (ImGui::MenuItem("Save", "Ctrl+S", false,
+                          active_project_ != nullptr)) {
         SaveScene();
+        SaveProject();
       }
-      if (ImGui::MenuItem("Save Scene As...", nullptr, false,
+      if (ImGui::MenuItem("Save As...", nullptr, false,
                           active_project_ != nullptr)) {
         SaveSceneAs();
       }
+
       ImGui::Separator();
 
       if (ImGui::MenuItem("Export Game...", nullptr, false,
@@ -1441,6 +1418,30 @@ void EditorLayer::RenderMainMenuBar() {
       }
 
       ImGui::Separator();
+
+      // Recent Projects
+      auto recent = RecentProjects::Load();
+      if (!recent.empty()) {
+        ImGui::TextDisabled("Recent Projects");
+        for (const auto& path : recent) {
+          std::string label = std::filesystem::path(path).stem().string();
+          if (ImGui::MenuItem(label.c_str())) {
+            if (std::filesystem::exists(path)) {
+              deferred_action_ = DeferredAction::OpenProject;
+              deferred_path_ = path;
+            }
+          }
+          if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", path.c_str());
+          }
+        }
+        ImGui::Separator();
+      }
+
+      if (ImGui::MenuItem("Close Project", nullptr, false,
+                          active_project_ != nullptr)) {
+        deferred_action_ = DeferredAction::CloseProject;
+      }
 
       if (ImGui::MenuItem("Exit")) {
         app_.Close();
@@ -1471,17 +1472,20 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     if (ImGui::BeginMenu("Window")) {
-      ImGui::MenuItem(ICON_CAMERA " Scene", nullptr, &panel_scene_view_);
-      ImGui::MenuItem(ICON_CAMERA " Game", nullptr, &panel_game_view_);
-      ImGui::MenuItem(ICON_HIERARCHY " Scene Hierarchy", nullptr,
+      ImGui::MenuItem(CODICON_PREVIEW " Scene", nullptr, &panel_scene_view_);
+      ImGui::MenuItem(CODICON_CAMERA_VIDEO " Game", nullptr, &panel_game_view_);
+      ImGui::MenuItem(CODICON_SYMBOL_RULER " Scene Hierarchy", nullptr,
                       &panel_scene_hierarchy_);
-      ImGui::MenuItem("Entity Inspector", nullptr, &panel_components_);
-      ImGui::MenuItem(ICON_BROWSER " Asset Browser", nullptr,
+      ImGui::MenuItem(CODICON_INSPECT " Entity Inspector", nullptr,
+                      &panel_components_);
+      ImGui::MenuItem(CODICON_FOLDER_OPENED " Asset Browser", nullptr,
                       &panel_asset_browser_);
-      ImGui::MenuItem(ICON_CONSOLE " Console", nullptr, &panel_console_);
-      ImGui::MenuItem("Stats", nullptr, &panel_stats_);
-      ImGui::MenuItem("Undo History", nullptr, &panel_undo_history_);
-      ImGui::MenuItem("LSP Debug", nullptr, &panel_lsp_debug_);
+      ImGui::MenuItem(CODICON_TERMINAL " Console", nullptr, &panel_console_);
+      ImGui::MenuItem(CODICON_DASHBOARD " Render Stats", nullptr,
+                      &panel_stats_);
+      ImGui::MenuItem(CODICON_HISTORY " Undo History", nullptr,
+                      &panel_undo_history_);
+      ImGui::MenuItem(CODICON_INFO " LSP Debug", nullptr, &panel_lsp_debug_);
       ImGui::Separator();
       if (ImGui::MenuItem("Reset Layout")) {
         panel_scene_hierarchy_ = true;
@@ -1516,6 +1520,7 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::SeparatorText("Overlays");
       ImGui::Checkbox(PrefixLabel("Colliders").c_str(),
                       &settings.show_colliders);
+      ImGui::Checkbox(PrefixLabel("Bounds").c_str(), &settings.show_bounds);
       ImGui::Checkbox(PrefixLabel("Triggers").c_str(), &settings.show_triggers);
       ImGui::Checkbox(PrefixLabel("Reverb Zones").c_str(),
                       &settings.show_reverb_zones);
@@ -1745,6 +1750,7 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::IsKeyPressed(ImGuiKey_S, false)) {
     if (!current_scene_path_.empty()) {
       SaveScene();
+      SaveProject();
     } else {
       SaveSceneAs();
     }
@@ -1799,8 +1805,8 @@ void EditorLayer::RenderMainMenuBar() {
   // Delete selected entity
   if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && has_selected_entity_ &&
       !ImGui::GetIO().WantTextInput) {
-    Entity entity{selected_entity_, selected_entity_scene_.get()};
-    selected_entity_scene_->RemoveEntity(entity);
+    command_stack_.Execute(std::make_unique<EntityDeleteCommand>(
+        selected_entity_scene_, selected_entity_));
     has_selected_entity_ = false;
     scene_dirty_ = true;
   }

@@ -17,6 +17,8 @@
 #include "animation/w_property_curve_eval.h"
 #include "asset/w_asset_manager.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
+#include "rendering/w_renderer.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_scene.h"
 #include "w_engine.h"
@@ -35,12 +37,21 @@ void AnimationSystem::Update(Scene& scene, float delta_time) {
     }
 
     // Emplace runtime components if missing
-    bool has_model = registry.all_of<ModelComponent>(entity);
     bool has_sprite = registry.all_of<SpriteRendererComponent>(entity);
 
-    if (has_model && !registry.all_of<SkeletalAnimRuntime>(entity)) {
-      registry.emplace<SkeletalAnimRuntime>(entity);
+    // Ensure SkeletalAnimRuntime exists for new-style hierarchy roots
+    if (!registry.all_of<SkeletalAnimRuntime>(entity)) {
+      for (auto smr_entity : registry.view<SkinnedMeshRendererComponent>()) {
+        auto& smr = registry.get<SkinnedMeshRendererComponent>(smr_entity);
+        if (smr.skeleton_root == entity) {
+          auto& skel = registry.emplace<SkeletalAnimRuntime>(entity);
+          skel.model_handle = smr.model_handle;
+          skel.Initialize();
+          break;
+        }
+      }
     }
+
     if (has_sprite && !registry.all_of<SpriteAnimRuntime>(entity)) {
       registry.emplace<SpriteAnimRuntime>(entity);
     }
@@ -99,12 +110,14 @@ void AnimationSystem::Update(Scene& scene, float delta_time) {
     }
 
     // --- Pass 2: Skeletal ---
-    if (has_model && clip_data->HasBoneChannels()) {
+    bool has_skel_runtime = registry.all_of<SkeletalAnimRuntime>(entity);
+    if (has_skel_runtime && clip_data->HasBoneChannels()) {
       auto& skel = registry.get<SkeletalAnimRuntime>(entity);
-      auto& model_comp = registry.get<ModelComponent>(entity);
+
+      AssetHandle skel_model_handle = skel.model_handle;
 
       const auto& model_data =
-          Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
+          Engine::asset_manager().GetOrLoad<Model>(skel_model_handle);
       if (!model_data) {
         continue;
       }
@@ -155,6 +168,8 @@ void AnimationSystem::Update(Scene& scene, float delta_time) {
       temp_clip.duration = clip_data->duration;
       temp_clip.ticks_per_second = clip_data->ticks_per_second;
       temp_clip.channels = clip_data->bone_channels;
+
+      skel.max_bone_reach = clip_data->max_bone_reach;
 
       Animator::Evaluate(*model_data, temp_clip,
                          animator.state_machine.state_time, skel.bone_matrices,
@@ -235,15 +250,15 @@ void AnimationSystem::Update(Scene& scene, float delta_time) {
       }
 
       // Upload bone matrices to GPU
-      if (model_comp.bone_ubo_ && model_comp.bone_ubo_->data_) {
+      std::shared_ptr<UniformBuffer> bone_ubo = skel.bone_ubo;
+      if (bone_ubo && bone_ubo->data_) {
         BoneMatricesUniformData gpu_data{};
         size_t count = std::min(skel.bone_matrices.size(),
                                 static_cast<size_t>(WIESEL_MAX_BONES));
         for (size_t b = 0; b < count; b++) {
           gpu_data.bone_matrices[b] = skel.bone_matrices[b];
         }
-        memcpy(model_comp.bone_ubo_->data_, &gpu_data,
-               sizeof(BoneMatricesUniformData));
+        memcpy(bone_ubo->data_, &gpu_data, sizeof(BoneMatricesUniformData));
       }
     }
 

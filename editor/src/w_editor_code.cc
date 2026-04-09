@@ -17,6 +17,7 @@
 #include "mono_compiler.h"
 #include "util/w_thread_pool.h"
 #include "w_csharp_lang.h"
+#include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_rml_lang.h"
 
@@ -443,7 +444,7 @@ void EditorLayer::RenderLspDebugPanel() {
   }
 
   ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-  if (!ImGui::Begin("LSP Debug", &panel_lsp_debug_)) {
+  if (!ImGui::Begin(CODICON_INFO " LSP Debug", &panel_lsp_debug_)) {
     ImGui::End();
     return;
   }

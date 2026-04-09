@@ -23,6 +23,7 @@
 #include "physics/w_collider.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
 #include "scene/w_lights.h"
@@ -200,132 +201,6 @@ void InitializeComponentSerializers() {
         c.viewport_size = SerializeUtil::Vec2(
             cj.value("viewport_size", json::array()), {1920, 1080});
         c.enabled = cj.value("enabled", true);
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "Model",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<ModelComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& m = entity.GetComponent<ModelComponent>();
-        json model;
-        if (m.model_handle.IsValid()) {
-          model["asset_handle"] = m.model_handle.ToString();
-        }
-        model["receive_shadows"] = m.receive_shadows;
-        model["enable_rendering"] = m.enable_rendering;
-
-        // Serialize per-slot material handles and overrides
-        if (!m.material_slot_handles.empty()) {
-          json slots = json::array();
-          for (size_t i = 0; i < m.material_slot_handles.size(); i++) {
-            json slot;
-            if (m.material_slot_handles[i].IsValid()) {
-              slot["material_handle"] = m.material_slot_handles[i].ToString();
-            }
-            // Save material instance overrides
-            if (i < m.material_instances.size() && m.material_instances[i] &&
-                !m.material_instances[i]->overrides.empty()) {
-              json overrides;
-              for (const auto& [key, val] :
-                   m.material_instances[i]->overrides) {
-                if (std::holds_alternative<float>(val)) {
-                  overrides[key] = std::get<float>(val);
-                } else if (std::holds_alternative<glm::vec4>(val)) {
-                  auto& v = std::get<glm::vec4>(val);
-                  overrides[key] = {v.x, v.y, v.z, v.w};
-                }
-              }
-              if (!overrides.empty()) {
-                slot["overrides"] = overrides;
-              }
-            }
-            slots.push_back(slot);
-          }
-          model["material_slots"] = slots;
-        }
-
-        return model;
-      },
-      // Deserialize
-      [](Entity& entity, const json& mj, Scene* scene) {
-        auto& m = entity.AddComponent<ModelComponent>();
-
-        std::string handle_str = mj.value("asset_handle", "");
-        std::string asset_name = mj.value("asset_name", "");
-        std::string asset_path = mj.value("asset_path", "");
-
-        if (!handle_str.empty()) {
-          AssetHandle handle = AssetHandle::FromString(handle_str);
-          if (!Engine::asset_manager().HasAsset(handle)) {
-            // Handle not found, check if registered under a different
-            // handle (from asset registry)
-            if (!asset_path.empty()) {
-              for (auto& h : Engine::asset_manager().GetAll()) {
-                const auto* m2 = Engine::asset_manager().GetMetadata(h);
-                if (m2 && m2->virtual_source_path == asset_path &&
-                    m2->type == AssetType::Model) {
-                  handle = h;
-                  break;
-                }
-              }
-            }
-            // Still not found, register with the scene file's handle as
-            // fallback
-            if (!Engine::asset_manager().HasAsset(handle) &&
-                !asset_path.empty()) {
-              Engine::asset_manager().Register(handle, asset_name,
-                                               AssetType::Model, asset_path);
-            }
-          }
-          m.model_handle = handle;
-          if (scene) {
-            scene->RequestAsset(handle);
-          }
-        }
-
-        m.receive_shadows = mj.value("receive_shadows", true);
-        m.enable_rendering = mj.value("enable_rendering", true);
-
-        // Restore per-slot material handles and overrides
-        if (mj.contains("material_slots") && mj["material_slots"].is_array()) {
-          for (size_t i = 0; i < mj["material_slots"].size(); i++) {
-            const auto& slot = mj["material_slots"][i];
-            // Resize vectors to fit
-            if (m.material_slot_handles.size() <= i) {
-              m.material_slot_handles.resize(i + 1);
-              m.material_instances.resize(i + 1);
-              m.material_versions.resize(i + 1, 0);
-            }
-            if (slot.contains("material_handle")) {
-              m.material_slot_handles[i] = AssetHandle::FromString(
-                  slot["material_handle"].get<std::string>());
-              if (scene) {
-                scene->RequestAsset(m.material_slot_handles[i]);
-                RequestMaterialTextures(scene, m.material_slot_handles[i]);
-              }
-            }
-            // Restore overrides
-            if (slot.contains("overrides")) {
-              if (!m.material_instances[i]) {
-                m.material_instances[i] = std::make_shared<MaterialInstance>();
-              }
-              auto& inst = m.material_instances[i];
-              for (auto& [key, val] : slot["overrides"].items()) {
-                if (val.is_number()) {
-                  inst->overrides[key] = val.get<float>();
-                } else if (val.is_array() && val.size() >= 4) {
-                  inst->overrides[key] =
-                      glm::vec4(val[0], val[1], val[2], val[3]);
-                }
-              }
-            }
-          }
-        }
       },
   });
 
@@ -1363,6 +1238,106 @@ void InitializeComponentSerializers() {
         if (sj.contains("pivot") && sj["pivot"].is_array() &&
             sj["pivot"].size() >= 2) {
           s.pivot_ = {sj["pivot"][0], sj["pivot"][1]};
+        }
+      },
+  });
+
+  // MeshRendererComponent
+  ComponentSerializerRegistry::Register({
+      "MeshRenderer",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<MeshRendererComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& mr = entity.GetComponent<MeshRendererComponent>();
+        json j;
+        if (mr.model_handle.IsValid()) {
+          j["model_handle"] = mr.model_handle.ToString();
+        }
+        j["mesh_index"] = mr.mesh_index;
+        j["enable_rendering"] = mr.enable_rendering;
+        j["receive_shadows"] = mr.receive_shadows;
+        if (mr.material_handle.IsValid()) {
+          j["material_handle"] = mr.material_handle.ToString();
+        }
+        return j;
+      },
+      [](Entity& entity, const json& j, Scene* scene) {
+        auto& mr = entity.AddComponent<MeshRendererComponent>();
+        std::string model_str = j.value("model_handle", "");
+        if (!model_str.empty()) {
+          mr.model_handle = AssetHandle::FromString(model_str);
+          if (scene) {
+            scene->RequestAsset(mr.model_handle);
+          }
+        }
+        mr.mesh_index = j.value("mesh_index", -1);
+        mr.enable_rendering = j.value("enable_rendering", true);
+        mr.receive_shadows = j.value("receive_shadows", true);
+        std::string mat_str = j.value("material_handle", "");
+        if (!mat_str.empty()) {
+          mr.material_handle = AssetHandle::FromString(mat_str);
+        }
+      },
+  });
+
+  // SkinnedMeshRendererComponent
+  ComponentSerializerRegistry::Register({
+      "SkinnedMeshRenderer",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<SkinnedMeshRendererComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& mr = entity.GetComponent<SkinnedMeshRendererComponent>();
+        json j;
+        if (mr.model_handle.IsValid()) {
+          j["model_handle"] = mr.model_handle.ToString();
+        }
+        j["mesh_index"] = mr.mesh_index;
+        j["enable_rendering"] = mr.enable_rendering;
+        j["receive_shadows"] = mr.receive_shadows;
+        if (mr.material_handle.IsValid()) {
+          j["material_handle"] = mr.material_handle.ToString();
+        }
+        // Save skeleton root's UUID for resolution on load
+        if (mr.skeleton_root != entt::null) {
+          Scene* scene = entity.GetScene();
+          if (scene && scene->HasEntity(mr.skeleton_root) &&
+              scene->HasComponent<IdComponent>(mr.skeleton_root)) {
+            j["skeleton_root_uuid"] =
+                scene->GetComponent<IdComponent>(mr.skeleton_root)
+                    .Id.ToString();
+          }
+        }
+        return j;
+      },
+      [](Entity& entity, const json& j, Scene* scene) {
+        auto& mr = entity.AddComponent<SkinnedMeshRendererComponent>();
+        std::string model_str = j.value("model_handle", "");
+        if (!model_str.empty()) {
+          mr.model_handle = AssetHandle::FromString(model_str);
+          if (scene) {
+            scene->RequestAsset(mr.model_handle);
+          }
+        }
+        mr.mesh_index = j.value("mesh_index", -1);
+        mr.enable_rendering = j.value("enable_rendering", true);
+        mr.receive_shadows = j.value("receive_shadows", true);
+        std::string mat_str = j.value("material_handle", "");
+        if (!mat_str.empty()) {
+          mr.material_handle = AssetHandle::FromString(mat_str);
+        }
+        // Resolve skeleton root from saved UUID
+        std::string root_uuid_str = j.value("skeleton_root_uuid", "");
+        if (!root_uuid_str.empty() && scene) {
+          UUID root_uuid = UUID::FromString(root_uuid_str);
+          entt::entity root_entity = scene->FindEntityByUUID(root_uuid);
+          if (root_entity != entt::null) {
+            mr.skeleton_root = root_entity;
+          } else {
+            LOG_WARN("SkinnedMeshRenderer: could not resolve skeleton_root {}",
+                     root_uuid_str);
+          }
         }
       },
   });

@@ -21,7 +21,7 @@
 
 #include "util/w_tracy.h"
 
-#include "asset/w_asset_serializer.h"
+#include "asset/w_asset_registry.h"
 #include "events/w_keyevents.h"
 #include "imgui_internal.h"
 #include "input/w_input.h"
@@ -48,7 +48,6 @@ namespace Wiesel::Editor {
 std::shared_ptr<Scene> scene() {
   return Engine::scene_manager().GetActiveScene();
 }
-
 
 // --- RecentProjects ---
 
@@ -119,7 +118,6 @@ void RecentProjects::Add(const std::string& path) {
   Save(recent);
 }
 
-
 struct ResolutionPreset {
   const char* label;
   glm::vec2 size;  // {0,0} = Free Aspect
@@ -165,9 +163,9 @@ void EditorLayer::OnAttach() {
       int w = 0;
       int h = 0;
       int channels = 0;
-      stbi_uc* pixels = stbi_load_from_memory(
-          logo.Data(), static_cast<int>(logo.Size()), &w, &h, &channels,
-          STBI_rgb_alpha);
+      stbi_uc* pixels =
+          stbi_load_from_memory(logo.Data(), static_cast<int>(logo.Size()), &w,
+                                &h, &channels, STBI_rgb_alpha);
       if (pixels) {
         Engine::window()->SetIcon(pixels, w, h);
         stbi_image_free(pixels);
@@ -244,9 +242,15 @@ void EditorLayer::OnAttach() {
 
   // Wire up asset browser callbacks
   AssetBrowserCallbacks ab_cb;
-  ab_cb.on_scan_assets = [this]() { ScanProjectAssets(); };
-  ab_cb.on_update_title = [this]() { UpdateWindowTitle(); };
-  ab_cb.on_new_scene = [this]() { NewScene(); };
+  ab_cb.on_scan_assets = [this]() {
+    ScanProjectAssets();
+  };
+  ab_cb.on_update_title = [this]() {
+    UpdateWindowTitle();
+  };
+  ab_cb.on_new_scene = [this]() {
+    NewScene();
+  };
   ab_cb.on_open_scene = [this](const std::string& vfs) {
     deferred_action_ = DeferredAction::OpenScene;
     deferred_path_ = vfs;
@@ -259,15 +263,23 @@ void EditorLayer::OnAttach() {
     OpenCodeEditor(p);
   };
   ab_cb.on_select_asset = [this](AssetHandle h) {
-    properties_asset_handle_ = h;
+    inspector_asset_handle_ = h;
+    inspector_mode_ = InspectorMode::Asset;
+    has_selected_entity_ = false;
   };
   ab_cb.on_slice_texture = [this](AssetHandle h) {
     slice_texture_handle_ = h;
     show_slice_sprites_ = true;
   };
-  ab_cb.on_show_create_skybox = [this]() { show_create_skybox_ = true; };
-  ab_cb.on_show_create_cursorset = [this]() { show_create_cursorset_ = true; };
-  ab_cb.on_show_create_sprite = [this]() { show_create_sprite_ = true; };
+  ab_cb.on_show_create_skybox = [this]() {
+    show_create_skybox_ = true;
+  };
+  ab_cb.on_show_create_cursorset = [this]() {
+    show_create_cursorset_ = true;
+  };
+  ab_cb.on_show_create_sprite = [this]() {
+    show_create_sprite_ = true;
+  };
   ab_cb.on_open_anim_controller = [this](AssetHandle handle) {
     auto data = Engine::asset_manager().Get<AnimControllerAssetData>(handle);
     if (!data) {
@@ -319,12 +331,24 @@ void EditorLayer::ProcessDeferredActions() {
     case DeferredAction::OpenProject:
       LoadProjectFromPath(path);
       break;
+    case DeferredAction::CloseProject:
+      // Save before closing
+      if (active_project_) {
+        SaveScene();
+        SaveProject();
+      }
+      ClearScene();
+      active_project_.reset();
+      current_scene_path_.clear();
+      scene_dirty_ = false;
+      UpdateWindowTitle();
+      break;
     case DeferredAction::StopPlaying:
       editor_state_ = EditorState::Edit;
       Engine::window()->SetCursorMode(CursorModeNormal);
       Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
       RestoreSnapshot();
-      ImGui::SetWindowFocus(ICON_CAMERA " Scene");
+      ImGui::SetWindowFocus(CODICON_PREVIEW " Scene");
       break;
     default:
       break;
@@ -333,6 +357,9 @@ void EditorLayer::ProcessDeferredActions() {
 
 void EditorLayer::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED_N("Editor::OnUpdate");
+
+  // Process deferred commands (undo/redo/execute) between frames
+  command_stack_.Flush();
 
   // Update window title when dirty state changes
   if (scene_dirty_ != prev_scene_dirty_) {
@@ -349,7 +376,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
   // Only let scripts read input when the Game panel is focused during play
   Engine::input().SetEnabled(editor_state_ == EditorState::Playing &&
-                           game_panel_focused_);
+                             game_panel_focused_);
 
   // Process pending scene loads (both edit and play mode)
   if (Engine::scene_manager().BeginFrame()) {
@@ -359,6 +386,8 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
   if (editor_state_ == EditorState::Playing) {
     Engine::scene_manager().OnUpdate(delta_time);
+  } else if (editor_state_ == EditorState::Paused) {
+    Engine::scene_manager().OnUpdate(0.0f);
   } else {
     Engine::scene_manager().OnUpdateEditor(delta_time);
 
@@ -386,7 +415,8 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   if (ui_file_watcher_.Poll()) {
     bool has_ui = false;
     for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
-      for (auto entity :  loaded_scene->GetAllEntitiesWith<UIDocumentComponent>()) {
+      for (auto entity :
+           loaded_scene->GetAllEntitiesWith<UIDocumentComponent>()) {
         auto& doc = loaded_scene->GetComponent<UIDocumentComponent>(entity);
         if (doc.rml_context_) {
           doc.data_model.Shutdown();
@@ -516,7 +546,6 @@ void EditorLayer::OnBeginPresent() {
   InitializeDockspaceLayout(dockspace_id);
 
   RenderProjectSettingsPopup();
-  RenderAssetPropertiesPanel();
   RenderCodeEditor();
   anim_controller_editor_.Render();
   RenderLspDebugPanel();
@@ -532,7 +561,7 @@ void EditorLayer::OnBeginPresent() {
   notifications_.RenderHistoryPanel();
 
   RenderSceneHierarchyPanel();
-  RenderEntityInspectorPanel();
+  RenderInspectorPanel();
   RenderAssetBrowserPanel();
   RenderDeveloperConsolePanel();
   RenderRenderStatsPanel();
@@ -575,8 +604,8 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
     ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
     ImGuiID dock_bottom, dock_top;
-    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down,
-                                kAssetBrowserRatio, &dock_bottom, &dock_top);
+    ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, kAssetBrowserRatio,
+                                &dock_bottom, &dock_top);
 
     ImGuiID dock_left, dock_center_right;
     ImGui::DockBuilderSplitNode(dock_top, ImGuiDir_Left, kLeftPanelRatio,
@@ -586,16 +615,19 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
     ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right,
                                 kRightPanelRatio, &dock_right, &dock_center);
 
-    ImGui::DockBuilderDockWindow(ICON_HIERARCHY " Scene Hierarchy", dock_left);
-    ImGui::DockBuilderDockWindow(ICON_CAMERA " Game", dock_center);
-    ImGui::DockBuilderDockWindow(ICON_CAMERA " Scene", dock_center);
-    ImGuiID scene_window_id = ImHashStr(ICON_CAMERA " Scene");
+    ImGui::DockBuilderDockWindow(CODICON_SYMBOL_RULER " Scene Hierarchy",
+                                 dock_left);
+    ImGui::DockBuilderDockWindow(CODICON_CAMERA_VIDEO " Game", dock_center);
+    ImGui::DockBuilderDockWindow(CODICON_PREVIEW " Scene", dock_center);
+    ImGuiID scene_window_id = ImHashStr(CODICON_PREVIEW " Scene");
     ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
-    ImGui::DockBuilderDockWindow("Entity Inspector", dock_right);
-    ImGui::DockBuilderDockWindow("Asset Properties", dock_right);
-    ImGui::DockBuilderDockWindow(ICON_BROWSER " Asset Browser", dock_bottom);
-    ImGui::DockBuilderDockWindow(ICON_CONSOLE " Developer Console", dock_bottom);
-    ImGui::DockBuilderDockWindow("Render Stats", dock_bottom);
+    ImGui::DockBuilderDockWindow(CODICON_INSPECT " Inspector", dock_right);
+    ImGui::DockBuilderDockWindow(CODICON_FOLDER_OPENED " Asset Browser",
+                                 dock_bottom);
+    ImGui::DockBuilderDockWindow(CODICON_TERMINAL " Developer Console",
+                                 dock_bottom);
+    ImGui::DockBuilderDockWindow(CODICON_DASHBOARD " Render Stats",
+                                 dock_bottom);
 
     ImGui::DockBuilderFinish(dockspace_id);
   }
@@ -703,27 +735,26 @@ void EditorLayer::OnPrePresent() {
           editor_camera_.resource_pool.GetTexture("PipelineOutput");
       if (editor_output) {
         renderer->TransitionImageLayout(
-            cmd, editor_output->images_[0],
-            editor_output->format_,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
+            cmd, editor_output->images_[0], editor_output->format_,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
       }
 
       PROFILE_PLOT("Scene Width",
                    static_cast<double>(editor_camera_.viewport_size.x));
       PROFILE_PLOT("Scene Height",
                    static_cast<double>(editor_camera_.viewport_size.y));
-      Engine::scene_manager().RenderEditorView(editor_camera_,
-                                               editor_camera_transform_,
-                                               show_grid_);
+      Engine::scene_manager().RenderEditorView(
+          editor_camera_, editor_camera_transform_, show_grid_);
       PROFILE_FRAME_MARK_NAMED("Scene");
 
       // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
       editor_output = editor_camera_.resource_pool.GetTexture("PipelineOutput");
       if (editor_output) {
         renderer->TransitionImageLayout(
-            cmd, editor_output->images_[0],
-            editor_output->format_,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
+            cmd, editor_output->images_[0], editor_output->format_,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
       }
     }
 
@@ -735,9 +766,8 @@ void EditorLayer::OnPrePresent() {
     // EDIT MODE: only render viewports that are visible.
     if (scene_panel_visible_) {
       PROFILE_FRAME_MARK_NAMED("Scene");
-      Engine::scene_manager().RenderEditorView(editor_camera_,
-                                               editor_camera_transform_,
-                                               show_grid_);
+      Engine::scene_manager().RenderEditorView(
+          editor_camera_, editor_camera_transform_, show_grid_);
     }
 
     if (game_panel_visible_) {

@@ -20,46 +20,29 @@
 
 namespace Wiesel::Editor {
 
-static PngIconSource s_png_source;
-
 void InitEditorIcons() {
-  // Load all PNG icons
-  for (const auto& def : kEditorIcons) {
-    s_png_source.AddIcon(def.codepoint, def.vfs_path);
-  }
-
-  // Set up the font loader
-  IconFontLoader::SetSource(&s_png_source);
-
   ImGuiIO& io = ImGui::GetIO();
 
-  // We need valid TTF data for AddFont. Use codicon as carrier since it
-  // has no glyphs in our PUA range (0xE000-0xE0FF), avoiding conflicts
-  // with fonts like Inter that map alternate glyphs to PUA codepoints.
-  const char* carrier_path = "engine://fonts/codicon.ttf";
-  auto font_file = Engine::vfs()->Open(carrier_path);
-  if (!font_file) {
-    LOG_ERROR("Failed to load {} for icon font", carrier_path);
-    return;
+  auto codicon_file = Engine::vfs()->Open("engine://fonts/codicon.ttf");
+  if (codicon_file) {
+    void* codicon_data = IM_ALLOC(codicon_file.Size());
+    memcpy(codicon_data, codicon_file.Data(), codicon_file.Size());
+
+    ImFontConfig codicon_config;
+    codicon_config.MergeMode = true;
+    codicon_config.DstFont = io.FontDefault;
+    codicon_config.FontDataOwnedByAtlas = true;
+    codicon_config.SizePixels = ImGui::Moonlight::kDefaultFontSize;
+    codicon_config.FontData = codicon_data;
+    codicon_config.FontDataSize = static_cast<int>(codicon_file.Size());
+    codicon_config.GlyphOffset = ImVec2(0, 3);  // slight vertical offset
+
+    static constexpr ImWchar codicon_ranges[] = {0xEA60, 0xF000, 0};
+    codicon_config.GlyphRanges = codicon_ranges;
+
+    io.Fonts->AddFont(&codicon_config);
+    LOG_INFO("Codicon glyphs merged");
   }
-
-  void* font_data = IM_ALLOC(font_file.Size());
-  memcpy(font_data, font_file.Data(), font_file.Size());
-
-  ImFontConfig config;
-  config.MergeMode = true;
-  config.DstFont = io.FontDefault;
-  config.FontDataOwnedByAtlas = true;
-  config.FontLoader = IconFontLoader::GetLoader();
-  config.SizePixels = 38.0f;
-  config.FontData = font_data;
-  config.FontDataSize = static_cast<int>(font_file.Size());
-
-  static const ImWchar ranges[] = {0xE000, 0xE0FF, 0};
-  config.GlyphRanges = ranges;
-
-  io.Fonts->AddFont(&config);
-  LOG_INFO("Editor icon font registered ({} icons)", std::size(kEditorIcons));
 }
 
 }  // namespace Wiesel::Editor

@@ -547,6 +547,9 @@ bool SceneManager::RenderEditorView(CameraComponent& camera,
   if (loaded_scenes_.empty()) {
     return false;
   }
+  if (camera.viewport_size.x <= 0 || camera.viewport_size.y <= 0) {
+    return false;
+  }
 
   PROFILE_ZONE_SCOPED_N("SceneManager::RenderEditorView");
   auto renderer = Engine::renderer();

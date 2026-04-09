@@ -403,7 +403,6 @@ class ScriptManager {
 
   MonoClass* behavior_class_ = nullptr;
   MonoClass* transform_component_class_ = nullptr;
-  MonoClass* model_component_class_ = nullptr;
   MonoClass* box_collider_class_ = nullptr;
   MonoClass* sphere_collider_class_ = nullptr;
   MonoClass* rigidbody_class_ = nullptr;

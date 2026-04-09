@@ -12,7 +12,7 @@
 
 #include <imgui.h>
 
-#include "asset/w_asset_serializer.h"
+#include "asset/w_asset_registry.h"
 #include "w_engine.h"
 
 namespace Wiesel::Editor {
@@ -189,7 +189,7 @@ void AnimControllerEditor::Save() {
     return;
   }
   Engine::asset_manager().Store(asset_handle_, controller_);
-  AssetSerializerRegistry::Save(asset_handle_);
+  AssetRegistry::Save(asset_handle_);
   delegate_->is_dirty = false;
 }
 

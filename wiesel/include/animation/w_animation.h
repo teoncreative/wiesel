@@ -14,7 +14,7 @@
 
 namespace Wiesel {
 
-#define WIESEL_MAX_BONES 128
+#define WIESEL_MAX_BONES 256
 #define WIESEL_MAX_BONE_INFLUENCE 4
 
 // ---- Skeleton ----

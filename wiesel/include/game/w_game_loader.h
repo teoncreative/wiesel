@@ -60,19 +60,6 @@ class GameLoader {
   // Creates .meta files when the VFS path has physical storage.
   static AssetHandle ImportAsset(const std::string& name, AssetType type,
                                  const std::string& vfs_path);
-
-  // Write a .meta sidecar file for a binary asset.
-  static void WriteMetaFile(const std::filesystem::path& meta_path,
-                            const AssetHandle& handle, AssetType type,
-                            const void* properties = nullptr);
-
-  struct MetaFileData {
-    AssetHandle handle;
-    nlohmann::json properties;  // empty if none
-  };
-
-  static MetaFileData ReadMetaFile(const std::filesystem::path& meta_path);
-  static MetaFileData ReadMetaFile(const nlohmann::json& j);
 };
 
 }  // namespace Wiesel

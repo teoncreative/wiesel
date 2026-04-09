@@ -55,7 +55,7 @@ class RecentProjects {
   static std::filesystem::path GetConfigPath();
 };
 
-enum class EditorState { Edit, Playing };
+enum class EditorState { Edit, Playing, Paused };
 
 struct HierarchyDragPayload {
   entt::entity entity = entt::null;
@@ -106,12 +106,16 @@ class EditorLayer : public Layer {
   void RenderCreateCursorSetPopup();
   void RenderCreateMeshColliderPopup();
   void RenderEntityInspector(entt::entity handle);
+  void RenderAssetPropertiesPanel();
   void NewProject();
   void OpenProject();
   void SaveProject();
   void NewScene();
   void SaveScene();
   void SaveSceneAs();
+
+  // Instantiate a model asset into the current scene with undo support.
+  void InstantiateModelAsset(AssetHandle handle);
   void ClearScene();
   void OpenScene(const std::string& vfs_path);
   void LoadProjectFromPath(const std::filesystem::path& path);
@@ -125,7 +129,7 @@ class EditorLayer : public Layer {
   // OnBeginPresent sub-panels
   void InitializeDockspaceLayout(ImGuiID dockspace_id);
   void RenderSceneHierarchyPanel();
-  void RenderEntityInspectorPanel();
+  void RenderInspectorPanel();
   void RenderAssetBrowserPanel();
   void RenderDeveloperConsolePanel();
   void RenderRenderStatsPanel();
@@ -243,10 +247,10 @@ class EditorLayer : public Layer {
   VfsFilePicker file_picker_;
   NotificationManager notifications_;
 
-  // Asset properties panel
-  bool show_asset_properties_ = false;
-  AssetHandle properties_asset_handle_;
-  void RenderAssetPropertiesPanel();
+  // Inspector mode: entity or asset
+  enum class InspectorMode { Entity, Asset };
+  InspectorMode inspector_mode_ = InspectorMode::Entity;
+  AssetHandle inspector_asset_handle_;
 
   // Prefab editing
   bool editing_prefab_ = false;
@@ -263,6 +267,7 @@ class EditorLayer : public Layer {
     OpenPrefab,
     ClosePrefab,
     OpenProject,
+    CloseProject,
     StopPlaying
   };
   DeferredAction deferred_action_ = DeferredAction::None;

@@ -13,7 +13,7 @@
 #include <imgui.h>
 #include <fstream>
 #include "asset/w_asset_manager.h"
-#include "asset/w_asset_property_registry.h"
+#include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
@@ -31,7 +31,7 @@ void AssetBrowserPanel::Render(bool& open) {
   if (!open) {
     return;
   }
-  if (!ImGui::Begin(ICON_BROWSER " Asset Browser", &open)) {
+  if (!ImGui::Begin(CODICON_FOLDER_OPENED " Asset Browser", &open)) {
     ImGui::End();
     return;
   }
@@ -419,7 +419,7 @@ void AssetBrowserPanel::Render(bool& open) {
           }
         }
         if (!fe.is_dir && handle.IsValid() &&
-            AssetPropertyRegistry::HasProperties(fe.asset_type)) {
+            AssetRegistry::HasProperties(fe.asset_type)) {
           // Properties panel auto-selects on click, no menu item needed.
         }
         ImGui::Separator();

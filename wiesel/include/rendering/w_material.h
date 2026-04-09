@@ -22,7 +22,7 @@
 #include "w_pch.h"
 
 namespace Wiesel {
-static constexpr int kMaterialTextureCount = 7;
+static constexpr int kMaterialTextureCount = 8;
 
 // --- Material Property System ---
 
@@ -143,9 +143,12 @@ struct Material {
   TextureSlot albedo_map;
   TextureSlot roughness_map;
   TextureSlot metallic_map;
+  TextureSlot opacity_map;
 
   // Material properties (scalar/vector values)
   std::unordered_map<std::string, MaterialPropertyValue> properties;
+
+  bool double_sided = false;  // disable backface culling for this material
 
   // Active features
   std::set<std::string> enabled_features;
@@ -183,7 +186,6 @@ struct Material {
 
   static void Set(std::shared_ptr<Material> material,
                   AssetHandle texture_handle, TextureType type);
-
 };
 
 // --- Material Instance ---

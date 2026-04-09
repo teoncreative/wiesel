@@ -34,6 +34,11 @@ class ISystem {
   // Whether this system should run on the first frame.
   // Most gameplay systems skip the first frame to avoid initialization artifacts.
   virtual bool RunOnFirstUpdate() const { return true; }
+
+  // Whether this system runs in editor mode (outside Play).
+  // Default false - only infrastructure systems (transforms, skinned mesh,
+  // camera, lights) should return true.
+  virtual bool RunInEditor() const { return false; }
 };
 
 }  // namespace Wiesel

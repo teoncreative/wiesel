@@ -26,9 +26,7 @@
 
 namespace Wiesel {
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 static bool PointInRect(const glm::vec2& point, const glm::vec2& pos,
                         const glm::vec2& size) {
@@ -52,12 +50,10 @@ static entt::entity FindCanvasRoot(entt::registry& registry,
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Phase 1+2: Transform viewport mouse to canvas-space coordinates.
 // Works for all render modes: ScreenSpace uses display/render scaling +
 // canvas scaler inverse. WorldSpace uses ray-plane intersection.
 // Returns {coords, valid}. Invalid means mouse doesn't map to this canvas.
-// ---------------------------------------------------------------------------
 
 struct CanvasMouseResult {
   glm::vec2 coords;
@@ -166,10 +162,8 @@ static CanvasMouseResult TransformToCanvasSpace(float mouse_x, float mouse_y,
   return {{cx, cy}, true};
 }
 
-// ---------------------------------------------------------------------------
 // Phase 3a: Hit test interactable elements under a specific canvas.
 // Uses pre-transformed canvas-space coords. Returns highest draw_order hit.
-// ---------------------------------------------------------------------------
 
 struct HitCandidate {
   entt::entity entity;
@@ -210,10 +204,8 @@ static entt::entity HitTestCanvas(entt::entity canvas_entity,
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Phase 3b: Forward mouse events to UIDocument contexts under a canvas.
 // Uses pre-transformed canvas-space coords.
-// ---------------------------------------------------------------------------
 
 // Returns the entity that was clicked (mouse_down inside), or entt::null.
 static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
@@ -266,9 +258,7 @@ static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
   return clicked_entity;
 }
 
-// ---------------------------------------------------------------------------
 // DispatchWithBubble
-// ---------------------------------------------------------------------------
 template <typename Fn>
 entt::entity UIEventSystem::DispatchWithBubble(entt::registry& registry,
                                                entt::entity start, Fn&& fn) {
@@ -295,9 +285,7 @@ entt::entity UIEventSystem::DispatchWithBubble(entt::registry& registry,
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Focus helpers
-// ---------------------------------------------------------------------------
 void UIEventSystem::FocusEntity(entt::registry& registry, entt::entity entity) {
   if (entity == focused_entity_) {
     return;
@@ -321,9 +309,7 @@ void UIEventSystem::UnfocusEntity(entt::registry& registry) {
   focused_entity_ = entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Public accessors
-// ---------------------------------------------------------------------------
 entt::entity UIEventSystem::GetSelectedEntity(int player_index) const {
   auto it = player_nav_.find(player_index);
   if (it != player_nav_.end()) {
@@ -332,9 +318,7 @@ entt::entity UIEventSystem::GetSelectedEntity(int player_index) const {
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Update
-// ---------------------------------------------------------------------------
 void UIEventSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("UIEventSystem::Update");
   auto& registry = scene.GetRegistry();
@@ -381,9 +365,7 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
   UpdateButtonStates(registry);
 }
 
-// ---------------------------------------------------------------------------
 // Mouse input processing (per-canvas, phase-based)
-// ---------------------------------------------------------------------------
 void UIEventSystem::ProcessMouseInput(Scene& scene) {
   PROFILE_ZONE_SCOPED_N("UIEventSystem::ProcessMouseInput");
   auto& registry = scene.GetRegistry();
@@ -505,9 +487,7 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Gamepad input processing (per-player, scoped to a canvas)
-// ---------------------------------------------------------------------------
 void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
                                         int player_index,
                                         entt::entity canvas_entity) {
@@ -633,9 +613,7 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
   }
 }
 
-// ---------------------------------------------------------------------------
 // Navigation
-// ---------------------------------------------------------------------------
 void UIEventSystem::ClearSelection(Scene& scene, int player_index) {
   auto& registry = scene.GetRegistry();
   auto it = player_nav_.find(player_index);
@@ -836,9 +814,7 @@ entt::entity UIEventSystem::FindFirstNavigable(Scene& scene,
   return best;
 }
 
-// ---------------------------------------------------------------------------
 // Button state update
-// ---------------------------------------------------------------------------
 void UIEventSystem::UpdateButtonStates(entt::registry& registry) {
   for (auto entity : registry.view<ButtonComponent, InteractableComponent>()) {
     auto& btn = registry.get<ButtonComponent>(entity);
@@ -858,9 +834,7 @@ void UIEventSystem::UpdateButtonStates(entt::registry& registry) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Keyboard/text forwarding to focused RmlUi document
-// ---------------------------------------------------------------------------
 
 // Map engine keycodes (defined in w_keycodes.h) to RmlUi
 static Rml::Input::KeyIdentifier EngineKeyToRml(int key_code) {

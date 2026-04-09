@@ -12,6 +12,7 @@
 #include "util/imgui/w_imguiutil.h"
 
 #include <imgui_internal.h>
+#include "rendering/w_texture.h"
 
 namespace Wiesel {
 
@@ -28,6 +29,35 @@ std::string PrefixLabel(const char* label) {
   labelID += label;
 
   return labelID;
+}
+
+void RenderTexturePreview(const char* label, Texture* tex) {
+  if (!tex) {
+    ImGui::TextDisabled("  %s: No", label);
+    return;
+  }
+  VkDescriptorSet desc = tex->GetImGuiDescriptor();
+  if (!desc) {
+    ImGui::TextDisabled("  %s: (loading)", label);
+    return;
+  }
+  ImGui::Text("  %s:", label);
+  ImGui::SameLine();
+  ImVec2 thumb_size(16, 16);
+  ImGui::Image(reinterpret_cast<ImTextureID>(desc), thumb_size);
+  if (ImGui::IsItemHovered()) {
+    ImGui::BeginTooltip();
+    float max_preview = 256.0f;
+    float aspect =
+        (tex->width_ > 0 && tex->height_ > 0)
+            ? static_cast<float>(tex->width_) / static_cast<float>(tex->height_)
+            : 1.0f;
+    ImVec2 preview_size = (aspect >= 1.0f)
+                              ? ImVec2(max_preview, max_preview / aspect)
+                              : ImVec2(max_preview * aspect, max_preview);
+    ImGui::Image(reinterpret_cast<ImTextureID>(desc), preview_size);
+    ImGui::EndTooltip();
+  }
 }
 
 }  // namespace Wiesel

@@ -57,6 +57,11 @@ struct AnimClipAssetData {
   // These target the Model's node hierarchy, not ECS components.
   std::vector<AnimationChannel> bone_channels;
 
+  // Maximum distance any bone position keyframe reaches from the origin.
+  // Used to expand culling bounds for skeletal animation.
+  // Computed at extraction time and serialized in the asset.
+  float max_bone_reach = 0.0f;
+
   bool HasBoneChannels() const { return !bone_channels.empty(); }
 
   bool HasPropertyCurves() const { return !property_curves.empty(); }
