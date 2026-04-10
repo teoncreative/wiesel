@@ -144,6 +144,9 @@ void main() {
     }
 
     vec3 normal = getSurfaceNormal();
+    if (!gl_FrontFacing) {
+        normal = -normal;
+    }
     vec3 albedo = inColor * baseColor.rgb;
     vec3 viewDir = normalize(cam.position - inWorldPos);
 

@@ -144,6 +144,9 @@ void main() {
         metallic = materialParams.y;
     }
     vec3 normal = getSurfaceNormal();
+    if (!gl_FrontFacing) {
+        normal = -normal;
+    }
 
     // Debug: force vertex normal only (skip normal map)
     if (cam.debugCascades == 8) normal = normalize(inNormal);
