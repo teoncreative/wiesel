@@ -47,8 +47,7 @@ MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj, void** args,
     MonoString* exc_str = mono_object_to_string(exception, nullptr);
     if (exc_str) {
       char* cstr = mono_string_to_utf8(exc_str);
-      LOG_ERROR("C# Exception: {}", cstr);
-      Engine::console().LogError(cstr);
+      DCON_LOG_ERROR("C# Exception: {}", cstr);
       mono_free(cstr);
     }
     if (had_exception) {
@@ -91,6 +90,15 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data,
                                MonoBehavior* behavior) {
   behavior_ = behavior;
   script_data_ = data;
+  ScriptManager& script_manager = Engine::script_manager();
+  if (!script_manager.loaded()) {
+    DCON_LOG_ERROR(
+        "ScriptManager was not fully loaded, Script '{}' will be disabled.",
+        behavior->GetName());
+    errored_ = true;
+    Detach();
+    return;
+  }
   handle_ = mono_object_new(Engine::script_manager().app_domain(),
                             data->mono_class());
 
@@ -623,28 +631,30 @@ void ScriptManager::Reload() {
 
   // Compile Core if needed
   if (!core_sources.empty() && !std::filesystem::exists(kCoreDllPath)) {
-    LOG_INFO("Compiling core ({} files)...", core_sources.size());
+    DCON_LOG_INFO("Compiling core ({} files)...", core_sources.size());
     DotNetProject core("Core");
     core.SetOutputPath(kCoreDllPath);
     core.SetSources(core_sources);
     core.SetGenerateDocs(true);
     last_compile_result_ = core.Build(debug);
     if (!last_compile_result_.success) {
-      LOG_ERROR("Core compilation failed:\n{}", last_compile_result_.output);
+      DCON_LOG_ERROR("Core compilation failed:\n{}",
+                     last_compile_result_.output);
       return;
     }
   }
 
   // Compile App
   if (!app_sources.empty()) {
-    LOG_INFO("Compiling app ({} files)...", app_sources.size());
+    DCON_LOG_INFO("Compiling app ({} files)...", app_sources.size());
     DotNetProject app("App");
     app.SetOutputPath(kAppDllPath);
     app.SetSources(app_sources);
     app.SetReferences(link_libs);
     last_compile_result_ = app.Build(debug);
     if (!last_compile_result_.success) {
-      LOG_ERROR("App compilation failed:\n{}", last_compile_result_.output);
+      DCON_LOG_ERROR("App compilation failed:\n{}",
+                     last_compile_result_.output);
       return;
     }
   }
@@ -666,7 +676,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
     return;
   }
 
-  LOG_INFO("Compiling scripts (async)...");
+  DCON_LOG_INFO("Compiling scripts (async)...");
   bool debug = enable_debugger_;
   compiling_ = true;
 
@@ -674,7 +684,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
     CompileResult result{true, 0, "", ""};
 
     if (need_core && !core_sources.empty()) {
-      LOG_INFO("Compiling core ({} files)...", core_sources.size());
+      DCON_LOG_INFO("Compiling core ({} files)...", core_sources.size());
       DotNetProject core("Core");
       core.SetOutputPath(kCoreDllPath);
       core.SetSources(core_sources);
@@ -684,7 +694,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
 
     if (result.success && !app_sources.empty()) {
       std::vector<std::string> link_libs = CollectLinkLibs("App.dll");
-      LOG_INFO("Compiling app ({} files)...", app_sources.size());
+      DCON_LOG_INFO("Compiling app ({} files)...", app_sources.size());
       DotNetProject app("App");
       app.SetOutputPath(kAppDllPath);
       app.SetSources(app_sources);
@@ -697,8 +707,8 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
       compiling_ = false;
 
       if (!result.success) {
-        LOG_ERROR("Compilation failed (exit code {}):\n{}", result.exit_code,
-                  result.output);
+        DCON_LOG_ERROR("Compilation failed (exit code {}):\n{}",
+                       result.exit_code, result.output);
         return;
       }
 
@@ -709,6 +719,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
 
 void ScriptManager::SwapDomain() {
   PROFILE_ZONE_SCOPED_N("ScriptManager::SwapDomain");
+  loaded_ = false;
 
   // Unregister old assets
   AssetManager& mgr = Engine::asset_manager();
@@ -743,7 +754,8 @@ void ScriptManager::SwapDomain() {
     LoadAppDll(kAppDllPath);
   }
 
-  LOG_INFO("Scripts loaded ({} scripts)", script_names_.size());
+  loaded_ = true;
+  DCON_LOG_INFO("Scripts loaded ({} scripts)", script_names_.size());
   ScriptsReloadedEvent event{};
   Engine::BroadcastEvent(event);
 }
@@ -753,13 +765,13 @@ void ScriptManager::LoadCoreDll() {
   std::string dll_path = kCoreDllPath;
 
   if (!std::filesystem::exists(dll_path)) {
-    LOG_ERROR("Core.dll not found");
+    DCON_LOG_ERROR("Core.dll not found");
     return;
   }
 
   core_assembly_ = mono_domain_assembly_open(root_domain_, dll_path.c_str());
   if (!core_assembly_) {
-    LOG_ERROR("Failed to load Core.dll assembly from '{}'", dll_path);
+    DCON_LOG_ERROR("Failed to load Core.dll assembly from '{}'", dll_path);
     return;
   }
 
@@ -822,7 +834,7 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
   LOG_INFO("Loading App.dll from {}", dll_path);
   app_assembly_ = mono_domain_assembly_open(app_domain_, dll_path.c_str());
   if (!app_assembly_) {
-    LOG_ERROR("Failed to load App.dll: {}", dll_path);
+    DCON_LOG_ERROR("Failed to load App.dll: {}", dll_path);
     return false;
   }
 

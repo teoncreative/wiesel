@@ -110,6 +110,11 @@ static bool AssetDropField(const char* label, AssetType type,
     }
   }
 
+  // Layout: label column (same width as PrefixLabel), then button fills rest
+  float width = ImGui::CalcItemWidth();
+  float label_end = ImGui::GetCursorPosX() + width * 0.5f +
+                    ImGui::GetStyle().ItemInnerSpacing.x;
+
   // Show inline thumbnail next to the label
   ThumbnailCache* tc = ThumbnailCache::Get();
   if (tc && handle.IsValid() && meta) {
@@ -124,6 +129,7 @@ static bool AssetDropField(const char* label, AssetType type,
 
   ImGui::Text("%s", label);
   ImGui::SameLine();
+  ImGui::SetCursorPosX(label_end);
   std::string btn_id = name + "##assetdrop_" + label;
   ImGui::Button(btn_id.c_str(), ImVec2(-1, 0));
 

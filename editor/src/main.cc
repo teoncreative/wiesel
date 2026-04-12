@@ -12,6 +12,7 @@
 #include "w_editor_components.h"
 
 #include "layer/w_layerimgui.h"
+#include "util/w_command.h"
 #include "util/w_platform.h"
 #include "w_engine.h"
 
@@ -37,7 +38,7 @@ Application* Wiesel::CreateApp() {
 
 int main(int argc, char** argv) {
   EnableAnsiColors();
-
+  DeveloperConsole::Init();
   EngineProperties properties = EngineProperties::Parse(argc, argv);
   properties.editor_enabled = true;
   Engine::InitEngine(properties);
@@ -46,5 +47,6 @@ int main(int argc, char** argv) {
   application.Run();
   Engine::CleanupApplication();
   Engine::CleanupEngine();
+  DeveloperConsole::Cleanup();
   return 0;
 }

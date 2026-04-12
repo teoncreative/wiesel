@@ -167,11 +167,12 @@ bool AssetManager::Register(AssetHandle handle, const std::string& name,
   {
     std::unique_lock lock(registry_mutex_);
     if (!handle.IsValid()) {
-      LOG_ERROR("Cannot register asset with nil handle");
+      DCON_LOG_ERROR("Cannot register asset with nil handle.");
       return false;
     }
     if (registry_.contains(handle)) {
-      LOG_WARN("Handle {} already registered", handle.ToString());
+      DCON_LOG_ERROR("Asset with handle {} was already registered.",
+                     handle.ToString());
       return false;
     }
 

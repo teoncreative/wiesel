@@ -81,6 +81,7 @@ static int RunEngine(int argc, char** argv) {
     freopen_s(&f, "NUL", "w", stderr);
   }
 #endif
+  DeveloperConsole::Init();
 
   EngineProperties properties = EngineProperties::Parse(argc, argv);
 
@@ -89,6 +90,7 @@ static int RunEngine(int argc, char** argv) {
   Engine::app().Run();
   Engine::CleanupApplication();
   Engine::CleanupEngine();
+  DeveloperConsole::Cleanup();
   return 0;
 }
 

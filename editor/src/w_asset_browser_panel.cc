@@ -122,7 +122,7 @@ void AssetBrowserPanel::Render(bool& open) {
     auto dest_physical =
         Engine::vfs()->ResolvePhysicalPath(browser_.CurrentVfsDir());
     if (!dest_physical) {
-      LOG_ERROR("No app:// mount point - open a project first");
+      DCON_LOG_ERROR("No app:// mount point - open a project first");
       return;
     }
     fs::path dest_dir = *dest_physical;
@@ -147,8 +147,8 @@ void AssetBrowserPanel::Render(bool& open) {
         fs::copy_file(entry.path(), file_dest, fs::copy_options::skip_existing,
                       ec);
         if (ec) {
-          LOG_WARN("Failed to copy '{}': {}", entry.path().string(),
-                   ec.message());
+          DCON_LOG_WARN("Failed to copy '{}': {}", entry.path().string(),
+                        ec.message());
           ec.clear();
         }
       }
@@ -167,20 +167,20 @@ void AssetBrowserPanel::Render(bool& open) {
       std::string vfs_path = "app://" + vfs_rel.generic_string();
       std::string name = abs.stem().string();
       Engine::asset_manager().Register(name, type, vfs_path);
-      LOG_INFO("Imported model directory {} to {}", name, vfs_path);
+      DCON_LOG_INFO("Imported model directory {} to {}", name, vfs_path);
     } else {
       fs::path dest = dest_dir / abs.filename();
       fs::copy_file(abs, dest, fs::copy_options::skip_existing, ec);
       if (ec) {
-        LOG_ERROR("Failed to import '{}' to '{}': {}", file, dest.string(),
-                  ec.message());
+        DCON_LOG_ERROR("Failed to import '{}' to '{}': {}", file, dest.string(),
+                       ec.message());
         return;
       }
       auto vfs_rel = fs::relative(dest, app_assets);
       std::string vfs_path = "app://" + vfs_rel.generic_string();
       std::string name = abs.stem().string();
       Engine::asset_manager().Register(name, type, vfs_path);
-      LOG_INFO("Imported {} to {}", name, vfs_path);
+      DCON_LOG_INFO("Imported {} to {}", name, vfs_path);
     }
   };
 

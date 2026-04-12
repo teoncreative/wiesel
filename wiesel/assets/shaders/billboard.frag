@@ -9,5 +9,6 @@ layout (location = 0) out vec4 outFragColor;
 
 void main() {
     vec4 texel = texture(iconTexture, inUV);
-    outFragColor = texel * inColor;
+    vec4 color = texel * inColor;
+    outFragColor = vec4(color.rgb * color.a, color.a);
 }

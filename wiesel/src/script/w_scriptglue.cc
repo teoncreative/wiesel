@@ -2151,7 +2151,8 @@ void Internals_Console_RegisterCommand(MonoString* name,
 
   uint32_t gc_handle = mono_gchandle_new(callback, true);
 
-  Engine::console().Register(
+  // Todo we need an handle so we can delete this command when the script dies
+  DeveloperConsole::Get().Register(
       name_str, desc_str, [gc_handle](const std::vector<std::string>& args) {
         MonoObject* delegate = mono_gchandle_get_target(gc_handle);
         if (!delegate) {
@@ -2167,49 +2168,39 @@ void Internals_Console_RegisterCommand(MonoString* name,
         }
 
         void* invoke_args[1] = {mono_args};
-        MonoObject* exception = nullptr;
         MonoMethod* invoke_method =
             mono_get_delegate_invoke(mono_object_get_class(delegate));
-        mono_runtime_invoke(invoke_method, delegate, invoke_args, &exception);
-
-        if (exception) {
-          MonoString* exc_str = mono_object_to_string(exception, nullptr);
-          if (exc_str) {
-            char* exc_cstr = mono_string_to_utf8(exc_str);
-            Engine::console().LogError(exc_cstr);
-            mono_free(exc_cstr);
-          }
-        }
+        InvokeSafe(invoke_method, delegate, invoke_args, nullptr);
       });
 }
 
 void Internals_Console_UnregisterCommand(MonoString* name) {
   char* cstr = mono_string_to_utf8(name);
-  Engine::console().Unregister(cstr);
+  DeveloperConsole::Get().Unregister(cstr);
   mono_free(cstr);
 }
 
 void Internals_Console_Execute(MonoString* command_line) {
   char* cstr = mono_string_to_utf8(command_line);
-  Engine::console().Execute(cstr);
+  DeveloperConsole::Get().Execute(cstr);
   mono_free(cstr);
 }
 
 void Internals_Console_LogInfo(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
-  Engine::console().LogInfo(cstr);
+  DCON_LOG_INFO("{}", cstr);
   mono_free(cstr);
 }
 
 void Internals_Console_LogWarning(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
-  Engine::console().LogWarning(cstr);
+  DCON_LOG_WARN("{}", cstr);
   mono_free(cstr);
 }
 
 void Internals_Console_LogError(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
-  Engine::console().LogError(cstr);
+  DCON_LOG_ERROR("{}", cstr);
   mono_free(cstr);
 }
 

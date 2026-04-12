@@ -219,9 +219,9 @@ std::unique_ptr<aiScene> LoadAssimpScene(const std::string& path,
 
   if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
       !scene->mRootNode) {
-    LOG_ERROR("Failed to load model {}: {} (scene={}, flags={}, root={})", path,
-              importer.GetErrorString(), (void*)scene,
-              scene ? scene->mFlags : 0,
+    DCON_LOG_ERROR("Failed to load model {}: {} (scene={}, flags={}, root={})",
+                   path, importer.GetErrorString(), (void*)scene,
+                   scene ? scene->mFlags : 0,
               scene ? (void*)scene->mRootNode : nullptr);
     return nullptr;
   }
@@ -272,7 +272,7 @@ bool LoadTextureAsset(AssetHandle handle) {
         embedded_index = std::atoi(fragment.c_str() + 8);
       }
       if (embedded_index < 0) {
-        LOG_ERROR("LoadTextureAsset: invalid fragment URI: {}", path);
+        DCON_LOG_ERROR("LoadTextureAsset: invalid fragment URI: {}", path);
         return false;
       }
 
@@ -287,7 +287,7 @@ bool LoadTextureAsset(AssetHandle handle) {
       importer.ReadFile(model_path.c_str(), aiProcess_Triangulate);
       const aiScene* scene = importer.GetScene();
       if (!scene || embedded_index >= static_cast<int>(scene->mNumTextures)) {
-        LOG_ERROR(
+        DCON_LOG_ERROR(
             "LoadTextureAsset: failed to extract embedded texture {} "
             "from {}",
             embedded_index, model_path);
@@ -309,7 +309,7 @@ bool LoadTextureAsset(AssetHandle handle) {
     // Standalone or external texture: load from VFS path
     VfsFile file = vfs->Open(path);
     if (!file) {
-      LOG_ERROR("LoadTextureAsset: file not found: {}", path);
+      DCON_LOG_ERROR("LoadTextureAsset: file not found: {}", path);
       return false;
     }
     pixels = stbi_load_from_memory(file.Data(), static_cast<int>(file.Size()),
@@ -317,7 +317,7 @@ bool LoadTextureAsset(AssetHandle handle) {
   }
 
   if (!pixels) {
-    LOG_ERROR("LoadTextureAsset: decode failed for {}", path);
+    DCON_LOG_ERROR("LoadTextureAsset: decode failed for {}", path);
     return false;
   }
 
@@ -410,7 +410,7 @@ bool LoadModelAsset(AssetHandle handle) {
 
   const AssetMetadata* meta = asset_manager.GetMetadata(handle);
   if (!meta) {
-    LOG_ERROR("LoadModel: invalid handle");
+    DCON_LOG_ERROR("LoadModel: invalid handle");
     return false;
   }
 

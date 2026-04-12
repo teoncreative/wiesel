@@ -49,7 +49,7 @@ static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
           root["asset_handle"] = handle_str;
         }
       } catch (const std::exception& e) {
-        LOG_ERROR("Failed to read scene: {}", e.what());
+        DCON_LOG_ERROR("Failed to read scene: {}", e.what());
       }
     }
   }
@@ -95,7 +95,7 @@ void EditorLayer::NewProject() {
         RecentProjects::Add(
             std::filesystem::absolute(dir / (name + ".wiesel")).string());
         UpdateWindowTitle();
-        LOG_INFO("Created project: {} at {}", name, folder);
+        DCON_LOG_INFO("Created project: {} at {}", name, folder);
       }
     }
   });
@@ -129,7 +129,7 @@ void EditorLayer::SaveProject() {
     ec.fov = editor_camera_.field_of_view;
 
     project->Save();
-    LOG_INFO("Project saved");
+    DCON_LOG_INFO("Project saved");
   }
 }
 
@@ -192,7 +192,7 @@ void EditorLayer::SaveScene() {
   // Resolve VFS to physical for SaveSceneToFile (needs std::ofstream)
   auto physical = Engine::vfs()->ResolvePhysicalPath(current_scene_path_);
   if (!physical) {
-    LOG_ERROR("Cannot resolve scene path: {}", current_scene_path_);
+    DCON_LOG_ERROR("Cannot resolve scene path: {}", current_scene_path_);
     return;
   }
 
@@ -367,7 +367,7 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   Engine::discord_rpc().SetPresence("Working on " + project->GetSettings().name,
                                     "Editing", "wiesel_logo", "Wiesel Engine");
 #endif
-  LOG_INFO("Opened project: {}", project->GetSettings().name);
+  DCON_LOG_INFO("Opened project: {}", project->GetSettings().name);
 }
 
 void EditorLayer::ScanProjectAssets() {
@@ -402,7 +402,7 @@ void EditorLayer::OpenPrefabForEditing(const std::string& vfs_path) {
       Engine::asset_manager().FindBySourcePath(vfs_path);
   Entity root = Prefab::Instantiate(scene(), prefab_handle);
   if (root.handle() == entt::null) {
-    LOG_ERROR("Failed to open prefab for editing: {}", vfs_path);
+    DCON_LOG_ERROR("Failed to open prefab for editing: {}", vfs_path);
     // Restore previous scene
     if (!prefab_return_scene_path_.empty()) {
       OpenScene(prefab_return_scene_path_);
@@ -422,7 +422,7 @@ void EditorLayer::OpenPrefabForEditing(const std::string& vfs_path) {
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
-  LOG_INFO("Editing prefab: {}", vfs_path);
+  DCON_LOG_INFO("Editing prefab: {}", vfs_path);
 }
 
 void EditorLayer::SavePrefab() {
@@ -433,14 +433,14 @@ void EditorLayer::SavePrefab() {
   // Find the root entity (first in hierarchy - the prefab root)
   std::vector<entt::entity>& hierarchy = scene()->GetSceneHierarchy();
   if (hierarchy.empty()) {
-    LOG_ERROR("Cannot save prefab: scene is empty");
+    DCON_LOG_ERROR("Cannot save prefab: scene is empty");
     return;
   }
 
   Entity root = {hierarchy[0], scene().get()};
   if (Prefab::SaveToFile(root, editing_prefab_path_)) {
     scene_dirty_ = false;
-    LOG_INFO("Prefab saved: {}", editing_prefab_path_);
+    DCON_LOG_INFO("Prefab saved: {}", editing_prefab_path_);
   }
 }
 
@@ -488,7 +488,7 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
   namespace fs = std::filesystem;
   fs::create_directories(export_dir);
 
-  LOG_INFO("Exporting game to: {}", export_dir.string());
+  DCON_LOG_INFO("Exporting game to: {}", export_dir.string());
 
   // Copy gameinfo.wgame
   fs::path src_gameinfo = active_project_->GetGameInfoPath();
@@ -526,12 +526,12 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
       Wpak::Status status =
           Wpak::WriteArchive(export_dir / "assets.pak", filtered);
       if (!status.success) {
-        LOG_ERROR("Export: Failed to pack app assets: {}",
-                  status.error.message);
+        DCON_LOG_ERROR("Export: Failed to pack app assets: {}",
+                       status.error.message);
         return;
       }
-      LOG_INFO("Export: Packed {} assets ({} excluded)", filtered.size(),
-               app_files.value.size() - filtered.size());
+      DCON_LOG_INFO("Export: Packed {} assets ({} excluded)", filtered.size(),
+                    app_files.value.size() - filtered.size());
     }
   }
 
@@ -563,7 +563,7 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
       core.SetSources(core_sources);
       CompileResult result = core.Build(debug_build);
       if (!result.success) {
-        LOG_ERROR("Export: Core compilation failed:\n{}", result.output);
+        DCON_LOG_ERROR("Export: Core compilation failed:\n{}", result.output);
         return;
       }
       fs::copy_file(build_out / "Core.dll", export_dir / "Core.dll",
@@ -594,7 +594,7 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
       app.SetReferences(link_libs);
       CompileResult result = app.Build(debug_build);
       if (!result.success) {
-        LOG_ERROR("Export: App compilation failed:\n{}", result.output);
+        DCON_LOG_ERROR("Export: App compilation failed:\n{}", result.output);
         return;
       }
       fs::copy_file(build_out / "App.dll", export_dir / "App.dll",
@@ -617,8 +617,8 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
         Wpak::Status status =
             Wpak::WriteArchive(export_dir / "engine.pak", files.value);
         if (!status.success) {
-          LOG_ERROR("Export: Failed to pack engine assets: {}",
-                    status.error.message);
+          DCON_LOG_ERROR("Export: Failed to pack engine assets: {}",
+                         status.error.message);
         }
       }
     }
@@ -650,15 +650,16 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
           export_dir / (active_project_->GetSettings().name + game_ext);
       fs::copy_file(runtime_src, dst_name,
                     fs::copy_options::overwrite_existing);
-      LOG_INFO("Export: Copied runtime as {}", dst_name.filename().string());
+      DCON_LOG_INFO("Export: Copied runtime as {}",
+                    dst_name.filename().string());
     } else {
-      LOG_WARN(
+      DCON_LOG_WARN(
           "Export: wiesel-runtime not found. Build the 'wiesel-runtime' "
           "target first.");
     }
   }
 
-  LOG_INFO("Export complete: {}", export_dir.string());
+  DCON_LOG_INFO("Export complete: {}", export_dir.string());
 
   // Open the export directory
   OpenFileInDefaultEditor(export_dir);

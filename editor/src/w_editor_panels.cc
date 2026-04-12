@@ -307,7 +307,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
       };
 
       if (ImGui::Begin(CODICON_TERMINAL " Developer Console", &console_open)) {
-        auto& cmd = Engine::console();
+        auto& cmd = DeveloperConsole::Get();
         const auto& log = cmd.GetLog();
 
         // Toolbar

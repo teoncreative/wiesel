@@ -34,6 +34,10 @@ class DeveloperConsole {
  public:
   DeveloperConsole();
 
+  static void Init();
+  static void Cleanup();
+  static DeveloperConsole& Get();
+
   void Register(const std::string& name, const std::string& description,
                 CommandCallback callback);
   void Unregister(const std::string& name);
@@ -61,12 +65,6 @@ class DeveloperConsole {
     return commands_;
   }
 
-  bool IsVisible() const { return visible_; }
-
-  void SetVisible(bool visible) { visible_ = visible; }
-
-  void Toggle() { visible_ = !visible_; }
-
  private:
   std::vector<std::string> Tokenize(const std::string& command_line);
 
@@ -77,27 +75,23 @@ class DeveloperConsole {
   bool visible_ = false;
 };
 
-// These macros require w_engine.h to be included (for Engine::console()).
-// They are defined here so w_command.h is the single header for console functionality.
-// The actual Engine class is forward-referenced; the macros expand at call site
-// where w_engine.h is already included.
 #ifdef _MSC_VER
 
 #define DCON_LOG_INFO(msg, ...) \
-  ::Wiesel::Engine::console().LogInfo(std::format(msg, __VA_ARGS__))
+  ::Wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, __VA_ARGS__))
 #define DCON_LOG_WARN(msg, ...) \
-  ::Wiesel::Engine::console().LogWarning(std::format(msg, __VA_ARGS__))
+  ::Wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, __VA_ARGS__))
 #define DCON_LOG_ERROR(msg, ...) \
-  ::Wiesel::Engine::console().LogError(std::format(msg, __VA_ARGS__))
+  ::Wiesel::DeveloperConsole::Get().LogError(std::format(msg, __VA_ARGS__))
 
 #else
 
 #define DCON_LOG_INFO(msg, args...) \
-  ::Wiesel::Engine::console().LogInfo(std::format(msg, ##args))
+  ::Wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, ##args))
 #define DCON_LOG_WARN(msg, args...) \
-  ::Wiesel::Engine::console().LogWarning(std::format(msg, ##args))
+  ::Wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, ##args))
 #define DCON_LOG_ERROR(msg, args...) \
-  ::Wiesel::Engine::console().LogError(std::format(msg, ##args))
+  ::Wiesel::DeveloperConsole::Get().LogError(std::format(msg, ##args))
 
 #endif
 

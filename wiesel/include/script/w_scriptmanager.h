@@ -347,6 +347,8 @@ class ScriptManager {
     return last_compile_result_;
   }
 
+  bool loaded() const { return loaded_; }
+
  private:
   // Domain swap: unload old domain, load DLLs, register classes.
   // Must only be called on the main thread after compilation finishes.
@@ -436,6 +438,7 @@ class ScriptManager {
   // Async compilation
   std::atomic<bool> compiling_{false};
   CompileResult last_compile_result_;
+  bool loaded_ = false;
 };
 
 }  // namespace Wiesel

@@ -12,7 +12,6 @@
 #pragma once
 
 #include "rendering/w_renderer.h"
-#include "util/w_command.h"
 #include "util/w_vfs.h"
 #include "w_application.h"
 
@@ -73,8 +72,6 @@ class Engine {
   }
 
   WIESEL_GETTER_FN static Application& app() { return *application_; }
-
-  WIESEL_GETTER_FN static DeveloperConsole& console() { return *console_; }
 
   WIESEL_GETTER_FN static InputManager& input() { return *input_manager_; }
 
@@ -146,7 +143,6 @@ class Engine {
   static std::shared_ptr<Renderer> renderer_;
   static std::shared_ptr<AppWindow> window_;
   static std::shared_ptr<VirtualFileSystem> vfs_;
-  static std::unique_ptr<DeveloperConsole> console_;
   static std::unique_ptr<InputManager> input_manager_;
   static std::unique_ptr<AssetManager> asset_manager_;
 

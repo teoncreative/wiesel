@@ -19,6 +19,10 @@
 
 namespace Wiesel {
 
+// Billboard screen-size scaling factors
+constexpr float kBillboardSizeOrtho = 0.05f;
+constexpr float kBillboardSizePerspective = 0.1f;
+
 BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   SamplingMode msaa = renderer_->options().msaa_mode;
@@ -107,13 +111,38 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/quad_shader.frag"});
 
-  comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
-      SamplingMode::DISABLED, CullModeBack, false, true, false, false});
+  // Opaque pipeline for drawing the scene background
+  {
+    PipelineProperties props{};
+    props.sampling_mode = SamplingMode::DISABLED;
+    props.cull_mode = CullModeBack;
+    props.enable_alpha_blending = false;
+    props.enable_depth_test = false;
+    props.enable_depth_write = false;
+    comp_pipeline_ = std::make_shared<Pipeline>(props);
+  }
   comp_pipeline_->SetRenderPass(comp_render_pass_);
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
   comp_pipeline_->Bake();
+
+  // Alpha-blended pipeline for overlaying the billboard texture
+  {
+    PipelineProperties props{};
+    props.sampling_mode = SamplingMode::DISABLED;
+    props.cull_mode = CullModeBack;
+    props.enable_alpha_blending = true;
+    props.enable_depth_test = false;
+    props.enable_depth_write = false;
+    comp_blend_pipeline_ = std::make_shared<Pipeline>(props);
+  }
+  comp_blend_pipeline_->SetRenderPass(comp_render_pass_);
+  comp_blend_pipeline_->AddInputLayout(
+      renderer_->GetDescriptorLayout("Skybox"));
+  comp_blend_pipeline_->AddShader(fullscreen_vert);
+  comp_blend_pipeline_->AddShader(quad_frag);
+  comp_blend_pipeline_->Bake();
 
   // Generate quad geometry
   std::vector<BillboardVertex> vertices = {
@@ -130,6 +159,8 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
 
   // Load icon textures
   LoadIconTexture("camera", "engine://textures/billboard/camera_icon.png");
+  LoadIconTexture("point_light",
+                  "engine://textures/billboard/point_light_icon.png");
 }
 
 void BillboardFeature::LoadIconTexture(const std::string& name,
@@ -254,6 +285,12 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
       camera_icon_it != icon_descriptors_.end() ? camera_icon_it->second
                                                 : nullptr;
 
+  auto point_light_icon_it = icon_descriptors_.find("point_light");
+  std::shared_ptr<DescriptorSet> point_light_icon_desc =
+      point_light_icon_it != icon_descriptors_.end()
+          ? point_light_icon_it->second
+          : nullptr;
+
   glm::mat4 vp = ctx.camera.projection * ctx.camera.view_matrix;
   glm::vec3 cam_pos = ctx.camera.inv_view_matrix[3];
   float fov = ctx.camera.field_of_view;
@@ -273,22 +310,22 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   uint32_t draw_pass = graph.AddPass(
       "Billboards", render_pass_,
       [pipeline, push_constant, &scenes, renderer, vp, cam_pos, cam_right,
-       cam_up, fov, is_ortho, ortho_size, quad_vb, quad_ib,
-       camera_icon_desc](VkCommandBuffer cmd) {
-        if (!camera_icon_desc) {
-          return;
-        }
-
+       cam_up, fov, is_ortho, ortho_size, quad_vb, quad_ib, camera_icon_desc,
+       point_light_icon_desc](VkCommandBuffer cmd) {
         pipeline->Bind(PipelineBindPointGraphics);
 
         auto draw_billboard = [&](const glm::vec3& world_pos,
                                   const std::shared_ptr<DescriptorSet>& icon) {
+          if (!icon) {
+            return;
+          }
           float distance = glm::length(world_pos - cam_pos);
           float scale;
           if (is_ortho) {
-            scale = ortho_size * 0.05f;
+            scale = ortho_size * kBillboardSizeOrtho;
           } else {
-            scale = distance * tanf(glm::radians(fov * 0.5f)) * 0.06f;
+            scale = distance * tanf(glm::radians(fov * 0.5f)) *
+                    kBillboardSizePerspective;
           }
           scale = glm::clamp(scale, 0.2f, 20.0f);
 
@@ -322,12 +359,12 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         scenes.ForEach<LightDirectComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& tc = scene.GetComponent<TransformComponent>(entity);
-              draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
+              draw_billboard(tc.GetWorldPosition(), point_light_icon_desc);
             });
         scenes.ForEach<LightPointComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& tc = scene.GetComponent<TransformComponent>(entity);
-              draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
+              draw_billboard(tc.GetWorldPosition(), point_light_icon_desc);
             });
       });
 
@@ -342,15 +379,17 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
       "BillboardCompOut", pool->GetTexture("billboard_comp.color"));
 
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
+  std::shared_ptr<Pipeline> comp_blend = comp_blend_pipeline_;
   uint32_t comp_pass = graph.AddPass(
       "BillboardComposite", comp_render_pass_,
-      [pool, renderer, comp_pipeline](VkCommandBuffer) {
+      [pool, renderer, comp_pipeline, comp_blend](VkCommandBuffer) {
+        // Draw previous pipeline output (opaque, no blending)
         comp_pipeline->Bind(PipelineBindPointGraphics);
-        // Draw previous pipeline output first
         renderer->DrawFullscreen(comp_pipeline,
                                  {pool->GetDescriptor("billboard_comp.input")});
-        // Then blend billboard overlay on top
-        renderer->DrawFullscreen(comp_pipeline,
+        // Overlay billboard texture with alpha blending
+        comp_blend->Bind(PipelineBindPointGraphics);
+        renderer->DrawFullscreen(comp_blend,
                                  {pool->GetDescriptor("billboard.output")});
       });
 

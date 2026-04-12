@@ -53,6 +53,7 @@ class BillboardFeature : public RenderFeature {
   // Compositing onto PipelineOutput
   std::shared_ptr<RenderPass> comp_render_pass_;
   std::shared_ptr<Pipeline> comp_pipeline_;
+  std::shared_ptr<Pipeline> comp_blend_pipeline_;
 
   // Quad geometry
   std::shared_ptr<MemoryBuffer> quad_vb_;

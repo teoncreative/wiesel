@@ -16,6 +16,8 @@
 
 #include <ranges>
 #include <set>
+
+#include "util/w_command.h"
 #include "util/w_logger.h"
 
 namespace Wiesel {
@@ -177,8 +179,8 @@ VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
           if (result) {
             return VfsFile(std::move(result.value), virtual_path);
           }
-          LOG_ERROR("VFS: failed to read from archive: {}",
-                    result.error.message);
+          DCON_LOG_ERROR("VFS: failed to read from archive: {}",
+                         result.error.message);
         }
       }
     } else {
@@ -202,7 +204,7 @@ VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
     }
   }
 
-  LOG_WARN("VFS: file not found: {}", virtual_path);
+  DCON_LOG_WARN("VFS: file not found: {}", virtual_path);
   return {};
 }
 

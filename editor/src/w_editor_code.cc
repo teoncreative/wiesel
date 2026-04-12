@@ -15,6 +15,7 @@
 #include <imgui.h>
 
 #include "mono_compiler.h"
+#include "util/w_command.h"
 #include "util/w_thread_pool.h"
 #include "w_csharp_lang.h"
 #include "w_editor_icons.h"
@@ -48,7 +49,7 @@ void EditorLayer::StartLsp() {
   if (std::filesystem::exists(core_dll)) {
     lsp_project.AddReference(core_dll.string());
   } else {
-    LOG_WARN("LSP: Core.dll not found, engine types won't be available");
+    DCON_LOG_WARN("LSP: Core.dll not found, engine types won't be available");
   }
 
   lsp_project.Save();
@@ -93,7 +94,7 @@ void EditorLayer::StopLsp() {
 void EditorLayer::OpenCodeEditor(const std::filesystem::path& path) {
   std::ifstream file(path);
   if (!file.is_open()) {
-    LOG_ERROR("Failed to open file: {}", path.string());
+    DCON_LOG_ERROR("Failed to open file: {}", path.string());
     return;
   }
   std::string content((std::istreambuf_iterator<char>(file)),
@@ -142,7 +143,7 @@ void EditorLayer::SaveCodeEditorFile() {
   }
   std::ofstream file(code_editor_path_);
   if (!file.is_open()) {
-    LOG_ERROR("Failed to save file: {}", code_editor_path_.string());
+    DCON_LOG_ERROR("Failed to save file: {}", code_editor_path_.string());
     return;
   }
   file << text_editor_.GetText();

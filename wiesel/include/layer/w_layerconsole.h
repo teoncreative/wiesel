@@ -16,8 +16,7 @@
 namespace Wiesel {
 
 // Drop-down developer console overlay, like Source engine.
-// Push this layer after ImGuiLayer. Toggle visibility via
-// Engine::console().Toggle() from your app's key handler.
+// Push this layer after ImGuiLayer.
 class ConsoleLayer : public Layer {
  public:
   ConsoleLayer();
@@ -32,7 +31,13 @@ class ConsoleLayer : public Layer {
   // Set the key that closes the console when it's open (default: grave accent / backtick)
   void SetToggleKey(KeyCode key) { toggle_key_ = key; }
 
-  KeyCode GetToggleKey() const { return toggle_key_; }
+  WIESEL_GETTER_FN KeyCode GetToggleKey() const { return toggle_key_; }
+
+  void Toggle() { visible_ = !visible_; }
+
+  void SetVisible(bool visible) { visible_ = visible; }
+
+  WIESEL_GETTER_FN bool visible() const { return visible_; }
 
  private:
   KeyCode toggle_key_ = KeyGraveAccent;
@@ -41,6 +46,7 @@ class ConsoleLayer : public Layer {
   int history_pos_ = -1;
   bool focus_input_ = false;
   bool initialized_ = false;
+  bool visible_ = false;
 };
 
 }  // namespace Wiesel

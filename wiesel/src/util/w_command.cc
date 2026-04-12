@@ -16,6 +16,20 @@
 
 namespace Wiesel {
 
+static std::unique_ptr<DeveloperConsole> console_;
+
+void DeveloperConsole::Init() {
+  console_ = std::make_unique<DeveloperConsole>();
+}
+
+void DeveloperConsole::Cleanup() {
+  console_ = nullptr;
+}
+
+DeveloperConsole& DeveloperConsole::Get() {
+  return *console_;
+}
+
 DeveloperConsole::DeveloperConsole() {
   Register("help", "List all available commands",
            [this](const std::vector<std::string>&) {
@@ -44,9 +58,6 @@ DeveloperConsole::DeveloperConsole() {
           LogError("Usage: host_timescale <value>");
         }
       });
-
-  Register("toggleconsole", "Toggle developer console visibility",
-           [this](const std::vector<std::string>&) { Toggle(); });
 
   Register("max_fps", "Set max FPS limit (0 = unlimited)",
            [this](const std::vector<std::string>& args) {
@@ -106,13 +117,13 @@ void DeveloperConsole::Log(ConsoleLogLevel level, const std::string& message) {
   log_.push_back({level, message});
   switch (level) {
     case ConsoleLogLevel::Info:
-      LOG_INFO("[DCON] {}", message);
+      LOG_INFO("{}", message);
       break;
     case ConsoleLogLevel::Warning:
-      LOG_WARN("[DCON] {}", message);
+      LOG_WARN("{}", message);
       break;
     case ConsoleLogLevel::Error:
-      LOG_ERROR("[DCON] {}", message);
+      LOG_ERROR("{}", message);
       break;
   }
 }

@@ -201,7 +201,6 @@ std::shared_ptr<Renderer> Engine::renderer_;
 std::shared_ptr<AppWindow> Engine::window_;
 std::shared_ptr<VirtualFileSystem> Engine::vfs_;
 Application* Engine::application_;
-std::unique_ptr<DeveloperConsole> Engine::console_;
 std::unique_ptr<InputManager> Engine::input_manager_;
 std::unique_ptr<AssetManager> Engine::asset_manager_;
 std::unique_ptr<ScriptManager> Engine::script_manager_;
@@ -223,7 +222,6 @@ std::unique_ptr<DiscordRPC> Engine::discord_rpc_;
 #endif
 
 void Engine::InitEngine(const EngineProperties& props) {
-  console_ = std::make_unique<DeveloperConsole>();
   properties_ = props;
   LOG_INFO("Current work directory: {}",
            std::filesystem::current_path().string());
@@ -388,7 +386,6 @@ void Engine::CleanupEngine() {
     game_config_ = nullptr;
   }
   input_manager_ = nullptr;
-  console_ = nullptr;
 }
 
 void Engine::CleanupApplication() {

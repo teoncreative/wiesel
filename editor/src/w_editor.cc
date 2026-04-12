@@ -417,7 +417,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   if (script_reload_pending_ && window_focused_ &&
       editor_state_ != EditorState::Playing) {
     script_reload_pending_ = false;
-    LOG_INFO("Script changes detected, reloading...");
+    DCON_LOG_INFO("Script changes detected, reloading...");
     Engine::script_manager().ReloadAsync();
   }
 
@@ -449,7 +449,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
     }
     if (has_ui) {
       Rml::Factory::ClearStyleSheetCache();
-      LOG_INFO("UI files changed, reloading documents");
+      DCON_LOG_INFO("UI files changed, reloading documents");
     }
   }
 }
