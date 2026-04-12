@@ -14,7 +14,9 @@
 #define NOMINMAX
 
 #ifdef __cplusplus
+
 #include <vulkan/vulkan.h>
+
 #include <algorithm>  // Necessary for std::clamp
 #include <any>
 #include <array>
@@ -24,12 +26,13 @@
 #include <format>
 #include <fstream>
 #include <functional>
-#include <glm/ext.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
+
 #include <initializer_list>
 #include <iostream>
 #include <limits>  // Necessary for std::numeric_limits

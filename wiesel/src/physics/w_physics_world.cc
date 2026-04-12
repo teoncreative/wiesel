@@ -229,6 +229,9 @@ glm::vec3 PhysicsWorld::GetColliderOffset(entt::entity entity) const {
   if (registry.any_of<CapsuleColliderComponent>(entity)) {
     return registry.get<CapsuleColliderComponent>(entity).offset;
   }
+  if (registry.any_of<MeshColliderComponent>(entity)) {
+    return registry.get<MeshColliderComponent>(entity).offset;
+  }
   if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
     return glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
@@ -311,21 +314,31 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
 
   if (registry.any_of<MeshColliderComponent>(entity)) {
     auto& mesh_comp = registry.get<MeshColliderComponent>(entity);
-
-    if (!mesh_comp.collider_handle.IsValid()) {
-      LOG_WARN("MeshCollider on entity {} has no collider asset assigned",
-               static_cast<uint32_t>(entity));
-      return nullptr;
-    }
-
     auto& mgr = Engine::asset_manager();
-    if (!mgr.IsLoaded(mesh_comp.collider_handle)) {
-      mgr.LoadSync(mesh_comp.collider_handle);
+
+    std::shared_ptr<MeshColliderAssetData> baked;
+
+    if (mesh_comp.collider_handle.IsValid()) {
+      if (!mgr.IsLoaded(mesh_comp.collider_handle)) {
+        mgr.LoadSync(mesh_comp.collider_handle);
+      }
+      baked = mgr.Get<MeshColliderAssetData>(mesh_comp.collider_handle);
     }
-    auto baked = mgr.Get<MeshColliderAssetData>(mesh_comp.collider_handle);
+
+    // Fallback: extract geometry from MeshRendererComponent
+    if ((!baked || !baked->cached_shape) &&
+        registry.any_of<MeshRendererComponent>(entity)) {
+      auto& mr = registry.get<MeshRendererComponent>(entity);
+      if (mr.model_handle.IsValid()) {
+        baked = BakeMeshColliderFromModel(mr.model_handle);
+      }
+    }
+
     if (!baked || !baked->cached_shape) {
-      LOG_WARN("MeshCollider on entity {}: asset not loaded or shape invalid",
-               static_cast<uint32_t>(entity));
+      LOG_WARN(
+          "MeshCollider on entity {}: no collider asset and no model to "
+          "fall back on",
+          static_cast<uint32_t>(entity));
       return nullptr;
     }
 
@@ -417,6 +430,7 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     collision_group = cap.collision_group;
   } else if (registry.any_of<MeshColliderComponent>(entity)) {
     auto& mc = registry.get<MeshColliderComponent>(entity);
+    is_trigger = mc.is_trigger;
     collision_group = mc.collision_group;
   } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);

@@ -1420,7 +1420,7 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::Separator();
 
       // Recent Projects
-      auto recent = RecentProjects::Load();
+      const auto& recent = RecentProjects::Load();
       if (!recent.empty()) {
         ImGui::TextDisabled("Recent Projects");
         for (const auto& path : recent) {
@@ -1838,7 +1838,7 @@ void EditorLayer::RenderStartupDialog() {
   ImGui::Separator();
   ImGui::Spacing();
 
-  std::vector<std::string> recent = RecentProjects::Load();
+  const auto& recent = RecentProjects::Load();
   if (!recent.empty()) {
     ImGui::Text("Recent Projects:");
     ImGui::Spacing();

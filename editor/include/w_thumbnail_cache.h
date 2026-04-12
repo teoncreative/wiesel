@@ -11,7 +11,6 @@
 #pragma once
 
 #include <imgui.h>
-#include <vulkan/vulkan.h>
 #include <unordered_map>
 #include <unordered_set>
 #include "asset/w_asset_handle.h"

@@ -51,6 +51,9 @@ std::shared_ptr<Scene> scene() {
 
 // --- RecentProjects ---
 
+std::vector<std::string> RecentProjects::cached_;
+bool RecentProjects::cache_valid_ = false;
+
 std::filesystem::path RecentProjects::GetConfigPath() {
   namespace fs = std::filesystem;
 #ifdef _WIN32
@@ -68,15 +71,20 @@ std::filesystem::path RecentProjects::GetConfigPath() {
 #endif
 }
 
-std::vector<std::string> RecentProjects::Load() {
-  std::vector<std::string> result;
+const std::vector<std::string>& RecentProjects::Load() {
+  if (cache_valid_) {
+    return cached_;
+  }
+
+  cached_.clear();
+  cache_valid_ = true;
   auto path = GetConfigPath();
   if (!std::filesystem::exists(path)) {
-    return result;
+    return cached_;
   }
   std::ifstream file(path);
   if (!file.is_open()) {
-    return result;
+    return cached_;
   }
   try {
     nlohmann::json j;
@@ -84,14 +92,14 @@ std::vector<std::string> RecentProjects::Load() {
     if (j.is_array()) {
       for (const auto& item : j) {
         if (item.is_string()) {
-          result.push_back(item.get<std::string>());
+          cached_.push_back(item.get<std::string>());
         }
       }
     }
   } catch (const std::exception& e) {
     LOG_ERROR("Failed to load recent projects: {}", e.what());
   }
-  return result;
+  return cached_;
 }
 
 void RecentProjects::Save(const std::vector<std::string>& paths) {
@@ -103,10 +111,11 @@ void RecentProjects::Save(const std::vector<std::string>& paths) {
   }
   nlohmann::json j = paths;
   file << j.dump(2);
+  cache_valid_ = false;
 }
 
 void RecentProjects::Add(const std::string& path) {
-  auto recent = Load();
+  std::vector<std::string> recent = Load();  // copy from cache
   // Remove if already present
   std::erase(recent, path);
   // Add to front
@@ -264,6 +273,7 @@ void EditorLayer::OnAttach() {
   };
   ab_cb.on_select_asset = [this](AssetHandle h) {
     inspector_asset_handle_ = h;
+    inspector_asset_read_only_ = asset_browser_panel_.IsReadOnly();
     inspector_mode_ = InspectorMode::Asset;
     has_selected_entity_ = false;
   };
@@ -409,6 +419,11 @@ void EditorLayer::OnUpdate(float_t delta_time) {
     script_reload_pending_ = false;
     LOG_INFO("Script changes detected, reloading...");
     Engine::script_manager().ReloadAsync();
+  }
+
+  // Asset directory change: refresh browser cache
+  if (asset_dir_watcher_.Poll()) {
+    asset_browser_panel_.browser().Invalidate();
   }
 
   // UI file hot reload: .rml/.rcss changes

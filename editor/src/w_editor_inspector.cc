@@ -55,6 +55,12 @@ void EditorLayer::RenderAssetPropertiesPanel() {
     return;
   }
   ImGui::Text("Name: %s", meta->name.c_str());
+  if (inspector_asset_read_only_) {
+    ImVec2 tag_size = ImGui::CalcTextSize("Read-only");
+    float x = ImGui::GetContentRegionAvail().x - tag_size.x;
+    ImGui::SameLine(x + ImGui::GetCursorStartPos().x);
+    ImGui::TextDisabled("Read-only");
+  }
   ImGui::TextDisabled("Path: %s", meta->virtual_source_path.c_str());
   ImGui::Separator();
 
@@ -86,38 +92,49 @@ void EditorLayer::RenderAssetPropertiesPanel() {
   if (desc && desc->RenderAssetImGui) {
     desc->RenderAssetImGui(inspector_asset_handle_);
   }
-  if (desc && desc->RenderPropertiesImGui && meta->properties) {
-    bool changed = desc->RenderPropertiesImGui(meta->properties.get());
-    if (changed) {
-      auto physical = Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
-      if (physical.has_value()) {
-        std::filesystem::path meta_path = physical->string() + ".meta";
-        AssetRegistry::WriteMetaFile(meta_path, meta->handle, meta->type,
-                                     meta->properties.get());
-      }
-    }
-  }
 
-  ImGui::Separator();
-  if (ImGui::Button("Reimport")) {
-    if (meta->type == AssetType::Font) {
-      FontCache::Invalidate(inspector_asset_handle_);
-      for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
-        for (entt::entity e :
-             loaded_scene->GetAllEntitiesWith<TextComponent>()) {
-          auto& tc = loaded_scene->GetComponent<TextComponent>(e);
-          if (tc.font_handle == inspector_asset_handle_) {
-            tc.gpu_dirty_ = true;
-            tc.glyph_gpu_.clear();
-          }
+  if (inspector_asset_read_only_) {
+    // Show properties as read-only text
+    if (desc && desc->RenderPropertiesImGui && meta->properties) {
+      ImGui::BeginDisabled();
+      desc->RenderPropertiesImGui(meta->properties.get());
+      ImGui::EndDisabled();
+    }
+  } else {
+    if (desc && desc->RenderPropertiesImGui && meta->properties) {
+      bool changed = desc->RenderPropertiesImGui(meta->properties.get());
+      if (changed) {
+        auto physical =
+            Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
+        if (physical.has_value()) {
+          std::filesystem::path meta_path = physical->string() + ".meta";
+          AssetRegistry::WriteMetaFile(meta_path, meta->handle, meta->type,
+                                       meta->properties.get());
         }
       }
     }
-    Engine::asset_manager().Unload(inspector_asset_handle_);
-    Engine::asset_manager().LoadSync(inspector_asset_handle_);
-  }
-  if (ImGui::IsItemHovered()) {
-    ImGui::SetTooltip("Reload this asset with the current properties.");
+
+    ImGui::Separator();
+    if (ImGui::Button("Reimport")) {
+      if (meta->type == AssetType::Font) {
+        FontCache::Invalidate(inspector_asset_handle_);
+        for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+          for (entt::entity e :
+               loaded_scene->GetAllEntitiesWith<TextComponent>()) {
+            auto& tc = loaded_scene->GetComponent<TextComponent>(e);
+            if (tc.font_handle == inspector_asset_handle_) {
+              tc.gpu_dirty_ = true;
+              tc.glyph_gpu_.clear();
+            }
+          }
+        }
+      }
+      Engine::asset_manager().Unload(inspector_asset_handle_);
+      Engine::asset_manager().LoadSync(inspector_asset_handle_);
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetTooltip("Reload this asset with the current properties.");
+    }
   }
 }
 

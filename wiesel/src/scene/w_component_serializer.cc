@@ -409,6 +409,8 @@ void InitializeComponentSerializers() {
       [](Entity& entity) -> json {
         auto& mc = entity.GetComponent<MeshColliderComponent>();
         json collider;
+        collider["offset"] = SerializeUtil::Vec3(mc.offset);
+        collider["is_trigger"] = mc.is_trigger;
         collider["is_one_way"] = mc.is_one_way;
         collider["collision_group"] = mc.collision_group;
         if (mc.collider_handle.IsValid()) {
@@ -419,6 +421,8 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& mcj, Scene* /*scene*/) {
         auto& mc = entity.AddComponent<MeshColliderComponent>();
+        mc.offset = SerializeUtil::Vec3(mcj.value("offset", json::array()));
+        mc.is_trigger = mcj.value("is_trigger", false);
         mc.is_one_way = mcj.value("is_one_way", false);
         mc.collision_group = mcj.value("collision_group", 1);
         if (mcj.contains("collider_handle")) {

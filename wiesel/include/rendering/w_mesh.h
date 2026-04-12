@@ -192,7 +192,8 @@ struct Model {
     for (size_t i = 0; i < meshes.size(); i++) {
       int32_t ni = meshes[i]->node_index;
       if (ni >= 0) {
-        mesh_node_transforms[i] = node_hierarchy.GetWorldTransform(ni);
+        mesh_node_transforms[i] =
+            node_hierarchy.GetWorldTransformExcludingRoot(ni);
       }
     }
   }

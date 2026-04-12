@@ -630,44 +630,45 @@ void EditorLayer::RenderSceneViewportPanel() {
   }
 }
 
+void EditorLayer::RenderResolutionDropdown() {
+  float combo_width = kResolutionComboWidth;
+  float right_edge = ImGui::GetWindowContentRegionMax().x;
+  ImGui::SameLine(right_edge - combo_width);
+  ImGui::SetNextItemWidth(combo_width);
+  if (ImGui::BeginCombo("##GameResolution",
+                        kResolutionPresets[resolution_preset_index_].label)) {
+    for (int i = 0; i < kResolutionPresetCount; i++) {
+      bool selected = (i == resolution_preset_index_);
+      if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
+        resolution_preset_index_ = i;
+        for (auto loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+          loaded_scene->SetRenderResolution(kResolutionPresets[i].size);
+        }
+      }
+      if (selected) {
+        ImGui::SetItemDefaultFocus();
+      }
+    }
+    ImGui::EndCombo();
+  }
+}
+
 void EditorLayer::RenderGameViewportPanel() {
   Renderer* renderer = Engine::renderer().get();
 
   bool& game_view_open = panel_game_view_;
   if (game_view_open) {
-    bool gameVisible =
+    bool game_visible =
         ImGui::Begin(CODICON_CAMERA_VIDEO " Game", &game_view_open);
-    game_panel_visible_ = gameVisible;
+    game_panel_visible_ = game_visible;
     game_panel_focused_ = ImGui::IsWindowFocused();
-    if (gameVisible) {
-      {
-        float toolbar_width = 70.0f;
-        float avail_w = ImGui::GetContentRegionAvail().x;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                             (avail_w - toolbar_width) * 0.5f);
-        DrawPlayStopButtons();
-      }
-      {
-        float comboWidth = kResolutionComboWidth;
-        float rightEdge = ImGui::GetWindowContentRegionMax().x;
-        ImGui::SameLine(rightEdge - comboWidth);
-        ImGui::SetNextItemWidth(comboWidth);
-        if (ImGui::BeginCombo(
-                "##GameResolution",
-                kResolutionPresets[resolution_preset_index_].label)) {
-          for (int i = 0; i < kResolutionPresetCount; i++) {
-            bool selected = (i == resolution_preset_index_);
-            if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
-              resolution_preset_index_ = i;
-              scene()->SetRenderResolution(kResolutionPresets[i].size);
-            }
-            if (selected) {
-              ImGui::SetItemDefaultFocus();
-            }
-          }
-          ImGui::EndCombo();
-        }
-      }
+    if (game_visible) {
+      float toolbar_width = 70.0f;
+      float avail_w = ImGui::GetContentRegionAvail().x;
+      ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                           (avail_w - toolbar_width) * 0.5f);
+      DrawPlayStopButtons();
+      RenderResolutionDropdown();
 
       {
         // Check if any camera exists across all loaded scenes
@@ -698,9 +699,11 @@ void EditorLayer::RenderGameViewportPanel() {
           ImVec2 avail = ImGui::GetContentRegionAvail();
           if (scene()->GetRenderResolution().x <= 0) {
             // Free Aspect: game camera tracks panel size
-            for (auto& s : Engine::scene_manager().GetLoadedScenes()) {
-              for (auto entity : s->GetAllEntitiesWith<CameraComponent>()) {
-                auto& cam = s->GetComponent<CameraComponent>(entity);
+            for (auto& loaded_Scene :
+                 Engine::scene_manager().GetLoadedScenes()) {
+              for (auto entity :
+                   loaded_Scene->GetAllEntitiesWith<CameraComponent>()) {
+                auto& cam = loaded_Scene->GetComponent<CameraComponent>(entity);
                 if (!cam.enabled) {
                   continue;
                 }
@@ -723,7 +726,7 @@ void EditorLayer::RenderGameViewportPanel() {
           auto final_output_desc = renderer->GetFinalOutputDescriptor();
           auto final_output_image = renderer->GetFinalOutputImage();
           if (final_output_desc && final_output_image) {
-            ImTextureID gameDesc = reinterpret_cast<ImTextureID>(
+            ImTextureID game_desc = reinterpret_cast<ImTextureID>(
                 final_output_desc->descriptor_set_);
 
             float image_aspect =
@@ -731,39 +734,42 @@ void EditorLayer::RenderGameViewportPanel() {
                 static_cast<float>(final_output_image->height_);
             float avail_aspect = avail.x / avail.y;
 
-            ImVec2 drawSize;
+            ImVec2 draw_size;
             if (avail_aspect > image_aspect) {
-              drawSize.y = avail.y;
-              drawSize.x = drawSize.y * image_aspect;
+              draw_size.y = avail.y;
+              draw_size.x = draw_size.y * image_aspect;
             } else {
-              drawSize.x = avail.x;
-              drawSize.y = drawSize.x / image_aspect;
+              draw_size.x = avail.x;
+              draw_size.y = draw_size.x / image_aspect;
             }
-            ImGui::Image(gameDesc, drawSize);
+            ImGui::Image(game_desc, draw_size);
 
-            ImVec2 imageMin = ImGui::GetItemRectMin();
-            ImVec2 imageMax = ImGui::GetItemRectMax();
+            ImVec2 image_min = ImGui::GetItemRectMin();
+            ImVec2 image_max = ImGui::GetItemRectMax();
 
             // Set viewport origin and display size for UI hit testing
-            scene()->SetViewportOrigin({imageMin.x, imageMin.y});
-            scene()->SetViewportDisplaySize({drawSize.x, drawSize.y});
+            // on all loaded scenes (UI may live in an additive scene)
+            for (auto& s : Engine::scene_manager().GetLoadedScenes()) {
+              s->SetViewportOrigin({image_min.x, image_min.y});
+              s->SetViewportDisplaySize({draw_size.x, draw_size.y});
+            }
 
             // FPS overlay (top-left)
-            ImVec2 textPos = ImVec2(imageMin.x + 6, imageMin.y + 6);
+            ImVec2 text_pos = ImVec2(image_min.x + 6, image_min.y + 6);
             std::string fpsStr =
                 std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
             ImGui::GetWindowDrawList()->AddText(
-                textPos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
+                text_pos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
 
             // Resolution overlay (top-right)
-            std::string resStr =
+            std::string res_str =
                 std::format("{}x{}", final_output_image->width_,
                             final_output_image->height_);
-            ImVec2 resTextSize = ImGui::CalcTextSize(resStr.c_str());
-            ImVec2 resPos =
-                ImVec2(imageMax.x - resTextSize.x - 6, imageMin.y + 6);
+            ImVec2 res_text_size = ImGui::CalcTextSize(res_str.c_str());
+            ImVec2 res_pos =
+                ImVec2(image_max.x - res_text_size.x - 6, image_min.y + 6);
             ImGui::GetWindowDrawList()->AddText(
-                resPos, IM_COL32(0, 255, 0, 255), resStr.c_str());
+                res_pos, IM_COL32(0, 255, 0, 255), res_str.c_str());
           }
         }
       }

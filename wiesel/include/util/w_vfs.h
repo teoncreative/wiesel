@@ -25,6 +25,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -138,6 +139,11 @@ class VirtualFileSystem {
   // Only works for physical (non-archive) mounts.
   bool WriteFile(const std::string& vfs_path, const std::string& content);
 
+  // Register a virtual file entry so ListDirectory can show assets that
+  // only exist in memory (e.g. built-in primitives). Creates intermediate
+  // virtual directories automatically.
+  void RegisterVirtualEntry(const std::string& vfs_path);
+
   void Unmount(const std::string& mount_point);
   void Clear();
 
@@ -166,6 +172,8 @@ class VirtualFileSystem {
 
   std::vector<MountPoint> mount_points_;
   std::map<std::string, Wpak::Archive> archives_;
+
+  std::set<std::string> virtual_entries_;
 
   std::string NormalizePath(const std::string& path);
 

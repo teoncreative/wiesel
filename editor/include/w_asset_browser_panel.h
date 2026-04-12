@@ -47,6 +47,9 @@ class AssetBrowserPanel {
 
   const VfsBrowser& browser() const { return browser_; }
 
+  // Only the app's assets can be modified
+  bool IsReadOnly() const { return browser_.root() != "app://"; }
+
   // Current scene path tracking (for rename/move awareness)
   std::string current_scene_path;
 

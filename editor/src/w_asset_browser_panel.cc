@@ -37,7 +37,38 @@ void AssetBrowserPanel::Render(bool& open) {
   }
 
   auto& mgr = Engine::asset_manager();
-  auto entries = browser_.Scan();
+  bool read_only = IsReadOnly();
+
+  // Root selector tabs
+  {
+    static const char* roots[] = {"app://", "engine://", "editor://"};
+    static const char* labels[] = {"App", "Engine", "Editor"};
+    for (int i = 0; i < 3; i++) {
+      if (i > 0) {
+        ImGui::SameLine();
+      }
+      bool is_current = browser_.root() == roots[i];
+      if (is_current) {
+        ImGui::PushStyleColor(ImGuiCol_Button,
+                              ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+      }
+      if (ImGui::SmallButton(labels[i])) {
+        if (!is_current) {
+          browser_.SetRoot(roots[i]);
+          selected_file_.clear();
+        }
+      }
+      if (is_current) {
+        ImGui::PopStyleColor();
+      }
+    }
+    if (read_only) {
+      ImGui::SameLine();
+      ImGui::TextDisabled("(read-only)");
+    }
+  }
+
+  const auto& entries = browser_.Scan();
 
   // Breadcrumb bar
   {
@@ -46,18 +77,20 @@ void AssetBrowserPanel::Render(bool& open) {
     ImGui::PopStyleColor();
   }
 
-  // Import button
-  ImGui::SameLine();
-  if (ImGui::Button("+ Import")) {
-    ImGui::OpenPopup("ImportAssetPopup");
-  }
-  ImGui::SameLine();
-  if (ImGui::Button("+ Folder")) {
-    ImGui::OpenPopup("NewFolderPopup");
+  if (!read_only) {
+    // Import button
+    ImGui::SameLine();
+    if (ImGui::Button("+ Import")) {
+      ImGui::OpenPopup("ImportAssetPopup");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+ Folder")) {
+      ImGui::OpenPopup("NewFolderPopup");
+    }
   }
 
   // New folder popup
-  if (ImGui::BeginPopup("NewFolderPopup")) {
+  if (!read_only && ImGui::BeginPopup("NewFolderPopup")) {
     ImGui::Text("Folder name:");
     ImGui::InputText("##foldername", new_folder_name_,
                      sizeof(new_folder_name_));
@@ -65,6 +98,7 @@ void AssetBrowserPanel::Render(bool& open) {
       std::string dir_vfs =
           browser_.CurrentVfsDir() + std::string(new_folder_name_);
       Engine::vfs()->CreateDirectory(dir_vfs);
+      browser_.Invalidate();
       new_folder_name_[0] = '\0';
       ImGui::CloseCurrentPopup();
     }
@@ -150,7 +184,7 @@ void AssetBrowserPanel::Render(bool& open) {
     }
   };
 
-  if (ImGui::BeginPopup("ImportAssetPopup")) {
+  if (!read_only && ImGui::BeginPopup("ImportAssetPopup")) {
     if (ImGui::MenuItem("Model...")) {
       Dialogs::OpenFileDialog(
           {{"Model file", "obj,gltf,glb,fbx"}},
@@ -178,15 +212,42 @@ void AssetBrowserPanel::Render(bool& open) {
   // Content area
   if (ImGui::BeginChild("asset_content", ImVec2(0, 0), ImGuiChildFlags_None)) {
     browser_.BeginTileGrid();
+    int columns = browser_.grid_columns();
+
+    // ".." back folder counts as one item in the grid
+    bool has_back = !browser_.current_dir().empty();
+    int total_items = static_cast<int>(entries.size()) + (has_back ? 1 : 0);
+    float row_height =
+        browser_.tile_size + 20.0f + ImGui::GetStyle().ItemSpacing.y;
+    int total_rows = (total_items + columns - 1) / columns;
+
+    // Determine visible row range from scroll position
+    float scroll_y = ImGui::GetScrollY();
+    float visible_h = ImGui::GetContentRegionAvail().y;
+    int first_visible_row =
+        std::max(0, static_cast<int>(scroll_y / row_height) - 1);
+    int last_visible_row =
+        std::min(total_rows - 1,
+                 static_cast<int>((scroll_y + visible_h) / row_height) + 1);
+
+    // Reserve space for rows above the visible region
+    if (first_visible_row > 0) {
+      ImGui::Dummy(ImVec2(0, first_visible_row * row_height));
+    }
+
+    // Determine which entry indices are visible (accounting for ".." tile)
+    int first_visible_item = first_visible_row * columns;
+    int last_visible_item =
+        std::min(total_items, (last_visible_row + 1) * columns);
 
     // ".." back folder
-    if (!browser_.current_dir().empty()) {
+    if (has_back && first_visible_item == 0) {
       if (browser_.DrawTile("..", ImVec4(0.35f, 0.35f, 0.4f, 1.0f), "..", false,
                             true)) {
         browser_.NavigateUp();
       }
       // Drop target on ".." to move files to parent directory
-      if (ImGui::BeginDragDropTarget()) {
+      if (!read_only && ImGui::BeginDragDropTarget()) {
         std::string src_vfs;
         if (const ImGuiPayload* payload =
                 ImGui::AcceptDragDropPayload("AssetHandle")) {
@@ -215,6 +276,7 @@ void AssetBrowserPanel::Render(bool& open) {
                     callbacks_.on_update_title();
                   }
                 }
+                browser_.Invalidate();
                 if (callbacks_.on_scan_assets) {
                   callbacks_.on_scan_assets();
                 }
@@ -227,8 +289,27 @@ void AssetBrowserPanel::Render(bool& open) {
       browser_.NextColumn();
     }
 
-    // File and directory tiles
-    for (auto& fe : entries) {
+    // File and directory tiles - only iterate visible range
+    int entry_offset = has_back ? 1 : 0;
+    int first_entry = std::max(0, first_visible_item - entry_offset);
+    int last_entry = std::min(static_cast<int>(entries.size()),
+                              last_visible_item - entry_offset);
+
+    // If the ".." tile is visible but the first few entries start mid-row,
+    // we need to align the grid column counter
+    if (has_back && first_entry == 0 && first_visible_item == 0) {
+      // ".." already rendered above, entries start after it
+    } else if (first_entry > 0) {
+      // Starting mid-grid, set column position for proper layout
+      int grid_pos = (first_entry + entry_offset) % columns;
+      browser_.SetGridCol(grid_pos);
+      if (grid_pos > 0) {
+        ImGui::SameLine(0, 8.0f);
+      }
+    }
+
+    for (int i = first_entry; i < last_entry; i++) {
+      const auto& fe = entries[i];
       bool is_sel = selected_file_ == fe.name;
       bool dbl_clicked = false;
 
@@ -246,13 +327,9 @@ void AssetBrowserPanel::Render(bool& open) {
         }
       } else {
         // Look up asset in AssetManager for thumbnails
-        for (auto& h : mgr.GetAll()) {
-          const auto* m = mgr.GetMetadata(h);
-          if (m && m->virtual_source_path == fe.vfs_path) {
-            handle = h;
-            meta = m;
-            break;
-          }
+        handle = mgr.FindBySourcePath(fe.vfs_path);
+        if (handle.IsValid()) {
+          meta = mgr.GetMetadata(handle);
         }
 
         const ThumbnailEntry* thumbnail = nullptr;
@@ -320,7 +397,7 @@ void AssetBrowserPanel::Render(bool& open) {
       }
 
       // Drop target on directories to move files into them
-      if (fe.is_dir && ImGui::BeginDragDropTarget()) {
+      if (!read_only && fe.is_dir && ImGui::BeginDragDropTarget()) {
         std::string src_vfs;
         if (const ImGuiPayload* p =
                 ImGui::AcceptDragDropPayload("AssetHandle")) {
@@ -346,6 +423,7 @@ void AssetBrowserPanel::Render(bool& open) {
                 callbacks_.on_update_title();
               }
             }
+            browser_.Invalidate();
             if (callbacks_.on_scan_assets) {
               callbacks_.on_scan_assets();
             }
@@ -354,8 +432,8 @@ void AssetBrowserPanel::Render(bool& open) {
         ImGui::EndDragDropTarget();
       }
 
-      // Right-click context menu
-      if (is_sel &&
+      // Right-click context menu (only for writable roots)
+      if (!read_only && is_sel &&
           ImGui::BeginPopupContextItem(("##ctx_" + fe.name).c_str())) {
         if (!fe.is_dir && !handle.IsValid() &&
             fe.asset_type != AssetType::None) {
@@ -399,6 +477,7 @@ void AssetBrowserPanel::Render(bool& open) {
             copy_vfs = parent_vfs + stem + "_copy" + std::to_string(n++) + ext;
           }
           if (Engine::vfs()->CopyFile(fe.vfs_path, copy_vfs)) {
+            browser_.Invalidate();
             if (callbacks_.on_scan_assets) {
               callbacks_.on_scan_assets();
             }
@@ -413,6 +492,7 @@ void AssetBrowserPanel::Render(bool& open) {
             copy_vfs = parent_vfs + fe.name + "_copy" + std::to_string(n++);
           }
           if (Engine::vfs()->CopyDirectory(fe.vfs_path, copy_vfs)) {
+            browser_.Invalidate();
             if (callbacks_.on_scan_assets) {
               callbacks_.on_scan_assets();
             }
@@ -430,6 +510,7 @@ void AssetBrowserPanel::Render(bool& open) {
             Engine::vfs()->DeleteFile(fe.vfs_path);
           }
           selected_file_.clear();
+          browser_.Invalidate();
           if (callbacks_.on_scan_assets) {
             callbacks_.on_scan_assets();
           }
@@ -438,6 +519,12 @@ void AssetBrowserPanel::Render(bool& open) {
       }
 
       browser_.NextColumn();
+    }
+
+    // Reserve space for rows below the visible region
+    int rows_after = total_rows - last_visible_row - 1;
+    if (rows_after > 0) {
+      ImGui::Dummy(ImVec2(0, rows_after * row_height));
     }
 
     // Rename popup
@@ -459,6 +546,7 @@ void AssetBrowserPanel::Render(bool& open) {
               callbacks_.on_update_title();
             }
           }
+          browser_.Invalidate();
           if (callbacks_.on_scan_assets) {
             callbacks_.on_scan_assets();
           }
@@ -474,9 +562,9 @@ void AssetBrowserPanel::Render(bool& open) {
       ImGui::EndPopup();
     }
 
-    // Right-click on empty space
-    if (ImGui::BeginPopupContextWindow("##browser_ctx",
-                                       ImGuiPopupFlags_NoOpenOverItems)) {
+    // Right-click on empty space (create menu, app:// only)
+    if (!read_only && ImGui::BeginPopupContextWindow(
+                          "##browser_ctx", ImGuiPopupFlags_NoOpenOverItems)) {
       if (ImGui::BeginMenu("Create")) {
         if (ImGui::MenuItem("Scene")) {
           if (callbacks_.on_new_scene) {
@@ -574,6 +662,7 @@ void AssetBrowserPanel::Render(bool& open) {
           if (out.is_open()) {
             out << content;
           }
+          browser_.Invalidate();
           if (callbacks_.on_scan_assets) {
             callbacks_.on_scan_assets();
           }

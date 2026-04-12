@@ -27,10 +27,12 @@ namespace Wiesel::Editor {
 void VfsBrowser::SetRoot(const std::string& root) {
   root_ = root;
   current_dir_.clear();
+  cache_dirty_ = true;
 }
 
 void VfsBrowser::NavigateInto(const std::string& dir_name) {
   current_dir_ += dir_name + "/";
+  cache_dirty_ = true;
 }
 
 bool VfsBrowser::NavigateUp() {
@@ -44,16 +46,30 @@ bool VfsBrowser::NavigateUp() {
   } else {
     current_dir_ = trimmed.substr(0, slash + 1);
   }
+  cache_dirty_ = true;
   return true;
+}
+
+void VfsBrowser::Invalidate() {
+  cache_dirty_ = true;
 }
 
 std::string VfsBrowser::CurrentVfsDir() const {
   return root_ + current_dir_;
 }
 
-std::vector<BrowserEntry> VfsBrowser::Scan(AssetType filter) const {
-  std::vector<BrowserEntry> results;
-  auto vfs_entries = Engine::vfs()->ListDirectory(CurrentVfsDir());
+const std::vector<BrowserEntry>& VfsBrowser::Scan(AssetType filter) {
+  std::string current = CurrentVfsDir();
+  if (!cache_dirty_ && cached_dir_ == current && cached_filter_ == filter) {
+    return cached_entries_;
+  }
+
+  cached_entries_.clear();
+  cached_dir_ = current;
+  cached_filter_ = filter;
+  cache_dirty_ = false;
+
+  auto vfs_entries = Engine::vfs()->ListDirectory(current);
 
   for (auto& ve : vfs_entries) {
     BrowserEntry be;
@@ -74,17 +90,18 @@ std::vector<BrowserEntry> VfsBrowser::Scan(AssetType filter) const {
       continue;
     }
 
-    results.push_back(std::move(be));
+    cached_entries_.push_back(std::move(be));
   }
 
-  std::ranges::sort(results, [](const BrowserEntry& a, const BrowserEntry& b) {
-    if (a.is_dir != b.is_dir) {
-      return a.is_dir > b.is_dir;
-    }
-    return NaturalLess(a.name, b.name);
-  });
+  std::ranges::sort(cached_entries_,
+                    [](const BrowserEntry& a, const BrowserEntry& b) {
+                      if (a.is_dir != b.is_dir) {
+                        return a.is_dir > b.is_dir;
+                      }
+                      return NaturalLess(a.name, b.name);
+                    });
 
-  return results;
+  return cached_entries_;
 }
 
 std::vector<std::pair<std::string, std::string>> VfsBrowser::Breadcrumbs()
@@ -426,7 +443,7 @@ void VfsFilePicker::Render() {
     browser_.RenderBreadcrumbs();
     ImGui::Separator();
 
-    auto entries = browser_.Scan(filter_);
+    const auto& entries = browser_.Scan(filter_);
 
     ImVec2 list_size(0, ImGui::GetContentRegionAvail().y - 35);
     if (ImGui::BeginChild("##picker_grid", list_size)) {

@@ -47,12 +47,14 @@ class RecentProjects {
  public:
   static constexpr int kMaxRecent = 10;
 
-  static std::vector<std::string> Load();
+  static const std::vector<std::string>& Load();
   static void Save(const std::vector<std::string>& paths);
   static void Add(const std::string& path);
 
  private:
   static std::filesystem::path GetConfigPath();
+  static std::vector<std::string> cached_;
+  static bool cache_valid_;
 };
 
 enum class EditorState { Edit, Playing, Paused };
@@ -135,6 +137,7 @@ class EditorLayer : public Layer {
   void RenderRenderStatsPanel();
   void RenderUndoHistoryPanel();
   void RenderSceneViewportPanel();
+  void RenderResolutionDropdown();
   void RenderGameViewportPanel();
   bool DrawPlayStopButtons();
 
@@ -193,6 +196,7 @@ class EditorLayer : public Layer {
   // File watchers
   FileWatcher script_watcher_;
   FileWatcher ui_file_watcher_;
+  FileWatcher asset_dir_watcher_;
   bool script_reload_pending_ = false;
   bool window_focused_ = true;
 
@@ -251,6 +255,7 @@ class EditorLayer : public Layer {
   enum class InspectorMode { Entity, Asset };
   InspectorMode inspector_mode_ = InspectorMode::Entity;
   AssetHandle inspector_asset_handle_;
+  bool inspector_asset_read_only_ = false;
 
   // Prefab editing
   bool editing_prefab_ = false;

@@ -865,6 +865,9 @@ void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
       }
     }
 
+    ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
+                      reinterpret_cast<float*>(&component.offset), 0.05f);
+    ImGui::Checkbox(PrefixLabel("Is Trigger").c_str(), &component.is_trigger);
     ImGui::Checkbox(PrefixLabel("One Way").c_str(), &component.is_one_way);
 
     // Bake from model button (when no baked asset or to create one)
@@ -1546,13 +1549,18 @@ void RenderComponentImGui(MeshRendererComponent& component, Entity entity) {
     ImGui::Checkbox(PrefixLabel("Receive Shadows").c_str(),
                     &component.receive_shadows);
 
-    // Show model + mesh info
+    // Model selector
+    AssetDropField("Model", AssetType::Model, component.model_handle);
+
+    // Mesh index (for multi-mesh models)
     if (component.model_handle.IsValid()) {
-      const auto* meta =
-          Engine::asset_manager().GetMetadata(component.model_handle);
-      ImGui::TextDisabled("Model: %s", meta ? meta->name.c_str() : "???");
+      auto model = Engine::asset_manager().Get<Model>(component.model_handle);
+      if (model && model->meshes.size() > 1) {
+        int mesh_count = static_cast<int>(model->meshes.size());
+        ImGui::SliderInt(PrefixLabel("Mesh Index").c_str(),
+                         &component.mesh_index, 0, mesh_count - 1);
+      }
     }
-    ImGui::TextDisabled("Mesh Index: %d", component.mesh_index);
 
     // Material
     AssetDropField("Material", AssetType::Material, component.material_handle);

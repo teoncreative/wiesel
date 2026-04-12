@@ -14,6 +14,7 @@
 
 #include "util/w_vfs.h"
 
+#include <ranges>
 #include <set>
 #include "util/w_logger.h"
 
@@ -277,7 +278,7 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
   std::vector<VfsEntry> results;
   std::set<std::string> seen;
 
-  for (const auto& mp : mount_points_) {
+  for (const MountPoint& mp : mount_points_) {
     if (normalized.find(mp.mount_point) != 0) {
       continue;
     }
@@ -294,12 +295,13 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
       }
       std::string prefix = relative_path.empty() ? "" : relative_path + "/";
       std::set<std::string> archive_dirs;
-      for (const auto& [name, entry] : archive_it->second.entries) {
+      for (const std::string& name :
+           archive_it->second.entries | std::views::keys) {
         if (!prefix.empty() && name.find(prefix) != 0) {
           continue;
         }
         std::string remainder = name.substr(prefix.length());
-        auto slash = remainder.find('/');
+        size_t slash = remainder.find('/');
         if (slash != std::string::npos) {
           // This is a subdirectory entry
           std::string dir_name = remainder.substr(0, slash);
@@ -337,7 +339,7 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
       }
       for (const auto& entry : std::filesystem::directory_iterator(full_path)) {
         std::string name = entry.path().filename().string();
-        if (seen.count(name)) {
+        if (seen.contains(name)) {
           continue;
         }
         // Skip .meta files
@@ -351,6 +353,43 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
             std::filesystem::relative(entry.path(), mp.physical_path);
         e.vfs_path = VfsJoin(mp.mount_point, rel.generic_string());
         e.is_dir = entry.is_directory();
+        results.push_back(std::move(e));
+      }
+    }
+  }
+
+  // Include virtual entries (memory-only assets like built-in primitives)
+  {
+    std::string prefix = normalized;
+    if (!prefix.empty() && prefix.back() != '/') {
+      prefix += '/';
+    }
+    std::set<std::string> virtual_dirs;
+    for (const std::string& vpath : virtual_entries_) {
+      if (vpath.find(prefix) != 0) {
+        continue;
+      }
+      std::string remainder = vpath.substr(prefix.length());
+      size_t slash = remainder.find('/');
+      if (slash != std::string::npos) {
+        std::string dir_name = remainder.substr(0, slash);
+        if (virtual_dirs.insert(dir_name).second && !seen.count(dir_name)) {
+          seen.insert(dir_name);
+          VfsEntry e;
+          e.name = dir_name;
+          e.vfs_path = VfsJoin(normalized, dir_name);
+          e.is_dir = true;
+          results.push_back(std::move(e));
+        }
+      } else {
+        if (seen.count(remainder)) {
+          continue;
+        }
+        seen.insert(remainder);
+        VfsEntry e;
+        e.name = remainder;
+        e.vfs_path = VfsJoin(normalized, remainder);
+        e.is_dir = false;
         results.push_back(std::move(e));
       }
     }
@@ -553,6 +592,10 @@ bool VirtualFileSystem::WriteFile(const std::string& vfs_path,
   }
   out << content;
   return out.good();
+}
+
+void VirtualFileSystem::RegisterVirtualEntry(const std::string& vfs_path) {
+  virtual_entries_.insert(NormalizePath(vfs_path));
 }
 
 void VirtualFileSystem::Unmount(const std::string& mount_point) {

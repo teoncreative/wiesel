@@ -299,21 +299,24 @@ void Engine::InitializeVfs() {
 }
 
 void Engine::RegisterPrimitives() {
-  asset_manager_->RegisterAndStore<Model>(kPrimitiveCube, "Cube",
-                                          AssetType::Model, "primitive://cube",
-                                          Primitives::CreateCube());
+  asset_manager_->RegisterAndStore<Model>(kPrimitiveCube, "Cube", AssetType::Model, "engine://models/cube.obj",
+      Primitives::CreateCube());
+  vfs_->RegisterVirtualEntry("engine://models/cube.obj");
   asset_manager_->RegisterAndStore<Model>(
-      kPrimitiveSphere, "Sphere", AssetType::Model, "primitive://sphere",
-      Primitives::CreateSphere());
-  asset_manager_->RegisterAndStore<Model>(kPrimitivePlane, "Plane",
-                                          AssetType::Model, "primitive://plane",
-                                          Primitives::CreatePlane());
+      kPrimitiveSphere, "Sphere", AssetType::Model, "engine://models/sphere.obj", Primitives::CreateSphere());
+  vfs_->RegisterVirtualEntry("engine://models/sphere.obj");
   asset_manager_->RegisterAndStore<Model>(
-      kPrimitiveCylinder, "Cylinder", AssetType::Model, "primitive://cylinder",
-      Primitives::CreateCylinder());
+      kPrimitivePlane, "Plane", AssetType::Model, "engine://models/plane.obj",
+      Primitives::CreatePlane());
+  vfs_->RegisterVirtualEntry("engine://models/plane.obj");
   asset_manager_->RegisterAndStore<Model>(
-      kPrimitiveCapsule, "Capsule", AssetType::Model, "primitive://capsule",
-      Primitives::CreateCapsule());
+      kPrimitiveCylinder, "Cylinder", AssetType::Model,
+      "engine://models/cylinder.obj", Primitives::CreateCylinder());
+  vfs_->RegisterVirtualEntry("engine://models/cylinder.obj");
+  asset_manager_->RegisterAndStore<Model>(
+      kPrimitiveCapsule, "Capsule", AssetType::Model,
+      "engine://models/capsule.obj", Primitives::CreateCapsule());
+  vfs_->RegisterVirtualEntry("engine://models/capsule.obj");
 
   primitive_cube_ = kPrimitiveCube;
   primitive_sphere_ = kPrimitiveSphere;

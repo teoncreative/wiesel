@@ -75,6 +75,8 @@ struct MeshColliderComponent : public IComponent {
   // the entity's MeshRendererComponent at body creation time.
   AssetHandle collider_handle;
 
+  glm::vec3 offset = {0.0f, 0.0f, 0.0f};
+  bool is_trigger = false;
   bool is_one_way = false;
   uint16_t collision_group = CollisionGroupDefault;
 };

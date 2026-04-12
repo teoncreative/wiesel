@@ -309,6 +309,9 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
     // Watch for UI file hot reload (.rml/.rcss)
     ui_file_watcher_.SetPatternFilter("\\.(rml|rcss)$");
     ui_file_watcher_.Watch(*app_dir, true);
+
+    // Watch for any filesystem changes to refresh the asset browser
+    asset_dir_watcher_.Watch(*app_dir, true);
   }
 
   // Open last scene or start scene (prefer last_scene, fall back to start)

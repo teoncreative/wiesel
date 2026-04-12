@@ -240,6 +240,7 @@ AssetHandle AssetManager::RegisterAndStore(
   if (handle.IsValid()) {
     Store<T>(handle, std::move(resource));
     SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+    Engine::vfs()->RegisterVirtualEntry(virtual_source_path);
   }
   return handle;
 }
@@ -254,6 +255,7 @@ bool AssetManager::RegisterAndStore(AssetHandle handle, const std::string& name,
   }
   Store<T>(handle, std::move(resource));
   SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+  Engine::vfs()->RegisterVirtualEntry(virtual_source_path);
   return true;
 }
 
