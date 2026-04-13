@@ -127,6 +127,7 @@ static bool AssetDropField(const char* label, AssetType type,
     }
   }
 
+  ImGui::AlignTextToFramePadding();
   ImGui::Text("%s", label);
   ImGui::SameLine();
   ImGui::SetCursorPosX(label_end);

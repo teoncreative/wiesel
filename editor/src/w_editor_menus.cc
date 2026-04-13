@@ -1551,6 +1551,9 @@ void EditorLayer::RenderMainMenuBar() {
         Engine::renderer()->SetRecreatePipeline(true);
       }
 
+      ImGui::SeparatorText("Windows");
+      ImGui::MenuItem("Font Debug", nullptr, &panel_font_debug_);
+
       ImGui::PopItemWidth();
       ImGui::EndMenu();
     }

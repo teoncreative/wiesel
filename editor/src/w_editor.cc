@@ -192,7 +192,7 @@ void EditorLayer::OnAttach() {
       memcpy(font_data, font_file.Data(), font_file.Size());
       code_editor_font_ = io.Fonts->AddFontFromMemoryTTF(
           font_data, static_cast<int>(font_file.Size()),
-          ImGui::Moonlight::kDefaultFontSize);
+          ImGui::Moonlight::kDefaultMonospacedFontSize);
     }
   }
 
@@ -564,6 +564,7 @@ void EditorLayer::OnBeginPresent() {
   RenderCodeEditor();
   anim_controller_editor_.Render();
   RenderLspDebugPanel();
+  RenderFontDebugPanel();
   RenderEditorSettingsPanel();
   RenderCreateSkyboxPopup();
   RenderCreateSpritePopup();

@@ -14,10 +14,12 @@
 
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_registry.h"
+#include "imgui_internal.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_rendergraph.h"
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
+#include "util/imgui/w_imguiutil.h"
 #include "util/w_thread_pool.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
@@ -435,6 +437,138 @@ void EditorLayer::RenderUndoHistoryPanel() {
       }
     }
   }
+  ImGui::End();
+}
+
+void EditorLayer::RenderFontDebugPanel() {
+  if (!panel_font_debug_) {
+    return;
+  }
+
+  ImGui::SetNextWindowSize(ImVec2(600, 700), ImGuiCond_FirstUseEver);
+  if (!ImGui::Begin("Font Debug", &panel_font_debug_)) {
+    ImGui::End();
+    return;
+  }
+
+  ImGuiContext& g = *ImGui::GetCurrentContext();
+  ImFont* font = g.Font;
+  ImFontBaked* baked = g.FontBaked;
+
+  // Metrics
+  ImGui::SeparatorText("Metrics");
+  ImGui::Text("FontSize (layout): %.1f", g.FontSize);
+  if (baked) {
+    ImGui::Text("Ascent:            %.1f", baked->Ascent);
+    ImGui::Text("Descent:           %.1f", baked->Descent);
+    ImGui::Text("Ascent - Descent:  %.1f", baked->Ascent - baked->Descent);
+    ImGui::Text("Difference:        %.1f (Ascent-Descent - FontSize)",
+                (baked->Ascent - baked->Descent) - g.FontSize);
+  }
+  ImGui::Text("TextLineHeight:    %.1f", ImGui::GetTextLineHeight());
+  ImGui::Text("FrameHeight:       %.1f", ImGui::GetFrameHeight());
+  ImGui::Text("FramePadding:      %.1f, %.1f", g.Style.FramePadding.x,
+              g.Style.FramePadding.y);
+
+  // Visual baseline test - draw text with rulers
+  ImGui::SeparatorText("Baseline Visualization");
+  {
+    const char* test_str = "SsQqAaBbGgJjYy|";
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    float line_h = g.FontSize;
+
+    // Background
+    dl->AddRectFilled(pos, ImVec2(pos.x + 400, pos.y + line_h + 20),
+                      IM_COL32(40, 40, 40, 255));
+
+    // Ascent line (red) - where ImGui thinks the top of text is
+    float ascent_y = pos.y + 10;
+    dl->AddLine(ImVec2(pos.x, ascent_y), ImVec2(pos.x + 400, ascent_y),
+                IM_COL32(255, 80, 80, 200));
+    dl->AddText(ImVec2(pos.x + 402, ascent_y - 6), IM_COL32(255, 80, 80, 200),
+                "Ascent");
+
+    // Baseline (green)
+    float baseline_y = ascent_y + (baked ? baked->Ascent : g.FontSize);
+    dl->AddLine(ImVec2(pos.x, baseline_y), ImVec2(pos.x + 400, baseline_y),
+                IM_COL32(80, 255, 80, 200));
+    dl->AddText(ImVec2(pos.x + 402, baseline_y - 6), IM_COL32(80, 255, 80, 200),
+                "Baseline");
+
+    // Descent line (blue) - where ImGui thinks the bottom of text is
+    float descent_y = ascent_y + line_h;
+    dl->AddLine(ImVec2(pos.x, descent_y), ImVec2(pos.x + 400, descent_y),
+                IM_COL32(80, 80, 255, 200));
+    dl->AddText(ImVec2(pos.x + 402, descent_y - 6), IM_COL32(80, 80, 255, 200),
+                "FontSize");
+
+    // Draw the test text
+    dl->AddText(g.Font, g.FontSize, ImVec2(pos.x + 10, ascent_y),
+                IM_COL32(255, 255, 255, 255), test_str);
+
+    ImGui::Dummy(ImVec2(500, line_h + 30));
+  }
+
+  // Widget alignment tests
+  ImGui::SeparatorText("Widget Alignment Tests");
+
+  // Each row: draw a colored rect behind the frame height to show alignment
+  auto draw_frame_bg = [&]() {
+    ImVec2 pos = ImGui::GetCursorScreenPos();
+    float frame_h = ImGui::GetFrameHeight();
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos, ImVec2(pos.x + ImGui::GetContentRegionAvail().x, pos.y + frame_h),
+        IM_COL32(60, 60, 80, 100));
+  };
+
+  draw_frame_bg();
+  ImGui::Button("Button Test Sg");
+  ImGui::SameLine();
+  ImGui::Text("SameLine Text");
+
+  draw_frame_bg();
+  static bool checkbox_val = true;
+  ImGui::Checkbox("Checkbox Test Sg", &checkbox_val);
+
+  draw_frame_bg();
+  static float slider_val = 0.5f;
+  ImGui::SliderFloat("Slider Test", &slider_val, 0.0f, 1.0f);
+
+  draw_frame_bg();
+  static char input_buf[64] = "Input Test Sg";
+  ImGui::InputText("InputText", input_buf, sizeof(input_buf));
+
+  draw_frame_bg();
+  static int combo_val = 0;
+  const char* combo_items[] = {"Option A", "Option B"};
+  ImGui::Combo("Combo Test", &combo_val, combo_items, 2);
+
+  // PrefixLabel test
+  ImGui::SeparatorText("PrefixLabel Tests");
+  draw_frame_bg();
+  ImGui::Checkbox(PrefixLabel("PL Checkbox").c_str(), &checkbox_val);
+
+  draw_frame_bg();
+  ImGui::SliderFloat(PrefixLabel("PL Slider").c_str(), &slider_val, 0.0f, 1.0f);
+
+  draw_frame_bg();
+  static float drag3[3] = {1.0f, 2.0f, 3.0f};
+  ImGui::DragFloat3(PrefixLabel("PL DragFloat3").c_str(), drag3, 0.1f);
+
+  draw_frame_bg();
+  ImGui::InputText(PrefixLabel("PL Input").c_str(), input_buf,
+                   sizeof(input_buf));
+
+  // Tree node test
+  ImGui::SeparatorText("Tree Nodes");
+  if (ImGui::TreeNode("TreeNode Test")) {
+    ImGui::Text("Content inside tree");
+    draw_frame_bg();
+    ImGui::Checkbox(PrefixLabel("Nested Check").c_str(), &checkbox_val);
+    ImGui::TreePop();
+  }
+
   ImGui::End();
 }
 

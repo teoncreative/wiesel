@@ -240,9 +240,8 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
     }
   }
 
-  // Label below icon (truncated)
+  // Label below icon (centered, truncated)
   float max_text_w = tile_size;
-  ImVec2 label_pos(icon_min.x, icon_max.y + 2);
   std::string display_label = label;
   ImVec2 label_sz = ImGui::CalcTextSize(display_label.c_str());
   if (label_sz.x > max_text_w) {
@@ -254,7 +253,10 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
         break;
       }
     }
+    label_sz = ImGui::CalcTextSize(display_label.c_str());
   }
+  float label_x = icon_min.x + (tile_size - label_sz.x) * 0.5f;
+  ImVec2 label_pos(label_x, icon_max.y + 4);
   dl->AddText(label_pos, IM_COL32(220, 220, 220, 255), display_label.c_str());
 
   // Tooltip
@@ -320,13 +322,14 @@ bool VfsBrowser::RenderBreadcrumbs() {
   for (size_t i = 0; i < crumbs.size(); i++) {
     if (i > 0) {
       ImGui::SameLine();
+      ImGui::AlignTextToFramePadding();
       ImGui::TextUnformatted("/");
       ImGui::SameLine();
     }
     bool is_last = (i == crumbs.size() - 1);
 
     if (!is_last) {
-      if (ImGui::SmallButton(crumbs[i].first.c_str())) {
+      if (ImGui::Button(crumbs[i].first.c_str())) {
         if (i == 0) {
           // "Assets" crumb - go back to top level
           root_.clear();
@@ -342,6 +345,7 @@ bool VfsBrowser::RenderBreadcrumbs() {
         changed = true;
       }
     } else {
+      ImGui::AlignTextToFramePadding();
       ImGui::TextUnformatted(crumbs[i].first.c_str());
     }
   }

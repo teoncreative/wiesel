@@ -32,7 +32,7 @@ void InitEditorIcons() {
     codicon_config.MergeMode = true;
     codicon_config.DstFont = io.FontDefault;
     codicon_config.FontDataOwnedByAtlas = true;
-    codicon_config.SizePixels = ImGui::Moonlight::kDefaultFontSize;
+    codicon_config.SizePixels = ImGui::Moonlight::kDefaultIconFontSize;
     codicon_config.FontData = codicon_data;
     codicon_config.FontDataSize = static_cast<int>(codicon_file.Size());
     codicon_config.GlyphOffset = ImVec2(0, 3);

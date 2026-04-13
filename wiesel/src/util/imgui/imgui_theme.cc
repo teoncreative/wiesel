@@ -53,12 +53,14 @@ void LoadFont() {
   config.GlyphRanges = ranges;
   config.GlyphExcludeRanges = exclude_ranges;
   config.GlyphOffset = ImVec2(0.0f, kDefaultFontOffsetY);
+  config.OversampleH = 2;
+  config.OversampleV = 2;
   // Select named instance in variable font: (instance_index << 16) | face_index
   config.FontNo = (kDefaultFontInstance << 16);
 
   ImGuiIO& io = ImGui::GetIO();
   ImFont* font = io.Fonts->AddFontFromMemoryTTF(
-      font_data, static_cast<int>(font_size), kDefaultFontSize, &config);
+      font_data, static_cast<int>(font_size), kDefaultRegularFontSize, &config);
   if (!font) {
     LOG_ERROR("Failed to create ImGui font");
     return;

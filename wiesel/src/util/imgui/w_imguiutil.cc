@@ -84,7 +84,8 @@ bool ClosableTreeNode(const char* label, bool* p_visible) {
     float button_x = ImMax(g.LastItemData.Rect.Min.x,
                            g.LastItemData.Rect.Max.x -
                                g.Style.FramePadding.x * 2.0f - button_size);
-    float button_y = g.LastItemData.Rect.Min.y;
+    float frame_h = g.LastItemData.Rect.Max.y - g.LastItemData.Rect.Min.y;
+    float button_y = g.LastItemData.Rect.Min.y + (frame_h - button_size) * 0.5f;
     ImGuiID close_button_id = GetIDWithSeed("#CLOSE", NULL, id);
     if (CloseButton(close_button_id, ImVec2(button_x, button_y))) {
       *p_visible = false;
