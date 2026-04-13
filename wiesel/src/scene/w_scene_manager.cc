@@ -810,7 +810,7 @@ Entity SceneManager::MoveEntityToScene(Entity entity,
 
     if (move_children && source_scene->HasComponent<TreeComponent>(handle)) {
       auto& tree = source_scene->GetComponent<TreeComponent>(handle);
-      for (auto child : tree.childs) {
+      for (auto child : tree.children) {
         collect(child, entity_list.back().uuid);
       }
     }

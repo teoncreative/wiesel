@@ -148,7 +148,7 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
   // Initialize cursor with start spacing
   float cursor = (canvas ? canvas->start_spacing : 0.0f);
 
-  for (entt::entity child : tree.childs) {
+  for (entt::entity child : tree.children) {
     if (!scene.HasComponent<RectangleTransformComponent>(child)) {
       continue;
     }

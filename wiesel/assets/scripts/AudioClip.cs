@@ -2,8 +2,7 @@ namespace WieselEngine
 {
     public class AudioClip
     {
-        // Stored as asset handle UUID string internally
-        public string handle = "";
+        private string handle = "";
 
         public string Handle
         {

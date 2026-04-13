@@ -23,33 +23,33 @@
 namespace Wiesel {
 
 enum class AnchorPreset {
-  TopLeft,
-  TopCenter,
-  TopRight,
-  MiddleLeft,
-  MiddleCenter,
-  MiddleRight,
-  BottomLeft,
-  BottomCenter,
-  BottomRight,
-  StretchAll
+  TopLeft = 0,
+  TopCenter = 1,
+  TopRight = 2,
+  MiddleLeft = 3,
+  MiddleCenter = 4,
+  MiddleRight = 5,
+  BottomLeft = 6,
+  BottomCenter = 7,
+  BottomRight = 8,
+  StretchAll = 9
 };
 
-enum class SizeMode { Fixed, Percent };
+enum class SizeMode { Fixed = 0, Percent = 1 };
 
-enum class LayoutDirection { None, Row, Column };
+enum class LayoutDirection { None = 0, Row = 1, Column = 2 };
 
-enum class ChildAlignment { Start, Center, End };
+enum class ChildAlignment { Start = 0, Center = 1, End = 2 };
 
 enum class CanvasRenderMode {
-  ScreenSpaceOverlay,  // 2D overlay on top of everything
-  ScreenSpaceCamera,   // flat plane at distance in front of camera
-  WorldSpace,          // 3D positioned via TransformComponent
+  ScreenSpaceOverlay = 0,  // 2D overlay on top of everything
+  ScreenSpaceCamera = 1,   // flat plane at distance in front of camera
+  WorldSpace = 2,          // 3D positioned via TransformComponent
 };
 
 enum class ScaleMode {
-  ConstantPixelSize,   // 1:1 pixel mapping, no scaling
-  ScaleWithScreenSize  // scale relative to a reference resolution
+  ConstantPixelSize = 0,   // 1:1 pixel mapping, no scaling
+  ScaleWithScreenSize = 1  // scale relative to a reference resolution
 };
 
 struct CanvasComponent {

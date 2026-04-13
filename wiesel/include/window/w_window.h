@@ -27,18 +27,18 @@ struct WindowSize {
 };
 
 enum CursorMode : uint8_t {
-  CursorModeNormal,    // Cursor visible, absolute position
-  CursorModeHidden,    // Cursor hidden but constrained, absolute position
-  CursorModeRelative,  // Cursor hidden and unlocked, sends delta
-  CursorModeUnlocked   // Cursor hidden and unlocked, absolute position
+  CursorModeNormal = 0,    // Cursor visible, absolute position
+  CursorModeHidden = 1,    // Cursor hidden but constrained, absolute position
+  CursorModeRelative = 2,  // Cursor hidden and unlocked, sends delta
+  CursorModeUnlocked = 3   // Cursor hidden and unlocked, absolute position
 };
 
 // Identifies who requested cursor capture, so the event loop can decide
 // whether to block editor UI (ImGui) events.
 enum class CursorCaptureSource : uint8_t {
-  None,    // No capture active
-  Editor,  // Editor viewport right-click look
-  Game,    // Game script via Input.SetCursorMode
+  None = 0,    // No capture active
+  Editor = 1,  // Editor viewport right-click look
+  Game = 2,    // Game script via Input.SetCursorMode
 };
 
 struct WindowProperties {

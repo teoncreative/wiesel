@@ -199,7 +199,7 @@ void Scene::RemoveEntity(Entity entity) {
   // Queue children recursively
   if (registry_.any_of<TreeComponent>(handle)) {
     auto& tree = registry_.get<TreeComponent>(handle);
-    std::vector<entt::entity> children = tree.childs;
+    std::vector<entt::entity> children = tree.children;
     for (auto child : children) {
       RemoveEntity(Entity{child, this});
     }
@@ -482,7 +482,7 @@ void Scene::LinkEntities(entt::entity parent, entt::entity child,
   if (child_tree.parent != entt::null) {
     UnlinkEntities(child_tree.parent, child);
   }
-  parent_tree.childs.push_back(child);
+  parent_tree.children.push_back(child);
   child_tree.parent = parent;
   if (convert_to_local) {
     auto& child_transform = registry_.get<TransformComponent>(child);
@@ -503,9 +503,9 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
   if (child_tree.parent == entt::null) {
     return;
   }
-  parent_tree.childs.erase(
-      std::ranges::remove(parent_tree.childs, child).begin(),
-      parent_tree.childs.end());
+  parent_tree.children.erase(
+      std::ranges::remove(parent_tree.children, child).begin(),
+      parent_tree.children.end());
   child_tree.parent = entt::null;
   auto& child_transform = registry_.get<TransformComponent>(child);
   auto& parent_transform = registry_.get<TransformComponent>(parent);
@@ -539,7 +539,7 @@ void Scene::ProcessDestroyQueue() {
       if (tree.parent != entt::null && registry_.valid(tree.parent) &&
           registry_.any_of<TreeComponent>(tree.parent)) {
         auto& parent_tree = registry_.get<TreeComponent>(tree.parent);
-        std::erase(parent_tree.childs, handle);
+        std::erase(parent_tree.children, handle);
       }
     }
 

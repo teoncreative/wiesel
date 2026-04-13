@@ -18,7 +18,7 @@ namespace WieselEngine
         public void Play(AudioClip clip)
         {
             if (clip == null || !clip.IsValid()) return;
-            Internals.AudioSource_PlayClip(entity.ScenePtr, entity.Id, clip.handle);
+            Internals.AudioSource_PlayClip(entity.ScenePtr, entity.Id, clip.Handle);
         }
 
         // Stop the currently playing sound

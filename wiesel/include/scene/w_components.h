@@ -56,7 +56,7 @@ struct TreeComponent : public IComponent {
   TreeComponent(const TreeComponent&) = default;
 
   entt::entity parent = entt::null;
-  std::vector<entt::entity> childs;
+  std::vector<entt::entity> children;
 };
 
 WCLASS()

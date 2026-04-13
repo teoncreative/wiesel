@@ -22,7 +22,7 @@ Entity::Entity(entt::entity handle, Scene* scene)
   if (scene_ && entity_handle_ != entt::null && HasComponent<TreeComponent>()) {
     TreeComponent& component = GetComponent<TreeComponent>();
     parent_handle_ = component.parent;
-    child_handles_ = &component.childs;
+    child_handles_ = &component.children;
   }
 }
 

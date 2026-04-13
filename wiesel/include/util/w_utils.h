@@ -262,9 +262,17 @@ class Time {
   static float_t GetTime();
 };
 
-enum class AntiAliasingMode { None, FXAA, TAA };
+enum class AntiAliasingMode { None = 0, FXAA = 1, TAA = 2 };
 
-enum class SamplingMode { DISABLED, X2, X4, X8, X16, X32, X64 };
+enum class SamplingMode {
+  DISABLED = 0,
+  X2 = 1,
+  X4 = 2,
+  X8 = 3,
+  X16 = 4,
+  X32 = 5,
+  X64 = 6
+};
 
 inline const char* ToString(SamplingMode sampling_mode) {
   switch (sampling_mode) {

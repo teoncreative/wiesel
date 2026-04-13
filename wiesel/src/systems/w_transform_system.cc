@@ -36,7 +36,7 @@ void TransformSystem::MarkChildrenDirty(Scene& scene, entt::entity entity) {
     return;
   }
   auto& tree = registry.get<TreeComponent>(entity);
-  for (auto child : tree.childs) {
+  for (auto child : tree.children) {
     if (registry.any_of<TransformComponent>(child)) {
       registry.get<TransformComponent>(child).MarkChanged();
     }

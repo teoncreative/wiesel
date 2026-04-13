@@ -1,5 +1,12 @@
 namespace WieselEngine
 {
+    public enum RigidBodyType
+    {
+        Static = 0,
+        Kinematic = 1,
+        Dynamic = 2
+    }
+
     public class RigidBodyComponent : Component
     {
 
@@ -8,10 +15,10 @@ namespace WieselEngine
             this.entity = entity;
         }
 
-        public int Type
+        public RigidBodyType Type
         {
-            get { return Internals.RigidBody_GetType(entity.ScenePtr, entity.Id); }
-            set { Internals.RigidBody_SetType(entity.ScenePtr, entity.Id, value); }
+            get { return (RigidBodyType)Internals.RigidBody_GetType(entity.ScenePtr, entity.Id); }
+            set { Internals.RigidBody_SetType(entity.ScenePtr, entity.Id, (int)value); }
         }
 
         public float Mass

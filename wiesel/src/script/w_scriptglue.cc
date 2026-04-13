@@ -547,7 +547,7 @@ int Internals_Entity_GetChildCount(uint64_t scene_ptr, uint64_t entity_id) {
     return 0;
   }
   TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
-  return static_cast<int>(tree.childs.size());
+  return static_cast<int>(tree.children.size());
 }
 
 MonoObject* Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
@@ -561,10 +561,11 @@ MonoObject* Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
     return nullptr;
   }
   TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
-  if (index < 0 || index >= static_cast<int>(tree.childs.size())) {
+  if (index < 0 || index >= static_cast<int>(tree.children.size())) {
     return nullptr;
   }
-  return Engine::script_manager().CreateCSharpEntity(scene, tree.childs[index]);
+  return Engine::script_manager().CreateCSharpEntity(scene,
+                                                     tree.children[index]);
 }
 
 // --- CameraComponent bindings ---

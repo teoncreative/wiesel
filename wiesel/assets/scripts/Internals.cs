@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace WieselEngine
 {
-    public class Internals
+    internal class Internals
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern static void Log_Info(string message);

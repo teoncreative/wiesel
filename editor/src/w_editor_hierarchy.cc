@@ -103,7 +103,7 @@ static bool EntityMatchesSearch(Scene& scene, entt::entity entity_id,
   // Check children recursively
   if (scene.HasComponent<TreeComponent>(entity_id)) {
     auto& tree = scene.GetComponent<TreeComponent>(entity_id);
-    for (auto child : tree.childs) {
+    for (auto child : tree.children) {
       if (EntityMatchesSearch(scene, child, filter)) {
         return true;
       }
