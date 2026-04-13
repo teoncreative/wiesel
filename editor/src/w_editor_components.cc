@@ -1614,6 +1614,20 @@ void RenderComponentImGui(SkinnedMeshRendererComponent& component,
   }
 }
 
+void RenderAddComponentImGui_MeshRendererComponent(Entity entity) {
+  if (ImGui::MenuItem("Mesh Renderer") &&
+      !entity.HasComponent<MeshRendererComponent>()) {
+    entity.AddComponent<MeshRendererComponent>();
+  }
+}
+
+void RenderAddComponentImGui_SkinnedMeshRendererComponent(Entity entity) {
+  if (ImGui::MenuItem("Skinned Mesh Renderer") &&
+      !entity.HasComponent<SkinnedMeshRendererComponent>()) {
+    entity.AddComponent<SkinnedMeshRendererComponent>();
+  }
+}
+
 void RenderAddComponentImGui_LightPointComponent(Entity entity) {
   if (ImGui::MenuItem("Point Light")) {
     entity.AddComponent<LightPointComponent>();
@@ -2231,10 +2245,11 @@ void InitializeEditorComponents() {
   RegisterComponentType<TransformComponent>(
       "Transform", "", RenderComponentImGui, nullptr, nullptr);
   RegisterComponentType<MeshRendererComponent>(
-      "Mesh Renderer", "Rendering", RenderComponentImGui, nullptr, nullptr);
+      "Mesh Renderer", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_MeshRendererComponent, nullptr);
   RegisterComponentType<SkinnedMeshRendererComponent>(
-      "Skinned Mesh Renderer", "Rendering", RenderComponentImGui, nullptr,
-      nullptr);
+      "Skinned Mesh Renderer", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_SkinnedMeshRendererComponent, nullptr);
   RegisterComponentType<AnimatorComponent>(
       "Animator", "Rendering", RenderComponentImGui,
       RenderAddComponentImGui_AnimatorComponent, nullptr);
