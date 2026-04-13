@@ -233,6 +233,9 @@ void SelectionOutlineFeature::SetupResources(RenderContext& ctx) {
       0, pool.GetTexture("outline.output")->image_views_[0], linear);
   output_desc->Bake();
   pool.SetDescriptor("outline.output_desc", output_desc);
+
+  pool.SetTexture("PipelineOutput", pool.GetTexture("outline.output"));
+  pool.SetDescriptor("PipelineOutputDescriptor", output_desc);
 }
 
 void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
@@ -397,9 +400,6 @@ void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
   graph.SetPassViewport(comp_pass, ctx.viewport_size);
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 1});
 
-  pool->SetTexture("PipelineOutput", pool->GetTexture("outline.output"));
-  pool->SetDescriptor("PipelineOutputDescriptor",
-                      pool->GetDescriptor("outline.output_desc"));
   registry.Register("PipelineOutput", comp_out);
 }
 

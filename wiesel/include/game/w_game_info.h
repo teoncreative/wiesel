@@ -24,9 +24,13 @@ struct RenderOptionsSerialized {
   float ambient_intensity = 0.3f;
   bool ssao_enabled = true;
   bool ibl_enabled = true;
-  bool bloom_enabled = false;
-  float bloom_threshold = 0.7f;
-  float bloom_intensity = 0.6f;
+  bool bloom_enabled = true;
+  float bloom_threshold = 0.9f;
+  float bloom_intensity = 0.0f;
+  float bloom_scatter = 0.7f;
+  glm::vec3 bloom_tint = glm::vec3(1.0f);
+  float bloom_clamp = 65472.0f;
+  bool bloom_high_quality = false;
   bool motion_blur_enabled = false;
   float motion_blur_strength = 1.0f;
   int motion_blur_samples = 8;

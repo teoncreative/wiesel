@@ -7,13 +7,14 @@ layout(set = 0, binding = 0) uniform sampler2D inputImage;
 
 layout(push_constant) uniform BloomParams {
     float threshold;
-    float intensity;
+    float clampValue;
 };
 
 void main() {
     vec3 color = texture(inputImage, inUV).rgb;
+    color = min(color, vec3(clampValue));
     float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
     float soft = clamp((brightness - threshold) / max(threshold, 0.001), 0.0, 1.0);
-    soft = soft * soft;  // smooth falloff
+    soft = soft * soft;
     outColor = vec4(color * soft, 1.0);
 }

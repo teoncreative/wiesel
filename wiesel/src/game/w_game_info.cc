@@ -158,6 +158,10 @@ static void SerializeRenderOptions(nlohmann::json& j,
       {"bloom_enabled", opts.bloom_enabled},
       {"bloom_threshold", opts.bloom_threshold},
       {"bloom_intensity", opts.bloom_intensity},
+      {"bloom_scatter", opts.bloom_scatter},
+      {"bloom_tint", {opts.bloom_tint.x, opts.bloom_tint.y, opts.bloom_tint.z}},
+      {"bloom_clamp", opts.bloom_clamp},
+      {"bloom_high_quality", opts.bloom_high_quality},
       {"motion_blur_enabled", opts.motion_blur_enabled},
       {"motion_blur_strength", opts.motion_blur_strength},
       {"motion_blur_samples", opts.motion_blur_samples},
@@ -187,6 +191,13 @@ static void DeserializeRenderOptions(const nlohmann::json& j,
   opts.bloom_enabled = ro.value("bloom_enabled", false);
   opts.bloom_threshold = ro.value("bloom_threshold", 0.7f);
   opts.bloom_intensity = ro.value("bloom_intensity", 0.6f);
+  opts.bloom_scatter = ro.value("bloom_scatter", 0.65f);
+  if (ro.contains("bloom_tint") && ro["bloom_tint"].is_array()) {
+    opts.bloom_tint = {ro["bloom_tint"][0], ro["bloom_tint"][1],
+                       ro["bloom_tint"][2]};
+  }
+  opts.bloom_clamp = ro.value("bloom_clamp", 65535.0f);
+  opts.bloom_high_quality = ro.value("bloom_high_quality", false);
   opts.motion_blur_enabled = ro.value("motion_blur_enabled", false);
   opts.motion_blur_strength = ro.value("motion_blur_strength", 1.0f);
   opts.motion_blur_samples = ro.value("motion_blur_samples", 8);

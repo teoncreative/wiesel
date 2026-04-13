@@ -95,7 +95,7 @@ class Setting {
 struct RendererOptions {
   // Pass enable/disable - no pipeline recreation needed
   Setting<bool> ssao_enabled = true;
-  Setting<bool> bloom_enabled = false;
+  Setting<bool> bloom_enabled = true;
   Setting<bool> motion_blur_enabled = false;
   Setting<bool> only_ssao = false;
   Setting<int> debug_cascades = 0;  // 0=off, 1=cascades, 2=material
@@ -118,8 +118,12 @@ struct RendererOptions {
   Setting<AntiAliasingMode> aa_mode = AntiAliasingMode::None;
 
   // Effect parameters - push constants, updated every frame
-  Setting<float> bloom_threshold = 0.7f;
-  Setting<float> bloom_intensity = 0.6f;
+  Setting<float> bloom_threshold = 0.9f;
+  Setting<float> bloom_intensity = 0.0f;
+  Setting<float> bloom_scatter = 0.7f;
+  Setting<glm::vec3> bloom_tint = glm::vec3(1.0f);
+  Setting<float> bloom_clamp = 65535.0f;
+  Setting<bool> bloom_high_quality = false;
   Setting<float> motion_blur_strength = 1.0f;
   Setting<int> motion_blur_samples = 8;
 

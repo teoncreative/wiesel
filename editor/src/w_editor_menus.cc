@@ -943,10 +943,20 @@ void EditorLayer::RenderProjectSettingsPopup() {
       ImGui::Checkbox(PrefixLabel("Enable Bloom").c_str(),
                       &settings.bloom_enabled);
       if (settings.bloom_enabled) {
-        ImGui::SliderFloat(PrefixLabel("Bloom Threshold").c_str(),
-                           &settings.bloom_threshold, 0.0f, 1.0f);
-        ImGui::SliderFloat(PrefixLabel("Bloom Intensity").c_str(),
-                           &settings.bloom_intensity, 0.0f, 2.0f);
+        ImGui::SliderFloat(PrefixLabel("Threshold").c_str(),
+                           &settings.bloom_threshold, 0.0f, 2.0f);
+        ImGui::SliderFloat(PrefixLabel("Intensity").c_str(),
+                           &settings.bloom_intensity, 0.0f, 5.0f);
+        ImGui::SliderFloat(PrefixLabel("Scatter").c_str(),
+                           &settings.bloom_scatter, 0.0f, 1.0f);
+        glm::vec3 tint = settings.bloom_tint;
+        if (ImGui::ColorEdit3(PrefixLabel("Tint").c_str(), &tint.x)) {
+          settings.bloom_tint = tint;
+        }
+        ImGui::SliderFloat(PrefixLabel("Clamp").c_str(), &settings.bloom_clamp,
+                           0.0f, 65535.0f, "%.0f");
+        ImGui::Checkbox(PrefixLabel("High Quality").c_str(),
+                        &settings.bloom_high_quality);
       }
       ImGui::Checkbox(PrefixLabel("Enable Motion Blur").c_str(),
                       &settings.motion_blur_enabled);

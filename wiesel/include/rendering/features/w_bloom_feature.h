@@ -1,4 +1,3 @@
-
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -15,9 +14,17 @@
 
 namespace Wiesel {
 
-struct BloomPushConstants {
+struct BloomExtractPushConstants {
   float threshold;
-  float intensity;
+  float clamp_value;
+};
+
+struct BloomBlurPushConstants {
+  float radius;
+};
+
+struct BloomCompositePushConstants {
+  glm::vec4 tint_intensity;  // rgb=tint, a=intensity
 };
 
 class BloomFeature : public RenderFeature {
@@ -34,12 +41,20 @@ class BloomFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Bloom";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;  // shared postprocess render pass
+  std::shared_ptr<RenderPass> render_pass_;
+
   std::shared_ptr<Pipeline> extract_pipeline_;
   std::shared_ptr<Pipeline> blur_h_pipeline_;
   std::shared_ptr<Pipeline> blur_v_pipeline_;
   std::shared_ptr<Pipeline> composite_pipeline_;
-  std::shared_ptr<BloomPushConstants> push_constants_;
+
+  // HQ uses extra blur iterations
+  std::shared_ptr<Pipeline> blur_h2_pipeline_;
+  std::shared_ptr<Pipeline> blur_v2_pipeline_;
+
+  std::shared_ptr<BloomExtractPushConstants> extract_push_;
+  std::shared_ptr<BloomBlurPushConstants> blur_push_;
+  std::shared_ptr<BloomCompositePushConstants> composite_push_;
 };
 
 }  // namespace Wiesel

@@ -230,6 +230,10 @@ void GameLoader::ApplyRenderOptions(const GameInfo& info) {
   settings.bloom_enabled = opts.bloom_enabled;
   settings.bloom_threshold = opts.bloom_threshold;
   settings.bloom_intensity = opts.bloom_intensity;
+  settings.bloom_scatter = opts.bloom_scatter;
+  settings.bloom_tint = opts.bloom_tint;
+  settings.bloom_clamp = opts.bloom_clamp;
+  settings.bloom_high_quality = opts.bloom_high_quality;
   settings.motion_blur_enabled = opts.motion_blur_enabled;
   settings.motion_blur_strength = opts.motion_blur_strength;
   settings.motion_blur_samples = opts.motion_blur_samples;
@@ -251,6 +255,10 @@ void GameLoader::CaptureRenderOptions(RenderOptionsSerialized& out_opts) {
   out_opts.bloom_enabled = settings.bloom_enabled;
   out_opts.bloom_threshold = settings.bloom_threshold;
   out_opts.bloom_intensity = settings.bloom_intensity;
+  out_opts.bloom_scatter = settings.bloom_scatter;
+  out_opts.bloom_tint = settings.bloom_tint;
+  out_opts.bloom_clamp = settings.bloom_clamp;
+  out_opts.bloom_high_quality = settings.bloom_high_quality;
   out_opts.motion_blur_enabled = settings.motion_blur_enabled;
   out_opts.motion_blur_strength = settings.motion_blur_strength;
   out_opts.motion_blur_samples = settings.motion_blur_samples;
