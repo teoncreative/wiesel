@@ -21,7 +21,7 @@ class Context;
 class ElementDocument;
 }  // namespace Rml
 
-namespace Wiesel {
+namespace wiesel {
 
 class Framebuffer;
 
@@ -64,4 +64,4 @@ struct UIDocumentComponent : public IComponent {
   glm::vec2 offscreen_size_{0, 0};
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

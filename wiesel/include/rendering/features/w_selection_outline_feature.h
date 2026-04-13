@@ -14,7 +14,7 @@
 #include "rendering/w_descriptorlayout.h"
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct SelectionMaskPushConstant {
   glm::mat4 mvp;
@@ -63,4 +63,4 @@ class SelectionOutlineFeature : public RenderFeature {
   std::shared_ptr<SelectionOutlineCompositePushConstant> comp_push_constant_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

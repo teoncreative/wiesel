@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class BehaviorSystem : public ISystem {
  public:
@@ -25,4 +25,4 @@ class BehaviorSystem : public ISystem {
   bool RunOnFirstUpdate() const override { return false; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

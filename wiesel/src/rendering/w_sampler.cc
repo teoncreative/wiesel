@@ -16,7 +16,7 @@
 #include "w_engine.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Sampler::Sampler(uint32_t mip_levels, const SamplerProps& props) {
   VkSamplerCreateInfo samplerInfo{};
@@ -60,4 +60,4 @@ Sampler::~Sampler() {
       [device, sampler]() { vkDestroySampler(device, sampler, nullptr); });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

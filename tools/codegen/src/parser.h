@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-namespace Wiesel::CodeGen {
+namespace wiesel::code_gen {
 
 enum class PropertyAttribute : uint32_t {
   None = 0,
@@ -53,4 +53,4 @@ struct ParseResult {
 // Parse a header file to find WCLASS/WPROPERTY text markers.
 ParseResult ParseHeader(const std::string& header_path);
 
-}  // namespace Wiesel::CodeGen
+}  // namespace wiesel::code_gen

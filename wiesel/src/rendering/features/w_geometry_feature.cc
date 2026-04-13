@@ -20,7 +20,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -392,4 +392,4 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   registry.Register("GeoEntityId", geo_entity_id);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

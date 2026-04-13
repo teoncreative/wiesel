@@ -17,7 +17,7 @@
 
 #include <memory>
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Editor panel for visually editing .wanimcontroller assets.
 // Opens when double-clicking a controller asset in the asset browser.
@@ -43,4 +43,4 @@ class AnimControllerEditor {
   void Save();
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

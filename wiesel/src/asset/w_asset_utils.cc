@@ -14,7 +14,7 @@
 
 #include "asset/w_asset_utils.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 AssetType ExtToAssetType(const std::string& ext) {
   if (ext == ".wscene") {
@@ -77,4 +77,4 @@ bool IsJsonAssetType(AssetType type) {
          type == AssetType::MeshCollider;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

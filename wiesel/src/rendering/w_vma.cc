@@ -15,7 +15,7 @@
 
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 VmaBuffer::~VmaBuffer() {
   vmaDestroyBuffer(allocator_, buffer_, allocation_);
@@ -41,4 +41,4 @@ void VmaImage::SetDebugName(const std::string& name) {
 #endif
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

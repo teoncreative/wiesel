@@ -17,11 +17,11 @@
 #include "util/w_logger.h"
 #include "w_reflect_all.generated.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void InitializeReflection() {
-  Generated::ReflectAll();
+  generated::ReflectAll();
   LOG_INFO("Reflection initialized");
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

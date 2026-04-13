@@ -13,7 +13,7 @@
 #include "game/w_game_info.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Helpers ---
 
@@ -554,4 +554,4 @@ bool InputManager::IsEnabled() {
   return input_enabled_;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

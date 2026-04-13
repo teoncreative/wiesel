@@ -21,7 +21,7 @@
 #include "w_engine.h"
 #include "w_project_loader.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 void AssetBrowserPanel::SetCallbacks(AssetBrowserCallbacks callbacks) {
   callbacks_ = std::move(callbacks);
@@ -156,14 +156,14 @@ void AssetBrowserPanel::Render(bool& open) {
 
   if (!read_only && ImGui::BeginPopup("ImportAssetPopup")) {
     if (ImGui::MenuItem("Model...")) {
-      Dialogs::OpenFileDialog(
+      dialogs::OpenFileDialog(
           {{"Model file", "obj,gltf,glb,fbx"}},
           [ImportFileToCurrentDir](const std::string& file) {
             ImportFileToCurrentDir(file, AssetType::Model);
           });
     }
     if (ImGui::MenuItem("Texture...")) {
-      Dialogs::OpenFileDialog(
+      dialogs::OpenFileDialog(
           {{"Image file", "png,jpg,jpeg,tga,bmp"}},
           [ImportFileToCurrentDir](const std::string& file) {
             ImportFileToCurrentDir(file, AssetType::Texture);
@@ -654,4 +654,4 @@ void AssetBrowserPanel::Render(bool& open) {
   ImGui::End();
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

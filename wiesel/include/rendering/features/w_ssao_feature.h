@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class SSAOFeature : public RenderFeature {
  public:
@@ -37,4 +37,4 @@ class SSAOFeature : public RenderFeature {
   std::shared_ptr<Pipeline> blur_vert_pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

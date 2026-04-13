@@ -13,7 +13,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 using KeyCode = int32_t;  // Define KeyCode as int32_t
 
 enum : KeyCode {
@@ -624,4 +624,4 @@ inline const std::vector<KeyCode>& GetAllKeyCodes() {
   return codes;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

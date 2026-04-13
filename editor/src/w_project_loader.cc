@@ -24,7 +24,7 @@
 #include "script/w_scriptmanager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 bool ProjectLoader::MountProject(Project& project) {
   return GameLoader::MountAssets(project.GetAssetsDirectory());
@@ -105,4 +105,4 @@ bool ProjectLoader::LoadAll(Project& project, bool load_start_scene) {
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

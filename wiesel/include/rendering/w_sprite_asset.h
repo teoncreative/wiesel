@@ -13,7 +13,7 @@
 #include <glm/glm.hpp>
 #include "asset/w_asset_handle.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Runtime data for a .wsprite asset - a sub-region of a texture.
 struct SpriteAssetData {
@@ -32,4 +32,4 @@ struct SpriteAssetData {
 };
 
 
-}  // namespace Wiesel
+}  // namespace wiesel

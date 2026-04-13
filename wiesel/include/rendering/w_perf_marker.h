@@ -19,7 +19,7 @@
 #include "util/w_color.h"
 #include "vulkan/vulkan_core.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class PerfMarker {
  public:
@@ -68,5 +68,5 @@ class ScopedPerfMarker {
   PFN_vkCmdEndDebugUtilsLabelEXT end_func_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 #endif  //WIESEL_PARENT_W_GPU_DEBUG_HPP

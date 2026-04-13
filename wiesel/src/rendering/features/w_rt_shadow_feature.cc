@@ -13,7 +13,7 @@
 #include "rendering/w_renderer.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 RTShadowFeature::RTShadowFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -196,4 +196,4 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   registry.Register("RTShadowMask", shadow_mask_res);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

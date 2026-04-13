@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class AnimParamType { Bool, Int, Float, Trigger };
 
@@ -139,4 +139,4 @@ struct AnimationController {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

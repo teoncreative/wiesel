@@ -15,7 +15,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -136,4 +136,4 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", motion_blur_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

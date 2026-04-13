@@ -17,7 +17,7 @@ struct VmaAllocation_T;
 typedef VmaAllocator_T* VmaAllocator;
 typedef VmaAllocation_T* VmaAllocation;
 
-namespace Wiesel {
+namespace wiesel {
 
 // RAII wrapper for a VMA-allocated Vulkan buffer.
 // Non-copyable, non-movable. As long as this object is alive,
@@ -81,4 +81,4 @@ class VmaImage {
   VmaAllocation allocation_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

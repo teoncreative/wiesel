@@ -14,7 +14,7 @@
 #include "entt/entity/entity.hpp"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class AnchorPreset {
   TopLeft = 0,
@@ -76,4 +76,4 @@ struct CanvasScalerComponent {
   float reference_pixels_per_unit = 100.0f;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

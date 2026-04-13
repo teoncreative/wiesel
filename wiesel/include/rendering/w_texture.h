@@ -16,7 +16,7 @@
 #include "w_pch.h"
 #include "w_sampler.h"
 
-namespace Wiesel {
+namespace wiesel {
 class ImageView;
 
 // taken from assimp
@@ -265,4 +265,4 @@ class ImageView {
   uint32_t layer_count_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

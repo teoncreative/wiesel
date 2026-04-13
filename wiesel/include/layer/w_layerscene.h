@@ -18,7 +18,7 @@
 #include "layer/w_layer.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class SceneLayer : public Layer {
  public:
   SceneLayer();
@@ -34,6 +34,6 @@ class SceneLayer : public Layer {
   void OnPresent() override;
   void OnPostPresent() override;
 };
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //W_LAYERSCENE_H

@@ -16,7 +16,7 @@
 #include "w_image.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class UniformBuffer;
 class ImageView;
 class DescriptorSetLayout;
@@ -108,4 +108,4 @@ class DescriptorSet {
   std::vector<StorageImageData> storage_image_data_;
   std::vector<AccelerationStructureData> acceleration_structure_data_;
 };
-}  // namespace Wiesel
+}  // namespace wiesel

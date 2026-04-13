@@ -20,7 +20,7 @@
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Prefab {
  public:
@@ -41,4 +41,4 @@ class Prefab {
                                       const nlohmann::json& json);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

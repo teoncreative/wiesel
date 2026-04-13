@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class GeometryFeature : public RenderFeature {
  public:
@@ -37,4 +37,4 @@ class GeometryFeature : public RenderFeature {
   std::shared_ptr<Pipeline> pipeline_double_sided_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

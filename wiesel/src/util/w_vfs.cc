@@ -16,7 +16,7 @@
 #include "util/w_command.h"
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static std::string VfsJoin(const std::string& base,
                            const std::string& relative) {
@@ -616,4 +616,4 @@ std::string VirtualFileSystem::Parent(const std::string& vfs_path) {
   return vfs_path.substr(0, slash);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

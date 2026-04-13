@@ -16,22 +16,22 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 nlohmann::json Prefab::SerializeEntityTree(Entity entity) {
   nlohmann::json root;
   root["prefab_version"] = 1;
-  root["root"] = EntitySerializer::Serialize(entity);
+  root["root"] = entity_serializer::Serialize(entity);
   return root;
 }
 
 Entity Prefab::DeserializeEntityTree(std::shared_ptr<Scene> scene,
                                      const nlohmann::json& json) {
   if (json.contains("root")) {
-    return EntitySerializer::Deserialize(scene, json["root"]);
+    return entity_serializer::Deserialize(scene, json["root"]);
   }
   // If no wrapper, treat the json itself as the entity tree
-  return EntitySerializer::Deserialize(scene, json);
+  return entity_serializer::Deserialize(scene, json);
 }
 
 bool Prefab::SaveToFile(Entity entity, const std::filesystem::path& path) {
@@ -81,4 +81,4 @@ Entity Prefab::Instantiate(std::shared_ptr<Scene> scene, AssetHandle handle) {
   return DeserializeEntityTree(scene, j);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

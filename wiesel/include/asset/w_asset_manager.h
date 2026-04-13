@@ -23,7 +23,7 @@
 #include "w_engine.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct AssetMetadata {
   AssetHandle handle;
@@ -259,4 +259,4 @@ bool AssetManager::RegisterAndStore(AssetHandle handle, const std::string& name,
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

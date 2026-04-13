@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class SpriteFeature : public RenderFeature {
  public:
@@ -32,4 +32,4 @@ class SpriteFeature : public RenderFeature {
   std::shared_ptr<Pipeline> pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

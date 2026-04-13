@@ -14,7 +14,7 @@
 #include "rendering/w_texture.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Generates a small RGBA texture with text rendered onto a colored background.
 // Uses FreeType to rasterize the text. Result is cached by key.
@@ -25,4 +25,4 @@ std::shared_ptr<Texture> GetOrCreateLabelTexture(const std::string& key,
                                                  const glm::vec4& text_color,
                                                  int font_size = 24);
 
-}  // namespace Wiesel
+}  // namespace wiesel

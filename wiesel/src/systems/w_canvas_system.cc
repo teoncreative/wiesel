@@ -14,7 +14,7 @@
 #include "scene/w_entity.h"
 #include "ui/w_ui_document.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
   PROFILE_ZONE_SCOPED_N("CanvasSystem::Update");
@@ -226,5 +226,5 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
   }
 }
 
-void CanvasSystem::OnEvent(Wiesel::Event& event) {}
-}  // namespace Wiesel
+void CanvasSystem::OnEvent(wiesel::Event& event) {}
+}  // namespace wiesel

@@ -12,7 +12,7 @@
 
 #include <RmlUi/Core/SystemInterface.h>
 
-namespace Wiesel {
+namespace wiesel {
 
 class RmlSystemInterface : public Rml::SystemInterface {
  public:
@@ -22,4 +22,4 @@ class RmlSystemInterface : public Rml::SystemInterface {
   void GetClipboardText(Rml::String& text) override;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

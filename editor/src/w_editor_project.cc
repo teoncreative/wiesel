@@ -26,7 +26,7 @@
 #include "w_thumbnail_cache.h"
 #include "w_undo.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Defined in w_editor.cc
 std::shared_ptr<Scene> scene();
@@ -63,7 +63,7 @@ static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
 }
 
 void EditorLayer::NewProject() {
-  Dialogs::SelectFolderDialog([this](const std::string& folder) {
+  dialogs::SelectFolderDialog([this](const std::string& folder) {
     if (folder.empty()) {
       return;
     }
@@ -102,7 +102,7 @@ void EditorLayer::NewProject() {
 }
 
 void EditorLayer::OpenProject() {
-  Dialogs::OpenFileDialog({{"Wiesel Project", "wiesel"}},
+  dialogs::OpenFileDialog({{"Wiesel Project", "wiesel"}},
                           [this](const std::string& file) {
                             if (file.empty()) {
                               return;
@@ -371,7 +371,7 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
 }
 
 void EditorLayer::ScanProjectAssets() {
-  std::shared_ptr<Wiesel::Project> project = active_project_;
+  std::shared_ptr<wiesel::Project> project = active_project_;
   if (project) {
     ProjectLoader::ScanAssets(*project);
     project->Save();
@@ -472,7 +472,7 @@ void EditorLayer::ExportGame() {
   }
   SaveProject();
 
-  Dialogs::SelectFolderDialog([this](const std::string& selected_dir) {
+  dialogs::SelectFolderDialog([this](const std::string& selected_dir) {
     namespace fs = std::filesystem;
     if (selected_dir.empty()) {
       return;
@@ -689,4 +689,4 @@ void EditorLayer::InstantiateModelAsset(AssetHandle handle) {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

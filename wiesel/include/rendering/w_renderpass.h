@@ -17,7 +17,7 @@
 #include "w_shader.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 // I hate forward declarations but in this case it's required
 class Framebuffer;
 class AttachmentTexture;
@@ -85,4 +85,4 @@ class RenderPass {
   std::vector<AttachmentTextureInfo> attachments_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

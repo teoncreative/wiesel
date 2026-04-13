@@ -36,7 +36,7 @@
 #include "w_skybox.h"
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class AccelerationStructureManager;
 
@@ -876,4 +876,4 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

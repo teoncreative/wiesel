@@ -14,7 +14,7 @@
 #include "asset/w_asset_handle.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Runtime data for a .wanimcontroller asset - a state machine that references
 // animation clips by AssetHandle. The controller is clip-format-agnostic:
@@ -46,4 +46,4 @@ struct AnimControllerAssetData {
   bool IsEmpty() const { return states.empty(); }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

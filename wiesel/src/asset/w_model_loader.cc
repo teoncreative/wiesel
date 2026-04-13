@@ -25,7 +25,7 @@
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // ---------------------------------------------------------------------------
 // VFS-backed Assimp IO
@@ -1148,4 +1148,4 @@ static void ExtractAnimations(Model& model, const aiScene& scene) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

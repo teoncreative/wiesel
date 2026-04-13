@@ -14,7 +14,7 @@
 #include "w_events.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class KeyEvent : public Event {
  public:
   WIESEL_GETTER_FN KeyCode GetKeyCode() const { return m_KeyCode; }
@@ -52,4 +52,4 @@ class KeyTypedEvent : public KeyEvent {
 
   EVENT_CLASS_TYPE(KeyTyped)
 };
-}  // namespace Wiesel
+}  // namespace wiesel

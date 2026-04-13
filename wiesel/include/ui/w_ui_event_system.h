@@ -15,7 +15,7 @@
 #include <glm/glm.hpp>
 #include <map>
 
-namespace Wiesel {
+namespace wiesel {
 
 class Scene;
 class IBehavior;
@@ -87,4 +87,4 @@ class UIEventSystem {
                                   Fn&& fn);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

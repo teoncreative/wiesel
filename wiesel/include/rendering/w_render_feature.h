@@ -19,7 +19,7 @@
 #include "w_rendergraph.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
 class Scene;
@@ -167,4 +167,4 @@ class RenderPipeline {
   std::vector<std::shared_ptr<RenderFeature>> features_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

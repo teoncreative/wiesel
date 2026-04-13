@@ -35,7 +35,7 @@ void LoadFont() {
       0x00fc, 0x00fc,  // ü
       0};
 
-  Wiesel::VfsFile file = Wiesel::Engine::vfs()->Open(kDefaultFontPath);
+  wiesel::VfsFile file = wiesel::Engine::vfs()->Open(kDefaultFontPath);
   if (!file) {
     LOG_ERROR("Failed to load font: {}", kDefaultFontPath);
     return;

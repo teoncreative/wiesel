@@ -15,7 +15,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct MeshColliderAssetData {
   AssetHandle source_model;
@@ -38,4 +38,4 @@ std::shared_ptr<MeshColliderAssetData> BakeMeshColliderFromModel(
 // cached_shape. Called during asset load so the shape is ready immediately.
 void BuildCollisionShape(MeshColliderAssetData& data);
 
-}  // namespace Wiesel
+}  // namespace wiesel

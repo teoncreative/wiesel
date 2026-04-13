@@ -18,7 +18,7 @@
 
 JPH_SUPPRESS_WARNINGS
 
-namespace Wiesel {
+namespace wiesel {
 
 static JPH::BodyInterface& GetBodyInterface(void* sys) {
   return static_cast<JPH::PhysicsSystem*>(sys)->GetBodyInterface();
@@ -172,4 +172,4 @@ void RigidBodyComponent::SetMassRuntime(float v) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

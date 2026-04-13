@@ -31,7 +31,7 @@
 #endif
 // clang-format on
 
-namespace Wiesel {
+namespace wiesel {
 
 std::filesystem::path GetExecutableDirectory() {
 #ifdef _WIN32
@@ -217,4 +217,4 @@ void AllocateConsole() {
 #endif
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

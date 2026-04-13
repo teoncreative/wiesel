@@ -16,11 +16,11 @@
 #include "scene/w_entity.h"
 #include "w_pch.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 class CommandStack;
 }
 
-namespace Wiesel {
+namespace wiesel {
 
 // Shared drag-drop handler for asset fields (accepts AssetHandle + BrowserFile payloads)
 AssetHandle AcceptAssetDragDrop(AssetType required_type);
@@ -29,9 +29,9 @@ void InitializeEditorComponents();
 
 // Set the active command stack for undo/redo tracking in inspector widgets.
 // Must be called before RenderExistingComponents each frame.
-void SetInspectorCommandStack(Editor::CommandStack* stack);
+void SetInspectorCommandStack(editor::CommandStack* stack);
 
 void RenderExistingComponents(Entity entity);
 void RenderModals(Entity entity);
 void RenderAddPopup(Entity entity);
-}  // namespace Wiesel
+}  // namespace wiesel

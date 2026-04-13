@@ -15,7 +15,7 @@
 #include "rendering/w_skybox.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Skybox::Skybox(std::shared_ptr<Texture> texture) : texture_(texture) {
   descriptors_ = Engine::renderer()->CreateSkyboxDescriptors(texture_);
@@ -23,4 +23,4 @@ Skybox::Skybox(std::shared_ptr<Texture> texture) : texture_(texture) {
 
 Skybox::~Skybox() {}
 
-}  // namespace Wiesel
+}  // namespace wiesel

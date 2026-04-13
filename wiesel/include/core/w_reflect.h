@@ -41,7 +41,7 @@
 #define WCLASS(...)
 #define WPROPERTY(...)
 
-namespace Wiesel {
+namespace wiesel {
 
 // Metadata attached to each reflected field via entt::meta .custom<>().
 struct WPropertyMeta {
@@ -53,4 +53,4 @@ struct WPropertyMeta {
   bool read_only = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

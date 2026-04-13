@@ -17,7 +17,7 @@
 #include "util/w_command.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ConsoleLayer::ConsoleLayer() : Layer("ConsoleLayer") {}
 
@@ -174,4 +174,4 @@ void ConsoleLayer::OnBeginPresent() {
   ImGui::PopStyleColor();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

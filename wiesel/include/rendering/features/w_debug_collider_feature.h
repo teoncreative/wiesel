@@ -17,7 +17,7 @@
 #include "rendering/w_render_feature.h"
 #include "rendering/w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct DebugColliderPushConstant {
   glm::mat4 mvp;
@@ -102,4 +102,4 @@ class DebugColliderFeature : public RenderFeature {
   bool mesh_collider_cache_valid_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -14,7 +14,7 @@
 #include "asset/w_asset_handle.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class AudioBus : int {
   Master = 0,
@@ -162,4 +162,4 @@ struct ReverbZoneComponent {
   bool active_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

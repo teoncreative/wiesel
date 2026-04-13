@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Creates physics bodies for new entities. Runs before behaviors
 // so scripts can interact with newly added colliders.
@@ -40,4 +40,4 @@ class PhysicsSimulationSystem : public ISystem {
   bool RunOnFirstUpdate() const override { return false; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

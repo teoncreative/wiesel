@@ -13,7 +13,7 @@
 #include "ai/w_agent_controller.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void AgentSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("AgentSystem::Update");
@@ -25,4 +25,4 @@ void AgentSystem::Update(Scene& scene, float delta_time) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

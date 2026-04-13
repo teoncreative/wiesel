@@ -18,7 +18,7 @@
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class LoadSceneMode { Single, Additive };
 
@@ -190,4 +190,4 @@ class SceneManager {
   uint32_t pipeline_version_ = 0;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

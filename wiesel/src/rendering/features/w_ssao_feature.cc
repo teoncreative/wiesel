@@ -16,7 +16,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -261,4 +261,4 @@ void SSAOFeature::AddPasses(RenderGraph& graph,
   registry.Register("SSAOBlurV", ssao_blur_v);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

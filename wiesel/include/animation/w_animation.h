@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 #define WIESEL_MAX_BONES 256
 #define WIESEL_MAX_BONE_INFLUENCE 4
@@ -108,4 +108,4 @@ struct alignas(16) BoneMatricesUniformData {
   alignas(16) glm::mat4 bone_matrices[WIESEL_MAX_BONES];
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

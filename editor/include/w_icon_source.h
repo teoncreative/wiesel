@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // RGBA pixel data for a single icon, scaled to a specific size.
 // Caller is responsible for freeing pixels.
@@ -55,4 +55,4 @@ class PngIconSource : public IIconSource {
   std::unordered_map<uint32_t, SourceImage> icons_;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

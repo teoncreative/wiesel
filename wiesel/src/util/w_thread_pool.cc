@@ -11,7 +11,7 @@
 
 #include "util/w_thread_pool.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ThreadPool::ThreadPool(uint32_t thread_count) {
   workers_.reserve(thread_count);
@@ -61,4 +61,4 @@ size_t ThreadPool::GetQueueSize() const {
   return tasks_.size();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

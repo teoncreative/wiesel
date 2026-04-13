@@ -21,11 +21,11 @@
 
 #include "util/w_uuid.h"
 
-namespace Wiesel {
+namespace wiesel {
 class Scene;
 }
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Base class for all editor commands (undo/redo).
 class IEditorCommand {
@@ -216,4 +216,4 @@ class CompoundCommand : public IEditorCommand {
   std::vector<std::unique_ptr<IEditorCommand>> commands_;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

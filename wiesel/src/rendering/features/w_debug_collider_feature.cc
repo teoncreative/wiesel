@@ -27,7 +27,7 @@
 #include "util/w_label_texture.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -1013,4 +1013,4 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", comp_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

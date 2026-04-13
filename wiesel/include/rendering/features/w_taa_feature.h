@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class TAAFeature : public RenderFeature {
  public:
@@ -34,4 +34,4 @@ class TAAFeature : public RenderFeature {
   std::shared_ptr<Pipeline> copy_pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

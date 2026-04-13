@@ -13,7 +13,7 @@
 #include "core/w_reflect_util.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Find the last keyframe at or before the given time (step interpolation).
 template <typename T>
@@ -210,4 +210,4 @@ void BlendPropertyCurves(Scene& scene, entt::entity entity,
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

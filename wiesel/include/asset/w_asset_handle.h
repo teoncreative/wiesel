@@ -17,7 +17,7 @@
 #include "util/w_uuid.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class AssetLoadState : uint8_t { Unloaded = 0, Loading, Loaded, Failed };
 
@@ -92,13 +92,13 @@ inline const AssetHandle kPrimitiveCylinder{
 inline const AssetHandle kPrimitiveCapsule{
     UUID::FromString("00000000-0000-4000-8000-000000000005")};
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 namespace std {
 template <>
-struct hash<Wiesel::AssetHandle> {
-  size_t operator()(const Wiesel::AssetHandle& h) const noexcept {
-    return std::hash<Wiesel::UUID>{}(h.id);
+struct hash<wiesel::AssetHandle> {
+  size_t operator()(const wiesel::AssetHandle& h) const noexcept {
+    return std::hash<wiesel::UUID>{}(h.id);
   }
 };
 }  // namespace std

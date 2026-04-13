@@ -21,7 +21,7 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Project ---
 
@@ -254,4 +254,4 @@ bool Project::Save() const {
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

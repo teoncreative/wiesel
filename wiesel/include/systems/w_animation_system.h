@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class AnimationSystem : public ISystem {
  public:
@@ -25,4 +25,4 @@ class AnimationSystem : public ISystem {
   bool RunOnFirstUpdate() const override { return true; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

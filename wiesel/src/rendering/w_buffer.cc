@@ -15,7 +15,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 MemoryBuffer::MemoryBuffer(MemoryType type) : type_(type) {}
 
@@ -48,4 +48,4 @@ UniformBuffer::~UniformBuffer() {
   renderer->GetDeletionQueue().Defer(std::move(vma_buffer_));
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

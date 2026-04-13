@@ -17,7 +17,7 @@
 #include "util/w_vfs.h"
 #include "w_thumbnail_cache.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // A single entry in the VFS browser, combining VFS info with asset metadata.
 struct BrowserEntry {
@@ -138,4 +138,4 @@ class VfsFilePicker {
   char filename_buf_[256] = {};
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

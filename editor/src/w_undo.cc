@@ -15,7 +15,7 @@
 #include "scene/w_prefab.h"
 #include "util/w_logger.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // --- CommandStack ---
 
@@ -323,4 +323,4 @@ std::string CompoundCommand::GetDescription() const {
   return description_;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

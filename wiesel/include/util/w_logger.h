@@ -16,7 +16,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // https://github.com/TheCherno/Hazel/blob/e4b0493999206bd2c3ff9d30fa333bcf81f313c8/Hazel/src/Hazel/Debug/Instrumentor.h#L207
 // Resolve which function signature macro will be used. Note that this only
@@ -134,4 +134,4 @@ WIESEL_FUNC_SIG
 
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -17,7 +17,7 @@
 #include "scene/w_entity.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::string GetBehaviorNameFromPath(const std::string& path);
 std::string GetFileNameFromPath(const std::string& path);
@@ -126,4 +126,4 @@ class BehaviorsComponent : public IComponent {
   std::unordered_map<std::string, IBehavior*> behaviors_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

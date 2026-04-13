@@ -18,7 +18,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 /*class Image {
  public:
   Image();

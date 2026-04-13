@@ -14,7 +14,7 @@
 
 #include <entt/entt.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 class Scene;
 
@@ -35,4 +35,4 @@ void BlendPropertyCurves(Scene& scene, entt::entity entity,
                          const std::vector<PropertyCurve>& curves_b,
                          float time_b, float blend_weight);
 
-}  // namespace Wiesel
+}  // namespace wiesel

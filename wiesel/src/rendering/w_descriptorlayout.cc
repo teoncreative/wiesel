@@ -12,7 +12,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 DescriptorSetLayout::DescriptorSetLayout() {
   allocated_ = false;
@@ -57,4 +57,4 @@ void DescriptorSetLayout::Bake() {
   allocated_ = true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

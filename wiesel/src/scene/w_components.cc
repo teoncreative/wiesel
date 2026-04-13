@@ -18,7 +18,7 @@
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 glm::vec3 TransformComponent::GetForward() {
   return glm::normalize(transform_matrix_[2]);
@@ -148,4 +148,4 @@ void SkeletalAnimRuntime::Initialize() {
   initialized = true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

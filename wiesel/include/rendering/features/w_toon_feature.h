@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct ToonPushConstants {
   int bands = 4;
@@ -43,4 +43,4 @@ class ToonFeature : public RenderFeature {
   std::shared_ptr<ToonPushConstants> push_constants_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

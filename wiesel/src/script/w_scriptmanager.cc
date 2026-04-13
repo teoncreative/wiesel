@@ -34,7 +34,7 @@
 #include "util/w_platform.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static constexpr const char* kCoreDllPath = "./Core.dll";
 static constexpr const char* kAppDllPath = "./App.dll";
@@ -513,7 +513,7 @@ MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
 }
 
 template <class T>
-MonoObject* ScriptManager::GetComponent(Wiesel::Scene* scene,
+MonoObject* ScriptManager::GetComponent(wiesel::Scene* scene,
                                         entt::entity entity) {
   auto& fn = component_getters_by_type_[std::type_index(typeid(T))];
   if (fn == nullptr) {
@@ -1159,4 +1159,4 @@ void ScriptManager::RemoveComponentByName(Scene* scene, entt::entity entity,
     it->second(scene, entity);
   }
 }
-}  // namespace Wiesel
+}  // namespace wiesel

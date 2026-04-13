@@ -14,7 +14,7 @@
 #include "w_application.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static std::unique_ptr<DeveloperConsole> console_;
 
@@ -157,4 +157,4 @@ std::vector<std::string> DeveloperConsole::Tokenize(
   return tokens;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

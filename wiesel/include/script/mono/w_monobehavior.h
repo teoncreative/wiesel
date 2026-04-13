@@ -14,7 +14,7 @@
 #include "behavior/w_behavior.h"
 #include "script/w_scriptmanager.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class ScriptInstance;
 
@@ -64,4 +64,4 @@ class MonoBehavior : public IBehavior {
   std::unique_ptr<ScriptInstance> script_instance_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

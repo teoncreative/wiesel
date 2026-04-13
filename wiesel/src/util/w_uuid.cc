@@ -16,7 +16,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static std::mt19937_64::result_type seed_rng_() {
   // gather multiple 32-bit entropy chunks to seed a 64-bit engine well
@@ -153,4 +153,4 @@ void UUID::FromBytes(const bytes& b) noexcept {
   lo_ = ReadU64BE(b.data() + 8);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

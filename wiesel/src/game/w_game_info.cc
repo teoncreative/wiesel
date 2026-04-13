@@ -20,7 +20,7 @@
 #include "util/w_keycodes.h"
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Input serialization helpers ---
 
@@ -355,4 +355,4 @@ bool GameInfo::Save(const std::filesystem::path& path) const {
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

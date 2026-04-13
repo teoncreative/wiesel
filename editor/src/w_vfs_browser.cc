@@ -18,7 +18,7 @@
 #include "util/w_natural_sort.h"
 #include "w_engine.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // ---------------------------------------------------------------------------
 // VfsBrowser - Navigation
@@ -624,4 +624,4 @@ void VfsFilePicker::Render() {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

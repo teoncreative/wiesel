@@ -15,7 +15,7 @@
 #include "script/w_scriptmanager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 MonoBehavior::MonoBehavior(Entity entity, const std::string& script_name)
     : IBehavior(script_name, entity) {
@@ -145,4 +145,4 @@ bool MonoBehavior::OnCancel() {
   return false;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

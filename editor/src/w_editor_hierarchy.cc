@@ -21,7 +21,7 @@
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Defined in w_editor.cc
 std::shared_ptr<Scene> scene();
@@ -505,4 +505,4 @@ void EditorLayer::UpdateHierarchyOrder() {
   hierarchy_data_.move_to_scene.reset();
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

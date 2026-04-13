@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-namespace Wiesel::CodeGen {
+namespace wiesel::code_gen {
 
 // Generate a .generated.h file for a single parsed header.
 // Returns the generated source code as a string.
@@ -28,4 +28,4 @@ std::string GenerateReflectAll(
     const std::vector<std::string>& generated_includes,
     const std::vector<std::string>& function_names);
 
-}  // namespace Wiesel::CodeGen
+}  // namespace wiesel::code_gen

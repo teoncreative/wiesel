@@ -16,7 +16,7 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 VkPipelineBindPoint ToVkPipelineBindPoint(PipelineBindPoint point) {
   switch (point) {
@@ -332,4 +332,4 @@ std::shared_ptr<Framebuffer> RenderPass::CreateFramebuffer(
   }
   return std::make_shared<Framebuffer>(views, extent, *this);
 }
-}  // namespace Wiesel
+}  // namespace wiesel

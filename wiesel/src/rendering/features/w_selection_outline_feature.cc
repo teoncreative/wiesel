@@ -19,7 +19,7 @@
 #include "scene/w_scene_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 SelectionOutlineFeature::SelectionOutlineFeature(
     std::shared_ptr<Renderer> renderer)
@@ -403,4 +403,4 @@ void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", comp_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

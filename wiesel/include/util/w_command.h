@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class ConsoleLogLevel { Info, Warning, Error };
 
@@ -78,21 +78,21 @@ class DeveloperConsole {
 #ifdef _MSC_VER
 
 #define DCON_LOG_INFO(msg, ...) \
-  ::Wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, __VA_ARGS__))
+  ::wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, __VA_ARGS__))
 #define DCON_LOG_WARN(msg, ...) \
-  ::Wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, __VA_ARGS__))
+  ::wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, __VA_ARGS__))
 #define DCON_LOG_ERROR(msg, ...) \
-  ::Wiesel::DeveloperConsole::Get().LogError(std::format(msg, __VA_ARGS__))
+  ::wiesel::DeveloperConsole::Get().LogError(std::format(msg, __VA_ARGS__))
 
 #else
 
 #define DCON_LOG_INFO(msg, args...) \
-  ::Wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, ##args))
+  ::wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, ##args))
 #define DCON_LOG_WARN(msg, args...) \
-  ::Wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, ##args))
+  ::wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, ##args))
 #define DCON_LOG_ERROR(msg, args...) \
-  ::Wiesel::DeveloperConsole::Get().LogError(std::format(msg, ##args))
+  ::wiesel::DeveloperConsole::Get().LogError(std::format(msg, ##args))
 
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

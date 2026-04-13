@@ -18,7 +18,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -168,4 +168,4 @@ bool TransparencyFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.renderer.options().msaa_mode == SamplingMode::DISABLED;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

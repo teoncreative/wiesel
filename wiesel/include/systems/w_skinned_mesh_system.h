@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Ensures SkeletalAnimRuntime exists and is initialized for all entities
 // that have SkinnedMeshRendererComponent pointing to a skeleton root.
@@ -30,4 +30,4 @@ class SkinnedMeshSystem : public ISystem {
   bool RunInEditor() const override { return true; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -17,7 +17,7 @@
 #include "asset/w_asset_handle.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct RenderOptionsSerialized {
   glm::vec3 ambient_color = {1.0f, 1.0f, 1.0f};
@@ -91,4 +91,4 @@ struct GameInfo {
   bool Save(const std::filesystem::path& path) const;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

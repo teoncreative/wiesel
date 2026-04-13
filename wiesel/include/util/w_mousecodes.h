@@ -13,7 +13,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum MouseCode : int32_t {
   kMouseButton0 = 0,
@@ -29,4 +29,4 @@ enum MouseCode : int32_t {
   kMouseButtonRight = kMouseButton1,
   kMouseButtonMiddle = kMouseButton2
 };
-}  // namespace Wiesel
+}  // namespace wiesel

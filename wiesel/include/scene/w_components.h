@@ -26,7 +26,7 @@
 #include "util/w_uuid.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 struct EventHandlerComponent {
   virtual void OnEvent(Event&);
 };
@@ -361,4 +361,4 @@ struct SpriteAnimRuntime {
   std::shared_ptr<AnimClipAssetData> current_clip;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

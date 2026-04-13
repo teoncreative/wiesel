@@ -15,7 +15,7 @@
 
 struct ImNodesEditorContext;
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Domain-specific interface for the graph editor.
 // Implement this to use NodeGraphEditor with any node/link data structure.
@@ -80,4 +80,4 @@ class NodeGraphEditor {
   int right_clicked_link_ = -1;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

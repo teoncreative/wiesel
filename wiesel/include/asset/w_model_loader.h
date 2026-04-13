@@ -17,7 +17,7 @@
 
 struct aiScene;
 
-namespace Wiesel {
+namespace wiesel {
 
 // Load a model asset (Assimp import, mesh GPU upload, child texture loading).
 bool LoadModelAsset(AssetHandle handle);
@@ -29,4 +29,4 @@ bool LoadTextureAsset(AssetHandle handle);
 std::unique_ptr<aiScene> LoadAssimpScene(const std::string& path,
                                          bool convert_to_left_handed = true);
 
-}  // namespace Wiesel
+}  // namespace wiesel

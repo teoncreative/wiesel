@@ -19,7 +19,7 @@
 #include "rendering/w_texture.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
 class RenderPass;
@@ -149,4 +149,4 @@ class RmlRenderInterface : public Rml::RenderInterface {
       Rml::TextureHandle texture);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

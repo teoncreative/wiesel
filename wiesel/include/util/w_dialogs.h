@@ -18,7 +18,7 @@
 #include <string>
 #endif
 
-namespace Wiesel::Dialogs {
+namespace wiesel::dialogs {
 struct FilterEntry {
   std::string name;
   std::string spec;
@@ -36,4 +36,4 @@ void SelectFolderDialog(std::function<void(const std::string&)> fn);
 
 void Destroy();
 
-}  // namespace Wiesel::Dialogs
+}  // namespace wiesel::dialogs

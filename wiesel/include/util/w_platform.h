@@ -15,7 +15,7 @@
 #ifndef WIESEL_PARENT_W_PLATFORM_HPP
 #define WIESEL_PARENT_W_PLATFORM_HPP
 
-namespace Wiesel {
+namespace wiesel {
 
 std::filesystem::path GetExecutableDirectory();
 std::filesystem::path GetUserDataDirectory(
@@ -30,6 +30,6 @@ void OpenFileInDefaultEditor(const std::filesystem::path& path);
 void EnableAnsiColors();
 void AllocateConsole();
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_PARENT_W_PLATFORM_HPP

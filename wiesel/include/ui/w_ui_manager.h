@@ -22,7 +22,7 @@ namespace Rml {
 class Context;
 }
 
-namespace Wiesel {
+namespace wiesel {
 
 // Manages global RmlUi initialization, font loading, and the shared
 // render interface. Does NOT own any contexts or documents - those
@@ -50,4 +50,4 @@ class UIManager {
   std::unordered_set<AssetHandle> loaded_fonts_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

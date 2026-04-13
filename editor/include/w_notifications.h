@@ -16,7 +16,7 @@
 #include <deque>
 #include <string>
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class NotificationType { Info, Warning, Error };
 
@@ -73,4 +73,4 @@ class NotificationManager {
   static const char* GetTypeIcon(NotificationType type);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

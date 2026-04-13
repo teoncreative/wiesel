@@ -19,7 +19,7 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // 6 cubemap face view matrices (lookAt from origin).
 // Vulkan cubemap layout follows a fixed RH convention regardless of the
@@ -361,4 +361,4 @@ void IBLFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   // The descriptor is available via "ibl.descriptor" in the resource pool.
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

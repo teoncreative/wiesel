@@ -13,7 +13,7 @@
 
 #include <imgui.h>
 
-namespace Wiesel {
+namespace wiesel {
 
 ImVec4 NotificationManager::GetTypeColor(NotificationType type) {
   switch (type) {
@@ -204,4 +204,4 @@ size_t NotificationManager::UnreadCount() const {
   return history_.size() > read_count_ ? history_.size() - read_count_ : 0;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

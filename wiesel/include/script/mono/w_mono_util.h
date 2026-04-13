@@ -29,7 +29,7 @@
 #include "mono_compiler.h"
 #include "mono_wrappers.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Wraps mono_runtime_invoke with exception handling.
 // Logs to both terminal and developer console.
@@ -37,6 +37,6 @@ namespace Wiesel {
 MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj, void** args,
                        bool* had_exception = nullptr);
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_PARENT_W_MONO_UTIL_H

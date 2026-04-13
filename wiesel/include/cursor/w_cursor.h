@@ -13,7 +13,7 @@
 #include "asset/w_asset_handle.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class CursorSetMode : uint8_t {
   Auto = 0,           // Use OS hardware cursor (SDL)
@@ -71,4 +71,4 @@ class CursorManager {
   float frame_timer_ = 0.0f;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

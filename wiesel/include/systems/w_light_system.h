@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class LightSystem : public ISystem {
  public:
@@ -27,4 +27,4 @@ class LightSystem : public ISystem {
   bool RunInEditor() const override { return true; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

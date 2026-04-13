@@ -16,7 +16,7 @@
 #include "w_pch.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
 class RenderPass;
@@ -217,4 +217,4 @@ class RenderGraph {
 #endif
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -13,7 +13,7 @@
 
 #include "layer/w_layer.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Drop-down developer console overlay, like Source engine.
 // Push this layer after ImGuiLayer.
@@ -49,4 +49,4 @@ class ConsoleLayer : public Layer {
   bool visible_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

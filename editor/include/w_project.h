@@ -17,7 +17,7 @@
 #include "game/w_game_info.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct ProjectSettings {
   std::string name = "Untitled Project";
@@ -86,4 +86,4 @@ class Project {
   GameInfo game_info_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

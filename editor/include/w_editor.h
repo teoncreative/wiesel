@@ -41,7 +41,7 @@
 #include "w_undo.h"
 #include "w_vfs_browser.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 class RecentProjects {
  public:
@@ -328,6 +328,6 @@ class EditorLayer : public Layer {
   // Editor preferences (theme, layout, etc.)
   std::unique_ptr<UserConfig> editor_config_;
 };
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor
 
 #endif  //WIESEL_PARENT_W_EDITOR_H

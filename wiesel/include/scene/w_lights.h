@@ -16,7 +16,7 @@
 #include "util/w_color.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct alignas(16) LightBase {
   LightBase()
@@ -101,4 +101,4 @@ struct LightPointComponent {
   LightPoint light_data;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

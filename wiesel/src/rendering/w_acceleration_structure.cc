@@ -21,7 +21,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 AccelerationStructureManager::AccelerationStructureManager(
     std::shared_ptr<Renderer> renderer)
@@ -451,4 +451,4 @@ VkAccelerationStructureKHR AccelerationStructureManager::GetTLAS() const {
   return tlas_ ? tlas_->handle : VK_NULL_HANDLE;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

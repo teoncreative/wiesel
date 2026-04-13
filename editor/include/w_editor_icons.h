@@ -48,10 +48,10 @@
 #define CODICON_LAYOUT "\xee\xaf\xab"           // 60395 layout
 #define CODICON_ARROW_BOTH "\xee\xaa\x99"       // 60057 arrow-both
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Initialize the editor icon font system. Call once in EditorLayer::OnAttach
 // after all other fonts have been added.
 void InitEditorIcons();
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

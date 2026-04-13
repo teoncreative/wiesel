@@ -14,7 +14,7 @@
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Mesh::Mesh() {
   mat = std::make_shared<Material>();
@@ -60,4 +60,4 @@ void Mesh::Deallocate() {
   allocated_ = false;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

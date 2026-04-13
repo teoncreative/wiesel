@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Scene;
 
@@ -41,4 +41,4 @@ class ISystem {
   virtual bool RunInEditor() const { return false; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -12,7 +12,7 @@
 
 #include "rendering/w_mesh.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Generates procedural Model objects for common shapes.
 // Each returns a Model with a single mesh, default material, and
@@ -26,4 +26,4 @@ std::shared_ptr<Model> CreateCylinder(int segments = 32);
 std::shared_ptr<Model> CreateCapsule(int stacks = 16, int slices = 32);
 
 }  // namespace Primitives
-}  // namespace Wiesel
+}  // namespace wiesel

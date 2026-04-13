@@ -17,7 +17,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Billboard screen-size scaling factors
 constexpr float kBillboardSizeOrtho = 0.05f;
@@ -435,4 +435,4 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", comp_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

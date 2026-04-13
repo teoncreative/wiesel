@@ -44,7 +44,7 @@
 #include "util/w_discord_rpc.h"
 #endif
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 std::shared_ptr<Scene> scene() {
   return Engine::scene_manager().GetActiveScene();
@@ -812,4 +812,4 @@ void EditorLayer::OnPrePresent() {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
   for (const auto& header : header_files) {
     std::cout << "codegen: parsing " << header << "\n";
 
-    auto parse_result = Wiesel::CodeGen::ParseHeader(header);
+    auto parse_result = wiesel::code_gen::ParseHeader(header);
 
     if (parse_result.classes.empty()) {
       std::cout << "  no reflected classes found, skipping\n";
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string generated_code =
-        Wiesel::CodeGen::GenerateReflection(parse_result, include_path);
+        wiesel::code_gen::GenerateReflection(parse_result, include_path);
 
     std::ofstream out_file(generated_path);
     if (!out_file) {
@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (!all_function_names.empty()) {
-    std::string reflect_all = Wiesel::CodeGen::GenerateReflectAll(
+    std::string reflect_all = wiesel::code_gen::GenerateReflectAll(
         all_generated_includes, all_function_names);
 
     fs::path reflect_all_path =

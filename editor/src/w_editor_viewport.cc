@@ -20,7 +20,7 @@
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Free functions defined in w_editor.cc with external linkage.
 std::shared_ptr<Scene> scene();
@@ -889,4 +889,4 @@ entt::entity EditorLayer::FindSpriteAtNDC(glm::vec2 pick_ndc) {
   return best;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

@@ -16,8 +16,8 @@
 #include "util/w_platform.h"
 #include "w_engine.h"
 
-using namespace Wiesel;
-using namespace Wiesel::Editor;
+using namespace wiesel;
+using namespace wiesel::editor;
 
 class EditorApplication : public Application {
  public:
@@ -32,7 +32,7 @@ class EditorApplication : public Application {
   }
 };
 
-Application* Wiesel::CreateApp() {
+Application* wiesel::CreateApp() {
   return new EditorApplication();
 }
 

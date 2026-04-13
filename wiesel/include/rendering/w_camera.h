@@ -19,7 +19,7 @@
 #include "w_pch.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class RenderGraph;
 
@@ -170,4 +170,4 @@ struct CameraData {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

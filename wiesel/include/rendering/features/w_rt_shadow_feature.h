@@ -15,7 +15,7 @@
 #include "rendering/w_render_feature.h"
 #include "rendering/w_rt_pipeline.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static constexpr int kMaxRTShadowLights = 32;
 
@@ -48,4 +48,4 @@ class RTShadowFeature : public RenderFeature {
   std::shared_ptr<UniformBuffer> shadow_lights_ubo_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

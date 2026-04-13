@@ -14,7 +14,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class DescriptorSetLayout {
  public:
@@ -35,4 +35,4 @@ class DescriptorSetLayout {
 
   std::vector<Binding> bindings_;
 };
-}  // namespace Wiesel
+}  // namespace wiesel

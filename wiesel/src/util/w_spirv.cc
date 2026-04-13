@@ -14,7 +14,7 @@
 #include "glslang/Public/ResourceLimits.h"
 #include "util/w_logger.h"
 
-namespace Wiesel::Spirv {
+namespace wiesel::spirv {
 
 void Init() {
   LOG_DEBUG("Initializing glslang");
@@ -106,4 +106,4 @@ bool ShaderToSPV(ShaderType type, bool debug, const std::vector<char>& input,
   return true;
 }
 
-}  // namespace Wiesel::Spirv
+}  // namespace wiesel::spirv

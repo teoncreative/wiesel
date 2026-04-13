@@ -43,7 +43,7 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::shared_ptr<Scene> SceneManager::CreateScene() {
   active_scene_ = std::make_shared<Scene>();
@@ -904,4 +904,4 @@ Entity SceneManager::MoveEntityToScene(Entity entity,
   return new_root;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -14,7 +14,7 @@
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class Entity {
  public:
   Entity(entt::entity handle, Scene* scene);
@@ -75,12 +75,12 @@ class Entity {
   std::vector<entt::entity>* child_handles_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 namespace std {
 template <>
-struct hash<Wiesel::Entity> {
-  size_t operator()(const Wiesel::Entity& e) const noexcept {
+struct hash<wiesel::Entity> {
+  size_t operator()(const wiesel::Entity& e) const noexcept {
     size_t h1 = std::hash<void*>{}(e.GetScene());
     size_t h2 = std::hash<uint32_t>{}(static_cast<uint32_t>(e.handle()));
     return h1 ^ (h2 << 1);

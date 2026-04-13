@@ -18,7 +18,7 @@
 #include "rendering/w_renderpass.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 UIManager::UIManager() : render_interface_(Engine::renderer()) {}
 
@@ -116,4 +116,4 @@ bool UIManager::IsDebuggerVisible() const {
   return debugger_initialized_ && Rml::Debugger::IsVisible();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

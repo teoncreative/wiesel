@@ -15,7 +15,7 @@
 #include "rendering/w_renderer.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class Layer {
  public:
   explicit Layer(const std::string& layer_name) : layer_name_(layer_name) {}
@@ -44,4 +44,4 @@ class Layer {
   uint32_t id_ = -1;
   std::string layer_name_;  // used to debug
 };
-}  // namespace Wiesel
+}  // namespace wiesel

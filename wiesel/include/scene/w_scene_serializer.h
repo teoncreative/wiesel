@@ -19,7 +19,7 @@
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class SceneSerializer {
  public:
@@ -32,4 +32,4 @@ class SceneSerializer {
   std::shared_ptr<Scene> scene_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

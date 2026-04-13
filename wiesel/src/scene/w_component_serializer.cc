@@ -42,7 +42,7 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 using json = nlohmann::json;
 
@@ -1105,4 +1105,4 @@ void InitializeComponentSerializers() {
   });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

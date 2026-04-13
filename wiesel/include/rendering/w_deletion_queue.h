@@ -13,7 +13,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class DeletionQueue {
  public:
@@ -69,4 +69,4 @@ class DeletionQueue {
   std::vector<Entry> entries_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

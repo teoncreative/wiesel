@@ -13,7 +13,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class UUID {
  public:
   using bytes = std::array<std::uint8_t, 16>;
@@ -54,13 +54,13 @@ class UUID {
   void FromBytes(const bytes& b) noexcept;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 // hashing support
 namespace std {
 template <>
-struct hash<Wiesel::UUID> {
-  size_t operator()(const Wiesel::UUID& u) const noexcept {
+struct hash<wiesel::UUID> {
+  size_t operator()(const wiesel::UUID& u) const noexcept {
     // 64-bit mix (xorshift64*)
     std::uint64_t x = u.hi() ^ (u.lo() * 0x9E3779B97F4A7C15ull);
     x ^= x >> 30;

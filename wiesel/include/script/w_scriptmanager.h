@@ -18,7 +18,7 @@
 #include "scene/w_scene.h"
 #include "script/mono/w_mono_util.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class MonoBehavior;
 
@@ -438,4 +438,4 @@ class ScriptManager {
   bool loaded_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

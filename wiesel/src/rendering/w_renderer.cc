@@ -41,7 +41,7 @@
 
 #include "ui/w_rmlui_renderer.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::vector<SamplingMode> ConvertToSamplingModes(VkSampleCountFlags flags) {
   std::vector<SamplingMode> modes;
@@ -79,7 +79,7 @@ SamplingMode FindHighestSamplingMode(const std::vector<SamplingMode>& modes) {
 }
 
 Renderer::Renderer(std::shared_ptr<AppWindow> window) : window_(window) {
-  Spirv::Init();
+  spirv::Init();
 #ifdef VULKAN_VALIDATION
   validation_layers_.push_back("VK_LAYER_KHRONOS_validation");
 #endif
@@ -1811,7 +1811,7 @@ void Renderer::Cleanup() {
   vkDestroyInstance(instance_, nullptr);
 
   LOG_DEBUG("Renderer destroyed");
-  Spirv::Cleanup();
+  spirv::Cleanup();
   initialized_ = false;
 }
 
@@ -4560,4 +4560,4 @@ DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
 
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

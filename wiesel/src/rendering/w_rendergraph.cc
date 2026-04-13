@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <queue>
 
-namespace Wiesel {
+namespace wiesel {
 
 VkImageLayout RGAccessToLayout(RGAccess access) {
   switch (access) {
@@ -535,4 +535,4 @@ void RenderGraph::DestroyQueryPool() {
 }
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

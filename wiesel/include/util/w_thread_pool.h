@@ -18,7 +18,7 @@
 #include <thread>
 #include <vector>
 
-namespace Wiesel {
+namespace wiesel {
 
 class ThreadPool {
  public:
@@ -45,4 +45,4 @@ class ThreadPool {
   bool stopping_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

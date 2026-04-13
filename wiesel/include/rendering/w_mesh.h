@@ -28,7 +28,7 @@
 #include "util/w_logger.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct Mesh {
   Mesh();
@@ -199,4 +199,4 @@ struct Model {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

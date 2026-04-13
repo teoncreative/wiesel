@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace Wiesel {
+namespace wiesel {
 
 class Entity;
 class Scene;
@@ -64,4 +64,4 @@ class ComponentSerializerRegistry {
 // Call once from Engine::InitEngine() to register all component serializers.
 void InitializeComponentSerializers();
 
-}  // namespace Wiesel
+}  // namespace wiesel

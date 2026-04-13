@@ -12,7 +12,7 @@
 #include "behavior/w_behavior.h"
 #include <filesystem>
 
-namespace Wiesel {
+namespace wiesel {
 
 void IBehavior::OnUpdate(float_t delta_time) {}
 
@@ -28,4 +28,4 @@ void BehaviorsComponent::OnEvent(Event& event) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

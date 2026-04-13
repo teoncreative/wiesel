@@ -12,7 +12,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct BloomExtractPushConstants {
   float threshold;
@@ -57,4 +57,4 @@ class BloomFeature : public RenderFeature {
   std::shared_ptr<BloomCompositePushConstants> composite_push_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

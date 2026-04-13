@@ -21,7 +21,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class SkyboxType { Panorama, Cubemap, Cross };
 
@@ -41,6 +41,6 @@ class Skybox {
   std::shared_ptr<DescriptorSet> descriptors_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_SKYBOX_HPP

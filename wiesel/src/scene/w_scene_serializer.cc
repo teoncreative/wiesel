@@ -15,7 +15,7 @@
 #include "scene/w_entity_serializer.h"
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static constexpr int kCurrentSceneVersion = 3;
 
@@ -37,7 +37,7 @@ std::string SceneSerializer::SerializeToString() const {
       continue;
     }
 
-    entities.push_back(EntitySerializer::Serialize(entity));
+    entities.push_back(entity_serializer::Serialize(entity));
   }
   root["entities"] = entities;
 
@@ -109,7 +109,7 @@ static bool DeserializeV1(std::shared_ptr<Scene> scene,
 static bool DeserializeV2(std::shared_ptr<Scene> scene,
                           const nlohmann::json& root) {
   for (const nlohmann::json& entity_tree : root["entities"]) {
-    EntitySerializer::Deserialize(scene, entity_tree);
+    entity_serializer::Deserialize(scene, entity_tree);
   }
   return true;
 }
@@ -168,4 +168,4 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
   return ok;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

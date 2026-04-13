@@ -19,7 +19,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 RmlRenderInterface::RmlRenderInterface(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
@@ -432,4 +432,4 @@ void RmlRenderInterface::RenderToTexture(VkCommandBuffer cmd,
   active_cmd_ = VK_NULL_HANDLE;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

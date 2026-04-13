@@ -39,7 +39,7 @@
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Defined in w_editor.cc
 std::shared_ptr<Scene> scene();
@@ -2036,4 +2036,4 @@ void EditorLayer::RenderEditorSettingsPanel() {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

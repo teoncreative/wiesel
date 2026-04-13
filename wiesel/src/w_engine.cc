@@ -41,7 +41,7 @@
 #include "util/w_user_config.h"
 #include "window/w_sdlwindow.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 EngineProperties EngineProperties::Parse(int argc, char** argv) {
   EngineProperties config;
@@ -255,7 +255,7 @@ void Engine::InitEngine(const EngineProperties& props) {
 
 void Engine::InitWindow(const WindowProperties&& props) {
   window_ = std::make_shared<SdlAppWindow>(std::move(props));
-  Dialogs::Init();
+  dialogs::Init();
 }
 
 void Engine::InitRenderer(const RendererProperties&& props) {
@@ -388,7 +388,7 @@ void Engine::CleanupRenderer() {
 
 void Engine::CleanupWindow() {
   window_ = nullptr;
-  Dialogs::Destroy();
+  dialogs::Destroy();
 }
 
 void Engine::CleanupEngine() {
@@ -431,4 +431,4 @@ void Engine::SetGameInfo(std::shared_ptr<GameInfo> info) {
   game_info_ = std::move(info);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

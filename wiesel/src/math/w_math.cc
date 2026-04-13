@@ -11,7 +11,7 @@
 
 #include "math/w_math.h"
 
-namespace Wiesel::Math {
+namespace wiesel::math {
 
 bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation,
                         glm::vec3& rotation, glm::vec3& scale) {
@@ -85,4 +85,4 @@ bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation,
   return true;
 }
 
-}  // namespace Wiesel::Math
+}  // namespace wiesel::math

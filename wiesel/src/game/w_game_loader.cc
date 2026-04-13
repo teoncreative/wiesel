@@ -28,7 +28,7 @@
 #include "script/w_scriptmanager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
                                     const std::string& vfs_path) {
@@ -415,4 +415,4 @@ bool GameLoader::LoadAll(const GameInfo& info,
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

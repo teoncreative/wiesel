@@ -18,7 +18,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 using WindowEventFn = std::function<void(Event&)>;
 
 struct WindowSize {
@@ -120,4 +120,4 @@ class AppWindow {
   CursorMode cursor_mode_;
   CursorCaptureSource cursor_capture_source_ = CursorCaptureSource::None;
 };
-}  // namespace Wiesel
+}  // namespace wiesel

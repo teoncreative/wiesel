@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 using json = nlohmann::json;
 
@@ -206,4 +206,4 @@ class LspClient {
   static constexpr size_t kMaxLogEntries = 200;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

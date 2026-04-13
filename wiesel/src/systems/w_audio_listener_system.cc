@@ -14,7 +14,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void AudioListenerSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("AudioListenerSystem::Update");
@@ -58,4 +58,4 @@ void AudioListenerSystem::Update(Scene& scene, float delta_time) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

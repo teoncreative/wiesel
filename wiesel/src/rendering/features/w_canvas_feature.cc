@@ -24,7 +24,7 @@
 #include "ui/w_ui_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Collect all canvas-drawable entities and sort by draw_order so children
 // render on top of parents regardless of component type.
@@ -1237,4 +1237,4 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", canvas_comp_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -14,7 +14,7 @@
 #include <vector>
 #include "scene/w_components.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum CollisionGroup : uint16_t {
   CollisionGroupDefault = 1 << 0,
@@ -94,4 +94,4 @@ struct HeightfieldColliderComponent : public IComponent {
   uint16_t collision_group = CollisionGroupTerrain;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -24,7 +24,7 @@ class JobSystem;
 class Shape;
 }  // namespace JPH
 
-namespace Wiesel {
+namespace wiesel {
 
 class Scene;
 class BroadPhaseLayerInterfaceImpl;
@@ -134,4 +134,4 @@ class PhysicsWorld {
   std::set<ContactPair> prev_trigger_contacts_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -25,7 +25,7 @@
 #include "util/imgui/imgui_theme.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ImGuiLayer::ImGuiLayer() : Layer("ImGui") {}
 
@@ -178,4 +178,4 @@ void ImGuiLayer::OnPresent() {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

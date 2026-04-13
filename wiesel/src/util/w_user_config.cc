@@ -15,7 +15,7 @@
 
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 UserConfig::UserConfig(const std::filesystem::path& dir,
                        const std::string& filename)
@@ -60,4 +60,4 @@ void UserConfig::Erase(const std::string& key) {
   data_.erase(key);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

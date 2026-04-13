@@ -19,7 +19,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Resolve the skeleton root's transform and SkeletalAnimRuntime for a
 // skinned mesh renderer. Returns false if the skeleton root is invalid.
@@ -83,4 +83,4 @@ inline bool FrustumCullSkinned(const FrustumPlanes& frustum,
   return false;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -15,7 +15,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -191,4 +191,4 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   registry.Register("PipelineOutput", taa_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

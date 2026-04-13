@@ -17,7 +17,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // * VK_SAMPLER_ADDRESS_MODE_REPEAT: Repeat the texture when going beyond the image dimensions.
 // * VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: Like repeat, but inverts the coordinates to mirror the image when going beyond the dimensions.
@@ -53,5 +53,5 @@ class Sampler {
   VkSamplerAddressMode address_mode_;
   VkBorderColor border_color_;
 };
-}  // namespace Wiesel
+}  // namespace wiesel
 #endif  //WIESEL_SAMPLER_H

@@ -17,7 +17,7 @@
 #include "scene/w_scene_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 SceneLayer::SceneLayer() : Layer("Scene Layer") {}
 
@@ -57,4 +57,4 @@ void SceneLayer::OnPrePresent() {
   Engine::scene_manager().RenderGameView();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

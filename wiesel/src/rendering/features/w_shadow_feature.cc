@@ -18,7 +18,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -220,4 +220,4 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

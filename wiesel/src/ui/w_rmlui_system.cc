@@ -12,7 +12,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 double RmlSystemInterface::GetElapsedTime() {
   static auto start = std::chrono::steady_clock::now();
@@ -48,4 +48,4 @@ void RmlSystemInterface::GetClipboardText(Rml::String& text) {
   text = Engine::window()->GetClipboardText();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

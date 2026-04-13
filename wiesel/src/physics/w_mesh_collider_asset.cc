@@ -20,7 +20,7 @@
 
 using namespace JPH;
 
-namespace Wiesel {
+namespace wiesel {
 
 std::shared_ptr<MeshColliderAssetData> BakeMeshColliderFromModel(
     AssetHandle model_handle) {
@@ -90,4 +90,4 @@ void BuildCollisionShape(MeshColliderAssetData& data) {
       [](void* ptr) { static_cast<Shape*>(ptr)->Release(); });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

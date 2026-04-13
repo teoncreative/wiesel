@@ -15,7 +15,7 @@
 #include "rendering/w_framebuffer.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Framebuffer::Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent,
                          RenderPass& render_pass)
@@ -45,4 +45,4 @@ Framebuffer::~Framebuffer() {
       [device, fb]() { vkDestroyFramebuffer(device, fb, nullptr); });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

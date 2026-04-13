@@ -13,7 +13,7 @@
 #include <imgui.h>
 #include <imnodes.h>
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 NodeGraphEditor::NodeGraphEditor() {
   context_ = ImNodes::EditorContextCreate();
@@ -264,4 +264,4 @@ void NodeGraphEditor::Render(INodeGraphDelegate& delegate) {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

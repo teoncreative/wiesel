@@ -51,7 +51,7 @@ JPH_SUPPRESS_WARNINGS
 using namespace JPH;
 using namespace JPH::literals;
 
-namespace Wiesel {
+namespace wiesel {
 
 // Jolt global init guard
 static bool s_jolt_initialized = false;
@@ -996,4 +996,4 @@ glm::vec3 PhysicsWorld::GetGravity() const {
   return ToGlm(physics_system_->GetGravity());
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

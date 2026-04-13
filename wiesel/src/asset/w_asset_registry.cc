@@ -32,7 +32,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- AssetRegistry core methods ---
 
@@ -1490,4 +1490,4 @@ void InitializeAssetRegistry() {
       });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

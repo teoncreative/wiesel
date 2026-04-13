@@ -20,7 +20,7 @@
 #include "asset/w_asset_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct AssetTypeDesc {
   // Loading
@@ -106,4 +106,4 @@ AssetHandle AssetRegistry::Create(const std::string& name, AssetType type,
 // Call once from Engine::InitEngine().
 void InitializeAssetRegistry();
 
-}  // namespace Wiesel
+}  // namespace wiesel

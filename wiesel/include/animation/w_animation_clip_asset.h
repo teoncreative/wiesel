@@ -13,7 +13,7 @@
 #include "animation/w_animation.h"
 #include "asset/w_asset_handle.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // How keyframe values are interpolated between keys.
 enum class CurveInterp {
@@ -67,4 +67,4 @@ struct AnimClipAssetData {
   bool HasPropertyCurves() const { return !property_curves.empty(); }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

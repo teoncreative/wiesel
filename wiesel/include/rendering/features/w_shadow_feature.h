@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct ShadowPipelinePushConstant;
 
@@ -44,4 +44,4 @@ class ShadowFeature : public RenderFeature {
   std::shared_ptr<ShadowPipelinePushConstant> push_constant_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -20,7 +20,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct GlyphInfo {
   glm::vec2 uv_min = {0, 0};
@@ -120,4 +120,4 @@ class FontCache {
   static std::unordered_map<std::string, std::shared_ptr<Font>> cache_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

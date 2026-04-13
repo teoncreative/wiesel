@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class AudioSourceSystem : public ISystem {
  public:
@@ -25,4 +25,4 @@ class AudioSourceSystem : public ISystem {
   bool RunOnFirstUpdate() const override { return false; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

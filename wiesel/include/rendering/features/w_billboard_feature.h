@@ -16,7 +16,7 @@
 #include "rendering/w_render_feature.h"
 #include "rendering/w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct BillboardPushConstant {
   glm::mat4 mvp;
@@ -68,4 +68,4 @@ class BillboardFeature : public RenderFeature {
       icon_descriptors_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

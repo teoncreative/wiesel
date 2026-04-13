@@ -14,7 +14,7 @@
 #include <entt/entt.hpp>
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct CanvasScreenPushConstant {
   glm::vec2 screen_size;
@@ -93,4 +93,4 @@ class CanvasFeature : public RenderFeature {
   std::unordered_map<entt::entity, PerCanvasResources> per_canvas_resources_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -20,7 +20,7 @@
 #include "w_pch.h"
 #include "w_renderpass.h"
 
-namespace Wiesel {
+namespace wiesel {
 class Framebuffer {
  public:
   Framebuffer(std::span<VkImageView> attachments, glm::vec2 extent,
@@ -30,5 +30,5 @@ class Framebuffer {
   glm::vec2 extent_;
   VkFramebuffer handle_;
 };
-}  // namespace Wiesel
+}  // namespace wiesel
 #endif  //WIESEL_W_FRAMEBUFFER_HPP

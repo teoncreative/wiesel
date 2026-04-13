@@ -17,7 +17,7 @@
 
 #include "w_undo.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Helper for tracking property edits through ImGui widgets.
 // Captures the old value when a widget is first activated,
@@ -54,4 +54,4 @@ class UndoTracker {
   bool active_ = false;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

@@ -13,7 +13,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Internal state for an opened VFS file with a read cursor.
 struct RmlVfsFile {
@@ -79,4 +79,4 @@ size_t RmlFileInterface::Length(Rml::FileHandle file) {
   return vfs_file->data.size();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

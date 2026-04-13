@@ -46,12 +46,12 @@
 
 #include "asset/w_asset_utils.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Command stack pointer set by the editor each frame for undo/redo tracking.
-static Editor::CommandStack* s_command_stack = nullptr;
+static editor::CommandStack* s_command_stack = nullptr;
 
-void SetInspectorCommandStack(Editor::CommandStack* stack) {
+void SetInspectorCommandStack(editor::CommandStack* stack) {
   s_command_stack = stack;
 }
 
@@ -173,7 +173,7 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
         PrefixLabel("Position").c_str(),
         reinterpret_cast<float*>(&component.PositionMut()), 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<glm::vec3> pos_tracker;
+      static editor::UndoTracker<glm::vec3> pos_tracker;
       pos_tracker.Track(*s_command_stack, "Change Position",
                         component.GetPosition(),
                         [entity](const glm::vec3& v) mutable {
@@ -186,7 +186,7 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
         PrefixLabel("Rotation").c_str(),
         reinterpret_cast<float*>(&component.RotationMut()), 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<glm::vec3> rot_tracker;
+      static editor::UndoTracker<glm::vec3> rot_tracker;
       rot_tracker.Track(*s_command_stack, "Change Rotation",
                         component.GetRotation(),
                         [entity](const glm::vec3& v) mutable {
@@ -199,7 +199,7 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
         PrefixLabel("Scale").c_str(),
         reinterpret_cast<float*>(&component.ScaleMut()), 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<glm::vec3> scale_tracker;
+      static editor::UndoTracker<glm::vec3> scale_tracker;
       scale_tracker.Track(
           *s_command_stack, "Change Scale", component.GetScale(),
           [entity](const glm::vec3& v) mutable {
@@ -221,7 +221,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Light Ambient",
                     component.light_data.base.ambient,
                     [entity](const float& v) mutable {
@@ -233,7 +233,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Diffuse").c_str(),
                      &component.light_data.base.diffuse, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Light Diffuse",
                     component.light_data.base.diffuse,
                     [entity](const float& v) mutable {
@@ -245,7 +245,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Specular").c_str(),
                      &component.light_data.base.specular, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Light Specular",
                     component.light_data.base.specular,
                     [entity](const float& v) mutable {
@@ -257,7 +257,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Density").c_str(),
                      &component.light_data.base.density, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Light Density",
                     component.light_data.base.density,
                     [entity](const float& v) mutable {
@@ -270,7 +270,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
         PrefixLabel("Color").c_str(),
         reinterpret_cast<float*>(&component.light_data.base.color));
     if (s_command_stack) {
-      static Editor::UndoTracker<glm::vec3> tracker;
+      static editor::UndoTracker<glm::vec3> tracker;
       tracker.Track(
           *s_command_stack, "Change Light Color",
           component.light_data.base.color,
@@ -294,7 +294,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(
           *s_command_stack, "Change Light Ambient",
           component.light_data.base.ambient, [entity](const float& v) mutable {
@@ -306,7 +306,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Diffuse").c_str(),
                      &component.light_data.base.diffuse, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(
           *s_command_stack, "Change Light Diffuse",
           component.light_data.base.diffuse, [entity](const float& v) mutable {
@@ -318,7 +318,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Specular").c_str(),
                      &component.light_data.base.specular, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Light Specular",
                     component.light_data.base.specular,
                     [entity](const float& v) mutable {
@@ -330,7 +330,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Density").c_str(),
                      &component.light_data.base.density, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(
           *s_command_stack, "Change Light Density",
           component.light_data.base.density, [entity](const float& v) mutable {
@@ -343,7 +343,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
       ImGui::DragFloat(PrefixLabel("Constant").c_str(),
                        &component.light_data.constant, 0.1f);
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Attenuation Constant",
             component.light_data.constant, [entity](const float& v) mutable {
@@ -355,7 +355,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
       ImGui::DragFloat(PrefixLabel("Linear").c_str(),
                        &component.light_data.linear, 0.1f);
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Attenuation Linear",
             component.light_data.linear, [entity](const float& v) mutable {
@@ -366,7 +366,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
       ImGui::DragFloat(PrefixLabel("Exp").c_str(), &component.light_data.exp,
                        0.1f);
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Attenuation Exp",
             component.light_data.exp, [entity](const float& v) mutable {
@@ -379,7 +379,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
     ImGui::ColorPicker3(
         "Color", reinterpret_cast<float*>(&component.light_data.base.color));
     if (s_command_stack) {
-      static Editor::UndoTracker<glm::vec3> tracker;
+      static editor::UndoTracker<glm::vec3> tracker;
       tracker.Track(
           *s_command_stack, "Change Light Color",
           component.light_data.base.color,
@@ -414,7 +414,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
       changed |= ImGui::DragFloat(PrefixLabel("FOV").c_str(),
                                   &component.field_of_view, 1.0f, 1.0f, 179.0f);
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(*s_command_stack, "Change FOV", component.field_of_view,
                       [entity](const float& v) mutable {
                         auto& cam = entity.GetComponent<CameraComponent>();
@@ -427,7 +427,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
       changed |= ImGui::DragFloat(PrefixLabel("Size").c_str(),
                                   &component.ortho_size, 0.1f, 0.01f, 1000.0f);
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(*s_command_stack, "Change Ortho Size",
                       component.ortho_size, [entity](const float& v) mutable {
                         auto& cam = entity.GetComponent<CameraComponent>();
@@ -440,7 +440,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
       ImGui::ColorEdit4(PrefixLabel("Background").c_str(),
                         &component.background_color.r);
       if (s_command_stack) {
-        static Editor::UndoTracker<glm::vec4> tracker;
+        static editor::UndoTracker<glm::vec4> tracker;
         tracker.Track(
             *s_command_stack, "Change Background Color",
             component.background_color, [entity](const glm::vec4& v) mutable {
@@ -452,7 +452,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
     changed |= ImGui::DragFloat(PrefixLabel("Near Plane").c_str(),
                                 &component.near_plane, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Near Plane", component.near_plane,
                     [entity](const float& v) mutable {
                       auto& cam = entity.GetComponent<CameraComponent>();
@@ -465,7 +465,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
     changed |= ImGui::DragFloat(PrefixLabel("Far Plane").c_str(),
                                 &component.far_plane, 0.1f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Far Plane", component.far_plane,
                     [entity](const float& v) mutable {
                       auto& cam = entity.GetComponent<CameraComponent>();
@@ -477,7 +477,7 @@ void RenderComponentImGui(CameraComponent& component, Entity entity) {
 
     ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &component.enabled);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(*s_command_stack, "Toggle Camera Enabled",
                     component.enabled, [entity](const bool& v) mutable {
                       entity.GetComponent<CameraComponent>().enabled = v;
@@ -978,7 +978,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
         component.SetMassRuntime(mass);
       }
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Mass", component.mass,
             [entity](const float& v) mutable {
@@ -993,7 +993,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
         component.SetFrictionRuntime(friction);
       }
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Friction", component.friction,
             [entity](const float& v) mutable {
@@ -1008,7 +1008,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
         component.SetRestitutionRuntime(restitution);
       }
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Restitution", component.restitution,
             [entity](const float& v) mutable {
@@ -1024,7 +1024,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
         component.SetLinearDampingRuntime(linear_damping);
       }
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(
             *s_command_stack, "Change Linear Damping", component.linear_damping,
             [entity](const float& v) mutable {
@@ -1040,7 +1040,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
         component.SetAngularDampingRuntime(angular_damping);
       }
       if (s_command_stack) {
-        static Editor::UndoTracker<float> tracker;
+        static editor::UndoTracker<float> tracker;
         tracker.Track(*s_command_stack, "Change Angular Damping",
                       component.angular_damping,
                       [entity](const float& v) mutable {
@@ -1053,7 +1053,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::Checkbox("X##fp", &component.lock_position_x);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(
           *s_command_stack, "Toggle Freeze Position X",
           component.lock_position_x, [entity](const bool& v) mutable {
@@ -1063,7 +1063,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::Checkbox("Y##fp", &component.lock_position_y);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(
           *s_command_stack, "Toggle Freeze Position Y",
           component.lock_position_y, [entity](const bool& v) mutable {
@@ -1073,7 +1073,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::Checkbox("Z##fp", &component.lock_position_z);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(
           *s_command_stack, "Toggle Freeze Position Z",
           component.lock_position_z, [entity](const bool& v) mutable {
@@ -1085,7 +1085,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::Checkbox("X##fr", &component.lock_rotation_x);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(
           *s_command_stack, "Toggle Freeze Rotation X",
           component.lock_rotation_x, [entity](const bool& v) mutable {
@@ -1095,7 +1095,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::Checkbox("Y##fr", &component.lock_rotation_y);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(
           *s_command_stack, "Toggle Freeze Rotation Y",
           component.lock_rotation_y, [entity](const bool& v) mutable {
@@ -1105,7 +1105,7 @@ void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
     ImGui::SameLine();
     ImGui::Checkbox("Z##fr", &component.lock_rotation_z);
     if (s_command_stack) {
-      static Editor::UndoTracker<bool> tracker;
+      static editor::UndoTracker<bool> tracker;
       tracker.Track(
           *s_command_stack, "Toggle Freeze Rotation Z",
           component.lock_rotation_z, [entity](const bool& v) mutable {
@@ -1703,7 +1703,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
   ImGui::SliderFloat(PrefixLabel("Volume").c_str(), &component.volume, 0.0f,
                      1.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Volume", component.volume,
                   [entity](const float& v) mutable {
                     entity.GetComponent<AudioSourceComponent>().volume = v;
@@ -1713,7 +1713,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
   ImGui::SliderFloat(PrefixLabel("Pitch").c_str(), &component.pitch, 0.1f,
                      3.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Pitch", component.pitch,
                   [entity](const float& v) mutable {
                     entity.GetComponent<AudioSourceComponent>().pitch = v;
@@ -1726,7 +1726,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
                          ? "2D"
                          : (component.spatial_blend > 0.99f ? "3D" : "%.2f"));
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Spatial Blend",
                   component.spatial_blend, [entity](const float& v) mutable {
                     entity.GetComponent<AudioSourceComponent>().spatial_blend =
@@ -1736,7 +1736,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
 
   ImGui::Checkbox(PrefixLabel("Loop").c_str(), &component.loop);
   if (s_command_stack) {
-    static Editor::UndoTracker<bool> tracker;
+    static editor::UndoTracker<bool> tracker;
     tracker.Track(*s_command_stack, "Toggle Loop", component.loop,
                   [entity](const bool& v) mutable {
                     entity.GetComponent<AudioSourceComponent>().loop = v;
@@ -1746,7 +1746,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
   ImGui::Checkbox(PrefixLabel("Play On Start").c_str(),
                   &component.play_on_start);
   if (s_command_stack) {
-    static Editor::UndoTracker<bool> tracker;
+    static editor::UndoTracker<bool> tracker;
     tracker.Track(*s_command_stack, "Toggle Play On Start",
                   component.play_on_start, [entity](const bool& v) mutable {
                     entity.GetComponent<AudioSourceComponent>().play_on_start =
@@ -1756,7 +1756,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
 
   ImGui::Checkbox(PrefixLabel("Mute").c_str(), &component.mute);
   if (s_command_stack) {
-    static Editor::UndoTracker<bool> tracker;
+    static editor::UndoTracker<bool> tracker;
     tracker.Track(*s_command_stack, "Toggle Mute", component.mute,
                   [entity](const bool& v) mutable {
                     entity.GetComponent<AudioSourceComponent>().mute = v;
@@ -1767,7 +1767,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Min Distance").c_str(),
                      &component.min_distance, 0.1f, 0.0f, 1000.0f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Min Distance",
                     component.min_distance, [entity](const float& v) mutable {
                       entity.GetComponent<AudioSourceComponent>().min_distance =
@@ -1778,7 +1778,7 @@ void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
     ImGui::DragFloat(PrefixLabel("Max Distance").c_str(),
                      &component.max_distance, 1.0f, 0.0f, 10000.0f);
     if (s_command_stack) {
-      static Editor::UndoTracker<float> tracker;
+      static editor::UndoTracker<float> tracker;
       tracker.Track(*s_command_stack, "Change Max Distance",
                     component.max_distance, [entity](const float& v) mutable {
                       entity.GetComponent<AudioSourceComponent>().max_distance =
@@ -1835,7 +1835,7 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
       if (s_command_stack) {
         AssetHandle new_handle = component.sprite_handle_;
         s_command_stack->Execute(
-            std::make_unique<Editor::PropertyCommand<AssetHandle>>(
+            std::make_unique<editor::PropertyCommand<AssetHandle>>(
                 "Change Sprite",
                 [entity](const AssetHandle& v) mutable {
                   entity.GetComponent<SpriteRendererComponent>()
@@ -1849,7 +1849,7 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
   // Visual properties
   ImGui::Checkbox(PrefixLabel("Flip X").c_str(), &component.flip_x_);
   if (s_command_stack) {
-    static Editor::UndoTracker<bool> tracker;
+    static editor::UndoTracker<bool> tracker;
     tracker.Track(*s_command_stack, "Toggle Flip X", component.flip_x_,
                   [entity](const bool& v) mutable {
                     entity.GetComponent<SpriteRendererComponent>().flip_x_ = v;
@@ -1859,7 +1859,7 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
   ImGui::SameLine();
   ImGui::Checkbox("Flip Y", &component.flip_y_);
   if (s_command_stack) {
-    static Editor::UndoTracker<bool> tracker;
+    static editor::UndoTracker<bool> tracker;
     tracker.Track(*s_command_stack, "Toggle Flip Y", component.flip_y_,
                   [entity](const bool& v) mutable {
                     entity.GetComponent<SpriteRendererComponent>().flip_y_ = v;
@@ -1868,7 +1868,7 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
 
   ImGui::ColorEdit4(PrefixLabel("Tint").c_str(), &component.tint_.r);
   if (s_command_stack) {
-    static Editor::UndoTracker<glm::vec4> tracker;
+    static editor::UndoTracker<glm::vec4> tracker;
     tracker.Track(*s_command_stack, "Change Sprite Tint", component.tint_,
                   [entity](const glm::vec4& v) mutable {
                     entity.GetComponent<SpriteRendererComponent>().tint_ = v;
@@ -1880,7 +1880,7 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
     component.sort_layer_ = static_cast<uint8_t>(std::clamp(sort, 0, 255));
   }
   if (s_command_stack) {
-    static Editor::UndoTracker<int> tracker;
+    static editor::UndoTracker<int> tracker;
     tracker.Track(*s_command_stack, "Change Sort Layer",
                   static_cast<int>(component.sort_layer_),
                   [entity](const int& v) mutable {
@@ -1892,7 +1892,7 @@ void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
   ImGui::DragFloat2(PrefixLabel("Pivot").c_str(), &component.pivot_.x, 0.01f,
                     0.0f, 1.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<glm::vec2> tracker;
+    static editor::UndoTracker<glm::vec2> tracker;
     tracker.Track(*s_command_stack, "Change Pivot", component.pivot_,
                   [entity](const glm::vec2& v) mutable {
                     entity.GetComponent<SpriteRendererComponent>().pivot_ = v;
@@ -2005,7 +2005,7 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
   ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.5f, 0.1f,
                    1000.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Reverb Radius", component.radius,
                   [entity](const float& v) mutable {
                     entity.GetComponent<ReverbZoneComponent>().radius = v;
@@ -2015,7 +2015,7 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
   ImGui::DragFloat(PrefixLabel("Delay (ms)").c_str(), &component.delay_ms, 5.0f,
                    10.0f, 2000.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Reverb Delay", component.delay_ms,
                   [entity](const float& v) mutable {
                     entity.GetComponent<ReverbZoneComponent>().delay_ms = v;
@@ -2025,7 +2025,7 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
   ImGui::SliderFloat(PrefixLabel("Decay").c_str(), &component.decay, 0.0f,
                      1.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Reverb Decay", component.decay,
                   [entity](const float& v) mutable {
                     entity.GetComponent<ReverbZoneComponent>().decay = v;
@@ -2034,7 +2034,7 @@ void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
 
   ImGui::SliderFloat(PrefixLabel("Wet").c_str(), &component.wet, 0.0f, 1.0f);
   if (s_command_stack) {
-    static Editor::UndoTracker<float> tracker;
+    static editor::UndoTracker<float> tracker;
     tracker.Track(*s_command_stack, "Change Reverb Wet", component.wet,
                   [entity](const float& v) mutable {
                     entity.GetComponent<ReverbZoneComponent>().wet = v;
@@ -2207,4 +2207,4 @@ void RenderAddPopup(Entity entity) {
     }
   }
 }
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -18,7 +18,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class CommandBuffer;
 
@@ -52,6 +52,6 @@ class CommandBuffer {
  private:
   CommandPool& pool_;
 };
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_COMMAND_CONTEXT_HPP

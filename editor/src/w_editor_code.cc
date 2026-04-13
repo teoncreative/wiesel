@@ -22,7 +22,7 @@
 #include "w_engine.h"
 #include "w_rml_lang.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 void EditorLayer::StartLsp() {
   if (lsp_initialized_ || !active_project_) {
@@ -476,4 +476,4 @@ void EditorLayer::RenderLspDebugPanel() {
   ImGui::End();
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

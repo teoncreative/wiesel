@@ -16,7 +16,7 @@
 #include "w_pch.h"
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 class MouseMovedEvent : public Event {
  public:
   MouseMovedEvent(double x, double y, double delta_x, double delta_y,
@@ -88,4 +88,4 @@ class MouseButtonReleasedEvent : public MouseButtonEvent {
   EVENT_CLASS_TYPE(MouseButtonReleased)
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

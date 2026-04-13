@@ -18,7 +18,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 #define WIESEL_SHADOW_CASCADE_COUNT 4
 #define WIESEL_SSAO_KERNEL_SIZE 64
@@ -324,7 +324,7 @@ inline void TrimLeft(std::string& s) {
             return !std::isspace(ch);
           }));
 }
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #define WIESEL_CONCAT_IMPL(x, y) x##y
 #define WIESEL_CONCAT(x, y) WIESEL_CONCAT_IMPL(x, y)
@@ -336,7 +336,7 @@ inline void TrimLeft(std::string& s) {
     VkResult name = (f);                                             \
     if (name != VK_SUCCESS) {                                        \
       std::cout << "Fatal : VkResult is \""                          \
-                << Wiesel::GetNameFromVulkanResult(name) << "\" in " \
+                << wiesel::GetNameFromVulkanResult(name) << "\" in " \
                 << __FILE__ << " at line " << __LINE__ << "\n";      \
       assert(name == VK_SUCCESS);                                    \
     }                                                                \

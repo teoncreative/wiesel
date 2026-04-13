@@ -15,7 +15,7 @@
 #include "game/w_game_loader.h"
 #include "scene/w_scene_manager.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 bool GameApplication::LoadGame(const std::filesystem::path& game_info_path,
                                const std::filesystem::path& assets_dir) {
@@ -36,4 +36,4 @@ bool GameApplication::LoadGame(const std::filesystem::path& game_info_path,
   return GameLoader::LoadAll(*shared_info, assets_dir);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

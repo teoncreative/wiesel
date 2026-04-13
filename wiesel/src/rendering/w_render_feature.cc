@@ -13,7 +13,7 @@
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void CameraResourcePool::SetTexture(const std::string& name,
                                     std::shared_ptr<AttachmentTexture> tex) {
@@ -201,4 +201,4 @@ std::shared_ptr<AttachmentTexture> RenderPipeline::GetFinalOutputImage(
   return pool.GetTexture("PipelineOutput");
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

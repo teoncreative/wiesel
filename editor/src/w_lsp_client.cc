@@ -22,7 +22,7 @@
 #include <unistd.h>
 #endif
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 namespace fs = std::filesystem;
 
@@ -855,4 +855,4 @@ std::vector<LspClient::LogEntry> LspClient::GetLog() const {
   return log_;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

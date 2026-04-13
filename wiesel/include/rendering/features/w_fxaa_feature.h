@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct FxaaPushConstants {
   glm::vec2 inverse_screen_size;
@@ -38,4 +38,4 @@ class FXAAFeature : public RenderFeature {
   std::shared_ptr<FxaaPushConstants> push_constants_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

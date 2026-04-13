@@ -14,7 +14,7 @@
 #include <imgui_internal.h>
 #include "rendering/w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::string PrefixLabel(const char* label) {
   float width = ImGui::CalcItemWidth();
@@ -61,7 +61,7 @@ void RenderTexturePreview(const char* label, Texture* tex) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 namespace ImGui {
 

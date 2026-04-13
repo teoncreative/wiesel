@@ -21,7 +21,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 static constexpr int kMaterialTextureCount = 8;
 
 // --- Material Property System ---
@@ -227,4 +227,4 @@ struct MaterialInstance {
   void SetSpecular(float value);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

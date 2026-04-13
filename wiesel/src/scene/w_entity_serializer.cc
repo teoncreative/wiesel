@@ -14,7 +14,7 @@
 #include "scene/w_entity.h"
 #include "util/w_logger.h"
 
-namespace Wiesel::EntitySerializer {
+namespace wiesel::entity_serializer {
 
 // --- Serialize ---
 
@@ -109,4 +109,4 @@ Entity Deserialize(std::shared_ptr<Scene> scene, const nlohmann::json& json) {
   return Entity{entries[0].handle, scene.get()};
 }
 
-}  // namespace Wiesel::EntitySerializer
+}  // namespace wiesel::entity_serializer

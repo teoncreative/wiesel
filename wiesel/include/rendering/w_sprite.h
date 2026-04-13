@@ -25,7 +25,7 @@
 #include "w_sampler.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // GPU resources for a single .wsprite, shared across all entities using it.
 // Per-entity UBO and descriptor are on SpriteRendererComponent instead.
@@ -64,6 +64,6 @@ class SpriteRendererComponent {
 };
 
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_SPRITE_H

@@ -14,7 +14,7 @@
 #include "rendering/w_vma.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 enum MemoryType {
   MemoryTypeVertexBuffer,
   MemoryTypeIndexBuffer,
@@ -50,4 +50,4 @@ class UniformBuffer : public MemoryBuffer {
   void* data_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

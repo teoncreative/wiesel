@@ -14,11 +14,11 @@
 
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Shared entity tree serialization used by scenes, prefabs, and undo/redo.
 // Single source of truth for serializing/deserializing entity hierarchies.
-namespace EntitySerializer {
+namespace entity_serializer {
 
 // Serialize an entity and all its children into a nested JSON tree.
 nlohmann::json Serialize(Entity entity);
@@ -31,4 +31,4 @@ Entity Deserialize(std::shared_ptr<Scene> scene, const nlohmann::json& json);
 
 }  // namespace EntitySerializer
 
-}  // namespace Wiesel
+}  // namespace wiesel

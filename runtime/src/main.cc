@@ -18,7 +18,7 @@
 #include <windows.h>
 #endif
 
-using namespace Wiesel;
+using namespace wiesel;
 
 class RuntimeApplication : public GameApplication {
  public:
@@ -46,7 +46,7 @@ class RuntimeApplication : public GameApplication {
   }
 };
 
-Application* Wiesel::CreateApp() {
+Application* wiesel::CreateApp() {
   return new RuntimeApplication();
 }
 

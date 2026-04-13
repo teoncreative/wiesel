@@ -16,7 +16,7 @@
 #include "rendering/w_sprite.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 SpriteFeature::SpriteFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -127,4 +127,4 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
   registry.Register("SpriteOut", sprite_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

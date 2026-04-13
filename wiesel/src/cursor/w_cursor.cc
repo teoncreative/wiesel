@@ -16,7 +16,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static void LoadFramePixels(CursorFrame& frame) {
   if (!frame.texture.IsValid()) {
@@ -154,4 +154,4 @@ void CursorManager::ApplyHardwareCursor(const CursorFrame& frame,
                                     frame.pixel_height, hotspot.x, hotspot.y);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

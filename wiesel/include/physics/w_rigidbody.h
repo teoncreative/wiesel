@@ -13,7 +13,7 @@
 
 #include "scene/w_components.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class RigidBodyType : uint8_t { Static = 0, Kinematic = 1, Dynamic = 2 };
 
@@ -67,4 +67,4 @@ struct RigidBodyComponent : public IComponent {
   void SetMassRuntime(float v);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct MotionBlurPushConstants {
   float strength;
@@ -39,4 +39,4 @@ class MotionBlurFeature : public RenderFeature {
   std::shared_ptr<MotionBlurPushConstants> push_constants_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

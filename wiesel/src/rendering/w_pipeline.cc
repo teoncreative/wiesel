@@ -17,7 +17,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static VkCompareOp ToVkCompareOp(CompareOp op) {
   switch (op) {
@@ -383,4 +383,4 @@ void Pipeline::BindDescriptorSets(
                           vk_sets.data(), 0, nullptr);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -15,7 +15,7 @@
 #include "scene/w_components.h"
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class TransformSystem : public ISystem {
  public:
@@ -36,4 +36,4 @@ class TransformSystem : public ISystem {
   void MarkChildrenDirty(Scene& scene, entt::entity entity);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

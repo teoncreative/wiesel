@@ -15,7 +15,7 @@
 #include "w_application.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class GameApplication : public Application {
  public:
@@ -35,4 +35,4 @@ class GameApplication : public Application {
                 const std::filesystem::path& assets_dir);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

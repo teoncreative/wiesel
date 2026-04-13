@@ -15,7 +15,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -349,4 +349,4 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   registry.Register("LightingOut", lighting_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -33,7 +33,7 @@
 
 #include <wpak/wpak.h>
 
-namespace Wiesel {
+namespace wiesel {
 
 class VfsFile {
  public:
@@ -201,6 +201,6 @@ class VirtualFileSystem {
  private:
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_PARENT_W_VFS_HPP

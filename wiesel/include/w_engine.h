@@ -15,7 +15,7 @@
 #include "util/w_vfs.h"
 #include "w_application.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static constexpr const char* kEngineVersion = "2026.4.1";
 
@@ -164,4 +164,4 @@ class Engine {
 };
 
 Application* CreateApp();
-}  // namespace Wiesel
+}  // namespace wiesel

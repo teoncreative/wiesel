@@ -13,7 +13,7 @@
 #include "rendering/w_mesh_renderer.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void SkinnedMeshSystem::Update(Scene& scene, float /*delta_time*/) {
   PROFILE_ZONE_SCOPED_N("SkinnedMeshSystem::Update");
@@ -40,4 +40,4 @@ void SkinnedMeshSystem::Update(Scene& scene, float /*delta_time*/) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

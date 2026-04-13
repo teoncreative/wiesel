@@ -16,7 +16,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -341,4 +341,4 @@ void BloomFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", composite_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

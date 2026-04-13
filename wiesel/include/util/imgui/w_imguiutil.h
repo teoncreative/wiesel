@@ -14,7 +14,7 @@
 #include "imgui.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Texture;
 
@@ -23,7 +23,7 @@ std::string PrefixLabel(const char* label);
 // Render a small texture thumbnail with hover preview tooltip.
 void RenderTexturePreview(const char* label, Texture* tex);
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 namespace ImGui {
 bool ClosableTreeNode(const char* label, bool* visible);

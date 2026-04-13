@@ -34,7 +34,7 @@
 #include "util/w_platform.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 #define WIESEL_ADD_INTERNAL_CALL(name)                     \
   mono_add_internal_call("WieselEngine.Internals::" #name, \
@@ -2683,4 +2683,4 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Settings_SetTextureQuality);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

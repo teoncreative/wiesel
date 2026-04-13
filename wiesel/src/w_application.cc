@@ -20,7 +20,7 @@
 #include "input/w_input.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Application::Application(const WindowProperties&& window_props,
                          const RendererProperties&& renderer_props) {
@@ -250,4 +250,4 @@ void Application::ExecuteQueue() {
   main_thread_queue_.clear();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -17,7 +17,7 @@
 
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 class SdlAppWindow : public AppWindow {
  public:
   explicit SdlAppWindow(const WindowProperties&& properties);
@@ -74,4 +74,4 @@ class SdlAppWindow : public AppWindow {
 
   std::unordered_map<SDL_JoystickID, GamepadState> gamepads_;
 };
-}  // namespace Wiesel
+}  // namespace wiesel

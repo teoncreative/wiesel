@@ -24,7 +24,7 @@
 #include "ui/w_ui_event_system.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Entity;
 class CanvasSystem;
@@ -287,4 +287,4 @@ class MultiScene {
   std::vector<std::shared_ptr<Scene>>& scenes_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -13,7 +13,7 @@
 
 #include "behavior/w_behavior.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // C++ behavior base class - mirrors C# MonoBehavior lifecycle.
 // Users inherit from this and override the virtual methods they need.
@@ -80,4 +80,4 @@ class NativeBehaviorRegistry {
   std::vector<std::string> names_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

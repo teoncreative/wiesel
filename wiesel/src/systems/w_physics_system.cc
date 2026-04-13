@@ -13,7 +13,7 @@
 #include "physics/w_physics_world.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void PhysicsBodySystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("PhysicsBodySystem::Update");
@@ -29,4 +29,4 @@ void PhysicsSimulationSystem::Update(Scene& scene, float delta_time) {
   physics.DetectContacts();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

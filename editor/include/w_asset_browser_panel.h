@@ -16,7 +16,7 @@
 #include "asset/w_asset_handle.h"
 #include "w_vfs_browser.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Callbacks from the asset browser panel back to the editor.
 struct AssetBrowserCallbacks {
@@ -69,4 +69,4 @@ class AssetBrowserPanel {
   bool open_folder_popup_ = false;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

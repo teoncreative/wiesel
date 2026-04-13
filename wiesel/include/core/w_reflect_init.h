@@ -10,11 +10,11 @@
 
 #pragma once
 
-namespace Wiesel {
+namespace wiesel {
 
 // Register all WPROPERTY-reflected types with entt::meta.
 // This calls the auto-generated ReflectAll() if codegen has run,
 // otherwise it is a no-op.
 void InitializeReflection();
 
-}  // namespace Wiesel
+}  // namespace wiesel

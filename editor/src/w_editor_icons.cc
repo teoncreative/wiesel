@@ -18,7 +18,7 @@
 #include "w_icon_font_loader.h"
 #include "w_icon_source.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 void InitEditorIcons() {
   ImGuiIO& io = ImGui::GetIO();
@@ -45,4 +45,4 @@ void InitEditorIcons() {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

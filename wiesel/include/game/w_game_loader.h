@@ -19,7 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 // Runtime game loader - read-only asset scanning and configuration.
 // Used by standalone games. Never generates handles or writes files.
@@ -67,4 +67,4 @@ class GameLoader {
                                  const std::string& vfs_path);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

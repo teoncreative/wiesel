@@ -15,7 +15,7 @@
 #include "asset/w_asset_registry.h"
 #include "w_engine.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 void AnimControllerEditor::Open(AssetHandle handle,
                                 std::shared_ptr<AnimControllerAssetData> data) {
@@ -193,4 +193,4 @@ void AnimControllerEditor::Save() {
   delegate_->is_dirty = false;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

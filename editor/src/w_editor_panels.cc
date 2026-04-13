@@ -25,7 +25,7 @@
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Defined in w_editor.cc
 std::shared_ptr<Scene> scene();
@@ -380,7 +380,6 @@ void EditorLayer::RenderAssetBrowserPanel() {
   current_scene_path_ = asset_browser_panel_.current_scene_path;
 }
 
-
 void EditorLayer::RenderUndoHistoryPanel() {
   if (!panel_undo_history_) {
     return;
@@ -572,4 +571,4 @@ void EditorLayer::RenderFontDebugPanel() {
   ImGui::End();
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

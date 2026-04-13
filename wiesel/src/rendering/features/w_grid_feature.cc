@@ -15,7 +15,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 GridFeature::GridFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -166,4 +166,4 @@ bool GridFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.show_grid;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

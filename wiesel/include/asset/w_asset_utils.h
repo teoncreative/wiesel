@@ -16,7 +16,7 @@
 
 #include "asset/w_asset_handle.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Map file extension to asset type.
 AssetType ExtToAssetType(const std::string& ext);
@@ -26,4 +26,4 @@ AssetType ExtToAssetType(const std::string& ext);
 // Returns false for binary assets that use .meta sidecar files.
 bool IsJsonAssetType(AssetType type);
 
-}  // namespace Wiesel
+}  // namespace wiesel

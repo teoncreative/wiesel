@@ -15,7 +15,7 @@
 
 #include <memory>
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // INodeGraphDelegate implementation for AnimControllerAssetData.
 // Maps states to nodes and transitions to links.
@@ -74,4 +74,4 @@ class AnimGraphDelegate : public INodeGraphDelegate {
   void EnsureIds();
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

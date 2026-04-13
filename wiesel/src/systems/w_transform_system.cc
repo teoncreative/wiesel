@@ -12,7 +12,7 @@
 
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void TransformSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("TransformSystem::Update");
@@ -76,4 +76,4 @@ void TransformSystem::UpdateMatrices(Scene& scene, entt::entity entity) {
   tc.SetTransformMatrix(GetWorldMatrix(scene, entity));
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

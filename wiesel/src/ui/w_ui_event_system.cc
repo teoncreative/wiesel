@@ -24,7 +24,7 @@
 #include "ui/w_ui_document.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Helpers
 
@@ -992,4 +992,4 @@ bool UIEventSystem::HasRmlTextInputFocus(Scene& scene) const {
   return tag == "input" || tag == "textarea" || tag == "select";
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

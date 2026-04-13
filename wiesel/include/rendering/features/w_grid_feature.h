@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct GridUniformData {
   alignas(16) glm::mat4 inv_view_projection;
@@ -41,4 +41,4 @@ class GridFeature : public RenderFeature {
   std::shared_ptr<Pipeline> pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

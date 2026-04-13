@@ -14,7 +14,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- FontAsset ---
 
@@ -333,4 +333,4 @@ void FontCache::Clear() {
   cache_.clear();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace Wiesel {
+namespace wiesel {
 
 // Try to get the WPropertyMeta from a reflected data member.
 // Returns nullptr if the field has no WPropertyMeta custom data.
@@ -157,4 +157,4 @@ void ForEachField(entt::meta_type type, Visitor&& visitor) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -17,7 +17,7 @@
 #include "rendering/w_descriptor.h"
 #include "rendering/w_material.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Per-entity component for rendering a single static mesh.
 // Each mesh from an imported model gets its own entity with this component.
@@ -65,4 +65,4 @@ struct SkinnedMeshRendererComponent {
   entt::entity skeleton_root = entt::null;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

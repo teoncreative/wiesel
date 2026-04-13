@@ -11,7 +11,7 @@
 
 #include "rendering/w_camera.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void CameraComponent::UpdateProjection() {
   if (aspect_ratio <= 0.0f || std::isnan(aspect_ratio) ||
@@ -184,4 +184,4 @@ void CameraComponent::ExtractFrustumPlanes() {
                                         m[2][3] - m[2][2], m[3][3] - m[3][2]));
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

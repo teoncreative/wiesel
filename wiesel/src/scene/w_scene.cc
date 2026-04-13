@@ -53,7 +53,7 @@
 #include "util/w_keycodes.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 class PipelineRecreatedEvent;
 
 Scene::Scene() {
@@ -721,4 +721,4 @@ Entity Scene::InstantiateModel(AssetHandle model_handle,
   return Entity{root, this};
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

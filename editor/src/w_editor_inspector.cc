@@ -22,7 +22,7 @@
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 void EditorLayer::RenderInspectorPanel() {
   bool& open = panel_components_;
@@ -196,4 +196,4 @@ void EditorLayer::RenderEntityInspector(entt::entity handle) {
   SetInspectorCommandStack(nullptr);
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

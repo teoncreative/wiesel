@@ -18,7 +18,7 @@
 #include "util/w_thread_pool.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 const char* AssetTypeToString(AssetType type) {
   switch (type) {
@@ -567,4 +567,4 @@ void AssetManager::LoadAllOfType(AssetType type, bool async) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -19,7 +19,7 @@
 #include "ui/w_ui_document.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void UIDocumentSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("UIDocumentSystem::Update");
@@ -120,4 +120,4 @@ void UIDocumentSystem::Update(Scene& scene, float delta_time) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

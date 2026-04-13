@@ -13,7 +13,7 @@
 #include "behavior/w_behavior.h"
 #include "scene/w_components.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Entity::Entity(entt::entity handle, Scene* scene)
     : entity_handle_(handle), scene_(scene) {
@@ -28,4 +28,4 @@ Entity::Entity(entt::entity handle, Scene* scene)
 
 Entity::~Entity() {}
 
-}  // namespace Wiesel
+}  // namespace wiesel

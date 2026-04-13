@@ -10,7 +10,7 @@
 
 #include "ai/w_agent_memory.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void AgentMemory::Set(const std::string& key, float value) {
   values_[key] = value;
@@ -108,4 +108,4 @@ bool AgentMemory::Has(const std::string& key) const {
   return values_.find(key) != values_.end();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

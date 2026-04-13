@@ -11,7 +11,7 @@
 
 #pragma once
 
-namespace Wiesel {
+namespace wiesel {
 template <typename V>
 struct Color {
   V red, green, blue, alpha;
@@ -20,4 +20,4 @@ struct Color {
 using Colorf = Color<float>;
 using Colori = Color<uint8_t>;
 
-}  // namespace Wiesel
+}  // namespace wiesel

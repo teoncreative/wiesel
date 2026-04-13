@@ -15,7 +15,7 @@
 #include <regex>
 #include <sstream>
 
-namespace Wiesel::CodeGen {
+namespace wiesel::code_gen {
 
 // Trim leading/trailing whitespace.
 static std::string Trim(const std::string& s) {
@@ -245,4 +245,4 @@ ParseResult ParseHeader(const std::string& header_path) {
   return result;
 }
 
-}  // namespace Wiesel::CodeGen
+}  // namespace wiesel::code_gen

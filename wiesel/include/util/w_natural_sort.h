@@ -14,7 +14,7 @@
 #include <cctype>
 #include <string>
 
-namespace Wiesel {
+namespace wiesel {
 
 // Natural sort comparator: treats embedded numbers as integers.
 // "ship_6_2" < "ship_6_10", "frame_1" < "frame_2" < "frame_10"
@@ -72,4 +72,4 @@ struct NaturalSortCompare {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

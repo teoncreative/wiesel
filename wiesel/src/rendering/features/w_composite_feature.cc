@@ -15,7 +15,7 @@
 #include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -168,4 +168,4 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   registry.Register("PipelineOutput", composite_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

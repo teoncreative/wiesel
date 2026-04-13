@@ -14,7 +14,7 @@
 #include "asset/w_asset_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- TextureSlot ---
 
@@ -397,4 +397,4 @@ void MaterialInstance::SetSpecular(float value) {
   overrides["specular"] = value;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

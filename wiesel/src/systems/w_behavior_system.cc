@@ -15,7 +15,7 @@
 #include "behavior/w_behavior.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void BehaviorSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("BehaviorSystem::Update");
@@ -28,4 +28,4 @@ void BehaviorSystem::Update(Scene& scene, float delta_time) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

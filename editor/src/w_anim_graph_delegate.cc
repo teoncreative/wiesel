@@ -16,7 +16,7 @@
 #include "asset/w_asset_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 AnimGraphDelegate::AnimGraphDelegate(
     std::shared_ptr<AnimControllerAssetData> controller)
@@ -419,4 +419,4 @@ void AnimGraphDelegate::RenderProperties() {
   }
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

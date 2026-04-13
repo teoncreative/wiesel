@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class LightingFeature : public RenderFeature {
  public:
@@ -47,4 +47,4 @@ class LightingFeature : public RenderFeature {
   std::shared_ptr<Pipeline> skybox_pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

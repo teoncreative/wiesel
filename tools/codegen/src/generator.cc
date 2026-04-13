@@ -12,7 +12,7 @@
 
 #include <sstream>
 
-namespace Wiesel::CodeGen {
+namespace wiesel::code_gen {
 
 static std::string FieldToDisplayName(const std::string& field_name) {
   std::string name = field_name;
@@ -31,7 +31,7 @@ std::string GenerateReflection(const ParseResult& parse_result,
          "file.\n";
   out << "#pragma once\n\n";
   out << "#include \"" << original_include_path << "\"\n\n";
-  out << "namespace Wiesel::Generated {\n\n";
+  out << "namespace wiesel::generated {\n\n";
 
   for (const auto& cls : parse_result.classes) {
     std::string func_name = "Reflect" + cls.short_name;
@@ -47,7 +47,7 @@ std::string GenerateReflection(const ParseResult& parse_result,
 
       out << "\n      .data<" << member_ptr << ">(\"" << display_name
           << "\"_hs)";
-      out << "\n          .custom<Wiesel::WPropertyMeta>(Wiesel::WPropertyMeta{"
+      out << "\n          .custom<WPropertyMeta>(WPropertyMeta{"
           << "\n              .display_name = \"" << display_name << "\","
           << "\n              .field_name = \"" << field.field_name << "\","
           << "\n              .type_name = \"" << field.type_name << "\","
@@ -72,7 +72,7 @@ std::string GenerateReflection(const ParseResult& parse_result,
     out << "}\n\n";
   }
 
-  out << "}  // namespace Wiesel::Generated\n";
+  out << "}  // namespace wiesel::generated\n";
   return out.str();
 }
 
@@ -88,7 +88,7 @@ std::string GenerateReflectAll(
     out << "#include \"" << inc << "\"\n";
   }
 
-  out << "\nnamespace Wiesel::Generated {\n\n";
+  out << "\nnamespace wiesel::generated {\n\n";
   out << "inline void ReflectAll() {\n";
 
   for (const auto& fn : function_names) {
@@ -96,8 +96,8 @@ std::string GenerateReflectAll(
   }
 
   out << "}\n\n";
-  out << "}  // namespace Wiesel::Generated\n";
+  out << "}  // namespace wiesel::generated\n";
   return out.str();
 }
 
-}  // namespace Wiesel::CodeGen
+}  // namespace wiesel::code_gen

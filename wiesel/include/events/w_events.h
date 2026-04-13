@@ -15,7 +15,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 // https://github.com/TheCherno/Hazel/tree/e4b0493999206bd2c3ff9d30fa333bcf81f313c8/Hazel/src/Hazel/Events
 // Event system on Hazel is a great fit for what we want to do, i'll be improving it to fit our needs over time
 
@@ -103,4 +103,4 @@ class EventDispatcher {
     return category;                              \
   }
 
-}  // namespace Wiesel
+}  // namespace wiesel

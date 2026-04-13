@@ -15,7 +15,7 @@
 #include "util/w_logger.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 UIDataModel::~UIDataModel() {
   Shutdown();
@@ -250,4 +250,4 @@ void UIDataModel::RegisterPendingVariables() {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

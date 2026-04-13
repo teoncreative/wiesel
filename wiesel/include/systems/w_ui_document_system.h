@@ -12,7 +12,7 @@
 
 #include "systems/w_system.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class UIDocumentSystem : public ISystem {
  public:
@@ -25,4 +25,4 @@ class UIDocumentSystem : public ISystem {
   bool RunOnFirstUpdate() const override { return true; }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
