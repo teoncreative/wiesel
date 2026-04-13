@@ -67,6 +67,7 @@ class AssetRegistry {
   // --- Meta file operations ---
   struct MetaFileData {
     AssetHandle handle;
+    AssetType type = AssetType::None;
     nlohmann::json properties;
   };
 

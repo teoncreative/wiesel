@@ -118,16 +118,6 @@ void EditorLayer::RenderAssetPropertiesPanel() {
     if (ImGui::Button("Reimport")) {
       if (meta->type == AssetType::Font) {
         FontCache::Invalidate(inspector_asset_handle_);
-        for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
-          for (entt::entity e :
-               loaded_scene->GetAllEntitiesWith<TextComponent>()) {
-            auto& tc = loaded_scene->GetComponent<TextComponent>(e);
-            if (tc.font_handle == inspector_asset_handle_) {
-              tc.gpu_dirty_ = true;
-              tc.glyph_gpu_.clear();
-            }
-          }
-        }
       }
       Engine::asset_manager().Unload(inspector_asset_handle_);
       Engine::asset_manager().LoadSync(inspector_asset_handle_);

@@ -403,7 +403,12 @@ class Renderer {
     return quad_vertex_buffer_;
   }
 
-  // Descriptor layout registry (used by RenderFeatures)
+  // Descriptor layout registry (used by RenderFeatures).
+  // Registered layout names:
+  //   "GeometryMesh", "GeometryOutput", "Global", "GlobalShadow",
+  //   "ShadowMesh", "Bone", "Present", "Postprocess2Input",
+  //   "SSAOGen", "SSAOBlur", "SSAOOutput", "TAA", "IBL",
+  //   "CubemapSampler", "Skybox", "SpriteDraw"
 
   std::shared_ptr<DescriptorSetLayout> GetDescriptorLayout(
       const std::string& name) const;
@@ -482,19 +487,11 @@ class Renderer {
       std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
   void DrawSprite(SpriteRendererComponent& sprite,
                   const TransformComponent& transform);
-  void DrawCanvasRect(const RectangleTransformComponent& rt,
-                      CanvasRectComponent& rect,
-                      std::shared_ptr<DescriptorSetLayout> layout,
-                      uint32_t entity_id = 0);
   void DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                         std::shared_ptr<Texture> texture, glm::vec4 tint,
                         glm::vec4 uv_rect,
                         std::shared_ptr<DescriptorSetLayout> layout,
                         uint32_t entity_id = 0);
-  void DrawCanvasText(const RectangleTransformComponent& rt,
-                      TextComponent& text,
-                      std::shared_ptr<DescriptorSetLayout> layout,
-                      uint32_t entity_id = 0);
   void DrawCanvasDescriptor(glm::vec2 position, glm::vec2 size,
                             std::shared_ptr<DescriptorSet> descriptor,
                             std::shared_ptr<DescriptorSetLayout> layout,

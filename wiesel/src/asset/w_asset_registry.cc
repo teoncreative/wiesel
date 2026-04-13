@@ -128,6 +128,9 @@ AssetRegistry::MetaFileData AssetRegistry::ReadMetaFile(
     const nlohmann::json& j) {
   MetaFileData result;
   result.handle = AssetHandle::FromString(j.value("handle", ""));
+  if (j.contains("type")) {
+    result.type = AssetTypeFromString(j["type"].get<std::string>());
+  }
   if (j.contains("properties") && j["properties"].is_object()) {
     result.properties = j["properties"];
   }
@@ -157,6 +160,9 @@ void AssetRegistry::WriteMetaFile(const std::filesystem::path& path,
                                   const void* properties) {
   nlohmann::json j;
   j["handle"] = handle.ToString();
+  if (type != AssetType::None) {
+    j["type"] = AssetTypeToString(type);
+  }
   if (properties) {
     const auto* desc = Get(type);
     if (desc && desc->SerializeProperties) {
@@ -1025,6 +1031,7 @@ void InitializeAssetRegistry() {
             if (!data) {
               return j;
             }
+            j["version"] = 1;
             j["duration"] = data->duration;
             j["ticks_per_second"] = data->ticks_per_second;
             j["loop"] = data->loop;
@@ -1141,6 +1148,7 @@ void InitializeAssetRegistry() {
             if (!data) {
               return j;
             }
+            j["version"] = 1;
             j["default_state"] = data->default_state;
             nlohmann::json states = nlohmann::json::array();
             for (const auto& s : data->states) {

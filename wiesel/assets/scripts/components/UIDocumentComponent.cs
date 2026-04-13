@@ -2,10 +2,7 @@ namespace WieselEngine
 {
     public class UIDocumentComponent : Component
     {
-        public UIDocumentComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public UIDocumentComponent(Entity entity) : base(entity) { }
 
         public bool Visible
         {

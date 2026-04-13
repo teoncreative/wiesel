@@ -410,9 +410,6 @@ class ScriptManager {
   MonoClass* rigidbody_class_ = nullptr;
   MonoClass* rect_transform_class_ = nullptr;
   MonoClass* canvas_component_class_ = nullptr;
-  MonoClass* canvas_rect_class_ = nullptr;
-  MonoClass* canvas_image_class_ = nullptr;
-  MonoClass* text_component_class_ = nullptr;
   MonoClass* animator_component_class_ = nullptr;
   MonoClass* audio_source_class_ = nullptr;
   MonoClass* sprite_renderer_class_ = nullptr;

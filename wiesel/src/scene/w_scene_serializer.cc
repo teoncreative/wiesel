@@ -17,7 +17,7 @@
 
 namespace Wiesel {
 
-static constexpr int kCurrentSceneVersion = 2;
+static constexpr int kCurrentSceneVersion = 3;
 
 SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene)
     : scene_(std::move(scene)) {}
@@ -151,6 +151,13 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
   scene_->SetPreloadAssets(root.value("preload_assets", false));
 
   int version = root.value("version", 1);
+  if (version < 2) {
+    LOG_WARN("Scene uses legacy V1 format - resave to upgrade to V{}",
+             kCurrentSceneVersion);
+  } else if (version < kCurrentSceneVersion) {
+    LOG_WARN("Scene uses V{} format - resave to upgrade to V{}", version,
+             kCurrentSceneVersion);
+  }
   bool ok = (version >= 2) ? DeserializeV2(scene_, root)
                            : DeserializeV1(scene_, root);
 

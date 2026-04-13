@@ -3,10 +3,7 @@ namespace WieselEngine
     public class SpriteRendererComponent : Component
     {
 
-        public SpriteRendererComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public SpriteRendererComponent(Entity entity) : base(entity) { }
 
         public bool FlipX
         {

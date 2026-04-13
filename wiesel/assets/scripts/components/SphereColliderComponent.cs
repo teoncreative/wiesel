@@ -34,9 +34,6 @@ namespace WieselEngine
             set { Internals.SphereCollider_SetIsTrigger(entity.ScenePtr, entity.Id, value); }
         }
 
-        public SphereColliderComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public SphereColliderComponent(Entity entity) : base(entity) { }
     }
 }

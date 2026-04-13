@@ -301,84 +301,6 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Canvas_SetSortOrder(ulong scenePtr, ulong entityId, int v);
 
-        // CanvasRectComponent
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasRect_GetColorR(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasRect_GetColorG(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasRect_GetColorB(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasRect_GetColorA(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasRect_SetColorR(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasRect_SetColorG(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasRect_SetColorB(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasRect_SetColorA(ulong scenePtr, ulong entityId, float v);
-
-        // CanvasImageComponent
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetTintR(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetTintG(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetTintB(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetTintA(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetTintR(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetTintG(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetTintB(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetTintA(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetUVRectX(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetUVRectY(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetUVRectZ(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float CanvasImage_GetUVRectW(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetUVRectX(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetUVRectY(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetUVRectZ(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CanvasImage_SetUVRectW(ulong scenePtr, ulong entityId, float v);
-
-        // TextComponent
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern string Text_GetText(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetText(ulong scenePtr, ulong entityId, string v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Text_GetFontSize(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetFontSize(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Text_GetColorR(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Text_GetColorG(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Text_GetColorB(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern float Text_GetColorA(ulong scenePtr, ulong entityId);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetColorR(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetColorG(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetColorB(ulong scenePtr, ulong entityId, float v);
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Text_SetColorA(ulong scenePtr, ulong entityId, float v);
-
         // AnimatorComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Animator_SetBool(ulong scenePtr, ulong entityId, string name, bool value);
@@ -728,6 +650,10 @@ namespace WieselEngine
         public static extern void Entity_RemoveTag(ulong scenePtr, ulong entityId, string tag);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern Entity[] Scene_FindEntitiesByTag(ulong scenePtr, string tag);
+
+        // Entity validity
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Entity_IsValid(ulong scenePtr, ulong entityId);
 
         // Child entity access
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

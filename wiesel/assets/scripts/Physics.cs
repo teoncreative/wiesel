@@ -10,7 +10,39 @@ namespace WieselEngine
 
     public static class Physics
     {
-        public static bool Raycast(ulong scenePtr, Vector3f origin, Vector3f direction, float maxDistance, out RaycastHit hit, ulong ignoreEntity = 0)
+        public static bool Raycast(Entity source, Vector3f origin, Vector3f direction, float maxDistance, out RaycastHit hit, Entity ignoreEntity = null)
+        {
+            ulong scenePtr = source.ScenePtr;
+            ulong ignoreId = ignoreEntity != null ? ignoreEntity.Id : 0;
+            return RaycastInternal(scenePtr, origin, direction, maxDistance, out hit, ignoreId);
+        }
+
+        public static bool Raycast(Scene scene, Vector3f origin, Vector3f direction, float maxDistance, out RaycastHit hit)
+        {
+            return RaycastInternal(scene.Ptr, origin, direction, maxDistance, out hit, 0);
+        }
+
+        public static Entity[] OverlapBox(Entity source, Vector3f center, Vector3f halfExtents)
+        {
+            return OverlapBoxInternal(source.ScenePtr, center, halfExtents);
+        }
+
+        public static Entity[] OverlapBox(Scene scene, Vector3f center, Vector3f halfExtents)
+        {
+            return OverlapBoxInternal(scene.Ptr, center, halfExtents);
+        }
+
+        public static Entity[] OverlapSphere(Entity source, Vector3f center, float radius)
+        {
+            return OverlapSphereInternal(source.ScenePtr, center, radius);
+        }
+
+        public static Entity[] OverlapSphere(Scene scene, Vector3f center, float radius)
+        {
+            return OverlapSphereInternal(scene.Ptr, center, radius);
+        }
+
+        private static bool RaycastInternal(ulong scenePtr, Vector3f origin, Vector3f direction, float maxDistance, out RaycastHit hit, ulong ignoreEntity)
         {
             hit = new RaycastHit();
             ulong hitEntity = 0;
@@ -33,7 +65,7 @@ namespace WieselEngine
             return result;
         }
 
-        public static Entity[] OverlapBox(ulong scenePtr, Vector3f center, Vector3f halfExtents)
+        private static Entity[] OverlapBoxInternal(ulong scenePtr, Vector3f center, Vector3f halfExtents)
         {
             ulong[] ids = Internals.Physics_OverlapBox(scenePtr,
                 center.X, center.Y, center.Z,
@@ -46,7 +78,7 @@ namespace WieselEngine
             return entities;
         }
 
-        public static Entity[] OverlapSphere(ulong scenePtr, Vector3f center, float radius)
+        private static Entity[] OverlapSphereInternal(ulong scenePtr, Vector3f center, float radius)
         {
             ulong[] ids = Internals.Physics_OverlapSphere(scenePtr,
                 center.X, center.Y, center.Z, radius);

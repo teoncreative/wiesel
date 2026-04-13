@@ -70,18 +70,14 @@ class CanvasFeature : public RenderFeature {
   static inline std::string name_ = "Canvas";
   std::shared_ptr<Renderer> renderer_;
   std::shared_ptr<RenderPass> render_pass_;
-  std::shared_ptr<Pipeline> rect_pipeline_;
   std::shared_ptr<Pipeline> image_pipeline_;
-  std::shared_ptr<Pipeline> text_pipeline_;
   std::shared_ptr<DescriptorSetLayout> canvas_element_layout_;
   std::shared_ptr<DescriptorSetLayout> canvas_textured_layout_;
   std::shared_ptr<CanvasScreenPushConstant> screen_size_push_;
 
-  // World-space canvas pipelines (use canvas_world.vert + same frag shaders)
+  // World-space canvas pipeline (use canvas_world.vert + canvas_image.frag)
   std::shared_ptr<RenderPass> world_render_pass_;
-  std::shared_ptr<Pipeline> world_rect_pipeline_;
   std::shared_ptr<Pipeline> world_image_pipeline_;
-  std::shared_ptr<Pipeline> world_text_pipeline_;
   std::shared_ptr<CanvasWorldPushConstant> world_push_;
 
   // Second pass: composite canvas onto final PipelineOutput

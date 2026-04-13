@@ -46,7 +46,6 @@
 #include "systems/w_light_system.h"
 #include "systems/w_physics_system.h"
 #include "systems/w_skinned_mesh_system.h"
-#include "systems/w_text_input_system.h"
 #include "systems/w_transform_system.h"
 #include "systems/w_ui_document_system.h"
 #include "ui/w_ui_document.h"
@@ -66,7 +65,6 @@ Scene::Scene() {
   AddSystem<PhysicsBodySystem>();
   AddSystem<BehaviorSystem>();
   AddSystem<AgentSystem>();
-  AddSystem<TextInputSystem>();
   AddSystem<AudioSourceSystem>();
   AddSystem<PhysicsSimulationSystem>();
   AddSystem<TransformSystem>();
@@ -391,73 +389,6 @@ void Scene::OnEvent(Event& event) {
     }
   }
 
-  // Route keyboard input to focused text input
-  entt::entity focused = ui_event_system_.GetFocusedEntity();
-  if (focused != entt::null && registry_.valid(focused) &&
-      registry_.any_of<TextInputComponent>(focused)) {
-    auto& input = registry_.get<TextInputComponent>(focused);
-
-    if (event.GetEventType() == KeyTypedEvent::GetStaticType()) {
-      auto& typed = static_cast<KeyTypedEvent&>(event);
-      uint32_t codepoint = static_cast<uint32_t>(typed.GetKeyCode());
-      if (codepoint >= 32) {
-        if (input.max_length <= 0 ||
-            static_cast<int>(input.text.size()) < input.max_length) {
-          input.text.insert(input.text.begin() + input.cursor_pos_,
-                            static_cast<char>(codepoint));
-          input.cursor_pos_++;
-          input.cursor_visible_ = true;
-          input.cursor_timer_ = 0.0f;
-        }
-      }
-      event.handled_ = true;
-      return;
-    }
-
-    if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
-      auto& key = static_cast<KeyPressedEvent&>(event);
-      bool handled = true;
-      switch (key.GetKeyCode()) {
-        case KeyBackspace:
-          if (input.cursor_pos_ > 0) {
-            input.text.erase(input.cursor_pos_ - 1, 1);
-            input.cursor_pos_--;
-          }
-          break;
-        case KeyDelete:
-          if (input.cursor_pos_ < static_cast<int>(input.text.size())) {
-            input.text.erase(input.cursor_pos_, 1);
-          }
-          break;
-        case KeyArrowLeft:
-          if (input.cursor_pos_ > 0) {
-            input.cursor_pos_--;
-          }
-          break;
-        case KeyArrowRight:
-          if (input.cursor_pos_ < static_cast<int>(input.text.size())) {
-            input.cursor_pos_++;
-          }
-          break;
-        case KeyHome:
-          input.cursor_pos_ = 0;
-          break;
-        case KeyEnd:
-          input.cursor_pos_ = static_cast<int>(input.text.size());
-          break;
-        default:
-          handled = false;
-          break;
-      }
-      if (handled) {
-        input.cursor_visible_ = true;
-        input.cursor_timer_ = 0.0f;
-        event.handled_ = true;
-        return;
-      }
-    }
-  }
-
   for (const auto& entity : registry_.view<BehaviorsComponent>()) {
     auto& component = registry_.get<BehaviorsComponent>(entity);
     component.OnEvent(event);
@@ -577,20 +508,6 @@ void Scene::Cleanup() {
     camera.render_graph = nullptr;
     camera.resource_pool.Clear();
     camera.render_pipeline = nullptr;
-  }
-
-  for (entt::entity entity : registry_.view<CanvasRectComponent>()) {
-    auto& rect = registry_.get<CanvasRectComponent>(entity);
-    rect.descriptor_ = nullptr;
-    rect.ubo_ = nullptr;
-  }
-
-  // CanvasImageComponent has no per-component GPU resources;
-  // rendering uses the Renderer's transient slice pool.
-
-  for (entt::entity entity : registry_.view<TextComponent>()) {
-    auto& text = registry_.get<TextComponent>(entity);
-    text.glyph_gpu_.clear();
   }
 
   skybox_ = nullptr;

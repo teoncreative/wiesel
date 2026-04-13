@@ -3,10 +3,7 @@ namespace WieselEngine
     public class AudioSourceComponent : Component
     {
 
-        public AudioSourceComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public AudioSourceComponent(Entity entity) : base(entity) { }
 
         // Play the default clip attached to this source
         public void Play()

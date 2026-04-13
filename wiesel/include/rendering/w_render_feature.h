@@ -133,6 +133,23 @@ class RenderPipeline {
   // Build the render graph for a camera (calls each feature's AddPasses).
   void BuildRenderGraph(RenderGraph& graph, RenderContext& ctx);
 
+  // Well-known resource names:
+  //   "PipelineOutput"           - final color attachment for the pipeline
+  //   "PipelineOutputDescriptor" - descriptor set for PipelineOutput
+  //   "GlobalDescriptor"         - per-frame global UBO descriptor
+  //   "ShadowGlobalDescriptor"   - shadow pass global UBO descriptor
+  //   "geometry.albedo"          - G-buffer albedo
+  //   "geometry.normal"          - G-buffer normals
+  //   "geometry.depth_stencil"   - G-buffer depth/stencil
+  //   "geometry.entity_id"       - G-buffer entity ID for picking
+  //   "geometry.output"          - G-buffer output descriptor
+  //   "lighting.output"          - lighting pass output descriptor
+  //   "ssao.output"              - SSAO output descriptor
+  //   "shadow.depth_stencil"     - shadow map depth
+  //
+  // Naming convention: "{feature}.{resource}" (e.g. "bloom.composite").
+  // Custom features should use a unique prefix to avoid collisions.
+
   // Get the final output from the "PipelineOutput" convention.
   std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor(
       CameraResourcePool& pool) const;

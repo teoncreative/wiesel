@@ -17,6 +17,8 @@
 
 namespace Wiesel {
 
+static constexpr const char* kEngineVersion = "2026.4.1";
+
 class Scene;
 class AssetManager;
 class ScriptManager;

@@ -37,13 +37,20 @@ struct ProjectSettings {
   } editor_camera;
 };
 
+enum class ProjectLoadResult {
+  Success,
+  FileNotFound,
+  ParseError,
+  IncompatibleVersion,
+};
+
 class Project {
  public:
   Project() = default;
 
   static bool Create(const std::filesystem::path& directory,
                      const std::string& name);
-  static std::unique_ptr<Project> Load(
+  static std::pair<ProjectLoadResult, std::unique_ptr<Project>> Load(
       const std::filesystem::path& project_file);
   bool Save() const;
 

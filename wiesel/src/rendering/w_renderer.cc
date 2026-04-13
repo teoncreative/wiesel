@@ -17,8 +17,6 @@
 #include "rendering/w_acceleration_structure.h"
 #include "rendering/w_perf_marker.h"
 #include "rendering/w_sampler.h"
-#include "ui/w_font.h"
-
 #include "util/w_spirv.h"
 #include "w_engine.h"
 
@@ -3845,38 +3843,6 @@ void Renderer::DrawSprite(SpriteRendererComponent& sprite,
   stats_.draw_calls++;
 }
 
-void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
-                              CanvasRectComponent& rect,
-                              std::shared_ptr<DescriptorSetLayout> layout,
-                              uint32_t entity_id) {
-  // Lazily allocate GPU resources
-  if (!rect.ubo_) {
-    rect.ubo_ = CreateUniformBuffer("Rectangle Transform UBO",
-                                    sizeof(CanvasElementUniformData));
-    rect.descriptor_ = std::make_shared<DescriptorSet>();
-    rect.descriptor_->SetLayout(layout);
-    rect.descriptor_->AddUniformBuffer(0, rect.ubo_);
-    rect.descriptor_->Bake();
-    rect.gpu_dirty_ = true;
-  }
-
-  // Update UBO
-  CanvasElementUniformData data{};
-  data.position = rt.computed_position;
-  data.size = rt.computed_size;
-  data.color = rect.color;
-  data.uv_rect = {0, 0, 1, 1};
-  data.entity_id = entity_id;
-  memcpy(rect.ubo_->data_, &data, sizeof(CanvasElementUniformData));
-
-  VkDescriptorSet sets[] = {rect.descriptor_->descriptor_set_};
-  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
-  stats_.draw_calls++;
-}
-
 Renderer::SliceDrawResource& Renderer::AcquireSliceResource(
     std::shared_ptr<Texture> texture,
     std::shared_ptr<DescriptorSetLayout> layout) {
@@ -4038,123 +4004,6 @@ void Renderer::DrawCanvasDescriptor(
                           bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
   vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
   stats_.draw_calls++;
-}
-
-void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
-                              TextComponent& text,
-                              std::shared_ptr<DescriptorSetLayout> layout,
-                              uint32_t entity_id) {
-  if (text.text.empty()) {
-    return;
-  }
-
-  std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
-  if (!font || !font->IsLoaded()) {
-    return;
-  }
-
-  float scale = text.font_size / font->GetNativeSize();
-
-  // Detect font change (size or path) - requires full descriptor rebuild
-  // since the atlas texture is different
-  if (text.prev_font_handle_ != text.font_handle ||
-      text.prev_font_size_ != text.font_size) {
-    text.glyph_gpu_.clear();
-    text.gpu_dirty_ = true;
-    text.prev_font_handle_ = text.font_handle;
-    text.prev_font_size_ = text.font_size;
-  }
-
-  // Rebuild per-glyph GPU resources if text or font changed
-  if (text.gpu_dirty_ || text.prev_text_ != text.text) {
-    // Count visible glyphs via UTF-8 decoding
-    size_t visible = 0;
-    for (size_t i = 0; i < text.text.size();) {
-      uint32_t cp = Font::DecodeUTF8(text.text, i);
-      const GlyphInfo* g = font->GetGlyph(cp);
-      if (g && g->size.x > 0 && g->size.y > 0) {
-        visible++;
-      }
-    }
-
-    // Shadow needs a second set of glyph resources
-    size_t total_needed = text.shadow ? visible * 2 : visible;
-
-    // Grow pool if needed, reuse existing allocations
-    while (text.glyph_gpu_.size() < total_needed) {
-      TextGlyphGPU gpu;
-      gpu.ubo =
-          CreateUniformBuffer("Text UBO", sizeof(CanvasElementUniformData));
-      gpu.descriptor = std::make_shared<DescriptorSet>();
-      gpu.descriptor->SetLayout(layout);
-      gpu.descriptor->AddUniformBuffer(0, gpu.ubo);
-      gpu.descriptor->AddCombinedImageSampler(1, font->GetAtlasImageView(),
-                                              GetDefaultLinearSampler());
-      gpu.descriptor->Bake();
-      text.glyph_gpu_.push_back(std::move(gpu));
-    }
-    text.prev_text_ = text.text;
-    text.gpu_dirty_ = false;
-  }
-
-  // Helper: render one pass of all glyphs at given origin with given color
-  size_t glyph_idx = 0;
-  auto render_pass = [&](float origin_x, float origin_y,
-                         const glm::vec4& color) {
-    float cursor_x = origin_x;
-    float cursor_y = origin_y + font->GetAscent() * scale;
-
-    for (size_t i = 0; i < text.text.size();) {
-      uint32_t cp = Font::DecodeUTF8(text.text, i);
-      const GlyphInfo* glyph = font->GetGlyph(cp);
-      if (!glyph || glyph->size.x == 0 || glyph->size.y == 0) {
-        if (glyph) {
-          cursor_x += std::round((glyph->advance >> 6) * scale);
-        }
-        continue;
-      }
-
-      if (glyph_idx >= text.glyph_gpu_.size()) {
-        break;
-      }
-
-      float x = std::round(cursor_x + glyph->bearing.x * scale);
-      float y = std::round(cursor_y - glyph->bearing.y * scale);
-      float w = std::round(glyph->size.x * scale);
-      float h = std::round(glyph->size.y * scale);
-
-      auto& gpu = text.glyph_gpu_[glyph_idx];
-
-      CanvasElementUniformData data{};
-      data.position = {x, y};
-      data.size = {w, h};
-      data.color = color;
-      data.uv_rect = {glyph->uv_min.x, glyph->uv_min.y, glyph->uv_max.x,
-                      glyph->uv_max.y};
-      data.entity_id = entity_id;
-      memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
-
-      VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
-      vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                              VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-      vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
-      stats_.draw_calls++;
-
-      glyph_idx++;
-      cursor_x += std::round((glyph->advance >> 6) * scale);
-    }
-  };
-
-  // Shadow pass (rendered first, behind text)
-  if (text.shadow) {
-    render_pass(rt.computed_position.x + text.shadow_offset.x,
-                rt.computed_position.y + text.shadow_offset.y,
-                text.shadow_color);
-  }
-
-  // Normal text pass
-  render_pass(rt.computed_position.x, rt.computed_position.y, text.color);
 }
 
 void Renderer::DrawSkybox(std::shared_ptr<Skybox> skybox) {

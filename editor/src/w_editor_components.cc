@@ -1332,77 +1332,6 @@ void RenderAddComponentImGui_CanvasScalerComponent(Entity entity) {
   }
 }
 
-void RenderComponentImGui(CanvasRectComponent& component, Entity entity) {
-  static bool visible = true;
-  if (ImGui::ClosableTreeNode("Canvas Rect", &visible)) {
-    if (ImGui::ColorEdit4(PrefixLabel("Color").c_str(),
-                          reinterpret_cast<float*>(&component.color))) {
-      component.gpu_dirty_ = true;
-    }
-    ImGui::TreePop();
-  }
-  if (!visible) {
-    entity.RemoveComponent<CanvasRectComponent>();
-    visible = true;
-  }
-}
-
-void RenderComponentImGui(CanvasImageComponent& component, Entity entity) {
-  static bool visible = true;
-  if (ImGui::ClosableTreeNode("Canvas Image", &visible)) {
-    TextureDropField("Texture", component.texture_handle);
-
-    ImGui::ColorEdit4(PrefixLabel("Tint").c_str(),
-                      reinterpret_cast<float*>(&component.tint));
-    ImGui::DragFloat4(PrefixLabel("UV Rect").c_str(),
-                      reinterpret_cast<float*>(&component.uv_rect), 0.01f);
-
-    ImGui::TreePop();
-  }
-  if (!visible) {
-    entity.RemoveComponent<CanvasImageComponent>();
-    visible = true;
-  }
-}
-
-void RenderComponentImGui(TextComponent& component, Entity entity) {
-  static bool visible = true;
-  if (ImGui::ClosableTreeNode("Text", &visible)) {
-    if (ImGui::InputText(PrefixLabel("Text").c_str(), &component.text)) {
-      component.gpu_dirty_ = true;
-    }
-    if (AssetDropField("Font", AssetType::Font, component.font_handle)) {
-      component.gpu_dirty_ = true;
-    }
-    if (ImGui::DragFloat(PrefixLabel("Font Size").c_str(), &component.font_size,
-                         0.5f, 1.0f, 200.0f)) {
-      component.gpu_dirty_ = true;
-    }
-    if (ImGui::ColorEdit4(PrefixLabel("Color").c_str(),
-                          reinterpret_cast<float*>(&component.color))) {
-      component.gpu_dirty_ = true;
-    }
-
-    ImGui::SeparatorText("Shadow");
-    if (ImGui::Checkbox(PrefixLabel("Shadow").c_str(), &component.shadow)) {
-      component.gpu_dirty_ = true;
-    }
-    if (component.shadow) {
-      ImGui::DragFloat2(PrefixLabel("Offset").c_str(),
-                        reinterpret_cast<float*>(&component.shadow_offset),
-                        0.5f);
-      ImGui::ColorEdit4(PrefixLabel("Shadow Color").c_str(),
-                        reinterpret_cast<float*>(&component.shadow_color));
-    }
-
-    ImGui::TreePop();
-  }
-  if (!visible) {
-    entity.RemoveComponent<TextComponent>();
-    visible = true;
-  }
-}
-
 void RenderAddComponentImGui_CanvasComponent(Entity entity) {
   if (ImGui::MenuItem("Canvas")) {
     entity.AddComponent<CanvasComponent>();
@@ -1413,63 +1342,6 @@ void RenderAddComponentImGui_CanvasComponent(Entity entity) {
 void RenderAddComponentImGui_RectangleTransformComponent(Entity entity) {
   if (ImGui::MenuItem("Rectangle Transform")) {
     entity.AddComponent<RectangleTransformComponent>();
-  }
-}
-
-void RenderAddComponentImGui_CanvasRectComponent(Entity entity) {
-  if (ImGui::MenuItem("Canvas Rect")) {
-    entity.AddComponent<CanvasRectComponent>();
-    EnsureRectangleTransform(entity);
-  }
-}
-
-void RenderAddComponentImGui_CanvasImageComponent(Entity entity) {
-  if (ImGui::MenuItem("Canvas Image")) {
-    entity.AddComponent<CanvasImageComponent>();
-    EnsureRectangleTransform(entity);
-  }
-}
-
-void RenderAddComponentImGui_TextComponent(Entity entity) {
-  if (ImGui::MenuItem("Text")) {
-    entity.AddComponent<TextComponent>();
-    EnsureRectangleTransform(entity);
-  }
-}
-
-void RenderComponentImGui(TextInputComponent& component, Entity entity) {
-  static bool visible = true;
-  if (ImGui::ClosableTreeNode("Text Input", &visible)) {
-    char buf[256];
-    strncpy(buf, component.placeholder.c_str(), sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = '\0';
-    if (ImGui::InputText(PrefixLabel("Placeholder").c_str(), buf,
-                         sizeof(buf))) {
-      component.placeholder = buf;
-    }
-    ImGui::InputInt(PrefixLabel("Max Length").c_str(), &component.max_length);
-    ImGui::ColorEdit4(PrefixLabel("Cursor Color").c_str(),
-                      reinterpret_cast<float*>(&component.cursor_color));
-    ImGui::ColorEdit4(PrefixLabel("Placeholder Color").c_str(),
-                      reinterpret_cast<float*>(&component.placeholder_color));
-    ImGui::TreePop();
-  }
-  if (!visible) {
-    entity.RemoveComponent<TextInputComponent>();
-    visible = true;
-  }
-}
-
-void RenderAddComponentImGui_TextInputComponent(Entity entity) {
-  if (ImGui::MenuItem("Text Input")) {
-    entity.AddComponent<TextInputComponent>();
-    EnsureRectangleTransform(entity);
-    if (!entity.HasComponent<TextComponent>()) {
-      entity.AddComponent<TextComponent>();
-    }
-    if (!entity.HasComponent<InteractableComponent>()) {
-      entity.AddComponent<InteractableComponent>();
-    }
   }
 }
 
@@ -2036,63 +1908,6 @@ void RenderAddComponentImGui_SpriteRendererComponent(Entity entity) {
   }
 }
 
-void RenderComponentImGui(ButtonComponent& component, Entity entity) {
-  static bool visible = true;
-  if (!ImGui::ClosableTreeNode("Button", &visible)) {
-    if (!visible) {
-      entity.RemoveComponent<ButtonComponent>();
-      visible = true;
-    }
-    return;
-  }
-
-  ImGui::SeparatorText("Colors");
-  ImGui::ColorEdit4(PrefixLabel("Normal").c_str(), &component.normal_color.r);
-  ImGui::ColorEdit4(PrefixLabel("Hovered").c_str(), &component.hovered_color.r);
-  ImGui::ColorEdit4(PrefixLabel("Pressed").c_str(), &component.pressed_color.r);
-  ImGui::ColorEdit4(PrefixLabel("Selected").c_str(),
-                    &component.selected_color.r);
-  ImGui::ColorEdit4(PrefixLabel("Disabled").c_str(),
-                    &component.disabled_color.r);
-
-  ImGui::SeparatorText("Textures (optional)");
-  TextureDropField("Normal", component.normal_texture);
-  TextureDropField("Hovered", component.hovered_texture);
-  TextureDropField("Pressed", component.pressed_texture);
-  TextureDropField("Selected", component.selected_texture);
-  TextureDropField("Disabled", component.disabled_texture);
-
-  ImGui::SeparatorText("Child Offsets");
-  ImGui::DragFloat2(PrefixLabel("Hovered Offset").c_str(),
-                    reinterpret_cast<float*>(&component.hovered_offset), 0.5f);
-  ImGui::DragFloat2(PrefixLabel("Pressed Offset").c_str(),
-                    reinterpret_cast<float*>(&component.pressed_offset), 0.5f);
-  ImGui::DragFloat2(PrefixLabel("Selected Offset").c_str(),
-                    reinterpret_cast<float*>(&component.selected_offset), 0.5f);
-
-  const char* state_names[] = {"Normal", "Hovered", "Pressed", "Selected",
-                               "Disabled"};
-  ImGui::TextDisabled("State: %s",
-                      state_names[static_cast<int>(component.state_)]);
-
-  ImGui::TreePop();
-}
-
-void RenderAddComponentImGui_ButtonComponent(Entity entity) {
-  if (ImGui::MenuItem("Button") && !entity.HasComponent<ButtonComponent>()) {
-    entity.AddComponent<ButtonComponent>();
-    if (!entity.HasComponent<InteractableComponent>()) {
-      entity.AddComponent<InteractableComponent>();
-    }
-    if (!entity.HasComponent<NavigableComponent>()) {
-      entity.AddComponent<NavigableComponent>();
-    }
-    if (!entity.HasComponent<RectangleTransformComponent>()) {
-      entity.AddComponent<RectangleTransformComponent>();
-    }
-  }
-}
-
 void RenderComponentImGui(InteractableComponent& component, Entity entity) {
   static bool visible = true;
   if (!ImGui::ClosableTreeNode("Interactable", &visible)) {
@@ -2292,21 +2107,6 @@ void InitializeEditorComponents() {
   RegisterComponentType<CanvasScalerComponent>(
       "Canvas Scaler", "Canvas", RenderComponentImGui,
       RenderAddComponentImGui_CanvasScalerComponent, nullptr);
-  RegisterComponentType<CanvasRectComponent>(
-      "Canvas Rect", "Canvas", RenderComponentImGui,
-      RenderAddComponentImGui_CanvasRectComponent, nullptr);
-  RegisterComponentType<CanvasImageComponent>(
-      "Canvas Image", "Canvas", RenderComponentImGui,
-      RenderAddComponentImGui_CanvasImageComponent, nullptr);
-  RegisterComponentType<TextComponent>("Text", "Canvas", RenderComponentImGui,
-                                       RenderAddComponentImGui_TextComponent,
-                                       nullptr);
-  RegisterComponentType<TextInputComponent>(
-      "Text Input", "UI", RenderComponentImGui,
-      RenderAddComponentImGui_TextInputComponent, nullptr);
-  RegisterComponentType<ButtonComponent>(
-      "Button", "UI", RenderComponentImGui,
-      RenderAddComponentImGui_ButtonComponent, nullptr);
   RegisterComponentType<InteractableComponent>(
       "Interactable", "UI", RenderComponentImGui,
       RenderAddComponentImGui_InteractableComponent, nullptr);

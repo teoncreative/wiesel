@@ -26,7 +26,6 @@
  * - AudioSourceComponent - positional audio
  * - AnimatorComponent - skeletal animation
  * - SpriteRendererComponent, SpriteAnimatorComponent - 2D sprites
- * - TextComponent - text rendering
  * - UIDocumentComponent - RmlUi documents with data binding
  * - CanvasComponent - UI canvas layout
  *

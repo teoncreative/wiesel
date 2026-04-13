@@ -1708,6 +1708,7 @@ void EditorLayer::RenderMainMenuBar() {
                              ImGuiWindowFlags_AlwaysAutoResize)) {
     // Engine info
     ImGui::SeparatorText("Engine");
+    ImGui::Text("Version: %s", kEngineVersion);
     ImGui::Text("Git Branch: %s", WIESEL_GIT_BRANCH);
     ImGui::Text("Git Commit: %s", WIESEL_GIT_COMMIT);
     ImGui::Text("Build Type: %s", WIESEL_BUILD_TYPE);

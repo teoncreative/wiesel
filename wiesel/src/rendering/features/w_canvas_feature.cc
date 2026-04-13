@@ -12,7 +12,6 @@
 #include "rendering/features/w_canvas_feature.h"
 #include <algorithm>
 #include <unordered_set>
-#include "asset/w_asset_manager.h"
 #include "rendering/w_camera.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
@@ -21,7 +20,6 @@
 #include "scene/w_entity.h"
 #include "scene/w_scene.h"
 #include "ui/w_canvas.h"
-#include "ui/w_font.h"
 #include "ui/w_ui_document.h"
 #include "ui/w_ui_manager.h"
 #include "w_engine.h"
@@ -30,7 +28,7 @@ namespace Wiesel {
 
 // Collect all canvas-drawable entities and sort by draw_order so children
 // render on top of parents regardless of component type.
-enum class CanvasElementType { Rect, Image, Button, Text, UIDocument };
+enum class CanvasElementType { UIDocument };
 
 struct CanvasDrawEntry {
   Scene* scene;
@@ -40,32 +38,7 @@ struct CanvasDrawEntry {
   int32_t draw_order;
 };
 
-// Resolve the active texture and tint for a button's current state.
-static std::pair<AssetHandle, glm::vec4> GetButtonVisuals(
-    const ButtonComponent& btn) {
-  switch (btn.state_) {
-    case ButtonState::Hovered:
-      return {btn.hovered_texture.IsValid() ? btn.hovered_texture
-                                            : btn.normal_texture,
-              btn.hovered_color};
-    case ButtonState::Pressed:
-      return {btn.pressed_texture.IsValid() ? btn.pressed_texture
-                                            : btn.normal_texture,
-              btn.pressed_color};
-    case ButtonState::Selected:
-      return {btn.selected_texture.IsValid() ? btn.selected_texture
-                                             : btn.normal_texture,
-              btn.selected_color};
-    case ButtonState::Disabled:
-      return {btn.disabled_texture.IsValid() ? btn.disabled_texture
-                                             : btn.normal_texture,
-              btn.disabled_color};
-    default:
-      return {btn.normal_texture, btn.normal_color};
-  }
-}
-
-// Draw a single canvas element (Rect, Image, Button, or Text).
+// Draw a single canvas element.
 // Uses the Scene* stored in the entry so each entity is looked up in the
 // correct scene when multiple scenes are active.
 static void DrawCanvasElement(
@@ -74,42 +47,6 @@ static void DrawCanvasElement(
     std::shared_ptr<DescriptorSetLayout> textured_layout, uint32_t eid) {
   Scene* scene = entry.scene;
   switch (entry.type) {
-    case CanvasElementType::Rect: {
-      auto& rect = scene->GetComponent<CanvasRectComponent>(entry.entity);
-      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
-      renderer->DrawCanvasRect(rt, rect, element_layout, eid);
-      break;
-    }
-    case CanvasElementType::Image: {
-      auto& img = scene->GetComponent<CanvasImageComponent>(entry.entity);
-      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
-      auto texture =
-          Engine::asset_manager().GetOrLoad<Texture>(img.texture_handle);
-      if (texture) {
-        renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
-                                   texture, img.tint, img.uv_rect,
-                                   textured_layout, eid);
-      }
-      break;
-    }
-    case CanvasElementType::Button: {
-      auto& btn = scene->GetComponent<ButtonComponent>(entry.entity);
-      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
-      auto [tex_handle, tint] = GetButtonVisuals(btn);
-      auto texture = Engine::asset_manager().GetOrLoad<Texture>(tex_handle);
-      if (texture) {
-        renderer->DrawTexturedRect(rt.computed_position, rt.computed_size,
-                                   texture, tint, {0, 0, 1, 1}, textured_layout,
-                                   eid);
-      }
-      break;
-    }
-    case CanvasElementType::Text: {
-      auto& text = scene->GetComponent<TextComponent>(entry.entity);
-      auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
-      renderer->DrawCanvasText(rt, text, textured_layout, eid);
-      break;
-    }
     case CanvasElementType::UIDocument: {
       auto& doc = scene->GetComponent<UIDocumentComponent>(entry.entity);
       auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
@@ -153,32 +90,15 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   auto canvas_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/canvas_shader.vert"});
-  auto rect_frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "engine://shaders/canvas_rect.frag"});
   auto image_frag = renderer_->CreateShader(
       {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/canvas_image.frag"});
-  auto text_frag = renderer_->CreateShader(
-      {ShaderTypeFragment, ShaderLangGLSL, "main", ShaderSourceSource,
-       "engine://shaders/canvas_text.frag"});
-
   // Push constant for screen size
   screen_size_push_ = std::make_shared<CanvasScreenPushConstant>();
 
   // Pipeline properties: alpha blending, no depth, no culling, no vertex input
   PipelineProperties props{
       SamplingMode::DISABLED, CullModeNone, false, true, false, false};
-
-  // Rect pipeline (UBO only)
-  rect_pipeline_ = std::make_shared<Pipeline>(props);
-  rect_pipeline_->SetRenderPass(render_pass_);
-  rect_pipeline_->AddInputLayout(canvas_element_layout_);
-  rect_pipeline_->AddShader(canvas_vert);
-  rect_pipeline_->AddShader(rect_frag);
-  rect_pipeline_->AddPushConstant(screen_size_push_,
-                                  VK_SHADER_STAGE_VERTEX_BIT);
-  rect_pipeline_->Bake();
 
   // Image pipeline (UBO + texture sampler)
   image_pipeline_ = std::make_shared<Pipeline>(props);
@@ -189,16 +109,6 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   image_pipeline_->AddPushConstant(screen_size_push_,
                                    VK_SHADER_STAGE_VERTEX_BIT);
   image_pipeline_->Bake();
-
-  // Text pipeline (UBO + font atlas sampler)
-  text_pipeline_ = std::make_shared<Pipeline>(props);
-  text_pipeline_->SetRenderPass(render_pass_);
-  text_pipeline_->AddInputLayout(canvas_textured_layout_);
-  text_pipeline_->AddShader(canvas_vert);
-  text_pipeline_->AddShader(text_frag);
-  text_pipeline_->AddPushConstant(screen_size_push_,
-                                  VK_SHADER_STAGE_VERTEX_BIT);
-  text_pipeline_->Bake();
 
   // World-space canvas pipelines (for WorldSpace and ScreenSpaceCamera modes)
   auto canvas_world_vert = renderer_->CreateShader(
@@ -218,19 +128,7 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
                                     .msaa_mode = SamplingMode::DISABLED});
   world_render_pass_->Bake();
 
-  // World rect pipeline
-  world_rect_pipeline_ = std::make_shared<Pipeline>(props);
-  world_rect_pipeline_->SetRenderPass(world_render_pass_);
-  world_rect_pipeline_->AddInputLayout(canvas_element_layout_);
-  world_rect_pipeline_->AddInputLayout(
-      renderer_->GetDescriptorLayout("Global"));
-  world_rect_pipeline_->AddShader(canvas_world_vert);
-  world_rect_pipeline_->AddShader(rect_frag);
-  world_rect_pipeline_->AddPushConstant(world_push_,
-                                        VK_SHADER_STAGE_VERTEX_BIT);
-  world_rect_pipeline_->Bake();
-
-  // World image pipeline
+  // World image pipeline - used for UIDocument and canvas quad rendering
   world_image_pipeline_ = std::make_shared<Pipeline>(props);
   world_image_pipeline_->SetRenderPass(world_render_pass_);
   world_image_pipeline_->AddInputLayout(canvas_textured_layout_);
@@ -241,18 +139,6 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
   world_image_pipeline_->AddPushConstant(world_push_,
                                          VK_SHADER_STAGE_VERTEX_BIT);
   world_image_pipeline_->Bake();
-
-  // World text pipeline
-  world_text_pipeline_ = std::make_shared<Pipeline>(props);
-  world_text_pipeline_->SetRenderPass(world_render_pass_);
-  world_text_pipeline_->AddInputLayout(canvas_textured_layout_);
-  world_text_pipeline_->AddInputLayout(
-      renderer_->GetDescriptorLayout("Global"));
-  world_text_pipeline_->AddShader(canvas_world_vert);
-  world_text_pipeline_->AddShader(text_frag);
-  world_text_pipeline_->AddPushConstant(world_push_,
-                                        VK_SHADER_STAGE_VERTEX_BIT);
-  world_text_pipeline_->Bake();
 
   // Composite pass: blends canvas offscreen onto PipelineOutput
   comp_render_pass_ = std::make_shared<RenderPass>(
@@ -405,17 +291,13 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("CanvasFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  std::shared_ptr<Pipeline> rect_pipeline = rect_pipeline_;
   std::shared_ptr<Pipeline> image_pipeline = image_pipeline_;
-  std::shared_ptr<Pipeline> text_pipeline = text_pipeline_;
   std::shared_ptr<CanvasScreenPushConstant> screen_push = screen_size_push_;
   std::shared_ptr<DescriptorSetLayout> element_layout = canvas_element_layout_;
   std::shared_ptr<DescriptorSetLayout> textured_layout =
       canvas_textured_layout_;
 
-  std::shared_ptr<Pipeline> world_rect_pipeline = world_rect_pipeline_;
   std::shared_ptr<Pipeline> world_image_pipeline = world_image_pipeline_;
-  std::shared_ptr<Pipeline> world_text_pipeline = world_text_pipeline_;
   std::shared_ptr<CanvasWorldPushConstant> world_push = world_push_;
 
   // Compute effective screen size for canvas rendering.
@@ -438,53 +320,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         }
       });
   auto viewport = effective_screen;
-
-  // Pre-process text: load fonts, rasterize any new glyphs, and upload
-  // atlases BEFORE command recording begins.  GPU resource creation
-  // (texture upload) is invalid inside a render pass.
-  //
-  // Phase 1: Touch all codepoints across all text entities so any
-  // on-demand rasterization happens now.  Collect unique fonts.
-  std::unordered_map<Font*, std::shared_ptr<Font>> unique_fonts;
-  ctx.scenes.ForEach<TextComponent, RectangleTransformComponent>(
-      [&](Scene& scene, entt::entity entity) {
-        auto& text = scene.GetComponent<TextComponent>(entity);
-        if (text.text.empty()) {
-          return;
-        }
-        std::shared_ptr<Font> font =
-            FontCache::Get(text.font_handle, text.font_size);
-        if (!font || !font->IsLoaded()) {
-          return;
-        }
-        for (size_t i = 0; i < text.text.size();) {
-          uint32_t cp = Font::DecodeUTF8(text.text, i);
-          font->GetGlyph(cp);
-        }
-        unique_fonts[font.get()] = font;
-      });
-
-  // Phase 2: Flush all dirty font atlases.
-  std::unordered_set<Font*> flushed_fonts;
-  for (auto& [ptr, font] : unique_fonts) {
-    if (font->FlushAtlas()) {
-      flushed_fonts.insert(ptr);
-    }
-  }
-
-  // Phase 3: Invalidate GPU descriptors for ALL text entities that use
-  // a font whose atlas was re-uploaded (new VkImage = old descriptors invalid).
-  if (!flushed_fonts.empty()) {
-    ctx.scenes.ForEach<TextComponent, RectangleTransformComponent>(
-        [&](Scene& scene, entt::entity entity) {
-          auto& text = scene.GetComponent<TextComponent>(entity);
-          std::shared_ptr<Font> font =
-              FontCache::Get(text.font_handle, text.font_size);
-          if (font && flushed_fonts.contains(font.get())) {
-            text.glyph_gpu_.clear();
-          }
-        });
-  }
 
   // Build a cache from (scene, entity) -> canvas root (nearest ancestor with CanvasComponent)
   std::unordered_map<Entity, entt::entity> canvas_root_cache;
@@ -560,26 +395,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     }
   };
 
-  ctx.scenes.ForEach<CanvasRectComponent, RectangleTransformComponent>(
-      [&](Scene& scene, entt::entity entity) {
-        auto& rt = scene.GetComponent<RectangleTransformComponent>(entity);
-        classify_entry(scene, entity, CanvasElementType::Rect, rt.draw_order);
-      });
-  ctx.scenes.ForEach<CanvasImageComponent, RectangleTransformComponent>(
-      [&](Scene& scene, entt::entity entity) {
-        auto& rt = scene.GetComponent<RectangleTransformComponent>(entity);
-        classify_entry(scene, entity, CanvasElementType::Image, rt.draw_order);
-      });
-  ctx.scenes.ForEach<ButtonComponent, RectangleTransformComponent>(
-      [&](Scene& scene, entt::entity entity) {
-        auto& rt = scene.GetComponent<RectangleTransformComponent>(entity);
-        classify_entry(scene, entity, CanvasElementType::Button, rt.draw_order);
-      });
-  ctx.scenes.ForEach<TextComponent, RectangleTransformComponent>(
-      [&](Scene& scene, entt::entity entity) {
-        auto& rt = scene.GetComponent<RectangleTransformComponent>(entity);
-        classify_entry(scene, entity, CanvasElementType::Text, rt.draw_order);
-      });
   ctx.scenes.ForEach<UIDocumentComponent, RectangleTransformComponent>(
       [&](Scene& scene, entt::entity entity) {
         auto& rt = scene.GetComponent<RectangleTransformComponent>(entity);
@@ -955,9 +770,13 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         memcpy(border.edge_ubos[ei]->data_, &data,
                sizeof(CanvasElementUniformData));
 
+        auto blank_tex =
+            renderer_->CreateBlankTexture("CanvasFeature border_blank");
         border.edge_descriptors[ei] = std::make_shared<DescriptorSet>();
-        border.edge_descriptors[ei]->SetLayout(canvas_element_layout_);
+        border.edge_descriptors[ei]->SetLayout(canvas_textured_layout_);
         border.edge_descriptors[ei]->AddUniformBuffer(0, border.edge_ubos[ei]);
+        border.edge_descriptors[ei]->AddCombinedImageSampler(
+            1, blank_tex->image_view_, renderer_->GetDefaultLinearSampler());
         border.edge_descriptors[ei]->Bake();
       }
 
@@ -1014,7 +833,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   uint32_t world_canvas_pass = graph.AddPass(
       "CanvasWorld", world_render_pass_,
-      [world_rect_pipeline, world_image_pipeline, world_text_pipeline,
+      [world_image_pipeline,
        renderer, pool, world_push, element_layout, textured_layout,
        sorted_world, canvas_infos, global_descriptor, viewport,
        camera_quad_draws, canvas_borders](VkCommandBuffer) {
@@ -1026,7 +845,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           return;
         }
 
-        CanvasElementType bound_type = CanvasElementType::Rect;
         bool first = true;
         Scene* current_canvas_scene = nullptr;
         entt::entity current_canvas = entt::null;
@@ -1052,22 +870,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             first = true;
           }
 
-          // Rebind pipeline when element type changes or canvas changed
-          if (first || entry.type != bound_type) {
-            switch (entry.type) {
-              case CanvasElementType::Rect:
-                world_rect_pipeline->Bind(PipelineBindPointGraphics);
-                break;
-              case CanvasElementType::Image:
-              case CanvasElementType::Button:
-              case CanvasElementType::UIDocument:
-                world_image_pipeline->Bind(PipelineBindPointGraphics);
-                break;
-              case CanvasElementType::Text:
-                world_text_pipeline->Bind(PipelineBindPointGraphics);
-                break;
-            }
-            bound_type = entry.type;
+          if (first) {
+            world_image_pipeline->Bind(PipelineBindPointGraphics);
             first = false;
 
             // Bind the camera global descriptor at set 1
@@ -1132,7 +936,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           world_push->canvas_size = ci.canvas_size;
           world_push->world_size = ci.world_size;
 
-          world_rect_pipeline->Bind(PipelineBindPointGraphics);
+          world_image_pipeline->Bind(PipelineBindPointGraphics);
 
           VkDescriptorSet global_set = global_descriptor->descriptor_set_;
           auto* bound = renderer->GetBoundPipeline();
@@ -1146,8 +950,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           // Draw 4 thin rects as border edges - each needs its own UBO
           // since the GPU reads them later during execution.
           for (int ei = 0; ei < 4; ei++) {
-            const std::shared_ptr<UniformBuffer>& edge_ubo =
-                border.edge_ubos[ei];
             const std::shared_ptr<DescriptorSet>& edge_desc =
                 border.edge_descriptors[ei];
 
@@ -1217,33 +1019,14 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
     uint32_t per_canvas_pass = graph.AddPass(
         pass_name, render_pass_,
-        [rect_pipeline, image_pipeline, text_pipeline, renderer,
+        [image_pipeline, renderer,
          screen_push, canvas_viewport, element_layout, textured_layout,
          canvas_elements](VkCommandBuffer) {
           screen_push->screen_size = canvas_viewport;
 
-          CanvasElementType bound_type = CanvasElementType::Rect;
-          bool first = true;
+          image_pipeline->Bind(PipelineBindPointGraphics);
 
           for (const auto& entry : *canvas_elements) {
-            if (first || entry.type != bound_type) {
-              switch (entry.type) {
-                case CanvasElementType::Rect:
-                  rect_pipeline->Bind(PipelineBindPointGraphics);
-                  break;
-                case CanvasElementType::Image:
-                case CanvasElementType::Button:
-                case CanvasElementType::UIDocument:
-                  image_pipeline->Bind(PipelineBindPointGraphics);
-                  break;
-                case CanvasElementType::Text:
-                  text_pipeline->Bind(PipelineBindPointGraphics);
-                  break;
-              }
-              bound_type = entry.type;
-              first = false;
-            }
-
             uint32_t eid =
                 (static_cast<uint32_t>(renderer->GetCurrentSceneIndex()) << 24) |
                 (static_cast<uint32_t>(entry.entity) + 1);
@@ -1389,33 +1172,14 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   uint32_t canvas_pass = graph.AddPass(
       "Canvas", render_pass_,
-      [rect_pipeline, image_pipeline, text_pipeline, renderer, pool,
+      [image_pipeline, renderer, pool,
        screen_push, viewport, element_layout, textured_layout,
        sorted_overlay](VkCommandBuffer) {
         screen_push->screen_size = viewport;
 
-        CanvasElementType bound_type = CanvasElementType::Rect;
-        bool first = true;
+        image_pipeline->Bind(PipelineBindPointGraphics);
 
         for (const auto& entry : *sorted_overlay) {
-          if (first || entry.type != bound_type) {
-            switch (entry.type) {
-              case CanvasElementType::Rect:
-                rect_pipeline->Bind(PipelineBindPointGraphics);
-                break;
-              case CanvasElementType::Image:
-              case CanvasElementType::Button:
-              case CanvasElementType::UIDocument:
-                image_pipeline->Bind(PipelineBindPointGraphics);
-                break;
-              case CanvasElementType::Text:
-                text_pipeline->Bind(PipelineBindPointGraphics);
-                break;
-            }
-            bound_type = entry.type;
-            first = false;
-          }
-
           uint32_t eid =
               (static_cast<uint32_t>(renderer->GetCurrentSceneIndex()) << 24) |
               (static_cast<uint32_t>(entry.entity) + 1);

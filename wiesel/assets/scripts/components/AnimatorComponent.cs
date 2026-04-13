@@ -2,10 +2,7 @@ namespace WieselEngine
 {
     public class AnimatorComponent : Component
     {
-        public AnimatorComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public AnimatorComponent(Entity entity) : base(entity) { }
 
         public bool IsPlaying
         {

@@ -10,10 +10,7 @@ namespace WieselEngine
     public class RigidBodyComponent : Component
     {
 
-        public RigidBodyComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public RigidBodyComponent(Entity entity) : base(entity) { }
 
         public RigidBodyType Type
         {

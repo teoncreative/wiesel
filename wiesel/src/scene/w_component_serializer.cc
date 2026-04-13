@@ -12,6 +12,13 @@
 // Component serializer registry - single source of truth for component
 // serialization used by both scene files and prefabs.
 //
+// JSON keys are stable API - do not rename without a version migration:
+//   Transform, Camera, LightDirect, LightPoint, RigidBody, BoxCollider,
+//   SphereCollider, CapsuleCollider, MeshCollider, UIDocument, Behaviors,
+//   RectangleTransform, Canvas, CanvasScaler,
+//   AudioSource, ReverbZone, Interactable,
+//   Navigable, SpriteRenderer, MeshRenderer, SkinnedMeshRenderer, Animator
+//
 
 #include "scene/w_component_serializer.h"
 
@@ -96,41 +103,6 @@ void ComponentSerializerRegistry::DeserializeAll(Entity& entity, const json& in,
     if (in.contains(desc.json_key)) {
       desc.Deserialize(entity, in[desc.json_key], scene);
     }
-  }
-}
-
-// Helper: request async load for all textures referenced by a material
-static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
-  const auto* meta = Engine::asset_manager().GetMetadata(material_handle);
-  if (!meta || meta->virtual_source_path.empty()) {
-    return;
-  }
-
-  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
-  if (!file) {
-    return;
-  }
-
-  try {
-    std::string content(reinterpret_cast<const char*>(file.Data()),
-                        file.Size());
-    auto j = json::parse(content);
-    if (!j.contains("textures") || !j["textures"].is_object()) {
-      return;
-    }
-
-    for (auto& [key, val] : j["textures"].items()) {
-      if (!val.is_string()) {
-        continue;
-      }
-      AssetHandle th =
-          Engine::asset_manager().FindBySourcePath(val.get<std::string>());
-      if (th.IsValid()) {
-        scene->RequestAsset(th);
-      }
-    }
-  } catch (const std::exception& e) {
-    LOG_ERROR("Failed to collect material assets: {}", e.what());
   }
 }
 
@@ -560,11 +532,7 @@ void InitializeComponentSerializers() {
           std::string script_name;
           json fields_json;
 
-          if (script_entry.is_string()) {
-            // Old format: just a script name string
-            script_name = script_entry.get<std::string>();
-          } else if (script_entry.is_object()) {
-            // New format: {name, fields}
+          if (script_entry.is_object()) {
             script_name = script_entry.value("name", "");
             if (script_entry.contains("fields")) {
               fields_json = script_entry["fields"];
@@ -756,9 +724,8 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& cj, Scene* scene) {
         auto& c = entity.AddComponent<CanvasComponent>();
-        c.render_mode = static_cast<CanvasRenderMode>(
-            cj.value("render_mode",
-                     cj.value("type", 0)));  // fallback to old "type" field
+        c.render_mode =
+            static_cast<CanvasRenderMode>(cj.value("render_mode", 0));
         c.direction = static_cast<LayoutDirection>(cj.value("direction", 0));
         c.alignment = static_cast<ChildAlignment>(cj.value("alignment", 0));
         c.spacing = cj.value("spacing", 0.0f);
@@ -806,162 +773,6 @@ void InitializeComponentSerializers() {
         cs.match_width_or_height = csj.value("match_width_or_height", 0.5f);
         cs.reference_pixels_per_unit =
             csj.value("reference_pixels_per_unit", 100.0f);
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "CanvasRect",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<CanvasRectComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& cr = entity.GetComponent<CanvasRectComponent>();
-        json crj;
-        crj["color"] = {cr.color.x, cr.color.y, cr.color.z, cr.color.w};
-        return crj;
-      },
-      // Deserialize
-      [](Entity& entity, const json& crj, Scene* /*scene*/) {
-        auto& cr = entity.AddComponent<CanvasRectComponent>();
-        if (crj.contains("color") && crj["color"].is_array() &&
-            crj["color"].size() >= 4) {
-          cr.color = {crj["color"][0], crj["color"][1], crj["color"][2],
-                      crj["color"][3]};
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "CanvasImage",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<CanvasImageComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& ci = entity.GetComponent<CanvasImageComponent>();
-        json cij;
-        if (ci.texture_handle.IsValid()) {
-          cij["texture"] = ci.texture_handle.ToString();
-        }
-        cij["tint"] = {ci.tint.x, ci.tint.y, ci.tint.z, ci.tint.w};
-        cij["uv_rect"] = {ci.uv_rect.x, ci.uv_rect.y, ci.uv_rect.z,
-                          ci.uv_rect.w};
-        return cij;
-      },
-      // Deserialize
-      [](Entity& entity, const json& cij, Scene* /*scene*/) {
-        auto& ci = entity.AddComponent<CanvasImageComponent>();
-        if (cij.contains("texture") && cij["texture"].is_string()) {
-          ci.texture_handle =
-              AssetHandle::FromString(cij["texture"].get<std::string>());
-        }
-        if (cij.contains("tint") && cij["tint"].is_array() &&
-            cij["tint"].size() >= 4) {
-          ci.tint = {cij["tint"][0], cij["tint"][1], cij["tint"][2],
-                     cij["tint"][3]};
-        }
-        if (cij.contains("uv_rect") && cij["uv_rect"].is_array() &&
-            cij["uv_rect"].size() >= 4) {
-          ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1], cij["uv_rect"][2],
-                        cij["uv_rect"][3]};
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "Text",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<TextComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& t = entity.GetComponent<TextComponent>();
-        json tj;
-        tj["text"] = t.text;
-        if (t.font_handle.IsValid()) {
-          tj["font_handle"] = t.font_handle.ToString();
-        }
-        tj["font_size"] = t.font_size;
-        tj["color"] = {t.color.x, t.color.y, t.color.z, t.color.w};
-        if (t.shadow) {
-          tj["shadow"] = true;
-          tj["shadow_offset"] = SerializeUtil::Vec2(t.shadow_offset);
-          tj["shadow_color"] = {t.shadow_color.x, t.shadow_color.y,
-                                t.shadow_color.z, t.shadow_color.w};
-        }
-        return tj;
-      },
-      // Deserialize
-      [](Entity& entity, const json& tj, Scene* scene) {
-        auto& t = entity.AddComponent<TextComponent>();
-        t.text = tj.value("text", "");
-        if (tj.contains("font_handle") && tj["font_handle"].is_string()) {
-          t.font_handle =
-              AssetHandle::FromString(tj["font_handle"].get<std::string>());
-          if (scene) {
-            scene->RequestAsset(t.font_handle);
-          }
-        }
-        t.font_size = tj.value("font_size", 16.0f);
-        if (tj.contains("color") && tj["color"].is_array() &&
-            tj["color"].size() >= 4) {
-          t.color = {tj["color"][0], tj["color"][1], tj["color"][2],
-                     tj["color"][3]};
-        }
-        t.shadow = tj.value("shadow", false);
-        if (tj.contains("shadow_offset")) {
-          t.shadow_offset = SerializeUtil::Vec2(tj["shadow_offset"], {1, 1});
-        }
-        if (tj.contains("shadow_color") && tj["shadow_color"].is_array() &&
-            tj["shadow_color"].size() >= 4) {
-          t.shadow_color = {tj["shadow_color"][0], tj["shadow_color"][1],
-                            tj["shadow_color"][2], tj["shadow_color"][3]};
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "TextInput",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<TextInputComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& ti = entity.GetComponent<TextInputComponent>();
-        json tij;
-        tij["text"] = ti.text;
-        tij["placeholder"] = ti.placeholder;
-        tij["max_length"] = ti.max_length;
-        tij["cursor_color"] = {ti.cursor_color.x, ti.cursor_color.y,
-                               ti.cursor_color.z, ti.cursor_color.w};
-        tij["placeholder_color"] = {
-            ti.placeholder_color.x, ti.placeholder_color.y,
-            ti.placeholder_color.z, ti.placeholder_color.w};
-        return tij;
-      },
-      // Deserialize
-      [](Entity& entity, const json& tij, Scene* /*scene*/) {
-        auto& ti = entity.AddComponent<TextInputComponent>();
-        ti.text = tij.value("text", "");
-        ti.placeholder = tij.value("placeholder", "Enter text...");
-        ti.max_length = tij.value("max_length", 0);
-        if (tij.contains("cursor_color") && tij["cursor_color"].is_array() &&
-            tij["cursor_color"].size() >= 4) {
-          ti.cursor_color = {tij["cursor_color"][0], tij["cursor_color"][1],
-                             tij["cursor_color"][2], tij["cursor_color"][3]};
-        }
-        if (tij.contains("placeholder_color") &&
-            tij["placeholder_color"].is_array() &&
-            tij["placeholder_color"].size() >= 4) {
-          ti.placeholder_color = {
-              tij["placeholder_color"][0], tij["placeholder_color"][1],
-              tij["placeholder_color"][2], tij["placeholder_color"][3]};
-        }
       },
   });
 
@@ -1034,95 +845,6 @@ void InitializeComponentSerializers() {
         r.delay_ms = rj.value("delay_ms", 150.0f);
         r.decay = rj.value("decay", 0.4f);
         r.wet = rj.value("wet", 0.5f);
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "Button",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<ButtonComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& btn = entity.GetComponent<ButtonComponent>();
-        json bj;
-        bj["normal_color"] = {btn.normal_color.r, btn.normal_color.g,
-                              btn.normal_color.b, btn.normal_color.a};
-        bj["hovered_color"] = {btn.hovered_color.r, btn.hovered_color.g,
-                               btn.hovered_color.b, btn.hovered_color.a};
-        bj["pressed_color"] = {btn.pressed_color.r, btn.pressed_color.g,
-                               btn.pressed_color.b, btn.pressed_color.a};
-        bj["selected_color"] = {btn.selected_color.r, btn.selected_color.g,
-                                btn.selected_color.b, btn.selected_color.a};
-        bj["disabled_color"] = {btn.disabled_color.r, btn.disabled_color.g,
-                                btn.disabled_color.b, btn.disabled_color.a};
-        if (btn.normal_texture.IsValid()) {
-          bj["normal_texture"] = btn.normal_texture.ToString();
-        }
-        if (btn.hovered_texture.IsValid()) {
-          bj["hovered_texture"] = btn.hovered_texture.ToString();
-        }
-        if (btn.pressed_texture.IsValid()) {
-          bj["pressed_texture"] = btn.pressed_texture.ToString();
-        }
-        if (btn.selected_texture.IsValid()) {
-          bj["selected_texture"] = btn.selected_texture.ToString();
-        }
-        if (btn.disabled_texture.IsValid()) {
-          bj["disabled_texture"] = btn.disabled_texture.ToString();
-        }
-        if (btn.hovered_offset.x != 0 || btn.hovered_offset.y != 0) {
-          bj["hovered_offset"] = SerializeUtil::Vec2(btn.hovered_offset);
-        }
-        if (btn.pressed_offset.x != 0 || btn.pressed_offset.y != 0) {
-          bj["pressed_offset"] = SerializeUtil::Vec2(btn.pressed_offset);
-        }
-        if (btn.selected_offset.x != 0 || btn.selected_offset.y != 0) {
-          bj["selected_offset"] = SerializeUtil::Vec2(btn.selected_offset);
-        }
-        return bj;
-      },
-      // Deserialize
-      [](Entity& entity, const json& bj, Scene* /*scene*/) {
-        auto& btn = entity.AddComponent<ButtonComponent>();
-        auto load_color = [](const json& j, const std::string& key,
-                             glm::vec4 def) -> glm::vec4 {
-          if (j.contains(key) && j[key].is_array() && j[key].size() >= 4) {
-            return {j[key][0], j[key][1], j[key][2], j[key][3]};
-          }
-          return def;
-        };
-        btn.normal_color = load_color(bj, "normal_color", {1, 1, 1, 1});
-        btn.hovered_color =
-            load_color(bj, "hovered_color", {0.9f, 0.9f, 0.9f, 1});
-        btn.pressed_color =
-            load_color(bj, "pressed_color", {0.7f, 0.7f, 0.7f, 1});
-        btn.selected_color = load_color(bj, "selected_color", {1, 1, 1, 1});
-        btn.disabled_color =
-            load_color(bj, "disabled_color", {0.5f, 0.5f, 0.5f, 0.5f});
-
-        auto load_handle = [](const json& j,
-                              const std::string& key) -> AssetHandle {
-          if (j.contains(key) && j[key].is_string()) {
-            return AssetHandle::FromString(j[key].get<std::string>());
-          }
-          return {};
-        };
-        btn.normal_texture = load_handle(bj, "normal_texture");
-        btn.hovered_texture = load_handle(bj, "hovered_texture");
-        btn.pressed_texture = load_handle(bj, "pressed_texture");
-        btn.selected_texture = load_handle(bj, "selected_texture");
-        btn.disabled_texture = load_handle(bj, "disabled_texture");
-        if (bj.contains("hovered_offset")) {
-          btn.hovered_offset = SerializeUtil::Vec2(bj["hovered_offset"]);
-        }
-        if (bj.contains("pressed_offset")) {
-          btn.pressed_offset = SerializeUtil::Vec2(bj["pressed_offset"]);
-        }
-        if (bj.contains("selected_offset")) {
-          btn.selected_offset = SerializeUtil::Vec2(bj["selected_offset"]);
-        }
       },
   });
 

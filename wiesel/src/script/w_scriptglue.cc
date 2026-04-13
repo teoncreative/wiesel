@@ -535,6 +535,17 @@ MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
   return arr;
 }
 
+// --- Entity validity ---
+
+bool Internals_Entity_IsValid(uint64_t scene_ptr, uint64_t entity_id) {
+  if (scene_ptr == 0) {
+    return false;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  return scene->IsValid(handle);
+}
+
 // --- Child entity access ---
 
 int Internals_Entity_GetChildCount(uint64_t scene_ptr, uint64_t entity_id) {
@@ -1772,168 +1783,6 @@ void Internals_Canvas_SetSortOrder(Scene* s, entt::entity e, int32_t v) {
   s->GetComponent<CanvasComponent>(e).sort_order = v;
 }
 
-// --- CanvasRectComponent ---
-float Internals_CanvasRect_GetColorR(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.r;
-}
-
-float Internals_CanvasRect_GetColorG(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.g;
-}
-
-float Internals_CanvasRect_GetColorB(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.b;
-}
-
-float Internals_CanvasRect_GetColorA(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.a;
-}
-
-void Internals_CanvasRect_SetColorR(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.r = v;
-}
-
-void Internals_CanvasRect_SetColorG(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.g = v;
-}
-
-void Internals_CanvasRect_SetColorB(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.b = v;
-}
-
-void Internals_CanvasRect_SetColorA(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.a = v;
-}
-
-// --- CanvasImageComponent ---
-float Internals_CanvasImage_GetTintR(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.r;
-}
-
-float Internals_CanvasImage_GetTintG(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.g;
-}
-
-float Internals_CanvasImage_GetTintB(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.b;
-}
-
-float Internals_CanvasImage_GetTintA(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.a;
-}
-
-void Internals_CanvasImage_SetTintR(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.r = v;
-}
-
-void Internals_CanvasImage_SetTintG(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.g = v;
-}
-
-void Internals_CanvasImage_SetTintB(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.b = v;
-}
-
-void Internals_CanvasImage_SetTintA(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.a = v;
-}
-
-float Internals_CanvasImage_GetUVRectX(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.x;
-}
-
-float Internals_CanvasImage_GetUVRectY(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.y;
-}
-
-float Internals_CanvasImage_GetUVRectZ(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.z;
-}
-
-float Internals_CanvasImage_GetUVRectW(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.w;
-}
-
-void Internals_CanvasImage_SetUVRectX(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.x = v;
-}
-
-void Internals_CanvasImage_SetUVRectY(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.y = v;
-}
-
-void Internals_CanvasImage_SetUVRectZ(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.z = v;
-}
-
-void Internals_CanvasImage_SetUVRectW(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.w = v;
-}
-
-// --- TextComponent ---
-MonoString* Internals_Text_GetText(Scene* s, entt::entity e) {
-  return mono_string_new(Engine::script_manager().app_domain(),
-                         s->GetComponent<TextComponent>(e).text.c_str());
-}
-
-void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
-  char* str = mono_string_to_utf8(v);
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.text = str;
-  c.gpu_dirty_ = true;
-  mono_free(str);
-}
-
-float Internals_Text_GetFontSize(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).font_size;
-}
-
-void Internals_Text_SetFontSize(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.font_size = v;
-  c.gpu_dirty_ = true;
-}
-
-float Internals_Text_GetColorR(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.r;
-}
-
-float Internals_Text_GetColorG(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.g;
-}
-
-float Internals_Text_GetColorB(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.b;
-}
-
-float Internals_Text_GetColorA(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.a;
-}
-
-void Internals_Text_SetColorR(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.r = v;
-  c.gpu_dirty_ = true;
-}
-
-void Internals_Text_SetColorG(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.g = v;
-  c.gpu_dirty_ = true;
-}
-
-void Internals_Text_SetColorB(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.b = v;
-  c.gpu_dirty_ = true;
-}
-
-void Internals_Text_SetColorA(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.a = v;
-  c.gpu_dirty_ = true;
-}
-
 // --- AnimatorComponent ---
 void Internals_Animator_SetBool(Scene* s, entt::entity e, MonoString* name,
                                 bool value) {
@@ -2604,46 +2453,6 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Canvas_SetSpacing);
   WIESEL_ADD_INTERNAL_CALL(Canvas_GetSortOrder);
   WIESEL_ADD_INTERNAL_CALL(Canvas_SetSortOrder);
-  // CanvasRectComponent
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorA);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorA);
-  // CanvasImageComponent
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintA);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintA);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectX);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectY);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectZ);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectW);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectX);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectY);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectZ);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectW);
-  // TextComponent
-  WIESEL_ADD_INTERNAL_CALL(Text_GetText);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetText);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetFontSize);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetFontSize);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorR);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorG);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorB);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorA);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorR);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorG);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorB);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorA);
-
   WIESEL_ADD_INTERNAL_CALL(Animator_SetBool);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetInt);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetFloat);
@@ -2733,6 +2542,7 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Entity_AddTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_RemoveTag);
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntitiesByTag);
+  WIESEL_ADD_INTERNAL_CALL(Entity_IsValid);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChildCount);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChild);
 

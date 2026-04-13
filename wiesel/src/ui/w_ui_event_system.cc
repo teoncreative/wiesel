@@ -291,21 +291,10 @@ void UIEventSystem::FocusEntity(entt::registry& registry, entt::entity entity) {
     return;
   }
   UnfocusEntity(registry);
-  if (entity != entt::null && registry.any_of<TextInputComponent>(entity)) {
-    auto& input = registry.get<TextInputComponent>(entity);
-    input.focused_ = true;
-    input.cursor_pos_ = static_cast<int>(input.text.size());
-    input.cursor_visible_ = true;
-    input.cursor_timer_ = 0.0f;
-    focused_entity_ = entity;
-  }
+  focused_entity_ = entity;
 }
 
 void UIEventSystem::UnfocusEntity(entt::registry& registry) {
-  if (focused_entity_ != entt::null && registry.valid(focused_entity_) &&
-      registry.any_of<TextInputComponent>(focused_entity_)) {
-    registry.get<TextInputComponent>(focused_entity_).focused_ = false;
-  }
   focused_entity_ = entt::null;
 }
 
@@ -361,8 +350,6 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
       }
     }
   }
-
-  UpdateButtonStates(registry);
 }
 
 // Mouse input processing (per-canvas, phase-based)
@@ -440,19 +427,6 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
 
   // Pointer down
   if (mouse_down) {
-    entt::entity new_focus = entt::null;
-    if (hit_entity != entt::null &&
-        registry.any_of<TextInputComponent>(hit_entity)) {
-      new_focus = hit_entity;
-    }
-    if (new_focus != focused_entity_) {
-      if (new_focus != entt::null) {
-        FocusEntity(registry, new_focus);
-      } else {
-        UnfocusEntity(registry);
-      }
-    }
-
     if (hit_entity != entt::null) {
       registry.get<InteractableComponent>(hit_entity).pressed_ = true;
       pressed_entity_ = hit_entity;
@@ -664,10 +638,6 @@ void UIEventSystem::NavigateTo(Scene& scene, int player_index,
       b->OnSelect();
       return false;
     });
-
-    if (registry.any_of<TextInputComponent>(target)) {
-      FocusEntity(registry, target);
-    }
   }
 }
 
@@ -812,26 +782,6 @@ entt::entity UIEventSystem::FindFirstNavigable(Scene& scene,
   }
 
   return best;
-}
-
-// Button state update
-void UIEventSystem::UpdateButtonStates(entt::registry& registry) {
-  for (auto entity : registry.view<ButtonComponent, InteractableComponent>()) {
-    auto& btn = registry.get<ButtonComponent>(entity);
-    auto& interactable = registry.get<InteractableComponent>(entity);
-
-    if (!interactable.enabled) {
-      btn.state_ = ButtonState::Disabled;
-    } else if (interactable.pressed_) {
-      btn.state_ = ButtonState::Pressed;
-    } else if (interactable.hovered_) {
-      btn.state_ = ButtonState::Hovered;
-    } else if (interactable.selected_) {
-      btn.state_ = ButtonState::Selected;
-    } else {
-      btn.state_ = ButtonState::Normal;
-    }
-  }
 }
 
 // Keyboard/text forwarding to focused RmlUi document

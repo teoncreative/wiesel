@@ -73,8 +73,8 @@ void EditorLayer::NewProject() {
     std::string name = dir.filename().string();
 
     if (Project::Create(dir, name)) {
-      auto proj = Project::Load(dir / (name + ".wiesel"));
-      if (proj) {
+      auto [result, proj] = Project::Load(dir / (name + ".wiesel"));
+      if (result == ProjectLoadResult::Success && proj) {
         active_project_ = std::move(proj);
         Engine::SetGameInfo(
             std::make_shared<GameInfo>(active_project_->GetGameInfo()));
@@ -284,8 +284,8 @@ void EditorLayer::AutoSave() {
 void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   namespace fs = std::filesystem;
 
-  std::unique_ptr<Project> proj = Project::Load(path);
-  if (!proj) {
+  auto [load_result, proj] = Project::Load(path);
+  if (load_result != ProjectLoadResult::Success || !proj) {
     return;
   }
 

@@ -10,6 +10,11 @@ namespace WieselEngine
         internal ulong Id { get { return entityId; } }
         internal ulong ScenePtr { get { return scenePtr; } }
 
+        public bool IsValid
+        {
+            get { return scenePtr != 0 && Internals.Entity_IsValid(scenePtr, entityId); }
+        }
+
         public Scene Scene
         {
             get { return new Scene(scenePtr); }

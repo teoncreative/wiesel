@@ -794,12 +794,6 @@ void ScriptManager::LoadCoreDll() {
       core_assembly_image_, "WieselEngine", "RectTransformComponent");
   canvas_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "CanvasComponent");
-  canvas_rect_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "CanvasRectComponent");
-  canvas_image_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "CanvasImageComponent");
-  text_component_class_ = mono_class_from_name(core_assembly_image_,
-                                               "WieselEngine", "TextComponent");
   animator_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "AnimatorComponent");
   audio_source_class_ = mono_class_from_name(
@@ -1018,33 +1012,6 @@ void ScriptManager::RegisterComponents() {
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<CanvasComponent>(entity);
-      });
-
-  RegisterComponent<CanvasRectComponent>(
-      "CanvasRectComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(canvas_rect_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<CanvasRectComponent>(entity);
-      });
-
-  RegisterComponent<CanvasImageComponent>(
-      "CanvasImageComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(canvas_image_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<CanvasImageComponent>(entity);
-      });
-
-  RegisterComponent<TextComponent>(
-      "TextComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(text_component_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<TextComponent>(entity);
       });
 
   if (animator_component_class_) {

@@ -25,6 +25,15 @@ namespace Wiesel {
 static constexpr int kMaterialTextureCount = 8;
 
 // --- Material Property System ---
+// Core property names (serialized to .wmat files):
+//   "color_tint"  (vec4)  - base color multiplier
+//   "roughness"   (float) - surface roughness 0-1
+//   "metallic"    (float) - metallic factor 0-1
+//   "specular"    (float) - specular intensity 0-1
+// Feature property names:
+//   "emission_color"    (vec4)  - emission color (Emission feature)
+//   "emission_strength" (float) - emission intensity (Emission feature)
+//   "alpha_cutoff"      (float) - alpha clip threshold (AlphaClip feature)
 
 enum class MaterialPropertyType { Float, Vec2, Vec3, Vec4, Texture, Bool, Int };
 

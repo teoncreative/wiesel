@@ -158,6 +158,7 @@ void Material::SetSpecular(float value) {
 
 nlohmann::json Material::Serialize() const {
   nlohmann::json j;
+  j["version"] = 1;
   j["name"] = name;
   j["color_tint"] = {GetColorTint().x, GetColorTint().y, GetColorTint().z,
                      GetColorTint().w};
