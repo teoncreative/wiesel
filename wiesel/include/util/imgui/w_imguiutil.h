@@ -11,10 +11,8 @@
 
 #pragma once
 
+#include "imgui.h"
 #include "w_pch.h"
-
-struct VkDescriptorSet_T;
-typedef VkDescriptorSet_T* VkDescriptorSet;
 
 namespace Wiesel {
 
@@ -29,4 +27,8 @@ void RenderTexturePreview(const char* label, Texture* tex);
 
 namespace ImGui {
 bool ClosableTreeNode(const char* label, bool* visible);
-}
+
+// TreeNodeEx with extra vertical padding for more comfortable row height.
+bool PaddedTreeNodeEx(const char* label, ImGuiTreeNodeFlags flags,
+                      float padding_y = 3.0f, float rounding = 4.0f);
+}  // namespace ImGui

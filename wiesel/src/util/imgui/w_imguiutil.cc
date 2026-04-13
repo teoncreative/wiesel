@@ -93,4 +93,32 @@ bool ClosableTreeNode(const char* label, bool* p_visible) {
   return open;
 }
 
+bool PaddedTreeNodeEx(const char* label, ImGuiTreeNodeFlags flags,
+                      float padding_y, float rounding) {
+  float pad_x = ImGui::GetStyle().FramePadding.x;
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(pad_x, padding_y));
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, rounding);
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+  // Framed tree nodes always draw ImGuiCol_Header as background.
+  // When not selected, blend with window background so it looks invisible.
+  // When selected, the caller sets ImGuiTreeNodeFlags_Selected which still
+  // uses ImGuiCol_Header - so we swap the color based on selection state.
+  bool is_selected = (flags & ImGuiTreeNodeFlags_Selected) != 0;
+  if (!is_selected) {
+    ImGui::PushStyleColor(ImGuiCol_Header,
+                          ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+  }
+
+  flags |= ImGuiTreeNodeFlags_Framed;
+  bool open = ImGui::TreeNodeEx(label, flags);
+
+  if (!is_selected) {
+    ImGui::PopStyleColor();
+  }
+  ImGui::PopStyleVar(4);
+  return open;
+}
+
 }  // namespace ImGui

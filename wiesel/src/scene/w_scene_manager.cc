@@ -22,6 +22,7 @@
 #include "rendering/features/w_canvas_feature.h"
 #include "rendering/features/w_composite_feature.h"
 #include "rendering/features/w_debug_collider_feature.h"
+#include "rendering/features/w_selection_outline_feature.h"
 #include "rendering/features/w_fxaa_feature.h"
 #include "rendering/features/w_geometry_feature.h"
 #include "rendering/features/w_grid_feature.h"
@@ -417,6 +418,7 @@ void SceneManager::CreateDefaultPipeline() {
   default_pipeline_->AddFeature<GridFeature>(renderer);
   default_pipeline_->AddFeature<SpriteFeature>(renderer);
   default_pipeline_->AddFeature<CompositeFeature>(renderer);
+  default_pipeline_->AddFeature<SelectionOutlineFeature>(renderer);
   default_pipeline_->AddFeature<TAAFeature>(renderer);
   default_pipeline_->AddFeature<BloomFeature>(renderer);
   default_pipeline_->AddFeature<MotionBlurFeature>(renderer);

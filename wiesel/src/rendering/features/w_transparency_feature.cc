@@ -125,7 +125,6 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
       [active_pipeline, &scenes, renderer, ibl_desc](VkCommandBuffer) {
         active_pipeline->Bind(PipelineBindPointGraphics);
 
-        // Static mesh renderers (transparent pass)
         scenes.ForEach<MeshRendererComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
@@ -137,7 +136,6 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
                                          ibl_desc);
             });
 
-        // Skinned mesh renderers (transparent pass)
         scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& mr =

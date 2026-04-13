@@ -35,7 +35,7 @@ void InitEditorIcons() {
     codicon_config.SizePixels = ImGui::Moonlight::kDefaultFontSize;
     codicon_config.FontData = codicon_data;
     codicon_config.FontDataSize = static_cast<int>(codicon_file.Size());
-    codicon_config.GlyphOffset = ImVec2(0, 3);  // slight vertical offset
+    codicon_config.GlyphOffset = ImVec2(0, 0);  // slight vertical offset
 
     static constexpr ImWchar codicon_ranges[] = {0xEA60, 0xF000, 0};
     codicon_config.GlyphRanges = codicon_ranges;

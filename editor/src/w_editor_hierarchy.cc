@@ -17,6 +17,7 @@
 #include "scene/w_lights.h"
 #include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
+#include "util/imgui/w_imguiutil.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
@@ -137,7 +138,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
 
   bool has_children =
       entity.child_handles() && !entity.child_handles()->empty();
-  bool is_selected = has_selected_entity_ && selected_entity_ == entity_id;
+  bool is_selected = has_selected_entity_ && selected_entity_ == entity_id &&
+                     selected_entity_scene_ == entity_scene;
 
   bool is_renaming = renaming_entity_ == entity_id;
 
@@ -189,7 +191,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     ImGui::SetNextItemOpen(true);
   }
 
-  bool node_open = ImGui::TreeNodeEx(label.c_str(), flags);
+  bool node_open = ImGui::PaddedTreeNodeEx(label.c_str(), flags);
 
   // Scroll to selected entity when requested (e.g., after viewport click)
   if (is_selected && scroll_to_selected_) {
@@ -380,6 +382,8 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         }
 
         if (scene_node_open) {
+          ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                              ImVec2(ImGui::GetStyle().ItemSpacing.x, 3.0f));
           for (const auto& entity_id : current_scene->GetSceneHierarchy()) {
             Entity entity = {entity_id, current_scene.get()};
             if (entity.GetParent()) {
@@ -387,6 +391,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
             }
             RenderEntity(entity, entity_id, current_scene, 0, ignoreMenu);
           }
+          ImGui::PopStyleVar();
           ImGui::TreePop();
         }
       }

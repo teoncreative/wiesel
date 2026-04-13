@@ -38,36 +38,6 @@ void AssetBrowserPanel::Render(bool& open) {
 
   auto& mgr = Engine::asset_manager();
   bool read_only = IsReadOnly();
-
-  // Root selector tabs
-  {
-    static const char* roots[] = {"app://", "engine://", "editor://"};
-    static const char* labels[] = {"App", "Engine", "Editor"};
-    for (int i = 0; i < 3; i++) {
-      if (i > 0) {
-        ImGui::SameLine();
-      }
-      bool is_current = browser_.root() == roots[i];
-      if (is_current) {
-        ImGui::PushStyleColor(ImGuiCol_Button,
-                              ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-      }
-      if (ImGui::SmallButton(labels[i])) {
-        if (!is_current) {
-          browser_.SetRoot(roots[i]);
-          selected_file_.clear();
-        }
-      }
-      if (is_current) {
-        ImGui::PopStyleColor();
-      }
-    }
-    if (read_only) {
-      ImGui::SameLine();
-      ImGui::TextDisabled("(read-only)");
-    }
-  }
-
   const auto& entries = browser_.Scan();
 
   // Breadcrumb bar
@@ -215,7 +185,7 @@ void AssetBrowserPanel::Render(bool& open) {
     int columns = browser_.grid_columns();
 
     // ".." back folder counts as one item in the grid
-    bool has_back = !browser_.current_dir().empty();
+    bool has_back = !browser_.current_dir().empty() || !browser_.IsAtTopLevel();
     int total_items = static_cast<int>(entries.size()) + (has_back ? 1 : 0);
     float row_height =
         browser_.tile_size + 20.0f + ImGui::GetStyle().ItemSpacing.y;
@@ -242,8 +212,10 @@ void AssetBrowserPanel::Render(bool& open) {
 
     // ".." back folder
     if (has_back && first_visible_item == 0) {
-      if (browser_.DrawTile("..", ImVec4(0.35f, 0.35f, 0.4f, 1.0f), "..", false,
-                            true)) {
+      bool back_dbl = false;
+      browser_.DrawTile("..", ImVec4(0.35f, 0.35f, 0.4f, 1.0f), "..", false,
+                        true, nullptr, nullptr, &back_dbl);
+      if (back_dbl) {
         browser_.NavigateUp();
       }
       // Drop target on ".." to move files to parent directory

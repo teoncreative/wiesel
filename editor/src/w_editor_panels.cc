@@ -330,6 +330,9 @@ void EditorLayer::RenderDeveloperConsolePanel() {
         ImGui::Separator();
 
         // Log output - selectable/copyable text
+        if (code_editor_font_) {
+          ImGui::PushFont(code_editor_font_);
+        }
         float footer_height = ImGui::GetStyle().ItemSpacing.y +
                               ImGui::GetFrameHeightWithSpacing();
         std::string full_log;
@@ -359,6 +362,9 @@ void EditorLayer::RenderDeveloperConsolePanel() {
           }
           history_pos = -1;
           ImGui::SetKeyboardFocusHere(-1);
+        }
+        if (code_editor_font_) {
+          ImGui::PopFont();
         }
       }
       ImGui::End();

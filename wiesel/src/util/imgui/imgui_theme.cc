@@ -52,6 +52,7 @@ void LoadFont() {
   ImFontConfig config;
   config.GlyphRanges = ranges;
   config.GlyphExcludeRanges = exclude_ranges;
+  config.GlyphOffset = ImVec2(0.0f, kDefaultFontOffsetY);
   // Select named instance in variable font: (instance_index << 16) | face_index
   config.FontNo = (kDefaultFontInstance << 16);
 

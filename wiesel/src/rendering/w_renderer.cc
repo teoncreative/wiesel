@@ -3585,6 +3585,23 @@ void Renderer::DrawSkinnedMeshRenderer(
   stats_.models++;
 }
 
+void Renderer::DrawMeshSimple(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
+                              std::shared_ptr<DescriptorSet> bone_descriptor) {
+  if (!mesh->allocated_) {
+    return;
+  }
+  VkBuffer vb[] = {mesh->vertex_buffer->buffer_handle_};
+  VkDeviceSize offsets[] = {0};
+  vkCmdBindVertexBuffers(cmd, 0, 1, vb, offsets);
+  vkCmdBindIndexBuffer(cmd, mesh->index_buffer->buffer_handle_, 0,
+                       mesh->index_buffer->index_type_);
+  if (bone_descriptor) {
+    bound_pipeline_->BindDescriptorSets(cmd, {bone_descriptor});
+  }
+  uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
+  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
+}
+
 void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                            std::shared_ptr<DescriptorSet> mesh_descriptors,
                            std::shared_ptr<DescriptorSet> bone_descriptors,

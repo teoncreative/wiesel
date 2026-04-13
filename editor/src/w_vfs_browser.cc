@@ -31,12 +31,33 @@ void VfsBrowser::SetRoot(const std::string& root) {
 }
 
 void VfsBrowser::NavigateInto(const std::string& dir_name) {
+  // At top level, navigating into a folder sets the VFS root
+  if (root_.empty()) {
+    static const std::map<std::string, std::string> root_map = {
+        {"App", "app://"},
+        {"Engine", "engine://"},
+        {"Editor", "editor://"},
+    };
+    auto it = root_map.find(dir_name);
+    if (it != root_map.end()) {
+      root_ = it->second;
+      current_dir_.clear();
+      cache_dirty_ = true;
+      return;
+    }
+  }
   current_dir_ += dir_name + "/";
   cache_dirty_ = true;
 }
 
 bool VfsBrowser::NavigateUp() {
   if (current_dir_.empty()) {
+    // Go back to top level
+    if (!root_.empty()) {
+      root_.clear();
+      cache_dirty_ = true;
+      return true;
+    }
     return false;
   }
   std::string trimmed = current_dir_.substr(0, current_dir_.size() - 1);
@@ -68,6 +89,14 @@ const std::vector<BrowserEntry>& VfsBrowser::Scan(AssetType filter) {
   cached_dir_ = current;
   cached_filter_ = filter;
   cache_dirty_ = false;
+
+  // At top level, show virtual root folders
+  if (root_.empty()) {
+    cached_entries_.push_back({"App", "app://", true, AssetType::None});
+    cached_entries_.push_back({"Engine", "engine://", true, AssetType::None});
+    cached_entries_.push_back({"Editor", "editor://", true, AssetType::None});
+    return cached_entries_;
+  }
 
   auto vfs_entries = Engine::vfs()->ListDirectory(current);
 
@@ -107,13 +136,22 @@ const std::vector<BrowserEntry>& VfsBrowser::Scan(AssetType filter) {
 std::vector<std::pair<std::string, std::string>> VfsBrowser::Breadcrumbs()
     const {
   std::vector<std::pair<std::string, std::string>> result;
-  // Strip "://" from root for display (e.g. "app://" -> "app")
+
+  // Top-level "Assets" crumb (always present, navigates back to root)
+  result.emplace_back("Assets", "");
+
+  if (root_.empty()) {
+    return result;
+  }
+
+  // VFS root crumb (e.g. "app" / "engine" / "editor")
   std::string root_display = root_;
   auto scheme_pos = root_display.find("://");
   if (scheme_pos != std::string::npos) {
     root_display = root_display.substr(0, scheme_pos);
   }
-  result.emplace_back(root_display, "");
+  // Use a sentinel so clicking this goes to root level of this VFS mount
+  result.emplace_back(root_display, "/");
 
   if (current_dir_.empty()) {
     return result;
@@ -278,8 +316,6 @@ void VfsBrowser::EndTileGrid() {
 bool VfsBrowser::RenderBreadcrumbs() {
   bool changed = false;
   auto crumbs = Breadcrumbs();
-  // Check if root is read-only (only app:// is navigable)
-  bool root_editable = (root_ == "app://");
 
   for (size_t i = 0; i < crumbs.size(); i++) {
     if (i > 0) {
@@ -288,12 +324,21 @@ bool VfsBrowser::RenderBreadcrumbs() {
       ImGui::SameLine();
     }
     bool is_last = (i == crumbs.size() - 1);
-    bool is_root = (i == 0);
-    bool clickable = !is_last && (root_editable || !is_root);
 
-    if (clickable) {
+    if (!is_last) {
       if (ImGui::SmallButton(crumbs[i].first.c_str())) {
-        SetCurrentDir(crumbs[i].second);
+        if (i == 0) {
+          // "Assets" crumb - go back to top level
+          root_.clear();
+          current_dir_.clear();
+          cache_dirty_ = true;
+        } else if (crumbs[i].second == "/") {
+          // VFS root crumb - go to root of this mount
+          current_dir_.clear();
+          cache_dirty_ = true;
+        } else {
+          SetCurrentDir(crumbs[i].second);
+        }
         changed = true;
       }
     } else {

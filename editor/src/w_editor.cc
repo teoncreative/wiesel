@@ -26,6 +26,7 @@
 #include "imgui_internal.h"
 #include "input/w_input.h"
 #include "rendering/w_renderer.h"
+#include "scene/w_components.h"
 #include "scene/w_scene_manager.h"
 #include "scene/w_scene_serializer.h"
 #include "script/w_scriptmanager.h"
@@ -190,10 +191,8 @@ void EditorLayer::OnAttach() {
       void* font_data = IM_ALLOC(font_file.Size());
       memcpy(font_data, font_file.Data(), font_file.Size());
       code_editor_font_ = io.Fonts->AddFontFromMemoryTTF(
-          font_data, static_cast<int>(font_file.Size()), 36.0f);
-      if (code_editor_font_) {
-        code_editor_font_->Scale = 0.5f;
-      }
+          font_data, static_cast<int>(font_file.Size()),
+          ImGui::Moonlight::kDefaultFontSize);
     }
   }
 
@@ -221,8 +220,9 @@ void EditorLayer::OnAttach() {
       glm::vec3(editor_pitch_, editor_yaw_, 0.0f));
 
   editor_camera_.viewport_size = {1920, 1080};
-  editor_camera_.far_plane = 500.0f;
   editor_camera_.field_of_view = 60.0f;
+  editor_camera_.near_plane = 0.1f;
+  editor_camera_.far_plane = 2000.0f;
   Engine::renderer()->SetupCameraComponent(editor_camera_);
   Engine::scene_manager().CreateScene();
   scene()->SetRenderResolution(
@@ -733,11 +733,30 @@ void EditorLayer::RestoreSnapshot() {
   scene()->ResetFirstUpdate();
 }
 
+void EditorLayer::SyncEditorSelectedComponent() {
+  // Remove from all entities first
+  for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+    auto view = loaded_scene->GetAllEntitiesWith<EditorSelectedComponent>();
+    for (entt::entity e : view) {
+      loaded_scene->GetRegistry().remove<EditorSelectedComponent>(e);
+    }
+  }
+  // Add to selected entity
+  if (has_selected_entity_ && selected_entity_scene_ &&
+      selected_entity_scene_->IsValid(selected_entity_)) {
+    selected_entity_scene_->GetRegistry()
+        .emplace_or_replace<EditorSelectedComponent>(selected_entity_);
+  }
+}
+
 void EditorLayer::OnPrePresent() {
   PROFILE_ZONE_SCOPED_N("Editor::OnPrePresent");
 
   Renderer* renderer = Engine::renderer().get();
   VkCommandBuffer cmd = renderer->GetCommandBuffer().handle_;
+
+  // Sync EditorSelectedComponent marker with current selection
+  SyncEditorSelectedComponent();
 
   if (editor_state_ == EditorState::Playing) {
     // PLAY MODE: Only render viewports that are actually visible.

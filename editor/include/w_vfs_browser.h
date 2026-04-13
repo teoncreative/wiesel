@@ -89,6 +89,9 @@ class VfsBrowser {
   static ImVec4 GetAssetColor(AssetType type);
   static const char* GetAssetAbbrev(AssetType type);
 
+  // True when at the virtual top level (showing App/Engine/Editor folders)
+  bool IsAtTopLevel() const { return root_.empty(); }
+
  private:
   std::string root_ = "app://";
   std::string current_dir_;

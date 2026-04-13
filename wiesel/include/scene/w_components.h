@@ -35,6 +35,13 @@ struct IComponent {
   virtual ~IComponent() = default;
 };
 
+// Marker component for editor selection outline rendering.
+// Added/removed by the editor when entity selection changes.
+struct EditorSelectedComponent {
+  glm::vec4 color = {0.369f, 0.467f, 0.608f, 1.0f};
+  float thickness = 10.0f;
+};
+
 struct IdComponent : public IComponent {
   IdComponent(UUID id) : Id(id) {}
 

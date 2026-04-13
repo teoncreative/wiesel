@@ -101,7 +101,6 @@ file(
         "${VENDOR_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
         "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp"
         "${VENDOR_DIR}/imgui/misc/cpp/imgui_stdlib.cpp"
-        "${VENDOR_DIR}/imgui/misc/freetype/imgui_freetype.cpp"
         "${VENDOR_DIR}/imgui/backends/*.h"
         "${VENDOR_DIR}/imgui/misc/cpp/*.h"
         "${VENDOR_DIR}/imgui/*.h"

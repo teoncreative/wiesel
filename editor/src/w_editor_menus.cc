@@ -1423,8 +1423,10 @@ void EditorLayer::RenderMainMenuBar() {
       const auto& recent = RecentProjects::Load();
       if (!recent.empty()) {
         ImGui::TextDisabled("Recent Projects");
-        for (const auto& path : recent) {
+        for (size_t i = 0; i < recent.size(); i++) {
+          const std::string& path = recent[i];
           std::string label = std::filesystem::path(path).stem().string();
+          ImGui::PushID(static_cast<int>(i));
           if (ImGui::MenuItem(label.c_str())) {
             if (std::filesystem::exists(path)) {
               deferred_action_ = DeferredAction::OpenProject;
@@ -1434,6 +1436,7 @@ void EditorLayer::RenderMainMenuBar() {
           if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("%s", path.c_str());
           }
+          ImGui::PopID();
         }
         ImGui::Separator();
       }
@@ -1843,20 +1846,29 @@ void EditorLayer::RenderStartupDialog() {
     ImGui::Text("Recent Projects:");
     ImGui::Spacing();
 
-    for (const std::string& path : recent) {
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 3.0f));
+    for (size_t i = 0; i < recent.size(); i++) {
+      const std::string& path = recent[i];
       namespace fs = std::filesystem;
       std::string name = fs::path(path).stem().string();
       std::string dir = fs::path(path).parent_path().string();
       std::string label = name + "  " + dir;
-      std::string id = "##recent_" + path;
 
-      if (ImGui::Selectable((label + id).c_str())) {
+      ImGui::PushID(static_cast<int>(i));
+      ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_Leaf |
+                                      ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                      ImGuiTreeNodeFlags_SpanAvailWidth;
+      ImGui::PaddedTreeNodeEx(label.c_str(), node_flags);
+      if (ImGui::IsItemClicked()) {
         if (fs::exists(path)) {
           deferred_action_ = DeferredAction::OpenProject;
           deferred_path_ = path;
         }
       }
+      ImGui::PopID();
     }
+    ImGui::PopStyleVar();
   } else {
     ImGui::TextDisabled("No recent projects.");
   }

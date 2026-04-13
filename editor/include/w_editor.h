@@ -91,6 +91,9 @@ class EditorLayer : public Layer {
   void TakeSnapshot();
   void RestoreSnapshot();
 
+  // Sync EditorSelectedComponent marker with current selection
+  void SyncEditorSelectedComponent();
+
   // Entity picking helpers
   entt::entity FindSpriteAtNDC(glm::vec2 ndc);
   void FindSpritesInScene(const std::shared_ptr<Scene>& scene,

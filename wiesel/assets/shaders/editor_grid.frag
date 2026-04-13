@@ -72,22 +72,6 @@ void main() {
     float xAxis = 1.0 - smoothstep(fw.x * 0.5, fw.x * 3.5, xAxisDist);
     float zAxis = 1.0 - smoothstep(fw.y * 0.5, fw.y * 3.5, zAxisDist);
 
-    // Axes fully replace grid - no blending
-    float axisMask = max(xAxis, zAxis);
-
-    if (axisMask > 0.01) {
-        vec3 axisColor = vec3(0.0);
-        if (xAxis > zAxis) {
-            axisColor = vec3(0.85, 0.15, 0.15);
-        } else {
-            axisColor = vec3(0.15, 0.15, 0.85);
-        }
-        float a = axisMask * 0.9 * fade;
-        // Premultiplied alpha (blend mode uses ONE, ONE_MINUS_SRC_ALPHA)
-        outFragColor = vec4(axisColor * a, a);
-        return;
-    }
-
     if (intensity < 0.001) {
         discard;
     }

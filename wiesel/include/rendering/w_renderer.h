@@ -453,6 +453,10 @@ class Renderer {
   void SetScissor(int x, int y, int width, int height,
                   VkCommandBuffer cmd = VK_NULL_HANDLE);
 
+  // Draw mesh geometry only without material
+  void DrawMeshSimple(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
+                      std::shared_ptr<DescriptorSet> bone_descriptor = nullptr);
+
   void DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                    std::shared_ptr<DescriptorSet> mesh_descriptors,
                    std::shared_ptr<DescriptorSet> bone_descriptors,
