@@ -21,6 +21,8 @@ namespace Wiesel {
 struct BillboardPushConstant {
   glm::mat4 mvp;
   glm::vec4 color;
+  uint32_t entity_id;
+  uint32_t padding[3];
 };
 
 struct BillboardVertex {

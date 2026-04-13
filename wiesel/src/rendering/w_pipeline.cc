@@ -270,7 +270,10 @@ void Pipeline::Bake() {
             ? (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
             : 0;
-    if (properties_.enable_alpha_blending) {
+    // Integer formats (e.g. R32_UINT for entity IDs) cannot use blending
+    bool is_integer_format =
+        item.format == VK_FORMAT_R32_UINT || item.format == VK_FORMAT_R32_SINT;
+    if (properties_.enable_alpha_blending && !is_integer_format) {
       colorBlendAttachment.blendEnable = VK_TRUE;
       colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
       colorBlendAttachment.dstColorBlendFactor =

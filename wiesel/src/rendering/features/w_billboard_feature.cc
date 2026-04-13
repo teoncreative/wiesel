@@ -27,7 +27,7 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   SamplingMode msaa = renderer_->options().msaa_mode;
 
-  // Render pass: color + depth (load existing depth for occlusion)
+  // Render pass: color + depth + entity ID (load existing depth for occlusion)
   render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
                                               "Billboard RenderPass");
   render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
@@ -36,9 +36,15 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
   render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
                               .format = renderer_->FindDepthFormat(),
                               .msaa_mode = msaa});
+  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
+                              .format = VK_FORMAT_R32_UINT,
+                              .msaa_mode = msaa});
   if (msaa > SamplingMode::DISABLED) {
     render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
                                 .format = renderer_->GetSwapChainImageFormat(),
+                                .msaa_mode = SamplingMode::DISABLED});
+    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
+                                .format = VK_FORMAT_R32_UINT,
                                 .msaa_mode = SamplingMode::DISABLED});
   }
   render_pass_->Bake();
@@ -203,6 +209,10 @@ void BillboardFeature::SetupResources(RenderContext& ctx) {
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
                        renderer.GetSwapChainImageFormat(), msaa, true}));
+  pool.SetTexture("billboard.entity_id",
+                  renderer.CreateAttachmentTexture(
+                      {rw, rh, AttachmentTextureType::Offscreen, 1,
+                       VK_FORMAT_R32_UINT, msaa, true}));
 
   if (use_msaa) {
     pool.SetTexture("billboard.color_resolve",
@@ -210,18 +220,27 @@ void BillboardFeature::SetupResources(RenderContext& ctx) {
                         {rw, rh, AttachmentTextureType::Resolve, 1,
                          renderer.GetSwapChainImageFormat(),
                          SamplingMode::DISABLED, true}));
-    std::array<AttachmentTexture*, 3> attachments{
+    pool.SetTexture("billboard.entity_id_resolve",
+                    renderer.CreateAttachmentTexture(
+                        {rw, rh, AttachmentTextureType::Resolve, 1,
+                         VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
+    std::array<AttachmentTexture*, 5> attachments{
         pool.GetTexture("billboard.color").get(),
         pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("billboard.color_resolve").get()};
+        pool.GetTexture("billboard.entity_id").get(),
+        pool.GetTexture("billboard.color_resolve").get(),
+        pool.GetTexture("billboard.entity_id_resolve").get()};
     pool.SetFramebuffer(
         "billboard", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
   } else {
     pool.SetTexture("billboard.color_resolve",
                     pool.GetTexture("billboard.color"));
-    std::array<AttachmentTexture*, 2> attachments{
+    pool.SetTexture("billboard.entity_id_resolve",
+                    pool.GetTexture("billboard.entity_id"));
+    std::array<AttachmentTexture*, 3> attachments{
         pool.GetTexture("billboard.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get()};
+        pool.GetTexture("geometry.depth_stencil").get(),
+        pool.GetTexture("billboard.entity_id").get()};
     pool.SetFramebuffer(
         "billboard", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
   }
@@ -315,7 +334,8 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         pipeline->Bind(PipelineBindPointGraphics);
 
         auto draw_billboard = [&](const glm::vec3& world_pos,
-                                  const std::shared_ptr<DescriptorSet>& icon) {
+                                  const std::shared_ptr<DescriptorSet>& icon,
+                                  uint32_t encoded_entity_id) {
           if (!icon) {
             return;
           }
@@ -337,6 +357,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
 
           push_constant->mvp = vp * model;
           push_constant->color = glm::vec4(1.0f);
+          push_constant->entity_id = encoded_entity_id;
           pipeline->PushConstants(cmd);
 
           VkBuffer vb_handle = quad_vb->buffer_handle_;
@@ -348,23 +369,32 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
           vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
         };
 
+        auto encode_id = [&renderer](entt::entity entity) -> uint32_t {
+          return (static_cast<uint32_t>(renderer->GetCurrentSceneIndex())
+                  << 24) |
+                 (static_cast<uint32_t>(entity) + 1);
+        };
+
         // Draw camera billboards
         scenes.ForEach<CameraComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& tc = scene.GetComponent<TransformComponent>(entity);
-              draw_billboard(tc.GetWorldPosition(), camera_icon_desc);
+              draw_billboard(tc.GetWorldPosition(), camera_icon_desc,
+                             encode_id(entity));
             });
 
-        // Draw light billboards (reuse camera icon for now until we have light icons)
+        // Draw light billboards
         scenes.ForEach<LightDirectComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& tc = scene.GetComponent<TransformComponent>(entity);
-              draw_billboard(tc.GetWorldPosition(), point_light_icon_desc);
+              draw_billboard(tc.GetWorldPosition(), point_light_icon_desc,
+                             encode_id(entity));
             });
         scenes.ForEach<LightPointComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
               auto& tc = scene.GetComponent<TransformComponent>(entity);
-              draw_billboard(tc.GetWorldPosition(), point_light_icon_desc);
+              draw_billboard(tc.GetWorldPosition(), point_light_icon_desc,
+                             encode_id(entity));
             });
       });
 

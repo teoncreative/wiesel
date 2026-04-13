@@ -600,11 +600,13 @@ void EditorLayer::RenderSceneViewportPanel() {
                 static_cast<uint32_t>(rel_y * render_h / image_size.y);
             auto entity_id_tex = editor_camera_.resource_pool.GetTexture(
                 "geometry.entity_id_resolve");
-            auto canvas_entity_id_tex = editor_camera_.resource_pool.GetTexture(
-                "canvas_world.entity_id");
+            auto billboard_entity_id_tex =
+                editor_camera_.resource_pool.GetTexture(
+                    "billboard.entity_id_resolve");
             if (entity_id_tex) {
-              renderer->RequestEntityPick(px, py, entity_id_tex,
-                                          canvas_entity_id_tex);
+              // Check billboard first (overlays geometry), fall back to geometry
+              renderer->RequestEntityPick(px, py, billboard_entity_id_tex,
+                                          entity_id_tex);
             }
             // Store NDC for fallback sprite/canvas picking
             pending_pick_ndc_ = {
