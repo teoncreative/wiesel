@@ -28,6 +28,11 @@ class GameLoader {
   // Mount an assets directory to VFS /app.
   static bool MountAssets(const std::filesystem::path& assets_dir);
 
+  // Mount all .wpak files found in search_paths relative to base_dir.
+  // Search paths are traversed in order; earlier paths have higher priority.
+  static void MountSearchPaths(const std::vector<std::string>& search_paths,
+                               const std::filesystem::path& base_dir);
+
   // Scan the mounted /app directory for assets (read-only).
   // Reads handles from .meta files and JSON asset files.
   // Skips assets without pre-existing handles.

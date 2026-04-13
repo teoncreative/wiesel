@@ -20,6 +20,7 @@ std::string PrefixLabel(const char* label) {
   float width = ImGui::CalcItemWidth();
 
   float x = ImGui::GetCursorPosX();
+  ImGui::AlignTextToFramePadding();
   ImGui::Text("%s", label);
   ImGui::SameLine();
   ImGui::SetCursorPosX(x + width * 0.5f + ImGui::GetStyle().ItemInnerSpacing.x);

@@ -39,11 +39,22 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
 
   // All asset types use .meta files for lightweight registration.
   // Legacy JSON assets that embed asset_handle are migrated on first scan.
+  // Try VFS first (works for both physical and archive-based assets),
+  // then fall back to physical path for writing.
   AssetRegistry::MetaFileData meta_data;
   std::filesystem::path meta_path;
+  std::string meta_vfs_path = vfs_path + ".meta";
+  VfsFile meta_file = Engine::vfs()->Open(meta_vfs_path);
+  if (meta_file) {
+    try {
+      std::string content((std::istreambuf_iterator<char>(meta_file.Stream())),
+                          std::istreambuf_iterator<char>());
+      auto j = nlohmann::json::parse(content);
+      meta_data = AssetRegistry::ReadMetaFile(j);
+    } catch (...) {}
+  }
   if (physical.has_value()) {
     meta_path = physical->string() + ".meta";
-    meta_data = AssetRegistry::ReadMetaFile(meta_path);
   }
 
   if (meta_data.handle.IsValid()) {
@@ -81,11 +92,9 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
     if (physical.has_value()) {
       AssetRegistry::WriteMetaFile(meta_path, handle, type);
     }
-  } else if (!physical.has_value()) {
-    return {};
   } else {
     handle = mgr.Register(name, type, vfs_path);
-    if (handle.IsValid()) {
+    if (handle.IsValid() && !meta_path.empty()) {
       AssetRegistry::WriteMetaFile(meta_path, handle, type);
     }
   }
@@ -125,12 +134,51 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
 bool GameLoader::MountAssets(const std::filesystem::path& assets_dir) {
   namespace fs = std::filesystem;
   auto* vfs = Engine::vfs().get();
-  if (fs::exists(assets_dir)) {
+  if (fs::exists(assets_dir) && fs::is_directory(assets_dir)) {
     vfs->Unmount("app://");
     vfs->Mount("app://", fs::absolute(assets_dir).string());
     return true;
   }
   return false;
+}
+
+void GameLoader::MountSearchPaths(const std::vector<std::string>& search_paths,
+                                  const std::filesystem::path& base_dir) {
+  namespace fs = std::filesystem;
+  auto* vfs = Engine::vfs().get();
+
+  int base_priority = 50;
+
+  for (size_t sp_idx = 0; sp_idx < search_paths.size(); sp_idx++) {
+    fs::path dir = base_dir / search_paths[sp_idx];
+    if (!fs::exists(dir) || !fs::is_directory(dir)) {
+      LOG_WARN("Search path does not exist: {}", dir.string());
+      continue;
+    }
+
+    std::vector<fs::path> wpak_files;
+    for (const auto& entry : fs::directory_iterator(dir)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".wpak") {
+        if (Wpak::IsWpakFile(entry.path())) {
+          wpak_files.push_back(entry.path());
+        }
+      }
+    }
+    std::ranges::sort(wpak_files);
+
+    for (size_t pak_idx = 0; pak_idx < wpak_files.size(); pak_idx++) {
+      int priority = base_priority - static_cast<int>(sp_idx) * 10 -
+                     static_cast<int>(pak_idx);
+      try {
+        vfs->MountPak(wpak_files[pak_idx], priority);
+        LOG_INFO("Mounted wpak: {} (priority {})",
+                 wpak_files[pak_idx].filename().string(), priority);
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to mount wpak {}: {}",
+                  wpak_files[pak_idx].filename().string(), e.what());
+      }
+    }
+  }
 }
 
 void GameLoader::ScanVfsPrefix(const std::string& prefix,
@@ -317,8 +365,20 @@ bool GameLoader::LoadStartScene(const GameInfo& info) {
 
 bool GameLoader::LoadAll(const GameInfo& info,
                          const std::filesystem::path& assets_dir) {
-  if (!MountAssets(assets_dir)) {
-    return false;
+  // Mount search path wpaks if specified
+  if (!info.search_paths.empty()) {
+    std::filesystem::path base_dir;
+    if (!Engine::properties().game_info_path.empty()) {
+      base_dir = Engine::properties().game_info_path.parent_path();
+    } else {
+      base_dir = std::filesystem::current_path();
+    }
+    MountSearchPaths(info.search_paths, base_dir);
+  }
+
+  // Physical directory mount (dev mode)
+  if (!assets_dir.empty()) {
+    MountAssets(assets_dir);
   }
 
   ScanAssets();

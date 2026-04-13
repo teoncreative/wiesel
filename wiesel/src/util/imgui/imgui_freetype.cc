@@ -454,8 +454,18 @@ static bool ImGui_ImplFreeType_FontBakedInit(ImFontAtlas* atlas, ImFontConfig* s
         // Read metrics
         FT_Size_Metrics metrics = bd_baked_data->FtSize->metrics;
         const float scale = 1.0f / (rasterizer_density * src->ExtraSizeScale);
-        baked->Ascent     = (float)FT_CEIL(metrics.ascender) * scale;       // The pixel extents above the baseline in pixels (typically positive).
-        baked->Descent    = (float)FT_CEIL(metrics.descender) * scale;      // The extents below the baseline in pixels (typically negative).
+        baked->Ascent     = (float)FT_CEIL(metrics.ascender) * scale;
+        baked->Descent    = (float)FT_CEIL(metrics.descender) * scale;
+
+        // NOMINAL sizing produces natural font proportions but Ascent-Descent
+        // may not equal the requested pixel size. Normalize proportionally so
+        // layout metrics match the requested size.
+        float metrics_height = baked->Ascent - baked->Descent;
+        if (metrics_height > 0.0f) {
+            float normalize = size / metrics_height;
+            baked->Ascent  = ImFloor(baked->Ascent * normalize + 0.5f);
+            baked->Descent = baked->Ascent - size;
+        }
         //LineSpacing     = (float)FT_CEIL(metrics.height) * scale;         // The baseline-to-baseline distance. Note that it usually is larger than the sum of the ascender and descender taken as absolute values. There is also no guarantee that no glyphs extend above or below subsequent baselines when using this distance. Think of it as a value the designer of the font finds appropriate.
         //LineGap         = (float)FT_CEIL(metrics.height - metrics.ascender + metrics.descender) * scale; // The spacing in pixels between one row's descent and the next row's ascent.
         //MaxAdvanceWidth = (float)FT_CEIL(metrics.max_advance) * scale;    // This field gives the maximum horizontal cursor advance for all glyphs in the font.

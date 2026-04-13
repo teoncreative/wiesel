@@ -85,6 +85,7 @@ struct GameInfo {
   AssetHandle start_scene;
   RenderOptionsSerialized render_options;
   InputSettings input;
+  std::vector<std::string> search_paths;  // ordered pak search directories
 
   static std::unique_ptr<GameInfo> Load(const std::filesystem::path& path);
   bool Save(const std::filesystem::path& path) const;

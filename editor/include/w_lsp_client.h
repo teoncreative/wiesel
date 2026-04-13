@@ -151,6 +151,7 @@ class LspClient {
   // Process I/O
 #ifdef _WIN32
   void* process_handle_ = nullptr;
+  void* job_handle_ = nullptr;
   void* stdin_write_ = nullptr;
   void* stdout_read_ = nullptr;
 #else

@@ -1514,6 +1514,7 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     if (ImGui::BeginMenu("Debug")) {
+      ImGui::PushItemWidth(320.0f);
       auto& settings = Engine::renderer()->options();
 
       ImGui::Checkbox(PrefixLabel("Wireframe Mode").c_str(),
@@ -1550,6 +1551,7 @@ void EditorLayer::RenderMainMenuBar() {
         Engine::renderer()->SetRecreatePipeline(true);
       }
 
+      ImGui::PopItemWidth();
       ImGui::EndMenu();
     }
 

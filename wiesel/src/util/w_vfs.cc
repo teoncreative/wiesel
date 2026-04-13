@@ -8,10 +8,6 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-//
-// Created by Metehan Gezer on 12.02.2026.
-//
-
 #include "util/w_vfs.h"
 
 #include <ranges>
@@ -22,7 +18,6 @@
 
 namespace Wiesel {
 
-// Join a base path and relative path without producing double slashes.
 static std::string VfsJoin(const std::string& base,
                            const std::string& relative) {
   if (base.empty()) {
@@ -41,6 +36,17 @@ static std::string VfsJoin(const std::string& base,
   }
   return base + relative;
 }
+
+// Ensure a path ends with exactly one '/' for prefix matching.
+// Handles scheme roots like "app://" which already end with '/'.
+static std::string EnsureTrailingSlash(const std::string& path) {
+  if (path.empty() || path.back() == '/') {
+    return path;
+  }
+  return path + "/";
+}
+
+// --- VfsFile ---
 
 VfsFile::VfsFile(std::vector<uint8_t> data, std::string path)
     : data_(std::move(data)), path_(std::move(path)) {}
@@ -113,6 +119,75 @@ std::vector<uint32_t> VfsFile::AsUint32() const {
   return result;
 }
 
+// --- Internal helpers ---
+
+const Wpak::ArchiveEntry* VirtualFileSystem::FindArchiveEntry(
+    const MountPoint& mp, const std::string& normalized) {
+  auto archive_it = archives_.find(mp.mount_point);
+  if (archive_it == archives_.end()) {
+    return nullptr;
+  }
+  auto entry_it = archive_it->second.entries.find(normalized);
+  if (entry_it == archive_it->second.entries.end()) {
+    return nullptr;
+  }
+  return &entry_it->second;
+}
+
+std::optional<std::filesystem::path> VirtualFileSystem::ResolveToPhysical(
+    const MountPoint& mp, const std::string& normalized) {
+  if (normalized.find(mp.mount_point) != 0) {
+    return std::nullopt;
+  }
+  std::string relative = normalized.substr(mp.mount_point.length());
+  if (!relative.empty() && relative[0] == '/') {
+    relative = relative.substr(1);
+  }
+  return mp.physical_path / relative;
+}
+
+void VirtualFileSystem::CollectDirectoryEntries(const std::string& prefix,
+                                                const std::string& normalized,
+                                                std::set<std::string>& seen,
+                                                std::vector<VfsEntry>& results,
+                                                auto&& key_range) {
+  std::set<std::string> subdirs;
+  for (const std::string& name : key_range) {
+    if (name.find(prefix) != 0) {
+      continue;
+    }
+    std::string remainder = name.substr(prefix.length());
+    size_t slash = remainder.find('/');
+    if (slash != std::string::npos) {
+      std::string dir_name = remainder.substr(0, slash);
+      if (subdirs.insert(dir_name).second && !seen.contains(dir_name)) {
+        seen.insert(dir_name);
+        VfsEntry e;
+        e.name = dir_name;
+        e.vfs_path = VfsJoin(normalized, dir_name);
+        e.is_dir = true;
+        results.push_back(std::move(e));
+      }
+    } else {
+      if (seen.contains(remainder)) {
+        continue;
+      }
+      if (remainder.size() > 5 &&
+          remainder.substr(remainder.size() - 5) == ".meta") {
+        continue;
+      }
+      seen.insert(remainder);
+      VfsEntry e;
+      e.name = remainder;
+      e.vfs_path = VfsJoin(normalized, remainder);
+      e.is_dir = false;
+      results.push_back(std::move(e));
+    }
+  }
+}
+
+// --- Mount/Unmount ---
+
 void VirtualFileSystem::Mount(const std::string& mount_point,
                               const std::filesystem::path& path, int priority) {
   std::filesystem::path abs_path = std::filesystem::absolute(path);
@@ -121,87 +196,98 @@ void VirtualFileSystem::Mount(const std::string& mount_point,
     throw std::runtime_error("Path does not exist: " + path.string());
   }
 
-  std::string normalized_mount = NormalizePath(mount_point);
-
-  if (std::filesystem::is_regular_file(abs_path)) {
-    if (!Wpak::IsWpakFile(abs_path)) {
-      throw std::runtime_error("Not a valid .pak archive: " + path.string());
-    }
-
-    auto result = Wpak::LoadArchive(abs_path);
-    if (!result) {
-      throw std::runtime_error(result.error.message);
-    }
-
-    archives_[normalized_mount] = std::move(result.value);
-
-    MountPoint mp;
-    mp.mount_point = normalized_mount;
-    mp.physical_path = abs_path;
-    mp.priority = priority;
-    mp.is_archive = true;
-
-    mount_points_.push_back(mp);
-  } else {
-    MountPoint mp;
-    mp.mount_point = normalized_mount;
-    mp.physical_path = abs_path;
-    mp.priority = priority;
-    mp.is_archive = false;
-
-    mount_points_.push_back(mp);
+  if (!std::filesystem::is_directory(abs_path)) {
+    throw std::runtime_error("Mount path must be a directory: " +
+                             path.string());
   }
 
+  MountPoint mp;
+  mp.mount_point = NormalizePath(mount_point);
+  mp.physical_path = abs_path;
+  mp.priority = priority;
+  mp.is_archive = false;
+
+  mount_points_.push_back(mp);
   std::sort(mount_points_.begin(), mount_points_.end());
 }
+
+void VirtualFileSystem::MountPak(const std::filesystem::path& wpak_path,
+                                 int priority) {
+  std::filesystem::path abs_path = std::filesystem::absolute(wpak_path);
+
+  if (!Wpak::IsWpakFile(abs_path)) {
+    throw std::runtime_error("Not a valid .wpak archive: " +
+                             wpak_path.string());
+  }
+
+  auto result = Wpak::LoadArchive(abs_path);
+  if (!result) {
+    throw std::runtime_error(result.error.message);
+  }
+
+  std::string key = abs_path.string();
+  archives_[key] = std::move(result.value);
+
+  MountPoint mp;
+  mp.mount_point = key;
+  mp.physical_path = abs_path;
+  mp.priority = priority;
+  mp.is_archive = true;
+
+  mount_points_.push_back(mp);
+  std::sort(mount_points_.begin(), mount_points_.end());
+}
+
+void VirtualFileSystem::Unmount(const std::string& mount_point) {
+  std::string normalized = NormalizePath(mount_point);
+  std::erase_if(mount_points_, [&normalized](const MountPoint& mp) {
+    return mp.mount_point == normalized;
+  });
+  archives_.erase(normalized);
+}
+
+void VirtualFileSystem::Clear() {
+  mount_points_.clear();
+  archives_.clear();
+}
+
+// --- File operations ---
 
 VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
   std::string normalized = NormalizePath(virtual_path);
 
-  for (const auto& mp : mount_points_) {
-    if (normalized.find(mp.mount_point) != 0) {
+  for (const MountPoint& mp : mount_points_) {
+    if (mp.is_archive) {
+      const auto* entry = FindArchiveEntry(mp, normalized);
+      if (entry) {
+        auto archive_it = archives_.find(mp.mount_point);
+        auto result = Wpak::ReadEntry(archive_it->second, *entry);
+        if (result) {
+          return VfsFile(std::move(result.value), virtual_path);
+        }
+        DCON_LOG_ERROR("VFS: failed to read from archive: {}",
+                       result.error.message);
+      }
       continue;
     }
 
-    std::string relative_path = normalized.substr(mp.mount_point.length());
-    if (!relative_path.empty() && relative_path[0] == '/') {
-      relative_path = relative_path.substr(1);
+    auto physical = ResolveToPhysical(mp, normalized);
+    if (!physical) {
+      continue;
     }
-
-    if (mp.is_archive) {
-      auto archive_it = archives_.find(mp.mount_point);
-      if (archive_it != archives_.end()) {
-        const auto& archive = archive_it->second;
-        auto entry_it = archive.entries.find(relative_path);
-
-        if (entry_it != archive.entries.end()) {
-          auto result = Wpak::ReadEntry(archive, entry_it->second);
-          if (result) {
-            return VfsFile(std::move(result.value), virtual_path);
-          }
-          DCON_LOG_ERROR("VFS: failed to read from archive: {}",
-                         result.error.message);
-        }
-      }
-    } else {
-      std::filesystem::path full_path = mp.physical_path / relative_path;
-
-      if (std::filesystem::exists(full_path) &&
-          std::filesystem::is_regular_file(full_path)) {
-        std::ifstream file(full_path, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-          continue;
-        }
-
-        size_t size = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        std::vector<uint8_t> buffer(size);
-        file.read(reinterpret_cast<char*>(buffer.data()), size);
-
-        return VfsFile(std::move(buffer), virtual_path);
-      }
+    if (!std::filesystem::exists(*physical) ||
+        !std::filesystem::is_regular_file(*physical)) {
+      continue;
     }
+    std::ifstream file(*physical, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+      continue;
+    }
+    size_t size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    std::vector<uint8_t> buffer(size);
+    file.read(reinterpret_cast<char*>(buffer.data()), size);
+    return VfsFile(std::move(buffer), virtual_path);
   }
 
   DCON_LOG_WARN("VFS: file not found: {}", virtual_path);
@@ -211,64 +297,41 @@ VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
 bool VirtualFileSystem::FileExists(const std::string& virtual_path) {
   std::string normalized = NormalizePath(virtual_path);
 
-  for (const auto& mp : mount_points_) {
-    if (normalized.find(mp.mount_point) != 0) {
-      continue;
-    }
-
-    std::string relative_path = normalized.substr(mp.mount_point.length());
-    if (!relative_path.empty() && relative_path[0] == '/') {
-      relative_path = relative_path.substr(1);
-    }
-
+  for (const MountPoint& mp : mount_points_) {
     if (mp.is_archive) {
-      auto archive_it = archives_.find(mp.mount_point);
-      if (archive_it != archives_.end()) {
-        if (archive_it->second.entries.find(relative_path) !=
-            archive_it->second.entries.end()) {
-          return true;
-        }
-      }
-    } else {
-      std::filesystem::path full_path = mp.physical_path / relative_path;
-      if (std::filesystem::exists(full_path)) {
+      if (FindArchiveEntry(mp, normalized)) {
         return true;
       }
+      continue;
+    }
+    auto physical = ResolveToPhysical(mp, normalized);
+    if (physical && std::filesystem::exists(*physical)) {
+      return true;
     }
   }
-
   return false;
 }
 
 bool VirtualFileSystem::DirectoryExists(const std::string& virtual_path) {
   std::string normalized = NormalizePath(virtual_path);
+  std::string prefix = EnsureTrailingSlash(normalized);
 
-  for (const auto& mp : mount_points_) {
-    if (normalized.find(mp.mount_point) != 0) {
-      continue;
-    }
-    std::string relative_path = normalized.substr(mp.mount_point.length());
-    if (!relative_path.empty() && relative_path[0] == '/') {
-      relative_path = relative_path.substr(1);
-    }
-
+  for (const MountPoint& mp : mount_points_) {
     if (mp.is_archive) {
-      // Check if any archive entry starts with this prefix
       auto archive_it = archives_.find(mp.mount_point);
       if (archive_it != archives_.end()) {
-        std::string prefix = relative_path.empty() ? "" : relative_path + "/";
         for (const auto& [name, entry] : archive_it->second.entries) {
           if (name.find(prefix) == 0) {
             return true;
           }
         }
       }
-    } else {
-      std::filesystem::path full_path = mp.physical_path / relative_path;
-      if (std::filesystem::exists(full_path) &&
-          std::filesystem::is_directory(full_path)) {
-        return true;
-      }
+      continue;
+    }
+    auto physical = ResolveToPhysical(mp, normalized);
+    if (physical && std::filesystem::exists(*physical) &&
+        std::filesystem::is_directory(*physical)) {
+      return true;
     }
   }
   return false;
@@ -277,125 +340,46 @@ bool VirtualFileSystem::DirectoryExists(const std::string& virtual_path) {
 std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
     const std::string& virtual_dir) {
   std::string normalized = NormalizePath(virtual_dir);
+  std::string prefix = EnsureTrailingSlash(normalized);
   std::vector<VfsEntry> results;
   std::set<std::string> seen;
 
   for (const MountPoint& mp : mount_points_) {
-    if (normalized.find(mp.mount_point) != 0) {
+    if (mp.is_archive) {
+      auto archive_it = archives_.find(mp.mount_point);
+      if (archive_it != archives_.end()) {
+        CollectDirectoryEntries(prefix, normalized, seen, results,
+                                archive_it->second.entries | std::views::keys);
+      }
       continue;
     }
 
-    std::string relative_path = normalized.substr(mp.mount_point.length());
-    if (!relative_path.empty() && relative_path[0] == '/') {
-      relative_path = relative_path.substr(1);
+    auto physical = ResolveToPhysical(mp, normalized);
+    if (!physical || !std::filesystem::exists(*physical) ||
+        !std::filesystem::is_directory(*physical)) {
+      continue;
     }
-
-    if (mp.is_archive) {
-      auto archive_it = archives_.find(mp.mount_point);
-      if (archive_it == archives_.end()) {
+    for (const auto& entry : std::filesystem::directory_iterator(*physical)) {
+      std::string name = entry.path().filename().string();
+      if (seen.contains(name)) {
         continue;
       }
-      std::string prefix = relative_path.empty() ? "" : relative_path + "/";
-      std::set<std::string> archive_dirs;
-      for (const std::string& name :
-           archive_it->second.entries | std::views::keys) {
-        if (!prefix.empty() && name.find(prefix) != 0) {
-          continue;
-        }
-        std::string remainder = name.substr(prefix.length());
-        size_t slash = remainder.find('/');
-        if (slash != std::string::npos) {
-          // This is a subdirectory entry
-          std::string dir_name = remainder.substr(0, slash);
-          if (archive_dirs.insert(dir_name).second && !seen.count(dir_name)) {
-            seen.insert(dir_name);
-            VfsEntry e;
-            e.name = dir_name;
-            e.vfs_path = VfsJoin(normalized, dir_name);
-            e.is_dir = true;
-            results.push_back(std::move(e));
-          }
-        } else {
-          // Direct file in this directory
-          if (seen.count(remainder)) {
-            continue;
-          }
-          // Skip .meta files
-          if (remainder.size() > 5 &&
-              remainder.substr(remainder.size() - 5) == ".meta") {
-            continue;
-          }
-          seen.insert(remainder);
-          VfsEntry e;
-          e.name = remainder;
-          e.vfs_path = VfsJoin(normalized, remainder);
-          e.is_dir = false;
-          results.push_back(std::move(e));
-        }
-      }
-    } else {
-      std::filesystem::path full_path = mp.physical_path / relative_path;
-      if (!std::filesystem::exists(full_path) ||
-          !std::filesystem::is_directory(full_path)) {
+      if (!entry.is_directory() && entry.path().extension() == ".meta") {
         continue;
       }
-      for (const auto& entry : std::filesystem::directory_iterator(full_path)) {
-        std::string name = entry.path().filename().string();
-        if (seen.contains(name)) {
-          continue;
-        }
-        // Skip .meta files
-        if (!entry.is_directory() && entry.path().extension() == ".meta") {
-          continue;
-        }
-        seen.insert(name);
-        VfsEntry e;
-        e.name = name;
-        std::filesystem::path rel =
-            std::filesystem::relative(entry.path(), mp.physical_path);
-        e.vfs_path = VfsJoin(mp.mount_point, rel.generic_string());
-        e.is_dir = entry.is_directory();
-        results.push_back(std::move(e));
-      }
+      seen.insert(name);
+      VfsEntry e;
+      e.name = name;
+      std::filesystem::path rel =
+          std::filesystem::relative(entry.path(), mp.physical_path);
+      e.vfs_path = VfsJoin(mp.mount_point, rel.generic_string());
+      e.is_dir = entry.is_directory();
+      results.push_back(std::move(e));
     }
   }
 
-  // Include virtual entries (memory-only assets like built-in primitives)
-  {
-    std::string prefix = normalized;
-    if (!prefix.empty() && prefix.back() != '/') {
-      prefix += '/';
-    }
-    std::set<std::string> virtual_dirs;
-    for (const std::string& vpath : virtual_entries_) {
-      if (vpath.find(prefix) != 0) {
-        continue;
-      }
-      std::string remainder = vpath.substr(prefix.length());
-      size_t slash = remainder.find('/');
-      if (slash != std::string::npos) {
-        std::string dir_name = remainder.substr(0, slash);
-        if (virtual_dirs.insert(dir_name).second && !seen.count(dir_name)) {
-          seen.insert(dir_name);
-          VfsEntry e;
-          e.name = dir_name;
-          e.vfs_path = VfsJoin(normalized, dir_name);
-          e.is_dir = true;
-          results.push_back(std::move(e));
-        }
-      } else {
-        if (seen.count(remainder)) {
-          continue;
-        }
-        seen.insert(remainder);
-        VfsEntry e;
-        e.name = remainder;
-        e.vfs_path = VfsJoin(normalized, remainder);
-        e.is_dir = false;
-        results.push_back(std::move(e));
-      }
-    }
-  }
+  // Virtual entries (built-in primitives, etc.)
+  CollectDirectoryEntries(prefix, normalized, seen, results, virtual_entries_);
 
   return results;
 }
@@ -403,115 +387,88 @@ std::vector<VfsEntry> VirtualFileSystem::ListDirectory(
 std::vector<std::string> VirtualFileSystem::ListFiles(
     const std::string& virtual_dir, bool recursive) {
   std::string normalized = NormalizePath(virtual_dir);
+  std::string prefix = EnsureTrailingSlash(normalized);
   std::vector<std::string> results;
 
-  for (const auto& mp : mount_points_) {
-    if (normalized.find(mp.mount_point) != 0) {
-      continue;
-    }
-
-    std::string relative_path = normalized.substr(mp.mount_point.length());
-    if (!relative_path.empty() && relative_path[0] == '/') {
-      relative_path = relative_path.substr(1);
-    }
-
+  for (const MountPoint& mp : mount_points_) {
     if (mp.is_archive) {
       auto archive_it = archives_.find(mp.mount_point);
       if (archive_it != archives_.end()) {
         for (const auto& [name, entry] : archive_it->second.entries) {
-          if (relative_path.empty() || name.find(relative_path) == 0) {
-            std::string full_virtual_path = VfsJoin(mp.mount_point, name);
-            results.push_back(full_virtual_path);
+          if (prefix.empty() || name.find(prefix) == 0) {
+            results.push_back(name);
           }
         }
       }
-    } else {
-      std::filesystem::path full_path = mp.physical_path / relative_path;
+      continue;
+    }
 
-      if (std::filesystem::exists(full_path) &&
-          std::filesystem::is_directory(full_path)) {
-        if (recursive) {
-          for (const auto& entry :
-               std::filesystem::recursive_directory_iterator(full_path)) {
-            if (entry.is_regular_file()) {
-              std::filesystem::path rel =
-                  std::filesystem::relative(entry.path(), mp.physical_path);
-              std::string virtual_path =
-                  VfsJoin(mp.mount_point, rel.generic_string());
-              results.push_back(virtual_path);
-            }
-          }
-        } else {
-          for (const auto& entry :
-               std::filesystem::directory_iterator(full_path)) {
-            if (entry.is_regular_file()) {
-              std::filesystem::path rel =
-                  std::filesystem::relative(entry.path(), mp.physical_path);
-              std::string virtual_path =
-                  VfsJoin(mp.mount_point, rel.generic_string());
-              results.push_back(virtual_path);
-            }
-          }
+    auto physical = ResolveToPhysical(mp, normalized);
+    if (!physical || !std::filesystem::exists(*physical) ||
+        !std::filesystem::is_directory(*physical)) {
+      continue;
+    }
+
+    auto collect = [&](const auto& iter) {
+      for (const auto& entry : iter) {
+        if (entry.is_regular_file()) {
+          std::filesystem::path rel =
+              std::filesystem::relative(entry.path(), mp.physical_path);
+          results.push_back(VfsJoin(mp.mount_point, rel.generic_string()));
         }
       }
+    };
+
+    if (recursive) {
+      collect(std::filesystem::recursive_directory_iterator(*physical));
+    } else {
+      collect(std::filesystem::directory_iterator(*physical));
     }
   }
 
-  // Remove duplicates (same file from different mount points)
-  std::sort(results.begin(), results.end());
-  results.erase(std::unique(results.begin(), results.end()), results.end());
-
+  std::ranges::sort(results);
+  results.erase(std::ranges::unique(results).begin(), results.end());
   return results;
 }
+
+// --- Physical path resolution ---
 
 std::optional<std::filesystem::path> VirtualFileSystem::GetPhysicalPath(
     const std::string& virtual_path) {
   std::string normalized = NormalizePath(virtual_path);
 
-  for (const auto& mp : mount_points_) {
-    if (normalized.find(mp.mount_point) != 0) {
-      continue;
-    }
-
-    std::string relative_path = normalized.substr(mp.mount_point.length());
-    if (!relative_path.empty() && relative_path[0] == '/') {
-      relative_path = relative_path.substr(1);
-    }
-
+  for (const MountPoint& mp : mount_points_) {
     if (mp.is_archive) {
       continue;
     }
-
-    std::filesystem::path full_path = mp.physical_path / relative_path;
-    if (std::filesystem::exists(full_path)) {
-      return full_path;
+    auto physical = ResolveToPhysical(mp, normalized);
+    if (physical && std::filesystem::exists(*physical)) {
+      return physical;
     }
   }
-
   return std::nullopt;
 }
 
-// Resolve a VFS path to a physical path even if the target doesn't exist yet.
-// Falls back to mount point resolution when GetPhysicalPath returns nullopt.
 std::optional<std::filesystem::path> VirtualFileSystem::ResolvePhysicalPath(
     const std::string& vfs_path) {
   auto physical = GetPhysicalPath(vfs_path);
-  if (physical.has_value()) {
+  if (physical) {
     return physical;
   }
   std::string normalized = NormalizePath(vfs_path);
-  for (const auto& mp : mount_points_) {
-    if (mp.is_archive || normalized.find(mp.mount_point) != 0) {
+  for (const MountPoint& mp : mount_points_) {
+    if (mp.is_archive) {
       continue;
     }
-    std::string relative = normalized.substr(mp.mount_point.length());
-    if (!relative.empty() && relative[0] == '/') {
-      relative = relative.substr(1);
+    auto resolved = ResolveToPhysical(mp, normalized);
+    if (resolved) {
+      return resolved;
     }
-    return mp.physical_path / relative;
   }
   return std::nullopt;
 }
+
+// --- File mutation (physical mounts only) ---
 
 bool VirtualFileSystem::RenameFile(const std::string& old_vfs_path,
                                    const std::string& new_vfs_path) {
@@ -586,7 +543,6 @@ bool VirtualFileSystem::WriteFile(const std::string& vfs_path,
   if (!physical) {
     return false;
   }
-  // Ensure parent directory exists
   std::filesystem::create_directories(physical->parent_path());
   std::ofstream out(*physical);
   if (!out.is_open()) {
@@ -600,32 +556,13 @@ void VirtualFileSystem::RegisterVirtualEntry(const std::string& vfs_path) {
   virtual_entries_.insert(NormalizePath(vfs_path));
 }
 
-void VirtualFileSystem::Unmount(const std::string& mount_point) {
-  std::string normalized = NormalizePath(mount_point);
-
-  mount_points_.erase(std::remove_if(mount_points_.begin(), mount_points_.end(),
-                                     [&normalized](const MountPoint& mp) {
-                                       return mp.mount_point == normalized;
-                                     }),
-                      mount_points_.end());
-
-  archives_.erase(normalized);
-}
-
-void VirtualFileSystem::Clear() {
-  mount_points_.clear();
-  archives_.clear();
-}
+// --- Path utilities ---
 
 std::string VirtualFileSystem::NormalizePath(const std::string& path) {
   std::string normalized = path;
+  std::ranges::replace(normalized, '\\', '/');
 
-  // Replace backslashes with forward slashes
-  std::replace(normalized.begin(), normalized.end(), '\\', '/');
-
-  // Remove trailing slash (but preserve "scheme://")
   while (normalized.size() > 1 && normalized.back() == '/') {
-    // Don't strip the slash that's part of "://"
     if (normalized.size() >= 3 && normalized[normalized.size() - 2] == '/' &&
         normalized[normalized.size() - 3] == ':') {
       break;
@@ -633,7 +570,6 @@ std::string VirtualFileSystem::NormalizePath(const std::string& path) {
     normalized.pop_back();
   }
 
-  // Collapse triple slashes from scheme + path joining (e.g. "app:///foo" -> "app://foo")
   size_t scheme_end = normalized.find("://");
   if (scheme_end != std::string::npos) {
     size_t after_scheme = scheme_end + 3;

@@ -158,9 +158,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       std::filesystem::path bundle_path = exe_dir / "engine";
       if (std::filesystem::exists(bundle_path)) {
         config.engine_assets_path = bundle_path;
-      } else {
-        // Release: Look for pak or embedded
-        config.engine_assets_path = exe_dir / "engine.pak";
       }
     }
   }
@@ -174,8 +171,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       std::filesystem::path bundle_path = exe_dir / "editor";
       if (std::filesystem::exists(bundle_path)) {
         config.editor_assets_path = bundle_path;
-      } else {
-        config.editor_assets_path = exe_dir / "editor.pak";
       }
     }
   }
@@ -283,16 +278,45 @@ void Engine::InitApplication() {
 }
 
 void Engine::InitializeVfs() {
+  namespace fs = std::filesystem;
   vfs_ = std::make_shared<VirtualFileSystem>();
-  vfs_->Mount("engine://", properties_.engine_assets_path, 100);
-  if (properties_.editor_enabled && !properties_.editor_assets_path.empty()) {
-    vfs_->Mount("editor://", properties_.editor_assets_path, 90);
+
+  // Mount physical directories (dev mode)
+  auto mount_dir = [](const std::string& prefix, const fs::path& path,
+                      int priority) {
+    if (!path.empty() && fs::exists(path) && fs::is_directory(path)) {
+      vfs_->Mount(prefix, path, priority);
+    }
+  };
+
+  mount_dir("engine://", properties_.engine_assets_path, 100);
+  if (properties_.editor_enabled) {
+    mount_dir("editor://", properties_.editor_assets_path, 90);
   }
-  if (!properties_.app_assets_path.empty()) {
-    vfs_->Mount("app://", properties_.app_assets_path, 80);
-  }
-  if (!properties_.user_data_path.empty()) {
-    vfs_->Mount("user://", properties_.user_data_path, 0);
+  mount_dir("app://", properties_.app_assets_path, 80);
+  mount_dir("user://", properties_.user_data_path, 0);
+
+  // Scan executable directory for .wpak files (release mode bootstrap)
+  fs::path exe_dir = GetExecutableDirectory();
+  if (fs::exists(exe_dir)) {
+    std::vector<fs::path> wpak_files;
+    for (const auto& entry : fs::directory_iterator(exe_dir)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".wpak" &&
+          Wpak::IsWpakFile(entry.path())) {
+        wpak_files.push_back(entry.path());
+      }
+    }
+    std::sort(wpak_files.begin(), wpak_files.end());
+    for (size_t i = 0; i < wpak_files.size(); i++) {
+      int priority = 60 - static_cast<int>(i);
+      try {
+        vfs_->MountPak(wpak_files[i], priority);
+        LOG_INFO("Mounted wpak: {}", wpak_files[i].filename().string());
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to mount wpak {}: {}",
+                  wpak_files[i].filename().string(), e.what());
+      }
+    }
   }
 }
 

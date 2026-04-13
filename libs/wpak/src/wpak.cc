@@ -9,6 +9,8 @@
 //
 
 #include "wpak/wpak.h"
+
+#include <algorithm>
 #include <fstream>
 
 namespace Wpak {
@@ -43,10 +45,10 @@ Result<Archive> LoadArchive(const std::filesystem::path& archive_path) {
 
   uint32_t version;
   file.read(reinterpret_cast<char*>(&version), sizeof(version));
-  if (version != 1) {
-    return Result<Archive>::Fail("Unsupported WPAK version " +
-                                 std::to_string(version) + " in " +
-                                 archive_path.string());
+  if (version != kCurrentVersion) {
+    return Result<Archive>::Fail(
+        "Unsupported WPAK version " + std::to_string(version) + " (expected " +
+        std::to_string(kCurrentVersion) + ") in " + archive_path.string());
   }
 
   uint32_t entry_count;
@@ -54,6 +56,7 @@ Result<Archive> LoadArchive(const std::filesystem::path& archive_path) {
 
   Archive archive;
   archive.path = std::filesystem::absolute(archive_path);
+  archive.version = version;
 
   for (uint32_t i = 0; i < entry_count; i++) {
     ArchiveEntry entry;
@@ -127,9 +130,12 @@ Result<std::vector<PackEntry>> CollectFiles(
   return Result<std::vector<PackEntry>>::Ok(std::move(files));
 }
 
-Status WriteArchive(const std::filesystem::path& output_path,
-                    const std::vector<PackEntry>& files,
-                    ProgressCallback progress) {
+// Write a single archive from a subset of files.
+static Status WriteSingleArchive(const std::filesystem::path& output_path,
+                                 const std::vector<const PackEntry*>& files,
+                                 const std::string& vfs_prefix,
+                                 ProgressCallback progress,
+                                 size_t global_offset, size_t global_total) {
   std::ofstream pak(output_path, std::ios::binary);
   if (!pak.is_open()) {
     return Status::Fail("Failed to create archive: " + output_path.string());
@@ -137,55 +143,114 @@ Status WriteArchive(const std::filesystem::path& output_path,
 
   // Header
   pak.write("WPAK", 4);
-  uint32_t version = 1;
+  uint32_t version = kCurrentVersion;
   pak.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
   uint32_t entry_count = static_cast<uint32_t>(files.size());
   pak.write(reinterpret_cast<const char*>(&entry_count), sizeof(entry_count));
 
+  // Build prefixed names
+  std::vector<std::string> prefixed_names;
+  prefixed_names.reserve(files.size());
+  for (const auto* file : files) {
+    prefixed_names.push_back(vfs_prefix + file->relative_path);
+  }
+
   // Calculate data offset (after all metadata)
   uint64_t data_offset = 4 + sizeof(uint32_t) + sizeof(uint32_t);
-  for (const auto& file : files) {
-    data_offset += sizeof(uint32_t);             // name length
-    data_offset += file.relative_path.length();  // name
-    data_offset += sizeof(uint64_t) * 3;  // offset, size, compressed_size
-    data_offset += sizeof(uint8_t);       // compressed flag
+  for (size_t i = 0; i < files.size(); i++) {
+    data_offset += sizeof(uint32_t);            // name length
+    data_offset += prefixed_names[i].length();  // name
+    data_offset += sizeof(uint64_t) * 3;        // offset, size, compressed_size
+    data_offset += sizeof(uint8_t);             // compressed flag
   }
 
   // Write metadata
   uint64_t current_offset = data_offset;
-  for (const auto& file : files) {
-    uint32_t name_length = static_cast<uint32_t>(file.relative_path.length());
+  for (size_t i = 0; i < files.size(); i++) {
+    uint32_t name_length =
+        static_cast<uint32_t>(prefixed_names[i].length());
     pak.write(reinterpret_cast<const char*>(&name_length), sizeof(name_length));
-    pak.write(file.relative_path.c_str(), name_length);
+    pak.write(prefixed_names[i].c_str(), name_length);
     pak.write(reinterpret_cast<const char*>(&current_offset),
               sizeof(current_offset));
-    pak.write(reinterpret_cast<const char*>(&file.size), sizeof(file.size));
-    pak.write(reinterpret_cast<const char*>(&file.size), sizeof(file.size));
+    pak.write(reinterpret_cast<const char*>(&files[i]->size),
+              sizeof(files[i]->size));
+    pak.write(reinterpret_cast<const char*>(&files[i]->size),
+              sizeof(files[i]->size));
     uint8_t compressed = 0;
     pak.write(reinterpret_cast<const char*>(&compressed), sizeof(compressed));
-    current_offset += file.size;
+    current_offset += files[i]->size;
   }
 
   // Write file data
   for (size_t i = 0; i < files.size(); i++) {
-    const auto& file = files[i];
+    const auto* file = files[i];
 
-    std::ifstream input(file.full_path, std::ios::binary);
+    std::ifstream input(file->full_path, std::ios::binary);
     if (!input.is_open()) {
-      return Status::Fail("Failed to read file: " + file.full_path.string());
+      return Status::Fail("Failed to read file: " + file->full_path.string());
     }
 
-    std::vector<char> buffer(file.size);
-    input.read(buffer.data(), file.size);
-    pak.write(buffer.data(), file.size);
+    std::vector<char> buffer(file->size);
+    input.read(buffer.data(), file->size);
+    pak.write(buffer.data(), file->size);
 
     if (progress) {
-      progress(i, files.size(), file.relative_path);
+      progress(global_offset + i, global_total, prefixed_names[i]);
     }
   }
 
   return Status::Ok();
+}
+
+Result<std::vector<std::filesystem::path>> WriteArchive(
+    const std::filesystem::path& output_dir,
+    const std::vector<PackEntry>& files, const std::string& vfs_prefix,
+    int start_index, ProgressCallback progress) {
+  if (vfs_prefix.empty()) {
+    return Result<std::vector<std::filesystem::path>>::Fail(
+        "Prefix is required for archives");
+  }
+
+  std::filesystem::create_directories(output_dir);
+
+  // Partition files into chunks that respect kIdealArchiveSize
+  std::vector<std::vector<const PackEntry*>> chunks;
+  uint64_t current_chunk_size = 0;
+  chunks.emplace_back();
+
+  for (const auto& file : files) {
+    if (!chunks.back().empty() &&
+        current_chunk_size + file.size > kIdealArchiveSize) {
+      chunks.emplace_back();
+      current_chunk_size = 0;
+    }
+    chunks.back().push_back(&file);
+    current_chunk_size += file.size;
+  }
+
+  std::vector<std::filesystem::path> output_paths;
+  size_t global_offset = 0;
+
+  for (size_t i = 0; i < chunks.size(); i++) {
+    char name[32];
+    std::snprintf(name, sizeof(name), "pak_%02d.wpak",
+                  start_index + static_cast<int>(i));
+    auto chunk_path = output_dir / name;
+
+    auto status = WriteSingleArchive(chunk_path, chunks[i], vfs_prefix,
+                                     progress, global_offset, files.size());
+    if (!status) {
+      return Result<std::vector<std::filesystem::path>>::Fail(
+          status.error.message);
+    }
+    output_paths.push_back(chunk_path);
+    global_offset += chunks[i].size();
+  }
+
+  return Result<std::vector<std::filesystem::path>>::Ok(
+      std::move(output_paths));
 }
 
 }  // namespace Wpak

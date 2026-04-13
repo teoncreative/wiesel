@@ -490,11 +490,13 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
 
   DCON_LOG_INFO("Exporting game to: {}", export_dir.string());
 
-  // Copy gameinfo.wgame
-  fs::path src_gameinfo = active_project_->GetGameInfoPath();
-  if (fs::exists(src_gameinfo)) {
-    fs::copy_file(src_gameinfo, export_dir / "gameinfo.wgame",
-                  fs::copy_options::overwrite_existing);
+  int next_pak_index_ = 1;
+
+  // Write gameinfo.wgame with search_paths for the export
+  {
+    GameInfo export_info = active_project_->GetGameInfo();
+    export_info.search_paths = {"."};
+    export_info.Save(export_dir / "gameinfo.wgame");
   }
 
   // Pack app assets (excluding build artifacts and source files)
@@ -523,13 +525,14 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
         filtered.push_back(entry);
       }
 
-      Wpak::Status status =
-          Wpak::WriteArchive(export_dir / "assets.pak", filtered);
-      if (!status.success) {
+      auto pack_result =
+          Wpak::WriteArchive(export_dir, filtered, "app://", next_pak_index_);
+      if (!pack_result.success) {
         DCON_LOG_ERROR("Export: Failed to pack app assets: {}",
-                       status.error.message);
+                       pack_result.error.message);
         return;
       }
+      next_pak_index_ += static_cast<int>(pack_result.value.size());
       DCON_LOG_INFO("Export: Packed {} assets ({} excluded)", filtered.size(),
                     app_files.value.size() - filtered.size());
     }
@@ -614,11 +617,13 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
       Wpak::Result<std::vector<Wpak::PackEntry>> files =
           Wpak::CollectFiles(*engine_assets);
       if (files.success) {
-        Wpak::Status status =
-            Wpak::WriteArchive(export_dir / "engine.pak", files.value);
-        if (!status.success) {
+        auto pack_result = Wpak::WriteArchive(export_dir, files.value,
+                                              "engine://", next_pak_index_);
+        if (!pack_result.success) {
           DCON_LOG_ERROR("Export: Failed to pack engine assets: {}",
-                         status.error.message);
+                         pack_result.error.message);
+        } else {
+          next_pak_index_ += static_cast<int>(pack_result.value.size());
         }
       }
     }

@@ -10,6 +10,7 @@
 
 #include "game/w_game_application.h"
 #include "layer/w_layerscene.h"
+#include "util/w_command.h"
 #include "util/w_platform.h"
 #include "w_engine.h"
 
@@ -31,7 +32,6 @@ class RuntimeApplication : public GameApplication {
     const EngineProperties& props = Engine::properties();
 
     std::filesystem::path game_info_path = props.game_info_path;
-    std::filesystem::path assets_dir = props.app_assets_path;
 
     if (game_info_path.empty()) {
       LOG_ERROR(
@@ -40,18 +40,7 @@ class RuntimeApplication : public GameApplication {
       return;
     }
 
-    if (assets_dir.empty()) {
-      // Prefer packed assets, fall back to directory
-      std::filesystem::path pak = game_info_path.parent_path() / "assets.pak";
-      std::filesystem::path dir = game_info_path.parent_path() / "assets";
-      if (std::filesystem::exists(pak)) {
-        assets_dir = pak;
-      } else if (std::filesystem::exists(dir)) {
-        assets_dir = dir;
-      }
-    }
-
-    if (!LoadGame(game_info_path, assets_dir)) {
+    if (!LoadGame(game_info_path, props.app_assets_path)) {
       LOG_ERROR("Failed to load game from: {}", game_info_path.string());
     }
   }

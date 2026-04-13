@@ -4034,9 +4034,10 @@ void Renderer::DrawFullscreen(
     sets.push_back(item->descriptor_set_);
   }
   if (sets.empty()) {
-    LOG_WARN("DrawFullscreen called with no valid descriptors, skipping");
+    LOG_DEBUG("DrawFullscreen called with no valid descriptors, skipping");
     return;
   }
+
   vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           pipeline->layout_, 0, sets.size(), sets.data(), 0,
                           nullptr);

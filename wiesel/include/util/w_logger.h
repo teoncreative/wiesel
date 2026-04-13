@@ -49,7 +49,11 @@ WIESEL_FUNC_SIG
 #define LOG_LEVEL_ERROR 3
 #define LOG_LEVEL_NONE 4
 
+#ifdef DEBUG
 #define LOG_LEVEL LOG_LEVEL_DEBUG
+#else
+#define LOG_LEVEL LOG_LEVEL_INFO
+#endif
 
 #ifdef _MSC_VER
 
@@ -63,7 +67,7 @@ WIESEL_FUNC_SIG
   PRINTFN("\x1b[44m[debug]\x1b[0m \x1b[35m{}: \x1b[0m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
-#define LOG_DEBUG(msg, args...)
+#define LOG_DEBUG(msg, ...)
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_INFO
@@ -71,7 +75,7 @@ WIESEL_FUNC_SIG
   PRINTFN("\x1b[42m[info ]\x1b[0m \x1b[35m{}: \x1b[0m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
-#define LOG_INFO(msg, args...)
+#define LOG_INFO(msg, ...)
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_WARN
@@ -79,7 +83,7 @@ WIESEL_FUNC_SIG
   PRINTFN("\x1b[41m[warn ]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
-#define LOG_WARN(msg, args...)
+#define LOG_WARN(msg, ...)
 #endif
 
 #if LOG_LEVEL <= LOG_LEVEL_ERROR
@@ -87,7 +91,7 @@ WIESEL_FUNC_SIG
   PRINTFN("\x1b[41m[error]\x1b[0m \x1b[35m{}: \x1b[31m{}\x1b[0m\n", \
           WIESEL_FUNC_SIG, msg, __VA_ARGS__)
 #else
-#define LOG_ERROR(msg, args...)
+#define LOG_ERROR(msg, ...)
 #endif
 
 #else

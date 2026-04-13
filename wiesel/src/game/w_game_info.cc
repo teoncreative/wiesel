@@ -323,6 +323,11 @@ std::unique_ptr<GameInfo> GameInfo::Load(const std::filesystem::path& path) {
   info->start_scene = AssetHandle::FromString(j.value("start_scene", ""));
   DeserializeRenderOptions(j, info->render_options);
   DeserializeInputSettings(j, info->input);
+  if (j.contains("search_paths") && j["search_paths"].is_array()) {
+    for (const auto& sp : j["search_paths"]) {
+      info->search_paths.push_back(sp.get<std::string>());
+    }
+  }
   return info;
 }
 
@@ -334,6 +339,12 @@ bool GameInfo::Save(const std::filesystem::path& path) const {
   j["start_scene"] = start_scene.IsValid() ? start_scene.ToString() : "";
   SerializeRenderOptions(j, render_options);
   SerializeInputSettings(j, input);
+  if (!search_paths.empty()) {
+    j["search_paths"] = nlohmann::json::array();
+    for (const auto& sp : search_paths) {
+      j["search_paths"].push_back(sp);
+    }
+  }
 
   std::ofstream file(path);
   if (!file.is_open()) {
