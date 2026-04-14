@@ -10,7 +10,6 @@
 
 #include "script/w_scriptmanager.h"
 
-#include <direct.h>
 #include <imgui.h>
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"

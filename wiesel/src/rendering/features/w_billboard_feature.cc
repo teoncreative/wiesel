@@ -324,6 +324,8 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   // Import resources
   RGResource billboard_out = graph.ImportTexture(
       "BillboardOut", pool->GetTexture("billboard.color_resolve"));
+  RGResource billboard_entity_id = graph.ImportTexture(
+      "BillboardEntityId", pool->GetTexture("billboard.entity_id_resolve"));
 
   // Draw pass
   uint32_t draw_pass = graph.AddPass(
@@ -399,6 +401,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassWritesColor(draw_pass, billboard_out);
+  graph.PassWritesColor(draw_pass, billboard_entity_id);
   graph.SetPassFramebuffer(draw_pass, pool->GetFramebuffer("billboard"));
   graph.SetPassViewport(draw_pass, ctx.viewport_size);
   graph.SetPassClearColor(draw_pass, {0, 0, 0, 0});

@@ -57,7 +57,7 @@ void SetInspectorCommandStack(editor::CommandStack* stack) {
 
 // Shared drag-drop handler: accepts AssetHandle or BrowserFile payloads,
 // auto-imports if needed, returns a valid handle or null.
-static AssetHandle AcceptAssetDragDrop(AssetType required_type) {
+AssetHandle AcceptAssetDragDrop(AssetType required_type) {
   AssetHandle result;
   if (const ImGuiPayload* payload =
           ImGui::AcceptDragDropPayload("AssetHandle")) {

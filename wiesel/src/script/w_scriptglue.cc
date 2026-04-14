@@ -12,7 +12,6 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-#include <direct.h>
 #include <imgui.h>
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"

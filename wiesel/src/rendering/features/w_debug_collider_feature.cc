@@ -672,15 +672,15 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         // Colliders and triggers share the same component types,
         // differentiated by is_trigger flag.
         if (show_colliders || show_triggers) {
-          constexpr glm::vec4 static_wire(0.0f, 1.0f, 0.0f,
+          const glm::vec4 static_wire(0.0f, 1.0f, 0.0f,
                                           1.0f);  // green: static collider
-          constexpr glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f,
+          const glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f,
                                            1.0f);  // blue: has rigidbody
-          constexpr glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f,
+          const glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f,
                                              1.0f);  // yellow: kinematic
-          constexpr glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
-          constexpr glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
-          constexpr glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
+          const glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
+          const glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
+          const glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
 
           // Helper: pick wireframe color based on rigidbody state
           auto get_collider_color = [&](Scene& scene,

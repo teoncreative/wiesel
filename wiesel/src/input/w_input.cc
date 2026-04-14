@@ -137,7 +137,7 @@ bool InputManager::OnJoystickConnect(JoystickConnectedEvent& event) {
 bool InputManager::OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
   int jid = event.GetJoystickId();
   if (jid >= 0 && jid < kMaxGamepads) {
-    gamepads_[jid] = {};
+    gamepads_[jid] = GamepadState{};
     LOG_INFO("Gamepad disconnected: slot {}", jid);
   }
   return false;

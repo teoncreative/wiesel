@@ -1938,6 +1938,7 @@ void Renderer::CreateLogicalDevice() {
   device_features2.features.fillModeNonSolid = true;
   device_features2.features.samplerAnisotropy = VK_TRUE;
   device_features2.features.wideLines = VK_TRUE;
+  device_features2.features.independentBlend = VK_TRUE;
 
   VkPhysicalDeviceVulkan12Features vulkan12_features{};
   vulkan12_features.sType =
@@ -3666,13 +3667,22 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
   }
 
   VkImage src_image = pick_entity_id_image_->images_[0];
+  // Use the texture's actual tracked layout for the barrier.
+  // Entity ID textures are typically in COLOR_ATTACHMENT_OPTIMAL after
+  // render passes, not SHADER_READ_ONLY_OPTIMAL.  Using the wrong
+  // oldLayout is undefined behavior and breaks on strict drivers (RADV).
+  VkImageLayout src_layout = pick_entity_id_image_->current_layout_;
+  if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
+    // Fallback: texture not tracked by render graph, assume post-renderpass state
+    src_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  }
 
   VkCommandBuffer cmd = BeginSingleTimeCommands();
 
   // Transition to transfer src
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.oldLayout = src_layout;
   barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -3682,9 +3692,10 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
   barrier.subresourceRange.levelCount = 1;
   barrier.subresourceRange.baseArrayLayer = 0;
   barrier.subresourceRange.layerCount = 1;
-  barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+  vkCmdPipelineBarrier(cmd,
+                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
                        nullptr, 1, &barrier);
 
@@ -3703,14 +3714,14 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
   vkCmdCopyImageToBuffer(cmd, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                          pick_staging_buffer_, 1, &region);
 
-  // Transition back
+  // Transition back to original layout
   barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.newLayout = src_layout;
   barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
   vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0,
+                       nullptr, 0, nullptr, 1, &barrier);
 
   EndSingleTimeCommands(cmd);
 
@@ -3729,19 +3740,25 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
     pick_fallback_image_ = nullptr;
 
     VkImage fb_image = fallback->images_[0];
+    VkImageLayout fb_layout = fallback->current_layout_;
+    if (fb_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
+      fb_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+
     VkCommandBuffer cmd2 = BeginSingleTimeCommands();
 
     VkImageMemoryBarrier fb_barrier{};
     fb_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    fb_barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fb_barrier.oldLayout = fb_layout;
     fb_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     fb_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     fb_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     fb_barrier.image = fb_image;
     fb_barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    fb_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    fb_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     fb_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    vkCmdPipelineBarrier(cmd2,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
                          nullptr, 1, &fb_barrier);
 
@@ -3754,12 +3771,12 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
                            pick_staging_buffer_, 1, &fb_region);
 
     fb_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    fb_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fb_barrier.newLayout = fb_layout;
     fb_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    fb_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    fb_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
-                         0, nullptr, 1, &fb_barrier);
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0,
+                         nullptr, 0, nullptr, 1, &fb_barrier);
 
     EndSingleTimeCommands(cmd2);
 

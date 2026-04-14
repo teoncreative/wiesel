@@ -139,9 +139,6 @@ if (MSVC)
         target_compile_options(wiesel PRIVATE /fsanitize=address)
     endif()
 else()
-    # We are using exceptions right now, but I want to replace them with state values to provide more safety
-    # And add -fno-exceptions to release builds.
-    # Additionally we might also add -fno-rtti if I can replace the existing rtti usages with some other stuff
     target_compile_options(wiesel PRIVATE
             $<$<CONFIG:Release>:-O2 -march=native -DNDEBUG -ffast-math>
             $<$<CONFIG:Debug>:-g -O0 -DDEBUG>
@@ -156,6 +153,7 @@ if (WIESEL_ENABLE_VULKAN_VALIDATION)
     target_compile_options(wiesel PUBLIC -DVULKAN_VALIDATION=1)
 endif()
 target_compile_definitions(wiesel PUBLIC GLM_ENABLE_EXPERIMENTAL)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_INTRINSICS)
 target_compile_definitions(wiesel PUBLIC GLM_FORCE_DEFAULT_ALIGNED_GENTYPES)
 target_compile_definitions(wiesel PUBLIC GLM_FORCE_LEFT_HANDED)
 target_compile_definitions(wiesel PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)

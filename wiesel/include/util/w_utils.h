@@ -169,11 +169,17 @@ struct VertexSprite {
   bool operator==(const VertexSprite& other) const { return uv == other.uv; }
 };
 
+// GLM aligned gentypes must be enabled for UBO structs to match std140 layout.
+// Without it, glm::vec3 is 12 bytes instead of 16, breaking all UBO offsets.
+static_assert(sizeof(glm::vec3) == 16,
+    "glm::vec3 must be 16 bytes for std140 UBO layout. "
+    "Define GLM_FORCE_INTRINSICS and GLM_FORCE_DEFAULT_ALIGNED_GENTYPES.");
+static_assert(sizeof(glm::mat3) == 48,
+    "glm::mat3 must be 48 bytes for std140 UBO layout.");
+
 struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat4 model_matrix;
   alignas(16) glm::mat3 normal_matrix;
-  // GLM_FORCE_DEFAULT_ALIGNED_GENTYPES makes glm::mat3 = 48 bytes (vec4-aligned columns)
-  // which matches std140 layout. entityId follows at offset 112.
   // Packed: (scene_index << 24) | (entity_handle + 1). 0 = no entity.
   uint32_t entity_id = 0;
   float _pad1[3]{};  // pad to next vec4 boundary (offset 128)
