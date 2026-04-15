@@ -1411,12 +1411,14 @@ void EditorLayer::RenderMainMenuBar() {
         NewScene();
       }
       if (ImGui::MenuItem("Save", "Ctrl+S", false,
-                          active_project_ != nullptr)) {
+                          active_project_ != nullptr &&
+                              editor_state_ == EditorState::Edit)) {
         SaveScene();
         SaveProject();
       }
       if (ImGui::MenuItem("Save As...", nullptr, false,
-                          active_project_ != nullptr)) {
+                          active_project_ != nullptr &&
+                              editor_state_ == EditorState::Edit)) {
         SaveSceneAs();
       }
 
@@ -1499,6 +1501,7 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::MenuItem(CODICON_HISTORY " Undo History", nullptr,
                       &panel_undo_history_);
       ImGui::MenuItem(CODICON_INFO " LSP Debug", nullptr, &panel_lsp_debug_);
+      ImGui::MenuItem(CODICON_GLOBE " Network", nullptr, &panel_network_);
       ImGui::Separator();
       if (ImGui::MenuItem("Reset Layout")) {
         panel_scene_hierarchy_ = true;
@@ -1766,7 +1769,8 @@ void EditorLayer::RenderMainMenuBar() {
   ImGuiIO& io = ImGui::GetIO();
   bool text_input_active = code_editor_focused_ || io.WantTextInput;
   if (!text_input_active && io.KeyCtrl &&
-      ImGui::IsKeyPressed(ImGuiKey_S, false)) {
+      ImGui::IsKeyPressed(ImGuiKey_S, false) &&
+      editor_state_ == EditorState::Edit) {
     if (!current_scene_path_.empty()) {
       SaveScene();
       SaveProject();

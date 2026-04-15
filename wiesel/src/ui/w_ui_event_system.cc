@@ -133,6 +133,20 @@ static CanvasMouseResult TransformToCanvasSpace(float mouse_x, float mouse_y,
   // ScreenSpace: apply display->render scale + canvas scaler inverse
   glm::vec2 display_size = scene.GetViewportDisplaySize();
   glm::vec2 render_res = scene.GetRenderResolution();
+
+  // When viewport display size is not explicitly set (standalone runtime),
+  // fall back to the first enabled camera's viewport size so the canvas
+  // scaler inverse is applied correctly.
+  if (display_size.x <= 0 || display_size.y <= 0) {
+    for (auto e : registry.view<CameraComponent>()) {
+      auto& cam = registry.get<CameraComponent>(e);
+      if (cam.enabled) {
+        display_size = cam.viewport_size;
+        break;
+      }
+    }
+  }
+
   if (render_res.x <= 0 || render_res.y <= 0) {
     render_res = display_size;
   }

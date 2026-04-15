@@ -17,6 +17,7 @@
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "cursor/w_cursor.h"
+#include "networking/w_network.h"
 #include "input/w_input.h"
 #include "w_engine.h"
 
@@ -174,6 +175,7 @@ void Application::Run() {
     }
 
     Engine::audio().Update();
+    Engine::network().Update();
     Engine::cursor_manager().Update(delta_time_);
     ExecuteQueue();
 

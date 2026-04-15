@@ -45,6 +45,7 @@
 #include "systems/w_canvas_system.h"
 #include "systems/w_light_system.h"
 #include "systems/w_physics_system.h"
+#include "systems/w_replication_system.h"
 #include "systems/w_skinned_mesh_system.h"
 #include "systems/w_transform_system.h"
 #include "systems/w_ui_document_system.h"
@@ -67,6 +68,7 @@ Scene::Scene() {
   AddSystem<AgentSystem>();
   AddSystem<AudioSourceSystem>();
   AddSystem<PhysicsSimulationSystem>();
+  AddSystem<ReplicationSystem>();
   AddSystem<TransformSystem>();
   AddSystem<LightSystem>();
   AddSystem<SkinnedMeshSystem>();

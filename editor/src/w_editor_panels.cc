@@ -15,6 +15,8 @@
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_registry.h"
 #include "imgui_internal.h"
+#include "networking/w_network.h"
+#include "networking/w_replication_types.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_rendergraph.h"
 #include "scene/w_scene_manager.h"
@@ -568,6 +570,129 @@ void EditorLayer::RenderFontDebugPanel() {
     ImGui::TreePop();
   }
 
+  ImGui::End();
+}
+
+void EditorLayer::RenderNetworkPanel() {
+  if (!panel_network_) {
+    return;
+  }
+
+  if (ImGui::Begin(CODICON_GLOBE " Network", &panel_network_)) {
+    auto& network = Engine::network();
+    NetworkRole role = network.role();
+
+    // Status
+    const char* role_str = "Disconnected";
+    ImVec4 status_color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+    if (role == NetworkRole::kServer) {
+      role_str = "Server";
+      status_color = ImVec4(0.2f, 0.8f, 0.2f, 1.0f);
+    } else if (role == NetworkRole::kClient) {
+      role_str = "Client";
+      status_color = ImVec4(0.2f, 0.6f, 1.0f, 1.0f);
+    } else if (role == NetworkRole::kListenServer) {
+      role_str = "Listen Server";
+      status_color = ImVec4(0.8f, 0.8f, 0.2f, 1.0f);
+    }
+
+    ImGui::TextColored(status_color, "Status: %s", role_str);
+    ImGui::Separator();
+
+    // Server controls
+    ImGui::SeparatorText("Server");
+
+    static char server_ip[64] = "0.0.0.0";
+    static int server_port = 25000;
+
+    bool is_hosting = network.is_server();
+
+    if (is_hosting) {
+      ImGui::BeginDisabled();
+    }
+    ImGui::InputText(PrefixLabel("Bind IP").c_str(), server_ip,
+                     sizeof(server_ip));
+    ImGui::InputInt(PrefixLabel("Port").c_str(), &server_port);
+    if (is_hosting) {
+      ImGui::EndDisabled();
+    }
+
+    if (!is_hosting) {
+      if (ImGui::Button("Host Server")) {
+        NetworkServerConfig config;
+        config.bind_ip = server_ip;
+        config.port = static_cast<uint16_t>(server_port);
+        network.StartServer(config);
+      }
+    } else {
+      if (ImGui::Button("Stop Server")) {
+        network.StopServer();
+      }
+    }
+
+    // Client controls
+    ImGui::SeparatorText("Client");
+
+    static char connect_ip[64] = "127.0.0.1";
+    static int connect_port = 25000;
+
+    bool is_connected = network.is_client();
+
+    if (is_connected) {
+      ImGui::BeginDisabled();
+    }
+    ImGui::InputText(PrefixLabel("Server IP").c_str(), connect_ip,
+                     sizeof(connect_ip));
+    ImGui::InputInt(PrefixLabel("Server Port").c_str(), &connect_port);
+    if (is_connected) {
+      ImGui::EndDisabled();
+    }
+
+    if (!is_connected) {
+      if (ImGui::Button("Connect")) {
+        NetworkClientConfig config;
+        config.server_ip = connect_ip;
+        config.port = static_cast<uint16_t>(connect_port);
+        network.ConnectToServer(config);
+      }
+    } else {
+      if (ImGui::Button("Disconnect")) {
+        network.Disconnect();
+      }
+    }
+
+    // Info
+    if (role != NetworkRole::kNone) {
+      ImGui::SeparatorText("Info");
+
+      if (network.is_server()) {
+        int client_count = 0;
+        network.ForEachSession(
+            [&client_count](uint64_t, std::shared_ptr<znet::PeerSession>) {
+              client_count++;
+            });
+        ImGui::Text("Connected Clients: %d", client_count);
+      }
+
+      if (network.is_client() && network.is_connected()) {
+        ImGui::Text("Connected to server");
+      } else if (network.is_client()) {
+        ImGui::Text("Connecting...");
+      }
+
+      // Count replicated entities
+      auto active_scene = Engine::scene_manager().GetActiveScene();
+      if (active_scene) {
+        auto& registry = active_scene->GetRegistry();
+        int net_entity_count = 0;
+        auto view = registry.view<NetworkIdentityComponent>();
+        for (auto entity : view) {
+          net_entity_count++;
+        }
+        ImGui::Text("Replicated Entities: %d", net_entity_count);
+      }
+    }
+  }
   ImGui::End();
 }
 

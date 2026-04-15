@@ -26,6 +26,7 @@ namespace wiesel {
 AssetHandle AcceptAssetDragDrop(AssetType required_type);
 
 void InitializeEditorComponents();
+void InitializeScriptFieldRenderers();
 
 // Set the active command stack for undo/redo tracking in inspector widgets.
 // Must be called before RenderExistingComponents each frame.

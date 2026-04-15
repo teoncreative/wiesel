@@ -195,6 +195,7 @@ class EditorLayer : public Layer {
   bool panel_editor_settings_ = false;
   bool panel_undo_history_ = false;
   bool panel_font_debug_ = false;
+  bool panel_network_ = false;
   bool layout_initialized_ = false;
 
   // File watchers
@@ -318,6 +319,7 @@ class EditorLayer : public Layer {
   void RenderLspDebugPanel();
   void RenderFontDebugPanel();
   void RenderEditorSettingsPanel();
+  void RenderNetworkPanel();
   void SaveCodeEditorFile();
   void StartLsp();
   void StopLsp();

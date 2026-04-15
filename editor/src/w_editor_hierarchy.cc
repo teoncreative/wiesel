@@ -322,6 +322,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         ImGui::PopStyleColor(2);
         if (ImGui::Button("Close", ImVec2(width * 0.48f, 0))) {
           deferred_action_ = DeferredAction::ClosePrefab;
+          has_selected_entity_ = false;
         }
         ImGui::Separator();
       }

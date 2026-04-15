@@ -34,6 +34,7 @@ enum class FieldType {
   Entity,
   Prefab,
   AudioClip,
+  NetworkVar,
   Object
 };
 
@@ -65,6 +66,14 @@ class FieldData {
       field_type_ = FieldType::Prefab;
     } else if (typeName == "WieselEngine.AudioClip") {
       field_type_ = FieldType::AudioClip;
+    } else if (typeName.starts_with("WieselEngine.NetworkVariable<")) {
+      field_type_ = FieldType::NetworkVar;
+      // Extract inner type: "WieselEngine.NetworkVariable<System.Int32>" -> "System.Int32"
+      auto start = typeName.find('<') + 1;
+      auto end = typeName.rfind('>');
+      if (start != std::string::npos && end != std::string::npos) {
+        inner_type_name_ = typeName.substr(start, end - start);
+      }
     } else {
       field_type_ = FieldType::Object;
       LOG_WARN("Unknown script field type '{}' for field '{}'", typeName,
@@ -95,10 +104,14 @@ class FieldData {
 
   const std::string& formatted_name() const { return formatted_name_; }
 
+  // For NetworkVar fields: the inner type (e.g., "System.Int32")
+  const std::string& inner_type_name() const { return inner_type_name_; }
+
  private:
   MonoClassField* field_;
   std::string field_name_;
   std::string formatted_name_;
+  std::string inner_type_name_;
   uint32_t field_flags_;
   FieldType field_type_;
 };
@@ -216,7 +229,39 @@ class ScriptData {
 
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
+  // Network RPC methods discovered via reflection
+  struct RpcMethodInfo {
+    MonoMethod* method = nullptr;
+    std::string rpc_name;
+    bool is_server_rpc = false;
+    // Parameter types for auto-serialization (MONO_TYPE_I4, etc.)
+    std::vector<int> param_mono_types;
+  };
+
+  std::unordered_map<std::string, RpcMethodInfo>& rpc_methods() {
+    return rpc_methods_;
+  }
+
+  // Network callback methods
+  MonoMethod* on_client_connected_method() const {
+    return on_client_connected_method_;
+  }
+  MonoMethod* on_client_disconnected_method() const {
+    return on_client_disconnected_method_;
+  }
+  MonoMethod* on_connected_to_server_method() const {
+    return on_connected_to_server_method_;
+  }
+  MonoMethod* on_disconnected_from_server_method() const {
+    return on_disconnected_from_server_method_;
+  }
+  MonoMethod* on_sync_var_changed_method() const {
+    return on_sync_var_changed_method_;
+  }
+
  private:
+  friend class ScriptManager;
+  friend class ScriptInstance;
   MonoClass* mono_class_;
   MonoMethod* on_update_method_;
   MonoMethod* on_start_method_;
@@ -245,6 +290,15 @@ class ScriptData {
   MonoMethod* on_ui_event_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
+
+  // Network (populated after construction by ScriptManager)
+  std::vector<std::string> network_var_fields_;  // field names of NetworkVariable<T> type
+  std::unordered_map<std::string, RpcMethodInfo> rpc_methods_;
+  MonoMethod* on_client_connected_method_ = nullptr;
+  MonoMethod* on_client_disconnected_method_ = nullptr;
+  MonoMethod* on_connected_to_server_method_ = nullptr;
+  MonoMethod* on_disconnected_from_server_method_ = nullptr;
+  MonoMethod* on_sync_var_changed_method_ = nullptr;
 };
 
 class ScriptInstance {
@@ -319,7 +373,7 @@ class ScriptInstance {
 };
 
 struct ScriptManagerProperties {
-  bool EnableDebugger;
+  bool enable_debugger;
 };
 
 class ScriptManager {

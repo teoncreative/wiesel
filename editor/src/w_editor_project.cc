@@ -437,8 +437,15 @@ void EditorLayer::SavePrefab() {
     return;
   }
 
+  // Resolve VFS path to physical path
+  auto physical = Engine::vfs()->ResolvePhysicalPath(editing_prefab_path_);
+  if (!physical) {
+    DCON_LOG_ERROR("Cannot resolve prefab path: {}", editing_prefab_path_);
+    return;
+  }
+
   Entity root = {hierarchy[0], scene().get()};
-  if (Prefab::SaveToFile(root, editing_prefab_path_)) {
+  if (Prefab::SaveToFile(root, *physical)) {
     scene_dirty_ = false;
     DCON_LOG_INFO("Prefab saved: {}", editing_prefab_path_);
   }

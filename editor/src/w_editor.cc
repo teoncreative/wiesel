@@ -581,6 +581,7 @@ void EditorLayer::OnBeginPresent() {
   RenderAssetBrowserPanel();
   RenderDeveloperConsolePanel();
   RenderRenderStatsPanel();
+  RenderNetworkPanel();
   RenderUndoHistoryPanel();
   RenderSceneViewportPanel();
   RenderGameViewportPanel();

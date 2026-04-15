@@ -27,6 +27,8 @@ class UIManager;
 class CursorManager;
 class NativeBehaviorRegistry;
 class AudioManager;
+class NetworkManager;
+class NetworkSceneManager;
 class ThreadPool;
 class UserConfig;
 class InputManager;
@@ -93,6 +95,14 @@ class Engine {
 
   WIESEL_GETTER_FN static AudioManager& audio() { return *audio_manager_; }
 
+  WIESEL_GETTER_FN static NetworkManager& network() {
+    return *network_manager_;
+  }
+
+  WIESEL_GETTER_FN static NetworkSceneManager& network_scene_manager() {
+    return *network_scene_manager_;
+  }
+
   WIESEL_GETTER_FN static SceneManager& scene_manager() {
     return *scene_manager_;
   }
@@ -152,6 +162,8 @@ class Engine {
   static std::unique_ptr<NativeBehaviorRegistry> behavior_registry_;
   static std::unique_ptr<ThreadPool> thread_pool_;
   static std::unique_ptr<AudioManager> audio_manager_;
+  static std::unique_ptr<NetworkManager> network_manager_;
+  static std::unique_ptr<NetworkSceneManager> network_scene_manager_;
   static std::unique_ptr<SceneManager> scene_manager_;
   static std::unique_ptr<UIManager> ui_manager_;
   static std::unique_ptr<CursorManager> cursor_manager_;

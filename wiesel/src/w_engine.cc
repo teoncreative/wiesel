@@ -12,6 +12,10 @@
 #include "w_engine.h"
 #include "audio/w_audio.h"
 #include "behavior/w_native_behavior.h"
+#include "networking/w_network.h"
+#include "networking/w_network_component_serializer.h"
+#include "networking/w_network_scene_manager.h"
+#include "networking/w_replication_packets.h"
 #include "util/w_discord_rpc.h"
 
 #include <cxxopts.hpp>
@@ -202,6 +206,8 @@ std::unique_ptr<ScriptManager> Engine::script_manager_;
 std::unique_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
 std::unique_ptr<ThreadPool> Engine::thread_pool_;
 std::unique_ptr<AudioManager> Engine::audio_manager_;
+std::unique_ptr<NetworkManager> Engine::network_manager_;
+std::unique_ptr<NetworkSceneManager> Engine::network_scene_manager_;
 std::unique_ptr<SceneManager> Engine::scene_manager_;
 std::unique_ptr<UIManager> Engine::ui_manager_;
 std::unique_ptr<CursorManager> Engine::cursor_manager_;
@@ -243,11 +249,16 @@ void Engine::InitEngine(const EngineProperties& props) {
   thread_pool_ = std::make_unique<ThreadPool>(pool_size);
   LOG_INFO("Asset thread pool: {} workers", pool_size);
 
+  network_manager_ = std::make_unique<NetworkManager>();
+  network_manager_->Init();
+  network_scene_manager_ = std::make_unique<NetworkSceneManager>();
+  InitializeNetworkComponentSerializers();
+  RegisterReplicationPackets(*network_manager_);
   scene_manager_ = std::make_unique<SceneManager>();
   audio_manager_ = std::make_unique<AudioManager>();
   audio_manager_->Init();
   script_manager_ = std::make_unique<ScriptManager>();
-  script_manager_->Init({.EnableDebugger = true});
+  script_manager_->Init({.enable_debugger = true});
 #ifdef WIESEL_DISCORD_RPC
   discord_rpc_ = std::make_unique<DiscordRPC>();
 #endif
@@ -397,6 +408,11 @@ void Engine::CleanupEngine() {
 #ifdef WIESEL_DISCORD_RPC
   discord_rpc_ = nullptr;
 #endif
+  network_scene_manager_ = nullptr;
+  if (network_manager_) {
+    network_manager_->Shutdown();
+    network_manager_ = nullptr;
+  }
   scene_manager_ = nullptr;
   game_info_ = nullptr;
   script_manager_ = nullptr;

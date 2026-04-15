@@ -55,3 +55,6 @@
 [submodule "vendor/imnodes"]
 	path = vendor/imnodes
 	url = https://github.com/Nelarius/imnodes.git
+[submodule "vendor/znet"]
+	path = vendor/znet
+	url = https://github.com/teoncreative/znet

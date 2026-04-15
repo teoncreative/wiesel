@@ -770,5 +770,45 @@ namespace WieselEngine
         public static extern float Settings_GetSFXVolume();
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Settings_SetSFXVolume(float value);
+
+        // Networking
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Network_StartServer(string ip, int port);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Network_StopServer();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Network_ConnectToServer(string ip, int port);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Network_Disconnect();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Network_IsServer();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Network_IsClient();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool Network_IsConnected();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Network_GetRole();
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Network_SetTickRate(int ticksPerSecond);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int Network_GetTickRate();
+
+        // Network RPCs
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Network_SendServerRpc(ulong scenePtr, ulong entityId, string rpcName);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Network_SendClientRpc(ulong scenePtr, ulong entityId, string rpcName);
+
+        // Network Scene Manager
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void NetworkSceneManager_LoadScene(string name, int mode);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void NetworkSceneManager_LoadSceneWithLoading(string targetScene, string loadingScene);
+
+        // Network Synced Variables (used internally by NetworkVariable<T>)
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Network_SetSyncVar(ulong scenePtr, ulong entityId, string name, object value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern object Network_GetSyncVar(ulong scenePtr, ulong entityId, string name);
     }
 }

@@ -17,6 +17,9 @@
 #include "audio/w_audio.h"
 #include "cursor/w_cursor.h"
 #include "input/w_input.h"
+#include "networking/w_network.h"
+#include "networking/w_network_scene_manager.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
@@ -2300,6 +2303,171 @@ void Internals_Settings_SetTextureQuality(int value) {
   }
 }
 
+// --- Network bindings ---
+
+bool Internals_Network_StartServer(MonoString* ip, int port) {
+  char* cip = mono_string_to_utf8(ip);
+  NetworkServerConfig config;
+  config.bind_ip = cip;
+  config.port = static_cast<uint16_t>(port);
+  mono_free(cip);
+  return Engine::network().StartServer(config);
+}
+
+void Internals_Network_StopServer() {
+  Engine::network().StopServer();
+}
+
+bool Internals_Network_ConnectToServer(MonoString* ip, int port) {
+  char* cip = mono_string_to_utf8(ip);
+  NetworkClientConfig config;
+  config.server_ip = cip;
+  config.port = static_cast<uint16_t>(port);
+  mono_free(cip);
+  return Engine::network().ConnectToServer(config);
+}
+
+void Internals_Network_Disconnect() {
+  Engine::network().Disconnect();
+}
+
+bool Internals_Network_IsServer() {
+  return Engine::network().is_server();
+}
+
+bool Internals_Network_IsClient() {
+  return Engine::network().is_client();
+}
+
+bool Internals_Network_IsConnected() {
+  return Engine::network().is_connected();
+}
+
+int Internals_Network_GetRole() {
+  return static_cast<int>(Engine::network().role());
+}
+
+void Internals_Network_SetTickRate(int ticks_per_second) {
+  Engine::network().SetTickRate(ticks_per_second);
+}
+
+int Internals_Network_GetTickRate() {
+  return Engine::network().tick_rate();
+}
+
+void Internals_NetworkSceneManager_LoadScene(MonoString* name, int mode) {
+  char* cname = mono_string_to_utf8(name);
+  LoadSceneMode lm = (mode == 1) ? LoadSceneMode::Additive : LoadSceneMode::Single;
+  Engine::network_scene_manager().LoadScene(cname, lm);
+  mono_free(cname);
+}
+
+void Internals_NetworkSceneManager_LoadSceneWithLoading(MonoString* target,
+                                                        MonoString* loading) {
+  char* ctarget = mono_string_to_utf8(target);
+  char* cloading = mono_string_to_utf8(loading);
+  Engine::network_scene_manager().LoadSceneWithLoading(ctarget, cloading);
+  mono_free(ctarget);
+  mono_free(cloading);
+}
+
+
+#define GET_NET_IDENTITY_OR_RETURN(sp, eid, retval) \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);        \
+  if (!scene->HasComponent<NetworkIdentityComponent>(handle)) \
+    return retval;                                  \
+  auto& net_identity = scene->GetComponent<NetworkIdentityComponent>(handle)
+
+void Internals_Network_SendServerRpc(uint64_t scene_ptr, uint64_t entity_id,
+                                     MonoString* rpc_name) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
+  char* name = mono_string_to_utf8(rpc_name);
+  Engine::network().SendServerRpc(net_identity.net_id, name);
+  mono_free(name);
+}
+
+void Internals_Network_SendClientRpc(uint64_t scene_ptr, uint64_t entity_id,
+                                     MonoString* rpc_name) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
+  char* name = mono_string_to_utf8(rpc_name);
+  Engine::network().SendClientRpc(net_identity.net_id, name);
+  mono_free(name);
+}
+
+void Internals_Network_SetSyncVar(uint64_t scene_ptr, uint64_t entity_id,
+                                  MonoString* name, MonoObject* value) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
+  char* cname = mono_string_to_utf8(name);
+  std::string key(cname);
+  mono_free(cname);
+
+  if (!value) {
+    return;
+  }
+
+  MonoType* mono_type = mono_class_get_type(mono_object_get_class(value));
+  int type_id = mono_type_get_type(mono_type);
+
+  switch (type_id) {
+    case MONO_TYPE_I4:
+      net_identity.sync_vars[key] = *(int*)mono_object_unbox(value);
+      break;
+    case MONO_TYPE_R4:
+      net_identity.sync_vars[key] = *(float*)mono_object_unbox(value);
+      break;
+    case MONO_TYPE_BOOLEAN:
+      net_identity.sync_vars[key] = *(bool*)mono_object_unbox(value);
+      break;
+    case MONO_TYPE_STRING:
+    {
+      char* str = mono_string_to_utf8((MonoString*)value);
+      net_identity.sync_vars[key] = std::string(str);
+      mono_free(str);
+      break;
+    }
+    default:
+      LOG_WARN("Unsupported sync var type for '{}'", key);
+      break;
+  }
+}
+
+MonoObject* Internals_Network_GetSyncVar(uint64_t scene_ptr,
+                                         uint64_t entity_id,
+                                         MonoString* name) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, nullptr);
+  char* cname = mono_string_to_utf8(name);
+  std::string key(cname);
+  mono_free(cname);
+
+  auto it = net_identity.sync_vars.find(key);
+  if (it == net_identity.sync_vars.end()) {
+    return nullptr;
+  }
+
+  MonoDomain* domain = mono_domain_get();
+  const auto& val = it->second;
+
+  if (std::holds_alternative<int>(val)) {
+    int v = std::get<int>(val);
+    return mono_value_box(domain, mono_get_int32_class(), &v);
+  }
+  if (std::holds_alternative<float>(val)) {
+    float v = std::get<float>(val);
+    return mono_value_box(domain, mono_get_single_class(), &v);
+  }
+  if (std::holds_alternative<bool>(val)) {
+    bool v = std::get<bool>(val);
+    MonoBoolean mb = v ? 1 : 0;
+    return mono_value_box(domain, mono_get_boolean_class(), &mb);
+  }
+  if (std::holds_alternative<std::string>(val)) {
+    return (MonoObject*)mono_string_new(domain,
+                                        std::get<std::string>(val).c_str());
+  }
+
+  return nullptr;
+}
+
 // --- Cursor bindings ---
 
 void Internals_Cursor_SetState(MonoString* state) {
@@ -2680,6 +2848,24 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Settings_SetAnisotropicFiltering);
   WIESEL_ADD_INTERNAL_CALL(Settings_GetTextureQuality);
   WIESEL_ADD_INTERNAL_CALL(Settings_SetTextureQuality);
+
+  // Networking
+  WIESEL_ADD_INTERNAL_CALL(Network_StartServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_StopServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_ConnectToServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_Disconnect);
+  WIESEL_ADD_INTERNAL_CALL(Network_IsServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_IsClient);
+  WIESEL_ADD_INTERNAL_CALL(Network_IsConnected);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetRole);
+  WIESEL_ADD_INTERNAL_CALL(Network_SetTickRate);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetTickRate);
+  WIESEL_ADD_INTERNAL_CALL(NetworkSceneManager_LoadScene);
+  WIESEL_ADD_INTERNAL_CALL(NetworkSceneManager_LoadSceneWithLoading);
+  WIESEL_ADD_INTERNAL_CALL(Network_SendServerRpc);
+  WIESEL_ADD_INTERNAL_CALL(Network_SendClientRpc);
+  WIESEL_ADD_INTERNAL_CALL(Network_SetSyncVar);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetSyncVar);
 }
 
 }  // namespace wiesel

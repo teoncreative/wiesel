@@ -12,6 +12,7 @@
 #include "w_editor_components.h"
 
 #include <backends/imgui_impl_vulkan.h>
+#include "script/w_script_field_registry.h"
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <typeindex>
@@ -22,6 +23,7 @@
 #include "behavior/w_behavior.h"
 #include "behavior/w_native_behavior.h"
 #include "mono_wrappers.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
 #include "physics/w_mesh_collider_asset.h"
 #include "physics/w_rigidbody.h"
@@ -600,17 +602,23 @@ void RenderScriptVariables(ScriptInstance* instance) {
       std::string prefab_label = "(None)";
 
       if (prefab_obj) {
-        MonoClassField* path_field = mono_class_get_field_from_name(
-            Engine::script_manager().prefab_class(), "path");
-        if (path_field) {
-          MonoString* path_str = nullptr;
-          mono_field_get_value(prefab_obj, path_field, &path_str);
-          if (path_str) {
-            const char* cstr = mono_string_to_utf8(path_str);
+        MonoClassField* handle_field = mono_class_get_field_from_name(
+            Engine::script_manager().prefab_class(), "handle");
+        if (handle_field) {
+          MonoString* handle_str = nullptr;
+          mono_field_get_value(prefab_obj, handle_field, &handle_str);
+          if (handle_str) {
+            const char* cstr = mono_string_to_utf8(handle_str);
             if (cstr && cstr[0]) {
-              // Show just the filename
-              std::filesystem::path p(cstr);
-              prefab_label = p.stem().string();
+              AssetHandle h = AssetHandle::FromString(cstr);
+              const AssetMetadata* meta =
+                  Engine::asset_manager().GetMetadata(h);
+              if (meta) {
+                prefab_label = VirtualFileSystem::Stem(
+                    meta->virtual_source_path);
+              } else {
+                prefab_label = cstr;
+              }
             }
             mono_free((void*)cstr);
           }
@@ -622,9 +630,8 @@ void RenderScriptVariables(ScriptInstance* instance) {
                        ImGuiInputTextFlags_ReadOnly);
 
       // Drag-drop target: accept prefab assets
-      // TODO replace with assest handle and use our common code AcceptAssetDragDrop
       if (ImGui::BeginDragDropTarget()) {
-        std::string dropped_path;
+        AssetHandle dropped_handle;
 
         if (const ImGuiPayload* payload =
                 ImGui::AcceptDragDropPayload("AssetHandle")) {
@@ -632,23 +639,24 @@ void RenderScriptVariables(ScriptInstance* instance) {
           const AssetMetadata* meta =
               Engine::asset_manager().GetMetadata(dropped);
           if (meta && meta->type == AssetType::Prefab) {
-            dropped_path = meta->virtual_source_path;
+            dropped_handle = dropped;
           }
         } else if (const ImGuiPayload* payload =
                        ImGui::AcceptDragDropPayload("BrowserFile")) {
           std::string file_path(static_cast<const char*>(payload->Data));
           if (file_path.ends_with(".wprefab")) {
-            // Convert physical path to VFS path via app:// mount
             auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
             if (physical_app.has_value()) {
               std::filesystem::path rel =
                   std::filesystem::relative(file_path, *physical_app);
-              dropped_path = "app://" + rel.generic_string();
+              std::string vfs_path = "app://" + rel.generic_string();
+              dropped_handle =
+                  Engine::asset_manager().FindBySourcePath(vfs_path);
             }
           }
         }
 
-        if (!dropped_path.empty()) {
+        if (dropped_handle.IsValid()) {
           MonoObject* new_prefab = prefab_obj;
           if (!new_prefab) {
             new_prefab =
@@ -656,12 +664,13 @@ void RenderScriptVariables(ScriptInstance* instance) {
                                 Engine::script_manager().prefab_class());
             mono_runtime_object_init(new_prefab);
           }
-          MonoClassField* path_field = mono_class_get_field_from_name(
-              Engine::script_manager().prefab_class(), "path");
-          if (path_field) {
-            MonoString* path_val = mono_string_new(
-                Engine::script_manager().app_domain(), dropped_path.c_str());
-            mono_field_set_value(new_prefab, path_field, path_val);
+          MonoClassField* handle_field = mono_class_get_field_from_name(
+              Engine::script_manager().prefab_class(), "handle");
+          if (handle_field) {
+            std::string handle_str = dropped_handle.ToString();
+            MonoString* mono_val = mono_string_new(
+                Engine::script_manager().app_domain(), handle_str.c_str());
+            mono_field_set_value(new_prefab, handle_field, mono_val);
           }
           value.Set(instance->handle(), new_prefab);
         }
@@ -739,6 +748,32 @@ void RenderScriptVariables(ScriptInstance* instance) {
           MonoObject* null_val = nullptr;
           value.Set(instance->handle(), &null_val);
         }
+      }
+    } else if (value.field_type() == FieldType::NetworkVar) {
+      MonoObject* net_var = value.Get<MonoObject*>(instance->handle());
+      if (!net_var) {
+        ImGui::Text("%s: (null)", value.formatted_name().c_str());
+        continue;
+      }
+
+      MonoClass* net_var_class = mono_object_get_class(net_var);
+      MonoClassField* val_field =
+          mono_class_get_field_from_name(net_var_class, "value");
+      MonoProperty* val_prop =
+          mono_class_get_property_from_name(net_var_class, "Value");
+      if (!val_field || !val_prop) {
+        continue;
+      }
+
+      std::string label = PrefixLabel(value.formatted_name().c_str());
+      auto* renderer =
+          ScriptFieldTypeRegistry::Find(value.inner_type_name());
+      if (renderer) {
+        (*renderer)(net_var, val_field, val_prop, label);
+      } else {
+        ImGui::Text("%s: %s (no renderer)",
+                    value.formatted_name().c_str(),
+                    value.inner_type_name().c_str());
       }
     }
     // todo objects, long and unsigned numbers
@@ -2055,6 +2090,34 @@ void RenderAddComponentImGui_ReverbZoneComponent(Entity entity) {
   }
 }
 
+void RenderComponentImGui(NetworkIdentityComponent& component, Entity entity) {
+  static bool visible = true;
+  if (!ImGui::ClosableTreeNode("Network Identity", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<NetworkIdentityComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  const char* authority_names[] = {"None", "Server", "Client"};
+  int authority_idx = static_cast<int>(component.authority);
+  ImGui::Text("Net ID: %u", component.net_id);
+  ImGui::Text("Authority: %s",
+              authority_names[std::min(authority_idx, 2)]);
+  ImGui::Text("Owner Session: %lu", component.owner_session_id);
+  ImGui::Text("Pending Spawn: %s", component.pending_spawn ? "Yes" : "No");
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_NetworkIdentityComponent(Entity entity) {
+  if (ImGui::MenuItem("Network Identity") &&
+      !entity.HasComponent<NetworkIdentityComponent>()) {
+    entity.AddComponent<NetworkIdentityComponent>();
+  }
+}
+
 void InitializeEditorComponents() {
   RegisterComponentType<IdComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
@@ -2123,6 +2186,9 @@ void InitializeEditorComponents() {
   RegisterComponentType<ReverbZoneComponent>(
       "Reverb Zone", "Audio", RenderComponentImGui,
       RenderAddComponentImGui_ReverbZoneComponent, nullptr);
+  RegisterComponentType<NetworkIdentityComponent>(
+      "Network Identity", "Networking", RenderComponentImGui,
+      RenderAddComponentImGui_NetworkIdentityComponent, nullptr);
 }
 
 void RenderExistingComponents(Entity entity) {
@@ -2207,4 +2273,99 @@ void RenderAddPopup(Entity entity) {
     }
   }
 }
+void InitializeScriptFieldRenderers() {
+  // int
+  ScriptFieldTypeRegistry::Register(
+      "System.Int32",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        int32_t val = 0;
+        mono_field_get_value(obj, field, &val);
+        if (ImGui::DragInt(label.c_str(), &val, 1)) {
+          if (prop) {
+            MonoObject* boxed = mono_value_box(
+                mono_domain_get(), mono_get_int32_class(), &val);
+            void* args[1] = {boxed};
+            mono_property_set_value(prop, obj, args, nullptr);
+          } else {
+            mono_field_set_value(obj, field, &val);
+          }
+          return true;
+        }
+        return false;
+      });
+
+  // float
+  ScriptFieldTypeRegistry::Register(
+      "System.Single",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        float val = 0.0f;
+        mono_field_get_value(obj, field, &val);
+        if (ImGui::DragFloat(label.c_str(), &val, 0.1f)) {
+          if (prop) {
+            MonoObject* boxed = mono_value_box(
+                mono_domain_get(), mono_get_single_class(), &val);
+            void* args[1] = {boxed};
+            mono_property_set_value(prop, obj, args, nullptr);
+          } else {
+            mono_field_set_value(obj, field, &val);
+          }
+          return true;
+        }
+        return false;
+      });
+
+  // bool
+  ScriptFieldTypeRegistry::Register(
+      "System.Boolean",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        MonoBoolean val = 0;
+        mono_field_get_value(obj, field, &val);
+        bool b = val != 0;
+        if (ImGui::Checkbox(label.c_str(), &b)) {
+          if (prop) {
+            MonoBoolean mb = b ? 1 : 0;
+            MonoObject* boxed = mono_value_box(
+                mono_domain_get(), mono_get_boolean_class(), &mb);
+            void* args[1] = {boxed};
+            mono_property_set_value(prop, obj, args, nullptr);
+          } else {
+            MonoBoolean mb = b ? 1 : 0;
+            mono_field_set_value(obj, field, &mb);
+          }
+          return true;
+        }
+        return false;
+      });
+
+  // string
+  ScriptFieldTypeRegistry::Register(
+      "System.String",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        MonoString* mono_str = nullptr;
+        mono_field_get_value(obj, field, &mono_str);
+        std::string str;
+        if (mono_str) {
+          char* cstr = mono_string_to_utf8(mono_str);
+          str = cstr;
+          mono_free(cstr);
+        }
+        if (ImGui::InputText(label.c_str(), &str)) {
+          MonoString* new_val = mono_string_new(
+              Engine::script_manager().app_domain(), str.c_str());
+          if (prop) {
+            void* args[1] = {new_val};
+            mono_property_set_value(prop, obj, args, nullptr);
+          } else {
+            mono_field_set_value(obj, field, new_val);
+          }
+          return true;
+        }
+        return false;
+      });
+}
+
 }  // namespace wiesel

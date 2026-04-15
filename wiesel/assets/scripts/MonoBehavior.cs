@@ -142,6 +142,59 @@ namespace WieselEngine
         {
         }
 
+        // -- Network Callbacks --
+
+        /// <summary>Called on all scripts when a client connects to the server (server-side).</summary>
+        public virtual void OnClientConnected(ulong sessionId)
+        {
+        }
+
+        /// <summary>Called on all scripts when a client disconnects from the server (server-side).</summary>
+        public virtual void OnClientDisconnected(ulong sessionId)
+        {
+        }
+
+        /// <summary>Called on all scripts when this client connects to a server (client-side).</summary>
+        public virtual void OnConnectedToServer()
+        {
+        }
+
+        /// <summary>Called on all scripts when this client disconnects from a server (client-side).</summary>
+        public virtual void OnDisconnectedFromServer()
+        {
+        }
+
+        // -- Network RPCs --
+
+        /// <summary>Called on the server when a client invokes SendServerRpc on this entity.</summary>
+        public virtual void OnServerRpc(string rpcName)
+        {
+        }
+
+        /// <summary>Called on clients when the server invokes SendClientRpc on this entity.</summary>
+        public virtual void OnClientRpc(string rpcName)
+        {
+        }
+
+        // -- Synced Variables --
+
+        /// <summary>Called when a NetworkVariable changes on this entity (receiving side).</summary>
+        public virtual void OnSyncVarChanged(string varName)
+        {
+        }
+
+        /// <summary>Call an RPC on the server. The server's OnServerRpc will be invoked.</summary>
+        public void SendServerRpc(string rpcName)
+        {
+            Internals.Network_SendServerRpc(Entity.ScenePtr, Entity.Id, rpcName);
+        }
+
+        /// <summary>Call an RPC on all clients. Each client's OnClientRpc will be invoked.</summary>
+        public void SendClientRpc(string rpcName)
+        {
+            Internals.Network_SendClientRpc(Entity.ScenePtr, Entity.Id, rpcName);
+        }
+
         // -- Component access --
 
         /// <summary>Get a component of type T from this entity.</summary>

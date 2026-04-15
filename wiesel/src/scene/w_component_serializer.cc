@@ -27,6 +27,7 @@
 #include "behavior/w_behavior.h"
 #include "behavior/w_native_behavior.h"
 #include "mono_wrappers.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
@@ -471,17 +472,17 @@ void InitializeComponentSerializers() {
                 MonoObject* prefab_obj =
                     field_data.Get<MonoObject*>(instance->handle());
                 if (prefab_obj) {
-                  MonoClassField* path_field = mono_class_get_field_from_name(
-                      Engine::script_manager().prefab_class(), "path");
-                  if (path_field) {
-                    MonoString* path_str = nullptr;
-                    mono_field_get_value(prefab_obj, path_field, &path_str);
-                    if (path_str) {
-                      const char* cstr = mono_string_to_utf8(path_str);
+                  MonoClassField* handle_field = mono_class_get_field_from_name(
+                      Engine::script_manager().prefab_class(), "handle");
+                  if (handle_field) {
+                    MonoString* handle_str = nullptr;
+                    mono_field_get_value(prefab_obj, handle_field, &handle_str);
+                    if (handle_str) {
+                      const char* cstr = mono_string_to_utf8(handle_str);
                       if (cstr && cstr[0]) {
                         json pj;
                         pj["type"] = "Prefab";
-                        pj["path"] = cstr;
+                        pj["handle"] = cstr;
                         fields_json[field_name] = pj;
                       }
                       mono_free((void*)cstr);
@@ -593,18 +594,19 @@ void InitializeComponentSerializers() {
                 field_data.Set(instance->handle(), str);
               } else if (field_data.field_type() == FieldType::Prefab &&
                          val.is_object()) {
-                std::string path = val.value("path", "");
-                if (!path.empty()) {
+                // Support both "handle" (new) and "path" (legacy) keys
+                std::string handle_str = val.value("handle", val.value("path", ""));
+                if (!handle_str.empty()) {
                   MonoObject* prefab =
                       mono_object_new(Engine::script_manager().app_domain(),
                                       Engine::script_manager().prefab_class());
                   mono_runtime_object_init(prefab);
-                  MonoClassField* path_field = mono_class_get_field_from_name(
-                      Engine::script_manager().prefab_class(), "path");
-                  if (path_field) {
-                    MonoString* path_val = mono_string_new(
-                        Engine::script_manager().app_domain(), path.c_str());
-                    mono_field_set_value(prefab, path_field, path_val);
+                  MonoClassField* handle_field = mono_class_get_field_from_name(
+                      Engine::script_manager().prefab_class(), "handle");
+                  if (handle_field) {
+                    MonoString* mono_val = mono_string_new(
+                        Engine::script_manager().app_domain(), handle_str.c_str());
+                    mono_field_set_value(prefab, handle_field, mono_val);
                   }
                   field_data.Set(instance->handle(), prefab);
                 }
@@ -1101,6 +1103,27 @@ void InitializeComponentSerializers() {
         }
         a.playing = aj.value("playing", true);
         a.playback_speed = aj.value("playback_speed", 1.0f);
+      },
+  });
+
+  ComponentSerializerRegistry::Register({
+      "NetworkIdentity",
+      // Has
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<NetworkIdentityComponent>();
+      },
+      // Serialize
+      [](Entity& entity) -> json {
+        auto& n = entity.GetComponent<NetworkIdentityComponent>();
+        json nj;
+        nj["authority"] = static_cast<int>(n.authority);
+        return nj;
+      },
+      // Deserialize
+      [](Entity& entity, const json& nj, Scene* /*scene*/) {
+        auto& n = entity.AddComponent<NetworkIdentityComponent>();
+        n.authority = static_cast<NetworkAuthority>(
+            nj.value("authority", 1));
       },
   });
 }

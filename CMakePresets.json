@@ -7,6 +7,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "WIESEL_ENABLE_TRACY": "ON",
         "WIESEL_ENABLE_VULKAN_VALIDATION": "ON",

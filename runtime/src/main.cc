@@ -14,6 +14,8 @@
 #include "util/w_platform.h"
 #include "w_engine.h"
 
+#include <clocale>
+
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -51,6 +53,7 @@ Application* wiesel::CreateApp() {
 }
 
 static int RunEngine(int argc, char** argv) {
+  std::setlocale(LC_ALL, "C");
 #ifdef WIN32
   // Check if --enable-stdio is in args before parsing
   bool wants_stdio = false;

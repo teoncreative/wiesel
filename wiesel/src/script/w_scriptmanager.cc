@@ -134,6 +134,34 @@ void ScriptInstance::Detach() {
 
 void ScriptInstance::OnStart() {
   UpdateAttachments();
+
+  // Bind NetworkVariable<T> fields before user's OnStart
+  for (const auto& field_name : script_data_->network_var_fields_) {
+    MonoClassField* field = mono_class_get_field_from_name(
+        script_data_->mono_class(), field_name.c_str());
+    if (!field) {
+      continue;
+    }
+
+    // Get the NetworkVariable instance from the behavior object
+    MonoObject* net_var = nullptr;
+    mono_field_get_value(handle_, field, &net_var);
+    if (!net_var) {
+      continue;
+    }
+
+    // Call Bind(owner, fieldName) on the NetworkVariable instance
+    MonoClass* net_var_class = mono_object_get_class(net_var);
+    MonoMethod* bind_method =
+        mono_class_get_method_from_name(net_var_class, "Bind", 2);
+    if (bind_method) {
+      MonoString* mono_name =
+          mono_string_new(mono_domain_get(), field_name.c_str());
+      void* args[2] = {handle_, mono_name};
+      InvokeSafe(bind_method, net_var, args, &errored_);
+    }
+  }
+
   if (!script_data_->on_start_method()) {
     return;
   }
@@ -538,7 +566,7 @@ bool ScriptManager::HasComponentByName(Scene* scene, entt::entity entity,
 }
 
 void ScriptManager::Init(const ScriptManagerProperties&& props) {
-  enable_debugger_ = props.EnableDebugger;
+  enable_debugger_ = props.enable_debugger;
   LOG_INFO("Initializing mono...");
 
   mono_set_dirs("mono/lib", "mono/etc");
@@ -860,6 +888,7 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
     }
 
     std::unordered_map<std::string, FieldData> fields;
+    std::vector<std::string> net_var_fields;
     MonoClassField* field;
     void* iter = nullptr;
     while ((field = mono_class_get_fields(klass, &iter))) {
@@ -872,6 +901,19 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
       }
       fields.insert(
           std::pair(field_name, FieldData(field, field_name, field_flags)));
+
+      // Detect NetworkVariable<T> fields
+      MonoType* field_type = mono_field_get_type(field);
+      if (mono_type_get_type(field_type) == MONO_TYPE_GENERICINST) {
+        MonoClass* field_class = mono_class_from_mono_type(field_type);
+        const char* field_class_name = mono_class_get_name(field_class);
+        if (field_class_name &&
+            std::string_view(field_class_name).starts_with("NetworkVariable")) {
+          net_var_fields.push_back(field_name);
+          LOG_DEBUG("  Discovered NetworkVariable: {}::{}", class_name,
+                    field_name);
+        }
+      }
     }
 
     MonoMethod* on_start = mono_class_get_method_from_name(klass, "OnStart", 0);
@@ -922,16 +964,85 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
     MonoMethod* on_ui_event =
         mono_class_get_method_from_name(klass, "OnUIEvent", 1);
 
-    script_data_.insert(std::pair(
-        class_name,
-        std::make_shared<ScriptData>(
-            klass, on_start, on_update, set_handle_method_, on_key_pressed,
-            on_key_released, on_mouse_moved, on_trigger_enter, on_trigger_stay,
-            on_trigger_exit, on_collision_enter, on_collision_stay,
-            on_collision_exit, on_disable, on_destroy, on_ptr_click,
-            on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, on_select,
-            on_deselect, on_submit, on_cancel, on_ui_data_changed, on_ui_event,
-            fields)));
+    auto script_data = std::make_shared<ScriptData>(
+        klass, on_start, on_update, set_handle_method_, on_key_pressed,
+        on_key_released, on_mouse_moved, on_trigger_enter, on_trigger_stay,
+        on_trigger_exit, on_collision_enter, on_collision_stay,
+        on_collision_exit, on_disable, on_destroy, on_ptr_click,
+        on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, on_select,
+        on_deselect, on_submit, on_cancel, on_ui_data_changed, on_ui_event,
+        fields);
+
+    // Store discovered NetworkVariable field names
+    script_data->network_var_fields_ = std::move(net_var_fields);
+
+    // Discover network callback methods
+    script_data->on_client_connected_method_ =
+        mono_class_get_method_from_name(klass, "OnClientConnected", 1);
+    script_data->on_client_disconnected_method_ =
+        mono_class_get_method_from_name(klass, "OnClientDisconnected", 1);
+    script_data->on_connected_to_server_method_ =
+        mono_class_get_method_from_name(klass, "OnConnectedToServer", 0);
+    script_data->on_disconnected_from_server_method_ =
+        mono_class_get_method_from_name(klass, "OnDisconnectedFromServer", 0);
+    script_data->on_sync_var_changed_method_ =
+        mono_class_get_method_from_name(klass, "OnSyncVarChanged", 1);
+
+    // Discover RPC methods ([ServerRpc] and [ClientRpc] attributes)
+    {
+      MonoClass* server_rpc_attr = mono_class_from_name(
+          mono_assembly_get_image(app_assembly_), "WieselEngine",
+          "ServerRpcAttribute");
+      MonoClass* client_rpc_attr = mono_class_from_name(
+          mono_assembly_get_image(app_assembly_), "WieselEngine",
+          "ClientRpcAttribute");
+
+      void* method_iter = nullptr;
+      MonoMethod* method;
+      while ((method = mono_class_get_methods(klass, &method_iter))) {
+        const char* method_name = mono_method_get_name(method);
+        if (!method_name) {
+          continue;
+        }
+
+        MonoCustomAttrInfo* attrs = mono_custom_attrs_from_method(method);
+        if (!attrs) {
+          continue;
+        }
+
+        bool is_server = server_rpc_attr &&
+            mono_custom_attrs_has_attr(attrs, server_rpc_attr);
+        bool is_client = client_rpc_attr &&
+            mono_custom_attrs_has_attr(attrs, client_rpc_attr);
+        mono_custom_attrs_free(attrs);
+
+        if (!is_server && !is_client) {
+          continue;
+        }
+
+        std::string rpc_name(method_name);
+        ScriptData::RpcMethodInfo info;
+        info.method = method;
+        info.rpc_name = rpc_name;
+        info.is_server_rpc = is_server;
+
+        // Discover parameter types for auto-serialization
+        MonoMethodSignature* sig = mono_method_signature(method);
+        uint32_t param_count = mono_signature_get_param_count(sig);
+        void* param_iter = nullptr;
+        MonoType* param_type;
+        while ((param_type = mono_signature_get_params(sig, &param_iter))) {
+          info.param_mono_types.push_back(mono_type_get_type(param_type));
+        }
+
+        script_data->rpc_methods()[rpc_name] = info;
+        LOG_DEBUG("  Discovered RPC: {}::{} ({} params, {})",
+                  class_name, rpc_name, param_count,
+                  is_server ? "ServerRpc" : "ClientRpc");
+      }
+    }
+
+    script_data_.insert(std::pair(class_name, script_data));
     script_names_.push_back(class_name);
     LOG_INFO("Registered script: {}", class_name);
   }

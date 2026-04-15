@@ -42,7 +42,13 @@ enum class EventType {
   PipelineRecreated,
   WindowFocusGained,
   WindowFocusLost,
-  AssetUnloaded
+  AssetUnloaded,
+  NetworkClientConnected,
+  NetworkClientDisconnected,
+  NetworkConnectedToServer,
+  NetworkDisconnectedFromServer,
+  NetworkServerStarted,
+  NetworkServerStopped
 };
 
 enum EventCategory {
@@ -51,7 +57,8 @@ enum EventCategory {
   kEventCategoryInput = BIT(1),
   kEventCategoryKeyboard = BIT(2),
   kEventCategoryMouse = BIT(3),
-  kEventCategoryMouseButton = BIT(4)
+  kEventCategoryMouseButton = BIT(4),
+  kEventCategoryNetwork = BIT(5)
 };
 
 class Event {

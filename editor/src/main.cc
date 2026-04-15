@@ -11,6 +11,7 @@
 #include "w_editor.h"
 #include "w_editor_components.h"
 
+#include <clocale>
 #include "layer/w_layerimgui.h"
 #include "util/w_command.h"
 #include "util/w_platform.h"
@@ -27,6 +28,7 @@ class EditorApplication : public Application {
 
   void Init() override {
     InitializeEditorComponents();
+    InitializeScriptFieldRenderers();
     PushLayer(std::make_shared<ImGuiLayer>());
     PushLayer(std::make_shared<EditorLayer>(*this));
   }
@@ -37,6 +39,7 @@ Application* wiesel::CreateApp() {
 }
 
 int main(int argc, char** argv) {
+  std::setlocale(LC_ALL, "C");
   EnableAnsiColors();
   DeveloperConsole::Init();
   EngineProperties properties = EngineProperties::Parse(argc, argv);
