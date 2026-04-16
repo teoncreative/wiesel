@@ -30,7 +30,7 @@
 namespace wiesel::editor {
 
 // Defined in w_editor.cc
-std::shared_ptr<Scene> scene();
+Scene* scene();
 
 void EditorLayer::RenderRenderStatsPanel() {
   {

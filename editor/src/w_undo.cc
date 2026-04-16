@@ -105,12 +105,12 @@ IEditorCommand* CommandStack::GetCurrent() const {
 
 // --- TransformCommand ---
 
-TransformCommand::TransformCommand(std::shared_ptr<Scene> scene,
+TransformCommand::TransformCommand(Scene* scene,
                                    entt::entity entity, glm::vec3 old_pos,
                                    glm::vec3 old_rot, glm::vec3 old_scale,
                                    glm::vec3 new_pos, glm::vec3 new_rot,
                                    glm::vec3 new_scale)
-    : scene_(std::move(scene)),
+    : scene_(scene->GetHandle()),
       entity_(entity),
       old_pos_(old_pos),
       old_rot_(old_rot),
@@ -120,30 +120,33 @@ TransformCommand::TransformCommand(std::shared_ptr<Scene> scene,
       new_scale_(new_scale) {}
 
 void TransformCommand::Execute() {
-  if (!scene_->HasEntity(entity_)) {
+  Scene* s = scene_.Resolve();
+  if (!s || !s->HasEntity(entity_)) {
     return;
   }
-  auto& t = scene_->GetComponent<TransformComponent>(entity_);
+  auto& t = s->GetComponent<TransformComponent>(entity_);
   t.SetPosition(new_pos_);
   t.SetRotation(new_rot_);
   t.SetScale(new_scale_);
 }
 
 void TransformCommand::Undo() {
-  if (!scene_->HasEntity(entity_)) {
+  Scene* s = scene_.Resolve();
+  if (!s || !s->HasEntity(entity_)) {
     return;
   }
-  auto& t = scene_->GetComponent<TransformComponent>(entity_);
+  auto& t = s->GetComponent<TransformComponent>(entity_);
   t.SetPosition(old_pos_);
   t.SetRotation(old_rot_);
   t.SetScale(old_scale_);
 }
 
 std::string TransformCommand::GetDescription() const {
-  if (!scene_->HasEntity(entity_)) {
+  Scene* s = scene_.Resolve();
+  if (!s || !s->HasEntity(entity_)) {
     return "Transform";
   }
-  return "Transform " + scene_->GetComponent<TagComponent>(entity_).name;
+  return "Transform " + s->GetComponent<TagComponent>(entity_).name;
 }
 
 bool TransformCommand::MergeWith(const IEditorCommand& other) {
@@ -159,54 +162,61 @@ bool TransformCommand::MergeWith(const IEditorCommand& other) {
 
 // --- EntityCreateCommand ---
 
-EntityCreateCommand::EntityCreateCommand(std::shared_ptr<Scene> scene,
-                                         entt::entity entity)
-    : scene_(std::move(scene)), entity_(entity) {
+EntityCreateCommand::EntityCreateCommand(EntityRef ref)
+    : entity_ref_(ref) {
   CaptureState();
 }
 
 void EntityCreateCommand::CaptureState() {
-  if (!scene_->HasEntity(entity_)) {
+  Entity entity = entity_ref_.Resolve();
+  if (!entity) {
+    // Scene no longer contains the entity or the scene itself is gone
     return;
   }
-  Entity ent{entity_, scene_.get()};
-  uuid_ = ent.GetUUID();
-  name_ = ent.GetName();
-  components_ = nlohmann::json::object();
-  ComponentSerializerRegistry::SerializeAll(ent, components_);
+  uuid_ = entity.GetUUID();
+  name_ = entity.GetName();
+  components_json_ = nlohmann::json::object();
+  ComponentSerializerRegistry::SerializeAll(entity, components_json_);
 
-  if (scene_->HasComponent<TreeComponent>(entity_)) {
-    auto& tree = scene_->GetComponent<TreeComponent>(entity_);
-    if (tree.parent != entt::null && scene_->HasEntity(tree.parent)) {
-      parent_uuid_ = scene_->GetComponent<IdComponent>(tree.parent).Id;
-    }
+  Entity parent = entity.GetParent();
+  if (parent) {
+    parent_uuid_ = entity.GetUUID();
   }
 }
 
 void EntityCreateCommand::Execute() {
   if (first_execute_) {
     first_execute_ = false;
-    return;  // Entity already exists on first execute
+    // This command is designed to be added after the entity was created
+    // Check prevents adding the entity twice
+    return;
   }
-  // Recreate the entity with the same UUID
-  Entity ent = scene_->CreateEntityWithUUID(uuid_, name_);
-  entity_ = ent.handle();
-  ComponentSerializerRegistry::DeserializeAll(ent, components_, scene_.get());
+  Scene* scene = entity_ref_.ResolveScene();
+  if (!scene) {
+    // Scene is gone
+    return;
+  }
+  // Create a new entity and update the ref as well
+  Entity entity = scene->CreateEntityWithUUID(uuid_, name_);
+  entity_ref_ = entity.ToRef();
+  ComponentSerializerRegistry::DeserializeAll(entity, components_json_, scene);
 
-  // Restore parent
+  // Attach to parent if given
   if (!parent_uuid_.IsNil()) {
-    entt::entity parent = scene_->FindEntityByUUID(parent_uuid_);
+    entt::entity parent = scene->FindEntityByUUID(parent_uuid_);
     if (parent != entt::null) {
-      scene_->LinkEntities(parent, entity_, false);
+      scene->LinkEntities(parent, entity, false);
     }
   }
 }
 
 void EntityCreateCommand::Undo() {
-  CaptureState();  // Re-capture in case components changed
-  if (scene_->HasEntity(entity_)) {
-    scene_->RemoveEntity(Entity{entity_, scene_.get()});
-    scene_->ProcessDestroyQueue();
+  CaptureState();
+  Entity entity = entity_ref_.Resolve();
+  if (entity) {
+    Scene* scene = entity.GetScene();
+    scene->RemoveEntity(entity);
+    scene->ProcessDestroyQueue();
   }
 }
 
@@ -216,42 +226,35 @@ std::string EntityCreateCommand::GetDescription() const {
 
 // --- EntityDeleteCommand ---
 
-EntityDeleteCommand::EntityDeleteCommand(std::shared_ptr<Scene> scene,
-                                         entt::entity entity)
-    : scene_(std::move(scene)), entity_(entity) {
-  Entity ent{entity_, scene_.get()};
-  name_ = ent.GetName();
-
-  // Capture parent UUID so we can re-link on undo
-  if (scene_->HasComponent<TreeComponent>(entity_)) {
-    auto& tree = scene_->GetComponent<TreeComponent>(entity_);
-    if (tree.parent != entt::null && scene_->HasEntity(tree.parent)) {
-      parent_uuid_ = scene_->GetComponent<IdComponent>(tree.parent).Id;
-    }
+EntityDeleteCommand::EntityDeleteCommand(Entity entity)
+    : ref_(entity.ToRef()), scene_handle_(entity.GetSceneHandle()) {
+  name_ = entity.GetName();
+  if (Entity parent = entity.GetParent()) {
+      parent_uuid_ = parent.GetUUID();
   }
-
-  // Serialize the entire entity subtree (entity + all children)
-  subtree_json_ = Prefab::SerializeEntityTree(ent);
 }
 
 void EntityDeleteCommand::Execute() {
-  if (scene_->HasEntity(entity_)) {
-    // Re-capture before deletion in case state changed
-    Entity ent{entity_, scene_.get()};
-    subtree_json_ = Prefab::SerializeEntityTree(ent);
-    scene_->RemoveEntity(ent);
-    scene_->ProcessDestroyQueue();
+  Scene* s = scene_handle_.Resolve();
+  if (!s || !s->HasEntity(ref_)) {
+    return;
   }
+  Entity entity = ref_.Resolve();
+  subtree_json_ = Prefab::SerializeEntityTree(entity);
+  s->RemoveEntity(entity);
+  s->ProcessDestroyQueue();
 }
 
 void EntityDeleteCommand::Undo() {
-  Entity root = Prefab::DeserializeEntityTree(scene_, subtree_json_);
-  entity_ = root.handle();
-
+  Scene* s = scene_handle_.Resolve();
+  if (!s) {
+    return;
+  }
+  Entity root = Prefab::DeserializeEntityTree(*s, subtree_json_);
   if (!parent_uuid_.IsNil()) {
-    entt::entity parent = scene_->FindEntityByUUID(parent_uuid_);
+    entt::entity parent = s->FindEntityByUUID(parent_uuid_);
     if (parent != entt::null) {
-      scene_->LinkEntities(parent, entity_, false);
+      s->LinkEntities(parent, root, false);
     }
   }
 }
@@ -262,35 +265,37 @@ std::string EntityDeleteCommand::GetDescription() const {
 
 // --- ReparentCommand ---
 
-ReparentCommand::ReparentCommand(std::shared_ptr<Scene> scene,
+ReparentCommand::ReparentCommand(Scene* scene,
                                  entt::entity entity, entt::entity old_parent,
                                  entt::entity new_parent)
-    : scene_(std::move(scene)),
+    : scene_handle_(scene->GetHandle()),
       entity_(entity),
       old_parent_(old_parent),
       new_parent_(new_parent) {}
 
 void ReparentCommand::Execute() {
-  if (!scene_->HasEntity(entity_)) {
+  Scene* s = scene_handle_.Resolve();
+  if (!s || !s->HasEntity(entity_)) {
     return;
   }
-  if (old_parent_ != entt::null && scene_->HasEntity(old_parent_)) {
-    scene_->UnlinkEntities(old_parent_, entity_);
+  if (old_parent_ != entt::null && s->HasEntity(old_parent_)) {
+    s->UnlinkEntities(old_parent_, entity_);
   }
-  if (new_parent_ != entt::null && scene_->HasEntity(new_parent_)) {
-    scene_->LinkEntities(new_parent_, entity_);
+  if (new_parent_ != entt::null && s->HasEntity(new_parent_)) {
+    s->LinkEntities(new_parent_, entity_);
   }
 }
 
 void ReparentCommand::Undo() {
-  if (!scene_->HasEntity(entity_)) {
+  Scene* s = scene_handle_.Resolve();
+  if (!s || !s->HasEntity(entity_)) {
     return;
   }
-  if (new_parent_ != entt::null && scene_->HasEntity(new_parent_)) {
-    scene_->UnlinkEntities(new_parent_, entity_);
+  if (new_parent_ != entt::null && s->HasEntity(new_parent_)) {
+    s->UnlinkEntities(new_parent_, entity_);
   }
-  if (old_parent_ != entt::null && scene_->HasEntity(old_parent_)) {
-    scene_->LinkEntities(old_parent_, entity_);
+  if (old_parent_ != entt::null && s->HasEntity(old_parent_)) {
+    s->LinkEntities(old_parent_, entity_);
   }
 }
 

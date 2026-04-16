@@ -36,6 +36,12 @@ class MonoBehavior : public IBehavior {
 
   ScriptInstance* script_instance() const { return script_instance_.get(); }
 
+  // Store field values to apply when the script instance becomes available.
+  // Used during deserialization when scripts may not be compiled yet.
+  void SetPendingFields(nlohmann::json fields) {
+    pending_fields_ = std::move(fields);
+  }
+
   bool OnPointerClick(float x, float y) override;
 
   bool OnPointerDown(float x, float y) override;

@@ -45,26 +45,34 @@
 
 namespace wiesel {
 
-std::shared_ptr<Scene> SceneManager::CreateScene() {
-  active_scene_ = std::make_shared<Scene>();
-  loaded_scenes_.clear();
-  loaded_scenes_.push_back(active_scene_);
-  return active_scene_;
+SceneHandle SceneManager::AllocateHandle() {
+  return SceneHandle{next_scene_id_++};
 }
 
-std::shared_ptr<Scene> SceneManager::FindScene(const std::string& name) const {
+Scene* SceneManager::Get(SceneHandle handle) const {
+  if (!handle) {
+    return nullptr;
+  }
   for (auto& scene : loaded_scenes_) {
-    if (scene->GetName() == name) {
-      return scene;
+    if (scene->GetHandle() == handle) {
+      return scene.get();
     }
   }
   return nullptr;
 }
 
-std::shared_ptr<Scene> SceneManager::FindSceneByPtr(Scene* raw) const {
+Scene* SceneManager::CreateScene() {
+  loaded_scenes_.clear();
+  auto& scene = loaded_scenes_.emplace_back(std::make_unique<Scene>());
+  scene->handle_ = AllocateHandle();
+  active_scene_ = scene.get();
+  return active_scene_;
+}
+
+Scene* SceneManager::FindScene(const std::string& name) const {
   for (auto& scene : loaded_scenes_) {
-    if (scene.get() == raw) {
-      return scene;
+    if (scene->GetName() == name) {
+      return scene.get();
     }
   }
   return nullptr;
@@ -94,8 +102,7 @@ std::string SceneManager::DeriveNameFromPath(const std::string& vfs_path) {
 }
 
 // Synchronous loading
-std::shared_ptr<Scene> SceneManager::LoadScene(const std::string& name,
-                                               LoadSceneMode mode) {
+Scene* SceneManager::LoadScene(const std::string& name, LoadSceneMode mode) {
   auto it = registered_scenes_.find(name);
   if (it == registered_scenes_.end()) {
     LOG_ERROR("Scene '{}' not registered", name);
@@ -104,8 +111,8 @@ std::shared_ptr<Scene> SceneManager::LoadScene(const std::string& name,
   return LoadSceneFromPath(it->second, mode);
 }
 
-std::shared_ptr<Scene> SceneManager::LoadSceneFromPath(
-    const std::string& vfs_path, LoadSceneMode mode) {
+Scene* SceneManager::LoadSceneFromPath(const std::string& vfs_path,
+                                       LoadSceneMode mode) {
   if (mode == LoadSceneMode::Single) {
     if (ReplacePrimaryScene(vfs_path)) {
       return active_scene_;
@@ -135,7 +142,7 @@ void SceneManager::LoadSceneAsyncFromPath(const std::string& vfs_path,
            mode == LoadSceneMode::Single ? "single" : "additive");
 }
 
-void SceneManager::UnloadScene(std::shared_ptr<Scene> scene) {
+void SceneManager::UnloadScene(Scene* scene) {
   if (!scene) {
     return;
   }
@@ -145,12 +152,20 @@ void SceneManager::UnloadScene(std::shared_ptr<Scene> scene) {
         "replace it");
     return;
   }
-  pending_unloads_.push_back(scene);
-  LOG_INFO("Queued scene unload: '{}'", scene->GetName());
+  // Find the unique_ptr in loaded_scenes_ and move it to pending_unloads_
+  for (auto it = loaded_scenes_.begin(); it != loaded_scenes_.end(); ++it) {
+    if (it->get() == scene) {
+      pending_unloads_.push_back(std::move(*it));
+      loaded_scenes_.erase(it);
+      LOG_INFO("Queued scene unload: '{}'", scene->GetName());
+      return;
+    }
+  }
+  LOG_WARN("UnloadScene: scene not found in loaded scenes");
 }
 
 void SceneManager::UnloadScene(const std::string& name) {
-  auto scene = FindScene(name);
+  Scene* scene = FindScene(name);
   if (!scene) {
     LOG_ERROR("Scene '{}' not found in loaded scenes", name);
     return;
@@ -159,30 +174,24 @@ void SceneManager::UnloadScene(const std::string& name) {
 }
 
 bool SceneManager::ReplacePrimaryScene(const std::string& vfs_path) {
-  auto scene = active_scene_;
-  if (!scene) {
-    return false;
+  // Save old asset list for cleanup
+  std::vector<AssetHandle> old_assets;
+  bool old_keep_loaded = false;
+  if (active_scene_) {
+    old_assets = active_scene_->GetRequestedAssets();
+    old_keep_loaded = active_scene_->GetKeepAssetsLoaded();
   }
 
-  // Unload all additive scenes before replacing the primary scene
-  UnloadAllAdditiveScenes();
-
-  // Save old scene's asset list and keep-loaded flag before clearing
-  std::vector<AssetHandle> old_assets = scene->GetRequestedAssets();
-  bool old_keep_loaded = scene->GetKeepAssetsLoaded();
-
-  // Clear the current scene
-  std::vector<entt::entity>& hierarchy = scene->GetSceneHierarchy();
-  std::vector<entt::entity> to_remove(hierarchy.begin(), hierarchy.end());
-  for (entt::entity entity_id : to_remove) {
-    Entity entity{entity_id, scene.get()};
-    scene->RemoveEntity(entity);
+  // Move all existing scenes to pending_unloads_
+  for (auto& scene : loaded_scenes_) {
+    pending_unloads_.push_back(std::move(scene));
   }
-  scene->ProcessDestroyQueue();
-  scene->ResetPhysicsWorld();
-  scene->ClearRequestedAssets();
-  default_pipeline_ = nullptr;
-  external_render_graph_ = nullptr;
+  loaded_scenes_.clear();
+
+  // Create a fresh scene
+  auto& new_scene = loaded_scenes_.emplace_back(std::make_unique<Scene>());
+  new_scene->handle_ = AllocateHandle();
+  active_scene_ = new_scene.get();
 
   // Load the new scene via VFS
   VfsFile file = Engine::vfs()->Open(vfs_path);
@@ -192,37 +201,34 @@ bool SceneManager::ReplacePrimaryScene(const std::string& vfs_path) {
   }
   std::string content((std::istreambuf_iterator<char>(file.Stream())),
                       std::istreambuf_iterator<char>());
-  SceneSerializer serializer(scene);
-  if (!serializer.DeserializeFromString(content)) {
+
+  if (!scene_serializer::DeserializeFromString(*active_scene_, content)) {
     LOG_ERROR("Failed to load scene: {}", vfs_path);
     return false;
   }
 
-  scene->SetSourcePath(vfs_path);
+  active_scene_->SetSourcePath(vfs_path);
 
   // Unload assets the old scene used but the new scene doesn't,
   // unless the old scene had keep_assets_loaded set
   if (!old_keep_loaded) {
-    UnloadUnusedAssets(old_assets, scene->GetRequestedAssets());
+    UnloadUnusedAssets(old_assets, active_scene_->GetRequestedAssets());
   }
 
   // Setup cameras
-  for (entt::entity entity : scene->GetAllEntitiesWith<CameraComponent>()) {
-    auto& cam = scene->GetComponent<CameraComponent>(entity);
+  for (entt::entity entity :
+       active_scene_->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = active_scene_->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
-  scene->ResetFirstUpdate();
+  active_scene_->ResetFirstUpdate();
   LOG_INFO("Scene loaded: {}", vfs_path);
   return true;
 }
 
-std::shared_ptr<Scene> SceneManager::LoadAdditiveFromPath(
-    const std::string& vfs_path, const std::string& name) {
-  auto new_scene = std::make_shared<Scene>();
-  new_scene->SetSourcePath(vfs_path);
-  new_scene->SetName(name);
-
+Scene* SceneManager::LoadAdditiveFromPath(const std::string& vfs_path,
+                                          const std::string& name) {
   VfsFile file = Engine::vfs()->Open(vfs_path);
   if (!file) {
     LOG_ERROR("Failed to open additive scene: {}", vfs_path);
@@ -230,22 +236,28 @@ std::shared_ptr<Scene> SceneManager::LoadAdditiveFromPath(
   }
   std::string content((std::istreambuf_iterator<char>(file.Stream())),
                       std::istreambuf_iterator<char>());
-  SceneSerializer serializer(new_scene);
-  if (!serializer.DeserializeFromString(content)) {
+
+  std::unique_ptr<Scene> new_scene = std::make_unique<Scene>();
+  new_scene->handle_ = AllocateHandle();
+  new_scene->SetSourcePath(vfs_path);
+  new_scene->SetName(name);
+  if (!scene_serializer::DeserializeFromString(*new_scene, content)) {
     LOG_ERROR("Failed to load additive scene: {}", vfs_path);
     return nullptr;
   }
 
   // Setup cameras
-  for (entt::entity entity : new_scene->GetAllEntitiesWith<CameraComponent>()) {
+  for (entt::entity entity :
+       new_scene->GetAllEntitiesWith<CameraComponent>()) {
     auto& cam = new_scene->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
   new_scene->ResetFirstUpdate();
-  loaded_scenes_.push_back(new_scene);
+  Scene* result = new_scene.get();
+  loaded_scenes_.push_back(std::move(new_scene));
   LOG_INFO("Additive scene loaded: '{}' ({})", name, vfs_path);
-  return new_scene;
+  return result;
 }
 
 bool SceneManager::BeginFrame() {
@@ -298,11 +310,8 @@ void SceneManager::LoadSceneWithLoading(const std::string& target_scene,
   LOG_INFO("Loading via intermediate scene: {} -> {}", loading_it->second,
            target_it->second);
 
-  // Deserialize the target scene into a temporary scene to discover and
-  // kick off async loads for all asset dependencies. RequestAsset() is
-  // called during deserialization for every asset handle, so we don't
-  // need to manually scan the JSON for specific component types.
-  target_scene_ = std::make_shared<Scene>();
+  target_scene_ = std::make_unique<Scene>();
+  target_scene_->handle_ = AllocateHandle();
   VfsFile target_file = Engine::vfs()->Open(target_scene_path_);
   std::string target_content;
   if (target_file) {
@@ -310,9 +319,9 @@ void SceneManager::LoadSceneWithLoading(const std::string& target_scene,
         std::string((std::istreambuf_iterator<char>(target_file.Stream())),
                     std::istreambuf_iterator<char>());
   }
-  SceneSerializer serializer(target_scene_);
+
   if (target_content.empty() ||
-      !serializer.DeserializeFromString(target_content)) {
+      !scene_serializer::DeserializeFromString(*target_scene_, target_content)) {
     LOG_ERROR("Failed to pre-parse target scene: {}", target_scene_path_);
     target_scene_.reset();
     load_progress_ = 1.0f;
@@ -355,12 +364,10 @@ void SceneManager::EndFrame() {
   ProcessPendingUnloads();
 }
 
-void SceneManager::Cleanup() {
-  for (auto& scene : loaded_scenes_) {
-    scene->Cleanup();
-  }
+SceneManager::~SceneManager() {
   loaded_scenes_.clear();
-  active_scene_.reset();
+  pending_unloads_.clear();
+  active_scene_ = nullptr;
   default_pipeline_ = nullptr;
   external_render_graph_ = nullptr;
 }
@@ -707,22 +714,17 @@ void SceneManager::UnloadAllAdditiveScenes() {
     return;
   }
 
-  // Collect all assets from additive scenes for cleanup
-  std::vector<AssetHandle> additive_assets;
+  // Move all non-active scenes to pending_unloads_
+  std::unique_ptr<Scene> active_owned;
   for (auto& scene : loaded_scenes_) {
-    if (scene == active_scene_) {
-      continue;
+    if (scene.get() == active_scene_) {
+      active_owned = std::move(scene);
+    } else {
+      pending_unloads_.push_back(std::move(scene));
     }
-    for (auto& handle : scene->GetRequestedAssets()) {
-      additive_assets.push_back(handle);
-    }
-    scene->Cleanup();
   }
-
-  // Remove all but the active scene
   loaded_scenes_.clear();
-  loaded_scenes_.push_back(active_scene_);
-  pending_unloads_.clear();
+  loaded_scenes_.push_back(std::move(active_owned));
 
   LOG_INFO("Unloaded all additive scenes");
 }
@@ -748,38 +750,18 @@ void SceneManager::ProcessPendingUnloads() {
   if (pending_unloads_.empty()) {
     return;
   }
-
-  std::vector<std::shared_ptr<Scene>> to_unload;
-  to_unload.swap(pending_unloads_);
-
-  for (auto& scene : to_unload) {
-    // Collect assets from this scene before cleanup
-    std::vector<AssetHandle> scene_assets = scene->GetRequestedAssets();
-    bool keep_loaded = scene->GetKeepAssetsLoaded();
-
-    scene->Cleanup();
-
-    // Remove from loaded_scenes_
-    std::erase(loaded_scenes_, scene);
-
-    // Unload assets exclusive to the removed scene
-    if (!keep_loaded) {
-      UnloadUnusedAssetsForScene(scene_assets);
-    }
-
-    LOG_INFO("Unloaded scene: '{}'", scene->GetName());
-  }
+  // Clearing the vector destroys the unique_ptrs, which destroy the scenes
+  pending_unloads_.clear();
 }
 
-Entity SceneManager::MoveEntityToScene(Entity entity,
-                                       std::shared_ptr<Scene> target_scene,
+Entity SceneManager::MoveEntityToScene(Entity entity, Scene* target_scene,
                                        bool move_children) {
   Scene* source_scene = entity.GetScene();
   if (!source_scene) {
     LOG_ERROR("MoveEntityToScene: entity has no source scene");
     return {entt::null, nullptr};
   }
-  if (source_scene == target_scene.get()) {
+  if (source_scene == target_scene) {
     LOG_WARN("MoveEntityToScene: entity is already in the target scene");
     return entity;
   }
@@ -865,7 +847,7 @@ Entity SceneManager::MoveEntityToScene(Entity entity,
   }
 
   // Recreate entities in target scene
-  Entity new_root{entt::null, target_scene.get()};
+  Entity new_root{entt::null, target_scene};
   std::unordered_map<UUID, entt::entity> uuid_to_new_handle;
 
   for (size_t i = 0; i < entity_list.size(); ++i) {
@@ -880,7 +862,7 @@ Entity SceneManager::MoveEntityToScene(Entity entity,
 
     // Deserialize components
     ComponentSerializerRegistry::DeserializeAll(new_entity, data.components,
-                                                target_scene.get());
+                                                target_scene);
 
     // Set world-space transform for root
     if (i == 0) {

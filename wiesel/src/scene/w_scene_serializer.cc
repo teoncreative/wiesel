@@ -15,22 +15,19 @@
 #include "scene/w_entity_serializer.h"
 #include "util/w_logger.h"
 
-namespace wiesel {
+namespace wiesel::scene_serializer {
 
 static constexpr int kCurrentSceneVersion = 3;
 
-SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene)
-    : scene_(std::move(scene)) {}
-
 // --- Serialize (V2: nested format via EntitySerializer) ---
 
-std::string SceneSerializer::SerializeToString() const {
+std::string SerializeToString(Scene& scene) {
   nlohmann::json root;
   root["version"] = kCurrentSceneVersion;
 
   nlohmann::json entities = nlohmann::json::array();
-  for (auto entity_id : scene_->GetSceneHierarchy()) {
-    Entity entity{entity_id, scene_.get()};
+  for (auto entity_id : scene.GetSceneHierarchy()) {
+    Entity entity{entity_id, &scene};
 
     // Only serialize root entities - children are nested inside
     if (entity.GetParent()) {
@@ -42,16 +39,16 @@ std::string SceneSerializer::SerializeToString() const {
   root["entities"] = entities;
 
   // Scene-level properties
-  if (scene_->GetSkyboxAsset().IsValid()) {
-    root["skybox"] = scene_->GetSkyboxAsset().ToString();
+  if (scene.GetSkyboxAsset().IsValid()) {
+    root["skybox"] = scene.GetSkyboxAsset().ToString();
   }
-  if (scene_->GetCursorSetAsset().IsValid()) {
-    root["cursor_set"] = scene_->GetCursorSetAsset().ToString();
+  if (scene.GetCursorSetAsset().IsValid()) {
+    root["cursor_set"] = scene.GetCursorSetAsset().ToString();
   }
-  if (scene_->GetKeepAssetsLoaded()) {
+  if (scene.GetKeepAssetsLoaded()) {
     root["keep_assets_loaded"] = true;
   }
-  if (scene_->GetPreloadAssets()) {
+  if (scene.GetPreloadAssets()) {
     root["preload_assets"] = true;
   }
 
@@ -60,15 +57,14 @@ std::string SceneSerializer::SerializeToString() const {
 
 // --- V1 deserialization (flat format with parent references) ---
 
-static bool DeserializeV1(std::shared_ptr<Scene> scene,
-                          const nlohmann::json& root) {
+static bool DeserializeV1(Scene& scene, const nlohmann::json& root) {
   // First pass: create all entities
   std::unordered_map<UUID, entt::entity> uuid_map;
   for (const nlohmann::json& ej : root["entities"]) {
     std::string uuid_str = ej.value("uuid", "");
     std::string name = ej.value("name", "Entity");
     UUID uuid = UUID::FromString(uuid_str);
-    Entity entity = scene->CreateEntityWithUUID(uuid, name);
+    Entity entity = scene.CreateEntityWithUUID(uuid, name);
     uuid_map[uuid] = entity.handle();
   }
 
@@ -79,14 +75,14 @@ static bool DeserializeV1(std::shared_ptr<Scene> scene,
     if (it == uuid_map.end()) {
       continue;
     }
-    Entity entity{it->second, scene.get()};
+    Entity entity{it->second, &scene};
     if (ej.contains("tags") && ej["tags"].is_array()) {
       auto& tc = entity.GetComponent<TagComponent>();
       for (const auto& t : ej["tags"]) {
         tc.AddTag(t.get<std::string>());
       }
     }
-    ComponentSerializerRegistry::DeserializeAll(entity, ej, scene.get());
+    ComponentSerializerRegistry::DeserializeAll(entity, ej, &scene);
   }
 
   // Third pass: link hierarchy
@@ -97,7 +93,7 @@ static bool DeserializeV1(std::shared_ptr<Scene> scene,
       auto pi = uuid_map.find(parent_uuid);
       auto ci = uuid_map.find(child_uuid);
       if (pi != uuid_map.end() && ci != uuid_map.end()) {
-        scene->LinkEntities(pi->second, ci->second, false);
+        scene.LinkEntities(pi->second, ci->second, false);
       }
     }
   }
@@ -106,8 +102,7 @@ static bool DeserializeV1(std::shared_ptr<Scene> scene,
 
 // --- V2 deserialization (nested format via EntitySerializer) ---
 
-static bool DeserializeV2(std::shared_ptr<Scene> scene,
-                          const nlohmann::json& root) {
+static bool DeserializeV2(Scene& scene, const nlohmann::json& root) {
   for (const nlohmann::json& entity_tree : root["entities"]) {
     entity_serializer::Deserialize(scene, entity_tree);
   }
@@ -116,7 +111,7 @@ static bool DeserializeV2(std::shared_ptr<Scene> scene,
 
 // --- Entry point ---
 
-bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
+bool DeserializeFromString(Scene& scene, const std::string& json_str) {
   nlohmann::json root;
   try {
     root = nlohmann::json::parse(json_str);
@@ -135,20 +130,20 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
     std::string s = root["skybox"].get<std::string>();
     if (!s.empty()) {
       auto h = AssetHandle::FromString(s);
-      scene_->RequestAsset(h);
-      scene_->SetSkyboxAsset(h);
+      scene.RequestAsset(h);
+      scene.SetSkyboxAsset(h);
     }
   }
   if (root.contains("cursor_set") && root["cursor_set"].is_string()) {
     std::string s = root["cursor_set"].get<std::string>();
     if (!s.empty()) {
       auto h = AssetHandle::FromString(s);
-      scene_->RequestAsset(h);
-      scene_->SetCursorSetAsset(h);
+      scene.RequestAsset(h);
+      scene.SetCursorSetAsset(h);
     }
   }
-  scene_->SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));
-  scene_->SetPreloadAssets(root.value("preload_assets", false));
+  scene.SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));
+  scene.SetPreloadAssets(root.value("preload_assets", false));
 
   int version = root.value("version", 1);
   if (version < 2) {
@@ -158,8 +153,8 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
     LOG_WARN("Scene uses V{} format - resave to upgrade to V{}", version,
              kCurrentSceneVersion);
   }
-  bool ok = (version >= 2) ? DeserializeV2(scene_, root)
-                           : DeserializeV1(scene_, root);
+  bool ok = (version >= 2) ? DeserializeV2(scene, root)
+                           : DeserializeV1(scene, root);
 
   if (ok) {
     LOG_INFO("Scene deserialized (v{}): {} entities", version,

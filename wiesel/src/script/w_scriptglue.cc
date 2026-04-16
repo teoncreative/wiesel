@@ -1908,6 +1908,8 @@ void Internals_SceneManager_ActivateLoadedScene() {
   Engine::scene_manager().ActivateLoadedScene();
 }
 
+// todo replace pointers with SceneHandle instead
+// so we can know if its valid or not
 MonoObject* Internals_Prefab_Instantiate(uint64_t scene_ptr,
                                          MonoString* handle_str) {
   if (scene_ptr == 0) {
@@ -1918,14 +1920,7 @@ MonoObject* Internals_Prefab_Instantiate(uint64_t scene_ptr,
   AssetHandle handle = AssetHandle::FromString(cstr);
   mono_free(cstr);
 
-  std::shared_ptr<Scene> shared_scene =
-      Engine::scene_manager().FindSceneByPtr(scene);
-  if (!shared_scene) {
-    LOG_ERROR("Prefab_Instantiate: scene not found in loaded scenes");
-    return nullptr;
-  }
-
-  Entity entity = Prefab::Instantiate(shared_scene, handle);
+  Entity entity = Prefab::Instantiate(*scene, handle);
   if (!entity) {
     return nullptr;
   }
@@ -1952,9 +1947,9 @@ uint64_t Internals_SceneManager_GetLoadedScene(int index) {
 
 uint64_t Internals_SceneManager_FindScene(MonoString* name) {
   char* cstr = mono_string_to_utf8(name);
-  auto scene = Engine::scene_manager().FindScene(cstr);
+  Scene* scene = Engine::scene_manager().FindScene(cstr);
   mono_free(cstr);
-  return scene ? reinterpret_cast<uint64_t>(scene.get()) : 0;
+  return scene ? reinterpret_cast<uint64_t>(scene) : 0;
 }
 
 MonoString* Internals_Scene_GetName(uint64_t scene_ptr) {
@@ -1973,12 +1968,7 @@ MonoObject* Internals_SceneManager_MoveEntityToScene(uint64_t scene_ptr,
     return nullptr;
   }
   Scene* source = reinterpret_cast<Scene*>(scene_ptr);
-  auto target = Engine::scene_manager().FindSceneByPtr(
-      reinterpret_cast<Scene*>(target_scene_ptr));
-  if (!target) {
-    LOG_ERROR("MoveEntityToScene: target scene not found");
-    return nullptr;
-  }
+  Scene* target = reinterpret_cast<Scene*>(target_scene_ptr);
   entt::entity handle = static_cast<entt::entity>(entity_id);
   Entity entity{handle, source};
   Entity new_entity =
@@ -1986,7 +1976,7 @@ MonoObject* Internals_SceneManager_MoveEntityToScene(uint64_t scene_ptr,
   if (!new_entity) {
     return nullptr;
   }
-  return Engine::script_manager().CreateCSharpEntity(target.get(),
+  return Engine::script_manager().CreateCSharpEntity(target,
                                                      new_entity.handle());
 }
 

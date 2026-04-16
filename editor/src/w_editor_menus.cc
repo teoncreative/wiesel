@@ -41,8 +41,7 @@
 
 namespace wiesel::editor {
 
-// Defined in w_editor.cc
-std::shared_ptr<Scene> scene();
+Scene* scene();
 
 static ThumbnailEntry GetOrCreateThumbnail(AssetHandle handle,
                                            const AssetMetadata& meta) {
@@ -1781,8 +1780,8 @@ void EditorLayer::RenderMainMenuBar() {
 
   // Entity copy (Ctrl+C) - copies full entity tree including children
   if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false) &&
-      has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
-    Entity entity{selected_entity_, selected_entity_scene_.get()};
+      selected_entity_ && !ImGui::GetIO().WantTextInput) {
+    Entity entity = selected_entity_.Resolve();
     nlohmann::json j = Prefab::SerializeEntityTree(entity);
     entity_clipboard_ = j.dump();
   }
@@ -1792,11 +1791,12 @@ void EditorLayer::RenderMainMenuBar() {
       !entity_clipboard_.empty() && !ImGui::GetIO().WantTextInput) {
     try {
       nlohmann::json j = nlohmann::json::parse(entity_clipboard_);
-      Entity new_entity = Prefab::DeserializeEntityTree(scene(), j);
+      Scene* paste_scene = editor::scene();
+      Entity new_entity = Prefab::DeserializeEntityTree(*paste_scene, j);
       if (new_entity) {
-        selected_entity_ = new_entity.handle();
-        selected_entity_scene_ = scene();
-        has_selected_entity_ = true;
+        command_stack_.Execute(
+            std::make_unique<EntityCreateCommand>(new_entity.ToRef()));
+        selected_entity_ = new_entity.ToRef();
         scroll_to_selected_ = true;
         scene_dirty_ = true;
       }
@@ -1807,30 +1807,29 @@ void EditorLayer::RenderMainMenuBar() {
 
   // Entity duplicate (Ctrl+D) - duplicates full entity tree
   if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false) &&
-      has_selected_entity_ && !ImGui::GetIO().WantTextInput) {
-    Entity entity{selected_entity_, selected_entity_scene_.get()};
+      selected_entity_ && !ImGui::GetIO().WantTextInput) {
+    Entity entity = selected_entity_.Resolve();
+    Scene* dup_scene = entity.GetScene();
     nlohmann::json j = Prefab::SerializeEntityTree(entity);
-    Entity new_entity =
-        Prefab::DeserializeEntityTree(selected_entity_scene_, j);
+    Entity new_entity = Prefab::DeserializeEntityTree(*dup_scene, j);
     if (new_entity) {
-      // Parent to same parent as original
       Entity parent = entity.GetParent();
       if (parent) {
-        selected_entity_scene_->LinkEntities(parent.handle(), new_entity);
+        dup_scene->LinkEntities(parent, new_entity);
       }
-      selected_entity_ = new_entity.handle();
-      has_selected_entity_ = true;
+      command_stack_.Execute(
+          std::make_unique<EntityCreateCommand>(new_entity.ToRef()));
+      selected_entity_ = new_entity.ToRef();
       scroll_to_selected_ = true;
       scene_dirty_ = true;
     }
   }
 
   // Delete selected entity
-  if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && has_selected_entity_ &&
+  if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && selected_entity_ &&
       !ImGui::GetIO().WantTextInput) {
-    command_stack_.Execute(std::make_unique<EntityDeleteCommand>(
-        selected_entity_scene_, selected_entity_));
-    has_selected_entity_ = false;
+    command_stack_.Execute(std::make_unique<EntityDeleteCommand>(selected_entity_.Resolve()));
+    selected_entity_ = kInvalidEntityRef;
     scene_dirty_ = true;
   }
 }

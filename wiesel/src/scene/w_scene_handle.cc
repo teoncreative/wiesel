@@ -1,3 +1,4 @@
+
 //
 //   Copyright 2026 Metehan Gezer
 //
@@ -8,20 +9,18 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-//
-// Created by Metehan Gezer on 05.03.2026.
-//
+#include "scene/w_scene_handle.h"
 
-#pragma once
+#include "scene/w_scene_manager.h"
+#include "w_engine.h"
 
-#include <nlohmann/json.hpp>
+namespace wiesel {
 
-#include "scene/w_scene.h"
-#include "w_pch.h"
-
-namespace wiesel::scene_serializer {
-
-std::string SerializeToString(Scene& scene);
-bool DeserializeFromString(Scene& scene, const std::string& json_str);
+Scene* SceneHandle::Resolve() const {
+  if (id == 0) {
+    return nullptr;
+  }
+  return Engine::scene_manager().Get(*this);
+}
 
 }  // namespace wiesel

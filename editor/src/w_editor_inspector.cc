@@ -30,13 +30,14 @@ void EditorLayer::RenderInspectorPanel() {
     return;
   }
   if (ImGui::Begin(CODICON_INSPECT " Inspector", &open)) {
-    if (has_selected_entity_ && selected_entity_scene_) {
+    Entity selected_entity = selected_entity_.Resolve();
+    if (selected_entity) {
       inspector_mode_ = InspectorMode::Entity;
     }
 
     if (inspector_mode_ == InspectorMode::Entity) {
-      if (has_selected_entity_) {
-        RenderEntityInspector(selected_entity_);
+      if (selected_entity) {
+        RenderEntityInspector(selected_entity);
       } else {
         ImGui::TextDisabled("No entity selected");
       }
@@ -128,9 +129,8 @@ void EditorLayer::RenderAssetPropertiesPanel() {
   }
 }
 
-void EditorLayer::RenderEntityInspector(entt::entity handle) {
-  Entity entity = {handle, selected_entity_scene_.get()};
-  TagComponent& tag = entity.GetComponent<TagComponent>();
+void EditorLayer::RenderEntityInspector(Entity selected_entity) {
+  TagComponent& tag = selected_entity.GetComponent<TagComponent>();
   if (ImGui::InputText("##", &tag.name, ImGuiInputTextFlags_AutoSelectAll)) {
     if (tag.name[0] == ' ') {
       TrimLeft(tag.name);
@@ -186,13 +186,13 @@ void EditorLayer::RenderEntityInspector(entt::entity handle) {
   if (ImGui::Button("Add")) {
     ImGui::OpenPopup("add_component_popup");
   }
-  RenderModals(entity);
+  RenderModals(selected_entity);
   if (ImGui::BeginPopup("add_component_popup")) {
-    RenderAddPopup(entity);
+    RenderAddPopup(selected_entity);
     ImGui::EndPopup();
   }
   SetInspectorCommandStack(&command_stack_);
-  RenderExistingComponents(entity);
+  RenderExistingComponents(selected_entity);
   SetInspectorCommandStack(nullptr);
 }
 

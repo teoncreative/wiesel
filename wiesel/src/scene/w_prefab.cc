@@ -25,13 +25,13 @@ nlohmann::json Prefab::SerializeEntityTree(Entity entity) {
   return root;
 }
 
-Entity Prefab::DeserializeEntityTree(std::shared_ptr<Scene> scene,
+Entity Prefab::DeserializeEntityTree(Scene& target_scene,
                                      const nlohmann::json& json) {
   if (json.contains("root")) {
-    return entity_serializer::Deserialize(scene, json["root"]);
+    return entity_serializer::Deserialize(target_scene, json["root"]);
   }
   // If no wrapper, treat the json itself as the entity tree
-  return entity_serializer::Deserialize(scene, json);
+  return entity_serializer::Deserialize(target_scene, json);
 }
 
 bool Prefab::SaveToFile(Entity entity, const std::filesystem::path& path) {
@@ -50,22 +50,22 @@ bool Prefab::SaveToFile(Entity entity, const std::filesystem::path& path) {
   return true;
 }
 
-Entity Prefab::Instantiate(std::shared_ptr<Scene> scene, AssetHandle handle) {
+Entity Prefab::Instantiate(Scene& target_scene, AssetHandle handle) {
   if (!handle.IsValid()) {
     LOG_ERROR("Prefab::Instantiate: invalid asset handle");
-    return Entity{entt::null, scene.get()};
+    return Entity{};
   }
 
   const auto* meta = Engine::asset_manager().GetMetadata(handle);
   if (!meta) {
     LOG_ERROR("Prefab::Instantiate: asset not found: {}", handle.ToString());
-    return Entity{entt::null, scene.get()};
+    return Entity{};
   }
 
   VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
   if (!file) {
     LOG_ERROR("Failed to open prefab file: {}", meta->virtual_source_path);
-    return Entity{entt::null, scene.get()};
+    return Entity{};
   }
 
   nlohmann::json j;
@@ -75,10 +75,10 @@ Entity Prefab::Instantiate(std::shared_ptr<Scene> scene, AssetHandle handle) {
     j = nlohmann::json::parse(content);
   } catch (const nlohmann::json::parse_error& e) {
     LOG_ERROR("Failed to parse prefab: {}", e.what());
-    return Entity{entt::null, scene.get()};
+    return Entity{};
   }
 
-  return DeserializeEntityTree(scene, j);
+  return DeserializeEntityTree(target_scene, j);
 }
 
 }  // namespace wiesel

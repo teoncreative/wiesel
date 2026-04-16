@@ -26,7 +26,7 @@ void NetworkSceneManager::LoadScene(const std::string& name,
     return;
   }
 
-  Engine::scene_manager().LoadSceneAsync(name, mode);
+  Engine::scene_manager().LoadScene(name, mode);
 
   // Track for late joiners
   uint8_t mode_val = (mode == LoadSceneMode::Additive) ? 1 : 0;
@@ -38,7 +38,7 @@ void NetworkSceneManager::LoadScene(const std::string& name,
   packet->load_mode = mode_val;
   network.Broadcast(packet);
 
-  LOG_INFO("NetworkSceneManager: queued scene '{}' (mode {}), broadcast to clients",
+  LOG_INFO("NetworkSceneManager: loaded scene '{}' (mode {}), broadcast to clients",
            name, mode_val);
 }
 

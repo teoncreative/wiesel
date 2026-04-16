@@ -29,6 +29,7 @@
 #include "events/w_appevents.h"
 #include "events/w_mouseevents.h"
 #include "rendering/w_camera.h"
+#include "scene/w_entity.h"
 #include "scene/w_scene.h"
 #include "util/w_filewatcher.h"
 #include "util/w_user_config.h"
@@ -60,8 +61,7 @@ class RecentProjects {
 enum class EditorState { Edit, Playing, Paused };
 
 struct HierarchyDragPayload {
-  entt::entity entity = entt::null;
-  int scene_index = -1;
+  EntityRef entity_ref;
 };
 
 class EditorLayer : public Layer {
@@ -78,8 +78,7 @@ class EditorLayer : public Layer {
   bool OnWindowFocusLost(WindowFocusLostEvent& event);
   bool OnAssetUnloaded(AssetUnloadedEvent& event);
 
-  void RenderEntity(Entity& entity, entt::entity entity_id,
-                    std::shared_ptr<Scene> entity_scene, int depth,
+  void RenderEntity(Entity& entity, int depth,
                     bool& ignore_menu);
   void UpdateHierarchyOrder();
 
@@ -95,11 +94,10 @@ class EditorLayer : public Layer {
   void SyncEditorSelectedComponent();
 
   // Entity picking helpers
-  entt::entity FindSpriteAtNDC(glm::vec2 ndc);
-  void FindSpritesInScene(const std::shared_ptr<Scene>& scene,
+  EntityRef FindSpriteAtNDC(glm::vec2 ndc);
+  bool FindSpritesInScene(Scene* scene,
                           const glm::mat4& vp, glm::vec2 pick_ndc,
-                          entt::entity& best, float& best_depth,
-                          std::shared_ptr<Scene>& best_scene);
+                          entt::entity& best, float& best_depth);
 
   // Toolbar / Menu
   void RenderMainMenuBar();
@@ -110,7 +108,7 @@ class EditorLayer : public Layer {
   void RenderCreateAnimControllerPopup();
   void RenderCreateCursorSetPopup();
   void RenderCreateMeshColliderPopup();
-  void RenderEntityInspector(entt::entity handle);
+  void RenderEntityInspector(Entity selected_entity);
   void RenderAssetPropertiesPanel();
   void NewProject();
   void OpenProject();
@@ -157,23 +155,19 @@ class EditorLayer : public Layer {
   void PerformRedo();
 
   // Selection state
-  entt::entity selected_entity_ = entt::null;
-  std::shared_ptr<Scene> selected_entity_scene_;
-  bool has_selected_entity_ = false;
+  EntityRef selected_entity_{};
   bool scroll_to_selected_ = false;
 
   // Hierarchy state
   char hierarchy_search_[256] = {};
-  entt::entity renaming_entity_ = entt::null;
+  EntityRef renaming_entity_{};
   char rename_entity_buf_[256] = {};
-  std::unordered_set<entt::entity> open_ancestors_;
+  std::unordered_set<EntityRef> open_ancestors_;
   std::string entity_clipboard_;
 
   struct SceneHierarchyData {
-    entt::entity move_from = entt::null;
-    std::shared_ptr<Scene> move_from_scene;
-    entt::entity move_to = entt::null;
-    std::shared_ptr<Scene> move_to_scene;
+    EntityRef move_from{};
+    EntityRef move_to{};
     bool bottom_part = false;
   };
 

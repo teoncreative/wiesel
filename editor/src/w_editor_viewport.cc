@@ -22,8 +22,7 @@
 
 namespace wiesel::editor {
 
-// Free functions defined in w_editor.cc with external linkage.
-std::shared_ptr<Scene> scene();
+Scene* scene();
 
 struct ResolutionPreset {
   const char* label;
@@ -84,7 +83,7 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
     created.AddComponent<CameraComponent>();
   }
 
-  if (created.handle() != entt::null) {
+  if (created) {
     if (parent != entt::null) {
       scene.LinkEntities(parent, created);
     }
@@ -92,11 +91,8 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
       auto& tc = created.GetComponent<TransformComponent>();
       tc.SetPosition(*spawn_pos);
     }
-    auto shared_scene = Engine::scene_manager().FindSceneByPtr(&scene);
-    if (shared_scene) {
-      commands.Execute(std::make_unique<EntityCreateCommand>(shared_scene,
-                                                             created.handle()));
-    }
+    commands.Execute(
+        std::make_unique<EntityCreateCommand>(created.ToRef()));
     dirty = true;
     return true;
   }
@@ -451,14 +447,14 @@ void EditorLayer::RenderSceneViewportPanel() {
           editor_camera_.view_changed = true;
         }
 
+        Entity selected_entity = selected_entity_.Resolve();
+
         // ImGuizmo (uses editor camera matrices, disabled during right-click camera)
-        if (has_selected_entity_ && !scene_right_active) {
+        if (selected_entity && !scene_right_active) {
           glm::mat4 view = editor_camera_.view_matrix;
           glm::mat4 proj = editor_camera_.projection;
           proj[1][1] *= -1;
-          TransformComponent& transform =
-              selected_entity_scene_->GetComponent<TransformComponent>(
-                  selected_entity_);
+          TransformComponent& transform = selected_entity.GetComponent<TransformComponent>();
 
           // Capture old transform for undo
           glm::vec3 old_pos = transform.GetPosition();
@@ -478,8 +474,7 @@ void EditorLayer::RenderSceneViewportPanel() {
                                    glm::value_ptr(model))) {
             // ImGuizmo returns a world-space matrix. If the entity has a parent,
             // convert back to local space before setting position/rotation/scale.
-            Entity selected{selected_entity_, selected_entity_scene_.get()};
-            Entity parent = selected.GetParent();
+            Entity parent = selected_entity.GetParent();
             if (parent && parent.HasComponent<TransformComponent>()) {
               glm::mat4 parent_world = parent.GetComponent<TransformComponent>()
                                            .GetTransformMatrix();
@@ -496,7 +491,7 @@ void EditorLayer::RenderSceneViewportPanel() {
             transform.SetScale(scale);
 
             command_stack_.Execute(std::make_unique<TransformCommand>(
-                selected_entity_scene_, selected_entity_, old_pos, old_rot,
+                selected_entity.GetScene(), selected_entity, old_pos, old_rot,
                 old_scale, translation, rotation, scale));
             scene_dirty_ = true;
           }
@@ -521,10 +516,10 @@ void EditorLayer::RenderSceneViewportPanel() {
             drawList->AddLine(sa, sb, color, 1.5f);
           };
 
-          if (selected_entity_scene_->HasComponent<BoxColliderComponent>(
+          if (selected_entity_.scene_handle.Resolve()->HasComponent<BoxColliderComponent>(
                   selected_entity_)) {
             auto& box =
-                selected_entity_scene_->GetComponent<BoxColliderComponent>(
+                selected_entity_.scene_handle.Resolve()->GetComponent<BoxColliderComponent>(
                     selected_entity_);
             glm::vec3 center = transform.GetWorldPosition() + box.offset;
             glm::vec3 h = box.half_extents;
@@ -553,10 +548,10 @@ void EditorLayer::RenderSceneViewportPanel() {
             DrawLine3D(corners[3], corners[7], col);
           }
 
-          if (selected_entity_scene_->HasComponent<SphereColliderComponent>(
+          if (selected_entity_.scene_handle.Resolve()->HasComponent<SphereColliderComponent>(
                   selected_entity_)) {
             auto& sphere =
-                selected_entity_scene_->GetComponent<SphereColliderComponent>(
+                selected_entity_.scene_handle.Resolve()->GetComponent<SphereColliderComponent>(
                     selected_entity_);
             glm::vec3 center = transform.GetWorldPosition() + sphere.offset;
             float r = sphere.radius;
@@ -582,7 +577,7 @@ void EditorLayer::RenderSceneViewportPanel() {
             }
           }
 
-        }  // end has_selected_entity_
+        }  // end static_cast<bool>(selected_entity_)
 
         // Entity picking: click on Scene panel to select (only when not right-clicking)
         if (!scene_right_active && ImGui::IsMouseClicked(0) && scene_hovered &&
@@ -643,7 +638,7 @@ void EditorLayer::RenderResolutionDropdown() {
       bool selected = (i == resolution_preset_index_);
       if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
         resolution_preset_index_ = i;
-        for (auto loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+        for (const auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
           loaded_scene->SetRenderResolution(kResolutionPresets[i].size);
         }
       }
@@ -832,10 +827,10 @@ bool EditorLayer::DrawPlayStopButtons() {
   return changed;
 }
 
-void EditorLayer::FindSpritesInScene(const std::shared_ptr<Scene>& scene,
+bool EditorLayer::FindSpritesInScene(Scene* scene,
                                      const glm::mat4& vp, glm::vec2 pick_ndc,
-                                     entt::entity& best, float& best_depth,
-                                     std::shared_ptr<Scene>& best_scene) {
+                                     entt::entity& best, float& best_depth) {
+  bool changed = false;
   for (auto entity : scene->GetAllEntitiesWith<SpriteRendererComponent,
                                                TransformComponent>()) {
     auto& tc = scene->GetComponent<TransformComponent>(entity);
@@ -864,29 +859,32 @@ void EditorLayer::FindSpritesInScene(const std::shared_ptr<Scene>& scene,
       if (ndc.z < best_depth) {
         best = entity;
         best_depth = ndc.z;
-        best_scene = scene;
+        changed = true;
       }
     }
   }
+  return changed;
 }
 
-entt::entity EditorLayer::FindSpriteAtNDC(glm::vec2 pick_ndc) {
+EntityRef EditorLayer::FindSpriteAtNDC(glm::vec2 pick_ndc) {
   glm::mat4 vp = editor_camera_.projection * editor_camera_.view_matrix;
   // Vulkan flips Y in projection, undo for NDC comparison
   vp[1][1] *= -1.0f;
 
   entt::entity best = entt::null;
   float best_depth = std::numeric_limits<float>::max();
-  std::shared_ptr<Scene> best_scene;
+  Scene* best_scene = nullptr;
 
-  for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
-    FindSpritesInScene(loaded_scene, vp, pick_ndc, best, best_depth,
-                       best_scene);
+  for (const auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+    Scene* scene = loaded_scene.get();
+    if (FindSpritesInScene(scene, vp, pick_ndc, best, best_depth)) {
+      best_scene = scene;
+    }
   }
   if (best != entt::null && best_scene) {
-    selected_entity_scene_ = best_scene;
+    return {best, best_scene->GetHandle()};
   }
-  return best;
+  return {};
 }
 
 }  // namespace wiesel::editor

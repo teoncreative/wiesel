@@ -260,9 +260,8 @@ void GameLoader::ScanAssets() {
     }
     std::string content((std::istreambuf_iterator<char>(file.Stream())),
                         std::istreambuf_iterator<char>());
-    auto temp_scene = std::make_shared<Scene>();
-    SceneSerializer serializer(temp_scene);
-    if (serializer.DeserializeFromString(content)) {
+    Scene temp_scene;
+    if (scene_serializer::DeserializeFromString(temp_scene, content)) {
       LOG_INFO("Preloading assets for scene: {}", preload_vfs);
     }
   }
@@ -349,8 +348,7 @@ bool GameLoader::LoadStartScene(const GameInfo& info) {
 
   std::string content((std::istreambuf_iterator<char>(file.Stream())),
                       std::istreambuf_iterator<char>());
-  SceneSerializer serializer(scene);
-  if (!serializer.DeserializeFromString(content)) {
+  if (scene_serializer::DeserializeFromString(*scene, content)) {
     return false;
   }
 

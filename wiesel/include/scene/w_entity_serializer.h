@@ -24,10 +24,8 @@ namespace entity_serializer {
 nlohmann::json Serialize(Entity entity);
 
 // Deserialize a nested JSON tree into entities.
-// Two-phase: creates all entities with UUIDs first, then deserializes
-// components so cross-entity references (e.g. skeleton_root) resolve.
 // Returns the root entity.
-Entity Deserialize(std::shared_ptr<Scene> scene, const nlohmann::json& json);
+Entity Deserialize(Scene& scene, const nlohmann::json& json);
 
 }  // namespace EntitySerializer
 

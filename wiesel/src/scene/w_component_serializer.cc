@@ -594,8 +594,7 @@ void InitializeComponentSerializers() {
                 field_data.Set(instance->handle(), str);
               } else if (field_data.field_type() == FieldType::Prefab &&
                          val.is_object()) {
-                // Support both "handle" (new) and "path" (legacy) keys
-                std::string handle_str = val.value("handle", val.value("path", ""));
+                std::string handle_str = val.value("handle", "");
                 if (!handle_str.empty()) {
                   MonoObject* prefab =
                       mono_object_new(Engine::script_manager().app_domain(),

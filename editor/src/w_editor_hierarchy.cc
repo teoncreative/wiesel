@@ -23,15 +23,12 @@
 
 namespace wiesel::editor {
 
-// Defined in w_editor.cc
-std::shared_ptr<Scene> scene();
+Scene* scene();
 
-static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
+static bool RenderAddEntityMenu(Scene& scene, Entity entity, bool& dirty,
                                 CommandStack& commands,
-                                entt::entity parent = entt::null,
                                 const glm::vec3* spawn_pos = nullptr) {
   Entity created{entt::null, nullptr};
-
   if (ImGui::MenuItem("Empty Entity")) {
     created = scene.CreateEntity();
   }
@@ -66,20 +63,16 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
     created.AddComponent<CameraComponent>();
   }
 
-  if (created.handle() != entt::null) {
-    if (parent != entt::null) {
-      scene.LinkEntities(parent, created);
+  if (created) {
+    if (entity) {
+      scene.LinkEntities(entity, created);
     }
     if (spawn_pos) {
       auto& tc = created.GetComponent<TransformComponent>();
       tc.SetPosition(*spawn_pos);
     }
     {
-      auto shared_scene = Engine::scene_manager().FindSceneByPtr(&scene);
-      if (shared_scene) {
-        commands.Execute(std::make_unique<EntityCreateCommand>(
-            shared_scene, created.handle()));
-      }
+      commands.Execute(std::make_unique<EntityCreateCommand>(created.ToRef()));
     }
     dirty = true;
     return true;
@@ -89,22 +82,23 @@ static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
 }
 
 // Check if an entity or any of its descendants match the search filter.
-static bool EntityMatchesSearch(Scene& scene, entt::entity entity_id,
+static bool EntityMatchesSearch(Entity& entity,
                                 const std::string& filter) {
   if (filter.empty()) {
     return true;
   }
-  auto& tag = scene.GetComponent<TagComponent>(entity_id);
+  auto& tag = entity.GetComponent<TagComponent>();
   std::string name_lower = tag.name;
   std::ranges::transform(name_lower, name_lower.begin(), ::tolower);
   if (name_lower.find(filter) != std::string::npos) {
     return true;
   }
   // Check children recursively
-  if (scene.HasComponent<TreeComponent>(entity_id)) {
-    auto& tree = scene.GetComponent<TreeComponent>(entity_id);
-    for (auto child : tree.children) {
-      if (EntityMatchesSearch(scene, child, filter)) {
+  if (entity.HasComponent<TreeComponent>()) {
+    auto& tree = entity.GetComponent<TreeComponent>();
+    for (entt::entity child : tree.children) {
+      Entity child_entity{child, entity.GetScene()};
+      if (EntityMatchesSearch(child_entity, filter)) {
         return true;
       }
     }
@@ -112,19 +106,7 @@ static bool EntityMatchesSearch(Scene& scene, entt::entity entity_id,
   return false;
 }
 
-// Helper to find the index of a scene in the loaded scenes vector.
-static int FindSceneIndex(const std::shared_ptr<Scene>& target) {
-  const auto& loaded = Engine::scene_manager().GetLoadedScenes();
-  for (size_t i = 0; i < loaded.size(); ++i) {
-    if (loaded[i] == target) {
-      return static_cast<int>(i);
-    }
-  }
-  return -1;
-}
-
-void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
-                               std::shared_ptr<Scene> entity_scene, int depth,
+void EditorLayer::RenderEntity(Entity& entity, int depth,
                                bool& ignore_menu) {
   auto& tag_component = entity.GetComponent<TagComponent>();
 
@@ -132,16 +114,14 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
   std::string filter(hierarchy_search_);
   std::ranges::transform(filter, filter.begin(), ::tolower);
   if (!filter.empty() &&
-      !EntityMatchesSearch(*entity_scene, entity_id, filter)) {
+      !EntityMatchesSearch(entity, filter)) {
     return;
   }
 
   bool has_children =
       entity.child_handles() && !entity.child_handles()->empty();
-  bool is_selected = has_selected_entity_ && selected_entity_ == entity_id &&
-                     selected_entity_scene_ == entity_scene;
-
-  bool is_renaming = renaming_entity_ == entity_id;
+  bool is_selected = selected_entity_ == entity;
+  bool is_renaming = renaming_entity_ == entity;
 
   // If renaming, show input field instead of tree node
   if (is_renaming) {
@@ -154,29 +134,29 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
         tag_component.name = rename_entity_buf_;
         scene_dirty_ = true;
       }
-      renaming_entity_ = entt::null;
+      renaming_entity_ = {};
     }
     // Cancel on escape
     if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-      renaming_entity_ = entt::null;
+      renaming_entity_ = {};
     }
     // Lose focus = confirm
     if (!ImGui::IsItemActive() && !ImGui::IsItemDeactivated()) {
       // Not yet focused - set focus
       ImGui::SetKeyboardFocusHere(-1);
-    } else if (ImGui::IsItemDeactivated() && renaming_entity_ != entt::null) {
+    } else if (ImGui::IsItemDeactivated() && renaming_entity_) {
       if (rename_entity_buf_[0] != '\0') {
         tag_component.name = rename_entity_buf_;
         scene_dirty_ = true;
       }
-      renaming_entity_ = entt::null;
+      renaming_entity_ = {};
     }
     return;
   }
 
   // Build unique label
   std::string label = tag_component.name + "##" +
-                      std::to_string(static_cast<uint32_t>(entity_id));
+                      std::to_string(static_cast<uint32_t>(entity.handle()));
 
   ImGuiTreeNodeFlags flags =
       ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -187,7 +167,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
     flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
   }
   // Auto-open nodes when searching or scrolling to a descendant
-  if (!filter.empty() || open_ancestors_.contains(entity_id)) {
+  if (!filter.empty() || open_ancestors_.contains(entity.ToRef())) {
     ImGui::SetNextItemOpen(true);
   }
 
@@ -203,9 +183,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
   // Selection on release (not during drag)
   if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(0) &&
       !ImGui::IsItemToggledOpen() && !ImGui::IsDragDropActive()) {
-    selected_entity_ = entity_id;
-    selected_entity_scene_ = entity_scene;
-    has_selected_entity_ = true;
+    selected_entity_ = entity.ToRef();
     inspector_mode_ = InspectorMode::Entity;
   }
 
@@ -223,7 +201,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
 
   // F2 to rename selected entity
   if (is_selected && ImGui::IsKeyPressed(ImGuiKey_F2)) {
-    renaming_entity_ = entity_id;
+    renaming_entity_ = entity.ToRef();
     strncpy(rename_entity_buf_, tag_component.name.c_str(),
             sizeof(rename_entity_buf_) - 1);
     rename_entity_buf_[sizeof(rename_entity_buf_) - 1] = '\0';
@@ -233,7 +211,7 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
   ImGuiDragDropFlags src_flags = ImGuiDragDropFlags_SourceNoDisableHover;
   if (ImGui::BeginDragDropSource(src_flags)) {
     ImGui::Text("%s", tag_component.name.c_str());
-    HierarchyDragPayload drag_payload{entity_id, FindSceneIndex(entity_scene)};
+    HierarchyDragPayload drag_payload{entity.ToRef()};
     ImGui::SetDragDropPayload("SceneHierarchy Entity", &drag_payload,
                               sizeof(HierarchyDragPayload));
     ImGui::EndDragDropSource();
@@ -245,14 +223,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
             ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
       HierarchyDragPayload* drop_data =
           static_cast<HierarchyDragPayload*>(payload->Data);
-      const auto& loaded = Engine::scene_manager().GetLoadedScenes();
-      hierarchy_data_.move_from = drop_data->entity;
-      if (drop_data->scene_index >= 0 &&
-          drop_data->scene_index < static_cast<int>(loaded.size())) {
-        hierarchy_data_.move_from_scene = loaded[drop_data->scene_index];
-      }
-      hierarchy_data_.move_to = entity_id;
-      hierarchy_data_.move_to_scene = entity_scene;
+      hierarchy_data_.move_from = drop_data->entity_ref;
+      hierarchy_data_.move_to = entity.ToRef();
       hierarchy_data_.bottom_part = false;
     }
     ImGui::EndDragDropTarget();
@@ -260,32 +232,30 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
 
   // Context menu
   if (ImGui::BeginPopupContextItem()) {
-    selected_entity_ = entity_id;
-    selected_entity_scene_ = entity_scene;
-    has_selected_entity_ = true;
+    selected_entity_ = entity.ToRef();
     if (ImGui::BeginMenu("Add Child")) {
-      RenderAddEntityMenu(*entity_scene, scene_dirty_, command_stack_,
-                          entity_id);
+      RenderAddEntityMenu(*entity.GetScene(), entity, scene_dirty_, command_stack_);
       ImGui::EndMenu();
     }
     if (ImGui::MenuItem("Save as Prefab...")) {
+      EntityRef ref = entity.ToRef();
       file_picker_.OpenSave(
           "Save as Prefab", ".wprefab",
-          [this, entity_id, entity_scene](const std::string& vfs_path) {
+          [this, ref](const std::string& vfs_path) {
             auto physical = Engine::vfs()->ResolvePhysicalPath(vfs_path);
             if (!physical) {
               return;
             }
-            Entity ent{entity_id, entity_scene.get()};
-            Prefab::SaveToFile(ent, *physical);
+            Entity entity = ref.Resolve();
+            Prefab::SaveToFile(entity, *physical);
             ScanProjectAssets();
           });
     }
     ImGui::Separator();
     if (ImGui::MenuItem("Delete")) {
       command_stack_.Execute(
-          std::make_unique<EntityDeleteCommand>(entity_scene, entity_id));
-      has_selected_entity_ = false;
+          std::make_unique<EntityDeleteCommand>(entity));
+      selected_entity_ = EntityRef{};
       scene_dirty_ = true;
     }
     ImGui::EndPopup();
@@ -295,8 +265,8 @@ void EditorLayer::RenderEntity(Entity& entity, entt::entity entity_id,
   // Recurse into children if the tree node is open
   if (has_children && node_open) {
     for (const auto& child_entity_id : *entity.child_handles()) {
-      Entity child = {child_entity_id, entity_scene.get()};
-      RenderEntity(child, child_entity_id, entity_scene, depth + 1,
+      Entity child = {child_entity_id, entity.GetScene()};
+      RenderEntity(child, depth + 1,
                    ignore_menu);
     }
     ImGui::TreePop();
@@ -307,7 +277,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
   bool& scene_open = panel_scene_hierarchy_;
   if (scene_open) {
     if (ImGui::Begin(CODICON_SYMBOL_RULER " Scene Hierarchy", &scene_open)) {
-      bool ignoreMenu = false;
+      bool ignore_menu = false;
 
       if (editing_prefab_) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
@@ -322,23 +292,18 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         ImGui::PopStyleColor(2);
         if (ImGui::Button("Close", ImVec2(width * 0.48f, 0))) {
           deferred_action_ = DeferredAction::ClosePrefab;
-          has_selected_entity_ = false;
+          selected_entity_ = EntityRef{};
         }
         ImGui::Separator();
       }
 
-      if (scroll_to_selected_ && has_selected_entity_ &&
-          selected_entity_scene_) {
+      if (scroll_to_selected_ && selected_entity_) {
         open_ancestors_.clear();
-        entt::entity walk = selected_entity_;
-        while (walk != entt::null) {
-          if (selected_entity_scene_->HasComponent<TreeComponent>(walk)) {
-            entt::entity parent =
-                selected_entity_scene_->GetComponent<TreeComponent>(walk)
-                    .parent;
-            if (parent != entt::null) {
-              open_ancestors_.insert(parent);
-            }
+        Entity walk = selected_entity_.Resolve();
+        while (!walk) {
+          Entity parent = walk.GetParent();
+          if (parent) {
+            open_ancestors_.insert(parent.ToRef());
             walk = parent;
           } else {
             break;
@@ -350,11 +315,10 @@ void EditorLayer::RenderSceneHierarchyPanel() {
       ImGui::InputTextWithHint("##HierarchySearch", "Search entities...",
                                hierarchy_search_, sizeof(hierarchy_search_));
 
-      const std::vector<std::shared_ptr<Scene>>& loaded_scenes =
-          Engine::scene_manager().GetLoadedScenes();
+      const auto& loaded_scenes = Engine::scene_manager().GetLoadedScenes();
       for (size_t scene_idx = 0; scene_idx < loaded_scenes.size();
            ++scene_idx) {
-        const std::shared_ptr<Scene>& current_scene = loaded_scenes[scene_idx];
+        Scene* current_scene = loaded_scenes[scene_idx].get();
         ImGuiTreeNodeFlags scene_flags =
             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow |
             ImGuiTreeNodeFlags_SpanAvailWidth |
@@ -375,22 +339,23 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         std::string ctx_id = "scene_root_context_" + std::to_string(scene_idx);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
           if (ImGui::BeginMenu("Add")) {
-            RenderAddEntityMenu(*current_scene, scene_dirty_, command_stack_);
+            Entity invalid_entity = Entity{};
+            RenderAddEntityMenu(*current_scene, kInvalidEntity, scene_dirty_, command_stack_);
             ImGui::EndMenu();
           }
           ImGui::EndPopup();
-          ignoreMenu = true;
+          ignore_menu = true;
         }
 
         if (scene_node_open) {
           ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                               ImVec2(ImGui::GetStyle().ItemSpacing.x, 3.0f));
           for (const auto& entity_id : current_scene->GetSceneHierarchy()) {
-            Entity entity = {entity_id, current_scene.get()};
+            Entity entity = {entity_id, current_scene};
             if (entity.GetParent()) {
               continue;
             }
-            RenderEntity(entity, entity_id, current_scene, 0, ignoreMenu);
+            RenderEntity(entity, 0, ignore_menu);
           }
           ImGui::PopStyleVar();
           ImGui::TreePop();
@@ -407,15 +372,17 @@ void EditorLayer::RenderSceneHierarchyPanel() {
                   ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
             HierarchyDragPayload* drop_data =
                 static_cast<HierarchyDragPayload*>(payload->Data);
-            const auto& loaded = Engine::scene_manager().GetLoadedScenes();
-            if (drop_data->scene_index >= 0 &&
-                drop_data->scene_index < static_cast<int>(loaded.size())) {
-              Scene* drop_scene = loaded[drop_data->scene_index].get();
-              Entity dropped_entity = {drop_data->entity, drop_scene};
-              if (dropped_entity.parent_handle() != entt::null) {
-                drop_scene->UnlinkEntities(dropped_entity.parent_handle(),
-                                           drop_data->entity);
-                scene_dirty_ = true;
+            if (drop_data->entity_ref) {
+              // We gonna unparent the entity
+              Entity target_entity = drop_data->entity_ref.Resolve();
+              if (target_entity) {
+                Entity parent_entity = target_entity.GetParent();
+                if (parent_entity) {
+                  Scene* scene = parent_entity.GetScene();
+                  scene->UnlinkEntities(parent_entity,
+                                             target_entity);
+                  scene_dirty_ = true;
+                }
               }
             }
           }
@@ -430,26 +397,26 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         }
 
         if (ImGui::IsItemClicked(0)) {
-          has_selected_entity_ = false;
+          selected_entity_ = EntityRef{};
         }
 
         if (ImGui::IsItemClicked(1)) {
           ImGui::OpenPopup("right_click_hierarchy");
         }
       } else {
-        if (!ignoreMenu && ImGui::IsWindowHovered() &&
+        if (!ignore_menu && ImGui::IsWindowHovered() &&
             ImGui::IsMouseClicked(1, false)) {
           ImGui::OpenPopup("right_click_hierarchy");
         }
         if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(0) &&
             !ImGui::IsAnyItemHovered()) {
-          has_selected_entity_ = false;
+          selected_entity_ = EntityRef{};
         }
       }
 
       if (ImGui::BeginPopup("right_click_hierarchy")) {
         if (ImGui::BeginMenu("Add")) {
-          RenderAddEntityMenu(*scene(), scene_dirty_, command_stack_);
+          RenderAddEntityMenu(*scene(), kInvalidEntity, scene_dirty_, command_stack_);
           ImGui::EndMenu();
         }
         ImGui::EndPopup();
@@ -460,17 +427,16 @@ void EditorLayer::RenderSceneHierarchyPanel() {
 }
 
 void EditorLayer::UpdateHierarchyOrder() {
-  if (hierarchy_data_.move_from == entt::null ||
-      hierarchy_data_.move_to == entt::null) {
+  Entity from_entity = hierarchy_data_.move_from.Resolve();
+  Entity to_entity = hierarchy_data_.move_to.Resolve();
+  if (!from_entity || !to_entity) {
     return;
   }
-
-  std::shared_ptr<Scene> from_scene = hierarchy_data_.move_from_scene;
-  std::shared_ptr<Scene> to_scene = hierarchy_data_.move_to_scene;
+  Scene* from_scene = from_entity.GetScene();
+  Scene* to_scene = to_entity.GetScene();
 
   // Cross-scene move: transfer entity to the target scene
   if (from_scene != to_scene) {
-    Entity from_entity = {hierarchy_data_.move_from, from_scene.get()};
     Entity moved =
         Engine::scene_manager().MoveEntityToScene(from_entity, to_scene);
     if (moved) {
@@ -478,7 +444,6 @@ void EditorLayer::UpdateHierarchyOrder() {
     }
   } else {
     // Same-scene move
-    Entity from_entity = {hierarchy_data_.move_from, from_scene.get()};
     if (hierarchy_data_.bottom_part) {
       // Reorder in hierarchy
       if (from_entity.parent_handle() != entt::null) {
@@ -499,11 +464,8 @@ void EditorLayer::UpdateHierarchyOrder() {
                                hierarchy_data_.move_from);
     }
   }
-
-  hierarchy_data_.move_from = entt::null;
-  hierarchy_data_.move_from_scene.reset();
-  hierarchy_data_.move_to = entt::null;
-  hierarchy_data_.move_to_scene.reset();
+  hierarchy_data_.move_from = kInvalidEntityRef;
+  hierarchy_data_.move_to = kInvalidEntityRef;
 }
 
 }  // namespace wiesel::editor

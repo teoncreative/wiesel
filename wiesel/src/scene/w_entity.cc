@@ -16,7 +16,12 @@
 namespace wiesel {
 
 Entity::Entity(entt::entity handle, Scene* scene)
-    : entity_handle_(handle), scene_(scene) {
+    : entity_handle_(handle),
+      scene_handle_(scene ? scene->GetHandle() : SceneHandle{}),
+      scene_(scene) {
+  if (scene_ && !scene_->IsValid(handle)) { [[unlikely]]
+    entity_handle_ = entt::null;
+  }
   child_handles_ = nullptr;
   parent_handle_ = entt::null;
   if (scene_ && entity_handle_ != entt::null && HasComponent<TreeComponent>()) {
@@ -25,7 +30,5 @@ Entity::Entity(entt::entity handle, Scene* scene)
     child_handles_ = &component.children;
   }
 }
-
-Entity::~Entity() {}
 
 }  // namespace wiesel

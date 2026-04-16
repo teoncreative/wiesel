@@ -16,6 +16,7 @@
 
 #include "scene/w_entity.h"
 #include "scene/w_scene.h"
+#include "scene/w_scene_handle.h"
 #include "w_pch.h"
 
 namespace wiesel {
@@ -25,24 +26,31 @@ enum class LoadSceneMode { Single, Additive };
 class SceneManager {
  public:
   SceneManager() = default;
+  ~SceneManager();
 
-  // Scene ownership - SceneManager is the single authority
-  std::shared_ptr<Scene> CreateScene();
+  // Resolve a SceneHandle to a Scene pointer.
+  // Returns nullptr if the scene was destroyed.
+  Scene* Get(SceneHandle handle) const;
 
-  void SetActiveScene(std::shared_ptr<Scene> scene) { active_scene_ = scene; }
+  // Scene ownership - SceneManager is the sole owner
+  Scene* CreateScene();
 
-  std::shared_ptr<Scene> GetActiveScene() const { return active_scene_; }
+  WIESEL_GETTER_FN SceneHandle GetActiveSceneHandle() const {
+    return active_scene_ ? active_scene_->GetHandle() : SceneHandle{};
+  }
 
-  // All currently loaded scenes (includes active scene)
-  const std::vector<std::shared_ptr<Scene>>& GetLoadedScenes() const {
+  Scene* GetActiveScene() const { return active_scene_; }
+
+  void SetActiveScene(Scene* scene) { active_scene_ = scene; }
+
+  WIESEL_GETTER_FN const std::vector<std::unique_ptr<Scene>>& GetLoadedScenes() const {
     return loaded_scenes_;
   }
 
   MultiScene& GetMultiScene() { return multi_scene_; }
 
   // Find a loaded scene by name or raw pointer
-  std::shared_ptr<Scene> FindScene(const std::string& name) const;
-  std::shared_ptr<Scene> FindSceneByPtr(Scene* raw) const;
+  WIESEL_GETTER_FN Scene* FindScene(const std::string& name) const;
 
   // Register a scene file path with a name (e.g. "MainMenu", "Level1")
   void RegisterScene(const std::string& name, const std::string& vfs_path);
@@ -50,7 +58,6 @@ class SceneManager {
 
   void ClearRegisteredScenes() { registered_scenes_.clear(); }
 
-  // Get all registered scenes
   const std::map<std::string, std::string>& GetRegisteredScenes() const {
     return registered_scenes_;
   }
@@ -58,10 +65,10 @@ class SceneManager {
   // Synchronous scene loading - loads immediately and returns the scene.
   // Single: replaces all loaded scenes with the new one.
   // Additive: loads on top of existing scenes.
-  std::shared_ptr<Scene> LoadScene(const std::string& name,
-                                   LoadSceneMode mode = LoadSceneMode::Single);
-  std::shared_ptr<Scene> LoadSceneFromPath(
-      const std::string& vfs_path, LoadSceneMode mode = LoadSceneMode::Single);
+  Scene* LoadScene(const std::string& name,
+                   LoadSceneMode mode = LoadSceneMode::Single);
+  Scene* LoadSceneFromPath(const std::string& vfs_path,
+                           LoadSceneMode mode = LoadSceneMode::Single);
 
   // Async scene loading - queued for next BeginFrame.
   // Safe to call from scripts during update.
@@ -71,7 +78,7 @@ class SceneManager {
                               LoadSceneMode mode = LoadSceneMode::Single);
 
   // Unload a specific additively-loaded scene (queued for end of frame)
-  void UnloadScene(std::shared_ptr<Scene> scene);
+  void UnloadScene(Scene* scene);
   void UnloadScene(const std::string& name);
 
   // Immediately unload all additively-loaded scenes (keeps only the active scene)
@@ -79,14 +86,10 @@ class SceneManager {
 
   // Move an entity (and optionally its children) from one scene to another.
   // Returns the new Entity in the target scene (old entity handle is invalidated).
-  Entity MoveEntityToScene(Entity entity, std::shared_ptr<Scene> target_scene,
+  Entity MoveEntityToScene(Entity entity, Scene* target_scene,
                            bool move_children = true);
 
   // Load with an intermediate loading screen scene
-  // 1. Immediately loads loading_scene
-  // 2. Begins async-loading target_scene in background
-  // 3. Loading screen scripts can query progress
-  // 4. When ready, call ActivateLoadedScene() to switch
   void LoadSceneWithLoading(const std::string& target_scene,
                             const std::string& loading_scene);
 
@@ -101,21 +104,15 @@ class SceneManager {
   // Check if any async scene loads are pending
   bool HasPendingSceneLoad() const { return !pending_async_loads_.empty(); }
 
-  // Rendering - centralized render methods that handle all loaded scenes.
-  // Each camera sees entities from ALL loaded scenes.
+  // Rendering
   bool RenderGameView();
   bool RenderEditorView(CameraComponent& camera, TransformComponent& transform,
                         bool show_grid = false);
 
-  // Per-frame lifecycle - layers call these
-  // BeginFrame: processes pending scene loads. Returns true if a scene was switched.
+  // Per-frame lifecycle
   bool BeginFrame();
-  // EndFrame: processes entity destroy queue
   void EndFrame();
-  // Cleanup: called on shutdown, cleans up the active scene
-  void Cleanup();
 
-  // Clear pending load (e.g. if editor cancels)
   void ClearPending() {
     pending_async_loads_.clear();
     pending_unloads_.clear();
@@ -126,7 +123,6 @@ class SceneManager {
     auto_activate_ = false;
   }
 
-  // Unload assets that were used by the old scene but not the new one.
   void UnloadUnusedAssets(const std::vector<AssetHandle>& old_assets,
                           const std::vector<AssetHandle>& new_assets);
 
@@ -150,22 +146,22 @@ class SceneManager {
   void EnsureDefaultResources();
   void CreateDefaultPipeline();
 
-  // Internal: load a scene from VFS path and add to loaded_scenes_.
-  // Does NOT replace the active scene - caller handles that for Single mode.
-  std::shared_ptr<Scene> LoadAdditiveFromPath(const std::string& vfs_path,
-                                              const std::string& name);
-  // Internal: replace the active scene contents from VFS path.
+  Scene* LoadAdditiveFromPath(const std::string& vfs_path,
+                              const std::string& name);
   bool ReplacePrimaryScene(const std::string& vfs_path);
 
   static std::string DeriveNameFromPath(const std::string& vfs_path);
-  // Unload assets from a removed scene that no other loaded scene needs.
   void UnloadUnusedAssetsForScene(const std::vector<AssetHandle>& scene_assets);
 
-  std::shared_ptr<Scene> active_scene_;
-  std::vector<std::shared_ptr<Scene>> loaded_scenes_;
+  // Handle ID counter
+  uint32_t next_scene_id_ = 1;
+  SceneHandle AllocateHandle();
+
+  Scene* active_scene_ = nullptr;
+  std::vector<std::unique_ptr<Scene>> loaded_scenes_;
   MultiScene multi_scene_{loaded_scenes_};
   std::map<std::string, std::string> registered_scenes_;
-  // Async loading state
+
   struct PendingAsyncLoad {
     std::string vfs_path;
     std::string name;
@@ -173,11 +169,12 @@ class SceneManager {
   };
 
   std::vector<PendingAsyncLoad> pending_async_loads_;
-  std::vector<std::shared_ptr<Scene>> pending_unloads_;
+  // Old scenes kept alive until end of frame, then destroyed
+  std::vector<std::unique_ptr<Scene>> pending_unloads_;
 
   // Async loading state
   std::string target_scene_path_;
-  std::shared_ptr<Scene> target_scene_;
+  std::unique_ptr<Scene> target_scene_;
   float load_progress_ = 0.0f;
   bool scene_ready_ = false;
   bool auto_activate_ = false;
@@ -185,8 +182,6 @@ class SceneManager {
   // Rendering state
   std::shared_ptr<RenderPipeline> default_pipeline_;
   std::shared_ptr<RenderGraph> external_render_graph_;
-  // Monotonically increasing version. Cameras compare their
-  // resource_pipeline_version against this to detect staleness.
   uint32_t pipeline_version_ = 0;
 };
 

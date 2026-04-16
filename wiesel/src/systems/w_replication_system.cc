@@ -25,25 +25,12 @@
 
 namespace wiesel {
 
-template <typename Fn>
-static void ForEachBehavior(Scene& scene, Fn&& fn) {
-  auto& registry = scene.GetRegistry();
-  for (auto entity : registry.view<BehaviorsComponent>()) {
-    auto& comp = registry.get<BehaviorsComponent>(entity);
-    for (auto& [name, behavior] : comp.behaviors_) {
-      if (behavior && behavior->IsEnabled()) {
-        fn(behavior);
-      }
-    }
-  }
-}
-
 // Update is called per-scene by the scene's system runner, but we only
 // want to run replication logic once per frame. Use the active scene
 // as the trigger - skip for additive scenes.
 void ReplicationSystem::Update(Scene& scene, float delta_time) {
-  auto active = Engine::scene_manager().GetActiveScene();
-  if (!active || active.get() != &scene) {
+  Scene* active = Engine::scene_manager().GetActiveScene();
+  if (!active || active != &scene) {
     return;
   }
 
@@ -113,13 +100,13 @@ void ReplicationSystem::ServerUpdate(float delta_time) {
       if (net_id.net_id == 0) {
         net_id.net_id = AllocateNetId();
         net_id_to_entity_.emplace(
-            net_id.net_id, Entity{ent, scene_ptr.get()});
+            net_id.net_id, EntityRef(ent, scene_ptr->GetHandle()));
       }
 
       auto& id_comp = spawn_view.get<IdComponent>(ent);
       auto& tag_comp = spawn_view.get<TagComponent>(ent);
 
-      Entity entity{ent, scene_ptr.get()};
+      Entity entity(ent, scene_ptr.get());
       auto component_buffer = std::make_shared<znet::Buffer>();
       NetworkComponentSerializerRegistry::SerializeAll(entity,
                                                        *component_buffer);
@@ -162,7 +149,7 @@ void ReplicationSystem::ServerUpdate(float delta_time) {
         continue;
       }
 
-      Entity entity{ent, scene_ptr.get()};
+      Entity entity(ent, scene_ptr.get());
       NetworkComponentSerializerRegistry::UpdateDirtyFlags(entity, net_id);
 
       if (net_id.dirty_components.none()) {
@@ -249,7 +236,7 @@ void ReplicationSystem::SendFullStateToSession(uint64_t session_id) {
         continue;
       }
 
-      Entity entity{ent, scene_ptr.get()};
+      Entity entity(ent, scene_ptr.get());
       auto component_buffer = std::make_shared<znet::Buffer>();
       NetworkComponentSerializerRegistry::SerializeAll(entity,
                                                        *component_buffer);
@@ -278,7 +265,7 @@ void ReplicationSystem::SpawnEntityFromPacket(
   }
 
   // Find the target scene
-  std::shared_ptr<Scene> target_scene;
+  Scene* target_scene = nullptr;
   if (!packet->scene_name.empty()) {
     target_scene = Engine::scene_manager().FindScene(packet->scene_name);
   }
@@ -328,7 +315,7 @@ void ReplicationSystem::SpawnEntityFromPacket(
     net_id.to_snapshot = net_id.from_snapshot;
   }
 
-  net_id_to_entity_.emplace(packet->net_id, entity);
+  net_id_to_entity_.emplace(packet->net_id, entity.ToRef());
   LOG_DEBUG("Replicated entity spawn: net_id={} name={} scene={}",
             packet->net_id, packet->entity_name, packet->scene_name);
 }
@@ -408,8 +395,11 @@ void ReplicationSystem::ClientUpdate(float delta_time) {
 
         auto it = net_id_to_entity_.find(packet->net_id);
         if (it != net_id_to_entity_.end()) {
-          Entity entity = it->second;
-          entity.GetScene()->RemoveEntity(entity);
+          Scene* scene = Engine::scene_manager().Get(it->second.scene_handle);
+          if (scene) {
+            Entity entity(it->second.entity, scene);
+            scene->RemoveEntity(entity);
+          }
           net_id_to_entity_.erase(it);
           LOG_DEBUG("Replicated entity destroy: net_id={}", packet->net_id);
         }
@@ -426,7 +416,8 @@ void ReplicationSystem::ClientUpdate(float delta_time) {
             continue;
           }
 
-          Entity entity = it->second;
+          Entity entity = it->second.Resolve();
+          if (!entity) { break; }
           if (!update.component_data || update.component_data->size() == 0) {
             continue;
           }
@@ -471,7 +462,8 @@ void ReplicationSystem::ClientUpdate(float delta_time) {
 
         auto it = net_id_to_entity_.find(packet->net_id);
         if (it != net_id_to_entity_.end()) {
-          Entity entity = it->second;
+          Entity entity = it->second.Resolve();
+          if (!entity) { break; }
           auto& net_id = entity.GetComponent<NetworkIdentityComponent>();
           net_id.authority =
               static_cast<NetworkAuthority>(packet->authority);
@@ -488,7 +480,8 @@ void ReplicationSystem::ClientUpdate(float delta_time) {
           break;
         }
 
-        Entity entity = it->second;
+        Entity entity = it->second.Resolve();
+        if (!entity) { break; }
         Scene* scene = entity.GetScene();
         if (!scene->HasComponent<BehaviorsComponent>(entity.handle())) {
           break;
@@ -517,7 +510,8 @@ void ReplicationSystem::ClientUpdate(float delta_time) {
           break;
         }
 
-        Entity entity = it->second;
+        Entity entity = it->second.Resolve();
+        if (!entity) { break; }
         auto& net_id = entity.GetComponent<NetworkIdentityComponent>();
 
         for (auto& var : packet->vars) {

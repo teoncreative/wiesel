@@ -65,12 +65,12 @@ static void Collect(const nlohmann::json& j, int parent_idx,
   }
 }
 
-Entity Deserialize(std::shared_ptr<Scene> scene, const nlohmann::json& json) {
+Entity Deserialize(Scene& scene, const nlohmann::json& json) {
   std::vector<EntityEntry> entries;
   Collect(json, -1, entries);
 
   if (entries.empty()) {
-    return Entity{entt::null, scene.get()};
+    return Entity{};
   }
 
   // Phase 1: create all entities with UUIDs and names
@@ -79,21 +79,21 @@ Entity Deserialize(std::shared_ptr<Scene> scene, const nlohmann::json& json) {
     std::string name = entry.json->value("name", "Entity");
     UUID uuid =
         uuid_str.empty() ? UUID::GenerateV4() : UUID::FromString(uuid_str);
-    Entity entity = scene->CreateEntityWithUUID(uuid, name);
+    Entity entity = scene.CreateEntityWithUUID(uuid, name);
     entry.handle = entity.handle();
   }
 
   // Phase 2: link parent-child relationships
   for (const auto& entry : entries) {
     if (entry.parent_index >= 0) {
-      scene->LinkEntities(entries[entry.parent_index].handle, entry.handle,
+      scene.LinkEntities(entries[entry.parent_index].handle, entry.handle,
                           false);
     }
   }
 
   // Phase 3: deserialize all components (all entities + hierarchy exist)
   for (const auto& entry : entries) {
-    Entity entity{entry.handle, scene.get()};
+    Entity entity{entry.handle, &scene};
 
     if (entry.json->contains("tags") && (*entry.json)["tags"].is_array()) {
       auto& tag_comp = entity.GetComponent<TagComponent>();
@@ -103,10 +103,10 @@ Entity Deserialize(std::shared_ptr<Scene> scene, const nlohmann::json& json) {
     }
 
     ComponentSerializerRegistry::DeserializeAll(entity, *entry.json,
-                                                scene.get());
+                                                &scene);
   }
 
-  return Entity{entries[0].handle, scene.get()};
+  return Entity{entries[0].handle, &scene};
 }
 
 }  // namespace wiesel::entity_serializer

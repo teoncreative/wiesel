@@ -14,6 +14,7 @@
 #include <entt/entt.hpp>
 
 #include "asset/w_asset_handle.h"
+#include "scene/w_scene_handle.h"
 #include "events/w_appevents.h"
 #include "events/w_engineevents.h"
 #include "events/w_events.h"
@@ -35,6 +36,8 @@ class Scene {
   Scene();
   ~Scene();
 
+  SceneHandle GetHandle() const { return handle_; }
+
   const std::string& GetName() const { return name_; }
 
   void SetName(const std::string& name) { name_ = name; }
@@ -46,7 +49,7 @@ class Scene {
   Entity CreateEntity(const std::string& name = std::string());
   Entity CreateEntityWithUUID(UUID uuid,
                               const std::string& name = std::string());
-  void RemoveEntity(Entity entity);
+  void RemoveEntity(entt::entity entity);
   entt::entity FindEntityByName(const std::string& name);
   entt::entity FindEntityByUUID(const UUID& uuid);
   std::vector<entt::entity> FindEntitiesByTag(const std::string& tag);
@@ -218,6 +221,8 @@ class Scene {
   bool OnWindowResizeEvent(WindowResizedEvent& event);
 
  private:
+  friend class SceneManager;
+  SceneHandle handle_;
   std::string name_;
   std::string source_path_;
   std::unordered_map<UUID, entt::entity> entities_;
@@ -252,7 +257,7 @@ class MultiScene {
  public:
   MultiScene() = delete;
 
-  explicit MultiScene(std::vector<std::shared_ptr<Scene>>& scenes)
+  explicit MultiScene(std::vector<std::unique_ptr<Scene>>& scenes)
       : scenes_(scenes) {}
 
   MultiScene(MultiScene&) = delete;
@@ -274,8 +279,6 @@ class MultiScene {
   // Primary scene (first in list - used for skybox, pipeline, etc.)
   Scene& primary() { return *scenes_.front(); }
 
-  const std::vector<std::shared_ptr<Scene>>& scenes() const { return scenes_; }
-
   bool empty() const { return scenes_.empty(); }
 
   size_t size() const { return scenes_.size(); }
@@ -284,7 +287,7 @@ class MultiScene {
   // Defined in .cc to avoid including w_engine.h
   static void SetSceneIndex(uint8_t index);
 
-  std::vector<std::shared_ptr<Scene>>& scenes_;
+  std::vector<std::unique_ptr<Scene>>& scenes_;
 };
 
 }  // namespace wiesel

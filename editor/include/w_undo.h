@@ -16,9 +16,11 @@
 #include <vector>
 
 #include <entt/entt.hpp>
+#include "scene/w_scene_handle.h"
 #include <glm/glm.hpp>
 #include <nlohmann/json.hpp>
 
+#include "scene/w_entity.h"
 #include "util/w_uuid.h"
 
 namespace wiesel {
@@ -129,7 +131,7 @@ class PropertyCommand : public IEditorCommand {
 // Transform change (position + rotation + scale as one unit).
 class TransformCommand : public IEditorCommand {
  public:
-  TransformCommand(std::shared_ptr<Scene> scene, entt::entity entity,
+  TransformCommand(Scene* scene, entt::entity entity,
                    glm::vec3 old_pos, glm::vec3 old_rot, glm::vec3 old_scale,
                    glm::vec3 new_pos, glm::vec3 new_rot, glm::vec3 new_scale);
 
@@ -139,7 +141,7 @@ class TransformCommand : public IEditorCommand {
   bool MergeWith(const IEditorCommand& other) override;
 
  private:
-  std::shared_ptr<Scene> scene_;
+  SceneHandle scene_;
   entt::entity entity_;
   glm::vec3 old_pos_, old_rot_, old_scale_;
   glm::vec3 new_pos_, new_rot_, new_scale_;
@@ -148,7 +150,7 @@ class TransformCommand : public IEditorCommand {
 // Entity creation. Undo deletes. Redo recreates with same UUID.
 class EntityCreateCommand : public IEditorCommand {
  public:
-  EntityCreateCommand(std::shared_ptr<Scene> scene, entt::entity entity);
+  EntityCreateCommand(EntityRef ref);
 
   void Execute() override;
   void Undo() override;
@@ -157,27 +159,26 @@ class EntityCreateCommand : public IEditorCommand {
  private:
   void CaptureState();
 
-  std::shared_ptr<Scene> scene_;
-  entt::entity entity_;
+  EntityRef entity_ref_;
   UUID uuid_;
   std::string name_;
   UUID parent_uuid_;
-  nlohmann::json components_;
+  nlohmann::json components_json_;
   bool first_execute_ = true;
 };
 
 // Entity deletion. Execute deletes. Undo recreates.
 class EntityDeleteCommand : public IEditorCommand {
  public:
-  EntityDeleteCommand(std::shared_ptr<Scene> scene, entt::entity entity);
+  EntityDeleteCommand(Entity entity);
 
   void Execute() override;
   void Undo() override;
   std::string GetDescription() const override;
 
  private:
-  std::shared_ptr<Scene> scene_;
-  entt::entity entity_;
+  EntityRef ref_;
+  SceneHandle scene_handle_;
   std::string name_;
   UUID parent_uuid_;
   nlohmann::json subtree_json_;  // serialized entity subtree
@@ -186,7 +187,7 @@ class EntityDeleteCommand : public IEditorCommand {
 // Entity reparenting.
 class ReparentCommand : public IEditorCommand {
  public:
-  ReparentCommand(std::shared_ptr<Scene> scene, entt::entity entity,
+  ReparentCommand(Scene* scene, entt::entity entity,
                   entt::entity old_parent, entt::entity new_parent);
 
   void Execute() override;
@@ -194,7 +195,7 @@ class ReparentCommand : public IEditorCommand {
   std::string GetDescription() const override;
 
  private:
-  std::shared_ptr<Scene> scene_;
+  SceneHandle scene_handle_;
   entt::entity entity_;
   entt::entity old_parent_;
   entt::entity new_parent_;

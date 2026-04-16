@@ -28,14 +28,12 @@
 
 namespace wiesel::editor {
 
-// Defined in w_editor.cc
-std::shared_ptr<Scene> scene();
+Scene* scene();
 
 // Save a scene to disk, preserving the asset_handle field.
-static bool SaveSceneToFile(const std::shared_ptr<Scene>& s,
+static bool SaveSceneToFile(Scene* s,
                             const std::filesystem::path& path) {
-  SceneSerializer serializer(s);
-  nlohmann::json root = nlohmann::json::parse(serializer.SerializeToString());
+  nlohmann::json root = nlohmann::json::parse(scene_serializer::SerializeToString(*s));
 
   // Preserve existing asset_handle from the file
   {
@@ -231,19 +229,18 @@ void EditorLayer::ClearScene() {
     editor_state_ = EditorState::Edit;
   }
 
-  has_selected_entity_ = false;
-  ThumbnailCache::Get()->Clear();
+  selected_entity_ = kInvalidEntityRef;
 
   // Remove all entities
-  auto& hierarchy = scene()->GetSceneHierarchy();
+  Scene* scene = editor::scene();
+  auto& hierarchy = scene->GetSceneHierarchy();
   std::vector<entt::entity> to_remove(hierarchy.begin(), hierarchy.end());
   for (auto entity_id : to_remove) {
-    Entity entity{entity_id, scene().get()};
-    scene()->RemoveEntity(entity);
+    Entity entity(entity_id, scene);
+    scene->RemoveEntity(entity);
   }
-  scene()->ProcessDestroyQueue();
-
-  scene()->ResetPhysicsWorld();
+  scene->ProcessDestroyQueue();
+  scene->ResetPhysicsWorld();
   scene_dirty_ = false;
 }
 
@@ -398,9 +395,10 @@ void EditorLayer::OpenPrefabForEditing(const std::string& vfs_path) {
 
   // Clear scene and load prefab as a temporary scene
   ClearScene();
+  Scene* scene = editor::scene();
   AssetHandle prefab_handle =
       Engine::asset_manager().FindBySourcePath(vfs_path);
-  Entity root = Prefab::Instantiate(scene(), prefab_handle);
+  Entity root = Prefab::Instantiate(*scene, prefab_handle);
   if (root.handle() == entt::null) {
     DCON_LOG_ERROR("Failed to open prefab for editing: {}", vfs_path);
     // Restore previous scene
@@ -417,8 +415,8 @@ void EditorLayer::OpenPrefabForEditing(const std::string& vfs_path) {
   UpdateWindowTitle();
 
   // Setup camera components
-  for (entt::entity entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
-    auto& cam = scene()->GetComponent<CameraComponent>(entity);
+  for (entt::entity entity : scene->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = scene->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
@@ -444,7 +442,7 @@ void EditorLayer::SavePrefab() {
     return;
   }
 
-  Entity root = {hierarchy[0], scene().get()};
+  Entity root(hierarchy[0], scene());
   if (Prefab::SaveToFile(root, *physical)) {
     scene_dirty_ = false;
     DCON_LOG_INFO("Prefab saved: {}", editing_prefab_path_);
@@ -682,16 +680,12 @@ void EditorLayer::InstantiateModelAsset(AssetHandle handle) {
   if (!meta || meta->type != AssetType::Model) {
     return;
   }
-  auto entity = scene()->InstantiateModel(handle, meta->name);
-  if (entity.handle() != entt::null) {
-    auto shared_scene = Engine::scene_manager().FindSceneByPtr(scene().get());
-    if (shared_scene) {
-      command_stack_.Execute(
-          std::make_unique<EntityCreateCommand>(shared_scene, entity.handle()));
-    }
-    selected_entity_ = entity.handle();
-    selected_entity_scene_ = shared_scene;
-    has_selected_entity_ = true;
+  Entity entity = scene()->InstantiateModel(handle, meta->name);
+  if (entity) {
+    EntityRef ref = entity.ToRef();
+    command_stack_.Execute(
+        std::make_unique<EntityCreateCommand>(ref));
+    selected_entity_ = ref;
     scene_dirty_ = true;
   }
 }

@@ -31,17 +31,9 @@ bool ProjectLoader::MountProject(Project& project) {
 }
 
 void ProjectLoader::ScanAssets(Project& project) {
+  GameLoader::ScanAssets();
+
   namespace fs = std::filesystem;
-  Engine::scene_manager().ClearRegisteredScenes();
-  std::vector<std::string> scenes_to_preload;
-
-  // Scan engine assets, then project assets.
-  // Both use ImportAsset which creates .meta files if missing.
-  GameLoader::ScanVfsPrefix("engine://", GameLoader::ImportAsset,
-                            scenes_to_preload);
-  GameLoader::ScanVfsPrefix("app://", GameLoader::ImportAsset,
-                            scenes_to_preload);
-
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
 
   // Clean up orphaned .meta files (project assets only)
@@ -57,21 +49,6 @@ void ProjectLoader::ScanAssets(Project& project) {
     if (!fs::exists(asset_path)) {
       std::error_code ec;
       fs::remove(entry.path(), ec);
-    }
-  }
-
-  // Preload assets for scenes that have preload_assets enabled.
-  for (const auto& preload_vfs : scenes_to_preload) {
-    VfsFile file = Engine::vfs()->Open(preload_vfs);
-    if (!file) {
-      continue;
-    }
-    std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                        std::istreambuf_iterator<char>());
-    auto temp_scene = std::make_shared<Scene>();
-    SceneSerializer serializer(temp_scene);
-    if (serializer.DeserializeFromString(content)) {
-      LOG_INFO("Preloading assets for scene: {}", preload_vfs);
     }
   }
 }

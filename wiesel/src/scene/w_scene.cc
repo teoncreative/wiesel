@@ -186,26 +186,24 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
   return entity;
 }
 
-void Scene::RemoveEntity(Entity entity) {
-  entt::entity handle = entity.handle();
-
+void Scene::RemoveEntity(entt::entity entity) {
   // Skip if already queued
   for (entt::entity& queued : destroy_queue_) {
-    if (queued == handle) {
+    if (queued == entity) {
       return;
     }
   }
 
   // Queue children recursively
-  if (registry_.any_of<TreeComponent>(handle)) {
-    auto& tree = registry_.get<TreeComponent>(handle);
+  if (registry_.any_of<TreeComponent>(entity)) {
+    auto& tree = registry_.get<TreeComponent>(entity);
     std::vector<entt::entity> children = tree.children;
     for (auto child : children) {
       RemoveEntity(Entity{child, this});
     }
   }
 
-  destroy_queue_.push_back(handle);
+  destroy_queue_.push_back(entity);
 }
 
 entt::entity Scene::FindEntityByName(const std::string& name) {

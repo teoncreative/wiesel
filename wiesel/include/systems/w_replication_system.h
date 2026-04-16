@@ -57,8 +57,8 @@ class ReplicationSystem : public ISystem {
 
   uint32_t AllocateNetId();
 
-  // Maps net_id -> Entity (carries both handle and scene)
-  std::unordered_map<uint32_t, Entity> net_id_to_entity_;
+  // Maps net_id -> EntityRef
+  std::unordered_map<uint32_t, EntityRef> net_id_to_entity_;
   uint32_t next_net_id_ = 1;
 
   float send_accumulator_ = 0.0f;

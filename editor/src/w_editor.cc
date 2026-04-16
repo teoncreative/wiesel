@@ -46,7 +46,7 @@
 
 namespace wiesel::editor {
 
-std::shared_ptr<Scene> scene() {
+Scene* scene() {
   return Engine::scene_manager().GetActiveScene();
 }
 
@@ -275,7 +275,7 @@ void EditorLayer::OnAttach() {
     inspector_asset_handle_ = h;
     inspector_asset_read_only_ = asset_browser_panel_.IsReadOnly();
     inspector_mode_ = InspectorMode::Asset;
-    has_selected_entity_ = false;
+    selected_entity_ = EntityRef{};
   };
   ab_cb.on_slice_texture = [this](AssetHandle h) {
     slice_texture_handle_ = h;
@@ -315,7 +315,6 @@ void EditorLayer::OnDetach() {
   CleanupThumbnailCache();
   editor_camera_.resource_pool.Clear();
   editor_camera_.render_pipeline = nullptr;
-  Engine::scene_manager().Cleanup();
 }
 
 void EditorLayer::ProcessDeferredActions() {
@@ -390,7 +389,7 @@ void EditorLayer::OnUpdate(float_t delta_time) {
 
   // Process pending scene loads (both edit and play mode)
   if (Engine::scene_manager().BeginFrame()) {
-    has_selected_entity_ = false;
+    selected_entity_ = EntityRef{};
     piloting_camera_ = entt::null;
   }
 
@@ -656,23 +655,21 @@ void EditorLayer::OnPostPresent() {
   entt::entity picked;
   uint8_t scene_index;
   if (renderer->ExecuteEntityPick(picked, scene_index)) {
-    entt::entity result = entt::null;
+    EntityRef ref;
     if (picked != entt::null) {
       auto& loaded = Engine::scene_manager().GetLoadedScenes();
       if (scene_index < loaded.size() && loaded[scene_index]->IsValid(picked)) {
-        result = picked;
-        selected_entity_scene_ = loaded[scene_index];
+        ref = {picked, loaded[scene_index]->GetHandle()};
       }
     } else if (pending_pick_ndc_.x >= -1.0f) {
-      result = FindSpriteAtNDC(pending_pick_ndc_);
+      ref = FindSpriteAtNDC(pending_pick_ndc_);
     }
 
-    if (result != entt::null) {
-      selected_entity_ = result;
-      has_selected_entity_ = true;
+    if (ref) {
+      selected_entity_ = ref;
       scroll_to_selected_ = true;
     } else {
-      has_selected_entity_ = false;
+      selected_entity_ = EntityRef{};
     }
     pending_pick_ndc_ = {-2, -2};  // reset
   }
@@ -706,13 +703,11 @@ void EditorLayer::ShowStatusToast(const std::string& text) {
 }
 
 void EditorLayer::TakeSnapshot() {
-  SceneSerializer serializer(scene());
-  play_mode_snapshot_ = serializer.SerializeToString();
+  play_mode_snapshot_ = scene_serializer::SerializeToString(*scene());
 }
 
 void EditorLayer::RestoreSnapshot() {
-  has_selected_entity_ = false;
-  selected_entity_scene_.reset();
+  selected_entity_ = EntityRef{};
 
   // Unload all additive scenes that were loaded during play mode
   Engine::scene_manager().UnloadAllAdditiveScenes();
@@ -720,34 +715,35 @@ void EditorLayer::RestoreSnapshot() {
 
   ClearScene();
 
-  SceneSerializer serializer(scene());
-  serializer.DeserializeFromString(play_mode_snapshot_);
+  Scene* scene = editor::scene();
+  scene_serializer::DeserializeFromString(*scene, play_mode_snapshot_);
   play_mode_snapshot_.clear();
 
   // Setup camera components that were deserialized
-  for (auto entity : scene()->GetAllEntitiesWith<CameraComponent>()) {
-    auto& cam = scene()->GetComponent<CameraComponent>(entity);
+  for (auto entity : scene->GetAllEntitiesWith<CameraComponent>()) {
+    auto& cam = scene->GetComponent<CameraComponent>(entity);
     Engine::renderer()->SetupCameraComponent(cam);
   }
 
-  scene()->ResetPhysicsWorld();
-  scene()->ResetScriptStates();
-  scene()->ResetFirstUpdate();
+  scene->ResetPhysicsWorld();
+  scene->ResetScriptStates();
+  scene->ResetFirstUpdate();
 }
 
 void EditorLayer::SyncEditorSelectedComponent() {
   // Remove from all entities first
   for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
     auto view = loaded_scene->GetAllEntitiesWith<EditorSelectedComponent>();
-    for (entt::entity e : view) {
-      loaded_scene->GetRegistry().remove<EditorSelectedComponent>(e);
+    for (entt::entity entity : view) {
+      loaded_scene->RemoveComponent<EditorSelectedComponent>(entity);
     }
   }
   // Add to selected entity
-  if (has_selected_entity_ && selected_entity_scene_ &&
-      selected_entity_scene_->IsValid(selected_entity_)) {
-    selected_entity_scene_->GetRegistry()
-        .emplace_or_replace<EditorSelectedComponent>(selected_entity_);
+  if (selected_entity_) {
+    if (Entity entity = selected_entity_.Resolve()) {
+      entity.RemoveComponent<EditorSelectedComponent>();
+      entity.AddComponent<EditorSelectedComponent>();
+    }
   }
 }
 
@@ -765,8 +761,6 @@ void EditorLayer::OnPrePresent() {
     // This avoids double rendering when Scene and Game are tabbed.
 
     if (scene_panel_visible_) {
-      // Transition editor PipelineOutput back to COLOR_ATTACHMENT
-      // (it was left in SHADER_READ from our manual transition last frame)
       auto editor_output =
           editor_camera_.resource_pool.GetTexture("PipelineOutput");
       if (editor_output) {
