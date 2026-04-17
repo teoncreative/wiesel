@@ -17,6 +17,11 @@
 
 namespace wiesel {
 
+// On-disk binary format version for .wmeshcol files (magic "WMCL").
+// Bump when the serialized layout changes. Existing files become invalid
+// and must be re-baked.
+constexpr uint32_t kMeshColliderBinaryVersion = 1;
+
 struct MeshColliderAssetData {
   AssetHandle source_model;
   std::vector<glm::vec3> vertices;

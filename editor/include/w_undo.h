@@ -21,7 +21,6 @@
 #include <nlohmann/json.hpp>
 
 #include "scene/w_entity.h"
-#include "util/w_uuid.h"
 
 namespace wiesel {
 class Scene;
@@ -147,7 +146,7 @@ class TransformCommand : public IEditorCommand {
   glm::vec3 new_pos_, new_rot_, new_scale_;
 };
 
-// Entity creation. Undo deletes. Redo recreates with same UUID.
+// Entity creation. Undo deletes. Redo recreates with same urkern::UUID.
 class EntityCreateCommand : public IEditorCommand {
  public:
   EntityCreateCommand(EntityRef ref);
@@ -160,9 +159,9 @@ class EntityCreateCommand : public IEditorCommand {
   void CaptureState();
 
   EntityRef entity_ref_;
-  UUID uuid_;
+  urkern::UUID uuid_;
   std::string name_;
-  UUID parent_uuid_;
+  urkern::UUID parent_uuid_;
   nlohmann::json components_json_;
   bool first_execute_ = true;
 };
@@ -180,7 +179,7 @@ class EntityDeleteCommand : public IEditorCommand {
   EntityRef ref_;
   SceneHandle scene_handle_;
   std::string name_;
-  UUID parent_uuid_;
+  urkern::UUID parent_uuid_;
   nlohmann::json subtree_json_;  // serialized entity subtree
 };
 

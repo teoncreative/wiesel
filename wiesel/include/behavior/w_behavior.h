@@ -96,9 +96,12 @@ class IBehavior {
   virtual void OnConnectedToServer() {}
   virtual void OnDisconnectedFromServer() {}
 
-  // RPCs (entity-scoped, called on behaviors of the target entity)
-  virtual void OnServerRpc(const std::string& rpc_name) {}
-  virtual void OnClientRpc(const std::string& rpc_name) {}
+  // RPCs (entity-scoped, called on behaviors of the target entity).
+  // args_json is the serialized argument array or empty string if no args.
+  virtual void OnServerRpc(const std::string& rpc_name,
+                           const std::string& args_json) {}
+  virtual void OnClientRpc(const std::string& rpc_name,
+                           const std::string& args_json) {}
 
   // Synced variables (called when a remote sync var changes)
   virtual void OnSyncVarChanged(const std::string& var_name) {}

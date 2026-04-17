@@ -31,7 +31,7 @@
 #include "scene/w_scene_serializer.h"
 #include "script/w_scriptmanager.h"
 #include "util/imgui/imgui_theme.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
@@ -160,7 +160,7 @@ void EditorLayer::OnAttach() {
 
   // Load editor preferences and apply saved theme
   editor_config_ = std::make_unique<UserConfig>(
-      GetUserDataDirectory("WieselEditor"), "editor_config.json");
+      urkern::GetUserDataDirectory("WieselEditor"), "editor_config.json");
   editor_config_->Load();
   auto saved_theme = static_cast<ImGui::Moonlight::Theme>(
       editor_config_->Get<int>("editor.theme", 0));

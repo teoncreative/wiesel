@@ -58,3 +58,6 @@
 [submodule "vendor/znet"]
 	path = vendor/znet
 	url = https://github.com/teoncreative/znet
+[submodule "vendor/urkern"]
+	path = vendor/urkern
+	url = https://github.com/teoncreative/urkern

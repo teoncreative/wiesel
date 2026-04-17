@@ -49,8 +49,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <urkern/platform_detection.h>
+
 #include "util/w_attributes.h"
-#include "util/w_platformdetection.h"
 #include "util/w_tracy.h"
 
 #endif  // __cplusplus

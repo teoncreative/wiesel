@@ -222,11 +222,13 @@ void VirtualFileSystem::MountPak(const std::filesystem::path& wpak_path,
 
   auto result = Wpak::LoadArchive(abs_path);
   if (!result) {
-    throw std::runtime_error(result.error.message);
+    throw std::runtime_error(
+        std::string("Failed to load archive ") + wpak_path.string() + ": " +
+        Wpak::ErrorToString(result.error()));
   }
 
   std::string key = abs_path.string();
-  archives_[key] = std::move(result.value);
+  archives_[key] = std::move(*result);
 
   MountPoint mp;
   mp.mount_point = key;
@@ -263,10 +265,10 @@ VfsFile VirtualFileSystem::Open(const std::string& virtual_path) {
         auto archive_it = archives_.find(mp.mount_point);
         auto result = Wpak::ReadEntry(archive_it->second, *entry);
         if (result) {
-          return VfsFile(std::move(result.value), virtual_path);
+          return VfsFile(std::move(*result), virtual_path);
         }
         DCON_LOG_ERROR("VFS: failed to read from archive: {}",
-                       result.error.message);
+                       Wpak::ErrorToString(result.error()));
       }
       continue;
     }

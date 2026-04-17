@@ -20,7 +20,7 @@
 #include "script/w_scriptmanager.h"
 #include "util/w_dialogs.h"
 #include "util/w_discord_rpc.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 #include "w_project_loader.h"
 #include "w_thumbnail_cache.h"
@@ -507,12 +507,11 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
   // Pack app assets (excluding build artifacts and source files)
   fs::path src_assets = active_project_->GetAssetsDirectory();
   if (fs::exists(src_assets)) {
-    Wpak::Result<std::vector<Wpak::PackEntry>> app_files =
-        Wpak::CollectFiles(src_assets);
-    if (app_files.success) {
+    auto app_files = Wpak::CollectFiles(src_assets);
+    if (app_files) {
       // Filter out files that shouldn't be in the export
       std::vector<Wpak::PackEntry> filtered;
-      for (const Wpak::PackEntry& entry : app_files.value) {
+      for (const Wpak::PackEntry& entry : *app_files) {
         fs::path rel(entry.relative_path);
         std::string ext = rel.extension().string();
         std::string first_dir =
@@ -532,14 +531,14 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
 
       auto pack_result =
           Wpak::WriteArchive(export_dir, filtered, "app://", next_pak_index_);
-      if (!pack_result.success) {
+      if (!pack_result) {
         DCON_LOG_ERROR("Export: Failed to pack app assets: {}",
-                       pack_result.error.message);
+                       Wpak::ErrorToString(pack_result.error()));
         return;
       }
-      next_pak_index_ += static_cast<int>(pack_result.value.size());
+      next_pak_index_ += static_cast<int>(pack_result->size());
       DCON_LOG_INFO("Export: Packed {} assets ({} excluded)", filtered.size(),
-                    app_files.value.size() - filtered.size());
+                    app_files->size() - filtered.size());
     }
   }
 
@@ -619,16 +618,15 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
     std::optional<fs::path> engine_assets =
         Engine::vfs()->GetPhysicalPath("engine://");
     if (engine_assets.has_value() && fs::exists(*engine_assets)) {
-      Wpak::Result<std::vector<Wpak::PackEntry>> files =
-          Wpak::CollectFiles(*engine_assets);
-      if (files.success) {
-        auto pack_result = Wpak::WriteArchive(export_dir, files.value,
+      auto files = Wpak::CollectFiles(*engine_assets);
+      if (files) {
+        auto pack_result = Wpak::WriteArchive(export_dir, *files,
                                               "engine://", next_pak_index_);
-        if (!pack_result.success) {
+        if (!pack_result) {
           DCON_LOG_ERROR("Export: Failed to pack engine assets: {}",
-                         pack_result.error.message);
+                         Wpak::ErrorToString(pack_result.error()));
         } else {
-          next_pak_index_ += static_cast<int>(pack_result.value.size());
+          next_pak_index_ += static_cast<int>(pack_result->size());
         }
       }
     }
@@ -644,7 +642,7 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
     std::string game_ext = "";
 #endif
     // Search next to the editor executable, then CWD
-    fs::path exe_dir = GetExecutableDirectory();
+    fs::path exe_dir = urkern::GetExecutableDirectory();
     fs::path runtime_src;
     for (const fs::path& search_dir :
          {exe_dir, fs::current_path(), exe_dir / ".." / "runtime"}) {
@@ -672,7 +670,7 @@ void EditorLayer::ExportGame(const std::filesystem::path& export_dir) {
   DCON_LOG_INFO("Export complete: {}", export_dir.string());
 
   // Open the export directory
-  OpenFileInDefaultEditor(export_dir);
+  urkern::OpenFileInDefaultEditor(export_dir);
 }
 
 void EditorLayer::InstantiateModelAsset(AssetHandle handle) {

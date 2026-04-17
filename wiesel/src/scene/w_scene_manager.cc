@@ -430,9 +430,9 @@ void SceneManager::CreateDefaultPipeline() {
   default_pipeline_->AddFeature<BloomFeature>(renderer);
   default_pipeline_->AddFeature<MotionBlurFeature>(renderer);
   default_pipeline_->AddFeature<FXAAFeature>(renderer);
+  default_pipeline_->AddFeature<BillboardFeature>(renderer);
   default_pipeline_->AddFeature<CanvasFeature>(renderer);
   default_pipeline_->AddFeature<DebugColliderFeature>(renderer);
-  default_pipeline_->AddFeature<BillboardFeature>(renderer);
 }
 
 bool SceneManager::RenderGameView() {
@@ -685,7 +685,7 @@ void SceneManager::UnloadUnusedAssets(
 void SceneManager::UnloadUnusedAssetsForScene(
     const std::vector<AssetHandle>& scene_assets) {
   // Collect all assets still needed by remaining loaded scenes
-  std::unordered_set<UUID> still_needed;
+  std::unordered_set<urkern::UUID> still_needed;
   for (auto& loaded : loaded_scenes_) {
     for (auto& handle : loaded->GetRequestedAssets()) {
       still_needed.insert(handle.id);
@@ -767,16 +767,16 @@ Entity SceneManager::MoveEntityToScene(Entity entity, Scene* target_scene,
 
   // Collect entity subtree in depth-first order
   struct EntityData {
-    UUID uuid;
+    urkern::UUID uuid;
     std::string name;
     std::vector<std::string> tags;
-    UUID parent_uuid;
+    urkern::UUID parent_uuid;
     nlohmann::json components;
   };
 
   std::vector<EntityData> entity_list;
-  std::function<void(entt::entity, UUID)> collect;
-  collect = [&](entt::entity handle, UUID parent_uuid) {
+  std::function<void(entt::entity, urkern::UUID)> collect;
+  collect = [&](entt::entity handle, urkern::UUID parent_uuid) {
     EntityData data;
     data.uuid = source_scene->GetComponent<IdComponent>(handle).Id;
     auto& tag_comp = source_scene->GetComponent<TagComponent>(handle);
@@ -797,8 +797,8 @@ Entity SceneManager::MoveEntityToScene(Entity entity, Scene* target_scene,
     }
   };
 
-  UUID root_uuid = entity.GetUUID();
-  collect(entity.handle(), UUID());
+  urkern::UUID root_uuid = entity.GetUUID();
+  collect(entity.handle(), urkern::UUID());
 
   // Compute world-space transform for the root entity
   glm::vec3 world_position = {};
@@ -839,7 +839,7 @@ Entity SceneManager::MoveEntityToScene(Entity entity, Scene* target_scene,
     }
 
     // RemoveEntity queues the root + all children recursively, then
-    // ProcessDestroyQueue handles physics body destruction, UUID map
+    // ProcessDestroyQueue handles physics body destruction, urkern::UUID map
     // removal, hierarchy removal, and registry destruction.
     source_scene->RemoveEntity(Entity{root_handle, source_scene});
     source_scene->ProcessDestroyQueue();
@@ -847,7 +847,7 @@ Entity SceneManager::MoveEntityToScene(Entity entity, Scene* target_scene,
 
   // Recreate entities in target scene
   Entity new_root{entt::null, target_scene};
-  std::unordered_map<UUID, entt::entity> uuid_to_new_handle;
+  std::unordered_map<urkern::UUID, entt::entity> uuid_to_new_handle;
 
   for (size_t i = 0; i < entity_list.size(); ++i) {
     auto& data = entity_list[i];

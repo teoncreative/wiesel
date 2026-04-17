@@ -11,7 +11,7 @@
 #include "game/w_game_application.h"
 #include "layer/w_layerscene.h"
 #include "util/w_command.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
 #include <clocale>
@@ -64,8 +64,8 @@ static int RunEngine(int argc, char** argv) {
     }
   }
   if (wants_stdio) {
-    AllocateConsole();
-    EnableAnsiColors();
+    urkern::AllocateConsole();
+    urkern::EnableAnsiColors();
   } else {
     // Redirect stdout/stderr to NUL immediately so LOG_* calls don't crash
     FILE* f = nullptr;

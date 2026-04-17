@@ -225,14 +225,20 @@ void ReplicationManager::ProcessIncomingCommands() {
           break;
         }
 
+        std::string args_json;
+        if (packet->args_data && packet->args_data->size() > 0) {
+          packet->args_data->set_read_cursor(0);
+          args_json = packet->args_data->ReadString();
+        }
+
         auto& behaviors =
             scene->GetComponent<BehaviorsComponent>(entity.handle());
         for (auto& [name, behavior] : behaviors.behaviors_) {
           if (behavior && behavior->IsEnabled()) {
             if (packet->direction == RpcDirection::kToServer) {
-              behavior->OnServerRpc(packet->rpc_name);
+              behavior->OnServerRpc(packet->rpc_name, args_json);
             } else {
-              behavior->OnClientRpc(packet->rpc_name);
+              behavior->OnClientRpc(packet->rpc_name, args_json);
             }
           }
         }
@@ -313,30 +319,32 @@ void ReplicationManager::ServerHandleSpawnsAndDestroys() {
     }
   }
 
-  // Pending entity spawns
+  // Pending entity spawns - two passes so parents have net_ids before children
+  // build their packets (BuildSpawnPacket reads the parent's net_id).
   for (auto& scene_ptr : Engine::scene_manager().GetLoadedScenes()) {
     auto& registry = scene_ptr->GetRegistry();
+    auto spawn_view = registry.view<NetworkIdentityComponent>();
 
-    auto spawn_view =
-        registry.view<NetworkIdentityComponent, IdComponent, TagComponent>();
+    // Pass 1: assign net_ids
     for (entt::entity ent : spawn_view) {
       auto& net_id = spawn_view.get<NetworkIdentityComponent>(ent);
-
-      if (!net_id.pending_spawn) {
+      if (!net_id.pending_spawn || net_id.net_id != 0) {
         continue;
       }
-
-      if (net_id.net_id == 0) {
-        net_id.net_id = AllocateNetId();
-        net_id_to_entity_.emplace(
-            net_id.net_id, EntityRef(ent, scene_ptr->GetHandle()));
-      }
-
-      // Client-owned entities are remote on the server (no local physics)
+      net_id.net_id = AllocateNetId();
+      net_id_to_entity_.emplace(net_id.net_id,
+                                EntityRef(ent, scene_ptr->GetHandle()));
       if (net_id.authority == NetworkAuthority::kClient) {
         net_id.is_remote = true;
       }
+    }
 
+    // Pass 2: build and broadcast spawn packets
+    for (entt::entity ent : spawn_view) {
+      auto& net_id = spawn_view.get<NetworkIdentityComponent>(ent);
+      if (!net_id.pending_spawn) {
+        continue;
+      }
       Entity entity(ent, scene_ptr.get());
       auto packet = BuildSpawnPacket(entity, net_id);
       network.Broadcast(packet);
@@ -513,6 +521,17 @@ std::shared_ptr<EntitySpawnPacket> ReplicationManager::BuildSpawnPacket(
   packet->owner_session_id = net_id.owner_session_id;
   packet->scene_name = entity.GetScene()->GetName();
   packet->component_data = component_buffer;
+
+  // Include parent's net_id if parent has a NetworkIdentityComponent
+  auto& registry = entity.GetScene()->GetRegistry();
+  if (registry.any_of<TreeComponent>(entity.handle())) {
+    auto& tree = registry.get<TreeComponent>(entity.handle());
+    if (tree.parent != entt::null &&
+        registry.any_of<NetworkIdentityComponent>(tree.parent)) {
+      packet->parent_net_id =
+          registry.get<NetworkIdentityComponent>(tree.parent).net_id;
+    }
+  }
   return packet;
 }
 
@@ -538,7 +557,7 @@ void ReplicationManager::SpawnEntityFromPacket(
     return;
   }
 
-  UUID::bytes uuid_bytes;
+  urkern::UUID::bytes uuid_bytes;
   for (int i = 0; i < 8; i++) {
     uuid_bytes[i] = static_cast<uint8_t>(
         (packet->uuid_hi >> (56 - i * 8)) & 0xFF);
@@ -548,7 +567,7 @@ void ReplicationManager::SpawnEntityFromPacket(
         (packet->uuid_lo >> (56 - i * 8)) & 0xFF);
   }
 
-  UUID uuid(uuid_bytes);
+  urkern::UUID uuid(uuid_bytes);
   Entity entity = target_scene->CreateEntityWithUUID(uuid, packet->entity_name);
 
   auto& net_id = entity.AddComponent<NetworkIdentityComponent>();
@@ -579,8 +598,23 @@ void ReplicationManager::SpawnEntityFromPacket(
   }
 
   net_id_to_entity_.emplace(packet->net_id, entity.ToRef());
-  LOG_DEBUG("Replicated entity spawn: net_id={} name={} entity={}",
-            packet->net_id, packet->entity_name, entity);
+
+  // Link to parent if specified
+  if (packet->parent_net_id != 0) {
+    auto parent_it = net_id_to_entity_.find(packet->parent_net_id);
+    if (parent_it != net_id_to_entity_.end()) {
+      Entity parent = parent_it->second.Resolve();
+      if (parent && parent.GetScene() == target_scene) {
+        target_scene->LinkEntities(parent.handle(), entity.handle(), false);
+      }
+    } else {
+      LOG_WARN("Parent net_id {} not found for entity net_id {}",
+               packet->parent_net_id, packet->net_id);
+    }
+  }
+
+  LOG_DEBUG("Replicated entity spawn: net_id={} name={} entity={} parent={}",
+            packet->net_id, packet->entity_name, entity, packet->parent_net_id);
 }
 
 void ReplicationManager::PushCommand(ReplicationCommand command) {

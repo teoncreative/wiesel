@@ -12,6 +12,7 @@
 #pragma once
 
 #include "rendering/w_renderer.h"
+#include <urkern/thread_pool.h>
 #include "util/w_vfs.h"
 #include "w_application.h"
 
@@ -30,7 +31,6 @@ class AudioManager;
 class NetworkManager;
 class NetworkSceneManager;
 class ReplicationManager;
-class ThreadPool;
 class UserConfig;
 class InputManager;
 struct GameInfo;
@@ -92,7 +92,7 @@ class Engine {
     return *behavior_registry_;
   }
 
-  WIESEL_GETTER_FN static ThreadPool& thread_pool() { return *thread_pool_; }
+  WIESEL_GETTER_FN static urkern::ThreadPool& thread_pool() { return *thread_pool_; }
 
   WIESEL_GETTER_FN static AudioManager& audio() { return *audio_manager_; }
 
@@ -165,7 +165,7 @@ class Engine {
 
   static std::unique_ptr<ScriptManager> script_manager_;
   static std::unique_ptr<NativeBehaviorRegistry> behavior_registry_;
-  static std::unique_ptr<ThreadPool> thread_pool_;
+  static std::unique_ptr<urkern::ThreadPool> thread_pool_;
   static std::unique_ptr<AudioManager> audio_manager_;
   static std::unique_ptr<NetworkManager> network_manager_;
   static std::unique_ptr<NetworkSceneManager> network_scene_manager_;

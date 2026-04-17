@@ -62,7 +62,7 @@ class Entity {
 
   operator uint32_t() const { return (uint32_t)entity_handle_; }
 
-  UUID GetUUID() { return GetComponent<IdComponent>().Id; }
+  urkern::UUID GetUUID() { return GetComponent<IdComponent>().Id; }
 
   const std::string& GetName() { return GetComponent<TagComponent>().name; }
 

@@ -24,16 +24,20 @@
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_entity.h"
 #include "scene/w_prefab.h"
 #include "scene/w_scene.h"
 #include "scene/w_scene_manager.h"
 #include "script/mono/w_monobehavior.h"
+#include "script/w_script_field_registry.h"
+#include "znet/buffer.h"
 #include "ui/w_canvas.h"
 #include "ui/w_ui_document.h"
 #include "util/w_logger.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
 namespace wiesel {
@@ -510,6 +514,35 @@ void Internals_Entity_RemoveTag(uint64_t scene_ptr, uint64_t entity_id,
   mono_free(cstr);
 }
 
+MonoString* Internals_TagComponent_GetName(uint64_t scene_ptr,
+                                           uint64_t entity_id) {
+  if (scene_ptr == 0) {
+    return mono_string_new(Engine::script_manager().app_domain(), "");
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasComponent<TagComponent>(handle)) {
+    return mono_string_new(Engine::script_manager().app_domain(), "");
+  }
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         scene->GetComponent<TagComponent>(handle).name.c_str());
+}
+
+void Internals_TagComponent_SetName(uint64_t scene_ptr, uint64_t entity_id,
+                                    MonoString* v) {
+  if (scene_ptr == 0) {
+    return;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasComponent<TagComponent>(handle)) {
+    return;
+  }
+  char* cstr = mono_string_to_utf8(v);
+  scene->GetComponent<TagComponent>(handle).name = cstr;
+  mono_free(cstr);
+}
+
 MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
                                              MonoString* tag) {
   if (scene_ptr == 0) {
@@ -780,6 +813,258 @@ void Internals_SpriteRenderer_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
 }
 
 #undef GET_SPRITE_RENDERER_OR_RETURN
+
+// --- BillboardRendererComponent bindings ---
+
+#define GET_BILLBOARD_OR_RETURN(sp, eid, retval)                \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);                    \
+  if (!scene->HasComponent<BillboardRendererComponent>(handle)) \
+    return retval;                                              \
+  auto& bb = scene->GetComponent<BillboardRendererComponent>(handle)
+
+float Internals_BillboardRenderer_GetSizeX(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.size.x;
+}
+float Internals_BillboardRenderer_GetSizeY(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.size.y;
+}
+void Internals_BillboardRenderer_SetSizeX(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.size.x = v;
+}
+void Internals_BillboardRenderer_SetSizeY(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.size.y = v;
+}
+float Internals_BillboardRenderer_GetMinSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.min_size;
+}
+void Internals_BillboardRenderer_SetMinSize(uint64_t sp, uint64_t eid,
+                                            float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.min_size = v;
+}
+float Internals_BillboardRenderer_GetMaxSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.max_size;
+}
+void Internals_BillboardRenderer_SetMaxSize(uint64_t sp, uint64_t eid,
+                                            float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.max_size = v;
+}
+float Internals_BillboardRenderer_GetPivotX(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.5f);
+  return bb.pivot.x;
+}
+float Internals_BillboardRenderer_GetPivotY(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.5f);
+  return bb.pivot.y;
+}
+void Internals_BillboardRenderer_SetPivotX(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.pivot.x = v;
+}
+void Internals_BillboardRenderer_SetPivotY(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.pivot.y = v;
+}
+float Internals_BillboardRenderer_GetTintR(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.r;
+}
+float Internals_BillboardRenderer_GetTintG(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.g;
+}
+float Internals_BillboardRenderer_GetTintB(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.b;
+}
+float Internals_BillboardRenderer_GetTintA(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.a;
+}
+void Internals_BillboardRenderer_SetTintR(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.r = v;
+}
+void Internals_BillboardRenderer_SetTintG(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.g = v;
+}
+void Internals_BillboardRenderer_SetTintB(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.b = v;
+}
+void Internals_BillboardRenderer_SetTintA(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.a = v;
+}
+int Internals_BillboardRenderer_GetSortLayer(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0);
+  return bb.sort_layer;
+}
+void Internals_BillboardRenderer_SetSortLayer(uint64_t sp, uint64_t eid,
+                                              int v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.sort_layer = v;
+}
+int Internals_BillboardRenderer_GetOcclusion(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(bb.occlusion);
+}
+void Internals_BillboardRenderer_SetOcclusion(uint64_t sp, uint64_t eid,
+                                              int v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.occlusion = static_cast<BillboardOcclusionMode>(v);
+}
+float Internals_BillboardRenderer_GetOccludedAlpha(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.occluded_alpha;
+}
+void Internals_BillboardRenderer_SetOccludedAlpha(uint64_t sp, uint64_t eid,
+                                                  float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.occluded_alpha = v;
+}
+
+#undef GET_BILLBOARD_OR_RETURN
+
+// --- BillboardTextComponent bindings ---
+
+#define GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, retval)       \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);                \
+  if (!scene->HasComponent<BillboardTextComponent>(handle)) \
+    return retval;                                          \
+  auto& bt = scene->GetComponent<BillboardTextComponent>(handle)
+
+MonoString* Internals_BillboardText_GetText(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(
+      sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         bt.text.c_str());
+}
+void Internals_BillboardText_SetText(uint64_t sp, uint64_t eid,
+                                     MonoString* v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  char* cstr = mono_string_to_utf8(v);
+  bt.text = cstr;
+  mono_free(cstr);
+}
+MonoString* Internals_BillboardText_GetFontHandle(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(
+      sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         bt.font_handle.ToString().c_str());
+}
+void Internals_BillboardText_SetFontHandle(uint64_t sp, uint64_t eid,
+                                           MonoString* v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  char* cstr = mono_string_to_utf8(v);
+  std::string handle_str(cstr);
+  mono_free(cstr);
+  if (handle_str.empty()) {
+    bt.font_handle = AssetHandle{};
+  } else {
+    bt.font_handle = AssetHandle::FromString(handle_str);
+    Engine::asset_manager().LoadSync(bt.font_handle);
+  }
+}
+float Internals_BillboardText_GetFontSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.font_size;
+}
+void Internals_BillboardText_SetFontSize(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.font_size = v;
+}
+float Internals_BillboardText_GetColorR(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.r;
+}
+float Internals_BillboardText_GetColorG(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.g;
+}
+float Internals_BillboardText_GetColorB(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.b;
+}
+float Internals_BillboardText_GetColorA(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.a;
+}
+void Internals_BillboardText_SetColorR(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.r = v;
+}
+void Internals_BillboardText_SetColorG(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.g = v;
+}
+void Internals_BillboardText_SetColorB(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.b = v;
+}
+void Internals_BillboardText_SetColorA(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.a = v;
+}
+int Internals_BillboardText_GetAlignment(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(bt.alignment);
+}
+void Internals_BillboardText_SetAlignment(uint64_t sp, uint64_t eid, int v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.alignment = static_cast<TextAlignment>(v);
+}
+float Internals_BillboardText_GetMinSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.min_size;
+}
+void Internals_BillboardText_SetMinSize(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.min_size = v;
+}
+float Internals_BillboardText_GetMaxSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.max_size;
+}
+void Internals_BillboardText_SetMaxSize(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.max_size = v;
+}
+int Internals_BillboardText_GetSortLayer(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0);
+  return bt.sort_layer;
+}
+void Internals_BillboardText_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.sort_layer = v;
+}
+int Internals_BillboardText_GetOcclusion(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(bt.occlusion);
+}
+void Internals_BillboardText_SetOcclusion(uint64_t sp, uint64_t eid, int v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.occlusion = static_cast<BillboardOcclusionMode>(v);
+}
+float Internals_BillboardText_GetOccludedAlpha(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.occluded_alpha;
+}
+void Internals_BillboardText_SetOccludedAlpha(uint64_t sp, uint64_t eid,
+                                              float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.occluded_alpha = v;
+}
+
+#undef GET_BILLBOARD_TEXT_OR_RETURN
 
 // --- AnimatorComponent bindings ---
 
@@ -2410,19 +2695,51 @@ void Internals_NetworkSceneManager_LoadSceneWithLoading(MonoString* target,
     return retval;                                  \
   auto& net_identity = scene->GetComponent<NetworkIdentityComponent>(handle)
 
+// Serializes a MonoArray of object args to a JSON array buffer using the
+// ScriptFieldTypeRegistry. The type of each arg is inferred from its class.
+static std::shared_ptr<znet::Buffer> SerializeRpcArgs(MonoArray* args) {
+  if (!args) return nullptr;
+  uintptr_t len = mono_array_length(args);
+  if (len == 0) return nullptr;
+
+  nlohmann::json arr = nlohmann::json::array();
+  for (uintptr_t i = 0; i < len; i++) {
+    MonoObject* arg = mono_array_get(args, MonoObject*, i);
+    if (!arg) {
+      arr.push_back({{"type", ""}, {"value", nullptr}});
+      continue;
+    }
+    std::string type_name =
+        mono_type_get_name(mono_class_get_type(mono_object_get_class(arg)));
+    nlohmann::json val_json;
+    if (!ScriptFieldTypeRegistry::SerializeValue(type_name, arg, val_json)) {
+      LOG_WARN("Unsupported RPC argument type: {}", type_name);
+      val_json = nullptr;
+    }
+    arr.push_back({{"type", type_name}, {"value", val_json}});
+  }
+
+  std::string json_str = arr.dump();
+  auto buf = std::make_shared<znet::Buffer>();
+  buf->WriteString(json_str);
+  return buf;
+}
+
 void Internals_Network_SendServerRpc(uint64_t scene_ptr, uint64_t entity_id,
-                                     MonoString* rpc_name) {
+                                     MonoString* rpc_name, MonoArray* args) {
   GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
   char* name = mono_string_to_utf8(rpc_name);
-  Engine::network().SendServerRpc(net_identity.net_id, name);
+  Engine::network().SendServerRpc(net_identity.net_id, name,
+                                  SerializeRpcArgs(args));
   mono_free(name);
 }
 
 void Internals_Network_SendClientRpc(uint64_t scene_ptr, uint64_t entity_id,
-                                     MonoString* rpc_name) {
+                                     MonoString* rpc_name, MonoArray* args) {
   GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
   char* name = mono_string_to_utf8(rpc_name);
-  Engine::network().SendClientRpc(net_identity.net_id, name);
+  Engine::network().SendClientRpc(net_identity.net_id, name,
+                                  SerializeRpcArgs(args));
   mono_free(name);
 }
 
@@ -2740,6 +3057,8 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Entity_HasTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_AddTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_RemoveTag);
+  WIESEL_ADD_INTERNAL_CALL(TagComponent_GetName);
+  WIESEL_ADD_INTERNAL_CALL(TagComponent_SetName);
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntitiesByTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_IsValid);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChildCount);
@@ -2782,6 +3101,62 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetTintA);
   WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetSortLayer);
   WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetSortLayer);
+
+  // BillboardRenderer
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetSizeX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetSizeY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetSizeX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetSizeY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetPivotX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetPivotY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetPivotX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetPivotY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetOccludedAlpha);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetOccludedAlpha);
+
+  // BillboardText
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetText);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetText);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetFontHandle);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetFontHandle);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetFontSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetFontSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetAlignment);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetAlignment);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetOccludedAlpha);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetOccludedAlpha);
 
   // SpriteAnimator
   WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_Play);

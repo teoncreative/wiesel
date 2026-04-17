@@ -23,7 +23,7 @@
 #include "rendering/w_texture.h"
 #include "ui/w_canvas.h"
 #include "util/w_utils.h"
-#include "util/w_uuid.h"
+#include <urkern/uuid.h>
 #include "w_pch.h"
 
 namespace wiesel {
@@ -43,12 +43,12 @@ struct EditorSelectedComponent {
 };
 
 struct IdComponent : public IComponent {
-  IdComponent(UUID id) : Id(id) {}
+  IdComponent(urkern::UUID id) : Id(id) {}
 
   IdComponent() = default;
   IdComponent(const IdComponent&) = default;
 
-  UUID Id;
+  urkern::UUID Id;
 };
 
 struct TreeComponent : public IComponent {

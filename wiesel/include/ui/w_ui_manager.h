@@ -47,6 +47,7 @@ class UIManager {
   RmlRenderInterface render_interface_;
   bool initialized_ = false;
   bool debugger_initialized_ = false;
+  Rml::Context* previous_context_ = nullptr;
   std::unordered_set<AssetHandle> loaded_fonts_;
 };
 

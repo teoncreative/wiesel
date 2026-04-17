@@ -15,7 +15,7 @@
 #include <filesystem>
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_utils.h"
-#include "util/w_natural_sort.h"
+#include <urkern/natural_sort.h>
 #include "w_engine.h"
 
 namespace wiesel::editor {
@@ -127,7 +127,7 @@ const std::vector<BrowserEntry>& VfsBrowser::Scan(AssetType filter) {
                       if (a.is_dir != b.is_dir) {
                         return a.is_dir > b.is_dir;
                       }
-                      return NaturalLess(a.name, b.name);
+                      return urkern::NaturalLess(a.name, b.name);
                     });
 
   return cached_entries_;

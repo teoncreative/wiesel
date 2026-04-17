@@ -32,6 +32,8 @@
 #include "script/w_script_field_registry.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
@@ -590,7 +592,7 @@ void InitializeComponentSerializers() {
         cj["sort_order"] = c.sort_order;
         if (c.render_mode == CanvasRenderMode::ScreenSpaceCamera) {
           cj["plane_distance"] = c.plane_distance;
-          // Serialize camera reference as UUID
+          // Serialize camera reference as urkern::UUID
           if (c.camera_entity != entt::null) {
             Scene* s = entity.GetScene();
             if (s && s->HasComponent<IdComponent>(c.camera_entity)) {
@@ -618,8 +620,8 @@ void InitializeComponentSerializers() {
         c.plane_distance = cj.value("plane_distance", 10.0f);
         if (cj.contains("camera_uuid") && cj["camera_uuid"].is_string() &&
             scene) {
-          UUID cam_uuid =
-              UUID::FromString(cj["camera_uuid"].get<std::string>());
+          urkern::UUID cam_uuid =
+              urkern::UUID::FromString(cj["camera_uuid"].get<std::string>());
           c.camera_entity = scene->FindEntityByUUID(cam_uuid);
         }
         c.player_index = cj.value("player_index", 0);
@@ -781,7 +783,7 @@ void InitializeComponentSerializers() {
         auto& nav = entity.AddComponent<NavigableComponent>();
         auto load_nav = [&](const std::string& key) -> entt::entity {
           if (nj.contains(key) && nj[key].is_string() && scene) {
-            UUID uuid = UUID::FromString(nj[key].get<std::string>());
+            urkern::UUID uuid = urkern::UUID::FromString(nj[key].get<std::string>());
             entt::entity ent = scene->FindEntityByUUID(uuid);
             if (ent != entt::null) {
               return ent;
@@ -851,6 +853,105 @@ void InitializeComponentSerializers() {
       },
   });
 
+  ComponentSerializerRegistry::Register({
+      "BillboardRenderer",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<BillboardRendererComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& b = entity.GetComponent<BillboardRendererComponent>();
+        json bj;
+        if (b.texture_handle.IsValid()) {
+          bj["texture_handle"] = b.texture_handle.ToString();
+        }
+        bj["size"] = {b.size.x, b.size.y};
+        bj["min_size"] = b.min_size;
+        bj["max_size"] = b.max_size;
+        bj["pivot"] = {b.pivot.x, b.pivot.y};
+        bj["tint"] = {b.tint.r, b.tint.g, b.tint.b, b.tint.a};
+        bj["sort_layer"] = b.sort_layer;
+        bj["occlusion"] = static_cast<int>(b.occlusion);
+        bj["occluded_alpha"] = b.occluded_alpha;
+        return bj;
+      },
+      [](Entity& entity, const json& bj, Scene* scene) {
+        auto& b = entity.AddComponent<BillboardRendererComponent>();
+        std::string handle_str = bj.value("texture_handle", "");
+        if (!handle_str.empty()) {
+          b.texture_handle = AssetHandle::FromString(handle_str);
+          if (scene) {
+            scene->RequestAsset(b.texture_handle);
+          }
+        }
+        if (bj.contains("size") && bj["size"].is_array() &&
+            bj["size"].size() >= 2) {
+          b.size = {bj["size"][0], bj["size"][1]};
+        }
+        b.min_size = bj.value("min_size", 0.25f);
+        b.max_size = bj.value("max_size", 4.0f);
+        if (bj.contains("pivot") && bj["pivot"].is_array() &&
+            bj["pivot"].size() >= 2) {
+          b.pivot = {bj["pivot"][0], bj["pivot"][1]};
+        }
+        if (bj.contains("tint") && bj["tint"].is_array() &&
+            bj["tint"].size() >= 4) {
+          b.tint = {bj["tint"][0], bj["tint"][1], bj["tint"][2], bj["tint"][3]};
+        }
+        b.sort_layer = bj.value("sort_layer", 0);
+        b.occlusion = static_cast<BillboardOcclusionMode>(
+            bj.value("occlusion", 0));
+        b.occluded_alpha = bj.value("occluded_alpha", 0.3f);
+      },
+  });
+
+  ComponentSerializerRegistry::Register({
+      "BillboardText",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<BillboardTextComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& t = entity.GetComponent<BillboardTextComponent>();
+        json tj;
+        if (t.font_handle.IsValid()) {
+          tj["font_handle"] = t.font_handle.ToString();
+        }
+        tj["text"] = t.text;
+        tj["font_size"] = t.font_size;
+        tj["color"] = {t.color.r, t.color.g, t.color.b, t.color.a};
+        tj["alignment"] = static_cast<int>(t.alignment);
+        tj["min_size"] = t.min_size;
+        tj["max_size"] = t.max_size;
+        tj["sort_layer"] = t.sort_layer;
+        tj["occlusion"] = static_cast<int>(t.occlusion);
+        tj["occluded_alpha"] = t.occluded_alpha;
+        return tj;
+      },
+      [](Entity& entity, const json& tj, Scene* scene) {
+        auto& t = entity.AddComponent<BillboardTextComponent>();
+        std::string handle_str = tj.value("font_handle", "");
+        if (!handle_str.empty()) {
+          t.font_handle = AssetHandle::FromString(handle_str);
+          if (scene) {
+            scene->RequestAsset(t.font_handle);
+          }
+        }
+        t.text = tj.value("text", "");
+        t.font_size = tj.value("font_size", 32.0f);
+        if (tj.contains("color") && tj["color"].is_array() &&
+            tj["color"].size() >= 4) {
+          t.color = {tj["color"][0], tj["color"][1], tj["color"][2],
+                     tj["color"][3]};
+        }
+        t.alignment = static_cast<TextAlignment>(tj.value("alignment", 1));
+        t.min_size = tj.value("min_size", 0.25f);
+        t.max_size = tj.value("max_size", 4.0f);
+        t.sort_layer = tj.value("sort_layer", 0);
+        t.occlusion = static_cast<BillboardOcclusionMode>(
+            tj.value("occlusion", 0));
+        t.occluded_alpha = tj.value("occluded_alpha", 0.3f);
+      },
+  });
+
   // MeshRendererComponent
   ComponentSerializerRegistry::Register({
       "MeshRenderer",
@@ -908,7 +1009,7 @@ void InitializeComponentSerializers() {
         if (mr.material_handle.IsValid()) {
           j["material_handle"] = mr.material_handle.ToString();
         }
-        // Save skeleton root's UUID for resolution on load
+        // Save skeleton root's urkern::UUID for resolution on load
         if (mr.skeleton_root != entt::null) {
           Scene* scene = entity.GetScene();
           if (scene && scene->HasEntity(mr.skeleton_root) &&
@@ -936,10 +1037,10 @@ void InitializeComponentSerializers() {
         if (!mat_str.empty()) {
           mr.material_handle = AssetHandle::FromString(mat_str);
         }
-        // Resolve skeleton root from saved UUID
+        // Resolve skeleton root from saved urkern::UUID
         std::string root_uuid_str = j.value("skeleton_root_uuid", "");
         if (!root_uuid_str.empty() && scene) {
-          UUID root_uuid = UUID::FromString(root_uuid_str);
+          urkern::UUID root_uuid = urkern::UUID::FromString(root_uuid_str);
           entt::entity root_entity = scene->FindEntityByUUID(root_uuid);
           if (root_entity != entt::null) {
             mr.skeleton_root = root_entity;

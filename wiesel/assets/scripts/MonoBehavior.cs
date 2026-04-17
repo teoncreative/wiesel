@@ -184,15 +184,15 @@ namespace WieselEngine
         }
 
         /// <summary>Call an RPC on the server. The server's OnServerRpc will be invoked.</summary>
-        public void SendServerRpc(string rpcName)
+        public void SendServerRpc(string rpcName, params object[] args)
         {
-            Internals.Network_SendServerRpc(Entity.ScenePtr, Entity.Id, rpcName);
+            Internals.Network_SendServerRpc(Entity.ScenePtr, Entity.Id, rpcName, args);
         }
 
         /// <summary>Call an RPC on all clients. Each client's OnClientRpc will be invoked.</summary>
-        public void SendClientRpc(string rpcName)
+        public void SendClientRpc(string rpcName, params object[] args)
         {
-            Internals.Network_SendClientRpc(Entity.ScenePtr, Entity.Id, rpcName);
+            Internals.Network_SendClientRpc(Entity.ScenePtr, Entity.Id, rpcName, args);
         }
 
         // -- Component access --

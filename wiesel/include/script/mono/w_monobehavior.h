@@ -62,6 +62,10 @@ class MonoBehavior : public IBehavior {
   bool OnCancel() override;
 
   void OnSyncVarChanged(const std::string& var_name) override;
+  void OnServerRpc(const std::string& rpc_name,
+                   const std::string& args_json) override;
+  void OnClientRpc(const std::string& rpc_name,
+                   const std::string& args_json) override;
 
  private:
   void InstantiateScript();

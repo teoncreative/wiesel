@@ -84,7 +84,20 @@ bool AssetRegistry::Save(AssetHandle handle, const std::string& vfs_path) {
   }
 
   const auto* desc = Get(meta->type);
-  if (!desc || !desc->Serialize) {
+  if (!desc) {
+    LOG_ERROR("No descriptor registered for asset type {}",
+              static_cast<int>(meta->type));
+    return false;
+  }
+
+  if (desc->SerializeBinary) {
+    urkern::Buffer buf;
+    desc->SerializeBinary(handle, buf);
+    return Engine::vfs()->WriteFile(vfs_path,
+                                    std::string(buf.data(), buf.size()));
+  }
+
+  if (!desc->Serialize) {
     LOG_ERROR("No serializer registered for asset type {}",
               static_cast<int>(meta->type));
     return false;
@@ -92,6 +105,28 @@ bool AssetRegistry::Save(AssetHandle handle, const std::string& vfs_path) {
 
   nlohmann::json j = desc->Serialize(handle);
   return Engine::vfs()->WriteFile(vfs_path, j.dump(2));
+}
+
+bool AssetRegistry::LoadBinary(AssetHandle handle) {
+  const auto* meta = Engine::asset_manager().GetMetadata(handle);
+  if (!meta) {
+    return false;
+  }
+
+  const auto* desc = Get(meta->type);
+  if (!desc || !desc->DeserializeBinary) {
+    return false;
+  }
+
+  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
+  if (!file) {
+    return false;
+  }
+
+  std::string content((std::istreambuf_iterator<char>(file.Stream())),
+                      std::istreambuf_iterator<char>());
+  urkern::Buffer buf(content.data(), content.size());
+  return desc->DeserializeBinary(handle, buf);
 }
 
 bool AssetRegistry::LoadJson(AssetHandle handle) {
@@ -1383,12 +1418,15 @@ void InitializeAssetRegistry() {
       });
 
   // --- MeshCollider ---
+  // Binary format: magic "WMCL" + uint32 version + varint source_model length +
+  // source_model string + uint64 vertex_count + raw vertex floats +
+  // uint64 index_count + raw uint32 indices.
   AssetRegistry::Register(
       AssetType::MeshCollider,
       {
           .Load =
               [](AssetHandle handle) {
-                if (!AssetRegistry::LoadJson(handle)) {
+                if (!AssetRegistry::LoadBinary(handle)) {
                   return false;
                 }
                 auto data =
@@ -1399,47 +1437,63 @@ void InitializeAssetRegistry() {
                 return data != nullptr;
               },
           .Unload = nullptr,
-          .Serialize = [](AssetHandle handle) -> nlohmann::json {
-            auto data =
-                Engine::asset_manager().Get<MeshColliderAssetData>(handle);
-            nlohmann::json j;
-            if (!data) {
-              return j;
+          .SerializeBinary =
+              [](AssetHandle handle, urkern::Buffer& buf) {
+                auto data = Engine::asset_manager()
+                                .Get<MeshColliderAssetData>(handle);
+                if (!data) {
+                  return;
+                }
+                buf.Write("WMCL", 4);
+                buf.WriteInt<uint32_t>(kMeshColliderBinaryVersion);
+                buf.WriteString(data->source_model.ToString());
+                buf.WriteInt<uint64_t>(data->vertices.size());
+                if (!data->vertices.empty()) {
+                  buf.Write(reinterpret_cast<const float*>(
+                                data->vertices.data()),
+                            data->vertices.size() * 3);
+                }
+                buf.WriteInt<uint64_t>(data->indices.size());
+                if (!data->indices.empty()) {
+                  buf.Write(data->indices.data(), data->indices.size());
+                }
+              },
+          .DeserializeBinary =
+              [](AssetHandle handle, urkern::Buffer& buf) -> bool {
+            char magic[4];
+            buf.Read(magic, 4);
+            if (std::strncmp(magic, "WMCL", 4) != 0) {
+              DCON_LOG_ERROR(
+                  "MeshCollider: bad magic, expected WMCL (re-bake via "
+                  "editor)");
+              return false;
             }
-            j["source_model"] = data->source_model.ToString();
+            uint32_t version = buf.ReadInt<uint32_t>();
+            if (version != kMeshColliderBinaryVersion) {
+              DCON_LOG_ERROR("MeshCollider: unsupported version {}", version);
+              return false;
+            }
 
-            nlohmann::json verts = nlohmann::json::array();
-            for (const auto& v : data->vertices) {
-              verts.push_back(v.x);
-              verts.push_back(v.y);
-              verts.push_back(v.z);
-            }
-            j["vertices"] = verts;
-            j["indices"] = data->indices;
-            return j;
-          },
-          .Deserialize = [](AssetHandle handle,
-                            const nlohmann::json& j) -> bool {
             auto data = std::make_shared<MeshColliderAssetData>();
+            data->source_model =
+                AssetHandle::FromString(buf.ReadString());
 
-            if (j.contains("source_model")) {
-              data->source_model =
-                  AssetHandle::FromString(j["source_model"].get<std::string>());
+            uint64_t vert_count = buf.ReadInt<uint64_t>();
+            data->vertices.resize(vert_count);
+            if (vert_count > 0) {
+              buf.Read(reinterpret_cast<float*>(data->vertices.data()),
+                       vert_count * 3);
             }
 
-            if (j.contains("vertices") && j["vertices"].is_array()) {
-              const auto& verts = j["vertices"];
-              size_t count = verts.size() / 3;
-              data->vertices.reserve(count);
-              for (size_t i = 0; i + 2 < verts.size(); i += 3) {
-                data->vertices.push_back({verts[i].get<float>(),
-                                          verts[i + 1].get<float>(),
-                                          verts[i + 2].get<float>()});
-              }
+            uint64_t idx_count = buf.ReadInt<uint64_t>();
+            data->indices.resize(idx_count);
+            if (idx_count > 0) {
+              buf.Read(data->indices.data(), idx_count);
             }
 
-            if (j.contains("indices") && j["indices"].is_array()) {
-              data->indices = j["indices"].get<std::vector<uint32_t>>();
+            if (buf.GetAndClearLastError() != urkern::BufferError::None) {
+              DCON_LOG_ERROR("MeshCollider: corrupt/truncated binary asset");
+              return false;
             }
 
             Engine::asset_manager().Store(handle, data);

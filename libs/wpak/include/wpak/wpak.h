@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <expected>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -41,44 +42,27 @@ struct Archive {
   std::map<std::string, ArchiveEntry> entries;
 };
 
-// Error-as-value types
-
-struct Error {
-  std::string message;
+enum class Error {
+  kFileOpenFailed,
+  kInvalidMagic,
+  kUnsupportedVersion,
+  kCompressionUnsupported,
+  kDirectoryNotFound,
+  kPathNotADirectory,
+  kEmptyVfsPrefix,
+  kFileCreateFailed,
+  kFileReadFailed,
 };
 
-template <typename T>
-struct Result {
-  bool success;
-  T value;
-  Error error;
-
-  static Result Ok(T val) { return {true, std::move(val), {}}; }
-
-  static Result Fail(std::string msg) {
-    return {false, {}, Error{std::move(msg)}};
-  }
-
-  explicit operator bool() const { return success; }
-};
-
-struct Status {
-  bool success;
-  Error error;
-
-  static Status Ok() { return {true, {}}; }
-
-  static Status Fail(std::string msg) { return {false, Error{std::move(msg)}}; }
-
-  explicit operator bool() const { return success; }
-};
+const char* ErrorToString(Error error);
 
 // --- Reading API ---
 
-Result<Archive> LoadArchive(const std::filesystem::path& archive_path);
+std::expected<Archive, Error> LoadArchive(
+    const std::filesystem::path& archive_path);
 
-Result<std::vector<uint8_t>> ReadEntry(const Archive& archive,
-                                       const ArchiveEntry& entry);
+std::expected<std::vector<uint8_t>, Error> ReadEntry(
+    const Archive& archive, const ArchiveEntry& entry);
 
 bool IsWpakFile(const std::filesystem::path& path);
 
@@ -90,7 +74,7 @@ struct PackEntry {
   uint64_t size;
 };
 
-Result<std::vector<PackEntry>> CollectFiles(
+std::expected<std::vector<PackEntry>, Error> CollectFiles(
     const std::filesystem::path& input_dir);
 
 using ProgressCallback =
@@ -101,7 +85,7 @@ using ProgressCallback =
 // Archives are split at kIdealArchiveSize. Files are named pak_01.wpak, pak_02.wpak, etc.
 // start_index controls the starting number (to allow appending to existing paks).
 // Returns the list of created file paths.
-Result<std::vector<std::filesystem::path>> WriteArchive(
+std::expected<std::vector<std::filesystem::path>, Error> WriteArchive(
     const std::filesystem::path& output_dir,
     const std::vector<PackEntry>& files, const std::string& vfs_prefix,
     int start_index = 1, ProgressCallback progress = nullptr);

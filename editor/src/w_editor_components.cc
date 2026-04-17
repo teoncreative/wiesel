@@ -14,6 +14,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include "script/w_script_field_registry.h"
 #include <imgui.h>
+#include <glm/gtc/type_ptr.hpp>
 #include <misc/cpp/imgui_stdlib.h>
 #include <typeindex>
 #include "animation/w_animation.h"
@@ -29,6 +30,8 @@
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_mesh_renderer.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
@@ -218,7 +221,7 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
 }
 
 void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Directional Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
@@ -291,7 +294,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
 }
 
 void RenderComponentImGui(LightPointComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Point Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
@@ -400,7 +403,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
 }
 
 void RenderComponentImGui(CameraComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Camera", &visible)) {
     bool changed = false;
 
@@ -553,7 +556,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
 
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                                   IBehavior& behavior, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode(behavior.GetEditorName().c_str(), &visible)) {
     bool enabled = behavior.IsEnabled();
     if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
@@ -583,7 +586,7 @@ void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
 }
 
 void RenderComponentImGui(BoxColliderComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Box Collider", &visible)) {
     ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
                       reinterpret_cast<float*>(&component.offset), 0.05f);
@@ -601,7 +604,7 @@ void RenderComponentImGui(BoxColliderComponent& component, Entity entity) {
 }
 
 void RenderComponentImGui(SphereColliderComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Sphere Collider", &visible)) {
     ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
                       reinterpret_cast<float*>(&component.offset), 0.05f);
@@ -630,7 +633,7 @@ void RenderAddComponentImGui_SphereColliderComponent(Entity entity) {
 }
 
 void RenderComponentImGui(CapsuleColliderComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Capsule Collider", &visible)) {
     ImGui::DragFloat3(PrefixLabel("Offset").c_str(), &component.offset.x,
                       0.01f);
@@ -663,7 +666,7 @@ void RenderAddComponentImGui_CapsuleColliderComponent(Entity entity) {
 }
 
 void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Mesh Collider", &visible)) {
     AssetDropField("Collider Asset", AssetType::MeshCollider,
                    component.collider_handle);
@@ -747,7 +750,7 @@ void RenderAddComponentImGui_MeshColliderComponent(Entity entity) {
 }
 
 void RenderComponentImGui(UIDocumentComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("UI Document", &visible)) {
     AssetDropField("Document", AssetType::UIDocument,
                    component.document_handle);
@@ -769,7 +772,7 @@ void RenderAddComponentImGui_UIDocumentComponent(Entity entity) {
 }
 
 void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Rigid Body", &visible)) {
     const char* types[] = {"Static", "Kinematic", "Dynamic"};
     int type_idx = (int)component.type;
@@ -937,7 +940,7 @@ void RenderAddComponentImGui_RigidBodyComponent(Entity entity) {
 
 void RenderComponentImGui(RectangleTransformComponent& component,
                           Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Rectangle Transform", &visible)) {
     bool changed = false;
     changed |=
@@ -1014,7 +1017,7 @@ static void EnsureRectangleTransform(Entity entity,
 }
 
 void RenderComponentImGui(CanvasComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Canvas", &visible)) {
     const char* render_modes[] = {"Screen Space - Overlay",
                                   "Screen Space - Camera", "World Space"};
@@ -1091,7 +1094,7 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
 }
 
 void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Canvas Scaler", &visible)) {
     // Check if the parent canvas is WorldSpace
     bool is_world_space = false;
@@ -1102,10 +1105,9 @@ void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
 
     if (is_world_space) {
       // WorldSpace mode: show pixels-per-unit instead of scale mode
-      ImGui::InputFloat2(
-          PrefixLabel("Reference Resolution").c_str(),
-          reinterpret_cast<float*>(&component.reference_resolution), "%.0f",
-          ImGuiInputTextFlags_EnterReturnsTrue);
+      ImGui::InputFloat2(PrefixLabel("Reference Resolution").c_str(),
+                         glm::value_ptr(component.reference_resolution),
+                         "%.0f", ImGuiInputTextFlags_EnterReturnsTrue);
       ImGui::DragFloat(PrefixLabel("Ref Pixels Per Unit").c_str(),
                        &component.reference_pixels_per_unit, 1.0f, 1.0f,
                        1000.0f);
@@ -1116,10 +1118,9 @@ void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
         component.scale_mode = static_cast<ScaleMode>(mode);
       }
       if (component.scale_mode == ScaleMode::ScaleWithScreenSize) {
-        ImGui::InputFloat2(
-            PrefixLabel("Reference Resolution").c_str(),
-            reinterpret_cast<float*>(&component.reference_resolution), "%.0f",
-            ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::InputFloat2(PrefixLabel("Reference Resolution").c_str(),
+                           glm::value_ptr(component.reference_resolution),
+                           "%.0f");
         ImGui::SliderFloat(PrefixLabel("Match").c_str(),
                            &component.match_width_or_height, 0.0f, 1.0f,
                            "Width %.2f Height");
@@ -1153,7 +1154,7 @@ void RenderAddComponentImGui_RectangleTransformComponent(Entity entity) {
 }
 
 void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Animator", &visible)) {
     AssetDropField("Controller", AssetType::AnimController,
                    component.controller_handle);
@@ -1227,7 +1228,7 @@ void RenderAddComponentImGui_AnimatorComponent(Entity entity) {
 // --- MeshRendererComponent ---
 
 void RenderComponentImGui(MeshRendererComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Mesh Renderer", &visible)) {
     ImGui::Checkbox(PrefixLabel("Rendering").c_str(),
                     &component.enable_rendering);
@@ -1262,7 +1263,7 @@ void RenderComponentImGui(MeshRendererComponent& component, Entity entity) {
 
 void RenderComponentImGui(SkinnedMeshRendererComponent& component,
                           Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (ImGui::ClosableTreeNode("Skinned Mesh Renderer", &visible)) {
     ImGui::Checkbox(PrefixLabel("Rendering").c_str(),
                     &component.enable_rendering);
@@ -1460,7 +1461,7 @@ void RegisterComponentType(const std::string& display_name,
 }
 
 void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (!ImGui::ClosableTreeNode("Audio Source", &visible)) {
     if (!visible) {
       entity.RemoveComponent<AudioSourceComponent>();
@@ -1625,7 +1626,7 @@ void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
 }
 
 void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (!ImGui::ClosableTreeNode("Sprite Renderer", &visible)) {
     if (!visible) {
       entity.RemoveComponent<SpriteRendererComponent>();
@@ -1715,8 +1716,184 @@ void RenderAddComponentImGui_SpriteRendererComponent(Entity entity) {
   }
 }
 
+void RenderComponentImGui(BillboardRendererComponent& component,
+                          Entity entity) {
+  bool visible = true;
+  if (!ImGui::ClosableTreeNode("Billboard Renderer", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<BillboardRendererComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  {
+    AssetHandle prev_handle = component.texture_handle;
+    if (AssetDropField("Texture", AssetType::Texture,
+                       component.texture_handle)) {
+      component.cached_texture = nullptr;
+      component.cached_descriptor = nullptr;
+      component.bound_handle = AssetHandle{};
+      if (s_command_stack) {
+        AssetHandle new_handle = component.texture_handle;
+        s_command_stack->Execute(
+            std::make_unique<editor::PropertyCommand<AssetHandle>>(
+                "Change Billboard Texture",
+                [entity](const AssetHandle& v) mutable {
+                  auto& b =
+                      entity.GetComponent<BillboardRendererComponent>();
+                  b.texture_handle = v;
+                  b.cached_texture = nullptr;
+                  b.cached_descriptor = nullptr;
+                  b.bound_handle = AssetHandle{};
+                },
+                prev_handle, new_handle));
+      }
+    }
+  }
+
+  ImGui::DragFloat2(PrefixLabel("Size").c_str(), &component.size.x, 1.0f,
+                    1.0f, 4096.0f);
+  if (s_command_stack) {
+    static editor::UndoTracker<glm::vec2> tracker;
+    tracker.Track(*s_command_stack, "Change Billboard Size", component.size,
+                  [entity](const glm::vec2& v) mutable {
+                    entity.GetComponent<BillboardRendererComponent>().size = v;
+                  });
+  }
+
+  ImGui::DragFloat(PrefixLabel("Min Size").c_str(), &component.min_size, 0.01f,
+                   0.0f, 100.0f);
+  if (s_command_stack) {
+    static editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Billboard Min Size",
+                  component.min_size, [entity](const float& v) mutable {
+                    entity.GetComponent<BillboardRendererComponent>().min_size =
+                        v;
+                  });
+  }
+
+  ImGui::DragFloat(PrefixLabel("Max Size").c_str(), &component.max_size, 0.01f,
+                   0.0f, 100.0f);
+  if (s_command_stack) {
+    static editor::UndoTracker<float> tracker;
+    tracker.Track(*s_command_stack, "Change Billboard Max Size",
+                  component.max_size, [entity](const float& v) mutable {
+                    entity.GetComponent<BillboardRendererComponent>().max_size =
+                        v;
+                  });
+  }
+
+  ImGui::DragFloat2(PrefixLabel("Pivot").c_str(), &component.pivot.x, 0.01f,
+                    0.0f, 1.0f);
+  if (s_command_stack) {
+    static editor::UndoTracker<glm::vec2> tracker;
+    tracker.Track(*s_command_stack, "Change Billboard Pivot", component.pivot,
+                  [entity](const glm::vec2& v) mutable {
+                    entity.GetComponent<BillboardRendererComponent>().pivot = v;
+                  });
+  }
+
+  ImGui::ColorEdit4(PrefixLabel("Tint").c_str(), &component.tint.r);
+  if (s_command_stack) {
+    static editor::UndoTracker<glm::vec4> tracker;
+    tracker.Track(*s_command_stack, "Change Billboard Tint", component.tint,
+                  [entity](const glm::vec4& v) mutable {
+                    entity.GetComponent<BillboardRendererComponent>().tint = v;
+                  });
+  }
+
+  ImGui::InputInt(PrefixLabel("Sort Layer").c_str(), &component.sort_layer);
+  if (s_command_stack) {
+    static editor::UndoTracker<int32_t> tracker;
+    tracker.Track(*s_command_stack, "Change Billboard Sort Layer",
+                  component.sort_layer,
+                  [entity](const int32_t& v) mutable {
+                    entity.GetComponent<BillboardRendererComponent>()
+                        .sort_layer = v;
+                  });
+  }
+
+  const char* occlusion_names[] = {"Disabled", "Faded", "Always Visible"};
+  int occlusion_idx = static_cast<int>(component.occlusion);
+  if (ImGui::Combo(PrefixLabel("Occlusion").c_str(), &occlusion_idx,
+                   occlusion_names, IM_ARRAYSIZE(occlusion_names))) {
+    component.occlusion = static_cast<BillboardOcclusionMode>(occlusion_idx);
+  }
+  if (component.occlusion == BillboardOcclusionMode::Faded) {
+    ImGui::DragFloat(PrefixLabel("Occluded Alpha").c_str(),
+                     &component.occluded_alpha, 0.01f, 0.0f, 1.0f);
+  }
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_BillboardRendererComponent(Entity entity) {
+  if (ImGui::MenuItem("Billboard Renderer") &&
+      !entity.HasComponent<BillboardRendererComponent>()) {
+    entity.AddComponent<BillboardRendererComponent>();
+  }
+}
+
+void RenderComponentImGui(BillboardTextComponent& component, Entity entity) {
+  bool visible = true;
+  if (!ImGui::ClosableTreeNode("Billboard Text", &visible)) {
+    if (!visible) {
+      entity.RemoveComponent<BillboardTextComponent>();
+      visible = true;
+    }
+    return;
+  }
+
+  AssetDropField("Font", AssetType::Font, component.font_handle);
+
+  char buf[512];
+  std::snprintf(buf, sizeof(buf), "%s", component.text.c_str());
+  if (ImGui::InputText(PrefixLabel("Text").c_str(), buf, sizeof(buf))) {
+    component.text = buf;
+  }
+
+  ImGui::DragFloat(PrefixLabel("Font Size").c_str(), &component.font_size, 0.5f,
+                   1.0f, 512.0f);
+
+  ImGui::ColorEdit4(PrefixLabel("Color").c_str(), &component.color.r);
+
+  const char* alignment_names[] = {"Left", "Center", "Right"};
+  int alignment_idx = static_cast<int>(component.alignment);
+  if (ImGui::Combo(PrefixLabel("Alignment").c_str(), &alignment_idx,
+                   alignment_names, IM_ARRAYSIZE(alignment_names))) {
+    component.alignment = static_cast<TextAlignment>(alignment_idx);
+  }
+
+  ImGui::DragFloat(PrefixLabel("Min Size").c_str(), &component.min_size, 0.01f,
+                   0.0f, 100.0f);
+  ImGui::DragFloat(PrefixLabel("Max Size").c_str(), &component.max_size, 0.01f,
+                   0.0f, 100.0f);
+  ImGui::InputInt(PrefixLabel("Sort Layer").c_str(), &component.sort_layer);
+
+  const char* occlusion_names[] = {"Disabled", "Faded", "Always Visible"};
+  int occlusion_idx = static_cast<int>(component.occlusion);
+  if (ImGui::Combo(PrefixLabel("Occlusion").c_str(), &occlusion_idx,
+                   occlusion_names, IM_ARRAYSIZE(occlusion_names))) {
+    component.occlusion = static_cast<BillboardOcclusionMode>(occlusion_idx);
+  }
+  if (component.occlusion == BillboardOcclusionMode::Faded) {
+    ImGui::DragFloat(PrefixLabel("Occluded Alpha").c_str(),
+                     &component.occluded_alpha, 0.01f, 0.0f, 1.0f);
+  }
+
+  ImGui::TreePop();
+}
+
+void RenderAddComponentImGui_BillboardTextComponent(Entity entity) {
+  if (ImGui::MenuItem("Billboard Text") &&
+      !entity.HasComponent<BillboardTextComponent>()) {
+    entity.AddComponent<BillboardTextComponent>();
+  }
+}
+
 void RenderComponentImGui(InteractableComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (!ImGui::ClosableTreeNode("Interactable", &visible)) {
     if (!visible) {
       entity.RemoveComponent<InteractableComponent>();
@@ -1752,7 +1929,7 @@ void RenderAddComponentImGui_InteractableComponent(Entity entity) {
 }
 
 void RenderComponentImGui(NavigableComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (!ImGui::ClosableTreeNode("Navigable", &visible)) {
     if (!visible) {
       entity.RemoveComponent<NavigableComponent>();
@@ -1799,7 +1976,7 @@ void RenderAddComponentImGui_NavigableComponent(Entity entity) {
 }
 
 void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (!ImGui::ClosableTreeNode("Reverb Zone", &visible)) {
     if (!visible) {
       entity.RemoveComponent<ReverbZoneComponent>();
@@ -1862,7 +2039,7 @@ void RenderAddComponentImGui_ReverbZoneComponent(Entity entity) {
 }
 
 void RenderComponentImGui(NetworkIdentityComponent& component, Entity entity) {
-  static bool visible = true;
+  bool visible = true;
   if (!ImGui::ClosableTreeNode("Network Identity", &visible)) {
     if (!visible) {
       entity.RemoveComponent<NetworkIdentityComponent>();
@@ -1954,6 +2131,12 @@ void InitializeEditorComponents() {
   RegisterComponentType<SpriteRendererComponent>(
       "Sprite Renderer", "Rendering", RenderComponentImGui,
       RenderAddComponentImGui_SpriteRendererComponent, nullptr);
+  RegisterComponentType<BillboardRendererComponent>(
+      "Billboard Renderer", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_BillboardRendererComponent, nullptr);
+  RegisterComponentType<BillboardTextComponent>(
+      "Billboard Text", "Rendering", RenderComponentImGui,
+      RenderAddComponentImGui_BillboardTextComponent, nullptr);
   RegisterComponentType<ReverbZoneComponent>(
       "Reverb Zone", "Audio", RenderComponentImGui,
       RenderAddComponentImGui_ReverbZoneComponent, nullptr);
@@ -1998,7 +2181,8 @@ void RenderAddPopup(Entity entity) {
 
   // Collect groups in consistent order
   static const std::vector<std::string> group_order = {
-      "Rendering", "Lighting", "Audio", "Physics", "UI", "Canvas", "Scripting"};
+      "Rendering", "Lighting", "Audio",     "Physics",
+      "UI",        "Canvas",   "Scripting", "Networking"};
 
   if (has_filter) {
     // Flat filtered list (no groups)
@@ -2336,6 +2520,76 @@ void InitializeScriptFieldRenderers() {
                 mono_field_set_value(new_clip, handle_field, h_val);
               }
               mono_field_set_value(obj, field, new_clip);
+              changed = true;
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        if (!current_handle_str.empty()) {
+          ImGui::SameLine();
+          std::string clear_id = "X##clear_" + label;
+          if (ImGui::SmallButton(clear_id.c_str())) {
+            MonoObject* null_val = nullptr;
+            mono_field_set_value(obj, field, &null_val);
+            return true;
+          }
+        }
+        return changed;
+      });
+
+  set_render("WieselEngine.Font",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        MonoObject* font_obj = nullptr;
+        mono_field_get_value(obj, field, &font_obj);
+        std::string display = "(None)";
+        std::string current_handle_str;
+
+        if (font_obj) {
+          MonoClassField* handle_field = mono_class_get_field_from_name(
+              mono_object_get_class(font_obj), "handle");
+          if (handle_field) {
+            MonoString* h_str = nullptr;
+            mono_field_get_value(font_obj, handle_field, &h_str);
+            if (h_str) {
+              const char* cstr = mono_string_to_utf8(h_str);
+              if (cstr && cstr[0]) {
+                current_handle_str = cstr;
+                AssetHandle h = AssetHandle::FromString(current_handle_str);
+                const auto* meta = Engine::asset_manager().GetMetadata(h);
+                if (meta) {
+                  display = meta->name;
+                }
+              }
+              mono_free((void*)cstr);
+            }
+          }
+        }
+
+        ImGui::InputText(label.c_str(), &display, ImGuiInputTextFlags_ReadOnly);
+
+        bool changed = false;
+        if (ImGui::BeginDragDropTarget()) {
+          AssetHandle dropped_handle = AcceptAssetDragDrop(AssetType::Font);
+          if (dropped_handle.IsValid()) {
+            MonoObject* new_font = font_obj;
+            if (!new_font) {
+              new_font = mono_object_new(
+                  Engine::script_manager().app_domain(),
+                  Engine::script_manager().font_class());
+              mono_runtime_object_init(new_font);
+            }
+            if (new_font) {
+              MonoClassField* handle_field = mono_class_get_field_from_name(
+                  mono_object_get_class(new_font), "handle");
+              if (handle_field) {
+                MonoString* h_val =
+                    mono_string_new(Engine::script_manager().app_domain(),
+                                    dropped_handle.ToString().c_str());
+                mono_field_set_value(new_font, handle_field, h_val);
+              }
+              mono_field_set_value(obj, field, new_font);
               changed = true;
             }
           }

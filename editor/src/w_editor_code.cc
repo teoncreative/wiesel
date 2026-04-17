@@ -16,7 +16,7 @@
 
 #include "mono_compiler.h"
 #include "util/w_command.h"
-#include "util/w_thread_pool.h"
+#include <urkern/thread_pool.h>
 #include "w_csharp_lang.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"

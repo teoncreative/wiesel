@@ -35,6 +35,7 @@ class EntitySpawnPacket : public znet::Packet {
   EntitySpawnPacket() : Packet(kEntitySpawnPacket) {}
 
   uint32_t net_id = 0;
+  uint32_t parent_net_id = 0;  // 0 = no networked parent (root)
   uint64_t uuid_hi = 0;
   uint64_t uuid_lo = 0;
   std::string entity_name;

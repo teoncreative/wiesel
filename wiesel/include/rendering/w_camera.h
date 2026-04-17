@@ -14,7 +14,7 @@
 #include <scene/w_components.h>
 #include "events/w_appevents.h"
 #include "rendering/w_render_feature.h"
-#include "util/w_uuid.h"
+#include <urkern/uuid.h>
 #include "w_framebuffer.h"
 #include "w_pch.h"
 #include "w_texture.h"

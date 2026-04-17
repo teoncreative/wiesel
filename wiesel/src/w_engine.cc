@@ -42,8 +42,8 @@
 #include "ui/w_ui_document.h"
 #include "ui/w_ui_manager.h"
 #include "util/w_dialogs.h"
-#include "util/w_platform.h"
-#include "util/w_thread_pool.h"
+#include <urkern/platform.h>
+#include <urkern/thread_pool.h>
 #include "util/w_user_config.h"
 #include "window/w_sdlwindow.h"
 
@@ -51,7 +51,7 @@ namespace wiesel {
 
 EngineProperties EngineProperties::Parse(int argc, char** argv) {
   EngineProperties config;
-  std::filesystem::path exe_dir = GetExecutableDirectory();
+  std::filesystem::path exe_dir = urkern::GetExecutableDirectory();
 
   // Setup cxxopts
   cxxopts::Options options(argv[0], "Wiesel Game Engine");
@@ -191,7 +191,7 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
   }
 
   if (config.user_data_path.empty()) {
-    config.user_data_path = GetUserDataDirectory();
+    config.user_data_path = urkern::GetUserDataDirectory("Wiesel");
   }
 
   return config;
@@ -206,7 +206,7 @@ std::unique_ptr<InputManager> Engine::input_manager_;
 std::unique_ptr<AssetManager> Engine::asset_manager_;
 std::unique_ptr<ScriptManager> Engine::script_manager_;
 std::unique_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
-std::unique_ptr<ThreadPool> Engine::thread_pool_;
+std::unique_ptr<urkern::ThreadPool> Engine::thread_pool_;
 std::unique_ptr<AudioManager> Engine::audio_manager_;
 std::unique_ptr<NetworkManager> Engine::network_manager_;
 std::unique_ptr<NetworkSceneManager> Engine::network_scene_manager_;
@@ -249,7 +249,7 @@ void Engine::InitEngine(const EngineProperties& props) {
   if (pool_size == 0) {
     pool_size = 4;
   }
-  thread_pool_ = std::make_unique<ThreadPool>(pool_size);
+  thread_pool_ = std::make_unique<urkern::ThreadPool>(pool_size);
   LOG_INFO("Asset thread pool: {} workers", pool_size);
 
   network_manager_ = std::make_unique<NetworkManager>();
@@ -313,7 +313,7 @@ void Engine::InitializeVfs() {
   mount_dir("user://", properties_.user_data_path, 0);
 
   // Scan executable directory for .wpak files (release mode bootstrap)
-  fs::path exe_dir = GetExecutableDirectory();
+  fs::path exe_dir = urkern::GetExecutableDirectory();
   if (fs::exists(exe_dir)) {
     std::vector<fs::path> wpak_files;
     for (const auto& entry : fs::directory_iterator(exe_dir)) {
@@ -444,7 +444,7 @@ void Engine::InitGameConfig(const std::string& game_name) {
   if (game_config_) {
     game_config_->Save();
   }
-  game_config_ = std::make_unique<UserConfig>(GetUserDataDirectory(game_name),
+  game_config_ = std::make_unique<UserConfig>(urkern::GetUserDataDirectory(game_name),
                                               "game_config.json");
   game_config_->Load();
 }

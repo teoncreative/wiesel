@@ -50,6 +50,7 @@ add_compile_definitions(
 )
 
 include(${VENDOR_DIR}/CMakeLists.txt)
+add_subdirectory(vendor/urkern)
 add_subdirectory(libs/wpak)
 add_subdirectory(libs/monolib)
 

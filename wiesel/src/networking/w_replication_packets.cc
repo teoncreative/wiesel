@@ -22,6 +22,7 @@ std::shared_ptr<znet::Buffer> EntitySpawnPacketSerializer::SerializeTyped(
     std::shared_ptr<EntitySpawnPacket> packet,
     std::shared_ptr<znet::Buffer> buffer) {
   buffer->WriteInt<uint32_t>(packet->net_id);
+  buffer->WriteInt<uint32_t>(packet->parent_net_id);
   buffer->WriteInt<uint64_t>(packet->uuid_hi);
   buffer->WriteInt<uint64_t>(packet->uuid_lo);
   buffer->WriteString(packet->entity_name);
@@ -47,6 +48,7 @@ EntitySpawnPacketSerializer::DeserializeTyped(
     std::shared_ptr<znet::Buffer> buffer) {
   auto packet = std::make_shared<EntitySpawnPacket>();
   packet->net_id = buffer->ReadInt<uint32_t>();
+  packet->parent_net_id = buffer->ReadInt<uint32_t>();
   packet->uuid_hi = buffer->ReadInt<uint64_t>();
   packet->uuid_lo = buffer->ReadInt<uint64_t>();
   packet->entity_name = buffer->ReadString();

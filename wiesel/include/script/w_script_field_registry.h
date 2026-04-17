@@ -39,10 +39,22 @@ using ScriptFieldRenderFn = std::function<bool(
     MonoObject* object, MonoClassField* field, MonoProperty* write_property,
     const std::string& label)>;
 
+// Serialize a standalone value (e.g. an RPC argument or a boxed value).
+// For value types: `value` is a boxed MonoObject*.
+// For reference types: `value` is the MonoObject* directly.
+using ScriptValueSerializeFn = std::function<nlohmann::json(MonoObject* value)>;
+
+// Deserialize a standalone value from JSON.
+// Returns a MonoObject* (boxed for value types, reference for reference types).
+using ScriptValueDeserializeFn =
+    std::function<MonoObject*(const nlohmann::json& value, Scene* scene)>;
+
 struct ScriptFieldTypeDesc {
   ScriptFieldSerializeFn Serialize;
   ScriptFieldDeserializeFn Deserialize;
   ScriptFieldRenderFn Render;  // may be null (engine-only types don't render)
+  ScriptValueSerializeFn SerializeValue;      // for RPC args, raw values
+  ScriptValueDeserializeFn DeserializeValue;  // for RPC args, raw values
 };
 
 class ScriptFieldTypeRegistry {
@@ -61,6 +73,15 @@ class ScriptFieldTypeRegistry {
   static bool DeserializeField(const std::string& type_name,
                                MonoObject* object, MonoClassField* field,
                                const nlohmann::json& value, Scene* scene);
+
+  // Convenience: serialize a standalone value (e.g. RPC arg)
+  static bool SerializeValue(const std::string& type_name, MonoObject* value,
+                             nlohmann::json& out);
+
+  // Convenience: deserialize a standalone value (e.g. RPC arg)
+  static MonoObject* DeserializeValue(const std::string& type_name,
+                                      const nlohmann::json& value,
+                                      Scene* scene);
 
  private:
   static std::unordered_map<std::string, ScriptFieldTypeDesc>& Registry();

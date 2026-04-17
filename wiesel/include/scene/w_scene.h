@@ -47,11 +47,11 @@ class Scene {
   void SetSourcePath(const std::string& path) { source_path_ = path; }
 
   Entity CreateEntity(const std::string& name = std::string());
-  Entity CreateEntityWithUUID(UUID uuid,
+  Entity CreateEntityWithUUID(urkern::UUID uuid,
                               const std::string& name = std::string());
   void RemoveEntity(entt::entity entity);
   entt::entity FindEntityByName(const std::string& name);
-  entt::entity FindEntityByUUID(const UUID& uuid);
+  entt::entity FindEntityByUUID(const urkern::UUID& uuid);
   std::vector<entt::entity> FindEntitiesByTag(const std::string& tag);
 
   // Asset dependency tracking — called during deserialization
@@ -221,7 +221,7 @@ class Scene {
   SceneHandle handle_;
   std::string name_;
   std::string source_path_;
-  std::unordered_map<UUID, entt::entity> entities_;
+  std::unordered_map<urkern::UUID, entt::entity> entities_;
   entt::registry registry_;
   bool is_running_{false};
   bool is_paused_{false};

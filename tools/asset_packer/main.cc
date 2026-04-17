@@ -21,29 +21,30 @@ int PackAssets(const fs::path& input_dir, const fs::path& output_dir,
                const std::string& prefix, int start_index = 1) {
   auto files_result = Wpak::CollectFiles(input_dir);
   if (!files_result) {
-    std::cerr << "Error: " << files_result.error.message << "\n";
+    std::cerr << "Error: " << Wpak::ErrorToString(files_result.error())
+              << "\n";
     return -1;
   }
 
-  std::cout << "Packing " << files_result.value.size() << " files with prefix '"
+  std::cout << "Packing " << files_result->size() << " files with prefix '"
             << prefix << "'...\n";
 
   auto result = Wpak::WriteArchive(
-      output_dir, files_result.value, prefix, start_index,
+      output_dir, *files_result, prefix, start_index,
       [](size_t i, size_t total, const std::string& name) {
         std::cout << "  [" << (i + 1) << "/" << total << "] " << name << "\n";
       });
 
   if (!result) {
-    std::cerr << "Error: " << result.error.message << "\n";
+    std::cerr << "Error: " << Wpak::ErrorToString(result.error()) << "\n";
     return -1;
   }
 
-  for (const auto& path : result.value) {
+  for (const auto& path : *result) {
     std::cout << "Archive created: " << path << " (" << fs::file_size(path)
               << " bytes)\n";
   }
-  return static_cast<int>(result.value.size());
+  return static_cast<int>(result->size());
 }
 
 bool CompileScripts(const fs::path& scripts_dir, const fs::path& output_dll) {

@@ -73,8 +73,7 @@ bool IsJsonAssetType(AssetType type) {
   return type == AssetType::Scene || type == AssetType::Prefab ||
          type == AssetType::Material || type == AssetType::Skybox ||
          type == AssetType::Sprite || type == AssetType::AnimClip ||
-         type == AssetType::AnimController || type == AssetType::CursorSet ||
-         type == AssetType::MeshCollider;
+         type == AssetType::AnimController || type == AssetType::CursorSet;
 }
 
 }  // namespace wiesel

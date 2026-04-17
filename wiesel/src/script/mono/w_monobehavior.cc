@@ -218,6 +218,82 @@ bool MonoBehavior::OnCancel() {
   return false;
 }
 
+static void InvokeRpcMethod(ScriptInstance* instance,
+                            const ScriptData::RpcMethodInfo& info,
+                            const std::string& args_json, Scene* scene) {
+  auto& fields = instance->script_data().fields();
+  (void)fields;
+
+  MonoMethodSignature* sig = mono_method_signature(info.method);
+  uint32_t param_count = mono_signature_get_param_count(sig);
+
+  nlohmann::json args_arr;
+  if (!args_json.empty()) {
+    args_arr = nlohmann::json::parse(args_json, nullptr, false);
+  }
+  if (!args_arr.is_array()) {
+    args_arr = nlohmann::json::array();
+  }
+
+  std::vector<void*> invoke_args(param_count, nullptr);
+  std::vector<MonoObject*> boxed_values(param_count, nullptr);
+  std::vector<std::string> param_type_names(param_count);
+
+  void* param_iter = nullptr;
+  for (uint32_t i = 0; i < param_count; i++) {
+    MonoType* param_type = mono_signature_get_params(sig, &param_iter);
+    param_type_names[i] = mono_type_get_name(param_type);
+
+    if (i >= args_arr.size()) {
+      continue;
+    }
+    const auto& arg_entry = args_arr[i];
+    nlohmann::json val = arg_entry.is_object() && arg_entry.contains("value")
+                             ? arg_entry["value"]
+                             : arg_entry;
+
+    MonoObject* boxed = ScriptFieldTypeRegistry::DeserializeValue(
+        param_type_names[i], val, scene);
+    boxed_values[i] = boxed;
+
+    // For value types, unbox and pass the raw pointer.
+    // For reference types, pass the MonoObject* directly.
+    int mono_type_kind = mono_type_get_type(param_type);
+    bool is_value_type =
+        mono_type_kind != MONO_TYPE_STRING &&
+        mono_type_kind != MONO_TYPE_CLASS &&
+        mono_type_kind != MONO_TYPE_OBJECT &&
+        mono_type_kind != MONO_TYPE_SZARRAY &&
+        mono_type_kind != MONO_TYPE_ARRAY;
+    if (boxed && is_value_type) {
+      invoke_args[i] = mono_object_unbox(boxed);
+    } else {
+      invoke_args[i] = boxed;
+    }
+  }
+
+  bool errored = false;
+  InvokeSafe(info.method, instance->handle(), invoke_args.data(), &errored);
+}
+
+void MonoBehavior::OnServerRpc(const std::string& rpc_name,
+                               const std::string& args_json) {
+  if (!script_instance_) return;
+  auto& rpcs = script_instance_->script_data().rpc_methods();
+  auto it = rpcs.find(rpc_name);
+  if (it == rpcs.end() || !it->second.is_server_rpc) return;
+  InvokeRpcMethod(script_instance_.get(), it->second, args_json, scene_);
+}
+
+void MonoBehavior::OnClientRpc(const std::string& rpc_name,
+                               const std::string& args_json) {
+  if (!script_instance_) return;
+  auto& rpcs = script_instance_->script_data().rpc_methods();
+  auto it = rpcs.find(rpc_name);
+  if (it == rpcs.end() || it->second.is_server_rpc) return;
+  InvokeRpcMethod(script_instance_.get(), it->second, args_json, scene_);
+}
+
 void MonoBehavior::OnSyncVarChanged(const std::string& var_name) {
   if (!script_instance_) {
     return;

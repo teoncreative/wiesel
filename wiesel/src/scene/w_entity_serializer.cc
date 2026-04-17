@@ -77,8 +77,8 @@ Entity Deserialize(Scene& scene, const nlohmann::json& json) {
   for (auto& entry : entries) {
     std::string uuid_str = entry.json->value("uuid", "");
     std::string name = entry.json->value("name", "Entity");
-    UUID uuid =
-        uuid_str.empty() ? UUID::GenerateV4() : UUID::FromString(uuid_str);
+    urkern::UUID uuid =
+        uuid_str.empty() ? urkern::UUID::GenerateV4() : urkern::UUID::FromString(uuid_str);
     Entity entity = scene.CreateEntityWithUUID(uuid, name);
     entry.handle = entity.handle();
   }

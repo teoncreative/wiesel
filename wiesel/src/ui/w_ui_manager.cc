@@ -102,9 +102,14 @@ void UIManager::ToggleDebugger(Rml::Context* context) {
   if (!context) {
     return;
   }
+  if (context != previous_context_) {
+    Rml::Debugger::Shutdown();
+    debugger_initialized_ = false;
+  }
   if (!debugger_initialized_) {
     Rml::Debugger::Initialise(context);
     debugger_initialized_ = true;
+    previous_context_ = context;
     Rml::Debugger::SetVisible(true);
   } else {
     Rml::Debugger::SetContext(context);

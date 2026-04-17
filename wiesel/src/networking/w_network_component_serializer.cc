@@ -13,6 +13,8 @@
 
 #include "behavior/w_behavior.h"
 #include "script/mono/w_monobehavior.h"
+#include "script/w_script_field_registry.h"
+#include "script/w_scriptmanager.h"
 #include "physics/w_collider.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh_renderer.h"
@@ -20,6 +22,7 @@
 #include "scene/w_components.h"
 #include "scene/w_lights.h"
 #include "util/w_logger.h"
+#include "w_engine.h"
 #include "znet/buffer.h"
 
 namespace wiesel {
@@ -486,6 +489,9 @@ void InitializeNetworkComponentSerializers() {
   });
 
   // BehaviorsComponent (type_id 10) - spawn only
+  // Carries each script's name plus a serialized blob of its public field
+  // values so clients see the same values that were set in the prefab /
+  // scene on the authoritative side.
   NetworkComponentSerializerRegistry::Register({
       .type_id = 0,
       .debug_name = "Behaviors",
@@ -498,6 +504,30 @@ void InitializeNetworkComponentSerializers() {
                 static_cast<uint16_t>(bc.behaviors_.size()));
             for (auto& [name, behavior] : bc.behaviors_) {
               buf.WriteString(name);
+
+              std::string fields_blob;
+              auto* mono_behavior = dynamic_cast<MonoBehavior*>(behavior);
+              if (mono_behavior && mono_behavior->script_instance()) {
+                ScriptInstance* instance = mono_behavior->script_instance();
+                nlohmann::json fields_json;
+                for (auto& [field_name, field_data] :
+                     instance->script_data().fields()) {
+                  std::string type_name = mono_type_get_name(
+                      mono_field_get_type(field_data.field()));
+                  nlohmann::json field_val;
+                  if (ScriptFieldTypeRegistry::SerializeField(
+                          type_name, instance->handle(), field_data.field(),
+                          field_val)) {
+                    if (!field_val.is_null()) {
+                      fields_json[field_name] = field_val;
+                    }
+                  }
+                }
+                if (!fields_json.empty()) {
+                  fields_blob = fields_json.dump();
+                }
+              }
+              buf.WriteString(fields_blob);
             }
           },
       .Deserialize =
@@ -509,9 +539,27 @@ void InitializeNetworkComponentSerializers() {
             auto& bc = e.GetComponent<BehaviorsComponent>();
             for (uint16_t i = 0; i < count; i++) {
               std::string name = buf.ReadString();
-              if (bc.behaviors_.find(name) == bc.behaviors_.end()) {
-                auto* mono = new MonoBehavior(e, name);
+              std::string fields_blob = buf.ReadString();
+
+              MonoBehavior* mono = nullptr;
+              auto it = bc.behaviors_.find(name);
+              if (it == bc.behaviors_.end()) {
+                mono = new MonoBehavior(e, name);
                 bc.behaviors_.insert(std::pair(name, mono));
+              } else {
+                mono = dynamic_cast<MonoBehavior*>(it->second);
+              }
+
+              if (mono && !fields_blob.empty()) {
+                try {
+                  nlohmann::json fields_json =
+                      nlohmann::json::parse(fields_blob);
+                  mono->SetPendingFields(std::move(fields_json));
+                } catch (const std::exception& ex) {
+                  LOG_WARN("Behaviors net deserialize: bad fields json for "
+                           "'{}': {}",
+                           name, ex.what());
+                }
               }
             }
           },

@@ -32,9 +32,9 @@
 #include "util/imgui/w_imguiutil.h"
 #include "util/w_gamepadcodes.h"
 #include "util/w_keycodes.h"
-#include "util/w_natural_sort.h"
-#include "util/w_platform.h"
-#include "util/w_thread_pool.h"
+#include <urkern/natural_sort.h>
+#include <urkern/platform.h>
+#include <urkern/thread_pool.h>
 #include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
@@ -82,7 +82,7 @@ static bool AssetCombo(const char* label, AssetType type, AssetHandle& selected,
                 if (!ma || !mb) {
                   return false;
                 }
-                return NaturalLess(ma->name, mb->name);
+                return urkern::NaturalLess(ma->name, mb->name);
               });
     for (const auto& handle : assets) {
       const auto* meta = Engine::asset_manager().GetMetadata(handle);
@@ -1965,7 +1965,7 @@ void EditorLayer::RenderEditorSettingsPanel() {
       ImGui::Spacing();
       if (ImGui::Button("Auto-Detect")) {
         std::string detected;
-        std::filesystem::path exe_dir = GetExecutableDirectory();
+        std::filesystem::path exe_dir = urkern::GetExecutableDirectory();
 #ifdef _WIN32
         std::filesystem::path omnisharp =
             exe_dir / "omnisharp" / "OmniSharp.exe";

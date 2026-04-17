@@ -22,7 +22,7 @@
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
 #include "util/imgui/w_imguiutil.h"
-#include "util/w_thread_pool.h"
+#include <urkern/thread_pool.h>
 #include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"

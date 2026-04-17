@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
+#include <urkern/buffer.h>
 #include "asset/w_asset_handle.h"
 #include "asset/w_asset_manager.h"
 #include "w_engine.h"
@@ -31,6 +32,10 @@ struct AssetTypeDesc {
   std::function<nlohmann::json(AssetHandle)> Serialize;
   std::function<bool(AssetHandle, const nlohmann::json&)> Deserialize;
 
+  // Binary serialization (binary-backed assets only)
+  std::function<void(AssetHandle, urkern::Buffer&)> SerializeBinary;
+  std::function<bool(AssetHandle, urkern::Buffer&)> DeserializeBinary;
+
   // Import properties (.meta file)
   std::function<std::shared_ptr<void>()> CreateProperties;
   std::function<nlohmann::json(const void*)> SerializeProperties;
@@ -42,6 +47,9 @@ struct AssetTypeDesc {
   std::function<bool(AssetHandle)> RenderAssetImGui;
 
   bool IsJsonAsset() const { return Serialize && Deserialize; }
+  bool IsBinaryAsset() const {
+    return SerializeBinary && DeserializeBinary;
+  }
 
   bool HasProperties() const { return CreateProperties != nullptr; }
 };
@@ -58,6 +66,9 @@ class AssetRegistry {
   static bool Save(AssetHandle handle);
   static bool Save(AssetHandle handle, const std::string& vfs_path);
   static bool LoadJson(AssetHandle handle);
+
+  // --- Binary asset operations ---
+  static bool LoadBinary(AssetHandle handle);
 
   template <typename T>
   static AssetHandle Create(const std::string& name, AssetType type,

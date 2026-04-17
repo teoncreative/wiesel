@@ -381,6 +381,8 @@ class ScriptManager {
 
   MonoClass* audio_clip_class() { return audio_clip_class_; }
 
+  MonoClass* font_class() { return font_class_; }
+
   MonoClass* behavior_class() { return behavior_class_; }
 
   const std::vector<std::string>& script_names() { return script_names_; }
@@ -415,6 +417,7 @@ class ScriptManager {
   MonoImage* app_assembly_image_ = nullptr;
 
   MonoClass* behavior_class_ = nullptr;
+  MonoClass* tag_component_class_ = nullptr;
   MonoClass* transform_component_class_ = nullptr;
   MonoClass* box_collider_class_ = nullptr;
   MonoClass* sphere_collider_class_ = nullptr;
@@ -425,6 +428,8 @@ class ScriptManager {
   MonoClass* audio_source_class_ = nullptr;
   MonoClass* sprite_renderer_class_ = nullptr;
   MonoClass* sprite_animator_class_ = nullptr;
+  MonoClass* billboard_renderer_class_ = nullptr;
+  MonoClass* billboard_text_class_ = nullptr;
   MonoClass* camera_class_ = nullptr;
   MonoClass* light_direct_class_ = nullptr;
   MonoClass* light_point_class_ = nullptr;
@@ -434,6 +439,7 @@ class ScriptManager {
   MonoClass* entity_class_ = nullptr;
   MonoClass* prefab_class_ = nullptr;
   MonoClass* audio_clip_class_ = nullptr;
+  MonoClass* font_class_ = nullptr;
   MonoMethod* set_handle_method_ = nullptr;
   std::map<std::string, ComponentGetter> component_getters_;
   std::map<std::type_index, ComponentGetter> component_getters_by_type_;

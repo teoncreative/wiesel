@@ -21,6 +21,8 @@
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_entity.h"
 #include "scene/w_prefab.h"
@@ -31,7 +33,7 @@
 #include "ui/w_canvas.h"
 #include "ui/w_ui_document.h"
 #include "util/w_logger.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
 namespace wiesel {
@@ -626,7 +628,7 @@ void ScriptManager::Init(const ScriptManagerProperties&& props) {
   mono_config_parse("mono/etc/mono/config");
 
   // Set up assembly search paths for automatic DLL resolution
-  std::filesystem::path exe_dir = GetExecutableDirectory();
+  std::filesystem::path exe_dir = urkern::GetExecutableDirectory();
   s_assembly_search_paths.clear();
   s_assembly_search_paths.push_back(exe_dir);
   s_assembly_search_paths.push_back(std::filesystem::current_path());
@@ -862,6 +864,8 @@ void ScriptManager::LoadCoreDll() {
       mono_class_get_method_from_name(behavior_class_, "SetHandle", 1);
 
   // Component classes
+  tag_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "TagComponent");
   transform_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "TransformComponent");
   box_collider_class_ = mono_class_from_name(
@@ -882,6 +886,10 @@ void ScriptManager::LoadCoreDll() {
       core_assembly_image_, "WieselEngine", "SpriteRendererComponent");
   sprite_animator_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "AnimatorComponent");
+  billboard_renderer_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "BillboardRendererComponent");
+  billboard_text_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "BillboardTextComponent");
   camera_class_ = mono_class_from_name(core_assembly_image_, "WieselEngine",
                                        "CameraComponent");
   light_direct_class_ = mono_class_from_name(
@@ -900,6 +908,8 @@ void ScriptManager::LoadCoreDll() {
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Prefab");
   audio_clip_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "AudioClip");
+  font_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "Font");
 }
 
 bool ScriptManager::LoadAppDll(const std::string& dll_path) {
@@ -1124,6 +1134,15 @@ void ScriptManager::RegisterComponents() {
   component_adders_.clear();
   component_removers_.clear();
 
+  RegisterComponent<TagComponent>(
+      "TagComponent",
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
+        return CreateComponentWrapper(tag_component_class_, scene, entity);
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<TagComponent>(entity);
+      });
+
   RegisterComponent<TransformComponent>(
       "TransformComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
@@ -1243,6 +1262,29 @@ void ScriptManager::RegisterComponents() {
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<SpriteRendererComponent>(entity);
+        });
+  }
+
+  if (billboard_renderer_class_) {
+    RegisterComponent<BillboardRendererComponent>(
+        "BillboardRendererComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          return CreateComponentWrapper(billboard_renderer_class_, scene,
+                                        entity);
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<BillboardRendererComponent>(entity);
+        });
+  }
+
+  if (billboard_text_class_) {
+    RegisterComponent<BillboardTextComponent>(
+        "BillboardTextComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          return CreateComponentWrapper(billboard_text_class_, scene, entity);
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<BillboardTextComponent>(entity);
         });
   }
 

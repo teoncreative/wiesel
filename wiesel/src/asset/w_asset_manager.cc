@@ -15,7 +15,7 @@
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_registry.h"
 #include "events/w_appevents.h"
-#include "util/w_thread_pool.h"
+#include <urkern/thread_pool.h>
 #include "w_engine.h"
 
 namespace wiesel {

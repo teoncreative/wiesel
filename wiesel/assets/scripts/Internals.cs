@@ -455,6 +455,114 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void SpriteRenderer_SetSortLayer(ulong scenePtr, ulong entityId, int value);
 
+        // BillboardRendererComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetSizeX(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetSizeY(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetSizeX(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetSizeY(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetMinSize(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetMinSize(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetMaxSize(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetMaxSize(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetPivotX(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetPivotY(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetPivotX(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetPivotY(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetTintR(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetTintG(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetTintB(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetTintA(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetTintR(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetTintG(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetTintB(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetTintA(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int BillboardRenderer_GetSortLayer(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetSortLayer(ulong scenePtr, ulong entityId, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int BillboardRenderer_GetOcclusion(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetOcclusion(ulong scenePtr, ulong entityId, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardRenderer_GetOccludedAlpha(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardRenderer_SetOccludedAlpha(ulong scenePtr, ulong entityId, float value);
+
+        // BillboardTextComponent
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string BillboardText_GetText(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetText(ulong scenePtr, ulong entityId, string value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string BillboardText_GetFontHandle(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetFontHandle(ulong scenePtr, ulong entityId, string handle);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetFontSize(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetFontSize(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetColorR(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetColorG(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetColorB(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetColorA(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetColorR(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetColorG(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetColorB(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetColorA(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int BillboardText_GetAlignment(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetAlignment(ulong scenePtr, ulong entityId, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetMinSize(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetMinSize(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetMaxSize(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetMaxSize(ulong scenePtr, ulong entityId, float value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int BillboardText_GetSortLayer(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetSortLayer(ulong scenePtr, ulong entityId, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int BillboardText_GetOcclusion(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetOcclusion(ulong scenePtr, ulong entityId, int value);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float BillboardText_GetOccludedAlpha(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void BillboardText_SetOccludedAlpha(ulong scenePtr, ulong entityId, float value);
+
         // SpriteAnimatorComponent
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void SpriteAnimator_Play(ulong scenePtr, ulong entityId, string stateName, bool restart);
@@ -617,6 +725,12 @@ namespace WieselEngine
         public static extern void Entity_AddComponent(ulong scenePtr, ulong entityId, string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Entity_RemoveComponent(ulong scenePtr, ulong entityId, string name);
+
+        // Tag component
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string TagComponent_GetName(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void TagComponent_SetName(ulong scenePtr, ulong entityId, string v);
 
         // Mouse
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -796,9 +910,9 @@ namespace WieselEngine
 
         // Network RPCs
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Network_SendServerRpc(ulong scenePtr, ulong entityId, string rpcName);
+        public static extern void Network_SendServerRpc(ulong scenePtr, ulong entityId, string rpcName, object[] args);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Network_SendClientRpc(ulong scenePtr, ulong entityId, string rpcName);
+        public static extern void Network_SendClientRpc(ulong scenePtr, ulong entityId, string rpcName, object[] args);
 
         // Network Scene Manager
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

@@ -179,12 +179,12 @@ void Scene::EnsureDefaultSkybox() {
 }
 
 Entity Scene::CreateEntity(const std::string& name) {
-  return CreateEntityWithUUID(UUID::GenerateV4(), name);
+  return CreateEntityWithUUID(urkern::UUID::GenerateV4(), name);
 }
 
-Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
+Entity Scene::CreateEntityWithUUID(urkern::UUID uuid, const std::string& name) {
   if (uuid.IsNil()) {
-    uuid = UUID::GenerateV4();
+    uuid = urkern::UUID::GenerateV4();
   }
   Entity entity = {registry_.create(), this};
   entity.AddComponent<IdComponent>(uuid);
@@ -225,7 +225,7 @@ entt::entity Scene::FindEntityByName(const std::string& name) {
   return entt::null;
 }
 
-entt::entity Scene::FindEntityByUUID(const UUID& uuid) {
+entt::entity Scene::FindEntityByUUID(const urkern::UUID& uuid) {
   auto it = entities_.find(uuid);
   if (it != entities_.end()) {
     return it->second;
@@ -485,7 +485,7 @@ void Scene::ProcessDestroyQueue() {
       }
     }
 
-    // Remove from UUID map and hierarchy
+    // Remove from urkern::UUID map and hierarchy
     if (registry_.any_of<IdComponent>(handle)) {
       entities_.erase(registry_.get<IdComponent>(handle).Id);
     }

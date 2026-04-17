@@ -59,18 +59,18 @@ std::string SerializeToString(Scene& scene) {
 
 static bool DeserializeV1(Scene& scene, const nlohmann::json& root) {
   // First pass: create all entities
-  std::unordered_map<UUID, entt::entity> uuid_map;
+  std::unordered_map<urkern::UUID, entt::entity> uuid_map;
   for (const nlohmann::json& ej : root["entities"]) {
     std::string uuid_str = ej.value("uuid", "");
     std::string name = ej.value("name", "Entity");
-    UUID uuid = UUID::FromString(uuid_str);
+    urkern::UUID uuid = urkern::UUID::FromString(uuid_str);
     Entity entity = scene.CreateEntityWithUUID(uuid, name);
     uuid_map[uuid] = entity.handle();
   }
 
   // Second pass: deserialize components
   for (const nlohmann::json& ej : root["entities"]) {
-    UUID uuid = UUID::FromString(ej.value("uuid", ""));
+    urkern::UUID uuid = urkern::UUID::FromString(ej.value("uuid", ""));
     auto it = uuid_map.find(uuid);
     if (it == uuid_map.end()) {
       continue;
@@ -88,8 +88,8 @@ static bool DeserializeV1(Scene& scene, const nlohmann::json& root) {
   // Third pass: link hierarchy
   for (const nlohmann::json& ej : root["entities"]) {
     if (ej.contains("parent") && ej["parent"].is_string()) {
-      UUID parent_uuid = UUID::FromString(ej["parent"].get<std::string>());
-      UUID child_uuid = UUID::FromString(ej["uuid"].get<std::string>());
+      urkern::UUID parent_uuid = urkern::UUID::FromString(ej["parent"].get<std::string>());
+      urkern::UUID child_uuid = urkern::UUID::FromString(ej["uuid"].get<std::string>());
       auto pi = uuid_map.find(parent_uuid);
       auto ci = uuid_map.find(child_uuid);
       if (pi != uuid_map.end() && ci != uuid_map.end()) {

@@ -14,7 +14,7 @@
 #include <clocale>
 #include "layer/w_layerimgui.h"
 #include "util/w_command.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
 using namespace wiesel;
@@ -40,7 +40,7 @@ Application* wiesel::CreateApp() {
 
 int main(int argc, char** argv) {
   std::setlocale(LC_ALL, "C");
-  EnableAnsiColors();
+  urkern::EnableAnsiColors();
   DeveloperConsole::Init();
   EngineProperties properties = EngineProperties::Parse(argc, argv);
   properties.editor_enabled = true;
