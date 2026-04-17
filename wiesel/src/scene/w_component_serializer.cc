@@ -29,6 +29,7 @@
 #include "mono_wrappers.h"
 #include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
+#include "script/w_script_field_registry.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_mesh_renderer.h"
@@ -445,69 +446,21 @@ void InitializeComponentSerializers() {
           json script_json;
           script_json["name"] = name;
 
-          // Serialize field values from the ScriptInstance
+          // Serialize field values via the ScriptFieldTypeRegistry
           auto* mono_behavior = dynamic_cast<MonoBehavior*>(behavior);
           if (mono_behavior && mono_behavior->script_instance()) {
             ScriptInstance* instance = mono_behavior->script_instance();
             json fields_json;
             for (auto& [field_name, field_data] :
                  instance->script_data().fields()) {
-              if (field_data.field_type() == FieldType::Float) {
-                fields_json[field_name] =
-                    field_data.Get<float>(instance->handle());
-              } else if (field_data.field_type() == FieldType::Integer) {
-                fields_json[field_name] =
-                    field_data.Get<int32_t>(instance->handle());
-              } else if (field_data.field_type() == FieldType::Boolean) {
-                fields_json[field_name] =
-                    field_data.Get<bool>(instance->handle());
-              } else if (field_data.field_type() == FieldType::String) {
-                MonoObject* val =
-                    field_data.Get<MonoObject*>(instance->handle());
-                if (val) {
-                  MonoObjectWrapper wrapper{val};
-                  fields_json[field_name] = wrapper.AsString();
-                }
-              } else if (field_data.field_type() == FieldType::Prefab) {
-                MonoObject* prefab_obj =
-                    field_data.Get<MonoObject*>(instance->handle());
-                if (prefab_obj) {
-                  MonoClassField* handle_field = mono_class_get_field_from_name(
-                      Engine::script_manager().prefab_class(), "handle");
-                  if (handle_field) {
-                    MonoString* handle_str = nullptr;
-                    mono_field_get_value(prefab_obj, handle_field, &handle_str);
-                    if (handle_str) {
-                      const char* cstr = mono_string_to_utf8(handle_str);
-                      if (cstr && cstr[0]) {
-                        json pj;
-                        pj["type"] = "Prefab";
-                        pj["handle"] = cstr;
-                        fields_json[field_name] = pj;
-                      }
-                      mono_free((void*)cstr);
-                    }
-                  }
-                }
-              } else if (field_data.field_type() == FieldType::Entity) {
-                MonoObject* entity_obj =
-                    field_data.Get<MonoObject*>(instance->handle());
-                if (entity_obj) {
-                  MonoClassField* id_field = mono_class_get_field_from_name(
-                      Engine::script_manager().entity_class(), "entityId");
-                  if (id_field) {
-                    uint64_t id_val = 0;
-                    mono_field_get_value(entity_obj, id_field, &id_val);
-                    entt::entity ent = static_cast<entt::entity>(id_val);
-                    if (scene && scene->HasEntity(ent) &&
-                        scene->HasComponent<IdComponent>(ent)) {
-                      json ej;
-                      ej["type"] = "Entity";
-                      ej["uuid"] =
-                          scene->GetComponent<IdComponent>(ent).Id.ToString();
-                      fields_json[field_name] = ej;
-                    }
-                  }
+              std::string type_name =
+                  mono_type_get_name(mono_field_get_type(field_data.field()));
+              nlohmann::json field_val;
+              if (ScriptFieldTypeRegistry::SerializeField(
+                      type_name, instance->handle(), field_data.field(),
+                      field_val)) {
+                if (!field_val.is_null()) {
+                  fields_json[field_name] = field_val;
                 }
               }
             }
@@ -556,80 +509,9 @@ void InitializeComponentSerializers() {
             continue;  // native behaviors don't have C# field serialization
           }
 
-          auto& mono_beh = bc.AddBehavior<MonoBehavior>(entity, script_name);
-
-          // Restore field values
-          if (!fields_json.empty() && !mono_beh.script_instance()) {
-            LOG_WARN(
-                "Script '{}' has no instance - field values cannot be "
-                "restored",
-                script_name);
-          }
-          if (!fields_json.empty() && mono_beh.script_instance()) {
-            auto* instance = mono_beh.script_instance();
-            for (auto& [field_name, field_data] :
-                 instance->script_data().fields()) {
-              if (!fields_json.contains(field_name)) {
-                continue;
-              }
-              const auto& val = fields_json[field_name];
-
-              if (field_data.field_type() == FieldType::Float &&
-                  val.is_number()) {
-                float v = val.get<float>();
-                field_data.Set(instance->handle(), &v);
-              } else if (field_data.field_type() == FieldType::Integer &&
-                         val.is_number_integer()) {
-                int32_t v = val.get<int32_t>();
-                field_data.Set(instance->handle(), &v);
-              } else if (field_data.field_type() == FieldType::Boolean &&
-                         val.is_boolean()) {
-                bool v = val.get<bool>();
-                field_data.Set(instance->handle(), &v);
-              } else if (field_data.field_type() == FieldType::String &&
-                         val.is_string()) {
-                MonoString* str =
-                    mono_string_new(Engine::script_manager().app_domain(),
-                                    val.get<std::string>().c_str());
-                field_data.Set(instance->handle(), str);
-              } else if (field_data.field_type() == FieldType::Prefab &&
-                         val.is_object()) {
-                std::string handle_str = val.value("handle", "");
-                if (!handle_str.empty()) {
-                  MonoObject* prefab =
-                      mono_object_new(Engine::script_manager().app_domain(),
-                                      Engine::script_manager().prefab_class());
-                  mono_runtime_object_init(prefab);
-                  MonoClassField* handle_field = mono_class_get_field_from_name(
-                      Engine::script_manager().prefab_class(), "handle");
-                  if (handle_field) {
-                    MonoString* mono_val = mono_string_new(
-                        Engine::script_manager().app_domain(), handle_str.c_str());
-                    mono_field_set_value(prefab, handle_field, mono_val);
-                  }
-                  field_data.Set(instance->handle(), prefab);
-                }
-              } else if (field_data.field_type() == FieldType::Entity &&
-                         val.is_object()) {
-                std::string uuid_str = val.value("uuid", "");
-                if (!uuid_str.empty() && scene) {
-                  UUID uuid = UUID::FromString(uuid_str);
-                  entt::entity ent = scene->FindEntityByUUID(uuid);
-                  if (ent != entt::null) {
-                    MonoObject* entity_obj = mono_object_new(
-                        Engine::script_manager().app_domain(),
-                        Engine::script_manager().entity_class());
-                    MonoMethod* ctor = mono_class_get_method_from_name(
-                        Engine::script_manager().entity_class(), ".ctor", 2);
-                    uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
-                    uint64_t entity_id = static_cast<uint64_t>(ent);
-                    void* args[2] = {&scene_ptr, &entity_id};
-                    mono_runtime_invoke(ctor, entity_obj, args, nullptr);
-                    field_data.Set(instance->handle(), entity_obj);
-                  }
-                }
-              }
-            }
+          auto& mono_behavior = bc.AddBehavior<MonoBehavior>(entity, script_name);
+          if (!fields_json.empty()) {
+              mono_behavior.SetPendingFields(fields_json);
           }
         }
       },

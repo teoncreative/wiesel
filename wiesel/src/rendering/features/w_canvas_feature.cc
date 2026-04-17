@@ -49,10 +49,11 @@ static void DrawCanvasElement(
   switch (entry.type) {
     case CanvasElementType::UIDocument: {
       auto& doc = scene->GetComponent<UIDocumentComponent>(entry.entity);
+      auto* runtime = scene->GetRegistry().try_get<UIDocumentRuntime>(entry.entity);
       auto& rt = scene->GetComponent<RectangleTransformComponent>(entry.entity);
-      if (doc.offscreen_descriptor_ && doc.visible) {
+      if (runtime && runtime->offscreen_descriptor && doc.visible) {
         renderer->DrawCanvasDescriptor(rt.computed_position, rt.computed_size,
-                                       doc.offscreen_descriptor_,
+                                       runtime->offscreen_descriptor,
                                        textured_layout, eid);
       }
       break;
@@ -425,8 +426,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                        RectangleTransformComponent>([&](Scene& scene,
                                                         entt::entity entity) {
       auto& doc = scene.GetComponent<UIDocumentComponent>(entity);
+      auto* runtime = scene.GetRegistry().try_get<UIDocumentRuntime>(entity);
       auto& rt = scene.GetComponent<RectangleTransformComponent>(entity);
-      if (!doc.rml_context_ || !doc.rml_document_ || !doc.visible) {
+      if (!runtime || !runtime->rml_context || !runtime->rml_document || !doc.visible) {
         return;
       }
 
@@ -459,41 +461,41 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
       // Recreate offscreen at render resolution if needed
       glm::vec2 render_size{render_w, render_h};
-      if (!doc.offscreen_texture_ || doc.offscreen_size_ != render_size) {
-        doc.offscreen_texture_ = renderer.CreateAttachmentTexture(
+      if (!runtime->offscreen_texture || runtime->offscreen_size != render_size) {
+        runtime->offscreen_texture = renderer.CreateAttachmentTexture(
             {render_w, render_h, AttachmentTextureType::Offscreen, 1,
              renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true});
-        doc.offscreen_stencil_ = renderer.CreateAttachmentTexture(
+        runtime->offscreen_stencil = renderer.CreateAttachmentTexture(
             {render_w, render_h, AttachmentTextureType::DepthStencil, 1,
              renderer.FindDepthStencilFormat(), SamplingMode::DISABLED, false});
 
-        std::array<AttachmentTexture*, 2> att{doc.offscreen_texture_.get(),
-                                              doc.offscreen_stencil_.get()};
-        doc.offscreen_framebuffer_ =
+        std::array<AttachmentTexture*, 2> att{runtime->offscreen_texture.get(),
+                                              runtime->offscreen_stencil.get()};
+        runtime->offscreen_framebuffer =
             rml_render_pass->CreateFramebuffer(0, att, {render_w, render_h});
 
         // Rebuild descriptor with new texture
-        doc.offscreen_ubo_ = renderer.CreateUniformBuffer(
-            "CanvasFeature offscreen_ubo_", sizeof(CanvasElementUniformData));
-        doc.offscreen_descriptor_ = std::make_shared<DescriptorSet>();
-        doc.offscreen_descriptor_->SetLayout(canvas_textured_layout_);
-        doc.offscreen_descriptor_->AddUniformBuffer(0, doc.offscreen_ubo_);
-        doc.offscreen_descriptor_->AddCombinedImageSampler(
-            1, doc.offscreen_texture_->image_views_[0],
+        runtime->offscreen_ubo = renderer.CreateUniformBuffer(
+            "CanvasFeature offscreen_ubo", sizeof(CanvasElementUniformData));
+        runtime->offscreen_descriptor = std::make_shared<DescriptorSet>();
+        runtime->offscreen_descriptor->SetLayout(canvas_textured_layout_);
+        runtime->offscreen_descriptor->AddUniformBuffer(0, runtime->offscreen_ubo);
+        runtime->offscreen_descriptor->AddCombinedImageSampler(
+            1, runtime->offscreen_texture->image_views_[0],
             renderer.GetDefaultLinearSampler());
-        doc.offscreen_descriptor_->Bake();
+        runtime->offscreen_descriptor->Bake();
 
-        doc.offscreen_size_ = render_size;
+        runtime->offscreen_size = render_size;
       }
 
-      doc.rml_context_->SetDimensions(Rml::Vector2i(
+      runtime->rml_context->SetDimensions(Rml::Vector2i(
           static_cast<int>(render_w), static_cast<int>(render_h)));
-      doc.rml_context_->SetDensityIndependentPixelRatio(dpi_ratio);
-      doc.data_model.Flush();
-      doc.rml_context_->Update();
+      runtime->rml_context->SetDensityIndependentPixelRatio(dpi_ratio);
+      runtime->data_model.Flush();
+      runtime->rml_context->Update();
 
       // Update UBO with canvas element position/size for drawing
-      if (doc.offscreen_ubo_) {
+      if (runtime->offscreen_ubo) {
         CanvasElementUniformData ubo_data{};
         ubo_data.position = rt.computed_position;
         ubo_data.size = rt.computed_size;
@@ -503,7 +505,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             (static_cast<uint32_t>(renderer_->GetCurrentSceneIndex()) << 24) |
             (static_cast<uint32_t>(entity) + 1);
         ubo_data.premultiplied = 1.0f;
-        memcpy(doc.offscreen_ubo_->data_, &ubo_data,
+        memcpy(runtime->offscreen_ubo->data_, &ubo_data,
                sizeof(CanvasElementUniformData));
       }
     });
@@ -802,19 +804,20 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
                        RectangleTransformComponent>([&](Scene& scene,
                                                         entt::entity entity) {
       auto& doc = scene.GetComponent<UIDocumentComponent>(entity);
-      if (!doc.rml_context_ || !doc.rml_document_ || !doc.visible ||
-          !doc.offscreen_framebuffer_) {
+      auto* runtime = scene.GetRegistry().try_get<UIDocumentRuntime>(entity);
+      if (!runtime || !runtime->rml_context || !runtime->rml_document ||
+          !doc.visible || !runtime->offscreen_framebuffer) {
         return;
       }
 
-      glm::vec2 doc_size = doc.offscreen_size_;
-      auto fb = doc.offscreen_framebuffer_;
-      Rml::Context* rml_ctx = doc.rml_context_;
+      glm::vec2 doc_size = runtime->offscreen_size;
+      auto fb = runtime->offscreen_framebuffer;
+      Rml::Context* rml_ctx = runtime->rml_context;
 
       // Import offscreen texture into render graph for dependency tracking
       RGResource rml_tex = graph.ImportTexture(
           "RmlUiDoc_" + std::to_string(static_cast<uint32_t>(entity)),
-          doc.offscreen_texture_);
+          runtime->offscreen_texture);
 
       uint32_t rml_pass = graph.AddPass(
           "RmlUiOffscreen", rml_render_pass,

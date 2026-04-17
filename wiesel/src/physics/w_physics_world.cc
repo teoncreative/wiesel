@@ -40,6 +40,7 @@
 #include "physics/w_mesh_collider_asset.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "networking/w_replication_types.h"
 #include "scene/w_components.h"
 #include "scene/w_scene.h"
 #include "script/mono/w_monobehavior.h"
@@ -81,6 +82,12 @@ static JPH::Quat ToJoltQuat(const glm::quat& q) {
 
 static glm::quat ToGlmQuat(JPH::Quat q) {
   return glm::quat(q.GetW(), q.GetX(), q.GetY(), q.GetZ());
+}
+
+static bool IsRemoteNetworkEntity(entt::registry& registry,
+                                  entt::entity entity) {
+  auto* net_id = registry.try_get<NetworkIdentityComponent>(entity);
+  return net_id && net_id->is_remote;
 }
 
 // Contact event types
@@ -387,11 +394,15 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
 }
 
 void PhysicsWorld::CreateBody(entt::entity entity) {
-  if (bodies_.count(entity)) {
+  if (bodies_.contains(entity)) {
     return;
   }
 
   auto& registry = scene_->GetRegistry();
+
+  if (IsRemoteNetworkEntity(registry, entity)) {
+    return;
+  }
 
   // Create the collision shape
   Shape* raw_shape = CreateShapeForEntity(entity);
@@ -615,42 +626,32 @@ void PhysicsWorld::EnsureBodiesExist() {
   auto& registry = scene_->GetRegistry();
 
   // Check for bodies that need recreation
-  for (auto& [entity, data] : bodies_) {
+  for (entt::entity entity : bodies_ | std::views::keys) {
     if (registry.valid(entity)) {
       RecreateBodyIfNeeded(entity);
     }
   }
 
   // Create bodies for new entities with colliders
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, BoxColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, SphereColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, CapsuleColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, MeshColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, HeightfieldColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
 }
 

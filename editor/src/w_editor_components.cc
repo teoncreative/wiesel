@@ -509,250 +509,15 @@ void RenderScriptVariables(ScriptInstance* instance) {
     return;
   }
   ScriptData& data = instance->script_data();
-  for (FieldData& value : data.fields() | std::views::values) {
-    if (value.field_type() == FieldType::Float) {
-      float_t val = value.Get<float_t>(instance->handle());
-      if (ImGui::DragFloat(PrefixLabel(value.formatted_name().c_str()).c_str(),
-                           &val, 0.1f)) {
-        value.Set(instance->handle(), &val);
-      }
-    } else if (value.field_type() == FieldType::Integer) {
-      int32_t val = value.Get<int32_t>(instance->handle());
-      if (ImGui::DragInt(PrefixLabel(value.formatted_name().c_str()).c_str(),
-                         &val, 1)) {
-        value.Set(instance->handle(), &val);
-      }
-    } else if (value.field_type() == FieldType::Boolean) {
-      bool val = value.Get<bool>(instance->handle());
-      if (ImGui::Checkbox(PrefixLabel(value.formatted_name().c_str()).c_str(),
-                          &val)) {
-        value.Set(instance->handle(), &val);
-      }
-    } else if (value.field_type() == FieldType::String) {
-      MonoObject* val = value.Get<MonoObject*>(instance->handle());
-      MonoObjectWrapper wrapper{val};
-      std::string str = wrapper.AsString();
-      if (ImGui::InputText(PrefixLabel(value.formatted_name().c_str()).c_str(),
-                           &str)) {
-        MonoString* newVal =
-            mono_string_new(Engine::script_manager().app_domain(), str.c_str());
-        value.Set(instance->handle(), newVal);
-      }
-    } else if (value.field_type() == FieldType::Entity) {
-      MonoObject* entity_obj = value.Get<MonoObject*>(instance->handle());
-      std::string entity_label = "(None)";
-      entt::entity current_entity_id = entt::null;
+  for (FieldData& fd : data.fields() | std::views::values) {
+    std::string label = PrefixLabel(fd.formatted_name().c_str());
 
-      if (entity_obj) {
-        MonoClassField* id_field = mono_class_get_field_from_name(
-            Engine::script_manager().entity_class(), "entityId");
-        if (id_field) {
-          uint64_t id_val = 0;
-          mono_field_get_value(entity_obj, id_field, &id_val);
-          current_entity_id = static_cast<entt::entity>(id_val);
-          Scene* scene = instance->behavior()->scene();
-          if (scene && scene->HasEntity(current_entity_id) &&
-              scene->HasComponent<TagComponent>(current_entity_id)) {
-            entity_label =
-                scene->GetComponent<TagComponent>(current_entity_id).name;
-          } else {
-            entity_label = "(Invalid)";
-          }
-        }
-      }
-
-      std::string label = PrefixLabel(value.formatted_name().c_str());
-      ImGui::InputText(label.c_str(), &entity_label,
-                       ImGuiInputTextFlags_ReadOnly);
-
-      // Drag-drop target: accept entities from scene hierarchy
-      if (ImGui::BeginDragDropTarget()) {
-        if (const ImGuiPayload* payload =
-                ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
-          entt::entity dropped_entity =
-              *static_cast<const entt::entity*>(payload->Data);
-          Scene* scene = instance->behavior()->scene();
-          if (scene) {
-            MonoObject* new_entity =
-                mono_object_new(Engine::script_manager().app_domain(),
-                                Engine::script_manager().entity_class());
-            MonoMethod* ctor = mono_class_get_method_from_name(
-                Engine::script_manager().entity_class(), ".ctor", 2);
-            uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
-            uint64_t entity_id = static_cast<uint64_t>(dropped_entity);
-            void* args[2] = {&scene_ptr, &entity_id};
-            mono_runtime_invoke(ctor, new_entity, args, nullptr);
-            value.Set(instance->handle(), new_entity);
-          }
-        }
-        ImGui::EndDragDropTarget();
-      }
-
-      // Clear button
-      if (current_entity_id != entt::null) {
-        ImGui::SameLine();
-        std::string clear_id = "X##clear_" + value.field_name();
-        if (ImGui::SmallButton(clear_id.c_str())) {
-          MonoObject* null_val = nullptr;
-          value.Set(instance->handle(), &null_val);
-        }
-      }
-    } else if (value.field_type() == FieldType::Prefab) {
-      MonoObject* prefab_obj = value.Get<MonoObject*>(instance->handle());
-      std::string prefab_label = "(None)";
-
-      if (prefab_obj) {
-        MonoClassField* handle_field = mono_class_get_field_from_name(
-            Engine::script_manager().prefab_class(), "handle");
-        if (handle_field) {
-          MonoString* handle_str = nullptr;
-          mono_field_get_value(prefab_obj, handle_field, &handle_str);
-          if (handle_str) {
-            const char* cstr = mono_string_to_utf8(handle_str);
-            if (cstr && cstr[0]) {
-              AssetHandle h = AssetHandle::FromString(cstr);
-              const AssetMetadata* meta =
-                  Engine::asset_manager().GetMetadata(h);
-              if (meta) {
-                prefab_label = VirtualFileSystem::Stem(
-                    meta->virtual_source_path);
-              } else {
-                prefab_label = cstr;
-              }
-            }
-            mono_free((void*)cstr);
-          }
-        }
-      }
-
-      std::string label = PrefixLabel(value.formatted_name().c_str());
-      ImGui::InputText(label.c_str(), &prefab_label,
-                       ImGuiInputTextFlags_ReadOnly);
-
-      // Drag-drop target: accept prefab assets
-      if (ImGui::BeginDragDropTarget()) {
-        AssetHandle dropped_handle;
-
-        if (const ImGuiPayload* payload =
-                ImGui::AcceptDragDropPayload("AssetHandle")) {
-          AssetHandle dropped = *static_cast<const AssetHandle*>(payload->Data);
-          const AssetMetadata* meta =
-              Engine::asset_manager().GetMetadata(dropped);
-          if (meta && meta->type == AssetType::Prefab) {
-            dropped_handle = dropped;
-          }
-        } else if (const ImGuiPayload* payload =
-                       ImGui::AcceptDragDropPayload("BrowserFile")) {
-          std::string file_path(static_cast<const char*>(payload->Data));
-          if (file_path.ends_with(".wprefab")) {
-            auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-            if (physical_app.has_value()) {
-              std::filesystem::path rel =
-                  std::filesystem::relative(file_path, *physical_app);
-              std::string vfs_path = "app://" + rel.generic_string();
-              dropped_handle =
-                  Engine::asset_manager().FindBySourcePath(vfs_path);
-            }
-          }
-        }
-
-        if (dropped_handle.IsValid()) {
-          MonoObject* new_prefab = prefab_obj;
-          if (!new_prefab) {
-            new_prefab =
-                mono_object_new(Engine::script_manager().app_domain(),
-                                Engine::script_manager().prefab_class());
-            mono_runtime_object_init(new_prefab);
-          }
-          MonoClassField* handle_field = mono_class_get_field_from_name(
-              Engine::script_manager().prefab_class(), "handle");
-          if (handle_field) {
-            std::string handle_str = dropped_handle.ToString();
-            MonoString* mono_val = mono_string_new(
-                Engine::script_manager().app_domain(), handle_str.c_str());
-            mono_field_set_value(new_prefab, handle_field, mono_val);
-          }
-          value.Set(instance->handle(), new_prefab);
-        }
-        ImGui::EndDragDropTarget();
-      }
-
-      // Clear button
-      if (prefab_label != "(None)") {
-        ImGui::SameLine();
-        std::string clear_id = "X##clear_" + value.field_name();
-        if (ImGui::SmallButton(clear_id.c_str())) {
-          MonoObject* null_val = nullptr;
-          value.Set(instance->handle(), &null_val);
-        }
-      }
-    } else if (value.field_type() == FieldType::AudioClip) {
-      // AudioClip object with a "handle" field (asset handle UUID string)
-      MonoObject* clip_obj = value.Get<MonoObject*>(instance->handle());
-      std::string current_handle_str;
-      std::string display = "(None)";
-
-      if (clip_obj) {
-        MonoClassField* handle_field = mono_class_get_field_from_name(
-            mono_object_get_class(clip_obj), "handle");
-        if (handle_field) {
-          MonoString* h_str = nullptr;
-          mono_field_get_value(clip_obj, handle_field, &h_str);
-          if (h_str) {
-            const char* cstr = mono_string_to_utf8(h_str);
-            if (cstr && cstr[0]) {
-              current_handle_str = cstr;
-              AssetHandle h = AssetHandle::FromString(current_handle_str);
-              const auto* meta = Engine::asset_manager().GetMetadata(h);
-              if (meta) {
-                display = meta->name;
-              }
-            }
-            mono_free((void*)cstr);
-          }
-        }
-      }
-
-      std::string label = PrefixLabel(value.formatted_name().c_str());
-      ImGui::InputText(label.c_str(), &display, ImGuiInputTextFlags_ReadOnly);
-
-      if (ImGui::BeginDragDropTarget()) {
-        AssetHandle dropped_handle = AcceptAssetDragDrop(AssetType::Audio);
-        if (dropped_handle.IsValid()) {
-          // Create or update AudioClip object
-          MonoObject* obj = clip_obj;
-          if (!obj) {
-            obj = mono_object_new(Engine::script_manager().app_domain(),
-                                  Engine::script_manager().audio_clip_class());
-            mono_runtime_object_init(obj);
-          }
-          if (obj) {
-            MonoClassField* handle_field = mono_class_get_field_from_name(
-                mono_object_get_class(obj), "handle");
-            if (handle_field) {
-              MonoString* h_val =
-                  mono_string_new(Engine::script_manager().app_domain(),
-                                  dropped_handle.ToString().c_str());
-              mono_field_set_value(obj, handle_field, h_val);
-            }
-            value.Set(instance->handle(), obj);
-          }
-        }
-        ImGui::EndDragDropTarget();
-      }
-
-      if (!current_handle_str.empty()) {
-        ImGui::SameLine();
-        std::string clear_id = "X##clear_" + value.field_name();
-        if (ImGui::SmallButton(clear_id.c_str())) {
-          MonoObject* null_val = nullptr;
-          value.Set(instance->handle(), &null_val);
-        }
-      }
-    } else if (value.field_type() == FieldType::NetworkVar) {
-      MonoObject* net_var = value.Get<MonoObject*>(instance->handle());
+    if (fd.is_network_var()) {
+      // NetworkVariable<T> - render the inner value via registry
+      MonoObject* net_var = nullptr;
+      mono_field_get_value(instance->handle(), fd.field(), &net_var);
       if (!net_var) {
-        ImGui::Text("%s: (null)", value.formatted_name().c_str());
+        ImGui::Text("%s: (null)", fd.formatted_name().c_str());
         continue;
       }
 
@@ -765,18 +530,24 @@ void RenderScriptVariables(ScriptInstance* instance) {
         continue;
       }
 
-      std::string label = PrefixLabel(value.formatted_name().c_str());
-      auto* renderer =
-          ScriptFieldTypeRegistry::Find(value.inner_type_name());
-      if (renderer) {
-        (*renderer)(net_var, val_field, val_prop, label);
+      auto* desc = ScriptFieldTypeRegistry::Find(fd.inner_type_name());
+      if (desc && desc->Render) {
+        desc->Render(net_var, val_field, val_prop, label);
       } else {
         ImGui::Text("%s: %s (no renderer)",
-                    value.formatted_name().c_str(),
-                    value.inner_type_name().c_str());
+                    fd.formatted_name().c_str(),
+                    fd.inner_type_name().c_str());
+      }
+    } else {
+      auto* desc = ScriptFieldTypeRegistry::Find(fd.type_name());
+      if (desc && desc->Render) {
+        desc->Render(instance->handle(), fd.field(), nullptr, label);
+      } else {
+        ImGui::Text("%s: %s (unsupported)",
+                    fd.formatted_name().c_str(),
+                    fd.type_name().c_str());
       }
     }
-    // todo objects, long and unsigned numbers
   }
 }
 
@@ -2274,18 +2045,21 @@ void RenderAddPopup(Entity entity) {
   }
 }
 void InitializeScriptFieldRenderers() {
-  // int
-  ScriptFieldTypeRegistry::Register(
-      "System.Int32",
+  auto set_render = [](const char* type_name, ScriptFieldRenderFn fn) {
+    auto* desc = ScriptFieldTypeRegistry::Find(type_name);
+    if (desc) {
+      desc->Render = std::move(fn);
+    }
+  };
+
+  set_render("System.Int32",
       [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
          const std::string& label) -> bool {
         int32_t val = 0;
         mono_field_get_value(obj, field, &val);
         if (ImGui::DragInt(label.c_str(), &val, 1)) {
           if (prop) {
-            MonoObject* boxed = mono_value_box(
-                mono_domain_get(), mono_get_int32_class(), &val);
-            void* args[1] = {boxed};
+            void* args[1] = {&val};
             mono_property_set_value(prop, obj, args, nullptr);
           } else {
             mono_field_set_value(obj, field, &val);
@@ -2295,18 +2069,14 @@ void InitializeScriptFieldRenderers() {
         return false;
       });
 
-  // float
-  ScriptFieldTypeRegistry::Register(
-      "System.Single",
+  set_render("System.Single",
       [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
          const std::string& label) -> bool {
         float val = 0.0f;
         mono_field_get_value(obj, field, &val);
         if (ImGui::DragFloat(label.c_str(), &val, 0.1f)) {
           if (prop) {
-            MonoObject* boxed = mono_value_box(
-                mono_domain_get(), mono_get_single_class(), &val);
-            void* args[1] = {boxed};
+            void* args[1] = {&val};
             mono_property_set_value(prop, obj, args, nullptr);
           } else {
             mono_field_set_value(obj, field, &val);
@@ -2316,23 +2086,18 @@ void InitializeScriptFieldRenderers() {
         return false;
       });
 
-  // bool
-  ScriptFieldTypeRegistry::Register(
-      "System.Boolean",
+  set_render("System.Boolean",
       [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
          const std::string& label) -> bool {
         MonoBoolean val = 0;
         mono_field_get_value(obj, field, &val);
         bool b = val != 0;
         if (ImGui::Checkbox(label.c_str(), &b)) {
+          MonoBoolean mb = b ? 1 : 0;
           if (prop) {
-            MonoBoolean mb = b ? 1 : 0;
-            MonoObject* boxed = mono_value_box(
-                mono_domain_get(), mono_get_boolean_class(), &mb);
-            void* args[1] = {boxed};
+            void* args[1] = {&mb};
             mono_property_set_value(prop, obj, args, nullptr);
           } else {
-            MonoBoolean mb = b ? 1 : 0;
             mono_field_set_value(obj, field, &mb);
           }
           return true;
@@ -2340,9 +2105,7 @@ void InitializeScriptFieldRenderers() {
         return false;
       });
 
-  // string
-  ScriptFieldTypeRegistry::Register(
-      "System.String",
+  set_render("System.String",
       [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
          const std::string& label) -> bool {
         MonoString* mono_str = nullptr;
@@ -2365,6 +2128,230 @@ void InitializeScriptFieldRenderers() {
           return true;
         }
         return false;
+      });
+
+  // Entity reference
+  set_render("WieselEngine.Entity",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        MonoObject* entity_obj = nullptr;
+        mono_field_get_value(obj, field, &entity_obj);
+        std::string entity_label = "(None)";
+        entt::entity current_entity_id = entt::null;
+
+        if (entity_obj) {
+          MonoClassField* id_field = mono_class_get_field_from_name(
+              Engine::script_manager().entity_class(), "entityId");
+          if (id_field) {
+            uint64_t id_val = 0;
+            mono_field_get_value(entity_obj, id_field, &id_val);
+            current_entity_id = static_cast<entt::entity>(id_val);
+          }
+        }
+
+        ImGui::InputText(label.c_str(), &entity_label,
+                         ImGuiInputTextFlags_ReadOnly);
+
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload* payload =
+                  ImGui::AcceptDragDropPayload("SceneHierarchy Entity")) {
+            auto* ref = static_cast<const EntityRef*>(payload->Data);
+            Entity resolved = ref->Resolve();
+            if (resolved) {
+              MonoObject* new_entity =
+                  mono_object_new(Engine::script_manager().app_domain(),
+                                  Engine::script_manager().entity_class());
+              MonoMethod* ctor = mono_class_get_method_from_name(
+                  Engine::script_manager().entity_class(), ".ctor", 2);
+              uint64_t scene_ptr =
+                  reinterpret_cast<uint64_t>(resolved.GetScene());
+              uint64_t entity_id = static_cast<uint64_t>(resolved.handle());
+              void* args[2] = {&scene_ptr, &entity_id};
+              mono_runtime_invoke(ctor, new_entity, args, nullptr);
+              mono_field_set_value(obj, field, new_entity);
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        if (current_entity_id != entt::null) {
+          ImGui::SameLine();
+          std::string clear_id = "X##clear_" + label;
+          if (ImGui::SmallButton(clear_id.c_str())) {
+            MonoObject* null_val = nullptr;
+            mono_field_set_value(obj, field, &null_val);
+            return true;
+          }
+        }
+        return false;
+      });
+
+  // Prefab
+  set_render("WieselEngine.Prefab",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        MonoObject* prefab_obj = nullptr;
+        mono_field_get_value(obj, field, &prefab_obj);
+        std::string prefab_label = "(None)";
+
+        if (prefab_obj) {
+          MonoClassField* handle_field = mono_class_get_field_from_name(
+              Engine::script_manager().prefab_class(), "handle");
+          if (handle_field) {
+            MonoString* handle_str = nullptr;
+            mono_field_get_value(prefab_obj, handle_field, &handle_str);
+            if (handle_str) {
+              const char* cstr = mono_string_to_utf8(handle_str);
+              if (cstr && cstr[0]) {
+                AssetHandle h = AssetHandle::FromString(cstr);
+                const AssetMetadata* meta =
+                    Engine::asset_manager().GetMetadata(h);
+                if (meta) {
+                  prefab_label =
+                      VirtualFileSystem::Stem(meta->virtual_source_path);
+                } else {
+                  prefab_label = cstr;
+                }
+              }
+              mono_free((void*)cstr);
+            }
+          }
+        }
+
+        ImGui::InputText(label.c_str(), &prefab_label,
+                         ImGuiInputTextFlags_ReadOnly);
+
+        bool changed = false;
+        if (ImGui::BeginDragDropTarget()) {
+          AssetHandle dropped_handle;
+
+          if (const ImGuiPayload* payload =
+                  ImGui::AcceptDragDropPayload("AssetHandle")) {
+            AssetHandle dropped =
+                *static_cast<const AssetHandle*>(payload->Data);
+            const AssetMetadata* meta =
+                Engine::asset_manager().GetMetadata(dropped);
+            if (meta && meta->type == AssetType::Prefab) {
+              dropped_handle = dropped;
+            }
+          } else if (const ImGuiPayload* payload =
+                         ImGui::AcceptDragDropPayload("BrowserFile")) {
+            std::string file_path(static_cast<const char*>(payload->Data));
+            if (file_path.ends_with(".wprefab")) {
+              auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
+              if (physical_app.has_value()) {
+                std::filesystem::path rel =
+                    std::filesystem::relative(file_path, *physical_app);
+                std::string vfs_path = "app://" + rel.generic_string();
+                dropped_handle =
+                    Engine::asset_manager().FindBySourcePath(vfs_path);
+              }
+            }
+          }
+
+          if (dropped_handle.IsValid()) {
+            MonoObject* new_prefab = prefab_obj;
+            if (!new_prefab) {
+              new_prefab =
+                  mono_object_new(Engine::script_manager().app_domain(),
+                                  Engine::script_manager().prefab_class());
+              mono_runtime_object_init(new_prefab);
+            }
+            MonoClassField* handle_field = mono_class_get_field_from_name(
+                Engine::script_manager().prefab_class(), "handle");
+            if (handle_field) {
+              std::string handle_str = dropped_handle.ToString();
+              MonoString* mono_val = mono_string_new(
+                  Engine::script_manager().app_domain(), handle_str.c_str());
+              mono_field_set_value(new_prefab, handle_field, mono_val);
+            }
+            mono_field_set_value(obj, field, new_prefab);
+            changed = true;
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        if (prefab_label != "(None)") {
+          ImGui::SameLine();
+          std::string clear_id = "X##clear_" + label;
+          if (ImGui::SmallButton(clear_id.c_str())) {
+            MonoObject* null_val = nullptr;
+            mono_field_set_value(obj, field, &null_val);
+            return true;
+          }
+        }
+        return changed;
+      });
+
+  // AudioClip
+  set_render("WieselEngine.AudioClip",
+      [](MonoObject* obj, MonoClassField* field, MonoProperty* prop,
+         const std::string& label) -> bool {
+        MonoObject* clip_obj = nullptr;
+        mono_field_get_value(obj, field, &clip_obj);
+        std::string display = "(None)";
+        std::string current_handle_str;
+
+        if (clip_obj) {
+          MonoClassField* handle_field = mono_class_get_field_from_name(
+              mono_object_get_class(clip_obj), "handle");
+          if (handle_field) {
+            MonoString* h_str = nullptr;
+            mono_field_get_value(clip_obj, handle_field, &h_str);
+            if (h_str) {
+              const char* cstr = mono_string_to_utf8(h_str);
+              if (cstr && cstr[0]) {
+                current_handle_str = cstr;
+                AssetHandle h = AssetHandle::FromString(current_handle_str);
+                const auto* meta = Engine::asset_manager().GetMetadata(h);
+                if (meta) {
+                  display = meta->name;
+                }
+              }
+              mono_free((void*)cstr);
+            }
+          }
+        }
+
+        ImGui::InputText(label.c_str(), &display, ImGuiInputTextFlags_ReadOnly);
+
+        bool changed = false;
+        if (ImGui::BeginDragDropTarget()) {
+          AssetHandle dropped_handle = AcceptAssetDragDrop(AssetType::Audio);
+          if (dropped_handle.IsValid()) {
+            MonoObject* new_clip = clip_obj;
+            if (!new_clip) {
+              new_clip = mono_object_new(
+                  Engine::script_manager().app_domain(),
+                  Engine::script_manager().audio_clip_class());
+              mono_runtime_object_init(new_clip);
+            }
+            if (new_clip) {
+              MonoClassField* handle_field = mono_class_get_field_from_name(
+                  mono_object_get_class(new_clip), "handle");
+              if (handle_field) {
+                MonoString* h_val =
+                    mono_string_new(Engine::script_manager().app_domain(),
+                                    dropped_handle.ToString().c_str());
+                mono_field_set_value(new_clip, handle_field, h_val);
+              }
+              mono_field_set_value(obj, field, new_clip);
+              changed = true;
+            }
+          }
+          ImGui::EndDragDropTarget();
+        }
+
+        if (!current_handle_str.empty()) {
+          ImGui::SameLine();
+          std::string clear_id = "X##clear_" + label;
+          if (ImGui::SmallButton(clear_id.c_str())) {
+            MonoObject* null_val = nullptr;
+            mono_field_set_value(obj, field, &null_val);
+            return true;
+          }
+        }
+        return changed;
       });
 }
 

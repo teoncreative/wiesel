@@ -78,6 +78,11 @@ namespace WieselEngine
             return child.GetComponent<T>();
         }
 
+        public void SetParent(Entity parent)
+        {
+            Internals.Entity_SetParent(scenePtr, entityId, parent.Id);
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is Entity other)

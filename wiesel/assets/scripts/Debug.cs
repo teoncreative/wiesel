@@ -1,11 +1,20 @@
 namespace WieselEngine
 {
-    public class Debug
+    public static class Debug
     {
-        public static void Info(string message)
+        public static void Log(string message)
         {
-            Internals.Log_Info(message);
+            Internals.Debug_Log(message);
         }
 
+        public static void LogWarning(string message)
+        {
+            Internals.Debug_LogWarning(message);
+        }
+
+        public static void LogError(string message)
+        {
+            Internals.Debug_LogError(message);
+        }
     }
 }

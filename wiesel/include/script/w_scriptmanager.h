@@ -22,76 +22,24 @@ namespace wiesel {
 
 class MonoBehavior;
 
-enum class FieldType {
-  Boolean,
-  Float,
-  Double,
-  Integer,
-  Long,
-  UnsignedInteger,
-  UnsignedLong,
-  String,
-  Entity,
-  Prefab,
-  AudioClip,
-  NetworkVar,
-  Object
-};
-
 class FieldData {
  public:
   FieldData(MonoClassField* field, const std::string& fieldName,
             uint32_t fieldFlags)
       : field_(field), field_name_(fieldName), field_flags_(fieldFlags) {
-    std::string typeName = mono_type_get_name(mono_field_get_type(field_));
-    if (typeName == "System.Boolean") {
-      field_type_ = FieldType::Boolean;
-    } else if (typeName == "System.Single") {
-      field_type_ = FieldType::Float;
-    } else if (typeName == "System.Double") {
-      field_type_ = FieldType::Double;
-    } else if (typeName == "System.Int32") {
-      field_type_ = FieldType::Integer;
-    } else if (typeName == "System.Int64") {
-      field_type_ = FieldType::Long;
-    } else if (typeName == "System.UInt32") {
-      field_type_ = FieldType::UnsignedInteger;
-    } else if (typeName == "System.UInt64") {
-      field_type_ = FieldType::UnsignedLong;
-    } else if (typeName == "System.String") {
-      field_type_ = FieldType::String;
-    } else if (typeName == "WieselEngine.Entity") {
-      field_type_ = FieldType::Entity;
-    } else if (typeName == "WieselEngine.Prefab") {
-      field_type_ = FieldType::Prefab;
-    } else if (typeName == "WieselEngine.AudioClip") {
-      field_type_ = FieldType::AudioClip;
-    } else if (typeName.starts_with("WieselEngine.NetworkVariable<")) {
-      field_type_ = FieldType::NetworkVar;
-      // Extract inner type: "WieselEngine.NetworkVariable<System.Int32>" -> "System.Int32"
-      auto start = typeName.find('<') + 1;
-      auto end = typeName.rfind('>');
+    type_name_ = mono_type_get_name(mono_field_get_type(field_));
+
+    // For NetworkVariable<T>, extract inner type and mark as network var
+    if (type_name_.starts_with("WieselEngine.NetworkVariable<")) {
+      is_network_var_ = true;
+      size_t start = type_name_.find('<') + 1;
+      size_t end = type_name_.rfind('>');
       if (start != std::string::npos && end != std::string::npos) {
-        inner_type_name_ = typeName.substr(start, end - start);
+        inner_type_name_ = type_name_.substr(start, end - start);
       }
-    } else {
-      field_type_ = FieldType::Object;
-      LOG_WARN("Unknown script field type '{}' for field '{}'", typeName,
-               fieldName);
     }
+
     formatted_name_ = FormatVariableName(field_name_);
-  }
-
-  template <typename T>
-  void Set(MonoObject* instance, T value) {
-    mono_field_set_value(instance, field_, value);
-  }
-
-  template <typename T>
-  T Get(MonoObject* instance) const {
-    T value;
-    mono_field_get_value(instance, field_, &value);
-    return value;
   }
 
   MonoClassField* field() const { return field_; }
@@ -100,20 +48,23 @@ class FieldData {
 
   uint32_t field_flags() const { return field_flags_; }
 
-  FieldType field_type() const { return field_type_; }
+  // The full Mono type name (e.g., "System.Int32", "WieselEngine.Prefab")
+  const std::string& type_name() const { return type_name_; }
 
   const std::string& formatted_name() const { return formatted_name_; }
 
-  // For NetworkVar fields: the inner type (e.g., "System.Int32")
+  // For NetworkVariable<T> fields
+  bool is_network_var() const { return is_network_var_; }
   const std::string& inner_type_name() const { return inner_type_name_; }
 
  private:
   MonoClassField* field_;
   std::string field_name_;
   std::string formatted_name_;
+  std::string type_name_;
   std::string inner_type_name_;
   uint32_t field_flags_;
-  FieldType field_type_;
+  bool is_network_var_ = false;
 };
 
 class ScriptData {
@@ -354,6 +305,12 @@ class ScriptInstance {
   void OnUIDataChanged(const std::string& variable_name);
   void OnUIEvent(const std::string& event_name);
 
+  void OnClientConnected(uint64_t session_id);
+  void OnClientDisconnected(uint64_t session_id);
+  void OnConnectedToServer();
+  void OnDisconnectedFromServer();
+  void OnSyncVarChanged(const std::string& var_name);
+
   template <class T>
   void AttachExternComponent(std::string variable, entt::entity entity);
 
@@ -472,6 +429,7 @@ class ScriptManager {
   MonoClass* light_direct_class_ = nullptr;
   MonoClass* light_point_class_ = nullptr;
   MonoClass* ui_document_class_ = nullptr;
+  MonoClass* network_identity_class_ = nullptr;
   MonoClass* vector3f_class_ = nullptr;
   MonoClass* entity_class_ = nullptr;
   MonoClass* prefab_class_ = nullptr;

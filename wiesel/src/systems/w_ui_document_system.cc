@@ -25,43 +25,60 @@ void UIDocumentSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("UIDocumentSystem::Update");
   entt::registry& registry = scene.GetRegistry();
   auto& assets = Engine::asset_manager();
+
+  // Remove runtimes for entities that lost their UIDocumentComponent
+  for (auto entity : registry.view<UIDocumentRuntime>(entt::exclude<UIDocumentComponent>)) {
+    registry.remove<UIDocumentRuntime>(entity);
+  }
+
   for (auto entity : registry.view<UIDocumentComponent>()) {
     auto& doc = registry.get<UIDocumentComponent>(entity);
-    if (doc.document_handle.IsValid() &&
-        (!doc.rml_context_ || doc.loaded_handle_ != doc.document_handle)) {
-      // Destroy old context
-      if (doc.rml_context_) {
-        doc.data_model.Shutdown();
-        Rml::RemoveContext(doc.context_name_);
-        doc.rml_context_ = nullptr;
-        doc.rml_document_ = nullptr;
+
+    if (!doc.document_handle.IsValid()) {
+      if (registry.any_of<UIDocumentRuntime>(entity)) {
+        registry.remove<UIDocumentRuntime>(entity);
       }
-      // Create new per-document context
+      continue;
+    }
+
+    // Ensure runtime exists
+    if (!registry.any_of<UIDocumentRuntime>(entity)) {
+      registry.emplace<UIDocumentRuntime>(entity);
+    }
+    auto& rt = registry.get<UIDocumentRuntime>(entity);
+
+    // Reload if handle changed
+    if (!rt.rml_context || rt.loaded_handle != doc.document_handle) {
+      // Destroy old context via RAII - just re-emplace
+      if (rt.rml_context) {
+        registry.remove<UIDocumentRuntime>(entity);
+        registry.emplace<UIDocumentRuntime>(entity);
+      }
+      auto& rt2 = registry.get<UIDocumentRuntime>(entity);
+
       auto doc_asset = assets.GetOrLoad<UIDocumentAsset>(doc.document_handle);
       if (doc_asset && !doc_asset->vfs_path.empty()) {
-        doc.context_name_ =
-            "ui_" + std::to_string(static_cast<uint32_t>(entity));
-        // Use viewport size as initial context dimensions.
-        // RmlUi does initial layout at creation time - too small causes
-        // incorrect text wrapping and block sizing.
+        IdComponent id_component = registry.get<IdComponent>(entity);
+        rt2.context_name = "ui_" + id_component.Id.ToString();
+
         glm::vec2 vp = scene.GetRenderResolution();
         if (vp.x < 1 || vp.y < 1) {
           vp = {1920, 1080};
         }
-        doc.rml_context_ = Rml::CreateContext(
-            doc.context_name_,
+        rt2.rml_context = Rml::CreateContext(
+            rt2.context_name,
             Rml::Vector2i(static_cast<int>(vp.x), static_cast<int>(vp.y)));
-        if (doc.rml_context_) {
+        if (rt2.rml_context) {
           const auto* meta = assets.GetMetadata(doc.document_handle);
           const auto* ui_props =
               meta ? meta->GetProperties<UIDocumentAssetProperties>() : nullptr;
-          doc.data_model.Init(doc.rml_context_, ui_props);
+          rt2.data_model.Init(rt2.rml_context, ui_props);
 
           // Wire callbacks to dispatch to C# behaviors on this entity
           if (ui_props) {
             for (const auto& decl : ui_props->variables) {
               if (decl.mode == UIVariableMode::TwoWay) {
-                doc.data_model.OnChanged(
+                rt2.data_model.OnChanged(
                     decl.name, [&registry, entity, name = decl.name]() {
                       if (registry.valid(entity) &&
                           registry.any_of<BehaviorsComponent>(entity)) {
@@ -77,7 +94,7 @@ void UIDocumentSystem::Update(Scene& scene, float delta_time) {
               }
             }
             for (const auto& event_name : ui_props->events) {
-              doc.data_model.BindEvent(
+              rt2.data_model.BindEvent(
                   event_name,
                   [&registry, entity, name = event_name](Rml::Event& /*ev*/) {
                     if (registry.valid(entity) &&
@@ -94,27 +111,30 @@ void UIDocumentSystem::Update(Scene& scene, float delta_time) {
             }
           }
 
-          doc.rml_document_ =
-              doc.rml_context_->LoadDocument(doc_asset->vfs_path);
-          if (doc.rml_document_) {
-            doc.rml_document_->Show();
+          rt2.rml_document =
+              rt2.rml_context->LoadDocument(doc_asset->vfs_path);
+          if (rt2.rml_document) {
+            rt2.rml_document->Show();
             LOG_INFO("Created RmlUi context '{}' with document '{}'",
-                     doc.context_name_, doc_asset->vfs_path);
+                     rt2.context_name, doc_asset->vfs_path);
           } else {
-            LOG_ERROR("Failed to load RmlUi document: {}", doc_asset->vfs_path);
+            LOG_ERROR("Failed to load RmlUi document: {}",
+                      doc_asset->vfs_path);
           }
         } else {
           LOG_ERROR("Failed to create RmlUi context");
         }
       }
-      doc.loaded_handle_ = doc.document_handle;
+      rt2.loaded_handle = doc.document_handle;
     }
+
     // Sync visibility
-    if (doc.rml_document_) {
-      if (doc.visible && !doc.rml_document_->IsVisible()) {
-        doc.rml_document_->Show();
-      } else if (!doc.visible && doc.rml_document_->IsVisible()) {
-        doc.rml_document_->Hide();
+    auto* runtime = registry.try_get<UIDocumentRuntime>(entity);
+    if (runtime && runtime->rml_document) {
+      if (doc.visible && !runtime->rml_document->IsVisible()) {
+        runtime->rml_document->Show();
+      } else if (!doc.visible && runtime->rml_document->IsVisible()) {
+        runtime->rml_document->Hide();
       }
     }
   }

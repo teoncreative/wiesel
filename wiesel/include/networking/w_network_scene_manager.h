@@ -39,7 +39,7 @@ class NetworkSceneManager {
  private:
   struct SceneLoadEntry {
     std::string scene_name;
-    uint8_t load_mode;
+    LoadSceneMode load_mode;
     std::string loading_scene;
   };
   std::vector<SceneLoadEntry> network_loaded_scenes_;

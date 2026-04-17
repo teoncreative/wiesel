@@ -29,6 +29,7 @@ class NativeBehaviorRegistry;
 class AudioManager;
 class NetworkManager;
 class NetworkSceneManager;
+class ReplicationManager;
 class ThreadPool;
 class UserConfig;
 class InputManager;
@@ -103,6 +104,10 @@ class Engine {
     return *network_scene_manager_;
   }
 
+  WIESEL_GETTER_FN static ReplicationManager& replication_manager() {
+    return *replication_manager_;
+  }
+
   WIESEL_GETTER_FN static SceneManager& scene_manager() {
     return *scene_manager_;
   }
@@ -164,6 +169,7 @@ class Engine {
   static std::unique_ptr<AudioManager> audio_manager_;
   static std::unique_ptr<NetworkManager> network_manager_;
   static std::unique_ptr<NetworkSceneManager> network_scene_manager_;
+  static std::unique_ptr<ReplicationManager> replication_manager_;
   static std::unique_ptr<SceneManager> scene_manager_;
   static std::unique_ptr<UIManager> ui_manager_;
   static std::unique_ptr<CursorManager> cursor_manager_;

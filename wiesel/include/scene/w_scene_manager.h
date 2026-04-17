@@ -23,6 +23,34 @@ namespace wiesel {
 
 enum class LoadSceneMode { Single, Additive };
 
+inline uint8_t ToInt(LoadSceneMode mode) {
+  switch (mode) {
+    case LoadSceneMode::Single:
+      return 0;
+    case LoadSceneMode::Additive:
+      return 1;
+  }
+  return 0;
+}
+
+inline LoadSceneMode FromInt(int index) {
+  switch (index) {
+    case 0: return LoadSceneMode::Single;
+    case 1: return LoadSceneMode::Additive;
+  }
+  return LoadSceneMode::Single;
+}
+
+inline std::string ToString(const LoadSceneMode& mode) {
+  switch (mode) {
+    case LoadSceneMode::Single:
+      return "Single";
+    case LoadSceneMode::Additive:
+      return "Additive";
+  }
+  return "Invalid";
+}
+
 class SceneManager {
  public:
   SceneManager() = default;

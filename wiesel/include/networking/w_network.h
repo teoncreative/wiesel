@@ -97,6 +97,7 @@ class NetworkManager {
   WIESEL_GETTER_FN bool is_client() const;
   WIESEL_GETTER_FN bool is_connected() const;
   WIESEL_GETTER_FN NetworkRole role() const;
+  WIESEL_GETTER_FN uint64_t local_session_id() const;
 
   void Update();
 

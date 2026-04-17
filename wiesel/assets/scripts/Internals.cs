@@ -5,9 +5,6 @@ namespace WieselEngine
     internal class Internals
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern static void Log_Info(string message);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern static float Input_GetAxis(string axis);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -660,6 +657,8 @@ namespace WieselEngine
         public static extern int Entity_GetChildCount(ulong scenePtr, ulong entityId);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern Entity Entity_GetChild(ulong scenePtr, ulong entityId, int index);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void Entity_SetParent(ulong scenePtr, ulong entityId, ulong parentEntityId);
 
         // UIDocument
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -683,19 +682,21 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool UIDocument_GetVisible(ulong scenePtr, ulong entityId);
 
-        // Console
+        // Console Manager
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Console_RegisterCommand(string name, string description, System.Action<string[]> callback);
+        public static extern void ConsoleManager_RegisterCommand(string name, string description, System.Action<string[]> callback);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Console_UnregisterCommand(string name);
+        public static extern void ConsoleManager_UnregisterCommand(string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Console_Execute(string commandLine);
+        public static extern void ConsoleManager_Execute(string commandLine);
+
+        // Debug Logging
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Console_LogInfo(string message);
+        public static extern void Debug_Log(string message);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Console_LogWarning(string message);
+        public static extern void Debug_LogWarning(string message);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void Console_LogError(string message);
+        public static extern void Debug_LogError(string message);
 
         // Settings - Quality
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -804,6 +805,21 @@ namespace WieselEngine
         public static extern void NetworkSceneManager_LoadScene(string name, int mode);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void NetworkSceneManager_LoadSceneWithLoading(string targetScene, string loadingScene);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong Network_GetLocalSessionId();
+
+        // Network Identity Component
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern uint NetworkIdentity_GetNetId(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int NetworkIdentity_GetAuthority(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern ulong NetworkIdentity_GetOwnerSessionId(ulong scenePtr, ulong entityId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void NetworkIdentity_SetOwnerSessionId(ulong scenePtr, ulong entityId, ulong sessionId);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void NetworkIdentity_SetAuthority(ulong scenePtr, ulong entityId, int authority);
 
         // Network Synced Variables (used internally by NetworkVariable<T>)
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

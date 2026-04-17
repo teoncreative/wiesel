@@ -42,12 +42,6 @@ namespace wiesel {
   mono_add_internal_call("WieselEngine.Internals::" #name, \
                          reinterpret_cast<void*>(Internals_##name))
 
-void Internals_Log_Info(MonoString* str) {
-  char* cstr = mono_string_to_utf8(str);
-  LOG_INFO("{}", cstr);
-  mono_free(cstr);
-}
-
 float Internals_Input_GetAxis(MonoString* str) {
   char* cstr = mono_string_to_utf8(str);
   float value = Engine::input().GetAxis(cstr);
@@ -579,6 +573,17 @@ MonoObject* Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
   }
   return Engine::script_manager().CreateCSharpEntity(scene,
                                                      tree.children[index]);
+}
+
+void Internals_Entity_SetParent(uint64_t scene_ptr, uint64_t entity_id,
+                               uint64_t parent_entity_id) {
+  if (scene_ptr == 0) {
+    return;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity child = static_cast<entt::entity>(entity_id);
+  entt::entity parent = static_cast<entt::entity>(parent_entity_id);
+  scene->LinkEntities(parent, child);
 }
 
 // --- CameraComponent bindings ---
@@ -1981,9 +1986,9 @@ MonoObject* Internals_SceneManager_MoveEntityToScene(uint64_t scene_ptr,
 }
 
 // Console
-void Internals_Console_RegisterCommand(MonoString* name,
-                                       MonoString* description,
-                                       MonoObject* callback) {
+void Internals_ConsoleManager_RegisterCommand(MonoString* name,
+                                              MonoString* description,
+                                              MonoObject* callback) {
   char* name_cstr = mono_string_to_utf8(name);
   char* desc_cstr = mono_string_to_utf8(description);
   std::string name_str = name_cstr;
@@ -2016,31 +2021,31 @@ void Internals_Console_RegisterCommand(MonoString* name,
       });
 }
 
-void Internals_Console_UnregisterCommand(MonoString* name) {
+void Internals_ConsoleManager_UnregisterCommand(MonoString* name) {
   char* cstr = mono_string_to_utf8(name);
   DeveloperConsole::Get().Unregister(cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_Execute(MonoString* command_line) {
+void Internals_ConsoleManager_Execute(MonoString* command_line) {
   char* cstr = mono_string_to_utf8(command_line);
   DeveloperConsole::Get().Execute(cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_LogInfo(MonoString* message) {
+void Internals_Debug_Log(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
   DCON_LOG_INFO("{}", cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_LogWarning(MonoString* message) {
+void Internals_Debug_LogWarning(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
   DCON_LOG_WARN("{}", cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_LogError(MonoString* message) {
+void Internals_Debug_LogError(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
   DCON_LOG_ERROR("{}", cstr);
   mono_free(cstr);
@@ -2048,17 +2053,20 @@ void Internals_Console_LogError(MonoString* message) {
 
 // --- UIDocumentComponent bindings ---
 
-#define GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, retval) \
-  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);  \
-  if (!scene->HasComponent<UIDocumentComponent>(handle))   \
-    return retval;                                         \
-  auto& ui_doc = scene->GetComponent<UIDocumentComponent>(handle)
+#define GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, retval)         \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);          \
+  if (!scene->HasComponent<UIDocumentComponent>(handle))           \
+    return retval;                                                 \
+  auto& ui_doc = scene->GetComponent<UIDocumentComponent>(handle); \
+  auto* ui_rt = scene->GetRegistry().try_get<UIDocumentRuntime>(handle); \
+  if (!ui_rt)                                                      \
+    return retval
 
 void Internals_UIDocument_SetInt(uint64_t scene_ptr, uint64_t entity_id,
                                  MonoString* name, int value) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
-  ui_doc.data_model.SetInt(cname, value);
+  ui_rt->data_model.SetInt(cname, value);
   mono_free(cname);
 }
 
@@ -2066,7 +2074,7 @@ int Internals_UIDocument_GetInt(uint64_t scene_ptr, uint64_t entity_id,
                                 MonoString* name) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, 0);
   char* cname = mono_string_to_utf8(name);
-  int result = ui_doc.data_model.GetInt(cname);
+  int result = ui_rt->data_model.GetInt(cname);
   mono_free(cname);
   return result;
 }
@@ -2075,7 +2083,7 @@ void Internals_UIDocument_SetFloat(uint64_t scene_ptr, uint64_t entity_id,
                                    MonoString* name, float value) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
-  ui_doc.data_model.SetFloat(cname, value);
+  ui_rt->data_model.SetFloat(cname, value);
   mono_free(cname);
 }
 
@@ -2083,7 +2091,7 @@ float Internals_UIDocument_GetFloat(uint64_t scene_ptr, uint64_t entity_id,
                                     MonoString* name) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, 0.0f);
   char* cname = mono_string_to_utf8(name);
-  float result = ui_doc.data_model.GetFloat(cname);
+  float result = ui_rt->data_model.GetFloat(cname);
   mono_free(cname);
   return result;
 }
@@ -2093,7 +2101,7 @@ void Internals_UIDocument_SetString(uint64_t scene_ptr, uint64_t entity_id,
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
   char* cvalue = mono_string_to_utf8(value);
-  ui_doc.data_model.SetString(cname, cvalue);
+  ui_rt->data_model.SetString(cname, cvalue);
   mono_free(cname);
   mono_free(cvalue);
 }
@@ -2104,7 +2112,7 @@ MonoString* Internals_UIDocument_GetString(uint64_t scene_ptr,
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id,
                        mono_string_new(mono_domain_get(), ""));
   char* cname = mono_string_to_utf8(name);
-  std::string result = ui_doc.data_model.GetString(cname);
+  std::string result = ui_rt->data_model.GetString(cname);
   mono_free(cname);
   return mono_string_new(mono_domain_get(), result.c_str());
 }
@@ -2113,7 +2121,7 @@ void Internals_UIDocument_SetBool(uint64_t scene_ptr, uint64_t entity_id,
                                   MonoString* name, bool value) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
-  ui_doc.data_model.SetBool(cname, value);
+  ui_rt->data_model.SetBool(cname, value);
   mono_free(cname);
 }
 
@@ -2121,7 +2129,7 @@ bool Internals_UIDocument_GetBool(uint64_t scene_ptr, uint64_t entity_id,
                                   MonoString* name) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, false);
   char* cname = mono_string_to_utf8(name);
-  bool result = ui_doc.data_model.GetBool(cname);
+  bool result = ui_rt->data_model.GetBool(cname);
   mono_free(cname);
   return result;
 }
@@ -2345,10 +2353,44 @@ int Internals_Network_GetTickRate() {
   return Engine::network().tick_rate();
 }
 
+uint64_t Internals_Network_GetLocalSessionId() {
+  return Engine::network().local_session_id();
+}
+
+uint32_t Internals_NetworkIdentity_GetNetId(Scene* scene,
+                                            entt::entity entity) {
+  return scene->GetComponent<NetworkIdentityComponent>(entity).net_id;
+}
+
+int Internals_NetworkIdentity_GetAuthority(Scene* scene,
+                                           entt::entity entity) {
+  return static_cast<int>(
+      scene->GetComponent<NetworkIdentityComponent>(entity).authority);
+}
+
+uint64_t Internals_NetworkIdentity_GetOwnerSessionId(Scene* scene,
+                                                     entt::entity entity) {
+  return scene->GetComponent<NetworkIdentityComponent>(entity)
+      .owner_session_id;
+}
+
+void Internals_NetworkIdentity_SetOwnerSessionId(Scene* scene,
+                                                 entt::entity entity,
+                                                 uint64_t session_id) {
+  scene->GetComponent<NetworkIdentityComponent>(entity).owner_session_id =
+      session_id;
+}
+
+void Internals_NetworkIdentity_SetAuthority(Scene* scene, entt::entity entity,
+                                            int authority) {
+  scene->GetComponent<NetworkIdentityComponent>(entity).authority =
+      static_cast<NetworkAuthority>(authority);
+}
+
 void Internals_NetworkSceneManager_LoadScene(MonoString* name, int mode) {
   char* cname = mono_string_to_utf8(name);
-  LoadSceneMode lm = (mode == 1) ? LoadSceneMode::Additive : LoadSceneMode::Single;
-  Engine::network_scene_manager().LoadScene(cname, lm);
+  LoadSceneMode load_mode = FromInt(mode);
+  Engine::network_scene_manager().LoadScene(cname, load_mode);
   mono_free(cname);
 }
 
@@ -2398,27 +2440,28 @@ void Internals_Network_SetSyncVar(uint64_t scene_ptr, uint64_t entity_id,
   MonoType* mono_type = mono_class_get_type(mono_object_get_class(value));
   int type_id = mono_type_get_type(mono_type);
 
+  nlohmann::json j;
   switch (type_id) {
     case MONO_TYPE_I4:
-      net_identity.sync_vars[key] = *(int*)mono_object_unbox(value);
+      j = *(int*)mono_object_unbox(value);
       break;
     case MONO_TYPE_R4:
-      net_identity.sync_vars[key] = *(float*)mono_object_unbox(value);
+      j = *(float*)mono_object_unbox(value);
       break;
     case MONO_TYPE_BOOLEAN:
-      net_identity.sync_vars[key] = *(bool*)mono_object_unbox(value);
+      j = *(bool*)mono_object_unbox(value);
       break;
-    case MONO_TYPE_STRING:
-    {
+    case MONO_TYPE_STRING: {
       char* str = mono_string_to_utf8((MonoString*)value);
-      net_identity.sync_vars[key] = std::string(str);
+      j = std::string(str);
       mono_free(str);
       break;
     }
     default:
       LOG_WARN("Unsupported sync var type for '{}'", key);
-      break;
+      return;
   }
+  net_identity.sync_vars[key] = j;
 }
 
 MonoObject* Internals_Network_GetSyncVar(uint64_t scene_ptr,
@@ -2437,22 +2480,22 @@ MonoObject* Internals_Network_GetSyncVar(uint64_t scene_ptr,
   MonoDomain* domain = mono_domain_get();
   const auto& val = it->second;
 
-  if (std::holds_alternative<int>(val)) {
-    int v = std::get<int>(val);
+  if (val.is_number_integer()) {
+    int v = val.get<int>();
     return mono_value_box(domain, mono_get_int32_class(), &v);
   }
-  if (std::holds_alternative<float>(val)) {
-    float v = std::get<float>(val);
+  if (val.is_number_float()) {
+    float v = val.get<float>();
     return mono_value_box(domain, mono_get_single_class(), &v);
   }
-  if (std::holds_alternative<bool>(val)) {
-    bool v = std::get<bool>(val);
+  if (val.is_boolean()) {
+    bool v = val.get<bool>();
     MonoBoolean mb = v ? 1 : 0;
     return mono_value_box(domain, mono_get_boolean_class(), &mb);
   }
-  if (std::holds_alternative<std::string>(val)) {
+  if (val.is_string()) {
     return (MonoObject*)mono_string_new(domain,
-                                        std::get<std::string>(val).c_str());
+                                        val.get<std::string>().c_str());
   }
 
   return nullptr;
@@ -2473,7 +2516,6 @@ MonoString* Internals_Cursor_GetState() {
 
 void RegisterScriptGlue() {
   PROFILE_ZONE_SCOPED_N("RegisterScriptGlue");
-  WIESEL_ADD_INTERNAL_CALL(Log_Info);
   WIESEL_ADD_INTERNAL_CALL(Input_GetAxis);
   WIESEL_ADD_INTERNAL_CALL(Input_GetKey);
   WIESEL_ADD_INTERNAL_CALL(Input_GetKeyDown);
@@ -2702,6 +2744,7 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Entity_IsValid);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChildCount);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChild);
+  WIESEL_ADD_INTERNAL_CALL(Entity_SetParent);
 
   WIESEL_ADD_INTERNAL_CALL(Camera_GetProjectionMode);
   WIESEL_ADD_INTERNAL_CALL(Camera_SetProjectionMode);
@@ -2783,12 +2826,12 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Audio_SetMusicVolume);
   WIESEL_ADD_INTERNAL_CALL(Audio_GetMusicVolume);
 
-  WIESEL_ADD_INTERNAL_CALL(Console_RegisterCommand);
-  WIESEL_ADD_INTERNAL_CALL(Console_UnregisterCommand);
-  WIESEL_ADD_INTERNAL_CALL(Console_Execute);
-  WIESEL_ADD_INTERNAL_CALL(Console_LogInfo);
-  WIESEL_ADD_INTERNAL_CALL(Console_LogWarning);
-  WIESEL_ADD_INTERNAL_CALL(Console_LogError);
+  WIESEL_ADD_INTERNAL_CALL(ConsoleManager_RegisterCommand);
+  WIESEL_ADD_INTERNAL_CALL(ConsoleManager_UnregisterCommand);
+  WIESEL_ADD_INTERNAL_CALL(ConsoleManager_Execute);
+  WIESEL_ADD_INTERNAL_CALL(Debug_Log);
+  WIESEL_ADD_INTERNAL_CALL(Debug_LogWarning);
+  WIESEL_ADD_INTERNAL_CALL(Debug_LogError);
 
   // UIDocument
   WIESEL_ADD_INTERNAL_CALL(UIDocument_SetInt);
@@ -2850,6 +2893,12 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Network_GetRole);
   WIESEL_ADD_INTERNAL_CALL(Network_SetTickRate);
   WIESEL_ADD_INTERNAL_CALL(Network_GetTickRate);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetLocalSessionId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_GetNetId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_GetAuthority);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_GetOwnerSessionId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_SetOwnerSessionId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_SetAuthority);
   WIESEL_ADD_INTERNAL_CALL(NetworkSceneManager_LoadScene);
   WIESEL_ADD_INTERNAL_CALL(NetworkSceneManager_LoadSceneWithLoading);
   WIESEL_ADD_INTERNAL_CALL(Network_SendServerRpc);

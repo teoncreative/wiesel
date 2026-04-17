@@ -20,6 +20,7 @@ class Scene;
 // Lightweight handle to a Scene. Safe to copy and store
 // Unlike raw pointers, a SceneHandle never dangles - it's just an ID.
 // Call Resolve() to get the Scene*, returns nullptr if destroyed.
+// Perhaps we could rename it to SceneRef to match the EntityRef
 struct SceneHandle {
   uint32_t id = 0;
 

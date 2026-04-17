@@ -188,57 +188,6 @@ std::shared_ptr<RpcPacket> RpcPacketSerializer::DeserializeTyped(
 
 // SyncVarUpdatePacketSerializer
 
-static void WriteSyncVarEntry(znet::Buffer& buf,
-                              const SyncVarUpdatePacket::VarEntry& entry) {
-  buf.WriteString(entry.name);
-  buf.WriteInt<uint8_t>(entry.type);
-  switch (static_cast<SyncVarType>(entry.type)) {
-    case SyncVarType::kInt:
-      buf.WriteInt<int32_t>(entry.int_val);
-      break;
-    case SyncVarType::kFloat:
-      buf.WriteFloat(entry.float_val);
-      break;
-    case SyncVarType::kBool:
-      buf.WriteBool(entry.bool_val);
-      break;
-    case SyncVarType::kString:
-      buf.WriteString(entry.string_val);
-      break;
-    case SyncVarType::kVec3:
-      buf.WriteFloat(entry.vec3_val.x);
-      buf.WriteFloat(entry.vec3_val.y);
-      buf.WriteFloat(entry.vec3_val.z);
-      break;
-  }
-}
-
-static SyncVarUpdatePacket::VarEntry ReadSyncVarEntry(znet::Buffer& buf) {
-  SyncVarUpdatePacket::VarEntry entry;
-  entry.name = buf.ReadString();
-  entry.type = buf.ReadInt<uint8_t>();
-  switch (static_cast<SyncVarType>(entry.type)) {
-    case SyncVarType::kInt:
-      entry.int_val = buf.ReadInt<int32_t>();
-      break;
-    case SyncVarType::kFloat:
-      entry.float_val = buf.ReadFloat();
-      break;
-    case SyncVarType::kBool:
-      entry.bool_val = buf.ReadBool();
-      break;
-    case SyncVarType::kString:
-      entry.string_val = buf.ReadString();
-      break;
-    case SyncVarType::kVec3:
-      entry.vec3_val.x = buf.ReadFloat();
-      entry.vec3_val.y = buf.ReadFloat();
-      entry.vec3_val.z = buf.ReadFloat();
-      break;
-  }
-  return entry;
-}
-
 std::shared_ptr<znet::Buffer> SyncVarUpdatePacketSerializer::SerializeTyped(
     std::shared_ptr<SyncVarUpdatePacket> packet,
     std::shared_ptr<znet::Buffer> buffer) {
@@ -246,7 +195,8 @@ std::shared_ptr<znet::Buffer> SyncVarUpdatePacketSerializer::SerializeTyped(
   uint16_t count = static_cast<uint16_t>(packet->vars.size());
   buffer->WriteInt<uint16_t>(count);
   for (const auto& var : packet->vars) {
-    WriteSyncVarEntry(*buffer, var);
+    buffer->WriteString(var.name);
+    buffer->WriteString(var.json_value);
   }
   return buffer;
 }
@@ -259,7 +209,10 @@ SyncVarUpdatePacketSerializer::DeserializeTyped(
   uint16_t count = buffer->ReadInt<uint16_t>();
   packet->vars.reserve(count);
   for (uint16_t i = 0; i < count; i++) {
-    packet->vars.push_back(ReadSyncVarEntry(*buffer));
+    SyncVarUpdatePacket::VarEntry entry;
+    entry.name = buffer->ReadString();
+    entry.json_value = buffer->ReadString();
+    packet->vars.push_back(std::move(entry));
   }
   return packet;
 }
@@ -270,8 +223,8 @@ std::shared_ptr<znet::Buffer> SceneLoadPacketSerializer::SerializeTyped(
     std::shared_ptr<SceneLoadPacket> packet,
     std::shared_ptr<znet::Buffer> buffer) {
   buffer->WriteString(packet->scene_name);
-  buffer->WriteInt<uint8_t>(packet->load_mode);
   buffer->WriteString(packet->loading_scene);
+  buffer->WriteInt<uint8_t>(packet->load_mode);
   return buffer;
 }
 

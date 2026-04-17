@@ -16,7 +16,7 @@
 #include "rendering/w_descriptorlayout.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_texture.h"
-
+#include "util/w_logger.h"
 namespace wiesel {
 
 struct DebugColliderPushConstant {

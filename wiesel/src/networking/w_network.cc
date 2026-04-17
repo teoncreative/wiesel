@@ -260,7 +260,7 @@ bool NetworkManager::ConnectToServer(const NetworkClientConfig& config) {
           auto session = e.session();
           session->SetCodec(impl_->codec);
           impl_->client_session = session;
-
+          LOG_INFO("Client session id: {}", session->id());
           if (impl_->session_setup_callback) {
             impl_->session_setup_callback(session);
           }
@@ -462,6 +462,13 @@ bool NetworkManager::is_connected() const {
 
 NetworkRole NetworkManager::role() const {
   return impl_->role;
+}
+
+uint64_t NetworkManager::local_session_id() const {
+  if (impl_->client_session) {
+    return impl_->client_session->id();
+  }
+  return 0;
 }
 
 void NetworkManager::Update() {

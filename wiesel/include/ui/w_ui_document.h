@@ -37,31 +37,42 @@ struct UIStylesheetAsset {
 
 struct UIDocumentComponent : public IComponent {
   UIDocumentComponent() = default;
-
-  // Copy only serialized fields - runtime state resets
-  UIDocumentComponent(const UIDocumentComponent& other)
-      : document_handle(other.document_handle), visible(other.visible) {}
+  UIDocumentComponent(const UIDocumentComponent&) = default;
 
   AssetHandle document_handle;
   bool visible = true;
+};
 
-  // Runtime - per-document RmlUi context (each document gets its own)
-  Rml::Context* rml_context_ = nullptr;
-  Rml::ElementDocument* rml_document_ = nullptr;
-  AssetHandle loaded_handle_;
-  std::string context_name_;
-  std::string loaded_vfs_path_;
+// Transient runtime data for UI documents. Emplaced automatically by
+// UIDocumentSystem when the entity has a UIDocumentComponent. Destroyed
+// by UIDocumentSystem when the component is removed or the entity is
+// destroyed, cleaning up the Rml context.
+struct UIDocumentRuntime {
+  ~UIDocumentRuntime();
 
-  // Runtime - data binding model
+  // Prevent copies - each runtime owns a unique Rml context
+  UIDocumentRuntime() = default;
+  UIDocumentRuntime(const UIDocumentRuntime&) = delete;
+  UIDocumentRuntime& operator=(const UIDocumentRuntime&) = delete;
+  UIDocumentRuntime(UIDocumentRuntime&& other) noexcept;
+  UIDocumentRuntime& operator=(UIDocumentRuntime&& other) noexcept;
+
+  Rml::Context* rml_context = nullptr;
+  Rml::ElementDocument* rml_document = nullptr;
+  AssetHandle loaded_handle;
+  std::string context_name;
+  std::string loaded_vfs_path;
+
+  // Data binding model
   UIDataModel data_model;
 
-  // Runtime - offscreen rendering (managed by CanvasFeature)
-  std::shared_ptr<AttachmentTexture> offscreen_texture_;
-  std::shared_ptr<AttachmentTexture> offscreen_stencil_;
-  std::shared_ptr<DescriptorSet> offscreen_descriptor_;
-  std::shared_ptr<UniformBuffer> offscreen_ubo_;
-  std::shared_ptr<Framebuffer> offscreen_framebuffer_;
-  glm::vec2 offscreen_size_{0, 0};
+  // Offscreen rendering (managed by CanvasFeature)
+  std::shared_ptr<AttachmentTexture> offscreen_texture;
+  std::shared_ptr<AttachmentTexture> offscreen_stencil;
+  std::shared_ptr<DescriptorSet> offscreen_descriptor;
+  std::shared_ptr<UniformBuffer> offscreen_ubo;
+  std::shared_ptr<Framebuffer> offscreen_framebuffer;
+  glm::vec2 offscreen_size{0, 0};
 };
 
 }  // namespace wiesel

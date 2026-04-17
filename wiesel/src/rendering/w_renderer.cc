@@ -3364,6 +3364,10 @@ void Renderer::EndPresent() {
   invalidate_model_descriptors_ = false;
   frame_counter_++;
   current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
+  // After this point the pipeline will be unavailable and that is intentional.
+  // Since CameraData references to the component, if Scene gets deleted after EndPresent
+  // it causes a crash next frame
+  camera_ = nullptr;
 }
 
 void Renderer::UpdateUniformData() {

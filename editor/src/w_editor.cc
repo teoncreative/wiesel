@@ -429,19 +429,11 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   if (ui_file_watcher_.Poll()) {
     bool has_ui = false;
     for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+      auto& reg = loaded_scene->GetRegistry();
       for (auto entity :
            loaded_scene->GetAllEntitiesWith<UIDocumentComponent>()) {
-        auto& doc = loaded_scene->GetComponent<UIDocumentComponent>(entity);
-        if (doc.rml_context_) {
-          doc.data_model.Shutdown();
-          Rml::RemoveContext(doc.context_name_);
-          doc.rml_context_ = nullptr;
-          doc.rml_document_ = nullptr;
-          doc.offscreen_texture_ = nullptr;
-          doc.offscreen_stencil_ = nullptr;
-          doc.offscreen_descriptor_ = nullptr;
-          doc.offscreen_framebuffer_ = nullptr;
-          doc.offscreen_size_ = {0, 0};
+        if (reg.any_of<UIDocumentRuntime>(entity)) {
+          reg.remove<UIDocumentRuntime>(entity);
           has_ui = true;
         }
       }

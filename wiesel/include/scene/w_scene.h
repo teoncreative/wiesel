@@ -185,10 +185,6 @@ class Scene {
 
   void ProcessDestroyQueue();
 
-  // Release all GPU resources (camera resource pools, etc.).
-  // Must be called before vkDestroyDevice.
-  void Cleanup();
-
   std::shared_ptr<CameraData> GetCurrentCamera() { return current_camera_; }
 
   void ResetPhysicsWorld();

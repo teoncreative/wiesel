@@ -16,6 +16,7 @@
 #include "behavior/w_behavior.h"
 #include "input/w_input.h"
 #include "mono_wrappers.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
@@ -453,6 +454,58 @@ void ScriptInstance::OnUIEvent(const std::string& event_name) {
   InvokeSafe(script_data_->on_ui_event_method(), handle_, args, &errored_);
 }
 
+void ScriptInstance::OnClientConnected(uint64_t session_id) {
+  if (errored_ || !script_data_->on_client_connected_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  void* args[1];
+  args[0] = &session_id;
+  InvokeSafe(script_data_->on_client_connected_method(), handle_, args,
+             &errored_);
+}
+
+void ScriptInstance::OnClientDisconnected(uint64_t session_id) {
+  if (errored_ || !script_data_->on_client_disconnected_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  void* args[1];
+  args[0] = &session_id;
+  InvokeSafe(script_data_->on_client_disconnected_method(), handle_, args,
+             &errored_);
+}
+
+void ScriptInstance::OnConnectedToServer() {
+  if (errored_ || !script_data_->on_connected_to_server_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  InvokeSafe(script_data_->on_connected_to_server_method(), handle_, nullptr,
+             &errored_);
+}
+
+void ScriptInstance::OnDisconnectedFromServer() {
+  if (errored_ || !script_data_->on_disconnected_from_server_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  InvokeSafe(script_data_->on_disconnected_from_server_method(), handle_,
+             nullptr, &errored_);
+}
+
+void ScriptInstance::OnSyncVarChanged(const std::string& var_name) {
+  if (errored_ || !script_data_->on_sync_var_changed_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  MonoString* name_str = mono_string_new(mono_domain_get(), var_name.c_str());
+  void* args[1];
+  args[0] = name_str;
+  InvokeSafe(script_data_->on_sync_var_changed_method(), handle_, args,
+             &errored_);
+}
+
 // explicitly instantiate needed types, this is required:
 template void ScriptInstance::AttachExternComponent<TransformComponent>(
     std::string, entt::entity);
@@ -837,6 +890,8 @@ void ScriptManager::LoadCoreDll() {
       core_assembly_image_, "WieselEngine", "LightPointComponent");
   ui_document_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "UIDocumentComponent");
+  network_identity_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "NetworkIdentityComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
   entity_class_ =
@@ -1212,6 +1267,17 @@ void ScriptManager::RegisterComponents() {
           return scene->HasComponent<UIDocumentComponent>(entity);
         });
   }
+
+  if (network_identity_class_) {
+    RegisterComponent<NetworkIdentityComponent>(
+        "NetworkIdentityComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          return CreateComponentWrapper(network_identity_class_, scene, entity);
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<NetworkIdentityComponent>(entity);
+        });
+  }
 }
 
 std::unique_ptr<ScriptInstance> ScriptManager::CreateScriptInstance(
@@ -1240,18 +1306,17 @@ void ScriptManager::RegisterComponent(std::string name, ComponentGetter getter,
         scene->GetRegistry().emplace<T>(entity);
       }
     };
-  } else {
-    component_adders_.insert(std::pair(name, adder));
   }
+  component_adders_.insert(std::pair(name, adder));
+
   if (!remover) {
     remover = [](Scene* scene, entt::entity entity) {
       if (scene->HasComponent<T>(entity)) {
         scene->GetRegistry().remove<T>(entity);
       }
     };
-  } else {
-    component_removers_.insert(std::pair(name, remover));
   }
+  component_removers_.insert(std::pair(name, remover));
 }
 
 void ScriptManager::AddComponentByName(Scene* scene, entt::entity entity,

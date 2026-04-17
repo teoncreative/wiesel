@@ -29,17 +29,16 @@ void NetworkSceneManager::LoadScene(const std::string& name,
   Engine::scene_manager().LoadScene(name, mode);
 
   // Track for late joiners
-  uint8_t mode_val = (mode == LoadSceneMode::Additive) ? 1 : 0;
-  network_loaded_scenes_.push_back({name, mode_val, ""});
+  network_loaded_scenes_.push_back({name, mode, ""});
 
   // Broadcast to all clients
   auto packet = std::make_shared<SceneLoadPacket>();
   packet->scene_name = name;
-  packet->load_mode = mode_val;
+  packet->load_mode = ToInt(mode);
   network.Broadcast(packet);
 
   LOG_INFO("NetworkSceneManager: loaded scene '{}' (mode {}), broadcast to clients",
-           name, mode_val);
+           name, ToString(mode));
 }
 
 void NetworkSceneManager::LoadSceneWithLoading(
@@ -54,13 +53,13 @@ void NetworkSceneManager::LoadSceneWithLoading(
   Engine::scene_manager().LoadSceneWithLoading(target_scene, loading_scene);
 
   // Track for late joiners
-  network_loaded_scenes_.push_back({target_scene, 2, loading_scene});
+  network_loaded_scenes_.push_back({target_scene, LoadSceneMode::Single, loading_scene});
 
   // Broadcast to all clients
   auto packet = std::make_shared<SceneLoadPacket>();
   packet->scene_name = target_scene;
-  packet->load_mode = 2;
   packet->loading_scene = loading_scene;
+  packet->load_mode = 0; // ignored
   network.Broadcast(packet);
 
   LOG_INFO("NetworkSceneManager: loading scene '{}' with loading screen '{}', broadcast to clients",
@@ -73,7 +72,7 @@ void NetworkSceneManager::SyncToSession(uint64_t session_id) {
   for (auto& entry : network_loaded_scenes_) {
     auto packet = std::make_shared<SceneLoadPacket>();
     packet->scene_name = entry.scene_name;
-    packet->load_mode = entry.load_mode;
+    packet->load_mode = ToInt(entry.load_mode);
     packet->loading_scene = entry.loading_scene;
     network.SendTo(session_id, packet);
   }

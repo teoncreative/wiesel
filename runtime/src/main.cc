@@ -81,7 +81,10 @@ static int RunEngine(int argc, char** argv) {
   Engine::InitApplication();
   Engine::app().Run();
   Engine::CleanupApplication();
+  Engine::CleanupAssets();
+  Engine::CleanupWindow();
   Engine::CleanupEngine();
+  Engine::CleanupRenderer();
   DeveloperConsole::Cleanup();
   return 0;
 }

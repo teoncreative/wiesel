@@ -16,7 +16,6 @@
 #include "networking/w_replication_packets.h"
 #include "networking/w_replication_types.h"
 #include "scene/w_entity.h"
-#include "systems/w_system.h"
 
 namespace wiesel {
 
@@ -26,15 +25,9 @@ struct ReplicationCommand {
   std::shared_ptr<znet::Packet> packet;
 };
 
-class ReplicationSystem : public ISystem {
+class ReplicationManager {
  public:
-  void Update(Scene& scene, float delta_time) override;
-
-  const char* GetName() const override { return "Replication"; }
-
-  int GetPriority() const override { return 790; }
-
-  bool RunOnFirstUpdate() const override { return false; }
+  void Update(float delta_time);
 
   void PushCommand(ReplicationCommand command);
 
@@ -43,17 +36,27 @@ class ReplicationSystem : public ISystem {
   void QueueFullSyncForSession(uint64_t session_id);
 
  private:
-  // Server: scan ALL loaded scenes for networked entities
-  void ServerUpdate(float delta_time);
+  // Process all incoming commands from the network
+  void ProcessIncomingCommands();
 
-  // Client: process commands, spawn into correct scenes, interpolate
-  void ClientUpdate(float delta_time);
+  // Server-only: handle spawns, destroys, late joiner sync
+  void ServerHandleSpawnsAndDestroys();
 
-  // Send all networked entities across all scenes to a session
+  // Both sides: send dirty state for entities we own
+  void SendOwnedEntityState(float delta_time);
+
+  // Both sides: interpolate transforms for remote entities
+  void InterpolateRemoteEntities(float delta_time);
+
+  // Send all networked entities to a late joiner
   void SendFullStateToSession(uint64_t session_id);
 
-  // Spawn an entity from a spawn packet into the correct scene
+  // Spawn an entity from a spawn packet
   void SpawnEntityFromPacket(std::shared_ptr<EntitySpawnPacket> packet);
+
+  // Build a spawn packet from an entity's current state
+  std::shared_ptr<EntitySpawnPacket> BuildSpawnPacket(
+      Entity& entity, const NetworkIdentityComponent& net_id);
 
   uint32_t AllocateNetId();
 

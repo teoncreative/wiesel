@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include "w_pch.h"
 
 typedef struct _MonoObject MonoObject;
@@ -19,26 +21,53 @@ typedef struct _MonoProperty MonoProperty;
 
 namespace wiesel {
 
-// Callback that reads a value from a Mono field, renders an inspector widget,
-// and writes back if changed. Returns true if the value was modified.
-//
-// object:         the MonoObject that owns the field (behavior or NetworkVariable)
-// field:          field to read the current value from
-// write_property: if non-null, write changed values via this property (triggers
-//                 NetworkVariable.Value setter). If null, write directly to field.
-// label:          ImGui label for the widget
+class Scene;
+
+// Serialize: read value from Mono field, return as JSON
+using ScriptFieldSerializeFn = std::function<nlohmann::json(
+    MonoObject* object, MonoClassField* field)>;
+
+// Deserialize: read JSON value, write to Mono field
+using ScriptFieldDeserializeFn = std::function<void(
+    MonoObject* object, MonoClassField* field, const nlohmann::json& value,
+    Scene* scene)>;
+
+// Render: ImGui widget that reads/edits the field value.
+// write_property: if non-null, write via property setter (e.g., NetworkVariable.Value)
+// Returns true if the value was modified.
 using ScriptFieldRenderFn = std::function<bool(
     MonoObject* object, MonoClassField* field, MonoProperty* write_property,
     const std::string& label)>;
 
+struct ScriptFieldTypeDesc {
+  ScriptFieldSerializeFn Serialize;
+  ScriptFieldDeserializeFn Deserialize;
+  ScriptFieldRenderFn Render;  // may be null (engine-only types don't render)
+};
+
 class ScriptFieldTypeRegistry {
  public:
   static void Register(const std::string& mono_type_name,
-                       ScriptFieldRenderFn render_fn);
+                       ScriptFieldTypeDesc desc);
 
-  static ScriptFieldRenderFn* Find(const std::string& mono_type_name);
+  static ScriptFieldTypeDesc* Find(const std::string& mono_type_name);
 
-  static std::unordered_map<std::string, ScriptFieldRenderFn>& Registry();
+  // Convenience: serialize a field if its type is registered
+  static bool SerializeField(const std::string& type_name,
+                             MonoObject* object, MonoClassField* field,
+                             nlohmann::json& out);
+
+  // Convenience: deserialize a field if its type is registered
+  static bool DeserializeField(const std::string& type_name,
+                               MonoObject* object, MonoClassField* field,
+                               const nlohmann::json& value, Scene* scene);
+
+ private:
+  static std::unordered_map<std::string, ScriptFieldTypeDesc>& Registry();
 };
+
+// Register built-in types (int, float, bool, string).
+// Called from engine init. Editor calls its own init for Render functions.
+void InitializeScriptFieldTypes();
 
 }  // namespace wiesel

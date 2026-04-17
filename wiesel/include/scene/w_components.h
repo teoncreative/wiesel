@@ -241,8 +241,8 @@ struct TransformComponent : public IComponent {
   glm::vec3 scale_ = {1.0f, 1.0f, 1.0f};
   glm::vec3 pivot_ = {0.0f, 0.0f, 0.0f};
   bool is_changed_ = true;
-  glm::mat4 transform_matrix_ = {};
-  glm::mat3 normal_matrix_ = {};
+  glm::mat4 transform_matrix_ = glm::mat4(1.0f);
+  glm::mat3 normal_matrix_ = glm::mat3(1.0f);
 };
 
 struct RectangleTransformComponent : public IComponent {

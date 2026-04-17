@@ -12,7 +12,7 @@
 #pragma once
 
 #include <bitset>
-#include <variant>
+#include <nlohmann/json.hpp>
 
 #include "scene/w_components.h"
 
@@ -32,32 +32,23 @@ struct TransformSnapshot {
   glm::vec3 scale{1.0f};
 };
 
-using SyncVarValue = std::variant<int, float, bool, std::string, glm::vec3>;
-
-enum class SyncVarType : uint8_t {
-  kInt = 0,
-  kFloat = 1,
-  kBool = 2,
-  kString = 3,
-  kVec3 = 4,
-};
-
 struct NetworkIdentityComponent : public IComponent {
   uint32_t net_id = 0;
   NetworkAuthority authority = NetworkAuthority::kServer;
   uint64_t owner_session_id = 0;
   std::bitset<64> dirty_components{};
   bool pending_spawn = true;
+  bool is_remote = false;
 
-  // Snapshot interpolation (client-side, for remote entities)
+  // Snapshot interpolation (for remote entities)
   TransformSnapshot from_snapshot;
   TransformSnapshot to_snapshot;
   float interp_elapsed = 0.0f;
   bool has_snapshots = false;
 
-  // Synced variables
-  std::unordered_map<std::string, SyncVarValue> sync_vars;
-  std::unordered_map<std::string, SyncVarValue> sync_vars_last_sent;
+  // Synced variables (stored as JSON for type-agnostic serialization)
+  std::unordered_map<std::string, nlohmann::json> sync_vars;
+  std::unordered_map<std::string, nlohmann::json> sync_vars_last_sent;
 };
 
 }  // namespace wiesel

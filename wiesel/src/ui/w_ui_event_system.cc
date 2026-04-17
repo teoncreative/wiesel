@@ -235,7 +235,8 @@ static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
     }
 
     auto& doc = registry.get<UIDocumentComponent>(entity);
-    if (!doc.rml_context_ || !doc.visible) {
+    auto* rt_ui = registry.try_get<UIDocumentRuntime>(entity);
+    if (!rt_ui || !rt_ui->rml_context || !doc.visible) {
       continue;
     }
     auto& rt = registry.get<RectangleTransformComponent>(entity);
@@ -249,23 +250,23 @@ static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
     // Scale from canvas-space to offscreen render resolution
     float scale_x = 1.0f;
     float scale_y = 1.0f;
-    if (doc.offscreen_size_.x > 0 && rt.computed_size.x > 0) {
-      scale_x = doc.offscreen_size_.x / rt.computed_size.x;
-      scale_y = doc.offscreen_size_.y / rt.computed_size.y;
+    if (rt_ui->offscreen_size.x > 0 && rt.computed_size.x > 0) {
+      scale_x = rt_ui->offscreen_size.x / rt.computed_size.x;
+      scale_y = rt_ui->offscreen_size.y / rt.computed_size.y;
     }
 
     int rml_x = static_cast<int>(local.x * scale_x);
     int rml_y = static_cast<int>(local.y * scale_y);
 
-    doc.rml_context_->ProcessMouseMove(rml_x, rml_y, 0);
+    rt_ui->rml_context->ProcessMouseMove(rml_x, rml_y, 0);
 
     if (inside) {
       if (mouse_down) {
-        doc.rml_context_->ProcessMouseButtonDown(0, 0);
+        rt_ui->rml_context->ProcessMouseButtonDown(0, 0);
         clicked_entity = entity;
       }
       if (mouse_up) {
-        doc.rml_context_->ProcessMouseButtonUp(0, 0);
+        rt_ui->rml_context->ProcessMouseButtonUp(0, 0);
       }
     }
   }
@@ -923,12 +924,12 @@ bool UIEventSystem::ProcessKeyDown(Scene& scene, int key_code, int modifiers) {
     focused_rml_entity_ = entt::null;
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  return doc.rml_context_->ProcessKeyDown(EngineKeyToRml(key_code),
-                                          GetRmlKeyModifiers());
+  return rt_ui->rml_context->ProcessKeyDown(EngineKeyToRml(key_code),
+                                            GetRmlKeyModifiers());
 }
 
 bool UIEventSystem::ProcessKeyUp(Scene& scene, int key_code, int modifiers) {
@@ -941,12 +942,12 @@ bool UIEventSystem::ProcessKeyUp(Scene& scene, int key_code, int modifiers) {
     focused_rml_entity_ = entt::null;
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  return doc.rml_context_->ProcessKeyUp(EngineKeyToRml(key_code),
-                                        GetRmlKeyModifiers());
+  return rt_ui->rml_context->ProcessKeyUp(EngineKeyToRml(key_code),
+                                          GetRmlKeyModifiers());
 }
 
 bool UIEventSystem::ProcessTextInput(Scene& scene, const std::string& text) {
@@ -959,11 +960,11 @@ bool UIEventSystem::ProcessTextInput(Scene& scene, const std::string& text) {
     focused_rml_entity_ = entt::null;
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  return doc.rml_context_->ProcessTextInput(text);
+  return rt_ui->rml_context->ProcessTextInput(text);
 }
 
 bool UIEventSystem::ProcessMouseScroll(Scene& scene, float delta) {
@@ -974,10 +975,11 @@ bool UIEventSystem::ProcessMouseScroll(Scene& scene, float delta) {
   for (auto entity :
        registry.view<UIDocumentComponent, RectangleTransformComponent>()) {
     auto& doc = registry.get<UIDocumentComponent>(entity);
-    if (!doc.rml_context_ || !doc.visible) {
+    auto* rt_ui = registry.try_get<UIDocumentRuntime>(entity);
+    if (!rt_ui || !rt_ui->rml_context || !doc.visible) {
       continue;
     }
-    if (doc.rml_context_->ProcessMouseWheel(-delta, 0)) {
+    if (rt_ui->rml_context->ProcessMouseWheel(-delta, 0)) {
       consumed = true;
     }
   }
@@ -993,11 +995,11 @@ bool UIEventSystem::HasRmlTextInputFocus(Scene& scene) const {
       !registry.any_of<UIDocumentComponent>(focused_rml_entity_)) {
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  Rml::Element* focused = doc.rml_context_->GetFocusElement();
+  Rml::Element* focused = rt_ui->rml_context->GetFocusElement();
   if (!focused) {
     return false;
   }

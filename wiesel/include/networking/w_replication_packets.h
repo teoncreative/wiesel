@@ -152,12 +152,7 @@ class SyncVarUpdatePacket : public znet::Packet {
 
   struct VarEntry {
     std::string name;
-    uint8_t type = 0;
-    int int_val = 0;
-    float float_val = 0.0f;
-    bool bool_val = false;
-    std::string string_val;
-    glm::vec3 vec3_val{0.0f};
+    std::string json_value;
   };
 
   std::vector<VarEntry> vars;
@@ -179,8 +174,8 @@ class SceneLoadPacket : public znet::Packet {
   SceneLoadPacket() : Packet(kSceneLoadPacket) {}
 
   std::string scene_name;
-  uint8_t load_mode = 0;      // 0=Single, 1=Additive, 2=WithLoading
-  std::string loading_scene;  // only used when load_mode=2
+  uint8_t load_mode = 0;      // 0=Single, 1=Additive
+  std::string loading_scene;  // load_mode is ignored when this is set
 };
 
 class SceneLoadPacketSerializer

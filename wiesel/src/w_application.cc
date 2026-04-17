@@ -18,6 +18,7 @@
 #include "audio/w_audio.h"
 #include "cursor/w_cursor.h"
 #include "networking/w_network.h"
+#include "networking/w_replication_manager.h"
 #include "input/w_input.h"
 #include "w_engine.h"
 
@@ -49,14 +50,6 @@ Application::~Application() {
     item->OnDetach();
   }
   layers_.clear();
-
-  // Clear assets before renderer, models/textures hold Vulkan objects
-  // whose destructors need the device to still be alive.
-  Engine::CleanupAssets();
-
-  window_ = nullptr;
-  Engine::CleanupRenderer();
-  Engine::CleanupWindow();
 }
 
 void Application::OnEvent(Event& event) {
@@ -178,6 +171,7 @@ void Application::Run() {
     Engine::network().Update();
     Engine::cursor_manager().Update(delta_time_);
     ExecuteQueue();
+    Engine::replication_manager().Update(delta_time_);
 
     float_t scaled_delta = delta_time_ * time_scale_;
     for (const auto& layer : layers_) {

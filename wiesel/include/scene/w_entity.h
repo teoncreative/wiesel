@@ -92,6 +92,8 @@ class Entity {
   // Convert to an EntityRef for safe storage across frames
   EntityRef ToRef() const;
 
+  void RemoveFromScene();
+
  private:
   entt::entity entity_handle_{};
   entt::entity parent_handle_{};
@@ -158,6 +160,10 @@ inline EntityRef Entity::ToRef() const {
   return {entity_handle_, scene_handle_};
 }
 
+inline void Entity::RemoveFromScene() {
+  scene_ = nullptr;
+}
+
 }  // namespace wiesel
 
 namespace std {
@@ -174,4 +180,38 @@ struct hash<wiesel::EntityRef> {
     return wiesel::HashEntityScenePair(r.entity, r.scene_handle);
   }
 };
+
+template <>
+struct formatter<wiesel::EntityRef> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  auto format(const wiesel::EntityRef& ref, format_context& ctx) const {
+    if (!ref) {
+      return format_to(ctx.out(), "EntityRef(null)");
+    }
+    return format_to(ctx.out(), "EntityRef(entity={}, scene={})",
+        static_cast<uint32_t>(ref.entity),
+        ref.scene_handle.id);
+  }
+};
+
+template <>
+struct formatter<wiesel::Entity> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  auto format(const wiesel::Entity& entity, format_context& ctx) const {
+    if (!entity) {
+      return format_to(ctx.out(), "Entity(null)");
+    }
+    return format_to(ctx.out(), "Entity(entity={}, scene={} {})",
+        static_cast<uint32_t>(entity.handle()),
+        entity.GetScene()->GetName(),
+        entity.GetSceneHandle().id);
+  }
+};
+
 }  // namespace std

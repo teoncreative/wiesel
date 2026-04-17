@@ -57,5 +57,10 @@ namespace WieselEngine
             get { return Internals.Network_GetTickRate(); }
             set { Internals.Network_SetTickRate(value); }
         }
+
+        public static ulong LocalSessionId
+        {
+            get { return Internals.Network_GetLocalSessionId(); }
+        }
     }
 }

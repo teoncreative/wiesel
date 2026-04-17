@@ -191,6 +191,8 @@ bool SceneManager::ReplacePrimaryScene(const std::string& vfs_path) {
   // Create a fresh scene
   auto& new_scene = loaded_scenes_.emplace_back(std::make_unique<Scene>());
   new_scene->handle_ = AllocateHandle();
+  new_scene->SetSourcePath(vfs_path);
+  new_scene->SetName(DeriveNameFromPath(vfs_path));
   active_scene_ = new_scene.get();
 
   // Load the new scene via VFS
@@ -206,8 +208,6 @@ bool SceneManager::ReplacePrimaryScene(const std::string& vfs_path) {
     LOG_ERROR("Failed to load scene: {}", vfs_path);
     return false;
   }
-
-  active_scene_->SetSourcePath(vfs_path);
 
   // Unload assets the old scene used but the new scene doesn't,
   // unless the old scene had keep_assets_loaded set
@@ -542,7 +542,6 @@ bool SceneManager::RenderGameView() {
         camera.render_graph->Compile();
       }
       camera.render_graph->Execute(renderer->GetCommandBuffer().handle_);
-
       camera.prev_view_projection = camera.projection * camera.view_matrix;
       has_camera = true;
     }

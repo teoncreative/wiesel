@@ -14,7 +14,9 @@
 #include "behavior/w_native_behavior.h"
 #include "networking/w_network.h"
 #include "networking/w_network_component_serializer.h"
+#include "script/w_script_field_registry.h"
 #include "networking/w_network_scene_manager.h"
+#include "networking/w_replication_manager.h"
 #include "networking/w_replication_packets.h"
 #include "util/w_discord_rpc.h"
 
@@ -208,6 +210,7 @@ std::unique_ptr<ThreadPool> Engine::thread_pool_;
 std::unique_ptr<AudioManager> Engine::audio_manager_;
 std::unique_ptr<NetworkManager> Engine::network_manager_;
 std::unique_ptr<NetworkSceneManager> Engine::network_scene_manager_;
+std::unique_ptr<ReplicationManager> Engine::replication_manager_;
 std::unique_ptr<SceneManager> Engine::scene_manager_;
 std::unique_ptr<UIManager> Engine::ui_manager_;
 std::unique_ptr<CursorManager> Engine::cursor_manager_;
@@ -252,6 +255,8 @@ void Engine::InitEngine(const EngineProperties& props) {
   network_manager_ = std::make_unique<NetworkManager>();
   network_manager_->Init();
   network_scene_manager_ = std::make_unique<NetworkSceneManager>();
+  replication_manager_ = std::make_unique<ReplicationManager>();
+  InitializeScriptFieldTypes();
   InitializeNetworkComponentSerializers();
   RegisterReplicationPackets(*network_manager_);
   scene_manager_ = std::make_unique<SceneManager>();
@@ -408,6 +413,7 @@ void Engine::CleanupEngine() {
 #ifdef WIESEL_DISCORD_RPC
   discord_rpc_ = nullptr;
 #endif
+  replication_manager_ = nullptr;
   network_scene_manager_ = nullptr;
   if (network_manager_) {
     network_manager_->Shutdown();

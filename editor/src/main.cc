@@ -49,7 +49,10 @@ int main(int argc, char** argv) {
   Application& application = Engine::app();
   application.Run();
   Engine::CleanupApplication();
+  Engine::CleanupAssets();
+  Engine::CleanupWindow();
   Engine::CleanupEngine();
+  Engine::CleanupRenderer();
   DeveloperConsole::Cleanup();
   return 0;
 }

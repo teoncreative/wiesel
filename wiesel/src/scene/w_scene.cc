@@ -45,7 +45,7 @@
 #include "systems/w_canvas_system.h"
 #include "systems/w_light_system.h"
 #include "systems/w_physics_system.h"
-#include "systems/w_replication_system.h"
+#include "systems/w_replication_sync_system.h"
 #include "systems/w_skinned_mesh_system.h"
 #include "systems/w_transform_system.h"
 #include "systems/w_ui_document_system.h"
@@ -68,7 +68,7 @@ Scene::Scene() {
   AddSystem<AgentSystem>();
   AddSystem<AudioSourceSystem>();
   AddSystem<PhysicsSimulationSystem>();
-  AddSystem<ReplicationSystem>();
+  AddSystem<ReplicationSyncSystem>();
   AddSystem<TransformSystem>();
   AddSystem<LightSystem>();
   AddSystem<SkinnedMeshSystem>();
@@ -78,8 +78,18 @@ Scene::Scene() {
 }
 
 Scene::~Scene() {
-  LOG_DEBUG("~Scene destructor");
-  Cleanup();
+  // Clear camera render graphs and resource pools.
+  auto camera_view = registry_.view<CameraComponent>();
+  for (entt::entity entity : camera_view) {
+    auto& camera = registry_.get<CameraComponent>(entity);
+    camera.render_graph = nullptr;
+    camera.resource_pool.Clear();
+    camera.render_pipeline = nullptr;
+  }
+
+  skybox_ = nullptr;
+  default_skybox_ = nullptr;
+  current_camera_ = nullptr;
 }
 
 std::shared_ptr<Skybox> Scene::GetSkybox() {
@@ -343,8 +353,9 @@ void Scene::OnEvent(Event& event) {
     if (key.GetKeyCode() == KeyF8) {
       for (auto entity : registry_.view<UIDocumentComponent>()) {
         auto& doc = registry_.get<UIDocumentComponent>(entity);
-        if (doc.rml_context_ && doc.visible) {
-          Engine::ui_manager().ToggleDebugger(doc.rml_context_);
+        auto* rt = registry_.try_get<UIDocumentRuntime>(entity);
+        if (rt && rt->rml_context && doc.visible) {
+          Engine::ui_manager().ToggleDebugger(rt->rml_context);
           break;
         }
       }
@@ -497,22 +508,6 @@ bool Scene::OnWindowResizeEvent(WindowResizedEvent& event) {
     component.view_changed = true;
   }
   return false;
-}
-
-void Scene::Cleanup() {
-  // Clear camera render graphs and resource pools.
-  auto camera_view = registry_.view<CameraComponent>();
-  LOG_DEBUG("Scene::Cleanup - cameras: {}", camera_view.size());
-  for (entt::entity entity : camera_view) {
-    auto& camera = registry_.get<CameraComponent>(entity);
-    camera.render_graph = nullptr;
-    camera.resource_pool.Clear();
-    camera.render_pipeline = nullptr;
-  }
-
-  skybox_ = nullptr;
-  default_skybox_ = nullptr;
-  current_camera_ = nullptr;
 }
 
 void Scene::ResetPhysicsWorld() {

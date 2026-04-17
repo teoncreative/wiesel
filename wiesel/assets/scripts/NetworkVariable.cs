@@ -41,13 +41,5 @@ namespace WieselEngine
             this.name = fieldName;
             this.bound = true;
         }
-
-        // Called by the engine when a remote update is received.
-        internal void SetFromNetwork(T newValue)
-        {
-            T old = value;
-            value = newValue;
-            OnValueChanged?.Invoke(old, newValue);
-        }
     }
 }
