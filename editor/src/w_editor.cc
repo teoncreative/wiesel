@@ -646,8 +646,11 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
                                  dock_left);
     ImGui::DockBuilderDockWindow(ICON_LC_CAMERA " Game", dock_center);
     ImGui::DockBuilderDockWindow(ICON_LC_EYE " Scene", dock_center);
-    ImGuiID scene_window_id = ImHashStr(ICON_LC_EYE " Scene");
-    ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
+    // Dock node SelectedTabId must match the tab's ID, which is
+    // GetID("#TAB") seeded by the window's own ID - not ImHashStr(name).
+    ImGuiID scene_win_id = ImHashStr(ICON_LC_EYE " Scene");
+    ImGuiID scene_tab_id = ImHashStr("#TAB", 0, scene_win_id);
+    ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_tab_id;
     ImGui::DockBuilderDockWindow(ICON_LC_SQUARE_MOUSE_POINTER " Inspector", dock_right);
     ImGui::DockBuilderDockWindow(ICON_LC_FOLDER_OPEN " Asset Browser",
                                  dock_bottom);
