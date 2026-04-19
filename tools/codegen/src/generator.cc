@@ -37,7 +37,7 @@ std::string GenerateReflection(const ParseResult& parse_result,
     std::string func_name = "Reflect" + cls.short_name;
     out << "inline void " << func_name << "() {\n";
     out << "  using namespace entt::literals;\n";
-    out << "  entt::meta<" << cls.qualified_name << ">()\n";
+    out << "  entt::meta_factory<" << cls.qualified_name << ">{}\n";
     out << "      .type(\"" << cls.short_name << "\"_hs)";
 
     for (const auto& field : cls.fields) {
