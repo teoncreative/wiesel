@@ -12,6 +12,7 @@
 
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 
 #include "asset/w_asset_manager.h"
@@ -1394,7 +1395,12 @@ void EditorLayer::RenderProjectSettingsPopup() {
 }
 
 void EditorLayer::RenderMainMenuBar() {
-  if (ImGui::BeginMainMenuBar()) {
+  // Taller main menu bar for the editor toolbar. Reserves room on the
+  // right for a command palette button (added after Help).
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 10.0f));
+  const bool open = ImGui::BeginMainMenuBar();
+  ImGui::PopStyleVar();
+  if (open) {
     if (ImGui::BeginMenu("File")) {
       if (ImGui::MenuItem("New Project...")) {
         NewProject();
@@ -1486,21 +1492,21 @@ void EditorLayer::RenderMainMenuBar() {
     }
 
     if (ImGui::BeginMenu("Window")) {
-      ImGui::MenuItem(CODICON_PREVIEW " Scene", nullptr, &panel_scene_view_);
-      ImGui::MenuItem(CODICON_CAMERA_VIDEO " Game", nullptr, &panel_game_view_);
-      ImGui::MenuItem(CODICON_SYMBOL_RULER " Scene Hierarchy", nullptr,
+      ImGui::MenuItem(ICON_LC_EYE " Scene", nullptr, &panel_scene_view_);
+      ImGui::MenuItem(ICON_LC_CAMERA " Game", nullptr, &panel_game_view_);
+      ImGui::MenuItem(ICON_LC_LAYERS " Scene Hierarchy", nullptr,
                       &panel_scene_hierarchy_);
-      ImGui::MenuItem(CODICON_INSPECT " Entity Inspector", nullptr,
+      ImGui::MenuItem(ICON_LC_SQUARE_MOUSE_POINTER " Entity Inspector", nullptr,
                       &panel_components_);
-      ImGui::MenuItem(CODICON_FOLDER_OPENED " Asset Browser", nullptr,
+      ImGui::MenuItem(ICON_LC_FOLDER_OPEN " Asset Browser", nullptr,
                       &panel_asset_browser_);
-      ImGui::MenuItem(CODICON_TERMINAL " Console", nullptr, &panel_console_);
-      ImGui::MenuItem(CODICON_DASHBOARD " Render Stats", nullptr,
+      ImGui::MenuItem(ICON_LC_TERMINAL " Console", nullptr, &panel_console_);
+      ImGui::MenuItem(ICON_LC_GAUGE " Render Stats", nullptr,
                       &panel_stats_);
-      ImGui::MenuItem(CODICON_HISTORY " Undo History", nullptr,
+      ImGui::MenuItem(ICON_LC_HISTORY " Undo History", nullptr,
                       &panel_undo_history_);
-      ImGui::MenuItem(CODICON_INFO " LSP Debug", nullptr, &panel_lsp_debug_);
-      ImGui::MenuItem(CODICON_GLOBE " Network", nullptr, &panel_network_);
+      ImGui::MenuItem(ICON_LC_INFO " LSP Debug", nullptr, &panel_lsp_debug_);
+      ImGui::MenuItem(ICON_LC_GLOBE " Network", nullptr, &panel_network_);
       ImGui::Separator();
       if (ImGui::MenuItem("Reset Layout")) {
         panel_scene_hierarchy_ = true;
@@ -1567,6 +1573,55 @@ void EditorLayer::RenderMainMenuBar() {
       ImGui::EndMenu();
     }
 
+    // Center: command-palette trigger, styled as an input.
+    {
+      ImGuiWindow* bar = ImGui::GetCurrentWindow();
+      const float trigger_w = 360.0f;
+      const float trigger_h = ImGui::GetFrameHeight();
+      const float center_x =
+          (ImGui::GetWindowWidth() - trigger_w) * 0.5f;
+      ImGui::SameLine(center_x);
+      // Vertically center inside the taller menu bar; the default cursor
+      // sits at the line top.
+      const float trigger_y =
+          bar->Pos.y + (bar->Size.y - trigger_h) * 0.5f;
+      ImGui::SetCursorScreenPos(
+          ImVec2(ImGui::GetCursorScreenPos().x, trigger_y));
+      const ImVec2 pos = ImGui::GetCursorScreenPos();
+      if (ImGui::InvisibleButton("##PaletteTrigger",
+                                 ImVec2(trigger_w, trigger_h))) {
+        command_palette_.Open();
+      }
+      const bool hovered = ImGui::IsItemHovered();
+      ImDrawList* dl = ImGui::GetWindowDrawList();
+      const ImGuiStyle& s = ImGui::GetStyle();
+      const ImU32 bg = ImGui::GetColorU32(
+          hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+      dl->AddRectFilled(pos,
+                        ImVec2(pos.x + trigger_w, pos.y + trigger_h),
+                        bg, s.FrameRounding);
+      dl->AddRect(pos, ImVec2(pos.x + trigger_w, pos.y + trigger_h),
+                  ImGui::GetColorU32(ImGuiCol_Border), s.FrameRounding,
+                  0, 1.0f);
+      const ImU32 muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+      const float cy = pos.y + trigger_h * 0.5f;
+      const ImVec2 icon_sz = ImGui::CalcTextSize(ICON_LC_COMMAND);
+      dl->AddText(ImVec2(pos.x + s.FramePadding.x,
+                         cy - icon_sz.y * 0.5f),
+                  muted, ICON_LC_COMMAND);
+      const char* hint = "Run a command...";
+      const ImVec2 hint_sz = ImGui::CalcTextSize(hint);
+      dl->AddText(ImVec2(pos.x + s.FramePadding.x + icon_sz.x +
+                             s.ItemInnerSpacing.x * 2.0f,
+                         cy - hint_sz.y * 0.5f),
+                  muted, hint);
+      std::string shortcut = "Ctrl+Shift+K";
+      const ImVec2 sc_sz = ImGui::CalcTextSize(shortcut.c_str());
+      dl->AddText(ImVec2(pos.x + trigger_w - s.FramePadding.x - sc_sz.x,
+                         cy - sc_sz.y * 0.5f),
+                  muted, shortcut.c_str());
+    }
+
     // Right-aligned status bar: asset stats + project info
     {
       auto asset_stats = Engine::asset_manager().GetStats();
@@ -1590,9 +1645,6 @@ void EditorLayer::RenderMainMenuBar() {
       } else if (status_text.empty() && asset_stats.failed > 0) {
         status_text = std::format("{} failed", asset_stats.failed);
       }
-      std::string asset_summary =
-          std::format("[{}/{}]", asset_stats.loaded, asset_stats.total);
-
       std::string info;
       if (active_project_) {
         info = active_project_->GetSettings().name;
@@ -1608,7 +1660,6 @@ void EditorLayer::RenderMainMenuBar() {
 
       float spacing = 12.0f;
       float info_width = ImGui::CalcTextSize(info.c_str()).x;
-      float summary_width = ImGui::CalcTextSize(asset_summary.c_str()).x;
       float status_width =
           status_text.empty()
               ? 0.0f
@@ -1631,8 +1682,7 @@ void EditorLayer::RenderMainMenuBar() {
                     spacing
               : 0.0f;
       float total_right = notif_width + pending_width + error_width +
-                          status_width + summary_width + spacing + info_width +
-                          16.0f;
+                          status_width + spacing + info_width + 16.0f;
 
       ImGui::SameLine(ImGui::GetWindowWidth() - total_right);
 
@@ -1673,8 +1723,6 @@ void EditorLayer::RenderMainMenuBar() {
         ImGui::SameLine(0, spacing);
       }
 
-      ImGui::TextDisabled("%s", asset_summary.c_str());
-      ImGui::SameLine(0, spacing);
       ImGui::TextDisabled("%s", info.c_str());
     }
 
@@ -1763,75 +1811,6 @@ void EditorLayer::RenderMainMenuBar() {
     }
     ImGui::EndPopup();
   }
-
-  // Keyboard shortcuts (skip when code editor or other text input has focus)
-  ImGuiIO& io = ImGui::GetIO();
-  bool text_input_active = code_editor_focused_ || io.WantTextInput;
-  if (!text_input_active && io.KeyCtrl &&
-      ImGui::IsKeyPressed(ImGuiKey_S, false) &&
-      editor_state_ == EditorState::Edit) {
-    if (!current_scene_path_.empty()) {
-      SaveScene();
-      SaveProject();
-    } else {
-      SaveSceneAs();
-    }
-  }
-
-  // Entity copy (Ctrl+C) - copies full entity tree including children
-  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false) &&
-      selected_entity_ && !ImGui::GetIO().WantTextInput) {
-    Entity entity = selected_entity_.Resolve();
-    nlohmann::json j = Prefab::SerializeEntityTree(entity);
-    entity_clipboard_ = j.dump();
-  }
-
-  // Entity paste (Ctrl+V) - pastes full entity tree with new UUIDs
-  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false) &&
-      !entity_clipboard_.empty() && !ImGui::GetIO().WantTextInput) {
-    try {
-      nlohmann::json j = nlohmann::json::parse(entity_clipboard_);
-      Scene* paste_scene = editor::scene();
-      Entity new_entity = Prefab::DeserializeEntityTree(*paste_scene, j);
-      if (new_entity) {
-        command_stack_.Execute(
-            std::make_unique<EntityCreateCommand>(new_entity.ToRef()));
-        selected_entity_ = new_entity.ToRef();
-        scroll_to_selected_ = true;
-        scene_dirty_ = true;
-      }
-    } catch (const std::exception& e) {
-      LOG_ERROR("Failed to paste entity: {}", e.what());
-    }
-  }
-
-  // Entity duplicate (Ctrl+D) - duplicates full entity tree
-  if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D, false) &&
-      selected_entity_ && !ImGui::GetIO().WantTextInput) {
-    Entity entity = selected_entity_.Resolve();
-    Scene* dup_scene = entity.GetScene();
-    nlohmann::json j = Prefab::SerializeEntityTree(entity);
-    Entity new_entity = Prefab::DeserializeEntityTree(*dup_scene, j);
-    if (new_entity) {
-      Entity parent = entity.GetParent();
-      if (parent) {
-        dup_scene->LinkEntities(parent, new_entity);
-      }
-      command_stack_.Execute(
-          std::make_unique<EntityCreateCommand>(new_entity.ToRef()));
-      selected_entity_ = new_entity.ToRef();
-      scroll_to_selected_ = true;
-      scene_dirty_ = true;
-    }
-  }
-
-  // Delete selected entity
-  if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && selected_entity_ &&
-      !ImGui::GetIO().WantTextInput) {
-    command_stack_.Execute(std::make_unique<EntityDeleteCommand>(selected_entity_.Resolve()));
-    selected_entity_ = kInvalidEntityRef;
-    scene_dirty_ = true;
-  }
 }
 
 void EditorLayer::RenderStartupDialog() {
@@ -1846,7 +1825,6 @@ void EditorLayer::RenderStartupDialog() {
                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking);
 
   ImGui::Text("Get started:");
-  ImGui::Spacing();
 
   float width = ImGui::GetContentRegionAvail().x;
   if (ImGui::Button("New Project...", ImVec2(width, 30))) {
@@ -1856,17 +1834,17 @@ void EditorLayer::RenderStartupDialog() {
     OpenProject();
   }
 
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
+  ImGui::FullWidthSeparator();
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
+  ImGui::Dummy(ImVec2(0.0f, ImGui::GetStyle().WindowPadding.y));
+  ImGui::PopStyleVar();
 
   const auto& recent = RecentProjects::Load();
   if (!recent.empty()) {
     ImGui::Text("Recent Projects:");
-    ImGui::Spacing();
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 3.0f));
+                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     for (size_t i = 0; i < recent.size(); i++) {
       const std::string& path = recent[i];
       namespace fs = std::filesystem;
@@ -1876,9 +1854,8 @@ void EditorLayer::RenderStartupDialog() {
 
       ImGui::PushID(static_cast<int>(i));
       ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_Leaf |
-                                      ImGuiTreeNodeFlags_NoTreePushOnOpen |
-                                      ImGuiTreeNodeFlags_SpanAvailWidth;
-      ImGui::PaddedTreeNodeEx(label.c_str(), node_flags);
+                                      ImGuiTreeNodeFlags_NoTreePushOnOpen;
+      ImGui::HierarchyTreeNodeEx(label.c_str(), node_flags);
       if (ImGui::IsItemClicked()) {
         if (fs::exists(path)) {
           deferred_action_ = DeferredAction::OpenProject;
@@ -2037,6 +2014,150 @@ void EditorLayer::RenderEditorSettingsPanel() {
     ImGui::EndChild();
     ImGui::EndPopup();
   }
+}
+
+// Bottom info bar: git branch + build status + notification bell.
+void EditorLayer::RenderInfoBar() {
+  ImGuiViewport* viewport = ImGui::GetMainViewport();
+  const float bar_h = std::floor(ImGui::GetFrameHeight() * 0.9f);
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
+  // Use the host (dockspace) bg so the bar reads as a true footer.
+  ImGui::PushStyleColor(ImGuiCol_WindowBg,
+                        ImGui::GetStyleColorVec4(ImGuiCol_DockingEmptyBg));
+  const bool open = ImGui::BeginViewportSideBar(
+      "##InfoBar", viewport, ImGuiDir_Down, bar_h,
+      ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings);
+  ImGui::PopStyleVar(3);
+  ImGui::PopStyleColor();
+  if (!open) {
+    ImGui::End();
+    return;
+  }
+
+  ImGui::SetWindowFontScale(0.82f);
+
+  ImDrawList* dl = ImGui::GetWindowDrawList();
+  const ImVec2 bar_pos = ImGui::GetCursorScreenPos();
+  const float cy = bar_pos.y + bar_h * 0.5f;
+  const float pad_x = ImGui::GetStyle().FramePadding.x;
+  const float win_w = ImGui::GetWindowSize().x;
+  const float side_margin = ImGui::GetStyle().WindowPadding.x;
+  const float left_x = bar_pos.x + side_margin;
+  const float right_x = bar_pos.x + win_w - side_margin;
+
+  dl->AddLine(ImVec2(bar_pos.x, bar_pos.y),
+              ImVec2(bar_pos.x + win_w, bar_pos.y),
+              ImGui::GetColorU32(ImGuiCol_Border), 1.0f);
+
+  // Left: git branch.
+  const ImU32 muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+  if (!git_branch_.empty()) {
+    std::string label = std::string(ICON_LC_GIT_BRANCH) + "  " + git_branch_;
+    const ImVec2 sz = ImGui::CalcTextSize(label.c_str());
+    dl->AddText(ImVec2(left_x, cy - sz.y * 0.5f), muted, label.c_str());
+  }
+
+  // Right edge: notification bell.
+  const size_t unread = notifications_.UnreadCount();
+  std::string bell_label;
+  if (unread > 0) {
+    bell_label = std::to_string(unread) + "  ";
+  }
+  bell_label.append(ICON_LC_BELL);
+  const ImVec2 bell_sz = ImGui::CalcTextSize(bell_label.c_str());
+  const float bell_w = bell_sz.x + pad_x * 2.0f;
+
+  ImGui::SetCursorScreenPos(ImVec2(right_x - bell_w, bar_pos.y));
+  const bool bell_clicked =
+      ImGui::InvisibleButton("##InfoBarBell", ImVec2(bell_w, bar_h));
+  const bool bell_hovered = ImGui::IsItemHovered();
+  if (bell_clicked) {
+    notifications_.ToggleHistoryPanel();
+  }
+  if (bell_hovered) {
+    dl->AddRectFilled(ImVec2(right_x - bell_w, bar_pos.y),
+                      ImVec2(right_x, bar_pos.y + bar_h),
+                      ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+  }
+  const ImU32 bell_col = (unread > 0 || bell_hovered)
+                             ? ImGui::GetColorU32(ImGuiCol_Text)
+                             : ImGui::GetColorU32(ImGuiCol_TextDisabled);
+  const ImVec2 bell_pos(right_x - bell_w + pad_x,
+                        cy - bell_sz.y * 0.5f);
+  dl->AddText(bell_pos, bell_col, bell_label.c_str());
+
+  auto& script_mgr = Engine::script_manager();
+  const bool compiling = script_mgr.IsCompiling();
+  const auto& compile = script_mgr.last_compile_result();
+  const char* state_text;
+  ImVec4 state_col;
+  if (compiling) {
+    state_text = "build: compiling";
+    state_col = ImVec4(1.0f, 0.65f, 0.15f, 1.0f);  // orange
+  } else if (!compile.success && !compile.output.empty()) {
+    state_text = "build: error";
+    state_col = ImVec4(0.9f, 0.25f, 0.25f, 1.0f);  // red
+  } else {
+    state_text = "build: ready";
+    state_col = ImVec4(0.35f, 0.78f, 0.40f, 1.0f);  // green
+  }
+  const float dot_r = ImGui::GetFontSize() * 0.28f;
+  const float sep_r = ImGui::GetFontSize() * 0.14f;
+
+  // Walk leftward from the bell: asset counter | dot | build status.
+  float rx = right_x - bell_w - pad_x;
+
+  const auto asset_stats = Engine::asset_manager().GetStats();
+  std::string asset_label =
+      "[" + std::to_string(asset_stats.loaded) + "/" +
+      std::to_string(asset_stats.total) + "]";
+  const ImVec2 asset_sz = ImGui::CalcTextSize(asset_label.c_str());
+  rx -= asset_sz.x;
+  dl->AddText(ImVec2(rx, cy - asset_sz.y * 0.5f), muted, asset_label.c_str());
+
+  rx -= pad_x + sep_r;
+  dl->AddCircleFilled(ImVec2(rx, cy), sep_r, muted);
+  rx -= sep_r + pad_x;
+
+  const ImVec2 text_sz = ImGui::CalcTextSize(state_text);
+  rx -= text_sz.x;
+  const ImVec2 text_pos(rx, cy - text_sz.y * 0.5f);
+  const ImVec2 dot_center(rx - pad_x - dot_r, cy);
+  dl->AddCircleFilled(dot_center, dot_r,
+                      ImGui::ColorConvertFloat4ToU32(state_col));
+  dl->AddText(text_pos, ImGui::ColorConvertFloat4ToU32(state_col),
+              state_text);
+
+  ImGui::SetWindowFontScale(1.0f);
+  ImGui::End();
+}
+
+void EditorLayer::RefreshGitBranch() {
+  git_branch_.clear();
+  if (!active_project_) {
+    return;
+  }
+  const std::string dir = active_project_->GetProjectDirectory().string();
+  std::string cmd =
+      "git -C \"" + dir + "\" branch --show-current 2>/dev/null";
+  FILE* pipe = ::popen(cmd.c_str(), "r");
+  if (!pipe) {
+    return;
+  }
+  char buf[256];
+  if (std::fgets(buf, sizeof(buf), pipe)) {
+    std::string line(buf);
+    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+      line.pop_back();
+    }
+    if (!line.empty()) {
+      git_branch_ = std::move(line);
+    }
+  }
+  ::pclose(pipe);
 }
 
 }  // namespace wiesel::editor

@@ -17,6 +17,7 @@
 #include "rendering/w_sprite.h"
 #include "scene/w_scene_manager.h"
 #include "script/w_scriptmanager.h"
+#include "util/imgui/w_imguiutil.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
@@ -38,7 +39,6 @@ static constexpr int kResolutionPresetCount =
     sizeof(kResolutionPresets) / sizeof(kResolutionPresets[0]);
 
 static constexpr float kResolutionComboWidth = 130.0f;
-static constexpr float kSettingsButtonWidth = 24.0f;
 
 // Helper: renders the contents of an "Add" entity menu.
 // If parent != entt::null, the entity is linked as a child.
@@ -107,24 +107,68 @@ void EditorLayer::RenderSceneViewportPanel() {
   if (scene_view_open) {
     ImGuiWindowFlags sceneFlags =
         ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     scene_panel_visible_ =
-        ImGui::Begin(CODICON_PREVIEW " Scene", &scene_view_open, sceneFlags);
+        ImGui::Begin(ICON_LC_EYE " Scene", &scene_view_open, sceneFlags);
+    ImGui::PopStyleVar();
     if (scene_panel_visible_) {
-      // --- Centered Play/Pause/Stop toolbar ---
       {
-        float toolbar_width = 70.0f;
-        float avail_w = ImGui::GetContentRegionAvail().x;
-        float settings_w = 30.0f;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                             (avail_w - toolbar_width) * 0.5f);
+        const ImVec2 pad = ImGui::GetStyle().WindowPadding;
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + pad.y);
+        ImGui::Indent(pad.x);
+        const float row_start_y = ImGui::GetCursorPosY();
+        // BeginToolbarGroup adds 2px of inner padding above/below the row.
+        const float row_height = ImGui::GetFrameHeight() + 4.0f;
 
+        ImGui::BeginToolbarGroup("##GizmoToolbar");
+        if (ImGui::ToolbarButton(ICON_LC_MOVE "##translate",
+                                 current_op_ == ImGuizmo::TRANSLATE))
+          current_op_ = ImGuizmo::TRANSLATE;
+        ImGui::SameLine();
+        if (ImGui::ToolbarButton(ICON_LC_ROTATE_CW "##rotate",
+                                 current_op_ == ImGuizmo::ROTATE))
+          current_op_ = ImGuizmo::ROTATE;
+        ImGui::SameLine();
+        if (ImGui::ToolbarButton(ICON_LC_SCALING "##scale",
+                                 current_op_ == ImGuizmo::SCALE))
+          current_op_ = ImGuizmo::SCALE;
+        ImGui::SameLine();
+        if (ImGui::ToolbarButton(current_mode_ == ImGuizmo::LOCAL
+                                     ? ICON_LC_HOUSE "##mode"
+                                     : ICON_LC_GLOBE "##mode"))
+          current_mode_ = (current_mode_ == ImGuizmo::LOCAL) ? ImGuizmo::WORLD
+                                                             : ImGuizmo::LOCAL;
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetTooltip(current_mode_ == ImGuizmo::LOCAL ? "Local"
+                                                             : "World");
+        }
+        ImGui::EndToolbarGroup();
+
+        // Centered play/pause group. SameLine first to stay on this row.
+        const float row_h = ImGui::GetFrameHeight();
+        const float play_w = 2.0f * row_h;
+        const float win_w = ImGui::GetWindowWidth();
+        ImGui::SameLine();
+        ImGui::SetCursorPosX((win_w - play_w) * 0.5f);
         DrawPlayStopButtons();
 
-        // ... settings button on the right
-        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - settings_w);
-        if (ImGui::Button(CODICON_ELLIPSIS "##SceneSettings")) {
+        const float settings_w = row_h;
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(win_w - settings_w - pad.x);
+        bool open_settings = false;
+        ImGui::BeginToolbarGroup("##SceneSettingsGroup");
+        if (ImGui::ToolbarButton(ICON_LC_ELLIPSIS "##SceneSettings")) {
+          open_settings = true;
+        }
+        ImGui::EndToolbarGroup();
+        if (open_settings) {
           ImGui::OpenPopup("SceneCameraSettings");
         }
+        ImGui::Unindent(pad.x);
+        // Jump to a known Y so the bottom gap is exact regardless of any
+        // trailing ItemSpacing the last widget contributed.
+        ImGui::SetCursorPosY(row_start_y + row_height + pad.y);
+        ImGui::FullWidthSeparator();
         if (ImGui::BeginPopup("SceneCameraSettings")) {
           ImGui::SeparatorText("Camera Mode");
           if (ImGui::RadioButton(
@@ -240,7 +284,36 @@ void EditorLayer::RenderSceneViewportPanel() {
           image_size.y = image_size.x / image_aspect;
         }
 
-        ImGui::Image(desc, image_size);
+        // Round only the image corners that touch the panel edge so the
+        // image is clipped by the panel's radius instead of poking past it.
+        {
+          const ImVec2 start = ImGui::GetCursorScreenPos();
+          const ImVec2 p_min = start;
+          const ImVec2 p_max(p_min.x + image_size.x, p_min.y + image_size.y);
+          const ImVec2 win_pos = ImGui::GetWindowPos();
+          const ImVec2 win_size = ImGui::GetWindowSize();
+          const float eps = 1.0f;
+          const bool at_bottom = p_max.y >= win_pos.y + win_size.y - eps;
+          const bool at_left = p_min.x <= win_pos.x + eps;
+          const bool at_right = p_max.x >= win_pos.x + win_size.x - eps;
+          ImDrawFlags corner_flags = ImDrawFlags_RoundCornersNone;
+          if (at_bottom && at_left) {
+            corner_flags |= ImDrawFlags_RoundCornersBottomLeft;
+          }
+          if (at_bottom && at_right) {
+            corner_flags |= ImDrawFlags_RoundCornersBottomRight;
+          }
+          ImDrawList* dl = ImGui::GetWindowDrawList();
+          if (corner_flags != ImDrawFlags_RoundCornersNone) {
+            dl->AddImageRounded(desc, p_min, p_max, ImVec2(0, 0),
+                                ImVec2(1, 1), IM_COL32_WHITE,
+                                ImGui::GetStyle().WindowRounding,
+                                corner_flags);
+            ImGui::Dummy(image_size);
+          } else {
+            ImGui::Image(desc, image_size);
+          }
+        }
 
         // Accept model asset drag-drop onto the viewport
         if (ImGui::BeginDragDropTarget()) {
@@ -256,67 +329,6 @@ void EditorLayer::RenderSceneViewportPanel() {
         ImVec2 image_min = ImGui::GetItemRectMin();
         ImVec2 image_max = ImGui::GetItemRectMax();
         bool scene_hovered = ImGui::IsItemHovered();
-
-        // Gizmo toolbar overlay (top-left of viewport image, vertical)
-        {
-          float overlay_x = image_min.x + 6;
-          float overlay_y = image_min.y + 6;
-
-          ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
-          ImGui::PushStyleColor(ImGuiCol_Button,
-                                ImVec4(0.15f, 0.15f, 0.15f, 0.8f));
-          ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                ImVec4(0.25f, 0.25f, 0.25f, 0.9f));
-          ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                ImVec4(0.35f, 0.35f, 0.35f, 1.0f));
-
-          auto gizmo_btn = [&](const char* label, bool active, float y) {
-            ImGui::SetCursorScreenPos(ImVec2(overlay_x, y));
-            if (active) {
-              ImGui::PushStyleColor(ImGuiCol_Button,
-                                    ImVec4(0.86f, 0.26f, 0.26f, 0.8f));
-            }
-            bool clicked = ImGui::Button(label);
-            if (active) {
-              ImGui::PopStyleColor();
-            }
-            return clicked;
-          };
-
-          float btn_h = ImGui::GetFrameHeight() + 2.0f;
-          float y = overlay_y;
-
-          if (gizmo_btn(CODICON_MOVE "##translate",
-                        current_op_ == ImGuizmo::TRANSLATE, y)) {
-            current_op_ = ImGuizmo::TRANSLATE;
-          }
-          y += btn_h;
-          if (gizmo_btn(CODICON_REFRESH "##rotate",
-                        current_op_ == ImGuizmo::ROTATE, y)) {
-            current_op_ = ImGuizmo::ROTATE;
-          }
-          y += btn_h;
-          if (gizmo_btn(CODICON_ARROW_BOTH "##scale",
-                        current_op_ == ImGuizmo::SCALE, y)) {
-            current_op_ = ImGuizmo::SCALE;
-          }
-          y += btn_h + 4.0f;  // extra gap before mode toggle
-          if (gizmo_btn(current_mode_ == ImGuizmo::LOCAL ? CODICON_HOME "##mode"
-                                                         : CODICON_GLOBE
-                            "##mode",
-                        false, y)) {
-            current_mode_ = (current_mode_ == ImGuizmo::LOCAL)
-                                ? ImGuizmo::WORLD
-                                : ImGuizmo::LOCAL;
-          }
-          if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip(current_mode_ == ImGuizmo::LOCAL ? "Local"
-                                                               : "World");
-          }
-
-          ImGui::PopStyleColor(3);
-          ImGui::PopStyleVar();
-        }
 
         // Right-click mouse look
         static bool scene_right_active = false;
@@ -627,65 +639,92 @@ void EditorLayer::RenderSceneViewportPanel() {
   }
 }
 
-void EditorLayer::RenderResolutionDropdown() {
-  float combo_width = kResolutionComboWidth;
-  float right_edge = ImGui::GetWindowContentRegionMax().x;
-  ImGui::SameLine(right_edge - combo_width);
-  ImGui::SetNextItemWidth(combo_width);
-  if (ImGui::BeginCombo("##GameResolution",
-                        kResolutionPresets[resolution_preset_index_].label)) {
-    for (int i = 0; i < kResolutionPresetCount; i++) {
-      bool selected = (i == resolution_preset_index_);
-      if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
-        resolution_preset_index_ = i;
-        for (const auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
-          loaded_scene->SetRenderResolution(kResolutionPresets[i].size);
-        }
-      }
-      if (selected) {
-        ImGui::SetItemDefaultFocus();
-      }
-    }
-    ImGui::EndCombo();
-  }
-}
-
 void EditorLayer::RenderGameViewportPanel() {
   Renderer* renderer = Engine::renderer().get();
 
   bool& game_view_open = panel_game_view_;
   if (game_view_open) {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     bool game_visible =
-        ImGui::Begin(CODICON_CAMERA_VIDEO " Game", &game_view_open);
+        ImGui::Begin(ICON_LC_CAMERA " Game", &game_view_open);
+    ImGui::PopStyleVar();
     game_panel_visible_ = game_visible;
     game_panel_focused_ = ImGui::IsWindowFocused();
     if (game_visible) {
-      float toolbar_width = 70.0f;
-      float avail_w = ImGui::GetContentRegionAvail().x;
-      ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                           (avail_w - toolbar_width) * 0.5f);
-      DrawPlayStopButtons();
-      RenderResolutionDropdown();
+      {
+        const ImVec2 pad = ImGui::GetStyle().WindowPadding;
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + pad.y);
+        ImGui::Indent(pad.x);
+        const float row_start_y = ImGui::GetCursorPosY();
+        const float row_height = ImGui::GetFrameHeight() + 4.0f;
+
+        // Centered play/pause group.
+        const float row_h = ImGui::GetFrameHeight();
+        const float play_w = 2.0f * row_h;
+        const float win_w = ImGui::GetWindowWidth();
+        ImGui::SetCursorPosX((win_w - play_w) * 0.5f);
+        DrawPlayStopButtons();
+
+        const float combo_w = kResolutionComboWidth;
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(win_w - combo_w - pad.x);
+        ImGui::SetNextItemWidth(combo_w);
+        const char* labels[kResolutionPresetCount];
+        for (int i = 0; i < kResolutionPresetCount; i++) {
+          labels[i] = kResolutionPresets[i].label;
+        }
+        int sel = resolution_preset_index_;
+        if (ImGui::Combo("##GameResolution", &sel, labels,
+                         kResolutionPresetCount)) {
+          resolution_preset_index_ = sel;
+          for (const auto& loaded_scene :
+               Engine::scene_manager().GetLoadedScenes()) {
+            loaded_scene->SetRenderResolution(kResolutionPresets[sel].size);
+          }
+        }
+        ImGui::Unindent(pad.x);
+        ImGui::SetCursorPosY(row_start_y + row_height + pad.y);
+        ImGui::FullWidthSeparator();
+      }
 
       {
-        // Check if any camera exists across all loaded scenes
+        const glm::vec2 desired_res =
+            kResolutionPresets[resolution_preset_index_].size;
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+
+        // Sync resolution + find first enabled camera in a single pass.
         bool has_camera = false;
-        for (auto& loaded_scene : Engine::scene_manager().GetLoadedScenes()) {
+        for (const auto& loaded_scene :
+             Engine::scene_manager().GetLoadedScenes()) {
+          if (loaded_scene->GetRenderResolution() != desired_res) {
+            loaded_scene->SetRenderResolution(desired_res);
+          }
           for (auto entity :
                loaded_scene->GetAllEntitiesWith<CameraComponent>()) {
             auto& cam = loaded_scene->GetComponent<CameraComponent>(entity);
-            if (cam.enabled) {
-              has_camera = true;
-              break;
+            if (!cam.enabled) {
+              continue;
             }
-          }
-          if (has_camera) {
+            has_camera = true;
+            // Free Aspect: camera tracks panel size.
+            if (desired_res.x <= 0) {
+              uint32_t w = static_cast<uint32_t>(avail.x);
+              uint32_t h = static_cast<uint32_t>(avail.y);
+              if (w > 0 && h > 0 &&
+                  (w != static_cast<uint32_t>(cam.viewport_size.x) ||
+                   h != static_cast<uint32_t>(cam.viewport_size.y))) {
+                cam.viewport_size = {w, h};
+                cam.aspect_ratio =
+                    static_cast<float>(w) / static_cast<float>(h);
+                cam.view_changed = true;
+                cam.resource_pipeline_version = 0;
+              }
+            }
             break;
           }
         }
 
         if (!has_camera) {
-          ImVec2 avail = ImGui::GetContentRegionAvail();
           const char* text = "No camera in scene";
           ImVec2 textSize = ImGui::CalcTextSize(text);
           ImGui::SetCursorPos(
@@ -693,33 +732,6 @@ void EditorLayer::RenderGameViewportPanel() {
                      ImGui::GetCursorPosY() + (avail.y - textSize.y) * 0.5f));
           ImGui::TextDisabled("%s", text);
         } else {
-          ImVec2 avail = ImGui::GetContentRegionAvail();
-          if (scene()->GetRenderResolution().x <= 0) {
-            // Free Aspect: game camera tracks panel size
-            for (auto& loaded_Scene :
-                 Engine::scene_manager().GetLoadedScenes()) {
-              for (auto entity :
-                   loaded_Scene->GetAllEntitiesWith<CameraComponent>()) {
-                auto& cam = loaded_Scene->GetComponent<CameraComponent>(entity);
-                if (!cam.enabled) {
-                  continue;
-                }
-                uint32_t w = static_cast<uint32_t>(avail.x);
-                uint32_t h = static_cast<uint32_t>(avail.y);
-                if (w > 0 && h > 0 &&
-                    (w != static_cast<uint32_t>(cam.viewport_size.x) ||
-                     h != static_cast<uint32_t>(cam.viewport_size.y))) {
-                  cam.viewport_size = {w, h};
-                  cam.aspect_ratio =
-                      static_cast<float>(w) / static_cast<float>(h);
-                  cam.view_changed = true;
-                  cam.resource_pipeline_version = 0;
-                }
-                break;
-              }
-            }
-          }
-
           auto final_output_desc = renderer->GetFinalOutputDescriptor();
           auto final_output_image = renderer->GetFinalOutputImage();
           if (final_output_desc && final_output_image) {
@@ -739,10 +751,43 @@ void EditorLayer::RenderGameViewportPanel() {
               draw_size.x = avail.x;
               draw_size.y = draw_size.x / image_aspect;
             }
-            ImGui::Image(game_desc, draw_size);
 
-            ImVec2 image_min = ImGui::GetItemRectMin();
-            ImVec2 image_max = ImGui::GetItemRectMax();
+            // Center the image in the available area.
+            const ImVec2 start = ImGui::GetCursorScreenPos();
+            const ImVec2 image_min(start.x + (avail.x - draw_size.x) * 0.5f,
+                                   start.y + (avail.y - draw_size.y) * 0.5f);
+            const ImVec2 image_max(image_min.x + draw_size.x,
+                                   image_min.y + draw_size.y);
+
+            // Round only the image corners that touch the panel edge so
+            // the panel's border radius clips them; smaller images stay
+            // fully rectangular.
+            const ImVec2 win_pos = ImGui::GetWindowPos();
+            const ImVec2 win_size = ImGui::GetWindowSize();
+            const float eps = 1.0f;
+            const bool at_bottom =
+                image_max.y >= win_pos.y + win_size.y - eps;
+            const bool at_left = image_min.x <= win_pos.x + eps;
+            const bool at_right =
+                image_max.x >= win_pos.x + win_size.x - eps;
+            ImDrawFlags corner_flags = ImDrawFlags_RoundCornersNone;
+            if (at_bottom && at_left) {
+              corner_flags |= ImDrawFlags_RoundCornersBottomLeft;
+            }
+            if (at_bottom && at_right) {
+              corner_flags |= ImDrawFlags_RoundCornersBottomRight;
+            }
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            if (corner_flags != ImDrawFlags_RoundCornersNone) {
+              dl->AddImageRounded(game_desc, image_min, image_max,
+                                  ImVec2(0, 0), ImVec2(1, 1),
+                                  IM_COL32_WHITE,
+                                  ImGui::GetStyle().WindowRounding,
+                                  corner_flags);
+            } else {
+              dl->AddImage(game_desc, image_min, image_max);
+            }
+            ImGui::Dummy(avail);
 
             // Set viewport origin and display size for UI hit testing
             // on all loaded scenes (UI may live in an additive scene)
@@ -751,14 +796,14 @@ void EditorLayer::RenderGameViewportPanel() {
               s->SetViewportDisplaySize({draw_size.x, draw_size.y});
             }
 
-            // FPS overlay (top-left)
+            // FPS overlay (top-left of image)
             ImVec2 text_pos = ImVec2(image_min.x + 6, image_min.y + 6);
             std::string fpsStr =
                 std::format("FPS: {}", static_cast<int>(app_.GetFPS()));
             ImGui::GetWindowDrawList()->AddText(
                 text_pos, IM_COL32(0, 255, 0, 255), fpsStr.c_str());
 
-            // Resolution overlay (top-right)
+            // Resolution overlay (top-right of image)
             std::string res_str =
                 std::format("{}x{}", final_output_image->width_,
                             final_output_image->height_);
@@ -777,53 +822,79 @@ void EditorLayer::RenderGameViewportPanel() {
 
 bool EditorLayer::DrawPlayStopButtons() {
   bool changed = false;
-  if (editor_state_ == EditorState::Edit) {
-    // Play button
-    bool compiling = Engine::script_manager().IsCompiling();
-    if (compiling) {
-      ImGui::BeginDisabled();
-    }
-    if (ImGui::Button(CODICON_PLAY "##play")) {
+  ImGui::BeginToolbarGroup("##PlayToolbar");
+
+  const bool is_playing = (editor_state_ == EditorState::Playing);
+  const bool is_paused = (editor_state_ == EditorState::Paused);
+  const bool is_edit = (editor_state_ == EditorState::Edit);
+  const auto& compile_result = Engine::script_manager().last_compile_result();
+  const bool compiling = Engine::script_manager().IsCompiling();
+  const bool has_script_error =
+      !compiling && !compile_result.success && !compile_result.output.empty();
+
+  // Active-red: red icon + dim red bg, for Playing/Paused indication.
+  const ImVec4 kAccentRed = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
+  auto push_red = [&]() {
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                          ImVec4(kAccentRed.x, kAccentRed.y, kAccentRed.z,
+                                 0.22f));
+    ImGui::PushStyleColor(ImGuiCol_Text, kAccentRed);
+  };
+
+  // Play toggles Edit->Playing / Playing->stop / Paused->resume. Disabled
+  // while compiling or when a compile error would block running.
+  if (is_edit && (compiling || has_script_error)) {
+    ImGui::BeginDisabled();
+  }
+  if (is_playing) {
+    push_red();
+  }
+  if (ImGui::ToolbarButton(ICON_LC_PLAY "##play", is_playing)) {
+    if (is_edit) {
       AutoSave();
       TakeSnapshot();
       editor_state_ = EditorState::Playing;
       scene()->ResetFirstUpdate();
-      ImGui::SetWindowFocus(CODICON_CAMERA_VIDEO " Game");
-      changed = true;
-    }
-    if (compiling) {
-      ImGui::EndDisabled();
-    }
-    // Pause disabled in edit mode
-    ImGui::SameLine();
-    ImGui::BeginDisabled();
-    ImGui::Button(CODICON_PAUSE "##pause");
-    ImGui::EndDisabled();
-  } else if (editor_state_ == EditorState::Playing) {
-    // Stop button
-    if (ImGui::Button(CODICON_STOP "##stop")) {
+      ImGui::SetWindowFocus(ICON_LC_CAMERA " Game");
+    } else if (is_playing) {
       deferred_action_ = DeferredAction::StopPlaying;
-      changed = true;
-    }
-    // Pause button
-    ImGui::SameLine();
-    if (ImGui::Button(CODICON_PAUSE "##pause")) {
-      editor_state_ = EditorState::Paused;
-      changed = true;
-    }
-  } else if (editor_state_ == EditorState::Paused) {
-    // Stop button
-    if (ImGui::Button(CODICON_STOP "##stop")) {
-      deferred_action_ = DeferredAction::StopPlaying;
-      changed = true;
-    }
-    // Resume (play) button
-    ImGui::SameLine();
-    if (ImGui::Button(CODICON_PLAY "##resume")) {
+    } else if (is_paused) {
       editor_state_ = EditorState::Playing;
-      changed = true;
     }
+    changed = true;
   }
+  if (is_playing) {
+    ImGui::PopStyleColor(2);
+  }
+  if (is_edit && (compiling || has_script_error)) {
+    ImGui::EndDisabled();
+  }
+
+  ImGui::SameLine();
+
+  // Pause is disabled in Edit; pressing while Paused resumes.
+  if (is_edit) {
+    ImGui::BeginDisabled();
+  }
+  if (is_paused) {
+    push_red();
+  }
+  if (ImGui::ToolbarButton(ICON_LC_PAUSE "##pause", is_paused)) {
+    if (is_playing) {
+      editor_state_ = EditorState::Paused;
+    } else if (is_paused) {
+      editor_state_ = EditorState::Playing;
+    }
+    changed = true;
+  }
+  if (is_paused) {
+    ImGui::PopStyleColor(2);
+  }
+  if (is_edit) {
+    ImGui::EndDisabled();
+  }
+
+  ImGui::EndToolbarGroup();
   return changed;
 }
 

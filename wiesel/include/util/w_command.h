@@ -10,23 +10,27 @@
 
 #pragma once
 
+#include "util/w_command_parser.h"
 #include "w_pch.h"
 
 namespace wiesel {
 
-enum class ConsoleLogLevel { Info, Warning, Error };
+enum class ConsoleLogLevel { UserInput, Info, Warning, Error };
 
 struct ConsoleLine {
   ConsoleLogLevel level;
   std::string text;
+  // Optional call-stack / context that the console panel renders below
+  // the message in a selectable block when non-empty.
+  std::string stack_trace;
 };
 
-using CommandCallback =
-    std::function<void(const std::vector<std::string>& args)>;
+using CommandCallback = std::function<void(const CommandContext&)>;
 
 struct CommandEntry {
   std::string name;
   std::string description;
+  std::vector<Param> params;
   CommandCallback callback;
 };
 
@@ -39,39 +43,49 @@ class DeveloperConsole {
   static DeveloperConsole& Get();
 
   void Register(const std::string& name, const std::string& description,
-                CommandCallback callback);
+                std::vector<Param> params, CommandCallback callback);
+  void Register(const std::string& name, const std::string& description,
+                CommandCallback callback) {
+    Register(name, description, {}, std::move(callback));
+  }
   void Unregister(const std::string& name);
   void Execute(const std::string& command_line);
 
-  void Log(ConsoleLogLevel level, const std::string& message);
+  // Lookup for autocomplete / help UIs.
+  const CommandEntry* Find(const std::string& name) const;
 
-  void LogInfo(const std::string& message) {
-    Log(ConsoleLogLevel::Info, message);
+  void Log(ConsoleLogLevel level, const std::string& message,
+           std::string stack_trace = "");
+
+  void LogInfo(const std::string& message, std::string stack_trace = "") {
+    Log(ConsoleLogLevel::Info, message, std::move(stack_trace));
   }
-
-  void LogWarning(const std::string& message) {
-    Log(ConsoleLogLevel::Warning, message);
+  void LogWarning(const std::string& message,
+                  std::string stack_trace = "") {
+    Log(ConsoleLogLevel::Warning, message, std::move(stack_trace));
   }
-
-  void LogError(const std::string& message) {
-    Log(ConsoleLogLevel::Error, message);
+  void LogError(const std::string& message, std::string stack_trace = "") {
+    Log(ConsoleLogLevel::Error, message, std::move(stack_trace));
   }
 
   void Clear();
 
   const std::vector<ConsoleLine>& GetLog() const { return log_; }
-
+  // Thread-safe snapshot — callers that iterate across a frame should
+  // use this so background threads pushing new lines can't invalidate
+  // the iterator mid-read.
+  std::vector<ConsoleLine> SnapshotLog() {
+    std::lock_guard lock(mutex_);
+    return log_;
+  }
   const std::map<std::string, CommandEntry>& GetCommands() const {
     return commands_;
   }
 
  private:
-  std::vector<std::string> Tokenize(const std::string& command_line);
-
   std::map<std::string, CommandEntry> commands_;
   std::vector<ConsoleLine> log_;
   std::mutex mutex_;
-
   bool visible_ = false;
 };
 

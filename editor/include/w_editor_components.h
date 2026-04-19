@@ -35,4 +35,9 @@ void SetInspectorCommandStack(editor::CommandStack* stack);
 void RenderExistingComponents(Entity entity);
 void RenderModals(Entity entity);
 void RenderAddPopup(Entity entity);
+
+// Returns the icon (UTF-8 glyph) of the highest-priority component on the
+// entity, or an empty string if no component on the entity has an icon.
+// Priority ties are broken by registration order (later wins).
+std::string_view GetEntityIcon(Entity entity);
 }  // namespace wiesel

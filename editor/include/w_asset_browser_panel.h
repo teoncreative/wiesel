@@ -55,6 +55,10 @@ class AssetBrowserPanel {
   // Current scene path tracking (for rename/move awareness)
   std::string current_scene_path;
 
+  // Navigate the browser to the folder containing `vfs_path` and select
+  // the file. Useful for the command palette's "jump to asset" action.
+  void RevealAsset(const std::string& vfs_path);
+
  private:
   VfsBrowser browser_;
   AssetBrowserCallbacks callbacks_;
@@ -65,6 +69,7 @@ class AssetBrowserPanel {
   char rename_buf_[256] = {};
   char new_folder_name_[128] = {};
   char new_script_name_[128] = {};
+  char search_[128] = {};
   bool open_script_popup_ = false;
   bool open_folder_popup_ = false;
 };

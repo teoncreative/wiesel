@@ -37,6 +37,7 @@
 #include "w_asset_browser_panel.h"
 #include "w_lsp_autocomplete.h"
 #include "w_lsp_client.h"
+#include "w_command_palette.h"
 #include "w_notifications.h"
 #include "w_project.h"
 #include "w_undo.h"
@@ -138,8 +139,10 @@ class EditorLayer : public Layer {
   void RenderRenderStatsPanel();
   void RenderUndoHistoryPanel();
   void RenderSceneViewportPanel();
-  void RenderResolutionDropdown();
   void RenderGameViewportPanel();
+  void RenderInfoBar();
+  void RefreshGitBranch();
+  void RegisterPaletteCommands();
   bool DrawPlayStopButtons();
 
   Application& app_;
@@ -149,6 +152,13 @@ class EditorLayer : public Layer {
   CommandStack command_stack_;
   std::string status_toast_text_;
   float status_toast_timer_ = 0.0f;
+
+  // Cached git branch for the active project (empty if git is unavailable
+  // or the project root is not a git repo). Refreshed on project load.
+  std::string git_branch_;
+
+  // Command palette (Ctrl+Shift+K).
+  CommandPalette command_palette_;
   static constexpr float kStatusToastDuration = 1.5f;
   void ShowStatusToast(const std::string& text);
   void PerformUndo();

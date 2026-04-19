@@ -11,10 +11,13 @@
 #include "w_asset_browser_panel.h"
 
 #include <imgui.h>
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
+#include "util/imgui/w_imguiutil.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
 #include "w_editor_icons.h"
@@ -22,6 +25,29 @@
 #include "w_project_loader.h"
 
 namespace wiesel::editor {
+
+void AssetBrowserPanel::RevealAsset(const std::string& vfs_path) {
+  // Split a vfs path like "app://models/chair/chair.gltf" into the root
+  // ("app://"), the relative directory ("models/chair/") and the file
+  // name ("chair.gltf"), then point the browser there.
+  const size_t scheme_end = vfs_path.find("://");
+  if (scheme_end == std::string::npos) {
+    return;
+  }
+  std::string root = vfs_path.substr(0, scheme_end + 3);
+  std::string rest = vfs_path.substr(scheme_end + 3);
+  const size_t last_slash = rest.find_last_of('/');
+  std::string dir =
+      (last_slash == std::string::npos) ? "" : rest.substr(0, last_slash + 1);
+  std::string file = (last_slash == std::string::npos)
+                         ? rest
+                         : rest.substr(last_slash + 1);
+
+  browser_.SetRoot(root);
+  browser_.SetCurrentDir(dir);
+  browser_.Invalidate();
+  selected_file_ = file;
+}
 
 void AssetBrowserPanel::SetCallbacks(AssetBrowserCallbacks callbacks) {
   callbacks_ = std::move(callbacks);
@@ -31,7 +57,7 @@ void AssetBrowserPanel::Render(bool& open) {
   if (!open) {
     return;
   }
-  if (!ImGui::Begin(CODICON_FOLDER_OPENED " Asset Browser", &open)) {
+  if (!ImGui::Begin(ICON_LC_FOLDER_OPEN " Asset Browser", &open)) {
     ImGui::End();
     return;
   }
@@ -48,15 +74,17 @@ void AssetBrowserPanel::Render(bool& open) {
   }
 
   if (!read_only) {
-    // Import button
+    const ImVec4 muted = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
+    ImGui::PushStyleColor(ImGuiCol_Text, muted);
     ImGui::SameLine();
-    if (ImGui::Button("+ Import")) {
+    if (ImGui::Button(ICON_LC_IMPORT "  Import")) {
       ImGui::OpenPopup("ImportAssetPopup");
     }
     ImGui::SameLine();
-    if (ImGui::Button("+ Folder")) {
+    if (ImGui::Button(ICON_LC_FOLDER_PLUS "  Folder")) {
       ImGui::OpenPopup("NewFolderPopup");
     }
+    ImGui::PopStyleColor();
   }
 
   // New folder popup
@@ -172,23 +200,64 @@ void AssetBrowserPanel::Render(bool& open) {
     ImGui::EndPopup();
   }
 
-  // Tile size slider
-  ImGui::SameLine(ImGui::GetContentRegionAvail().x - 100);
-  ImGui::SetNextItemWidth(100);
-  ImGui::SliderFloat("##tilesize", &browser_.tile_size, 48.0f, 128.0f, "");
+  // Search + tile size slider share one row, slider pinned to the right.
+  {
+    ImGui::SameLine();
+    const float slider_w = 100.0f;
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float avail = ImGui::GetContentRegionAvail().x;
+    ImGui::SetNextItemWidth(std::max(avail - slider_w - spacing, 50.0f));
+    ImGui::InputTextWithHint("##AssetSearch",
+                             ICON_LC_SEARCH "  Search assets...", search_,
+                             sizeof(search_));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(slider_w);
+    ImGui::SliderFloat("##tilesize", &browser_.tile_size, 48.0f, 128.0f, "");
+  }
 
-  ImGui::Separator();
+  ImGui::FullWidthSeparator();
+  // Slight gap between the separator and the grid below.
+  ImGui::Dummy(ImVec2(0.0f, ImGui::GetStyle().WindowPadding.y));
+
+  // Filter entries by case-insensitive substring match on name.
+  const bool has_search = search_[0] != '\0';
+  std::string search_lower;
+  if (has_search) {
+    search_lower = search_;
+    std::transform(search_lower.begin(), search_lower.end(),
+                   search_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+  }
+  std::vector<const BrowserEntry*> filtered;
+  filtered.reserve(entries.size());
+  for (const auto& e : entries) {
+    if (!has_search) {
+      filtered.push_back(&e);
+      continue;
+    }
+    std::string lower = e.name;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (lower.find(search_lower) != std::string::npos) {
+      filtered.push_back(&e);
+    }
+  }
 
   // Content area
   if (ImGui::BeginChild("asset_content", ImVec2(0, 0), ImGuiChildFlags_None)) {
     browser_.BeginTileGrid();
     int columns = browser_.grid_columns();
 
-    // ".." back folder counts as one item in the grid
-    bool has_back = !browser_.current_dir().empty() || !browser_.IsAtTopLevel();
-    int total_items = static_cast<int>(entries.size()) + (has_back ? 1 : 0);
-    float row_height =
-        browser_.tile_size + 20.0f + ImGui::GetStyle().ItemSpacing.y;
+    // ".." back folder counts as one item in the grid.
+    // Hide it while filtering since navigation isn't the user's intent.
+    bool has_back = !has_search &&
+                    (!browser_.current_dir().empty() || !browser_.IsAtTopLevel());
+    int total_items = static_cast<int>(filtered.size()) + (has_back ? 1 : 0);
+    // Must stay in sync with the outer-box height in VfsBrowser::DrawTile():
+    //   outer_h = tile_size*0.5 + 2*inner_pad(6) + label_pad(4) + text_line_h.
+    float row_height = browser_.tile_size * 0.5f + 16.0f +
+                       ImGui::GetTextLineHeight() +
+                       ImGui::GetStyle().ItemSpacing.y;
     int total_rows = (total_items + columns - 1) / columns;
 
     // Determine visible row range from scroll position
@@ -264,7 +333,7 @@ void AssetBrowserPanel::Render(bool& open) {
     // File and directory tiles - only iterate visible range
     int entry_offset = has_back ? 1 : 0;
     int first_entry = std::max(0, first_visible_item - entry_offset);
-    int last_entry = std::min(static_cast<int>(entries.size()),
+    int last_entry = std::min(static_cast<int>(filtered.size()),
                               last_visible_item - entry_offset);
 
     // If the ".." tile is visible but the first few entries start mid-row,
@@ -281,7 +350,7 @@ void AssetBrowserPanel::Render(bool& open) {
     }
 
     for (int i = first_entry; i < last_entry; i++) {
-      const auto& fe = entries[i];
+      const auto& fe = *filtered[i];
       bool is_sel = selected_file_ == fe.name;
       bool dbl_clicked = false;
 

@@ -798,11 +798,34 @@ namespace WieselEngine
 
         // Console Manager
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ConsoleManager_RegisterCommand(string name, string description, System.Action<string[]> callback);
+        public static extern void ConsoleManager_RegisterCommand(
+            string name, string description,
+            string[] paramNames, int[] paramTypes,
+            bool[] paramOptionals, string[] paramDefaults,
+            System.Action<System.IntPtr> callback);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void ConsoleManager_UnregisterCommand(string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void ConsoleManager_Execute(string commandLine);
+
+        // CommandContext typed accessors (native pointer, valid only
+        // during the callback). Mirrors the C++ side.
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern int CommandContext_Int(System.IntPtr ctx, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern float CommandContext_Float(System.IntPtr ctx, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool CommandContext_Bool(System.IntPtr ctx, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern string CommandContext_String(System.IntPtr ctx, string name);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void CommandContext_Vec2(System.IntPtr ctx, string name, out Vector2 outValue);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void CommandContext_Vec3(System.IntPtr ctx, string name, out Vector3 outValue);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void CommandContext_Vec4(System.IntPtr ctx, string name, out Vector4 outValue);
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern bool CommandContext_Has(System.IntPtr ctx, string name);
 
         // Debug Logging
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

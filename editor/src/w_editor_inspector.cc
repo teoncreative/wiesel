@@ -17,6 +17,7 @@
 #include "scene/w_scene.h"
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
+#include "util/imgui/w_imguiutil.h"
 #include "w_editor_components.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
@@ -29,7 +30,7 @@ void EditorLayer::RenderInspectorPanel() {
   if (!open) {
     return;
   }
-  if (ImGui::Begin(CODICON_INSPECT " Inspector", &open)) {
+  if (ImGui::Begin(ICON_LC_SQUARE_MOUSE_POINTER " Inspector", &open)) {
     Entity selected_entity = selected_entity_.Resolve();
     if (selected_entity) {
       inspector_mode_ = InspectorMode::Entity;
@@ -182,18 +183,48 @@ void EditorLayer::RenderEntityInspector(Entity selected_entity) {
     }
   }
 
-  ImGui::SameLine();
-  if (ImGui::Button("Add")) {
+  RenderModals(selected_entity);
+  SetInspectorCommandStack(&command_stack_);
+  RenderExistingComponents(selected_entity);
+  SetInspectorCommandStack(nullptr);
+
+  // "+ Add Component" button at the bottom: full content width, dashed
+  // border by default, solid border + highlight + brighter text on hover.
+  ImGui::Spacing();
+  const ImVec2 btn_size(
+      ImGui::GetContentRegionAvail().x,
+      ImGui::GetFrameHeight() + ImGui::GetStyle().FramePadding.y);
+  const ImVec2 btn_pos = ImGui::GetCursorScreenPos();
+  const bool clicked = ImGui::InvisibleButton("##AddComponentBtn", btn_size);
+  const bool hovered = ImGui::IsItemHovered();
+  const ImVec2 p_max(btn_pos.x + btn_size.x, btn_pos.y + btn_size.y);
+  const float rounding = ImGui::GetStyle().FrameRounding;
+  ImDrawList* dl = ImGui::GetWindowDrawList();
+  if (hovered) {
+    dl->AddRectFilled(btn_pos, p_max,
+                      ImGui::GetColorU32(ImGuiCol_ButtonHovered), rounding);
+    dl->AddRect(btn_pos, p_max, ImGui::GetColorU32(ImGuiCol_Border), rounding,
+                0, 1.0f);
+  } else {
+    ImGui::DashedRectRounded(dl, btn_pos, p_max,
+                             ImGui::GetColorU32(ImGuiCol_Border), rounding,
+                             1.0f, 4.0f, 3.0f);
+  }
+  const char* label = ICON_LC_PLUS "  Add Component";
+  const ImVec2 text_sz = ImGui::CalcTextSize(label);
+  const ImVec2 text_pos(btn_pos.x + (btn_size.x - text_sz.x) * 0.5f,
+                        btn_pos.y + (btn_size.y - text_sz.y) * 0.5f);
+  const ImU32 text_col =
+      hovered ? ImGui::GetColorU32(ImGuiCol_Text)
+              : ImGui::GetColorU32(ImGuiCol_TextDisabled);
+  dl->AddText(text_pos, text_col, label);
+  if (clicked) {
     ImGui::OpenPopup("add_component_popup");
   }
-  RenderModals(selected_entity);
   if (ImGui::BeginPopup("add_component_popup")) {
     RenderAddPopup(selected_entity);
     ImGui::EndPopup();
   }
-  SetInspectorCommandStack(&command_stack_);
-  RenderExistingComponents(selected_entity);
-  SetInspectorCommandStack(nullptr);
 }
 
 }  // namespace wiesel::editor

@@ -290,6 +290,7 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   Engine::SetGameInfo(
       std::make_shared<GameInfo>(active_project_->GetGameInfo()));
   std::shared_ptr<Project> project = active_project_;
+  RefreshGitBranch();
 
   // Remove startup FPS cap now that a project is loaded
   app_.SetMaxFPS(0.0f);

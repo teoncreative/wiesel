@@ -2335,6 +2335,9 @@ void Renderer::CreateSwapChain() {
   vkGetSwapchainImagesKHR(logical_device_, swap_chain_, &image_count,
                           swap_chain_images.data());
   swap_chain_image_format_ = surface_format.format;
+  LOG_INFO("Swap chain surface: format={} colorSpace={}",
+           static_cast<int>(surface_format.format),
+           static_cast<int>(surface_format.colorSpace));
 
   aspect_ratio_ = extent_.width / (float)extent_.height;
   window_size_.width = extent_.width;
@@ -3468,8 +3471,15 @@ static void CheckMeshRendererTextureChanges(
 template <typename T>
 static void UploadMeshRendererUbo(T& mr, const TransformComponent& transform,
                                   bool shadow_pass, entt::entity entity_handle,
-                                  uint32_t scene_index) {
+                                  uint32_t scene_index,
+                                  uint64_t frame_counter) {
   if (shadow_pass) {
+    // Shadow passes run WIESEL_SHADOW_CASCADE_COUNT times per frame with the
+    // same transform data; only upload once per frame.
+    if (mr.last_shadow_upload_frame == frame_counter) {
+      return;
+    }
+    mr.last_shadow_upload_frame = frame_counter;
     glm::mat4 model_matrix = transform.GetTransformMatrix();
     memcpy(mr.ubo->data_, &model_matrix, sizeof(glm::mat4));
   } else {
@@ -3526,7 +3536,7 @@ void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
 
   CheckMeshRendererTextureChanges(this, mr, material);
   UploadMeshRendererUbo(mr, transform, shadow_pass, entity_handle,
-                        current_scene_index_);
+                        current_scene_index_, frame_counter_);
 
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
   auto global_desc =
@@ -3569,7 +3579,7 @@ void Renderer::DrawSkinnedMeshRenderer(
 
   CheckMeshRendererTextureChanges(this, mr, material);
   UploadMeshRendererUbo(mr, transform, shadow_pass, entity_handle,
-                        current_scene_index_);
+                        current_scene_index_, frame_counter_);
 
   std::shared_ptr<DescriptorSet> bone_desc = identity_bone_descriptor_;
   if (skel && skel->bone_descriptor) {

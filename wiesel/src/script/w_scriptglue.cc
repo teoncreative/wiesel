@@ -2270,9 +2270,14 @@ MonoObject* Internals_SceneManager_MoveEntityToScene(uint64_t scene_ptr,
                                                      new_entity.handle());
 }
 
-// Console
+// Console. C# passes each parameter as parallel arrays:
+// (name, type [ParamType enum as int], optional, default_tokens).
 void Internals_ConsoleManager_RegisterCommand(MonoString* name,
                                               MonoString* description,
+                                              MonoArray* param_names,
+                                              MonoArray* param_types,
+                                              MonoArray* param_optionals,
+                                              MonoArray* param_defaults,
                                               MonoObject* callback) {
   char* name_cstr = mono_string_to_utf8(name);
   char* desc_cstr = mono_string_to_utf8(description);
@@ -2281,29 +2286,109 @@ void Internals_ConsoleManager_RegisterCommand(MonoString* name,
   mono_free(name_cstr);
   mono_free(desc_cstr);
 
+  std::vector<Param> params;
+  const uintptr_t count = param_names ? mono_array_length(param_names) : 0;
+  params.reserve(count);
+  for (uintptr_t i = 0; i < count; i++) {
+    Param p;
+    MonoString* pn = mono_array_get(param_names, MonoString*, i);
+    MonoString* pd = mono_array_get(param_defaults, MonoString*, i);
+    char* pn_c = mono_string_to_utf8(pn);
+    char* pd_c = mono_string_to_utf8(pd);
+    p.name = pn_c;
+    p.default_tokens = pd_c;
+    mono_free(pn_c);
+    mono_free(pd_c);
+    p.type = static_cast<ParamType>(mono_array_get(param_types, int, i));
+    p.optional = mono_array_get(param_optionals, uint8_t, i) != 0;
+    params.push_back(std::move(p));
+  }
+
   uint32_t gc_handle = mono_gchandle_new(callback, true);
 
   // Todo we need an handle so we can delete this command when the script dies
   DeveloperConsole::Get().Register(
-      name_str, desc_str, [gc_handle](const std::vector<std::string>& args) {
+      name_str, desc_str, std::move(params),
+      [gc_handle](const CommandContext& ctx) {
         MonoObject* delegate = mono_gchandle_get_target(gc_handle);
         if (!delegate) {
           return;
         }
-
-        MonoDomain* domain = mono_domain_get();
-        MonoArray* mono_args =
-            mono_array_new(domain, mono_get_string_class(), args.size());
-        for (size_t i = 0; i < args.size(); i++) {
-          mono_array_set(mono_args, MonoString*, i,
-                         mono_string_new(domain, args[i].c_str()));
-        }
-
-        void* invoke_args[1] = {mono_args};
+        // Opaque context handle; C# calls back into typed getters with it.
+        const CommandContext* ctx_ptr = &ctx;
+        void* invoke_args[1] = {&ctx_ptr};
         MonoMethod* invoke_method =
             mono_get_delegate_invoke(mono_object_get_class(delegate));
         InvokeSafe(invoke_method, delegate, invoke_args, nullptr);
       });
+}
+
+// CommandContext bindings. The `ctx` pointer is only valid for the
+// duration of the C# Action it was passed to.
+
+int Internals_CommandContext_Int(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return 0;
+  char* c = mono_string_to_utf8(name);
+  int v = ctx->Int(c);
+  mono_free(c);
+  return v;
+}
+
+float Internals_CommandContext_Float(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return 0.0f;
+  char* c = mono_string_to_utf8(name);
+  float v = ctx->Float(c);
+  mono_free(c);
+  return v;
+}
+
+bool Internals_CommandContext_Bool(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return false;
+  char* c = mono_string_to_utf8(name);
+  bool v = ctx->Bool(c);
+  mono_free(c);
+  return v;
+}
+
+MonoString* Internals_CommandContext_String(CommandContext* ctx,
+                                            MonoString* name) {
+  if (!ctx) return mono_string_new(mono_domain_get(), "");
+  char* c = mono_string_to_utf8(name);
+  const std::string& s = ctx->String(c);
+  mono_free(c);
+  return mono_string_new(mono_domain_get(), s.c_str());
+}
+
+void Internals_CommandContext_Vec2(CommandContext* ctx, MonoString* name,
+                                   glm::vec2* out) {
+  if (!ctx || !out) return;
+  char* c = mono_string_to_utf8(name);
+  *out = ctx->Vec2(c);
+  mono_free(c);
+}
+
+void Internals_CommandContext_Vec3(CommandContext* ctx, MonoString* name,
+                                   glm::vec3* out) {
+  if (!ctx || !out) return;
+  char* c = mono_string_to_utf8(name);
+  *out = ctx->Vec3(c);
+  mono_free(c);
+}
+
+void Internals_CommandContext_Vec4(CommandContext* ctx, MonoString* name,
+                                   glm::vec4* out) {
+  if (!ctx || !out) return;
+  char* c = mono_string_to_utf8(name);
+  *out = ctx->Vec4(c);
+  mono_free(c);
+}
+
+bool Internals_CommandContext_Has(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return false;
+  char* c = mono_string_to_utf8(name);
+  bool v = ctx->Has(c);
+  mono_free(c);
+  return v;
 }
 
 void Internals_ConsoleManager_UnregisterCommand(MonoString* name) {
@@ -3204,6 +3289,14 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(ConsoleManager_RegisterCommand);
   WIESEL_ADD_INTERNAL_CALL(ConsoleManager_UnregisterCommand);
   WIESEL_ADD_INTERNAL_CALL(ConsoleManager_Execute);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Int);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Float);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Bool);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_String);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Vec2);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Vec3);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Vec4);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Has);
   WIESEL_ADD_INTERNAL_CALL(Debug_Log);
   WIESEL_ADD_INTERNAL_CALL(Debug_LogWarning);
   WIESEL_ADD_INTERNAL_CALL(Debug_LogError);

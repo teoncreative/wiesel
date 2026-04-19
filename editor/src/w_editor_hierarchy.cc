@@ -18,6 +18,7 @@
 #include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
 #include "util/imgui/w_imguiutil.h"
+#include "w_editor_components.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
@@ -154,12 +155,19 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
     return;
   }
 
-  // Build unique label
-  std::string label = tag_component.name + "##" +
-                      std::to_string(static_cast<uint32_t>(entity.handle()));
+  // Prefix the row with the entity's highest-priority component icon.
+  std::string label;
+  std::string_view ent_icon = GetEntityIcon(entity);
+  if (!ent_icon.empty()) {
+    label.append(ent_icon);
+    label.append("  ");
+  }
+  label.append(tag_component.name);
+  label.append("##");
+  label.append(std::to_string(static_cast<uint32_t>(entity.handle())));
 
   ImGuiTreeNodeFlags flags =
-      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth;
   if (is_selected) {
     flags |= ImGuiTreeNodeFlags_Selected;
   }
@@ -171,7 +179,7 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
     ImGui::SetNextItemOpen(true);
   }
 
-  bool node_open = ImGui::PaddedTreeNodeEx(label.c_str(), flags);
+  bool node_open = ImGui::HierarchyTreeNodeEx(label.c_str(), flags);
 
   // Scroll to selected entity when requested (e.g., after viewport click)
   if (is_selected && scroll_to_selected_) {
@@ -276,7 +284,7 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
 void EditorLayer::RenderSceneHierarchyPanel() {
   bool& scene_open = panel_scene_hierarchy_;
   if (scene_open) {
-    if (ImGui::Begin(CODICON_SYMBOL_RULER " Scene Hierarchy", &scene_open)) {
+    if (ImGui::Begin(ICON_LC_LAYERS " Scene Hierarchy", &scene_open)) {
       bool ignore_menu = false;
 
       if (editing_prefab_) {
@@ -312,17 +320,25 @@ void EditorLayer::RenderSceneHierarchyPanel() {
       }
 
       ImGui::SetNextItemWidth(-1);
-      ImGui::InputTextWithHint("##HierarchySearch", "Search entities...",
+      ImGui::InputTextWithHint("##HierarchySearch",
+                               ICON_LC_SEARCH "  Search entities...",
                                hierarchy_search_, sizeof(hierarchy_search_));
+
+      ImGui::FullWidthSeparator();
+
+      // Rows sit flush against each other. SameLine X spacing is preserved.
+      ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                          ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
 
       const auto& loaded_scenes = Engine::scene_manager().GetLoadedScenes();
       for (size_t scene_idx = 0; scene_idx < loaded_scenes.size();
            ++scene_idx) {
+        ImGui::Dummy(ImVec2(0.0f, ImGui::GetStyle().WindowPadding.y));
+
         Scene* current_scene = loaded_scenes[scene_idx].get();
         ImGuiTreeNodeFlags scene_flags =
             ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow |
-            ImGuiTreeNodeFlags_SpanAvailWidth |
-            ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Framed;
+            ImGuiTreeNodeFlags_SpanFullWidth;
         std::string scene_label = current_scene->GetName();
         if (scene_label.empty()) {
           const std::string& src = current_scene->GetSourcePath();
@@ -332,9 +348,11 @@ void EditorLayer::RenderSceneHierarchyPanel() {
             scene_label = "Scene";
           }
         }
-        std::string scene_id = "##SceneRoot_" + std::to_string(scene_idx);
-        bool scene_node_open = ImGui::TreeNodeEx(scene_id.c_str(), scene_flags,
-                                                 "%s", scene_label.c_str());
+        std::string scene_node_label =
+            std::string(ICON_LC_LAYERS_2 "  ") + scene_label + "##SceneRoot_" +
+            std::to_string(scene_idx);
+        bool scene_node_open = ImGui::HierarchyTreeNodeEx(
+            scene_node_label.c_str(), scene_flags, /*static_tint=*/true);
 
         std::string ctx_id = "scene_root_context_" + std::to_string(scene_idx);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
@@ -348,8 +366,6 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         }
 
         if (scene_node_open) {
-          ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                              ImVec2(ImGui::GetStyle().ItemSpacing.x, 3.0f));
           for (const auto& entity_id : current_scene->GetSceneHierarchy()) {
             Entity entity = {entity_id, current_scene};
             if (entity.GetParent()) {
@@ -357,10 +373,12 @@ void EditorLayer::RenderSceneHierarchyPanel() {
             }
             RenderEntity(entity, 0, ignore_menu);
           }
-          ImGui::PopStyleVar();
           ImGui::TreePop();
         }
       }
+
+      // Pop the zero-Y ItemSpacing pushed above the scene loop.
+      ImGui::PopStyleVar();
 
       UpdateHierarchyOrder();
 

@@ -445,7 +445,7 @@ void EditorLayer::RenderLspDebugPanel() {
   }
 
   ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-  if (!ImGui::Begin(CODICON_INFO " LSP Debug", &panel_lsp_debug_)) {
+  if (!ImGui::Begin(ICON_LC_INFO " LSP Debug", &panel_lsp_debug_)) {
     ImGui::End();
     return;
   }

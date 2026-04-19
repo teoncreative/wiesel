@@ -27,10 +27,12 @@
 #include "input/w_input.h"
 #include "rendering/w_renderer.h"
 #include "scene/w_components.h"
+#include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
 #include "scene/w_scene_serializer.h"
 #include "script/w_scriptmanager.h"
 #include "util/imgui/imgui_theme.h"
+#include "w_editor_components.h"
 #include <urkern/platform.h>
 #include "w_editor_icons.h"
 #include "w_engine.h"
@@ -307,6 +309,9 @@ void EditorLayer::OnAttach() {
     show_create_animcontroller_ = true;
   };
   asset_browser_panel_.SetCallbacks(std::move(ab_cb));
+
+  command_palette_.SetMonoFont(code_editor_font_);
+  RegisterPaletteCommands();
 }
 
 void EditorLayer::OnDetach() {
@@ -357,7 +362,7 @@ void EditorLayer::ProcessDeferredActions() {
       Engine::window()->SetCursorMode(CursorModeNormal);
       Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
       RestoreSnapshot();
-      ImGui::SetWindowFocus(CODICON_PREVIEW " Scene");
+      ImGui::SetWindowFocus(ICON_LC_EYE " Scene");
       break;
     default:
       break;
@@ -539,14 +544,31 @@ void EditorLayer::OnEvent(Event& event) {
 void EditorLayer::OnBeginPresent() {
   PROFILE_ZONE_SCOPED_N("Editor::OnBeginPresent");
 
-  RenderMainMenuBar();
-
-  // Show startup dialog if no project loaded
+  // No project loaded: welcome UI owns the whole viewport.
   if (!active_project_) {
     ImGui::DockSpaceOverViewport();
     RenderStartupDialog();
     return;
   }
+
+  RenderMainMenuBar();
+  RenderInfoBar();
+
+  // Global shortcuts route through the palette registry. Suppressed while
+  // the Game panel is focused (Play-mode input forwarding), while a text
+  // field has focus, or while the palette is already open.
+  const bool text_input_active =
+      code_editor_focused_ || ImGui::GetIO().WantTextInput;
+  if (!game_panel_focused_ && !text_input_active &&
+      !command_palette_.is_open()) {
+    if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift |
+                                 ImGuiKey_K)) {
+      command_palette_.Open();
+    } else {
+      command_palette_.DispatchShortcuts();
+    }
+  }
+  command_palette_.Render();
 
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
   InitializeDockspaceLayout(dockspace_id);
@@ -623,18 +645,18 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
     ImGui::DockBuilderSplitNode(dock_center_right, ImGuiDir_Right,
                                 kRightPanelRatio, &dock_right, &dock_center);
 
-    ImGui::DockBuilderDockWindow(CODICON_SYMBOL_RULER " Scene Hierarchy",
+    ImGui::DockBuilderDockWindow(ICON_LC_LAYERS " Scene Hierarchy",
                                  dock_left);
-    ImGui::DockBuilderDockWindow(CODICON_CAMERA_VIDEO " Game", dock_center);
-    ImGui::DockBuilderDockWindow(CODICON_PREVIEW " Scene", dock_center);
-    ImGuiID scene_window_id = ImHashStr(CODICON_PREVIEW " Scene");
+    ImGui::DockBuilderDockWindow(ICON_LC_CAMERA " Game", dock_center);
+    ImGui::DockBuilderDockWindow(ICON_LC_EYE " Scene", dock_center);
+    ImGuiID scene_window_id = ImHashStr(ICON_LC_EYE " Scene");
     ImGui::DockBuilderGetNode(dock_center)->SelectedTabId = scene_window_id;
-    ImGui::DockBuilderDockWindow(CODICON_INSPECT " Inspector", dock_right);
-    ImGui::DockBuilderDockWindow(CODICON_FOLDER_OPENED " Asset Browser",
+    ImGui::DockBuilderDockWindow(ICON_LC_SQUARE_MOUSE_POINTER " Inspector", dock_right);
+    ImGui::DockBuilderDockWindow(ICON_LC_FOLDER_OPEN " Asset Browser",
                                  dock_bottom);
-    ImGui::DockBuilderDockWindow(CODICON_TERMINAL " Developer Console",
+    ImGui::DockBuilderDockWindow(ICON_LC_TERMINAL " Developer Console",
                                  dock_bottom);
-    ImGui::DockBuilderDockWindow(CODICON_DASHBOARD " Render Stats",
+    ImGui::DockBuilderDockWindow(ICON_LC_GAUGE " Render Stats",
                                  dock_bottom);
 
     ImGui::DockBuilderFinish(dockspace_id);
@@ -797,6 +819,256 @@ void EditorLayer::OnPrePresent() {
       Engine::scene_manager().RenderGameView();
     }
   }
+}
+
+void EditorLayer::RegisterPaletteCommands() {
+  // File
+  command_palette_.Register({
+      .id = "file.save_scene",
+      .label = "Save Scene",
+      .category = "File",
+      .icon = ICON_LC_SAVE,
+      .shortcut_text = "Ctrl+S",
+      .shortcut = ImGuiMod_Ctrl | ImGuiKey_S,
+      .action = [this] {
+        if (!current_scene_path_.empty()) {
+          SaveScene();
+          SaveProject();
+        } else {
+          SaveSceneAs();
+        }
+      },
+      .enabled = [this] { return editor_state_ == EditorState::Edit; },
+  });
+  command_palette_.Register({
+      .id = "file.save_scene_as",
+      .label = "Save Scene As...",
+      .category = "File",
+      .icon = ICON_LC_SAVE,
+      .action = [this] { SaveSceneAs(); },
+  });
+  command_palette_.Register({
+      .id = "file.new_scene",
+      .label = "New Scene",
+      .category = "File",
+      .icon = ICON_LC_FILE_PLUS,
+      .action = [this] { NewScene(); },
+  });
+
+  // Edit
+  command_palette_.Register({
+      .id = "edit.undo",
+      .label = "Undo",
+      .category = "Edit",
+      .icon = ICON_LC_UNDO_2,
+      .shortcut_text = "Ctrl+Z",
+      .shortcut = ImGuiMod_Ctrl | ImGuiKey_Z,
+      .action = [this] { PerformUndo(); },
+  });
+  command_palette_.Register({
+      .id = "edit.redo",
+      .label = "Redo",
+      .category = "Edit",
+      .icon = ICON_LC_REDO_2,
+      .shortcut_text = "Ctrl+Y",
+      .shortcut = ImGuiMod_Ctrl | ImGuiKey_Y,
+      .action = [this] { PerformRedo(); },
+  });
+
+  // Entity — require a selected entity to enable.
+  auto has_selection = [this] { return static_cast<bool>(selected_entity_); };
+  command_palette_.Register({
+      .id = "entity.copy",
+      .label = "Copy Entity",
+      .category = "Entity",
+      .icon = ICON_LC_COPY,
+      .shortcut_text = "Ctrl+C",
+      .shortcut = ImGuiMod_Ctrl | ImGuiKey_C,
+      .action =
+          [this] {
+            if (!selected_entity_) {
+              return;
+            }
+            Entity entity = selected_entity_.Resolve();
+            nlohmann::json j = Prefab::SerializeEntityTree(entity);
+            entity_clipboard_ = j.dump();
+          },
+      .enabled = has_selection,
+  });
+  command_palette_.Register({
+      .id = "entity.paste",
+      .label = "Paste Entity",
+      .category = "Entity",
+      .icon = ICON_LC_CLIPBOARD_PASTE,
+      .shortcut_text = "Ctrl+V",
+      .shortcut = ImGuiMod_Ctrl | ImGuiKey_V,
+      .action =
+          [this] {
+            if (entity_clipboard_.empty()) {
+              return;
+            }
+            try {
+              nlohmann::json j = nlohmann::json::parse(entity_clipboard_);
+              Scene* paste_scene = editor::scene();
+              Entity new_entity =
+                  Prefab::DeserializeEntityTree(*paste_scene, j);
+              if (new_entity) {
+                command_stack_.Execute(
+                    std::make_unique<EntityCreateCommand>(new_entity.ToRef()));
+                selected_entity_ = new_entity.ToRef();
+                scroll_to_selected_ = true;
+                scene_dirty_ = true;
+              }
+            } catch (const std::exception& e) {
+              LOG_ERROR("Failed to paste entity: {}", e.what());
+            }
+          },
+      .enabled = [this] { return !entity_clipboard_.empty(); },
+  });
+  command_palette_.Register({
+      .id = "entity.duplicate",
+      .label = "Duplicate Entity",
+      .category = "Entity",
+      .icon = ICON_LC_COPY,
+      .shortcut_text = "Ctrl+D",
+      .shortcut = ImGuiMod_Ctrl | ImGuiKey_D,
+      .action =
+          [this] {
+            if (!selected_entity_) {
+              return;
+            }
+            Entity entity = selected_entity_.Resolve();
+            Scene* dup_scene = entity.GetScene();
+            nlohmann::json j = Prefab::SerializeEntityTree(entity);
+            Entity new_entity =
+                Prefab::DeserializeEntityTree(*dup_scene, j);
+            if (!new_entity) {
+              return;
+            }
+            Entity parent = entity.GetParent();
+            if (parent) {
+              dup_scene->LinkEntities(parent, new_entity);
+            }
+            command_stack_.Execute(
+                std::make_unique<EntityCreateCommand>(new_entity.ToRef()));
+            selected_entity_ = new_entity.ToRef();
+            scroll_to_selected_ = true;
+            scene_dirty_ = true;
+          },
+      .enabled = has_selection,
+  });
+  command_palette_.Register({
+      .id = "entity.delete",
+      .label = "Delete Entity",
+      .category = "Entity",
+      .icon = ICON_LC_TRASH_2,
+      .shortcut_text = "Delete",
+      .shortcut = ImGuiKey_Delete,
+      .action =
+          [this] {
+            if (!selected_entity_) {
+              return;
+            }
+            command_stack_.Execute(std::make_unique<EntityDeleteCommand>(
+                selected_entity_.Resolve()));
+            selected_entity_ = kInvalidEntityRef;
+            scene_dirty_ = true;
+          },
+      .enabled = has_selection,
+  });
+
+  // View
+  command_palette_.Register({
+      .id = "view.command_palette",
+      .label = "Show Command Palette",
+      .category = "View",
+      .icon = ICON_LC_TERMINAL,
+      .shortcut_text = "Ctrl+Shift+K",
+      // No shortcut here — the global binding is handled separately so the
+      // palette can open itself without dispatching a closing action.
+      .action = [this] { command_palette_.Open(); },
+  });
+
+  // Entity search: enumerate every loaded scene's hierarchy and yield
+  // matches as transient Commands. Action selects the entity like a
+  // viewport click does.
+  command_palette_.AddResultProvider(
+      [this](const std::string& filter_lower,
+             std::vector<Command>& out) {
+        auto lower = [](std::string s) {
+          for (auto& c : s) {
+            c = static_cast<char>(
+                std::tolower(static_cast<unsigned char>(c)));
+          }
+          return s;
+        };
+        for (const auto& loaded : Engine::scene_manager().GetLoadedScenes()) {
+          Scene* s = loaded.get();
+          for (auto eid : s->GetAllEntitiesWith<TagComponent>()) {
+            const auto& tag = s->GetComponent<TagComponent>(eid);
+            if (lower(tag.name).find(filter_lower) == std::string::npos) {
+              continue;
+            }
+            Entity entity{eid, s};
+            EntityRef ref = entity.ToRef();
+            out.push_back(Command{
+                .id = "entity:" + std::to_string(static_cast<uint32_t>(eid)),
+                .label = tag.name,
+                .category = "Entity",
+                .icon = std::string(GetEntityIcon(entity)),
+                .trailing_label = "Entity",
+                .action =
+                    [this, ref] {
+                      selected_entity_ = ref;
+                      scroll_to_selected_ = true;
+                    },
+            });
+          }
+        }
+      });
+
+  // Asset search: iterate registered assets; action reveals the file in
+  // the asset browser panel.
+  command_palette_.AddResultProvider(
+      [this](const std::string& filter_lower,
+             std::vector<Command>& out) {
+        auto lower = [](std::string s) {
+          for (auto& c : s) {
+            c = static_cast<char>(
+                std::tolower(static_cast<unsigned char>(c)));
+          }
+          return s;
+        };
+        for (AssetHandle h : Engine::asset_manager().GetAll()) {
+          const AssetMetadata* meta =
+              Engine::asset_manager().GetMetadata(h);
+          if (!meta) {
+            continue;
+          }
+          if (lower(meta->name).find(filter_lower) == std::string::npos) {
+            continue;
+          }
+          std::string path = meta->virtual_source_path;
+          // Use the filename (with extension) as the label so the user
+          // sees the extension clearly.
+          std::string filename =
+              std::filesystem::path(path).filename().string();
+          if (filename.empty()) {
+            filename = meta->name;
+          }
+          out.push_back(Command{
+              .id = "asset:" + path,
+              .label = filename,
+              .category = "Asset",
+              .icon = ICON_LC_FILE,
+              .trailing_label = AssetTypeToString(meta->type),
+              .action =
+                  [this, path] {
+                    asset_browser_panel_.RevealAsset(path);
+                  },
+          });
+        }
+      });
 }
 
 }  // namespace wiesel::editor

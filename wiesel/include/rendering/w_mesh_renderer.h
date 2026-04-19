@@ -38,6 +38,10 @@ struct MeshRendererComponent {
   std::shared_ptr<DescriptorSet> geometry_descriptor;
   std::shared_ptr<DescriptorSet> shadow_descriptor;
   bool gpu_allocated = false;
+
+  // Last frame in which the shadow-pass portion of the UBO was uploaded.
+  // Used to skip redundant uploads across the per-cascade shadow passes.
+  uint64_t last_shadow_upload_frame = UINT64_MAX;
 };
 
 // Per-entity component for rendering a single skinned (bone-animated) mesh.
@@ -59,6 +63,8 @@ struct SkinnedMeshRendererComponent {
   std::shared_ptr<DescriptorSet> geometry_descriptor;
   std::shared_ptr<DescriptorSet> shadow_descriptor;
   bool gpu_allocated = false;
+
+  uint64_t last_shadow_upload_frame = UINT64_MAX;
 
   // Reference to the root entity that owns AnimatorComponent + SkeletalAnimRuntime.
   // The bone UBO and descriptor live on that entity's SkeletalAnimRuntime.

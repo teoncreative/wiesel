@@ -15,7 +15,6 @@ namespace Moonlight {
 
 enum class Theme {
   DarkGray,
-  OLED,
   Count,
 };
 

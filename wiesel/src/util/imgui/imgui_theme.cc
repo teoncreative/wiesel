@@ -12,11 +12,57 @@
 
 #include <imgui.h>
 
+#include <algorithm>
+#include <cmath>
+
 #include "util/w_logger.h"
 #include "w_engine.h"
 
 namespace ImGui {
 namespace Moonlight {
+
+// OKLCH -> sRGB. Standard Oklab coefficients (Björn Ottosson) + linear->sRGB
+// gamma encoding. H is degrees.
+static ImVec4 Oklch(float L, float C, float H, float alpha = 1.0f) {
+  constexpr float kPi = 3.14159265358979323846f;
+  const float h_rad = H * kPi / 180.0f;
+  const float a = C * std::cos(h_rad);
+  const float b = C * std::sin(h_rad);
+
+  const float l_ = L + 0.3963377774f * a + 0.2158037573f * b;
+  const float m_ = L - 0.1055613458f * a - 0.0638541728f * b;
+  const float s_ = L - 0.0894841775f * a - 1.2914855480f * b;
+
+  const float lc = l_ * l_ * l_;
+  const float mc = m_ * m_ * m_;
+  const float sc = s_ * s_ * s_;
+
+  float rlin =  4.0767416621f * lc - 3.3077115913f * mc + 0.2309699292f * sc;
+  float glin = -1.2684380046f * lc + 2.6097574011f * mc - 0.3413193965f * sc;
+  float blin = -0.0041960863f * lc - 0.7034186147f * mc + 1.7076147010f * sc;
+
+  auto lin_to_srgb = [](float x) {
+    if (x <= 0.0f) return 0.0f;
+    if (x <= 0.0031308f) return 12.92f * x;
+    return 1.055f * std::pow(x, 1.0f / 2.4f) - 0.055f;
+  };
+
+  return ImVec4(std::clamp(lin_to_srgb(rlin), 0.0f, 1.0f),
+                std::clamp(lin_to_srgb(glin), 0.0f, 1.0f),
+                std::clamp(lin_to_srgb(blin), 0.0f, 1.0f), alpha);
+}
+
+// Hand calibrated, might be off in some cases
+static constexpr float kDisplayLShift = 0.030f;
+
+static ImVec4 N(float L, float C = 0.004f) {
+  return Oklch(L + kDisplayLShift, C, 60.0f);
+}
+
+// Convenience mixers for pre-composited accent tints (alpha over Bg1).
+static ImVec4 WithAlpha(const ImVec4& c, float a) {
+  return ImVec4(c.x, c.y, c.z, a);
+}
 
 void LoadFont() {
   static const ImWchar ranges[] = {
@@ -46,8 +92,9 @@ void LoadFont() {
   void* font_data = IM_ALLOC(font_size);
   memcpy(font_data, file.Data(), font_size);
 
-  // Exclude the editor icon PUA range so merged icon fonts take priority
-  static const ImWchar exclude_ranges[] = {0xE000, 0xE0FF, 0};
+  // Exclude Inter's PUA glyphs (stylistic alternates) across lucide's range
+  // so the merged lucide icon font wins for every icon codepoint.
+  static const ImWchar exclude_ranges[] = {0xE000, 0xE6DE, 0};
 
   ImFontConfig config;
   config.GlyphRanges = ranges;
@@ -74,8 +121,6 @@ const char* GetThemeName(Theme theme) {
   switch (theme) {
     case Theme::DarkGray:
       return "Dark Gray";
-    case Theme::OLED:
-      return "OLED";
     default:
       return "Unknown";
   }
@@ -88,210 +133,151 @@ Theme GetCurrentTheme() {
 static void ApplySharedStyle() {
   ImGuiStyle& style = ImGui::GetStyle();
 
-  style.WindowRounding = 8.0f;
-  style.ChildRounding = 6.0f;
-  style.PopupRounding = 8.0f;
-  style.FrameRounding = 4.0f;
-  style.GrabRounding = 4.0f;
-  style.TabRounding = 6.0f;
-  style.ScrollbarRounding = 6.0f;
+  style.WindowRounding    = 10.0f;
+  style.ChildRounding     = 10.0f;
+  style.PopupRounding     = 10.0f;
+  style.FrameRounding     = 6.0f;
+  style.GrabRounding      = 4.0f;
+  style.TabRounding       = 0.0f;  // square tabs
+  style.ScrollbarRounding = 10.0f;
 
-  style.WindowPadding = {10.0f, 10.0f};
-  style.FramePadding = {6.0f, 6.0f};
-  style.CellPadding = {4.0f, 4.0f};
-  style.ItemSpacing = {6.0f, 6.0f};
-  style.ItemInnerSpacing = {6.0f, 4.0f};
+  // Matched WindowPadding.y and ItemSpacing.y keep first-row spacing
+  // equal to inter-row spacing.
+  style.WindowPadding    = ImVec2(10.0f, 10.0f);
+
+  style.FramePadding     = ImVec2(8.0f, 6.0f);
+  style.CellPadding      = ImVec2(4.0f, 4.0f);
+  style.ItemSpacing      = ImVec2(10.0f, 10.0f);
+  style.ItemInnerSpacing = ImVec2(6.0f, 4.0f);
+  style.IndentSpacing    = 14.0f;
+  style.ScrollbarSize    = 10.0f;
+  style.GrabMinSize      = 12.0f;
 
   style.WindowBorderSize = 1.0f;
-  style.FrameBorderSize = 1.0f;
-  style.TabBorderSize = 0.0f;
-  style.PopupBorderSize = 1.0f;
-  style.ScrollbarSize = 11.0f;
-  style.GrabMinSize = 9.0f;
-  style.IndentSpacing = 18.0f;
+  style.FrameBorderSize  = 1.0f;
+  style.TabBorderSize    = 1.0f;
+  style.TabBarOverlineSize = 2.0f;
+  // -1 = always show the close button (not only on hover).
+  style.TabCloseButtonMinWidthSelected   = -1.0f;
+  style.TabCloseButtonMinWidthUnselected = -1.0f;
+  style.PopupBorderSize  = 1.0f;
   style.SeparatorTextBorderSize = 1.0f;
-}
 
-struct ThemeColors {
-  ImVec4 accent;
-  ImVec4 accent_hover;
-  ImVec4 accent_active;
-  float bg;
-  float child;
-  float popup;
-  float frame;
-  float frame_hover;
-  float frame_active;
-  float title;
-  float menubar;
-  float scrollbar_bg;
-  float scrollbar_grab;
-  float scrollbar_grab_hover;
-  float btn;
-  float btn_hover;
-  float btn_active;
-  float header;
-  float header_hover;
-  float border;
-  float tab;
-  float tab_hover;
-  float tab_selected;
-  float tab_dimmed;
-  float table_header;
-  float table_row;
-  float table_row_alt;
-};
+  // Docked panel isolation — inset every docked window by this padding so
+  // adjacent panels have a visible gap (fork addition).
+  style.DockingSeparatorSize = 0.0f;
+  style.DockingWindowPadding = ImVec2(3.0f, 3.0f);
+  style.DockingTabBarExtraHeight = 12.0f;
 
-static void ApplyColors(const ThemeColors& c) {
-  ImVec4* colors = ImGui::GetStyle().Colors;
-  auto g = [](float v) {
-    return ImVec4(v, v, v, 1.0f);
-  };
-  auto ga = [](float v, float a) {
-    return ImVec4(v, v, v, a);
-  };
-
-  colors[ImGuiCol_Text] = ImVec4(0.93f, 0.93f, 0.93f, 1.0f);
-  colors[ImGuiCol_TextDisabled] = ImVec4(0.42f, 0.42f, 0.42f, 1.0f);
-  colors[ImGuiCol_WindowBg] = g(c.bg);
-  colors[ImGuiCol_ChildBg] = ga(c.child, 0.0f);
-  colors[ImGuiCol_PopupBg] = ga(c.popup, 0.97f);
-  colors[ImGuiCol_Border] = ga(c.border, 0.45f);
-  colors[ImGuiCol_BorderShadow] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-  colors[ImGuiCol_FrameBg] = g(c.frame);
-  colors[ImGuiCol_FrameBgHovered] = g(c.frame_hover);
-  colors[ImGuiCol_FrameBgActive] = g(c.frame_active);
-  colors[ImGuiCol_TitleBg] = g(c.title);
-  colors[ImGuiCol_TitleBgActive] = g(c.title + 0.02f);
-  colors[ImGuiCol_TitleBgCollapsed] = g(c.title);
-  colors[ImGuiCol_MenuBarBg] = g(c.menubar);
-  colors[ImGuiCol_ScrollbarBg] = ga(c.scrollbar_bg, 0.5f);
-  colors[ImGuiCol_ScrollbarGrab] = g(c.scrollbar_grab);
-  colors[ImGuiCol_ScrollbarGrabHovered] = g(c.scrollbar_grab_hover);
-  colors[ImGuiCol_ScrollbarGrabActive] = g(c.scrollbar_grab_hover + 0.06f);
-  colors[ImGuiCol_CheckMark] = c.accent;
-  colors[ImGuiCol_SliderGrab] = c.accent;
-  colors[ImGuiCol_SliderGrabActive] = c.accent_hover;
-  colors[ImGuiCol_Button] = g(c.btn);
-  colors[ImGuiCol_ButtonHovered] = g(c.btn_hover);
-  colors[ImGuiCol_ButtonActive] = g(c.btn_active);
-  colors[ImGuiCol_Header] = ga(c.header, 0.8f);
-  colors[ImGuiCol_HeaderHovered] = ga(c.header_hover, 0.9f);
-  colors[ImGuiCol_HeaderActive] = g(c.btn_active);
-  colors[ImGuiCol_Separator] = ga(c.border, 0.35f);
-  colors[ImGuiCol_SeparatorHovered] = c.accent;
-  colors[ImGuiCol_SeparatorActive] = c.accent_active;
-  colors[ImGuiCol_ResizeGrip] = ga(c.btn, 0.4f);
-  colors[ImGuiCol_ResizeGripHovered] = c.accent;
-  colors[ImGuiCol_ResizeGripActive] = c.accent_active;
-  colors[ImGuiCol_Tab] = g(c.tab);
-  colors[ImGuiCol_TabHovered] = g(c.tab_hover);
-  colors[ImGuiCol_TabSelected] = g(c.tab_selected);
-  colors[ImGuiCol_TabSelectedOverline] = c.accent;
-  colors[ImGuiCol_TabDimmed] = g(c.tab_dimmed);
-  colors[ImGuiCol_TabDimmedSelected] = g(c.tab_selected - 0.02f);
-  colors[ImGuiCol_PlotLines] = ImVec4(0.50f, 0.50f, 0.50f, 1.0f);
-  colors[ImGuiCol_PlotLinesHovered] = c.accent_hover;
-  colors[ImGuiCol_PlotHistogram] = c.accent;
-  colors[ImGuiCol_PlotHistogramHovered] = c.accent_hover;
-  colors[ImGuiCol_TableHeaderBg] = g(c.table_header);
-  colors[ImGuiCol_TableBorderStrong] = ga(c.border, 0.5f);
-  colors[ImGuiCol_TableBorderLight] = ga(c.border, 0.25f);
-  colors[ImGuiCol_TableRowBg] = g(c.table_row);
-  colors[ImGuiCol_TableRowBgAlt] = g(c.table_row_alt);
-  colors[ImGuiCol_TextSelectedBg] =
-      ImVec4(c.accent.x, c.accent.y, c.accent.z, 0.30f);
-  colors[ImGuiCol_DragDropTarget] = c.accent;
-  colors[ImGuiCol_NavHighlight] = c.accent;
-  colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 1.0f, 1.0f, 0.70f);
-  colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.55f);
-  colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.55f);
-
-  // Docking
-  colors[ImGuiCol_DockingPreview] =
-      ImVec4(c.accent.x, c.accent.y, c.accent.z, 0.25f);
-  colors[ImGuiCol_DockingEmptyBg] = ga(c.bg - 0.02f, 1.0f);
+  style.WindowMenuButtonPosition = ImGuiDir_None;
+  // BeginMainMenuBar uses DisplaySafeAreaPadding as the menu's left inset.
+  style.DisplaySafeAreaPadding = ImVec2(10.0f, 10.0f);
 }
 
 static void ApplyDarkGray() {
-  // Accent: #dc4141 (engine red)
-  ApplyColors({
-      .accent = {0.863f, 0.255f, 0.255f, 1.0f},
-      .accent_hover = {0.922f, 0.380f, 0.380f, 1.0f},
-      .accent_active = {0.745f, 0.200f, 0.200f, 1.0f},
-      .bg = 0.11f,
-      .child = 0.11f,
-      .popup = 0.09f,
-      .frame = 0.06f,
-      .frame_hover = 0.09f,
-      .frame_active = 0.11f,
-      .title = 0.07f,
-      .menubar = 0.09f,
-      .scrollbar_bg = 0.08f,
-      .scrollbar_grab = 0.20f,
-      .scrollbar_grab_hover = 0.26f,
-      .btn = 0.16f,
-      .btn_hover = 0.20f,
-      .btn_active = 0.12f,
-      .header = 0.15f,
-      .header_hover = 0.19f,
-      .border = 0.20f,
-      .tab = 0.08f,
-      .tab_hover = 0.15f,
-      .tab_selected = 0.13f,
-      .tab_dimmed = 0.07f,
-      .table_header = 0.09f,
-      .table_row = 0.11f,
-      .table_row_alt = 0.12f,
-  });
-}
+  // OKLCH tokens (C=0.004 H=60 unless noted), L shift applied inside N().
+  const ImVec4 bg_0      = N(0.170f);
+  const ImVec4 bg_1      = N(0.195f);
+  const ImVec4 bg_2      = N(0.225f);
+  const ImVec4 bg_3      = N(0.260f);
+  const ImVec4 bg_hover  = N(0.235f);
 
-static void ApplyOLED() {
-  // Accent: #dc4141 (engine red)
-  ApplyColors({
-      .accent = {0.863f, 0.255f, 0.255f, 1.0f},
-      .accent_hover = {0.922f, 0.380f, 0.380f, 1.0f},
-      .accent_active = {0.745f, 0.200f, 0.200f, 1.0f},
-      .bg = 0.02f,
-      .child = 0.02f,
-      .popup = 0.03f,
-      .frame = 0.06f,
-      .frame_hover = 0.09f,
-      .frame_active = 0.11f,
-      .title = 0.02f,
-      .menubar = 0.03f,
-      .scrollbar_bg = 0.02f,
-      .scrollbar_grab = 0.14f,
-      .scrollbar_grab_hover = 0.20f,
-      .btn = 0.10f,
-      .btn_hover = 0.14f,
-      .btn_active = 0.06f,
-      .header = 0.08f,
-      .header_hover = 0.11f,
-      .border = 0.12f,
-      .tab = 0.03f,
-      .tab_hover = 0.08f,
-      .tab_selected = 0.06f,
-      .tab_dimmed = 0.02f,
-      .table_header = 0.03f,
-      .table_row = 0.02f,
-      .table_row_alt = 0.04f,
-  });
+  const ImVec4 border_soft    = N(0.235f);
+  const ImVec4 border         = N(0.280f);
+  const ImVec4 border_strong  = N(0.340f);
+
+  const ImVec4 fg       = Oklch(0.94f, 0.004f, 60.0f);
+  const ImVec4 fg_muted = Oklch(0.72f, 0.004f, 60.0f);
+
+  // Accent kept as direct sRGB so it's unaffected by the neutral L shift.
+  const ImVec4 accent        = ImVec4(0.9647f, 0.4235f, 0.4000f, 1.0f);  // #f66c66
+  const ImVec4 accent_hover  = ImVec4(0.980f,  0.540f,  0.500f,  1.0f);
+  const ImVec4 accent_dim    = WithAlpha(accent, 0.18f);
+
+  ImVec4* col = ImGui::GetStyle().Colors;
+
+  col[ImGuiCol_WindowBg]    = bg_1;
+  col[ImGuiCol_ChildBg]     = bg_1;
+  col[ImGuiCol_PopupBg]     = bg_1;
+  col[ImGuiCol_MenuBarBg]   = bg_0;
+
+  col[ImGuiCol_Border]       = border_soft;
+  col[ImGuiCol_BorderShadow] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+
+  col[ImGuiCol_Text]         = fg;
+  // Unified muted tone (#a5a2a1). Used by disabled text, tree arrows,
+  // breadcrumbs, toolbar button labels, etc.
+  col[ImGuiCol_TextDisabled] = ImVec4(0.6471f, 0.6353f, 0.6314f, 1.0f);
+
+  col[ImGuiCol_FrameBg]        = bg_0;
+  col[ImGuiCol_FrameBgHovered] = bg_2;
+  col[ImGuiCol_FrameBgActive]  = accent_dim;
+
+  // Same bg across states so focus/collapse don't flip the title color.
+  col[ImGuiCol_TitleBg]          = bg_1;
+  col[ImGuiCol_TitleBgActive]    = bg_1;
+  col[ImGuiCol_TitleBgCollapsed] = bg_1;
+
+  col[ImGuiCol_Button]        = bg_2;
+  col[ImGuiCol_ButtonHovered] = bg_3;
+  col[ImGuiCol_ButtonActive]  = accent_dim;
+
+  col[ImGuiCol_Header]        = accent_dim;
+  col[ImGuiCol_HeaderHovered] = bg_hover;
+  col[ImGuiCol_HeaderActive]  = accent_dim;
+
+  // Transparent tab fills — selection/focus are shown via the overline and
+  // the icon/text colors emitted by TabItemLabelAndCloseButton (fork patch).
+  const ImVec4 transparent = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+  col[ImGuiCol_Tab]                       = transparent;
+  col[ImGuiCol_TabHovered]                = bg_2;
+  col[ImGuiCol_TabSelected]               = transparent;
+  col[ImGuiCol_TabSelectedOverline]       = accent;
+  col[ImGuiCol_TabDimmedSelectedOverline] = accent;
+  col[ImGuiCol_TabDimmed]                 = transparent;
+  col[ImGuiCol_TabDimmedSelected]         = transparent;
+
+  col[ImGuiCol_CheckMark]         = accent;
+  col[ImGuiCol_SliderGrab]        = accent;
+  col[ImGuiCol_SliderGrabActive]  = accent_hover;
+  col[ImGuiCol_ResizeGrip]        = border;
+  col[ImGuiCol_ResizeGripHovered] = accent;
+  col[ImGuiCol_ResizeGripActive]  = accent;
+
+  col[ImGuiCol_Separator]        = border_soft;
+  col[ImGuiCol_SeparatorHovered] = accent;
+  col[ImGuiCol_SeparatorActive]  = accent;
+
+  col[ImGuiCol_ScrollbarBg]          = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+  col[ImGuiCol_ScrollbarGrab]        = bg_3;
+  col[ImGuiCol_ScrollbarGrabHovered] = border;
+  col[ImGuiCol_ScrollbarGrabActive]  = border_strong;
+
+  col[ImGuiCol_PlotLines]            = fg_muted;
+  col[ImGuiCol_PlotLinesHovered]     = accent_hover;
+  col[ImGuiCol_PlotHistogram]        = accent;
+  col[ImGuiCol_PlotHistogramHovered] = accent_hover;
+
+  col[ImGuiCol_TableHeaderBg]     = bg_1;
+  col[ImGuiCol_TableBorderStrong] = border;
+  col[ImGuiCol_TableBorderLight]  = border_soft;
+  col[ImGuiCol_TableRowBg]        = bg_1;
+  col[ImGuiCol_TableRowBgAlt]     = bg_2;
+
+  col[ImGuiCol_TextSelectedBg]        = WithAlpha(accent, 0.30f);
+  col[ImGuiCol_DragDropTarget]        = accent;
+  col[ImGuiCol_NavHighlight]          = accent;
+  col[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 1.0f, 1.0f, 0.70f);
+  col[ImGuiCol_NavWindowingDimBg]     = ImVec4(0.0f, 0.0f, 0.0f, 0.55f);
+  col[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.0f, 0.0f, 0.0f, 0.55f);
+
+  col[ImGuiCol_DockingPreview] = accent_dim;
+  col[ImGuiCol_DockingEmptyBg] = bg_0;
 }
 
 void ApplyTheme(Theme theme) {
   ApplySharedStyle();
-  switch (theme) {
-    case Theme::DarkGray:
-      ApplyDarkGray();
-      break;
-    case Theme::OLED:
-      ApplyOLED();
-      break;
-    default:
-      ApplyDarkGray();
-      break;
-  }
+  ApplyDarkGray();
   current_theme_ = theme;
 }
 

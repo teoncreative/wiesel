@@ -41,17 +41,47 @@ namespace wiesel {
 static constexpr const char* kCoreDllPath = "./Core.dll";
 static constexpr const char* kAppDllPath = "./App.dll";
 
+// Read a public string-valued property off a C# object (Message /
+// StackTrace on System.Exception) and return its UTF-8 contents.
+static std::string GetMonoStringProperty(MonoObject* obj,
+                                         const char* prop_name) {
+  if (!obj) {
+    return {};
+  }
+  MonoClass* klass = mono_object_get_class(obj);
+  MonoProperty* prop = mono_class_get_property_from_name(klass, prop_name);
+  if (!prop) {
+    return {};
+  }
+  MonoObject* exc = nullptr;
+  MonoObject* value = mono_property_get_value(prop, obj, nullptr, &exc);
+  if (exc || !value) {
+    return {};
+  }
+  MonoString* str = reinterpret_cast<MonoString*>(value);
+  char* c = mono_string_to_utf8(str);
+  std::string out = c ? c : "";
+  mono_free(c);
+  return out;
+}
+
 MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj, void** args,
                        bool* had_exception) {
   MonoObject* exception = nullptr;
   MonoObject* result = mono_runtime_invoke(method, obj, args, &exception);
   if (exception) {
-    MonoString* exc_str = mono_object_to_string(exception, nullptr);
-    if (exc_str) {
-      char* cstr = mono_string_to_utf8(exc_str);
-      DCON_LOG_ERROR("C# Exception: {}", cstr);
-      mono_free(cstr);
+    std::string message = GetMonoStringProperty(exception, "Message");
+    std::string trace = GetMonoStringProperty(exception, "StackTrace");
+    if (message.empty()) {
+      MonoString* exc_str = mono_object_to_string(exception, nullptr);
+      if (exc_str) {
+        char* cstr = mono_string_to_utf8(exc_str);
+        message = cstr ? cstr : "";
+        mono_free(cstr);
+      }
     }
+    DeveloperConsole::Get().LogError(
+        "C# Exception: " + message, std::move(trace));
     if (had_exception) {
       *had_exception = true;
     }
@@ -720,8 +750,8 @@ void ScriptManager::Reload() {
     core.SetGenerateDocs(true);
     last_compile_result_ = core.Build(debug);
     if (!last_compile_result_.success) {
-      DCON_LOG_ERROR("Core compilation failed:\n{}",
-                     last_compile_result_.output);
+      DeveloperConsole::Get().LogError("Core compilation failed",
+                                       last_compile_result_.output);
       return;
     }
   }
@@ -735,8 +765,8 @@ void ScriptManager::Reload() {
     app.SetReferences(link_libs);
     last_compile_result_ = app.Build(debug);
     if (!last_compile_result_.success) {
-      DCON_LOG_ERROR("App compilation failed:\n{}",
-                     last_compile_result_.output);
+      DeveloperConsole::Get().LogError("App compilation failed",
+                                       last_compile_result_.output);
       return;
     }
   }
@@ -789,8 +819,10 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
       compiling_ = false;
 
       if (!result.success) {
-        DCON_LOG_ERROR("Compilation failed (exit code {}):\n{}",
-                       result.exit_code, result.output);
+        DeveloperConsole::Get().LogError(
+            std::format("Compilation failed (exit code {})",
+                        result.exit_code),
+            result.output);
         return;
       }
 

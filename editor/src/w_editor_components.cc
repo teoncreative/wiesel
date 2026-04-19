@@ -11,6 +11,8 @@
 
 #include "w_editor_components.h"
 
+#include "util/imgui/imgui_lucide.h"
+
 #include <backends/imgui_impl_vulkan.h>
 #include "script/w_script_field_registry.h"
 #include <imgui.h>
@@ -1424,24 +1426,35 @@ void RenderModalComponentImGui_BehaviorsComponent(Entity entity) {
 struct ComponentDesc {
   std::string display_name;
   std::string group;
+  std::string icon;      // empty by default; UTF-8 glyph (e.g. ICON_LC_CAMERA)
+  int icon_priority = 0;  // higher wins when multiple components have icons
   std::function<void(Entity)> RenderSelf;
   std::function<void(Entity)> RenderAdd;
   std::function<void(Entity)> RenderModal;
   std::function<bool(Entity)> HasComponent;
 };
 
-std::map<std::type_index, ComponentDesc> kRegistry;
+std::unordered_map<std::type_index, ComponentDesc> kRegistry;
+// Insertion order for iteration (inspector + add popup). Lookup uses kRegistry.
+std::vector<std::type_index> kRegistryOrder;
 
 template <typename T>
 void RegisterComponentType(const std::string& display_name,
                            const std::string& group,
                            void (*renderSelf)(T&, Entity),
                            void (*renderAdd)(Entity),
-                           void (*renderModal)(Entity)) {
+                           void (*renderModal)(Entity),
+                           const std::string& icon = "",
+                           int icon_priority = 0) {
   auto ti = std::type_index(typeid(T));
+  if (kRegistry.find(ti) == kRegistry.end()) {
+    kRegistryOrder.push_back(ti);
+  }
   kRegistry[ti] =
       ComponentDesc{display_name,
                     group,
+                    icon,
+                    icon_priority,
                     [renderSelf](Entity e) {
                       if (renderSelf) {
                         renderSelf(e.GetComponent<T>(), e);
@@ -2070,92 +2083,192 @@ void InitializeEditorComponents() {
   RegisterComponentType<IdComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TagComponent>("", "", nullptr, nullptr, nullptr);
   RegisterComponentType<TransformComponent>(
-      "Transform", "", RenderComponentImGui, nullptr, nullptr);
+      "Transform", "", RenderComponentImGui, nullptr, nullptr,
+      ICON_LC_BOX, 1);
   RegisterComponentType<MeshRendererComponent>(
       "Mesh Renderer", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_MeshRendererComponent, nullptr);
+      RenderAddComponentImGui_MeshRendererComponent, nullptr,
+      ICON_LC_BOX, 30);
   RegisterComponentType<SkinnedMeshRendererComponent>(
       "Skinned Mesh Renderer", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_SkinnedMeshRendererComponent, nullptr);
+      RenderAddComponentImGui_SkinnedMeshRendererComponent, nullptr,
+      ICON_LC_BONE, 35);
   RegisterComponentType<AnimatorComponent>(
       "Animator", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_AnimatorComponent, nullptr);
+      RenderAddComponentImGui_AnimatorComponent, nullptr,
+      ICON_LC_FILM, 20);
   RegisterComponentType<CameraComponent>(
       "Camera", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_CameraComponent, nullptr);
+      RenderAddComponentImGui_CameraComponent, nullptr,
+      ICON_LC_CAMERA, 100);
   RegisterComponentType<LightDirectComponent>(
       "Directional Light", "Lighting", RenderComponentImGui,
-      RenderAddComponentImGui_LightDirectComponent, nullptr);
+      RenderAddComponentImGui_LightDirectComponent, nullptr,
+      ICON_LC_SUN, 80);
   RegisterComponentType<LightPointComponent>(
       "Point Light", "Lighting", RenderComponentImGui,
-      RenderAddComponentImGui_LightPointComponent, nullptr);
+      RenderAddComponentImGui_LightPointComponent, nullptr,
+      ICON_LC_LIGHTBULB, 80);
   RegisterComponentType<BehaviorsComponent>(
       "C# Script", "Scripting", RenderComponentImGui,
       RenderAddComponentImGui_BehaviorsComponent,
-      RenderModalComponentImGui_BehaviorsComponent);
+      RenderModalComponentImGui_BehaviorsComponent,
+      ICON_LC_CODE, 25);
   RegisterComponentType<BoxColliderComponent>(
       "Box Collider", "Physics", RenderComponentImGui,
-      RenderAddComponentImGui_BoxColliderComponent, nullptr);
+      RenderAddComponentImGui_BoxColliderComponent, nullptr,
+      ICON_LC_SQUARE_DASHED, 15);
   RegisterComponentType<SphereColliderComponent>(
       "Sphere Collider", "Physics", RenderComponentImGui,
-      RenderAddComponentImGui_SphereColliderComponent, nullptr);
+      RenderAddComponentImGui_SphereColliderComponent, nullptr,
+      ICON_LC_CIRCLE, 15);
   RegisterComponentType<CapsuleColliderComponent>(
       "Capsule Collider", "Physics", RenderComponentImGui,
-      RenderAddComponentImGui_CapsuleColliderComponent, nullptr);
+      RenderAddComponentImGui_CapsuleColliderComponent, nullptr,
+      ICON_LC_PILL, 15);
   RegisterComponentType<MeshColliderComponent>(
       "Mesh Collider", "Physics", RenderComponentImGui,
-      RenderAddComponentImGui_MeshColliderComponent, nullptr);
+      RenderAddComponentImGui_MeshColliderComponent, nullptr,
+      ICON_LC_TRIANGLE, 15);
   RegisterComponentType<RigidBodyComponent>(
       "Rigid Body", "Physics", RenderComponentImGui,
-      RenderAddComponentImGui_RigidBodyComponent, nullptr);
+      RenderAddComponentImGui_RigidBodyComponent, nullptr,
+      ICON_LC_WEIGHT, 40);
   RegisterComponentType<UIDocumentComponent>(
       "UI Document", "UI", RenderComponentImGui,
-      RenderAddComponentImGui_UIDocumentComponent, nullptr);
+      RenderAddComponentImGui_UIDocumentComponent, nullptr,
+      ICON_LC_FILE_TEXT, 45);
   RegisterComponentType<RectangleTransformComponent>(
-      "Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr);
+      "Rectangle Transform", "Canvas", RenderComponentImGui, nullptr, nullptr,
+      ICON_LC_SQUARE, 5);
   RegisterComponentType<CanvasComponent>(
       "Canvas", "Canvas", RenderComponentImGui,
-      RenderAddComponentImGui_CanvasComponent, nullptr);
+      RenderAddComponentImGui_CanvasComponent, nullptr,
+      ICON_LC_FRAME, 50);
   RegisterComponentType<CanvasScalerComponent>(
       "Canvas Scaler", "Canvas", RenderComponentImGui,
-      RenderAddComponentImGui_CanvasScalerComponent, nullptr);
+      RenderAddComponentImGui_CanvasScalerComponent, nullptr,
+      ICON_LC_RULER, 10);
   RegisterComponentType<InteractableComponent>(
       "Interactable", "UI", RenderComponentImGui,
-      RenderAddComponentImGui_InteractableComponent, nullptr);
+      RenderAddComponentImGui_InteractableComponent, nullptr,
+      ICON_LC_HAND, 40);
   RegisterComponentType<NavigableComponent>(
       "Navigable", "UI", RenderComponentImGui,
-      RenderAddComponentImGui_NavigableComponent, nullptr);
+      RenderAddComponentImGui_NavigableComponent, nullptr,
+      ICON_LC_NAVIGATION, 40);
   RegisterComponentType<AudioSourceComponent>(
       "Audio Source", "Audio", RenderComponentImGui,
-      RenderAddComponentImGui_AudioSourceComponent, nullptr);
+      RenderAddComponentImGui_AudioSourceComponent, nullptr,
+      ICON_LC_VOLUME_2, 45);
   RegisterComponentType<SpriteRendererComponent>(
       "Sprite Renderer", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_SpriteRendererComponent, nullptr);
+      RenderAddComponentImGui_SpriteRendererComponent, nullptr,
+      ICON_LC_IMAGE, 40);
   RegisterComponentType<BillboardRendererComponent>(
       "Billboard Renderer", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_BillboardRendererComponent, nullptr);
+      RenderAddComponentImGui_BillboardRendererComponent, nullptr,
+      ICON_LC_IMAGE, 35);
   RegisterComponentType<BillboardTextComponent>(
       "Billboard Text", "Rendering", RenderComponentImGui,
-      RenderAddComponentImGui_BillboardTextComponent, nullptr);
+      RenderAddComponentImGui_BillboardTextComponent, nullptr,
+      ICON_LC_TYPE, 35);
   RegisterComponentType<ReverbZoneComponent>(
       "Reverb Zone", "Audio", RenderComponentImGui,
-      RenderAddComponentImGui_ReverbZoneComponent, nullptr);
+      RenderAddComponentImGui_ReverbZoneComponent, nullptr,
+      ICON_LC_WAVES, 30);
   RegisterComponentType<NetworkIdentityComponent>(
       "Network Identity", "Networking", RenderComponentImGui,
-      RenderAddComponentImGui_NetworkIdentityComponent, nullptr);
+      RenderAddComponentImGui_NetworkIdentityComponent, nullptr,
+      ICON_LC_NETWORK, 60);
 }
 
 void RenderExistingComponents(Entity entity) {
-  for (const auto& [ti, desc] : kRegistry | std::views::reverse) {
-    if (desc.HasComponent(entity)) {
-      desc.RenderSelf(entity);
+  for (const auto& ti : kRegistryOrder) {
+    const auto& desc = kRegistry.at(ti);
+    if (!desc.HasComponent(entity)) {
+      continue;
+    }
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImDrawListSplitter splitter;
+    splitter.Split(dl, 2);
+    splitter.SetCurrentChannel(dl, 1);
+
+    const float top_y = ImGui::GetCursorScreenPos().y;
+
+    ImGui::ResetComponentHeaderState();
+    ImGui::SetNextTreeNodeIcon(desc.icon.empty() ? nullptr
+                                                 : desc.icon.c_str());
+    desc.RenderSelf(entity);
+    ImGui::SetNextTreeNodeIcon(nullptr);
+
+    const ImGui::ComponentHeaderState state = ImGui::GetComponentHeaderState();
+    // Strip the trailing ItemSpacing that ItemSize added, then add an
+    // explicit drawer bottom pad so the box hugs the last inner widget.
+    const float content_end_y =
+        ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y;
+    const float bottom_pad = (state.header_rendered && state.open)
+                                 ? ImGui::GetStyle().WindowPadding.y
+                                 : 0.0f;
+    const float bottom_y = content_end_y + bottom_pad;
+
+    splitter.SetCurrentChannel(dl, 0);
+    const ImVec2 win_pos = ImGui::GetWindowPos();
+    const ImVec2 win_size = ImGui::GetWindowSize();
+    // Box spans the full window width, ignoring WindowPadding.
+    const float left_x = win_pos.x;
+    const float right_x = win_pos.x + win_size.x;
+    const ImU32 border_col = ImGui::GetColorU32(ImGuiCol_Border);
+
+    if (state.header_rendered && state.open) {
+      // Fixed drawer bg matches the engine's input drawer color.
+      const ImU32 drawer_col = IM_COL32(0x1a, 0x18, 0x17, 0xff);
+      dl->AddRectFilled(ImVec2(left_x, state.header_bottom_y),
+                        ImVec2(right_x, bottom_y), drawer_col);
+    }
+
+    if (state.header_rendered) {
+      dl->AddLine(ImVec2(left_x, top_y), ImVec2(right_x, top_y),
+                  border_col, 1.0f);
+      dl->AddLine(ImVec2(left_x, top_y), ImVec2(left_x, bottom_y),
+                  border_col, 1.0f);
+      dl->AddLine(ImVec2(right_x, top_y), ImVec2(right_x, bottom_y),
+                  border_col, 1.0f);
+      dl->AddLine(ImVec2(left_x, bottom_y), ImVec2(right_x, bottom_y),
+                  border_col, 1.0f);
+    }
+
+    splitter.Merge(dl);
+
+    // Start the next component flush with this one's bottom border so
+    // adjacent components share a single 1px divider instead of a gap.
+    if (state.header_rendered) {
+      ImVec2 cur = ImGui::GetCursorScreenPos();
+      ImGui::SetCursorScreenPos(ImVec2(cur.x, bottom_y));
     }
   }
 }
 
+std::string_view GetEntityIcon(Entity entity) {
+  const ComponentDesc* best = nullptr;
+  for (const auto& [ti, desc] : kRegistry) {
+    if (desc.icon.empty()) {
+      continue;
+    }
+    if (!desc.HasComponent(entity)) {
+      continue;
+    }
+    if (!best || desc.icon_priority >= best->icon_priority) {
+      best = &desc;
+    }
+  }
+  return best ? std::string_view(best->icon) : std::string_view();
+}
+
 void RenderModals(Entity entity) {
-  for (const auto& item : kRegistry | std::views::reverse) {
-    item.second.RenderModal(entity);
+  for (const auto& ti : kRegistryOrder) {
+    kRegistry.at(ti).RenderModal(entity);
   }
 }
 
@@ -2179,14 +2292,32 @@ void RenderAddPopup(Entity entity) {
 
   bool has_filter = !filter_lower.empty();
 
-  // Collect groups in consistent order
-  static const std::vector<std::string> group_order = {
-      "Rendering", "Lighting", "Audio",     "Physics",
-      "UI",        "Canvas",   "Scripting", "Networking"};
+  // Collect groups in consistent order. Paired with Lucide icons that are
+  // prepended to the BeginMenu label.
+  struct GroupEntry {
+    const char* name;
+    const char* icon;
+  };
+  static const std::vector<GroupEntry> group_order = {
+      {"Rendering",  ICON_LC_IMAGE},
+      {"Lighting",   ICON_LC_SUN},
+      {"Audio",      ICON_LC_VOLUME_2},
+      {"Physics",    ICON_LC_WEIGHT},
+      {"UI",         ICON_LC_HAND},
+      {"Canvas",     ICON_LC_FRAME},
+      {"Scripting",  ICON_LC_CODE},
+      {"Networking", ICON_LC_NETWORK},
+  };
+
+  auto stage_icon = [](const ComponentDesc& desc) {
+    ImGui::SetNextMenuItemIcon(desc.icon.empty() ? nullptr
+                                                 : desc.icon.c_str());
+  };
 
   if (has_filter) {
     // Flat filtered list (no groups)
-    for (const auto& [ti, desc] : kRegistry) {
+    for (const auto& ti_o : kRegistryOrder) {
+      const auto& desc = kRegistry.at(ti_o);
       if (!desc.RenderAdd || desc.display_name.empty()) {
         continue;
       }
@@ -2200,6 +2331,7 @@ void RenderAddPopup(Entity entity) {
       }
       if (name_lower.find(filter_lower) != std::string::npos ||
           group_lower.find(filter_lower) != std::string::npos) {
+        stage_icon(desc);
         desc.RenderAdd(entity);
       }
     }
@@ -2207,8 +2339,9 @@ void RenderAddPopup(Entity entity) {
     // Grouped view
     for (const auto& group : group_order) {
       bool has_items = false;
-      for (const auto& [ti, desc] : kRegistry) {
-        if (desc.group == group && desc.RenderAdd) {
+      for (const auto& ti_o : kRegistryOrder) {
+        const auto& desc = kRegistry.at(ti_o);
+        if (desc.group == group.name && desc.RenderAdd) {
           has_items = true;
           break;
         }
@@ -2217,9 +2350,13 @@ void RenderAddPopup(Entity entity) {
         continue;
       }
 
-      if (ImGui::BeginMenu(group.c_str())) {
-        for (const auto& [ti, desc] : kRegistry) {
-          if (desc.group == group && desc.RenderAdd) {
+      std::string menu_label =
+          std::string(group.icon) + "  " + group.name;
+      if (ImGui::BeginMenu(menu_label.c_str())) {
+        for (const auto& ti_o : kRegistryOrder) {
+          const auto& desc = kRegistry.at(ti_o);
+          if (desc.group == group.name && desc.RenderAdd) {
+            stage_icon(desc);
             desc.RenderAdd(entity);
           }
         }

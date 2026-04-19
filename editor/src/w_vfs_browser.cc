@@ -15,6 +15,7 @@
 #include <filesystem>
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_utils.h"
+#include "util/imgui/imgui_lucide.h"
 #include <urkern/natural_sort.h>
 #include "w_engine.h"
 
@@ -179,9 +180,14 @@ std::vector<std::pair<std::string, std::string>> VfsBrowser::Breadcrumbs()
 
 void VfsBrowser::BeginTileGrid() {
   float panel_width = ImGui::GetContentRegionAvail().x;
-  float cell_size = tile_size + 8.0f;
+  // Outer tile width is tile_size + 2 * inner_pad (6 each side). No extra
+  // spacing — tiles sit flush with their neighbors.
+  float cell_size = tile_size + 12.0f;
   grid_columns_ = std::max(1, static_cast<int>(panel_width / cell_size));
   grid_col_ = 0;
+  // Kill the per-item vertical gap so rows stack flush as well.
+  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                      ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
 }
 
 bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
@@ -192,11 +198,28 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
   bool clicked = false;
   ImGui::PushID(label);
 
-  ImVec2 cursor = ImGui::GetCursorScreenPos();
-  ImVec2 icon_min = cursor;
-  ImVec2 icon_max = ImVec2(cursor.x + tile_size, cursor.y + tile_size);
+  const ImGuiStyle& style = ImGui::GetStyle();
+  const float outer_rounding = style.WindowRounding;
+  const float inner_rounding = style.FrameRounding;
+  const float inner_pad = 6.0f;      // space between outer box edge and the preview rect
+  const float label_pad = 4.0f;      // gap between preview rect and label
+  const float label_h = ImGui::GetTextLineHeight();
+  // Preview rect is half-height relative to tile_size, so tiles read as
+  // landscape banners instead of squares.
+  const float preview_h = tile_size * 0.5f;
 
-  if (ImGui::InvisibleButton("##tile", ImVec2(tile_size, tile_size + 20))) {
+  ImVec2 cursor = ImGui::GetCursorScreenPos();
+  // Outer tile box: inner_pad on all sides + preview + label_pad gap + label.
+  const ImVec2 box_min = cursor;
+  const ImVec2 box_max = ImVec2(
+      cursor.x + tile_size + inner_pad * 2.0f,
+      cursor.y + inner_pad + preview_h + label_pad + label_h + inner_pad);
+  // Inner preview box (icon / thumbnail rect).
+  const ImVec2 icon_min = ImVec2(box_min.x + inner_pad, box_min.y + inner_pad);
+  const ImVec2 icon_max = ImVec2(icon_min.x + tile_size, icon_min.y + preview_h);
+
+  if (ImGui::InvisibleButton("##tile", ImVec2(box_max.x - box_min.x,
+                                              box_max.y - box_min.y))) {
     clicked = true;
   }
   if (double_clicked && ImGui::IsItemHovered() &&
@@ -207,38 +230,71 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
 
   ImDrawList* dl = ImGui::GetWindowDrawList();
 
-  // Selection / hover highlight
+  // Selection / hover highlight on the outer box.
   if (is_selected) {
-    dl->AddRectFilled(ImVec2(icon_min.x - 2, icon_min.y - 2),
-                      ImVec2(icon_max.x + 2, icon_max.y + 22),
-                      IM_COL32(60, 100, 160, 180), 4.0f);
+    ImVec4 accent = ImGui::GetStyleColorVec4(ImGuiCol_CheckMark);
+    ImVec4 accent_fill = accent;
+    accent_fill.w = 0.18f;
+    dl->AddRectFilled(box_min, box_max,
+                      ImGui::ColorConvertFloat4ToU32(accent_fill),
+                      outer_rounding);
+    dl->AddRect(box_min, box_max,
+                ImGui::ColorConvertFloat4ToU32(accent),
+                outer_rounding, 0, 1.0f);
   } else if (hovered) {
-    dl->AddRectFilled(ImVec2(icon_min.x - 2, icon_min.y - 2),
-                      ImVec2(icon_max.x + 2, icon_max.y + 22),
-                      IM_COL32(70, 70, 70, 120), 4.0f);
+    dl->AddRectFilled(box_min, box_max, IM_COL32(255, 255, 255, 18),
+                      outer_rounding);
   }
 
-  // Icon: thumbnail image or colored rectangle
+  // Inner preview area. Background matches input frames (dark + 1px border)
+  // so every tile reads as a consistent container regardless of its asset
+  // type. Thumbnails draw inside that container.
+  const ImU32 inner_bg = ImGui::ColorConvertFloat4ToU32(
+      ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+  const ImU32 inner_border = ImGui::ColorConvertFloat4ToU32(
+      ImGui::GetStyleColorVec4(ImGuiCol_Border));
+  const float preview_w = icon_max.x - icon_min.x;
+  const float preview_h_rect = icon_max.y - icon_min.y;
+
+  dl->AddRectFilled(icon_min, icon_max, inner_bg, inner_rounding);
+
   if (thumbnail && thumbnail->texture_id) {
-    ImVec2 img_size = thumbnail->FitSize(tile_size);
-    float ox = (tile_size - img_size.x) * 0.5f;
-    float oy = (tile_size - img_size.y) * 0.5f;
+    // Fit the image inside the (possibly-rectangular) preview rect.
+    const float max_side = std::min(preview_w, preview_h_rect);
+    ImVec2 img_size = thumbnail->FitSize(max_side);
+    float ox = (preview_w - img_size.x) * 0.5f;
+    float oy = (preview_h_rect - img_size.y) * 0.5f;
     ImVec2 img_min(icon_min.x + ox, icon_min.y + oy);
     ImVec2 img_max(img_min.x + img_size.x, img_min.y + img_size.y);
     dl->AddImageRounded(reinterpret_cast<ImTextureID>(thumbnail->texture_id),
                         img_min, img_max, thumbnail->uv0, thumbnail->uv1,
-                        IM_COL32_WHITE, 6.0f);
-  } else {
-    ImU32 col32 = ImGui::ColorConvertFloat4ToU32(icon_color);
-    dl->AddRectFilled(icon_min, icon_max, col32, 6.0f);
-
-    if (type_abbrev && type_abbrev[0]) {
-      ImVec2 text_sz = ImGui::CalcTextSize(type_abbrev);
-      ImVec2 text_pos(icon_min.x + (tile_size - text_sz.x) * 0.5f,
-                      icon_min.y + (tile_size - text_sz.y) * 0.5f);
-      dl->AddText(text_pos, IM_COL32(255, 255, 255, 200), type_abbrev);
-    }
+                        IM_COL32_WHITE, inner_rounding);
+  } else if (is_folder) {
+    // Folder icon, centered, slightly bigger than body text.
+    const char* glyph = ICON_LC_FOLDER;
+    const float icon_size = ImGui::GetFontSize() * 1.5f;
+    ImVec2 glyph_sz = ImGui::CalcTextSize(glyph);
+    float scale = icon_size / glyph_sz.y;
+    ImVec2 scaled_sz(glyph_sz.x * scale, glyph_sz.y * scale);
+    ImVec2 pos(icon_min.x + (preview_w - scaled_sz.x) * 0.5f,
+               icon_min.y + (preview_h_rect - scaled_sz.y) * 0.5f);
+    dl->AddText(ImGui::GetFont(), icon_size, pos,
+                ImGui::ColorConvertFloat4ToU32(
+                    ImGui::GetStyleColorVec4(ImGuiCol_Text)),
+                glyph);
+  } else if (type_abbrev && type_abbrev[0]) {
+    // Type abbreviation tinted with the asset-type color.
+    ImVec4 tint = icon_color;
+    ImVec2 text_sz = ImGui::CalcTextSize(type_abbrev);
+    ImVec2 text_pos(icon_min.x + (preview_w - text_sz.x) * 0.5f,
+                    icon_min.y + (preview_h_rect - text_sz.y) * 0.5f);
+    dl->AddText(text_pos, ImGui::ColorConvertFloat4ToU32(tint), type_abbrev);
   }
+
+  // 1px border around the preview rect (matches input frames).
+  if (style.FrameBorderSize > 0.0f)
+    dl->AddRect(icon_min, icon_max, inner_border, inner_rounding, 0,
+                style.FrameBorderSize);
 
   // Label below icon (centered, truncated)
   float max_text_w = tile_size;
@@ -256,7 +312,7 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
     label_sz = ImGui::CalcTextSize(display_label.c_str());
   }
   float label_x = icon_min.x + (tile_size - label_sz.x) * 0.5f;
-  ImVec2 label_pos(label_x, icon_max.y + 4);
+  ImVec2 label_pos(label_x, icon_max.y + label_pad);
   dl->AddText(label_pos, IM_COL32(220, 220, 220, 255), display_label.c_str());
 
   // Tooltip
@@ -305,7 +361,7 @@ bool VfsBrowser::DrawTile(const char* label, ImVec4 icon_color,
 void VfsBrowser::NextColumn() {
   grid_col_++;
   if (grid_col_ < grid_columns_) {
-    ImGui::SameLine(0, 8.0f);
+    ImGui::SameLine(0.0f, 0.0f);
   } else {
     grid_col_ = 0;
   }
@@ -313,23 +369,30 @@ void VfsBrowser::NextColumn() {
 
 void VfsBrowser::EndTileGrid() {
   grid_col_ = 0;
+  ImGui::PopStyleVar();
 }
 
 bool VfsBrowser::RenderBreadcrumbs() {
   bool changed = false;
   auto crumbs = Breadcrumbs();
 
+  const ImVec4 muted = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
   for (size_t i = 0; i < crumbs.size(); i++) {
     if (i > 0) {
       ImGui::SameLine();
       ImGui::AlignTextToFramePadding();
-      ImGui::TextUnformatted("/");
+      ImGui::PushStyleColor(ImGuiCol_Text, muted);
+      ImGui::TextUnformatted(ICON_LC_CHEVRON_RIGHT);
+      ImGui::PopStyleColor();
       ImGui::SameLine();
     }
     bool is_last = (i == crumbs.size() - 1);
 
     if (!is_last) {
-      if (ImGui::Button(crumbs[i].first.c_str())) {
+      ImGui::PushStyleColor(ImGuiCol_Text, muted);
+      const bool clicked = ImGui::Button(crumbs[i].first.c_str());
+      ImGui::PopStyleColor();
+      if (clicked) {
         if (i == 0) {
           // "Assets" crumb - go back to top level
           root_.clear();
