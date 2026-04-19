@@ -42,27 +42,42 @@ inline bool ResolveSkeletonRoot(Scene& scene,
   return true;
 }
 
+// Fast-path variant when the caller already has the material (avoids an
+// asset_manager hash lookup per entity).
+inline bool IsMaterialDoubleSided(const std::shared_ptr<Material>& mat) {
+  return mat && mat->double_sided;
+}
+
 // Check if a mesh's material is double-sided.
 inline bool IsMeshDoubleSided(AssetHandle model_handle, int32_t mesh_index) {
   auto model_data = Engine::asset_manager().Get<Model>(model_handle);
   if (model_data && mesh_index >= 0 &&
       mesh_index < static_cast<int32_t>(model_data->meshes.size())) {
     auto& mat = model_data->meshes[mesh_index]->mat;
-    return mat && mat->double_sided;
+    return IsMaterialDoubleSided(mat);
   }
   return false;
+}
+
+// Fast-path variant when the caller already has the mesh (avoids an
+// asset_manager hash lookup per entity).
+inline bool FrustumCullMeshDirect(const FrustumPlanes& frustum,
+                                  const Mesh& mesh,
+                                  const glm::mat4& world_transform) {
+  PROFILE_ZONE_SCOPED_N("FrustumCullMeshDirect");
+  AABB world_bounds = mesh.bounds.Transformed(world_transform);
+  return frustum.IsBoxOutside(world_bounds.min, world_bounds.max);
 }
 
 // Frustum cull a static mesh. Returns true if the mesh should be culled.
 inline bool FrustumCullMesh(const FrustumPlanes& frustum,
                             AssetHandle model_handle, int32_t mesh_index,
                             const glm::mat4& world_transform) {
+  PROFILE_ZONE_SCOPED_N("FrustumCullMesh");
   auto model_data = Engine::asset_manager().Get<Model>(model_handle);
   if (model_data && mesh_index >= 0 &&
       mesh_index < static_cast<int32_t>(model_data->meshes.size())) {
-    AABB world_bounds =
-        model_data->meshes[mesh_index]->bounds.Transformed(world_transform);
-    return frustum.IsBoxOutside(world_bounds.min, world_bounds.max);
+    return FrustumCullMeshDirect(frustum, *model_data->meshes[mesh_index], world_transform);
   }
   return false;
 }

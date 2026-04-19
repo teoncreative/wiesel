@@ -363,8 +363,11 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     PROFILE_ZONE_SCOPED_N("RenderPass");
     ZoneText(pass.name_.c_str(), pass.name_.size());
 
-    // Insert barriers for inputs (transition to required layouts)
-    InsertBarriers(cmd, pass);
+    {
+      PROFILE_ZONE_SCOPED_N("Barriers");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
+      InsertBarriers(cmd, pass);
+    }
 
 #ifdef WIESEL_GPU_PROFILING
     vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -373,21 +376,24 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
 
     auto cpu_start = std::chrono::high_resolution_clock::now();
 
-    // Begin render pass
     if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
+      PROFILE_ZONE_SCOPED_N("BeginRenderPass");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
       pass.render_pass_->Begin(pass.framebuffer_, pass.clear_color_);
       if (pass.viewport_size_.x > 0 && pass.viewport_size_.y > 0) {
         renderer_.SetViewport(pass.viewport_size_);
       }
     }
 
-    // Execute the pass
     if (pass.execute_fn_) {
+      PROFILE_ZONE_SCOPED_N("Execute");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
       pass.execute_fn_(cmd);
     }
 
-    // End render pass
     if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
+      PROFILE_ZONE_SCOPED_N("EndRenderPass");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
       pass.render_pass_->End();
     }
 

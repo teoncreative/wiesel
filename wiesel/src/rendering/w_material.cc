@@ -352,13 +352,30 @@ glm::vec4 MaterialInstance::GetEffectiveVec4(const std::string& name) const {
   return glm::vec4(1.0f);
 }
 
+const MaterialInstance::ResolvedProps& MaterialInstance::GetResolvedProps()
+    const {
+  if (!resolved_dirty_) {
+    return resolved_;
+  }
+  resolved_.color_tint = GetEffectiveVec4("color_tint");
+  resolved_.roughness = GetEffectiveFloat("roughness");
+  resolved_.metallic = GetEffectiveFloat("metallic");
+  resolved_.specular = GetEffectiveFloat("specular");
+  float ac = GetEffectiveFloat("alpha_cutoff");
+  resolved_.alpha_cutoff = (ac <= 0.0f) ? 0.5f : ac;
+  resolved_dirty_ = false;
+  return resolved_;
+}
+
 void MaterialInstance::SetOverride(const std::string& name,
                                    MaterialPropertyValue value) {
   overrides[name] = std::move(value);
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::ClearOverride(const std::string& name) {
   overrides.erase(name);
+  resolved_dirty_ = true;
 }
 
 bool MaterialInstance::HasOverride(const std::string& name) const {
@@ -383,18 +400,22 @@ float MaterialInstance::GetSpecular() const {
 
 void MaterialInstance::SetColorTint(const glm::vec4& color) {
   overrides["color_tint"] = color;
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::SetRoughness(float value) {
   overrides["roughness"] = value;
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::SetMetallic(float value) {
   overrides["metallic"] = value;
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::SetSpecular(float value) {
   overrides["specular"] = value;
+  resolved_dirty_ = true;
 }
 
 }  // namespace wiesel

@@ -143,7 +143,20 @@ struct RendererOptions {
 struct RendererProperties {};
 
 struct RenderStats {
+  // Total vkCmdDraw* commands submitted this frame (batched + non-batched).
   uint32_t draw_calls = 0;
+  // Subset of draw_calls where instance_count > 1 (true instanced batches).
+  uint32_t instanced_draw_calls = 0;
+  // Subset of draw_calls with instance_count == 1 (single-mesh draws: skinned,
+  // billboards, debug, UI, etc).
+  uint32_t single_draw_calls = 0;
+  // Sum of instance_count across every mesh draw this frame. A plain draw
+  // contributes 1; an instanced batch of N contributes N.
+  uint32_t total_instances = 0;
+  // Number of per-entity draws saved by instancing: total_instances - mesh
+  // draw_calls that went through a mesh pass. Represents CPU submission work
+  // avoided.
+  uint32_t saved_by_batching = 0;
   uint32_t vertices = 0;
   uint32_t triangles = 0;
   uint32_t meshes = 0;
@@ -167,6 +180,10 @@ struct RenderStats {
 
   void Reset() {
     draw_calls = 0;
+    instanced_draw_calls = 0;
+    single_draw_calls = 0;
+    total_instances = 0;
+    saved_by_batching = 0;
     vertices = 0;
     triangles = 0;
     meshes = 0;
@@ -197,6 +214,37 @@ class Renderer {
   std::shared_ptr<UniformBuffer> CreateStorageBuffer(
       const std::string& debug_name, VkDeviceSize size);
 
+  // Reserve a contiguous range of entries in the current frame's slice of the
+  // global instance SSBO. Writes into `out_ptr` by the caller are visible to
+  // the GPU once the frame's command buffer submits. Returned value is the
+  // first_instance to pass to vkCmdDrawIndexed so gl_InstanceIndex inside the
+  // shader matches the SSBO index.
+  uint32_t ReserveInstanceRange(uint32_t count,
+                                struct MatricesUniformData*& out_ptr);
+
+  // The global instance storage buffer used by all mesh pipelines.
+  std::shared_ptr<UniformBuffer> GetInstanceStorageBuffer() const {
+    return instance_storage_buffer_;
+  }
+
+  // Called by instanced draw paths to account for a batched draw.
+  void UpdateDrawStats(const std::shared_ptr<class Mesh>& mesh,
+                       uint32_t instance_count);
+
+  // Outputs needed to route a mesh renderer through the batcher.
+  struct MeshDrawPrep {
+    std::shared_ptr<class Mesh> mesh;
+    std::shared_ptr<class Material> material;
+    std::shared_ptr<class DescriptorSet> geometry_descriptor;
+    std::shared_ptr<class DescriptorSet> shadow_descriptor;
+  };
+
+  // Ensures the mesh renderer's GPU resources exist, refreshes its material
+  // descriptors if any textures changed, and returns the handles needed for
+  // drawing. Returns false if the model handle is invalid.
+  bool PrepareMesh(MeshRendererComponent& mr, MeshDrawPrep& out);
+  bool PrepareMesh(SkinnedMeshRendererComponent& mr, MeshDrawPrep& out);
+
   void SetupCameraComponent(CameraComponent& component);
 
   std::shared_ptr<Texture> CreateBlankTexture(const std::string& debug_name);
@@ -225,11 +273,9 @@ class Renderer {
                                   void* buffer, size_t size_per_pixel);
 
   std::shared_ptr<DescriptorSet> CreateMeshDescriptors(
-      std::shared_ptr<UniformBuffer> uniform_buffer,
       std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateShadowMeshDescriptors(
-      std::shared_ptr<UniformBuffer> uniform_buffer,
       std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateGlobalDescriptors(
@@ -470,7 +516,8 @@ class Renderer {
                    std::shared_ptr<DescriptorSet> mesh_descriptors,
                    std::shared_ptr<DescriptorSet> bone_descriptors,
                    std::shared_ptr<DescriptorSet> global_descriptors,
-                   std::shared_ptr<DescriptorSet> ibl_descriptors = nullptr);
+                   std::shared_ptr<DescriptorSet> ibl_descriptors = nullptr,
+                   uint32_t first_instance = 0);
 
   // Per-entity mesh renderer draw (static meshes)
   void DrawMeshRenderer(
@@ -762,6 +809,14 @@ class Renderer {
   std::shared_ptr<UniformBuffer> camera_uniform_buffer_;
   std::shared_ptr<UniformBuffer> shadow_camera_uniform_buffer_;
   std::shared_ptr<UniformBuffer> ssao_kernel_uniform_buffer_;
+
+  // Global per-instance SSBO. Layout is 2 contiguous slices (one per
+  // frame-in-flight). The current frame writes into its slice, and draw
+  // commands use firstInstance = slice_base + batch_offset so gl_InstanceIndex
+  // inside the shader matches the SSBO index.
+  std::shared_ptr<UniformBuffer> instance_storage_buffer_;
+  uint32_t instance_slice_capacity_ = 0;
+  uint32_t instance_next_index_ = 0;
   CameraUniformData camera_uniform_data_;
   ShadowMapMatricesUniformData shadow_camera_uniform_data_;
   SSAOKernelUniformData ssao_kernel_uniform_data_;

@@ -33,15 +33,15 @@ struct MeshRendererComponent {
   std::shared_ptr<MaterialInstance> material_instance;
   uint32_t material_version = 0;
 
-  // Per-mesh GPU resources (lazily allocated by renderer)
-  std::shared_ptr<UniformBuffer> ubo;
+  // Per-mesh GPU resources (lazily allocated by renderer).
+  // Transform data lives in the renderer's global instance SSBO, not here.
   std::shared_ptr<DescriptorSet> geometry_descriptor;
   std::shared_ptr<DescriptorSet> shadow_descriptor;
   bool gpu_allocated = false;
 
-  // Last frame in which the shadow-pass portion of the UBO was uploaded.
-  // Used to skip redundant uploads across the per-cascade shadow passes.
-  uint64_t last_shadow_upload_frame = UINT64_MAX;
+  // Frame in which CheckMeshRendererTextureChanges last ran. Used to avoid
+  // redundant texture-slot resolves across the many per-pass iterations.
+  uint64_t last_texture_check_frame = UINT64_MAX;
 };
 
 // Per-entity component for rendering a single skinned (bone-animated) mesh.
@@ -58,13 +58,11 @@ struct SkinnedMeshRendererComponent {
   std::shared_ptr<MaterialInstance> material_instance;
   uint32_t material_version = 0;
 
-  // Per-mesh GPU resources (lazily allocated by renderer)
-  std::shared_ptr<UniformBuffer> ubo;
   std::shared_ptr<DescriptorSet> geometry_descriptor;
   std::shared_ptr<DescriptorSet> shadow_descriptor;
   bool gpu_allocated = false;
 
-  uint64_t last_shadow_upload_frame = UINT64_MAX;
+  uint64_t last_texture_check_frame = UINT64_MAX;
 
   // Reference to the root entity that owns AnimatorComponent + SkeletalAnimRuntime.
   // The bone UBO and descriptor live on that entity's SkeletalAnimRuntime.

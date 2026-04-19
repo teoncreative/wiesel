@@ -11,6 +11,7 @@
 
 #include "rendering/features/w_shadow_feature.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_instance_batcher.h"
 #include "rendering/w_mesh_render_utils.h"
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
@@ -152,7 +153,6 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
   uint32_t shadow_dim =
       static_cast<uint32_t>(renderer.options().shadow_map_resolution.Get());
 
-  // Layered depth texture for all cascades
   pool.SetTexture(
       "shadow.depth_stencil",
       renderer.CreateAttachmentTexture(
@@ -162,13 +162,11 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
 
   auto shadow_depth = pool.GetTexture("shadow.depth_stencil");
 
-  // Array view spanning all cascade layers (used by the global descriptor / lighting shader)
   pool.SetImageView(
       "ShadowDepthViewArray",
       renderer.CreateImageView(shadow_depth, VK_IMAGE_VIEW_TYPE_2D_ARRAY, 0,
                                WIESEL_SHADOW_CASCADE_COUNT));
 
-  // Per-cascade image views and framebuffers
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     auto cascade_view =
         renderer.CreateImageView(shadow_depth, VK_IMAGE_VIEW_TYPE_2D, i);
@@ -181,7 +179,6 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
         render_pass_->CreateFramebuffer(views, {shadow_dim, shadow_dim}));
   }
 
-  // Shadow global descriptor
   pool.SetDescriptor("ShadowGlobalDescriptor",
                      renderer.CreateShadowGlobalDescriptors(camera));
 }
@@ -192,14 +189,12 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("ShadowFeature::AddPasses");
   auto& pool = ctx.resources;
 
-  // Import the layered shadow depth texture
   RGResource shadow_depth;
   auto shadow_tex = pool.GetTexture("shadow.depth_stencil");
   if (shadow_tex) {
     shadow_depth = graph.ImportTexture("ShadowDepth", shadow_tex);
   }
 
-  // Capture stable pointers for deferred lambda execution.
   MultiScene& scenes = ctx.scenes;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
@@ -209,45 +204,56 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   auto push_constant = push_constant_;
   bool does_shadow = ctx.camera.does_shadow_pass;
 
-  // `alpha_test_only` selects the alpha-test (true) or opaque (false) caster
-  // set; `double_sided_pass` picks back-face-culled vs double-sided geometry.
-  auto draw_static_meshes = [&scenes, renderer](const FrustumPlanes& frustum,
-                                                bool alpha_test_only,
-                                                bool double_sided_pass) {
+  // Scene scan + PrepareMesh + world-AABB + classification is cascade
+  // independent, so we collect it once per frame here.
+  struct PreppedStatic {
+    std::shared_ptr<Mesh> mesh;
+    std::shared_ptr<Material> material;
+    std::shared_ptr<DescriptorSet> shadow_descriptor;
+    MatricesUniformData data;
+    AABB world_bounds;
+    bool alpha_test;
+    bool double_sided;
+  };
+  struct PreppedSkinned {
+    SkinnedMeshRendererComponent* mr;
+    const TransformComponent* transform;
+    const SkeletalAnimRuntime* skel;
+    AABB world_bounds;
+    bool skip_cull;
+    bool alpha_test;
+    bool double_sided;
+  };
+
+  auto prepped_static = std::make_shared<std::vector<PreppedStatic>>();
+  auto prepped_skinned = std::make_shared<std::vector<PreppedSkinned>>();
+
+  if (does_shadow) {
+    PROFILE_ZONE_SCOPED_N("ShadowFeature::CollectCasters");
     scenes.ForEach<MeshRendererComponent, TransformComponent>(
-        [&](Scene& scene, entt::entity entity) {
+        [&](Scene& scene, uint8_t scene_idx, entt::entity entity) {
           auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
           if (!mr.receive_shadows || !mr.enable_rendering ||
               !mr.model_handle.IsValid()) {
             return;
           }
-          auto model_data =
-              Engine::asset_manager().Get<Model>(mr.model_handle);
-          if (!model_data || mr.mesh_index < 0 ||
-              mr.mesh_index >=
-                  static_cast<int32_t>(model_data->meshes.size())) {
-            return;
-          }
-          auto& mesh = model_data->meshes[mr.mesh_index];
-          if (NeedsAlphaTest(mesh) != alpha_test_only) {
-            return;
-          }
-          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
-              double_sided_pass) {
+          Renderer::MeshDrawPrep prep;
+          if (!renderer->PrepareMesh(mr, prep)) {
             return;
           }
           auto& transform = scene.GetComponent<TransformComponent>(entity);
-          if (FrustumCullMesh(frustum, mr.model_handle, mr.mesh_index,
-                              transform.GetTransformMatrix())) {
-            return;
-          }
-          renderer->DrawMeshRenderer(mr, transform, true);
+          PreppedStatic p;
+          p.mesh = prep.mesh;
+          p.material = prep.material;
+          p.shadow_descriptor = prep.shadow_descriptor;
+          p.data = BuildInstanceData(mr, transform, entity, scene_idx);
+          p.world_bounds =
+              prep.mesh->bounds.Transformed(transform.GetTransformMatrix());
+          p.alpha_test = NeedsAlphaTest(prep.mesh);
+          p.double_sided = IsMaterialDoubleSided(prep.material);
+          prepped_static->push_back(std::move(p));
         });
-  };
 
-  auto draw_skinned_meshes = [&scenes, renderer](const FrustumPlanes& frustum,
-                                                 bool alpha_test_only,
-                                                 bool double_sided_pass) {
     scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
         [&](Scene& scene, entt::entity entity) {
           auto& mr = scene.GetComponent<SkinnedMeshRendererComponent>(entity);
@@ -255,19 +261,8 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
               !mr.model_handle.IsValid()) {
             return;
           }
-          auto model_data =
-              Engine::asset_manager().Get<Model>(mr.model_handle);
-          if (!model_data || mr.mesh_index < 0 ||
-              mr.mesh_index >=
-                  static_cast<int32_t>(model_data->meshes.size())) {
-            return;
-          }
-          auto& mesh = model_data->meshes[mr.mesh_index];
-          if (NeedsAlphaTest(mesh) != alpha_test_only) {
-            return;
-          }
-          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
-              double_sided_pass) {
+          Renderer::MeshDrawPrep prep;
+          if (!renderer->PrepareMesh(mr, prep)) {
             return;
           }
           const TransformComponent* draw_transform =
@@ -276,53 +271,104 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
           if (!ResolveSkeletonRoot(scene, mr, draw_transform, skel)) {
             return;
           }
-          if (FrustumCullSkinned(frustum, skel,
-                                 draw_transform->GetTransformMatrix())) {
-            return;
+          PreppedSkinned p;
+          p.mr = &mr;
+          p.transform = draw_transform;
+          p.skel = skel;
+          p.skip_cull = !(skel && skel->rest_pose_bounds.Valid());
+          if (!p.skip_cull) {
+            p.world_bounds = skel->rest_pose_bounds.Transformed(
+                draw_transform->GetTransformMatrix());
+            if (skel->max_bone_reach > 0.0f) {
+              glm::vec3 expand(skel->max_bone_reach);
+              p.world_bounds.min -= expand;
+              p.world_bounds.max += expand;
+            }
           }
-          renderer->DrawSkinnedMeshRenderer(mr, *draw_transform, skel, true);
+          p.alpha_test = NeedsAlphaTest(prep.mesh);
+          p.double_sided = IsMaterialDoubleSided(prep.material);
+          prepped_skinned->push_back(std::move(p));
         });
-  };
+  }
 
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     uint32_t shadow = graph.AddPass(
         "Shadow " + std::to_string(i), render_pass_,
         [pipeline, pipeline_no_cull, pipeline_opaque, pipeline_opaque_no_cull,
-         push_constant, renderer, does_shadow, draw_static_meshes,
-         draw_skinned_meshes, i](VkCommandBuffer) {
+         push_constant, renderer, does_shadow, prepped_static, prepped_skinned,
+         i](VkCommandBuffer cmd) {
           if (!does_shadow) {
             return;
           }
-          memcpy(renderer->GetShadowCameraUniformBuffer()->data_,
-                 &renderer->GetShadowCameraUniformData(),
-                 sizeof(ShadowMapMatricesUniformData));
+          std::memcpy(renderer->GetShadowCameraUniformBuffer()->data_,
+                      &renderer->GetShadowCameraUniformData(),
+                      sizeof(ShadowMapMatricesUniformData));
           push_constant->cascade_index = i;
 
-          // Per-cascade frustum culling: each cascade's view-projection defines
-          // a tighter frustum than the main camera, and using it here also fixes
-          // the previous bug where casters outside the camera view were skipped.
           FrustumPlanes cascade_frustum = ExtractFrustumPlanesFromVP(
               renderer->GetCameraData()->shadow_map_cascades[i].ViewProjMatrix);
 
-          // Opaque, single-sided: depth-only pipeline (no fragment shader).
-          pipeline_opaque->Bind(PipelineBindPointGraphics);
-          draw_static_meshes(cascade_frustum, false, false);
-          draw_skinned_meshes(cascade_frustum, false, false);
+          auto global_desc =
+              renderer->GetCameraData()->resource_pool->GetDescriptor(
+                  "ShadowGlobalDescriptor");
+          auto bone_desc = renderer->GetIdentityBoneDescriptor();
 
-          // Opaque, double-sided.
-          pipeline_opaque_no_cull->Bind(PipelineBindPointGraphics);
-          draw_static_meshes(cascade_frustum, false, true);
-          draw_skinned_meshes(cascade_frustum, false, true);
+          // One batcher + one skinned list per pipeline bucket. Indexed as
+          // [alpha_test][double_sided] so (0,0)=opaque_cull, (0,1)=opaque_nocull,
+          // (1,0)=alpha_cull, (1,1)=alpha_nocull.
+          struct SkinnedDraw {
+            SkinnedMeshRendererComponent* mr;
+            const TransformComponent* transform;
+            const SkeletalAnimRuntime* skel;
+          };
+          std::array<std::array<MeshInstanceBatcher, 2>, 2> batchers{{
+              {MeshInstanceBatcher(renderer.get()),
+               MeshInstanceBatcher(renderer.get())},
+              {MeshInstanceBatcher(renderer.get()),
+               MeshInstanceBatcher(renderer.get())},
+          }};
+          std::array<std::array<std::vector<SkinnedDraw>, 2>, 2> skinned{};
 
-          // Alpha-tested, single-sided: full shader with opacity sampling.
-          pipeline->Bind(PipelineBindPointGraphics);
-          draw_static_meshes(cascade_frustum, true, false);
-          draw_skinned_meshes(cascade_frustum, true, false);
+          for (auto& p : *prepped_static) {
+            if (cascade_frustum.IsBoxOutside(p.world_bounds.min,
+                                             p.world_bounds.max)) {
+              continue;
+            }
+            batchers[p.alpha_test][p.double_sided].Add(
+                p.mesh, p.material, p.shadow_descriptor, p.data);
+          }
 
-          // Alpha-tested, double-sided.
-          pipeline_no_cull->Bind(PipelineBindPointGraphics);
-          draw_static_meshes(cascade_frustum, true, true);
-          draw_skinned_meshes(cascade_frustum, true, true);
+          for (auto& p : *prepped_skinned) {
+            if (!p.skip_cull &&
+                cascade_frustum.IsBoxOutside(p.world_bounds.min,
+                                             p.world_bounds.max)) {
+              continue;
+            }
+            skinned[p.alpha_test][p.double_sided].push_back(
+                {p.mr, p.transform, p.skel});
+          }
+
+          auto submit_bucket = [&](Pipeline* pl, bool alpha_test,
+                                   bool double_sided) {
+            auto& batcher = batchers[alpha_test][double_sided];
+            auto& skinned_list = skinned[alpha_test][double_sided];
+            if (batcher.Empty() && skinned_list.empty()) {
+              return;
+            }
+            pl->Bind(PipelineBindPointGraphics, cmd);
+            batcher.Flush(cmd, pl, global_desc, bone_desc);
+            // Skinned meshes aren't instanced (per-entity bone descriptors)
+            // so they continue on the per-entity draw path.
+            for (auto& d : skinned_list) {
+              renderer->DrawSkinnedMeshRenderer(*d.mr, *d.transform, d.skel,
+                                                true);
+            }
+          };
+
+          submit_bucket(pipeline_opaque.get(), false, false);
+          submit_bucket(pipeline_opaque_no_cull.get(), false, true);
+          submit_bucket(pipeline.get(), true, false);
+          submit_bucket(pipeline_no_cull.get(), true, true);
         });
     if (shadow_depth.IsValid()) {
       graph.PassWritesDepth(shadow, shadow_depth);
@@ -335,7 +381,6 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
     graph.SetPassClearColor(shadow, {0, 0, 0, 1});
   }
 
-  // Register the shadow depth output for downstream features
   if (shadow_depth.IsValid()) {
     registry.Register("ShadowDepth", shadow_depth);
   }

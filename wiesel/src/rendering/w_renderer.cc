@@ -185,6 +185,7 @@ VkDevice Renderer::GetLogicalDevice() {
 template <typename T>
 std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
     const std::string& debug_name, std::vector<T> vertices) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<MemoryBuffer> memory_buffer =
       std::make_shared<MemoryBuffer>(MemoryTypeVertexBuffer);
 
@@ -263,6 +264,7 @@ template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<RmlVertex>(
 
 std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
     const std::string& debug_name, std::vector<Index> indices) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<IndexBuffer> index_buffer = std::make_shared<IndexBuffer>();
 
   static_assert(sizeof(Index) == sizeof(uint32_t));
@@ -318,6 +320,7 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
 
 std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
     const std::string& debug_name, VkDeviceSize size) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<UniformBuffer> uniform_buffer =
       std::make_shared<UniformBuffer>();
 
@@ -344,6 +347,7 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
 
 std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
     const std::string& debug_name, VkDeviceSize size) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
   buffer->size_ = size;
   VkBuffer buf;
@@ -379,6 +383,7 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
 
 std::shared_ptr<Texture> Renderer::CreateBlankTexture(
     const std::string& debug_name) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -441,6 +446,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
 std::shared_ptr<Texture> Renderer::CreateBlankTexture(
     const std::string& debug_name, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -508,6 +514,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
 std::shared_ptr<Texture> Renderer::CreateTexture(
     const std::string& path, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, path);
 
@@ -616,6 +623,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
 std::shared_ptr<Texture> Renderer::CreateTexture(
     void* buffer, size_t size_per_pixel, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
 
@@ -712,6 +720,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
 std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     const std::array<std::string, 6>& paths, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
   VkDeviceSize total_size = 0;
@@ -817,6 +826,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
 std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
     const std::string& virtual_path, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
 
@@ -1033,6 +1043,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
 
 std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
     const AttachmentTextureProps& props) {
+  PROFILE_ZONE_SCOPED();
   if (props.type == AttachmentTextureType::SwapChain) {
     throw new std::runtime_error(
         "AttachmentTextureType::SwapChain cannot be created!");
@@ -1163,6 +1174,7 @@ void Renderer::SetAttachmentTextureBuffer(
 
 VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
                                          const SamplerProps& props) {
+  PROFILE_ZONE_SCOPED();
   VkSamplerCreateInfo sampler_info{};
   sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
   sampler_info.magFilter = props.mag_filter;
@@ -1194,12 +1206,12 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
-    std::shared_ptr<UniformBuffer> uniform_buffer,
     std::shared_ptr<Material> material) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
-      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaterialTextureCount}};
 
   VkDescriptorPoolCreateInfo pool_info{};
@@ -1230,16 +1242,16 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 
   {
     buffer_infos.push_back({
-        .buffer = uniform_buffer->buffer_handle_,
+        .buffer = instance_storage_buffer_->buffer_handle_,
         .offset = 0,
-        .range = sizeof(MatricesUniformData),
+        .range = instance_storage_buffer_->size_,
     });
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
     set.dstBinding = 0;
     set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     set.descriptorCount = 1;
     set.pBufferInfo = &buffer_infos.back();
     set.pNext = nullptr;
@@ -1288,12 +1300,11 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
-    std::shared_ptr<UniformBuffer> uniform_buffer,
     std::shared_ptr<Material> material) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
-      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaterialTextureCount},
   };
 
@@ -1325,16 +1336,16 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
 
   {
     buffer_infos.push_back({
-        .buffer = uniform_buffer->buffer_handle_,
+        .buffer = instance_storage_buffer_->buffer_handle_,
         .offset = 0,
-        .range = sizeof(MatricesUniformData),
+        .range = instance_storage_buffer_->size_,
     });
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
     set.dstBinding = 0;
     set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     set.descriptorCount = 1;
     set.pBufferInfo = &buffer_infos.back();
     set.pNext = nullptr;
@@ -2090,8 +2101,9 @@ void Renderer::RegisterDescriptorLayout(
 void Renderer::CreateDescriptorLayouts() {
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
+    // Per-instance data SSBO: shaders index instances[gl_InstanceIndex].
     layout->AddBinding(
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     for (int i = 0; i < kMaterialTextureCount; i++) {
       layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -2104,7 +2116,7 @@ void Renderer::CreateDescriptorLayouts() {
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
     layout->AddBinding(
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     for (int i = 0; i < kMaterialTextureCount; i++) {
       layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -3030,6 +3042,7 @@ void Renderer::CleanupPresentGraphics() {
 }
 
 void Renderer::CreateGlobalUniformBuffers() {
+  PROFILE_ZONE_SCOPED();
   lights_uniform_buffer_ = CreateUniformBuffer(
       "Renderer::lights_uniform_buffer_", sizeof(LightsUniformData));
   camera_uniform_buffer_ = CreateUniformBuffer(
@@ -3037,6 +3050,17 @@ void Renderer::CreateGlobalUniformBuffers() {
   shadow_camera_uniform_buffer_ =
       CreateUniformBuffer("Renderer::shadow_camera_uniform_buffer_",
                           sizeof(ShadowMapMatricesUniformData));
+
+  // Two slices (one per frame-in-flight) × starting capacity. Sized to absorb
+  // a scene-worth of entities across shadow cascades + geometry + transparency
+  // without needing to grow (growing invalidates live descriptors).
+  instance_slice_capacity_ = 65536;
+  VkDeviceSize instance_size = static_cast<VkDeviceSize>(kMaxFramesInFlight) *
+                               instance_slice_capacity_ *
+                               sizeof(MatricesUniformData);
+  instance_storage_buffer_ =
+      CreateStorageBuffer("Renderer::instance_storage_buffer_", instance_size);
+  instance_next_index_ = 0;
 }
 
 void Renderer::CleanupGlobalUniformBuffers() {
@@ -3044,11 +3068,45 @@ void Renderer::CleanupGlobalUniformBuffers() {
   camera_uniform_buffer_ = nullptr;
   shadow_camera_uniform_buffer_ = nullptr;
   ssao_kernel_uniform_buffer_ = nullptr;
+  instance_storage_buffer_ = nullptr;
   identity_bone_ubo_ = nullptr;
   identity_bone_descriptor_ = nullptr;
   default_linear_sampler_ = nullptr;
   default_nearest_sampler_ = nullptr;
   shadow_sampler_ = nullptr;
+}
+
+uint32_t Renderer::ReserveInstanceRange(uint32_t count,
+                                        MatricesUniformData*& out_ptr) {
+  // Grow the buffer if the slice is about to overflow. All draws submitted so
+  // far this frame reference the old buffer by handle; since we allocate a new
+  // one and update descriptors lazily, callers must reserve before they start
+  // batching. This grow path is rare.
+  if (instance_next_index_ + count > instance_slice_capacity_) {
+    uint32_t new_cap = instance_slice_capacity_;
+    while (instance_next_index_ + count > new_cap) {
+      new_cap *= 2;
+    }
+    LOG_WARN(
+        "Instance SSBO exhausted ({}/{}), growing to {}. Update descriptors.",
+        instance_next_index_ + count, instance_slice_capacity_, new_cap);
+    VkDeviceSize instance_size = static_cast<VkDeviceSize>(kMaxFramesInFlight) *
+                                 new_cap * sizeof(MatricesUniformData);
+    // Queue the old buffer for deletion after frames-in-flight drain.
+    auto old = instance_storage_buffer_;
+    GetDeletionQueue().Push([old]() { (void)old; });
+    instance_storage_buffer_ = CreateStorageBuffer(
+        "Renderer::instance_storage_buffer_", instance_size);
+    instance_slice_capacity_ = new_cap;
+    invalidate_model_descriptors_ = true;
+  }
+
+  uint32_t slice_base = current_frame_ * instance_slice_capacity_;
+  uint32_t first_instance = slice_base + instance_next_index_;
+  auto* base = static_cast<MatricesUniformData*>(instance_storage_buffer_->data_);
+  out_ptr = base + first_instance;
+  instance_next_index_ += count;
+  return first_instance;
 }
 
 void Renderer::RecreateSwapChain() {
@@ -3149,6 +3207,7 @@ void Renderer::BeginRender() {
   PROFILE_ZONE_SCOPED();
   stats_.Reset();
   slice_pool_used_[current_frame_] = 0;
+  instance_next_index_ = 0;
 
   // Wait for this frame slot's previous work to complete
   WIESEL_CHECK_VKRESULT(vkWaitForFences(
@@ -3403,10 +3462,7 @@ void Renderer::UpdateUniformData() {
 template <typename T>
 static void AllocateMeshRendererGpu(Renderer* renderer, T& mr,
                                     const std::shared_ptr<Material>& material) {
-  if (!mr.ubo) {
-    mr.ubo = renderer->CreateUniformBuffer("MeshRenderer::ubo",
-                                           sizeof(MatricesUniformData));
-  }
+  PROFILE_ZONE_SCOPED();
   if (!mr.material_instance) {
     mr.material_instance = std::make_shared<MaterialInstance>();
     if (mr.material_handle.IsValid()) {
@@ -3414,11 +3470,10 @@ static void AllocateMeshRendererGpu(Renderer* renderer, T& mr,
     }
   }
   if (!mr.geometry_descriptor && material) {
-    mr.geometry_descriptor = renderer->CreateMeshDescriptors(mr.ubo, material);
+    mr.geometry_descriptor = renderer->CreateMeshDescriptors(material);
   }
   if (!mr.shadow_descriptor && material) {
-    mr.shadow_descriptor =
-        renderer->CreateShadowMeshDescriptors(mr.ubo, material);
+    mr.shadow_descriptor = renderer->CreateShadowMeshDescriptors(material);
   }
   mr.gpu_allocated = true;
 }
@@ -3426,6 +3481,7 @@ static void AllocateMeshRendererGpu(Renderer* renderer, T& mr,
 template <typename T>
 static std::shared_ptr<Material> ResolveMeshMaterial(
     T& mr, const std::shared_ptr<Mesh>& mesh) {
+  PROFILE_ZONE_SCOPED();
   if (mr.material_handle.IsValid()) {
     auto mat = Engine::asset_manager().Get<Material>(mr.material_handle);
     if (mat) {
@@ -3437,10 +3493,18 @@ static std::shared_ptr<Material> ResolveMeshMaterial(
 
 template <typename T>
 static void CheckMeshRendererTextureChanges(
-    Renderer* renderer, T& mr, const std::shared_ptr<Material>& material) {
+    Renderer* renderer, T& mr, const std::shared_ptr<Material>& material,
+    uint64_t frame_counter) {
+  PROFILE_ZONE_SCOPED();
   if (!material) {
     return;
   }
+  // Material texture contents are frame-stable; skip the 8-slot resolve check
+  // on repeat visits within the same frame (shadow cascades × phases).
+  if (mr.last_texture_check_frame == frame_counter) {
+    return;
+  }
+  mr.last_texture_check_frame = frame_counter;
   bool any_changed = false;
   TextureSlot* slots[] = {
       &material->base_texture, &material->normal_map,  &material->specular_map,
@@ -3462,48 +3526,36 @@ static void CheckMeshRendererTextureChanges(
       auto old = mr.shadow_descriptor;
       renderer->GetDeletionQueue().Push([old]() { (void)old; });
     }
-    mr.geometry_descriptor = renderer->CreateMeshDescriptors(mr.ubo, material);
-    mr.shadow_descriptor =
-        renderer->CreateShadowMeshDescriptors(mr.ubo, material);
+    mr.geometry_descriptor = renderer->CreateMeshDescriptors(material);
+    mr.shadow_descriptor = renderer->CreateShadowMeshDescriptors(material);
   }
 }
 
 template <typename T>
-static void UploadMeshRendererUbo(T& mr, const TransformComponent& transform,
-                                  bool shadow_pass, entt::entity entity_handle,
-                                  uint32_t scene_index,
-                                  uint64_t frame_counter) {
-  if (shadow_pass) {
-    // Shadow passes run WIESEL_SHADOW_CASCADE_COUNT times per frame with the
-    // same transform data; only upload once per frame.
-    if (mr.last_shadow_upload_frame == frame_counter) {
-      return;
-    }
-    mr.last_shadow_upload_frame = frame_counter;
-    glm::mat4 model_matrix = transform.GetTransformMatrix();
-    memcpy(mr.ubo->data_, &model_matrix, sizeof(glm::mat4));
-  } else {
-    MatricesUniformData matrices{};
-    matrices.model_matrix = transform.GetTransformMatrix();
-    matrices.normal_matrix = transform.GetNormalMatrix();
-    if (entity_handle != entt::null) {
-      matrices.entity_id = (static_cast<uint32_t>(scene_index) << 24) |
-                           (static_cast<uint32_t>(entity_handle) + 1);
-    }
-    if (mr.material_instance) {
-      matrices.color_tint = mr.material_instance->GetColorTint();
-      float alpha_cutoff =
-          mr.material_instance->GetEffectiveFloat("alpha_cutoff");
-      if (alpha_cutoff <= 0.0f) {
-        alpha_cutoff = 0.5f;
-      }
-      matrices.material_params =
-          glm::vec4(mr.material_instance->GetRoughness(),
-                    mr.material_instance->GetMetallic(),
-                    mr.material_instance->GetSpecular(), alpha_cutoff);
-    }
-    memcpy(mr.ubo->data_, &matrices, sizeof(MatricesUniformData));
+static MatricesUniformData BuildMatricesData(
+    T& mr, const TransformComponent& transform, entt::entity entity_handle,
+    uint32_t scene_index) {
+  PROFILE_ZONE_SCOPED();
+  MatricesUniformData m{};
+  m.model_matrix = transform.GetTransformMatrix();
+  m.normal_matrix = transform.GetNormalMatrix();
+  if (entity_handle != entt::null) {
+    m.entity_id = (static_cast<uint32_t>(scene_index) << 24) |
+                  (static_cast<uint32_t>(entity_handle) + 1);
   }
+  if (mr.material_instance) {
+    m.color_tint = mr.material_instance->GetColorTint();
+    float alpha_cutoff =
+        mr.material_instance->GetEffectiveFloat("alpha_cutoff");
+    if (alpha_cutoff <= 0.0f) {
+      alpha_cutoff = 0.5f;
+    }
+    m.material_params =
+        glm::vec4(mr.material_instance->GetRoughness(),
+                  mr.material_instance->GetMetallic(),
+                  mr.material_instance->GetSpecular(), alpha_cutoff);
+  }
+  return m;
 }
 
 void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
@@ -3534,9 +3586,11 @@ void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
     AllocateMeshRendererGpu(this, mr, material);
   }
 
-  CheckMeshRendererTextureChanges(this, mr, material);
-  UploadMeshRendererUbo(mr, transform, shadow_pass, entity_handle,
-                        current_scene_index_, frame_counter_);
+  CheckMeshRendererTextureChanges(this, mr, material, frame_counter_);
+
+  MatricesUniformData* dst = nullptr;
+  uint32_t first_instance = ReserveInstanceRange(1, dst);
+  *dst = BuildMatricesData(mr, transform, entity_handle, current_scene_index_);
 
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
   auto global_desc =
@@ -3547,7 +3601,7 @@ void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
       shadow_pass ? mr.shadow_descriptor : mr.geometry_descriptor;
 
   DrawMeshCmd(cmd, mesh, descriptors, identity_bone_descriptor_, global_desc,
-              ibl_descriptor);
+              ibl_descriptor, first_instance);
   stats_.models++;
 }
 
@@ -3577,9 +3631,11 @@ void Renderer::DrawSkinnedMeshRenderer(
     AllocateMeshRendererGpu(this, mr, material);
   }
 
-  CheckMeshRendererTextureChanges(this, mr, material);
-  UploadMeshRendererUbo(mr, transform, shadow_pass, entity_handle,
-                        current_scene_index_, frame_counter_);
+  CheckMeshRendererTextureChanges(this, mr, material, frame_counter_);
+
+  MatricesUniformData* dst = nullptr;
+  uint32_t first_instance = ReserveInstanceRange(1, dst);
+  *dst = BuildMatricesData(mr, transform, entity_handle, current_scene_index_);
 
   std::shared_ptr<DescriptorSet> bone_desc = identity_bone_descriptor_;
   if (skel && skel->bone_descriptor) {
@@ -3594,12 +3650,71 @@ void Renderer::DrawSkinnedMeshRenderer(
   auto descriptors =
       shadow_pass ? mr.shadow_descriptor : mr.geometry_descriptor;
 
-  DrawMeshCmd(cmd, mesh, descriptors, bone_desc, global_desc, ibl_descriptor);
+  DrawMeshCmd(cmd, mesh, descriptors, bone_desc, global_desc, ibl_descriptor,
+              first_instance);
   stats_.models++;
+}
+
+bool Renderer::PrepareMesh(MeshRendererComponent& mr, MeshDrawPrep& out) {
+  PROFILE_ZONE_SCOPED();
+  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
+    return false;
+  }
+  out.mesh = model_data->meshes[mr.mesh_index];
+  out.material = ResolveMeshMaterial(mr, out.mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, out.material);
+  }
+  CheckMeshRendererTextureChanges(this, mr, out.material, frame_counter_);
+  out.geometry_descriptor = mr.geometry_descriptor;
+  out.shadow_descriptor = mr.shadow_descriptor;
+  return true;
+}
+
+bool Renderer::PrepareMesh(SkinnedMeshRendererComponent& mr,
+                           MeshDrawPrep& out) {
+  PROFILE_ZONE_SCOPED();
+  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
+    return false;
+  }
+  out.mesh = model_data->meshes[mr.mesh_index];
+  out.material = ResolveMeshMaterial(mr, out.mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, out.material);
+  }
+  CheckMeshRendererTextureChanges(this, mr, out.material, frame_counter_);
+  out.geometry_descriptor = mr.geometry_descriptor;
+  out.shadow_descriptor = mr.shadow_descriptor;
+  return true;
+}
+
+void Renderer::UpdateDrawStats(const std::shared_ptr<Mesh>& mesh,
+                               uint32_t instance_count) {
+  PROFILE_ZONE_SCOPED();
+  stats_.draw_calls++;
+  if (instance_count > 1) {
+    stats_.instanced_draw_calls++;
+    // Each instance past the first is a draw call the CPU did not have to
+    // record or submit - that is exactly what batching buys us.
+    stats_.saved_by_batching += instance_count - 1;
+  } else {
+    stats_.single_draw_calls++;
+  }
+  stats_.total_instances += instance_count;
+  stats_.meshes += instance_count;
+  stats_.vertices +=
+      static_cast<uint32_t>(mesh->vertices.size()) * instance_count;
+  stats_.triangles +=
+      (static_cast<uint32_t>(mesh->indices.size()) / 3) * instance_count;
 }
 
 void Renderer::DrawMeshSimple(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                               std::shared_ptr<DescriptorSet> bone_descriptor) {
+  PROFILE_ZONE_SCOPED();
   if (!mesh->allocated_) {
     return;
   }
@@ -3619,7 +3734,9 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                            std::shared_ptr<DescriptorSet> mesh_descriptors,
                            std::shared_ptr<DescriptorSet> bone_descriptors,
                            std::shared_ptr<DescriptorSet> global_descriptors,
-                           std::shared_ptr<DescriptorSet> ibl_descriptors) {
+                           std::shared_ptr<DescriptorSet> ibl_descriptors,
+                           uint32_t first_instance) {
+  PROFILE_ZONE_SCOPED();
   if (!mesh->allocated_) {
     return;
   }
@@ -3645,17 +3762,15 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
   }
 
   uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
-  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
-  stats_.draw_calls++;
-  stats_.meshes++;
-  stats_.vertices += static_cast<uint32_t>(mesh->vertices.size());
-  stats_.triangles += index_count / 3;
+  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, first_instance);
+  UpdateDrawStats(mesh, 1);
 }
 
 void Renderer::RequestEntityPick(
     uint32_t x, uint32_t y,
     std::shared_ptr<AttachmentTexture> entity_id_texture,
     std::shared_ptr<AttachmentTexture> fallback_entity_id_texture) {
+  PROFILE_ZONE_SCOPED();
   pick_x_ = x;
   pick_y_ = y;
   pick_entity_id_image_ = entity_id_texture;
@@ -3665,6 +3780,7 @@ void Renderer::RequestEntityPick(
 
 bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
                                  uint8_t& out_scene_index) {
+  PROFILE_ZONE_SCOPED();
   out_entity = entt::null;
   out_scene_index = 0;
   if (!pick_pending_ || !pick_entity_id_image_) {
@@ -4177,6 +4293,7 @@ int32_t Renderer::RateDeviceSuitability(VkPhysicalDevice device) {
 }
 
 VkCommandPool Renderer::CreateTransientCommandPool() {
+  PROFILE_ZONE_SCOPED();
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;

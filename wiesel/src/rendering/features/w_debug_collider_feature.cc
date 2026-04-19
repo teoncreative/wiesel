@@ -10,6 +10,9 @@
 //
 
 #include "rendering/features/w_debug_collider_feature.h"
+
+#include <vk_mem_alloc.h>
+
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "physics/w_collider.h"
@@ -193,6 +196,46 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   GenerateSphereGeometry();
   GenerateFilledBoxGeometry();
   GenerateFilledSphereGeometry();
+
+  // Allocate one persistent mapped vertex buffer for camera frustum draws.
+  // Rewritten each frame via memcpy instead of going through the staging
+  // path, which would stall on a fence wait per camera.
+  VkDeviceSize frustum_capacity =
+      kMaxFrustumCameras * kFrustumVerticesPerCamera * sizeof(glm::vec3);
+  renderer_->CreateBuffer(frustum_capacity, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          frustum_vb_, frustum_vb_alloc_);
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(renderer_->GetAllocator(),
+                                     frustum_vb_alloc_, &frustum_vb_mapped_));
+}
+
+DebugColliderFeature::~DebugColliderFeature() {
+  if (frustum_vb_ == VK_NULL_HANDLE) {
+    return;
+  }
+  // Defer through the renderer's deletion queue so any in-flight command
+  // buffers that still reference the buffer finish before it's freed.
+  VmaAllocator allocator = renderer_->GetAllocator();
+  VkBuffer buffer = frustum_vb_;
+  VmaAllocation alloc = frustum_vb_alloc_;
+  void* mapped = frustum_vb_mapped_;
+  renderer_->GetDeletionQueue().Push([allocator, buffer, alloc, mapped]() {
+    if (mapped) {
+      vmaUnmapMemory(allocator, alloc);
+    }
+    vmaDestroyBuffer(allocator, buffer, alloc);
+  });
+  frustum_vb_ = VK_NULL_HANDLE;
+  frustum_vb_alloc_ = nullptr;
+  frustum_vb_mapped_ = nullptr;
+}
+
+bool DebugColliderFeature::IsEnabled(const RenderContext& ctx) const {
+  const auto& opts = ctx.renderer.options();
+  bool show_cameras = opts.show_cameras && ctx.is_external;
+  return opts.show_colliders || opts.show_triggers || opts.show_reverb_zones ||
+         show_cameras || opts.show_bounds;
 }
 
 void DebugColliderFeature::GenerateBoxGeometry() {
@@ -484,6 +527,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   bool show_reverb = renderer_->options().show_reverb_zones;
   bool show_cameras = renderer_->options().show_cameras && ctx.is_external;
   bool show_bounds = renderer_->options().show_bounds;
+  VkBuffer frustum_vb = frustum_vb_;
+  void* frustum_vb_mapped = frustum_vb_mapped_;
 
   // Pre-create label descriptors
   auto trigger_desc = show_triggers
@@ -625,12 +670,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
        vp, show_colliders, show_triggers, show_reverb, show_cameras,
        show_bounds, box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
        fbox_vb, fbox_ib, fbox_ic, fsphere_vb, fsphere_ib, fsphere_ic,
-       trigger_desc, reverb_desc, &hf_data, &mesh_data](VkCommandBuffer cmd) {
-        if (!show_colliders && !show_triggers && !show_reverb &&
-            !show_cameras && !show_bounds) {
-          return;
-        }
-
+       trigger_desc, reverb_desc, frustum_vb, frustum_vb_mapped, &hf_data,
+       &mesh_data](VkCommandBuffer cmd) {
         auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb,
                                   std::shared_ptr<IndexBuffer> ib,
                                   uint32_t index_count, const glm::mat4& model,
@@ -830,11 +871,17 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           glm::vec4 cam_color = {0.7f, 0.7f, 0.7f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
+          uint8_t* mapped_base = static_cast<uint8_t*>(frustum_vb_mapped);
+          uint32_t camera_slot = 0;
+          const uint32_t stride_bytes =
+              kFrustumVerticesPerCamera * sizeof(glm::vec3);
+
           scenes.ForEach<CameraComponent, TransformComponent>(
               [&](Scene& scene, entt::entity cam_entity) {
+                if (camera_slot >= kMaxFrustumCameras) {
+                  return;
+                }
                 auto& cam = scene.GetComponent<CameraComponent>(cam_entity);
-                auto& cam_transform =
-                    scene.GetComponent<TransformComponent>(cam_entity);
 
                 float vis_far = std::min(cam.far_plane, 50.0f);
                 float aspect =
@@ -855,7 +902,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                   nh = fh = size;
                 }
 
-                // 8 corners in view space (camera looks down +Z)
+                // 8 corners in view space (camera looks down +Z). Index order
+                // matches the unit-box index buffer so we can reuse box_ib.
                 float n = cam.near_plane;
                 float f = vis_far;
                 glm::vec3 view_corners[8] = {
@@ -864,32 +912,15 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                 };
 
                 glm::mat4 cam_world = cam.inv_view_matrix;
-
-                // Build a model matrix that maps unit box corners to the frustum
-                // corners. Since the frustum is a truncated pyramid, we can't do
-                // this with one affine matrix. Instead, compute clip-space corners
-                // and draw line segments directly.
-                //
-                // Map box corner index to frustum corner:
-                // box[-0.5,-0.5,-0.5] = near-bottom-left  = view_corners[0]
-                // box[ 0.5,-0.5,-0.5] = near-bottom-right = view_corners[1]
-                // box[ 0.5, 0.5,-0.5] = near-top-right    = view_corners[2]
-                // box[-0.5, 0.5,-0.5] = near-top-left     = view_corners[3]
-                // box[-0.5,-0.5, 0.5] = far-bottom-left   = view_corners[4]
-                // box[ 0.5,-0.5, 0.5] = far-bottom-right  = view_corners[5]
-                // box[ 0.5, 0.5, 0.5] = far-top-right     = view_corners[6]
-                // box[-0.5, 0.5, 0.5] = far-top-left      = view_corners[7]
-
-                // We need to draw 12 edges. Since we can't use the unit box
-                // approach (non-affine mapping), create a temporary vertex buffer.
-                std::vector<glm::vec3> frustum_verts(8);
+                glm::vec3 world_corners[8];
                 for (int i = 0; i < 8; i++) {
-                  frustum_verts[i] =
+                  world_corners[i] =
                       glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
                 }
 
-                auto frust_vb = renderer->CreateVertexBuffer(
-                    "DebugColliderFeature::frustum_vb", frustum_verts);
+                VkDeviceSize slot_offset = camera_slot * stride_bytes;
+                std::memcpy(mapped_base + slot_offset, world_corners,
+                            sizeof(world_corners));
 
                 push_constant->mvp = vp;
                 push_constant->model = glm::mat4(1.0f);
@@ -897,12 +928,14 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                     cam.enabled ? cam_color : cam_disabled_color;
                 no_depth_pipe->PushConstants(cmd);
 
-                VkBuffer buffers[] = {frust_vb->buffer_handle_};
-                VkDeviceSize offsets[] = {0};
+                VkBuffer buffers[] = {frustum_vb};
+                VkDeviceSize offsets[] = {slot_offset};
                 vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
                 vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
                                      box_ib->index_type_);
                 vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
+
+                camera_slot++;
               });
         }
 

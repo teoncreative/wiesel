@@ -12,6 +12,7 @@
 #include "rendering/features/w_geometry_feature.h"
 #include "asset/w_asset_manager.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_instance_batcher.h"
 #include "rendering/w_mesh_render_utils.h"
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
@@ -113,7 +114,7 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
 }
 
 void GeometryFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("GeometryFeature::SetupResources");
+  PROFILE_ZONE_SCOPED();
   auto& pool = ctx.resources;
   auto& renderer = *renderer_;
   auto& camera = ctx.camera;
@@ -273,7 +274,7 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
 void GeometryFeature::AddPasses(RenderGraph& graph,
                                 RenderResourceRegistry& registry,
                                 RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("GeometryFeature::AddPasses");
+  PROFILE_ZONE_SCOPED();
   auto& pool = ctx.resources;
   bool use_resolve = ctx.use_msaa_resolve;
 
@@ -307,26 +308,37 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   auto pipeline = pipeline_;
   auto pipeline_ds = pipeline_double_sided_;
 
-  // Helper lambdas for drawing mesh renderers with frustum culling
-  auto draw_static_meshes = [&scenes, renderer](bool double_sided_pass) {
+  // Walks every enabled, opaque, unculled static mesh in the scene
+  // once and forwards it to `callback` along with the resolved
+  // double-sided flag. Callers bin into the appropriate batcher rather
+  // than iterating twice.
+  auto for_each_static = [&scenes, renderer](auto&& callback) {
+    PROFILE_ZONE_SCOPED_N("for_each_static");
     const FrustumPlanes& frustum = renderer->GetCameraData()->planes;
+    uint32_t visited = 0;
     scenes.ForEach<MeshRendererComponent, TransformComponent>(
-        [&](Scene& scene, entt::entity entity) {
+        [&](Scene& scene, uint8_t scene_idx, entt::entity entity) {
+          visited++;
           auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
           if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
             return;
           }
-          if (IsMeshDoubleSided(mr.model_handle, mr.mesh_index) !=
-              double_sided_pass) {
+          Renderer::MeshDrawPrep prep;
+          if (!renderer->PrepareMesh(mr, prep)) {
+            return;
+          }
+          if (prep.mesh->has_transparency) {
             return;
           }
           auto& transform = scene.GetComponent<TransformComponent>(entity);
-          if (FrustumCullMesh(frustum, mr.model_handle, mr.mesh_index,
-                              transform.GetTransformMatrix())) {
+          if (FrustumCullMeshDirect(frustum, *prep.mesh,
+                                    transform.GetTransformMatrix())) {
             return;
           }
-          renderer->DrawMeshRenderer(mr, transform, false, false, entity);
+          const bool double_sided = IsMaterialDoubleSided(prep.material);
+          callback(mr, transform, prep, entity, scene_idx, double_sided);
         });
+    ZoneValue(visited);
   };
 
   auto draw_skinned_meshes = [&scenes, renderer](bool double_sided_pass) {
@@ -356,20 +368,44 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
         });
   };
 
-  uint32_t geo = graph.AddPass("Geometry", render_pass_,
-                               [pipeline, pipeline_ds, draw_static_meshes,
-                                draw_skinned_meshes](VkCommandBuffer) {
-                                 // Phase 1: back-face culled (single-sided)
-                                 pipeline->Bind(PipelineBindPointGraphics);
+  uint32_t geo = graph.AddPass(
+      "Geometry", render_pass_,
+      [pipeline, pipeline_ds, renderer, for_each_static,
+       draw_skinned_meshes](VkCommandBuffer cmd) {
+        auto global_desc =
+            renderer->GetCameraData()->resource_pool->GetDescriptor(
+                "GlobalDescriptor");
+        auto bone_desc = renderer->GetIdentityBoneDescriptor();
 
-                                 draw_static_meshes(false);
-                                 draw_skinned_meshes(false);
+        MeshInstanceBatcher batcher_single(renderer.get());
+        MeshInstanceBatcher batcher_double(renderer.get());
+        {
+          PROFILE_ZONE_SCOPED_N("Collect static meshes");
+          for_each_static([&](MeshRendererComponent& mr,
+                              const TransformComponent& transform,
+                              Renderer::MeshDrawPrep& prep,
+                              entt::entity entity, uint8_t scene_idx,
+                              bool double_sided) {
+            MatricesUniformData data =
+                BuildInstanceData(mr, transform, entity, scene_idx);
+            auto& target = double_sided ? batcher_double : batcher_single;
+            target.Add(prep.mesh, prep.material, prep.geometry_descriptor,
+                       data);
+          });
+        }
 
-                                 // Phase 2: double-sided (no backface culling)
-                                 pipeline_ds->Bind(PipelineBindPointGraphics);
-                                 draw_static_meshes(true);
-                                 draw_skinned_meshes(true);
-                               });
+        auto submit_phase = [&](Pipeline* pl, MeshInstanceBatcher& batcher,
+                                bool double_sided) {
+          PROFILE_ZONE_SCOPED_N("Geometry Pass Phase");
+          ZoneText(double_sided ? "double-sided" : "single-sided", 12);
+          pl->Bind(PipelineBindPointGraphics, cmd);
+          batcher.Flush(cmd, pl, global_desc, bone_desc);
+          draw_skinned_meshes(double_sided);
+        };
+
+        submit_phase(pipeline.get(), batcher_single, false);
+        submit_phase(pipeline_ds.get(), batcher_double, true);
+      });
 
   graph.PassWritesColor(geo, geo_view_pos);
   graph.PassWritesColor(geo, geo_world_pos);

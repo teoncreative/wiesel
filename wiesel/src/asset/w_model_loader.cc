@@ -184,6 +184,7 @@ static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
                                          const aiScene& aiScene);
 static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                         std::vector<std::shared_ptr<Mesh>>& meshes,
+                        std::unordered_map<aiMesh*, int32_t>& mesh_cache,
                         int32_t parent_node_index);
 static void ExtractAnimations(Model& model, const aiScene& scene);
 
@@ -464,8 +465,12 @@ bool LoadModelAsset(AssetHandle handle) {
     renderer->BeginBatchUpload();
 
     auto t2 = Clock::now();
+    // Cache of aiMesh* -> mesh_index so identical submeshes referenced by
+    // multiple nodes share one wiesel::Mesh (and thus one vertex/index buffer).
+    // This is what lets the GPU instancer batch them at render time.
+    std::unordered_map<aiMesh*, int32_t> mesh_cache;
     ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
-                -1);
+                mesh_cache, -1);
     auto t3 = Clock::now();
     LOG_INFO("ProcessNode (meshes + textures): {:.1f}s",
              std::chrono::duration<double>(t3 - t2).count());
@@ -1037,6 +1042,7 @@ static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
 
 static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                         std::vector<std::shared_ptr<Mesh>>& meshes,
+                        std::unordered_map<aiMesh*, int32_t>& mesh_cache,
                         int32_t parent_node_index) {
   int32_t node_index = static_cast<int32_t>(model.node_hierarchy.nodes.size());
 
@@ -1049,15 +1055,21 @@ static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
   model.node_hierarchy.node_name_to_index[node_info.name] = node_index;
 
   for (uint32_t i = 0; i < node->mNumMeshes; i++) {
-    int32_t mesh_index = static_cast<int32_t>(meshes.size());
     aiMesh* mesh_ptr = scene.mMeshes[node->mMeshes[i]];
+    auto cached = mesh_cache.find(mesh_ptr);
+    if (cached != mesh_cache.end()) {
+      node_info.mesh_indices.push_back(cached->second);
+      continue;
+    }
     std::shared_ptr<Mesh> mesh = ProcessMesh(model, mesh_ptr, scene);
     if (mesh == nullptr) {
       continue;
     }
     mesh->node_index = node_index;
-    node_info.mesh_indices.push_back(mesh_index);
+    int32_t mesh_index = static_cast<int32_t>(meshes.size());
     meshes.push_back(mesh);
+    mesh_cache[mesh_ptr] = mesh_index;
+    node_info.mesh_indices.push_back(mesh_index);
   }
 
   for (uint32_t i = 0; i < node->mNumChildren; i++) {
@@ -1070,7 +1082,8 @@ static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
     int32_t child_index =
         static_cast<int32_t>(model.node_hierarchy.nodes.size());
     model.node_hierarchy.nodes[node_index].children[i] = child_index;
-    ProcessNode(model, node->mChildren[i], scene, meshes, node_index);
+    ProcessNode(model, node->mChildren[i], scene, meshes, mesh_cache,
+                node_index);
   }
 }
 

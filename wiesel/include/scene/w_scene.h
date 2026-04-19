@@ -259,15 +259,24 @@ class MultiScene {
   MultiScene(MultiScene&) = delete;
 
   // Iterate entities with given components across all scenes.
-  // Callback signature: void(Scene& scene, entt::entity entity)
-  // Automatically sets renderer scene index per-scene for entity picking.
+  // Callback may be either (Scene&, entt::entity) or
+  // (Scene&, uint8_t scene_idx, entt::entity). Also sets the renderer's
+  // scene index per-scene so the pick buffer encodes the right origin.
   template <typename... Components, typename Func>
   void ForEach(Func func) {
     for (size_t i = 0; i < scenes_.size(); ++i) {
       SetSceneIndex(static_cast<uint8_t>(i));
       Scene& scene = *scenes_[i];
       for (entt::entity entity : scene.GetAllEntitiesWith<Components...>()) {
-        func(scene, entity);
+        if constexpr (std::is_invocable_v<Func&, Scene&, uint8_t,
+                                          entt::entity>) {
+          func(scene, static_cast<uint8_t>(i), entity);
+        } else {
+          static_assert(std::is_invocable_v<Func&, Scene&, entt::entity>,
+                        "Callback must be (Scene&, uint8_t, entt::entity) "
+                        "or (Scene&, entt::entity)");
+          func(scene, entity);
+        }
       }
     }
   }

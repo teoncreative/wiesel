@@ -204,18 +204,34 @@ struct MaterialInstance {
   AssetHandle base_material_handle;  // references a Material asset
   std::unordered_map<std::string, MaterialPropertyValue> overrides;
 
-  // Resolve the base material from AssetManager
+  // Cached resolved values for the hot render path. Populated on first
+  // access; invalidated by every mutation through the public setters.
+  // Code paths that bypass the setters (direct `overrides[...] = ...` or
+  // base-material edits) must call InvalidateResolvedProps() manually.
+  struct ResolvedProps {
+    glm::vec4 color_tint{1.0f};
+    float roughness = 0.5f;
+    float metallic = 0.0f;
+    float specular = 0.5f;
+    float alpha_cutoff = 0.5f;
+  };
+
   std::shared_ptr<Material> GetBaseMaterial() const;
 
   MaterialPropertyValue GetEffectiveProperty(const std::string& name) const;
   float GetEffectiveFloat(const std::string& name) const;
   glm::vec4 GetEffectiveVec4(const std::string& name) const;
 
+  // One map-lookup-free pass over color_tint / roughness / metallic /
+  // specular / alpha_cutoff. Use this instead of four separate
+  // GetEffective* calls in per-entity hot paths.
+  const ResolvedProps& GetResolvedProps() const;
+  void InvalidateResolvedProps() { resolved_dirty_ = true; }
+
   void SetOverride(const std::string& name, MaterialPropertyValue value);
   void ClearOverride(const std::string& name);
   bool HasOverride(const std::string& name) const;
 
-  // Convenience accessors (read effective, write to override)
   glm::vec4 GetColorTint() const;
   float GetRoughness() const;
   float GetMetallic() const;
@@ -225,6 +241,10 @@ struct MaterialInstance {
   void SetRoughness(float value);
   void SetMetallic(float value);
   void SetSpecular(float value);
+
+ private:
+  mutable ResolvedProps resolved_{};
+  mutable bool resolved_dirty_ = true;
 };
 
 }  // namespace wiesel

@@ -34,15 +34,6 @@ struct LightPoint {
     float exp;
 };
 
-layout (set = 0, binding = 0, std140) uniform Matrices {
-    mat4 modelMatrix;
-    mat3 normalMatrix;
-    uint entityId;
-    // implicit 12 bytes padding to vec4 boundary
-    vec4 colorTint;
-    vec4 materialParams; // x=roughness, y=metallic, z=specular
-};
-
 layout (set = 1, binding = 1, std140) uniform Camera {
     mat4 viewMatrix;
     mat4 projection;
@@ -79,6 +70,8 @@ layout(location = 7) in vec3 inViewDir;
 layout(location = 8) in vec3 inViewPos;
 layout(location = 9) in mat3 inTBN;
 layout (location = 12) in flat uint inEntityId;
+layout (location = 13) in flat vec4 inColorTint;
+layout (location = 14) in flat vec4 inMaterialParams;
 
 layout(location = 0) out vec4 outViewPos;
 layout(location = 1) out vec4 outWorldPos;
@@ -116,7 +109,7 @@ void main() {
     } else {
         baseColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
     }
-    baseColor *= colorTint;
+    baseColor *= inColorTint;
 
     if (baseColor.a < 0.5) {
         discard;
@@ -127,21 +120,21 @@ void main() {
     // When no map exists: param used directly (acts as the value itself)
     float specular;
     if ((inFlags & kVertexFlagHasSpecularMap) > 0) {
-        specular = texture(specularMap, inUV).r * materialParams.z;
+        specular = texture(specularMap, inUV).r * inMaterialParams.z;
     } else {
-        specular = materialParams.z;
+        specular = inMaterialParams.z;
     }
     float roughness;
     if ((inFlags & kVertexFlagHasRoughnessMap) > 0) {
-        roughness = texture(roughnessMap, inUV).r * materialParams.x;
+        roughness = texture(roughnessMap, inUV).r * inMaterialParams.x;
     } else {
-        roughness = materialParams.x;
+        roughness = inMaterialParams.x;
     }
     float metallic;
     if ((inFlags & kVertexFlagHasMetallicMap) > 0) {
-        metallic = texture(metallicMap, inUV).r * materialParams.y;
+        metallic = texture(metallicMap, inUV).r * inMaterialParams.y;
     } else {
-        metallic = materialParams.y;
+        metallic = inMaterialParams.y;
     }
     vec3 normal = getSurfaceNormal();
     if (!gl_FrontFacing) {

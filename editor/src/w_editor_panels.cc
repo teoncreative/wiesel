@@ -49,6 +49,10 @@ void EditorLayer::RenderRenderStatsPanel() {
 
         ImGui::SeparatorText("Draw Stats");
         ImGui::Text("Draw Calls: %u", stats.draw_calls);
+        ImGui::Text("  Instanced: %u", stats.instanced_draw_calls);
+        ImGui::Text("  Single: %u", stats.single_draw_calls);
+        ImGui::Text("Instances: %u", stats.total_instances);
+        ImGui::Text("Saved by Batching: %u", stats.saved_by_batching);
         ImGui::Text("Models: %u", stats.models);
         ImGui::Text("Meshes: %u", stats.meshes);
         ImGui::Text("Vertices: %u", stats.vertices);

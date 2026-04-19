@@ -2,13 +2,16 @@
 
 #define MAX_BONES 256
 
-layout(set = 0, binding = 0, std140) uniform Matrices {
+struct InstanceData {
     mat4 modelMatrix;
     mat3 normalMatrix;
     uint entityId;
-    // implicit 12 bytes padding to vec4 boundary
     vec4 colorTint;
-    vec4 materialParams; // x=roughness, y=metallic, z=specular
+    vec4 materialParams;
+};
+
+layout(set = 0, binding = 0, std140) readonly buffer Instances {
+    InstanceData instances[];
 };
 
 layout(set = 1, binding = 1, std140) uniform Camera {
@@ -52,8 +55,13 @@ layout(location = 7) out vec3 outViewDir;
 layout(location = 8) out vec3 outViewPos; // view-space pos
 layout(location = 9) out mat3 outTBN;
 layout (location = 12) out flat uint outEntityId;
+layout (location = 13) out flat vec4 outColorTint;
+layout (location = 14) out flat vec4 outMaterialParams;
 
 void main() {
+    InstanceData inst = instances[gl_InstanceIndex];
+    mat4 modelMatrix = inst.modelMatrix;
+
     vec4 localPos = vec4(inVertexPosition, 1.0);
     vec3 localNormal = inVertexNormal;
     vec3 localTangent = inTangent;
@@ -90,7 +98,9 @@ void main() {
     outUV = inUV;
     outFlags = inFlags;
     outViewDir = normalize(cam.position - outWorldPos);
-    outEntityId = entityId;
+    outEntityId = inst.entityId;
+    outColorTint = inst.colorTint;
+    outMaterialParams = inst.materialParams;
 
     gl_Position    = cam.projection * viewPos4;
 }

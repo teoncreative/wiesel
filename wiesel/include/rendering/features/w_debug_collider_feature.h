@@ -16,6 +16,7 @@
 #include "rendering/w_descriptorlayout.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_texture.h"
+#include "rendering/w_vma.h"
 #include "util/w_logger.h"
 namespace wiesel {
 
@@ -34,12 +35,14 @@ struct OverlayVertex {
 class DebugColliderFeature : public RenderFeature {
  public:
   explicit DebugColliderFeature(std::shared_ptr<Renderer> renderer);
+  ~DebugColliderFeature() override;
 
   const std::string& GetName() const override { return name_; }
 
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
+  bool IsEnabled(const RenderContext& ctx) const override;
 
  private:
   void GenerateBoxGeometry();
@@ -100,6 +103,13 @@ class DebugColliderFeature : public RenderFeature {
 
   std::vector<CachedDebugData> mesh_collider_cache_;
   bool mesh_collider_cache_valid_ = false;
+
+  // Persistent host-visible vertex buffer for per-frame camera frustum draws.
+  static constexpr uint32_t kMaxFrustumCameras = 64;
+  static constexpr uint32_t kFrustumVerticesPerCamera = 8;
+  VkBuffer frustum_vb_ = VK_NULL_HANDLE;
+  VmaAllocation frustum_vb_alloc_ = nullptr;
+  void* frustum_vb_mapped_ = nullptr;
 };
 
 }  // namespace wiesel

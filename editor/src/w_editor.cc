@@ -37,14 +37,11 @@
 #include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
+#include "util/w_discord_rpc.h"
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Factory.h>
 #include "ui/w_ui_document.h"
-
-#ifdef WIESEL_DISCORD_RPC
-#include "util/w_discord_rpc.h"
-#endif
 
 namespace wiesel::editor {
 

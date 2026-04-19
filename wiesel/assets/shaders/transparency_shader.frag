@@ -34,15 +34,6 @@ struct LightPoint {
     float exp;
 };
 
-// Set 0: per-mesh data (same as geometry shader)
-layout (set = 0, binding = 0, std140) uniform Matrices {
-    mat4 modelMatrix;
-    mat3 normalMatrix;
-    uint entityId;
-    vec4 colorTint;
-    vec4 materialParams; // x=roughness, y=metallic, z=specular
-};
-
 #ifdef USE_IBL
 layout (set = 3, binding = 0) uniform samplerCube irradianceMap;
 layout (set = 3, binding = 1) uniform samplerCube prefilterMap;
@@ -94,6 +85,8 @@ layout(location = 7) in vec3 inViewDir;
 layout(location = 8) in vec3 inViewPos;
 layout(location = 9) in mat3 inTBN;
 layout (location = 12) in flat uint inEntityId;
+layout (location = 13) in flat vec4 inColorTint;
+layout (location = 14) in flat vec4 inMaterialParams;
 
 layout(location = 0) out vec4 outFragColor;
 
@@ -117,7 +110,7 @@ void main() {
     } else {
         baseColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
-    baseColor *= colorTint;
+    baseColor *= inColorTint;
 
     if (baseColor.a < 0.01) {
         discard;
@@ -126,21 +119,21 @@ void main() {
     // Material properties
     float matSpecular;
     if ((inFlags & kVertexFlagHasSpecularMap) > 0) {
-        matSpecular = texture(specularMap, inUV).r * materialParams.z;
+        matSpecular = texture(specularMap, inUV).r * inMaterialParams.z;
     } else {
-        matSpecular = materialParams.z;
+        matSpecular = inMaterialParams.z;
     }
     float matRoughness;
     if ((inFlags & kVertexFlagHasRoughnessMap) > 0) {
-        matRoughness = texture(roughnessMap, inUV).r * materialParams.x;
+        matRoughness = texture(roughnessMap, inUV).r * inMaterialParams.x;
     } else {
-        matRoughness = materialParams.x;
+        matRoughness = inMaterialParams.x;
     }
     float matMetallic;
     if ((inFlags & kVertexFlagHasMetallicMap) > 0) {
-        matMetallic = texture(metallicMap, inUV).r * materialParams.y;
+        matMetallic = texture(metallicMap, inUV).r * inMaterialParams.y;
     } else {
-        matMetallic = materialParams.y;
+        matMetallic = inMaterialParams.y;
     }
 
     vec3 normal = getSurfaceNormal();

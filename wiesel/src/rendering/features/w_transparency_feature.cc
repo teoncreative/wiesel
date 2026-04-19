@@ -11,6 +11,7 @@
 
 #include "rendering/features/w_transparency_feature.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_instance_batcher.h"
 #include "rendering/w_mesh_render_utils.h"
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
@@ -122,19 +123,36 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
 
   uint32_t pass = graph.AddPass(
       "Transparency", render_pass_,
-      [active_pipeline, &scenes, renderer, ibl_desc](VkCommandBuffer) {
-        active_pipeline->Bind(PipelineBindPointGraphics);
+      [active_pipeline, &scenes, renderer, ibl_desc](VkCommandBuffer cmd) {
+        active_pipeline->Bind(PipelineBindPointGraphics, cmd);
 
+        auto global_desc =
+            renderer->GetCameraData()->resource_pool->GetDescriptor(
+                "GlobalDescriptor");
+        auto bone_desc = renderer->GetIdentityBoneDescriptor();
+
+        MeshInstanceBatcher batcher(renderer.get());
         scenes.ForEach<MeshRendererComponent, TransformComponent>(
-            [&](Scene& scene, entt::entity entity) {
+            [&](Scene& scene, uint8_t scene_idx, entt::entity entity) {
               auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
               if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
                 return;
               }
+              Renderer::MeshDrawPrep prep;
+              if (!renderer->PrepareMesh(mr, prep)) {
+                return;
+              }
+              if (!prep.mesh->has_transparency) {
+                return;
+              }
               auto& transform = scene.GetComponent<TransformComponent>(entity);
-              renderer->DrawMeshRenderer(mr, transform, false, true, entity,
-                                         ibl_desc);
+              MatricesUniformData data =
+                  BuildInstanceData(mr, transform, entity, scene_idx);
+              batcher.Add(prep.mesh, prep.material, prep.geometry_descriptor,
+                          data);
             });
+        batcher.Flush(cmd, active_pipeline.get(), global_desc, bone_desc,
+                      ibl_desc);
 
         scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
             [&](Scene& scene, entt::entity entity) {
