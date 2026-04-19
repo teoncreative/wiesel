@@ -172,7 +172,8 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
     flags |= ImGuiTreeNodeFlags_Selected;
   }
   if (!has_children) {
-    flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+      ImGuiTreeNodeFlags_KeepArrowSpaceOnLeaf;
   }
   // Auto-open nodes when searching or scrolling to a descendant
   if (!filter.empty() || open_ancestors_.contains(entity.ToRef())) {
@@ -240,6 +241,7 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
 
   // Context menu
   if (ImGui::BeginPopupContextItem()) {
+    ImGui::PopStyleVar();
     selected_entity_ = entity.ToRef();
     if (ImGui::BeginMenu("Add Child")) {
       RenderAddEntityMenu(*entity.GetScene(), entity, scene_dirty_, command_stack_);
@@ -267,6 +269,8 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
       scene_dirty_ = true;
     }
     ImGui::EndPopup();
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                        ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     ignore_menu = true;
   }
 
@@ -356,12 +360,14 @@ void EditorLayer::RenderSceneHierarchyPanel() {
 
         std::string ctx_id = "scene_root_context_" + std::to_string(scene_idx);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
+          ImGui::PopStyleVar();
           if (ImGui::BeginMenu("Add")) {
-            Entity invalid_entity = Entity{};
             RenderAddEntityMenu(*current_scene, kInvalidEntity, scene_dirty_, command_stack_);
             ImGui::EndMenu();
           }
           ImGui::EndPopup();
+          ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                              ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
           ignore_menu = true;
         }
 
