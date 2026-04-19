@@ -37,11 +37,11 @@ namespace WieselEngine
         public static Param String(string name) => new Param { Name = name, Type = ParamType.String };
         public static Param String(string name, string defaultValue) => new Param { Name = name, Type = ParamType.String, Optional = true, DefaultTokens = defaultValue };
         public static Param Vec2(string name) => new Param { Name = name, Type = ParamType.Vec2 };
-        public static Param Vec2(string name, Vector2 defaultValue) => new Param { Name = name, Type = ParamType.Vec2, Optional = true, DefaultTokens = FormatVec(defaultValue.X, defaultValue.Y) };
+        public static Param Vec2(string name, Vector2f defaultValue) => new Param { Name = name, Type = ParamType.Vec2, Optional = true, DefaultTokens = FormatVec(defaultValue.X, defaultValue.Y) };
         public static Param Vec3(string name) => new Param { Name = name, Type = ParamType.Vec3 };
-        public static Param Vec3(string name, Vector3 defaultValue) => new Param { Name = name, Type = ParamType.Vec3, Optional = true, DefaultTokens = FormatVec(defaultValue.X, defaultValue.Y, defaultValue.Z) };
+        public static Param Vec3(string name, Vector3f defaultValue) => new Param { Name = name, Type = ParamType.Vec3, Optional = true, DefaultTokens = FormatVec(defaultValue.X, defaultValue.Y, defaultValue.Z) };
         public static Param Vec4(string name) => new Param { Name = name, Type = ParamType.Vec4 };
-        public static Param Vec4(string name, Vector4 defaultValue) => new Param { Name = name, Type = ParamType.Vec4, Optional = true, DefaultTokens = FormatVec(defaultValue.X, defaultValue.Y, defaultValue.Z, defaultValue.W) };
+        public static Param Vec4(string name, Vector4f defaultValue) => new Param { Name = name, Type = ParamType.Vec4, Optional = true, DefaultTokens = FormatVec(defaultValue.X, defaultValue.Y, defaultValue.Z, defaultValue.W) };
 
         public static Param[] Make(params Param[] parameters) => parameters;
 
@@ -66,9 +66,21 @@ namespace WieselEngine
         public float Float(string name) => Internals.CommandContext_Float(native_, name);
         public bool Bool(string name) => Internals.CommandContext_Bool(native_, name);
         public string String(string name) => Internals.CommandContext_String(native_, name);
-        public Vector2 Vec2(string name) { Internals.CommandContext_Vec2(native_, name, out var v); return v; }
-        public Vector3 Vec3(string name) { Internals.CommandContext_Vec3(native_, name, out var v); return v; }
-        public Vector4 Vec4(string name) { Internals.CommandContext_Vec4(native_, name, out var v); return v; }
+        public Vector2f Vec2(string name)
+        {
+            Internals.CommandContext_Vec2(native_, name, out float x, out float y);
+            return new Vector2f(x, y);
+        }
+        public Vector3f Vec3(string name)
+        {
+            Internals.CommandContext_Vec3(native_, name, out float x, out float y, out float z);
+            return new Vector3f(x, y, z);
+        }
+        public Vector4f Vec4(string name)
+        {
+            Internals.CommandContext_Vec4(native_, name, out float x, out float y, out float z, out float w);
+            return new Vector4f(x, y, z, w);
+        }
         public bool Has(string name) => Internals.CommandContext_Has(native_, name);
     }
 

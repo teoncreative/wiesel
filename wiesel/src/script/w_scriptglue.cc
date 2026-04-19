@@ -2360,26 +2360,36 @@ MonoString* Internals_CommandContext_String(CommandContext* ctx,
 }
 
 void Internals_CommandContext_Vec2(CommandContext* ctx, MonoString* name,
-                                   glm::vec2* out) {
-  if (!ctx || !out) return;
+                                   float* out_x, float* out_y) {
+  if (!ctx || !out_x || !out_y) return;
   char* c = mono_string_to_utf8(name);
-  *out = ctx->Vec2(c);
+  glm::vec2 v = ctx->Vec2(c);
+  *out_x = v.x;
+  *out_y = v.y;
   mono_free(c);
 }
 
 void Internals_CommandContext_Vec3(CommandContext* ctx, MonoString* name,
-                                   glm::vec3* out) {
-  if (!ctx || !out) return;
+                                   float* out_x, float* out_y, float* out_z) {
+  if (!ctx || !out_x || !out_y || !out_z) return;
   char* c = mono_string_to_utf8(name);
-  *out = ctx->Vec3(c);
+  glm::vec3 v = ctx->Vec3(c);
+  *out_x = v.x;
+  *out_y = v.y;
+  *out_z = v.z;
   mono_free(c);
 }
 
 void Internals_CommandContext_Vec4(CommandContext* ctx, MonoString* name,
-                                   glm::vec4* out) {
-  if (!ctx || !out) return;
+                                   float* out_x, float* out_y, float* out_z,
+                                   float* out_w) {
+  if (!ctx || !out_x || !out_y || !out_z || !out_w) return;
   char* c = mono_string_to_utf8(name);
-  *out = ctx->Vec4(c);
+  glm::vec4 v = ctx->Vec4(c);
+  *out_x = v.x;
+  *out_y = v.y;
+  *out_z = v.z;
+  *out_w = v.w;
   mono_free(c);
 }
 

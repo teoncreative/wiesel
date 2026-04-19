@@ -819,11 +819,11 @@ namespace WieselEngine
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern string CommandContext_String(System.IntPtr ctx, string name);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CommandContext_Vec2(System.IntPtr ctx, string name, out Vector2 outValue);
+        public static extern void CommandContext_Vec2(System.IntPtr ctx, string name, out float x, out float y);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CommandContext_Vec3(System.IntPtr ctx, string name, out Vector3 outValue);
+        public static extern void CommandContext_Vec3(System.IntPtr ctx, string name, out float x, out float y, out float z);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void CommandContext_Vec4(System.IntPtr ctx, string name, out Vector4 outValue);
+        public static extern void CommandContext_Vec4(System.IntPtr ctx, string name, out float x, out float y, out float z, out float w);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool CommandContext_Has(System.IntPtr ctx, string name);
 
