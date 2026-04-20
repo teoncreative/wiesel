@@ -14,6 +14,7 @@
 #include "rendering/w_framebuffer.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
+#include "rendering/w_transient_resource_pool.h"
 
 #include <algorithm>
 #include <queue>
@@ -172,6 +173,10 @@ void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
   passes_[pass].manages_render_pass_ = manages;
 }
 
+void RenderGraph::SetPassResolveFn(uint32_t pass, RGResolveFn fn) {
+  passes_[pass].resolve_fn_ = std::move(fn);
+}
+
 void RenderGraph::Clear() {
   DestroyTransientResources();
   resources_.clear();
@@ -194,8 +199,18 @@ void RenderGraph::Clear() {
 
 void RenderGraph::Compile() {
   PROFILE_ZONE_SCOPED_N("RenderGraph::Compile");
-  CreateTransientResources();
+  // Sort first so CreateTransientResources can use the execution order to
+  // compute live ranges and alias non-overlapping transients into the same
+  // backing image.
   TopologicalSort();
+  CreateTransientResources();
+  // After the pool has assigned textures, let each pass resolve anything
+  // that depends on those textures (framebuffers, descriptors, etc).
+  for (auto& pass : passes_) {
+    if (pass.resolve_fn_) {
+      pass.resolve_fn_(*this);
+    }
+  }
   compiled_ = true;
   dirty_ = false;
 }
@@ -264,14 +279,11 @@ void RenderGraph::TopologicalSort() {
 }
 
 void RenderGraph::CreateTransientResources() {
-  for (auto& resource : resources_) {
-    if (!resource.is_transient) {
-      continue;
-    }
-    if (resource.texture) {
-      continue;  // Already created
-    }
+  // Release anything we acquired on a previous compile. Each Compile
+  // recomputes live ranges and may produce a different aliasing plan.
+  DestroyTransientResources();
 
+  auto to_props = [](const RGResourceData& resource) {
     AttachmentTextureProps props;
     props.width = resource.desc.width;
     props.height = resource.desc.height;
@@ -281,12 +293,116 @@ void RenderGraph::CreateTransientResources() {
     props.sampling_mode = resource.desc.samples;
     props.sampled = resource.desc.sampled;
     props.layer_count = resource.desc.layer_count;
+    return props;
+  };
 
-    resource.texture = renderer_.CreateAttachmentTexture(props);
+  auto& pool = renderer_.GetTransientResourcePool();
+
+  // If topo sort failed (cycle), don't try to alias - give every transient
+  // its own entry so the pass still runs.
+  const bool can_alias = sorted_order_.size() == passes_.size();
+  if (!can_alias) {
+    for (auto& resource : resources_) {
+      if (!resource.is_transient) {
+        continue;
+      }
+      resource.texture = pool.Acquire(to_props(resource));
+      acquired_transients_.push_back(resource.texture);
+    }
+    return;
+  }
+
+  // Compute live ranges in sorted-order space. A transient is live from the
+  // first pass that touches it to the last pass that touches it.
+  std::vector<uint32_t> pass_to_order(passes_.size(), UINT32_MAX);
+  for (uint32_t i = 0; i < sorted_order_.size(); ++i) {
+    pass_to_order[sorted_order_[i]] = i;
+  }
+
+  struct Lifetime {
+    uint32_t resource_index;
+    uint32_t first_use;
+    uint32_t last_use;
+  };
+  std::vector<Lifetime> lifetimes;
+  lifetimes.reserve(resources_.size());
+
+  for (uint32_t r = 0; r < resources_.size(); ++r) {
+    if (!resources_[r].is_transient) {
+      continue;
+    }
+    uint32_t first = UINT32_MAX;
+    uint32_t last = 0;
+    bool used = false;
+    auto scan = [&](const std::vector<RGResourceRef>& refs, uint32_t order) {
+      for (const auto& ref : refs) {
+        if (ref.resource.index == r) {
+          first = std::min(first, order);
+          last = std::max(last, order);
+          used = true;
+        }
+      }
+    };
+    for (uint32_t p = 0; p < passes_.size(); ++p) {
+      uint32_t order = pass_to_order[p];
+      if (order == UINT32_MAX) {
+        continue;
+      }
+      scan(passes_[p].inputs_, order);
+      scan(passes_[p].outputs_, order);
+    }
+    if (used) {
+      lifetimes.push_back({r, first, last});
+    } else {
+      // Orphan transient - allocate its own entry so accidental use doesn't
+      // blow up, but it's not part of aliasing.
+      resources_[r].texture = pool.Acquire(to_props(resources_[r]));
+      acquired_transients_.push_back(resources_[r].texture);
+    }
+  }
+
+  // Greedy first-fit: process transients in ascending first_use. Reuse a
+  // previously-allocated slot whose occupant is already dead and whose
+  // descriptor matches.
+  std::sort(lifetimes.begin(), lifetimes.end(),
+            [](const Lifetime& a, const Lifetime& b) {
+              return a.first_use < b.first_use;
+            });
+
+  struct Slot {
+    AttachmentTextureProps props;
+    std::shared_ptr<AttachmentTexture> texture;
+    uint32_t last_use;
+  };
+  std::vector<Slot> slots;
+
+  for (const Lifetime& lt : lifetimes) {
+    AttachmentTextureProps props = to_props(resources_[lt.resource_index]);
+    Slot* reuse = nullptr;
+    for (auto& slot : slots) {
+      if (slot.last_use < lt.first_use && slot.props == props) {
+        reuse = &slot;
+        break;
+      }
+    }
+    if (reuse) {
+      resources_[lt.resource_index].texture = reuse->texture;
+      reuse->last_use = lt.last_use;
+    } else {
+      auto tex = pool.Acquire(props);
+      slots.push_back({props, tex, lt.last_use});
+      resources_[lt.resource_index].texture = tex;
+      acquired_transients_.push_back(tex);
+    }
   }
 }
 
 void RenderGraph::DestroyTransientResources() {
+  auto& pool = renderer_.GetTransientResourcePool();
+  for (auto& tex : acquired_transients_) {
+    pool.Release(tex);
+  }
+  acquired_transients_.clear();
   for (auto& resource : resources_) {
     if (resource.is_transient) {
       resource.texture = nullptr;

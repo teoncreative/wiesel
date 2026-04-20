@@ -17,6 +17,7 @@
 #include "rendering/w_acceleration_structure.h"
 #include "rendering/w_perf_marker.h"
 #include "rendering/w_sampler.h"
+#include "rendering/w_transient_resource_pool.h"
 #include "util/w_spirv.h"
 #include "w_engine.h"
 
@@ -98,6 +99,11 @@ Renderer::Renderer(std::shared_ptr<AppWindow> window) : window_(window) {
   swap_chain_created_ = false;
   image_index_ = 0;
   clear_color_ = {0.1f, 0.1f, 0.2f, 1.0f};
+  transient_resource_pool_ = std::make_unique<TransientResourcePool>(*this);
+}
+
+TransientResourcePool& Renderer::GetTransientResourcePool() {
+  return *transient_resource_pool_;
 }
 
 Renderer::~Renderer() {
@@ -3208,6 +3214,7 @@ void Renderer::BeginRender() {
   stats_.Reset();
   slice_pool_used_[current_frame_] = 0;
   instance_next_index_ = 0;
+  transient_resource_pool_->BeginFrame();
 
   // Wait for this frame slot's previous work to complete
   WIESEL_CHECK_VKRESULT(vkWaitForFences(

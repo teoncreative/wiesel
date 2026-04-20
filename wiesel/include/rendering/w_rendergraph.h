@@ -19,6 +19,7 @@
 namespace wiesel {
 
 class Renderer;
+class RenderGraph;
 class RenderPass;
 class Framebuffer;
 class Pipeline;
@@ -83,6 +84,12 @@ struct RGResourceRef {
 // Execute callback - called each frame during graph execution
 using RGExecuteFn = std::function<void(VkCommandBuffer cmd)>;
 
+// Optional post-compile hook per pass. Runs after Compile has allocated
+// transient textures, so the feature can query graph.GetTexture() to build
+// framebuffers, descriptors, or any other binding that depends on the pool's
+// assignment for this frame. Runs before Execute.
+using RGResolveFn = std::function<void(RenderGraph& graph)>;
+
 class RenderGraphPass {
   friend class RenderGraph;
 
@@ -93,6 +100,7 @@ class RenderGraphPass {
   std::vector<RGResourceRef> inputs_;
   std::vector<RGResourceRef> outputs_;
   RGExecuteFn execute_fn_;
+  RGResolveFn resolve_fn_;
   glm::vec2 viewport_size_{0, 0};
   Colorf clear_color_{0, 0, 0, 1};
   bool enabled_{true};
@@ -156,6 +164,7 @@ class RenderGraph {
   void SetPassClearColor(uint32_t pass, const Colorf& color);
   void SetPassEnabled(uint32_t pass, bool enabled);
   void SetPassManagesRenderPass(uint32_t pass, bool manages);
+  void SetPassResolveFn(uint32_t pass, RGResolveFn fn);
 
   void Compile();
   void Execute(VkCommandBuffer cmd);
@@ -202,6 +211,10 @@ class RenderGraph {
   std::vector<RenderGraphPass> passes_;
   std::vector<uint32_t> sorted_order_;
   std::vector<PassTimingResult> pass_timings_;
+  // Textures acquired from TransientResourcePool this compile. Multiple
+  // RGResourceData entries may share one pointer when aliased; this list
+  // stores only the unique slot textures so Release is called once each.
+  std::vector<std::shared_ptr<AttachmentTexture>> acquired_transients_;
 
 #ifdef WIESEL_GPU_PROFILING
   // Triple-buffered query pools so we always read from a frame guaranteed

@@ -39,6 +39,7 @@
 namespace wiesel {
 
 class AccelerationStructureManager;
+class TransientResourcePool;
 
 struct ShadowPipelinePushConstant {
   int cascade_index;
@@ -568,6 +569,8 @@ class Renderer {
 
   DeletionQueue& GetDeletionQueue() { return deletion_queue_; }
 
+  TransientResourcePool& GetTransientResourcePool();
+
   void BeginRender();
   void UpdateUniformData();
 
@@ -884,6 +887,7 @@ class Renderer {
       nullptr;
 
   DeletionQueue deletion_queue_;
+  std::unique_ptr<TransientResourcePool> transient_resource_pool_;
 
   // Transient UBO+descriptor pool for textured rect draws (double-buffered per FIF)
   struct SliceDrawResource {

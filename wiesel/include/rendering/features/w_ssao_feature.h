@@ -15,6 +15,10 @@
 
 namespace wiesel {
 
+class AttachmentTexture;
+class DescriptorSet;
+class Framebuffer;
+
 class SSAOFeature : public RenderFeature {
  public:
   explicit SSAOFeature(std::shared_ptr<Renderer> renderer);
@@ -35,6 +39,33 @@ class SSAOFeature : public RenderFeature {
   std::shared_ptr<Pipeline> blur_horz_pipeline_;
   std::shared_ptr<RenderPass> blur_vert_render_pass_;
   std::shared_ptr<Pipeline> blur_vert_pipeline_;
+
+  // Bindings built on top of pool-assigned transient textures. Cached across
+  // frames and invalidated when the pool returns a different texture pointer
+  // than last time. Rebuilding happens in the pass resolve_fn after Compile.
+  struct GenBindings {
+    std::shared_ptr<Framebuffer> framebuffer;
+    std::shared_ptr<DescriptorSet> gen_desc;
+    AttachmentTexture* color_key = nullptr;
+    AttachmentTexture* view_pos_key = nullptr;
+    AttachmentTexture* normal_key = nullptr;
+    AttachmentTexture* depth_key = nullptr;
+  } gen_bindings_;
+
+  struct BlurBindings {
+    std::shared_ptr<Framebuffer> framebuffer;
+    std::shared_ptr<DescriptorSet> input_desc;
+    AttachmentTexture* output_key = nullptr;
+    AttachmentTexture* input_key = nullptr;
+    AttachmentTexture* depth_key = nullptr;
+  } blur_h_bindings_, blur_v_bindings_;
+
+  // Descriptor reading the final SSAO output. Published to the camera
+  // resource pool so downstream features (Lighting, Composite) keep reading
+  // it by name. Rebuilt when the final output texture changes.
+  std::shared_ptr<DescriptorSet> final_output_desc_;
+  AttachmentTexture* final_output_key_ = nullptr;
+  AttachmentTexture* final_output_depth_key_ = nullptr;
 };
 
 }  // namespace wiesel
