@@ -1975,7 +1975,7 @@ void Renderer::CreateLogicalDevice() {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
   vulkan13_features.dynamicRendering = VK_TRUE;
   vulkan13_features.synchronization2 = VK_TRUE;
-  vulkan11_features.pNext = &vulkan13_features;
+  vulkan12_features.pNext = &vulkan13_features;
 
   // 1.4 promotes dynamic-rendering-local-read to core (lets passes sample
   // attachments still bound as color/depth, without explicit barriers).
@@ -3339,17 +3339,20 @@ bool Renderer::BeginPresent() {
                           m_CommandBuffer->m_Handle);
   }*/
 
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+
   if (camera_) {
     auto final_image = GetFinalOutputImage();
-    if (final_image) {
-      TransitionImageLayout(command_buffers_[current_frame_]->handle_,
-                            final_image->images_[0], final_image->format_,
-                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    if (final_image &&
+        final_image->current_layout_ !=
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+      TransitionImageLayout(cmd, final_image->images_[0], final_image->format_,
+                            final_image->current_layout_,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
+      final_image->current_layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
   }
 
-  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
   const bool msaa = options_.msaa_mode > SamplingMode::DISABLED;
 
   // Transition the swap-chain image from PRESENT_SRC_KHR to
@@ -3410,22 +3413,6 @@ void Renderer::EndPresent() {
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1, 0, 1);
   swap_chain_texture_->current_layout_ = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-  if (camera_) {
-    auto final_image = GetFinalOutputImage();
-    if (final_image) {
-      TransitionImageLayout(command_buffers_[current_frame_]->handle_,
-                            final_image->images_[0], final_image->format_,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
-    }
-  }
-  /*
-  for (const auto& item : textures) {
-    TransitionImageLayout(item->m_Images[0], item->m_Format,
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
-                          m_CommandBuffer->m_Handle);
-  }*/
 
   PROFILE_GPU_COLLECT(tracy_ctx_, command_buffers_[current_frame_]->handle_);
   command_buffers_[current_frame_]->End();
@@ -3845,9 +3832,12 @@ void Renderer::DrawMeshSimple(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
   vkCmdBindVertexBuffers(cmd, 0, 1, vb, offsets);
   vkCmdBindIndexBuffer(cmd, mesh->index_buffer->buffer_handle_, 0,
                        mesh->index_buffer->index_type_);
-  if (bone_descriptor) {
-    bound_pipeline_->BindDescriptorSets(cmd, {bone_descriptor});
-  }
+  // The bound pipeline always declares a Bone descriptor set (selection
+  // outline and similar). Fall back to the identity bone descriptor for
+  // non-skinned meshes so the set-0 binding is always valid against the
+  // current pipeline layout.
+  auto bone = bone_descriptor ? bone_descriptor : identity_bone_descriptor_;
+  bound_pipeline_->BindDescriptorSets(cmd, {bone});
   uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
   vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
 }

@@ -778,15 +778,6 @@ void EditorLayer::OnPrePresent() {
     // This avoids double rendering when Scene and Game are tabbed.
 
     if (scene_panel_visible_) {
-      auto editor_output =
-          editor_camera_.resource_pool.GetTexture("PipelineOutput");
-      if (editor_output) {
-        renderer->TransitionImageLayout(
-            cmd, editor_output->images_[0], editor_output->format_,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
-      }
-
       PROFILE_PLOT("Scene Width",
                    static_cast<double>(editor_camera_.viewport_size.x));
       PROFILE_PLOT("Scene Height",
@@ -794,15 +785,6 @@ void EditorLayer::OnPrePresent() {
       Engine::scene_manager().RenderEditorView(
           editor_camera_, editor_camera_transform_, show_grid_);
       PROFILE_FRAME_MARK_NAMED("Scene");
-
-      // Transition editor PipelineOutput to SHADER_READ for ImGui sampling
-      editor_output = editor_camera_.resource_pool.GetTexture("PipelineOutput");
-      if (editor_output) {
-        renderer->TransitionImageLayout(
-            cmd, editor_output->images_[0], editor_output->format_,
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
-      }
     }
 
     if (game_panel_visible_) {

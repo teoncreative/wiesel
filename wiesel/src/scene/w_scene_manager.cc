@@ -542,6 +542,19 @@ bool SceneManager::RenderGameView() {
         camera.render_graph->Compile();
       }
       camera.render_graph->Execute(renderer->GetCommandBuffer().handle_);
+      // The camera's final pipeline output is about to be sampled by the
+      // compositor (ImGui editor viewport or the renderer's present blit).
+      // Both paths expect SHADER_READ_ONLY_OPTIMAL, not the attachment layout
+      // the last pass left it in.
+      if (auto out = camera.resource_pool.GetTexture("PipelineOutput");
+          out && !out->images_.empty() &&
+          out->current_layout_ != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        renderer->TransitionImageLayout(
+            renderer->GetCommandBuffer().handle_, out->images_[0], out->format_,
+            out->current_layout_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0,
+            1);
+        out->current_layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      }
       camera.prev_view_projection = camera.projection * camera.view_matrix;
       has_camera = true;
     }
@@ -636,6 +649,15 @@ bool SceneManager::RenderEditorView(CameraComponent& camera,
   pipeline.BuildRenderGraph(*external_render_graph_, ctx);
   external_render_graph_->Compile();
   external_render_graph_->Execute(renderer->GetCommandBuffer().handle_);
+
+  if (auto out = camera.resource_pool.GetTexture("PipelineOutput");
+      out && !out->images_.empty() &&
+      out->current_layout_ != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    renderer->TransitionImageLayout(
+        renderer->GetCommandBuffer().handle_, out->images_[0], out->format_,
+        out->current_layout_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
+    out->current_layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  }
 
   camera.prev_view_projection = camera.projection * camera.view_matrix;
   return true;
