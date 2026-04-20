@@ -1843,9 +1843,9 @@ void Renderer::CreateVulkanInstance() {
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   app_info.pApplicationName = "Wiesel";
   app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  app_info.pEngineName = "No Engine";
+  app_info.pEngineName = "Wiesel Engine";
   app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  app_info.apiVersion = VK_API_VERSION_1_2;
+  app_info.apiVersion = VK_API_VERSION_1_4;
 
   VkInstanceCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -1957,16 +1957,33 @@ void Renderer::CreateLogicalDevice() {
   device_features2.features.wideLines = VK_TRUE;
   device_features2.features.independentBlend = VK_TRUE;
 
+  VkPhysicalDeviceVulkan11Features vulkan11_features{};
+  vulkan11_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+  device_features2.pNext = &vulkan11_features;
+
   VkPhysicalDeviceVulkan12Features vulkan12_features{};
   vulkan12_features.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
   vulkan12_features.bufferDeviceAddress = VK_TRUE;
-  device_features2.pNext = &vulkan12_features;
+  vulkan11_features.pNext = &vulkan12_features;
 
-  VkPhysicalDeviceVulkan11Features vulkan11_features{};
-  vulkan11_features.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-  vulkan12_features.pNext = &vulkan11_features;
+  // 1.3 brings dynamic rendering + synchronization2 in core. We use dynamic
+  // rendering across every pass in the graph.
+  VkPhysicalDeviceVulkan13Features vulkan13_features{};
+  vulkan13_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+  vulkan13_features.dynamicRendering = VK_TRUE;
+  vulkan13_features.synchronization2 = VK_TRUE;
+  vulkan11_features.pNext = &vulkan13_features;
+
+  // 1.4 promotes dynamic-rendering-local-read to core (lets passes sample
+  // attachments still bound as color/depth, without explicit barriers).
+  VkPhysicalDeviceVulkan14Features vulkan14_features{};
+  vulkan14_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES;
+  vulkan14_features.dynamicRenderingLocalRead = VK_TRUE;
+  vulkan13_features.pNext = &vulkan14_features;
 
   // RT feature structs (chained only when RT is supported)
   VkPhysicalDeviceAccelerationStructureFeaturesKHR as_features{};
@@ -1980,7 +1997,7 @@ void Renderer::CreateLogicalDevice() {
   rt_pipeline_features.rayTracingPipeline = VK_TRUE;
 
   if (rt_supported_) {
-    vulkan11_features.pNext = &as_features;
+    vulkan14_features.pNext = &as_features;
     as_features.pNext = &rt_pipeline_features;
 
     // Query RT properties for SBT alignment
@@ -2024,7 +2041,7 @@ void Renderer::InitMemoryAllocator() {
   vma_info.physicalDevice = physical_device_;
   vma_info.device = logical_device_;
   vma_info.instance = instance_;
-  vma_info.vulkanApiVersion = VK_API_VERSION_1_2;
+  vma_info.vulkanApiVersion = VK_API_VERSION_1_4;
   if (rt_supported_) {
     vma_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   }
@@ -4425,6 +4442,12 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
 }
 
 bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(device, &props);
+  if (props.apiVersion < VK_API_VERSION_1_4) {
+    return false;
+  }
+
   QueueFamilyIndices indices = FindQueueFamilies(device);
 
   bool extensionsSupported = CheckDeviceExtensionSupport(device);
