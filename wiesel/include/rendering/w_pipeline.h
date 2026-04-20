@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include "rendering/w_renderpass.h"
 #include "util/w_utils.h"
 #include "w_descriptorlayout.h"
 #include "w_pch.h"
@@ -72,7 +71,9 @@ class Pipeline {
   explicit Pipeline(PipelineProperties properties);
   ~Pipeline();
 
-  void SetRenderPass(std::shared_ptr<RenderPass> pass);
+  void AddColorAttachment(VkFormat format);
+  void SetColorAttachments(std::vector<VkFormat> formats);
+  void SetDepthAttachment(VkFormat format);
   void AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout);
   void AddDynamicState(VkDynamicState state);
   void AddShader(std::shared_ptr<Shader> shader);
@@ -105,7 +106,7 @@ class Pipeline {
 
   void Bake();
 
-  void Bind(PipelineBindPoint bind_point, VkCommandBuffer cmd = VK_NULL_HANDLE);
+  void Bind(VkCommandBuffer cmd = VK_NULL_HANDLE);
 
   // Re-push constants after modifying data
   void PushConstants(VkCommandBuffer cmd = VK_NULL_HANDLE);
@@ -129,7 +130,8 @@ class Pipeline {
   PipelineProperties properties_;
   std::vector<ShaderInfo> shaders_;
   std::vector<VkDynamicState> dynamic_states_;
-  std::shared_ptr<RenderPass> render_pass_;
+  std::vector<VkFormat> color_formats_;
+  VkFormat depth_format_ = VK_FORMAT_UNDEFINED;
   std::vector<std::shared_ptr<DescriptorSetLayout>> descriptor_layouts_;
   VkPipelineLayout layout_{};
   VkPipeline pipeline_{};

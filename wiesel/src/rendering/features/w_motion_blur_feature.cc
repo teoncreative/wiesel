@@ -10,24 +10,14 @@
 //
 
 #include "rendering/features/w_motion_blur_feature.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
 
 MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                              "PostProcess RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   // Pipeline (2-input layout + global layout + push constants)
   push_constants_ = std::make_shared<MotionBlurPushConstants>();
   auto fullscreen_vert = renderer_->CreateShader(
@@ -38,7 +28,7 @@ MotionBlurFeature::MotionBlurFeature(std::shared_ptr<Renderer> renderer)
                                        "engine://shaders/motion_blur.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("Postprocess2Input"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
@@ -79,12 +69,12 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
 
   auto pipeline = pipeline_;
   uint32_t motion_blur = graph.AddPass(
-      "MotionBlur", render_pass_,
+      "MotionBlur",
       [this, pool, renderer, pipeline, push_constants](VkCommandBuffer) {
         auto& s = renderer->options();
         push_constants->strength = s.motion_blur_strength;
         push_constants->num_samples = s.motion_blur_samples;
-        pipeline->Bind(PipelineBindPointGraphics);
+        pipeline->Bind();
         renderer->DrawFullscreen(
             pipeline, {input_desc_, pool->GetDescriptor("GlobalDescriptor")});
       });
@@ -95,8 +85,8 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
   graph.SetPassClearColor(motion_blur, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       motion_blur,
-      [this, renderer, pool, motion_blur, motion_blur_out, pipeline_input,
-       geo_world_pos, rw, rh](RenderGraph& g) {
+      [this, renderer, pool, motion_blur_out, pipeline_input,
+       geo_world_pos](RenderGraph& g) {
         auto output = g.GetTexture(motion_blur_out);
         auto input = g.GetTexture(pipeline_input);
         auto world_pos = g.GetTexture(geo_world_pos);
@@ -107,8 +97,6 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
         auto present_layout = renderer->GetDescriptorLayout("Present");
 
         if (output_key_ != output.get()) {
-          framebuffer_ = render_pass_->CreateFramebuffer(0, {output.get()},
-                                                        {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -116,7 +104,6 @@ void MotionBlurFeature::AddPasses(RenderGraph& graph,
           output_desc_ = desc;
           output_key_ = output.get();
         }
-        g.SetPassFramebuffer(motion_blur, framebuffer_);
 
         if (input_key_ != input.get() || world_pos_key_ != world_pos.get()) {
           auto desc = std::make_shared<DescriptorSet>();

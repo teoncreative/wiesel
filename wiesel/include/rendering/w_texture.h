@@ -257,16 +257,6 @@ struct AttachmentTextureProps {
 
 class DescriptorSet;
 
-struct AttachmentTextureInfo {
-  AttachmentTextureType type;
-  VkFormat format;
-  SamplingMode msaa_mode;
-  /*VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-  VkAttachmentLoadOp StencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  VkAttachmentStoreOp StencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;*/
-};
-
 class AttachmentTexture {
  public:
   AttachmentTexture() = default;

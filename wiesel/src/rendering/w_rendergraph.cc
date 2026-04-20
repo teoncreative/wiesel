@@ -11,9 +11,7 @@
 
 #include "rendering/w_rendergraph.h"
 #include "rendering/w_deletion_queue.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "rendering/w_transient_resource_pool.h"
 
 #include <algorithm>
@@ -35,8 +33,6 @@ VkImageLayout RGAccessToLayout(RGAccess access) {
       return VK_IMAGE_LAYOUT_GENERAL;
     case RGAccess::StorageImageWrite:
       return VK_IMAGE_LAYOUT_GENERAL;
-    case RGAccess::Present:
-      return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     default:
       return VK_IMAGE_LAYOUT_UNDEFINED;
   }
@@ -96,15 +92,12 @@ RGResource RenderGraph::DeclareTransient(const RGTextureDesc& desc) {
   return handle;
 }
 
-uint32_t RenderGraph::AddPass(const std::string& name,
-                              std::shared_ptr<RenderPass> render_pass,
-                              RGExecuteFn execute) {
+uint32_t RenderGraph::AddPass(const std::string& name, RGExecuteFn execute) {
   uint32_t index = static_cast<uint32_t>(passes_.size());
 
   RenderGraphPass pass;
   pass.name_ = name;
   pass.index_ = index;
-  pass.render_pass_ = render_pass;
   pass.execute_fn_ = std::move(execute);
   passes_.push_back(std::move(pass));
 
@@ -137,24 +130,36 @@ void RenderGraph::PassWritesColor(uint32_t pass, RGResource resource) {
   compiled_ = false;
 }
 
+void RenderGraph::PassWritesColor(uint32_t pass, RGResource resource,
+                                  RGResource resolve) {
+  RGResourceRef ref{resource, RGAccess::ColorAttachmentWrite};
+  ref.resolve = resolve;
+  passes_[pass].outputs_.push_back(ref);
+  if (resolve.IsValid()) {
+    // Resolve target needs layout transitions too; declare it as a separate
+    // output without a dependency edge of its own (no cycle risk since
+    // resolve is only written by this pass).
+    passes_[pass].outputs_.push_back(
+        {resolve, RGAccess::ColorAttachmentWrite, true});
+  }
+  compiled_ = false;
+}
+
 void RenderGraph::PassWritesDepth(uint32_t pass, RGResource resource) {
   passes_[pass].outputs_.push_back({resource, RGAccess::DepthStencilWrite});
+  compiled_ = false;
+}
+
+void RenderGraph::PassWritesDepthLoad(uint32_t pass, RGResource resource) {
+  RGResourceRef ref{resource, RGAccess::DepthStencilWrite};
+  ref.load = true;
+  passes_[pass].outputs_.push_back(ref);
   compiled_ = false;
 }
 
 void RenderGraph::PassWritesStorageImage(uint32_t pass, RGResource resource) {
   passes_[pass].outputs_.push_back({resource, RGAccess::StorageImageWrite});
   compiled_ = false;
-}
-
-void RenderGraph::PassPresents(uint32_t pass, RGResource resource) {
-  passes_[pass].outputs_.push_back({resource, RGAccess::Present});
-  compiled_ = false;
-}
-
-void RenderGraph::SetPassFramebuffer(uint32_t pass,
-                                     std::shared_ptr<Framebuffer> fb) {
-  passes_[pass].framebuffer_ = fb;
 }
 
 void RenderGraph::SetPassViewport(uint32_t pass, glm::vec2 size) {
@@ -169,8 +174,8 @@ void RenderGraph::SetPassEnabled(uint32_t pass, bool enabled) {
   passes_[pass].enabled_ = enabled;
 }
 
-void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
-  passes_[pass].manages_render_pass_ = manages;
+void RenderGraph::SetPassAutoBeginRendering(uint32_t pass, bool enabled) {
+  passes_[pass].auto_begin_rendering_ = enabled;
 }
 
 void RenderGraph::SetPassResolveFn(uint32_t pass, RGResolveFn fn) {
@@ -492,10 +497,12 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
 
     auto cpu_start = std::chrono::high_resolution_clock::now();
 
-    if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
-      PROFILE_ZONE_SCOPED_N("BeginRenderPass");
+    const bool manage_rendering = pass.auto_begin_rendering_;
+
+    if (manage_rendering) {
+      PROFILE_ZONE_SCOPED_N("BeginRendering");
       ZoneText(pass.name_.c_str(), pass.name_.size());
-      pass.render_pass_->Begin(pass.framebuffer_, pass.clear_color_);
+      BeginDynamicRendering(cmd, pass);
       if (pass.viewport_size_.x > 0 && pass.viewport_size_.y > 0) {
         renderer_.SetViewport(pass.viewport_size_);
       }
@@ -507,10 +514,10 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
       pass.execute_fn_(cmd);
     }
 
-    if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
-      PROFILE_ZONE_SCOPED_N("EndRenderPass");
+    if (manage_rendering) {
+      PROFILE_ZONE_SCOPED_N("EndRendering");
       ZoneText(pass.name_.c_str(), pass.name_.size());
-      pass.render_pass_->End();
+      vkCmdEndRendering(cmd);
     }
 
     auto cpu_end = std::chrono::high_resolution_clock::now();
@@ -578,20 +585,102 @@ void RenderGraph::InsertBarriers(VkCommandBuffer cmd,
     TransitionResource(cmd, resource, RGAccessToLayout(input.access));
   }
 
-  // Transition color attachment outputs to COLOR_ATTACHMENT_OPTIMAL.
-  // The render pass Bake() sets initialLayout = COLOR_ATTACHMENT_OPTIMAL for
-  // Color/Offscreen attachments, so the image must be in that layout before
-  // the render pass begins. Depth and Resolve use initialLayout = UNDEFINED.
+  // Transition color/storage outputs declared on the pass. Dynamic rendering
+  // requires attachments be in the right layout at vkCmdBeginRendering time.
   for (const auto& output : pass.outputs_) {
     if (output.access == RGAccess::ColorAttachmentWrite) {
       auto& resource = resources_[output.resource.index];
       TransitionResource(cmd, resource,
                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    } else if (output.access == RGAccess::DepthStencilWrite) {
+      auto& resource = resources_[output.resource.index];
+      TransitionResource(cmd, resource,
+                         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     } else if (output.access == RGAccess::StorageImageWrite) {
       auto& resource = resources_[output.resource.index];
       TransitionResource(cmd, resource, VK_IMAGE_LAYOUT_GENERAL);
     }
   }
+
+}
+
+void RenderGraph::BeginDynamicRendering(VkCommandBuffer cmd,
+                                        const RenderGraphPass& pass) {
+  std::vector<VkRenderingAttachmentInfo> color_infos;
+  VkRenderingAttachmentInfo depth_info{};
+  bool has_depth = false;
+  VkRenderingAttachmentInfo stencil_info{};
+  bool has_stencil = false;
+
+  uint32_t extent_w = static_cast<uint32_t>(pass.viewport_size_.x);
+  uint32_t extent_h = static_cast<uint32_t>(pass.viewport_size_.y);
+
+  for (const auto& out : pass.outputs_) {
+    if (out.skip_dependency) {
+      // Resolve companions are recorded as skip_dependency outputs; the color
+      // they pair with handles them directly. Avoid double-emitting.
+      continue;
+    }
+    auto texture = resources_[out.resource.index].texture;
+    if (!texture || texture->image_views_.empty()) {
+      continue;
+    }
+    if (extent_w == 0 || extent_h == 0) {
+      extent_w = texture->width_;
+      extent_h = texture->height_;
+    }
+    if (out.access == RGAccess::ColorAttachmentWrite) {
+      VkRenderingAttachmentInfo info{};
+      info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+      info.imageView = texture->image_views_[0]->handle_;
+      info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      info.clearValue.color = {{pass.clear_color_.red, pass.clear_color_.green,
+                                pass.clear_color_.blue,
+                                pass.clear_color_.alpha}};
+      if (out.resolve.IsValid()) {
+        auto resolve_tex = resources_[out.resolve.index].texture;
+        if (resolve_tex && !resolve_tex->image_views_.empty()) {
+          info.resolveImageView = resolve_tex->image_views_[0]->handle_;
+          info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+          info.resolveMode =
+              renderer_.IsIntegerColorFormat(texture->format_)
+                  ? VK_RESOLVE_MODE_SAMPLE_ZERO_BIT
+                  : VK_RESOLVE_MODE_AVERAGE_BIT;
+        }
+      }
+      color_infos.push_back(info);
+    } else if (out.access == RGAccess::DepthStencilWrite && !has_depth) {
+      depth_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+      depth_info.imageView = texture->image_views_[0]->handle_;
+      depth_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      depth_info.loadOp = out.load ? VK_ATTACHMENT_LOAD_OP_LOAD
+                                   : VK_ATTACHMENT_LOAD_OP_CLEAR;
+      depth_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      depth_info.clearValue.depthStencil = {1.0f, 0};
+      has_depth = true;
+      if (renderer_.HasStencilComponent(texture->format_)) {
+        stencil_info = depth_info;
+        stencil_info.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        stencil_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        has_stencil = true;
+      }
+    }
+  }
+
+  VkRenderingInfo ri{};
+  ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  ri.renderArea.offset = {0, 0};
+  ri.renderArea.extent.width = extent_w;
+  ri.renderArea.extent.height = extent_h;
+  ri.layerCount = 1;
+  ri.colorAttachmentCount = static_cast<uint32_t>(color_infos.size());
+  ri.pColorAttachments = color_infos.data();
+  ri.pDepthAttachment = has_depth ? &depth_info : nullptr;
+  ri.pStencilAttachment = has_stencil ? &stencil_info : nullptr;
+
+  vkCmdBeginRendering(cmd, &ri);
 }
 
 void RenderGraph::UpdateOutputLayouts(const RenderGraphPass& pass) {

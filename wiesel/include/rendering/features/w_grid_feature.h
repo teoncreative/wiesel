@@ -37,7 +37,6 @@ class GridFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Grid";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
 };
 

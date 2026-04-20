@@ -16,7 +16,6 @@
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
@@ -62,13 +61,6 @@ GetOpaqueShadowAttributeDescriptions() {
 
 ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  render_pass_ =
-      std::make_shared<RenderPass>(PassType::Shadow, "Shadow RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
                                        ShaderSourceSource,
                                        "engine://shaders/shadow_shader.vert"});
@@ -77,7 +69,7 @@ ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
                                        "engine://shaders/shadow_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, true, true});
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
   push_constant_ = std::make_shared<ShadowPipelinePushConstant>();
@@ -91,7 +83,7 @@ ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
 
   pipeline_no_cull_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, false, true, true});
-  pipeline_no_cull_->SetRenderPass(render_pass_);
+  pipeline_no_cull_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_no_cull_->SetVertexData(Vertex3D::GetBindingDescription(),
                                    Vertex3D::GetAttributeDescriptions());
   pipeline_no_cull_->AddPushConstant(push_constant_,
@@ -114,7 +106,7 @@ ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
 
   pipeline_opaque_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, true, true});
-  pipeline_opaque_->SetRenderPass(render_pass_);
+  pipeline_opaque_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_opaque_->SetVertexData(Vertex3D::GetBindingDescription(),
                                   opaque_attrs);
   pipeline_opaque_->AddPushConstant(push_constant_,
@@ -129,7 +121,7 @@ ShadowFeature::ShadowFeature(std::shared_ptr<Renderer> renderer)
 
   pipeline_opaque_no_cull_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeNone, false, false, true, true});
-  pipeline_opaque_no_cull_->SetRenderPass(render_pass_);
+  pipeline_opaque_no_cull_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_opaque_no_cull_->SetVertexData(Vertex3D::GetBindingDescription(),
                                           opaque_attrs);
   pipeline_opaque_no_cull_->AddPushConstant(push_constant_,
@@ -170,13 +162,7 @@ void ShadowFeature::SetupResources(RenderContext& ctx) {
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
     auto cascade_view =
         renderer.CreateImageView(shadow_depth, VK_IMAGE_VIEW_TYPE_2D, i);
-    std::array<ImageView*, 1> views = {
-        cascade_view.get(),
-    };
     pool.SetImageView("ShadowDepthView" + std::to_string(i), cascade_view);
-    pool.SetFramebuffer(
-        "shadow.fb." + std::to_string(i),
-        render_pass_->CreateFramebuffer(views, {shadow_dim, shadow_dim}));
   }
 
   pool.SetDescriptor("ShadowGlobalDescriptor",
@@ -203,6 +189,8 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   auto pipeline_opaque_no_cull = pipeline_opaque_no_cull_;
   auto push_constant = push_constant_;
   bool does_shadow = ctx.camera.does_shadow_pass;
+  uint32_t shadow_dim =
+      static_cast<uint32_t>(renderer_->options().shadow_map_resolution.Get());
 
   // Scene scan + PrepareMesh + world-AABB + classification is cascade
   // independent, so we collect it once per frame here.
@@ -292,12 +280,43 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
   }
 
   for (int i = 0; i < WIESEL_SHADOW_CASCADE_COUNT; ++i) {
+    std::shared_ptr<ImageView> cascade_view =
+        pool.GetImageView("ShadowDepthView" + std::to_string(i));
     uint32_t shadow = graph.AddPass(
-        "Shadow " + std::to_string(i), render_pass_,
+        "Shadow " + std::to_string(i),
         [pipeline, pipeline_no_cull, pipeline_opaque, pipeline_opaque_no_cull,
          push_constant, renderer, does_shadow, prepped_static, prepped_skinned,
-         i](VkCommandBuffer cmd) {
+         cascade_view, shadow_dim, i](VkCommandBuffer cmd) {
+          // Shadow cascade renders into a cascade-specific depth view, which
+          // the render graph's auto BeginDynamicRendering can't describe (it
+          // always binds image_views_[0]). Drive vkCmdBeginRendering manually
+          // here; the graph still performs the depth-attachment layout
+          // transition via PassWritesDepth.
+          VkRenderingAttachmentInfo depth_info{};
+          depth_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+          depth_info.imageView = cascade_view ? cascade_view->handle_
+                                              : VK_NULL_HANDLE;
+          depth_info.imageLayout =
+              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+          depth_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+          depth_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+          depth_info.clearValue.depthStencil = {1.0f, 0};
+
+          VkRenderingInfo ri{};
+          ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+          ri.renderArea.offset = {0, 0};
+          ri.renderArea.extent.width = shadow_dim;
+          ri.renderArea.extent.height = shadow_dim;
+          ri.layerCount = 1;
+          ri.colorAttachmentCount = 0;
+          ri.pColorAttachments = nullptr;
+          ri.pDepthAttachment = cascade_view ? &depth_info : nullptr;
+
+          vkCmdBeginRendering(cmd, &ri);
+          renderer->SetViewport(glm::vec2(shadow_dim, shadow_dim), cmd);
+
           if (!does_shadow) {
+            vkCmdEndRendering(cmd);
             return;
           }
           std::memcpy(renderer->GetShadowCameraUniformBuffer()->data_,
@@ -355,7 +374,7 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
             if (batcher.Empty() && skinned_list.empty()) {
               return;
             }
-            pl->Bind(PipelineBindPointGraphics, cmd);
+            pl->Bind(cmd);
             batcher.Flush(cmd, pl, global_desc, bone_desc);
             // Skinned meshes aren't instanced (per-entity bone descriptors)
             // so they continue on the per-entity draw path.
@@ -369,12 +388,14 @@ void ShadowFeature::AddPasses(RenderGraph& graph,
           submit_bucket(pipeline_opaque_no_cull.get(), false, true);
           submit_bucket(pipeline.get(), true, false);
           submit_bucket(pipeline_no_cull.get(), true, true);
+
+          vkCmdEndRendering(cmd);
         });
     if (shadow_depth.IsValid()) {
       graph.PassWritesDepth(shadow, shadow_depth);
     }
-    graph.SetPassFramebuffer(
-        shadow, pool.GetFramebuffer("shadow.fb." + std::to_string(i)));
+    // The pass drives vkCmdBeginRendering itself with a cascade-specific view.
+    graph.SetPassAutoBeginRendering(shadow, false);
     float shadow_size =
         static_cast<float>(renderer_->options().shadow_map_resolution.Get());
     graph.SetPassViewport(shadow, {shadow_size, shadow_size});

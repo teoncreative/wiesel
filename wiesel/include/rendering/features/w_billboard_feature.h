@@ -60,7 +60,6 @@ class BillboardFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
 
   // Billboard draw pass
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;             // depth test (occluded hidden)
   std::shared_ptr<Pipeline> pipeline_no_depth_;    // always on top
   std::shared_ptr<Pipeline> pipeline_occluded_;    // depth inverse (faded pass)
@@ -76,7 +75,6 @@ class BillboardFeature : public RenderFeature {
       text_atlas_descriptors_;
 
   // Compositing onto PipelineOutput
-  std::shared_ptr<RenderPass> comp_render_pass_;
   std::shared_ptr<Pipeline> comp_pipeline_;
   std::shared_ptr<Pipeline> comp_blend_pipeline_;
 
@@ -96,15 +94,10 @@ class BillboardFeature : public RenderFeature {
 
   // Transient-pool-backed bindings, rebuilt per-frame when the pool-assigned
   // textures change.
-  std::shared_ptr<Framebuffer> draw_framebuffer_;
   std::shared_ptr<DescriptorSet> draw_output_desc_;
-  AttachmentTexture* draw_color_key_ = nullptr;
   AttachmentTexture* draw_color_resolve_key_ = nullptr;
-  AttachmentTexture* draw_entity_id_key_ = nullptr;
   AttachmentTexture* draw_entity_id_resolve_key_ = nullptr;
-  AttachmentTexture* draw_depth_key_ = nullptr;
 
-  std::shared_ptr<Framebuffer> comp_framebuffer_;
   std::shared_ptr<DescriptorSet> comp_input_desc_;
   std::shared_ptr<DescriptorSet> comp_output_desc_;
   AttachmentTexture* comp_output_key_ = nullptr;

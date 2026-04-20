@@ -10,29 +10,14 @@
 //
 
 #include "rendering/features/w_composite_feature.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
 
 CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass (1 color + optional resolve for MSAA)
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                              "Composite RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = renderer_->options().msaa_mode});
-  if (renderer_->options().msaa_mode > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = renderer_->GetSwapChainImageFormat(),
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
-
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/fullscreen_shader.vert"});
@@ -41,7 +26,7 @@ CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/quad_shader.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeBack, false, true, true, false});
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   pipeline_->AddShader(fullscreen_vert);
   pipeline_->AddShader(composite_frag);
@@ -97,9 +82,9 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   bool has_transparency = transparency_out.IsValid();
   bool has_grid = grid_out.IsValid();
   uint32_t composite = graph.AddPass(
-      "Composite", render_pass_,
+      "Composite",
       [pipeline, pool, renderer, has_transparency, has_grid](VkCommandBuffer) {
-        pipeline->Bind(PipelineBindPointGraphics);
+        pipeline->Bind();
         if (renderer->options().only_ssao) {
           renderer->DrawFullscreen(pipeline,
                                    {pool->GetDescriptor("ssao.blur_v.output")});
@@ -128,40 +113,28 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   if (sprite_out.IsValid()) {
     graph.PassReadsTexture(composite, sprite_out);
   }
-  graph.PassWritesColor(composite, composite_color);
   if (use_msaa) {
-    graph.PassWritesColor(composite, composite_resolve);
+    graph.PassWritesColor(composite, composite_color, composite_resolve);
+  } else {
+    graph.PassWritesColor(composite, composite_color);
   }
   graph.SetPassViewport(composite, ctx.viewport_size);
   graph.SetPassClearColor(composite, renderer->GetClearColor());
   graph.SetPassResolveFn(
       composite,
-      [this, renderer, pool, composite, composite_color, composite_resolve,
-       use_msaa, rw, rh](RenderGraph& g) {
-        auto color = g.GetTexture(composite_color);
+      [this, renderer, pool, composite_resolve](RenderGraph& g) {
         auto resolve = g.GetTexture(composite_resolve);
         auto linear = renderer->GetDefaultLinearSampler();
         auto present_layout = renderer->GetDescriptorLayout("Present");
 
-        if (color_key_ != color.get() || resolve_key_ != resolve.get()) {
-          if (use_msaa) {
-            std::array<AttachmentTexture*, 2> atts{color.get(), resolve.get()};
-            framebuffer_ =
-                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
-          } else {
-            std::array<AttachmentTexture*, 1> atts{color.get()};
-            framebuffer_ =
-                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
-          }
+        if (resolve_key_ != resolve.get()) {
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, resolve->image_views_[0], linear);
           desc->Bake();
           output_desc_ = desc;
-          color_key_ = color.get();
           resolve_key_ = resolve.get();
         }
-        g.SetPassFramebuffer(composite, framebuffer_);
 
         pool->SetTexture("PipelineOutput", resolve);
         pool->SetDescriptor("PipelineOutputDescriptor", output_desc_);

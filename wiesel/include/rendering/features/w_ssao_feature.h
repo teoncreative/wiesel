@@ -17,7 +17,6 @@ namespace wiesel {
 
 class AttachmentTexture;
 class DescriptorSet;
-class Framebuffer;
 
 class SSAOFeature : public RenderFeature {
  public:
@@ -33,18 +32,14 @@ class SSAOFeature : public RenderFeature {
  private:
   static inline std::string name_ = "SSAO";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> gen_render_pass_;
   std::shared_ptr<Pipeline> gen_pipeline_;
-  std::shared_ptr<RenderPass> blur_horz_render_pass_;
   std::shared_ptr<Pipeline> blur_horz_pipeline_;
-  std::shared_ptr<RenderPass> blur_vert_render_pass_;
   std::shared_ptr<Pipeline> blur_vert_pipeline_;
 
   // Bindings built on top of pool-assigned transient textures. Cached across
   // frames and invalidated when the pool returns a different texture pointer
   // than last time. Rebuilding happens in the pass resolve_fn after Compile.
   struct GenBindings {
-    std::shared_ptr<Framebuffer> framebuffer;
     std::shared_ptr<DescriptorSet> gen_desc;
     AttachmentTexture* color_key = nullptr;
     AttachmentTexture* view_pos_key = nullptr;
@@ -53,7 +48,6 @@ class SSAOFeature : public RenderFeature {
   } gen_bindings_;
 
   struct BlurBindings {
-    std::shared_ptr<Framebuffer> framebuffer;
     std::shared_ptr<DescriptorSet> input_desc;
     AttachmentTexture* output_key = nullptr;
     AttachmentTexture* input_key = nullptr;

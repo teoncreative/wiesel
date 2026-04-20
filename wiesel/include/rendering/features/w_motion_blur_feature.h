@@ -22,7 +22,6 @@ struct MotionBlurPushConstants {
 
 class AttachmentTexture;
 class DescriptorSet;
-class Framebuffer;
 
 class MotionBlurFeature : public RenderFeature {
  public:
@@ -38,11 +37,9 @@ class MotionBlurFeature : public RenderFeature {
  private:
   static inline std::string name_ = "MotionBlur";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<MotionBlurPushConstants> push_constants_;
 
-  std::shared_ptr<Framebuffer> framebuffer_;
   std::shared_ptr<DescriptorSet> input_desc_;
   std::shared_ptr<DescriptorSet> output_desc_;
   AttachmentTexture* output_key_ = nullptr;

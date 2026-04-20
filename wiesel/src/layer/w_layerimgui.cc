@@ -91,8 +91,14 @@ void ImGuiLayer::OnAttach() {
   init_info.ImageCount = 3;
   init_info.PipelineInfoMain.MSAASamples =
       ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.PipelineInfoMain.RenderPass =
-      Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.UseDynamicRendering = true;
+  VkFormat swap_format = Engine::renderer()->GetSwapChainImageFormat();
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .colorAttachmentCount = 1;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .pColorAttachmentFormats = &swap_format;
 
   ImGui_ImplVulkan_Init(&init_info);
 }
@@ -143,8 +149,14 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
   init_info.ImageCount = 3;
   init_info.PipelineInfoMain.MSAASamples =
       ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.PipelineInfoMain.RenderPass =
-      Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.UseDynamicRendering = true;
+  VkFormat swap_format = Engine::renderer()->GetSwapChainImageFormat();
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .colorAttachmentCount = 1;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .pColorAttachmentFormats = &swap_format;
 
   ImGui_ImplVulkan_Init(&init_info);
 

@@ -16,7 +16,6 @@
 #include "rendering/w_camera.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_components.h"
 #include "scene/w_scene.h"
 #include "ui/w_font.h"
@@ -31,28 +30,6 @@ constexpr float kBillboardSizePerspective = 0.1f;
 BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   SamplingMode msaa = renderer_->options().msaa_mode;
-
-  // Render pass: color + depth + entity ID (load existing depth for occlusion)
-  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                              "Billboard RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = msaa});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = msaa});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32_UINT,
-                              .msaa_mode = msaa});
-  if (msaa > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = renderer_->GetSwapChainImageFormat(),
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R32_UINT,
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
 
   // Billboard shaders
   auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
@@ -96,7 +73,9 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     props.depth_compare_op = compare;
     auto p = std::make_shared<Pipeline>(props);
     p->SetVertexData(binding, attrs);
-    p->SetRenderPass(render_pass_);
+    p->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+    p->AddColorAttachment(VK_FORMAT_R32_UINT);
+    p->SetDepthAttachment(renderer_->FindDepthFormat());
     p->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT |
                                            VK_SHADER_STAGE_FRAGMENT_BIT);
     p->AddInputLayout(icon_desc_layout_);
@@ -136,7 +115,9 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     props.depth_compare_op = compare;
     auto p = std::make_shared<Pipeline>(props);
     p->SetVertexData(binding, attrs);
-    p->SetRenderPass(render_pass_);
+    p->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+    p->AddColorAttachment(VK_FORMAT_R32_UINT);
+    p->SetDepthAttachment(renderer_->FindDepthFormat());
     p->AddPushConstant(text_push_constant_, VK_SHADER_STAGE_VERTEX_BIT |
                                                 VK_SHADER_STAGE_FRAGMENT_BIT);
     p->AddInputLayout(text_desc_layout_);
@@ -149,15 +130,6 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
   text_pipeline_ = make_text_pipeline(true, CompareOpLessOrEqual);
   text_pipeline_no_depth_ = make_text_pipeline(false, CompareOpAlways);
   text_pipeline_occluded_ = make_text_pipeline(true, CompareOpGreater);
-
-  // Composite render pass: blend billboard overlay onto PipelineOutput
-  comp_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "BillboardComposite RenderPass");
-  comp_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  comp_render_pass_->Bake();
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -176,7 +148,7 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     props.enable_depth_write = false;
     comp_pipeline_ = std::make_shared<Pipeline>(props);
   }
-  comp_pipeline_->SetRenderPass(comp_render_pass_);
+  comp_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
@@ -192,7 +164,7 @@ BillboardFeature::BillboardFeature(std::shared_ptr<Renderer> renderer)
     props.enable_depth_write = false;
     comp_blend_pipeline_ = std::make_shared<Pipeline>(props);
   }
-  comp_blend_pipeline_->SetRenderPass(comp_render_pass_);
+  comp_blend_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   comp_blend_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("Skybox"));
   comp_blend_pipeline_->AddShader(fullscreen_vert);
@@ -367,9 +339,13 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
                      .sampled = true})
                : billboard_entity;
 
+  // Depth is loaded from the geometry pass
+  RGResource billboard_depth = graph.ImportTexture(
+      "BillboardDepth", pool->GetTexture("geometry.depth_stencil"));
+
   // Draw pass
   uint32_t draw_pass = graph.AddPass(
-      "Billboards", render_pass_,
+      "Billboards",
       [pipeline, pipeline_no_depth = pipeline_no_depth_,
        pipeline_occluded = pipeline_occluded_, push_constant,
        text_pipeline = text_pipeline_,
@@ -567,7 +543,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
 
         auto bind_image_pipeline = [&](Pipeline* p) {
           if (active_image_pipeline != p) {
-            p->Bind(PipelineBindPointGraphics);
+            p->Bind();
             active_image_pipeline = p;
           }
         };
@@ -671,7 +647,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
           Pipeline* active_text_pipeline = nullptr;
           auto bind_text_pipeline = [&](Pipeline* p) {
             if (active_text_pipeline != p) {
-              p->Bind(PipelineBindPointGraphics);
+              p->Bind();
               vkCmdBindVertexBuffers(cmd, 0, 1, &vb_handle, &vb_offset);
               vkCmdBindIndexBuffer(cmd, quad_ib->buffer_handle_, 0,
                                    VK_INDEX_TYPE_UINT32);
@@ -850,55 +826,32 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         }
       });
 
-  graph.PassWritesColor(draw_pass, billboard_color);
-  graph.PassWritesColor(draw_pass, billboard_entity);
   if (use_msaa) {
-    graph.PassWritesColor(draw_pass, billboard_out);
-    graph.PassWritesColor(draw_pass, billboard_entity_id);
+    graph.PassWritesColor(draw_pass, billboard_color, billboard_out);
+    graph.PassWritesColor(draw_pass, billboard_entity, billboard_entity_id);
+  } else {
+    graph.PassWritesColor(draw_pass, billboard_color);
+    graph.PassWritesColor(draw_pass, billboard_entity);
   }
+  graph.PassWritesDepthLoad(draw_pass, billboard_depth);
   graph.SetPassViewport(draw_pass, ctx.viewport_size);
   graph.SetPassClearColor(draw_pass, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       draw_pass,
-      [this, pool, draw_pass, billboard_color, billboard_entity, billboard_out,
-       billboard_entity_id, use_msaa, rw, rh](RenderGraph& g) {
-        auto color = g.GetTexture(billboard_color);
-        auto entity = g.GetTexture(billboard_entity);
+      [this, pool, billboard_out, billboard_entity_id](RenderGraph& g) {
         auto color_resolve = g.GetTexture(billboard_out);
         auto entity_resolve = g.GetTexture(billboard_entity_id);
-        auto depth = pool->GetTexture("geometry.depth_stencil");
 
-        if (draw_color_key_ != color.get() ||
-            draw_color_resolve_key_ != color_resolve.get() ||
-            draw_entity_id_key_ != entity.get() ||
-            draw_entity_id_resolve_key_ != entity_resolve.get() ||
-            draw_depth_key_ != depth.get()) {
-          if (use_msaa) {
-            std::array<AttachmentTexture*, 5> atts{color.get(), depth.get(),
-                                                   entity.get(),
-                                                   color_resolve.get(),
-                                                   entity_resolve.get()};
-            draw_framebuffer_ =
-                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
-          } else {
-            std::array<AttachmentTexture*, 3> atts{color.get(), depth.get(),
-                                                   entity.get()};
-            draw_framebuffer_ =
-                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
-          }
+        if (draw_color_resolve_key_ != color_resolve.get()) {
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(renderer_->GetDescriptorLayout("Present"));
           desc->AddCombinedImageSampler(0, color_resolve->image_views_[0],
                                         renderer_->GetDefaultLinearSampler());
           desc->Bake();
           draw_output_desc_ = desc;
-          draw_color_key_ = color.get();
           draw_color_resolve_key_ = color_resolve.get();
-          draw_entity_id_key_ = entity.get();
-          draw_entity_id_resolve_key_ = entity_resolve.get();
-          draw_depth_key_ = depth.get();
         }
-        g.SetPassFramebuffer(draw_pass, draw_framebuffer_);
+        draw_entity_id_resolve_key_ = entity_resolve.get();
         // Publish the resolved entity-id texture so the viewport's
         // click-to-select path can read it via CameraResourcePool.
         pool->SetTexture("billboard.entity_id_resolve", entity_resolve);
@@ -919,11 +872,11 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   std::shared_ptr<Pipeline> comp_blend = comp_blend_pipeline_;
   uint32_t comp_pass = graph.AddPass(
-      "BillboardComposite", comp_render_pass_,
+      "BillboardComposite",
       [this, renderer, comp_pipeline, comp_blend](VkCommandBuffer) {
-        comp_pipeline->Bind(PipelineBindPointGraphics);
+        comp_pipeline->Bind();
         renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
-        comp_blend->Bind(PipelineBindPointGraphics);
+        comp_blend->Bind();
         renderer->DrawFullscreen(comp_blend, {draw_output_desc_});
       });
 
@@ -936,7 +889,7 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 1});
   graph.SetPassResolveFn(
       comp_pass,
-      [this, pool, comp_pass, comp_out, pipeline_out, rw, rh](RenderGraph& g) {
+      [this, pool, comp_out, pipeline_out](RenderGraph& g) {
         auto output = g.GetTexture(comp_out);
         auto input = pipeline_out.IsValid()
                          ? g.GetTexture(pipeline_out)
@@ -945,8 +898,6 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         auto present_layout = renderer_->GetDescriptorLayout("Present");
 
         if (comp_output_key_ != output.get()) {
-          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
-              0, {output.get()}, {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -954,7 +905,6 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
           comp_output_desc_ = desc;
           comp_output_key_ = output.get();
         }
-        g.SetPassFramebuffer(comp_pass, comp_framebuffer_);
 
         AttachmentTexture* input_key = input ? input.get() : nullptr;
         if (comp_input_key_ != input_key) {

@@ -27,8 +27,6 @@ class ShadowFeature : public RenderFeature {
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
-
   std::shared_ptr<Pipeline> GetPipeline() const { return pipeline_; }
 
   std::shared_ptr<Pipeline> GetNoCullPipeline() const {
@@ -46,7 +44,6 @@ class ShadowFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Shadow";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<Pipeline> pipeline_no_cull_;
   std::shared_ptr<Pipeline> pipeline_opaque_;

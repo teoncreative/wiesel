@@ -23,8 +23,6 @@ class ElementDocument;
 
 namespace wiesel {
 
-class Framebuffer;
-
 // Asset data for .rml UI documents
 struct UIDocumentAsset {
   std::string vfs_path;
@@ -71,7 +69,6 @@ struct UIDocumentRuntime {
   std::shared_ptr<AttachmentTexture> offscreen_stencil;
   std::shared_ptr<DescriptorSet> offscreen_descriptor;
   std::shared_ptr<UniformBuffer> offscreen_ubo;
-  std::shared_ptr<Framebuffer> offscreen_framebuffer;
   glm::vec2 offscreen_size{0, 0};
 };
 

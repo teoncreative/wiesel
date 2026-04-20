@@ -15,7 +15,6 @@
 
 #include "asset/w_asset_manager.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "w_engine.h"
 
 namespace wiesel {
@@ -65,20 +64,8 @@ void UIManager::Init() {
     }
   });
 
-  // Create render pass with color + depth/stencil for clip masking
-  auto render_pass =
-      std::make_shared<RenderPass>(PassType::PostProcess, "RmlUi Offscreen");
-  render_pass->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = Engine::renderer()->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = Engine::renderer()->FindDepthStencilFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass->Bake();
-
-  render_interface_.Init(render_pass);
+  render_interface_.Init(Engine::renderer()->GetSwapChainImageFormat(),
+                         Engine::renderer()->FindDepthStencilFormat());
   Rml::SetRenderInterface(&render_interface_);
 
   initialized_ = true;

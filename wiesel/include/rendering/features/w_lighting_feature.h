@@ -25,8 +25,6 @@ class LightingFeature : public RenderFeature {
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
-
   std::shared_ptr<Pipeline> GetLightingPipeline() const {
     return lighting_pipeline_;
   }
@@ -38,7 +36,6 @@ class LightingFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Lighting";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> lighting_pipeline_;
   std::shared_ptr<Pipeline> ibl_lighting_pipeline_;
   std::shared_ptr<Pipeline> rt_lighting_pipeline_;

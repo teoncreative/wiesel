@@ -15,7 +15,6 @@
 #include "rendering/w_camera.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_components.h"
 #include "scene/w_entity.h"
 #include "scene/w_scene.h"
@@ -63,17 +62,6 @@ static void DrawCanvasElement(
 
 CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass: RGBA color + R32F entity ID, no MSAA
-  render_pass_ =
-      std::make_shared<RenderPass>(PassType::PostProcess, "Canvas RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32_UINT,
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   // Descriptor layouts
   canvas_element_layout_ = std::make_shared<DescriptorSetLayout>();
   canvas_element_layout_->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -103,7 +91,8 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
 
   // Image pipeline (UBO + texture sampler)
   image_pipeline_ = std::make_shared<Pipeline>(props);
-  image_pipeline_->SetRenderPass(render_pass_);
+  image_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  image_pipeline_->AddColorAttachment(VK_FORMAT_R32_UINT);
   image_pipeline_->AddInputLayout(canvas_textured_layout_);
   image_pipeline_->AddShader(canvas_vert);
   image_pipeline_->AddShader(image_frag);
@@ -118,20 +107,10 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
 
   world_push_ = std::make_shared<CanvasWorldPushConstant>();
 
-  world_render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                                    "CanvasWorld RenderPass");
-  world_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  world_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                    .format = VK_FORMAT_R32_UINT,
-                                    .msaa_mode = SamplingMode::DISABLED});
-  world_render_pass_->Bake();
-
   // World image pipeline - used for UIDocument and canvas quad rendering
   world_image_pipeline_ = std::make_shared<Pipeline>(props);
-  world_image_pipeline_->SetRenderPass(world_render_pass_);
+  world_image_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  world_image_pipeline_->AddColorAttachment(VK_FORMAT_R32_UINT);
   world_image_pipeline_->AddInputLayout(canvas_textured_layout_);
   world_image_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("Global"));
@@ -141,15 +120,6 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
                                          VK_SHADER_STAGE_VERTEX_BIT);
   world_image_pipeline_->Bake();
 
-  // Composite pass: blends canvas offscreen onto PipelineOutput
-  comp_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "CanvasComposite RenderPass");
-  comp_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  comp_render_pass_->Bake();
-
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/fullscreen_shader.vert"});
@@ -158,15 +128,12 @@ CanvasFeature::CanvasFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/quad_shader.frag"});
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, true, true, false});
-  comp_pipeline_->SetRenderPass(comp_render_pass_);
+  comp_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
   comp_pipeline_->Bake();
 
-  // Get the RmlUi render pass from UIManager's render interface
-  rmlui_render_pass_ =
-      Engine::ui_manager().GetRenderInterface()->GetRenderPass();
 }
 
 void CanvasFeature::SetupResources(RenderContext& ctx) {
@@ -185,12 +152,6 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
                        VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
-
-  std::array<AttachmentTexture*, 2> attachments{
-      pool.GetTexture("canvas.color").get(),
-      pool.GetTexture("canvas.entity_id").get()};
-  pool.SetFramebuffer(
-      "canvas", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
 
   auto canvas_output_desc = std::make_shared<DescriptorSet>();
   canvas_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
@@ -211,12 +172,6 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
                        VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
 
-  std::array<AttachmentTexture*, 2> world_attachments{
-      pool.GetTexture("canvas_world.color").get(),
-      pool.GetTexture("canvas_world.entity_id").get()};
-  pool.SetFramebuffer("canvas_world", world_render_pass_->CreateFramebuffer(
-                                          0, world_attachments, {rw, rh}));
-
   // Descriptor for compositing world canvas
   auto world_canvas_desc = std::make_shared<DescriptorSet>();
   world_canvas_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
@@ -236,12 +191,6 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
                   renderer.CreateAttachmentTexture(
                       {rw, rh, AttachmentTextureType::Offscreen, 1,
                        VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
-
-  std::array<AttachmentTexture*, 2> camera_attachments{
-      pool.GetTexture("canvas_camera.color").get(),
-      pool.GetTexture("canvas_camera.entity_id").get()};
-  pool.SetFramebuffer("canvas_camera", world_render_pass_->CreateFramebuffer(
-                                           0, camera_attachments, {rw, rh}));
 
   auto camera_canvas_desc = std::make_shared<DescriptorSet>();
   camera_canvas_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
@@ -393,7 +342,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   {
     PROFILE_ZONE_SCOPED_N("CanvasFeature::RmlUiPreRender");
     Renderer& renderer = *renderer_;
-    auto rml_render_pass = rmlui_render_pass_;
     ctx.scenes.ForEach<UIDocumentComponent,
                        RectangleTransformComponent>([&](Scene& scene,
                                                         entt::entity entity) {
@@ -440,11 +388,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         runtime->offscreen_stencil = renderer.CreateAttachmentTexture(
             {render_w, render_h, AttachmentTextureType::DepthStencil, 1,
              renderer.FindDepthStencilFormat(), SamplingMode::DISABLED, false});
-
-        std::array<AttachmentTexture*, 2> att{runtime->offscreen_texture.get(),
-                                              runtime->offscreen_stencil.get()};
-        runtime->offscreen_framebuffer =
-            rml_render_pass->CreateFramebuffer(0, att, {render_w, render_h});
 
         // Rebuild descriptor with new texture
         runtime->offscreen_ubo = renderer.CreateUniformBuffer(
@@ -664,10 +607,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
             {tw, th, AttachmentTextureType::Offscreen, 1, VK_FORMAT_R32_UINT,
              SamplingMode::DISABLED, true});
 
-        std::array<AttachmentTexture*, 2> att{res.texture.get(),
-                                              res.entity_id_texture.get()};
-        res.framebuffer = render_pass_->CreateFramebuffer(0, att, {tw, th});
-
         res.output_descriptor = std::make_shared<DescriptorSet>();
         res.output_descriptor->SetLayout(
             renderer_->GetDescriptorLayout("Present"));
@@ -697,6 +636,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // ---- World-space canvas pass (renders BEFORE overlay) ----
   RGResource canvas_world_out = graph.ImportTexture(
       "CanvasWorldOut", pool->GetTexture("canvas_world.color"));
+  RGResource canvas_world_entity_id = graph.ImportTexture(
+      "CanvasWorldEntityId", pool->GetTexture("canvas_world.entity_id"));
 
   // Build canvas border data for editor scene view
   struct CanvasBorderInfo {
@@ -770,44 +711,42 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
   // Render RmlUi documents to their offscreen textures
   std::vector<RGResource> rml_offscreen_textures;
-  {
-    auto rml_render_pass = rmlui_render_pass_;
-    ctx.scenes.ForEach<UIDocumentComponent,
-                       RectangleTransformComponent>([&](Scene& scene,
-                                                        entt::entity entity) {
-      auto& doc = scene.GetComponent<UIDocumentComponent>(entity);
-      auto* runtime = scene.GetRegistry().try_get<UIDocumentRuntime>(entity);
-      if (!runtime || !runtime->rml_context || !runtime->rml_document ||
-          !doc.visible || !runtime->offscreen_framebuffer) {
-        return;
-      }
+  ctx.scenes.ForEach<UIDocumentComponent,
+                     RectangleTransformComponent>([&](Scene& scene,
+                                                      entt::entity entity) {
+    auto& doc = scene.GetComponent<UIDocumentComponent>(entity);
+    auto* runtime = scene.GetRegistry().try_get<UIDocumentRuntime>(entity);
+    if (!runtime || !runtime->rml_context || !runtime->rml_document ||
+        !doc.visible || !runtime->offscreen_texture) {
+      return;
+    }
 
-      glm::vec2 doc_size = runtime->offscreen_size;
-      auto fb = runtime->offscreen_framebuffer;
-      Rml::Context* rml_ctx = runtime->rml_context;
+    glm::vec2 doc_size = runtime->offscreen_size;
+    Rml::Context* rml_ctx = runtime->rml_context;
 
-      // Import offscreen texture into render graph for dependency tracking
-      RGResource rml_tex = graph.ImportTexture(
-          "RmlUiDoc_" + std::to_string(static_cast<uint32_t>(entity)),
-          runtime->offscreen_texture);
+    // Import offscreen color + stencil into render graph for tracking
+    RGResource rml_tex = graph.ImportTexture(
+        "RmlUiDoc_" + std::to_string(static_cast<uint32_t>(entity)),
+        runtime->offscreen_texture);
+    RGResource rml_stencil = graph.ImportTexture(
+        "RmlUiDocStencil_" + std::to_string(static_cast<uint32_t>(entity)),
+        runtime->offscreen_stencil);
 
-      uint32_t rml_pass = graph.AddPass(
-          "RmlUiOffscreen", rml_render_pass,
-          [doc_size, rml_ctx](VkCommandBuffer cmd) {
-            Engine::ui_manager().GetRenderInterface()->RenderToTexture(
-                cmd, rml_ctx, doc_size);
-          });
-      graph.PassWritesColor(rml_pass, rml_tex);
-      graph.SetPassFramebuffer(rml_pass, fb);
-      graph.SetPassViewport(rml_pass, doc_size);
-      graph.SetPassClearColor(rml_pass, {0, 0, 0, 0});
+    uint32_t rml_pass = graph.AddPass(
+        "RmlUiOffscreen", [doc_size, rml_ctx](VkCommandBuffer cmd) {
+          Engine::ui_manager().GetRenderInterface()->RenderToTexture(
+              cmd, rml_ctx, doc_size);
+        });
+    graph.PassWritesColor(rml_pass, rml_tex);
+    graph.PassWritesDepth(rml_pass, rml_stencil);
+    graph.SetPassViewport(rml_pass, doc_size);
+    graph.SetPassClearColor(rml_pass, {0, 0, 0, 0});
 
-      rml_offscreen_textures.push_back(rml_tex);
-    });
-  }
+    rml_offscreen_textures.push_back(rml_tex);
+  });
 
   uint32_t world_canvas_pass = graph.AddPass(
-      "CanvasWorld", world_render_pass_,
+      "CanvasWorld",
       [world_image_pipeline,
        renderer, pool, world_push, element_layout, textured_layout,
        sorted_world, canvas_infos, global_descriptor, viewport,
@@ -846,7 +785,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           }
 
           if (first) {
-            world_image_pipeline->Bind(PipelineBindPointGraphics);
+            world_image_pipeline->Bind();
             first = false;
 
             // Bind the camera global descriptor at set 1
@@ -880,7 +819,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           world_push->canvas_size = ci.canvas_size;
           world_push->world_size = ci.world_size;
 
-          world_image_pipeline->Bind(PipelineBindPointGraphics);
+          world_image_pipeline->Bind();
 
           VkDescriptorSet global_set = global_descriptor->descriptor_set_;
           auto* bound = renderer->GetBoundPipeline();
@@ -911,7 +850,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           world_push->canvas_size = ci.canvas_size;
           world_push->world_size = ci.world_size;
 
-          world_image_pipeline->Bind(PipelineBindPointGraphics);
+          world_image_pipeline->Bind();
 
           VkDescriptorSet global_set = global_descriptor->descriptor_set_;
           auto* bound = renderer->GetBoundPipeline();
@@ -939,11 +878,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassWritesColor(world_canvas_pass, canvas_world_out);
+  graph.PassWritesColor(world_canvas_pass, canvas_world_entity_id);
   for (const auto& rml_tex : rml_offscreen_textures) {
     graph.PassReadsTexture(world_canvas_pass, rml_tex);
   }
-  graph.SetPassFramebuffer(world_canvas_pass,
-                           pool->GetFramebuffer("canvas_world"));
   graph.SetPassViewport(world_canvas_pass, ctx.viewport_size);
   graph.SetPassClearColor(world_canvas_pass, {0, 0, 0, 0});
 
@@ -991,15 +929,17 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
 
     RGResource canvas_tex_rg =
         graph.ImportTexture(pass_name, canvas_res->texture);
+    RGResource canvas_entity_rg = graph.ImportTexture(
+        pass_name + "_entity", canvas_res->entity_id_texture);
 
     uint32_t per_canvas_pass = graph.AddPass(
-        pass_name, render_pass_,
+        pass_name,
         [image_pipeline, renderer,
          screen_push, canvas_viewport, element_layout, textured_layout,
          canvas_elements](VkCommandBuffer) {
           screen_push->screen_size = canvas_viewport;
 
-          image_pipeline->Bind(PipelineBindPointGraphics);
+          image_pipeline->Bind();
 
           for (const auto& entry : *canvas_elements) {
             uint32_t eid =
@@ -1011,10 +951,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
         });
 
     graph.PassWritesColor(per_canvas_pass, canvas_tex_rg);
+    graph.PassWritesColor(per_canvas_pass, canvas_entity_rg);
     for (const auto& rml_tex : rml_offscreen_textures) {
       graph.PassReadsTexture(per_canvas_pass, rml_tex);
     }
-    graph.SetPassFramebuffer(per_canvas_pass, canvas_res->framebuffer);
     graph.SetPassViewport(per_canvas_pass, canvas_viewport);
     graph.SetPassClearColor(per_canvas_pass, {0, 0, 0, 0});
 
@@ -1026,6 +966,8 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   // rendered into a separate offscreen buffer that gets composited later.
   RGResource canvas_camera_out = graph.ImportTexture(
       "CanvasCameraOut", pool->GetTexture("canvas_camera.color"));
+  RGResource canvas_camera_entity_id = graph.ImportTexture(
+      "CanvasCameraEntityId", pool->GetTexture("canvas_camera.entity_id"));
   bool camera_pass_added = !per_canvas_pass_infos->empty() && global_descriptor;
 
   // Pre-build per-canvas quad draw resources (UBO + descriptor) outside the
@@ -1077,7 +1019,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   }
 
   uint32_t camera_quad_pass = graph.AddPass(
-      "CanvasCameraQuad", world_render_pass_,
+      "CanvasCameraQuad",
       [world_image_pipeline, renderer, world_push, global_descriptor,
        camera_pass_added, canvas_infos, quad_draw_datas](VkCommandBuffer) {
         if (!camera_pass_added || !global_descriptor ||
@@ -1085,7 +1027,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           return;
         }
 
-        world_image_pipeline->Bind(PipelineBindPointGraphics);
+        world_image_pipeline->Bind();
 
         // Bind the camera global descriptor at set 1
         VkDescriptorSet global_set = global_descriptor->descriptor_set_;
@@ -1110,7 +1052,7 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           world_push->world_size = ci.world_size;
 
           // Rebind pipeline to push new constants
-          world_image_pipeline->Bind(PipelineBindPointGraphics);
+          world_image_pipeline->Bind();
 
           // Re-bind global descriptor after pipeline rebind
           bound = renderer->GetBoundPipeline();
@@ -1136,23 +1078,24 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
     graph.PassReadsTexture(camera_quad_pass, pass_info.rg_resource);
   }
   graph.PassWritesColor(camera_quad_pass, canvas_camera_out);
-  graph.SetPassFramebuffer(camera_quad_pass,
-                           pool->GetFramebuffer("canvas_camera"));
+  graph.PassWritesColor(camera_quad_pass, canvas_camera_entity_id);
   graph.SetPassViewport(camera_quad_pass, ctx.viewport_size);
   graph.SetPassClearColor(camera_quad_pass, {0, 0, 0, 0});
 
   // ---- Overlay canvas pass ----
   RGResource canvas_out =
       graph.ImportTexture("CanvasOut", pool->GetTexture("canvas.color"));
+  RGResource canvas_entity_id = graph.ImportTexture(
+      "CanvasEntityId", pool->GetTexture("canvas.entity_id"));
 
   uint32_t canvas_pass = graph.AddPass(
-      "Canvas", render_pass_,
+      "Canvas",
       [image_pipeline, renderer, pool,
        screen_push, viewport, element_layout, textured_layout,
        sorted_overlay](VkCommandBuffer) {
         screen_push->screen_size = viewport;
 
-        image_pipeline->Bind(PipelineBindPointGraphics);
+        image_pipeline->Bind();
 
         for (const auto& entry : *sorted_overlay) {
           uint32_t eid =
@@ -1164,10 +1107,10 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassWritesColor(canvas_pass, canvas_out);
+  graph.PassWritesColor(canvas_pass, canvas_entity_id);
   for (const auto& rml_tex : rml_offscreen_textures) {
     graph.PassReadsTexture(canvas_pass, rml_tex);
   }
-  graph.SetPassFramebuffer(canvas_pass, pool->GetFramebuffer("canvas"));
   graph.SetPassViewport(canvas_pass, ctx.viewport_size);
   graph.SetPassClearColor(canvas_pass, {0, 0, 0, 0});
 
@@ -1189,9 +1132,9 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   auto comp_pipeline = comp_pipeline_;
 
   uint32_t canvas_comp = graph.AddPass(
-      "CanvasComposite", comp_render_pass_,
+      "CanvasComposite",
       [this, comp_pipeline, pool, renderer, is_external](VkCommandBuffer) {
-        comp_pipeline->Bind(PipelineBindPointGraphics);
+        comp_pipeline->Bind();
         // Draw scene (previous PipelineOutput)
         renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
         // Draw world canvas on top (alpha blended)
@@ -1213,16 +1156,13 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   graph.SetPassClearColor(canvas_comp, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       canvas_comp,
-      [this, pool, canvas_comp, canvas_comp_out, pipeline_input, rw,
-       rh](RenderGraph& g) {
+      [this, pool, canvas_comp_out, pipeline_input](RenderGraph& g) {
         auto output = g.GetTexture(canvas_comp_out);
         auto input = g.GetTexture(pipeline_input);
         auto linear = renderer_->GetDefaultLinearSampler();
         auto present_layout = renderer_->GetDescriptorLayout("Present");
 
         if (comp_output_key_ != output.get()) {
-          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
-              0, {output.get()}, {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -1230,7 +1170,6 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
           comp_output_desc_ = desc;
           comp_output_key_ = output.get();
         }
-        g.SetPassFramebuffer(canvas_comp, comp_framebuffer_);
 
         if (comp_input_key_ != input.get()) {
           auto desc = std::make_shared<DescriptorSet>();

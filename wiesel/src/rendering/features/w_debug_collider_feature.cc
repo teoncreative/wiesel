@@ -24,7 +24,6 @@
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_components.h"
 #include "scene/w_scene.h"
 #include "util/w_label_texture.h"
@@ -34,23 +33,7 @@ namespace wiesel {
 
 DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass: 1 color + depth (load existing depth for occlusion)
   SamplingMode msaa = renderer_->options().msaa_mode;
-
-  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                              "DebugCollider RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = msaa});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = msaa});
-  if (msaa > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = renderer_->GetSwapChainImageFormat(),
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
 
   // Shaders
   auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
@@ -90,7 +73,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   push_constant_ = std::make_shared<DebugColliderPushConstant>();
 
   pipeline_->SetVertexData(binding, attrs);
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT |
                                                  VK_SHADER_STAGE_FRAGMENT_BIT);
   pipeline_->AddShader(vert);
@@ -109,7 +93,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     no_depth_pipeline_ = std::make_shared<Pipeline>(no_depth_props);
   }
   no_depth_pipeline_->SetVertexData(binding, attrs);
-  no_depth_pipeline_->SetRenderPass(render_pass_);
+  no_depth_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  no_depth_pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   no_depth_pipeline_->AddPushConstant(
       push_constant_,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -158,7 +143,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     filled_pipeline_ = std::make_shared<Pipeline>(filled_props);
   }
   filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
-  filled_pipeline_->SetRenderPass(render_pass_);
+  filled_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  filled_pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   filled_pipeline_->AddPushConstant(
       push_constant_,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -166,15 +152,6 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   filled_pipeline_->AddShader(overlay_vert);
   filled_pipeline_->AddShader(overlay_frag);
   filled_pipeline_->Bake();
-
-  // Composite render pass: blend debug overlay onto PipelineOutput
-  comp_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "DebugColliderComposite RenderPass");
-  comp_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  comp_render_pass_->Bake();
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -185,7 +162,7 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
 
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, true, false, false});
-  comp_pipeline_->SetRenderPass(comp_render_pass_);
+  comp_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
@@ -608,8 +585,11 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Wireframe draw pass
   auto no_depth_pipe = no_depth_pipeline_;
 
+  RGResource debug_depth = graph.ImportTexture(
+      "DebugDepth", pool->GetTexture("geometry.depth_stencil"));
+
   uint32_t draw_pass = graph.AddPass(
-      "DebugColliders", render_pass_,
+      "DebugColliders",
       [pipeline, filled_pipe, no_depth_pipe, push_constant, &scenes, renderer,
        vp, show_colliders, show_triggers, show_reverb, show_cameras,
        show_bounds, box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
@@ -637,7 +617,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                                uint32_t index_count, const glm::mat4& model,
                                const glm::vec4& color,
                                std::shared_ptr<DescriptorSet> label_desc) {
-          filled_pipe->Bind(PipelineBindPointGraphics);
+          filled_pipe->Bind();
           push_constant->mvp = vp * model;
           push_constant->model = model;
           push_constant->color = color;
@@ -699,10 +679,10 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             if (is_trigger) {
               draw_filled(fill_vb, fill_ib, fill_ic, model, trigger_fill,
                           trigger_desc);
-              pipeline->Bind(PipelineBindPointGraphics);
+              pipeline->Bind();
               draw_wireframe(wire_vb, wire_ib, wire_ic, model, trigger_wire);
             } else {
-              pipeline->Bind(PipelineBindPointGraphics);
+              pipeline->Bind();
               draw_wireframe(wire_vb, wire_ib, wire_ic, model,
                              get_collider_color(scene, entity));
             }
@@ -767,7 +747,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
           // Heightfield colliders: wireframe only
           if (show_colliders) {
-            pipeline->Bind(PipelineBindPointGraphics);
+            pipeline->Bind();
             for (const CachedDebugData& hf : hf_data) {
               draw_wireframe(hf.vb, hf.ib, hf.index_count, hf.model,
                              terrain_wire);
@@ -776,7 +756,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
           // Mesh colliders: wireframe only
           if (show_colliders) {
-            pipeline->Bind(PipelineBindPointGraphics);
+            pipeline->Bind();
             for (const CachedDebugData& mc : mesh_data) {
               draw_wireframe(mc.vb, mc.ib, mc.index_count, mc.model,
                              static_wire);
@@ -803,7 +783,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                 draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
                             zone.active_ ? reverb_active_fill : reverb_fill,
                             reverb_desc);
-                pipeline->Bind(PipelineBindPointGraphics);
+                pipeline->Bind();
                 draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
                                zone.active_ ? reverb_active_wire : reverb_wire);
               });
@@ -811,7 +791,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
         // Camera frustum wireframes (editor scene view only)
         if (show_cameras) {
-          no_depth_pipe->Bind(PipelineBindPointGraphics);
+          no_depth_pipe->Bind();
           glm::vec4 cam_color = {0.7f, 0.7f, 0.7f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
@@ -885,7 +865,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
         // --- Culling bounds ---
         if (show_bounds) {
-          pipeline->Bind(PipelineBindPointGraphics);
+          pipeline->Bind();
           auto& assets = Engine::asset_manager();
           glm::vec4 bounds_color(0.2f, 0.8f, 0.2f, 0.7f);
           glm::vec4 skel_bounds_color(0.8f, 0.6f, 0.2f, 0.7f);
@@ -955,44 +935,27 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         }
       });
 
-  graph.PassWritesColor(draw_pass, debug_color);
   if (use_msaa) {
-    graph.PassWritesColor(draw_pass, debug_out);
+    graph.PassWritesColor(draw_pass, debug_color, debug_out);
+  } else {
+    graph.PassWritesColor(draw_pass, debug_color);
   }
+  graph.PassWritesDepthLoad(draw_pass, debug_depth);
   graph.SetPassViewport(draw_pass, ctx.viewport_size);
   graph.SetPassClearColor(draw_pass, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       draw_pass,
-      [this, pool, draw_pass, debug_color, debug_out, use_msaa, rw,
-       rh](RenderGraph& g) {
-        auto color = g.GetTexture(debug_color);
+      [this, renderer, debug_out](RenderGraph& g) {
         auto resolve = g.GetTexture(debug_out);
-        auto depth = pool->GetTexture("geometry.depth_stencil");
-
-        if (draw_color_key_ != color.get() ||
-            draw_resolve_key_ != resolve.get() ||
-            draw_depth_key_ != depth.get()) {
-          if (use_msaa) {
-            std::array<AttachmentTexture*, 3> atts{color.get(), depth.get(),
-                                                   resolve.get()};
-            draw_framebuffer_ =
-                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
-          } else {
-            std::array<AttachmentTexture*, 2> atts{color.get(), depth.get()};
-            draw_framebuffer_ =
-                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
-          }
+        if (draw_resolve_key_ != resolve.get()) {
           auto desc = std::make_shared<DescriptorSet>();
-          desc->SetLayout(renderer_->GetDescriptorLayout("Present"));
+          desc->SetLayout(renderer->GetDescriptorLayout("Present"));
           desc->AddCombinedImageSampler(0, resolve->image_views_[0],
-                                        renderer_->GetDefaultLinearSampler());
+                                        renderer->GetDefaultLinearSampler());
           desc->Bake();
           draw_output_desc_ = desc;
-          draw_color_key_ = color.get();
           draw_resolve_key_ = resolve.get();
-          draw_depth_key_ = depth.get();
         }
-        g.SetPassFramebuffer(draw_pass, draw_framebuffer_);
       });
 
   // Composite pass: blend debug overlay onto PipelineOutput
@@ -1009,9 +972,9 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   uint32_t comp_pass = graph.AddPass(
-      "DebugCollidersComposite", comp_render_pass_,
+      "DebugCollidersComposite",
       [this, renderer, comp_pipeline](VkCommandBuffer) {
-        comp_pipeline->Bind(PipelineBindPointGraphics);
+        comp_pipeline->Bind();
         renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
         renderer->DrawFullscreen(comp_pipeline, {draw_output_desc_});
       });
@@ -1022,15 +985,13 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       comp_pass,
-      [this, pool, comp_pass, comp_out, pipeline_out, rw, rh](RenderGraph& g) {
+      [this, pool, comp_out, pipeline_out](RenderGraph& g) {
         auto output = g.GetTexture(comp_out);
         auto input = g.GetTexture(pipeline_out);
         auto linear = renderer_->GetDefaultLinearSampler();
         auto present_layout = renderer_->GetDescriptorLayout("Present");
 
         if (comp_output_key_ != output.get()) {
-          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
-              0, {output.get()}, {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -1038,7 +999,6 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           comp_output_desc_ = desc;
           comp_output_key_ = output.get();
         }
-        g.SetPassFramebuffer(comp_pass, comp_framebuffer_);
 
         if (comp_input_key_ != input.get()) {
           auto desc = std::make_shared<DescriptorSet>();

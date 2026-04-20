@@ -10,24 +10,14 @@
 //
 
 #include "rendering/features/w_fxaa_feature.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
 
 FXAAFeature::FXAAFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                              "PostProcess RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   push_constants_ = std::make_shared<FxaaPushConstants>();
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -37,7 +27,7 @@ FXAAFeature::FXAAFeature(std::shared_ptr<Renderer> renderer)
                                        "engine://shaders/fxaa.frag"});
   pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   pipeline_->AddPushConstant(push_constants_, VK_SHADER_STAGE_FRAGMENT_BIT);
   pipeline_->AddShader(fullscreen_vert);
@@ -78,12 +68,12 @@ void FXAAFeature::AddPasses(RenderGraph& graph,
 
   auto pipeline = pipeline_;
   uint32_t fxaa_pass = graph.AddPass(
-      "FXAA", render_pass_,
+      "FXAA",
       [this, renderer, pipeline, push_constants,
        viewport_size](VkCommandBuffer) {
         push_constants->inverse_screen_size = {1.0f / viewport_size.x,
                                                1.0f / viewport_size.y};
-        pipeline->Bind(PipelineBindPointGraphics);
+        pipeline->Bind();
         renderer->DrawFullscreen(pipeline, {input_desc_});
       });
   graph.PassReadsTexture(fxaa_pass, pipeline_input);
@@ -92,16 +82,13 @@ void FXAAFeature::AddPasses(RenderGraph& graph,
   graph.SetPassClearColor(fxaa_pass, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       fxaa_pass,
-      [this, renderer, pool, fxaa_pass, fxaa_out, pipeline_input, rw,
-       rh](RenderGraph& g) {
+      [this, renderer, pool, fxaa_out, pipeline_input](RenderGraph& g) {
         auto output = g.GetTexture(fxaa_out);
         auto input = g.GetTexture(pipeline_input);
         auto present_layout = renderer->GetDescriptorLayout("Present");
         auto linear = renderer->GetDefaultLinearSampler();
 
         if (output_key_ != output.get()) {
-          framebuffer_ = render_pass_->CreateFramebuffer(0, {output.get()},
-                                                        {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -109,7 +96,6 @@ void FXAAFeature::AddPasses(RenderGraph& graph,
           output_desc_ = desc;
           output_key_ = output.get();
         }
-        g.SetPassFramebuffer(fxaa_pass, framebuffer_);
 
         if (input_key_ != input.get()) {
           auto desc = std::make_shared<DescriptorSet>();

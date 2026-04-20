@@ -105,7 +105,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   RGResource geo_normal = registry.Get("GeoNormal");
 
   uint32_t pass_idx = graph.AddPass(
-      "RTShadow", nullptr,
+      "RTShadow",
       [pool, renderer, &scenes, rt_pipeline, rt_layout, lights_ubo, trace_width,
        trace_height](VkCommandBuffer cmd) {
         auto as_manager = renderer->GetASManager();
@@ -152,13 +152,17 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
 
         vkCmdUpdateBuffer(cmd, lights_ubo->buffer_handle_, 0,
                           sizeof(RTShadowLightUBO), &ubo_data);
-        VkMemoryBarrier ubo_barrier{};
-        ubo_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-        ubo_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        ubo_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1,
-                             &ubo_barrier, 0, nullptr, 0, nullptr);
+        VkMemoryBarrier2 ubo_barrier{};
+        ubo_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+        ubo_barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+        ubo_barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        ubo_barrier.dstStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+        ubo_barrier.dstAccessMask = VK_ACCESS_2_UNIFORM_READ_BIT;
+        VkDependencyInfo ubo_dep{};
+        ubo_dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        ubo_dep.memoryBarrierCount = 1;
+        ubo_dep.pMemoryBarriers = &ubo_barrier;
+        vkCmdPipelineBarrier2(cmd, &ubo_dep);
 
         // New descriptor each frame (TLAS handle changes); old one is deferred
         // by SetDescriptor via the DeletionQueue for safe multi-frame-in-flight.
@@ -187,7 +191,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
             trace_width, trace_height, 1);
       });
 
-  graph.SetPassManagesRenderPass(pass_idx, false);
+  graph.SetPassAutoBeginRendering(pass_idx, false);
   graph.PassReadsTexture(pass_idx, geo_world_pos);
   graph.PassReadsTexture(pass_idx, geo_normal);
   graph.PassWritesStorageImage(pass_idx, shadow_mask_res);

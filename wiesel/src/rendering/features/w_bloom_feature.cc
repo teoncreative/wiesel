@@ -10,10 +10,8 @@
 
 #include "rendering/features/w_bloom_feature.h"
 
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
@@ -21,13 +19,6 @@ namespace wiesel {
 
 BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                              "PostProcess RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   extract_push_ = std::make_shared<BloomExtractPushConstants>();
   blur_push_ = std::make_shared<BloomBlurPushConstants>();
   composite_push_ = std::make_shared<BloomCompositePushConstants>();
@@ -47,7 +38,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     props.enable_depth_write = false;
     extract_pipeline_ = std::make_shared<Pipeline>(props);
   }
-  extract_pipeline_->SetRenderPass(render_pass_);
+  extract_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   extract_pipeline_->AddInputLayout(present_layout);
   extract_pipeline_->AddPushConstant(extract_push_,
                                      VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -73,7 +64,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     props.enable_depth_test = false;
     props.enable_depth_write = false;
     auto pipeline = std::make_shared<Pipeline>(props);
-    pipeline->SetRenderPass(render_pass_);
+    pipeline->AddColorAttachment(renderer_->GetSwapChainImageFormat());
     pipeline->AddInputLayout(present_layout);
     pipeline->AddPushConstant(blur_push_, VK_SHADER_STAGE_FRAGMENT_BIT);
     pipeline->AddShader(fullscreen_vert);
@@ -97,7 +88,7 @@ BloomFeature::BloomFeature(std::shared_ptr<Renderer> renderer)
     props.enable_depth_write = false;
     composite_pipeline_ = std::make_shared<Pipeline>(props);
   }
-  composite_pipeline_->SetRenderPass(render_pass_);
+  composite_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   composite_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("Postprocess2Input"));
   composite_pipeline_->AddPushConstant(composite_push_,
@@ -166,15 +157,15 @@ void BloomFeature::AddPasses(RenderGraph& graph,
 
   // Wire a single-sampler stage (extract or blur iteration): pass reads
   // input_resource, writes output_resource, resolve fn rebuilds the
-  // framebuffer + input descriptor when pool assignments change.
+  // input descriptor when pool assignments change.
   auto emit_stage = [&, this, renderer](
                         const std::shared_ptr<Pipeline>& pipeline,
                         StageBindings& bindings, RGResource input_resource,
                         RGResource output_resource, const char* pass_name) {
     uint32_t pass = graph.AddPass(
-        pass_name, render_pass_,
+        pass_name,
         [renderer, pipeline, &bindings](VkCommandBuffer) {
-          pipeline->Bind(PipelineBindPointGraphics);
+          pipeline->Bind();
           renderer->DrawFullscreen(pipeline, {bindings.input_desc});
         });
     graph.PassReadsTexture(pass, input_resource);
@@ -183,21 +174,16 @@ void BloomFeature::AddPasses(RenderGraph& graph,
     graph.SetPassClearColor(pass, {0, 0, 0, 0});
     graph.SetPassResolveFn(
         pass,
-        [this, renderer, &bindings, pass, input_resource, output_resource,
-         half_vp](RenderGraph& g) {
+        [this, renderer, &bindings, input_resource,
+         output_resource](RenderGraph& g) {
           auto output = g.GetTexture(output_resource);
           auto input = g.GetTexture(input_resource);
           auto linear = renderer->GetDefaultLinearSampler();
           auto present_layout = renderer->GetDescriptorLayout("Present");
 
           if (bindings.output_key != output.get()) {
-            bindings.framebuffer = render_pass_->CreateFramebuffer(
-                0, {output.get()},
-                {static_cast<uint32_t>(half_vp.x),
-                 static_cast<uint32_t>(half_vp.y)});
             bindings.output_key = output.get();
           }
-          g.SetPassFramebuffer(pass, bindings.framebuffer);
 
           if (bindings.input_key != input.get()) {
             auto desc = std::make_shared<DescriptorSet>();
@@ -236,9 +222,9 @@ void BloomFeature::AddPasses(RenderGraph& graph,
   // publishes itself as the new PipelineOutput for downstream features.
   auto composite_pipeline = composite_pipeline_;
   uint32_t comp_pass = graph.AddPass(
-      "Bloom Composite", render_pass_,
+      "Bloom Composite",
       [this, renderer, composite_pipeline](VkCommandBuffer) {
-        composite_pipeline->Bind(PipelineBindPointGraphics);
+        composite_pipeline->Bind();
         renderer->DrawFullscreen(composite_pipeline, {composite_input_desc_});
       });
   graph.PassReadsTexture(comp_pass, pipeline_input);
@@ -248,8 +234,8 @@ void BloomFeature::AddPasses(RenderGraph& graph,
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       comp_pass,
-      [this, renderer, pool, comp_pass, composite_out, pipeline_input,
-       final_blur, rw, rh](RenderGraph& g) {
+      [this, renderer, pool, composite_out, pipeline_input,
+       final_blur](RenderGraph& g) {
         auto output = g.GetTexture(composite_out);
         auto input = g.GetTexture(pipeline_input);
         auto blur = g.GetTexture(final_blur);
@@ -259,8 +245,6 @@ void BloomFeature::AddPasses(RenderGraph& graph,
             renderer->GetDescriptorLayout("Postprocess2Input");
 
         if (composite_output_key_ != output.get()) {
-          composite_framebuffer_ = render_pass_->CreateFramebuffer(
-              0, {output.get()}, {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -268,7 +252,6 @@ void BloomFeature::AddPasses(RenderGraph& graph,
           composite_output_desc_ = desc;
           composite_output_key_ = output.get();
         }
-        g.SetPassFramebuffer(comp_pass, composite_framebuffer_);
 
         if (composite_input_key_ != input.get() ||
             composite_blur_key_ != blur.get()) {

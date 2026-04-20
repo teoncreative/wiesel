@@ -2409,41 +2409,15 @@ void Renderer::CreateSwapChain() {
        static_cast<uint32_t>(swap_chain_images.size()), FindDepthFormat(),
        options_.msaa_mode});
 
-  present_render_pass_ =
-      std::make_shared<RenderPass>(PassType::Present, "Present RenderPass");
-  present_framebuffers_.resize(swap_chain_images.size());
-
   if (options_.msaa_mode > SamplingMode::DISABLED) {
     // With MSAA, render to MSAA color attachment and resolve to swapchain
     present_color_image_ = CreateAttachmentTexture(
         {extent_.width, extent_.height, AttachmentTextureType::Color,
          static_cast<uint32_t>(swap_chain_images.size()),
          swap_chain_image_format_, options_.msaa_mode});
-    present_render_pass_->AttachOutput(present_color_image_);
-    present_render_pass_->AttachOutput(present_depth_stencil_);
-    present_render_pass_->AttachOutput(swap_chain_texture_);
-    present_render_pass_->Bake();
-
-    std::array<AttachmentTexture*, 3> textures{present_color_image_.get(),
-                                               present_depth_stencil_.get(),
-                                               swap_chain_texture_.get()};
-    for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
-      present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
-          i, textures, {extent_.width, extent_.height});
-    }
   } else {
     // Without MSAA, render directly to swapchain
     present_color_image_ = swap_chain_texture_;
-    present_render_pass_->AttachOutput(swap_chain_texture_);
-    present_render_pass_->AttachOutput(present_depth_stencil_);
-    present_render_pass_->Bake();
-
-    std::array<AttachmentTexture*, 2> textures{swap_chain_texture_.get(),
-                                               present_depth_stencil_.get()};
-    for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
-      present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
-          i, textures, {extent_.width, extent_.height});
-    }
   }
 }
 
@@ -2456,7 +2430,7 @@ void Renderer::CreatePresentGraphicsPipelines() {
                     ShaderSourceSource, "engine://shaders/quad_shader.frag"});
   present_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
-  present_pipeline_->SetRenderPass(present_render_pass_);
+  present_pipeline_->AddColorAttachment(swap_chain_image_format_);
   present_pipeline_->AddInputLayout(GetDescriptorLayout("Present"));
   present_pipeline_->AddShader(present_vertex_shader);
   present_pipeline_->AddShader(present_fragment_shader);
@@ -2566,18 +2540,18 @@ void Renderer::TransitionImageLayout(VkCommandBuffer command_buffer,
                                      uint32_t mip_levels, uint32_t base_layer,
                                      uint32_t layer_count) {
   PROFILE_ZONE_SCOPED();
-  // I hate this
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  VkImageMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   barrier.oldLayout = old_layout;
   barrier.newLayout = new_layout;
   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.image = image;
   if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
-      old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+      old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+      new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ||
+      old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
     if (HasStencilComponent(format)) {
       barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
     }
@@ -2589,79 +2563,108 @@ void Renderer::TransitionImageLayout(VkCommandBuffer command_buffer,
   barrier.subresourceRange.baseArrayLayer = base_layer;
   barrier.subresourceRange.layerCount = layer_count;
 
-  // Derive src access mask and pipeline stage from old layout
-  VkPipelineStageFlags source_stage;
   switch (old_layout) {
     case VK_IMAGE_LAYOUT_UNDEFINED:
-      barrier.srcAccessMask = 0;
-      source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+      barrier.srcAccessMask = VK_ACCESS_2_NONE;
       break;
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
       break;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      source_stage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+      barrier.srcStageMask =
+          VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+          VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+      barrier.srcStageMask =
+          VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+          VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
+          VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      source_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-      source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_GENERAL:
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT |
+                              VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-      barrier.srcAccessMask = 0;
-      source_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+      barrier.srcAccessMask = VK_ACCESS_2_NONE;
       break;
     default:
-      barrier.srcAccessMask = 0;
-      source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_NONE;
       break;
   }
 
-  // Derive dst access mask and pipeline stage from new layout
-  VkPipelineStageFlags destination_stage;
   switch (new_layout) {
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
       break;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+                             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+                             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
+                             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_2_SHADER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-      destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_GENERAL:
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT |
+                              VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-      barrier.dstAccessMask = 0;
-      destination_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_NONE;
+      barrier.dstAccessMask = VK_ACCESS_2_NONE;
       break;
     default:
-      barrier.dstAccessMask = 0;
-      destination_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_NONE;
       break;
   }
 
-  vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0,
-                       nullptr, 0, nullptr, 1, &barrier);
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.imageMemoryBarrierCount = 1;
+  dep.pImageMemoryBarriers = &barrier;
+  vkCmdPipelineBarrier2(command_buffer, &dep);
 }
 
 void Renderer::CreateCommandPools() {
@@ -2901,7 +2904,29 @@ VkFormat Renderer::FindDepthStencilFormat() {
 
 bool Renderer::HasStencilComponent(VkFormat format) {
   return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
-         format == VK_FORMAT_D24_UNORM_S8_UINT;
+         format == VK_FORMAT_D24_UNORM_S8_UINT ||
+         format == VK_FORMAT_D16_UNORM_S8_UINT ||
+         format == VK_FORMAT_S8_UINT;
+}
+
+bool Renderer::IsIntegerColorFormat(VkFormat format) {
+  switch (format) {
+    case VK_FORMAT_R32_UINT:
+    case VK_FORMAT_R32_SINT:
+    case VK_FORMAT_R32G32_UINT:
+    case VK_FORMAT_R32G32_SINT:
+    case VK_FORMAT_R32G32B32_UINT:
+    case VK_FORMAT_R32G32B32_SINT:
+    case VK_FORMAT_R32G32B32A32_UINT:
+    case VK_FORMAT_R32G32B32A32_SINT:
+    case VK_FORMAT_R16_UINT:
+    case VK_FORMAT_R16_SINT:
+    case VK_FORMAT_R8_UINT:
+    case VK_FORMAT_R8_SINT:
+      return true;
+    default:
+      return false;
+  }
 }
 
 void Renderer::GenerateMipmaps(VkImage image, VkFormat image_format,
@@ -2925,8 +2950,8 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
         "texture image format does not support linear blitting!");
   }
 
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  VkImageMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   barrier.image = image;
   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -2935,6 +2960,11 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
   barrier.subresourceRange.layerCount = 1;
   barrier.subresourceRange.levelCount = 1;
 
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.imageMemoryBarrierCount = 1;
+  dep.pImageMemoryBarriers = &barrier;
+
   int32_t mip_width = tex_width;
   int32_t mip_height = tex_height;
 
@@ -2942,12 +2972,11 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
     barrier.subresourceRange.baseMipLevel = i - 1;
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                         nullptr, 1, &barrier);
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier2(cmd, &dep);
 
     VkImageBlit blit{};
     blit.srcOffsets[0] = {0, 0, 0};
@@ -2970,12 +2999,12 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
 
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
-                         0, nullptr, 1, &barrier);
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                           VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    vkCmdPipelineBarrier2(cmd, &dep);
 
     if (mip_width > 1) {
       mip_width /= 2;
@@ -2988,12 +3017,12 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
   barrier.subresourceRange.baseMipLevel = mip_levels - 1;
   barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
   barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                         VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+  barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+  vkCmdPipelineBarrier2(cmd, &dep);
 }
 
 void Renderer::CreateTracy() {
@@ -3058,9 +3087,6 @@ void Renderer::CleanupPresentGraphics() {
   present_color_image_ = nullptr;
   present_depth_stencil_ = nullptr;
   swap_chain_texture_ = nullptr;
-  present_render_pass_ = nullptr;
-  present_framebuffers_.clear();
-  present_framebuffers_.clear();
   vkDestroySwapchainKHR(logical_device_, swap_chain_, nullptr);
 }
 
@@ -3276,17 +3302,23 @@ bool Renderer::BeginPresent() {
     // presentation engine may still reference it from a prior present, and
     // signaling it again would violate the Vulkan spec.
     command_buffers_[current_frame_]->End();
-    VkSubmitInfo empty_submit{};
-    empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    empty_submit.commandBufferCount = 1;
-    empty_submit.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
-    VkSemaphore empty_signal[] = {render_order_semaphores_[current_frame_]};
-    empty_submit.signalSemaphoreCount = 1;
-    empty_submit.pSignalSemaphores = empty_signal;
+    VkCommandBufferSubmitInfo cmd_info{};
+    cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmd_info.commandBuffer = command_buffers_[current_frame_]->handle_;
+    VkSemaphoreSubmitInfo signal_info{};
+    signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    signal_info.semaphore = render_order_semaphores_[current_frame_];
+    signal_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    VkSubmitInfo2 empty_submit{};
+    empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+    empty_submit.commandBufferInfoCount = 1;
+    empty_submit.pCommandBufferInfos = &cmd_info;
+    empty_submit.signalSemaphoreInfoCount = 1;
+    empty_submit.pSignalSemaphoreInfos = &signal_info;
     {
       std::lock_guard<std::mutex> lock(queue_submit_mutex_);
-      WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &empty_submit,
-                                          fences_[current_frame_]));
+      WIESEL_CHECK_VKRESULT(vkQueueSubmit2(graphics_queue_, 1, &empty_submit,
+                                           fences_[current_frame_]));
     }
     frame_counter_++;
     current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
@@ -3317,16 +3349,67 @@ bool Renderer::BeginPresent() {
     }
   }
 
-  present_pipeline_->Bind(PipelineBindPointGraphics);
-  present_render_pass_->Begin(present_framebuffers_[image_index_],
-                              clear_color_);
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  const bool msaa = options_.msaa_mode > SamplingMode::DISABLED;
+
+  // Transition the swap-chain image from PRESENT_SRC_KHR to
+  // COLOR_ATTACHMENT_OPTIMAL. When MSAA is on the swapchain is a resolve
+  // target; without MSAA it's the direct color target. Either way it
+  // starts in PRESENT_SRC_KHR after acquire (or UNDEFINED on first frame,
+  // which TransitionImageLayout handles).
+  TransitionImageLayout(cmd, swap_chain_texture_->images_[image_index_],
+                        swap_chain_image_format_,
+                        swap_chain_texture_->current_layout_,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
+  swap_chain_texture_->current_layout_ =
+      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkRenderingAttachmentInfo color_info{};
+  color_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+  color_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  color_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  color_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  color_info.clearValue.color = {
+      {clear_color_.red, clear_color_.green, clear_color_.blue,
+       clear_color_.alpha}};
+
+  if (msaa) {
+    color_info.imageView =
+        present_color_image_->image_views_[image_index_]->handle_;
+    color_info.resolveImageView =
+        swap_chain_texture_->image_views_[image_index_]->handle_;
+    color_info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+  } else {
+    color_info.imageView =
+        swap_chain_texture_->image_views_[image_index_]->handle_;
+  }
+
+  VkRenderingInfo ri{};
+  ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  ri.renderArea.offset = {0, 0};
+  ri.renderArea.extent = extent_;
+  ri.layerCount = 1;
+  ri.colorAttachmentCount = 1;
+  ri.pColorAttachments = &color_info;
+
+  vkCmdBeginRendering(cmd, &ri);
+  present_pipeline_->Bind();
   SetViewport(extent_);
   return true;
 }
 
 void Renderer::EndPresent() {
   PROFILE_ZONE_SCOPED();
-  present_render_pass_->End();
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  vkCmdEndRendering(cmd);
+
+  // Transition the swapchain image back to PRESENT_SRC_KHR for vkQueuePresent.
+  TransitionImageLayout(cmd, swap_chain_texture_->images_[image_index_],
+                        swap_chain_image_format_,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1, 0, 1);
+  swap_chain_texture_->current_layout_ = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
   if (camera_) {
     auto final_image = GetFinalOutputImage();
     if (final_image) {
@@ -3348,48 +3431,59 @@ void Renderer::EndPresent() {
   command_buffers_[current_frame_]->End();
 
   // Presentation
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
+  VkCommandBufferSubmitInfo cmd_info{};
+  cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  cmd_info.commandBuffer = command_buffers_[current_frame_]->handle_;
 
   // Wait on image availability AND the previous frame's render order semaphore.
   // The latter serializes GPU execution across frames so shared intermediate
   // render targets don't have layout conflicts.
   uint32_t prev_frame =
       (current_frame_ + kMaxFramesInFlight - 1) % kMaxFramesInFlight;
-  VkSemaphore waitSemaphores[] = {image_available_semaphores_[current_frame_],
-                                  render_order_semaphores_[prev_frame]};
-  VkPipelineStageFlags waitStages[] = {
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+  VkSemaphoreSubmitInfo wait_infos[2] = {};
+  wait_infos[0].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  wait_infos[0].semaphore = image_available_semaphores_[current_frame_];
+  wait_infos[0].stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+  wait_infos[1].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  wait_infos[1].semaphore = render_order_semaphores_[prev_frame];
+  wait_infos[1].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
   // On the very first frame, no previous frame has signaled the order
   // semaphore yet. Skip the cross-frame wait in that case.
   uint32_t wait_count = frame_counter_ > 0 ? 2 : 1;
-  submitInfo.waitSemaphoreCount = wait_count;
-  submitInfo.pWaitSemaphores = waitSemaphores;
-  submitInfo.pWaitDstStageMask = waitStages;
 
   // Signal both render_finished (for present) and render_order (for next frame).
   // render_finished is indexed by swapchain image so the presentation engine
   // never sees the same semaphore reused before the image is re-acquired.
-  VkSemaphore signalSemaphores[] = {render_finished_semaphores_[image_index_],
-                                    render_order_semaphores_[current_frame_]};
-  submitInfo.signalSemaphoreCount = 2;
-  submitInfo.pSignalSemaphores = signalSemaphores;
+  VkSemaphoreSubmitInfo signal_infos[2] = {};
+  signal_infos[0].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  signal_infos[0].semaphore = render_finished_semaphores_[image_index_];
+  signal_infos[0].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+  signal_infos[1].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  signal_infos[1].semaphore = render_order_semaphores_[current_frame_];
+  signal_infos[1].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+  VkSubmitInfo2 submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submitInfo.waitSemaphoreInfoCount = wait_count;
+  submitInfo.pWaitSemaphoreInfos = wait_infos;
+  submitInfo.commandBufferInfoCount = 1;
+  submitInfo.pCommandBufferInfos = &cmd_info;
+  submitInfo.signalSemaphoreInfoCount = 2;
+  submitInfo.pSignalSemaphoreInfos = signal_infos;
 
   VkResult result;
   {
     std::lock_guard<std::mutex> lock(queue_submit_mutex_);
-    WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo,
-                                        fences_[current_frame_]));
+    WIESEL_CHECK_VKRESULT(vkQueueSubmit2(graphics_queue_, 1, &submitInfo,
+                                         fences_[current_frame_]));
   }
 
+  VkSemaphore present_wait[1] = {render_finished_semaphores_[image_index_]};
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
   presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = signalSemaphores;
+  presentInfo.pWaitSemaphores = present_wait;
 
   VkSwapchainKHR swapChains[] = {swap_chain_};
   presentInfo.swapchainCount = 1;
@@ -3470,14 +3564,18 @@ void Renderer::UpdateUniformData() {
                     &shadow_camera_uniform_data_);
 
   // Barrier: transfer writes must be visible before shaders read the UBOs.
-  VkMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                       0, 1, &barrier, 0, nullptr, 0, nullptr);
+  VkMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+                         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+  barrier.dstAccessMask = VK_ACCESS_2_UNIFORM_READ_BIT;
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.memoryBarrierCount = 1;
+  dep.pMemoryBarriers = &barrier;
+  vkCmdPipelineBarrier2(cmd, &dep);
 }
 
 // Templated helpers for MeshRendererComponent and SkinnedMeshRendererComponent
@@ -3833,27 +3931,10 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
 
   VkCommandBuffer cmd = BeginSingleTimeCommands();
 
-  // Transition to transfer src
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.oldLayout = src_layout;
-  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image = src_image;
-  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = 1;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
-  barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-  vkCmdPipelineBarrier(cmd,
-                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                       VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+  TransitionImageLayout(cmd, src_image, pick_entity_id_image_->format_,
+                        src_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, 0,
+                        1);
 
-  // Copy 1 pixel
   VkBufferImageCopy region{};
   region.bufferOffset = 0;
   region.bufferRowLength = 0;
@@ -3868,14 +3949,9 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
   vkCmdCopyImageToBuffer(cmd, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                          pick_staging_buffer_, 1, &region);
 
-  // Transition back to original layout
-  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-  barrier.newLayout = src_layout;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-  barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0,
-                       nullptr, 0, nullptr, 1, &barrier);
+  TransitionImageLayout(cmd, src_image, pick_entity_id_image_->format_,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, src_layout, 1, 0,
+                        1);
 
   EndSingleTimeCommands(cmd);
 
@@ -3901,20 +3977,8 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
 
     VkCommandBuffer cmd2 = BeginSingleTimeCommands();
 
-    VkImageMemoryBarrier fb_barrier{};
-    fb_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    fb_barrier.oldLayout = fb_layout;
-    fb_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    fb_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    fb_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    fb_barrier.image = fb_image;
-    fb_barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    fb_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    fb_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(cmd2,
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                         nullptr, 1, &fb_barrier);
+    TransitionImageLayout(cmd2, fb_image, fallback->format_, fb_layout,
+                          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, 0, 1);
 
     VkBufferImageCopy fb_region{};
     fb_region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
@@ -3924,13 +3988,9 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
     vkCmdCopyImageToBuffer(cmd2, fb_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                            pick_staging_buffer_, 1, &fb_region);
 
-    fb_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    fb_barrier.newLayout = fb_layout;
-    fb_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    fb_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0,
-                         nullptr, 0, nullptr, 1, &fb_barrier);
+    TransitionImageLayout(cmd2, fb_image, fallback->format_,
+                          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, fb_layout, 1, 0,
+                          1);
 
     EndSingleTimeCommands(cmd2);
 
@@ -4417,10 +4477,14 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
                                      VkCommandPool pool) {
   WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
+  VkCommandBufferSubmitInfo cmd_info{};
+  cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  cmd_info.commandBuffer = commandBuffer;
+
+  VkSubmitInfo2 submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submitInfo.commandBufferInfoCount = 1;
+  submitInfo.pCommandBufferInfos = &cmd_info;
 
   VkFenceCreateInfo fenceInfo{};
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -4431,7 +4495,7 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
   {
     std::lock_guard<std::mutex> lock(queue_submit_mutex_);
     WIESEL_CHECK_VKRESULT(
-        vkQueueSubmit(graphics_queue_, 1, &submitInfo, fence));
+        vkQueueSubmit2(graphics_queue_, 1, &submitInfo, fence));
   }
 
   WIESEL_CHECK_VKRESULT(

@@ -12,7 +12,6 @@
 #include "rendering/features/w_grid_feature.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
@@ -20,21 +19,6 @@ namespace wiesel {
 GridFeature::GridFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
   SamplingMode msaa = renderer_->options().msaa_mode;
-
-  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                              "Grid RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = msaa});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = msaa});
-  if (msaa > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = renderer_->GetSwapChainImageFormat(),
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -46,7 +30,8 @@ GridFeature::GridFeature(std::shared_ptr<Renderer> renderer)
   // Pipeline: no alpha blend, depth test on, depth write off (read-only depth)
   pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{msaa, CullModeNone, false, false, true, false});
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
 
   // Layout: set 0 = one UBO (GridUniformData)
   auto layout = std::make_shared<DescriptorSetLayout>();
@@ -80,19 +65,8 @@ void GridFeature::SetupResources(RenderContext& ctx) {
                         {rw, rh, AttachmentTextureType::Resolve, 1,
                          renderer.GetSwapChainImageFormat(),
                          SamplingMode::DISABLED, true}));
-    std::array<AttachmentTexture*, 3> attachments{
-        pool.GetTexture("grid.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("grid.color_resolve").get()};
-    pool.SetFramebuffer(
-        "grid", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
   } else {
     pool.SetTexture("grid.color_resolve", pool.GetTexture("grid.color"));
-    std::array<AttachmentTexture*, 2> attachments{
-        pool.GetTexture("grid.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get()};
-    pool.SetFramebuffer(
-        "grid", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
   }
 
   // Grid output descriptor for composite
@@ -127,14 +101,22 @@ void GridFeature::AddPasses(RenderGraph& graph,
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   auto pipeline = pipeline_;
+  SamplingMode msaa = renderer_->options().msaa_mode;
+  bool use_msaa = msaa > SamplingMode::DISABLED;
 
-  RGResource grid_out =
-      graph.ImportTexture("GridOut", pool->GetTexture("grid.color_resolve"));
+  RGResource grid_color =
+      graph.ImportTexture("GridColor", pool->GetTexture("grid.color"));
+  RGResource grid_resolve =
+      use_msaa ? graph.ImportTexture("GridOut",
+                                     pool->GetTexture("grid.color_resolve"))
+               : grid_color;
+  RGResource grid_depth = graph.ImportTexture(
+      "GridDepth", pool->GetTexture("geometry.depth_stencil"));
 
   auto lighting_out = registry.Get("LightingOut");
 
   uint32_t pass = graph.AddPass(
-      "Grid", render_pass_, [pipeline, pool, renderer](VkCommandBuffer) {
+      "Grid", [pipeline, pool, renderer](VkCommandBuffer) {
         // Update grid UBO with current camera data
         auto ubo = pool->GetBuffer("grid.ubo");
         auto cam_data = renderer->GetCameraData();
@@ -147,19 +129,23 @@ void GridFeature::AddPasses(RenderGraph& graph,
           memcpy(ubo->data_, &data, sizeof(GridUniformData));
         }
 
-        pipeline->Bind(PipelineBindPointGraphics);
+        pipeline->Bind();
         renderer->DrawFullscreen(pipeline, {pool->GetDescriptor("grid.draw")});
       });
 
-  graph.PassWritesColor(pass, grid_out);
+  if (use_msaa) {
+    graph.PassWritesColor(pass, grid_color, grid_resolve);
+  } else {
+    graph.PassWritesColor(pass, grid_color);
+  }
+  graph.PassWritesDepthLoad(pass, grid_depth);
   if (lighting_out.IsValid()) {
     graph.PassReadsTexture(pass, lighting_out);
   }
-  graph.SetPassFramebuffer(pass, pool->GetFramebuffer("grid"));
   graph.SetPassViewport(pass, ctx.viewport_size);
   graph.SetPassClearColor(pass, {0, 0, 0, 0});
 
-  registry.Register("GridOut", grid_out);
+  registry.Register("GridOut", grid_resolve);
 }
 
 bool GridFeature::IsEnabled(const RenderContext& ctx) const {

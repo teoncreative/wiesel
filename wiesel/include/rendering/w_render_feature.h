@@ -14,7 +14,6 @@
 #include <entt/entt.hpp>
 #include "util/w_utils.h"
 #include "w_descriptor.h"
-#include "w_framebuffer.h"
 #include "w_pch.h"
 #include "w_rendergraph.h"
 #include "w_texture.h"
@@ -36,10 +35,6 @@ class CameraResourcePool {
   std::shared_ptr<AttachmentTexture> GetTexture(const std::string& name) const;
   bool HasTexture(const std::string& name) const;
 
-  void SetFramebuffer(const std::string& name, std::shared_ptr<Framebuffer> fb);
-  std::shared_ptr<Framebuffer> GetFramebuffer(const std::string& name) const;
-  bool HasFramebuffer(const std::string& name) const;
-
   void SetDescriptor(const std::string& name,
                      std::shared_ptr<DescriptorSet> ds);
   std::shared_ptr<DescriptorSet> GetDescriptor(const std::string& name) const;
@@ -57,7 +52,6 @@ class CameraResourcePool {
 
  private:
   std::unordered_map<std::string, std::shared_ptr<AttachmentTexture>> textures_;
-  std::unordered_map<std::string, std::shared_ptr<Framebuffer>> framebuffers_;
   std::unordered_map<std::string, std::shared_ptr<DescriptorSet>> descriptors_;
   std::unordered_map<std::string, std::shared_ptr<ImageView>> image_views_;
   std::unordered_map<std::string, std::shared_ptr<UniformBuffer>> buffers_;

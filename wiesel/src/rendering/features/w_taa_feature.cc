@@ -10,24 +10,14 @@
 //
 
 #include "rendering/features/w_taa_feature.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
 
 TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Postprocess render pass (1 color, no MSAA)
-  render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                              "PostProcess RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/fullscreen_shader.vert"});
@@ -38,7 +28,7 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
                                            "engine://shaders/taa.frag"});
   taa_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  taa_pipeline_->SetRenderPass(render_pass_);
+  taa_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   taa_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("TAA"));
   taa_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   taa_pipeline_->AddShader(fullscreen_vert);
@@ -51,7 +41,7 @@ TAAFeature::TAAFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/quad_shader.frag"});
   copy_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  copy_pipeline_->SetRenderPass(render_pass_);
+  copy_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   copy_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Present"));
   copy_pipeline_->AddShader(fullscreen_vert);
   copy_pipeline_->AddShader(copy_frag);
@@ -109,9 +99,9 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   // --- TAA pass ---
   auto taa_pipeline = taa_pipeline_;
   uint32_t taa_pass = graph.AddPass(
-      "TAA", render_pass_,
+      "TAA",
       [this, pool, renderer, taa_pipeline](VkCommandBuffer) {
-        taa_pipeline->Bind(PipelineBindPointGraphics);
+        taa_pipeline->Bind();
         renderer->DrawFullscreen(
             taa_pipeline,
             {taa_input_desc_, pool->GetDescriptor("GlobalDescriptor")});
@@ -127,7 +117,7 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   graph.SetPassResolveFn(
       taa_pass,
       [this, renderer, pool, taa_pass, taa_out, taa_history, pipeline_input,
-       geo_depth, rw, rh](RenderGraph& g) {
+       geo_depth](RenderGraph& g) {
         auto output = g.GetTexture(taa_out);
         auto input = g.GetTexture(pipeline_input);
         auto history = g.GetTexture(taa_history);
@@ -138,8 +128,6 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
         auto present_layout = renderer->GetDescriptorLayout("Present");
 
         if (taa_output_key_ != output.get()) {
-          taa_framebuffer_ = render_pass_->CreateFramebuffer(0, {output.get()},
-                                                             {rw, rh});
           auto desc = std::make_shared<DescriptorSet>();
           desc->SetLayout(present_layout);
           desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
@@ -147,7 +135,6 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
           output_desc_ = desc;
           taa_output_key_ = output.get();
         }
-        g.SetPassFramebuffer(taa_pass, taa_framebuffer_);
 
         if (taa_input_key_ != input.get() ||
             taa_history_key_ != history.get() ||
@@ -171,9 +158,9 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   // --- History copy pass ---
   auto copy_pipeline = copy_pipeline_;
   uint32_t taa_copy = graph.AddPass(
-      "TAA History Copy", render_pass_,
+      "TAA History Copy",
       [this, renderer, copy_pipeline](VkCommandBuffer) {
-        copy_pipeline->Bind(PipelineBindPointGraphics);
+        copy_pipeline->Bind();
         renderer->DrawFullscreen(copy_pipeline, {copy_input_desc_});
       });
   graph.PassReadsTexture(taa_copy, taa_out);
@@ -182,18 +169,15 @@ void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   graph.SetPassClearColor(taa_copy, {0, 0, 0, 0});
   graph.SetPassResolveFn(
       taa_copy,
-      [this, renderer, taa_copy, taa_out, taa_history, rw, rh](RenderGraph& g) {
+      [this, renderer, taa_out, taa_history](RenderGraph& g) {
         auto history = g.GetTexture(taa_history);
         auto taa_output = g.GetTexture(taa_out);
         auto linear = renderer->GetDefaultLinearSampler();
         auto present_layout = renderer->GetDescriptorLayout("Present");
 
         if (copy_history_key_ != history.get()) {
-          copy_framebuffer_ = render_pass_->CreateFramebuffer(
-              0, {history.get()}, {rw, rh});
           copy_history_key_ = history.get();
         }
-        g.SetPassFramebuffer(taa_copy, copy_framebuffer_);
 
         if (copy_input_key_ != taa_output.get()) {
           auto desc = std::make_shared<DescriptorSet>();

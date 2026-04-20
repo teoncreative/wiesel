@@ -22,7 +22,6 @@
 namespace wiesel {
 
 class Renderer;
-class RenderPass;
 
 // RmlUi vertex format for Vulkan rendering
 struct RmlVertex {
@@ -58,8 +57,10 @@ class RmlRenderInterface : public Rml::RenderInterface {
   explicit RmlRenderInterface(std::shared_ptr<Renderer> renderer);
   ~RmlRenderInterface() override;
 
-  // Initialize pipelines and descriptor layouts.
-  void Init(std::shared_ptr<RenderPass> render_pass);
+  // Initialize pipelines and descriptor layouts. Pipelines are baked against
+  // the RmlUi offscreen attachment formats (single color + depth-stencil for
+  // clip masks).
+  void Init(VkFormat color_format, VkFormat depth_stencil_format);
 
   // Rml::RenderInterface implementation
   Rml::CompiledGeometryHandle CompileGeometry(
@@ -90,7 +91,8 @@ class RmlRenderInterface : public Rml::RenderInterface {
   void RenderToTexture(VkCommandBuffer cmd, Rml::Context* context,
                        glm::vec2 size);
 
-  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
+  VkFormat GetColorFormat() const { return color_format_; }
+  VkFormat GetDepthStencilFormat() const { return depth_stencil_format_; }
 
  private:
   void RenderGeometryWithPipeline(Pipeline* pipeline,
@@ -100,7 +102,8 @@ class RmlRenderInterface : public Rml::RenderInterface {
   void BuildProjection();
 
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
+  VkFormat color_format_ = VK_FORMAT_UNDEFINED;
+  VkFormat depth_stencil_format_ = VK_FORMAT_UNDEFINED;
   std::shared_ptr<DescriptorSetLayout> descriptor_layout_;
 
   // Pipelines

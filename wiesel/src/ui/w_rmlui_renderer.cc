@@ -14,7 +14,6 @@
 
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "util/w_logger.h"
 #include "util/w_vfs.h"
 #include "w_engine.h"
@@ -34,12 +33,16 @@ RmlRenderInterface::~RmlRenderInterface() {
 }
 
 static std::shared_ptr<Pipeline> CreateRmlPipeline(
-    PipelineProperties props, std::shared_ptr<RenderPass> render_pass,
+    PipelineProperties props, VkFormat color_format,
+    VkFormat depth_stencil_format,
     std::shared_ptr<DescriptorSetLayout> layout,
     std::shared_ptr<RmlRenderInterface::PushConstantData> push_data,
     std::shared_ptr<Shader> vert, std::shared_ptr<Shader> frag) {
   auto pipeline = std::make_shared<Pipeline>(props);
-  pipeline->SetRenderPass(render_pass);
+  pipeline->AddColorAttachment(color_format);
+  if (depth_stencil_format != VK_FORMAT_UNDEFINED) {
+    pipeline->SetDepthAttachment(depth_stencil_format);
+  }
   pipeline->AddInputLayout(layout);
   pipeline->AddPushConstant(push_data, VK_SHADER_STAGE_VERTEX_BIT);
   pipeline->SetVertexData(RmlVertex::GetBindingDescription(),
@@ -50,8 +53,10 @@ static std::shared_ptr<Pipeline> CreateRmlPipeline(
   return pipeline;
 }
 
-void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
-  render_pass_ = std::move(render_pass);
+void RmlRenderInterface::Init(VkFormat color_format,
+                              VkFormat depth_stencil_format) {
+  color_format_ = color_format;
+  depth_stencil_format_ = depth_stencil_format;
 
   descriptor_layout_ = std::make_shared<DescriptorSetLayout>();
   descriptor_layout_->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -76,7 +81,8 @@ void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   base_props.enable_depth_write = false;
 
   // 1. Normal pipeline (no stencil)
-  pipeline_ = CreateRmlPipeline(base_props, render_pass_, descriptor_layout_,
+  pipeline_ = CreateRmlPipeline(base_props, color_format_,
+                                depth_stencil_format_, descriptor_layout_,
                                 push_constant_data_, vert, frag);
 
   // 2. Stencil test pipeline (EQUAL compare, color write ON)
@@ -85,7 +91,8 @@ void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   stencil_test_props.stencil_compare_op = VK_COMPARE_OP_EQUAL;
   stencil_test_props.stencil_pass_op = VK_STENCIL_OP_KEEP;
   pipeline_stencil_test_ =
-      CreateRmlPipeline(stencil_test_props, render_pass_, descriptor_layout_,
+      CreateRmlPipeline(stencil_test_props, color_format_,
+                        depth_stencil_format_, descriptor_layout_,
                         push_constant_data_, vert, frag);
 
   // 3. Stencil set pipeline (ALWAYS compare, REPLACE op, no color write)
@@ -95,7 +102,8 @@ void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   stencil_set_props.stencil_pass_op = VK_STENCIL_OP_REPLACE;
   stencil_set_props.color_write_enabled = false;
   pipeline_stencil_set_ =
-      CreateRmlPipeline(stencil_set_props, render_pass_, descriptor_layout_,
+      CreateRmlPipeline(stencil_set_props, color_format_,
+                        depth_stencil_format_, descriptor_layout_,
                         push_constant_data_, vert, frag);
 
   // 4. Stencil incr pipeline (ALWAYS compare, INCR op, no color write)
@@ -105,7 +113,8 @@ void RmlRenderInterface::Init(std::shared_ptr<RenderPass> render_pass) {
   stencil_incr_props.stencil_pass_op = VK_STENCIL_OP_INCREMENT_AND_CLAMP;
   stencil_incr_props.color_write_enabled = false;
   pipeline_stencil_incr_ =
-      CreateRmlPipeline(stencil_incr_props, render_pass_, descriptor_layout_,
+      CreateRmlPipeline(stencil_incr_props, color_format_,
+                        depth_stencil_format_, descriptor_layout_,
                         push_constant_data_, vert, frag);
 
   // Blank texture for untextured geometry
@@ -161,7 +170,7 @@ void RmlRenderInterface::RenderGeometryWithPipeline(
     return;
   }
 
-  pipeline->Bind(PipelineBindPointGraphics, active_cmd_);
+  pipeline->Bind(active_cmd_);
 
   // Match official RmlUi Vulkan backend: translation added to position in
   // shader, then multiplied by projection * transform.

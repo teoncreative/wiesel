@@ -54,7 +54,6 @@ class DebugColliderFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
 
   // Wireframe rendering
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<Pipeline>
       no_depth_pipeline_;  // camera frustums (always visible)
@@ -62,7 +61,6 @@ class DebugColliderFeature : public RenderFeature {
   std::shared_ptr<DebugColliderPushConstant> push_constant_;
 
   // Compositing onto PipelineOutput
-  std::shared_ptr<RenderPass> comp_render_pass_;
   std::shared_ptr<Pipeline> comp_pipeline_;
 
   // Box wireframe geometry
@@ -111,16 +109,12 @@ class DebugColliderFeature : public RenderFeature {
   VmaAllocation frustum_vb_alloc_ = nullptr;
   void* frustum_vb_mapped_ = nullptr;
 
-  // Draw-pass framebuffer: (color [+ resolve] + geometry depth).
-  std::shared_ptr<Framebuffer> draw_framebuffer_;
+  // Draw-pass bindings: descriptor sampling the resolved draw output.
   std::shared_ptr<DescriptorSet> draw_output_desc_;
-  AttachmentTexture* draw_color_key_ = nullptr;
   AttachmentTexture* draw_resolve_key_ = nullptr;
-  AttachmentTexture* draw_depth_key_ = nullptr;
 
   // Composite-pass bindings (reads upstream pipeline + overlay, writes
   // PipelineOutput).
-  std::shared_ptr<Framebuffer> comp_framebuffer_;
   std::shared_ptr<DescriptorSet> comp_input_desc_;
   std::shared_ptr<DescriptorSet> comp_output_desc_;
   AttachmentTexture* comp_output_key_ = nullptr;

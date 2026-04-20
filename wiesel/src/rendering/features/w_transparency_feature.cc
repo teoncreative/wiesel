@@ -16,24 +16,12 @@
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
 namespace wiesel {
 
 TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass: 1 color + depth stencil (read-only)
-  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                              "Transparency RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   // Pipeline: alpha blend on, depth test on, depth write off, no culling
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -45,7 +33,8 @@ TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
       SamplingMode::DISABLED, CullModeNone, false, true, true, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("GeometryMesh"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
@@ -65,7 +54,8 @@ TransparencyFeature::TransparencyFeature(std::shared_ptr<Renderer> renderer)
       SamplingMode::DISABLED, CullModeNone, false, true, true, false});
   ibl_pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                                Vertex3D::GetAttributeDescriptions());
-  ibl_pipeline_->SetRenderPass(render_pass_);
+  ibl_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  ibl_pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("GeometryMesh"));
   ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   ibl_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
@@ -88,12 +78,6 @@ void TransparencyFeature::SetupResources(RenderContext& ctx) {
           {rw, rh, AttachmentTextureType::Offscreen, 1,
            renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
 
-  std::array<AttachmentTexture*, 2> attachments{
-      pool.GetTexture("transparency.color").get(),
-      pool.GetTexture("geometry.depth_stencil").get()};
-  pool.SetFramebuffer("transparency", render_pass_->CreateFramebuffer(
-                                          0, attachments, {rw, rh}));
-
   auto output_desc = std::make_shared<DescriptorSet>();
   output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
   output_desc->AddCombinedImageSampler(
@@ -113,6 +97,8 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
 
   RGResource transparency_out = graph.ImportTexture(
       "TransparencyOut", pool->GetTexture("transparency.color"));
+  RGResource transparency_depth = graph.ImportTexture(
+      "TransparencyDepth", pool->GetTexture("geometry.depth_stencil"));
 
   RGResource lighting_out = registry.Get("LightingOut");
 
@@ -122,9 +108,9 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
   auto ibl_desc = use_ibl ? pool->GetDescriptor("ibl.descriptor") : nullptr;
 
   uint32_t pass = graph.AddPass(
-      "Transparency", render_pass_,
+      "Transparency",
       [active_pipeline, &scenes, renderer, ibl_desc](VkCommandBuffer cmd) {
-        active_pipeline->Bind(PipelineBindPointGraphics, cmd);
+        active_pipeline->Bind(cmd);
 
         auto global_desc =
             renderer->GetCameraData()->resource_pool->GetDescriptor(
@@ -171,10 +157,10 @@ void TransparencyFeature::AddPasses(RenderGraph& graph,
       });
 
   graph.PassWritesColor(pass, transparency_out);
+  graph.PassWritesDepthLoad(pass, transparency_depth);
   if (lighting_out.IsValid()) {
     graph.PassReadsTexture(pass, lighting_out);
   }
-  graph.SetPassFramebuffer(pass, pool->GetFramebuffer("transparency"));
   graph.SetPassViewport(pass, ctx.viewport_size);
   graph.SetPassClearColor(pass, {0, 0, 0, 0});
 

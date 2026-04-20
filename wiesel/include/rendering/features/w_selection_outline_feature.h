@@ -31,7 +31,6 @@ struct SelectionOutlineCompositePushConstant {
 };
 
 class AttachmentTexture;
-class Framebuffer;
 
 class SelectionOutlineFeature : public RenderFeature {
  public:
@@ -49,29 +48,21 @@ class SelectionOutlineFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
 
   // Mask pass
-  std::shared_ptr<RenderPass> mask_render_pass_;
   std::shared_ptr<Pipeline> mask_pipeline_;
   std::shared_ptr<SelectionMaskPushConstant> mask_push_constant_;
 
   // Blur passes (separable H + V)
-  std::shared_ptr<RenderPass> blur_render_pass_;
   std::shared_ptr<Pipeline> blur_h_pipeline_;
   std::shared_ptr<Pipeline> blur_v_pipeline_;
   std::shared_ptr<SelectionBlurPushConstant> blur_push_constant_;
 
   // Composite pass
-  std::shared_ptr<RenderPass> comp_render_pass_;
   std::shared_ptr<Pipeline> comp_pipeline_;
   std::shared_ptr<DescriptorSetLayout> comp_desc_layout_;
   std::shared_ptr<SelectionOutlineCompositePushConstant> comp_push_constant_;
 
-  // Mask pass (no input descriptor - vertex shader draws selected meshes).
-  std::shared_ptr<Framebuffer> mask_framebuffer_;
-  AttachmentTexture* mask_key_ = nullptr;
-
   // Single-sampler blur stage bindings.
   struct BlurBindings {
-    std::shared_ptr<Framebuffer> framebuffer;
     std::shared_ptr<DescriptorSet> input_desc;
     AttachmentTexture* output_key = nullptr;
     AttachmentTexture* input_key = nullptr;
@@ -80,7 +71,6 @@ class SelectionOutlineFeature : public RenderFeature {
   BlurBindings blur_v_bindings_;
 
   // Composite reads (scene, blur_v, mask), writes final output.
-  std::shared_ptr<Framebuffer> comp_framebuffer_;
   std::shared_ptr<DescriptorSet> comp_input_desc_;
   std::shared_ptr<DescriptorSet> output_desc_;
   AttachmentTexture* comp_output_key_ = nullptr;

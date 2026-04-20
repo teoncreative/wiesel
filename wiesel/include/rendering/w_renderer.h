@@ -20,7 +20,6 @@
 #include "rendering/w_command.h"
 #include "rendering/w_deletion_queue.h"
 #include "rendering/w_descriptor.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
@@ -30,7 +29,6 @@
 #include "util/w_color.h"
 #include "util/w_utils.h"
 #include "w_pipeline.h"
-#include "w_renderpass.h"
 #include "w_sampler.h"
 #include "w_shader.h"
 #include "w_skybox.h"
@@ -500,10 +498,6 @@ class Renderer {
   VkFormat FindDepthFormat();
   VkFormat FindDepthStencilFormat();
 
-  std::shared_ptr<RenderPass> GetPresentRenderPass() const {
-    return present_render_pass_;
-  }
-
   void SetViewport(VkExtent2D extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
   void SetViewport(glm::vec2 extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
   void SetScissor(int x, int y, int width, int height,
@@ -680,6 +674,7 @@ class Renderer {
                                VkImageTiling tiling,
                                VkFormatFeatureFlags features);
   bool HasStencilComponent(VkFormat format);
+  bool IsIntegerColorFormat(VkFormat format);
 
  private:
   void CreateVulkanInstance();
@@ -752,7 +747,6 @@ class Renderer {
 
  private:
   friend class ImGuiLayer;
-  friend class RenderPass;
   friend class RenderGraph;
   friend class Mesh;
   friend class Scene;
@@ -855,11 +849,9 @@ class Renderer {
   // Currently bound pipeline, set by Pipeline::Bind(), used by Draw*
   Pipeline* bound_pipeline_ = nullptr;
 
-  std::shared_ptr<RenderPass> present_render_pass_;
   std::shared_ptr<Pipeline> present_pipeline_;
   std::shared_ptr<AttachmentTexture> present_color_image_;
   std::shared_ptr<AttachmentTexture> present_depth_stencil_;
-  std::vector<std::shared_ptr<Framebuffer>> present_framebuffers_;
 
   std::shared_ptr<Sampler> default_linear_sampler_;
   std::shared_ptr<Sampler> default_nearest_sampler_;

@@ -17,7 +17,6 @@
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
@@ -25,58 +24,6 @@ namespace wiesel {
 
 GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass
-  render_pass_ =
-      std::make_shared<RenderPass>(PassType::Geometry, "Geometry RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32_SFLOAT,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R8G8B8A8_UNORM,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R8G8B8A8_UNORM,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = VK_FORMAT_R32_UINT,
-                              .msaa_mode = renderer_->options().msaa_mode});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = renderer_->options().msaa_mode});
-  if (renderer_->options().msaa_mode > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R32_SFLOAT,
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R8G8B8A8_UNORM,
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-                                .msaa_mode = SamplingMode::DISABLED});
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = VK_FORMAT_R32_UINT,
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
-
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/geometry_shader.vert"});
@@ -88,7 +35,14 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
                          renderer_->options().wireframe_enabled, false});
   pipeline_->SetVertexData(Vertex3D::GetBindingDescription(),
                            Vertex3D::GetAttributeDescriptions());
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(VK_FORMAT_R32G32B32A32_SFLOAT);
+  pipeline_->AddColorAttachment(VK_FORMAT_R32G32B32A32_SFLOAT);
+  pipeline_->AddColorAttachment(VK_FORMAT_R32_SFLOAT);
+  pipeline_->AddColorAttachment(VK_FORMAT_R8G8B8A8_UNORM);
+  pipeline_->AddColorAttachment(VK_FORMAT_R8G8B8A8_UNORM);
+  pipeline_->AddColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT);
+  pipeline_->AddColorAttachment(VK_FORMAT_R32_UINT);
+  pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("GeometryMesh"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Bone"));
@@ -101,7 +55,14 @@ GeometryFeature::GeometryFeature(std::shared_ptr<Renderer> renderer)
                          renderer_->options().wireframe_enabled, false});
   pipeline_double_sided_->SetVertexData(Vertex3D::GetBindingDescription(),
                                         Vertex3D::GetAttributeDescriptions());
-  pipeline_double_sided_->SetRenderPass(render_pass_);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R32G32B32A32_SFLOAT);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R32G32B32A32_SFLOAT);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R32_SFLOAT);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R8G8B8A8_UNORM);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R8G8B8A8_UNORM);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT);
+  pipeline_double_sided_->AddColorAttachment(VK_FORMAT_R32_UINT);
+  pipeline_double_sided_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_double_sided_->AddInputLayout(
       renderer_->GetDescriptorLayout("GeometryMesh"));
   pipeline_double_sided_->AddInputLayout(
@@ -191,26 +152,6 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
                     renderer.CreateAttachmentTexture(
                         {rw, rh, AttachmentTextureType::Resolve, 1,
                          VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
-
-    std::array<AttachmentTexture*, 15> textures = {
-        pool.GetTexture("geometry.view_pos").get(),
-        pool.GetTexture("geometry.world_pos").get(),
-        pool.GetTexture("geometry.depth").get(),
-        pool.GetTexture("geometry.normal").get(),
-        pool.GetTexture("geometry.albedo").get(),
-        pool.GetTexture("geometry.material").get(),
-        pool.GetTexture("geometry.entity_id").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("geometry.view_pos_resolve").get(),
-        pool.GetTexture("geometry.world_pos_resolve").get(),
-        pool.GetTexture("geometry.depth_resolve").get(),
-        pool.GetTexture("geometry.normal_resolve").get(),
-        pool.GetTexture("geometry.albedo_resolve").get(),
-        pool.GetTexture("geometry.material_resolve").get(),
-        pool.GetTexture("geometry.entity_id_resolve").get(),
-    };
-    pool.SetFramebuffer("geometry", render_pass_->CreateFramebuffer(
-                                        0, textures, ctx.viewport_size));
   } else {
     // Without MSAA the resolve aliases point to the same textures
     pool.SetTexture("geometry.view_pos_resolve",
@@ -227,19 +168,6 @@ void GeometryFeature::SetupResources(RenderContext& ctx) {
                     pool.GetTexture("geometry.material"));
     pool.SetTexture("geometry.entity_id_resolve",
                     pool.GetTexture("geometry.entity_id"));
-
-    std::array<AttachmentTexture*, 8> textures = {
-        pool.GetTexture("geometry.view_pos").get(),
-        pool.GetTexture("geometry.world_pos").get(),
-        pool.GetTexture("geometry.depth").get(),
-        pool.GetTexture("geometry.normal").get(),
-        pool.GetTexture("geometry.albedo").get(),
-        pool.GetTexture("geometry.material").get(),
-        pool.GetTexture("geometry.entity_id").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-    };
-    pool.SetFramebuffer("geometry", render_pass_->CreateFramebuffer(
-                                        0, textures, ctx.viewport_size));
   }
 
   // Geometry output descriptor (6 bindings, one per resolved G-buffer image)
@@ -276,30 +204,52 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
                                 RenderContext& ctx) {
   PROFILE_ZONE_SCOPED();
   auto& pool = ctx.resources;
-  bool use_resolve = ctx.use_msaa_resolve;
+  bool use_msaa = ctx.use_msaa_resolve;
 
-  // Import G-buffer textures from the resource pool
-  RGResource geo_view_pos = graph.ImportTexture(
-      "GeoViewPos", use_resolve ? pool.GetTexture("geometry.view_pos_resolve")
-                                : pool.GetTexture("geometry.view_pos"));
-  RGResource geo_world_pos = graph.ImportTexture(
-      "GeoWorldPos", use_resolve ? pool.GetTexture("geometry.world_pos_resolve")
-                                 : pool.GetTexture("geometry.world_pos"));
-  RGResource geo_depth = graph.ImportTexture(
-      "GeoDepth", use_resolve ? pool.GetTexture("geometry.depth_resolve")
-                              : pool.GetTexture("geometry.depth"));
-  RGResource geo_normal = graph.ImportTexture(
-      "GeoNormal", use_resolve ? pool.GetTexture("geometry.normal_resolve")
-                               : pool.GetTexture("geometry.normal"));
-  RGResource geo_albedo = graph.ImportTexture(
-      "GeoAlbedo", use_resolve ? pool.GetTexture("geometry.albedo_resolve")
-                               : pool.GetTexture("geometry.albedo"));
-  RGResource geo_material = graph.ImportTexture(
-      "GeoMaterial", use_resolve ? pool.GetTexture("geometry.material_resolve")
-                                 : pool.GetTexture("geometry.material"));
-  RGResource geo_entity_id = graph.ImportTexture(
-      "GeoEntityId", use_resolve ? pool.GetTexture("geometry.entity_id_resolve")
-                                 : pool.GetTexture("geometry.entity_id"));
+  // Import MSAA color attachments + their resolves (if MSAA). These are the
+  // textures the pass actually writes to during vkCmdBeginRendering.
+  RGResource geo_view_pos_color = graph.ImportTexture(
+      "GeoViewPosColor", pool.GetTexture("geometry.view_pos"));
+  RGResource geo_world_pos_color = graph.ImportTexture(
+      "GeoWorldPosColor", pool.GetTexture("geometry.world_pos"));
+  RGResource geo_depth_color =
+      graph.ImportTexture("GeoDepthColor", pool.GetTexture("geometry.depth"));
+  RGResource geo_normal_color =
+      graph.ImportTexture("GeoNormalColor", pool.GetTexture("geometry.normal"));
+  RGResource geo_albedo_color =
+      graph.ImportTexture("GeoAlbedoColor", pool.GetTexture("geometry.albedo"));
+  RGResource geo_material_color = graph.ImportTexture(
+      "GeoMaterialColor", pool.GetTexture("geometry.material"));
+  RGResource geo_entity_id_color = graph.ImportTexture(
+      "GeoEntityIdColor", pool.GetTexture("geometry.entity_id"));
+  RGResource geo_depth_stencil = graph.ImportTexture(
+      "GeoDepthStencil", pool.GetTexture("geometry.depth_stencil"));
+
+  // Resolve targets (used only with MSAA; the registered "GeoXxx" for
+  // downstream features resolves to the non-MSAA resolved texture).
+  RGResource geo_view_pos_resolve = geo_view_pos_color;
+  RGResource geo_world_pos_resolve = geo_world_pos_color;
+  RGResource geo_depth_resolve = geo_depth_color;
+  RGResource geo_normal_resolve = geo_normal_color;
+  RGResource geo_albedo_resolve = geo_albedo_color;
+  RGResource geo_material_resolve = geo_material_color;
+  RGResource geo_entity_id_resolve = geo_entity_id_color;
+  if (use_msaa) {
+    geo_view_pos_resolve = graph.ImportTexture(
+        "GeoViewPos", pool.GetTexture("geometry.view_pos_resolve"));
+    geo_world_pos_resolve = graph.ImportTexture(
+        "GeoWorldPos", pool.GetTexture("geometry.world_pos_resolve"));
+    geo_depth_resolve = graph.ImportTexture(
+        "GeoDepth", pool.GetTexture("geometry.depth_resolve"));
+    geo_normal_resolve = graph.ImportTexture(
+        "GeoNormal", pool.GetTexture("geometry.normal_resolve"));
+    geo_albedo_resolve = graph.ImportTexture(
+        "GeoAlbedo", pool.GetTexture("geometry.albedo_resolve"));
+    geo_material_resolve = graph.ImportTexture(
+        "GeoMaterial", pool.GetTexture("geometry.material_resolve"));
+    geo_entity_id_resolve = graph.ImportTexture(
+        "GeoEntityId", pool.GetTexture("geometry.entity_id_resolve"));
+  }
 
   // Capture stable pointers for the deferred lambda execution.
   // Scenes and Renderer are alive for the entire frame.
@@ -369,7 +319,7 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
   };
 
   uint32_t geo = graph.AddPass(
-      "Geometry", render_pass_,
+      "Geometry",
       [pipeline, pipeline_ds, renderer, for_each_static,
        draw_skinned_meshes](VkCommandBuffer cmd) {
         auto global_desc =
@@ -398,7 +348,7 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
                                 bool double_sided) {
           PROFILE_ZONE_SCOPED_N("Geometry Pass Phase");
           ZoneText(double_sided ? "double-sided" : "single-sided", 12);
-          pl->Bind(PipelineBindPointGraphics, cmd);
+          pl->Bind(cmd);
           batcher.Flush(cmd, pl, global_desc, bone_desc);
           draw_skinned_meshes(double_sided);
         };
@@ -407,25 +357,35 @@ void GeometryFeature::AddPasses(RenderGraph& graph,
         submit_phase(pipeline_ds.get(), batcher_double, true);
       });
 
-  graph.PassWritesColor(geo, geo_view_pos);
-  graph.PassWritesColor(geo, geo_world_pos);
-  graph.PassWritesColor(geo, geo_depth);
-  graph.PassWritesColor(geo, geo_normal);
-  graph.PassWritesColor(geo, geo_albedo);
-  graph.PassWritesColor(geo, geo_material);
-  graph.PassWritesColor(geo, geo_entity_id);
-  graph.SetPassFramebuffer(geo, pool.GetFramebuffer("geometry"));
+  if (use_msaa) {
+    graph.PassWritesColor(geo, geo_view_pos_color, geo_view_pos_resolve);
+    graph.PassWritesColor(geo, geo_world_pos_color, geo_world_pos_resolve);
+    graph.PassWritesColor(geo, geo_depth_color, geo_depth_resolve);
+    graph.PassWritesColor(geo, geo_normal_color, geo_normal_resolve);
+    graph.PassWritesColor(geo, geo_albedo_color, geo_albedo_resolve);
+    graph.PassWritesColor(geo, geo_material_color, geo_material_resolve);
+    graph.PassWritesColor(geo, geo_entity_id_color, geo_entity_id_resolve);
+  } else {
+    graph.PassWritesColor(geo, geo_view_pos_color);
+    graph.PassWritesColor(geo, geo_world_pos_color);
+    graph.PassWritesColor(geo, geo_depth_color);
+    graph.PassWritesColor(geo, geo_normal_color);
+    graph.PassWritesColor(geo, geo_albedo_color);
+    graph.PassWritesColor(geo, geo_material_color);
+    graph.PassWritesColor(geo, geo_entity_id_color);
+  }
+  graph.PassWritesDepth(geo, geo_depth_stencil);
   graph.SetPassViewport(geo, ctx.viewport_size);
   graph.SetPassClearColor(geo, {0, 0, 0, 0});
 
   // Register outputs for downstream features
-  registry.Register("GeoViewPos", geo_view_pos);
-  registry.Register("GeoWorldPos", geo_world_pos);
-  registry.Register("GeoDepth", geo_depth);
-  registry.Register("GeoNormal", geo_normal);
-  registry.Register("GeoAlbedo", geo_albedo);
-  registry.Register("GeoMaterial", geo_material);
-  registry.Register("GeoEntityId", geo_entity_id);
+  registry.Register("GeoViewPos", geo_view_pos_resolve);
+  registry.Register("GeoWorldPos", geo_world_pos_resolve);
+  registry.Register("GeoDepth", geo_depth_resolve);
+  registry.Register("GeoNormal", geo_normal_resolve);
+  registry.Register("GeoAlbedo", geo_albedo_resolve);
+  registry.Register("GeoMaterial", geo_material_resolve);
+  registry.Register("GeoEntityId", geo_entity_id_resolve);
 }
 
 }  // namespace wiesel

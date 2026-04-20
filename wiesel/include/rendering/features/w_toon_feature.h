@@ -23,7 +23,6 @@ struct ToonPushConstants {
 
 class AttachmentTexture;
 class DescriptorSet;
-class Framebuffer;
 
 class ToonFeature : public RenderFeature {
  public:
@@ -41,12 +40,10 @@ class ToonFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Toon";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<DescriptorSetLayout> toon_input_layout_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<ToonPushConstants> push_constants_;
 
-  std::shared_ptr<Framebuffer> framebuffer_;
   std::shared_ptr<DescriptorSet> input_desc_;
   std::shared_ptr<DescriptorSet> output_desc_;
   AttachmentTexture* output_key_ = nullptr;

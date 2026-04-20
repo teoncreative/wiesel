@@ -37,29 +37,6 @@ bool CameraResourcePool::HasTexture(const std::string& name) const {
   return textures_.count(name) > 0;
 }
 
-void CameraResourcePool::SetFramebuffer(const std::string& name,
-                                        std::shared_ptr<Framebuffer> fb) {
-  auto it = framebuffers_.find(name);
-  if (it != framebuffers_.end() && it->second) {
-    std::shared_ptr<Framebuffer> old = std::move(it->second);
-    Engine::renderer()->GetDeletionQueue().Push([old]() {});
-  }
-  framebuffers_[name] = std::move(fb);
-}
-
-std::shared_ptr<Framebuffer> CameraResourcePool::GetFramebuffer(
-    const std::string& name) const {
-  auto it = framebuffers_.find(name);
-  if (it != framebuffers_.end()) {
-    return it->second;
-  }
-  return nullptr;
-}
-
-bool CameraResourcePool::HasFramebuffer(const std::string& name) const {
-  return framebuffers_.count(name) > 0;
-}
-
 void CameraResourcePool::SetDescriptor(const std::string& name,
                                        std::shared_ptr<DescriptorSet> ds) {
   auto it = descriptors_.find(name);
@@ -125,13 +102,6 @@ bool CameraResourcePool::HasBuffer(const std::string& name) const {
 
 void CameraResourcePool::Clear() {
   textures_.clear();
-  for (auto& [key, fb] : framebuffers_) {
-    if (fb) {
-      std::shared_ptr<Framebuffer> old = std::move(fb);
-      Engine::renderer()->GetDeletionQueue().Push([old]() {});
-    }
-  }
-  framebuffers_.clear();
   for (auto& [key, ds] : descriptors_) {
     if (ds) {
       std::shared_ptr<DescriptorSet> old = std::move(ds);

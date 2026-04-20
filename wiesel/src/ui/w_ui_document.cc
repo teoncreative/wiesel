@@ -35,7 +35,6 @@ UIDocumentRuntime::UIDocumentRuntime(UIDocumentRuntime&& other) noexcept
       offscreen_stencil(std::move(other.offscreen_stencil)),
       offscreen_descriptor(std::move(other.offscreen_descriptor)),
       offscreen_ubo(std::move(other.offscreen_ubo)),
-      offscreen_framebuffer(std::move(other.offscreen_framebuffer)),
       offscreen_size(other.offscreen_size) {
   other.rml_context = nullptr;
   other.rml_document = nullptr;
@@ -59,7 +58,6 @@ UIDocumentRuntime& UIDocumentRuntime::operator=(
     offscreen_stencil = std::move(other.offscreen_stencil);
     offscreen_descriptor = std::move(other.offscreen_descriptor);
     offscreen_ubo = std::move(other.offscreen_ubo);
-    offscreen_framebuffer = std::move(other.offscreen_framebuffer);
     offscreen_size = other.offscreen_size;
 
     other.rml_context = nullptr;
