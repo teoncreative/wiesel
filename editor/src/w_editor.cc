@@ -25,6 +25,7 @@
 #include "events/w_keyevents.h"
 #include "imgui_internal.h"
 #include "input/w_input.h"
+#include "networking/w_network.h"
 #include "rendering/w_renderer.h"
 #include "scene/w_components.h"
 #include "scene/w_prefab.h"
@@ -355,6 +356,8 @@ void EditorLayer::ProcessDeferredActions() {
       UpdateWindowTitle();
       break;
     case DeferredAction::StopPlaying:
+      Engine::network().Disconnect();
+      Engine::network().StopServer();
       editor_state_ = EditorState::Edit;
       Engine::window()->SetCursorMode(CursorModeNormal);
       Engine::window()->SetCursorCaptureSource(CursorCaptureSource::None);
