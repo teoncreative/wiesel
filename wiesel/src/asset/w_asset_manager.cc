@@ -508,6 +508,10 @@ bool AssetManager::LoadSync(AssetHandle handle) {
 }
 
 void AssetManager::LoadAsync(AssetHandle handle) {
+  if (shutting_down_.load(std::memory_order_acquire)) {
+    return;
+  }
+
   AssetType type;
   {
     std::shared_lock lock(registry_mutex_);
@@ -535,15 +539,36 @@ void AssetManager::LoadAsync(AssetHandle handle) {
     return;
   }
 
+  in_flight_async_loads_.fetch_add(1, std::memory_order_relaxed);
   // Capture the Load function by value for thread safety
   auto load_fn = desc->Load;
   Engine::thread_pool().Submit([this, handle, load_fn]() {
-    bool success = load_fn(handle);
-    if (success) {
-      SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
-    } else {
+    // If shutdown began after this task was queued but before a worker
+    // picked it up, bail without touching any loader code - the loader
+    // dereferences Engine::renderer()/vfs() which may already be gone.
+    if (shutting_down_.load(std::memory_order_acquire)) {
       SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+    } else {
+      bool success = load_fn(handle);
+      if (success) {
+        SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
+      } else {
+        SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+      }
     }
+
+    std::lock_guard<std::mutex> lock(in_flight_mutex_);
+    if (in_flight_async_loads_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      in_flight_cv_.notify_all();
+    }
+  });
+}
+
+void AssetManager::WaitForAsyncLoads() {
+  shutting_down_.store(true, std::memory_order_release);
+  std::unique_lock<std::mutex> lock(in_flight_mutex_);
+  in_flight_cv_.wait(lock, [this]() {
+    return in_flight_async_loads_.load(std::memory_order_acquire) == 0;
   });
 }
 

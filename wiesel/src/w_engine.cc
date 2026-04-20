@@ -391,6 +391,7 @@ void Engine::BroadcastEvent(Event& event) {
 }
 
 void Engine::CleanupAssets() {
+  asset_manager_->WaitForAsyncLoads();
   asset_manager_->Clear();
   asset_manager_ = nullptr;
 }

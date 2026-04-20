@@ -152,6 +152,9 @@ class AssetManager {
 
   void Clear();
 
+  // Block until every async load submitted via LoadAsync has finished.
+  void WaitForAsyncLoads();
+
  private:
   struct AssetEntry {
     AssetMetadata metadata;
@@ -178,6 +181,18 @@ class AssetManager {
   // maps, and entry fields (resource, version). Loaders and callbacks are
   // accessed outside the lock to avoid deadlocks.
   mutable std::shared_mutex registry_mutex_;
+
+  // Counts async loads that have been submitted to the thread pool but have
+  // not returned yet. WaitForAsyncLoads() blocks on in_flight_cv_ until this
+  // drains to zero.
+  std::atomic<uint32_t> in_flight_async_loads_{0};
+  std::mutex in_flight_mutex_;
+  std::condition_variable in_flight_cv_;
+
+  // Flipped by WaitForAsyncLoads() before it blocks. LoadAsync() refuses new
+  // submissions while set, and already-queued lambdas bail out early instead
+  // of running their loader.
+  std::atomic<bool> shutting_down_{false};
 };
 
 // Template implementations
