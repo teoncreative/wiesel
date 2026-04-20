@@ -93,6 +93,22 @@ class BillboardFeature : public RenderFeature {
   // Descriptor cache for user textures (BillboardRendererComponent)
   std::unordered_map<Texture*, std::shared_ptr<DescriptorSet>>
       texture_descriptors_;
+
+  // Transient-pool-backed bindings, rebuilt per-frame when the pool-assigned
+  // textures change.
+  std::shared_ptr<Framebuffer> draw_framebuffer_;
+  std::shared_ptr<DescriptorSet> draw_output_desc_;
+  AttachmentTexture* draw_color_key_ = nullptr;
+  AttachmentTexture* draw_color_resolve_key_ = nullptr;
+  AttachmentTexture* draw_entity_id_key_ = nullptr;
+  AttachmentTexture* draw_entity_id_resolve_key_ = nullptr;
+  AttachmentTexture* draw_depth_key_ = nullptr;
+
+  std::shared_ptr<Framebuffer> comp_framebuffer_;
+  std::shared_ptr<DescriptorSet> comp_input_desc_;
+  std::shared_ptr<DescriptorSet> comp_output_desc_;
+  AttachmentTexture* comp_output_key_ = nullptr;
+  AttachmentTexture* comp_input_key_ = nullptr;
 };
 
 }  // namespace wiesel

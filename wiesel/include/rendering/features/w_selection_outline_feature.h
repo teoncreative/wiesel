@@ -30,6 +30,9 @@ struct SelectionOutlineCompositePushConstant {
   glm::vec4 outline_color;
 };
 
+class AttachmentTexture;
+class Framebuffer;
+
 class SelectionOutlineFeature : public RenderFeature {
  public:
   explicit SelectionOutlineFeature(std::shared_ptr<Renderer> renderer);
@@ -61,6 +64,29 @@ class SelectionOutlineFeature : public RenderFeature {
   std::shared_ptr<Pipeline> comp_pipeline_;
   std::shared_ptr<DescriptorSetLayout> comp_desc_layout_;
   std::shared_ptr<SelectionOutlineCompositePushConstant> comp_push_constant_;
+
+  // Mask pass (no input descriptor - vertex shader draws selected meshes).
+  std::shared_ptr<Framebuffer> mask_framebuffer_;
+  AttachmentTexture* mask_key_ = nullptr;
+
+  // Single-sampler blur stage bindings.
+  struct BlurBindings {
+    std::shared_ptr<Framebuffer> framebuffer;
+    std::shared_ptr<DescriptorSet> input_desc;
+    AttachmentTexture* output_key = nullptr;
+    AttachmentTexture* input_key = nullptr;
+  };
+  BlurBindings blur_h_bindings_;
+  BlurBindings blur_v_bindings_;
+
+  // Composite reads (scene, blur_v, mask), writes final output.
+  std::shared_ptr<Framebuffer> comp_framebuffer_;
+  std::shared_ptr<DescriptorSet> comp_input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* comp_output_key_ = nullptr;
+  AttachmentTexture* comp_scene_key_ = nullptr;
+  AttachmentTexture* comp_blur_key_ = nullptr;
+  AttachmentTexture* comp_mask_key_ = nullptr;
 };
 
 }  // namespace wiesel

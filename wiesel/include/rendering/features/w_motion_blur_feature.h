@@ -20,6 +20,10 @@ struct MotionBlurPushConstants {
   int num_samples;
 };
 
+class AttachmentTexture;
+class DescriptorSet;
+class Framebuffer;
+
 class MotionBlurFeature : public RenderFeature {
  public:
   explicit MotionBlurFeature(std::shared_ptr<Renderer> renderer);
@@ -37,6 +41,13 @@ class MotionBlurFeature : public RenderFeature {
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<MotionBlurPushConstants> push_constants_;
+
+  std::shared_ptr<Framebuffer> framebuffer_;
+  std::shared_ptr<DescriptorSet> input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* output_key_ = nullptr;
+  AttachmentTexture* input_key_ = nullptr;
+  AttachmentTexture* world_pos_key_ = nullptr;
 };
 
 }  // namespace wiesel

@@ -10,6 +10,7 @@
 //
 
 #include "rendering/features/w_composite_feature.h"
+#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -47,57 +48,7 @@ CompositeFeature::CompositeFeature(std::shared_ptr<Renderer> renderer)
   pipeline_->Bake();
 }
 
-void CompositeFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("CompositeFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-  SamplingMode msaa = renderer.options().msaa_mode;
-  bool use_msaa = msaa > SamplingMode::DISABLED;
-
-  // Textures
-  pool.SetTexture("composite.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(), msaa,
-                       msaa == SamplingMode::DISABLED}));
-
-  if (use_msaa) {
-    pool.SetTexture("composite.color_resolve",
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Resolve, 1,
-                         renderer.GetSwapChainImageFormat(),
-                         SamplingMode::DISABLED, true}));
-
-    std::array<AttachmentTexture*, 2> textures{
-        pool.GetTexture("composite.color").get(),
-        pool.GetTexture("composite.color_resolve").get()};
-    pool.SetFramebuffer("composite", render_pass_->CreateFramebuffer(
-                                         0, textures, ctx.viewport_size));
-  } else {
-    pool.SetTexture("composite.color_resolve",
-                    pool.GetTexture("composite.color"));
-
-    std::array<AttachmentTexture*, 1> textures{
-        pool.GetTexture("composite.color").get()};
-    pool.SetFramebuffer("composite", render_pass_->CreateFramebuffer(
-                                         0, textures, ctx.viewport_size));
-  }
-
-  // Composite output descriptor: reads resolved composite color, linear sampler
-  auto composite_output_desc = std::make_shared<DescriptorSet>();
-  composite_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  composite_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("composite.color_resolve")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  composite_output_desc->Bake();
-  pool.SetDescriptor("composite.output", composite_output_desc);
-
-  // Set initial PipelineOutput for the post-processing chain
-  pool.SetTexture("PipelineOutput", pool.GetTexture("composite.color_resolve"));
-  pool.SetDescriptor("PipelineOutputDescriptor", composite_output_desc);
-}
+void CompositeFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void CompositeFeature::AddPasses(RenderGraph& graph,
                                  RenderResourceRegistry& registry,
@@ -105,23 +56,43 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("CompositeFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
-  bool use_resolve = ctx.use_msaa_resolve;
+  SamplingMode msaa = renderer->options().msaa_mode;
+  bool use_msaa = msaa > SamplingMode::DISABLED;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  // Import composite output texture from pool
-  auto composite_tex = use_resolve ? pool->GetTexture("composite.color_resolve")
-                                   : pool->GetTexture("composite.color");
-  RGResource composite_out = graph.ImportTexture("CompositeOut", composite_tex);
+  // MSAA color cannot be sampled directly; downstream reads color_resolve.
+  RGResource composite_color = graph.DeclareTransient(RGTextureDesc{
+      .name = "composite.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer->GetSwapChainImageFormat(),
+      .samples = msaa,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = !use_msaa});
 
-  // Get references from registry
-  auto lighting_out = registry.Get("LightingOut");
-  auto transparency_out = registry.Has("TransparencyOut")
-                              ? registry.Get("TransparencyOut")
-                              : RGResource{};
-  auto sprite_out = registry.Get("SpriteOut");
-  auto grid_out =
+  RGResource composite_resolve = use_msaa
+                                     ? graph.DeclareTransient(RGTextureDesc{
+                                           .name = "composite.color_resolve",
+                                           .width = rw,
+                                           .height = rh,
+                                           .format =
+                                               renderer->GetSwapChainImageFormat(),
+                                           .samples = SamplingMode::DISABLED,
+                                           .type = AttachmentTextureType::Resolve,
+                                           .layer_count = 1,
+                                           .sampled = true})
+                                     : composite_color;
+
+  RGResource lighting_out = registry.Get("LightingOut");
+  RGResource transparency_out = registry.Has("TransparencyOut")
+                                    ? registry.Get("TransparencyOut")
+                                    : RGResource{};
+  RGResource sprite_out = registry.Get("SpriteOut");
+  RGResource grid_out =
       registry.Has("GridOut") ? registry.Get("GridOut") : RGResource{};
 
-  // Composite pass
   auto pipeline = pipeline_;
   bool has_transparency = transparency_out.IsValid();
   bool has_grid = grid_out.IsValid();
@@ -147,7 +118,6 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
                                    {pool->GetDescriptor("sprite.output")});
         }
       });
-
   graph.PassReadsTexture(composite, lighting_out);
   if (grid_out.IsValid()) {
     graph.PassReadsTexture(composite, grid_out);
@@ -158,14 +128,48 @@ void CompositeFeature::AddPasses(RenderGraph& graph,
   if (sprite_out.IsValid()) {
     graph.PassReadsTexture(composite, sprite_out);
   }
-  graph.PassWritesColor(composite, composite_out);
-  graph.SetPassFramebuffer(composite, pool->GetFramebuffer("composite"));
+  graph.PassWritesColor(composite, composite_color);
+  if (use_msaa) {
+    graph.PassWritesColor(composite, composite_resolve);
+  }
   graph.SetPassViewport(composite, ctx.viewport_size);
   graph.SetPassClearColor(composite, renderer->GetClearColor());
+  graph.SetPassResolveFn(
+      composite,
+      [this, renderer, pool, composite, composite_color, composite_resolve,
+       use_msaa, rw, rh](RenderGraph& g) {
+        auto color = g.GetTexture(composite_color);
+        auto resolve = g.GetTexture(composite_resolve);
+        auto linear = renderer->GetDefaultLinearSampler();
+        auto present_layout = renderer->GetDescriptorLayout("Present");
+
+        if (color_key_ != color.get() || resolve_key_ != resolve.get()) {
+          if (use_msaa) {
+            std::array<AttachmentTexture*, 2> atts{color.get(), resolve.get()};
+            framebuffer_ =
+                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
+          } else {
+            std::array<AttachmentTexture*, 1> atts{color.get()};
+            framebuffer_ =
+                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
+          }
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, resolve->image_views_[0], linear);
+          desc->Bake();
+          output_desc_ = desc;
+          color_key_ = color.get();
+          resolve_key_ = resolve.get();
+        }
+        g.SetPassFramebuffer(composite, framebuffer_);
+
+        pool->SetTexture("PipelineOutput", resolve);
+        pool->SetDescriptor("PipelineOutputDescriptor", output_desc_);
+      });
 
   // Register outputs for downstream features
-  registry.Register("CompositeOut", composite_out);
-  registry.Register("PipelineOutput", composite_out);
+  registry.Register("CompositeOut", composite_resolve);
+  registry.Register("PipelineOutput", composite_resolve);
 }
 
 }  // namespace wiesel

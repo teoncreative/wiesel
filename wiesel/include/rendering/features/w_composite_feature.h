@@ -15,6 +15,10 @@
 
 namespace wiesel {
 
+class AttachmentTexture;
+class DescriptorSet;
+class Framebuffer;
+
 class CompositeFeature : public RenderFeature {
  public:
   explicit CompositeFeature(std::shared_ptr<Renderer> renderer);
@@ -30,6 +34,11 @@ class CompositeFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+
+  std::shared_ptr<Framebuffer> framebuffer_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* color_key_ = nullptr;
+  AttachmentTexture* resolve_key_ = nullptr;
 };
 
 }  // namespace wiesel

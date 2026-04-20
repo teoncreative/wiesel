@@ -27,6 +27,10 @@ struct BloomCompositePushConstants {
   glm::vec4 tint_intensity;  // rgb=tint, a=intensity
 };
 
+class AttachmentTexture;
+class DescriptorSet;
+class Framebuffer;
+
 class BloomFeature : public RenderFeature {
  public:
   explicit BloomFeature(std::shared_ptr<Renderer> renderer);
@@ -55,6 +59,30 @@ class BloomFeature : public RenderFeature {
   std::shared_ptr<BloomExtractPushConstants> extract_push_;
   std::shared_ptr<BloomBlurPushConstants> blur_push_;
   std::shared_ptr<BloomCompositePushConstants> composite_push_;
+
+  // One-sampler pass (extract + each blur iteration) - framebuffer writes
+  // the pass's transient output, input_desc reads the previous stage's
+  // transient.
+  struct StageBindings {
+    std::shared_ptr<Framebuffer> framebuffer;
+    std::shared_ptr<DescriptorSet> input_desc;
+    AttachmentTexture* output_key = nullptr;
+    AttachmentTexture* input_key = nullptr;
+  };
+  StageBindings extract_bindings_;
+  StageBindings blur_h_bindings_;
+  StageBindings blur_v_bindings_;
+  StageBindings blur_h2_bindings_;
+  StageBindings blur_v2_bindings_;
+
+  // Composite takes two inputs (PipelineOutput + final blur) and publishes
+  // the final PipelineOutput descriptor.
+  std::shared_ptr<Framebuffer> composite_framebuffer_;
+  std::shared_ptr<DescriptorSet> composite_input_desc_;
+  std::shared_ptr<DescriptorSet> composite_output_desc_;
+  AttachmentTexture* composite_output_key_ = nullptr;
+  AttachmentTexture* composite_input_key_ = nullptr;
+  AttachmentTexture* composite_blur_key_ = nullptr;
 };
 
 }  // namespace wiesel

@@ -418,86 +418,7 @@ std::shared_ptr<DescriptorSet> DebugColliderFeature::GetOrCreateLabelDescriptor(
   return desc;
 }
 
-void DebugColliderFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("DebugColliderFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-
-  // Wireframe offscreen texture
-  SamplingMode msaa = renderer.options().msaa_mode;
-  bool use_msaa = msaa > SamplingMode::DISABLED;
-
-  pool.SetTexture("debug_collider.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(), msaa, true}));
-
-  if (use_msaa) {
-    pool.SetTexture("debug_collider.color_resolve",
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Resolve, 1,
-                         renderer.GetSwapChainImageFormat(),
-                         SamplingMode::DISABLED, true}));
-    std::array<AttachmentTexture*, 3> attachments{
-        pool.GetTexture("debug_collider.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("debug_collider.color_resolve").get()};
-    pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
-                                              0, attachments, {rw, rh}));
-  } else {
-    pool.SetTexture("debug_collider.color_resolve",
-                    pool.GetTexture("debug_collider.color"));
-    std::array<AttachmentTexture*, 2> attachments{
-        pool.GetTexture("debug_collider.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get()};
-    pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
-                                              0, attachments, {rw, rh}));
-  }
-
-  // Descriptor to read wireframe output (use resolved texture)
-  auto debug_output_desc = std::make_shared<DescriptorSet>();
-  debug_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  debug_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("debug_collider.color_resolve")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  debug_output_desc->Bake();
-  pool.SetDescriptor("debug_collider.output", debug_output_desc);
-
-  // Composite output texture
-  pool.SetTexture(
-      "debug_collider_comp.color",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-
-  std::array<AttachmentTexture*, 1> comp_attachments{
-      pool.GetTexture("debug_collider_comp.color").get()};
-  pool.SetFramebuffer(
-      "debug_collider_comp",
-      comp_render_pass_->CreateFramebuffer(0, comp_attachments, {rw, rh}));
-
-  // Descriptor to read previous PipelineOutput
-  auto comp_input_desc = std::make_shared<DescriptorSet>();
-  comp_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_input_desc->Bake();
-  pool.SetDescriptor("debug_collider_comp.input", comp_input_desc);
-
-  // Update PipelineOutput for downstream features
-  auto comp_output_desc = std::make_shared<DescriptorSet>();
-  comp_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("debug_collider_comp.color")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_output_desc->Bake();
-  pool.SetTexture("PipelineOutput",
-                  pool.GetTexture("debug_collider_comp.color"));
-  pool.SetDescriptor("PipelineOutputDescriptor", comp_output_desc);
-}
+void DebugColliderFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void DebugColliderFeature::AddPasses(RenderGraph& graph,
                                      RenderResourceRegistry& registry,
@@ -657,9 +578,32 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   }
   std::vector<CachedDebugData>& mesh_data = mesh_collider_cache_;
 
-  // Import resources
-  RGResource debug_out = graph.ImportTexture(
-      "DebugCollidersOut", pool->GetTexture("debug_collider.color_resolve"));
+  // Transient wireframe output (color + optional MSAA resolve).
+  SamplingMode msaa = renderer_->options().msaa_mode;
+  bool use_msaa = msaa > SamplingMode::DISABLED;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
+
+  RGResource debug_color = graph.DeclareTransient(RGTextureDesc{
+      .name = "debug_collider.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = msaa,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = !use_msaa});
+  RGResource debug_out =
+      use_msaa ? graph.DeclareTransient(RGTextureDesc{
+                     .name = "debug_collider.color_resolve",
+                     .width = rw,
+                     .height = rh,
+                     .format = renderer_->GetSwapChainImageFormat(),
+                     .samples = SamplingMode::DISABLED,
+                     .type = AttachmentTextureType::Resolve,
+                     .layer_count = 1,
+                     .sampled = true})
+               : debug_color;
 
   // Wireframe draw pass
   auto no_depth_pipe = no_depth_pipeline_;
@@ -1011,38 +955,104 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         }
       });
 
-  graph.PassWritesColor(draw_pass, debug_out);
-  graph.SetPassFramebuffer(draw_pass, pool->GetFramebuffer("debug_collider"));
+  graph.PassWritesColor(draw_pass, debug_color);
+  if (use_msaa) {
+    graph.PassWritesColor(draw_pass, debug_out);
+  }
   graph.SetPassViewport(draw_pass, ctx.viewport_size);
   graph.SetPassClearColor(draw_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      draw_pass,
+      [this, pool, draw_pass, debug_color, debug_out, use_msaa, rw,
+       rh](RenderGraph& g) {
+        auto color = g.GetTexture(debug_color);
+        auto resolve = g.GetTexture(debug_out);
+        auto depth = pool->GetTexture("geometry.depth_stencil");
+
+        if (draw_color_key_ != color.get() ||
+            draw_resolve_key_ != resolve.get() ||
+            draw_depth_key_ != depth.get()) {
+          if (use_msaa) {
+            std::array<AttachmentTexture*, 3> atts{color.get(), depth.get(),
+                                                   resolve.get()};
+            draw_framebuffer_ =
+                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
+          } else {
+            std::array<AttachmentTexture*, 2> atts{color.get(), depth.get()};
+            draw_framebuffer_ =
+                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
+          }
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer_->GetDescriptorLayout("Present"));
+          desc->AddCombinedImageSampler(0, resolve->image_views_[0],
+                                        renderer_->GetDefaultLinearSampler());
+          desc->Bake();
+          draw_output_desc_ = desc;
+          draw_color_key_ = color.get();
+          draw_resolve_key_ = resolve.get();
+          draw_depth_key_ = depth.get();
+        }
+        g.SetPassFramebuffer(draw_pass, draw_framebuffer_);
+      });
 
   // Composite pass: blend debug overlay onto PipelineOutput
   RGResource pipeline_out = registry.Get("PipelineOutput");
-  RGResource comp_out = graph.ImportTexture(
-      "DebugCollidersCompOut", pool->GetTexture("debug_collider_comp.color"));
+  RGResource comp_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "debug_collider_comp.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
 
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   uint32_t comp_pass = graph.AddPass(
       "DebugCollidersComposite", comp_render_pass_,
-      [pool, renderer, comp_pipeline](VkCommandBuffer) {
+      [this, renderer, comp_pipeline](VkCommandBuffer) {
         comp_pipeline->Bind(PipelineBindPointGraphics);
-        // Draw previous PipelineOutput (background)
-        renderer->DrawFullscreen(
-            comp_pipeline, {pool->GetDescriptor("debug_collider_comp.input")});
-        // Draw debug collider overlay
-        renderer->DrawFullscreen(
-            comp_pipeline, {pool->GetDescriptor("debug_collider.output")});
+        renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
+        renderer->DrawFullscreen(comp_pipeline, {draw_output_desc_});
       });
-
   graph.PassReadsTexture(comp_pass, pipeline_out);
   graph.PassReadsTexture(comp_pass, debug_out);
   graph.PassWritesColor(comp_pass, comp_out);
-  graph.SetPassFramebuffer(comp_pass,
-                           pool->GetFramebuffer("debug_collider_comp"));
   graph.SetPassViewport(comp_pass, ctx.viewport_size);
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      comp_pass,
+      [this, pool, comp_pass, comp_out, pipeline_out, rw, rh](RenderGraph& g) {
+        auto output = g.GetTexture(comp_out);
+        auto input = g.GetTexture(pipeline_out);
+        auto linear = renderer_->GetDefaultLinearSampler();
+        auto present_layout = renderer_->GetDescriptorLayout("Present");
 
-  // Update PipelineOutput for downstream features
+        if (comp_output_key_ != output.get()) {
+          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
+              0, {output.get()}, {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          comp_output_desc_ = desc;
+          comp_output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(comp_pass, comp_framebuffer_);
+
+        if (comp_input_key_ != input.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          desc->Bake();
+          comp_input_desc_ = desc;
+          comp_input_key_ = input.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", comp_output_desc_);
+      });
+
   registry.Register("PipelineOutput", comp_out);
 }
 

@@ -91,6 +91,14 @@ class CanvasFeature : public RenderFeature {
   // (and overlay canvases when rendering in editor scene view).
   // Keyed by the canvas entity.
   std::unordered_map<entt::entity, PerCanvasResources> per_canvas_resources_;
+
+  // Chain composite bindings; rebuilt when the transient output or the
+  // upstream PipelineOutput texture changes.
+  std::shared_ptr<Framebuffer> comp_framebuffer_;
+  std::shared_ptr<DescriptorSet> comp_input_desc_;
+  std::shared_ptr<DescriptorSet> comp_output_desc_;
+  AttachmentTexture* comp_output_key_ = nullptr;
+  AttachmentTexture* comp_input_key_ = nullptr;
 };
 
 }  // namespace wiesel

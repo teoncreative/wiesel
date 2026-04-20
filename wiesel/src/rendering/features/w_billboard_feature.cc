@@ -276,94 +276,7 @@ bool BillboardFeature::IsEnabled(const RenderContext& ctx) const {
   return true;
 }
 
-void BillboardFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("BillboardFeature::SetupResources");
-  CameraResourcePool& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-  SamplingMode msaa = renderer.options().msaa_mode;
-  bool use_msaa = msaa > SamplingMode::DISABLED;
-
-  pool.SetTexture("billboard.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(), msaa, true}));
-  pool.SetTexture("billboard.entity_id",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R32_UINT, msaa, true}));
-
-  if (use_msaa) {
-    pool.SetTexture("billboard.color_resolve",
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Resolve, 1,
-                         renderer.GetSwapChainImageFormat(),
-                         SamplingMode::DISABLED, true}));
-    pool.SetTexture("billboard.entity_id_resolve",
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Resolve, 1,
-                         VK_FORMAT_R32_UINT, SamplingMode::DISABLED, true}));
-    std::array<AttachmentTexture*, 5> attachments{
-        pool.GetTexture("billboard.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("billboard.entity_id").get(),
-        pool.GetTexture("billboard.color_resolve").get(),
-        pool.GetTexture("billboard.entity_id_resolve").get()};
-    pool.SetFramebuffer(
-        "billboard", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
-  } else {
-    pool.SetTexture("billboard.color_resolve",
-                    pool.GetTexture("billboard.color"));
-    pool.SetTexture("billboard.entity_id_resolve",
-                    pool.GetTexture("billboard.entity_id"));
-    std::array<AttachmentTexture*, 3> attachments{
-        pool.GetTexture("billboard.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("billboard.entity_id").get()};
-    pool.SetFramebuffer(
-        "billboard", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
-  }
-
-  auto billboard_output_desc = std::make_shared<DescriptorSet>();
-  billboard_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  billboard_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("billboard.color_resolve")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  billboard_output_desc->Bake();
-  pool.SetDescriptor("billboard.output", billboard_output_desc);
-
-  // Composite output texture
-  pool.SetTexture(
-      "billboard_comp.color",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-
-  std::array<AttachmentTexture*, 1> comp_attachments{
-      pool.GetTexture("billboard_comp.color").get()};
-  pool.SetFramebuffer("billboard_comp", comp_render_pass_->CreateFramebuffer(
-                                            0, comp_attachments, {rw, rh}));
-
-  // Descriptor to read previous PipelineOutput
-  auto comp_input_desc = std::make_shared<DescriptorSet>();
-  comp_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_input_desc->Bake();
-  pool.SetDescriptor("billboard_comp.input", comp_input_desc);
-
-  // Update PipelineOutput for downstream features
-  auto comp_output_desc = std::make_shared<DescriptorSet>();
-  comp_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("billboard_comp.color")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_output_desc->Bake();
-  pool.SetTexture("PipelineOutput", pool.GetTexture("billboard_comp.color"));
-  pool.SetDescriptor("PipelineOutputDescriptor", comp_output_desc);
-}
+void BillboardFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void BillboardFeature::AddPasses(RenderGraph& graph,
                                  RenderResourceRegistry& registry,
@@ -405,11 +318,54 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   glm::vec3 cam_right = glm::vec3(view[0][0], view[1][0], view[2][0]);
   glm::vec3 cam_up = glm::vec3(view[0][1], view[1][1], view[2][1]);
 
-  // Import resources
-  RGResource billboard_out = graph.ImportTexture(
-      "BillboardOut", pool->GetTexture("billboard.color_resolve"));
-  RGResource billboard_entity_id = graph.ImportTexture(
-      "BillboardEntityId", pool->GetTexture("billboard.entity_id_resolve"));
+  // Transient draw targets. With MSAA we declare both the MSAA color/entity
+  // and the resolved single-sample versions; without MSAA, resolves alias
+  // the MSAA textures.
+  SamplingMode msaa = renderer_->options().msaa_mode;
+  bool use_msaa = msaa > SamplingMode::DISABLED;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
+
+  RGResource billboard_color = graph.DeclareTransient(RGTextureDesc{
+      .name = "billboard.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = msaa,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = !use_msaa});
+  RGResource billboard_entity = graph.DeclareTransient(RGTextureDesc{
+      .name = "billboard.entity_id",
+      .width = rw,
+      .height = rh,
+      .format = VK_FORMAT_R32_UINT,
+      .samples = msaa,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = !use_msaa});
+  RGResource billboard_out =
+      use_msaa ? graph.DeclareTransient(RGTextureDesc{
+                     .name = "billboard.color_resolve",
+                     .width = rw,
+                     .height = rh,
+                     .format = renderer_->GetSwapChainImageFormat(),
+                     .samples = SamplingMode::DISABLED,
+                     .type = AttachmentTextureType::Resolve,
+                     .layer_count = 1,
+                     .sampled = true})
+               : billboard_color;
+  RGResource billboard_entity_id =
+      use_msaa ? graph.DeclareTransient(RGTextureDesc{
+                     .name = "billboard.entity_id_resolve",
+                     .width = rw,
+                     .height = rh,
+                     .format = VK_FORMAT_R32_UINT,
+                     .samples = SamplingMode::DISABLED,
+                     .type = AttachmentTextureType::Resolve,
+                     .layer_count = 1,
+                     .sampled = true})
+               : billboard_entity;
 
   // Draw pass
   uint32_t draw_pass = graph.AddPass(
@@ -894,30 +850,81 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
         }
       });
 
-  graph.PassWritesColor(draw_pass, billboard_out);
-  graph.PassWritesColor(draw_pass, billboard_entity_id);
-  graph.SetPassFramebuffer(draw_pass, pool->GetFramebuffer("billboard"));
+  graph.PassWritesColor(draw_pass, billboard_color);
+  graph.PassWritesColor(draw_pass, billboard_entity);
+  if (use_msaa) {
+    graph.PassWritesColor(draw_pass, billboard_out);
+    graph.PassWritesColor(draw_pass, billboard_entity_id);
+  }
   graph.SetPassViewport(draw_pass, ctx.viewport_size);
   graph.SetPassClearColor(draw_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      draw_pass,
+      [this, pool, draw_pass, billboard_color, billboard_entity, billboard_out,
+       billboard_entity_id, use_msaa, rw, rh](RenderGraph& g) {
+        auto color = g.GetTexture(billboard_color);
+        auto entity = g.GetTexture(billboard_entity);
+        auto color_resolve = g.GetTexture(billboard_out);
+        auto entity_resolve = g.GetTexture(billboard_entity_id);
+        auto depth = pool->GetTexture("geometry.depth_stencil");
+
+        if (draw_color_key_ != color.get() ||
+            draw_color_resolve_key_ != color_resolve.get() ||
+            draw_entity_id_key_ != entity.get() ||
+            draw_entity_id_resolve_key_ != entity_resolve.get() ||
+            draw_depth_key_ != depth.get()) {
+          if (use_msaa) {
+            std::array<AttachmentTexture*, 5> atts{color.get(), depth.get(),
+                                                   entity.get(),
+                                                   color_resolve.get(),
+                                                   entity_resolve.get()};
+            draw_framebuffer_ =
+                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
+          } else {
+            std::array<AttachmentTexture*, 3> atts{color.get(), depth.get(),
+                                                   entity.get()};
+            draw_framebuffer_ =
+                render_pass_->CreateFramebuffer(0, atts, {rw, rh});
+          }
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer_->GetDescriptorLayout("Present"));
+          desc->AddCombinedImageSampler(0, color_resolve->image_views_[0],
+                                        renderer_->GetDefaultLinearSampler());
+          desc->Bake();
+          draw_output_desc_ = desc;
+          draw_color_key_ = color.get();
+          draw_color_resolve_key_ = color_resolve.get();
+          draw_entity_id_key_ = entity.get();
+          draw_entity_id_resolve_key_ = entity_resolve.get();
+          draw_depth_key_ = depth.get();
+        }
+        g.SetPassFramebuffer(draw_pass, draw_framebuffer_);
+        // Publish the resolved entity-id texture so the viewport's
+        // click-to-select path can read it via CameraResourcePool.
+        pool->SetTexture("billboard.entity_id_resolve", entity_resolve);
+      });
 
   // Composite pass: draw previous PipelineOutput then billboard overlay
   RGResource pipeline_out = registry.Get("PipelineOutput");
-  RGResource comp_out = graph.ImportTexture(
-      "BillboardCompOut", pool->GetTexture("billboard_comp.color"));
+  RGResource comp_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "billboard_comp.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
 
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   std::shared_ptr<Pipeline> comp_blend = comp_blend_pipeline_;
   uint32_t comp_pass = graph.AddPass(
       "BillboardComposite", comp_render_pass_,
-      [pool, renderer, comp_pipeline, comp_blend](VkCommandBuffer) {
-        // Draw previous pipeline output (opaque, no blending)
+      [this, renderer, comp_pipeline, comp_blend](VkCommandBuffer) {
         comp_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(comp_pipeline,
-                                 {pool->GetDescriptor("billboard_comp.input")});
-        // Overlay billboard texture with alpha blending
+        renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
         comp_blend->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(comp_blend,
-                                 {pool->GetDescriptor("billboard.output")});
+        renderer->DrawFullscreen(comp_blend, {draw_output_desc_});
       });
 
   if (pipeline_out.IsValid()) {
@@ -925,9 +932,45 @@ void BillboardFeature::AddPasses(RenderGraph& graph,
   }
   graph.PassReadsTexture(comp_pass, billboard_out);
   graph.PassWritesColor(comp_pass, comp_out);
-  graph.SetPassFramebuffer(comp_pass, pool->GetFramebuffer("billboard_comp"));
   graph.SetPassViewport(comp_pass, ctx.viewport_size);
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 1});
+  graph.SetPassResolveFn(
+      comp_pass,
+      [this, pool, comp_pass, comp_out, pipeline_out, rw, rh](RenderGraph& g) {
+        auto output = g.GetTexture(comp_out);
+        auto input = pipeline_out.IsValid()
+                         ? g.GetTexture(pipeline_out)
+                         : std::shared_ptr<AttachmentTexture>{};
+        auto linear = renderer_->GetDefaultLinearSampler();
+        auto present_layout = renderer_->GetDescriptorLayout("Present");
+
+        if (comp_output_key_ != output.get()) {
+          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
+              0, {output.get()}, {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          comp_output_desc_ = desc;
+          comp_output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(comp_pass, comp_framebuffer_);
+
+        AttachmentTexture* input_key = input ? input.get() : nullptr;
+        if (comp_input_key_ != input_key) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          if (input) {
+            desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          }
+          desc->Bake();
+          comp_input_desc_ = desc;
+          comp_input_key_ = input_key;
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", comp_output_desc_);
+      });
 
   registry.Register("PipelineOutput", comp_out);
 }

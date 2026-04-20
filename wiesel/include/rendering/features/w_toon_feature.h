@@ -21,6 +21,10 @@ struct ToonPushConstants {
   float edge_strength = 0.8f;
 };
 
+class AttachmentTexture;
+class DescriptorSet;
+class Framebuffer;
+
 class ToonFeature : public RenderFeature {
  public:
   explicit ToonFeature(std::shared_ptr<Renderer> renderer);
@@ -41,6 +45,14 @@ class ToonFeature : public RenderFeature {
   std::shared_ptr<DescriptorSetLayout> toon_input_layout_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<ToonPushConstants> push_constants_;
+
+  std::shared_ptr<Framebuffer> framebuffer_;
+  std::shared_ptr<DescriptorSet> input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* output_key_ = nullptr;
+  AttachmentTexture* input_key_ = nullptr;
+  AttachmentTexture* normal_key_ = nullptr;
+  AttachmentTexture* depth_key_ = nullptr;
 };
 
 }  // namespace wiesel

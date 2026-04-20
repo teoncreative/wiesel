@@ -251,36 +251,8 @@ void CanvasFeature::SetupResources(RenderContext& ctx) {
   camera_canvas_desc->Bake();
   pool.SetDescriptor("canvas_camera.output", camera_canvas_desc);
 
-  // Canvas composite: blend canvas onto PipelineOutput
-  pool.SetTexture(
-      "canvas_comp.color",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-
-  std::array<AttachmentTexture*, 1> comp_attachments{
-      pool.GetTexture("canvas_comp.color").get()};
-  pool.SetFramebuffer("canvas_comp", comp_render_pass_->CreateFramebuffer(
-                                         0, comp_attachments, {rw, rh}));
-
-  // Descriptor to read previous PipelineOutput
-  auto comp_input_desc = std::make_shared<DescriptorSet>();
-  comp_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_input_desc->Bake();
-  pool.SetDescriptor("canvas_comp.input", comp_input_desc);
-
-  // Update PipelineOutput for downstream features
-  auto comp_output_desc = std::make_shared<DescriptorSet>();
-  comp_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("canvas_comp.color")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_output_desc->Bake();
-  pool.SetTexture("PipelineOutput", pool.GetTexture("canvas_comp.color"));
-  pool.SetDescriptor("PipelineOutputDescriptor", comp_output_desc);
+  // canvas_comp.color + its framebuffer + descriptors are per-frame via the
+  // transient pool (see AddPasses).
 
   // Clear per-canvas resources on resize (they will be recreated lazily)
   per_canvas_resources_.clear();
@@ -1202,40 +1174,76 @@ void CanvasFeature::AddPasses(RenderGraph& graph,
   registry.Register("CanvasOut", canvas_out);
 
   // ---- Composite pass: blend all canvas layers onto PipelineOutput ----
-  RGResource canvas_comp_out =
-      graph.ImportTexture("CanvasComp", pool->GetTexture("canvas_comp.color"));
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
+  RGResource canvas_comp_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "canvas_comp.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
   auto pipeline_input = registry.Get("PipelineOutput");
   auto comp_pipeline = comp_pipeline_;
 
   uint32_t canvas_comp = graph.AddPass(
       "CanvasComposite", comp_render_pass_,
-      [comp_pipeline, pool, renderer, is_external](VkCommandBuffer) {
+      [this, comp_pipeline, pool, renderer, is_external](VkCommandBuffer) {
         comp_pipeline->Bind(PipelineBindPointGraphics);
         // Draw scene (previous PipelineOutput)
-        renderer->DrawFullscreen(comp_pipeline,
-                                 {pool->GetDescriptor("canvas_comp.input")});
+        renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
         // Draw world canvas on top (alpha blended)
         renderer->DrawFullscreen(comp_pipeline,
                                  {pool->GetDescriptor("canvas_world.output")});
         if (!is_external) {
-          // Per-canvas camera quads as fullscreen (game view only;
-          // in editor they're drawn as 3D quads in the world pass)
           renderer->DrawFullscreen(
               comp_pipeline, {pool->GetDescriptor("canvas_camera.output")});
-          // Overlay canvas (game view only; in editor it's in camera_list)
           renderer->DrawFullscreen(comp_pipeline,
                                    {pool->GetDescriptor("canvas.output")});
         }
       });
-
   graph.PassReadsTexture(canvas_comp, pipeline_input);
   graph.PassReadsTexture(canvas_comp, canvas_world_out);
   graph.PassReadsTexture(canvas_comp, canvas_camera_out);
   graph.PassReadsTexture(canvas_comp, canvas_out);
   graph.PassWritesColor(canvas_comp, canvas_comp_out);
-  graph.SetPassFramebuffer(canvas_comp, pool->GetFramebuffer("canvas_comp"));
   graph.SetPassViewport(canvas_comp, ctx.viewport_size);
   graph.SetPassClearColor(canvas_comp, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      canvas_comp,
+      [this, pool, canvas_comp, canvas_comp_out, pipeline_input, rw,
+       rh](RenderGraph& g) {
+        auto output = g.GetTexture(canvas_comp_out);
+        auto input = g.GetTexture(pipeline_input);
+        auto linear = renderer_->GetDefaultLinearSampler();
+        auto present_layout = renderer_->GetDescriptorLayout("Present");
+
+        if (comp_output_key_ != output.get()) {
+          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
+              0, {output.get()}, {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          comp_output_desc_ = desc;
+          comp_output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(canvas_comp, comp_framebuffer_);
+
+        if (comp_input_key_ != input.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          desc->Bake();
+          comp_input_desc_ = desc;
+          comp_input_key_ = input.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", comp_output_desc_);
+      });
 
   registry.Register("PipelineOutput", canvas_comp_out);
 }

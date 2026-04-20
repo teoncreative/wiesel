@@ -10,6 +10,7 @@
 //
 
 #include "rendering/features/w_taa_feature.h"
+#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -61,133 +62,149 @@ bool TAAFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.renderer.options().aa_mode == AntiAliasingMode::TAA;
 }
 
-void TAAFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("TAAFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-
-  // Textures
-  pool.SetTexture("taa.output", renderer.CreateAttachmentTexture(
-                                    {rw, rh, AttachmentTextureType::Offscreen,
-                                     1, renderer.GetSwapChainImageFormat(),
-                                     SamplingMode::DISABLED, true}));
-
-  // TAA history persists across frames; only create if not already present
-  if (!pool.HasTexture("taa.history")) {
-    pool.SetTexture("taa.history",
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Offscreen, 1,
-                         renderer.GetSwapChainImageFormat(),
-                         SamplingMode::DISABLED, true}));
-  }
-
-  // Framebuffers
-  {
-    std::array<AttachmentTexture*, 1> att{pool.GetTexture("taa.output").get()};
-    pool.SetFramebuffer("taa",
-                        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
-  }
-  {
-    std::array<AttachmentTexture*, 1> att{pool.GetTexture("taa.history").get()};
-    pool.SetFramebuffer("taa.history",
-                        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
-  }
-
-  // Descriptors
-
-  // TAA input: reads PipelineOutput + history + geometry depth (3 inputs)
-  auto taa_input_desc = std::make_shared<DescriptorSet>();
-  taa_input_desc->SetLayout(renderer.GetDescriptorLayout("TAA"));
-  taa_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  taa_input_desc->AddCombinedImageSampler(
-      1, pool.GetTexture("taa.history")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  taa_input_desc->AddCombinedImageSampler(
-      2, pool.GetTexture("geometry.depth_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  taa_input_desc->Bake();
-  pool.SetDescriptor("taa.input", taa_input_desc);
-
-  // TAA copy input: reads taa.output for copying into history
-  auto taa_copy_input_desc = std::make_shared<DescriptorSet>();
-  taa_copy_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  taa_copy_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("taa.output")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  taa_copy_input_desc->Bake();
-  pool.SetDescriptor("taa.copy_input", taa_copy_input_desc);
-
-  // TAA output descriptor: reads taa.output
-  auto taa_output_desc = std::make_shared<DescriptorSet>();
-  taa_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  taa_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("taa.output")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  taa_output_desc->Bake();
-  pool.SetDescriptor("taa.output", taa_output_desc);
-
-  // Update pipeline output for the next feature in the chain
-  pool.SetTexture("PipelineOutput", pool.GetTexture("taa.output"));
-  pool.SetDescriptor("PipelineOutputDescriptor", taa_output_desc);
-}
+void TAAFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void TAAFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                            RenderContext& ctx) {
   PROFILE_ZONE_SCOPED_N("TAAFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  // Import TAA textures from pool
-  RGResource taa_out =
-      graph.ImportTexture("TAAOutput", pool->GetTexture("taa.output"));
+  // Lazily (re)create the persistent history buffer when the viewport
+  // changes. Everything else is transient.
+  if (!history_texture_ || history_width_ != rw || history_height_ != rh) {
+    AttachmentTextureProps props{};
+    props.width = rw;
+    props.height = rh;
+    props.type = AttachmentTextureType::Offscreen;
+    props.image_count = 1;
+    props.image_format = renderer->GetSwapChainImageFormat();
+    props.sampling_mode = SamplingMode::DISABLED;
+    props.sampled = true;
+    history_texture_ = renderer->CreateAttachmentTexture(props);
+    history_width_ = rw;
+    history_height_ = rh;
+    // Invalidate cached bindings that reference the old history.
+    taa_history_key_ = nullptr;
+    copy_history_key_ = nullptr;
+  }
+
+  RGResource taa_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "taa.output",
+      .width = rw,
+      .height = rh,
+      .format = renderer->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
   RGResource taa_history =
-      graph.ImportTexture("TAAHistory", pool->GetTexture("taa.history"));
+      graph.ImportTexture("TAAHistory", history_texture_);
 
-  // Get PipelineOutput and geometry depth from registry
-  auto pipeline_input = registry.Get("PipelineOutput");
-  auto geo_depth = registry.Get("GeoDepth");
+  RGResource pipeline_input = registry.Get("PipelineOutput");
+  RGResource geo_depth = registry.Get("GeoDepth");
 
-  // TAA pass
+  // --- TAA pass ---
   auto taa_pipeline = taa_pipeline_;
   uint32_t taa_pass = graph.AddPass(
-      "TAA", render_pass_, [pool, renderer, taa_pipeline](VkCommandBuffer) {
+      "TAA", render_pass_,
+      [this, pool, renderer, taa_pipeline](VkCommandBuffer) {
         taa_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(taa_pipeline,
-                                 {pool->GetDescriptor("taa.input"),
-                                  pool->GetDescriptor("GlobalDescriptor")});
+        renderer->DrawFullscreen(
+            taa_pipeline,
+            {taa_input_desc_, pool->GetDescriptor("GlobalDescriptor")});
       });
-
   graph.PassReadsTexture(taa_pass, pipeline_input);
-  // History is from the previous frame - use external read to get a barrier
-  // without creating a dependency edge (avoids cycle with TAA History Copy).
+  // History is from the previous frame - external read to barrier without
+  // creating an edge (avoids cycle with TAA History Copy).
   graph.PassReadsExternalTexture(taa_pass, taa_history);
   graph.PassReadsTexture(taa_pass, geo_depth);
   graph.PassWritesColor(taa_pass, taa_out);
-  graph.SetPassFramebuffer(taa_pass, pool->GetFramebuffer("taa"));
   graph.SetPassViewport(taa_pass, ctx.viewport_size);
   graph.SetPassClearColor(taa_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      taa_pass,
+      [this, renderer, pool, taa_pass, taa_out, taa_history, pipeline_input,
+       geo_depth, rw, rh](RenderGraph& g) {
+        auto output = g.GetTexture(taa_out);
+        auto input = g.GetTexture(pipeline_input);
+        auto history = g.GetTexture(taa_history);
+        auto depth = g.GetTexture(geo_depth);
+        auto linear = renderer->GetDefaultLinearSampler();
+        auto nearest = renderer->GetDefaultNearestSampler();
+        auto taa_layout = renderer->GetDescriptorLayout("TAA");
+        auto present_layout = renderer->GetDescriptorLayout("Present");
 
-  // TAA History Copy pass
+        if (taa_output_key_ != output.get()) {
+          taa_framebuffer_ = render_pass_->CreateFramebuffer(0, {output.get()},
+                                                             {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          output_desc_ = desc;
+          taa_output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(taa_pass, taa_framebuffer_);
+
+        if (taa_input_key_ != input.get() ||
+            taa_history_key_ != history.get() ||
+            taa_depth_key_ != depth.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(taa_layout);
+          desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          desc->AddCombinedImageSampler(1, history->image_views_[0], linear);
+          desc->AddCombinedImageSampler(2, depth->image_views_[0], nearest);
+          desc->Bake();
+          taa_input_desc_ = desc;
+          taa_input_key_ = input.get();
+          taa_history_key_ = history.get();
+          taa_depth_key_ = depth.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", output_desc_);
+      });
+
+  // --- History copy pass ---
   auto copy_pipeline = copy_pipeline_;
   uint32_t taa_copy = graph.AddPass(
       "TAA History Copy", render_pass_,
-      [pool, renderer, copy_pipeline](VkCommandBuffer) {
+      [this, renderer, copy_pipeline](VkCommandBuffer) {
         copy_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(copy_pipeline,
-                                 {pool->GetDescriptor("taa.copy_input")});
+        renderer->DrawFullscreen(copy_pipeline, {copy_input_desc_});
       });
-
   graph.PassReadsTexture(taa_copy, taa_out);
   graph.PassWritesColor(taa_copy, taa_history);
-  graph.SetPassFramebuffer(taa_copy, pool->GetFramebuffer("taa.history"));
   graph.SetPassViewport(taa_copy, ctx.viewport_size);
   graph.SetPassClearColor(taa_copy, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      taa_copy,
+      [this, renderer, taa_copy, taa_out, taa_history, rw, rh](RenderGraph& g) {
+        auto history = g.GetTexture(taa_history);
+        auto taa_output = g.GetTexture(taa_out);
+        auto linear = renderer->GetDefaultLinearSampler();
+        auto present_layout = renderer->GetDescriptorLayout("Present");
 
-  // Update PipelineOutput for the next feature in the chain
+        if (copy_history_key_ != history.get()) {
+          copy_framebuffer_ = render_pass_->CreateFramebuffer(
+              0, {history.get()}, {rw, rh});
+          copy_history_key_ = history.get();
+        }
+        g.SetPassFramebuffer(taa_copy, copy_framebuffer_);
+
+        if (copy_input_key_ != taa_output.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, taa_output->image_views_[0], linear);
+          desc->Bake();
+          copy_input_desc_ = desc;
+          copy_input_key_ = taa_output.get();
+        }
+      });
+
   registry.Register("PipelineOutput", taa_out);
 }
 

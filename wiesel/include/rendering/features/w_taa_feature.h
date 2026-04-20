@@ -15,6 +15,10 @@
 
 namespace wiesel {
 
+class AttachmentTexture;
+class DescriptorSet;
+class Framebuffer;
+
 class TAAFeature : public RenderFeature {
  public:
   explicit TAAFeature(std::shared_ptr<Renderer> renderer);
@@ -32,6 +36,27 @@ class TAAFeature : public RenderFeature {
   std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> taa_pipeline_;
   std::shared_ptr<Pipeline> copy_pipeline_;
+
+  // TAA history must survive across frames. Feature-owned; the graph
+  // imports it each frame.
+  std::shared_ptr<AttachmentTexture> history_texture_;
+  uint32_t history_width_ = 0;
+  uint32_t history_height_ = 0;
+
+  // TAA pass bindings (reads input + history + depth, writes output).
+  std::shared_ptr<Framebuffer> taa_framebuffer_;
+  std::shared_ptr<DescriptorSet> taa_input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* taa_output_key_ = nullptr;
+  AttachmentTexture* taa_input_key_ = nullptr;
+  AttachmentTexture* taa_history_key_ = nullptr;
+  AttachmentTexture* taa_depth_key_ = nullptr;
+
+  // History copy pass bindings (reads taa output, writes history).
+  std::shared_ptr<Framebuffer> copy_framebuffer_;
+  std::shared_ptr<DescriptorSet> copy_input_desc_;
+  AttachmentTexture* copy_history_key_ = nullptr;
+  AttachmentTexture* copy_input_key_ = nullptr;
 };
 
 }  // namespace wiesel

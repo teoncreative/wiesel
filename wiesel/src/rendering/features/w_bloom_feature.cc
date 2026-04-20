@@ -10,6 +10,7 @@
 
 #include "rendering/features/w_bloom_feature.h"
 
+#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -110,96 +111,7 @@ bool BloomFeature::IsEnabled(const RenderContext&) const {
   return true;
 }
 
-void BloomFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("BloomFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-  uint32_t hrw = rw / 2;
-  uint32_t hrh = rh / 2;
-  auto linear = renderer.GetDefaultLinearSampler();
-  auto present_layout = renderer.GetDescriptorLayout("Present");
-
-  auto make_half = [&](const std::string& name) {
-    pool.SetTexture(name, renderer.CreateAttachmentTexture(
-                              {hrw, hrh, AttachmentTextureType::Offscreen, 1,
-                               renderer.GetSwapChainImageFormat(),
-                               SamplingMode::DISABLED, true}));
-  };
-
-  make_half("bloom.extract");
-  make_half("bloom.blur_h");
-  make_half("bloom.blur_v");
-  make_half("bloom.blur_h2");
-  make_half("bloom.blur_v2");
-
-  pool.SetTexture(
-      "bloom.composite",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-
-  auto make_fb = [&](const std::string& name, uint32_t w, uint32_t h) {
-    pool.SetFramebuffer(
-        name, render_pass_->CreateFramebuffer(
-                  0, {pool.GetTexture(name).get()}, {w, h}));
-  };
-
-  make_fb("bloom.extract", hrw, hrh);
-  make_fb("bloom.blur_h", hrw, hrh);
-  make_fb("bloom.blur_v", hrw, hrh);
-  make_fb("bloom.blur_h2", hrw, hrh);
-  make_fb("bloom.blur_v2", hrw, hrh);
-  make_fb("bloom.composite", rw, rh);
-
-  auto make_desc = [&](const std::string& name,
-                       const std::string& texture_name) {
-    auto desc = std::make_shared<DescriptorSet>();
-    desc->SetLayout(present_layout);
-    desc->AddCombinedImageSampler(
-        0, pool.GetTexture(texture_name)->image_views_[0], linear);
-    desc->Bake();
-    pool.SetDescriptor(name, desc);
-  };
-
-  make_desc("bloom.extract_input", "PipelineOutput");
-  make_desc("bloom.blur_h_input", "bloom.extract");
-  make_desc("bloom.blur_v_input", "bloom.blur_h");
-  make_desc("bloom.blur_h2_input", "bloom.blur_v");
-  make_desc("bloom.blur_v2_input", "bloom.blur_h2");
-
-  auto composite_input = std::make_shared<DescriptorSet>();
-  composite_input->SetLayout(
-      renderer.GetDescriptorLayout("Postprocess2Input"));
-  composite_input->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0], linear);
-  composite_input->AddCombinedImageSampler(
-      1, pool.GetTexture("bloom.blur_v")->image_views_[0], linear);
-  composite_input->Bake();
-  pool.SetDescriptor("bloom.composite_input", composite_input);
-
-  // HQ composite reads from blur_v2 instead
-  auto composite_hq_input = std::make_shared<DescriptorSet>();
-  composite_hq_input->SetLayout(
-      renderer.GetDescriptorLayout("Postprocess2Input"));
-  composite_hq_input->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0], linear);
-  composite_hq_input->AddCombinedImageSampler(
-      1, pool.GetTexture("bloom.blur_v2")->image_views_[0], linear);
-  composite_hq_input->Bake();
-  pool.SetDescriptor("bloom.composite_hq_input", composite_hq_input);
-
-  auto output_desc = std::make_shared<DescriptorSet>();
-  output_desc->SetLayout(present_layout);
-  output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("bloom.composite")->image_views_[0], linear);
-  output_desc->Bake();
-  pool.SetDescriptor("bloom.output", output_desc);
-
-  pool.SetTexture("PipelineOutput", pool.GetTexture("bloom.composite"));
-  pool.SetDescriptor("PipelineOutputDescriptor", output_desc);
-}
+void BloomFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void BloomFeature::AddPasses(RenderGraph& graph,
                              RenderResourceRegistry& registry,
@@ -220,123 +132,159 @@ void BloomFeature::AddPasses(RenderGraph& graph,
   composite_push_->tint_intensity =
       glm::vec4(tint, static_cast<float>(opts.bloom_intensity));
 
-  glm::vec2 half_vp = {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2};
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
+  glm::vec2 half_vp = {rw / 2, rh / 2};
+
+  RGTextureDesc half_desc{
+      .name = {},
+      .width = rw / 2,
+      .height = rh / 2,
+      .format = renderer->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true};
+
+  half_desc.name = "bloom.extract";
+  RGResource extract_out = graph.DeclareTransient(half_desc);
+  half_desc.name = "bloom.blur_h";
+  RGResource blur_h_out = graph.DeclareTransient(half_desc);
+  half_desc.name = "bloom.blur_v";
+  RGResource blur_v_out = graph.DeclareTransient(half_desc);
+  RGResource composite_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "bloom.composite",
+      .width = rw,
+      .height = rh,
+      .format = renderer->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
 
   RGResource pipeline_input = registry.Get("PipelineOutput");
-  RGResource extract_out =
-      graph.ImportTexture("BloomExtract", pool->GetTexture("bloom.extract"));
-  RGResource blur_h_out =
-      graph.ImportTexture("BloomBlurH", pool->GetTexture("bloom.blur_h"));
-  RGResource blur_v_out =
-      graph.ImportTexture("BloomBlurV", pool->GetTexture("bloom.blur_v"));
-  RGResource composite_out = graph.ImportTexture(
-      "BloomComposite", pool->GetTexture("bloom.composite"));
 
-  // Extract
-  auto extract_pipeline = extract_pipeline_;
-  uint32_t extract_pass = graph.AddPass(
-      "Bloom Extract", render_pass_,
-      [pool, extract_pipeline](VkCommandBuffer) {
-        extract_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            extract_pipeline, {pool->GetDescriptor("bloom.extract_input")});
-      });
-  graph.PassReadsTexture(extract_pass, pipeline_input);
-  graph.PassWritesColor(extract_pass, extract_out);
-  graph.SetPassFramebuffer(extract_pass, pool->GetFramebuffer("bloom.extract"));
-  graph.SetPassViewport(extract_pass, half_vp);
-  graph.SetPassClearColor(extract_pass, {0, 0, 0, 0});
+  // Wire a single-sampler stage (extract or blur iteration): pass reads
+  // input_resource, writes output_resource, resolve fn rebuilds the
+  // framebuffer + input descriptor when pool assignments change.
+  auto emit_stage = [&, this, renderer](
+                        const std::shared_ptr<Pipeline>& pipeline,
+                        StageBindings& bindings, RGResource input_resource,
+                        RGResource output_resource, const char* pass_name) {
+    uint32_t pass = graph.AddPass(
+        pass_name, render_pass_,
+        [renderer, pipeline, &bindings](VkCommandBuffer) {
+          pipeline->Bind(PipelineBindPointGraphics);
+          renderer->DrawFullscreen(pipeline, {bindings.input_desc});
+        });
+    graph.PassReadsTexture(pass, input_resource);
+    graph.PassWritesColor(pass, output_resource);
+    graph.SetPassViewport(pass, half_vp);
+    graph.SetPassClearColor(pass, {0, 0, 0, 0});
+    graph.SetPassResolveFn(
+        pass,
+        [this, renderer, &bindings, pass, input_resource, output_resource,
+         half_vp](RenderGraph& g) {
+          auto output = g.GetTexture(output_resource);
+          auto input = g.GetTexture(input_resource);
+          auto linear = renderer->GetDefaultLinearSampler();
+          auto present_layout = renderer->GetDescriptorLayout("Present");
 
-  // Blur H
-  auto blur_h_pipeline = blur_h_pipeline_;
-  uint32_t blur_h_pass = graph.AddPass(
-      "Bloom Blur H", render_pass_,
-      [pool, blur_h_pipeline](VkCommandBuffer) {
-        blur_h_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            blur_h_pipeline, {pool->GetDescriptor("bloom.blur_h_input")});
-      });
-  graph.PassReadsTexture(blur_h_pass, extract_out);
-  graph.PassWritesColor(blur_h_pass, blur_h_out);
-  graph.SetPassFramebuffer(blur_h_pass, pool->GetFramebuffer("bloom.blur_h"));
-  graph.SetPassViewport(blur_h_pass, half_vp);
-  graph.SetPassClearColor(blur_h_pass, {0, 0, 0, 0});
+          if (bindings.output_key != output.get()) {
+            bindings.framebuffer = render_pass_->CreateFramebuffer(
+                0, {output.get()},
+                {static_cast<uint32_t>(half_vp.x),
+                 static_cast<uint32_t>(half_vp.y)});
+            bindings.output_key = output.get();
+          }
+          g.SetPassFramebuffer(pass, bindings.framebuffer);
 
-  // Blur V
-  auto blur_v_pipeline = blur_v_pipeline_;
-  uint32_t blur_v_pass = graph.AddPass(
-      "Bloom Blur V", render_pass_,
-      [pool, blur_v_pipeline](VkCommandBuffer) {
-        blur_v_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            blur_v_pipeline, {pool->GetDescriptor("bloom.blur_v_input")});
-      });
-  graph.PassReadsTexture(blur_v_pass, blur_h_out);
-  graph.PassWritesColor(blur_v_pass, blur_v_out);
-  graph.SetPassFramebuffer(blur_v_pass, pool->GetFramebuffer("bloom.blur_v"));
-  graph.SetPassViewport(blur_v_pass, half_vp);
-  graph.SetPassClearColor(blur_v_pass, {0, 0, 0, 0});
+          if (bindings.input_key != input.get()) {
+            auto desc = std::make_shared<DescriptorSet>();
+            desc->SetLayout(present_layout);
+            desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+            desc->Bake();
+            bindings.input_desc = desc;
+            bindings.input_key = input.get();
+          }
+        });
+  };
 
-  // HQ: extra blur iterations
+  emit_stage(extract_pipeline_, extract_bindings_, pipeline_input, extract_out,
+             "Bloom Extract");
+  emit_stage(blur_h_pipeline_, blur_h_bindings_, extract_out, blur_h_out,
+             "Bloom Blur H");
+  emit_stage(blur_v_pipeline_, blur_v_bindings_, blur_h_out, blur_v_out,
+             "Bloom Blur V");
+
   RGResource final_blur = blur_v_out;
   if (hq) {
-    RGResource blur_h2_out =
-        graph.ImportTexture("BloomBlurH2", pool->GetTexture("bloom.blur_h2"));
-    RGResource blur_v2_out =
-        graph.ImportTexture("BloomBlurV2", pool->GetTexture("bloom.blur_v2"));
+    half_desc.name = "bloom.blur_h2";
+    RGResource blur_h2_out = graph.DeclareTransient(half_desc);
+    half_desc.name = "bloom.blur_v2";
+    RGResource blur_v2_out = graph.DeclareTransient(half_desc);
 
-    auto blur_h2_pipeline = blur_h2_pipeline_;
-    uint32_t blur_h2_pass = graph.AddPass(
-        "Bloom Blur H2", render_pass_,
-        [pool, blur_h2_pipeline](VkCommandBuffer) {
-          blur_h2_pipeline->Bind(PipelineBindPointGraphics);
-          Engine::renderer()->DrawFullscreen(
-              blur_h2_pipeline,
-              {pool->GetDescriptor("bloom.blur_h2_input")});
-        });
-    graph.PassReadsTexture(blur_h2_pass, blur_v_out);
-    graph.PassWritesColor(blur_h2_pass, blur_h2_out);
-    graph.SetPassFramebuffer(blur_h2_pass,
-                             pool->GetFramebuffer("bloom.blur_h2"));
-    graph.SetPassViewport(blur_h2_pass, half_vp);
-    graph.SetPassClearColor(blur_h2_pass, {0, 0, 0, 0});
-
-    auto blur_v2_pipeline = blur_v2_pipeline_;
-    uint32_t blur_v2_pass = graph.AddPass(
-        "Bloom Blur V2", render_pass_,
-        [pool, blur_v2_pipeline](VkCommandBuffer) {
-          blur_v2_pipeline->Bind(PipelineBindPointGraphics);
-          Engine::renderer()->DrawFullscreen(
-              blur_v2_pipeline,
-              {pool->GetDescriptor("bloom.blur_v2_input")});
-        });
-    graph.PassReadsTexture(blur_v2_pass, blur_h2_out);
-    graph.PassWritesColor(blur_v2_pass, blur_v2_out);
-    graph.SetPassFramebuffer(blur_v2_pass,
-                             pool->GetFramebuffer("bloom.blur_v2"));
-    graph.SetPassViewport(blur_v2_pass, half_vp);
-    graph.SetPassClearColor(blur_v2_pass, {0, 0, 0, 0});
+    emit_stage(blur_h2_pipeline_, blur_h2_bindings_, blur_v_out, blur_h2_out,
+               "Bloom Blur H2");
+    emit_stage(blur_v2_pipeline_, blur_v2_bindings_, blur_h2_out, blur_v2_out,
+               "Bloom Blur V2");
 
     final_blur = blur_v2_out;
   }
 
-  // Composite
-  std::string comp_input_name =
-      hq ? "bloom.composite_hq_input" : "bloom.composite_input";
+  // Composite: reads (PipelineOutput, final_blur), writes bloom.composite,
+  // publishes itself as the new PipelineOutput for downstream features.
   auto composite_pipeline = composite_pipeline_;
   uint32_t comp_pass = graph.AddPass(
       "Bloom Composite", render_pass_,
-      [pool, composite_pipeline, comp_input_name](VkCommandBuffer) {
+      [this, renderer, composite_pipeline](VkCommandBuffer) {
         composite_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            composite_pipeline, {pool->GetDescriptor(comp_input_name)});
+        renderer->DrawFullscreen(composite_pipeline, {composite_input_desc_});
       });
   graph.PassReadsTexture(comp_pass, pipeline_input);
   graph.PassReadsTexture(comp_pass, final_blur);
   graph.PassWritesColor(comp_pass, composite_out);
-  graph.SetPassFramebuffer(comp_pass, pool->GetFramebuffer("bloom.composite"));
   graph.SetPassViewport(comp_pass, ctx.viewport_size);
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      comp_pass,
+      [this, renderer, pool, comp_pass, composite_out, pipeline_input,
+       final_blur, rw, rh](RenderGraph& g) {
+        auto output = g.GetTexture(composite_out);
+        auto input = g.GetTexture(pipeline_input);
+        auto blur = g.GetTexture(final_blur);
+        auto linear = renderer->GetDefaultLinearSampler();
+        auto present_layout = renderer->GetDescriptorLayout("Present");
+        auto two_input_layout =
+            renderer->GetDescriptorLayout("Postprocess2Input");
+
+        if (composite_output_key_ != output.get()) {
+          composite_framebuffer_ = render_pass_->CreateFramebuffer(
+              0, {output.get()}, {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          composite_output_desc_ = desc;
+          composite_output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(comp_pass, composite_framebuffer_);
+
+        if (composite_input_key_ != input.get() ||
+            composite_blur_key_ != blur.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(two_input_layout);
+          desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          desc->AddCombinedImageSampler(1, blur->image_views_[0], linear);
+          desc->Bake();
+          composite_input_desc_ = desc;
+          composite_input_key_ = input.get();
+          composite_blur_key_ = blur.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", composite_output_desc_);
+      });
 
   registry.Register("PipelineOutput", composite_out);
 }

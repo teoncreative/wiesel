@@ -10,6 +10,7 @@
 //
 
 #include "rendering/features/w_toon_feature.h"
+#include "rendering/w_framebuffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
 #include "rendering/w_renderpass.h"
@@ -59,56 +60,7 @@ bool ToonFeature::IsEnabled(const RenderContext& ctx) const {
   return true;
 }
 
-void ToonFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("ToonFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-
-  // Texture
-  pool.SetTexture("toon.color", renderer.CreateAttachmentTexture(
-                                    {rw, rh, AttachmentTextureType::Offscreen,
-                                     1, renderer.GetSwapChainImageFormat(),
-                                     SamplingMode::DISABLED, true}));
-
-  // Framebuffer
-  {
-    std::array<AttachmentTexture*, 1> att{pool.GetTexture("toon.color").get()};
-    pool.SetFramebuffer("toon",
-                        render_pass_->CreateFramebuffer(0, att, {rw, rh}));
-  }
-
-  // Descriptors
-
-  // Toon input: reads PipelineOutput + geometry normals + geometry depth
-  auto toon_input_desc = std::make_shared<DescriptorSet>();
-  toon_input_desc->SetLayout(toon_input_layout_);
-  toon_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  toon_input_desc->AddCombinedImageSampler(
-      1, pool.GetTexture("geometry.normal_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  toon_input_desc->AddCombinedImageSampler(
-      2, pool.GetTexture("geometry.depth_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  toon_input_desc->Bake();
-  pool.SetDescriptor("toon.input", toon_input_desc);
-
-  // Toon output descriptor: reads toon.color
-  auto toon_output_desc = std::make_shared<DescriptorSet>();
-  toon_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  toon_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("toon.color")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  toon_output_desc->Bake();
-  pool.SetDescriptor("toon.output", toon_output_desc);
-
-  // Update pipeline output for the next feature in the chain
-  pool.SetTexture("PipelineOutput", pool.GetTexture("toon.color"));
-  pool.SetDescriptor("PipelineOutputDescriptor", toon_output_desc);
-}
+void ToonFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void ToonFeature::AddPasses(RenderGraph& graph,
                             RenderResourceRegistry& registry,
@@ -117,38 +69,79 @@ void ToonFeature::AddPasses(RenderGraph& graph,
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
   auto push_constants = push_constants_;
-  glm::vec2 viewport_size = ctx.viewport_size;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  // Import toon output texture from pool
-  RGResource toon_out =
-      graph.ImportTexture("Toon", pool->GetTexture("toon.color"));
+  RGResource toon_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "toon.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
 
-  // Get PipelineOutput from registry (set by previous feature)
-  auto pipeline_input = registry.Get("PipelineOutput");
+  RGResource pipeline_input = registry.Get("PipelineOutput");
+  RGResource geo_normal = registry.Get("GeoNormal");
+  RGResource geo_depth = registry.Get("GeoDepth");
 
-  // Also depend on the geometry pass outputs (normals + depth)
-  auto geo_normal = registry.Get("GeoNormal");
-  auto geo_depth = registry.Get("GeoDepth");
-
-  // Toon pass
   auto pipeline = pipeline_;
+  auto input_layout = toon_input_layout_;
   uint32_t toon_pass = graph.AddPass(
       "Toon", render_pass_,
-      [pool, renderer, pipeline, push_constants,
-       viewport_size](VkCommandBuffer) {
+      [this, renderer, pipeline, push_constants](VkCommandBuffer) {
         pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(pipeline, {pool->GetDescriptor("toon.input")});
+        renderer->DrawFullscreen(pipeline, {input_desc_});
       });
-
   graph.PassReadsTexture(toon_pass, pipeline_input);
   graph.PassReadsTexture(toon_pass, geo_normal);
   graph.PassReadsTexture(toon_pass, geo_depth);
   graph.PassWritesColor(toon_pass, toon_out);
-  graph.SetPassFramebuffer(toon_pass, pool->GetFramebuffer("toon"));
   graph.SetPassViewport(toon_pass, ctx.viewport_size);
   graph.SetPassClearColor(toon_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      toon_pass,
+      [this, renderer, pool, toon_pass, toon_out, pipeline_input, geo_normal,
+       geo_depth, input_layout, rw, rh](RenderGraph& g) {
+        auto output = g.GetTexture(toon_out);
+        auto input = g.GetTexture(pipeline_input);
+        auto normal = g.GetTexture(geo_normal);
+        auto depth = g.GetTexture(geo_depth);
+        auto linear = renderer->GetDefaultLinearSampler();
+        auto nearest = renderer->GetDefaultNearestSampler();
+        auto present_layout = renderer->GetDescriptorLayout("Present");
 
-  // Update PipelineOutput for the next feature in the chain
+        if (output_key_ != output.get()) {
+          framebuffer_ = render_pass_->CreateFramebuffer(0, {output.get()},
+                                                        {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          output_desc_ = desc;
+          output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(toon_pass, framebuffer_);
+
+        if (input_key_ != input.get() || normal_key_ != normal.get() ||
+            depth_key_ != depth.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(input_layout);
+          desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          desc->AddCombinedImageSampler(1, normal->image_views_[0], nearest);
+          desc->AddCombinedImageSampler(2, depth->image_views_[0], nearest);
+          desc->Bake();
+          input_desc_ = desc;
+          input_key_ = input.get();
+          normal_key_ = normal.get();
+          depth_key_ = depth.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", output_desc_);
+      });
+
   registry.Register("PipelineOutput", toon_out);
 }
 

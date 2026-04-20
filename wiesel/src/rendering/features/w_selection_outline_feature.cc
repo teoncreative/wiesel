@@ -10,6 +10,7 @@
 
 #include "rendering/features/w_selection_outline_feature.h"
 #include "asset/w_asset_manager.h"
+#include "rendering/w_framebuffer.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
@@ -154,89 +155,7 @@ bool SelectionOutlineFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.is_external;
 }
 
-void SelectionOutlineFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("SelectionOutlineFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-  auto linear = renderer.GetDefaultLinearSampler();
-  auto nearest = renderer.GetDefaultNearestSampler();
-  auto present_layout = renderer.GetDescriptorLayout("Present");
-
-  auto make_r8 = [&](const std::string& name) {
-    pool.SetTexture(name,
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Offscreen, 1,
-                         VK_FORMAT_R8_UNORM, SamplingMode::DISABLED, true}));
-  };
-
-  make_r8("outline.mask");
-  make_r8("outline.blur_h");
-  make_r8("outline.blur_v");
-
-  pool.SetFramebuffer(
-      "outline.mask",
-      mask_render_pass_->CreateFramebuffer(
-          0, {pool.GetTexture("outline.mask").get()}, {rw, rh}));
-  pool.SetFramebuffer(
-      "outline.blur_h",
-      blur_render_pass_->CreateFramebuffer(
-          0, {pool.GetTexture("outline.blur_h").get()}, {rw, rh}));
-  pool.SetFramebuffer(
-      "outline.blur_v",
-      blur_render_pass_->CreateFramebuffer(
-          0, {pool.GetTexture("outline.blur_v").get()}, {rw, rh}));
-
-  // Blur H input: reads mask
-  auto blur_h_input = std::make_shared<DescriptorSet>();
-  blur_h_input->SetLayout(present_layout);
-  blur_h_input->AddCombinedImageSampler(
-      0, pool.GetTexture("outline.mask")->image_views_[0], linear);
-  blur_h_input->Bake();
-  pool.SetDescriptor("outline.blur_h_input", blur_h_input);
-
-  // Blur V input: reads blur H output
-  auto blur_v_input = std::make_shared<DescriptorSet>();
-  blur_v_input->SetLayout(present_layout);
-  blur_v_input->AddCombinedImageSampler(
-      0, pool.GetTexture("outline.blur_h")->image_views_[0], linear);
-  blur_v_input->Bake();
-  pool.SetDescriptor("outline.blur_v_input", blur_v_input);
-
-  // Composite output
-  pool.SetTexture(
-      "outline.output",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-  pool.SetFramebuffer(
-      "outline.output",
-      comp_render_pass_->CreateFramebuffer(
-          0, {pool.GetTexture("outline.output").get()}, {rw, rh}));
-
-  // Composite input: scene + blurred mask + original mask
-  auto comp_input = std::make_shared<DescriptorSet>();
-  comp_input->SetLayout(comp_desc_layout_);
-  comp_input->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0], linear);
-  comp_input->AddCombinedImageSampler(
-      1, pool.GetTexture("outline.blur_v")->image_views_[0], linear);
-  comp_input->AddCombinedImageSampler(
-      2, pool.GetTexture("outline.mask")->image_views_[0], nearest);
-  comp_input->Bake();
-  pool.SetDescriptor("outline.comp_input", comp_input);
-
-  auto output_desc = std::make_shared<DescriptorSet>();
-  output_desc->SetLayout(present_layout);
-  output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("outline.output")->image_views_[0], linear);
-  output_desc->Bake();
-  pool.SetDescriptor("outline.output_desc", output_desc);
-
-  pool.SetTexture("PipelineOutput", pool.GetTexture("outline.output"));
-  pool.SetDescriptor("PipelineOutputDescriptor", output_desc);
-}
+void SelectionOutlineFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
                                         RenderResourceRegistry& registry,
@@ -311,9 +230,34 @@ void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
     }
   }
 
+  auto renderer = renderer_;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
+  RGTextureDesc r8_desc{.name = {},
+                        .width = rw,
+                        .height = rh,
+                        .format = VK_FORMAT_R8_UNORM,
+                        .samples = SamplingMode::DISABLED,
+                        .type = AttachmentTextureType::Offscreen,
+                        .layer_count = 1,
+                        .sampled = true};
+  r8_desc.name = "outline.mask";
+  RGResource mask_out = graph.DeclareTransient(r8_desc);
+  r8_desc.name = "outline.blur_h";
+  RGResource blur_h_out = graph.DeclareTransient(r8_desc);
+  r8_desc.name = "outline.blur_v";
+  RGResource blur_v_out = graph.DeclareTransient(r8_desc);
+  RGResource comp_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "outline.output",
+      .width = rw,
+      .height = rh,
+      .format = renderer->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
+
   RGResource pipeline_out = registry.Get("PipelineOutput");
-  RGResource comp_out =
-      graph.ImportTexture("OutlineOutput", pool->GetTexture("outline.output"));
 
   glm::mat4 vp = ctx.camera.projection * ctx.camera.view_matrix;
   auto mask_pipeline = mask_pipeline_;
@@ -326,14 +270,7 @@ void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
   blur_push->radius = outline_thickness;
   comp_push_constant_->outline_color = outline_color;
 
-  RGResource mask_out =
-      graph.ImportTexture("OutlineMask", pool->GetTexture("outline.mask"));
-  RGResource blur_h_out =
-      graph.ImportTexture("OutlineBlurH", pool->GetTexture("outline.blur_h"));
-  RGResource blur_v_out =
-      graph.ImportTexture("OutlineBlurV", pool->GetTexture("outline.blur_v"));
-
-  // Pass 1: Mask
+  // --- Mask pass ---
   uint32_t mask_pass = graph.AddPass(
       "SelectionMask", mask_render_pass_,
       [mask_pipeline, mask_push, draws, vp](VkCommandBuffer cmd) {
@@ -345,60 +282,127 @@ void SelectionOutlineFeature::AddPasses(RenderGraph& graph,
           Engine::renderer()->DrawMeshSimple(cmd, d.mesh, d.bone_descriptor);
         }
       });
-
   graph.PassWritesColor(mask_pass, mask_out);
-  graph.SetPassFramebuffer(mask_pass, pool->GetFramebuffer("outline.mask"));
   graph.SetPassViewport(mask_pass, ctx.viewport_size);
   graph.SetPassClearColor(mask_pass, {0, 0, 0, 0});
-
-  // Pass 2: Blur horizontal
-  uint32_t blur_h_pass = graph.AddPass(
-      "SelectionBlurH", blur_render_pass_,
-      [pool, blur_h_pipeline](VkCommandBuffer) {
-        blur_h_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            blur_h_pipeline, {pool->GetDescriptor("outline.blur_h_input")});
+  graph.SetPassResolveFn(
+      mask_pass, [this, mask_pass, mask_out, rw, rh](RenderGraph& g) {
+        auto tex = g.GetTexture(mask_out);
+        if (mask_key_ != tex.get()) {
+          mask_framebuffer_ = mask_render_pass_->CreateFramebuffer(
+              0, {tex.get()}, {rw, rh});
+          mask_key_ = tex.get();
+        }
+        g.SetPassFramebuffer(mask_pass, mask_framebuffer_);
       });
 
-  graph.PassReadsTexture(blur_h_pass, mask_out);
-  graph.PassWritesColor(blur_h_pass, blur_h_out);
-  graph.SetPassFramebuffer(blur_h_pass, pool->GetFramebuffer("outline.blur_h"));
-  graph.SetPassViewport(blur_h_pass, ctx.viewport_size);
-  graph.SetPassClearColor(blur_h_pass, {0, 0, 0, 0});
+  // --- Blur helper (single-sampler R8 blur) ---
+  auto emit_blur = [&, this, renderer](
+                       const std::shared_ptr<Pipeline>& pipeline,
+                       BlurBindings& bindings, RGResource input_resource,
+                       RGResource output_resource, const char* pass_name) {
+    uint32_t pass = graph.AddPass(
+        pass_name, blur_render_pass_,
+        [renderer, pipeline, &bindings](VkCommandBuffer) {
+          pipeline->Bind(PipelineBindPointGraphics);
+          Engine::renderer()->DrawFullscreen(pipeline, {bindings.input_desc});
+        });
+    graph.PassReadsTexture(pass, input_resource);
+    graph.PassWritesColor(pass, output_resource);
+    graph.SetPassViewport(pass, ctx.viewport_size);
+    graph.SetPassClearColor(pass, {0, 0, 0, 0});
+    graph.SetPassResolveFn(
+        pass,
+        [this, renderer, &bindings, pass, input_resource, output_resource, rw,
+         rh](RenderGraph& g) {
+          auto output = g.GetTexture(output_resource);
+          auto input = g.GetTexture(input_resource);
+          auto linear = renderer->GetDefaultLinearSampler();
 
-  // Pass 3: Blur vertical
-  uint32_t blur_v_pass = graph.AddPass(
-      "SelectionBlurV", blur_render_pass_,
-      [pool, blur_v_pipeline](VkCommandBuffer) {
-        blur_v_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            blur_v_pipeline, {pool->GetDescriptor("outline.blur_v_input")});
-      });
+          if (bindings.output_key != output.get()) {
+            bindings.framebuffer = blur_render_pass_->CreateFramebuffer(
+                0, {output.get()}, {rw, rh});
+            bindings.output_key = output.get();
+          }
+          g.SetPassFramebuffer(pass, bindings.framebuffer);
 
-  graph.PassReadsTexture(blur_v_pass, blur_h_out);
-  graph.PassWritesColor(blur_v_pass, blur_v_out);
-  graph.SetPassFramebuffer(blur_v_pass, pool->GetFramebuffer("outline.blur_v"));
-  graph.SetPassViewport(blur_v_pass, ctx.viewport_size);
-  graph.SetPassClearColor(blur_v_pass, {0, 0, 0, 0});
+          if (bindings.input_key != input.get()) {
+            auto desc = std::make_shared<DescriptorSet>();
+            // Single-sampler layout is the first input layout on the pipeline.
+            desc->SetLayout(renderer->GetDescriptorLayout("Present"));
+            desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+            desc->Bake();
+            bindings.input_desc = desc;
+            bindings.input_key = input.get();
+          }
+        });
+  };
 
-  // Pass 4: Composite
+  emit_blur(blur_h_pipeline, blur_h_bindings_, mask_out, blur_h_out,
+            "SelectionBlurH");
+  emit_blur(blur_v_pipeline, blur_v_bindings_, blur_h_out, blur_v_out,
+            "SelectionBlurV");
+
+  // --- Composite pass ---
   uint32_t comp_pass = graph.AddPass(
       "SelectionOutlineComposite", comp_render_pass_,
-      [pool, comp_pipeline](VkCommandBuffer) {
+      [this, comp_pipeline](VkCommandBuffer) {
         comp_pipeline->Bind(PipelineBindPointGraphics);
-        Engine::renderer()->DrawFullscreen(
-            comp_pipeline, {pool->GetDescriptor("outline.comp_input")});
+        Engine::renderer()->DrawFullscreen(comp_pipeline, {comp_input_desc_});
       });
-
   if (pipeline_out.IsValid()) {
     graph.PassReadsTexture(comp_pass, pipeline_out);
   }
   graph.PassReadsTexture(comp_pass, blur_v_out);
   graph.PassReadsTexture(comp_pass, mask_out);
   graph.PassWritesColor(comp_pass, comp_out);
-  graph.SetPassFramebuffer(comp_pass, pool->GetFramebuffer("outline.output"));
   graph.SetPassViewport(comp_pass, ctx.viewport_size);
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 1});
+  graph.SetPassResolveFn(
+      comp_pass,
+      [this, renderer, pool, comp_pass, comp_out, pipeline_out, blur_v_out,
+       mask_out, rw, rh](RenderGraph& g) {
+        auto output = g.GetTexture(comp_out);
+        auto scene = pipeline_out.IsValid() ? g.GetTexture(pipeline_out)
+                                            : std::shared_ptr<AttachmentTexture>{};
+        auto blur = g.GetTexture(blur_v_out);
+        auto mask = g.GetTexture(mask_out);
+        auto linear = renderer->GetDefaultLinearSampler();
+        auto nearest = renderer->GetDefaultNearestSampler();
+        auto present_layout = renderer->GetDescriptorLayout("Present");
+
+        if (comp_output_key_ != output.get()) {
+          comp_framebuffer_ = comp_render_pass_->CreateFramebuffer(
+              0, {output.get()}, {rw, rh});
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          output_desc_ = desc;
+          comp_output_key_ = output.get();
+        }
+        g.SetPassFramebuffer(comp_pass, comp_framebuffer_);
+
+        AttachmentTexture* scene_key = scene ? scene.get() : nullptr;
+        if (comp_scene_key_ != scene_key || comp_blur_key_ != blur.get() ||
+            comp_mask_key_ != mask.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(comp_desc_layout_);
+          if (scene) {
+            desc->AddCombinedImageSampler(0, scene->image_views_[0], linear);
+          }
+          desc->AddCombinedImageSampler(1, blur->image_views_[0], linear);
+          desc->AddCombinedImageSampler(2, mask->image_views_[0], nearest);
+          desc->Bake();
+          comp_input_desc_ = desc;
+          comp_scene_key_ = scene_key;
+          comp_blur_key_ = blur.get();
+          comp_mask_key_ = mask.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", output_desc_);
+      });
 
   registry.Register("PipelineOutput", comp_out);
 }
