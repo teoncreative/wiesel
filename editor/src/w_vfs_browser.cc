@@ -21,9 +21,7 @@
 
 namespace wiesel::editor {
 
-// ---------------------------------------------------------------------------
-// VfsBrowser - Navigation
-// ---------------------------------------------------------------------------
+// ---- VfsBrowser - Navigation ----
 
 void VfsBrowser::SetRoot(const std::string& root) {
   root_ = root;
@@ -174,9 +172,7 @@ std::vector<std::pair<std::string, std::string>> VfsBrowser::Breadcrumbs()
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// VfsBrowser - Tile rendering
-// ---------------------------------------------------------------------------
+// ---- VfsBrowser - Tile rendering ----
 
 void VfsBrowser::BeginTileGrid() {
   float panel_width = ImGui::GetContentRegionAvail().x;
@@ -415,9 +411,7 @@ bool VfsBrowser::RenderBreadcrumbs() {
   return changed;
 }
 
-// ---------------------------------------------------------------------------
-// Asset display helpers
-// ---------------------------------------------------------------------------
+// ---- Asset display helpers ----
 
 ImVec4 VfsBrowser::GetAssetColor(AssetType type) {
   switch (type) {
@@ -501,9 +495,7 @@ const char* VfsBrowser::GetAssetAbbrev(AssetType type) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// VfsFilePicker
-// ---------------------------------------------------------------------------
+// ---- VfsFilePicker ----
 
 void VfsFilePicker::Open(const std::string& title, AssetType filter,
                          Callback callback) {

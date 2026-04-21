@@ -30,7 +30,8 @@ std::string GenerateReflection(const ParseResult& parse_result,
   out << "// entt/meta and core/w_reflect.h must be included before this "
          "file.\n";
   out << "#pragma once\n\n";
-  out << "#include \"" << original_include_path << "\"\n\n";
+  out << "#include \"" << original_include_path << "\"\n";
+  out << "#include \"core/w_reflect_facade.h\"\n\n";
   out << "namespace wiesel::generated {\n\n";
 
   for (const auto& cls : parse_result.classes) {
@@ -69,6 +70,8 @@ std::string GenerateReflection(const ParseResult& parse_result,
     }
 
     out << ";\n";
+    out << "  wiesel::reflect::RegisterType<" << cls.qualified_name << ">(\""
+        << cls.short_name << "\");\n";
     out << "}\n\n";
   }
 

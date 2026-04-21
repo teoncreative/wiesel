@@ -56,7 +56,7 @@ void UIDocumentSystem::Update(Scene& scene, float delta_time) {
       }
       auto& rt2 = registry.get<UIDocumentRuntime>(entity);
 
-      auto doc_asset = assets.GetOrLoad<UIDocumentAsset>(doc.document_handle);
+      auto doc_asset = assets.GetOrStartLoad<UIDocumentAsset>(doc.document_handle);
       if (doc_asset && !doc_asset->vfs_path.empty()) {
         IdComponent id_component = registry.get<IdComponent>(entity);
         rt2.context_name = "ui_" + id_component.Id.ToString();

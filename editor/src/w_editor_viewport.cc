@@ -18,6 +18,7 @@
 #include "scene/w_scene_manager.h"
 #include "script/w_scriptmanager.h"
 #include "util/imgui/w_imguiutil.h"
+#include "w_editor_entity_factory.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
@@ -40,63 +41,21 @@ static constexpr int kResolutionPresetCount =
 
 static constexpr float kResolutionComboWidth = 130.0f;
 
-// Helper: renders the contents of an "Add" entity menu.
-// If parent != entt::null, the entity is linked as a child.
-// Returns true if an entity was created.
+// Thin wrapper around the shared EntityFactoryRegistry-driven menu so the
+// existing call site keeps the (Scene, dirty, parent, spawn_pos) signature.
 static bool RenderAddEntityMenu(Scene& scene, bool& dirty,
                                 CommandStack& commands,
                                 entt::entity parent = entt::null,
                                 const glm::vec3* spawn_pos = nullptr) {
-  Entity created{entt::null, nullptr};
-
-  if (ImGui::MenuItem("Empty Entity")) {
-    created = scene.CreateEntity();
-  }
-
-  if (ImGui::BeginMenu("3D Shape")) {
-    const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder", "Capsule"};
-    for (const char* shape : shapes) {
-      if (ImGui::MenuItem(shape)) {
-        created = scene.CreateEntity(shape);
-        auto& mc = created.AddComponent<MeshRendererComponent>();
-        mc.model_handle = Engine::GetPrimitive(shape);
-        mc.mesh_index = 0;
-      }
-    }
-    ImGui::EndMenu();
-  }
-
-  if (ImGui::BeginMenu("Light")) {
-    if (ImGui::MenuItem("Directional Light")) {
-      created = scene.CreateEntity("Directional Light");
-      created.AddComponent<LightDirectComponent>();
-    }
-    if (ImGui::MenuItem("Point Light")) {
-      created = scene.CreateEntity("Point Light");
-      created.AddComponent<LightPointComponent>();
-    }
-    ImGui::EndMenu();
-  }
-
-  if (ImGui::MenuItem("Camera")) {
-    created = scene.CreateEntity("Camera");
-    created.AddComponent<CameraComponent>();
-  }
-
+  Entity parent_entity = parent == entt::null
+                             ? kInvalidEntity
+                             : Entity{parent, &scene};
+  Entity created =
+      RenderEntityFactoryMenu(scene, commands, parent_entity, spawn_pos);
   if (created) {
-    if (parent != entt::null) {
-      scene.LinkEntities(parent, created);
-    }
-    if (spawn_pos) {
-      auto& tc = created.GetComponent<TransformComponent>();
-      tc.SetPosition(*spawn_pos);
-    }
-    commands.Execute(
-        std::make_unique<EntityCreateCommand>(created.ToRef()));
     dirty = true;
     return true;
   }
-
   return false;
 }
 
@@ -642,6 +601,7 @@ void EditorLayer::RenderSceneViewportPanel() {
 void EditorLayer::RenderGameViewportPanel() {
   Renderer* renderer = Engine::renderer().get();
 
+  game_panel_hovered_ = false;
   bool& game_view_open = panel_game_view_;
   if (game_view_open) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -650,6 +610,10 @@ void EditorLayer::RenderGameViewportPanel() {
     ImGui::PopStyleVar();
     game_panel_visible_ = game_visible;
     game_panel_focused_ = ImGui::IsWindowFocused();
+    game_panel_hovered_ =
+        game_visible &&
+        ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup |
+                               ImGuiHoveredFlags_ChildWindows);
     if (game_visible) {
       {
         const ImVec2 pad = ImGui::GetStyle().WindowPadding;

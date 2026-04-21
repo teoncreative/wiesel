@@ -99,7 +99,7 @@ void SkeletalAnimRuntime::Initialize() {
     return;
   }
 
-  auto model_data = Engine::asset_manager().GetOrLoad<Model>(model_handle);
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(model_handle);
   if (!model_data) {
     return;
   }

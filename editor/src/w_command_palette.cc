@@ -318,7 +318,7 @@ void CommandPalette::Render() {
 
   ImGui::FullWidthSeparator();
 
-  // --- Filter -----------------------------------------------------------
+  // --- Filter ---
   const std::string filter_lower = ToLower(search_);
   const bool has_filter = !filter_lower.empty();
 
@@ -372,7 +372,7 @@ void CommandPalette::Render() {
     }
   }
 
-  // --- List (scrolls) then legend (fixed bg strip at the bottom) -------
+  // List (scrolls) then legend (fixed bg strip at the bottom)
   const float legend_h = ImGui::GetFrameHeight() + kRowPadY * 1.5f;
   const float list_h =
       ImGui::GetContentRegionAvail().y - legend_h;
@@ -433,13 +433,14 @@ void CommandPalette::Render() {
   ImGui::PopStyleVar();  // ItemSpacing
   ImGui::EndChild();
 
-  // --- Legend strip: dark bg (#181615), key badges + result count -----
+  // Legend strip: dark bg (#181615), key badges + result count
   ImGuiWindow* palette_win = ImGui::GetCurrentWindow();
   const ImVec2 legend_pos = ImGui::GetCursorScreenPos();
   const float legend_right = palette_win->Pos.x + palette_win->Size.x;
   const float legend_bottom = palette_win->Pos.y + palette_win->Size.y;
   const float legend_cy = (legend_pos.y + legend_bottom) * 0.5f;
   ImDrawList* dl = ImGui::GetWindowDrawList();
+
   // Bottom corners rounded to follow the window radius; the top edge
   // stays square so it butts against the separator above. The rect
   // extends all the way to the window's physical bottom so the legend

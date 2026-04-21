@@ -205,7 +205,7 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
     }
 
     const std::shared_ptr<Model>& model_data =
-        assets.GetOrLoad<Model>(mr.model_handle);
+        assets.GetOrStartLoad<Model>(mr.model_handle);
     if (!model_data || mr.mesh_index < 0 ||
         mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
       continue;
@@ -246,7 +246,7 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
     }
 
     const std::shared_ptr<Model>& model_data =
-        assets.GetOrLoad<Model>(mr.model_handle);
+        assets.GetOrStartLoad<Model>(mr.model_handle);
     if (!model_data || mr.mesh_index < 0 ||
         mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
       continue;

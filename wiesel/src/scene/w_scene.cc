@@ -544,7 +544,7 @@ void MultiScene::SetSceneIndex(uint8_t index) {
 
 Entity Scene::InstantiateModel(AssetHandle model_handle,
                                const std::string& name) {
-  auto model_data = Engine::asset_manager().GetOrLoad<Model>(model_handle);
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(model_handle);
   if (!model_data) {
     LOG_ERROR("InstantiateModel: failed to load model");
     return Entity{entt::null, this};

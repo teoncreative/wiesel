@@ -16,6 +16,7 @@
 #define WIESEL_PARENT_W_EDITOR_H
 
 #include "TextEditor.h"
+#include "w_anim_clip_editor.h"
 #include "w_anim_controller_editor.h"
 
 // clang-format off
@@ -38,6 +39,7 @@
 #include "w_lsp_autocomplete.h"
 #include "w_lsp_client.h"
 #include "w_command_palette.h"
+#include "w_editor_name_prompt.h"
 #include "w_notifications.h"
 #include "w_project.h"
 #include "w_undo.h"
@@ -103,12 +105,7 @@ class EditorLayer : public Layer {
   // Toolbar / Menu
   void RenderMainMenuBar();
   void RenderProjectSettingsPopup();
-  void RenderCreateSkyboxPopup();
-  void RenderCreateSpritePopup();
   void RenderSliceSpritesPopup();
-  void RenderCreateAnimControllerPopup();
-  void RenderCreateCursorSetPopup();
-  void RenderCreateMeshColliderPopup();
   void RenderEntityInspector(Entity selected_entity);
   void RenderAssetPropertiesPanel();
   void NewProject();
@@ -123,6 +120,12 @@ class EditorLayer : public Layer {
   void ClearScene();
   void OpenScene(const std::string& vfs_path);
   void LoadProjectFromPath(const std::filesystem::path& path);
+
+  // Tear down state tied to the previously-loaded project (asset registry
+  // entries under app://, inspector target, browser selection/cache, thumbnail
+  // cache) so the incoming project starts from a clean slate. Safe to call
+  // when no project is loaded.
+  void ResetForProjectSwitch();
   void RenderStartupDialog();
   void UpdateWindowTitle();
   void AutoSave();
@@ -159,6 +162,9 @@ class EditorLayer : public Layer {
 
   // Command palette (Ctrl+Shift+K).
   CommandPalette command_palette_;
+  // Common name input popup, shared by every "create asset/folder/script"
+  // flow (cursor set, anim controller, scene, folder, script, ...).
+  NamePromptPopup name_prompt_;
   static constexpr float kStatusToastDuration = 1.5f;
   void ShowStatusToast(const std::string& text);
   void PerformUndo();
@@ -239,6 +245,7 @@ class EditorLayer : public Layer {
   glm::vec2 pending_pick_ndc_ = {-1,
                                  -1};  // NDC coords for fallback sprite picking
   bool game_panel_focused_ = false;
+  bool game_panel_hovered_ = false;
   bool scene_panel_visible_ = true;
   bool game_panel_visible_ = true;
   int resolution_preset_index_ = 0;  // index into kResolutionPresets
@@ -249,11 +256,6 @@ class EditorLayer : public Layer {
   int selected_input_item_ =
       -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
-  bool show_create_skybox_ = false;
-  bool show_create_sprite_ = false;
-  bool show_create_animcontroller_ = false;
-  bool show_create_cursorset_ = false;
-  bool show_create_meshcollider_ = false;
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced
   AssetBrowserPanel asset_browser_panel_;
@@ -290,6 +292,9 @@ class EditorLayer : public Layer {
 
   // Animation controller editor
   AnimControllerEditor anim_controller_editor_;
+
+  // Animation clip editor
+  AnimClipEditor anim_clip_editor_;
 
   // Code editor
   bool code_editor_open_ = false;

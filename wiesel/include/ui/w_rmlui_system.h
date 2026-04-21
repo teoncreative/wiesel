@@ -20,6 +20,7 @@ class RmlSystemInterface : public Rml::SystemInterface {
   bool LogMessage(Rml::Log::Type type, const Rml::String& message) override;
   void SetClipboardText(const Rml::String& text) override;
   void GetClipboardText(Rml::String& text) override;
+  void SetMouseCursor(const Rml::String& cursor_name) override;
 };
 
 }  // namespace wiesel

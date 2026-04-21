@@ -3673,7 +3673,7 @@ void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
                                 entt::entity entity_handle,
                                 std::shared_ptr<DescriptorSet> ibl_descriptor) {
   PROFILE_ZONE_SCOPED();
-  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
   if (!model_data || mr.mesh_index < 0 ||
       mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return;
@@ -3719,7 +3719,7 @@ void Renderer::DrawSkinnedMeshRenderer(
     const SkeletalAnimRuntime* skel, bool shadow_pass, bool transparent_pass,
     entt::entity entity_handle, std::shared_ptr<DescriptorSet> ibl_descriptor) {
   PROFILE_ZONE_SCOPED();
-  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
   if (!model_data || mr.mesh_index < 0 ||
       mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return;
@@ -3766,7 +3766,7 @@ void Renderer::DrawSkinnedMeshRenderer(
 
 bool Renderer::PrepareMesh(MeshRendererComponent& mr, MeshDrawPrep& out) {
   PROFILE_ZONE_SCOPED();
-  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
   if (!model_data || mr.mesh_index < 0 ||
       mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return false;
@@ -3785,7 +3785,7 @@ bool Renderer::PrepareMesh(MeshRendererComponent& mr, MeshDrawPrep& out) {
 bool Renderer::PrepareMesh(SkinnedMeshRendererComponent& mr,
                            MeshDrawPrep& out) {
   PROFILE_ZONE_SCOPED();
-  auto model_data = Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
   if (!model_data || mr.mesh_index < 0 ||
       mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return false;

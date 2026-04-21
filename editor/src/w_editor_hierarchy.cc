@@ -19,6 +19,7 @@
 #include "scene/w_scene_manager.h"
 #include "util/imgui/w_imguiutil.h"
 #include "w_editor_components.h"
+#include "w_editor_entity_factory.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 
@@ -29,56 +30,12 @@ Scene* scene();
 static bool RenderAddEntityMenu(Scene& scene, Entity entity, bool& dirty,
                                 CommandStack& commands,
                                 const glm::vec3* spawn_pos = nullptr) {
-  Entity created{entt::null, nullptr};
-  if (ImGui::MenuItem("Empty Entity")) {
-    created = scene.CreateEntity();
-  }
-
-  if (ImGui::BeginMenu("3D Shape")) {
-    const char* shapes[] = {"Cube", "Sphere", "Plane", "Cylinder", "Capsule"};
-    for (const char* shape : shapes) {
-      if (ImGui::MenuItem(shape)) {
-        created = scene.CreateEntity(shape);
-        auto& mc = created.AddComponent<MeshRendererComponent>();
-        mc.model_handle = Engine::GetPrimitive(shape);
-        mc.mesh_index = 0;
-      }
-    }
-    ImGui::EndMenu();
-  }
-
-  if (ImGui::BeginMenu("Light")) {
-    if (ImGui::MenuItem("Directional Light")) {
-      created = scene.CreateEntity("Directional Light");
-      created.AddComponent<LightDirectComponent>();
-    }
-    if (ImGui::MenuItem("Point Light")) {
-      created = scene.CreateEntity("Point Light");
-      created.AddComponent<LightPointComponent>();
-    }
-    ImGui::EndMenu();
-  }
-
-  if (ImGui::MenuItem("Camera")) {
-    created = scene.CreateEntity("Camera");
-    created.AddComponent<CameraComponent>();
-  }
-
+  Entity created =
+      RenderEntityFactoryMenu(scene, commands, entity, spawn_pos);
   if (created) {
-    if (entity) {
-      scene.LinkEntities(entity, created);
-    }
-    if (spawn_pos) {
-      auto& tc = created.GetComponent<TransformComponent>();
-      tc.SetPosition(*spawn_pos);
-    }
-    {
-      commands.Execute(std::make_unique<EntityCreateCommand>(created.ToRef()));
-    }
     dirty = true;
     return true;
   }
-
   return false;
 }
 
@@ -243,10 +200,12 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
   if (ImGui::BeginPopupContextItem()) {
     ImGui::PopStyleVar();
     selected_entity_ = entity.ToRef();
+    ImGui::SetNextMenuItemIcon(ICON_LC_PLUS);
     if (ImGui::BeginMenu("Add Child")) {
       RenderAddEntityMenu(*entity.GetScene(), entity, scene_dirty_, command_stack_);
       ImGui::EndMenu();
     }
+    ImGui::SetNextMenuItemIcon(ICON_LC_PACKAGE);
     if (ImGui::MenuItem("Save as Prefab...")) {
       EntityRef ref = entity.ToRef();
       file_picker_.OpenSave(
@@ -262,6 +221,7 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
           });
     }
     ImGui::Separator();
+    ImGui::SetNextMenuItemIcon(ICON_LC_TRASH);
     if (ImGui::MenuItem("Delete")) {
       command_stack_.Execute(
           std::make_unique<EntityDeleteCommand>(entity));
@@ -361,6 +321,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         std::string ctx_id = "scene_root_context_" + std::to_string(scene_idx);
         if (ImGui::BeginPopupContextItem(ctx_id.c_str())) {
           ImGui::PopStyleVar();
+          ImGui::SetNextMenuItemIcon(ICON_LC_PLUS);
           if (ImGui::BeginMenu("Add")) {
             RenderAddEntityMenu(*current_scene, kInvalidEntity, scene_dirty_, command_stack_);
             ImGui::EndMenu();
@@ -439,6 +400,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
       }
 
       if (ImGui::BeginPopup("right_click_hierarchy")) {
+        ImGui::SetNextMenuItemIcon(ICON_LC_PLUS);
         if (ImGui::BeginMenu("Add")) {
           RenderAddEntityMenu(*scene(), kInvalidEntity, scene_dirty_, command_stack_);
           ImGui::EndMenu();

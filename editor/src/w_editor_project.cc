@@ -73,6 +73,8 @@ void EditorLayer::NewProject() {
     if (Project::Create(dir, name)) {
       auto [result, proj] = Project::Load(dir / (name + ".wiesel"));
       if (result == ProjectLoadResult::Success && proj) {
+        ResetForProjectSwitch();
+
         active_project_ = std::move(proj);
         Engine::SetGameInfo(
             std::make_shared<GameInfo>(active_project_->GetGameInfo()));
@@ -84,7 +86,6 @@ void EditorLayer::NewProject() {
         vfs->Mount("app://", project->GetAssetsDirectory().string());
 
         // Create the default scene file
-        ClearScene();
         current_scene_path_ = "app://scenes/main.wscene";
         SaveScene();
 
@@ -278,6 +279,37 @@ void EditorLayer::AutoSave() {
   }
 }
 
+void EditorLayer::ResetForProjectSwitch() {
+  if (editing_prefab_) {
+    editing_prefab_ = false;
+    editing_prefab_path_.clear();
+    prefab_return_scene_path_.clear();
+  }
+
+  ClearScene();
+  command_stack_.Clear();
+
+  inspector_mode_ = InspectorMode::Entity;
+  inspector_asset_handle_ = {};
+  inspector_asset_read_only_ = false;
+
+  show_slice_sprites_ = false;
+  slice_texture_handle_ = {};
+
+  current_scene_path_.clear();
+  scene_dirty_ = false;
+  prev_scene_dirty_ = false;
+  auto_save_timer_ = 0.0f;
+
+  asset_browser_panel_.Reset();
+
+  if (ThumbnailCache* thumbs = ThumbnailCache::Get()) {
+    thumbs->Clear();
+  }
+
+  Engine::asset_manager().ClearByPathPrefix("app://");
+}
+
 void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   namespace fs = std::filesystem;
 
@@ -285,6 +317,8 @@ void EditorLayer::LoadProjectFromPath(const std::filesystem::path& path) {
   if (load_result != ProjectLoadResult::Success || !proj) {
     return;
   }
+
+  ResetForProjectSwitch();
 
   active_project_ = std::move(proj);
   Engine::SetGameInfo(

@@ -10,6 +10,7 @@
 
 #include "ui/w_rmlui_system.h"
 
+#include "cursor/w_cursor.h"
 #include "w_engine.h"
 
 namespace wiesel {
@@ -46,6 +47,10 @@ void RmlSystemInterface::SetClipboardText(const Rml::String& text) {
 
 void RmlSystemInterface::GetClipboardText(Rml::String& text) {
   text = Engine::window()->GetClipboardText();
+}
+
+void RmlSystemInterface::SetMouseCursor(const Rml::String& cursor_name) {
+  Engine::cursor_manager().SetCursorState(cursor_name);
 }
 
 }  // namespace wiesel

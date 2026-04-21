@@ -18,6 +18,7 @@
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
 #include "util/imgui/w_imguiutil.h"
+#include "w_editor_asset_ui.h"
 #include "w_editor_components.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
@@ -90,21 +91,29 @@ void EditorLayer::RenderAssetPropertiesPanel() {
     }
   }
 
-  const AssetTypeDesc* desc = AssetRegistry::Get(meta->type);
-  if (desc && desc->RenderAssetImGui) {
-    desc->RenderAssetImGui(inspector_asset_handle_);
+  if (const auto* render_asset =
+          AssetUiRegistry::GetRenderAsset(meta->type)) {
+    if (inspector_asset_read_only_) {
+      ImGui::BeginDisabled();
+    }
+    (*render_asset)(inspector_asset_handle_);
+    if (inspector_asset_read_only_) {
+      ImGui::EndDisabled();
+    }
   }
 
+  const AssetTypeDesc* desc = AssetRegistry::Get(meta->type);
+  const auto* render_props = AssetUiRegistry::GetRenderProperties(meta->type);
+
   if (inspector_asset_read_only_) {
-    // Show properties as read-only text
-    if (desc && desc->RenderPropertiesImGui && meta->properties) {
+    if (render_props && meta->properties) {
       ImGui::BeginDisabled();
-      desc->RenderPropertiesImGui(meta->properties.get());
+      (*render_props)(meta->properties.get());
       ImGui::EndDisabled();
     }
   } else {
-    if (desc && desc->RenderPropertiesImGui && meta->properties) {
-      bool changed = desc->RenderPropertiesImGui(meta->properties.get());
+    if (render_props && meta->properties) {
+      bool changed = (*render_props)(meta->properties.get());
       if (changed) {
         auto physical =
             Engine::vfs()->GetPhysicalPath(meta->virtual_source_path);
@@ -127,6 +136,7 @@ void EditorLayer::RenderAssetPropertiesPanel() {
     if (ImGui::IsItemHovered()) {
       ImGui::SetTooltip("Reload this asset with the current properties.");
     }
+    (void)desc;
   }
 }
 

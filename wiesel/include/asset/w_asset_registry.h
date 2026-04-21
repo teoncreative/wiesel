@@ -41,10 +41,6 @@ struct AssetTypeDesc {
   std::function<nlohmann::json(const void*)> SerializeProperties;
   std::function<std::shared_ptr<void>(const nlohmann::json&)>
       DeserializeProperties;
-  std::function<bool(void*)> RenderPropertiesImGui;
-
-  // Editor
-  std::function<bool(AssetHandle)> RenderAssetImGui;
 
   bool IsJsonAsset() const { return Serialize && Deserialize; }
   bool IsBinaryAsset() const {

@@ -20,6 +20,8 @@
 #include "util/imgui/w_imguiutil.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
+#include "w_editor_asset_factory.h"
+#include "w_editor_asset_ui.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_project_loader.h"
@@ -53,6 +55,18 @@ void AssetBrowserPanel::SetCallbacks(AssetBrowserCallbacks callbacks) {
   callbacks_ = std::move(callbacks);
 }
 
+void AssetBrowserPanel::Reset() {
+  selected_file_.clear();
+  renaming_file_.clear();
+  rename_buf_[0] = '\0';
+  search_[0] = '\0';
+  current_scene_path.clear();
+
+  browser_.SetRoot("app://");
+  browser_.SetCurrentDir("");
+  browser_.Invalidate();
+}
+
 void AssetBrowserPanel::Render(bool& open) {
   if (!open) {
     return;
@@ -82,30 +96,11 @@ void AssetBrowserPanel::Render(bool& open) {
     }
     ImGui::SameLine();
     if (ImGui::Button(ICON_LC_FOLDER_PLUS "  Folder")) {
-      ImGui::OpenPopup("NewFolderPopup");
+      if (callbacks_.on_request_folder) {
+        callbacks_.on_request_folder();
+      }
     }
     ImGui::PopStyleColor();
-  }
-
-  // New folder popup
-  if (!read_only && ImGui::BeginPopup("NewFolderPopup")) {
-    ImGui::Text("Folder name:");
-    ImGui::InputText("##foldername", new_folder_name_,
-                     sizeof(new_folder_name_));
-    if (ImGui::Button("Create") && new_folder_name_[0] != '\0') {
-      std::string dir_vfs =
-          browser_.CurrentVfsDir() + std::string(new_folder_name_);
-      Engine::vfs()->CreateDirectory(dir_vfs);
-      browser_.Invalidate();
-      new_folder_name_[0] = '\0';
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-      new_folder_name_[0] = '\0';
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
   }
 
   // Import file into the current asset browser directory
@@ -418,6 +413,9 @@ void AssetBrowserPanel::Render(bool& open) {
           } else if (fe.asset_type == AssetType::AnimController &&
                      callbacks_.on_open_anim_controller) {
             callbacks_.on_open_anim_controller(handle);
+          } else if (fe.asset_type == AssetType::AnimClip &&
+                     callbacks_.on_open_anim_clip) {
+            callbacks_.on_open_anim_clip(handle);
           }
         }
 
@@ -473,11 +471,16 @@ void AssetBrowserPanel::Render(bool& open) {
         ImGui::EndDragDropTarget();
       }
 
-      // Right-click context menu (only for writable roots)
+      // Right-click context menu (only for writable roots). BeginTileGrid
+      // pushed ItemSpacing.y=0 so the tiles pack tight; menu items inherit
+      // that and look squished. Restore the default spacing for the popup
+      // body and re-push the tight spacing after.
       if (!read_only && is_sel &&
           ImGui::BeginPopupContextItem(("##ctx_" + fe.name).c_str())) {
+        ImGui::PopStyleVar();
         if (!fe.is_dir && !handle.IsValid() &&
             fe.asset_type != AssetType::None) {
+          ImGui::SetNextMenuItemIcon(ICON_LC_IMPORT);
           if (ImGui::MenuItem("Import")) {
             std::string import_vfs = browser_.CurrentVfsDir() + fe.name;
             AssetHandle new_handle =
@@ -492,50 +495,68 @@ void AssetBrowserPanel::Render(bool& open) {
           }
           ImGui::Separator();
         }
-        if (!fe.is_dir && fe.asset_type == AssetType::Texture &&
-            handle.IsValid()) {
-          if (ImGui::MenuItem("Slice into Sprites")) {
-            if (callbacks_.on_slice_texture) {
-              callbacks_.on_slice_texture(handle);
+        // Type-specific custom actions (e.g. Slice for textures). Registered
+        // editor-side via AssetUiRegistry::AddContextAction so the panel
+        // doesn't have to hardcode one branch per asset type.
+        if (!fe.is_dir && handle.IsValid()) {
+          const auto& actions =
+              AssetUiRegistry::GetContextActions(fe.asset_type);
+          if (!actions.empty()) {
+            for (const auto& a : actions) {
+              if (!a.icon.empty()) {
+                ImGui::SetNextMenuItemIcon(a.icon.c_str());
+              }
+              if (ImGui::MenuItem(a.label.c_str()) && a.action) {
+                a.action(handle);
+                ImGui::CloseCurrentPopup();
+              }
             }
-            ImGui::CloseCurrentPopup();
+            ImGui::Separator();
           }
-          ImGui::Separator();
         }
+        ImGui::SetNextMenuItemIcon(ICON_LC_PENCIL);
         if (ImGui::MenuItem("Rename")) {
           renaming_file_ = fe.name;
           std::string stem = VirtualFileSystem::Stem(fe.name);
           snprintf(rename_buf_, sizeof(rename_buf_), "%s", stem.c_str());
         }
-        if (!fe.is_dir && ImGui::MenuItem("Duplicate")) {
-          std::string stem = VirtualFileSystem::Stem(fe.name);
-          std::string ext = VirtualFileSystem::Extension(fe.name);
-          std::string parent_vfs =
-              fe.vfs_path.substr(0, fe.vfs_path.rfind('/') + 1);
-          std::string copy_vfs = parent_vfs + stem + "_copy" + ext;
-          int n = 1;
-          while (Engine::vfs()->FileExists(copy_vfs)) {
-            copy_vfs = parent_vfs + stem + "_copy" + std::to_string(n++) + ext;
-          }
-          if (Engine::vfs()->CopyFile(fe.vfs_path, copy_vfs)) {
-            browser_.Invalidate();
-            if (callbacks_.on_scan_assets) {
-              callbacks_.on_scan_assets();
+        if (!fe.is_dir) {
+          ImGui::SetNextMenuItemIcon(ICON_LC_COPY);
+          if (ImGui::MenuItem("Duplicate")) {
+            std::string stem = VirtualFileSystem::Stem(fe.name);
+            std::string ext = VirtualFileSystem::Extension(fe.name);
+            std::string parent_vfs =
+                fe.vfs_path.substr(0, fe.vfs_path.rfind('/') + 1);
+            std::string copy_vfs = parent_vfs + stem + "_copy" + ext;
+            int n = 1;
+            while (Engine::vfs()->FileExists(copy_vfs)) {
+              copy_vfs =
+                  parent_vfs + stem + "_copy" + std::to_string(n++) + ext;
+            }
+            if (Engine::vfs()->CopyFile(fe.vfs_path, copy_vfs)) {
+              browser_.Invalidate();
+              if (callbacks_.on_scan_assets) {
+                callbacks_.on_scan_assets();
+              }
             }
           }
         }
-        if (fe.is_dir && ImGui::MenuItem("Duplicate")) {
-          std::string parent_vfs =
-              fe.vfs_path.substr(0, fe.vfs_path.rfind('/') + 1);
-          std::string copy_vfs = parent_vfs + fe.name + "_copy";
-          int n = 1;
-          while (Engine::vfs()->FileExists(copy_vfs)) {
-            copy_vfs = parent_vfs + fe.name + "_copy" + std::to_string(n++);
-          }
-          if (Engine::vfs()->CopyDirectory(fe.vfs_path, copy_vfs)) {
-            browser_.Invalidate();
-            if (callbacks_.on_scan_assets) {
-              callbacks_.on_scan_assets();
+        if (fe.is_dir) {
+          ImGui::SetNextMenuItemIcon(ICON_LC_COPY);
+          if (ImGui::MenuItem("Duplicate")) {
+            std::string parent_vfs =
+                fe.vfs_path.substr(0, fe.vfs_path.rfind('/') + 1);
+            std::string copy_vfs = parent_vfs + fe.name + "_copy";
+            int n = 1;
+            while (Engine::vfs()->FileExists(copy_vfs)) {
+              copy_vfs =
+                  parent_vfs + fe.name + "_copy" + std::to_string(n++);
+            }
+            if (Engine::vfs()->CopyDirectory(fe.vfs_path, copy_vfs)) {
+              browser_.Invalidate();
+              if (callbacks_.on_scan_assets) {
+                callbacks_.on_scan_assets();
+              }
             }
           }
         }
@@ -544,6 +565,7 @@ void AssetBrowserPanel::Render(bool& open) {
           // Properties panel auto-selects on click, no menu item needed.
         }
         ImGui::Separator();
+        ImGui::SetNextMenuItemIcon(ICON_LC_TRASH);
         if (ImGui::MenuItem("Delete")) {
           if (fe.is_dir) {
             Engine::vfs()->DeleteDirectory(fe.vfs_path);
@@ -557,6 +579,8 @@ void AssetBrowserPanel::Render(bool& open) {
           }
         }
         ImGui::EndPopup();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                            ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
       }
 
       browser_.NextColumn();
@@ -606,119 +630,22 @@ void AssetBrowserPanel::Render(bool& open) {
     // Right-click on empty space (create menu, app:// only)
     if (!read_only && ImGui::BeginPopupContextWindow(
                           "##browser_ctx", ImGuiPopupFlags_NoOpenOverItems)) {
+      // BeginTileGrid pushed ItemSpacing.y=0 so the tiles pack tight; menu
+      // items inherit that and look squished. Restore the default spacing
+      // for the duration of the popup body.
+      ImGui::PopStyleVar();
+      ImGui::SetNextMenuItemIcon(ICON_LC_PLUS);
       if (ImGui::BeginMenu("Create")) {
-        if (ImGui::MenuItem("Scene")) {
-          if (callbacks_.on_new_scene) {
-            callbacks_.on_new_scene();
-          }
-        }
-        if (ImGui::MenuItem("Folder")) {
-          open_folder_popup_ = true;
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("C# Script")) {
-          open_script_popup_ = true;
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("Skybox")) {
-          if (callbacks_.on_show_create_skybox) {
-            callbacks_.on_show_create_skybox();
-          }
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("Sprite")) {
-          if (callbacks_.on_show_create_sprite) {
-            callbacks_.on_show_create_sprite();
-          }
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("Animation Controller")) {
-          if (callbacks_.on_create_anim_controller) {
-            callbacks_.on_create_anim_controller();
-          }
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("Cursor Set")) {
-          if (callbacks_.on_show_create_cursorset) {
-            callbacks_.on_show_create_cursorset();
-          }
-          ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::MenuItem("Mesh Collider")) {
-          if (callbacks_.on_show_create_meshcollider) {
-            callbacks_.on_show_create_meshcollider();
-          }
-          ImGui::CloseCurrentPopup();
-        }
+        RenderAssetFactoryMenu();
         ImGui::EndMenu();
       }
       ImGui::EndPopup();
-    }
-    if (open_folder_popup_) {
-      ImGui::OpenPopup("NewFolderPopup");
-      open_folder_popup_ = false;
+      ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                          ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
     }
   }
   browser_.EndTileGrid();
   ImGui::EndChild();
-
-  // New C# script popup
-  if (open_script_popup_) {
-    ImGui::OpenPopup("NewScriptPopup");
-    open_script_popup_ = false;
-  }
-  if (ImGui::BeginPopup("NewScriptPopup")) {
-    ImGui::Text("Script name:");
-    ImGui::InputText("##scriptname", new_script_name_,
-                     sizeof(new_script_name_));
-    if (ImGui::Button("Create") && new_script_name_[0] != '\0') {
-      namespace fs = std::filesystem;
-      auto physical_app = Engine::vfs()->GetPhysicalPath("app://");
-      if (physical_app.has_value()) {
-        fs::path base = fs::absolute(*physical_app);
-        if (!browser_.current_dir().empty()) {
-          base = base / browser_.current_dir();
-        }
-        fs::path script_path = base / (std::string(new_script_name_) + ".cs");
-        if (!fs::exists(script_path)) {
-          VfsFile tmpl =
-              Engine::vfs()->Open("engine://templates/script.cs.template");
-          std::string content;
-          if (tmpl) {
-            content = std::string(reinterpret_cast<const char*>(tmpl.Data()),
-                                  tmpl.Size());
-          } else {
-            content =
-                "using WieselEngine;\n\npublic class {{CLASS_NAME}} : "
-                "MonoBehavior\n{\n}\n";
-          }
-          std::string class_name = new_script_name_;
-          size_t pos = 0;
-          while ((pos = content.find("{{CLASS_NAME}}", pos)) !=
-                 std::string::npos) {
-            content.replace(pos, 14, class_name);
-            pos += class_name.length();
-          }
-          std::ofstream out(script_path);
-          if (out.is_open()) {
-            out << content;
-          }
-          browser_.Invalidate();
-          if (callbacks_.on_scan_assets) {
-            callbacks_.on_scan_assets();
-          }
-        }
-      }
-      new_script_name_[0] = '\0';
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-      new_script_name_[0] = '\0';
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
-  }
 
   ImGui::End();
 }

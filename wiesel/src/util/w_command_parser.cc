@@ -131,7 +131,7 @@ std::vector<std::string> SplitDefault(const std::string& s) {
 
 }  // namespace
 
-// --- CommandContext getters -----------------------------------------------
+// ---- CommandContext getters ----
 
 int CommandContext::Int(const std::string& name, int fallback) const {
   auto it = values_.find(name);
@@ -214,7 +214,7 @@ glm::vec4 CommandContext::Vec4(const std::string& name,
   return fallback;
 }
 
-// --- Params factories -----------------------------------------------------
+// ---- Params factories ----
 
 namespace Params {
 
@@ -294,7 +294,7 @@ Param Vec4(std::string name, glm::vec4 default_value) {
 
 }  // namespace Params
 
-// --- CommandParser --------------------------------------------------------
+// ---- CommandParser ----
 
 int CommandParser::TokensPerParam(ParamType t) {
   switch (t) {

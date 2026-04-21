@@ -51,6 +51,35 @@ void ProjectLoader::ScanAssets(Project& project) {
       fs::remove(entry.path(), ec);
     }
   }
+
+  UnregisterMissingAppAssets();
+}
+
+int ProjectLoader::UnregisterMissingAppAssets() {
+  VirtualFileSystem* vfs = Engine::vfs().get();
+  AssetManager& mgr = Engine::asset_manager();
+
+  static constexpr std::string_view kAppPrefix = "app://";
+  std::vector<AssetHandle> to_remove;
+  for (AssetHandle handle : mgr.GetAll()) {
+    const AssetMetadata* meta = mgr.GetMetadata(handle);
+    if (!meta) {
+      continue;
+    }
+    const std::string& path = meta->virtual_source_path;
+    if (path.size() < kAppPrefix.size() ||
+        std::string_view(path).substr(0, kAppPrefix.size()) != kAppPrefix) {
+      continue;
+    }
+    if (!vfs->FileExists(path)) {
+      to_remove.push_back(handle);
+    }
+  }
+  for (AssetHandle handle : to_remove) {
+    mgr.Unload(handle);
+    mgr.Unregister(handle);
+  }
+  return static_cast<int>(to_remove.size());
 }
 
 void ProjectLoader::ApplyRenderOptions(Project& project) {

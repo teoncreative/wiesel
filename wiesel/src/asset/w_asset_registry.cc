@@ -10,9 +10,7 @@
 
 #include "asset/w_asset_registry.h"
 
-#include <imgui.h>
 #include <nlohmann/json.hpp>
-#include "util/imgui/w_imguiutil.h"
 
 #include "animation/w_animation_clip_asset.h"
 #include "animation/w_animation_controller.h"
@@ -416,7 +414,7 @@ static PropertyCurve ParsePropertyCurve(const nlohmann::json& cj) {
   return curve;
 }
 
-// --- Helper functions - texture properties ---
+// --- Texture property helpers ---
 
 static nlohmann::json SerializeTextureProperties(const void* p) {
   auto* props = static_cast<const TextureAssetProperties*>(p);
@@ -458,42 +456,7 @@ static std::shared_ptr<void> DeserializeTextureProperties(
   return props;
 }
 
-static bool RenderTexturePropertiesImGui(void* p) {
-  auto* props = static_cast<TextureAssetProperties*>(p);
-  bool changed = false;
-
-  const char* asset_types[] = {"Default", "Normal Map", "Sprite (UI)"};
-  int at = static_cast<int>(props->asset_type);
-  if (ImGui::Combo("Type", &at, asset_types, 3)) {
-    props->asset_type = static_cast<TextureAssetType>(at);
-    changed = true;
-  }
-
-  const char* filter_modes[] = {"Nearest", "Linear"};
-  int filter = static_cast<int>(props->filter_mode);
-  if (ImGui::Combo("Filter Mode", &filter, filter_modes, 2)) {
-    props->filter_mode = static_cast<TextureFilterMode>(filter);
-    changed = true;
-  }
-
-  const char* wrap_modes[] = {"Repeat", "Clamp", "Mirror"};
-  int wrap = static_cast<int>(props->wrap_mode);
-  if (ImGui::Combo("Wrap Mode", &wrap, wrap_modes, 3)) {
-    props->wrap_mode = static_cast<TextureWrapMode>(wrap);
-    changed = true;
-  }
-
-  changed |= ImGui::Checkbox("Generate Mipmaps", &props->generate_mipmaps);
-
-  ImGui::SeparatorText("9-Slice");
-  changed |= ImGui::DragFloat4("Border (L,T,R,B)",
-                               reinterpret_cast<float*>(&props->slice_border),
-                               1.0f, 0.0f, 500.0f);
-
-  return changed;
-}
-
-// --- Helper functions - font properties ---
+// --- Font property helpers ---
 
 static nlohmann::json SerializeFontProperties(const void* p) {
   auto* props = static_cast<const FontAssetProperties*>(p);
@@ -511,21 +474,7 @@ static std::shared_ptr<void> DeserializeFontProperties(
   return props;
 }
 
-static bool RenderFontPropertiesImGui(void* p) {
-  auto* props = static_cast<FontAssetProperties*>(p);
-  bool changed = false;
-
-  const char* aa_modes[] = {"None", "Grayscale"};
-  int aa = static_cast<int>(props->aa_mode);
-  if (ImGui::Combo("Anti-Aliasing", &aa, aa_modes, 2)) {
-    props->aa_mode = static_cast<FontAAMode>(aa);
-    changed = true;
-  }
-
-  return changed;
-}
-
-// --- Helper functions - UIDocument properties ---
+// --- UIDocument property helpers ---
 
 static nlohmann::json SerializeUIDocumentProperties(const void* p) {
   auto* props = static_cast<const UIDocumentAssetProperties*>(p);
@@ -575,171 +524,6 @@ static std::shared_ptr<void> DeserializeUIDocumentProperties(
   return props;
 }
 
-static bool RenderUIDocumentPropertiesImGui(void* p) {
-  auto* props = static_cast<UIDocumentAssetProperties*>(p);
-  bool changed = false;
-
-  ImGui::SeparatorText("Data Variables");
-
-  int remove_idx = -1;
-  for (int i = 0; i < static_cast<int>(props->variables.size()); i++) {
-    auto& v = props->variables[i];
-    ImGui::PushID(i);
-
-    char name_buf[128];
-    strncpy(name_buf, v.name.c_str(), sizeof(name_buf) - 1);
-    name_buf[sizeof(name_buf) - 1] = '\0';
-    ImGui::SetNextItemWidth(120);
-    if (ImGui::InputText("##name", name_buf, sizeof(name_buf))) {
-      v.name = name_buf;
-      changed = true;
-    }
-    ImGui::SameLine();
-
-    const char* type_names[] = {"Int", "Float", "String", "Bool"};
-    int type_idx = static_cast<int>(v.type);
-    ImGui::SetNextItemWidth(70);
-    if (ImGui::Combo("##type", &type_idx, type_names, 4)) {
-      v.type = static_cast<UIVariableType>(type_idx);
-      changed = true;
-    }
-    ImGui::SameLine();
-
-    const char* mode_names[] = {"TwoWay", "ReadOnly"};
-    int mode_idx = static_cast<int>(v.mode);
-    ImGui::SetNextItemWidth(80);
-    if (ImGui::Combo("##mode", &mode_idx, mode_names, 2)) {
-      v.mode = static_cast<UIVariableMode>(mode_idx);
-      changed = true;
-    }
-    ImGui::SameLine();
-
-    char def_buf[128];
-    strncpy(def_buf, v.default_value.c_str(), sizeof(def_buf) - 1);
-    def_buf[sizeof(def_buf) - 1] = '\0';
-    ImGui::SetNextItemWidth(80);
-    if (ImGui::InputText("##default", def_buf, sizeof(def_buf))) {
-      v.default_value = def_buf;
-      changed = true;
-    }
-    ImGui::SameLine();
-
-    if (ImGui::SmallButton("X")) {
-      remove_idx = i;
-      changed = true;
-    }
-
-    ImGui::PopID();
-  }
-
-  if (remove_idx >= 0) {
-    props->variables.erase(props->variables.begin() + remove_idx);
-  }
-
-  if (ImGui::Button("+ Add Variable")) {
-    UIVariableDecl decl;
-    decl.name = "var_" + std::to_string(props->variables.size());
-    props->variables.push_back(decl);
-    changed = true;
-  }
-
-  ImGui::SeparatorText("Events");
-
-  int ev_remove_idx = -1;
-  for (int i = 0; i < static_cast<int>(props->events.size()); i++) {
-    ImGui::PushID(1000 + i);
-    char ev_buf[128];
-    strncpy(ev_buf, props->events[i].c_str(), sizeof(ev_buf) - 1);
-    ev_buf[sizeof(ev_buf) - 1] = '\0';
-    ImGui::SetNextItemWidth(200);
-    if (ImGui::InputText("##event", ev_buf, sizeof(ev_buf))) {
-      props->events[i] = ev_buf;
-      changed = true;
-    }
-    ImGui::SameLine();
-    if (ImGui::SmallButton("X")) {
-      ev_remove_idx = i;
-      changed = true;
-    }
-    ImGui::PopID();
-  }
-
-  if (ev_remove_idx >= 0) {
-    props->events.erase(props->events.begin() + ev_remove_idx);
-  }
-
-  if (ImGui::Button("+ Add Event")) {
-    props->events.push_back("on_event_" + std::to_string(props->events.size()));
-    changed = true;
-  }
-
-  return changed;
-}
-
-// --- Material asset ImGui editor ---
-
-static bool RenderMaterialAssetImGui(AssetHandle handle) {
-  auto& mgr = Engine::asset_manager();
-  mgr.LoadSync(handle);
-  auto mat = mgr.Get<Material>(handle);
-  if (!mat) {
-    ImGui::TextDisabled("Material not loaded");
-    return false;
-  }
-
-  bool changed = false;
-
-  glm::vec4 color_tint = mat->GetColorTint();
-  if (ImGui::ColorEdit4("Color Tint", &color_tint.x)) {
-    mat->SetColorTint(color_tint);
-    changed = true;
-  }
-
-  float roughness = mat->GetRoughness();
-  if (ImGui::SliderFloat("Roughness", &roughness, 0.0f, 1.0f)) {
-    mat->SetRoughness(roughness);
-    changed = true;
-  }
-
-  float metallic = mat->GetMetallic();
-  if (ImGui::SliderFloat("Metallic", &metallic, 0.0f, 1.0f)) {
-    mat->SetMetallic(metallic);
-    changed = true;
-  }
-
-  float specular = mat->GetSpecular();
-  if (ImGui::SliderFloat("Specular", &specular, 0.0f, 1.0f)) {
-    mat->SetSpecular(specular);
-    changed = true;
-  }
-
-  if (ImGui::Checkbox("Double Sided", &mat->double_sided)) {
-    changed = true;
-  }
-
-  ImGui::SeparatorText("Textures");
-
-  auto render_slot = [](const char* label, TextureSlot& slot) {
-    std::shared_ptr<Texture> tex;
-    slot.Resolve(tex);
-    RenderTexturePreview(label, tex.get());
-  };
-  render_slot("Diffuse", mat->base_texture);
-  render_slot("Albedo", mat->albedo_map);
-  render_slot("Normal", mat->normal_map);
-  render_slot("Roughness", mat->roughness_map);
-  render_slot("Metallic", mat->metallic_map);
-  render_slot("Specular", mat->specular_map);
-  render_slot("Height", mat->height_map);
-  render_slot("Opacity", mat->opacity_map);
-
-  if (changed) {
-    mat->MarkDirty();
-    AssetRegistry::Save(handle);
-  }
-
-  return changed;
-}
 
 // --- InitializeAssetRegistry - register all asset types ---
 
@@ -757,7 +541,6 @@ void InitializeAssetRegistry() {
           },
           .SerializeProperties = SerializeTextureProperties,
           .DeserializeProperties = DeserializeTextureProperties,
-          .RenderPropertiesImGui = RenderTexturePropertiesImGui,
       });
 
   // --- Model ---
@@ -815,7 +598,6 @@ void InitializeAssetRegistry() {
             Engine::asset_manager().Store<Material>(handle, mat);
             return true;
           },
-          .RenderAssetImGui = RenderMaterialAssetImGui,
       });
 
   // --- Font ---
@@ -850,7 +632,6 @@ void InitializeAssetRegistry() {
           },
           .SerializeProperties = SerializeFontProperties,
           .DeserializeProperties = DeserializeFontProperties,
-          .RenderPropertiesImGui = RenderFontPropertiesImGui,
       });
 
   // --- Sprite ---
@@ -1330,6 +1111,9 @@ void InitializeAssetRegistry() {
               nlohmann::json state_j;
               state_j["hotspot"] = {entry.hotspot.x, entry.hotspot.y};
               state_j["size"] = {entry.size.x, entry.size.y};
+              if (entry.scale != 1) {
+                state_j["scale"] = entry.scale;
+              }
               if (entry.frames.size() == 1) {
                 state_j["texture"] = entry.frames[0].texture.ToString();
               } else if (entry.frames.size() > 1) {
@@ -1373,6 +1157,10 @@ void InitializeAssetRegistry() {
                 }
                 if (state_j.contains("frame_duration")) {
                   entry.frame_duration = state_j["frame_duration"].get<float>();
+                }
+                if (state_j.contains("scale")) {
+                  entry.scale = std::clamp(
+                      state_j["scale"].get<int>(), 1, 8);
                 }
 
                 // Single texture
@@ -1522,7 +1310,6 @@ void InitializeAssetRegistry() {
           },
           .SerializeProperties = SerializeUIDocumentProperties,
           .DeserializeProperties = DeserializeUIDocumentProperties,
-          .RenderPropertiesImGui = RenderUIDocumentPropertiesImGui,
       });
 
   // --- UIStylesheet ---

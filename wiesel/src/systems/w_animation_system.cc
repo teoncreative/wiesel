@@ -117,7 +117,7 @@ void AnimationSystem::Update(Scene& scene, float delta_time) {
       AssetHandle skel_model_handle = skel.model_handle;
 
       const auto& model_data =
-          Engine::asset_manager().GetOrLoad<Model>(skel_model_handle);
+          Engine::asset_manager().GetOrStartLoad<Model>(skel_model_handle);
       if (!model_data) {
         continue;
       }

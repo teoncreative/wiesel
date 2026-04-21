@@ -22,11 +22,15 @@
 #include "util/w_tracy.h"
 
 #include "asset/w_asset_registry.h"
+#include "cursor/w_cursor.h"
 #include "events/w_keyevents.h"
 #include "imgui_internal.h"
 #include "input/w_input.h"
 #include "networking/w_network.h"
+#include "physics/w_mesh_collider_asset.h"
 #include "rendering/w_renderer.h"
+#include "rendering/w_skybox.h"
+#include "rendering/w_sprite_asset.h"
 #include "scene/w_components.h"
 #include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
@@ -35,8 +39,12 @@
 #include "util/imgui/imgui_theme.h"
 #include "w_editor_components.h"
 #include <urkern/platform.h>
+#include "w_editor_asset_factory.h"
+#include "w_editor_asset_ui.h"
+#include "w_editor_entity_factory.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
+#include "w_project_loader.h"
 #include "w_thumbnail_cache.h"
 #include "util/w_discord_rpc.h"
 
@@ -158,6 +166,271 @@ void EditorLayer::OnAttach() {
   LOG_DEBUG("OnAttach");
   ThumbnailCache::Set(&thumbnail_cache_instance_);
 
+  // Register inspector renderers for asset types. Engine::InitEngine has
+  // already populated AssetRegistry with loaders/serializers; this adds the
+  // editor-only ImGui editing UI on top.
+  InstallEditorAssetUI();
+
+  // Per-asset-type custom context-menu actions. Asset browser iterates
+  // these instead of branching on type internally.
+  AssetUiRegistry::AddContextAction(
+      AssetType::Texture,
+      {.label = "Slice into Sprites",
+       .icon = ICON_LC_GRID_2X2,
+       .action = [this](AssetHandle h) {
+         slice_texture_handle_ = h;
+         show_slice_sprites_ = true;
+       }});
+
+  // Register the built-in "Add Entity" factories (empty, 3D shapes, lights,
+  // camera). Both context menus and the command palette iterate this.
+  InstallBuiltinEntityFactories();
+
+  // Register the built-in asset Create entries. Name-only flows go through
+  // the shared NamePromptPopup; multi-field wizards flip a show_create_* flag
+  // that an existing wizard popup picks up next frame.
+  auto current_dir = [this] { return asset_browser_panel_.browser().CurrentVfsDir(); };
+  AssetFactoryRegistry::Register({
+      .label = "Scene",
+      .icon = ICON_LC_LAYERS_2,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Scene",
+                .icon = ICON_LC_LAYERS_2,
+                .base_dir = current_dir(),
+                .extension = ".wscene",
+                .default_name = "new_scene",
+                .on_confirm =
+                    [this](const std::string& /*name*/,
+                           const std::string& vfs_path) {
+                      if (!active_project_) {
+                        return;
+                      }
+                      AutoSave();
+                      Engine::vfs()->CreateDirectory(
+                          VirtualFileSystem::Parent(vfs_path));
+                      ClearScene();
+                      current_scene_path_ = vfs_path;
+                      SaveScene();
+                      ScanProjectAssets();
+                      UpdateWindowTitle();
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "Folder",
+      .icon = ICON_LC_FOLDER_PLUS,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Folder",
+                .icon = ICON_LC_FOLDER_PLUS,
+                .base_dir = current_dir(),
+                .extension = "",
+                .default_name = "new_folder",
+                .on_confirm =
+                    [this](const std::string& /*name*/,
+                           const std::string& dir_vfs) {
+                      Engine::vfs()->CreateDirectory(dir_vfs);
+                      asset_browser_panel_.browser().Invalidate();
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "C# Script",
+      .icon = ICON_LC_FILE_CODE,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "C# Script",
+                .icon = ICON_LC_FILE_CODE,
+                .base_dir = current_dir(),
+                .extension = ".cs",
+                .default_name = "MyScript",
+                .on_confirm =
+                    [this](const std::string& name,
+                           const std::string& vfs_path) {
+                      auto physical =
+                          Engine::vfs()->ResolvePhysicalPath(vfs_path);
+                      if (!physical) {
+                        return;
+                      }
+                      namespace fs = std::filesystem;
+                      if (fs::exists(*physical)) {
+                        return;
+                      }
+                      VfsFile tmpl = Engine::vfs()->Open(
+                          "engine://templates/script.cs.template");
+                      std::string content;
+                      if (tmpl) {
+                        content = std::string(
+                            reinterpret_cast<const char*>(tmpl.Data()),
+                            tmpl.Size());
+                      } else {
+                        content =
+                            "using WieselEngine;\n\npublic class "
+                            "{{CLASS_NAME}} : MonoBehavior\n{\n}\n";
+                      }
+                      size_t pos = 0;
+                      while ((pos = content.find("{{CLASS_NAME}}", pos)) !=
+                             std::string::npos) {
+                        content.replace(pos, 14, name);
+                        pos += name.length();
+                      }
+                      std::ofstream out(*physical);
+                      if (out.is_open()) {
+                        out << content;
+                      }
+                      asset_browser_panel_.browser().Invalidate();
+                      ScanProjectAssets();
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "Skybox",
+      .icon = ICON_LC_GLOBE,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Skybox",
+                .icon = ICON_LC_GLOBE,
+                .base_dir = current_dir(),
+                .extension = ".wskybox",
+                .default_name = "skybox",
+                .on_confirm =
+                    [this](const std::string& name,
+                           const std::string& vfs_path) {
+                      auto data = std::make_shared<SkyboxAssetData>();
+                      data->type = SkyboxType::Panorama;
+                      AssetHandle handle =
+                          AssetRegistry::Create<SkyboxAssetData>(
+                              name, AssetType::Skybox, vfs_path, data);
+                      if (handle.IsValid()) {
+                        ScanProjectAssets();
+                      }
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "Sprite",
+      .icon = ICON_LC_IMAGE,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Sprite",
+                .icon = ICON_LC_IMAGE,
+                .base_dir = current_dir(),
+                .extension = ".wsprite",
+                .default_name = "sprite",
+                .on_confirm =
+                    [this](const std::string& name,
+                           const std::string& vfs_path) {
+                      auto data = std::make_shared<SpriteAssetData>();
+                      data->rect = {0, 0, 64, 64};
+                      data->pivot = {0.5f, 0.5f};
+                      AssetHandle handle =
+                          AssetRegistry::Create<SpriteAssetData>(
+                              name, AssetType::Sprite, vfs_path, data);
+                      if (handle.IsValid()) {
+                        ScanProjectAssets();
+                      }
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "Animation Controller",
+      .icon = ICON_LC_LAYERS,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Animation Controller",
+                .icon = ICON_LC_LAYERS,
+                .base_dir = current_dir(),
+                .extension = ".wanimcontroller",
+                .default_name = "controller",
+                .on_confirm =
+                    [this](const std::string& name,
+                           const std::string& vfs_path) {
+                      auto data =
+                          std::make_shared<AnimControllerAssetData>();
+                      AssetHandle handle =
+                          AssetRegistry::Create<AnimControllerAssetData>(
+                              name, AssetType::AnimController, vfs_path,
+                              data);
+                      if (handle.IsValid()) {
+                        anim_controller_editor_.Open(handle, data);
+                        ScanProjectAssets();
+                      }
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "Cursor Set",
+      .icon = ICON_LC_MOUSE_POINTER,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Cursor Set",
+                .icon = ICON_LC_MOUSE_POINTER,
+                .base_dir = current_dir(),
+                .extension = ".wcursorset",
+                .default_name = "cursors",
+                .on_confirm =
+                    [this](const std::string& name,
+                           const std::string& vfs_path) {
+                      auto data = std::make_shared<CursorSetData>();
+                      data->mode = CursorSetMode::Auto;
+                      data->states["default"] = {};
+                      AssetHandle handle =
+                          AssetRegistry::Create<CursorSetData>(
+                              name, AssetType::CursorSet, vfs_path, data);
+                      if (handle.IsValid()) {
+                        ScanProjectAssets();
+                      }
+                    },
+            });
+          },
+  });
+  AssetFactoryRegistry::Register({
+      .label = "Mesh Collider",
+      .icon = ICON_LC_BOX,
+      .action =
+          [this, current_dir] {
+            name_prompt_.Open({
+                .title = "Mesh Collider",
+                .icon = ICON_LC_BOX,
+                .base_dir = current_dir(),
+                .extension = ".wmeshcol",
+                .default_name = "mesh_collider",
+                .on_confirm =
+                    [this](const std::string& name,
+                           const std::string& vfs_path) {
+                      // Empty asset - source model is picked + baked from
+                      // the inspector after creation.
+                      auto data = std::make_shared<MeshColliderAssetData>();
+                      AssetHandle handle =
+                          AssetRegistry::Create<MeshColliderAssetData>(
+                              name, AssetType::MeshCollider, vfs_path, data);
+                      if (handle.IsValid()) {
+                        ScanProjectAssets();
+                      }
+                    },
+            });
+          },
+  });
+
+  // Runtime keeps the cursor set active; the editor only wants it to take over
+  // while playing with the mouse over the game viewport. OnUpdate manages the
+  // toggles from here on.
+  Engine::cursor_manager().SetActive(false);
+
   // Load editor preferences and apply saved theme
   editor_config_ = std::make_unique<UserConfig>(
       urkern::GetUserDataDirectory("WieselEditor"), "editor_config.json");
@@ -257,9 +530,6 @@ void EditorLayer::OnAttach() {
   ab_cb.on_update_title = [this]() {
     UpdateWindowTitle();
   };
-  ab_cb.on_new_scene = [this]() {
-    NewScene();
-  };
   ab_cb.on_open_scene = [this](const std::string& vfs) {
     deferred_action_ = DeferredAction::OpenScene;
     deferred_path_ = vfs;
@@ -277,19 +547,6 @@ void EditorLayer::OnAttach() {
     inspector_mode_ = InspectorMode::Asset;
     selected_entity_ = EntityRef{};
   };
-  ab_cb.on_slice_texture = [this](AssetHandle h) {
-    slice_texture_handle_ = h;
-    show_slice_sprites_ = true;
-  };
-  ab_cb.on_show_create_skybox = [this]() {
-    show_create_skybox_ = true;
-  };
-  ab_cb.on_show_create_cursorset = [this]() {
-    show_create_cursorset_ = true;
-  };
-  ab_cb.on_show_create_sprite = [this]() {
-    show_create_sprite_ = true;
-  };
   ab_cb.on_open_anim_controller = [this](AssetHandle handle) {
     auto data = Engine::asset_manager().Get<AnimControllerAssetData>(handle);
     if (!data) {
@@ -300,15 +557,29 @@ void EditorLayer::OnAttach() {
       anim_controller_editor_.Open(handle, data);
     }
   };
-  ab_cb.on_show_create_meshcollider = [this]() {
-    show_create_meshcollider_ = true;
+  ab_cb.on_open_anim_clip = [this](AssetHandle handle) {
+    auto data = Engine::asset_manager().Get<AnimClipAssetData>(handle);
+    if (!data) {
+      Engine::asset_manager().LoadSync(handle);
+      data = Engine::asset_manager().Get<AnimClipAssetData>(handle);
+    }
+    if (data) {
+      anim_clip_editor_.Open(handle, data);
+    }
   };
-  ab_cb.on_create_anim_controller = [this]() {
-    show_create_animcontroller_ = true;
+  // The panel's top-bar Folder button shares the Folder factory's prompt.
+  ab_cb.on_request_folder = [this] {
+    for (const auto& f : AssetFactoryRegistry::All()) {
+      if (f.label == "Folder" && f.action) {
+        f.action();
+        return;
+      }
+    }
   };
   asset_browser_panel_.SetCallbacks(std::move(ab_cb));
 
   command_palette_.SetMonoFont(code_editor_font_);
+  name_prompt_.SetMonoFont(code_editor_font_);
   RegisterPaletteCommands();
 }
 
@@ -392,6 +663,25 @@ void EditorLayer::OnUpdate(float_t delta_time) {
   Engine::input().SetEnabled(editor_state_ == EditorState::Playing &&
                              game_panel_focused_);
 
+  // Custom cursor from the scene's cursor set should only override the OS
+  // cursor while playing and the pointer is in the game viewport. When
+  // active, stop ImGui from touching the cursor so our override isn't clobbered
+  // by its per-frame SDL_SetCursor call.
+  {
+    bool want_active =
+        editor_state_ == EditorState::Playing && game_panel_hovered_;
+    CursorManager& cursor = Engine::cursor_manager();
+    if (want_active != cursor.IsActive()) {
+      cursor.SetActive(want_active);
+      ImGuiIO& io = ImGui::GetIO();
+      if (want_active) {
+        io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+      } else {
+        io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+      }
+    }
+  }
+
   // Process pending scene loads (both edit and play mode)
   if (Engine::scene_manager().BeginFrame()) {
     selected_entity_ = EntityRef{};
@@ -425,9 +715,14 @@ void EditorLayer::OnUpdate(float_t delta_time) {
     Engine::script_manager().ReloadAsync();
   }
 
-  // Asset directory change: refresh browser cache
+  // Asset directory change: refresh browser cache and purge registrations
+  // for files deleted outside the editor (OS file manager, IDE, git, etc.).
   if (asset_dir_watcher_.Poll()) {
     asset_browser_panel_.browser().Invalidate();
+    int removed = ProjectLoader::UnregisterMissingAppAssets();
+    if (removed > 0) {
+      ThumbnailCache::Get()->RemoveStale();
+    }
   }
 
   // UI file hot reload: .rml/.rcss changes
@@ -569,6 +864,7 @@ void EditorLayer::OnBeginPresent() {
     }
   }
   command_palette_.Render();
+  name_prompt_.Render();
 
   ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
   InitializeDockspaceLayout(dockspace_id);
@@ -576,15 +872,11 @@ void EditorLayer::OnBeginPresent() {
   RenderProjectSettingsPopup();
   RenderCodeEditor();
   anim_controller_editor_.Render();
+  anim_clip_editor_.Render();
   RenderLspDebugPanel();
   RenderFontDebugPanel();
   RenderEditorSettingsPanel();
-  RenderCreateSkyboxPopup();
-  RenderCreateSpritePopup();
   RenderSliceSpritesPopup();
-  RenderCreateAnimControllerPopup();
-  RenderCreateCursorSetPopup();
-  RenderCreateMeshColliderPopup();
   file_picker_.Render();
   notifications_.RenderToasts();
   notifications_.RenderHistoryPanel();
@@ -667,6 +959,8 @@ void EditorLayer::InitializeDockspaceLayout(ImGuiID dockspace_id) {
 }
 
 void EditorLayer::OnPostPresent() {
+  DrainPendingAssetReloads();
+
   // Execute pending entity pick readback (GPU is idle after EndPresent fence)
   Renderer* renderer = Engine::renderer().get();
   entt::entity picked;
@@ -832,14 +1126,6 @@ void EditorLayer::RegisterPaletteCommands() {
       .icon = ICON_LC_SAVE,
       .action = [this] { SaveSceneAs(); },
   });
-  command_palette_.Register({
-      .id = "file.new_scene",
-      .label = "New Scene",
-      .category = "File",
-      .icon = ICON_LC_FILE_PLUS,
-      .action = [this] { NewScene(); },
-  });
-
   // Edit
   command_palette_.Register({
       .id = "edit.undo",
@@ -961,6 +1247,83 @@ void EditorLayer::RegisterPaletteCommands() {
           },
       .enabled = has_selection,
   });
+
+  // Auto-register one palette command per entity factory. Each spawns the
+  // entity at the editor camera's current position so it lands in view; the
+  // hierarchy/viewport menus still cover the parent + spawn-pos cases.
+  auto run_factory = [this](size_t factory_idx, const glm::vec3& pos) {
+    Scene* s = scene();
+    if (!s) {
+      return;
+    }
+    const auto& factories = EntityFactoryRegistry::All();
+    if (factory_idx >= factories.size()) {
+      return;
+    }
+    Entity created = factories[factory_idx].create(*s);
+    if (!created) {
+      return;
+    }
+    auto& tc = created.GetComponent<TransformComponent>();
+    tc.SetPosition(pos);
+    EntityRef ref = created.ToRef();
+    command_stack_.Execute(std::make_unique<EntityCreateCommand>(ref));
+    selected_entity_ = ref;
+    scroll_to_selected_ = true;
+    scene_dirty_ = true;
+  };
+  const auto& factories = EntityFactoryRegistry::All();
+  for (size_t i = 0; i < factories.size(); i++) {
+    const auto& f = factories[i];
+    std::string label = "New " + f.label;
+    if (!f.group.empty()) {
+      label += " (" + f.group + ")";
+    }
+    label += " in Place";
+    std::string id = "entity.new." + f.label;
+    command_palette_.Register({
+        .id = id,
+        .label = label,
+        .category = "Entity",
+        .icon = f.icon.empty() ? ICON_LC_PLUS : f.icon,
+        .action =
+            [this, run_factory, i] {
+              run_factory(i, editor_camera_transform_.GetPosition());
+            },
+        .enabled = [this] { return scene() != nullptr; },
+    });
+  }
+  // Empty Entity at origin is the only non-in-place variant - useful as a
+  // quick "reset" spawn from anywhere in the editor.
+  command_palette_.Register({
+      .id = "entity.new_empty_at_origin",
+      .label = "New Empty Entity at Origin",
+      .category = "Entity",
+      .icon = ICON_LC_PLUS,
+      .action =
+          [this, run_factory] {
+            run_factory(0, glm::vec3{0.0f, 0.0f, 0.0f});
+          },
+      .enabled = [this] { return scene() != nullptr; },
+  });
+
+  // Asset: one palette entry per registered AssetFactoryRegistry entry. The
+  // factory action handles the rest (opens the name prompt or wizard).
+  for (const AssetFactoryDesc& f : AssetFactoryRegistry::All()) {
+    command_palette_.Register({
+        .id = "asset.new." + f.label,
+        .label = "New " + f.label + "...",
+        .category = "Asset",
+        .icon = f.icon.empty() ? ICON_LC_PLUS : f.icon,
+        .action =
+            [action = f.action] {
+              if (action) {
+                action();
+              }
+            },
+        .enabled = [this] { return active_project_ != nullptr; },
+    });
+  }
 
   // View
   command_palette_.Register({

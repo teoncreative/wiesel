@@ -27,9 +27,7 @@
 
 namespace wiesel {
 
-// ---------------------------------------------------------------------------
-// VFS-backed Assimp IO
-// ---------------------------------------------------------------------------
+// ---- VFS-backed Assimp IO ----
 
 class VfsAssimpIOStream : public Assimp::IOStream {
   friend class VfsAssimpIOSystem;
@@ -121,19 +119,11 @@ class VfsAssimpIOSystem : public Assimp::IOSystem {
   std::string base_dir_;
 };
 
-// ---------------------------------------------------------------------------
-// Thread-local decoded texture cache
-// ---------------------------------------------------------------------------
-
 // Populated by PreDecodeTextures before calling LoadSync on child textures,
 // so the texture loader grabs pre-decoded pixels without re-importing Assimp.
 static thread_local std::unordered_map<std::string,
                                        std::shared_ptr<DecodedTextureData>>
     tl_decoded_texture_cache;
-
-// ---------------------------------------------------------------------------
-// Helpers (file-local)
-// ---------------------------------------------------------------------------
 
 static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width,
                                         int height) {
@@ -172,10 +162,6 @@ static std::string NormalizeTexturePath(const std::string& raw,
   return textures_dir + "/" + s;
 }
 
-// ---------------------------------------------------------------------------
-// Forward declarations (file-local)
-// ---------------------------------------------------------------------------
-
 static void PreDecodeTextures(Model& model, const aiScene& scene);
 static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
                         aiMaterial* mat, aiTextureType type,
@@ -187,10 +173,6 @@ static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                         std::unordered_map<aiMesh*, int32_t>& mesh_cache,
                         int32_t parent_node_index);
 static void ExtractAnimations(Model& model, const aiScene& scene);
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 std::unique_ptr<aiScene> LoadAssimpScene(const std::string& path,
                                          bool convert_to_left_handed) {
@@ -698,10 +680,6 @@ bool LoadModelAsset(AssetHandle handle) {
   }
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 static void PreDecodeTextures(Model& model, const aiScene& scene) {
   const aiTextureType texture_types[] = {

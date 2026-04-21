@@ -14,6 +14,7 @@
 #include <entt/meta/resolve.hpp>
 
 #include "core/w_reflect.h"
+#include "core/w_reflect_facade.h"
 #include "util/w_logger.h"
 #include "w_reflect_all.generated.h"
 
@@ -21,6 +22,7 @@ namespace wiesel {
 
 void InitializeReflection() {
   generated::ReflectAll();
+  reflect::InitializeBuiltinConverters();
   LOG_INFO("Reflection initialized");
 }
 

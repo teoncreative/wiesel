@@ -507,7 +507,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         return;
       }
       const std::shared_ptr<Model>& model_data =
-          Engine::asset_manager().GetOrLoad<Model>(mr.model_handle);
+          Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
       if (!model_data) {
         return;
       }
@@ -879,7 +879,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                 }
                 auto& transform =
                     scene.GetComponent<TransformComponent>(entity);
-                const auto& md = assets.GetOrLoad<Model>(mr.model_handle);
+                const auto& md = assets.GetOrStartLoad<Model>(mr.model_handle);
                 if (!md ||
                     mr.mesh_index >= static_cast<int32_t>(md->meshes.size())) {
                   return;

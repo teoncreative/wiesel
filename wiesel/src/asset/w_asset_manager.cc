@@ -348,7 +348,7 @@ AssetLoadState AssetManager::GetLoadState(AssetHandle handle) const {
 bool AssetManager::IsLoaded(AssetHandle handle) const {
   std::shared_lock lock(registry_mutex_);
   auto it = registry_.find(handle);
-  return it != registry_.end() && it->second->resource != nullptr;
+  return it != registry_.end() && it->second->HasAnyResource();
 }
 
 void AssetManager::Unload(AssetHandle handle) {
@@ -357,8 +357,8 @@ void AssetManager::Unload(AssetHandle handle) {
   {
     std::unique_lock lock(registry_mutex_);
     auto it = registry_.find(handle);
-    if (it != registry_.end() && it->second->resource) {
-      it->second->resource.reset();
+    if (it != registry_.end() && it->second->HasAnyResource()) {
+      it->second->resources.clear();
       it->second->metadata.load_state.store(AssetLoadState::Unloaded);
       it->second->metadata.load_progress.store(0.0f);
       had_resource = true;
@@ -382,7 +382,7 @@ void AssetManager::Unload(AssetHandle handle) {
 void AssetManager::UnloadAll() {
   std::unique_lock lock(registry_mutex_);
   for (auto& [handle, entry] : registry_) {
-    entry->resource.reset();
+    entry->resources.clear();
   }
 }
 
@@ -400,7 +400,7 @@ void AssetManager::ReloadAllOfType(AssetType type) {
   {
     std::shared_lock lock(registry_mutex_);
     for (auto& [handle, entry] : registry_) {
-      if (entry->metadata.type == type && entry->resource) {
+      if (entry->metadata.type == type && entry->HasAnyResource()) {
         to_reload.push_back(handle);
       }
     }
@@ -469,6 +469,30 @@ void AssetManager::Clear() {
   name_index_.clear();
   parent_to_dependents_.clear();
   dependent_to_parents_.clear();
+}
+
+void AssetManager::ClearByPathPrefix(const std::string& prefix) {
+  if (prefix.empty()) {
+    return;
+  }
+
+  std::vector<AssetHandle> to_remove;
+  {
+    std::shared_lock lock(registry_mutex_);
+    to_remove.reserve(registry_.size());
+    for (const auto& [handle, entry] : registry_) {
+      const std::string& path = entry->metadata.virtual_source_path;
+      if (path.size() >= prefix.size() &&
+          path.compare(0, prefix.size(), prefix) == 0) {
+        to_remove.push_back(handle);
+      }
+    }
+  }
+
+  for (AssetHandle handle : to_remove) {
+    Unload(handle);
+    Unregister(handle);
+  }
 }
 
 bool AssetManager::LoadSync(AssetHandle handle) {
