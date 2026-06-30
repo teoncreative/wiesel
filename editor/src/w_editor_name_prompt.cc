@@ -17,46 +17,18 @@
 #include <utility>
 #include <vector>
 
+#include "ui/w_ui_draw.h"
+#include "ui/w_ui_layout.h"
+#include "ui/w_ui_popup.h"
+#include "ui/w_ui_style.h"
 #include "util/imgui/imgui_lucide.h"
-#include "util/imgui/w_imguiutil.h"
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
 namespace wiesel::editor {
 
-namespace {
-
-constexpr float kOuterPadX = 10.0f;
-constexpr float kRowPadX = 12.0f;
-constexpr float kRowPadY = 8.0f;
-constexpr float kBadgeScale = 0.75f;
-constexpr ImU32 kBadgeBg = IM_COL32(0x23, 0x21, 0x20, 0xff);
-constexpr ImU32 kLegendBg = IM_COL32(0x18, 0x16, 0x15, 0xff);
-
-void DrawBadge(ImDrawList* dl, ImFont* font, const char* text, float cy,
-               float right_x, float host_font_size) {
-  const float font_size = host_font_size * kBadgeScale;
-  const ImVec2 text_sz = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, text);
-  const float badge_pad_x = 6.0f;
-  const float badge_h = host_font_size;
-  const float badge_w = text_sz.x + badge_pad_x * 2.0f;
-  const ImVec2 badge_max(right_x, cy + badge_h * 0.5f);
-  const ImVec2 badge_min(badge_max.x - badge_w, cy - badge_h * 0.5f);
-  dl->AddRectFilled(badge_min, badge_max, kBadgeBg, 3.0f);
-  dl->AddRect(badge_min, badge_max,
-              ImGui::GetColorU32(ImGuiCol_Border), 3.0f, 0, 1.0f);
-  dl->AddText(font, font_size,
-              ImVec2(badge_min.x + badge_pad_x, cy - text_sz.y * 0.5f),
-              ImGui::GetColorU32(ImGuiCol_TextDisabled), text);
-}
-
-float BadgeWidth(ImFont* font, const char* text, float host_font_size) {
-  const float font_size = host_font_size * kBadgeScale;
-  const float w = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, text).x;
-  return w + 12.0f;
-}
-
-}  // namespace
+namespace style = ui::style;
+namespace draw = ui::draw;
 
 void NamePromptPopup::Open(NamePromptRequest req) {
   req_ = std::move(req);
@@ -75,40 +47,12 @@ void NamePromptPopup::Render() {
     return;
   }
 
-  ImGuiViewport* vp = ImGui::GetMainViewport();
-  const ImVec2 size(520.0f, 0.0f);  // height auto-fit
-  ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Always,
-                          ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(size, ImGuiCond_Always);
-
-  const ImGuiWindowFlags flags =
-      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-      ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDocking |
-      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
-      ImGuiWindowFlags_AlwaysAutoResize;
-
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-  bool visible = ImGui::BeginPopupModal(kPopupId, nullptr, flags);
-  ImGui::PopStyleVar();
-  if (!visible) {
-    open_ = false;
+  if (!ui::popup::BeginCentered(kPopupId, ImVec2(520.0f, 0.0f),
+                                /*auto_resize=*/true, &open_)) {
     return;
   }
-
-  // Esc to cancel; click outside cancels (BeginPopupModal blocks
-  // background, so a left click outside this window's rect is our cue).
-  if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-    open_ = false;
-    ImGui::CloseCurrentPopup();
-    ImGui::EndPopup();
-    return;
-  }
-  if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-      !ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) {
-    open_ = false;
-    ImGui::CloseCurrentPopup();
-    ImGui::EndPopup();
+  if (!open_) {
+    ui::popup::EndCentered();
     return;
   }
 
@@ -135,7 +79,7 @@ void NamePromptPopup::Render() {
   const float scaled_icon_w = icon_sz_before_scale.x * kInputFontScale;
   const float scaled_icon_h = icon_sz_before_scale.y * kInputFontScale;
   const float icon_gap = g.Style.ItemInnerSpacing.x * 2.0f;
-  const float left_inset = kRowPadX + kOuterPadX;
+  const float left_inset = style::kRowInnerPadX + style::kRowOuterPadX;
   const float input_pad_x = left_inset + scaled_icon_w + icon_gap;
 
   const ImVec2 input_start = ImGui::GetCursorScreenPos();
@@ -173,12 +117,12 @@ void NamePromptPopup::Render() {
                 ImGui::GetColorU32(ImGuiCol_TextDisabled), icon_str);
   }
 
-  ImGui::FullWidthSeparator();
+  ui::layout::Separator();
 
   // Body: title + path preview
-  ImGui::Dummy(ImVec2(0.0f, kRowPadY));
+  ImGui::Dummy(ImVec2(0.0f, style::kRowInnerPadY));
 
-  ImGui::Indent(kRowPadX + kOuterPadX);
+  ImGui::Indent(style::kRowInnerPadX + style::kRowOuterPadX);
   if (!req_.title.empty()) {
     ImGui::SetWindowFontScale(0.7f);
     ImGui::PushStyleColor(ImGuiCol_Text,
@@ -232,11 +176,11 @@ void NamePromptPopup::Render() {
     ImGui::PopStyleColor();
   }
 
-  ImGui::Unindent(kRowPadX + kOuterPadX);
-  ImGui::Dummy(ImVec2(0.0f, kRowPadY));
+  ImGui::Unindent(style::kRowInnerPadX + style::kRowOuterPadX);
+  ImGui::Dummy(ImVec2(0.0f, style::kRowInnerPadY));
 
   // Legend strip
-  const float legend_h = ImGui::GetFrameHeight() + kRowPadY * 1.5f;
+  const float legend_h = ImGui::GetFrameHeight() + style::kRowInnerPadY * 1.5f;
   ImGuiWindow* win = ImGui::GetCurrentWindow();
   const ImVec2 legend_pos = ImGui::GetCursorScreenPos();
   const float legend_right = win->Pos.x + win->Size.x;
@@ -247,11 +191,11 @@ void NamePromptPopup::Render() {
       g.Style.PopupRounding > 0.0f ? g.Style.PopupRounding
                                    : g.Style.WindowRounding;
   dl->AddRectFilled(legend_pos, ImVec2(legend_right, legend_bottom),
-                    kLegendBg, corner_r, ImDrawFlags_RoundCornersBottom);
+                    style::kLegendBg, corner_r, ImDrawFlags_RoundCornersBottom);
 
   const ImU32 muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
   const float host_fs = ImGui::GetFontSize();
-  const float legend_font_size = host_fs * kBadgeScale;
+  const float legend_font_size = host_fs * style::kBadgeScale;
 
   struct Hint {
     std::vector<const char*> keys;
@@ -261,11 +205,11 @@ void NamePromptPopup::Render() {
       {{"Enter"}, " Create"},
       {{"Esc"}, " Cancel"},
   };
-  float x = legend_pos.x + kRowPadX;
+  float x = legend_pos.x + style::kRowInnerPadX;
   for (const auto& h : hints) {
     for (const char* key : h.keys) {
-      const float w = BadgeWidth(mono, key, host_fs);
-      DrawBadge(dl, mono, key, legend_cy, x + w, host_fs);
+      const float w = draw::BadgeWidth(mono, key, host_fs);
+      draw::DrawBadge(dl, mono, key, legend_cy, x + w, host_fs);
       x += w + 4.0f;
     }
     const ImVec2 text_sz =
@@ -287,7 +231,7 @@ void NamePromptPopup::Render() {
     ImGui::CloseCurrentPopup();
   }
 
-  ImGui::EndPopup();
+  ui::popup::EndCentered();
 }
 
 }  // namespace wiesel::editor

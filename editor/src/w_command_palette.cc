@@ -16,10 +16,17 @@
 #include <algorithm>
 #include <cctype>
 
+#include "ui/w_ui_draw.h"
+#include "ui/w_ui_layout.h"
+#include "ui/w_ui_popup.h"
+#include "ui/w_ui_row.h"
+#include "ui/w_ui_style.h"
 #include "util/imgui/imgui_lucide.h"
-#include "util/imgui/w_imguiutil.h"
 
 namespace wiesel::editor {
+
+namespace style = ui::style;
+namespace draw = ui::draw;
 
 namespace {
 
@@ -54,36 +61,6 @@ bool Matches(const Command& cmd, const std::string& filter_lower) {
   return false;
 }
 
-constexpr float kOuterPadX = 10.0f;  // margin between palette edge + rows
-constexpr float kRowPadX = 12.0f;    // inner row content inset
-constexpr float kRowPadY = 8.0f;     // inner row vertical inset
-constexpr float kBadgeScale = 0.75f;
-constexpr ImU32 kBadgeBg = IM_COL32(0x23, 0x21, 0x20, 0xff);
-constexpr ImU32 kLegendBg = IM_COL32(0x18, 0x16, 0x15, 0xff);
-
-void DrawBadge(ImDrawList* dl, ImFont* font, const char* text, float cy,
-               float right_x, float host_font_size) {
-  const float font_size = host_font_size * kBadgeScale;
-  const ImVec2 text_sz =
-      font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, text);
-  const float badge_pad_x = 6.0f;
-  const float badge_h = host_font_size;
-  const float badge_w = text_sz.x + badge_pad_x * 2.0f;
-  const ImVec2 badge_max(right_x, cy + badge_h * 0.5f);
-  const ImVec2 badge_min(badge_max.x - badge_w, cy - badge_h * 0.5f);
-  dl->AddRectFilled(badge_min, badge_max, kBadgeBg, 3.0f);
-  dl->AddRect(badge_min, badge_max,
-              ImGui::GetColorU32(ImGuiCol_Border), 3.0f, 0, 1.0f);
-  dl->AddText(font, font_size,
-              ImVec2(badge_min.x + badge_pad_x, cy - text_sz.y * 0.5f),
-              ImGui::GetColorU32(ImGuiCol_TextDisabled), text);
-}
-
-float BadgeWidth(ImFont* font, const char* text, float host_font_size) {
-  const float font_size = host_font_size * kBadgeScale;
-  const float w = font->CalcTextSizeA(font_size, FLT_MAX, 0.0f, text).x;
-  return w + 12.0f;  // matches DrawBadge's 2 * pad_x
-}
 
 }  // namespace
 
@@ -125,13 +102,13 @@ void CommandPalette::RenderRow(const Command& cmd, bool selected,
                                bool /*in_category_view*/) {
   ImGuiWindow* window = ImGui::GetCurrentWindow();
   ImGuiContext& g = *GImGui;
-  const float row_h = ImGui::GetFrameHeight() + kRowPadY;
+  const float row_h = ImGui::GetFrameHeight() + style::kRowInnerPadY;
 
-  // Row is inset from both sides by kOuterPadX so the selection has a
+  // Row is inset from both sides by style::kRowOuterPadX so the selection has a
   // margin + rounded corners, not a flush edge-to-edge stripe.
   const float avail_w = ImGui::GetContentRegionAvail().x;
-  const float row_w = avail_w - kOuterPadX * 2.0f;
-  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + kOuterPadX);
+  const float row_w = avail_w - style::kRowOuterPadX * 2.0f;
+  ImGui::SetCursorPosX(ImGui::GetCursorPosX() + style::kRowOuterPadX);
   const ImVec2 pos = ImGui::GetCursorScreenPos();
 
   const bool disabled = cmd.enabled && !cmd.enabled();
@@ -151,14 +128,10 @@ void CommandPalette::RenderRow(const Command& cmd, bool selected,
   const float rounding = g.Style.FrameRounding;
 
   const bool highlighted = selected || hovered;
-  if (highlighted) {
-    const ImU32 bg_col = ImGui::GetColorU32(hovered ? ImGuiCol_HeaderHovered
-                                                    : ImGuiCol_Header);
-    dl->AddRectFilled(row_min, row_max, bg_col, rounding);
-  }
+  ui::row::DrawRowHighlight(dl, row_min, row_max, selected, hovered, rounding);
 
   const float cy = pos.y + row_h * 0.5f;
-  float x = pos.x + kRowPadX;
+  float x = pos.x + style::kRowInnerPadX;
 
   // Icon: muted by default, accent when highlighted.
   if (!cmd.icon.empty()) {
@@ -175,15 +148,15 @@ void CommandPalette::RenderRow(const Command& cmd, bool selected,
   dl->AddText(ImVec2(x, cy - label_sz.y * 0.5f),
               ImGui::GetColorU32(ImGuiCol_Text), cmd.label.c_str());
 
-  float right_edge = row_max.x - kRowPadX;
+  float right_edge = row_max.x - style::kRowInnerPadX;
 
   // Shortcut badge: right-aligned, monospace, smaller than label.
   if (!cmd.shortcut_text.empty()) {
     ImFont* font = mono_font_ ? mono_font_ : g.Font;
-    DrawBadge(dl, font, cmd.shortcut_text.c_str(), cy, right_edge,
+    draw::DrawBadge(dl, font, cmd.shortcut_text.c_str(), cy, right_edge,
               ImGui::GetFontSize());
     right_edge -=
-        BadgeWidth(font, cmd.shortcut_text.c_str(), ImGui::GetFontSize()) +
+        draw::BadgeWidth(font, cmd.shortcut_text.c_str(), ImGui::GetFontSize()) +
         g.Style.ItemInnerSpacing.x * 2.0f;
   }
 
@@ -217,37 +190,9 @@ void CommandPalette::Render() {
     return;
   }
 
-  ImGuiViewport* vp = ImGui::GetMainViewport();
-  const ImVec2 size(640.0f, 420.0f);
-  ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Always,
-                          ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(size, ImGuiCond_Always);
-
-  // ModalWindowDimBg dims the rest of the viewport automatically.
-  const ImGuiWindowFlags flags =
-      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-      ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDocking |
-      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav;
-
-  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-  bool visible = ImGui::BeginPopupModal(kPopupId, nullptr, flags);
-  ImGui::PopStyleVar();
-  if (!visible) {
-    open_ = false;
+  if (!ui::popup::BeginCentered(kPopupId, ImVec2(640.0f, 420.0f),
+                                /*auto_resize=*/false, &open_)) {
     return;
-  }
-
-  // Close on Esc or click outside (BeginPopupModal blocks background
-  // interaction, so a click outside the window's rect is our cue).
-  if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-    open_ = false;
-    ImGui::CloseCurrentPopup();
-  }
-  if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-      !ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows)) {
-    open_ = false;
-    ImGui::CloseCurrentPopup();
   }
 
   ImGuiContext& g = *GImGui;
@@ -277,7 +222,7 @@ void CommandPalette::Render() {
   const float scaled_icon_w = icon_sz_before_scale.x * kSearchFontScale;
   const float scaled_icon_h = icon_sz_before_scale.y * kSearchFontScale;
   const float icon_gap = g.Style.ItemInnerSpacing.x * 2.0f;
-  const float left_inset = kRowPadX + kOuterPadX;
+  const float left_inset = style::kRowInnerPadX + style::kRowOuterPadX;
   const float input_pad_x = left_inset + scaled_icon_w + icon_gap;
 
   const ImVec2 input_start = ImGui::GetCursorScreenPos();
@@ -316,7 +261,7 @@ void CommandPalette::Render() {
         ImGui::GetColorU32(ImGuiCol_TextDisabled), ICON_LC_COMMAND);
   }
 
-  ImGui::FullWidthSeparator();
+  ui::layout::Separator();
 
   // --- Filter ---
   const std::string filter_lower = ToLower(search_);
@@ -373,12 +318,12 @@ void CommandPalette::Render() {
   }
 
   // List (scrolls) then legend (fixed bg strip at the bottom)
-  const float legend_h = ImGui::GetFrameHeight() + kRowPadY * 1.5f;
+  const float legend_h = ImGui::GetFrameHeight() + style::kRowInnerPadY * 1.5f;
   const float list_h =
       ImGui::GetContentRegionAvail().y - legend_h;
 
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
-                      ImVec2(0.0f, kRowPadY * 0.5f));
+                      ImVec2(0.0f, style::kRowInnerPadY * 0.5f));
   ImGui::BeginChild("##CmdList", ImVec2(0.0f, list_h),
                     ImGuiChildFlags_None, ImGuiWindowFlags_None);
   ImGui::PopStyleVar();
@@ -405,10 +350,10 @@ void CommandPalette::Render() {
     int row_idx = 0;
     for (size_t ci = 0; ci < categories.size(); ci++) {
       const std::string& cat = categories[ci];
-      // Consistent gap before every category — including the first — so
+      // Consistent gap before every category - including the first - so
       // the list doesn't start flush against the separator.
-      ImGui::Dummy(ImVec2(0.0f, kRowPadY));
-      ImGui::Indent(kRowPadX + kOuterPadX);
+      ImGui::Dummy(ImVec2(0.0f, style::kRowInnerPadY));
+      ImGui::Indent(style::kRowInnerPadX + style::kRowOuterPadX);
       ImGui::SetWindowFontScale(0.7f);
       ImGui::PushStyleColor(
           ImGuiCol_Text,
@@ -416,8 +361,8 @@ void CommandPalette::Render() {
       ImGui::TextUnformatted(ToUpper(cat).c_str());
       ImGui::PopStyleColor();
       ImGui::SetWindowFontScale(1.0f);
-      ImGui::Unindent(kRowPadX + kOuterPadX);
-      ImGui::Dummy(ImVec2(0.0f, kRowPadY * 0.25f));
+      ImGui::Unindent(style::kRowInnerPadX + style::kRowOuterPadX);
+      ImGui::Dummy(ImVec2(0.0f, style::kRowInnerPadY * 0.25f));
 
       for (const auto* cmd : filtered) {
         const std::string& c =
@@ -445,14 +390,14 @@ void CommandPalette::Render() {
   // stays square so it butts against the separator above. The rect
   // extends all the way to the window's physical bottom so the legend
   // can't overflow past the rounded corners.
-  // Popups get drawn with PopupRounding, not WindowRounding — use the
+  // Popups get drawn with PopupRounding, not WindowRounding - use the
   // same value the window's top corners are using so all four corners
   // line up to the same radius.
   const float corner_r =
       g.Style.PopupRounding > 0.0f ? g.Style.PopupRounding
                                    : g.Style.WindowRounding;
   dl->AddRectFilled(legend_pos, ImVec2(legend_right, legend_bottom),
-                    kLegendBg, corner_r, ImDrawFlags_RoundCornersBottom);
+                    style::kLegendBg, corner_r, ImDrawFlags_RoundCornersBottom);
 
   const ImU32 muted = ImGui::GetColorU32(ImGuiCol_TextDisabled);
   const float host_fs = ImGui::GetFontSize();
@@ -469,13 +414,13 @@ void CommandPalette::Render() {
 
   // Legend text + count render in the same monospace font used by the
   // shortcut badges, at the same reduced size.
-  const float legend_font_size = host_fs * kBadgeScale;
+  const float legend_font_size = host_fs * style::kBadgeScale;
 
-  float x = legend_pos.x + kRowPadX;
+  float x = legend_pos.x + style::kRowInnerPadX;
   for (const auto& h : hints) {
     for (const char* key : h.keys) {
-      const float w = BadgeWidth(mono, key, host_fs);
-      DrawBadge(dl, mono, key, legend_cy, x + w, host_fs);
+      const float w = draw::BadgeWidth(mono, key, host_fs);
+      draw::DrawBadge(dl, mono, key, legend_cy, x + w, host_fs);
       x += w + 4.0f;
     }
     const ImVec2 text_sz =
@@ -490,12 +435,12 @@ void CommandPalette::Render() {
   const ImVec2 count_sz =
       mono->CalcTextSizeA(legend_font_size, FLT_MAX, 0.0f, count.c_str());
   dl->AddText(mono, legend_font_size,
-              ImVec2(legend_right - kRowPadX - count_sz.x,
+              ImVec2(legend_right - style::kRowInnerPadX - count_sz.x,
                      legend_cy - count_sz.y * 0.5f),
               muted, count.c_str());
   ImGui::Dummy(ImVec2(0.0f, legend_h));
 
-  ImGui::EndPopup();
+  ui::popup::EndCentered();
 }
 
 }  // namespace wiesel::editor

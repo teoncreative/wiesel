@@ -16,7 +16,7 @@
 
 // Engine-internal bridge between the public facade and the entt-meta backing
 // library. ONLY include this from converter implementations or from the
-// facade .cc file — never from consumer code.
+// facade .cc file - never from consumer code.
 
 namespace wiesel::reflect::internal {
 

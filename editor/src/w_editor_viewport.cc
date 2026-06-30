@@ -17,7 +17,8 @@
 #include "rendering/w_sprite.h"
 #include "scene/w_scene_manager.h"
 #include "script/w_scriptmanager.h"
-#include "util/imgui/w_imguiutil.h"
+#include "ui/w_ui_button.h"
+#include "ui/w_ui_layout.h"
 #include "w_editor_entity_factory.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
@@ -79,20 +80,20 @@ void EditorLayer::RenderSceneViewportPanel() {
         // BeginToolbarGroup adds 2px of inner padding above/below the row.
         const float row_height = ImGui::GetFrameHeight() + 4.0f;
 
-        ImGui::BeginToolbarGroup("##GizmoToolbar");
-        if (ImGui::ToolbarButton(ICON_LC_MOVE "##translate",
+        ui::button::BeginToolbarGroup("##GizmoToolbar");
+        if (ui::button::ToolbarButton(ICON_LC_MOVE "##translate",
                                  current_op_ == ImGuizmo::TRANSLATE))
           current_op_ = ImGuizmo::TRANSLATE;
         ImGui::SameLine();
-        if (ImGui::ToolbarButton(ICON_LC_ROTATE_CW "##rotate",
+        if (ui::button::ToolbarButton(ICON_LC_ROTATE_CW "##rotate",
                                  current_op_ == ImGuizmo::ROTATE))
           current_op_ = ImGuizmo::ROTATE;
         ImGui::SameLine();
-        if (ImGui::ToolbarButton(ICON_LC_SCALING "##scale",
+        if (ui::button::ToolbarButton(ICON_LC_SCALING "##scale",
                                  current_op_ == ImGuizmo::SCALE))
           current_op_ = ImGuizmo::SCALE;
         ImGui::SameLine();
-        if (ImGui::ToolbarButton(current_mode_ == ImGuizmo::LOCAL
+        if (ui::button::ToolbarButton(current_mode_ == ImGuizmo::LOCAL
                                      ? ICON_LC_HOUSE "##mode"
                                      : ICON_LC_GLOBE "##mode"))
           current_mode_ = (current_mode_ == ImGuizmo::LOCAL) ? ImGuizmo::WORLD
@@ -101,25 +102,24 @@ void EditorLayer::RenderSceneViewportPanel() {
           ImGui::SetTooltip(current_mode_ == ImGuizmo::LOCAL ? "Local"
                                                              : "World");
         }
-        ImGui::EndToolbarGroup();
+        ui::button::EndToolbarGroup();
 
         // Centered play/pause group. SameLine first to stay on this row.
         const float row_h = ImGui::GetFrameHeight();
         const float play_w = 2.0f * row_h;
-        const float win_w = ImGui::GetWindowWidth();
         ImGui::SameLine();
-        ImGui::SetCursorPosX((win_w - play_w) * 0.5f);
+        ui::layout::CenterCursorX(play_w);
         DrawPlayStopButtons();
 
         const float settings_w = row_h;
         ImGui::SameLine();
-        ImGui::SetCursorPosX(win_w - settings_w - pad.x);
+        ui::layout::RightAlignCursorX(settings_w, pad.x);
         bool open_settings = false;
-        ImGui::BeginToolbarGroup("##SceneSettingsGroup");
-        if (ImGui::ToolbarButton(ICON_LC_ELLIPSIS "##SceneSettings")) {
+        ui::button::BeginToolbarGroup("##SceneSettingsGroup");
+        if (ui::button::ToolbarButton(ICON_LC_ELLIPSIS "##SceneSettings")) {
           open_settings = true;
         }
-        ImGui::EndToolbarGroup();
+        ui::button::EndToolbarGroup();
         if (open_settings) {
           ImGui::OpenPopup("SceneCameraSettings");
         }
@@ -127,7 +127,7 @@ void EditorLayer::RenderSceneViewportPanel() {
         // Jump to a known Y so the bottom gap is exact regardless of any
         // trailing ItemSpacing the last widget contributed.
         ImGui::SetCursorPosY(row_start_y + row_height + pad.y);
-        ImGui::FullWidthSeparator();
+        ui::layout::Separator();
         if (ImGui::BeginPopup("SceneCameraSettings")) {
           ImGui::SeparatorText("Camera Mode");
           if (ImGui::RadioButton(
@@ -625,13 +625,12 @@ void EditorLayer::RenderGameViewportPanel() {
         // Centered play/pause group.
         const float row_h = ImGui::GetFrameHeight();
         const float play_w = 2.0f * row_h;
-        const float win_w = ImGui::GetWindowWidth();
-        ImGui::SetCursorPosX((win_w - play_w) * 0.5f);
+        ui::layout::CenterCursorX(play_w);
         DrawPlayStopButtons();
 
         const float combo_w = kResolutionComboWidth;
         ImGui::SameLine();
-        ImGui::SetCursorPosX(win_w - combo_w - pad.x);
+        ui::layout::RightAlignCursorX(combo_w, pad.x);
         ImGui::SetNextItemWidth(combo_w);
         const char* labels[kResolutionPresetCount];
         for (int i = 0; i < kResolutionPresetCount; i++) {
@@ -648,7 +647,7 @@ void EditorLayer::RenderGameViewportPanel() {
         }
         ImGui::Unindent(pad.x);
         ImGui::SetCursorPosY(row_start_y + row_height + pad.y);
-        ImGui::FullWidthSeparator();
+        ui::layout::Separator();
       }
 
       {
@@ -786,7 +785,7 @@ void EditorLayer::RenderGameViewportPanel() {
 
 bool EditorLayer::DrawPlayStopButtons() {
   bool changed = false;
-  ImGui::BeginToolbarGroup("##PlayToolbar");
+  ui::button::BeginToolbarGroup("##PlayToolbar");
 
   const bool is_playing = (editor_state_ == EditorState::Playing);
   const bool is_paused = (editor_state_ == EditorState::Paused);
@@ -813,7 +812,7 @@ bool EditorLayer::DrawPlayStopButtons() {
   if (is_playing) {
     push_red();
   }
-  if (ImGui::ToolbarButton(ICON_LC_PLAY "##play", is_playing)) {
+  if (ui::button::ToolbarButton(ICON_LC_PLAY "##play", is_playing)) {
     if (is_edit) {
       AutoSave();
       TakeSnapshot();
@@ -843,7 +842,7 @@ bool EditorLayer::DrawPlayStopButtons() {
   if (is_paused) {
     push_red();
   }
-  if (ImGui::ToolbarButton(ICON_LC_PAUSE "##pause", is_paused)) {
+  if (ui::button::ToolbarButton(ICON_LC_PAUSE "##pause", is_paused)) {
     if (is_playing) {
       editor_state_ = EditorState::Paused;
     } else if (is_paused) {
@@ -858,7 +857,7 @@ bool EditorLayer::DrawPlayStopButtons() {
     ImGui::EndDisabled();
   }
 
-  ImGui::EndToolbarGroup();
+  ui::button::EndToolbarGroup();
   return changed;
 }
 

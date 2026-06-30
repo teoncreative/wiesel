@@ -11,6 +11,8 @@
 
 #include "w_editor_components.h"
 
+#include "ui/w_ui_field.h"
+#include "ui/w_ui_section.h"
 #include "util/imgui/imgui_lucide.h"
 
 #include <backends/imgui_impl_vulkan.h>
@@ -41,7 +43,6 @@
 #include "ui/w_interactable.h"
 #include "ui/w_navigable.h"
 #include "ui/w_ui_document.h"
-#include "util/imgui/w_imguiutil.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
 #include "w_application.h"
@@ -54,6 +55,9 @@
 #include "asset/w_asset_utils.h"
 
 namespace wiesel {
+
+using editor::ui::field::PrefixLabel;
+using editor::ui::field::RenderTexturePreview;
 
 // Command stack pointer set by the editor each frame for undo/redo tracking.
 static editor::CommandStack* s_command_stack = nullptr;
@@ -169,12 +173,8 @@ static bool AssetDropField(const char* label, AssetType type,
   return false;
 }
 
-static bool TextureDropField(const char* label, AssetHandle& handle) {
-  return AssetDropField(label, AssetType::Texture, handle);
-}
-
 void RenderComponentImGui(TransformComponent& component, Entity entity) {
-  if (ImGui::ClosableTreeNode("Transform", nullptr)) {
+  if (editor::ui::section::ClosableTreeNode("Transform", nullptr)) {
     bool changed = false;
     changed |= ImGui::DragFloat3(
         PrefixLabel("Position").c_str(),
@@ -224,7 +224,7 @@ void RenderComponentImGui(TransformComponent& component, Entity entity) {
 
 void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Directional Light", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Directional Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
     if (s_command_stack) {
@@ -297,7 +297,7 @@ void RenderComponentImGui(LightDirectComponent& component, Entity entity) {
 
 void RenderComponentImGui(LightPointComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Point Light", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Point Light", &visible)) {
     ImGui::DragFloat(PrefixLabel("Ambient").c_str(),
                      &component.light_data.base.ambient, 0.01f);
     if (s_command_stack) {
@@ -406,7 +406,7 @@ void RenderComponentImGui(LightPointComponent& component, Entity entity) {
 
 void RenderComponentImGui(CameraComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Camera", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Camera", &visible)) {
     bool changed = false;
 
     const char* proj_modes[] = {"Perspective", "Orthographic"};
@@ -559,7 +559,7 @@ void RenderScriptVariables(ScriptInstance* instance) {
 bool RenderBehaviorComponentImGui(BehaviorsComponent& component,
                                   IBehavior& behavior, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode(behavior.GetEditorName().c_str(), &visible)) {
+  if (editor::ui::section::ClosableTreeNode(behavior.GetEditorName().c_str(), &visible)) {
     bool enabled = behavior.IsEnabled();
     if (ImGui::Checkbox(PrefixLabel("Enabled").c_str(), &enabled)) {
       behavior.SetEnabled(enabled);
@@ -589,7 +589,7 @@ void RenderComponentImGui(BehaviorsComponent& component, Entity entity) {
 
 void RenderComponentImGui(BoxColliderComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Box Collider", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Box Collider", &visible)) {
     ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
                       reinterpret_cast<float*>(&component.offset), 0.05f);
     ImGui::DragFloat3(PrefixLabel("Half Extents").c_str(),
@@ -607,7 +607,7 @@ void RenderComponentImGui(BoxColliderComponent& component, Entity entity) {
 
 void RenderComponentImGui(SphereColliderComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Sphere Collider", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Sphere Collider", &visible)) {
     ImGui::DragFloat3(PrefixLabel("Offset").c_str(),
                       reinterpret_cast<float*>(&component.offset), 0.05f);
     ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.05f,
@@ -636,7 +636,7 @@ void RenderAddComponentImGui_SphereColliderComponent(Entity entity) {
 
 void RenderComponentImGui(CapsuleColliderComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Capsule Collider", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Capsule Collider", &visible)) {
     ImGui::DragFloat3(PrefixLabel("Offset").c_str(), &component.offset.x,
                       0.01f);
     ImGui::DragFloat(PrefixLabel("Radius").c_str(), &component.radius, 0.01f,
@@ -669,7 +669,7 @@ void RenderAddComponentImGui_CapsuleColliderComponent(Entity entity) {
 
 void RenderComponentImGui(MeshColliderComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Mesh Collider", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Mesh Collider", &visible)) {
     AssetDropField("Collider Asset", AssetType::MeshCollider,
                    component.collider_handle);
 
@@ -705,7 +705,7 @@ void RenderAddComponentImGui_MeshColliderComponent(Entity entity) {
 
 void RenderComponentImGui(UIDocumentComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("UI Document", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("UI Document", &visible)) {
     AssetDropField("Document", AssetType::UIDocument,
                    component.document_handle);
     ImGui::Checkbox(PrefixLabel("Visible").c_str(), &component.visible);
@@ -727,7 +727,7 @@ void RenderAddComponentImGui_UIDocumentComponent(Entity entity) {
 
 void RenderComponentImGui(RigidBodyComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Rigid Body", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Rigid Body", &visible)) {
     const char* types[] = {"Static", "Kinematic", "Dynamic"};
     int type_idx = (int)component.type;
     if (ImGui::Combo(PrefixLabel("Type").c_str(), &type_idx, types, 3)) {
@@ -895,7 +895,7 @@ void RenderAddComponentImGui_RigidBodyComponent(Entity entity) {
 void RenderComponentImGui(RectangleTransformComponent& component,
                           Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Rectangle Transform", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Rectangle Transform", &visible)) {
     bool changed = false;
     changed |=
         ImGui::DragFloat2(PrefixLabel("Position").c_str(),
@@ -972,7 +972,7 @@ static void EnsureRectangleTransform(Entity entity,
 
 void RenderComponentImGui(CanvasComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Canvas", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Canvas", &visible)) {
     const char* render_modes[] = {"Screen Space - Overlay",
                                   "Screen Space - Camera", "World Space"};
     int rm = static_cast<int>(component.render_mode);
@@ -1049,7 +1049,7 @@ void RenderComponentImGui(CanvasComponent& component, Entity entity) {
 
 void RenderComponentImGui(CanvasScalerComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Canvas Scaler", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Canvas Scaler", &visible)) {
     // Check if the parent canvas is WorldSpace
     bool is_world_space = false;
     if (entity.HasComponent<CanvasComponent>()) {
@@ -1109,7 +1109,7 @@ void RenderAddComponentImGui_RectangleTransformComponent(Entity entity) {
 
 void RenderComponentImGui(AnimatorComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Animator", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Animator", &visible)) {
     AssetDropField("Controller", AssetType::AnimController,
                    component.controller_handle);
     ImGui::Checkbox(PrefixLabel("Playing").c_str(), &component.playing);
@@ -1183,7 +1183,7 @@ void RenderAddComponentImGui_AnimatorComponent(Entity entity) {
 
 void RenderComponentImGui(MeshRendererComponent& component, Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Mesh Renderer", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Mesh Renderer", &visible)) {
     ImGui::Checkbox(PrefixLabel("Rendering").c_str(),
                     &component.enable_rendering);
     ImGui::Checkbox(PrefixLabel("Receive Shadows").c_str(),
@@ -1218,7 +1218,7 @@ void RenderComponentImGui(MeshRendererComponent& component, Entity entity) {
 void RenderComponentImGui(SkinnedMeshRendererComponent& component,
                           Entity entity) {
   bool visible = true;
-  if (ImGui::ClosableTreeNode("Skinned Mesh Renderer", &visible)) {
+  if (editor::ui::section::ClosableTreeNode("Skinned Mesh Renderer", &visible)) {
     ImGui::Checkbox(PrefixLabel("Rendering").c_str(),
                     &component.enable_rendering);
     ImGui::Checkbox(PrefixLabel("Receive Shadows").c_str(),
@@ -1409,7 +1409,7 @@ const std::vector<std::type_index>& ComponentUiRegistry::All() {
 
 void RenderComponentImGui(AudioSourceComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Audio Source", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Audio Source", &visible)) {
     if (!visible) {
       entity.RemoveComponent<AudioSourceComponent>();
       visible = true;
@@ -1574,7 +1574,7 @@ void RenderAddComponentImGui_AudioSourceComponent(Entity entity) {
 
 void RenderComponentImGui(SpriteRendererComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Sprite Renderer", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Sprite Renderer", &visible)) {
     if (!visible) {
       entity.RemoveComponent<SpriteRendererComponent>();
       visible = true;
@@ -1666,7 +1666,7 @@ void RenderAddComponentImGui_SpriteRendererComponent(Entity entity) {
 void RenderComponentImGui(BillboardRendererComponent& component,
                           Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Billboard Renderer", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Billboard Renderer", &visible)) {
     if (!visible) {
       entity.RemoveComponent<BillboardRendererComponent>();
       visible = true;
@@ -1784,7 +1784,7 @@ void RenderAddComponentImGui_BillboardRendererComponent(Entity entity) {
 
 void RenderComponentImGui(BillboardTextComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Billboard Text", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Billboard Text", &visible)) {
     if (!visible) {
       entity.RemoveComponent<BillboardTextComponent>();
       visible = true;
@@ -1841,7 +1841,7 @@ void RenderAddComponentImGui_BillboardTextComponent(Entity entity) {
 
 void RenderComponentImGui(InteractableComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Interactable", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Interactable", &visible)) {
     if (!visible) {
       entity.RemoveComponent<InteractableComponent>();
       visible = true;
@@ -1877,7 +1877,7 @@ void RenderAddComponentImGui_InteractableComponent(Entity entity) {
 
 void RenderComponentImGui(NavigableComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Navigable", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Navigable", &visible)) {
     if (!visible) {
       entity.RemoveComponent<NavigableComponent>();
       visible = true;
@@ -1924,7 +1924,7 @@ void RenderAddComponentImGui_NavigableComponent(Entity entity) {
 
 void RenderComponentImGui(ReverbZoneComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Reverb Zone", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Reverb Zone", &visible)) {
     if (!visible) {
       entity.RemoveComponent<ReverbZoneComponent>();
       visible = true;
@@ -1987,7 +1987,7 @@ void RenderAddComponentImGui_ReverbZoneComponent(Entity entity) {
 
 void RenderComponentImGui(NetworkIdentityComponent& component, Entity entity) {
   bool visible = true;
-  if (!ImGui::ClosableTreeNode("Network Identity", &visible)) {
+  if (!editor::ui::section::ClosableTreeNode("Network Identity", &visible)) {
     if (!visible) {
       entity.RemoveComponent<NetworkIdentityComponent>();
       visible = true;
@@ -2118,69 +2118,22 @@ void InitializeEditorComponents() {
 }
 
 void RenderExistingComponents(Entity entity) {
+  namespace section = editor::ui::section;
   for (const auto& ti : RegistryOrder()) {
     const auto& desc = RegistryMap().at(ti);
-    if (!desc.HasComponent(entity)) {
+    if (!desc.HasComponent(entity) || !desc.RenderSelf) {
       continue;
     }
 
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImDrawListSplitter splitter;
-    splitter.Split(dl, 2);
-    splitter.SetCurrentChannel(dl, 1);
-
-    const float top_y = ImGui::GetCursorScreenPos().y;
-
-    ImGui::ResetComponentHeaderState();
-    ImGui::SetNextTreeNodeIcon(desc.icon.empty() ? nullptr
+    section::BeginDrawerFrame();
+    section::ResetHeaderState();
+    section::SetNextHeaderIcon(desc.icon.empty() ? nullptr
                                                  : desc.icon.c_str());
     desc.RenderSelf(entity);
-    ImGui::SetNextTreeNodeIcon(nullptr);
+    section::SetNextHeaderIcon(nullptr);
 
-    const ImGui::ComponentHeaderState state = ImGui::GetComponentHeaderState();
-    // Strip the trailing ItemSpacing that ItemSize added, then add an
-    // explicit drawer bottom pad so the box hugs the last inner widget.
-    const float content_end_y =
-        ImGui::GetCursorScreenPos().y - ImGui::GetStyle().ItemSpacing.y;
-    const float bottom_pad = (state.header_rendered && state.open)
-                                 ? ImGui::GetStyle().WindowPadding.y
-                                 : 0.0f;
-    const float bottom_y = content_end_y + bottom_pad;
-
-    splitter.SetCurrentChannel(dl, 0);
-    const ImVec2 win_pos = ImGui::GetWindowPos();
-    const ImVec2 win_size = ImGui::GetWindowSize();
-    // Box spans the full window width, ignoring WindowPadding.
-    const float left_x = win_pos.x;
-    const float right_x = win_pos.x + win_size.x;
-    const ImU32 border_col = ImGui::GetColorU32(ImGuiCol_Border);
-
-    if (state.header_rendered && state.open) {
-      // Fixed drawer bg matches the engine's input drawer color.
-      const ImU32 drawer_col = IM_COL32(0x1a, 0x18, 0x17, 0xff);
-      dl->AddRectFilled(ImVec2(left_x, state.header_bottom_y),
-                        ImVec2(right_x, bottom_y), drawer_col);
-    }
-
-    if (state.header_rendered) {
-      dl->AddLine(ImVec2(left_x, top_y), ImVec2(right_x, top_y),
-                  border_col, 1.0f);
-      dl->AddLine(ImVec2(left_x, top_y), ImVec2(left_x, bottom_y),
-                  border_col, 1.0f);
-      dl->AddLine(ImVec2(right_x, top_y), ImVec2(right_x, bottom_y),
-                  border_col, 1.0f);
-      dl->AddLine(ImVec2(left_x, bottom_y), ImVec2(right_x, bottom_y),
-                  border_col, 1.0f);
-    }
-
-    splitter.Merge(dl);
-
-    // Start the next component flush with this one's bottom border so
-    // adjacent components share a single 1px divider instead of a gap.
-    if (state.header_rendered) {
-      ImVec2 cur = ImGui::GetCursorScreenPos();
-      ImGui::SetCursorScreenPos(ImVec2(cur.x, bottom_y));
-    }
+    const section::HeaderState state = section::GetHeaderState();
+    section::EndDrawerFrame(state.header_bottom_y, state.open);
   }
 }
 
@@ -2201,8 +2154,11 @@ std::string_view GetEntityIcon(Entity entity) {
 }
 
 void RenderModals(Entity entity) {
-  for (const auto& ti : RegistryOrder()) {
-    RegistryMap().at(ti).RenderModal(entity);
+  for (const std::type_index& ti : RegistryOrder()) {
+    std::function<void(Entity)> fn = RegistryMap().at(ti).RenderModal;
+    if (fn) {
+      fn(entity);
+    }
   }
 }
 

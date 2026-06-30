@@ -17,7 +17,7 @@
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
-#include "util/imgui/w_imguiutil.h"
+#include "ui/w_ui_layout.h"
 #include "util/w_dialogs.h"
 #include "util/w_logger.h"
 #include "w_editor_asset_factory.h"
@@ -210,7 +210,7 @@ void AssetBrowserPanel::Render(bool& open) {
     ImGui::SliderFloat("##tilesize", &browser_.tile_size, 48.0f, 128.0f, "");
   }
 
-  ImGui::FullWidthSeparator();
+  ui::layout::Separator();
   // Slight gap between the separator and the grid below.
   ImGui::Dummy(ImVec2(0.0f, ImGui::GetStyle().WindowPadding.y));
 

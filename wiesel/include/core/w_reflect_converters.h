@@ -26,7 +26,7 @@
 namespace wiesel::reflect {
 
 // Per-type converter contract. Extend with RenderImGui / ToBinary / etc as
-// the facade picks up more consumers — the shape must stay uniform so every
+// the facade picks up more consumers - the shape must stay uniform so every
 // converter can be slotted in.
 template <typename T>
 struct TypeConverter {

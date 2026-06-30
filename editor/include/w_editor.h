@@ -253,8 +253,6 @@ class EditorLayer : public Layer {
   bool show_project_settings_ = false;
   int project_settings_category_ = 0;
   std::string selected_input_context_;
-  int selected_input_item_ =
-      -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced

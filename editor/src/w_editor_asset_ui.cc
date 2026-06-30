@@ -34,12 +34,16 @@
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
 #include "ui/w_ui_document.h"
-#include "util/imgui/w_imguiutil.h"
+#include "ui/w_ui_field.h"
+#include "util/imgui/imgui_lucide.h"
 #include "util/w_logger.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
 
 namespace wiesel::editor {
+
+using ui::field::PrefixLabel;
+using ui::field::RenderTexturePreview;
 
 // ---- AssetUiRegistry storage ----
 
@@ -820,6 +824,29 @@ void InstallEditorAssetUI() {
   AssetUiRegistry::SetRenderAsset(AssetType::MeshCollider,
                                   RenderMeshColliderAsset);
   AssetUiRegistry::SetRenderAsset(AssetType::CursorSet, RenderCursorSetAsset);
+}
+
+const char* AssetTypeIcon(AssetType type) {
+  switch (type) {
+    case AssetType::Texture:        return ICON_LC_IMAGE;
+    case AssetType::Model:          return ICON_LC_BOX;
+    case AssetType::Material:       return ICON_LC_PAINTBRUSH;
+    case AssetType::Shader:         return ICON_LC_FILE_CODE;
+    case AssetType::Sprite:         return ICON_LC_IMAGE;
+    case AssetType::Skybox:         return ICON_LC_CLOUD;
+    case AssetType::Font:           return ICON_LC_TYPE;
+    case AssetType::Script:         return ICON_LC_FILE_CODE;
+    case AssetType::Scene:          return ICON_LC_LAYERS_2;
+    case AssetType::Prefab:         return ICON_LC_BOXES;
+    case AssetType::Audio:          return ICON_LC_MUSIC;
+    case AssetType::AnimClip:       return ICON_LC_FILM;
+    case AssetType::AnimController: return ICON_LC_GIT_BRANCH;
+    case AssetType::UIDocument:     return ICON_LC_LAYOUT_TEMPLATE;
+    case AssetType::UIStylesheet:   return ICON_LC_BRUSH;
+    case AssetType::CursorSet:      return ICON_LC_MOUSE_POINTER;
+    case AssetType::MeshCollider:   return ICON_LC_BOX;
+    default:                        return "";
+  }
 }
 
 }  // namespace wiesel::editor

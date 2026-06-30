@@ -55,21 +55,25 @@ class ComponentUiRegistry {
     desc.group = group;
     desc.icon = icon;
     desc.icon_priority = icon_priority;
-    desc.RenderSelf = [render_self](Entity e) {
-      if (render_self) {
+    // Leave RenderSelf/Add/Modal empty when the caller passes nullptr so the
+    // inspector can skip no-op drawers entirely (wrapping a no-op in a
+    // BeginDrawerFrame/EndDrawerFrame pair shifts the cursor and offsets every
+    // subsequent drawer).
+    if (render_self) {
+      desc.RenderSelf = [render_self](Entity e) {
         render_self(e.GetComponent<T>(), e);
-      }
-    };
-    desc.RenderAdd = [render_add](Entity e) {
-      if (render_add) {
+      };
+    }
+    if (render_add) {
+      desc.RenderAdd = [render_add](Entity e) {
         render_add(e);
-      }
-    };
-    desc.RenderModal = [render_modal](Entity e) {
-      if (render_modal) {
+      };
+    }
+    if (render_modal) {
+      desc.RenderModal = [render_modal](Entity e) {
         render_modal(e);
-      }
-    };
+      };
+    }
     desc.HasComponent = [](Entity entity) {
       return entity.HasComponent<T>();
     };

@@ -160,14 +160,19 @@ void InitializeBuiltinConverters();
 
 }  // namespace wiesel::reflect
 
-// Template definition — intentionally in the public header because codegen
+// Template definition - intentionally in the public header because codegen
 // generates one call per reflected class. The template body is thin and
 // forwards to a non-template helper defined in w_reflect_facade.cc.
 #include <entt/core/type_info.hpp>
 
 namespace wiesel::reflect::detail {
 
-void RegisterTypeImpl(uint32_t type_id, const char* name);
+// Registers a reflected type with the facade's index. Takes the entt
+// type_info (not a bare hash) because entt's meta storage is keyed by
+// type_info.hash() - the user-set id from `.type("Name"_hs)` lives on
+// the node but is not what `meta_context::value` is indexed by, so a
+// bare-hash lookup misses types that were given a custom name.
+void RegisterTypeImpl(const entt::type_info& info, const char* name);
 
 }  // namespace wiesel::reflect::detail
 
@@ -175,7 +180,7 @@ namespace wiesel::reflect {
 
 template <typename T>
 void RegisterType(const char* name) {
-  detail::RegisterTypeImpl(entt::type_id<T>().hash(), name);
+  detail::RegisterTypeImpl(entt::type_id<T>(), name);
 }
 
 // Runtime hash of a C++ type. Useful for editor/UI code that needs to

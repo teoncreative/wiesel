@@ -203,7 +203,7 @@ void RenderGraph::Clear() {
 }
 
 void RenderGraph::Compile() {
-  PROFILE_ZONE_SCOPED_N("RenderGraph::Compile");
+  PROFILE_ZONE_SCOPED();
   // Sort first so CreateTransientResources can use the execution order to
   // compute live ranges and alias non-overlapping transients into the same
   // backing image.
@@ -221,6 +221,7 @@ void RenderGraph::Compile() {
 }
 
 void RenderGraph::TopologicalSort() {
+  PROFILE_ZONE_SCOPED();
   uint32_t pass_count = static_cast<uint32_t>(passes_.size());
 
   // Build adjacency list: for each resource, track which pass writes it
@@ -284,6 +285,7 @@ void RenderGraph::TopologicalSort() {
 }
 
 void RenderGraph::CreateTransientResources() {
+  PROFILE_ZONE_SCOPED();
   // Release anything we acquired on a previous compile. Each Compile
   // recomputes live ranges and may produce a different aliasing plan.
   DestroyTransientResources();
@@ -403,6 +405,7 @@ void RenderGraph::CreateTransientResources() {
 }
 
 void RenderGraph::DestroyTransientResources() {
+  PROFILE_ZONE_SCOPED();
   auto& pool = renderer_.GetTransientResourcePool();
   for (auto& tex : acquired_transients_) {
     pool.Release(tex);
@@ -416,7 +419,7 @@ void RenderGraph::DestroyTransientResources() {
 }
 
 void RenderGraph::Execute(VkCommandBuffer cmd) {
-  PROFILE_ZONE_SCOPED_N("RenderGraph::Execute");
+  PROFILE_ZONE_SCOPED();
   if (!compiled_) {
     LOG_ERROR("RenderGraph: Execute called before Compile!");
     return;

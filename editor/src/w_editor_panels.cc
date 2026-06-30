@@ -21,15 +21,24 @@
 #include "rendering/w_rendergraph.h"
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
-#include "util/imgui/w_imguiutil.h"
 #include "util/w_command.h"
 #include "util/w_command_parser.h"
 #include <urkern/thread_pool.h>
+#include "ui/w_ui_draw.h"
+#include "ui/w_ui_field.h"
+#include "ui/w_ui_layout.h"
+#include "ui/w_ui_row.h"
+#include "ui/w_ui_style.h"
 #include "w_editor_icons.h"
 #include "w_engine.h"
 #include "w_thumbnail_cache.h"
 
 namespace wiesel::editor {
+
+namespace style = ui::style;
+namespace draw = ui::draw;
+
+using ui::field::PrefixLabel;
 
 // Defined in w_editor.cc
 Scene* scene();
@@ -355,7 +364,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
 
       if (ImGui::Begin(ICON_LC_TERMINAL " Developer Console", &console_open)) {
         auto& cmd = DeveloperConsole::Get();
-        // Snapshot under lock — background threads push log lines via
+        // Snapshot under lock - background threads push log lines via
         // DCON_LOG_*, which would otherwise reallocate mid-iteration.
         const std::vector<ConsoleLine> log = cmd.SnapshotLog();
 
@@ -383,7 +392,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
           }
           ImGui::PopStyleColor();
 
-          // Icon toggles — bright when on, muted when off.
+          // Icon toggles - bright when on, muted when off.
           auto icon_toggle = [&](const char* icon, const char* id, bool& flag,
                                  const char* on_label, const char* off_label) {
             const ImVec4 col = flag
@@ -408,12 +417,12 @@ void EditorLayer::RenderDeveloperConsolePanel() {
                       "Word wrap: on", "Word wrap: off");
         }
 
-        ImGui::FullWidthSeparator();
+        ui::layout::Separator();
 
         const ImU32 col_user = ImGui::GetColorU32(ImGuiCol_CheckMark);
         const ImU32 col_info = ImGui::GetColorU32(ImGuiCol_Text);
-        const ImU32 col_warn = IM_COL32(0xff, 0xa5, 0x2a, 0xff);
-        const ImU32 col_err = IM_COL32(0xe6, 0x3f, 0x3f, 0xff);
+        const ImU32 col_warn = style::kLogWarnColor;
+        const ImU32 col_err = style::kLogErrorColor;
 
         // Reserve vertical space for the input bar below.
         const float input_h = ImGui::GetFrameHeight();
@@ -473,7 +482,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
           return out;
         };
 
-        // Render a selectable, colored block of text inline — no inner
+        // Render a selectable, colored block of text inline - no inner
         // scroll, no frame, no padding. Backed by InputTextMultiline so
         // character-level selection + copy work.
         auto render_selectable_colored = [&](const std::string& text,
@@ -541,10 +550,8 @@ void EditorLayer::RenderDeveloperConsolePanel() {
             ImDrawList* dl = ImGui::GetWindowDrawList();
             const ImVec2 row_end(row_pos.x + row_w, row_pos.y + row_h);
 
-            if (row_hovered) {
-              dl->AddRectFilled(row_pos, row_end,
-                                ImGui::GetColorU32(ImGuiCol_HeaderHovered));
-            }
+            ui::row::DrawRowHighlight(dl, row_pos, row_end,
+                                      /*selected=*/false, row_hovered);
 
             const float cy = row_pos.y + row_h * 0.5f;
             const float left_pad = g.Style.FramePadding.x;
@@ -565,8 +572,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
             std::string badge = "+" + std::to_string(trace_lines);
             const ImVec2 badge_text_sz =
                 ImGui::CalcTextSize(badge.c_str());
-            const float badge_pad_x = 6.0f;
-            const float badge_w = badge_text_sz.x + badge_pad_x * 2.0f;
+            const float badge_w = badge_text_sz.x + style::kBadgePadX * 2.0f;
             const ImVec2 badge_max(row_end.x - left_pad,
                                    cy + g.FontSize * 0.5f);
             const ImVec2 badge_min(badge_max.x - badge_w,
@@ -580,11 +586,12 @@ void EditorLayer::RenderDeveloperConsolePanel() {
                         full.c_str());
             dl->PopClipRect();
 
-            dl->AddRectFilled(badge_min, badge_max,
-                              IM_COL32(0x23, 0x21, 0x20, 0xff), 3.0f);
+            dl->AddRectFilled(badge_min, badge_max, style::kBadgeBg,
+                              style::kBadgeRounding);
             dl->AddRect(badge_min, badge_max,
-                        ImGui::GetColorU32(ImGuiCol_Border), 3.0f, 0, 1.0f);
-            dl->AddText(ImVec2(badge_min.x + badge_pad_x,
+                        ImGui::GetColorU32(ImGuiCol_Border),
+                        style::kBadgeRounding, 0, 1.0f);
+            dl->AddText(ImVec2(badge_min.x + style::kBadgePadX,
                                cy - badge_text_sz.y * 0.5f),
                         ImGui::GetColorU32(ImGuiCol_TextDisabled),
                         badge.c_str());
@@ -622,7 +629,7 @@ void EditorLayer::RenderDeveloperConsolePanel() {
               splitter.SetCurrentChannel(dl2, 0);
               dl2->AddRectFilled(ImVec2(row_pos.x, row_end.y),
                                  ImVec2(row_end.x, drawer_bottom),
-                                 IM_COL32(0x1a, 0x18, 0x17, 0xff));
+                                 style::kDrawerBg);
               splitter.Merge(dl2);
             }
 

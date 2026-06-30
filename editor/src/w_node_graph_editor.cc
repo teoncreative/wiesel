@@ -73,14 +73,15 @@ void NodeGraphEditor::Render(INodeGraphDelegate& delegate) {
   ImNodes::PushStyleVar(ImNodesStyleVar_LinkThickness, 2.5f);
   ImNodes::PushStyleVar(ImNodesStyleVar_PinCircleRadius, 4.5f);
 
-  // Set initial node positions on first render
-  if (!initialized_) {
-    for (int i = 0; i < delegate.GetNodeCount(); i++) {
-      int node_id = delegate.GetNodeId(i);
+  // Seed any node imnodes hasn't seen yet. Covers both the first render of
+  // an existing graph and nodes added at runtime via OnAddNode - without the
+  // seed, the same-frame position readback below asserts inside imnodes.
+  for (int i = 0; i < delegate.GetNodeCount(); i++) {
+    int node_id = delegate.GetNodeId(i);
+    if (seeded_nodes_.insert(node_id).second) {
       glm::vec2 pos = delegate.GetNodePosition(node_id);
       ImNodes::SetNodeEditorSpacePos(node_id, ImVec2(pos.x, pos.y));
     }
-    initialized_ = true;
   }
 
   ImNodes::BeginNodeEditor();
@@ -122,9 +123,16 @@ void NodeGraphEditor::Render(INodeGraphDelegate& delegate) {
     ImNodes::Link(link_id, from_pin, to_pin);
   }
 
+  // Capture "editor hovered" while we're still inside the imnodes scrolling
+  // child. After EndNodeEditor the current ImGui window is the outer parent
+  // and IsWindowHovered() returns false because the (now-ended) child still
+  // blocks the hover test, so we must sample it here.
+  const bool editor_hovered_this_frame = ImNodes::IsEditorHovered();
+
   ImNodes::EndNodeEditor();
 
-  // Detect right-click targets (must be after EndNodeEditor)
+  // Detect right-click targets. IsNodeHovered / IsLinkHovered must be called
+  // after EndNodeEditor per the imnodes API.
   if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
     int hovered_node = -1;
     int hovered_link = -1;
@@ -137,7 +145,7 @@ void NodeGraphEditor::Render(INodeGraphDelegate& delegate) {
       right_clicked_link_ = hovered_link;
       right_clicked_node_ = -1;
       ImGui::OpenPopup("##LinkContextMenu");
-    } else if (ImNodes::IsEditorHovered()) {
+    } else if (editor_hovered_this_frame) {
       right_clicked_node_ = -1;
       right_clicked_link_ = -1;
       ImVec2 mouse = ImGui::GetMousePos();
@@ -154,6 +162,18 @@ void NodeGraphEditor::Render(INodeGraphDelegate& delegate) {
       const char* type_name = delegate.GetAddableNodeType(i);
       if (ImGui::MenuItem(type_name)) {
         delegate.OnAddNode(type_name, context_menu_pos_);
+        // The delegate just added a node, but the main seed loop at the top
+        // of Render already ran this frame. Any id the delegate now reports
+        // that we haven't seeded is the just-added one - place it at the
+        // click (screen space) so it lands under the cursor, then mark it
+        // seeded so the readback loop persists the editor-space coords.
+        for (int j = 0; j < delegate.GetNodeCount(); j++) {
+          int new_id = delegate.GetNodeId(j);
+          if (seeded_nodes_.insert(new_id).second) {
+            ImNodes::SetNodeScreenSpacePos(
+                new_id, ImVec2(context_menu_pos_.x, context_menu_pos_.y));
+          }
+        }
       }
     }
     ImGui::EndPopup();
@@ -203,9 +223,15 @@ void NodeGraphEditor::Render(INodeGraphDelegate& delegate) {
   ImNodes::PopColorStyle();  // GridLine
   ImNodes::PopColorStyle();  // GridBackground
 
-  // Read back node positions
+  // Read back node positions. Skip nodes added during this frame (e.g. via
+  // the context menu's OnAddNode callback, which fires *after* the seed loop
+  // above) - imnodes doesn't know about them yet and querying the position
+  // would assert.
   for (int i = 0; i < delegate.GetNodeCount(); i++) {
     int node_id = delegate.GetNodeId(i);
+    if (seeded_nodes_.count(node_id) == 0) {
+      continue;
+    }
     ImVec2 pos = ImNodes::GetNodeEditorSpacePos(node_id);
     delegate.SetNodePosition(node_id, {pos.x, pos.y});
   }

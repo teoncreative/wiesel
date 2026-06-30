@@ -1738,6 +1738,8 @@ void Renderer::Cleanup() {
   LOG_DEBUG("Cleaning up the renderer");
   WaitForGPU();
 
+  transient_resource_pool_ = nullptr;
+
   camera_ = nullptr;
   quad_index_buffer_ = nullptr;
   quad_vertex_buffer_ = nullptr;

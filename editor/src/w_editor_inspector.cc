@@ -17,7 +17,8 @@
 #include "scene/w_scene.h"
 #include "scene/w_scene_manager.h"
 #include "ui/w_font.h"
-#include "util/imgui/w_imguiutil.h"
+#include "ui/w_ui_draw.h"
+#include "ui/w_ui_field.h"
 #include "w_editor_asset_ui.h"
 #include "w_editor_components.h"
 #include "w_editor_icons.h"
@@ -57,13 +58,19 @@ void EditorLayer::RenderAssetPropertiesPanel() {
     ImGui::TextDisabled("No asset selected");
     return;
   }
-  ImGui::Text("Name: %s", meta->name.c_str());
-  if (inspector_asset_read_only_) {
-    ImVec2 tag_size = ImGui::CalcTextSize("Read-only");
-    float x = ImGui::GetContentRegionAvail().x - tag_size.x;
-    ImGui::SameLine(x + ImGui::GetCursorStartPos().x);
-    ImGui::TextDisabled("Read-only");
-  }
+  // Name input (read-only) + type-icon badge - same layout as the entity
+  // inspector header.
+  std::string name_copy = meta->name;
+  const float badge_sz = ImGui::GetFrameHeight();
+  const float spacing = ImGui::GetStyle().ItemSpacing.x;
+  ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - badge_sz -
+                          spacing);
+  ImGui::InputText("##asset_name", &name_copy,
+                   ImGuiInputTextFlags_ReadOnly);
+  ImGui::SameLine();
+  const char* icon = AssetTypeIcon(meta->type);
+  ui::field::TypeIconBadge(icon[0] ? icon : ICON_LC_BOX);
+
   ImGui::TextDisabled("Path: %s", meta->virtual_source_path.c_str());
   ImGui::Separator();
 
@@ -142,15 +149,26 @@ void EditorLayer::RenderAssetPropertiesPanel() {
 
 void EditorLayer::RenderEntityInspector(Entity selected_entity) {
   TagComponent& tag = selected_entity.GetComponent<TagComponent>();
-  if (ImGui::InputText("##", &tag.name, ImGuiInputTextFlags_AutoSelectAll)) {
+
+  // Name input + type-icon badge on the right, 1:1 ratio, FrameBg themed.
+  const float badge_sz = ImGui::GetFrameHeight();
+  const float spacing = ImGui::GetStyle().ItemSpacing.x;
+  ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - badge_sz -
+                          spacing);
+  if (ImGui::InputText("##name", &tag.name,
+                       ImGuiInputTextFlags_AutoSelectAll)) {
     if (tag.name[0] == ' ') {
       TrimLeft(tag.name);
     }
-
     if (tag.name.empty()) {
       tag.name = "Entity";
     }
   }
+  ImGui::SameLine();
+  const std::string_view ent_icon = GetEntityIcon(selected_entity);
+  const std::string ent_icon_str(ent_icon);
+  ui::field::TypeIconBadge(ent_icon_str.empty() ? ICON_LC_BOX
+                                                : ent_icon_str.c_str());
   // Game tags
   {
     std::string tags_display;
@@ -216,9 +234,9 @@ void EditorLayer::RenderEntityInspector(Entity selected_entity) {
     dl->AddRect(btn_pos, p_max, ImGui::GetColorU32(ImGuiCol_Border), rounding,
                 0, 1.0f);
   } else {
-    ImGui::DashedRectRounded(dl, btn_pos, p_max,
-                             ImGui::GetColorU32(ImGuiCol_Border), rounding,
-                             1.0f, 4.0f, 3.0f);
+    ui::draw::DashedRectRounded(dl, btn_pos, p_max,
+                                ImGui::GetColorU32(ImGuiCol_Border), rounding,
+                                1.0f, 4.0f, 3.0f);
   }
   const char* label = ICON_LC_PLUS "  Add Component";
   const ImVec2 text_sz = ImGui::CalcTextSize(label);

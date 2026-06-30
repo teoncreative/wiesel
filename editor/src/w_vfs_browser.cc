@@ -177,7 +177,7 @@ std::vector<std::pair<std::string, std::string>> VfsBrowser::Breadcrumbs()
 void VfsBrowser::BeginTileGrid() {
   float panel_width = ImGui::GetContentRegionAvail().x;
   // Outer tile width is tile_size + 2 * inner_pad (6 each side). No extra
-  // spacing — tiles sit flush with their neighbors.
+  // spacing - tiles sit flush with their neighbors.
   float cell_size = tile_size + 12.0f;
   grid_columns_ = std::max(1, static_cast<int>(panel_width / cell_size));
   grid_col_ = 0;

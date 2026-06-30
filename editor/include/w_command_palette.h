@@ -51,7 +51,7 @@ class CommandPalette {
   // replace any prior registration with the same id.
   void Register(Command cmd);
 
-  // Monospace font used for the shortcut badge on each row. May be null —
+  // Monospace font used for the shortcut badge on each row. May be null -
   // the badge falls back to the default font.
   void SetMonoFont(ImFont* font) { mono_font_ = font; }
 

@@ -17,7 +17,8 @@
 #include "scene/w_lights.h"
 #include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
-#include "util/imgui/w_imguiutil.h"
+#include "ui/w_ui_layout.h"
+#include "ui/w_ui_row.h"
 #include "w_editor_components.h"
 #include "w_editor_entity_factory.h"
 #include "w_editor_icons.h"
@@ -137,7 +138,7 @@ void EditorLayer::RenderEntity(Entity& entity, int depth,
     ImGui::SetNextItemOpen(true);
   }
 
-  bool node_open = ImGui::HierarchyTreeNodeEx(label.c_str(), flags);
+  bool node_open = ui::row::HierarchyRow(label.c_str(), flags);
 
   // Scroll to selected entity when requested (e.g., after viewport click)
   if (is_selected && scroll_to_selected_) {
@@ -288,7 +289,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
                                ICON_LC_SEARCH "  Search entities...",
                                hierarchy_search_, sizeof(hierarchy_search_));
 
-      ImGui::FullWidthSeparator();
+      ui::layout::Separator();
 
       // Rows sit flush against each other. SameLine X spacing is preserved.
       ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
@@ -315,7 +316,7 @@ void EditorLayer::RenderSceneHierarchyPanel() {
         std::string scene_node_label =
             std::string(ICON_LC_LAYERS_2 "  ") + scene_label + "##SceneRoot_" +
             std::to_string(scene_idx);
-        bool scene_node_open = ImGui::HierarchyTreeNodeEx(
+        bool scene_node_open = ui::row::HierarchyRow(
             scene_node_label.c_str(), scene_flags, /*static_tint=*/true);
 
         std::string ctx_id = "scene_root_context_" + std::to_string(scene_idx);

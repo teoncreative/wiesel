@@ -1146,7 +1146,7 @@ void EditorLayer::RegisterPaletteCommands() {
       .action = [this] { PerformRedo(); },
   });
 
-  // Entity — require a selected entity to enable.
+  // Entity - require a selected entity to enable.
   auto has_selection = [this] { return static_cast<bool>(selected_entity_); };
   command_palette_.Register({
       .id = "entity.copy",
@@ -1332,7 +1332,7 @@ void EditorLayer::RegisterPaletteCommands() {
       .category = "View",
       .icon = ICON_LC_TERMINAL,
       .shortcut_text = "Ctrl+Shift+K",
-      // No shortcut here — the global binding is handled separately so the
+      // No shortcut here - the global binding is handled separately so the
       // palette can open itself without dispatching a closing action.
       .action = [this] { command_palette_.Open(); },
   });

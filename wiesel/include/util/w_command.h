@@ -71,7 +71,7 @@ class DeveloperConsole {
   void Clear();
 
   const std::vector<ConsoleLine>& GetLog() const { return log_; }
-  // Thread-safe snapshot — callers that iterate across a frame should
+  // Thread-safe snapshot - callers that iterate across a frame should
   // use this so background threads pushing new lines can't invalidate
   // the iterator mid-read.
   std::vector<ConsoleLine> SnapshotLog() {

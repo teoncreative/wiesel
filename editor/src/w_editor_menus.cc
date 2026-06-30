@@ -15,6 +15,7 @@
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <cstring>
+#include <cmath>
 
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_registry.h"
@@ -30,13 +31,17 @@
 #include "scene/w_prefab.h"
 #include "scene/w_scene_manager.h"
 #include "script/w_scriptmanager.h"
+#include "ui/w_ui_layout.h"
+#include "ui/w_ui_popup.h"
+#include "ui/w_ui_row.h"
+#include "ui/w_ui_section.h"
+#include "ui/w_ui_style.h"
 #include "util/imgui/imgui_theme.h"
-#include "util/imgui/w_imguiutil.h"
-#include "util/w_gamepadcodes.h"
-#include "util/w_keycodes.h"
+#include "w_editor_input_ui.h"
 #include <urkern/natural_sort.h>
 #include <urkern/platform.h>
 #include <urkern/thread_pool.h>
+#include "ui/w_ui_field.h"
 #include "w_editor_asset_factory.h"
 #include "w_editor_asset_ui.h"
 #include "w_editor_icons.h"
@@ -44,6 +49,9 @@
 #include "w_thumbnail_cache.h"
 
 namespace wiesel::editor {
+
+namespace style = ui::style;
+using ui::field::PrefixLabel;
 
 Scene* scene();
 
@@ -66,12 +74,10 @@ void EditorLayer::RenderSliceSpritesPopup() {
     show_slice_sprites_ = false;
   }
 
-  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiCond_Appearing);
-
-  if (ImGui::BeginPopupModal("Slice into Sprites", nullptr,
-                             ImGuiWindowFlags_None)) {
+  bool slice_open = true;
+  if (ui::popup::Begin("Slice into Sprites", ICON_LC_GRID_2X2,
+                            "Slice into Sprites", &slice_open,
+                            ImVec2(700, 600))) {
     static char prefix_buf[128] = "sprite";
     static int columns = 6;
     static int rows = 1;
@@ -82,10 +88,7 @@ void EditorLayer::RenderSliceSpritesPopup() {
                    : nullptr;
     if (!tex) {
       ImGui::Text("Texture not loaded.");
-      if (ImGui::Button("Close")) {
-        ImGui::CloseCurrentPopup();
-      }
-      ImGui::EndPopup();
+      ui::popup::End();
       return;
     }
 
@@ -179,13 +182,7 @@ void EditorLayer::RenderSliceSpritesPopup() {
       slice_texture_handle_ = {};
       ImGui::CloseCurrentPopup();
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel")) {
-      prefix_buf[0] = '\0';
-      slice_texture_handle_ = {};
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
+    ui::popup::End();
   }
 }
 
@@ -199,39 +196,34 @@ void EditorLayer::RenderProjectSettingsPopup() {
     show_project_settings_ = false;
   }
 
-  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(720, 500), ImGuiCond_Appearing);
-
   bool popup_open = true;
-  if (ImGui::BeginPopupModal("Project Settings", &popup_open,
-                             ImGuiWindowFlags_NoScrollbar)) {
+  if (ui::popup::Begin("Project Settings", ICON_LC_SETTINGS,
+                            "Project Settings", &popup_open,
+                            ImVec2(720, 500))) {
     auto& proj_settings = active_project_->GetSettings();
     auto& game_info = active_project_->GetGameInfo();
     bool changed = false;
 
-    const char* categories[] = {"Scene", "Rendering", "Input"};
-    constexpr int kCategoryCount = 3;
+    struct CategoryDef {
+      const char* label;
+      const char* icon;
+    };
+    const CategoryDef categories[] = {
+        {"Scene", ICON_LC_LAYERS_2},
+        {"Rendering", ICON_LC_MONITOR},
+        {"Input", ICON_LC_GAMEPAD_2},
+    };
+    constexpr int kCategoryCount = IM_ARRAYSIZE(categories);
 
-    // Left panel: category list
-    // ItemSpacing.x = 2*WindowPadding so selectable highlight extends to child edges,
-    // while text remains indented by WindowPadding (the cursor offset).
-    float pad = ImGui::GetStyle().WindowPadding.x;
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
-                        ImVec2(pad * 2.0f, ImGui::GetStyle().ItemSpacing.y));
-    ImGui::BeginChild("##categories", ImVec2(140, 0), ImGuiChildFlags_Borders);
-    ImGui::PopStyleVar();
+    ui::layout::BeginSidebarBody(160.0f);
     for (int i = 0; i < kCategoryCount; i++) {
-      if (ImGui::Selectable(categories[i], project_settings_category_ == i)) {
+      if (ui::row::CategoryRow(categories[i].label,
+                            project_settings_category_ == i,
+                            categories[i].icon)) {
         project_settings_category_ = i;
       }
     }
-    ImGui::EndChild();
-
-    ImGui::SameLine();
-
-    // Right panel: settings
-    ImGui::BeginChild("##settings", ImVec2(0, 0), ImGuiChildFlags_Borders);
+    ui::layout::BeginBody();
 
     if (project_settings_category_ == 0) {
       // ---- Scene ----
@@ -475,424 +467,22 @@ void EditorLayer::RenderProjectSettingsPopup() {
 
     } else if (project_settings_category_ == 2) {
       // ---- Input ----
-      auto& input = game_info.input;
-      bool input_changed = false;
-
-      ImGui::SeparatorText("Mouse");
-      input_changed |=
-          ImGui::DragFloat(PrefixLabel("Sensitivity X").c_str(),
-                           &input.mouse_sensitivity_x, 1.0f, 1.0f, 500.0f);
-      input_changed |=
-          ImGui::DragFloat(PrefixLabel("Sensitivity Y").c_str(),
-                           &input.mouse_sensitivity_y, 1.0f, 1.0f, 500.0f);
-
-      int gp_count = Engine::input().GetConnectedGamepadCount();
-      if (gp_count > 0) {
-        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
-                           "Gamepads: %d connected", gp_count);
-      }
-
-      ImGui::SeparatorText("Contexts");
-
-      // Validate selected context still exists
-      if (!selected_input_context_.empty() &&
-          input.contexts.find(selected_input_context_) ==
-              input.contexts.end()) {
-        selected_input_context_.clear();
-        selected_input_item_ = -1;
-      }
-
-      // Left: context list
-      ImGui::BeginChild("##ctx_list", ImVec2(130, 0), ImGuiChildFlags_Borders);
-      for (auto& [ctx_name, ctx] : input.contexts) {
-        if (ImGui::Selectable(ctx_name.c_str(),
-                              selected_input_context_ == ctx_name)) {
-          selected_input_context_ = ctx_name;
-          selected_input_item_ = -1;
-        }
-      }
-      ImGui::Spacing();
-      static char new_ctx_name[64] = "";
-      ImGui::SetNextItemWidth(-1);
-      ImGui::InputTextWithHint("##newctx", "new context...", new_ctx_name,
-                               sizeof(new_ctx_name));
-      if (ImGui::Button("Add", ImVec2(-1, 0)) && new_ctx_name[0] != '\0') {
-        std::string cname = new_ctx_name;
-        if (input.contexts.find(cname) == input.contexts.end()) {
-          InputContext nc;
-          nc.name = cname;
-          input.contexts[cname] = std::move(nc);
-          selected_input_context_ = cname;
-          input_changed = true;
-          new_ctx_name[0] = '\0';
-        }
-      }
-      ImGui::EndChild();
-
-      ImGui::SameLine();
-
-      // Right: selected context content
-      ImGui::BeginChild("##ctx_content", ImVec2(0, 0));
-      if (!selected_input_context_.empty() &&
-          input.contexts.find(selected_input_context_) !=
-              input.contexts.end()) {
-        auto& ctx = input.contexts[selected_input_context_];
-
-        // Context header with delete
-        ImGui::Text("Context: %s", selected_input_context_.c_str());
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 80);
-        if (ImGui::SmallButton("Delete")) {
-          input.contexts.erase(selected_input_context_);
-          selected_input_context_.clear();
-          selected_input_item_ = -1;
-          input_changed = true;
-          // Skip rendering rest since ctx is gone
-          ImGui::EndChild();
-          if (input_changed) {
-            Engine::input().LoadFromSettings(input);
-            changed = true;
-          }
-          // Early out handled below
-          goto input_done;
-        }
-        ImGui::Separator();
-
-        static int input_tab = 0;  // 0 = Actions, 1 = Axes
-        if (ImGui::BeginTabBar("##input_tabs")) {
-          if (ImGui::BeginTabItem("Actions")) {
-            input_tab = 0;
-
-            // Table: Name | Keys | Buttons | Delete
-            if (ImGui::BeginTable("##actions_table", 4,
-                                  ImGuiTableFlags_Borders |
-                                      ImGuiTableFlags_RowBg |
-                                      ImGuiTableFlags_Resizable)) {
-              ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed,
-                                      100);
-              ImGui::TableSetupColumn("Keys");
-              ImGui::TableSetupColumn("Buttons");
-              ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed,
-                                      20);
-              ImGui::TableHeadersRow();
-
-              int action_to_remove = -1;
-              for (int i = 0; i < (int)ctx.actions.size(); i++) {
-                ImGui::PushID(i);
-                auto& action = ctx.actions[i];
-
-                ImGui::TableNextRow();
-
-                // Name
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth(-1);
-                char abuf[128];
-                strncpy(abuf, action.name.c_str(), sizeof(abuf) - 1);
-                abuf[sizeof(abuf) - 1] = '\0';
-                if (ImGui::InputText("##name", abuf, sizeof(abuf))) {
-                  action.name = abuf;
-                  input_changed = true;
-                }
-
-                // Keys (tags + add combo)
-                ImGui::TableNextColumn();
-                int key_rm = -1;
-                for (int k = 0; k < (int)action.keys.size(); k++) {
-                  if (k > 0) {
-                    ImGui::SameLine();
-                  }
-                  ImGui::PushID(k);
-                  ImGui::SmallButton(KeyCodeToString(action.keys[k]));
-                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    key_rm = k;
-                  }
-                  if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Right-click to remove");
-                  }
-                  ImGui::PopID();
-                }
-                if (key_rm >= 0) {
-                  action.keys.erase(action.keys.begin() + key_rm);
-                  input_changed = true;
-                }
-                if (!action.keys.empty()) {
-                  ImGui::SameLine();
-                }
-                ImGui::PushID("addkey");
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::BeginCombo("##addkey", "+",
-                                      ImGuiComboFlags_NoPreview)) {
-                  for (auto code : GetAllKeyCodes()) {
-                    if (ImGui::Selectable(KeyCodeToString(code))) {
-                      action.keys.push_back(code);
-                      input_changed = true;
-                    }
-                  }
-                  ImGui::EndCombo();
-                }
-                ImGui::PopID();
-
-                // Buttons (tags + add combo)
-                ImGui::TableNextColumn();
-                int btn_rm = -1;
-                for (int b = 0; b < (int)action.buttons.size(); b++) {
-                  if (b > 0) {
-                    ImGui::SameLine();
-                  }
-                  ImGui::PushID(b + 200);
-                  ImGui::SmallButton(GamepadButtonToString(action.buttons[b]));
-                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    btn_rm = b;
-                  }
-                  if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Right-click to remove");
-                  }
-                  ImGui::PopID();
-                }
-                if (btn_rm >= 0) {
-                  action.buttons.erase(action.buttons.begin() + btn_rm);
-                  input_changed = true;
-                }
-                if (!action.buttons.empty()) {
-                  ImGui::SameLine();
-                }
-                ImGui::PushID("addbtn");
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::BeginCombo("##addbtn", "+",
-                                      ImGuiComboFlags_NoPreview)) {
-                  for (auto btn : GetAllGamepadButtons()) {
-                    if (ImGui::Selectable(GamepadButtonToString(btn))) {
-                      action.buttons.push_back(btn);
-                      input_changed = true;
-                    }
-                  }
-                  ImGui::EndCombo();
-                }
-                ImGui::PopID();
-
-                // Delete
-                ImGui::TableNextColumn();
-                if (ImGui::SmallButton("X")) {
-                  action_to_remove = i;
-                }
-
-                ImGui::PopID();
-              }
-              ImGui::EndTable();
-
-              if (action_to_remove >= 0) {
-                ctx.actions.erase(ctx.actions.begin() + action_to_remove);
-                input_changed = true;
-              }
-            }
-            if (ImGui::Button("+ Add Action")) {
-              ctx.actions.push_back({"New Action", {}, {}});
-              input_changed = true;
-            }
-
-            ImGui::EndTabItem();
-          }
-
-          if (ImGui::BeginTabItem("Axes")) {
-            input_tab = 1;
-
-            // Table: Name | +Keys | -Keys | Stick | Smooth | Delete
-            if (ImGui::BeginTable("##axes_table", 6,
-                                  ImGuiTableFlags_Borders |
-                                      ImGuiTableFlags_RowBg |
-                                      ImGuiTableFlags_Resizable)) {
-              ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed,
-                                      90);
-              ImGui::TableSetupColumn("+Keys");
-              ImGui::TableSetupColumn("-Keys");
-              ImGui::TableSetupColumn("Stick", ImGuiTableColumnFlags_WidthFixed,
-                                      100);
-              ImGui::TableSetupColumn("Smooth",
-                                      ImGuiTableColumnFlags_WidthFixed, 80);
-              ImGui::TableSetupColumn("##del", ImGuiTableColumnFlags_WidthFixed,
-                                      20);
-              ImGui::TableHeadersRow();
-
-              int axis_to_remove = -1;
-              for (int i = 0; i < (int)ctx.axes.size(); i++) {
-                ImGui::PushID(i + 1000);
-                auto& axis = ctx.axes[i];
-
-                ImGui::TableNextRow();
-
-                // Name
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth(-1);
-                char abuf[128];
-                strncpy(abuf, axis.name.c_str(), sizeof(abuf) - 1);
-                abuf[sizeof(abuf) - 1] = '\0';
-                if (ImGui::InputText("##name", abuf, sizeof(abuf))) {
-                  axis.name = abuf;
-                  input_changed = true;
-                }
-
-                // Positive keys
-                ImGui::TableNextColumn();
-                int pk_rm = -1;
-                for (int k = 0; k < (int)axis.positive_keys.size(); k++) {
-                  if (k > 0) {
-                    ImGui::SameLine();
-                  }
-                  ImGui::PushID(k);
-                  ImGui::SmallButton(KeyCodeToString(axis.positive_keys[k]));
-                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    pk_rm = k;
-                  }
-                  if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Right-click to remove");
-                  }
-                  ImGui::PopID();
-                }
-                if (pk_rm >= 0) {
-                  axis.positive_keys.erase(axis.positive_keys.begin() + pk_rm);
-                  input_changed = true;
-                }
-                if (!axis.positive_keys.empty()) {
-                  ImGui::SameLine();
-                }
-                ImGui::PushID("addpos");
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::BeginCombo("##addpos", "+",
-                                      ImGuiComboFlags_NoPreview)) {
-                  for (auto code : GetAllKeyCodes()) {
-                    if (ImGui::Selectable(KeyCodeToString(code))) {
-                      axis.positive_keys.push_back(code);
-                      input_changed = true;
-                    }
-                  }
-                  ImGui::EndCombo();
-                }
-                ImGui::PopID();
-
-                // Negative keys
-                ImGui::TableNextColumn();
-                int nk_rm = -1;
-                for (int k = 0; k < (int)axis.negative_keys.size(); k++) {
-                  if (k > 0) {
-                    ImGui::SameLine();
-                  }
-                  ImGui::PushID(k + 500);
-                  ImGui::SmallButton(KeyCodeToString(axis.negative_keys[k]));
-                  if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    nk_rm = k;
-                  }
-                  if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip("Right-click to remove");
-                  }
-                  ImGui::PopID();
-                }
-                if (nk_rm >= 0) {
-                  axis.negative_keys.erase(axis.negative_keys.begin() + nk_rm);
-                  input_changed = true;
-                }
-                if (!axis.negative_keys.empty()) {
-                  ImGui::SameLine();
-                }
-                ImGui::PushID("addneg");
-                ImGui::SetNextItemWidth(50);
-                if (ImGui::BeginCombo("##addneg", "+",
-                                      ImGuiComboFlags_NoPreview)) {
-                  for (auto code : GetAllKeyCodes()) {
-                    if (ImGui::Selectable(KeyCodeToString(code))) {
-                      axis.negative_keys.push_back(code);
-                      input_changed = true;
-                    }
-                  }
-                  ImGui::EndCombo();
-                }
-                ImGui::PopID();
-
-                // Stick
-                ImGui::TableNextColumn();
-                const char* stick_label =
-                    axis.gamepad_axis >= 0
-                        ? GamepadAxisToString(axis.gamepad_axis)
-                        : "None";
-                ImGui::SetNextItemWidth(-1);
-                ImGui::PushID("gpaxis");
-                if (ImGui::BeginCombo("##stick", stick_label)) {
-                  if (ImGui::Selectable("None", axis.gamepad_axis < 0)) {
-                    axis.gamepad_axis = -1;
-                    input_changed = true;
-                  }
-                  for (auto ga : GetAllGamepadAxes()) {
-                    if (ImGui::Selectable(GamepadAxisToString(ga),
-                                          axis.gamepad_axis == ga)) {
-                      axis.gamepad_axis = ga;
-                      input_changed = true;
-                    }
-                  }
-                  ImGui::EndCombo();
-                }
-                ImGui::PopID();
-
-                // Smooth
-                ImGui::TableNextColumn();
-                ImGui::PushID("smooth");
-                if (ImGui::Checkbox("##smooth", &axis.smooth)) {
-                  input_changed = true;
-                }
-                if (axis.smooth) {
-                  ImGui::SetNextItemWidth(60);
-                  if (ImGui::DragFloat("Grav", &axis.gravity, 0.1f, 0.1f,
-                                       50.0f)) {
-                    input_changed = true;
-                  }
-                  ImGui::SetNextItemWidth(60);
-                  if (ImGui::DragFloat("Sens", &axis.sensitivity, 0.1f, 0.1f,
-                                       50.0f)) {
-                    input_changed = true;
-                  }
-                }
-                ImGui::PopID();
-
-                // Delete
-                ImGui::TableNextColumn();
-                if (ImGui::SmallButton("X")) {
-                  axis_to_remove = i;
-                }
-
-                ImGui::PopID();
-              }
-              ImGui::EndTable();
-
-              if (axis_to_remove >= 0) {
-                ctx.axes.erase(ctx.axes.begin() + axis_to_remove);
-                input_changed = true;
-              }
-            }
-            if (ImGui::Button("+ Add Axis")) {
-              ctx.axes.push_back({"New Axis", {}, {}});
-              input_changed = true;
-            }
-
-            ImGui::EndTabItem();
-          }
-          ImGui::EndTabBar();
-        }
-      } else {
-        ImGui::TextDisabled("Select a context from the list");
-      }
-      ImGui::EndChild();
-
-    input_done:
-      if (input_changed) {
-        Engine::input().LoadFromSettings(input);
+      // All of the input editor UI (mouse, contexts sidebar, actions/axes
+      // cards, binding chips + capture popup) lives in w_editor_input_ui.cc
+      // so this branch stays thin.
+      if (RenderInputSettings(game_info.input, selected_input_context_)) {
+        Engine::input().LoadFromSettings(game_info.input);
         changed = true;
       }
     }
 
-    ImGui::EndChild();
+    ui::layout::EndSidebarBody();
 
     if (changed) {
       active_project_->Save();
     }
 
-    ImGui::EndPopup();
+    ui::popup::End();
   }
 }
 
@@ -1266,27 +856,29 @@ void EditorLayer::RenderMainMenuBar() {
     ImGui::OpenPopup("About Wiesel");
     show_about_popup_ = false;
   }
-  if (ImGui::BeginPopupModal("About Wiesel", nullptr,
-                             ImGuiWindowFlags_AlwaysAutoResize)) {
-    // Engine info
-    ImGui::SeparatorText("Engine");
+  bool about_open = true;
+  if (ui::popup::Begin("About Wiesel", ICON_LC_INFO, "About Wiesel",
+                            &about_open, ImVec2(520, 0))) {
+    ui::section::BeginSection("Engine", ICON_LC_CPU, /*fill=*/true);
     ImGui::Text("Version: %s", kEngineVersion);
     ImGui::Text("Git Branch: %s", WIESEL_GIT_BRANCH);
     ImGui::Text("Git Commit: %s", WIESEL_GIT_COMMIT);
     ImGui::Text("Build Type: %s", WIESEL_BUILD_TYPE);
     ImGui::Text("Window Backend: SDL3");
+    ui::section::EndSection();
 
-    // GPU info
-    ImGui::SeparatorText("GPU");
-    auto props = Engine::renderer()->GetPhysicalDeviceProperties();
-    uint32_t vk_major = VK_API_VERSION_MAJOR(props.apiVersion);
-    uint32_t vk_minor = VK_API_VERSION_MINOR(props.apiVersion);
-    uint32_t vk_patch = VK_API_VERSION_PATCH(props.apiVersion);
-    ImGui::Text("GPU: %s", props.deviceName);
-    ImGui::Text("Vulkan: %u.%u.%u", vk_major, vk_minor, vk_patch);
+    ui::section::BeginSection("GPU", ICON_LC_MICROCHIP, /*fill=*/true);
+    {
+      auto props = Engine::renderer()->GetPhysicalDeviceProperties();
+      uint32_t vk_major = VK_API_VERSION_MAJOR(props.apiVersion);
+      uint32_t vk_minor = VK_API_VERSION_MINOR(props.apiVersion);
+      uint32_t vk_patch = VK_API_VERSION_PATCH(props.apiVersion);
+      ImGui::Text("GPU: %s", props.deviceName);
+      ImGui::Text("Vulkan: %u.%u.%u", vk_major, vk_minor, vk_patch);
+    }
+    ui::section::EndSection();
 
-    // Project info
-    ImGui::SeparatorText("Project");
+    ui::section::BeginSection("Project", ICON_LC_LAYERS_2, /*fill=*/true);
     if (active_project_) {
       ImGui::Text("Name: %s", active_project_->GetSettings().name.c_str());
       ImGui::Text("Path: %s",
@@ -1302,21 +894,18 @@ void EditorLayer::RenderMainMenuBar() {
     } else {
       ImGui::TextDisabled("No project open");
     }
+    ui::section::EndSection();
 
-    // Paths
-    ImGui::SeparatorText("Paths");
+    ui::section::BeginSection("Paths", ICON_LC_FOLDER, /*fill=*/true);
     ImGui::Text("Engine Assets: %s",
                 Engine::properties().engine_assets_path.string().c_str());
     ImGui::Text("User Data: %s",
                 Engine::properties().user_data_path.string().c_str());
     ImGui::Text("Working Dir: %s",
                 std::filesystem::current_path().string().c_str());
+    ui::section::EndSection();
 
-    ImGui::Separator();
-    if (ImGui::Button("Close", ImVec2(120, 0))) {
-      ImGui::CloseCurrentPopup();
-    }
-    ImGui::EndPopup();
+    ui::popup::End();
   }
 }
 
@@ -1327,28 +916,53 @@ void EditorLayer::RenderStartupDialog() {
 
   ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
   ImGui::SetNextWindowSize(ImVec2(520, 0));
-  ImGui::Begin("Welcome to Wiesel", nullptr,
-               ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking);
-
-  ImGui::Text("Get started:");
-
-  float width = ImGui::GetContentRegionAvail().x;
-  if (ImGui::Button("New Project...", ImVec2(width, 30))) {
-    NewProject();
-  }
-  if (ImGui::Button("Open Project...", ImVec2(width, 30))) {
-    OpenProject();
-  }
-
-  ImGui::FullWidthSeparator();
-  ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
-  ImGui::Dummy(ImVec2(0.0f, ImGui::GetStyle().WindowPadding.y));
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+  ImGui::Begin("##StartupDialog", nullptr,
+               ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+                   ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                   ImGuiWindowFlags_NoDocking |
+                   ImGuiWindowFlags_NoSavedSettings |
+                   ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PopStyleVar();
 
+  // Spacing comes from the active ImGui theme (WindowPadding for outer
+  // chrome, ItemSpacing.y for the natural gap between widgets) plus the
+  // editor-wide kSeparatorPadY for breathing room around section dividers.
+  const ImGuiStyle& s = ImGui::GetStyle();
+
+  ImGui::Dummy(ImVec2(0.0f, style::kSeparatorPadY));
+
+  ImGui::Indent(s.WindowPadding.x);
+  ImGui::SetWindowFontScale(style::kHeaderFontScale);
+  ImGui::TextDisabled("%s", ICON_LC_LAYERS_2);
+  ImGui::SameLine();
+  ImGui::TextUnformatted("Welcome to Wiesel");
+  ImGui::SetWindowFontScale(1.0f);
+  ImGui::Unindent(s.WindowPadding.x);
+
+  ImGui::Dummy(ImVec2(0.0f, style::kSeparatorPadY));
+  ui::layout::Separator();
+  ImGui::Dummy(ImVec2(0.0f, style::kSeparatorPadY));
+
+  ImGui::Indent(s.WindowPadding.x);
+  ImGui::TextDisabled("Get started");
+  float width = ImGui::GetContentRegionAvail().x - s.WindowPadding.x;
+  if (ImGui::Button("New Project...", ImVec2(width, ImGui::GetFrameHeight()))) {
+    NewProject();
+  }
+  if (ImGui::Button("Open Project...", ImVec2(width, ImGui::GetFrameHeight()))) {
+    OpenProject();
+  }
+  ImGui::Unindent(s.WindowPadding.x);
+
+  ImGui::Dummy(ImVec2(0.0f, style::kSeparatorPadY));
+  ui::layout::Separator();
+  ImGui::Dummy(ImVec2(0.0f, style::kSeparatorPadY));
+
+  ImGui::Indent(s.WindowPadding.x);
   const auto& recent = RecentProjects::Load();
   if (!recent.empty()) {
-    ImGui::Text("Recent Projects:");
+    ImGui::TextDisabled("Recent projects");
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                         ImVec2(ImGui::GetStyle().ItemSpacing.x, 0.0f));
@@ -1362,7 +976,7 @@ void EditorLayer::RenderStartupDialog() {
       ImGui::PushID(static_cast<int>(i));
       ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_Leaf |
                                       ImGuiTreeNodeFlags_NoTreePushOnOpen;
-      ImGui::HierarchyTreeNodeEx(label.c_str(), node_flags);
+      ui::row::HierarchyRow(label.c_str(), node_flags);
       if (ImGui::IsItemClicked()) {
         if (fs::exists(path)) {
           deferred_action_ = DeferredAction::OpenProject;
@@ -1375,6 +989,12 @@ void EditorLayer::RenderStartupDialog() {
   } else {
     ImGui::TextDisabled("No recent projects.");
   }
+  ImGui::Unindent(s.WindowPadding.x);
+  // Bottom edge: kSeparatorPadY of breathing PLUS the trailing ItemSpacing.y
+  // because ImGui's CursorMaxPos calculation drops the spacing after the
+  // last item (so a plain Dummy(kSeparatorPadY) here would land ~10 px
+  // shorter than the matching top margin).
+  ImGui::Dummy(ImVec2(0.0f, style::kSeparatorPadY + s.ItemSpacing.y));
 
   ImGui::End();
 }
@@ -1385,30 +1005,28 @@ void EditorLayer::RenderEditorSettingsPanel() {
     panel_editor_settings_ = false;
   }
 
-  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(600, 420), ImGuiCond_Appearing);
-
   bool popup_open = true;
-  if (ImGui::BeginPopupModal("Editor Settings", &popup_open,
-                             ImGuiWindowFlags_NoScrollbar)) {
-    static const char* categories[] = {"Appearance", "C# Language Server"};
+  if (ui::popup::Begin("Editor Settings", ICON_LC_SETTINGS_2,
+                            "Editor Settings", &popup_open,
+                            ImVec2(720, 500))) {
+    struct CategoryDef {
+      const char* label;
+      const char* icon;
+    };
+    static const CategoryDef categories[] = {
+        {"Appearance", ICON_LC_PAINTBRUSH},
+        {"C# Language Server", ICON_LC_CODE_2},
+    };
     static int selected_category = 0;
 
-    // Left panel: category list
-    ImGui::BeginChild("categories", ImVec2(160, 0), ImGuiChildFlags_Borders);
-    for (int i = 0; i < 2; i++) {
-      if (ImGui::Selectable(categories[i], selected_category == i)) {
+    ui::layout::BeginSidebarBody(180.0f);
+    for (int i = 0; i < IM_ARRAYSIZE(categories); i++) {
+      if (ui::row::CategoryRow(categories[i].label, selected_category == i,
+                            categories[i].icon)) {
         selected_category = i;
       }
     }
-    ImGui::EndChild();
-
-    ImGui::SameLine();
-
-    // Right panel: settings
-    ImGui::BeginChild("settings_content", ImVec2(0, 0),
-                      ImGuiChildFlags_Borders);
+    ui::layout::BeginBody();
 
     if (selected_category == 0) {
       // --- Appearance ---
@@ -1518,8 +1136,8 @@ void EditorLayer::RenderEditorSettingsPanel() {
                             : "Not started");
     }
 
-    ImGui::EndChild();
-    ImGui::EndPopup();
+    ui::layout::EndSidebarBody();
+    ui::popup::End();
   }
 }
 

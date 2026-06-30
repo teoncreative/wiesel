@@ -12,6 +12,7 @@
 
 #include <glm/glm.hpp>
 #include <string>
+#include <unordered_set>
 
 struct ImNodesEditorContext;
 
@@ -74,7 +75,11 @@ class NodeGraphEditor {
 
  private:
   ImNodesEditorContext* context_ = nullptr;
-  bool initialized_ = false;
+  // Node IDs we have already seeded into imnodes via SetNodeEditorSpacePos.
+  // New nodes added at runtime get seeded on the frame they first appear so
+  // that the same-frame GetNodeEditorSpacePos readback does not hit imnodes'
+  // "unknown node id" assert.
+  std::unordered_set<int> seeded_nodes_;
   glm::vec2 context_menu_pos_ = {0.0f, 0.0f};
   int right_clicked_node_ = -1;
   int right_clicked_link_ = -1;

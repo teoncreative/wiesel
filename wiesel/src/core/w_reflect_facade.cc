@@ -75,17 +75,17 @@ static uint32_t ResolveFieldTypeId(entt::meta_data data) {
   return t ? t.info().hash() : 0;
 }
 
-void RegisterTypeImpl(uint32_t type_id, const char* name) {
-  entt::meta_type meta = entt::resolve(type_id);
+void RegisterTypeImpl(const entt::type_info& info, const char* name) {
+  entt::meta_type meta = entt::resolve(info);
   if (!meta) {
-    LOG_WARN("Reflect::RegisterType: no entt meta for '{}' (id {})", name,
-             type_id);
+    LOG_WARN("Reflect::RegisterType: no entt meta for '{}' (hash {})", name,
+             info.hash());
     return;
   }
 
   auto entry = std::make_unique<TypeEntry>();
   entry->name = name;
-  entry->type_id = type_id;
+  entry->type_id = info.hash();
 
   for (auto [id, data] : meta.data()) {
     FieldEntry f;
@@ -98,7 +98,7 @@ void RegisterTypeImpl(uint32_t type_id, const char* name) {
       f.attrs.read_only = pm->read_only;
     }
     f.type_id = ResolveFieldTypeId(data);
-    f.owner_type_id = type_id;
+    f.owner_type_id = info.hash();
     f.meta_data = data;
     entry->fields.push_back(std::move(f));
   }

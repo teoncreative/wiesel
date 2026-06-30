@@ -54,7 +54,7 @@ class Scene {
   entt::entity FindEntityByUUID(const urkern::UUID& uuid);
   std::vector<entt::entity> FindEntitiesByTag(const std::string& tag);
 
-  // Asset dependency tracking — called during deserialization
+  // Asset dependency tracking - called during deserialization
   void RequestAsset(AssetHandle handle);
   bool AreAssetsReady() const;
   float GetAssetLoadProgress() const;

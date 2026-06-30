@@ -77,4 +77,9 @@ bool AssetCombo(const char* label, std::initializer_list<AssetType> types,
                 AssetHandle& selected, bool allow_none = true,
                 const char* none_label = "(None)");
 
+// ICON_LC_* glyph for the given asset type, used for inspector headers and
+// other places where the type needs a one-glyph visual indicator. Returns an
+// empty string for AssetType::None / unknown.
+const char* AssetTypeIcon(AssetType type);
+
 }  // namespace wiesel::editor

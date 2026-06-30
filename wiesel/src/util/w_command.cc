@@ -108,7 +108,7 @@ void DeveloperConsole::Execute(const std::string& command_line) {
       found = true;
     }
   }
-  // Log without holding the mutex — Log() takes it itself and we'd
+  // Log without holding the mutex - Log() takes it itself and we'd
   // otherwise deadlock on std::mutex (non-recursive).
   if (!found) {
     LogError("Unknown command: " + cmd_name);
