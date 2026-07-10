@@ -18,7 +18,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 #define WIESEL_SHADOW_CASCADE_COUNT 4
 #define WIESEL_SSAO_KERNEL_SIZE 64
@@ -56,6 +56,7 @@ enum Vertex3DFlag {
   VertexFlagHasAlbedoMap = BIT(4),
   VertexFlagHasRoughnessMap = BIT(5),
   VertexFlagHasMetallicMap = BIT(6),
+  VertexFlagHasOpacityMap = BIT(7),
 };
 
 struct Vertex3D {
@@ -168,12 +169,19 @@ struct VertexSprite {
   bool operator==(const VertexSprite& other) const { return uv == other.uv; }
 };
 
+// GLM aligned gentypes must be enabled for UBO structs to match std140 layout.
+// Without it, glm::vec3 is 12 bytes instead of 16, breaking all UBO offsets.
+static_assert(sizeof(glm::vec3) == 16,
+    "glm::vec3 must be 16 bytes for std140 UBO layout. "
+    "Define GLM_FORCE_INTRINSICS and GLM_FORCE_DEFAULT_ALIGNED_GENTYPES.");
+static_assert(sizeof(glm::mat3) == 48,
+    "glm::mat3 must be 48 bytes for std140 UBO layout.");
+
 struct alignas(16) MatricesUniformData {
   alignas(16) glm::mat4 model_matrix;
   alignas(16) glm::mat3 normal_matrix;
-  // GLM_FORCE_DEFAULT_ALIGNED_GENTYPES makes glm::mat3 = 48 bytes (vec4-aligned columns)
-  // which matches std140 layout. entityId follows at offset 112.
-  float entity_id = 0.0f;
+  // Packed: (scene_index << 24) | (entity_handle + 1). 0 = no entity.
+  uint32_t entity_id = 0;
   float _pad1[3]{};  // pad to next vec4 boundary (offset 128)
   alignas(16) glm::vec4 color_tint{1.0f, 1.0f, 1.0f, 1.0f};
   alignas(16) glm::vec4 material_params{
@@ -260,9 +268,17 @@ class Time {
   static float_t GetTime();
 };
 
-enum class AntiAliasingMode { None, FXAA, TAA };
+enum class AntiAliasingMode { None = 0, FXAA = 1, TAA = 2 };
 
-enum class SamplingMode { DISABLED, X2, X4, X8, X16, X32, X64 };
+enum class SamplingMode {
+  DISABLED = 0,
+  X2 = 1,
+  X4 = 2,
+  X8 = 3,
+  X16 = 4,
+  X32 = 5,
+  X64 = 6
+};
 
 inline const char* ToString(SamplingMode sampling_mode) {
   switch (sampling_mode) {
@@ -314,7 +330,7 @@ inline void TrimLeft(std::string& s) {
             return !std::isspace(ch);
           }));
 }
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #define WIESEL_CONCAT_IMPL(x, y) x##y
 #define WIESEL_CONCAT(x, y) WIESEL_CONCAT_IMPL(x, y)
@@ -326,7 +342,7 @@ inline void TrimLeft(std::string& s) {
     VkResult name = (f);                                             \
     if (name != VK_SUCCESS) {                                        \
       std::cout << "Fatal : VkResult is \""                          \
-                << Wiesel::GetNameFromVulkanResult(name) << "\" in " \
+                << wiesel::GetNameFromVulkanResult(name) << "\" in " \
                 << __FILE__ << " at line " << __LINE__ << "\n";      \
       assert(name == VK_SUCCESS);                                    \
     }                                                                \

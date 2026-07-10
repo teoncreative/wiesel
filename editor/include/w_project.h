@@ -17,7 +17,7 @@
 #include "game/w_game_info.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct ProjectSettings {
   std::string name = "Untitled Project";
@@ -37,13 +37,20 @@ struct ProjectSettings {
   } editor_camera;
 };
 
+enum class ProjectLoadResult {
+  Success,
+  FileNotFound,
+  ParseError,
+  IncompatibleVersion,
+};
+
 class Project {
  public:
   Project() = default;
 
   static bool Create(const std::filesystem::path& directory,
                      const std::string& name);
-  static std::unique_ptr<Project> Load(
+  static std::pair<ProjectLoadResult, std::unique_ptr<Project>> Load(
       const std::filesystem::path& project_file);
   bool Save() const;
 
@@ -79,4 +86,4 @@ class Project {
   GameInfo game_info_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

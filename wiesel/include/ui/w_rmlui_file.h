@@ -12,7 +12,7 @@
 
 #include <RmlUi/Core/FileInterface.h>
 
-namespace Wiesel {
+namespace wiesel {
 
 // RmlUi file interface that reads from the engine's VFS.
 class RmlFileInterface : public Rml::FileInterface {
@@ -25,4 +25,4 @@ class RmlFileInterface : public Rml::FileInterface {
   size_t Length(Rml::FileHandle file) override;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

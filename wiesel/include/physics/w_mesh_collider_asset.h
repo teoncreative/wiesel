@@ -15,7 +15,12 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
+
+// On-disk binary format version for .wmeshcol files (magic "WMCL").
+// Bump when the serialized layout changes. Existing files become invalid
+// and must be re-baked.
+constexpr uint32_t kMeshColliderBinaryVersion = 1;
 
 struct MeshColliderAssetData {
   AssetHandle source_model;
@@ -38,4 +43,4 @@ std::shared_ptr<MeshColliderAssetData> BakeMeshColliderFromModel(
 // cached_shape. Called during asset load so the shape is ready immediately.
 void BuildCollisionShape(MeshColliderAssetData& data);
 
-}  // namespace Wiesel
+}  // namespace wiesel

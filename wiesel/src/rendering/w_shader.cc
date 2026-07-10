@@ -14,7 +14,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 VkShaderStageFlagBits GetShaderFlagBitsByType(ShaderType type) {
   switch (type) {
@@ -48,7 +48,7 @@ Shader::Shader(ShaderProperties properties) : properties_(properties) {
 #else
     bool debug = false;
 #endif
-    if (!Spirv::ShaderToSPV(properties_.type, debug, data, properties_.defines,
+    if (!spirv::ShaderToSPV(properties_.type, debug, data, properties_.defines,
                             code)) {
       throw std::runtime_error("Failed to compile shader!");
     }
@@ -80,4 +80,4 @@ Shader::~Shader() {
                         nullptr);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

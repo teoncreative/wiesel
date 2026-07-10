@@ -14,7 +14,7 @@
 #include <entt/entt.hpp>
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct CanvasScreenPushConstant {
   glm::vec2 screen_size;
@@ -31,7 +31,7 @@ struct alignas(16) CanvasElementUniformData {
   alignas(8) glm::vec2 size;
   alignas(16) glm::vec4 color;
   alignas(16) glm::vec4 uv_rect;
-  float entity_id;
+  uint32_t entity_id;
   float premultiplied;  // 1.0 = already premultiplied alpha, 0.0 = standard
   float _pad[2];
 };
@@ -41,7 +41,6 @@ struct alignas(16) CanvasElementUniformData {
 struct PerCanvasResources {
   std::shared_ptr<AttachmentTexture> texture;
   std::shared_ptr<AttachmentTexture> entity_id_texture;
-  std::shared_ptr<Framebuffer> framebuffer;
   std::shared_ptr<DescriptorSet>
       output_descriptor;  // for sampling in 3D quad pass
   uint32_t width = 0;
@@ -69,32 +68,29 @@ class CanvasFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Canvas";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
-  std::shared_ptr<Pipeline> rect_pipeline_;
   std::shared_ptr<Pipeline> image_pipeline_;
-  std::shared_ptr<Pipeline> text_pipeline_;
   std::shared_ptr<DescriptorSetLayout> canvas_element_layout_;
   std::shared_ptr<DescriptorSetLayout> canvas_textured_layout_;
   std::shared_ptr<CanvasScreenPushConstant> screen_size_push_;
 
-  // World-space canvas pipelines (use canvas_world.vert + same frag shaders)
-  std::shared_ptr<RenderPass> world_render_pass_;
-  std::shared_ptr<Pipeline> world_rect_pipeline_;
+  // World-space canvas pipeline (use canvas_world.vert + canvas_image.frag)
   std::shared_ptr<Pipeline> world_image_pipeline_;
-  std::shared_ptr<Pipeline> world_text_pipeline_;
   std::shared_ptr<CanvasWorldPushConstant> world_push_;
 
   // Second pass: composite canvas onto final PipelineOutput
-  std::shared_ptr<RenderPass> comp_render_pass_;
   std::shared_ptr<Pipeline> comp_pipeline_;
-
-  // RmlUi offscreen render pass (framebuffers created per-document)
-  std::shared_ptr<RenderPass> rmlui_render_pass_;
 
   // Per-canvas offscreen resources for ScreenSpaceCamera canvases
   // (and overlay canvases when rendering in editor scene view).
   // Keyed by the canvas entity.
   std::unordered_map<entt::entity, PerCanvasResources> per_canvas_resources_;
+
+  // Chain composite bindings; rebuilt when the transient output or the
+  // upstream PipelineOutput texture changes.
+  std::shared_ptr<DescriptorSet> comp_input_desc_;
+  std::shared_ptr<DescriptorSet> comp_output_desc_;
+  AttachmentTexture* comp_output_key_ = nullptr;
+  AttachmentTexture* comp_input_key_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

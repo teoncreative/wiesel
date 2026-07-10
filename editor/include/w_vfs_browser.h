@@ -17,7 +17,7 @@
 #include "util/w_vfs.h"
 #include "w_thumbnail_cache.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // A single entry in the VFS browser, combining VFS info with asset metadata.
 struct BrowserEntry {
@@ -38,7 +38,10 @@ class VfsBrowser {
 
   const std::string& current_dir() const { return current_dir_; }
 
-  void SetCurrentDir(const std::string& dir) { current_dir_ = dir; }
+  void SetCurrentDir(const std::string& dir) {
+    current_dir_ = dir;
+    cache_dirty_ = true;
+  }
 
   void NavigateInto(const std::string& dir_name);
   bool NavigateUp();
@@ -47,14 +50,16 @@ class VfsBrowser {
   std::string CurrentVfsDir() const;
 
   // Scan current directory. Directories first, then files, natural sort.
-  std::vector<BrowserEntry> Scan(AssetType filter = AssetType::None) const;
+  // Results are cached; call Invalidate() to force a re-scan.
+  const std::vector<BrowserEntry>& Scan(AssetType filter = AssetType::None);
+
+  // Mark the cached directory listing as stale so the next Scan() re-reads.
+  void Invalidate();
 
   // Build breadcrumb segments: (display_name, relative_dir_path)
   std::vector<std::pair<std::string, std::string>> Breadcrumbs() const;
 
-  // ------------------------------------------------------------------
-  // Tile rendering (shared visual layer)
-  // ------------------------------------------------------------------
+  // --- Tile rendering (shared visual layer) ---
 
   // Configuration
   float tile_size = 80.0f;
@@ -73,6 +78,10 @@ class VfsBrowser {
   void NextColumn();
   void EndTileGrid();
 
+  int grid_columns() const { return grid_columns_; }
+
+  void SetGridCol(int col) { grid_col_ = col; }
+
   // Render breadcrumb navigation bar. Returns true if navigation changed.
   bool RenderBreadcrumbs();
 
@@ -80,9 +89,18 @@ class VfsBrowser {
   static ImVec4 GetAssetColor(AssetType type);
   static const char* GetAssetAbbrev(AssetType type);
 
+  // True when at the virtual top level (showing App/Engine/Editor folders)
+  bool IsAtTopLevel() const { return root_.empty(); }
+
  private:
   std::string root_ = "app://";
   std::string current_dir_;
+
+  // Cached directory listing (invalidated on navigation or explicit Invalidate())
+  std::vector<BrowserEntry> cached_entries_;
+  std::string cached_dir_;
+  AssetType cached_filter_ = AssetType::None;
+  bool cache_dirty_ = true;
 
   // Tile grid state (valid between BeginTileGrid / EndTileGrid)
   int grid_columns_ = 1;
@@ -120,4 +138,4 @@ class VfsFilePicker {
   char filename_buf_[256] = {};
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

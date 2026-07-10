@@ -1,54 +1,64 @@
 [submodule "vendor/stb"]
 	path = vendor/stb
-	url = https://github.com/nothings/stb.git
+	url = git@github.com:nothings/stb.git
 [submodule "vendor/assimp"]
 	path = vendor/assimp
-	url = https://github.com/assimp/assimp.git
+	url = git@github.com:assimp/assimp.git
 [submodule "vendor/entt"]
 	path = vendor/entt
-	url = https://github.com/skypjack/entt.git
+	url = git@github.com:skypjack/entt.git
 [submodule "vendor/imgui"]
 	path = vendor/imgui
-	url = https://github.com/ocornut/imgui.git
+	url = git@github.com:teoncreative/imgui.git
+	branch = wiesel
 [submodule "vendor/filedialog"]
 	path = vendor/filedialog
-	url = https://github.com/btzy/nativefiledialog-extended.git
+	url = git@github.com:btzy/nativefiledialog-extended.git
 [submodule "vendor/imguizmo"]
 	path = vendor/imguizmo
-	url = https://github.com/CedricGuillemet/ImGuizmo.git
+	url = git@github.com:CedricGuillemet/ImGuizmo.git
 [submodule "vendor/glslang"]
 	path = vendor/glslang
-	url = https://github.com/KhronosGroup/glslang.git
+	url = git@github.com:KhronosGroup/glslang.git
 [submodule "vendor/freetype"]
 	path = vendor/freetype
-	url = https://github.com/freetype/freetype.git
+	url = git@github.com:freetype/freetype.git
 [submodule "vendor/cxxopts"]
 	path = vendor/cxxopts
-	url = https://github.com/jarro2783/cxxopts
+	url = git@github.com:jarro2783/cxxopts.git
 [submodule "vendor/VulkanMemoryAllocator"]
 	path = vendor/VulkanMemoryAllocator
-	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+	url = git@github.com:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
 [submodule "vendor/recastnavigation"]
 	path = vendor/recastnavigation
-	url = https://github.com/recastnavigation/recastnavigation.git
+	url = git@github.com:recastnavigation/recastnavigation.git
 [submodule "vendor/discord-rpc"]
 	path = vendor/discord-rpc
-	url = https://github.com/discord/discord-rpc.git
+	url = git@github.com:discord/discord-rpc.git
 [submodule "vendor/efsw"]
 	path = vendor/efsw
-	url = https://github.com/SpartanJ/efsw.git
+	url = git@github.com:SpartanJ/efsw.git
 [submodule "vendor/glm"]
 	path = vendor/glm
-	url = https://github.com/g-truc/glm.git
+	url = git@github.com:g-truc/glm.git
 [submodule "vendor/rapidjson"]
 	path = vendor/rapidjson
-	url = https://github.com/Tencent/rapidjson
+	url = git@github.com:Tencent/rapidjson.git
 [submodule "vendor/ImGuiColorTextEdit"]
 	path = vendor/ImGuiColorTextEdit
-	url = https://github.com/teoncreative/ImGuiColorTextEdit
+	url = git@github.com:teoncreative/ImGuiColorTextEdit.git
 [submodule "vendor/JoltPhysics"]
 	path = vendor/JoltPhysics
-	url = https://github.com/jrouwe/JoltPhysics.git
+	url = git@github.com:jrouwe/JoltPhysics.git
 [submodule "vendor/RmlUi"]
 	path = vendor/RmlUi
-	url = https://github.com/teoncreative/RmlUi.git
+	url = git@github.com:teoncreative/RmlUi.git
+[submodule "vendor/imnodes"]
+	path = vendor/imnodes
+	url = git@github.com:Nelarius/imnodes.git
+[submodule "vendor/znet"]
+	path = vendor/znet
+	url = git@github.com:teoncreative/znet.git
+[submodule "vendor/urkern"]
+	path = vendor/urkern
+	url = git@github.com:teoncreative/urkern.git

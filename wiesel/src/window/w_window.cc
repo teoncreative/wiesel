@@ -11,7 +11,7 @@
 
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 AppWindow::AppWindow(const WindowProperties& properties)
     : properties_(properties) {}
@@ -47,4 +47,4 @@ void AppWindow::ImGuiInit() {}
 
 void AppWindow::ImGuiNewFrame() {}
 
-}  // namespace Wiesel
+}  // namespace wiesel

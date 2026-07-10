@@ -16,7 +16,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
 class Scene;
@@ -60,4 +60,4 @@ class AccelerationStructureManager {
   VkDeviceSize tlas_scratch_capacity_ = 0;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

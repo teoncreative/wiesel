@@ -20,8 +20,8 @@
 #include "rendering/w_command.h"
 #include "rendering/w_deletion_queue.h"
 #include "rendering/w_descriptor.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_texture.h"
 #include "scene/w_components.h"
@@ -29,15 +29,15 @@
 #include "util/w_color.h"
 #include "util/w_utils.h"
 #include "w_pipeline.h"
-#include "w_renderpass.h"
 #include "w_sampler.h"
 #include "w_shader.h"
 #include "w_skybox.h"
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class AccelerationStructureManager;
+class TransientResourcePool;
 
 struct ShadowPipelinePushConstant {
   int cascade_index;
@@ -94,11 +94,12 @@ class Setting {
 struct RendererOptions {
   // Pass enable/disable - no pipeline recreation needed
   Setting<bool> ssao_enabled = true;
-  Setting<bool> bloom_enabled = false;
+  Setting<bool> bloom_enabled = true;
   Setting<bool> motion_blur_enabled = false;
   Setting<bool> only_ssao = false;
   Setting<int> debug_cascades = 0;  // 0=off, 1=cascades, 2=material
   Setting<bool> show_colliders = false;
+  Setting<bool> show_bounds = false;
   Setting<bool> show_triggers = false;
   Setting<bool> show_reverb_zones = false;
   Setting<bool> show_cameras = true;
@@ -116,8 +117,12 @@ struct RendererOptions {
   Setting<AntiAliasingMode> aa_mode = AntiAliasingMode::None;
 
   // Effect parameters - push constants, updated every frame
-  Setting<float> bloom_threshold = 0.7f;
-  Setting<float> bloom_intensity = 0.6f;
+  Setting<float> bloom_threshold = 0.9f;
+  Setting<float> bloom_intensity = 0.0f;
+  Setting<float> bloom_scatter = 0.7f;
+  Setting<glm::vec3> bloom_tint = glm::vec3(1.0f);
+  Setting<float> bloom_clamp = 65535.0f;
+  Setting<bool> bloom_high_quality = false;
   Setting<float> motion_blur_strength = 1.0f;
   Setting<int> motion_blur_samples = 8;
 
@@ -137,7 +142,20 @@ struct RendererOptions {
 struct RendererProperties {};
 
 struct RenderStats {
+  // Total vkCmdDraw* commands submitted this frame (batched + non-batched).
   uint32_t draw_calls = 0;
+  // Subset of draw_calls where instance_count > 1 (true instanced batches).
+  uint32_t instanced_draw_calls = 0;
+  // Subset of draw_calls with instance_count == 1 (single-mesh draws: skinned,
+  // billboards, debug, UI, etc).
+  uint32_t single_draw_calls = 0;
+  // Sum of instance_count across every mesh draw this frame. A plain draw
+  // contributes 1; an instanced batch of N contributes N.
+  uint32_t total_instances = 0;
+  // Number of per-entity draws saved by instancing: total_instances - mesh
+  // draw_calls that went through a mesh pass. Represents CPU submission work
+  // avoided.
+  uint32_t saved_by_batching = 0;
   uint32_t vertices = 0;
   uint32_t triangles = 0;
   uint32_t meshes = 0;
@@ -161,6 +179,10 @@ struct RenderStats {
 
   void Reset() {
     draw_calls = 0;
+    instanced_draw_calls = 0;
+    single_draw_calls = 0;
+    total_instances = 0;
+    saved_by_batching = 0;
     vertices = 0;
     triangles = 0;
     meshes = 0;
@@ -191,6 +213,37 @@ class Renderer {
   std::shared_ptr<UniformBuffer> CreateStorageBuffer(
       const std::string& debug_name, VkDeviceSize size);
 
+  // Reserve a contiguous range of entries in the current frame's slice of the
+  // global instance SSBO. Writes into `out_ptr` by the caller are visible to
+  // the GPU once the frame's command buffer submits. Returned value is the
+  // first_instance to pass to vkCmdDrawIndexed so gl_InstanceIndex inside the
+  // shader matches the SSBO index.
+  uint32_t ReserveInstanceRange(uint32_t count,
+                                struct MatricesUniformData*& out_ptr);
+
+  // The global instance storage buffer used by all mesh pipelines.
+  std::shared_ptr<UniformBuffer> GetInstanceStorageBuffer() const {
+    return instance_storage_buffer_;
+  }
+
+  // Called by instanced draw paths to account for a batched draw.
+  void UpdateDrawStats(const std::shared_ptr<class Mesh>& mesh,
+                       uint32_t instance_count);
+
+  // Outputs needed to route a mesh renderer through the batcher.
+  struct MeshDrawPrep {
+    std::shared_ptr<class Mesh> mesh;
+    std::shared_ptr<class Material> material;
+    std::shared_ptr<class DescriptorSet> geometry_descriptor;
+    std::shared_ptr<class DescriptorSet> shadow_descriptor;
+  };
+
+  // Ensures the mesh renderer's GPU resources exist, refreshes its material
+  // descriptors if any textures changed, and returns the handles needed for
+  // drawing. Returns false if the model handle is invalid.
+  bool PrepareMesh(MeshRendererComponent& mr, MeshDrawPrep& out);
+  bool PrepareMesh(SkinnedMeshRendererComponent& mr, MeshDrawPrep& out);
+
   void SetupCameraComponent(CameraComponent& component);
 
   std::shared_ptr<Texture> CreateBlankTexture(const std::string& debug_name);
@@ -219,11 +272,9 @@ class Renderer {
                                   void* buffer, size_t size_per_pixel);
 
   std::shared_ptr<DescriptorSet> CreateMeshDescriptors(
-      std::shared_ptr<UniformBuffer> uniform_buffer,
       std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateShadowMeshDescriptors(
-      std::shared_ptr<UniformBuffer> uniform_buffer,
       std::shared_ptr<Material> material);
 
   std::shared_ptr<DescriptorSet> CreateGlobalDescriptors(
@@ -249,6 +300,10 @@ class Renderer {
   WIESEL_GETTER_FN Colorf& GetClearColor();
 
   WIESEL_GETTER_FN RendererOptions& options() { return options_; }
+
+  WIESEL_GETTER_FN LightsUniformData& lights_data() {
+    return lights_uniform_data_;
+  }
 
   void SetRecreatePipeline(bool value) { recreate_pipeline_ = value; }
 
@@ -393,7 +448,12 @@ class Renderer {
     return quad_vertex_buffer_;
   }
 
-  // Descriptor layout registry (used by RenderFeatures)
+  // Descriptor layout registry (used by RenderFeatures).
+  // Registered layout names:
+  //   "GeometryMesh", "GeometryOutput", "Global", "GlobalShadow",
+  //   "ShadowMesh", "Bone", "Present", "Postprocess2Input",
+  //   "SSAOGen", "SSAOBlur", "SSAOOutput", "TAA", "IBL",
+  //   "CubemapSampler", "Skybox", "SpriteDraw"
 
   std::shared_ptr<DescriptorSetLayout> GetDescriptorLayout(
       const std::string& name) const;
@@ -438,46 +498,46 @@ class Renderer {
   VkFormat FindDepthFormat();
   VkFormat FindDepthStencilFormat();
 
-  std::shared_ptr<RenderPass> GetPresentRenderPass() const {
-    return present_render_pass_;
-  }
-
   void SetViewport(VkExtent2D extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
   void SetViewport(glm::vec2 extent, VkCommandBuffer cmd = VK_NULL_HANDLE);
   void SetScissor(int x, int y, int width, int height,
                   VkCommandBuffer cmd = VK_NULL_HANDLE);
 
-  void DrawModel(ModelComponent& model, const TransformComponent& transform,
-                 bool shadow_pass, entt::entity entity_handle = entt::null);
-  void DrawModelTransparent(
-      ModelComponent& model, const TransformComponent& transform,
-      entt::entity entity_handle = entt::null,
-      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
+  // Draw mesh geometry only without material
+  void DrawMeshSimple(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
+                      std::shared_ptr<DescriptorSet> bone_descriptor = nullptr);
+
   void DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                    std::shared_ptr<DescriptorSet> mesh_descriptors,
                    std::shared_ptr<DescriptorSet> bone_descriptors,
                    std::shared_ptr<DescriptorSet> global_descriptors,
-                   std::shared_ptr<DescriptorSet> ibl_descriptors = nullptr);
-  void AllocateModelRenderData(ModelComponent& model, const Model& model_data);
+                   std::shared_ptr<DescriptorSet> ibl_descriptors = nullptr,
+                   uint32_t first_instance = 0);
+
+  // Per-entity mesh renderer draw (static meshes)
+  void DrawMeshRenderer(
+      MeshRendererComponent& mesh_renderer, const TransformComponent& transform,
+      bool shadow_pass, bool transparent_pass = false,
+      entt::entity entity_handle = entt::null,
+      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
+  // Per-entity mesh renderer draw (skinned/animated meshes)
+  void DrawSkinnedMeshRenderer(
+      SkinnedMeshRendererComponent& mesh_renderer,
+      const TransformComponent& transform,
+      const SkeletalAnimRuntime* skel_runtime, bool shadow_pass,
+      bool transparent_pass = false, entt::entity entity_handle = entt::null,
+      std::shared_ptr<DescriptorSet> ibl_descriptor = nullptr);
   void DrawSprite(SpriteRendererComponent& sprite,
                   const TransformComponent& transform);
-  void DrawCanvasRect(const RectangleTransformComponent& rt,
-                      CanvasRectComponent& rect,
-                      std::shared_ptr<DescriptorSetLayout> layout,
-                      float entity_id = 0);
   void DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                         std::shared_ptr<Texture> texture, glm::vec4 tint,
                         glm::vec4 uv_rect,
                         std::shared_ptr<DescriptorSetLayout> layout,
-                        float entity_id = 0);
-  void DrawCanvasText(const RectangleTransformComponent& rt,
-                      TextComponent& text,
-                      std::shared_ptr<DescriptorSetLayout> layout,
-                      float entity_id = 0);
+                        uint32_t entity_id = 0);
   void DrawCanvasDescriptor(glm::vec2 position, glm::vec2 size,
                             std::shared_ptr<DescriptorSet> descriptor,
                             std::shared_ptr<DescriptorSetLayout> layout,
-                            float entity_id = 0);
+                            uint32_t entity_id = 0);
   void DrawSkybox(std::shared_ptr<Skybox> skybox);
   void DrawFullscreen(
       std::shared_ptr<Pipeline> pipeline,
@@ -487,7 +547,13 @@ class Renderer {
       uint32_t x, uint32_t y,
       std::shared_ptr<AttachmentTexture> entity_id_texture,
       std::shared_ptr<AttachmentTexture> fallback_entity_id_texture = nullptr);
-  bool ExecuteEntityPick(entt::entity& out_entity);
+  bool ExecuteEntityPick(entt::entity& out_entity, uint8_t& out_scene_index);
+
+  // Set the scene index used to tag entity IDs during rendering.
+  // Must be called before rendering each scene.
+  void SetCurrentSceneIndex(uint8_t index) { current_scene_index_ = index; }
+
+  uint8_t GetCurrentSceneIndex() const { return current_scene_index_; }
 
   void SetBoundPipeline(Pipeline* p) { bound_pipeline_ = p; }
 
@@ -496,6 +562,8 @@ class Renderer {
   const RenderStats& GetStats() const { return stats_; }
 
   DeletionQueue& GetDeletionQueue() { return deletion_queue_; }
+
+  TransientResourcePool& GetTransientResourcePool();
 
   void BeginRender();
   void UpdateUniformData();
@@ -606,6 +674,7 @@ class Renderer {
                                VkImageTiling tiling,
                                VkFormatFeatureFlags features);
   bool HasStencilComponent(VkFormat format);
+  bool IsIntegerColorFormat(VkFormat format);
 
  private:
   void CreateVulkanInstance();
@@ -678,10 +747,10 @@ class Renderer {
 
  private:
   friend class ImGuiLayer;
-  friend class RenderPass;
   friend class RenderGraph;
   friend class Mesh;
   friend class Scene;
+  friend class SceneManager;
   friend class CommandBuffer;
   friend class AccelerationStructureManager;
   friend class Application;
@@ -737,6 +806,14 @@ class Renderer {
   std::shared_ptr<UniformBuffer> camera_uniform_buffer_;
   std::shared_ptr<UniformBuffer> shadow_camera_uniform_buffer_;
   std::shared_ptr<UniformBuffer> ssao_kernel_uniform_buffer_;
+
+  // Global per-instance SSBO. Layout is 2 contiguous slices (one per
+  // frame-in-flight). The current frame writes into its slice, and draw
+  // commands use firstInstance = slice_base + batch_offset so gl_InstanceIndex
+  // inside the shader matches the SSBO index.
+  std::shared_ptr<UniformBuffer> instance_storage_buffer_;
+  uint32_t instance_slice_capacity_ = 0;
+  uint32_t instance_next_index_ = 0;
   CameraUniformData camera_uniform_data_;
   ShadowMapMatricesUniformData shadow_camera_uniform_data_;
   SSAOKernelUniformData ssao_kernel_uniform_data_;
@@ -760,6 +837,7 @@ class Renderer {
   bool pick_pending_ = false;
 
   RenderStats stats_;
+  uint8_t current_scene_index_ = 0;
   uint32_t pick_x_ = 0;
   uint32_t pick_y_ = 0;
   std::shared_ptr<AttachmentTexture> pick_entity_id_image_;
@@ -771,11 +849,9 @@ class Renderer {
   // Currently bound pipeline, set by Pipeline::Bind(), used by Draw*
   Pipeline* bound_pipeline_ = nullptr;
 
-  std::shared_ptr<RenderPass> present_render_pass_;
   std::shared_ptr<Pipeline> present_pipeline_;
   std::shared_ptr<AttachmentTexture> present_color_image_;
   std::shared_ptr<AttachmentTexture> present_depth_stencil_;
-  std::vector<std::shared_ptr<Framebuffer>> present_framebuffers_;
 
   std::shared_ptr<Sampler> default_linear_sampler_;
   std::shared_ptr<Sampler> default_nearest_sampler_;
@@ -803,6 +879,7 @@ class Renderer {
       nullptr;
 
   DeletionQueue deletion_queue_;
+  std::unique_ptr<TransientResourcePool> transient_resource_pool_;
 
   // Transient UBO+descriptor pool for textured rect draws (double-buffered per FIF)
   struct SliceDrawResource {
@@ -850,4 +927,4 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -19,7 +19,7 @@
 #include "util/w_keycodes.h"
 #include "util/w_mousecodes.h"
 
-namespace Wiesel {
+namespace wiesel {
 class MouseMovedEvent;
 
 struct KeyData {
@@ -163,4 +163,4 @@ class InputManager {
   bool input_enabled_ = true;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -14,7 +14,7 @@
 
 #include "asset/w_asset_utils.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 AssetType ExtToAssetType(const std::string& ext) {
   if (ext == ".wscene") {
@@ -45,11 +45,11 @@ AssetType ExtToAssetType(const std::string& ext) {
   if (ext == ".wsprite") {
     return AssetType::Sprite;
   }
-  if (ext == ".wspriteanim") {
-    return AssetType::SpriteAnim;
+  if (ext == ".wanimclip") {
+    return AssetType::AnimClip;
   }
-  if (ext == ".wspritecontroller") {
-    return AssetType::SpriteController;
+  if (ext == ".wanimcontroller") {
+    return AssetType::AnimController;
   }
   if (ext == ".wav" || ext == ".ogg" || ext == ".mp3" || ext == ".flac") {
     return AssetType::Audio;
@@ -72,9 +72,8 @@ AssetType ExtToAssetType(const std::string& ext) {
 bool IsJsonAssetType(AssetType type) {
   return type == AssetType::Scene || type == AssetType::Prefab ||
          type == AssetType::Material || type == AssetType::Skybox ||
-         type == AssetType::Sprite || type == AssetType::SpriteAnim ||
-         type == AssetType::SpriteController || type == AssetType::CursorSet ||
-         type == AssetType::MeshCollider;
+         type == AssetType::Sprite || type == AssetType::AnimClip ||
+         type == AssetType::AnimController || type == AssetType::CursorSet;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

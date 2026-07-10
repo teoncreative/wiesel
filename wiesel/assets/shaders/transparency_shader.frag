@@ -7,6 +7,7 @@ uint kVertexFlagHasHeightMap = 1 << 3;
 uint kVertexFlagHasAlbedoMap = 1 << 4;
 uint kVertexFlagHasRoughnessMap = 1 << 5;
 uint kVertexFlagHasMetallicMap = 1 << 6;
+uint kVertexFlagHasOpacityMap = 1 << 7;
 
 struct LightBase {
     vec3 position;
@@ -33,15 +34,6 @@ struct LightPoint {
     float exp;
 };
 
-// Set 0: per-mesh data (same as geometry shader)
-layout (set = 0, binding = 0, std140) uniform Matrices {
-    mat4 modelMatrix;
-    mat3 normalMatrix;
-    float entityId;
-    vec4 colorTint;
-    vec4 materialParams; // x=roughness, y=metallic, z=specular
-};
-
 #ifdef USE_IBL
 layout (set = 3, binding = 0) uniform samplerCube irradianceMap;
 layout (set = 3, binding = 1) uniform samplerCube prefilterMap;
@@ -55,6 +47,7 @@ layout(set = 0, binding = 4) uniform sampler2D heightMap;
 layout(set = 0, binding = 5) uniform sampler2D albedoMap;
 layout(set = 0, binding = 6) uniform sampler2D roughnessMap;
 layout(set = 0, binding = 7) uniform sampler2D metallicMap;
+layout (set = 0, binding = 8) uniform sampler2D opacityMap;
 
 // Set 1: global data (lights + camera)
 const int MAX_LIGHTS = 16;
@@ -91,7 +84,9 @@ layout(location = 6) in flat uint inFlags;
 layout(location = 7) in vec3 inViewDir;
 layout(location = 8) in vec3 inViewPos;
 layout(location = 9) in mat3 inTBN;
-layout(location = 12) in flat float inEntityId;
+layout (location = 12) in flat uint inEntityId;
+layout (location = 13) in flat vec4 inColorTint;
+layout (location = 14) in flat vec4 inMaterialParams;
 
 layout(location = 0) out vec4 outFragColor;
 
@@ -110,12 +105,13 @@ void main() {
         baseColor = texture(baseTexture, inUV);
     } else if ((inFlags & kVertexFlagHasAlbedoMap) > 0) {
         baseColor = texture(albedoMap, inUV);
+    } else if ((inFlags & kVertexFlagHasOpacityMap) > 0) {
+        baseColor = texture(opacityMap, inUV);
     } else {
         baseColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
-    baseColor *= colorTint;
+    baseColor *= inColorTint;
 
-    // Discard fully transparent pixels
     if (baseColor.a < 0.01) {
         discard;
     }
@@ -123,24 +119,27 @@ void main() {
     // Material properties
     float matSpecular;
     if ((inFlags & kVertexFlagHasSpecularMap) > 0) {
-        matSpecular = texture(specularMap, inUV).r * materialParams.z;
+        matSpecular = texture(specularMap, inUV).r * inMaterialParams.z;
     } else {
-        matSpecular = materialParams.z;
+        matSpecular = inMaterialParams.z;
     }
     float matRoughness;
     if ((inFlags & kVertexFlagHasRoughnessMap) > 0) {
-        matRoughness = texture(roughnessMap, inUV).r * materialParams.x;
+        matRoughness = texture(roughnessMap, inUV).r * inMaterialParams.x;
     } else {
-        matRoughness = materialParams.x;
+        matRoughness = inMaterialParams.x;
     }
     float matMetallic;
     if ((inFlags & kVertexFlagHasMetallicMap) > 0) {
-        matMetallic = texture(metallicMap, inUV).r * materialParams.y;
+        matMetallic = texture(metallicMap, inUV).r * inMaterialParams.y;
     } else {
-        matMetallic = materialParams.y;
+        matMetallic = inMaterialParams.y;
     }
 
     vec3 normal = getSurfaceNormal();
+    if (!gl_FrontFacing) {
+        normal = -normal;
+    }
     vec3 albedo = inColor * baseColor.rgb;
     vec3 viewDir = normalize(cam.position - inWorldPos);
 

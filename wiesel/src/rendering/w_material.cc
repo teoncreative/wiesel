@@ -14,7 +14,7 @@
 #include "asset/w_asset_manager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- TextureSlot ---
 
@@ -43,8 +43,7 @@ Material::Material() {
   InitDefaults();
 }
 
-Material::~Material() {
-}
+Material::~Material() {}
 
 void Material::InitDefaults() {
   properties["color_tint"] = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -159,6 +158,7 @@ void Material::SetSpecular(float value) {
 
 nlohmann::json Material::Serialize() const {
   nlohmann::json j;
+  j["version"] = 1;
   j["name"] = name;
   j["color_tint"] = {GetColorTint().x, GetColorTint().y, GetColorTint().z,
                      GetColorTint().w};
@@ -178,10 +178,15 @@ nlohmann::json Material::Serialize() const {
   serialize_tex("specular_map", specular_map);
   serialize_tex("height", height_map);
   serialize_tex("albedo", albedo_map);
+  serialize_tex("opacity", opacity_map);
   serialize_tex("roughness_map", roughness_map);
   serialize_tex("metallic_map", metallic_map);
   if (!textures.empty()) {
     j["textures"] = textures;
+  }
+
+  if (double_sided) {
+    j["double_sided"] = true;
   }
 
   if (!enabled_features.empty()) {
@@ -236,7 +241,10 @@ std::shared_ptr<Material> Material::Deserialize(const nlohmann::json& j) {
     load_tex("albedo", mat->albedo_map);
     load_tex("roughness_map", mat->roughness_map);
     load_tex("metallic_map", mat->metallic_map);
+    load_tex("opacity", mat->opacity_map);
   }
+
+  mat->double_sided = j.value("double_sided", false);
 
   if (j.contains("features") && j["features"].is_array()) {
     for (const auto& f : j["features"]) {
@@ -271,7 +279,8 @@ void Material::Set(std::shared_ptr<Material> material,
       break;
     case TextureTypeShininess:
       break;
-    case TextureTypeOpacty:
+    case TextureTypeOpacity:
+      material->opacity_map = slot;
       break;
     case TextureTypeDisplacement:
       break;
@@ -340,16 +349,33 @@ glm::vec4 MaterialInstance::GetEffectiveVec4(const std::string& name) const {
   if (std::holds_alternative<glm::vec4>(val)) {
     return std::get<glm::vec4>(val);
   }
-  return glm::vec4(0.0f);
+  return glm::vec4(1.0f);
+}
+
+const MaterialInstance::ResolvedProps& MaterialInstance::GetResolvedProps()
+    const {
+  if (!resolved_dirty_) {
+    return resolved_;
+  }
+  resolved_.color_tint = GetEffectiveVec4("color_tint");
+  resolved_.roughness = GetEffectiveFloat("roughness");
+  resolved_.metallic = GetEffectiveFloat("metallic");
+  resolved_.specular = GetEffectiveFloat("specular");
+  float ac = GetEffectiveFloat("alpha_cutoff");
+  resolved_.alpha_cutoff = (ac <= 0.0f) ? 0.5f : ac;
+  resolved_dirty_ = false;
+  return resolved_;
 }
 
 void MaterialInstance::SetOverride(const std::string& name,
                                    MaterialPropertyValue value) {
   overrides[name] = std::move(value);
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::ClearOverride(const std::string& name) {
   overrides.erase(name);
+  resolved_dirty_ = true;
 }
 
 bool MaterialInstance::HasOverride(const std::string& name) const {
@@ -374,18 +400,22 @@ float MaterialInstance::GetSpecular() const {
 
 void MaterialInstance::SetColorTint(const glm::vec4& color) {
   overrides["color_tint"] = color;
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::SetRoughness(float value) {
   overrides["roughness"] = value;
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::SetMetallic(float value) {
   overrides["metallic"] = value;
+  resolved_dirty_ = true;
 }
 
 void MaterialInstance::SetSpecular(float value) {
   overrides["specular"] = value;
+  resolved_dirty_ = true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

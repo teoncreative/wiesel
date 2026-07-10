@@ -14,7 +14,7 @@
 
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
-#include "asset/w_asset_property_registry.h"
+#include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
 #include "input/w_input.h"
 #include "rendering/w_material.h"
@@ -24,24 +24,16 @@
 #include "script/w_scriptmanager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 bool ProjectLoader::MountProject(Project& project) {
   return GameLoader::MountAssets(project.GetAssetsDirectory());
 }
 
 void ProjectLoader::ScanAssets(Project& project) {
+  GameLoader::ScanAssets();
+
   namespace fs = std::filesystem;
-  Engine::scene_manager().ClearRegisteredScenes();
-  std::vector<std::string> scenes_to_preload;
-
-  // Scan engine assets, then project assets.
-  // Both use ImportAsset which creates .meta files if missing.
-  GameLoader::ScanVfsPrefix("engine://", GameLoader::ImportAsset,
-                            scenes_to_preload);
-  GameLoader::ScanVfsPrefix("app://", GameLoader::ImportAsset,
-                            scenes_to_preload);
-
   fs::path assets_dir = fs::absolute(project.GetAssetsDirectory());
 
   // Clean up orphaned .meta files (project assets only)
@@ -60,20 +52,34 @@ void ProjectLoader::ScanAssets(Project& project) {
     }
   }
 
-  // Preload assets for scenes that have preload_assets enabled.
-  for (const auto& preload_vfs : scenes_to_preload) {
-    VfsFile file = Engine::vfs()->Open(preload_vfs);
-    if (!file) {
+  UnregisterMissingAppAssets();
+}
+
+int ProjectLoader::UnregisterMissingAppAssets() {
+  VirtualFileSystem* vfs = Engine::vfs().get();
+  AssetManager& mgr = Engine::asset_manager();
+
+  static constexpr std::string_view kAppPrefix = "app://";
+  std::vector<AssetHandle> to_remove;
+  for (AssetHandle handle : mgr.GetAll()) {
+    const AssetMetadata* meta = mgr.GetMetadata(handle);
+    if (!meta) {
       continue;
     }
-    std::string content((std::istreambuf_iterator<char>(file.Stream())),
-                        std::istreambuf_iterator<char>());
-    auto temp_scene = std::make_shared<Scene>();
-    SceneSerializer serializer(temp_scene);
-    if (serializer.DeserializeFromString(content)) {
-      LOG_INFO("Preloading assets for scene: {}", preload_vfs);
+    const std::string& path = meta->virtual_source_path;
+    if (path.size() < kAppPrefix.size() ||
+        std::string_view(path).substr(0, kAppPrefix.size()) != kAppPrefix) {
+      continue;
+    }
+    if (!vfs->FileExists(path)) {
+      to_remove.push_back(handle);
     }
   }
+  for (AssetHandle handle : to_remove) {
+    mgr.Unload(handle);
+    mgr.Unregister(handle);
+  }
+  return static_cast<int>(to_remove.size());
 }
 
 void ProjectLoader::ApplyRenderOptions(Project& project) {
@@ -105,4 +111,4 @@ bool ProjectLoader::LoadAll(Project& project, bool load_start_scene) {
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

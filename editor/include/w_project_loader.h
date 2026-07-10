@@ -16,7 +16,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 // Editor-only project loader. Handles asset importing (read/write),
 // .meta file creation, and project-level loading.
@@ -28,6 +28,11 @@ class ProjectLoader {
   // Scan assets with full import capability (generates handles, writes .meta).
   static void ScanAssets(Project& project);
 
+  // Drop asset registrations whose source file is missing from the VFS.
+  // Only touches assets under "app://"; engine-provided assets are left alone.
+  // Returns the number of handles that were unregistered.
+  static int UnregisterMissingAppAssets();
+
   // Apply settings from the project's GameInfo.
   static void ApplyRenderOptions(Project& project);
   static void ApplyInputSettings(Project& project);
@@ -38,4 +43,4 @@ class ProjectLoader {
   static bool LoadAll(Project& project, bool load_start_scene = true);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

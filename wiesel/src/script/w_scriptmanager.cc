@@ -10,17 +10,19 @@
 
 #include "script/w_scriptmanager.h"
 
-#include <direct.h>
 #include <imgui.h>
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "input/w_input.h"
 #include "mono_wrappers.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_entity.h"
 #include "scene/w_prefab.h"
@@ -31,26 +33,55 @@
 #include "ui/w_canvas.h"
 #include "ui/w_ui_document.h"
 #include "util/w_logger.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static constexpr const char* kCoreDllPath = "./Core.dll";
 static constexpr const char* kAppDllPath = "./App.dll";
+
+// Read a public string-valued property off a C# object (Message /
+// StackTrace on System.Exception) and return its UTF-8 contents.
+static std::string GetMonoStringProperty(MonoObject* obj,
+                                         const char* prop_name) {
+  if (!obj) {
+    return {};
+  }
+  MonoClass* klass = mono_object_get_class(obj);
+  MonoProperty* prop = mono_class_get_property_from_name(klass, prop_name);
+  if (!prop) {
+    return {};
+  }
+  MonoObject* exc = nullptr;
+  MonoObject* value = mono_property_get_value(prop, obj, nullptr, &exc);
+  if (exc || !value) {
+    return {};
+  }
+  MonoString* str = reinterpret_cast<MonoString*>(value);
+  char* c = mono_string_to_utf8(str);
+  std::string out = c ? c : "";
+  mono_free(c);
+  return out;
+}
 
 MonoObject* InvokeSafe(MonoMethod* method, MonoObject* obj, void** args,
                        bool* had_exception) {
   MonoObject* exception = nullptr;
   MonoObject* result = mono_runtime_invoke(method, obj, args, &exception);
   if (exception) {
-    MonoString* exc_str = mono_object_to_string(exception, nullptr);
-    if (exc_str) {
-      char* cstr = mono_string_to_utf8(exc_str);
-      LOG_ERROR("C# Exception: {}", cstr);
-      Engine::console().LogError(cstr);
-      mono_free(cstr);
+    std::string message = GetMonoStringProperty(exception, "Message");
+    std::string trace = GetMonoStringProperty(exception, "StackTrace");
+    if (message.empty()) {
+      MonoString* exc_str = mono_object_to_string(exception, nullptr);
+      if (exc_str) {
+        char* cstr = mono_string_to_utf8(exc_str);
+        message = cstr ? cstr : "";
+        mono_free(cstr);
+      }
     }
+    DeveloperConsole::Get().LogError(
+        "C# Exception: " + message, std::move(trace));
     if (had_exception) {
       *had_exception = true;
     }
@@ -91,6 +122,15 @@ ScriptInstance::ScriptInstance(std::shared_ptr<ScriptData> data,
                                MonoBehavior* behavior) {
   behavior_ = behavior;
   script_data_ = data;
+  ScriptManager& script_manager = Engine::script_manager();
+  if (!script_manager.loaded()) {
+    DCON_LOG_ERROR(
+        "ScriptManager was not fully loaded, Script '{}' will be disabled.",
+        behavior->GetName());
+    errored_ = true;
+    Detach();
+    return;
+  }
   handle_ = mono_object_new(Engine::script_manager().app_domain(),
                             data->mono_class());
 
@@ -127,6 +167,34 @@ void ScriptInstance::Detach() {
 
 void ScriptInstance::OnStart() {
   UpdateAttachments();
+
+  // Bind NetworkVariable<T> fields before user's OnStart
+  for (const auto& field_name : script_data_->network_var_fields_) {
+    MonoClassField* field = mono_class_get_field_from_name(
+        script_data_->mono_class(), field_name.c_str());
+    if (!field) {
+      continue;
+    }
+
+    // Get the NetworkVariable instance from the behavior object
+    MonoObject* net_var = nullptr;
+    mono_field_get_value(handle_, field, &net_var);
+    if (!net_var) {
+      continue;
+    }
+
+    // Call Bind(owner, fieldName) on the NetworkVariable instance
+    MonoClass* net_var_class = mono_object_get_class(net_var);
+    MonoMethod* bind_method =
+        mono_class_get_method_from_name(net_var_class, "Bind", 2);
+    if (bind_method) {
+      MonoString* mono_name =
+          mono_string_new(mono_domain_get(), field_name.c_str());
+      void* args[2] = {handle_, mono_name};
+      InvokeSafe(bind_method, net_var, args, &errored_);
+    }
+  }
+
   if (!script_data_->on_start_method()) {
     return;
   }
@@ -418,6 +486,58 @@ void ScriptInstance::OnUIEvent(const std::string& event_name) {
   InvokeSafe(script_data_->on_ui_event_method(), handle_, args, &errored_);
 }
 
+void ScriptInstance::OnClientConnected(uint64_t session_id) {
+  if (errored_ || !script_data_->on_client_connected_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  void* args[1];
+  args[0] = &session_id;
+  InvokeSafe(script_data_->on_client_connected_method(), handle_, args,
+             &errored_);
+}
+
+void ScriptInstance::OnClientDisconnected(uint64_t session_id) {
+  if (errored_ || !script_data_->on_client_disconnected_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  void* args[1];
+  args[0] = &session_id;
+  InvokeSafe(script_data_->on_client_disconnected_method(), handle_, args,
+             &errored_);
+}
+
+void ScriptInstance::OnConnectedToServer() {
+  if (errored_ || !script_data_->on_connected_to_server_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  InvokeSafe(script_data_->on_connected_to_server_method(), handle_, nullptr,
+             &errored_);
+}
+
+void ScriptInstance::OnDisconnectedFromServer() {
+  if (errored_ || !script_data_->on_disconnected_from_server_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  InvokeSafe(script_data_->on_disconnected_from_server_method(), handle_,
+             nullptr, &errored_);
+}
+
+void ScriptInstance::OnSyncVarChanged(const std::string& var_name) {
+  if (errored_ || !script_data_->on_sync_var_changed_method()) {
+    return;
+  }
+  mono_domain_set(Engine::script_manager().app_domain(), true);
+  MonoString* name_str = mono_string_new(mono_domain_get(), var_name.c_str());
+  void* args[1];
+  args[0] = name_str;
+  InvokeSafe(script_data_->on_sync_var_changed_method(), handle_, args,
+             &errored_);
+}
+
 // explicitly instantiate needed types, this is required:
 template void ScriptInstance::AttachExternComponent<TransformComponent>(
     std::string, entt::entity);
@@ -505,7 +625,7 @@ MonoObject* ScriptManager::GetComponentByName(Scene* scene, entt::entity entity,
 }
 
 template <class T>
-MonoObject* ScriptManager::GetComponent(Wiesel::Scene* scene,
+MonoObject* ScriptManager::GetComponent(wiesel::Scene* scene,
                                         entt::entity entity) {
   auto& fn = component_getters_by_type_[std::type_index(typeid(T))];
   if (fn == nullptr) {
@@ -531,14 +651,14 @@ bool ScriptManager::HasComponentByName(Scene* scene, entt::entity entity,
 }
 
 void ScriptManager::Init(const ScriptManagerProperties&& props) {
-  enable_debugger_ = props.EnableDebugger;
+  enable_debugger_ = props.enable_debugger;
   LOG_INFO("Initializing mono...");
 
   mono_set_dirs("mono/lib", "mono/etc");
   mono_config_parse("mono/etc/mono/config");
 
   // Set up assembly search paths for automatic DLL resolution
-  std::filesystem::path exe_dir = GetExecutableDirectory();
+  std::filesystem::path exe_dir = urkern::GetExecutableDirectory();
   s_assembly_search_paths.clear();
   s_assembly_search_paths.push_back(exe_dir);
   s_assembly_search_paths.push_back(std::filesystem::current_path());
@@ -623,28 +743,30 @@ void ScriptManager::Reload() {
 
   // Compile Core if needed
   if (!core_sources.empty() && !std::filesystem::exists(kCoreDllPath)) {
-    LOG_INFO("Compiling core ({} files)...", core_sources.size());
+    DCON_LOG_INFO("Compiling core ({} files)...", core_sources.size());
     DotNetProject core("Core");
     core.SetOutputPath(kCoreDllPath);
     core.SetSources(core_sources);
     core.SetGenerateDocs(true);
     last_compile_result_ = core.Build(debug);
     if (!last_compile_result_.success) {
-      LOG_ERROR("Core compilation failed:\n{}", last_compile_result_.output);
+      DeveloperConsole::Get().LogError("Core compilation failed",
+                                       last_compile_result_.output);
       return;
     }
   }
 
   // Compile App
   if (!app_sources.empty()) {
-    LOG_INFO("Compiling app ({} files)...", app_sources.size());
+    DCON_LOG_INFO("Compiling app ({} files)...", app_sources.size());
     DotNetProject app("App");
     app.SetOutputPath(kAppDllPath);
     app.SetSources(app_sources);
     app.SetReferences(link_libs);
     last_compile_result_ = app.Build(debug);
     if (!last_compile_result_.success) {
-      LOG_ERROR("App compilation failed:\n{}", last_compile_result_.output);
+      DeveloperConsole::Get().LogError("App compilation failed",
+                                       last_compile_result_.output);
       return;
     }
   }
@@ -666,7 +788,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
     return;
   }
 
-  LOG_INFO("Compiling scripts (async)...");
+  DCON_LOG_INFO("Compiling scripts (async)...");
   bool debug = enable_debugger_;
   compiling_ = true;
 
@@ -674,7 +796,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
     CompileResult result{true, 0, "", ""};
 
     if (need_core && !core_sources.empty()) {
-      LOG_INFO("Compiling core ({} files)...", core_sources.size());
+      DCON_LOG_INFO("Compiling core ({} files)...", core_sources.size());
       DotNetProject core("Core");
       core.SetOutputPath(kCoreDllPath);
       core.SetSources(core_sources);
@@ -684,7 +806,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
 
     if (result.success && !app_sources.empty()) {
       std::vector<std::string> link_libs = CollectLinkLibs("App.dll");
-      LOG_INFO("Compiling app ({} files)...", app_sources.size());
+      DCON_LOG_INFO("Compiling app ({} files)...", app_sources.size());
       DotNetProject app("App");
       app.SetOutputPath(kAppDllPath);
       app.SetSources(app_sources);
@@ -697,8 +819,10 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
       compiling_ = false;
 
       if (!result.success) {
-        LOG_ERROR("Compilation failed (exit code {}):\n{}", result.exit_code,
-                  result.output);
+        DeveloperConsole::Get().LogError(
+            std::format("Compilation failed (exit code {})",
+                        result.exit_code),
+            result.output);
         return;
       }
 
@@ -709,6 +833,7 @@ void ScriptManager::ReloadAsync(bool force_recompile_core) {
 
 void ScriptManager::SwapDomain() {
   PROFILE_ZONE_SCOPED_N("ScriptManager::SwapDomain");
+  loaded_ = false;
 
   // Unregister old assets
   AssetManager& mgr = Engine::asset_manager();
@@ -743,7 +868,8 @@ void ScriptManager::SwapDomain() {
     LoadAppDll(kAppDllPath);
   }
 
-  LOG_INFO("Scripts loaded ({} scripts)", script_names_.size());
+  loaded_ = true;
+  DCON_LOG_INFO("Scripts loaded ({} scripts)", script_names_.size());
   ScriptsReloadedEvent event{};
   Engine::BroadcastEvent(event);
 }
@@ -753,13 +879,13 @@ void ScriptManager::LoadCoreDll() {
   std::string dll_path = kCoreDllPath;
 
   if (!std::filesystem::exists(dll_path)) {
-    LOG_ERROR("Core.dll not found");
+    DCON_LOG_ERROR("Core.dll not found");
     return;
   }
 
   core_assembly_ = mono_domain_assembly_open(root_domain_, dll_path.c_str());
   if (!core_assembly_) {
-    LOG_ERROR("Failed to load Core.dll assembly from '{}'", dll_path);
+    DCON_LOG_ERROR("Failed to load Core.dll assembly from '{}'", dll_path);
     return;
   }
 
@@ -770,10 +896,10 @@ void ScriptManager::LoadCoreDll() {
       mono_class_get_method_from_name(behavior_class_, "SetHandle", 1);
 
   // Component classes
+  tag_component_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "TagComponent");
   transform_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "TransformComponent");
-  model_component_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "ModelComponent");
   box_collider_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "BoxColliderComponent");
   sphere_collider_class_ = mono_class_from_name(
@@ -784,12 +910,6 @@ void ScriptManager::LoadCoreDll() {
       core_assembly_image_, "WieselEngine", "RectTransformComponent");
   canvas_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "CanvasComponent");
-  canvas_rect_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "CanvasRectComponent");
-  canvas_image_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "CanvasImageComponent");
-  text_component_class_ = mono_class_from_name(core_assembly_image_,
-                                               "WieselEngine", "TextComponent");
   animator_component_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "AnimatorComponent");
   audio_source_class_ = mono_class_from_name(
@@ -797,7 +917,11 @@ void ScriptManager::LoadCoreDll() {
   sprite_renderer_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "SpriteRendererComponent");
   sprite_animator_class_ = mono_class_from_name(
-      core_assembly_image_, "WieselEngine", "SpriteAnimatorComponent");
+      core_assembly_image_, "WieselEngine", "AnimatorComponent");
+  billboard_renderer_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "BillboardRendererComponent");
+  billboard_text_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "BillboardTextComponent");
   camera_class_ = mono_class_from_name(core_assembly_image_, "WieselEngine",
                                        "CameraComponent");
   light_direct_class_ = mono_class_from_name(
@@ -806,6 +930,8 @@ void ScriptManager::LoadCoreDll() {
       core_assembly_image_, "WieselEngine", "LightPointComponent");
   ui_document_class_ = mono_class_from_name(
       core_assembly_image_, "WieselEngine", "UIDocumentComponent");
+  network_identity_class_ = mono_class_from_name(
+      core_assembly_image_, "WieselEngine", "NetworkIdentityComponent");
   vector3f_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Vector3f");
   entity_class_ =
@@ -814,6 +940,8 @@ void ScriptManager::LoadCoreDll() {
       mono_class_from_name(core_assembly_image_, "WieselEngine", "Prefab");
   audio_clip_class_ =
       mono_class_from_name(core_assembly_image_, "WieselEngine", "AudioClip");
+  font_class_ =
+      mono_class_from_name(core_assembly_image_, "WieselEngine", "Font");
 }
 
 bool ScriptManager::LoadAppDll(const std::string& dll_path) {
@@ -824,7 +952,7 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
   LOG_INFO("Loading App.dll from {}", dll_path);
   app_assembly_ = mono_domain_assembly_open(app_domain_, dll_path.c_str());
   if (!app_assembly_) {
-    LOG_ERROR("Failed to load App.dll: {}", dll_path);
+    DCON_LOG_ERROR("Failed to load App.dll: {}", dll_path);
     return false;
   }
 
@@ -857,6 +985,7 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
     }
 
     std::unordered_map<std::string, FieldData> fields;
+    std::vector<std::string> net_var_fields;
     MonoClassField* field;
     void* iter = nullptr;
     while ((field = mono_class_get_fields(klass, &iter))) {
@@ -869,6 +998,19 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
       }
       fields.insert(
           std::pair(field_name, FieldData(field, field_name, field_flags)));
+
+      // Detect NetworkVariable<T> fields
+      MonoType* field_type = mono_field_get_type(field);
+      if (mono_type_get_type(field_type) == MONO_TYPE_GENERICINST) {
+        MonoClass* field_class = mono_class_from_mono_type(field_type);
+        const char* field_class_name = mono_class_get_name(field_class);
+        if (field_class_name &&
+            std::string_view(field_class_name).starts_with("NetworkVariable")) {
+          net_var_fields.push_back(field_name);
+          LOG_DEBUG("  Discovered NetworkVariable: {}::{}", class_name,
+                    field_name);
+        }
+      }
     }
 
     MonoMethod* on_start = mono_class_get_method_from_name(klass, "OnStart", 0);
@@ -919,16 +1061,85 @@ bool ScriptManager::LoadAppDll(const std::string& dll_path) {
     MonoMethod* on_ui_event =
         mono_class_get_method_from_name(klass, "OnUIEvent", 1);
 
-    script_data_.insert(std::pair(
-        class_name,
-        std::make_shared<ScriptData>(
-            klass, on_start, on_update, set_handle_method_, on_key_pressed,
-            on_key_released, on_mouse_moved, on_trigger_enter, on_trigger_stay,
-            on_trigger_exit, on_collision_enter, on_collision_stay,
-            on_collision_exit, on_disable, on_destroy, on_ptr_click,
-            on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, on_select,
-            on_deselect, on_submit, on_cancel, on_ui_data_changed, on_ui_event,
-            fields)));
+    auto script_data = std::make_shared<ScriptData>(
+        klass, on_start, on_update, set_handle_method_, on_key_pressed,
+        on_key_released, on_mouse_moved, on_trigger_enter, on_trigger_stay,
+        on_trigger_exit, on_collision_enter, on_collision_stay,
+        on_collision_exit, on_disable, on_destroy, on_ptr_click,
+        on_ptr_down, on_ptr_up, on_ptr_enter, on_ptr_exit, on_select,
+        on_deselect, on_submit, on_cancel, on_ui_data_changed, on_ui_event,
+        fields);
+
+    // Store discovered NetworkVariable field names
+    script_data->network_var_fields_ = std::move(net_var_fields);
+
+    // Discover network callback methods
+    script_data->on_client_connected_method_ =
+        mono_class_get_method_from_name(klass, "OnClientConnected", 1);
+    script_data->on_client_disconnected_method_ =
+        mono_class_get_method_from_name(klass, "OnClientDisconnected", 1);
+    script_data->on_connected_to_server_method_ =
+        mono_class_get_method_from_name(klass, "OnConnectedToServer", 0);
+    script_data->on_disconnected_from_server_method_ =
+        mono_class_get_method_from_name(klass, "OnDisconnectedFromServer", 0);
+    script_data->on_sync_var_changed_method_ =
+        mono_class_get_method_from_name(klass, "OnSyncVarChanged", 1);
+
+    // Discover RPC methods ([ServerRpc] and [ClientRpc] attributes)
+    {
+      MonoClass* server_rpc_attr = mono_class_from_name(
+          mono_assembly_get_image(app_assembly_), "WieselEngine",
+          "ServerRpcAttribute");
+      MonoClass* client_rpc_attr = mono_class_from_name(
+          mono_assembly_get_image(app_assembly_), "WieselEngine",
+          "ClientRpcAttribute");
+
+      void* method_iter = nullptr;
+      MonoMethod* method;
+      while ((method = mono_class_get_methods(klass, &method_iter))) {
+        const char* method_name = mono_method_get_name(method);
+        if (!method_name) {
+          continue;
+        }
+
+        MonoCustomAttrInfo* attrs = mono_custom_attrs_from_method(method);
+        if (!attrs) {
+          continue;
+        }
+
+        bool is_server = server_rpc_attr &&
+            mono_custom_attrs_has_attr(attrs, server_rpc_attr);
+        bool is_client = client_rpc_attr &&
+            mono_custom_attrs_has_attr(attrs, client_rpc_attr);
+        mono_custom_attrs_free(attrs);
+
+        if (!is_server && !is_client) {
+          continue;
+        }
+
+        std::string rpc_name(method_name);
+        ScriptData::RpcMethodInfo info;
+        info.method = method;
+        info.rpc_name = rpc_name;
+        info.is_server_rpc = is_server;
+
+        // Discover parameter types for auto-serialization
+        MonoMethodSignature* sig = mono_method_signature(method);
+        uint32_t param_count = mono_signature_get_param_count(sig);
+        void* param_iter = nullptr;
+        MonoType* param_type;
+        while ((param_type = mono_signature_get_params(sig, &param_iter))) {
+          info.param_mono_types.push_back(mono_type_get_type(param_type));
+        }
+
+        script_data->rpc_methods()[rpc_name] = info;
+        LOG_DEBUG("  Discovered RPC: {}::{} ({} params, {})",
+                  class_name, rpc_name, param_count,
+                  is_server ? "ServerRpc" : "ClientRpc");
+      }
+    }
+
+    script_data_.insert(std::pair(class_name, script_data));
     script_names_.push_back(class_name);
     LOG_INFO("Registered script: {}", class_name);
   }
@@ -955,6 +1166,15 @@ void ScriptManager::RegisterComponents() {
   component_adders_.clear();
   component_removers_.clear();
 
+  RegisterComponent<TagComponent>(
+      "TagComponent",
+      [this](Scene* scene, entt::entity entity) -> MonoObject* {
+        return CreateComponentWrapper(tag_component_class_, scene, entity);
+      },
+      [](Scene* scene, entt::entity entity) -> bool {
+        return scene->HasComponent<TagComponent>(entity);
+      });
+
   RegisterComponent<TransformComponent>(
       "TransformComponent",
       [this](Scene* scene, entt::entity entity) -> MonoObject* {
@@ -963,15 +1183,6 @@ void ScriptManager::RegisterComponents() {
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<TransformComponent>(entity);
-      });
-
-  RegisterComponent<ModelComponent>(
-      "ModelComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(model_component_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<ModelComponent>(entity);
       });
 
   RegisterComponent<BoxColliderComponent>(
@@ -1017,33 +1228,6 @@ void ScriptManager::RegisterComponents() {
       },
       [](Scene* scene, entt::entity entity) -> bool {
         return scene->HasComponent<CanvasComponent>(entity);
-      });
-
-  RegisterComponent<CanvasRectComponent>(
-      "CanvasRectComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(canvas_rect_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<CanvasRectComponent>(entity);
-      });
-
-  RegisterComponent<CanvasImageComponent>(
-      "CanvasImageComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(canvas_image_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<CanvasImageComponent>(entity);
-      });
-
-  RegisterComponent<TextComponent>(
-      "TextComponent",
-      [this](Scene* scene, entt::entity entity) -> MonoObject* {
-        return CreateComponentWrapper(text_component_class_, scene, entity);
-      },
-      [](Scene* scene, entt::entity entity) -> bool {
-        return scene->HasComponent<TextComponent>(entity);
       });
 
   if (animator_component_class_) {
@@ -1113,14 +1297,37 @@ void ScriptManager::RegisterComponents() {
         });
   }
 
+  if (billboard_renderer_class_) {
+    RegisterComponent<BillboardRendererComponent>(
+        "BillboardRendererComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          return CreateComponentWrapper(billboard_renderer_class_, scene,
+                                        entity);
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<BillboardRendererComponent>(entity);
+        });
+  }
+
+  if (billboard_text_class_) {
+    RegisterComponent<BillboardTextComponent>(
+        "BillboardTextComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          return CreateComponentWrapper(billboard_text_class_, scene, entity);
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<BillboardTextComponent>(entity);
+        });
+  }
+
   if (sprite_animator_class_) {
-    RegisterComponent<SpriteAnimatorComponent>(
-        "SpriteAnimatorComponent",
+    RegisterComponent<AnimatorComponent>(
+        "AnimatorComponent",
         [this](Scene* scene, entt::entity entity) -> MonoObject* {
           return CreateComponentWrapper(sprite_animator_class_, scene, entity);
         },
         [](Scene* scene, entt::entity entity) -> bool {
-          return scene->HasComponent<SpriteAnimatorComponent>(entity);
+          return scene->HasComponent<AnimatorComponent>(entity);
         });
   }
 
@@ -1132,6 +1339,17 @@ void ScriptManager::RegisterComponents() {
         },
         [](Scene* scene, entt::entity entity) -> bool {
           return scene->HasComponent<UIDocumentComponent>(entity);
+        });
+  }
+
+  if (network_identity_class_) {
+    RegisterComponent<NetworkIdentityComponent>(
+        "NetworkIdentityComponent",
+        [this](Scene* scene, entt::entity entity) -> MonoObject* {
+          return CreateComponentWrapper(network_identity_class_, scene, entity);
+        },
+        [](Scene* scene, entt::entity entity) -> bool {
+          return scene->HasComponent<NetworkIdentityComponent>(entity);
         });
   }
 }
@@ -1162,18 +1380,17 @@ void ScriptManager::RegisterComponent(std::string name, ComponentGetter getter,
         scene->GetRegistry().emplace<T>(entity);
       }
     };
-  } else {
-    component_adders_.insert(std::pair(name, adder));
   }
+  component_adders_.insert(std::pair(name, adder));
+
   if (!remover) {
     remover = [](Scene* scene, entt::entity entity) {
       if (scene->HasComponent<T>(entity)) {
         scene->GetRegistry().remove<T>(entity);
       }
     };
-  } else {
-    component_removers_.insert(std::pair(name, remover));
   }
+  component_removers_.insert(std::pair(name, remover));
 }
 
 void ScriptManager::AddComponentByName(Scene* scene, entt::entity entity,
@@ -1191,4 +1408,4 @@ void ScriptManager::RemoveComponentByName(Scene* scene, entt::entity entity,
     it->second(scene, entity);
   }
 }
-}  // namespace Wiesel
+}  // namespace wiesel

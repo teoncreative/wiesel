@@ -13,12 +13,15 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct MotionBlurPushConstants {
   float strength;
   int num_samples;
 };
+
+class AttachmentTexture;
+class DescriptorSet;
 
 class MotionBlurFeature : public RenderFeature {
  public:
@@ -34,9 +37,14 @@ class MotionBlurFeature : public RenderFeature {
  private:
   static inline std::string name_ = "MotionBlur";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<MotionBlurPushConstants> push_constants_;
+
+  std::shared_ptr<DescriptorSet> input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* output_key_ = nullptr;
+  AttachmentTexture* input_key_ = nullptr;
+  AttachmentTexture* world_pos_key_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

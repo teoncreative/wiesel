@@ -17,17 +17,17 @@
 #include <future>
 #include <set>
 
+#include "animation/w_animation_clip_asset.h"
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
+#include "asset/w_asset_registry.h"
 #include "rendering/w_mesh.h"
 #include "rendering/w_renderer.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
-// ---------------------------------------------------------------------------
-// VFS-backed Assimp IO
-// ---------------------------------------------------------------------------
+// ---- VFS-backed Assimp IO ----
 
 class VfsAssimpIOStream : public Assimp::IOStream {
   friend class VfsAssimpIOSystem;
@@ -119,19 +119,11 @@ class VfsAssimpIOSystem : public Assimp::IOSystem {
   std::string base_dir_;
 };
 
-// ---------------------------------------------------------------------------
-// Thread-local decoded texture cache
-// ---------------------------------------------------------------------------
-
 // Populated by PreDecodeTextures before calling LoadSync on child textures,
 // so the texture loader grabs pre-decoded pixels without re-importing Assimp.
 static thread_local std::unordered_map<std::string,
                                        std::shared_ptr<DecodedTextureData>>
     tl_decoded_texture_cache;
-
-// ---------------------------------------------------------------------------
-// Helpers (file-local)
-// ---------------------------------------------------------------------------
 
 static unsigned char* ConvertBGRAtoRGBA(void* bgra_data, int width,
                                         int height) {
@@ -170,10 +162,6 @@ static std::string NormalizeTexturePath(const std::string& raw,
   return textures_dir + "/" + s;
 }
 
-// ---------------------------------------------------------------------------
-// Forward declarations (file-local)
-// ---------------------------------------------------------------------------
-
 static void PreDecodeTextures(Model& model, const aiScene& scene);
 static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
                         aiMaterial* mat, aiTextureType type,
@@ -182,12 +170,9 @@ static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
                                          const aiScene& aiScene);
 static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                         std::vector<std::shared_ptr<Mesh>>& meshes,
+                        std::unordered_map<aiMesh*, int32_t>& mesh_cache,
                         int32_t parent_node_index);
 static void ExtractAnimations(Model& model, const aiScene& scene);
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 std::unique_ptr<aiScene> LoadAssimpScene(const std::string& path,
                                          bool convert_to_left_handed) {
@@ -203,9 +188,11 @@ std::unique_ptr<aiScene> LoadAssimpScene(const std::string& path,
   importer.SetIOHandler(new VfsAssimpIOSystem(Engine::vfs(), base_dir));
   importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE,
                               aiPrimitiveType_LINE | aiPrimitiveType_POINT);
+  // Normalize FBX scale (Blender exports in cm, we use meters)
+  importer.SetPropertyFloat(AI_CONFIG_GLOBAL_SCALE_FACTOR_KEY, 1.0f);
   uint32_t flags = aiProcess_Triangulate | aiProcess_CalcTangentSpace |
                    aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
-                   aiProcess_LimitBoneWeights |
+                   aiProcess_LimitBoneWeights | aiProcess_GlobalScale |
                    aiProcessPreset_TargetRealtime_Fast;
   if (convert_to_left_handed) {
     flags |= aiProcess_ConvertToLeftHanded;
@@ -215,9 +202,9 @@ std::unique_ptr<aiScene> LoadAssimpScene(const std::string& path,
 
   if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) ||
       !scene->mRootNode) {
-    LOG_ERROR("Failed to load model {}: {} (scene={}, flags={}, root={})", path,
-              importer.GetErrorString(), (void*)scene,
-              scene ? scene->mFlags : 0,
+    DCON_LOG_ERROR("Failed to load model {}: {} (scene={}, flags={}, root={})",
+                   path, importer.GetErrorString(), (void*)scene,
+                   scene ? scene->mFlags : 0,
               scene ? (void*)scene->mRootNode : nullptr);
     return nullptr;
   }
@@ -268,7 +255,7 @@ bool LoadTextureAsset(AssetHandle handle) {
         embedded_index = std::atoi(fragment.c_str() + 8);
       }
       if (embedded_index < 0) {
-        LOG_ERROR("LoadTextureAsset: invalid fragment URI: {}", path);
+        DCON_LOG_ERROR("LoadTextureAsset: invalid fragment URI: {}", path);
         return false;
       }
 
@@ -283,7 +270,7 @@ bool LoadTextureAsset(AssetHandle handle) {
       importer.ReadFile(model_path.c_str(), aiProcess_Triangulate);
       const aiScene* scene = importer.GetScene();
       if (!scene || embedded_index >= static_cast<int>(scene->mNumTextures)) {
-        LOG_ERROR(
+        DCON_LOG_ERROR(
             "LoadTextureAsset: failed to extract embedded texture {} "
             "from {}",
             embedded_index, model_path);
@@ -305,7 +292,7 @@ bool LoadTextureAsset(AssetHandle handle) {
     // Standalone or external texture: load from VFS path
     VfsFile file = vfs->Open(path);
     if (!file) {
-      LOG_ERROR("LoadTextureAsset: file not found: {}", path);
+      DCON_LOG_ERROR("LoadTextureAsset: file not found: {}", path);
       return false;
     }
     pixels = stbi_load_from_memory(file.Data(), static_cast<int>(file.Size()),
@@ -313,7 +300,7 @@ bool LoadTextureAsset(AssetHandle handle) {
   }
 
   if (!pixels) {
-    LOG_ERROR("LoadTextureAsset: decode failed for {}", path);
+    DCON_LOG_ERROR("LoadTextureAsset: decode failed for {}", path);
     return false;
   }
 
@@ -406,7 +393,7 @@ bool LoadModelAsset(AssetHandle handle) {
 
   const AssetMetadata* meta = asset_manager.GetMetadata(handle);
   if (!meta) {
-    LOG_ERROR("LoadModel: invalid handle");
+    DCON_LOG_ERROR("LoadModel: invalid handle");
     return false;
   }
 
@@ -460,8 +447,12 @@ bool LoadModelAsset(AssetHandle handle) {
     renderer->BeginBatchUpload();
 
     auto t2 = Clock::now();
+    // Cache of aiMesh* -> mesh_index so identical submeshes referenced by
+    // multiple nodes share one wiesel::Mesh (and thus one vertex/index buffer).
+    // This is what lets the GPU instancer batch them at render time.
+    std::unordered_map<aiMesh*, int32_t> mesh_cache;
     ProcessNode(*model, assimp_scene->mRootNode, *assimp_scene, model->meshes,
-                -1);
+                mesh_cache, -1);
     auto t3 = Clock::now();
     LOG_INFO("ProcessNode (meshes + textures): {:.1f}s",
              std::chrono::duration<double>(t3 - t2).count());
@@ -469,6 +460,89 @@ bool LoadModelAsset(AssetHandle handle) {
 
     model->ComputeMeshNodeTransforms();
     model->ComputeBounds();
+
+    // FBX files store properties in scene units (often centimeters).
+    // aiProcess_GlobalScale scales geometry but not camera/light values,
+    // so we read the unit scale factor and apply it manually.
+    float unit_scale = 0.01f;  // default: assume FBX cm -> meters
+    if (assimp_scene->mMetaData) {
+      // UnitScaleFactor tells us how many cm one FBX unit is.
+      // e.g. 1.0 means 1 unit = 1 cm, 2.54 means 1 unit = 1 inch
+      float float_val = 0.0f;
+      double double_val = 0.0;
+      if (assimp_scene->mMetaData->Get("UnitScaleFactor", double_val) &&
+          double_val > 0.0) {
+        unit_scale = static_cast<float>(double_val) * 0.01f;
+      } else if (assimp_scene->mMetaData->Get("UnitScaleFactor", float_val) &&
+                 float_val > 0.0f) {
+        unit_scale = float_val * 0.01f;
+      }
+    }
+
+    // Extract cameras from the scene
+    for (unsigned int i = 0; i < assimp_scene->mNumCameras; i++) {
+      const aiCamera* cam = assimp_scene->mCameras[i];
+      Model::ImportedCamera ic;
+      ic.node_name = cam->mName.C_Str();
+      ic.fov = glm::degrees(cam->mHorizontalFOV * 2.0f);
+      ic.near_plane = cam->mClipPlaneNear * unit_scale;
+      ic.far_plane = cam->mClipPlaneFar * unit_scale;
+      ic.aspect_ratio = cam->mAspect;
+      ic.look_at = {cam->mLookAt.x, cam->mLookAt.y, cam->mLookAt.z};
+      ic.up = {cam->mUp.x, cam->mUp.y, cam->mUp.z};
+      model->imported_cameras.push_back(ic);
+    }
+
+    // Extract lights from the scene
+    for (unsigned int i = 0; i < assimp_scene->mNumLights; i++) {
+      const aiLight* light = assimp_scene->mLights[i];
+      Model::ImportedLight il;
+      il.node_name = light->mName.C_Str();
+
+      // FBX light colors can be unnormalized (e.g. 1000).
+      // Normalize color to 0-1 and store intensity separately.
+      glm::vec3 raw_color = {light->mColorDiffuse.r, light->mColorDiffuse.g,
+                             light->mColorDiffuse.b};
+      float max_channel =
+          glm::max(raw_color.r, glm::max(raw_color.g, raw_color.b));
+      if (max_channel > 0.0f) {
+        il.color = raw_color / max_channel;
+      } else {
+        il.color = {1.0f, 1.0f, 1.0f};
+      }
+      // Store raw intensity but the engine's density is typically 0-10 range,
+      // so we don't pass the raw FBX value directly
+      il.intensity = glm::clamp(max_channel, 0.0f, 10.0f);
+
+      il.attenuation_constant = light->mAttenuationConstant;
+      il.attenuation_linear = light->mAttenuationLinear;
+      il.attenuation_quadratic = light->mAttenuationQuadratic;
+      // FBX often stores no meaningful attenuation. Use sensible defaults
+      // when both falloff terms are effectively zero.
+      if (il.attenuation_linear < 1e-6f && il.attenuation_quadratic < 1e-6f) {
+        il.attenuation_constant = 1.0f;
+        il.attenuation_linear = 0.09f;
+        il.attenuation_quadratic = 0.032f;
+      }
+
+      switch (light->mType) {
+        case aiLightSource_DIRECTIONAL:
+          il.type = Model::ImportedLight::Type::Directional;
+          break;
+        case aiLightSource_POINT:
+          il.type = Model::ImportedLight::Type::Point;
+          break;
+        case aiLightSource_SPOT:
+          il.type = Model::ImportedLight::Type::Spot;
+          il.inner_cone_angle = glm::degrees(light->mAngleInnerCone);
+          il.outer_cone_angle = glm::degrees(light->mAngleOuterCone);
+          break;
+        default:
+          il.type = Model::ImportedLight::Type::Point;
+          break;
+      }
+      model->imported_lights.push_back(il);
+    }
 
     for (const auto& m : model->meshes) {
       if (m->has_transparency) {
@@ -543,44 +617,69 @@ bool LoadModelAsset(AssetHandle handle) {
 
           AssetHandle existing = mgr.FindBySourcePath(wmat_vfs_path);
           if (existing.IsValid()) {
+            // Load from disk to preserve user edits
             mesh->material_handle = existing;
-            mesh->mat->asset_handle = existing;
-            mgr.Store<Material>(existing, mesh->mat);
-            mgr.SetLoadState(existing, AssetLoadState::Unloaded,
-                             AssetLoadState::Loaded);
+            AssetRegistry::LoadJson(existing);
+            auto loaded_mat = mgr.Get<Material>(existing);
+            if (loaded_mat) {
+              mesh->mat = loaded_mat;
+            }
           } else {
-            AssetHandle mat_handle = mgr.RegisterAndStore<Material>(
+            AssetHandle mat_handle = AssetRegistry::Create<Material>(
                 mat_name, AssetType::Material, wmat_vfs_path, mesh->mat);
             mesh->material_handle = mat_handle;
             mesh->mat->asset_handle = mat_handle;
           }
+        }
+      }
+      // Extract animation clips to .wanimclip files
+      if (model->has_animations) {
+        for (const auto& clip : model->animation_clips) {
+          std::string clip_name =
+              clip.name.empty()
+                  ? "Clip_" + std::to_string(&clip - &model->animation_clips[0])
+                  : clip.name;
+          std::string clip_vfs =
+              model_dir + "/" + model_stem + "_" + clip_name + ".wanimclip";
 
-          auto wmat_physical = vfs->GetPhysicalPath(wmat_vfs_path);
-          if (wmat_physical.has_value()) {
-            namespace fs = std::filesystem;
-            fs::path wmat_path = *wmat_physical;
-            if (!fs::exists(wmat_path)) {
-              fs::create_directories(wmat_path.parent_path());
-              nlohmann::json j = mesh->mat->Serialize();
-              std::ofstream ofs(wmat_path);
-              if (ofs.is_open()) {
-                ofs << j.dump(2);
-                LOG_INFO("Saved material: {}", wmat_path.string());
+          AssetHandle existing = mgr.FindBySourcePath(clip_vfs);
+          if (existing.IsValid()) {
+            continue;  // already extracted
+          }
+
+          auto clip_data = std::make_shared<AnimClipAssetData>();
+          clip_data->duration = clip.duration;
+          clip_data->ticks_per_second = clip.ticks_per_second;
+          clip_data->loop = true;
+          clip_data->bone_channels = clip.channels;
+
+          // Compute max bone reach from all position keyframes
+          float max_reach = 0.0f;
+          for (const auto& ch : clip.channels) {
+            for (const auto& [time, value] : ch.position_keys) {
+              float dist = glm::length(value);
+              if (dist > max_reach) {
+                max_reach = dist;
               }
             }
           }
+          clip_data->max_bone_reach = max_reach;
+
+          AssetHandle clip_handle =
+              AssetRegistry::Create<AnimClipAssetData>(
+              clip_name, AssetType::AnimClip, clip_vfs, clip_data);
+          if (clip_handle.IsValid()) {
+            LOG_INFO("Extracted animation clip: {}", clip_vfs);
+          }
         }
       }
+
       mgr.SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
       mgr.Store(handle, model);
     });
   }
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 static void PreDecodeTextures(Model& model, const aiScene& scene) {
   const aiTextureType texture_types[] = {
@@ -737,12 +836,15 @@ static bool LoadTexture(Model& model, std::shared_ptr<Mesh> mesh,
       asset_manager.LoadSync(tex_handle);
     }
 
-    // Check loaded texture for semi-transparency (diffuse/albedo only)
+    // Check loaded texture for semi-transparency
     if (tex_type == TextureTypeDiffuse || tex_type == TextureTypeBaseColor) {
       auto tex = asset_manager.Get<Texture>(tex_handle);
       if (tex && tex->has_semi_transparency_) {
         mesh->has_transparency = true;
       }
+    }
+    if (tex_type == TextureTypeOpacity) {
+      mesh->has_transparency = true;
     }
 
     Material::Set(mesh->mat, tex_handle, tex_type);
@@ -780,8 +882,25 @@ static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
                        aiScene);
   flags |= VertexFlagHasMetallicMap *
            LoadTexture(model, mesh, material, aiTextureType_METALNESS, aiScene);
+  flags |= VertexFlagHasOpacityMap *
+           LoadTexture(model, mesh, material, aiTextureType_OPACITY, aiScene);
 
-  // Transparency is now detected in LoadTexture from tl_decoded_texture_cache
+  // Read material base color from assimp.
+  bool has_color_texture =
+      (flags & VertexFlagHasTexture) || (flags & VertexFlagHasAlbedoMap);
+  if (!has_color_texture) {
+    aiColor4D diffuse_color;
+    if (material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse_color) == AI_SUCCESS) {
+      mesh->mat->SetColorTint(glm::vec4(diffuse_color.r, diffuse_color.g,
+                                        diffuse_color.b, diffuse_color.a));
+    } else {
+      aiColor4D base_color;
+      if (material->Get(AI_MATKEY_BASE_COLOR, base_color) == AI_SUCCESS) {
+        mesh->mat->SetColorTint(
+            glm::vec4(base_color.r, base_color.g, base_color.b, base_color.a));
+      }
+    }
+  }
 
   // Read PBR material factors from assimp (glTF roughness/metallic workflow)
   float roughness_factor;
@@ -802,24 +921,13 @@ static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
   }
   mesh->mat->SetProperty("specular", specular_factor);
 
-  bool has_unsupported_textures = false;
-  for (size_t type = aiTextureType_NONE; type < AI_TEXTURE_TYPE_MAX; type++) {
-    if (type == aiTextureType_UNKNOWN) {
-      continue;
-    }
-    if (type == aiTextureType_DIFFUSE || type == aiTextureType_NORMALS ||
-        type == aiTextureType_SPECULAR || type == aiTextureType_BASE_COLOR ||
-        type == aiTextureType_DIFFUSE_ROUGHNESS ||
-        type == aiTextureType_METALNESS) {
-      continue;
-    }
-    int count = material->GetTextureCount(static_cast<aiTextureType>(type));
-    if (count > 0) {
-      has_unsupported_textures = true;
-    }
+  int two_sided = 0;
+  if (material->Get(AI_MATKEY_TWOSIDED, two_sided) == AI_SUCCESS && two_sided) {
+    mesh->mat->double_sided = true;
   }
-  if (has_unsupported_textures) {
-    LOG_WARN("Mesh has unsupported textures!");
+  // Materials with opacity maps are typically double-sided (hair, skirts, etc.)
+  if (mesh->mat->opacity_map.HasTexture()) {
+    mesh->mat->double_sided = true;
   }
 
   for (unsigned int i = 0; i < aiMesh->mNumVertices; i++) {
@@ -912,6 +1020,7 @@ static std::shared_ptr<Mesh> ProcessMesh(Model& model, aiMesh* aiMesh,
 
 static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
                         std::vector<std::shared_ptr<Mesh>>& meshes,
+                        std::unordered_map<aiMesh*, int32_t>& mesh_cache,
                         int32_t parent_node_index) {
   int32_t node_index = static_cast<int32_t>(model.node_hierarchy.nodes.size());
 
@@ -924,15 +1033,21 @@ static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
   model.node_hierarchy.node_name_to_index[node_info.name] = node_index;
 
   for (uint32_t i = 0; i < node->mNumMeshes; i++) {
-    int32_t mesh_index = static_cast<int32_t>(meshes.size());
     aiMesh* mesh_ptr = scene.mMeshes[node->mMeshes[i]];
+    auto cached = mesh_cache.find(mesh_ptr);
+    if (cached != mesh_cache.end()) {
+      node_info.mesh_indices.push_back(cached->second);
+      continue;
+    }
     std::shared_ptr<Mesh> mesh = ProcessMesh(model, mesh_ptr, scene);
     if (mesh == nullptr) {
       continue;
     }
     mesh->node_index = node_index;
-    node_info.mesh_indices.push_back(mesh_index);
+    int32_t mesh_index = static_cast<int32_t>(meshes.size());
     meshes.push_back(mesh);
+    mesh_cache[mesh_ptr] = mesh_index;
+    node_info.mesh_indices.push_back(mesh_index);
   }
 
   for (uint32_t i = 0; i < node->mNumChildren; i++) {
@@ -945,7 +1060,8 @@ static void ProcessNode(Model& model, aiNode* node, const aiScene& scene,
     int32_t child_index =
         static_cast<int32_t>(model.node_hierarchy.nodes.size());
     model.node_hierarchy.nodes[node_index].children[i] = child_index;
-    ProcessNode(model, node->mChildren[i], scene, meshes, node_index);
+    ProcessNode(model, node->mChildren[i], scene, meshes, mesh_cache,
+                node_index);
   }
 }
 
@@ -1023,4 +1139,4 @@ static void ExtractAnimations(Model& model, const aiScene& scene) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -17,7 +17,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static VkCompareOp ToVkCompareOp(CompareOp op) {
   switch (op) {
@@ -43,14 +43,30 @@ static VkCompareOp ToVkCompareOp(CompareOp op) {
 Pipeline::Pipeline(PipelineProperties properties) : properties_(properties) {}
 
 Pipeline::~Pipeline() {
-  vkDestroyPipeline(Engine::renderer()->GetLogicalDevice(), pipeline_, nullptr);
-  vkDestroyPipelineLayout(Engine::renderer()->GetLogicalDevice(), layout_,
-                          nullptr);
+  auto renderer = Engine::renderer();
+  if (!renderer) {
+    return;
+  }
+  VkPipeline pipeline = pipeline_;
+  VkPipelineLayout layout = layout_;
+  VkDevice device = renderer->GetLogicalDevice();
+  renderer->GetDeletionQueue().Push([device, pipeline, layout]() {
+    vkDestroyPipeline(device, pipeline, nullptr);
+    vkDestroyPipelineLayout(device, layout, nullptr);
+  });
   is_allocated_ = false;
 }
 
-void Pipeline::SetRenderPass(std::shared_ptr<RenderPass> pass) {
-  render_pass_ = pass;
+void Pipeline::AddColorAttachment(VkFormat format) {
+  color_formats_.push_back(format);
+}
+
+void Pipeline::SetColorAttachments(std::vector<VkFormat> formats) {
+  color_formats_ = std::move(formats);
+}
+
+void Pipeline::SetDepthAttachment(VkFormat format) {
+  depth_format_ = format;
 }
 
 void Pipeline::AddInputLayout(std::shared_ptr<DescriptorSetLayout> layout) {
@@ -241,28 +257,17 @@ void Pipeline::Bake() {
       ToVkSampleCountFlagBits(properties_.sampling_mode);
 
   std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
-  for (const auto& item : render_pass_->attachments_) {
-    if (item.type != AttachmentTextureType::Color &&
-        item.type != AttachmentTextureType::Offscreen &&
-        item.type != AttachmentTextureType::SwapChain) {
-      continue;
-    }
-    // Skip resolve targets - they don't count as color attachments in the subpass
-    if (item.type == AttachmentTextureType::SwapChain ||
-        item.type == AttachmentTextureType::Resolve) {
-      bool used_as_resolve = item.msaa_mode > SamplingMode::DISABLED ||
-                             item.type == AttachmentTextureType::Resolve;
-      if (used_as_resolve) {
-        continue;
-      }
-    }
+  for (VkFormat format : color_formats_) {
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask =
         properties_.color_write_enabled
             ? (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
             : 0;
-    if (properties_.enable_alpha_blending) {
+    // Integer formats (e.g. R32_UINT for entity IDs) cannot use blending
+    bool is_integer_format =
+        Engine::renderer()->IsIntegerColorFormat(format);
+    if (properties_.enable_alpha_blending && !is_integer_format) {
       colorBlendAttachment.blendEnable = VK_TRUE;
       colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
       colorBlendAttachment.dstColorBlendFactor =
@@ -285,25 +290,23 @@ void Pipeline::Bake() {
   colorBlending.attachmentCount = colorBlendAttachments.size();
   colorBlending.pAttachments = colorBlendAttachments.data();
 
+  const bool has_depth = depth_format_ != VK_FORMAT_UNDEFINED;
   VkPipelineDepthStencilStateCreateInfo depthStencil{};
   depthStencil.sType =
       VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  if (properties_.enable_depth_test) {
-    depthStencil.depthTestEnable = VK_TRUE;
-  } else {
-    depthStencil.depthTestEnable = VK_FALSE;
-  }
-  if (properties_.enable_depth_write) {
-    depthStencil.depthWriteEnable = VK_TRUE;
-  } else {
-    depthStencil.depthWriteEnable = VK_FALSE;
-  }
+  // Depth/stencil state is ignored by pipelines with no depth/stencil
+  // attachment, but force the toggles off so validation is happy when a
+  // caller asks for depth test on a pass that has none.
+  depthStencil.depthTestEnable =
+      (has_depth && properties_.enable_depth_test) ? VK_TRUE : VK_FALSE;
+  depthStencil.depthWriteEnable =
+      (has_depth && properties_.enable_depth_write) ? VK_TRUE : VK_FALSE;
   depthStencil.depthCompareOp = ToVkCompareOp(properties_.depth_compare_op);
   depthStencil.depthBoundsTestEnable = VK_FALSE;
   depthStencil.minDepthBounds = 0.0f;
   depthStencil.maxDepthBounds = 1.0f;
   depthStencil.stencilTestEnable =
-      properties_.enable_stencil_test ? VK_TRUE : VK_FALSE;
+      (has_depth && properties_.enable_stencil_test) ? VK_TRUE : VK_FALSE;
   if (properties_.enable_stencil_test) {
     VkStencilOpState stencil_op{};
     stencil_op.failOp = VK_STENCIL_OP_KEEP;
@@ -317,8 +320,21 @@ void Pipeline::Bake() {
     depthStencil.back = stencil_op;
   }
 
+  VkPipelineRenderingCreateInfo renderingInfo{};
+  renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+  renderingInfo.colorAttachmentCount =
+      static_cast<uint32_t>(color_formats_.size());
+  renderingInfo.pColorAttachmentFormats = color_formats_.data();
+  renderingInfo.depthAttachmentFormat = depth_format_;
+  // Stencil shares the depth format for combined depth/stencil formats;
+  // pipelines with a pure depth format leave stencil undefined.
+  if (Engine::renderer()->HasStencilComponent(depth_format_)) {
+    renderingInfo.stencilAttachmentFormat = depth_format_;
+  }
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &renderingInfo;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
 
@@ -331,7 +347,7 @@ void Pipeline::Bake() {
   pipelineInfo.pColorBlendState = &colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = layout_;
-  pipelineInfo.renderPass = render_pass_->GetVulkanHandle();
+  pipelineInfo.renderPass = VK_NULL_HANDLE;
   pipelineInfo.subpass = 0;
 
   WIESEL_CHECK_VKRESULT(vkCreateGraphicsPipelines(
@@ -341,11 +357,10 @@ void Pipeline::Bake() {
   is_allocated_ = true;
 }
 
-void Pipeline::Bind(PipelineBindPoint bind_point, VkCommandBuffer cmd) {
+void Pipeline::Bind(VkCommandBuffer cmd) {
   auto renderer = Engine::renderer();
   VkCommandBuffer command_buffer = renderer->ResolveCmd(cmd);
-  vkCmdBindPipeline(command_buffer, ToVkPipelineBindPoint(bind_point),
-                    pipeline_);
+  vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
   PushConstants(command_buffer);
   renderer->SetBoundPipeline(this);
 }
@@ -372,4 +387,4 @@ void Pipeline::BindDescriptorSets(
                           vk_sets.data(), 0, nullptr);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

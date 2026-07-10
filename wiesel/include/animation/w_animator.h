@@ -13,7 +13,7 @@
 #include "animation/w_animation.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct Model;
 
@@ -45,4 +45,4 @@ class Animator {
                                  const glm::vec3& scale);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

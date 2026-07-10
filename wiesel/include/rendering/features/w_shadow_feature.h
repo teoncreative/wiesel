@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct ShadowPipelinePushConstant;
 
@@ -27,16 +27,28 @@ class ShadowFeature : public RenderFeature {
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
-
   std::shared_ptr<Pipeline> GetPipeline() const { return pipeline_; }
+
+  std::shared_ptr<Pipeline> GetNoCullPipeline() const {
+    return pipeline_no_cull_;
+  }
+
+  std::shared_ptr<Pipeline> GetOpaquePipeline() const {
+    return pipeline_opaque_;
+  }
+
+  std::shared_ptr<Pipeline> GetOpaqueNoCullPipeline() const {
+    return pipeline_opaque_no_cull_;
+  }
 
  private:
   static inline std::string name_ = "Shadow";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline> pipeline_no_cull_;
+  std::shared_ptr<Pipeline> pipeline_opaque_;
+  std::shared_ptr<Pipeline> pipeline_opaque_no_cull_;
   std::shared_ptr<ShadowPipelinePushConstant> push_constant_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

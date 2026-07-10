@@ -25,11 +25,10 @@
 #include "rendering/w_descriptor.h"
 #include "rendering/w_material.h"
 #include "rendering/w_texture.h"
-#include "scene/w_components.h"
 #include "util/w_logger.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct Mesh {
   Mesh();
@@ -120,13 +119,47 @@ struct Model {
   bool has_animations = false;
   bool has_transparent_meshes = false;
 
+  // Cameras and lights from the imported scene (e.g. FBX)
+  struct ImportedCamera {
+    std::string node_name;  // matches a node in the hierarchy
+    float fov = 60.0f;      // vertical FOV in degrees
+    float near_plane = 0.1f;
+    float far_plane = 1000.0f;
+    float aspect_ratio = 0.0f;       // 0 = auto
+    glm::vec3 look_at = {0, 0, -1};  // camera look direction (local)
+    glm::vec3 up = {0, 1, 0};        // camera up vector (local)
+  };
+
+  struct ImportedLight {
+    enum class Type { Directional, Point, Spot };
+    std::string node_name;
+    Type type = Type::Point;
+    glm::vec3 color = {1, 1, 1};
+    float intensity = 1.0f;
+    // Point/spot
+    float attenuation_constant = 1.0f;
+    float attenuation_linear = 0.0f;
+    float attenuation_quadratic = 0.0f;
+    // Spot
+    float inner_cone_angle = 0.0f;
+    float outer_cone_angle = 0.0f;
+  };
+
+  std::vector<ImportedCamera> imported_cameras;
+  std::vector<ImportedLight> imported_lights;
+
   AABB bounds;
 
   void ComputeBounds() {
     bounds = {};
-    for (auto& mesh : meshes) {
-      mesh->ComputeBounds();
-      bounds.Expand(mesh->bounds);
+    for (size_t i = 0; i < meshes.size(); i++) {
+      meshes[i]->ComputeBounds();
+      // Apply per-mesh node transform so bounds are in model space
+      if (!has_skeleton && i < mesh_node_transforms.size()) {
+        bounds.Expand(meshes[i]->bounds.Transformed(mesh_node_transforms[i]));
+      } else {
+        bounds.Expand(meshes[i]->bounds);
+      }
     }
   }
 
@@ -159,55 +192,11 @@ struct Model {
     for (size_t i = 0; i < meshes.size(); i++) {
       int32_t ni = meshes[i]->node_index;
       if (ni >= 0) {
-        mesh_node_transforms[i] = node_hierarchy.GetWorldTransform(ni);
+        mesh_node_transforms[i] =
+            node_hierarchy.GetWorldTransformExcludingRoot(ni);
       }
     }
   }
 };
 
-struct ModelComponent : public IComponent {
-  ModelComponent() = default;
-
-  // Copy settings but NOT render data. Each entity gets its own allocation
-  ModelComponent(const ModelComponent& other)
-      : model_handle(other.model_handle),
-        receive_shadows(other.receive_shadows),
-        enable_rendering(other.enable_rendering),
-        material_slot_handles(other.material_slot_handles) {
-    // Deep copy material instances
-    material_instances.reserve(other.material_instances.size());
-    for (const auto& inst : other.material_instances) {
-      material_instances.push_back(
-          inst ? std::make_shared<MaterialInstance>(*inst) : nullptr);
-    }
-  }
-
-  AssetHandle model_handle;
-  bool receive_shadows = true;
-  bool enable_rendering = true;
-
-  // Per-slot material handles (overrides mesh defaults, e.g. via drag-drop in editor)
-  std::vector<AssetHandle> material_slot_handles;
-
-  // Per-mesh material overrides (one per mesh slot, lazily created)
-  std::vector<std::shared_ptr<MaterialInstance>> material_instances;
-
-  // Cached material versions for descriptor invalidation
-  std::vector<uint32_t> material_versions;
-
-  // Per-entity render data (lazily allocated by renderer)
-  std::shared_ptr<UniformBuffer> uniform_buffer;
-  std::vector<std::shared_ptr<DescriptorSet>>
-      geometry_descriptors;  // one per mesh
-  std::vector<std::shared_ptr<DescriptorSet>>
-      shadow_descriptors;    // one per mesh
-  AssetHandle render_model;  // tracks which model render data was built for
-
-  // Bone animation GPU data (per-entity)
-  std::shared_ptr<UniformBuffer> bone_ubo_;
-  std::shared_ptr<DescriptorSet> bone_descriptor_;
-
-  // Per-mesh UBOs for node animation (only allocated for animated models)
-  std::vector<std::shared_ptr<UniformBuffer>> mesh_uniform_buffers_;
-};
-}  // namespace Wiesel
+}  // namespace wiesel

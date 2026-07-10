@@ -17,7 +17,7 @@
 #include "w_pch.h"
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class AssetUnloadedEvent : public Event {
  public:
@@ -217,4 +217,4 @@ class JoystickHatChangedEvent : public Event {
   int current_hat_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

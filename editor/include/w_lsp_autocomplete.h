@@ -13,7 +13,7 @@
 #include "TextEditor.h"
 #include "w_lsp_client.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 class LspAutocompleteProvider : public TextEditor::IAutocompleteProvider {
  public:
@@ -48,4 +48,4 @@ class LspAutocompleteProvider : public TextEditor::IAutocompleteProvider {
   LspClient& client_;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

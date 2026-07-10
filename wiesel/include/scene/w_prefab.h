@@ -16,10 +16,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include "asset/w_asset_handle.h"
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Prefab {
  public:
@@ -29,16 +30,15 @@ class Prefab {
   static bool SaveToFile(Entity entity, const std::filesystem::path& path);
 
   // Instantiate a prefab into a scene, returns the root entity
-  static Entity InstantiateFromFile(std::shared_ptr<Scene> scene,
-                                    const std::string& vfs_path);
+  static Entity Instantiate(Scene& target_scene, AssetHandle handle);
 
   // Serialize an entity subtree to JSON (used internally and by the editor)
   static nlohmann::json SerializeEntityTree(Entity entity);
 
   // Deserialize an entity subtree from JSON into a scene
   // Generates new UUIDs so each instance is unique
-  static Entity DeserializeEntityTree(std::shared_ptr<Scene> scene,
+  static Entity DeserializeEntityTree(Scene& target_scene,
                                       const nlohmann::json& json);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

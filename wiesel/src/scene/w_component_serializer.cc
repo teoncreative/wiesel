@@ -12,6 +12,13 @@
 // Component serializer registry - single source of truth for component
 // serialization used by both scene files and prefabs.
 //
+// JSON keys are stable API - do not rename without a version migration:
+//   Transform, Camera, LightDirect, LightPoint, RigidBody, BoxCollider,
+//   SphereCollider, CapsuleCollider, MeshCollider, UIDocument, Behaviors,
+//   RectangleTransform, Canvas, CanvasScaler,
+//   AudioSource, ReverbZone, Interactable,
+//   Navigable, SpriteRenderer, MeshRenderer, SkinnedMeshRenderer, Animator
+//
 
 #include "scene/w_component_serializer.h"
 
@@ -20,9 +27,14 @@
 #include "behavior/w_behavior.h"
 #include "behavior/w_native_behavior.h"
 #include "mono_wrappers.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
+#include "script/w_script_field_registry.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_sprite.h"
 #include "rendering/w_sprite_asset.h"
 #include "scene/w_lights.h"
@@ -34,7 +46,7 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 using json = nlohmann::json;
 
@@ -95,41 +107,6 @@ void ComponentSerializerRegistry::DeserializeAll(Entity& entity, const json& in,
     if (in.contains(desc.json_key)) {
       desc.Deserialize(entity, in[desc.json_key], scene);
     }
-  }
-}
-
-// Helper: request async load for all textures referenced by a material
-static void RequestMaterialTextures(Scene* scene, AssetHandle material_handle) {
-  const auto* meta = Engine::asset_manager().GetMetadata(material_handle);
-  if (!meta || meta->virtual_source_path.empty()) {
-    return;
-  }
-
-  VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
-  if (!file) {
-    return;
-  }
-
-  try {
-    std::string content(reinterpret_cast<const char*>(file.Data()),
-                        file.Size());
-    auto j = json::parse(content);
-    if (!j.contains("textures") || !j["textures"].is_object()) {
-      return;
-    }
-
-    for (auto& [key, val] : j["textures"].items()) {
-      if (!val.is_string()) {
-        continue;
-      }
-      AssetHandle th =
-          Engine::asset_manager().FindBySourcePath(val.get<std::string>());
-      if (th.IsValid()) {
-        scene->RequestAsset(th);
-      }
-    }
-  } catch (const std::exception& e) {
-    LOG_ERROR("Failed to collect material assets: {}", e.what());
   }
 }
 
@@ -200,132 +177,6 @@ void InitializeComponentSerializers() {
         c.viewport_size = SerializeUtil::Vec2(
             cj.value("viewport_size", json::array()), {1920, 1080});
         c.enabled = cj.value("enabled", true);
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "Model",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<ModelComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& m = entity.GetComponent<ModelComponent>();
-        json model;
-        if (m.model_handle.IsValid()) {
-          model["asset_handle"] = m.model_handle.ToString();
-        }
-        model["receive_shadows"] = m.receive_shadows;
-        model["enable_rendering"] = m.enable_rendering;
-
-        // Serialize per-slot material handles and overrides
-        if (!m.material_slot_handles.empty()) {
-          json slots = json::array();
-          for (size_t i = 0; i < m.material_slot_handles.size(); i++) {
-            json slot;
-            if (m.material_slot_handles[i].IsValid()) {
-              slot["material_handle"] = m.material_slot_handles[i].ToString();
-            }
-            // Save material instance overrides
-            if (i < m.material_instances.size() && m.material_instances[i] &&
-                !m.material_instances[i]->overrides.empty()) {
-              json overrides;
-              for (const auto& [key, val] :
-                   m.material_instances[i]->overrides) {
-                if (std::holds_alternative<float>(val)) {
-                  overrides[key] = std::get<float>(val);
-                } else if (std::holds_alternative<glm::vec4>(val)) {
-                  auto& v = std::get<glm::vec4>(val);
-                  overrides[key] = {v.x, v.y, v.z, v.w};
-                }
-              }
-              if (!overrides.empty()) {
-                slot["overrides"] = overrides;
-              }
-            }
-            slots.push_back(slot);
-          }
-          model["material_slots"] = slots;
-        }
-
-        return model;
-      },
-      // Deserialize
-      [](Entity& entity, const json& mj, Scene* scene) {
-        auto& m = entity.AddComponent<ModelComponent>();
-
-        std::string handle_str = mj.value("asset_handle", "");
-        std::string asset_name = mj.value("asset_name", "");
-        std::string asset_path = mj.value("asset_path", "");
-
-        if (!handle_str.empty()) {
-          AssetHandle handle = AssetHandle::FromString(handle_str);
-          if (!Engine::asset_manager().HasAsset(handle)) {
-            // Handle not found, check if registered under a different
-            // handle (from asset registry)
-            if (!asset_path.empty()) {
-              for (auto& h : Engine::asset_manager().GetAll()) {
-                const auto* m2 = Engine::asset_manager().GetMetadata(h);
-                if (m2 && m2->virtual_source_path == asset_path &&
-                    m2->type == AssetType::Model) {
-                  handle = h;
-                  break;
-                }
-              }
-            }
-            // Still not found, register with the scene file's handle as
-            // fallback
-            if (!Engine::asset_manager().HasAsset(handle) &&
-                !asset_path.empty()) {
-              Engine::asset_manager().Register(handle, asset_name,
-                                               AssetType::Model, asset_path);
-            }
-          }
-          m.model_handle = handle;
-          if (scene) {
-            scene->RequestAsset(handle);
-          }
-        }
-
-        m.receive_shadows = mj.value("receive_shadows", true);
-        m.enable_rendering = mj.value("enable_rendering", true);
-
-        // Restore per-slot material handles and overrides
-        if (mj.contains("material_slots") && mj["material_slots"].is_array()) {
-          for (size_t i = 0; i < mj["material_slots"].size(); i++) {
-            const auto& slot = mj["material_slots"][i];
-            // Resize vectors to fit
-            if (m.material_slot_handles.size() <= i) {
-              m.material_slot_handles.resize(i + 1);
-              m.material_instances.resize(i + 1);
-              m.material_versions.resize(i + 1, 0);
-            }
-            if (slot.contains("material_handle")) {
-              m.material_slot_handles[i] = AssetHandle::FromString(
-                  slot["material_handle"].get<std::string>());
-              if (scene) {
-                scene->RequestAsset(m.material_slot_handles[i]);
-                RequestMaterialTextures(scene, m.material_slot_handles[i]);
-              }
-            }
-            // Restore overrides
-            if (slot.contains("overrides")) {
-              if (!m.material_instances[i]) {
-                m.material_instances[i] = std::make_shared<MaterialInstance>();
-              }
-              auto& inst = m.material_instances[i];
-              for (auto& [key, val] : slot["overrides"].items()) {
-                if (val.is_number()) {
-                  inst->overrides[key] = val.get<float>();
-                } else if (val.is_array() && val.size() >= 4) {
-                  inst->overrides[key] =
-                      glm::vec4(val[0], val[1], val[2], val[3]);
-                }
-              }
-            }
-          }
-        }
       },
   });
 
@@ -534,6 +385,8 @@ void InitializeComponentSerializers() {
       [](Entity& entity) -> json {
         auto& mc = entity.GetComponent<MeshColliderComponent>();
         json collider;
+        collider["offset"] = SerializeUtil::Vec3(mc.offset);
+        collider["is_trigger"] = mc.is_trigger;
         collider["is_one_way"] = mc.is_one_way;
         collider["collision_group"] = mc.collision_group;
         if (mc.collider_handle.IsValid()) {
@@ -544,6 +397,8 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& mcj, Scene* /*scene*/) {
         auto& mc = entity.AddComponent<MeshColliderComponent>();
+        mc.offset = SerializeUtil::Vec3(mcj.value("offset", json::array()));
+        mc.is_trigger = mcj.value("is_trigger", false);
         mc.is_one_way = mcj.value("is_one_way", false);
         mc.collision_group = mcj.value("collision_group", 1);
         if (mcj.contains("collider_handle")) {
@@ -593,69 +448,21 @@ void InitializeComponentSerializers() {
           json script_json;
           script_json["name"] = name;
 
-          // Serialize field values from the ScriptInstance
+          // Serialize field values via the ScriptFieldTypeRegistry
           auto* mono_behavior = dynamic_cast<MonoBehavior*>(behavior);
           if (mono_behavior && mono_behavior->script_instance()) {
             ScriptInstance* instance = mono_behavior->script_instance();
             json fields_json;
             for (auto& [field_name, field_data] :
                  instance->script_data().fields()) {
-              if (field_data.field_type() == FieldType::Float) {
-                fields_json[field_name] =
-                    field_data.Get<float>(instance->handle());
-              } else if (field_data.field_type() == FieldType::Integer) {
-                fields_json[field_name] =
-                    field_data.Get<int32_t>(instance->handle());
-              } else if (field_data.field_type() == FieldType::Boolean) {
-                fields_json[field_name] =
-                    field_data.Get<bool>(instance->handle());
-              } else if (field_data.field_type() == FieldType::String) {
-                MonoObject* val =
-                    field_data.Get<MonoObject*>(instance->handle());
-                if (val) {
-                  MonoObjectWrapper wrapper{val};
-                  fields_json[field_name] = wrapper.AsString();
-                }
-              } else if (field_data.field_type() == FieldType::Prefab) {
-                MonoObject* prefab_obj =
-                    field_data.Get<MonoObject*>(instance->handle());
-                if (prefab_obj) {
-                  MonoClassField* path_field = mono_class_get_field_from_name(
-                      Engine::script_manager().prefab_class(), "path");
-                  if (path_field) {
-                    MonoString* path_str = nullptr;
-                    mono_field_get_value(prefab_obj, path_field, &path_str);
-                    if (path_str) {
-                      const char* cstr = mono_string_to_utf8(path_str);
-                      if (cstr && cstr[0]) {
-                        json pj;
-                        pj["type"] = "Prefab";
-                        pj["path"] = cstr;
-                        fields_json[field_name] = pj;
-                      }
-                      mono_free((void*)cstr);
-                    }
-                  }
-                }
-              } else if (field_data.field_type() == FieldType::Entity) {
-                MonoObject* entity_obj =
-                    field_data.Get<MonoObject*>(instance->handle());
-                if (entity_obj) {
-                  MonoClassField* id_field = mono_class_get_field_from_name(
-                      Engine::script_manager().entity_class(), "entityId");
-                  if (id_field) {
-                    uint64_t id_val = 0;
-                    mono_field_get_value(entity_obj, id_field, &id_val);
-                    entt::entity ent = static_cast<entt::entity>(id_val);
-                    if (scene && scene->HasEntity(ent) &&
-                        scene->HasComponent<IdComponent>(ent)) {
-                      json ej;
-                      ej["type"] = "Entity";
-                      ej["uuid"] =
-                          scene->GetComponent<IdComponent>(ent).Id.ToString();
-                      fields_json[field_name] = ej;
-                    }
-                  }
+              std::string type_name =
+                  mono_type_get_name(mono_field_get_type(field_data.field()));
+              nlohmann::json field_val;
+              if (ScriptFieldTypeRegistry::SerializeField(
+                      type_name, instance->handle(), field_data.field(),
+                      field_val)) {
+                if (!field_val.is_null()) {
+                  fields_json[field_name] = field_val;
                 }
               }
             }
@@ -681,11 +488,7 @@ void InitializeComponentSerializers() {
           std::string script_name;
           json fields_json;
 
-          if (script_entry.is_string()) {
-            // Old format: just a script name string
-            script_name = script_entry.get<std::string>();
-          } else if (script_entry.is_object()) {
-            // New format: {name, fields}
+          if (script_entry.is_object()) {
             script_name = script_entry.value("name", "");
             if (script_entry.contains("fields")) {
               fields_json = script_entry["fields"];
@@ -708,80 +511,9 @@ void InitializeComponentSerializers() {
             continue;  // native behaviors don't have C# field serialization
           }
 
-          auto& mono_beh = bc.AddBehavior<MonoBehavior>(entity, script_name);
-
-          // Restore field values
-          if (!fields_json.empty() && !mono_beh.script_instance()) {
-            LOG_WARN(
-                "Script '{}' has no instance - field values cannot be "
-                "restored",
-                script_name);
-          }
-          if (!fields_json.empty() && mono_beh.script_instance()) {
-            auto* instance = mono_beh.script_instance();
-            for (auto& [field_name, field_data] :
-                 instance->script_data().fields()) {
-              if (!fields_json.contains(field_name)) {
-                continue;
-              }
-              const auto& val = fields_json[field_name];
-
-              if (field_data.field_type() == FieldType::Float &&
-                  val.is_number()) {
-                float v = val.get<float>();
-                field_data.Set(instance->handle(), &v);
-              } else if (field_data.field_type() == FieldType::Integer &&
-                         val.is_number_integer()) {
-                int32_t v = val.get<int32_t>();
-                field_data.Set(instance->handle(), &v);
-              } else if (field_data.field_type() == FieldType::Boolean &&
-                         val.is_boolean()) {
-                bool v = val.get<bool>();
-                field_data.Set(instance->handle(), &v);
-              } else if (field_data.field_type() == FieldType::String &&
-                         val.is_string()) {
-                MonoString* str =
-                    mono_string_new(Engine::script_manager().app_domain(),
-                                    val.get<std::string>().c_str());
-                field_data.Set(instance->handle(), str);
-              } else if (field_data.field_type() == FieldType::Prefab &&
-                         val.is_object()) {
-                std::string path = val.value("path", "");
-                if (!path.empty()) {
-                  MonoObject* prefab =
-                      mono_object_new(Engine::script_manager().app_domain(),
-                                      Engine::script_manager().prefab_class());
-                  mono_runtime_object_init(prefab);
-                  MonoClassField* path_field = mono_class_get_field_from_name(
-                      Engine::script_manager().prefab_class(), "path");
-                  if (path_field) {
-                    MonoString* path_val = mono_string_new(
-                        Engine::script_manager().app_domain(), path.c_str());
-                    mono_field_set_value(prefab, path_field, path_val);
-                  }
-                  field_data.Set(instance->handle(), prefab);
-                }
-              } else if (field_data.field_type() == FieldType::Entity &&
-                         val.is_object()) {
-                std::string uuid_str = val.value("uuid", "");
-                if (!uuid_str.empty() && scene) {
-                  UUID uuid = UUID::FromString(uuid_str);
-                  entt::entity ent = scene->FindEntityByUUID(uuid);
-                  if (ent != entt::null) {
-                    MonoObject* entity_obj = mono_object_new(
-                        Engine::script_manager().app_domain(),
-                        Engine::script_manager().entity_class());
-                    MonoMethod* ctor = mono_class_get_method_from_name(
-                        Engine::script_manager().entity_class(), ".ctor", 2);
-                    uint64_t scene_ptr = reinterpret_cast<uint64_t>(scene);
-                    uint64_t entity_id = static_cast<uint64_t>(ent);
-                    void* args[2] = {&scene_ptr, &entity_id};
-                    mono_runtime_invoke(ctor, entity_obj, args, nullptr);
-                    field_data.Set(instance->handle(), entity_obj);
-                  }
-                }
-              }
-            }
+          auto& mono_behavior = bc.AddBehavior<MonoBehavior>(entity, script_name);
+          if (!fields_json.empty()) {
+              mono_behavior.SetPendingFields(fields_json);
           }
         }
       },
@@ -860,7 +592,7 @@ void InitializeComponentSerializers() {
         cj["sort_order"] = c.sort_order;
         if (c.render_mode == CanvasRenderMode::ScreenSpaceCamera) {
           cj["plane_distance"] = c.plane_distance;
-          // Serialize camera reference as UUID
+          // Serialize camera reference as urkern::UUID
           if (c.camera_entity != entt::null) {
             Scene* s = entity.GetScene();
             if (s && s->HasComponent<IdComponent>(c.camera_entity)) {
@@ -877,9 +609,8 @@ void InitializeComponentSerializers() {
       // Deserialize
       [](Entity& entity, const json& cj, Scene* scene) {
         auto& c = entity.AddComponent<CanvasComponent>();
-        c.render_mode = static_cast<CanvasRenderMode>(
-            cj.value("render_mode",
-                     cj.value("type", 0)));  // fallback to old "type" field
+        c.render_mode =
+            static_cast<CanvasRenderMode>(cj.value("render_mode", 0));
         c.direction = static_cast<LayoutDirection>(cj.value("direction", 0));
         c.alignment = static_cast<ChildAlignment>(cj.value("alignment", 0));
         c.spacing = cj.value("spacing", 0.0f);
@@ -889,8 +620,8 @@ void InitializeComponentSerializers() {
         c.plane_distance = cj.value("plane_distance", 10.0f);
         if (cj.contains("camera_uuid") && cj["camera_uuid"].is_string() &&
             scene) {
-          UUID cam_uuid =
-              UUID::FromString(cj["camera_uuid"].get<std::string>());
+          urkern::UUID cam_uuid =
+              urkern::UUID::FromString(cj["camera_uuid"].get<std::string>());
           c.camera_entity = scene->FindEntityByUUID(cam_uuid);
         }
         c.player_index = cj.value("player_index", 0);
@@ -927,162 +658,6 @@ void InitializeComponentSerializers() {
         cs.match_width_or_height = csj.value("match_width_or_height", 0.5f);
         cs.reference_pixels_per_unit =
             csj.value("reference_pixels_per_unit", 100.0f);
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "CanvasRect",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<CanvasRectComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& cr = entity.GetComponent<CanvasRectComponent>();
-        json crj;
-        crj["color"] = {cr.color.x, cr.color.y, cr.color.z, cr.color.w};
-        return crj;
-      },
-      // Deserialize
-      [](Entity& entity, const json& crj, Scene* /*scene*/) {
-        auto& cr = entity.AddComponent<CanvasRectComponent>();
-        if (crj.contains("color") && crj["color"].is_array() &&
-            crj["color"].size() >= 4) {
-          cr.color = {crj["color"][0], crj["color"][1], crj["color"][2],
-                      crj["color"][3]};
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "CanvasImage",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<CanvasImageComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& ci = entity.GetComponent<CanvasImageComponent>();
-        json cij;
-        if (ci.texture_handle.IsValid()) {
-          cij["texture"] = ci.texture_handle.ToString();
-        }
-        cij["tint"] = {ci.tint.x, ci.tint.y, ci.tint.z, ci.tint.w};
-        cij["uv_rect"] = {ci.uv_rect.x, ci.uv_rect.y, ci.uv_rect.z,
-                          ci.uv_rect.w};
-        return cij;
-      },
-      // Deserialize
-      [](Entity& entity, const json& cij, Scene* /*scene*/) {
-        auto& ci = entity.AddComponent<CanvasImageComponent>();
-        if (cij.contains("texture") && cij["texture"].is_string()) {
-          ci.texture_handle =
-              AssetHandle::FromString(cij["texture"].get<std::string>());
-        }
-        if (cij.contains("tint") && cij["tint"].is_array() &&
-            cij["tint"].size() >= 4) {
-          ci.tint = {cij["tint"][0], cij["tint"][1], cij["tint"][2],
-                     cij["tint"][3]};
-        }
-        if (cij.contains("uv_rect") && cij["uv_rect"].is_array() &&
-            cij["uv_rect"].size() >= 4) {
-          ci.uv_rect = {cij["uv_rect"][0], cij["uv_rect"][1], cij["uv_rect"][2],
-                        cij["uv_rect"][3]};
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "Text",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<TextComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& t = entity.GetComponent<TextComponent>();
-        json tj;
-        tj["text"] = t.text;
-        if (t.font_handle.IsValid()) {
-          tj["font_handle"] = t.font_handle.ToString();
-        }
-        tj["font_size"] = t.font_size;
-        tj["color"] = {t.color.x, t.color.y, t.color.z, t.color.w};
-        if (t.shadow) {
-          tj["shadow"] = true;
-          tj["shadow_offset"] = SerializeUtil::Vec2(t.shadow_offset);
-          tj["shadow_color"] = {t.shadow_color.x, t.shadow_color.y,
-                                t.shadow_color.z, t.shadow_color.w};
-        }
-        return tj;
-      },
-      // Deserialize
-      [](Entity& entity, const json& tj, Scene* scene) {
-        auto& t = entity.AddComponent<TextComponent>();
-        t.text = tj.value("text", "");
-        if (tj.contains("font_handle") && tj["font_handle"].is_string()) {
-          t.font_handle =
-              AssetHandle::FromString(tj["font_handle"].get<std::string>());
-          if (scene) {
-            scene->RequestAsset(t.font_handle);
-          }
-        }
-        t.font_size = tj.value("font_size", 16.0f);
-        if (tj.contains("color") && tj["color"].is_array() &&
-            tj["color"].size() >= 4) {
-          t.color = {tj["color"][0], tj["color"][1], tj["color"][2],
-                     tj["color"][3]};
-        }
-        t.shadow = tj.value("shadow", false);
-        if (tj.contains("shadow_offset")) {
-          t.shadow_offset = SerializeUtil::Vec2(tj["shadow_offset"], {1, 1});
-        }
-        if (tj.contains("shadow_color") && tj["shadow_color"].is_array() &&
-            tj["shadow_color"].size() >= 4) {
-          t.shadow_color = {tj["shadow_color"][0], tj["shadow_color"][1],
-                            tj["shadow_color"][2], tj["shadow_color"][3]};
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
-      "TextInput",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<TextInputComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& ti = entity.GetComponent<TextInputComponent>();
-        json tij;
-        tij["text"] = ti.text;
-        tij["placeholder"] = ti.placeholder;
-        tij["max_length"] = ti.max_length;
-        tij["cursor_color"] = {ti.cursor_color.x, ti.cursor_color.y,
-                               ti.cursor_color.z, ti.cursor_color.w};
-        tij["placeholder_color"] = {
-            ti.placeholder_color.x, ti.placeholder_color.y,
-            ti.placeholder_color.z, ti.placeholder_color.w};
-        return tij;
-      },
-      // Deserialize
-      [](Entity& entity, const json& tij, Scene* /*scene*/) {
-        auto& ti = entity.AddComponent<TextInputComponent>();
-        ti.text = tij.value("text", "");
-        ti.placeholder = tij.value("placeholder", "Enter text...");
-        ti.max_length = tij.value("max_length", 0);
-        if (tij.contains("cursor_color") && tij["cursor_color"].is_array() &&
-            tij["cursor_color"].size() >= 4) {
-          ti.cursor_color = {tij["cursor_color"][0], tij["cursor_color"][1],
-                             tij["cursor_color"][2], tij["cursor_color"][3]};
-        }
-        if (tij.contains("placeholder_color") &&
-            tij["placeholder_color"].is_array() &&
-            tij["placeholder_color"].size() >= 4) {
-          ti.placeholder_color = {
-              tij["placeholder_color"][0], tij["placeholder_color"][1],
-              tij["placeholder_color"][2], tij["placeholder_color"][3]};
-        }
       },
   });
 
@@ -1159,95 +734,6 @@ void InitializeComponentSerializers() {
   });
 
   ComponentSerializerRegistry::Register({
-      "Button",
-      // Has
-      [](Entity& entity) -> bool {
-        return entity.HasComponent<ButtonComponent>();
-      },
-      // Serialize
-      [](Entity& entity) -> json {
-        auto& btn = entity.GetComponent<ButtonComponent>();
-        json bj;
-        bj["normal_color"] = {btn.normal_color.r, btn.normal_color.g,
-                              btn.normal_color.b, btn.normal_color.a};
-        bj["hovered_color"] = {btn.hovered_color.r, btn.hovered_color.g,
-                               btn.hovered_color.b, btn.hovered_color.a};
-        bj["pressed_color"] = {btn.pressed_color.r, btn.pressed_color.g,
-                               btn.pressed_color.b, btn.pressed_color.a};
-        bj["selected_color"] = {btn.selected_color.r, btn.selected_color.g,
-                                btn.selected_color.b, btn.selected_color.a};
-        bj["disabled_color"] = {btn.disabled_color.r, btn.disabled_color.g,
-                                btn.disabled_color.b, btn.disabled_color.a};
-        if (btn.normal_texture.IsValid()) {
-          bj["normal_texture"] = btn.normal_texture.ToString();
-        }
-        if (btn.hovered_texture.IsValid()) {
-          bj["hovered_texture"] = btn.hovered_texture.ToString();
-        }
-        if (btn.pressed_texture.IsValid()) {
-          bj["pressed_texture"] = btn.pressed_texture.ToString();
-        }
-        if (btn.selected_texture.IsValid()) {
-          bj["selected_texture"] = btn.selected_texture.ToString();
-        }
-        if (btn.disabled_texture.IsValid()) {
-          bj["disabled_texture"] = btn.disabled_texture.ToString();
-        }
-        if (btn.hovered_offset.x != 0 || btn.hovered_offset.y != 0) {
-          bj["hovered_offset"] = SerializeUtil::Vec2(btn.hovered_offset);
-        }
-        if (btn.pressed_offset.x != 0 || btn.pressed_offset.y != 0) {
-          bj["pressed_offset"] = SerializeUtil::Vec2(btn.pressed_offset);
-        }
-        if (btn.selected_offset.x != 0 || btn.selected_offset.y != 0) {
-          bj["selected_offset"] = SerializeUtil::Vec2(btn.selected_offset);
-        }
-        return bj;
-      },
-      // Deserialize
-      [](Entity& entity, const json& bj, Scene* /*scene*/) {
-        auto& btn = entity.AddComponent<ButtonComponent>();
-        auto load_color = [](const json& j, const std::string& key,
-                             glm::vec4 def) -> glm::vec4 {
-          if (j.contains(key) && j[key].is_array() && j[key].size() >= 4) {
-            return {j[key][0], j[key][1], j[key][2], j[key][3]};
-          }
-          return def;
-        };
-        btn.normal_color = load_color(bj, "normal_color", {1, 1, 1, 1});
-        btn.hovered_color =
-            load_color(bj, "hovered_color", {0.9f, 0.9f, 0.9f, 1});
-        btn.pressed_color =
-            load_color(bj, "pressed_color", {0.7f, 0.7f, 0.7f, 1});
-        btn.selected_color = load_color(bj, "selected_color", {1, 1, 1, 1});
-        btn.disabled_color =
-            load_color(bj, "disabled_color", {0.5f, 0.5f, 0.5f, 0.5f});
-
-        auto load_handle = [](const json& j,
-                              const std::string& key) -> AssetHandle {
-          if (j.contains(key) && j[key].is_string()) {
-            return AssetHandle::FromString(j[key].get<std::string>());
-          }
-          return {};
-        };
-        btn.normal_texture = load_handle(bj, "normal_texture");
-        btn.hovered_texture = load_handle(bj, "hovered_texture");
-        btn.pressed_texture = load_handle(bj, "pressed_texture");
-        btn.selected_texture = load_handle(bj, "selected_texture");
-        btn.disabled_texture = load_handle(bj, "disabled_texture");
-        if (bj.contains("hovered_offset")) {
-          btn.hovered_offset = SerializeUtil::Vec2(bj["hovered_offset"]);
-        }
-        if (bj.contains("pressed_offset")) {
-          btn.pressed_offset = SerializeUtil::Vec2(bj["pressed_offset"]);
-        }
-        if (bj.contains("selected_offset")) {
-          btn.selected_offset = SerializeUtil::Vec2(bj["selected_offset"]);
-        }
-      },
-  });
-
-  ComponentSerializerRegistry::Register({
       "Interactable",
       // Has
       [](Entity& entity) -> bool {
@@ -1297,7 +783,7 @@ void InitializeComponentSerializers() {
         auto& nav = entity.AddComponent<NavigableComponent>();
         auto load_nav = [&](const std::string& key) -> entt::entity {
           if (nj.contains(key) && nj[key].is_string() && scene) {
-            UUID uuid = UUID::FromString(nj[key].get<std::string>());
+            urkern::UUID uuid = urkern::UUID::FromString(nj[key].get<std::string>());
             entt::entity ent = scene->FindEntityByUUID(uuid);
             if (ent != entt::null) {
               return ent;
@@ -1368,44 +854,260 @@ void InitializeComponentSerializers() {
   });
 
   ComponentSerializerRegistry::Register({
-      "SpriteAnimator",
+      "BillboardRenderer",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<BillboardRendererComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& b = entity.GetComponent<BillboardRendererComponent>();
+        json bj;
+        if (b.texture_handle.IsValid()) {
+          bj["texture_handle"] = b.texture_handle.ToString();
+        }
+        bj["size"] = {b.size.x, b.size.y};
+        bj["min_size"] = b.min_size;
+        bj["max_size"] = b.max_size;
+        bj["pivot"] = {b.pivot.x, b.pivot.y};
+        bj["tint"] = {b.tint.r, b.tint.g, b.tint.b, b.tint.a};
+        bj["sort_layer"] = b.sort_layer;
+        bj["occlusion"] = static_cast<int>(b.occlusion);
+        bj["occluded_alpha"] = b.occluded_alpha;
+        return bj;
+      },
+      [](Entity& entity, const json& bj, Scene* scene) {
+        auto& b = entity.AddComponent<BillboardRendererComponent>();
+        std::string handle_str = bj.value("texture_handle", "");
+        if (!handle_str.empty()) {
+          b.texture_handle = AssetHandle::FromString(handle_str);
+          if (scene) {
+            scene->RequestAsset(b.texture_handle);
+          }
+        }
+        if (bj.contains("size") && bj["size"].is_array() &&
+            bj["size"].size() >= 2) {
+          b.size = {bj["size"][0], bj["size"][1]};
+        }
+        b.min_size = bj.value("min_size", 0.25f);
+        b.max_size = bj.value("max_size", 4.0f);
+        if (bj.contains("pivot") && bj["pivot"].is_array() &&
+            bj["pivot"].size() >= 2) {
+          b.pivot = {bj["pivot"][0], bj["pivot"][1]};
+        }
+        if (bj.contains("tint") && bj["tint"].is_array() &&
+            bj["tint"].size() >= 4) {
+          b.tint = {bj["tint"][0], bj["tint"][1], bj["tint"][2], bj["tint"][3]};
+        }
+        b.sort_layer = bj.value("sort_layer", 0);
+        b.occlusion = static_cast<BillboardOcclusionMode>(
+            bj.value("occlusion", 0));
+        b.occluded_alpha = bj.value("occluded_alpha", 0.3f);
+      },
+  });
+
+  ComponentSerializerRegistry::Register({
+      "BillboardText",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<BillboardTextComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& t = entity.GetComponent<BillboardTextComponent>();
+        json tj;
+        if (t.font_handle.IsValid()) {
+          tj["font_handle"] = t.font_handle.ToString();
+        }
+        tj["text"] = t.text;
+        tj["font_size"] = t.font_size;
+        tj["color"] = {t.color.r, t.color.g, t.color.b, t.color.a};
+        tj["alignment"] = static_cast<int>(t.alignment);
+        tj["min_size"] = t.min_size;
+        tj["max_size"] = t.max_size;
+        tj["sort_layer"] = t.sort_layer;
+        tj["occlusion"] = static_cast<int>(t.occlusion);
+        tj["occluded_alpha"] = t.occluded_alpha;
+        return tj;
+      },
+      [](Entity& entity, const json& tj, Scene* scene) {
+        auto& t = entity.AddComponent<BillboardTextComponent>();
+        std::string handle_str = tj.value("font_handle", "");
+        if (!handle_str.empty()) {
+          t.font_handle = AssetHandle::FromString(handle_str);
+          if (scene) {
+            scene->RequestAsset(t.font_handle);
+          }
+        }
+        t.text = tj.value("text", "");
+        t.font_size = tj.value("font_size", 32.0f);
+        if (tj.contains("color") && tj["color"].is_array() &&
+            tj["color"].size() >= 4) {
+          t.color = {tj["color"][0], tj["color"][1], tj["color"][2],
+                     tj["color"][3]};
+        }
+        t.alignment = static_cast<TextAlignment>(tj.value("alignment", 1));
+        t.min_size = tj.value("min_size", 0.25f);
+        t.max_size = tj.value("max_size", 4.0f);
+        t.sort_layer = tj.value("sort_layer", 0);
+        t.occlusion = static_cast<BillboardOcclusionMode>(
+            tj.value("occlusion", 0));
+        t.occluded_alpha = tj.value("occluded_alpha", 0.3f);
+      },
+  });
+
+  // MeshRendererComponent
+  ComponentSerializerRegistry::Register({
+      "MeshRenderer",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<MeshRendererComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& mr = entity.GetComponent<MeshRendererComponent>();
+        json j;
+        if (mr.model_handle.IsValid()) {
+          j["model_handle"] = mr.model_handle.ToString();
+        }
+        j["mesh_index"] = mr.mesh_index;
+        j["enable_rendering"] = mr.enable_rendering;
+        j["receive_shadows"] = mr.receive_shadows;
+        if (mr.material_handle.IsValid()) {
+          j["material_handle"] = mr.material_handle.ToString();
+        }
+        return j;
+      },
+      [](Entity& entity, const json& j, Scene* scene) {
+        auto& mr = entity.AddComponent<MeshRendererComponent>();
+        std::string model_str = j.value("model_handle", "");
+        if (!model_str.empty()) {
+          mr.model_handle = AssetHandle::FromString(model_str);
+          if (scene) {
+            scene->RequestAsset(mr.model_handle);
+          }
+        }
+        mr.mesh_index = j.value("mesh_index", -1);
+        mr.enable_rendering = j.value("enable_rendering", true);
+        mr.receive_shadows = j.value("receive_shadows", true);
+        std::string mat_str = j.value("material_handle", "");
+        if (!mat_str.empty()) {
+          mr.material_handle = AssetHandle::FromString(mat_str);
+        }
+      },
+  });
+
+  // SkinnedMeshRendererComponent
+  ComponentSerializerRegistry::Register({
+      "SkinnedMeshRenderer",
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<SkinnedMeshRendererComponent>();
+      },
+      [](Entity& entity) -> json {
+        auto& mr = entity.GetComponent<SkinnedMeshRendererComponent>();
+        json j;
+        if (mr.model_handle.IsValid()) {
+          j["model_handle"] = mr.model_handle.ToString();
+        }
+        j["mesh_index"] = mr.mesh_index;
+        j["enable_rendering"] = mr.enable_rendering;
+        j["receive_shadows"] = mr.receive_shadows;
+        if (mr.material_handle.IsValid()) {
+          j["material_handle"] = mr.material_handle.ToString();
+        }
+        // Save skeleton root's urkern::UUID for resolution on load
+        if (mr.skeleton_root != entt::null) {
+          Scene* scene = entity.GetScene();
+          if (scene && scene->HasEntity(mr.skeleton_root) &&
+              scene->HasComponent<IdComponent>(mr.skeleton_root)) {
+            j["skeleton_root_uuid"] =
+                scene->GetComponent<IdComponent>(mr.skeleton_root)
+                    .Id.ToString();
+          }
+        }
+        return j;
+      },
+      [](Entity& entity, const json& j, Scene* scene) {
+        auto& mr = entity.AddComponent<SkinnedMeshRendererComponent>();
+        std::string model_str = j.value("model_handle", "");
+        if (!model_str.empty()) {
+          mr.model_handle = AssetHandle::FromString(model_str);
+          if (scene) {
+            scene->RequestAsset(mr.model_handle);
+          }
+        }
+        mr.mesh_index = j.value("mesh_index", -1);
+        mr.enable_rendering = j.value("enable_rendering", true);
+        mr.receive_shadows = j.value("receive_shadows", true);
+        std::string mat_str = j.value("material_handle", "");
+        if (!mat_str.empty()) {
+          mr.material_handle = AssetHandle::FromString(mat_str);
+        }
+        // Resolve skeleton root from saved urkern::UUID
+        std::string root_uuid_str = j.value("skeleton_root_uuid", "");
+        if (!root_uuid_str.empty() && scene) {
+          urkern::UUID root_uuid = urkern::UUID::FromString(root_uuid_str);
+          entt::entity root_entity = scene->FindEntityByUUID(root_uuid);
+          if (root_entity != entt::null) {
+            mr.skeleton_root = root_entity;
+          } else {
+            LOG_WARN("SkinnedMeshRenderer: could not resolve skeleton_root {}",
+                     root_uuid_str);
+          }
+        }
+      },
+  });
+
+  // Unified Animator serializer
+  ComponentSerializerRegistry::Register({
+      "Animator",
       // Has
       [](Entity& entity) -> bool {
-        return entity.HasComponent<SpriteAnimatorComponent>();
+        return entity.HasComponent<AnimatorComponent>();
       },
       // Serialize
       [](Entity& entity) -> json {
-        auto& s = entity.GetComponent<SpriteAnimatorComponent>();
-        json sj;
-        if (s.controller_handle_.IsValid()) {
-          sj["controller_handle"] = s.controller_handle_.ToString();
+        auto& a = entity.GetComponent<AnimatorComponent>();
+        json aj;
+        if (a.controller_handle.IsValid()) {
+          aj["controller_handle"] = a.controller_handle.ToString();
         }
-        sj["playing"] = s.playing_;
-        return sj;
+        aj["playing"] = a.playing;
+        aj["playback_speed"] = a.playback_speed;
+        return aj;
       },
       // Deserialize
-      [](Entity& entity, const json& sj, Scene* scene) {
-        auto& s = entity.AddComponent<SpriteAnimatorComponent>();
-
-        std::string handle_str = sj.value("controller_handle", "");
+      [](Entity& entity, const json& aj, Scene* scene) {
+        auto& a = entity.AddComponent<AnimatorComponent>();
+        std::string handle_str = aj.value("controller_handle", "");
         if (!handle_str.empty()) {
-          s.controller_handle_ = AssetHandle::FromString(handle_str);
+          a.controller_handle = AssetHandle::FromString(handle_str);
           if (scene) {
-            scene->RequestAsset(s.controller_handle_);
+            scene->RequestAsset(a.controller_handle);
           }
-          // Ensure the controller is loaded
-          if (s.controller_handle_.IsValid()) {
-            auto ctrl = Engine::asset_manager().Get<SpriteControllerAssetData>(
-                s.controller_handle_);
-            if (!ctrl) {
-              Engine::asset_manager().LoadSync(s.controller_handle_);
-            }
+          if (a.controller_handle.IsValid()) {
+            Engine::asset_manager().LoadSync(a.controller_handle);
           }
         }
+        a.playing = aj.value("playing", true);
+        a.playback_speed = aj.value("playback_speed", 1.0f);
+      },
+  });
 
-        s.playing_ = sj.value("playing", true);
+  ComponentSerializerRegistry::Register({
+      "NetworkIdentity",
+      // Has
+      [](Entity& entity) -> bool {
+        return entity.HasComponent<NetworkIdentityComponent>();
+      },
+      // Serialize
+      [](Entity& entity) -> json {
+        auto& n = entity.GetComponent<NetworkIdentityComponent>();
+        json nj;
+        nj["authority"] = static_cast<int>(n.authority);
+        return nj;
+      },
+      // Deserialize
+      [](Entity& entity, const json& nj, Scene* /*scene*/) {
+        auto& n = entity.AddComponent<NetworkIdentityComponent>();
+        n.authority = static_cast<NetworkAuthority>(
+            nj.value("authority", 1));
       },
   });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

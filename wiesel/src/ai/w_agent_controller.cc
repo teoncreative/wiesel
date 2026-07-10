@@ -10,7 +10,7 @@
 
 #include "ai/w_agent_controller.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void AgentController::Evaluate(float dt) {
   switch_timer -= dt;
@@ -55,4 +55,4 @@ void AgentController::Update(float dt) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

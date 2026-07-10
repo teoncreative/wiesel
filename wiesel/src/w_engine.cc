@@ -12,17 +12,20 @@
 #include "w_engine.h"
 #include "audio/w_audio.h"
 #include "behavior/w_native_behavior.h"
+#include "networking/w_network.h"
+#include "networking/w_network_component_serializer.h"
+#include "script/w_script_field_registry.h"
+#include "networking/w_network_scene_manager.h"
+#include "networking/w_replication_manager.h"
+#include "networking/w_replication_packets.h"
 #include "util/w_discord_rpc.h"
 
 #include <cxxopts.hpp>
 #include <thread>
-#include "asset/w_asset_loader.h"
 #include "asset/w_asset_manager.h"
-#include "asset/w_asset_properties.h"
-#include "asset/w_asset_property_registry.h"
-#include "asset/w_asset_serializer.h"
+#include "asset/w_asset_registry.h"
 #include "asset/w_model_loader.h"
-#include "asset/w_sprite_loader.h"
+#include "core/w_reflect_init.h"
 #include "cursor/w_cursor.h"
 #include "game/w_game_info.h"
 #include "input/w_input.h"
@@ -39,16 +42,16 @@
 #include "ui/w_ui_document.h"
 #include "ui/w_ui_manager.h"
 #include "util/w_dialogs.h"
-#include "util/w_platform.h"
-#include "util/w_thread_pool.h"
+#include <urkern/platform.h>
+#include <urkern/thread_pool.h>
 #include "util/w_user_config.h"
 #include "window/w_sdlwindow.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 EngineProperties EngineProperties::Parse(int argc, char** argv) {
   EngineProperties config;
-  std::filesystem::path exe_dir = GetExecutableDirectory();
+  std::filesystem::path exe_dir = urkern::GetExecutableDirectory();
 
   // Setup cxxopts
   cxxopts::Options options(argv[0], "Wiesel Game Engine");
@@ -161,9 +164,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       std::filesystem::path bundle_path = exe_dir / "engine";
       if (std::filesystem::exists(bundle_path)) {
         config.engine_assets_path = bundle_path;
-      } else {
-        // Release: Look for pak or embedded
-        config.engine_assets_path = exe_dir / "engine.pak";
       }
     }
   }
@@ -177,8 +177,6 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
       std::filesystem::path bundle_path = exe_dir / "editor";
       if (std::filesystem::exists(bundle_path)) {
         config.editor_assets_path = bundle_path;
-      } else {
-        config.editor_assets_path = exe_dir / "editor.pak";
       }
     }
   }
@@ -193,7 +191,7 @@ EngineProperties EngineProperties::Parse(int argc, char** argv) {
   }
 
   if (config.user_data_path.empty()) {
-    config.user_data_path = GetUserDataDirectory();
+    config.user_data_path = urkern::GetUserDataDirectory("Wiesel");
   }
 
   return config;
@@ -204,13 +202,15 @@ std::shared_ptr<Renderer> Engine::renderer_;
 std::shared_ptr<AppWindow> Engine::window_;
 std::shared_ptr<VirtualFileSystem> Engine::vfs_;
 Application* Engine::application_;
-std::unique_ptr<DeveloperConsole> Engine::console_;
 std::unique_ptr<InputManager> Engine::input_manager_;
 std::unique_ptr<AssetManager> Engine::asset_manager_;
 std::unique_ptr<ScriptManager> Engine::script_manager_;
 std::unique_ptr<NativeBehaviorRegistry> Engine::behavior_registry_;
-std::unique_ptr<ThreadPool> Engine::thread_pool_;
+std::unique_ptr<urkern::ThreadPool> Engine::thread_pool_;
 std::unique_ptr<AudioManager> Engine::audio_manager_;
+std::unique_ptr<NetworkManager> Engine::network_manager_;
+std::unique_ptr<NetworkSceneManager> Engine::network_scene_manager_;
+std::unique_ptr<ReplicationManager> Engine::replication_manager_;
 std::unique_ptr<SceneManager> Engine::scene_manager_;
 std::unique_ptr<UIManager> Engine::ui_manager_;
 std::unique_ptr<CursorManager> Engine::cursor_manager_;
@@ -226,7 +226,6 @@ std::unique_ptr<DiscordRPC> Engine::discord_rpc_;
 #endif
 
 void Engine::InitEngine(const EngineProperties& props) {
-  console_ = std::make_unique<DeveloperConsole>();
   properties_ = props;
   LOG_INFO("Current work directory: {}",
            std::filesystem::current_path().string());
@@ -238,216 +237,11 @@ void Engine::InitEngine(const EngineProperties& props) {
   LOG_INFO(" - user_data_path: {}", props.user_data_path.string());
   asset_manager_ = std::make_unique<AssetManager>();
 
-  // Register asset loaders
-  asset_manager_->RegisterLoader(
-      AssetType::Model,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) { return LoadModelAsset(handle); },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  asset_manager_->RegisterLoader(
-      AssetType::Texture,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) { return LoadTextureAsset(handle); },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // Material (.wmat) loader: reads JSON, stores Material.
-  asset_manager_->RegisterLoader(
-      AssetType::Material,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) {
-            const auto* meta = asset_manager_->GetMetadata(handle);
-            if (!meta || meta->virtual_source_path.empty()) {
-              return false;
-            }
-            VfsFile file = Engine::vfs()->Open(meta->virtual_source_path);
-            if (!file) {
-              return false;
-            }
-            auto chars = file.AsChars();
-            std::string content(chars.begin(), chars.end());
-            auto j = nlohmann::json::parse(content, nullptr, false);
-            if (j.is_discarded()) {
-              LOG_ERROR("Invalid .wmat file: {}", meta->virtual_source_path);
-              return false;
-            }
-            auto mat = Material::Deserialize(j);
-            mat->name = meta->name;
-            mat->asset_handle = handle;
-            asset_manager_->Store<Material>(handle, mat);
-            return true;
-          },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // Font loader: reads font file, creates FT_Face, stores FontAsset.
-  // Size-specific rasterization happens lazily in FontCache::Get.
-  asset_manager_->RegisterLoader(
-      AssetType::Font,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) {
-            const auto* meta = asset_manager_->GetMetadata(handle);
-            if (!meta) {
-              return false;
-            }
-            auto asset = std::make_shared<FontAsset>(meta->virtual_source_path);
-            if (!asset->IsLoaded()) {
-              return false;
-            }
-            const auto* props = meta->GetProperties<FontAssetProperties>();
-            if (props) {
-              asset->SetAAMode(props->aa_mode);
-            }
-            asset_manager_->Store<FontAsset>(handle, asset);
-            return true;
-          },
-          [](AssetHandle handle) {
-            FontCache::Invalidate(handle);
-            asset_manager_->Unload(handle);
-          }));
-
-  // Sprite (.wsprite) loader: reads JSON, stores SpriteAssetData.
-  asset_manager_->RegisterLoader(
-      AssetType::Sprite,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) {
-            const auto* meta = asset_manager_->GetMetadata(handle);
-            if (!meta) {
-              return false;
-            }
-            auto file = Engine::vfs()->Open(meta->virtual_source_path);
-            if (!file) {
-              return false;
-            }
-            auto chars = file.AsChars();
-            std::string json_str(chars.begin(), chars.end());
-            nlohmann::json j = nlohmann::json::parse(json_str, nullptr, false);
-            if (j.is_discarded() || !j.contains("texture") ||
-                !j.contains("rect")) {
-              LOG_ERROR("Invalid .wsprite file: {}", meta->virtual_source_path);
-              return false;
-            }
-
-            auto data = std::make_shared<SpriteAssetData>();
-            data->texture_handle =
-                AssetHandle::FromString(j["texture"].get<std::string>());
-            data->rect = {j["rect"][0].get<float>(), j["rect"][1].get<float>(),
-                          j["rect"][2].get<float>(), j["rect"][3].get<float>()};
-            if (j.contains("pivot") && j["pivot"].is_array()) {
-              data->pivot = {j["pivot"][0].get<float>(),
-                             j["pivot"][1].get<float>()};
-            }
-
-            // Ensure the backing texture is loaded
-            if (data->texture_handle.IsValid()) {
-              auto tex = asset_manager_->Get<Texture>(data->texture_handle);
-              if (!tex) {
-                asset_manager_->LoadSync(data->texture_handle);
-              }
-            }
-
-            asset_manager_->Store(handle, data);
-            asset_manager_->AddDependency(handle, data->texture_handle);
-
-            // Build GPU resources for rendering
-            auto tex = asset_manager_->Get<Texture>(data->texture_handle);
-            if (tex && tex->is_allocated_ && tex->image_view_) {
-              auto gpu = std::make_shared<SpriteGpuData>();
-              gpu->view = tex->image_view_;
-              gpu->sampler =
-                  tex->sampler_ ? tex->sampler_
-                                : Engine::renderer()->GetDefaultLinearSampler();
-              gpu->pixel_size = {data->rect.z, data->rect.w};
-
-              float tw = static_cast<float>(tex->width_);
-              float th = static_cast<float>(tex->height_);
-              glm::vec4 uv = data->GetUVRect(tw, th);
-
-              float u0 = uv.x;
-              float v0 = uv.y;
-              float u1 = uv.x + uv.z;
-              float v1 = uv.y + uv.w;
-
-              std::vector<VertexSprite> uvs = {
-                  {{u0, v0}}, {{u1, v0}}, {{u1, v1}},
-                  {{u0, v0}}, {{u1, v1}}, {{u0, v1}},
-              };
-              gpu->vertex_buffer = Engine::renderer()->CreateVertexBuffer(
-                  "SpriteGpuData::vertex_buffer", uvs);
-
-              asset_manager_->Store(handle, gpu);
-            }
-
-            return true;
-          },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // SpriteAnim (.wspriteanim) loader
-  asset_manager_->RegisterLoader(
-      AssetType::SpriteAnim,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) { return LoadSpriteAnimAsset(handle); },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // SpriteController (.wspritecontroller) loader
-  asset_manager_->RegisterLoader(
-      AssetType::SpriteController,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) { return LoadSpriteControllerAsset(handle); },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // UIDocument (.rml) loader
-  asset_manager_->RegisterLoader(
-      AssetType::UIDocument,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) {
-            const auto* meta = asset_manager_->GetMetadata(handle);
-            if (!meta || meta->virtual_source_path.empty()) {
-              return false;
-            }
-            auto asset = std::make_shared<UIDocumentAsset>();
-            asset->vfs_path = meta->virtual_source_path;
-            asset_manager_->Store<UIDocumentAsset>(handle, asset);
-            return true;
-          },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // UIStylesheet (.rcss) loader
-  asset_manager_->RegisterLoader(
-      AssetType::UIStylesheet,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) {
-            const auto* meta = asset_manager_->GetMetadata(handle);
-            if (!meta || meta->virtual_source_path.empty()) {
-              return false;
-            }
-            auto asset = std::make_shared<UIStylesheetAsset>();
-            asset->vfs_path = meta->virtual_source_path;
-            asset_manager_->Store<UIStylesheetAsset>(handle, asset);
-            return true;
-          },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
-  // MeshCollider (.wmeshcol) loader: reads JSON, builds Jolt shape.
-  asset_manager_->RegisterLoader(
-      AssetType::MeshCollider,
-      std::make_shared<FunctionAssetLoader>(
-          [](AssetHandle handle) {
-            if (!AssetSerializerRegistry::Load(handle)) {
-              return false;
-            }
-            auto data = asset_manager_->Get<MeshColliderAssetData>(handle);
-            if (data) {
-              BuildCollisionShape(*data);
-            }
-            return data != nullptr;
-          },
-          [](AssetHandle handle) { asset_manager_->Unload(handle); }));
-
   InitializeVfs();
+  InitializeReflection();
   InitializeComponentSerializers();
-  InitializeAssetSerializers();
+  InitializeAssetRegistry();
   input_manager_ = std::make_unique<InputManager>();
-  InitializeAssetProperties();
   behavior_registry_ = std::make_unique<NativeBehaviorRegistry>();
 
   // Thread pool for async asset loading: min(cpu_cores, 8)
@@ -455,14 +249,21 @@ void Engine::InitEngine(const EngineProperties& props) {
   if (pool_size == 0) {
     pool_size = 4;
   }
-  thread_pool_ = std::make_unique<ThreadPool>(pool_size);
+  thread_pool_ = std::make_unique<urkern::ThreadPool>(pool_size);
   LOG_INFO("Asset thread pool: {} workers", pool_size);
 
+  network_manager_ = std::make_unique<NetworkManager>();
+  network_manager_->Init();
+  network_scene_manager_ = std::make_unique<NetworkSceneManager>();
+  replication_manager_ = std::make_unique<ReplicationManager>();
+  InitializeScriptFieldTypes();
+  InitializeNetworkComponentSerializers();
+  RegisterReplicationPackets(*network_manager_);
   scene_manager_ = std::make_unique<SceneManager>();
   audio_manager_ = std::make_unique<AudioManager>();
   audio_manager_->Init();
   script_manager_ = std::make_unique<ScriptManager>();
-  script_manager_->Init({.EnableDebugger = true});
+  script_manager_->Init({.enable_debugger = true});
 #ifdef WIESEL_DISCORD_RPC
   discord_rpc_ = std::make_unique<DiscordRPC>();
 #endif
@@ -470,7 +271,7 @@ void Engine::InitEngine(const EngineProperties& props) {
 
 void Engine::InitWindow(const WindowProperties&& props) {
   window_ = std::make_shared<SdlAppWindow>(std::move(props));
-  Dialogs::Init();
+  dialogs::Init();
 }
 
 void Engine::InitRenderer(const RendererProperties&& props) {
@@ -493,35 +294,67 @@ void Engine::InitApplication() {
 }
 
 void Engine::InitializeVfs() {
+  namespace fs = std::filesystem;
   vfs_ = std::make_shared<VirtualFileSystem>();
-  vfs_->Mount("engine://", properties_.engine_assets_path, 100);
-  if (properties_.editor_enabled && !properties_.editor_assets_path.empty()) {
-    vfs_->Mount("editor://", properties_.editor_assets_path, 90);
+
+  // Mount physical directories (dev mode)
+  auto mount_dir = [](const std::string& prefix, const fs::path& path,
+                      int priority) {
+    if (!path.empty() && fs::exists(path) && fs::is_directory(path)) {
+      vfs_->Mount(prefix, path, priority);
+    }
+  };
+
+  mount_dir("engine://", properties_.engine_assets_path, 100);
+  if (properties_.editor_enabled) {
+    mount_dir("editor://", properties_.editor_assets_path, 90);
   }
-  if (!properties_.app_assets_path.empty()) {
-    vfs_->Mount("app://", properties_.app_assets_path, 80);
-  }
-  if (!properties_.user_data_path.empty()) {
-    vfs_->Mount("user://", properties_.user_data_path, 0);
+  mount_dir("app://", properties_.app_assets_path, 80);
+  mount_dir("user://", properties_.user_data_path, 0);
+
+  // Scan executable directory for .wpak files (release mode bootstrap)
+  fs::path exe_dir = urkern::GetExecutableDirectory();
+  if (fs::exists(exe_dir)) {
+    std::vector<fs::path> wpak_files;
+    for (const auto& entry : fs::directory_iterator(exe_dir)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".wpak" &&
+          Wpak::IsWpakFile(entry.path())) {
+        wpak_files.push_back(entry.path());
+      }
+    }
+    std::sort(wpak_files.begin(), wpak_files.end());
+    for (size_t i = 0; i < wpak_files.size(); i++) {
+      int priority = 60 - static_cast<int>(i);
+      try {
+        vfs_->MountPak(wpak_files[i], priority);
+        LOG_INFO("Mounted wpak: {}", wpak_files[i].filename().string());
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to mount wpak {}: {}",
+                  wpak_files[i].filename().string(), e.what());
+      }
+    }
   }
 }
 
 void Engine::RegisterPrimitives() {
-  asset_manager_->RegisterAndStore<Model>(kPrimitiveCube, "Cube",
-                                          AssetType::Model, "primitive://cube",
-                                          Primitives::CreateCube());
+  asset_manager_->RegisterAndStore<Model>(kPrimitiveCube, "Cube", AssetType::Model, "engine://models/cube.obj",
+      Primitives::CreateCube());
+  vfs_->RegisterVirtualEntry("engine://models/cube.obj");
   asset_manager_->RegisterAndStore<Model>(
-      kPrimitiveSphere, "Sphere", AssetType::Model, "primitive://sphere",
-      Primitives::CreateSphere());
-  asset_manager_->RegisterAndStore<Model>(kPrimitivePlane, "Plane",
-                                          AssetType::Model, "primitive://plane",
-                                          Primitives::CreatePlane());
+      kPrimitiveSphere, "Sphere", AssetType::Model, "engine://models/sphere.obj", Primitives::CreateSphere());
+  vfs_->RegisterVirtualEntry("engine://models/sphere.obj");
   asset_manager_->RegisterAndStore<Model>(
-      kPrimitiveCylinder, "Cylinder", AssetType::Model, "primitive://cylinder",
-      Primitives::CreateCylinder());
+      kPrimitivePlane, "Plane", AssetType::Model, "engine://models/plane.obj",
+      Primitives::CreatePlane());
+  vfs_->RegisterVirtualEntry("engine://models/plane.obj");
   asset_manager_->RegisterAndStore<Model>(
-      kPrimitiveCapsule, "Capsule", AssetType::Model, "primitive://capsule",
-      Primitives::CreateCapsule());
+      kPrimitiveCylinder, "Cylinder", AssetType::Model,
+      "engine://models/cylinder.obj", Primitives::CreateCylinder());
+  vfs_->RegisterVirtualEntry("engine://models/cylinder.obj");
+  asset_manager_->RegisterAndStore<Model>(
+      kPrimitiveCapsule, "Capsule", AssetType::Model,
+      "engine://models/capsule.obj", Primitives::CreateCapsule());
+  vfs_->RegisterVirtualEntry("engine://models/capsule.obj");
 
   primitive_cube_ = kPrimitiveCube;
   primitive_sphere_ = kPrimitiveSphere;
@@ -558,6 +391,7 @@ void Engine::BroadcastEvent(Event& event) {
 }
 
 void Engine::CleanupAssets() {
+  asset_manager_->WaitForAsyncLoads();
   asset_manager_->Clear();
   asset_manager_ = nullptr;
 }
@@ -571,7 +405,7 @@ void Engine::CleanupRenderer() {
 
 void Engine::CleanupWindow() {
   window_ = nullptr;
-  Dialogs::Destroy();
+  dialogs::Destroy();
 }
 
 void Engine::CleanupEngine() {
@@ -580,6 +414,12 @@ void Engine::CleanupEngine() {
 #ifdef WIESEL_DISCORD_RPC
   discord_rpc_ = nullptr;
 #endif
+  replication_manager_ = nullptr;
+  network_scene_manager_ = nullptr;
+  if (network_manager_) {
+    network_manager_->Shutdown();
+    network_manager_ = nullptr;
+  }
   scene_manager_ = nullptr;
   game_info_ = nullptr;
   script_manager_ = nullptr;
@@ -593,7 +433,6 @@ void Engine::CleanupEngine() {
     game_config_ = nullptr;
   }
   input_manager_ = nullptr;
-  console_ = nullptr;
 }
 
 void Engine::CleanupApplication() {
@@ -606,7 +445,7 @@ void Engine::InitGameConfig(const std::string& game_name) {
   if (game_config_) {
     game_config_->Save();
   }
-  game_config_ = std::make_unique<UserConfig>(GetUserDataDirectory(game_name),
+  game_config_ = std::make_unique<UserConfig>(urkern::GetUserDataDirectory(game_name),
                                               "game_config.json");
   game_config_->Load();
 }
@@ -615,5 +454,4 @@ void Engine::SetGameInfo(std::shared_ptr<GameInfo> info) {
   game_info_ = std::move(info);
 }
 
-}  // namespace Wiesel
-
+}  // namespace wiesel

@@ -16,7 +16,7 @@
 #include "w_pch.h"
 #include "window/w_window.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class PipelineRecreatedEvent : public Event {
  public:
@@ -27,4 +27,4 @@ class PipelineRecreatedEvent : public Event {
  private:
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

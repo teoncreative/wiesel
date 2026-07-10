@@ -22,7 +22,7 @@
 #include <unistd.h>
 #endif
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 namespace fs = std::filesystem;
 
@@ -75,6 +75,7 @@ bool LspClient::Start(const std::string& command, const fs::path& working_dir) {
     CloseHandle(stdin_write);
     CloseHandle(stdout_read);
     CloseHandle(stdout_write);
+    CloseHandle(nul_handle);
     return false;
   }
 
@@ -82,6 +83,18 @@ bool LspClient::Start(const std::string& command, const fs::path& working_dir) {
   CloseHandle(stdout_write);
   CloseHandle(nul_handle);
   CloseHandle(pi.hThread);
+
+  // Create a job object that kills the child process when the editor exits.
+  // This prevents orphaned LSP processes if the editor crashes.
+  job_handle_ = CreateJobObjectA(nullptr, nullptr);
+  if (job_handle_) {
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION job_info{};
+    job_info.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    SetInformationJobObject(job_handle_, JobObjectExtendedLimitInformation,
+                            &job_info, sizeof(job_info));
+    AssignProcessToJobObject(job_handle_, pi.hProcess);
+  }
 
   process_handle_ = pi.hProcess;
   stdin_write_ = stdin_write;
@@ -149,6 +162,10 @@ void LspClient::Stop() {
     WaitForSingleObject(process_handle_, 3000);
     CloseHandle(process_handle_);
     process_handle_ = nullptr;
+  }
+  if (job_handle_) {
+    CloseHandle(job_handle_);
+    job_handle_ = nullptr;
   }
 #else
   if (stdin_fd_ >= 0) {
@@ -649,8 +666,13 @@ void LspClient::HandleNotification(const std::string& method,
 // --- LSP protocol methods ---
 
 void LspClient::Initialize(const fs::path& root_path) {
+#ifdef _WIN32
+  int pid = static_cast<int>(GetCurrentProcessId());
+#else
+  int pid = static_cast<int>(getpid());
+#endif
   json params = {
-      {"processId", nullptr},
+      {"processId", pid},
       {"rootUri", PathToUri(root_path)},
       {"capabilities",
        {{"textDocument",
@@ -833,4 +855,4 @@ std::vector<LspClient::LogEntry> LspClient::GetLog() const {
   return log_;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

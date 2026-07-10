@@ -7,6 +7,7 @@ uint kVertexFlagHasHeightMap = 1 << 3;
 uint kVertexFlagHasAlbedoMap = 1 << 4;
 uint kVertexFlagHasRoughnessMap = 1 << 5;
 uint kVertexFlagHasMetallicMap = 1 << 6;
+uint kVertexFlagHasOpacityMap = 1 << 7;
 
 struct LightBase {
     vec3 position;
@@ -33,15 +34,6 @@ struct LightPoint {
     float exp;
 };
 
-layout (set = 0, binding = 0, std140) uniform Matrices {
-    mat4 modelMatrix;
-    mat3 normalMatrix;
-    float entityId;
-    // implicit 12 bytes padding to vec4 boundary
-    vec4 colorTint;
-    vec4 materialParams; // x=roughness, y=metallic, z=specular
-};
-
 layout (set = 1, binding = 1, std140) uniform Camera {
     mat4 viewMatrix;
     mat4 projection;
@@ -65,6 +57,7 @@ layout(set = 0, binding = 4) uniform sampler2D heightMap;
 layout(set = 0, binding = 5) uniform sampler2D albedoMap;
 layout(set = 0, binding = 6) uniform sampler2D roughnessMap;
 layout(set = 0, binding = 7) uniform sampler2D metallicMap;
+layout (set = 0, binding = 8) uniform sampler2D opacityMap;
 
 layout(location = 0) in vec3 inWorldPos;
 layout(location = 1) in vec3 inColor;
@@ -76,7 +69,9 @@ layout(location = 6) in flat uint inFlags;
 layout(location = 7) in vec3 inViewDir;
 layout(location = 8) in vec3 inViewPos;
 layout(location = 9) in mat3 inTBN;
-layout(location = 12) in flat float inEntityId;
+layout (location = 12) in flat uint inEntityId;
+layout (location = 13) in flat vec4 inColorTint;
+layout (location = 14) in flat vec4 inMaterialParams;
 
 layout(location = 0) out vec4 outViewPos;
 layout(location = 1) out vec4 outWorldPos;
@@ -84,7 +79,7 @@ layout(location = 2) out float outDepth;
 layout(location = 3) out vec4 outNormal;
 layout(location = 4) out vec4 outAlbedo;
 layout(location = 5) out vec4 outMaterial;
-layout(location = 6) out float outEntityId;
+layout (location = 6) out uint outEntityId;
 
 
 vec3 getSurfaceNormal() {
@@ -109,10 +104,12 @@ void main() {
         baseColor = texture(baseTexture, inUV);
     } else if ((inFlags & kVertexFlagHasAlbedoMap) > 0) {
         baseColor = texture(albedoMap, inUV);
+    } else if ((inFlags & kVertexFlagHasOpacityMap) > 0) {
+        baseColor = texture(opacityMap, inUV);
     } else {
         baseColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
     }
-    baseColor *= colorTint;
+    baseColor *= inColorTint;
 
     if (baseColor.a < 0.5) {
         discard;
@@ -123,23 +120,26 @@ void main() {
     // When no map exists: param used directly (acts as the value itself)
     float specular;
     if ((inFlags & kVertexFlagHasSpecularMap) > 0) {
-        specular = texture(specularMap, inUV).r * materialParams.z;
+        specular = texture(specularMap, inUV).r * inMaterialParams.z;
     } else {
-        specular = materialParams.z;
+        specular = inMaterialParams.z;
     }
     float roughness;
     if ((inFlags & kVertexFlagHasRoughnessMap) > 0) {
-        roughness = texture(roughnessMap, inUV).r * materialParams.x;
+        roughness = texture(roughnessMap, inUV).r * inMaterialParams.x;
     } else {
-        roughness = materialParams.x;
+        roughness = inMaterialParams.x;
     }
     float metallic;
     if ((inFlags & kVertexFlagHasMetallicMap) > 0) {
-        metallic = texture(metallicMap, inUV).r * materialParams.y;
+        metallic = texture(metallicMap, inUV).r * inMaterialParams.y;
     } else {
-        metallic = materialParams.y;
+        metallic = inMaterialParams.y;
     }
     vec3 normal = getSurfaceNormal();
+    if (!gl_FrontFacing) {
+        normal = -normal;
+    }
 
     // Debug: force vertex normal only (skip normal map)
     if (cam.debugCascades == 8) normal = normalize(inNormal);

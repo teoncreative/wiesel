@@ -17,7 +17,7 @@
 #include "rendering/w_texture.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ThumbnailCache* ThumbnailCache::instance_ = nullptr;
 
@@ -136,4 +136,4 @@ void ThumbnailCache::Clear() {
   pending_.clear();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

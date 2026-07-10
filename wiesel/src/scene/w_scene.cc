@@ -22,50 +22,74 @@
 #include "animation/w_animation_controller.h"
 #include "animation/w_animator.h"
 #include "asset/w_asset_manager.h"
+#include "asset/w_asset_registry.h"
 #include "audio/w_audio.h"
 #include "behavior/w_behavior.h"
 #include "cursor/w_cursor.h"
 #include "events/w_keyevents.h"
 #include "events/w_mouseevents.h"
-#include "rendering/features/w_billboard_feature.h"
-#include "rendering/features/w_bloom_feature.h"
 #include "rendering/features/w_canvas_feature.h"
-#include "rendering/features/w_composite_feature.h"
-#include "rendering/features/w_debug_collider_feature.h"
-#include "rendering/features/w_fxaa_feature.h"
-#include "rendering/features/w_geometry_feature.h"
-#include "rendering/features/w_grid_feature.h"
-#include "rendering/features/w_ibl_feature.h"
-#include "rendering/features/w_lighting_feature.h"
-#include "rendering/features/w_motion_blur_feature.h"
-#include "rendering/features/w_rt_shadow_feature.h"
-#include "rendering/features/w_shadow_feature.h"
-#include "rendering/features/w_sprite_feature.h"
-#include "rendering/features/w_ssao_feature.h"
-#include "rendering/features/w_taa_feature.h"
-#include "rendering/features/w_transparency_feature.h"
+#include "rendering/w_camera.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_renderer.h"
 #include "scene/w_entity.h"
+#include "scene/w_lights.h"
 #include "script/mono/w_monobehavior.h"
+#include "systems/w_agent_system.h"
+#include "systems/w_animation_system.h"
+#include "systems/w_audio_listener_system.h"
+#include "systems/w_audio_source_system.h"
+#include "systems/w_behavior_system.h"
+#include "systems/w_camera_system.h"
 #include "systems/w_canvas_system.h"
-#include "ui/w_interactable.h"
+#include "systems/w_light_system.h"
+#include "systems/w_physics_system.h"
+#include "systems/w_replication_sync_system.h"
+#include "systems/w_skinned_mesh_system.h"
+#include "systems/w_transform_system.h"
+#include "systems/w_ui_document_system.h"
 #include "ui/w_ui_document.h"
 #include "ui/w_ui_manager.h"
 #include "util/w_keycodes.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 class PipelineRecreatedEvent;
 
 Scene::Scene() {
   current_camera_ = std::make_shared<CameraData>();
   physics_world_ = std::make_unique<PhysicsWorld>(this);
+
+  // Register built-in systems
+  AddSystem<AudioListenerSystem>();
+  AddSystem<PhysicsBodySystem>();
+  AddSystem<BehaviorSystem>();
+  AddSystem<AgentSystem>();
+  AddSystem<AudioSourceSystem>();
+  AddSystem<PhysicsSimulationSystem>();
+  AddSystem<ReplicationSyncSystem>();
+  AddSystem<TransformSystem>();
+  AddSystem<LightSystem>();
+  AddSystem<SkinnedMeshSystem>();
+  AddSystem<AnimationSystem>();
+  AddSystem<CameraSystem>();
+  AddSystem<UIDocumentSystem>();
 }
 
 Scene::~Scene() {
-  LOG_DEBUG("~Scene destructor");
-  Cleanup();
+  // Clear camera render graphs and resource pools.
+  auto camera_view = registry_.view<CameraComponent>();
+  for (entt::entity entity : camera_view) {
+    auto& camera = registry_.get<CameraComponent>(entity);
+    camera.render_graph = nullptr;
+    camera.resource_pool.Clear();
+    camera.render_pipeline = nullptr;
+  }
+
+  skybox_ = nullptr;
+  default_skybox_ = nullptr;
+  current_camera_ = nullptr;
 }
 
 std::shared_ptr<Skybox> Scene::GetSkybox() {
@@ -155,12 +179,12 @@ void Scene::EnsureDefaultSkybox() {
 }
 
 Entity Scene::CreateEntity(const std::string& name) {
-  return CreateEntityWithUUID(UUID::GenerateV4(), name);
+  return CreateEntityWithUUID(urkern::UUID::GenerateV4(), name);
 }
 
-Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
+Entity Scene::CreateEntityWithUUID(urkern::UUID uuid, const std::string& name) {
   if (uuid.IsNil()) {
-    uuid = UUID::GenerateV4();
+    uuid = urkern::UUID::GenerateV4();
   }
   Entity entity = {registry_.create(), this};
   entity.AddComponent<IdComponent>(uuid);
@@ -172,26 +196,24 @@ Entity Scene::CreateEntityWithUUID(UUID uuid, const std::string& name) {
   return entity;
 }
 
-void Scene::RemoveEntity(Entity entity) {
-  entt::entity handle = entity.handle();
-
+void Scene::RemoveEntity(entt::entity entity) {
   // Skip if already queued
   for (entt::entity& queued : destroy_queue_) {
-    if (queued == handle) {
+    if (queued == entity) {
       return;
     }
   }
 
   // Queue children recursively
-  if (registry_.any_of<TreeComponent>(handle)) {
-    auto& tree = registry_.get<TreeComponent>(handle);
-    std::vector<entt::entity> children = tree.childs;
+  if (registry_.any_of<TreeComponent>(entity)) {
+    auto& tree = registry_.get<TreeComponent>(entity);
+    std::vector<entt::entity> children = tree.children;
     for (auto child : children) {
       RemoveEntity(Entity{child, this});
     }
   }
 
-  destroy_queue_.push_back(handle);
+  destroy_queue_.push_back(entity);
 }
 
 entt::entity Scene::FindEntityByName(const std::string& name) {
@@ -203,7 +225,7 @@ entt::entity Scene::FindEntityByName(const std::string& name) {
   return entt::null;
 }
 
-entt::entity Scene::FindEntityByUUID(const UUID& uuid) {
+entt::entity Scene::FindEntityByUUID(const urkern::UUID& uuid) {
   auto it = entities_.find(uuid);
   if (it != entities_.end()) {
     return it->second;
@@ -231,7 +253,7 @@ void Scene::RequestAsset(AssetHandle handle) {
 
   // Only track asset types that have a registered loader
   const AssetMetadata* meta = Engine::asset_manager().GetMetadata(handle);
-  if (!meta || !Engine::asset_manager().GetLoader(meta->type)) {
+  if (!meta || !AssetRegistry::HasLoader(meta->type)) {
     return;
   }
 
@@ -284,788 +306,39 @@ void Scene::ClearRequestedAssets() {
   requested_assets_.clear();
 }
 
+void Scene::AddSystem(std::unique_ptr<ISystem> system) {
+  int priority = system->GetPriority();
+  auto it = std::ranges::find_if(systems_, [priority](const auto& s) {
+    return s->GetPriority() > priority;
+  });
+  systems_.insert(it, std::move(system));
+}
+
 void Scene::OnUpdate(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
-
-  // Audio listener: update every frame (including first) so spatial audio
-  // is correct before any script plays a sound.
-  {
-    auto& audio = Engine::audio();
-    for (auto entity : registry_.view<CameraComponent, TransformComponent>()) {
-      auto& cam = registry_.get<CameraComponent>(entity);
-      if (!cam.enabled) {
-        continue;
-      }
-      auto& transform = registry_.get<TransformComponent>(entity);
-      audio.SetListenerPosition(transform.GetPosition());
-      glm::vec3 forward = glm::vec3(cam.inv_view_matrix[2]);
-      glm::vec3 up = glm::vec3(cam.inv_view_matrix[1]);
-      audio.SetListenerDirection(glm::normalize(forward), glm::normalize(up));
-
-      // Check reverb zones against listener position
-      bool in_reverb = false;
-      for (auto zone_entity :
-           registry_.view<ReverbZoneComponent, TransformComponent>()) {
-        auto& zone = registry_.get<ReverbZoneComponent>(zone_entity);
-        auto& zone_transform = registry_.get<TransformComponent>(zone_entity);
-        float dist = glm::distance(transform.GetPosition(),
-                                   zone_transform.GetPosition());
-        if (dist < zone.radius) {
-          // Blend wet amount based on how deep inside the zone we are
-          float blend = 1.0f - dist / zone.radius;
-          audio.SetReverb(zone.delay_ms, zone.decay, zone.wet * blend);
-          zone.active_ = true;
-          in_reverb = true;
-          break;  // use the closest/first zone
-        } else {
-          zone.active_ = false;
-        }
-      }
-      if (!in_reverb) {
-        audio.ClearReverb();
-      }
-
-      break;
+  for (auto& system : systems_) {
+    if (first_update_ && !system->RunOnFirstUpdate()) {
+      continue;
     }
+    system->Update(*this, delta_time);
   }
 
   if (!first_update_) [[likely]] {
-    // Create bodies for new entities before scripts run
-    physics_world_->EnsureBodiesExist();
-
-    {
-      PROFILE_ZONE_SCOPED_N("Behaviors::OnUpdate");
-      for (const auto& entity : registry_.view<BehaviorsComponent>()) {
-        BehaviorsComponent& component =
-            registry_.get<BehaviorsComponent>(entity);
-        for (IBehavior*& value : component.behaviors_ | std::views::values) {
-          value->OnUpdate(delta_time);
-        }
-      }
-    }
-    {
-      PROFILE_ZONE_SCOPED_N("AgentController::Evaluate");
-      for (const auto& entity : registry_.view<AgentController>()) {
-        auto& controller = registry_.get<AgentController>(entity);
-        controller.Evaluate(delta_time);
-        controller.Update(delta_time);
-      }
-    }
-    {
-      PROFILE_ZONE_SCOPED_N("Systems::Update");
-      for (auto&& fn : systems_[SystemType::Update]) {
-        fn(delta_time);
-      }
-    }
-
     // UI events
     ui_event_system_.Update(*this, delta_time);
-
-    // Text input: cursor blink and sync to TextComponent
-    {
-      entt::entity focused = ui_event_system_.GetFocusedEntity();
-      if (focused != entt::null && registry_.valid(focused) &&
-          registry_.any_of<TextInputComponent>(focused)) {
-        auto& input = registry_.get<TextInputComponent>(focused);
-        input.cursor_timer_ += delta_time;
-        if (input.cursor_timer_ >= 0.5f) {
-          input.cursor_visible_ = !input.cursor_visible_;
-          input.cursor_timer_ = 0.0f;
-        }
-      }
-
-      // Sync all TextInput text to sibling TextComponent
-      for (auto entity : registry_.view<TextInputComponent, TextComponent>()) {
-        auto& input = registry_.get<TextInputComponent>(entity);
-        auto& text = registry_.get<TextComponent>(entity);
-        if (input.text.empty() && !input.focused_) {
-          text.text = input.placeholder;
-          text.color = input.placeholder_color;
-        } else {
-          text.text = input.text;
-        }
-      }
-    }
-
-    // Audio: tick audio source components
-    {
-      auto& audio = Engine::audio();
-      for (auto entity :
-           registry_.view<AudioSourceComponent, TransformComponent>()) {
-        auto& src = registry_.get<AudioSourceComponent>(entity);
-        auto& transform = registry_.get<TransformComponent>(entity);
-
-        if (src.mute) {
-          if (src.playing_handle_.IsValid()) {
-            audio.Stop(src.playing_handle_);
-            src.playing_handle_ = {};
-          }
-          continue;
-        }
-
-        // Play on start (first frame only)
-        if (src.play_on_start && !src.started_ && src.clip.IsValid()) {
-          src.playing_handle_ =
-              audio.Play(src.clip, src.MakeParams(transform.GetPosition()));
-          src.started_ = true;
-        }
-
-        // Update position for spatial sounds
-        if (src.playing_handle_.IsValid() && src.spatial_blend > 0.0f) {
-          audio.SetSoundPosition(src.playing_handle_, transform.GetPosition());
-        }
-      }
-    }
-
-    // Physics step
-    physics_world_->SyncTransformsFromECS();
-    physics_world_->StepSimulation(delta_time);
-    physics_world_->SyncTransformsToECS();
-    physics_world_->DetectContacts();
   } else {
     first_update_ = false;
   }
-
-  UpdateSceneState(delta_time);
 }
 
 void Scene::OnUpdateEditor(float_t delta_time) {
   PROFILE_ZONE_SCOPED();
-  UpdateSceneState(delta_time);
-}
-
-void Scene::MarkChildrenDirty(entt::entity entity) {
-  if (!registry_.any_of<TreeComponent>(entity)) {
-    return;
-  }
-  auto& tree = registry_.get<TreeComponent>(entity);
-  for (auto child : tree.childs) {
-    if (registry_.any_of<TransformComponent>(child)) {
-      registry_.get<TransformComponent>(child).MarkChanged();
-    }
-    MarkChildrenDirty(child);
-  }
-}
-
-void Scene::UpdateTransforms() {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateTransforms");
-  for (const auto& entity : registry_.view<TransformComponent>()) {
-    auto& transform = registry_.get<TransformComponent>(entity);
-    if (transform.IsChanged()) {
-      UpdateMatrices(entity);
-      transform.ClearChanged();
-      MarkChildrenDirty(entity);
-      if (registry_.any_of<CameraComponent>(entity)) {
-        registry_.get<CameraComponent>(entity).pos_changed = true;
-      }
-    }
-  }
-}
-
-void Scene::UpdateLights() {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateLights");
-  auto& lights = Engine::renderer()->lights_uniform_data_;
-  lights.direct_light_count = 0;
-  lights.point_light_count = 0;
-  for (const auto& entity : registry_.view<LightDirectComponent>()) {
-    auto& light = registry_.get<LightDirectComponent>(entity);
-    auto& transform = registry_.get<TransformComponent>(entity);
-    UpdateLight(lights, light.light_data, transform);
-  }
-  for (const auto& entity : registry_.view<LightPointComponent>()) {
-    auto& light = registry_.get<LightPointComponent>(entity);
-    auto& transform = registry_.get<TransformComponent>(entity);
-    UpdateLight(lights, light.light_data, transform);
-  }
-}
-
-void Scene::UpdateCameras() {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateCameras");
-  auto& lights = Engine::renderer()->lights_uniform_data_;
-  for (const auto& entity :
-       registry_.view<CameraComponent, TransformComponent>()) {
-    auto& camera = registry_.get<CameraComponent>(entity);
-    auto& transform = registry_.get<TransformComponent>(entity);
-    if (!camera.enabled) {
+  // Only run systems marked as editor-safe.
+  for (auto& system : systems_) {
+    if (!system->RunInEditor()) {
       continue;
     }
-    if (camera.view_changed) {
-      camera.UpdateProjection();
-      camera.view_changed = false;
-    }
-    if (camera.pos_changed) {
-      camera.UpdateView(transform.GetTransformMatrix());
-      camera.pos_changed = false;
-    }
-    if (camera.any_changed) {
-      camera.UpdateAll();
-      camera.any_changed = false;
-    }
-    if (lights.direct_light_count > 0 &&
-        Engine::renderer()->options().shadows_enabled) {
-      camera.ComputeCascades(
-          -glm::normalize(lights.direct_lights[0].direction));
-    } else {
-      camera.does_shadow_pass = false;
-    }
-  }
-}
-
-void Scene::UpdateSpriteAnimators(float_t delta_time) {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateSpriteAnimators");
-  for (auto entity : registry_.view<SpriteAnimatorComponent>()) {
-    auto& animator = registry_.get<SpriteAnimatorComponent>(entity);
-    if (!registry_.all_of<SpriteRendererComponent>(entity)) {
-      continue;
-    }
-    auto& renderer_comp = registry_.get<SpriteRendererComponent>(entity);
-
-    if (!animator.controller_handle_.IsValid()) {
-      continue;
-    }
-
-    // Load controller data if not yet resolved
-    auto controller_data =
-        Engine::asset_manager().Get<SpriteControllerAssetData>(
-            animator.controller_handle_);
-    if (!controller_data) {
-      continue;
-    }
-
-    // Initialize state machine controller if empty
-    if (animator.state_machine_.controller.IsEmpty()) {
-      animator.state_machine_.controller.default_state =
-          controller_data->default_state;
-      for (const auto& state : controller_data->states) {
-        AnimationState anim_state;
-        anim_state.name = state.name;
-        anim_state.clip_name = state.name;  // map state name to itself
-        anim_state.speed = state.speed;
-        anim_state.looping = true;
-        animator.state_machine_.controller.states.push_back(
-            std::move(anim_state));
-      }
-      animator.state_machine_.controller.transitions =
-          controller_data->transitions;
-      animator.state_machine_.EnsureDefaultState();
-      animator.current_state_name_ = animator.state_machine_.current_state;
-    }
-
-    // Evaluate state machine transitions
-    std::string new_state = animator.state_machine_.EvaluateTransitions();
-    if (!new_state.empty()) {
-      animator.current_state_name_ = new_state;
-      animator.current_frame_index_ = 0;
-      animator.frame_timer_ = 0.0f;
-      animator.current_anim_ = nullptr;  // force re-resolve
-    }
-
-    // Resolve current animation if needed
-    if (!animator.current_anim_) {
-      const auto* state =
-          controller_data->FindState(animator.current_state_name_);
-      if (state && state->animation_handle.IsValid()) {
-        animator.current_anim_ =
-            Engine::asset_manager().Get<SpriteAnimAssetData>(
-                state->animation_handle);
-      }
-    }
-
-    if (!animator.current_anim_ || animator.current_anim_->frames.empty()) {
-      continue;
-    }
-
-    if (!animator.playing_) {
-      // Still set the sprite even when paused
-      const auto& frame =
-          animator.current_anim_->frames[animator.current_frame_index_];
-      if (renderer_comp.sprite_handle_ != frame.sprite_handle) {
-        renderer_comp.sprite_handle_ = frame.sprite_handle;
-      }
-      continue;
-    }
-
-    // Get speed from controller state
-    float speed = 1.0f;
-    const auto* state =
-        controller_data->FindState(animator.current_state_name_);
-    if (state) {
-      speed = state->speed;
-    }
-
-    // Advance frame timer
-    const auto& frames = animator.current_anim_->frames;
-    animator.frame_timer_ += delta_time * speed;
-    float frame_duration = frames[animator.current_frame_index_].duration;
-    if (frame_duration > 0.0f && animator.frame_timer_ >= frame_duration) {
-      animator.frame_timer_ -= frame_duration;
-      animator.current_frame_index_++;
-      if (animator.current_frame_index_ >=
-          static_cast<uint32_t>(frames.size())) {
-        if (animator.current_anim_->loop) {
-          animator.current_frame_index_ = 0;
-        } else {
-          animator.current_frame_index_ =
-              static_cast<uint32_t>(frames.size()) - 1;
-          animator.playing_ = false;
-        }
-      }
-    }
-
-    // Set the sprite on the renderer
-    const auto& current_frame = frames[animator.current_frame_index_];
-    if (renderer_comp.sprite_handle_ != current_frame.sprite_handle) {
-      renderer_comp.sprite_handle_ = current_frame.sprite_handle;
-    }
-  }
-}
-
-void Scene::UpdateSkeletalAnimations(float_t delta_time) {
-  PROFILE_ZONE_SCOPED_N("Scene::UpdateSkeletalAnimations");
-  for (const auto& entity :
-       registry_.view<AnimatorComponent, ModelComponent>()) {
-    auto& animator = registry_.get<AnimatorComponent>(entity);
-    auto& model_comp = registry_.get<ModelComponent>(entity);
-    if (!animator.playing) {
-      continue;
-    }
-
-    const std::shared_ptr<Model>& model_data =
-        Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
-    if (!model_data || model_data->animation_clips.empty()) {
-      continue;
-    }
-
-    // Helper: find clip by name in model
-    auto find_clip = [&](const std::string& name) -> const AnimationClip* {
-      for (const auto& c : model_data->animation_clips) {
-        if (c.name == name) {
-          return &c;
-        }
-      }
-      return nullptr;
-    };
-
-    if (animator.UseController()) {
-      // --- Controller mode ---
-      AnimationController& ctrl = animator.controller;
-
-      // Initialize state if needed
-      if (animator.current_state_name.empty() && !ctrl.default_state.empty()) {
-        animator.current_state_name = ctrl.default_state;
-        animator.state_time = 0.0f;
-      }
-
-      const auto* cur_state = ctrl.FindState(animator.current_state_name);
-      if (!cur_state) {
-        continue;
-      }
-
-      // Check transitions (current state transitions first, then "any state")
-      const AnimationTransition* fired_transition = nullptr;
-      for (const AnimationTransition& trans : ctrl.transitions) {
-        if (!trans.from_state.empty() &&
-            trans.from_state != animator.current_state_name) {
-          continue;
-        }
-        // Evaluate all conditions
-        bool all_met = true;
-        for (const TransitionCondition& cond : trans.conditions) {
-          auto param_it = animator.parameters.find(cond.param_name);
-          if (param_it == animator.parameters.end()) {
-            all_met = false;
-            break;
-          }
-          const auto& param = param_it->second;
-          switch (cond.param_type) {
-            case AnimParamType::Trigger:
-              if (!param.b) {
-                all_met = false;
-              }
-              break;
-            case AnimParamType::Bool:
-              switch (cond.op) {
-                case ConditionOp::Equals:
-                  if (param.b != cond.value.b) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::NotEquals:
-                  if (param.b == cond.value.b) {
-                    all_met = false;
-                  }
-                  break;
-                default:
-                  break;
-              }
-              break;
-            case AnimParamType::Int:
-              switch (cond.op) {
-                case ConditionOp::Equals:
-                  if (param.i != cond.value.i) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::NotEquals:
-                  if (param.i == cond.value.i) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::Greater:
-                  if (param.i <= cond.value.i) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::Less:
-                  if (param.i >= cond.value.i) {
-                    all_met = false;
-                  }
-                  break;
-              }
-              break;
-            case AnimParamType::Float:
-              switch (cond.op) {
-                case ConditionOp::Equals:
-                  if (std::abs(param.f - cond.value.f) > 0.001f) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::NotEquals:
-                  if (std::abs(param.f - cond.value.f) <= 0.001f) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::Greater:
-                  if (param.f <= cond.value.f) {
-                    all_met = false;
-                  }
-                  break;
-                case ConditionOp::Less:
-                  if (param.f >= cond.value.f) {
-                    all_met = false;
-                  }
-                  break;
-              }
-              break;
-          }
-          if (!all_met) {
-            break;
-          }
-        }
-        if (all_met && trans.to_state != animator.current_state_name) {
-          fired_transition = &trans;
-          break;
-        }
-      }
-
-      if (fired_transition) {
-        // Consume triggers used in this transition
-        for (const TransitionCondition& cond : fired_transition->conditions) {
-          if (cond.param_type == AnimParamType::Trigger) {
-            auto param_it = animator.parameters.find(cond.param_name);
-            if (param_it != animator.parameters.end()) {
-              param_it->second.b = false;
-            }
-          }
-        }
-
-        // Start crossfade
-        if (fired_transition->blend_duration > 0.0f) {
-          animator.prev_clip_name = cur_state->clip_name;
-          animator.prev_clip_time = animator.state_time;
-          animator.prev_bone_matrices = animator.bone_matrices;
-          animator.prev_node_transforms = animator.node_transforms;
-          animator.is_blending = true;
-          animator.blend_duration = fired_transition->blend_duration;
-          animator.blend_elapsed = 0.0f;
-          animator.blend_weight = 0.0f;
-        } else {
-          animator.is_blending = false;
-        }
-
-        animator.current_state_name = fired_transition->to_state;
-        animator.state_time = 0.0f;
-        cur_state = ctrl.FindState(animator.current_state_name);
-        if (!cur_state) {
-          continue;
-        }
-      }
-
-      // Find the current clip
-      const AnimationClip* clip = find_clip(cur_state->clip_name);
-      if (!clip) {
-        continue;
-      }
-
-      // Advance state time
-      float tps = clip->ticks_per_second;
-      animator.state_time +=
-          delta_time * cur_state->speed * animator.playback_speed * tps;
-      if (cur_state->looping && clip->duration > 0.0f) {
-        animator.state_time = std::fmod(animator.state_time, clip->duration);
-        if (animator.state_time < 0.0f) {
-          animator.state_time += clip->duration;
-        }
-      } else {
-        animator.state_time =
-            glm::clamp(animator.state_time, 0.0f, clip->duration);
-      }
-
-      // Evaluate current clip
-      Animator::Evaluate(*model_data, *clip, animator.state_time,
-                         animator.bone_matrices, animator.node_transforms);
-
-      // Handle crossfade blending
-      if (animator.is_blending) {
-        animator.blend_elapsed += delta_time;
-        animator.blend_weight = glm::clamp(
-            animator.blend_elapsed / animator.blend_duration, 0.0f, 1.0f);
-
-        // Advance previous clip time too (so it doesn't freeze)
-        const AnimationClip* prev_clip = find_clip(animator.prev_clip_name);
-        if (prev_clip) {
-          // prev_clip_time was captured at transition start; keep advancing it
-          float prev_tps = prev_clip->ticks_per_second;
-          animator.prev_clip_time += delta_time * prev_tps;
-          if (prev_clip->duration > 0.0f) {
-            animator.prev_clip_time =
-                std::fmod(animator.prev_clip_time, prev_clip->duration);
-            if (animator.prev_clip_time < 0.0f) {
-              animator.prev_clip_time += prev_clip->duration;
-            }
-          }
-
-          Animator::Evaluate(*model_data, *prev_clip, animator.prev_clip_time,
-                             animator.prev_bone_matrices,
-                             animator.prev_node_transforms);
-        }
-
-        // Blend node transforms, then recompute bone matrices
-        Animator::BlendAndSkin(*model_data, animator.prev_node_transforms,
-                               animator.node_transforms, animator.blend_weight,
-                               animator.bone_matrices,
-                               animator.node_transforms);
-
-        if (animator.blend_weight >= 1.0f) {
-          animator.is_blending = false;
-        }
-      }
-
-      // Keep legacy fields in sync for editor display
-      animator.current_clip_name = cur_state->clip_name;
-      animator.playback_time = animator.state_time;
-      animator.looping = cur_state->looping;
-
-    } else {
-      // --- Legacy single-clip mode ---
-      const AnimationClip* clip = nullptr;
-      if (!animator.current_clip_name.empty()) {
-        clip = find_clip(animator.current_clip_name);
-      }
-      if (!clip) {
-        clip = &model_data->animation_clips[0];
-        animator.current_clip_name = clip->name;
-      }
-
-      float tps = clip->ticks_per_second;
-      animator.playback_time += delta_time * animator.playback_speed * tps;
-      if (animator.looping && clip->duration > 0.0f) {
-        animator.playback_time =
-            std::fmod(animator.playback_time, clip->duration);
-        if (animator.playback_time < 0.0f) {
-          animator.playback_time += clip->duration;
-        }
-      } else {
-        animator.playback_time =
-            glm::clamp(animator.playback_time, 0.0f, clip->duration);
-      }
-
-      Animator::Evaluate(*model_data, *clip, animator.playback_time,
-                         animator.bone_matrices, animator.node_transforms);
-    }
-
-    // Apply bone overrides (e.g. head look-at)
-    if (!animator.bone_overrides.empty() && model_data) {
-      const auto& hierarchy = model_data->node_hierarchy;
-      const auto& skeleton = model_data->skeleton;
-
-      for (auto& ovr : animator.bone_overrides) {
-        if (!ovr.enabled) {
-          continue;
-        }
-
-        // Resolve indices on first use
-        if (ovr.cached_node_index < 0) {
-          ovr.cached_node_index = hierarchy.FindNode(ovr.bone_name);
-          ovr.cached_bone_index = skeleton.FindBone(ovr.bone_name);
-        }
-        int ni = ovr.cached_node_index;
-        int bi = ovr.cached_bone_index;
-        if (ni < 0 || bi < 0 ||
-            ni >= static_cast<int>(animator.node_transforms.size()) ||
-            bi >= static_cast<int>(animator.bone_matrices.size())) {
-          continue;
-        }
-
-        // Decompose current global node transform
-        glm::vec3 pos, scale, skew;
-        glm::quat rot;
-        glm::vec4 persp;
-        glm::decompose(animator.node_transforms[ni], scale, rot, pos, skew,
-                       persp);
-
-        // Apply additional rotation in local space
-        glm::quat new_rot = rot * ovr.additional_rotation;
-        animator.node_transforms[ni] = glm::translate(glm::mat4(1.0f), pos) *
-                                       glm::mat4_cast(new_rot) *
-                                       glm::scale(glm::mat4(1.0f), scale);
-
-        // Recompute bone matrix for this bone
-        animator.bone_matrices[bi] = animator.node_transforms[ni] *
-                                     skeleton.bones[bi].inverse_bind_matrix;
-
-        // Re-propagate to children
-        const auto& node = hierarchy.nodes[ni];
-        for (int32_t child_idx : node.children) {
-          if (child_idx < 0 ||
-              child_idx >= static_cast<int>(animator.node_transforms.size())) {
-            continue;
-          }
-
-          animator.node_transforms[child_idx] =
-              animator.node_transforms[ni] *
-              hierarchy.nodes[child_idx].local_transform;
-
-          int32_t child_bone = hierarchy.nodes[child_idx].bone_index;
-          if (child_bone >= 0 &&
-              child_bone < static_cast<int>(animator.bone_matrices.size())) {
-            animator.bone_matrices[child_bone] =
-                animator.node_transforms[child_idx] *
-                skeleton.bones[child_bone].inverse_bind_matrix;
-          }
-        }
-      }
-    }
-
-    // Upload bone matrices to GPU
-    if (model_comp.bone_ubo_ && model_comp.bone_ubo_->data_) {
-      BoneMatricesUniformData gpu_data{};
-      size_t count = std::min(animator.bone_matrices.size(),
-                              static_cast<size_t>(WIESEL_MAX_BONES));
-      for (size_t b = 0; b < count; b++) {
-        gpu_data.bone_matrices[b] = animator.bone_matrices[b];
-      }
-      memcpy(model_comp.bone_ubo_->data_, &gpu_data,
-             sizeof(BoneMatricesUniformData));
-    }
-  }
-}
-
-void Scene::UpdateSceneState(float_t delta_time) {
-  UpdateTransforms();
-  UpdateLights();
-  UpdateSpriteAnimators(delta_time);
-  UpdateSkeletalAnimations(delta_time);
-  UpdateCameras();
-
-  // Load/unload UIDocuments - each gets its own Rml::Context
-  {
-    auto& assets = Engine::asset_manager();
-    for (auto entity : registry_.view<UIDocumentComponent>()) {
-      auto& doc = registry_.get<UIDocumentComponent>(entity);
-      if (doc.document_handle.IsValid() &&
-          (!doc.rml_context_ || doc.loaded_handle_ != doc.document_handle)) {
-        // Destroy old context
-        if (doc.rml_context_) {
-          doc.data_model.Shutdown();
-          Rml::RemoveContext(doc.context_name_);
-          doc.rml_context_ = nullptr;
-          doc.rml_document_ = nullptr;
-        }
-        // Create new per-document context
-        auto doc_asset = assets.GetOrLoad<UIDocumentAsset>(doc.document_handle);
-        if (doc_asset && !doc_asset->vfs_path.empty()) {
-          doc.context_name_ =
-              "ui_" + std::to_string(static_cast<uint32_t>(entity));
-          // Use viewport size as initial context dimensions.
-          // RmlUi does initial layout at creation time - too small causes
-          // incorrect text wrapping and block sizing.
-          glm::vec2 vp = GetRenderResolution();
-          if (vp.x < 1 || vp.y < 1) {
-            vp = {1920, 1080};
-          }
-          doc.rml_context_ = Rml::CreateContext(
-              doc.context_name_,
-              Rml::Vector2i(static_cast<int>(vp.x), static_cast<int>(vp.y)));
-          if (doc.rml_context_) {
-            const auto* meta = assets.GetMetadata(doc.document_handle);
-            const auto* ui_props =
-                meta ? meta->GetProperties<UIDocumentAssetProperties>()
-                     : nullptr;
-            doc.data_model.Init(doc.rml_context_, ui_props);
-
-            // Wire callbacks to dispatch to C# behaviors on this entity
-            if (ui_props) {
-              for (const auto& decl : ui_props->variables) {
-                if (decl.mode == UIVariableMode::TwoWay) {
-                  doc.data_model.OnChanged(
-                      decl.name, [this, entity, name = decl.name]() {
-                        if (registry_.valid(entity) &&
-                            registry_.any_of<BehaviorsComponent>(entity)) {
-                          auto& bc = registry_.get<BehaviorsComponent>(entity);
-                          for (auto& [bname, behavior] : bc.behaviors_) {
-                            auto* mb = dynamic_cast<MonoBehavior*>(behavior);
-                            if (mb && mb->script_instance()) {
-                              mb->script_instance()->OnUIDataChanged(name);
-                            }
-                          }
-                        }
-                      });
-                }
-              }
-              for (const auto& event_name : ui_props->events) {
-                doc.data_model.BindEvent(
-                    event_name,
-                    [this, entity, name = event_name](Rml::Event& /*ev*/) {
-                      if (registry_.valid(entity) &&
-                          registry_.any_of<BehaviorsComponent>(entity)) {
-                        auto& bc = registry_.get<BehaviorsComponent>(entity);
-                        for (auto& [bname, behavior] : bc.behaviors_) {
-                          auto* mb = dynamic_cast<MonoBehavior*>(behavior);
-                          if (mb && mb->script_instance()) {
-                            mb->script_instance()->OnUIEvent(name);
-                          }
-                        }
-                      }
-                    });
-              }
-            }
-
-            doc.rml_document_ =
-                doc.rml_context_->LoadDocument(doc_asset->vfs_path);
-            if (doc.rml_document_) {
-              doc.rml_document_->Show();
-              LOG_INFO("Created RmlUi context '{}' with document '{}'",
-                       doc.context_name_, doc_asset->vfs_path);
-            } else {
-              LOG_ERROR("Failed to load RmlUi document: {}",
-                        doc_asset->vfs_path);
-            }
-          } else {
-            LOG_ERROR("Failed to create RmlUi context");
-          }
-        }
-        doc.loaded_handle_ = doc.document_handle;
-      }
-      // Sync visibility
-      if (doc.rml_document_) {
-        if (doc.visible && !doc.rml_document_->IsVisible()) {
-          doc.rml_document_->Show();
-        } else if (!doc.visible && doc.rml_document_->IsVisible()) {
-          doc.rml_document_->Hide();
-        }
-      }
-    }
+    system->Update(*this, delta_time);
   }
 }
 
@@ -1073,8 +346,6 @@ void Scene::OnEvent(Event& event) {
   PROFILE_ZONE_SCOPED_N("Scene::OnEvent");
   EventDispatcher dispatcher{event};
   dispatcher.Dispatch<WindowResizedEvent>(WIESEL_BIND_FN(OnWindowResizeEvent));
-  dispatcher.Dispatch<PipelineRecreatedEvent>(
-      WIESEL_BIND_FN(OnPipelineRecreatedEvent));
 
   // F8: Toggle RmlUi debugger on the first visible UIDocument context
   if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
@@ -1082,8 +353,9 @@ void Scene::OnEvent(Event& event) {
     if (key.GetKeyCode() == KeyF8) {
       for (auto entity : registry_.view<UIDocumentComponent>()) {
         auto& doc = registry_.get<UIDocumentComponent>(entity);
-        if (doc.rml_context_ && doc.visible) {
-          Engine::ui_manager().ToggleDebugger(doc.rml_context_);
+        auto* rt = registry_.try_get<UIDocumentRuntime>(entity);
+        if (rt && rt->rml_context && doc.visible) {
+          Engine::ui_manager().ToggleDebugger(rt->rml_context);
           break;
         }
       }
@@ -1128,73 +400,6 @@ void Scene::OnEvent(Event& event) {
     }
   }
 
-  // Route keyboard input to focused text input
-  entt::entity focused = ui_event_system_.GetFocusedEntity();
-  if (focused != entt::null && registry_.valid(focused) &&
-      registry_.any_of<TextInputComponent>(focused)) {
-    auto& input = registry_.get<TextInputComponent>(focused);
-
-    if (event.GetEventType() == KeyTypedEvent::GetStaticType()) {
-      auto& typed = static_cast<KeyTypedEvent&>(event);
-      uint32_t codepoint = static_cast<uint32_t>(typed.GetKeyCode());
-      if (codepoint >= 32) {
-        if (input.max_length <= 0 ||
-            static_cast<int>(input.text.size()) < input.max_length) {
-          input.text.insert(input.text.begin() + input.cursor_pos_,
-                            static_cast<char>(codepoint));
-          input.cursor_pos_++;
-          input.cursor_visible_ = true;
-          input.cursor_timer_ = 0.0f;
-        }
-      }
-      event.handled_ = true;
-      return;
-    }
-
-    if (event.GetEventType() == KeyPressedEvent::GetStaticType()) {
-      auto& key = static_cast<KeyPressedEvent&>(event);
-      bool handled = true;
-      switch (key.GetKeyCode()) {
-        case KeyBackspace:
-          if (input.cursor_pos_ > 0) {
-            input.text.erase(input.cursor_pos_ - 1, 1);
-            input.cursor_pos_--;
-          }
-          break;
-        case KeyDelete:
-          if (input.cursor_pos_ < static_cast<int>(input.text.size())) {
-            input.text.erase(input.cursor_pos_, 1);
-          }
-          break;
-        case KeyArrowLeft:
-          if (input.cursor_pos_ > 0) {
-            input.cursor_pos_--;
-          }
-          break;
-        case KeyArrowRight:
-          if (input.cursor_pos_ < static_cast<int>(input.text.size())) {
-            input.cursor_pos_++;
-          }
-          break;
-        case KeyHome:
-          input.cursor_pos_ = 0;
-          break;
-        case KeyEnd:
-          input.cursor_pos_ = static_cast<int>(input.text.size());
-          break;
-        default:
-          handled = false;
-          break;
-      }
-      if (handled) {
-        input.cursor_visible_ = true;
-        input.cursor_timer_ = 0.0f;
-        event.handled_ = true;
-        return;
-      }
-    }
-  }
-
   for (const auto& entity : registry_.view<BehaviorsComponent>()) {
     auto& component = registry_.get<BehaviorsComponent>(entity);
     component.OnEvent(event);
@@ -1219,7 +424,7 @@ void Scene::LinkEntities(entt::entity parent, entt::entity child,
   if (child_tree.parent != entt::null) {
     UnlinkEntities(child_tree.parent, child);
   }
-  parent_tree.childs.push_back(child);
+  parent_tree.children.push_back(child);
   child_tree.parent = parent;
   if (convert_to_local) {
     auto& child_transform = registry_.get<TransformComponent>(child);
@@ -1240,9 +445,9 @@ void Scene::UnlinkEntities(entt::entity parent, entt::entity child) {
   if (child_tree.parent == entt::null) {
     return;
   }
-  parent_tree.childs.erase(
-      std::ranges::remove(parent_tree.childs, child).begin(),
-      parent_tree.childs.end());
+  parent_tree.children.erase(
+      std::ranges::remove(parent_tree.children, child).begin(),
+      parent_tree.children.end());
   child_tree.parent = entt::null;
   auto& child_transform = registry_.get<TransformComponent>(child);
   auto& parent_transform = registry_.get<TransformComponent>(parent);
@@ -1276,11 +481,11 @@ void Scene::ProcessDestroyQueue() {
       if (tree.parent != entt::null && registry_.valid(tree.parent) &&
           registry_.any_of<TreeComponent>(tree.parent)) {
         auto& parent_tree = registry_.get<TreeComponent>(tree.parent);
-        std::erase(parent_tree.childs, handle);
+        std::erase(parent_tree.children, handle);
       }
     }
 
-    // Remove from UUID map and hierarchy
+    // Remove from urkern::UUID map and hierarchy
     if (registry_.any_of<IdComponent>(handle)) {
       entities_.erase(registry_.get<IdComponent>(handle).Id);
     }
@@ -1300,299 +505,9 @@ bool Scene::OnWindowResizeEvent(WindowResizedEvent& event) {
     component.viewport_size.x = event.window_size().width;
     component.viewport_size.y = event.window_size().height;
     component.aspect_ratio = event.aspect_ratio();
-    component.resources_dirty = true;
     component.view_changed = true;
   }
   return false;
-}
-
-bool Scene::OnPipelineRecreatedEvent(PipelineRecreatedEvent& event) {
-  for (const auto& entity : registry_.view<CameraComponent>()) {
-    auto& component = registry_.get<CameraComponent>(entity);
-    component.resources_dirty = true;
-  }
-  return false;
-}
-
-glm::mat4 Scene::MakeLocal(const TransformComponent& t) {
-  PROFILE_ZONE_SCOPED();
-  glm::vec3 rotRad = glm::radians(t.GetRotation());
-  glm::mat4 R = glm::toMat4(glm::quat(rotRad));
-  glm::mat4 T = glm::translate(glm::mat4(1.0f), t.GetPosition());
-  glm::mat4 Tp = glm::translate(glm::mat4(1.0f), t.GetPivot());
-  glm::mat4 Tn = glm::translate(glm::mat4(1.0f), -t.GetPivot());
-  glm::mat4 S = glm::scale(glm::mat4(1.0f), t.GetScale());
-
-  // move to Position, shift to Pivot, rotate+scale, shift back
-  return T * Tp * R * S * Tn;
-}
-
-glm::mat4 Scene::GetWorldMatrix(entt::entity entity) {
-  PROFILE_ZONE_SCOPED();
-  auto& transform = registry_.get<TransformComponent>(entity);
-  glm::mat4 local = MakeLocal(transform);
-
-  if (auto* tree = registry_.try_get<TreeComponent>(entity);
-      tree && tree->parent != entt::null) {
-    return GetWorldMatrix(tree->parent) * local;
-  }
-  return local;
-}
-
-void Scene::UpdateMatrices(entt::entity entity) {
-  PROFILE_ZONE_SCOPED();
-  auto& tc = registry_.get<TransformComponent>(entity);
-  tc.SetTransformMatrix(GetWorldMatrix(entity));
-}
-
-void Scene::InvalidateRenderGraphs() {
-  render_graphs_.clear();
-}
-
-void Scene::Cleanup() {
-  LOG_DEBUG("Scene::Cleanup - render_graphs: {}, external: {}",
-            render_graphs_.size(), external_render_graph_ != nullptr);
-  render_graphs_.clear();
-  external_render_graph_ = nullptr;
-  default_pipeline_ = nullptr;
-
-  // Clear camera resource pools so their descriptor sets are freed.
-  auto camera_view = registry_.view<CameraComponent>();
-  LOG_DEBUG("Scene::Cleanup - cameras: {}", camera_view.size());
-  for (entt::entity entity : camera_view) {
-    auto& camera = registry_.get<CameraComponent>(entity);
-    camera.resource_pool.Clear();
-    camera.render_pipeline = nullptr;
-  }
-
-  // Clear per-entity render data (descriptor sets, uniform buffers).
-  for (entt::entity entity : registry_.view<ModelComponent>()) {
-    auto& model = registry_.get<ModelComponent>(entity);
-    model.geometry_descriptors.clear();
-    model.shadow_descriptors.clear();
-    model.uniform_buffer = nullptr;
-    model.bone_ubo_ = nullptr;
-    model.bone_descriptor_ = nullptr;
-    model.mesh_uniform_buffers_.clear();
-  }
-
-  for (entt::entity entity : registry_.view<CanvasRectComponent>()) {
-    auto& rect = registry_.get<CanvasRectComponent>(entity);
-    rect.descriptor_ = nullptr;
-    rect.ubo_ = nullptr;
-  }
-
-  // CanvasImageComponent has no per-component GPU resources;
-  // rendering uses the Renderer's transient slice pool.
-
-  for (entt::entity entity : registry_.view<TextComponent>()) {
-    auto& text = registry_.get<TextComponent>(entity);
-    text.glyph_gpu_.clear();
-  }
-
-  skybox_ = nullptr;
-  default_skybox_ = nullptr;
-  current_camera_ = nullptr;
-}
-
-void Scene::BuildRenderGraph(entt::entity camera_entity) {
-  PROFILE_ZONE_SCOPED_N("Scene::BuildRenderGraph");
-  std::shared_ptr<Renderer> renderer = Engine::renderer();
-  auto& camera = registry_.get<CameraComponent>(camera_entity);
-
-  std::shared_ptr<RenderGraph>& graph = render_graphs_[camera_entity];
-  if (!graph) {
-    graph = std::make_shared<RenderGraph>(*renderer);
-  } else {
-    graph->Clear();
-  }
-
-  bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RenderContext ctx{
-      *renderer,   *this, camera, camera.resource_pool, camera.viewport_size,
-      use_resolve, false, false,  camera_entity};
-
-  auto& pipeline =
-      camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-  pipeline.BuildRenderGraph(*graph, ctx);
-  graph->Compile();
-}
-
-bool Scene::Render() {
-  PROFILE_ZONE_SCOPED();
-  EnsureDefaultSkybox();
-  bool has_camera = false;
-  std::shared_ptr<Renderer> renderer = Engine::renderer();
-
-  // Ensure we have a default pipeline
-  if (!default_pipeline_) {
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-  }
-
-  // Check if feature toggles or MSAA changed - rebuild pipeline and dirty cameras
-  if (renderer->NeedsRecreateResources()) {
-    renderer->ClearRecreateResources();
-    // Recreate the full pipeline (render passes + pipelines depend on MSAA mode)
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-    for (const auto& e : GetAllEntitiesWith<CameraComponent>()) {
-      auto& cam = registry_.get<CameraComponent>(e);
-      cam.render_pipeline = nullptr;  // force re-assignment of new pipeline
-      cam.resources_dirty = true;
-    }
-  }
-
-  for (const auto& cameraEntity : GetAllEntitiesWith<CameraComponent>()) {
-    auto& camera = registry_.get<CameraComponent>(cameraEntity);
-    auto& camera_transform = registry_.get<TransformComponent>(cameraEntity);
-    if (!camera.enabled) {
-      continue;
-    }
-
-    // Apply scene render resolution if set
-    if (render_resolution_.x > 0 && render_resolution_.y > 0) {
-      if (render_resolution_.x != camera.viewport_size.x ||
-          render_resolution_.y != camera.viewport_size.y) {
-        camera.viewport_size = render_resolution_;
-        camera.aspect_ratio = render_resolution_.x / render_resolution_.y;
-        camera.view_changed = true;
-        camera.resources_dirty = true;
-      }
-    }
-
-    // Compute canvas layout using the camera's viewport size so the layout
-    // matches the push constant the canvas shader receives.
-    {
-      CanvasSystem canvas_system;
-      canvas_system.Update(*this, camera.viewport_size);
-    }
-
-    if (camera.resources_dirty) {
-      vkDeviceWaitIdle(renderer->GetLogicalDevice());
-      bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-      RenderContext ctx{*renderer,
-                        *this,
-                        camera,
-                        camera.resource_pool,
-                        camera.viewport_size,
-                        use_resolve,
-                        false,
-                        false,
-                        cameraEntity};
-      auto& pipeline =
-          camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-      pipeline.SetupResources(ctx);
-      camera.resources_dirty = false;
-      render_graphs_.erase(cameraEntity);
-    }
-
-    PROFILE_PLOT("Game Width", static_cast<double>(camera.viewport_size.x));
-    PROFILE_PLOT("Game Height", static_cast<double>(camera.viewport_size.y));
-
-    current_camera_->TransferFrom(camera, camera_transform);
-    renderer->SetCameraData(current_camera_);
-    renderer->UpdateUniformData();
-
-    // Rebuild render graph each frame to pick up settings changes
-    BuildRenderGraph(cameraEntity);
-    render_graphs_[cameraEntity]->Execute(renderer->GetCommandBuffer().handle_);
-
-    // Store current VP for next frame's motion blur
-    camera.prev_view_projection = camera.projection * camera.view_matrix;
-
-    has_camera = true;
-  }
-  return has_camera;
-}
-
-bool Scene::RenderFromExternal(CameraComponent& camera,
-                               TransformComponent& transform, bool show_grid) {
-  EnsureDefaultSkybox();
-  PROFILE_ZONE_SCOPED();
-  std::shared_ptr<Renderer> renderer = Engine::renderer();
-
-  if (!default_pipeline_) {
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-  }
-
-  // Check if feature toggles or MSAA changed - rebuild pipeline and dirty editor camera
-  if (renderer->NeedsRecreateResources()) {
-    renderer->ClearRecreateResources();
-    default_pipeline_ = CreateDefaultPipeline(renderer);
-    camera.render_pipeline = nullptr;
-    camera.resources_dirty = true;
-    external_render_graph_ = nullptr;
-  }
-
-  // Compute canvas layout using camera viewport (must match shader push constant)
-  {
-    CanvasSystem canvas_system;
-    canvas_system.Update(*this, camera.viewport_size);
-  }
-
-  // Compute transform matrix (no entity hierarchy for external camera)
-  glm::vec3 rotRad = glm::radians(transform.GetRotation());
-  glm::mat4 R = glm::toMat4(glm::quat(rotRad));
-  glm::mat4 T = glm::translate(glm::mat4(1.0f), transform.GetPosition());
-  glm::mat4 S = glm::scale(glm::mat4(1.0f), transform.GetScale());
-  transform.SetTransformMatrix(T * R * S);
-
-  // Update camera matrices
-  if (camera.view_changed) {
-    camera.UpdateProjection();
-    camera.view_changed = false;
-  }
-  camera.UpdateView(transform.GetTransformMatrix());
-  camera.UpdateAll();
-
-  // Compute shadow cascades for external camera (same as ECS cameras)
-  auto& lights = Engine::renderer()->lights_uniform_data_;
-  if (lights.direct_light_count > 0 && renderer->options().shadows_enabled) {
-    camera.ComputeCascades(-glm::normalize(lights.direct_lights[0].direction));
-  } else {
-    camera.does_shadow_pass = false;
-  }
-
-  // Setup resources if dirty
-  if (camera.resources_dirty) {
-    vkDeviceWaitIdle(renderer->GetLogicalDevice());
-    bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-    RenderContext ctx{*renderer,
-                      *this,
-                      camera,
-                      camera.resource_pool,
-                      camera.viewport_size,
-                      use_resolve,
-                      true,
-                      show_grid};
-    auto& pipeline =
-        camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-    pipeline.SetupResources(ctx);
-    camera.resources_dirty = false;
-    external_render_graph_ = nullptr;
-  }
-
-  current_camera_->TransferFrom(camera, transform);
-  renderer->SetCameraData(current_camera_);
-  renderer->UpdateUniformData();
-
-  // Build and execute render graph
-  if (!external_render_graph_) {
-    external_render_graph_ = std::make_shared<RenderGraph>(*renderer);
-  } else {
-    external_render_graph_->Clear();
-  }
-  bool use_resolve = renderer->options().msaa_mode > SamplingMode::DISABLED;
-  RenderContext ctx{
-      *renderer,   *this, camera,   camera.resource_pool, camera.viewport_size,
-      use_resolve, true,  show_grid};
-  auto& pipeline =
-      camera.render_pipeline ? *camera.render_pipeline : *default_pipeline_;
-  pipeline.BuildRenderGraph(*external_render_graph_, ctx);
-  external_render_graph_->Compile();
-  external_render_graph_->Execute(renderer->GetCommandBuffer().handle_);
-
-  camera.prev_view_projection = camera.projection * camera.view_matrix;
-  return true;
 }
 
 void Scene::ResetPhysicsWorld() {
@@ -1615,49 +530,190 @@ void Scene::ResetScriptStates() {
   }
 }
 
-void Scene::SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline) {
-  default_pipeline_ = std::move(pipeline);
-  // Invalidate all camera resources so they get rebuilt with the new pipeline
-  for (const auto& entity : registry_.view<CameraComponent>()) {
-    auto& camera = registry_.get<CameraComponent>(entity);
-    if (!camera.render_pipeline) {
-      camera.resource_pool.Clear();
-      camera.resources_dirty = true;
-    }
-  }
-}
-
 void Scene::SetRenderPipeline(entt::entity camera_entity,
                               std::shared_ptr<RenderPipeline> pipeline) {
   auto& camera = registry_.get<CameraComponent>(camera_entity);
   camera.render_pipeline = std::move(pipeline);
   camera.resource_pool.Clear();
-  camera.resources_dirty = true;
+  camera.resource_pipeline_version = 0;  // force rebuild on next render
 }
 
-std::shared_ptr<RenderPipeline> Scene::CreateDefaultPipeline(
-    std::shared_ptr<Renderer> renderer) {
-  auto pipeline = std::make_shared<RenderPipeline>(renderer);
-  pipeline->AddFeature<ShadowFeature>(renderer);
-  pipeline->AddFeature<GeometryFeature>(renderer);
-  if (renderer->IsRayTracingSupported()) {
-    pipeline->AddFeature<RTShadowFeature>(renderer);
+void MultiScene::SetSceneIndex(uint8_t index) {
+  Engine::renderer()->SetCurrentSceneIndex(index);
+}
+
+Entity Scene::InstantiateModel(AssetHandle model_handle,
+                               const std::string& name) {
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(model_handle);
+  if (!model_data) {
+    LOG_ERROR("InstantiateModel: failed to load model");
+    return Entity{entt::null, this};
   }
-  pipeline->AddFeature<SSAOFeature>(renderer);
-  pipeline->AddFeature<IBLFeature>(renderer);
-  pipeline->AddFeature<LightingFeature>(renderer);
-  pipeline->AddFeature<TransparencyFeature>(renderer);
-  pipeline->AddFeature<GridFeature>(renderer);
-  pipeline->AddFeature<SpriteFeature>(renderer);
-  pipeline->AddFeature<CompositeFeature>(renderer);
-  pipeline->AddFeature<TAAFeature>(renderer);
-  pipeline->AddFeature<BloomFeature>(renderer);
-  pipeline->AddFeature<MotionBlurFeature>(renderer);
-  pipeline->AddFeature<FXAAFeature>(renderer);
-  pipeline->AddFeature<CanvasFeature>(renderer);
-  pipeline->AddFeature<DebugColliderFeature>(renderer);
-  pipeline->AddFeature<BillboardFeature>(renderer);
-  return pipeline;
+
+  const auto& hierarchy = model_data->node_hierarchy;
+  if (hierarchy.nodes.empty()) {
+    LOG_ERROR("InstantiateModel: model has no nodes");
+    return Entity{entt::null, this};
+  }
+
+  // Create one entity per node in the hierarchy
+  std::vector<entt::entity> node_entities(
+      hierarchy.nodes.size(), static_cast<entt::entity>(entt::null));
+
+  for (int32_t i = 0; i < static_cast<int32_t>(hierarchy.nodes.size()); i++) {
+    const auto& node = hierarchy.nodes[i];
+    std::string node_name = node.name;
+    if (node_name.empty()) {
+      node_name = "Node_" + std::to_string(i);
+    }
+    // Use the provided name for the root node
+    if (i == hierarchy.root_index && !name.empty()) {
+      node_name = name;
+    }
+
+    Entity entity = CreateEntity(node_name);
+    node_entities[i] = entity.handle();
+
+    // Apply each node's local transform. Skip the root node - its transform
+    // is the FBX axis conversion (bone matrices already include it via the
+    // hierarchy). For direct children of root, rotate their position by root's
+    // rotation so they end up in the correct world position.
+    if (i != hierarchy.root_index) {
+      auto& tc = entity.GetComponent<TransformComponent>();
+      glm::vec3 pos, scale, skew;
+      glm::quat rot;
+      glm::vec4 persp;
+      if (glm::decompose(node.local_transform, scale, rot, pos, skew, persp)) {
+        if (node.parent_index == hierarchy.root_index) {
+          glm::mat3 root_rot =
+              glm::mat3(hierarchy.nodes[hierarchy.root_index].local_transform);
+          pos = root_rot * pos;
+        }
+        tc.SetPosition(pos);
+        tc.SetRotation(glm::degrees(glm::eulerAngles(rot)));
+        tc.SetScale(scale);
+      }
+    }
+
+    // Add mesh components. If a node has multiple meshes, create child
+    // entities for each additional mesh (entt allows one component per type).
+    for (size_t mi = 0; mi < node.mesh_indices.size(); mi++) {
+      int32_t mesh_idx = node.mesh_indices[mi];
+      if (mesh_idx < 0 ||
+          mesh_idx >= static_cast<int32_t>(model_data->meshes.size())) {
+        continue;
+      }
+
+      Entity mesh_entity = entity;
+      if (mi > 0) {
+        std::string mesh_name = node_name + "_mesh" + std::to_string(mi);
+        mesh_entity = CreateEntity(mesh_name);
+        LinkEntities(entity.handle(), mesh_entity.handle(), false);
+      }
+
+      auto& mesh = model_data->meshes[mesh_idx];
+      if (model_data->has_skeleton) {
+        auto& smr = mesh_entity.AddComponent<SkinnedMeshRendererComponent>();
+        smr.model_handle = model_handle;
+        smr.mesh_index = mesh_idx;
+        if (mesh->material_handle.IsValid()) {
+          smr.material_handle = mesh->material_handle;
+        }
+      } else {
+        auto& mr = mesh_entity.AddComponent<MeshRendererComponent>();
+        mr.model_handle = model_handle;
+        mr.mesh_index = mesh_idx;
+        if (mesh->material_handle.IsValid()) {
+          mr.material_handle = mesh->material_handle;
+        }
+      }
+    }
+
+    // Add camera components for matching nodes
+    for (const auto& cam : model_data->imported_cameras) {
+      if (cam.node_name == node.name) {
+        auto& cc = entity.AddComponent<CameraComponent>();
+        cc.field_of_view = cam.fov;
+        cc.near_plane = cam.near_plane;
+        cc.far_plane = cam.far_plane;
+        if (cam.aspect_ratio > 0.0f) {
+          cc.aspect_ratio = cam.aspect_ratio;
+        }
+        cc.enabled = false;
+
+        // Compute camera rotation from look_at/up vectors. The node's rotation
+        // plus the root's axis conversion give the full world orientation.
+        auto& tc = entity.GetComponent<TransformComponent>();
+        glm::vec3 p, s, sk;
+        glm::quat node_rot;
+        glm::vec4 pr;
+        glm::decompose(node.local_transform, s, node_rot, p, sk, pr);
+        // Include root rotation for nodes that are direct children of root
+        if (node.parent_index == hierarchy.root_index) {
+          glm::quat root_rot = glm::quat_cast(
+              glm::mat3(hierarchy.nodes[hierarchy.root_index].local_transform));
+          node_rot = root_rot * node_rot;
+        }
+
+        glm::vec3 world_forward = glm::normalize(-(node_rot * cam.look_at));
+        glm::vec3 world_up = glm::normalize(node_rot * cam.up);
+        glm::vec3 right = glm::normalize(glm::cross(world_up, world_forward));
+        world_up = glm::cross(world_forward, right);
+
+        // Columns: X=right, Y=up, Z=forward matches our camera convention
+        glm::mat3 cam_rot(right, world_up, world_forward);
+        glm::quat cam_quat = glm::quat_cast(cam_rot);
+        tc.SetRotation(glm::degrees(glm::eulerAngles(cam_quat)));
+
+        break;
+      }
+    }
+
+    // Add light components for matching nodes
+    for (const auto& light : model_data->imported_lights) {
+      if (light.node_name == node.name) {
+        if (light.type == Model::ImportedLight::Type::Directional) {
+          auto& lc = entity.AddComponent<LightDirectComponent>();
+          lc.light_data.base.color = light.color;
+          lc.light_data.base.density = light.intensity;
+        } else if (light.type == Model::ImportedLight::Type::Point ||
+                   light.type == Model::ImportedLight::Type::Spot) {
+          auto& lc = entity.AddComponent<LightPointComponent>();
+          lc.light_data.base.color = light.color;
+          lc.light_data.base.density = light.intensity;
+          lc.light_data.constant = light.attenuation_constant;
+          lc.light_data.linear = light.attenuation_linear;
+          lc.light_data.exp = light.attenuation_quadratic;
+        }
+        break;
+      }
+    }
+
+    // Link to parent
+    if (node.parent_index >= 0 &&
+        node.parent_index < static_cast<int32_t>(node_entities.size()) &&
+        node_entities[node.parent_index] != entt::null) {
+      LinkEntities(node_entities[node.parent_index], entity.handle(), false);
+    }
+  }
+
+  entt::entity root = node_entities[hierarchy.root_index];
+
+  // For skeletal models: add AnimatorComponent on the root, and set
+  // skeleton_root on all SkinnedMeshRendererComponents
+  if (model_data->has_skeleton) {
+    // Set skeleton_root on all skinned meshes that reference this model
+    int skinned_count = 0;
+    for (auto e : registry_.view<SkinnedMeshRendererComponent>()) {
+      auto& smr = registry_.get<SkinnedMeshRendererComponent>(e);
+      if (smr.model_handle == model_handle && smr.skeleton_root == entt::null) {
+        smr.skeleton_root = root;
+        skinned_count++;
+      }
+    }
+  }
+
+  return Entity{root, this};
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

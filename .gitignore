@@ -76,7 +76,8 @@ shaders_runtime
 cmake-build-debug-*/
 cmake-build-release-*/
 build*
-todo
+TODO.md
+FEATURES.md
 
 .idea
 /cmake-build-relwithdebinfo/

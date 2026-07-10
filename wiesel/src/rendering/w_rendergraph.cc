@@ -11,14 +11,13 @@
 
 #include "rendering/w_rendergraph.h"
 #include "rendering/w_deletion_queue.h"
-#include "rendering/w_framebuffer.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
+#include "rendering/w_transient_resource_pool.h"
 
 #include <algorithm>
 #include <queue>
 
-namespace Wiesel {
+namespace wiesel {
 
 VkImageLayout RGAccessToLayout(RGAccess access) {
   switch (access) {
@@ -34,8 +33,6 @@ VkImageLayout RGAccessToLayout(RGAccess access) {
       return VK_IMAGE_LAYOUT_GENERAL;
     case RGAccess::StorageImageWrite:
       return VK_IMAGE_LAYOUT_GENERAL;
-    case RGAccess::Present:
-      return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     default:
       return VK_IMAGE_LAYOUT_UNDEFINED;
   }
@@ -95,15 +92,12 @@ RGResource RenderGraph::DeclareTransient(const RGTextureDesc& desc) {
   return handle;
 }
 
-uint32_t RenderGraph::AddPass(const std::string& name,
-                              std::shared_ptr<RenderPass> render_pass,
-                              RGExecuteFn execute) {
+uint32_t RenderGraph::AddPass(const std::string& name, RGExecuteFn execute) {
   uint32_t index = static_cast<uint32_t>(passes_.size());
 
   RenderGraphPass pass;
   pass.name_ = name;
   pass.index_ = index;
-  pass.render_pass_ = render_pass;
   pass.execute_fn_ = std::move(execute);
   passes_.push_back(std::move(pass));
 
@@ -136,24 +130,36 @@ void RenderGraph::PassWritesColor(uint32_t pass, RGResource resource) {
   compiled_ = false;
 }
 
+void RenderGraph::PassWritesColor(uint32_t pass, RGResource resource,
+                                  RGResource resolve) {
+  RGResourceRef ref{resource, RGAccess::ColorAttachmentWrite};
+  ref.resolve = resolve;
+  passes_[pass].outputs_.push_back(ref);
+  if (resolve.IsValid()) {
+    // Resolve target needs layout transitions too; declare it as a separate
+    // output without a dependency edge of its own (no cycle risk since
+    // resolve is only written by this pass).
+    passes_[pass].outputs_.push_back(
+        {resolve, RGAccess::ColorAttachmentWrite, true});
+  }
+  compiled_ = false;
+}
+
 void RenderGraph::PassWritesDepth(uint32_t pass, RGResource resource) {
   passes_[pass].outputs_.push_back({resource, RGAccess::DepthStencilWrite});
+  compiled_ = false;
+}
+
+void RenderGraph::PassWritesDepthLoad(uint32_t pass, RGResource resource) {
+  RGResourceRef ref{resource, RGAccess::DepthStencilWrite};
+  ref.load = true;
+  passes_[pass].outputs_.push_back(ref);
   compiled_ = false;
 }
 
 void RenderGraph::PassWritesStorageImage(uint32_t pass, RGResource resource) {
   passes_[pass].outputs_.push_back({resource, RGAccess::StorageImageWrite});
   compiled_ = false;
-}
-
-void RenderGraph::PassPresents(uint32_t pass, RGResource resource) {
-  passes_[pass].outputs_.push_back({resource, RGAccess::Present});
-  compiled_ = false;
-}
-
-void RenderGraph::SetPassFramebuffer(uint32_t pass,
-                                     std::shared_ptr<Framebuffer> fb) {
-  passes_[pass].framebuffer_ = fb;
 }
 
 void RenderGraph::SetPassViewport(uint32_t pass, glm::vec2 size) {
@@ -168,8 +174,12 @@ void RenderGraph::SetPassEnabled(uint32_t pass, bool enabled) {
   passes_[pass].enabled_ = enabled;
 }
 
-void RenderGraph::SetPassManagesRenderPass(uint32_t pass, bool manages) {
-  passes_[pass].manages_render_pass_ = manages;
+void RenderGraph::SetPassAutoBeginRendering(uint32_t pass, bool enabled) {
+  passes_[pass].auto_begin_rendering_ = enabled;
+}
+
+void RenderGraph::SetPassResolveFn(uint32_t pass, RGResolveFn fn) {
+  passes_[pass].resolve_fn_ = std::move(fn);
 }
 
 void RenderGraph::Clear() {
@@ -193,14 +203,25 @@ void RenderGraph::Clear() {
 }
 
 void RenderGraph::Compile() {
-  PROFILE_ZONE_SCOPED_N("RenderGraph::Compile");
-  CreateTransientResources();
+  PROFILE_ZONE_SCOPED();
+  // Sort first so CreateTransientResources can use the execution order to
+  // compute live ranges and alias non-overlapping transients into the same
+  // backing image.
   TopologicalSort();
+  CreateTransientResources();
+  // After the pool has assigned textures, let each pass resolve anything
+  // that depends on those textures (framebuffers, descriptors, etc).
+  for (auto& pass : passes_) {
+    if (pass.resolve_fn_) {
+      pass.resolve_fn_(*this);
+    }
+  }
   compiled_ = true;
   dirty_ = false;
 }
 
 void RenderGraph::TopologicalSort() {
+  PROFILE_ZONE_SCOPED();
   uint32_t pass_count = static_cast<uint32_t>(passes_.size());
 
   // Build adjacency list: for each resource, track which pass writes it
@@ -264,14 +285,12 @@ void RenderGraph::TopologicalSort() {
 }
 
 void RenderGraph::CreateTransientResources() {
-  for (auto& resource : resources_) {
-    if (!resource.is_transient) {
-      continue;
-    }
-    if (resource.texture) {
-      continue;  // Already created
-    }
+  PROFILE_ZONE_SCOPED();
+  // Release anything we acquired on a previous compile. Each Compile
+  // recomputes live ranges and may produce a different aliasing plan.
+  DestroyTransientResources();
 
+  auto to_props = [](const RGResourceData& resource) {
     AttachmentTextureProps props;
     props.width = resource.desc.width;
     props.height = resource.desc.height;
@@ -281,12 +300,117 @@ void RenderGraph::CreateTransientResources() {
     props.sampling_mode = resource.desc.samples;
     props.sampled = resource.desc.sampled;
     props.layer_count = resource.desc.layer_count;
+    return props;
+  };
 
-    resource.texture = renderer_.CreateAttachmentTexture(props);
+  auto& pool = renderer_.GetTransientResourcePool();
+
+  // If topo sort failed (cycle), don't try to alias - give every transient
+  // its own entry so the pass still runs.
+  const bool can_alias = sorted_order_.size() == passes_.size();
+  if (!can_alias) {
+    for (auto& resource : resources_) {
+      if (!resource.is_transient) {
+        continue;
+      }
+      resource.texture = pool.Acquire(to_props(resource));
+      acquired_transients_.push_back(resource.texture);
+    }
+    return;
+  }
+
+  // Compute live ranges in sorted-order space. A transient is live from the
+  // first pass that touches it to the last pass that touches it.
+  std::vector<uint32_t> pass_to_order(passes_.size(), UINT32_MAX);
+  for (uint32_t i = 0; i < sorted_order_.size(); ++i) {
+    pass_to_order[sorted_order_[i]] = i;
+  }
+
+  struct Lifetime {
+    uint32_t resource_index;
+    uint32_t first_use;
+    uint32_t last_use;
+  };
+  std::vector<Lifetime> lifetimes;
+  lifetimes.reserve(resources_.size());
+
+  for (uint32_t r = 0; r < resources_.size(); ++r) {
+    if (!resources_[r].is_transient) {
+      continue;
+    }
+    uint32_t first = UINT32_MAX;
+    uint32_t last = 0;
+    bool used = false;
+    auto scan = [&](const std::vector<RGResourceRef>& refs, uint32_t order) {
+      for (const auto& ref : refs) {
+        if (ref.resource.index == r) {
+          first = std::min(first, order);
+          last = std::max(last, order);
+          used = true;
+        }
+      }
+    };
+    for (uint32_t p = 0; p < passes_.size(); ++p) {
+      uint32_t order = pass_to_order[p];
+      if (order == UINT32_MAX) {
+        continue;
+      }
+      scan(passes_[p].inputs_, order);
+      scan(passes_[p].outputs_, order);
+    }
+    if (used) {
+      lifetimes.push_back({r, first, last});
+    } else {
+      // Orphan transient - allocate its own entry so accidental use doesn't
+      // blow up, but it's not part of aliasing.
+      resources_[r].texture = pool.Acquire(to_props(resources_[r]));
+      acquired_transients_.push_back(resources_[r].texture);
+    }
+  }
+
+  // Greedy first-fit: process transients in ascending first_use. Reuse a
+  // previously-allocated slot whose occupant is already dead and whose
+  // descriptor matches.
+  std::sort(lifetimes.begin(), lifetimes.end(),
+            [](const Lifetime& a, const Lifetime& b) {
+              return a.first_use < b.first_use;
+            });
+
+  struct Slot {
+    AttachmentTextureProps props;
+    std::shared_ptr<AttachmentTexture> texture;
+    uint32_t last_use;
+  };
+  std::vector<Slot> slots;
+
+  for (const Lifetime& lt : lifetimes) {
+    AttachmentTextureProps props = to_props(resources_[lt.resource_index]);
+    Slot* reuse = nullptr;
+    for (auto& slot : slots) {
+      if (slot.last_use < lt.first_use && slot.props == props) {
+        reuse = &slot;
+        break;
+      }
+    }
+    if (reuse) {
+      resources_[lt.resource_index].texture = reuse->texture;
+      reuse->last_use = lt.last_use;
+    } else {
+      auto tex = pool.Acquire(props);
+      slots.push_back({props, tex, lt.last_use});
+      resources_[lt.resource_index].texture = tex;
+      acquired_transients_.push_back(tex);
+    }
   }
 }
 
 void RenderGraph::DestroyTransientResources() {
+  PROFILE_ZONE_SCOPED();
+  auto& pool = renderer_.GetTransientResourcePool();
+  for (auto& tex : acquired_transients_) {
+    pool.Release(tex);
+  }
+  acquired_transients_.clear();
   for (auto& resource : resources_) {
     if (resource.is_transient) {
       resource.texture = nullptr;
@@ -295,7 +419,7 @@ void RenderGraph::DestroyTransientResources() {
 }
 
 void RenderGraph::Execute(VkCommandBuffer cmd) {
-  PROFILE_ZONE_SCOPED_N("RenderGraph::Execute");
+  PROFILE_ZONE_SCOPED();
   if (!compiled_) {
     LOG_ERROR("RenderGraph: Execute called before Compile!");
     return;
@@ -363,8 +487,11 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
     PROFILE_ZONE_SCOPED_N("RenderPass");
     ZoneText(pass.name_.c_str(), pass.name_.size());
 
-    // Insert barriers for inputs (transition to required layouts)
-    InsertBarriers(cmd, pass);
+    {
+      PROFILE_ZONE_SCOPED_N("Barriers");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
+      InsertBarriers(cmd, pass);
+    }
 
 #ifdef WIESEL_GPU_PROFILING
     vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -373,22 +500,27 @@ void RenderGraph::Execute(VkCommandBuffer cmd) {
 
     auto cpu_start = std::chrono::high_resolution_clock::now();
 
-    // Begin render pass
-    if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
-      pass.render_pass_->Begin(pass.framebuffer_, pass.clear_color_);
+    const bool manage_rendering = pass.auto_begin_rendering_;
+
+    if (manage_rendering) {
+      PROFILE_ZONE_SCOPED_N("BeginRendering");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
+      BeginDynamicRendering(cmd, pass);
       if (pass.viewport_size_.x > 0 && pass.viewport_size_.y > 0) {
         renderer_.SetViewport(pass.viewport_size_);
       }
     }
 
-    // Execute the pass
     if (pass.execute_fn_) {
+      PROFILE_ZONE_SCOPED_N("Execute");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
       pass.execute_fn_(cmd);
     }
 
-    // End render pass
-    if (pass.manages_render_pass_ && pass.render_pass_ && pass.framebuffer_) {
-      pass.render_pass_->End();
+    if (manage_rendering) {
+      PROFILE_ZONE_SCOPED_N("EndRendering");
+      ZoneText(pass.name_.c_str(), pass.name_.size());
+      vkCmdEndRendering(cmd);
     }
 
     auto cpu_end = std::chrono::high_resolution_clock::now();
@@ -456,20 +588,102 @@ void RenderGraph::InsertBarriers(VkCommandBuffer cmd,
     TransitionResource(cmd, resource, RGAccessToLayout(input.access));
   }
 
-  // Transition color attachment outputs to COLOR_ATTACHMENT_OPTIMAL.
-  // The render pass Bake() sets initialLayout = COLOR_ATTACHMENT_OPTIMAL for
-  // Color/Offscreen attachments, so the image must be in that layout before
-  // the render pass begins. Depth and Resolve use initialLayout = UNDEFINED.
+  // Transition color/storage outputs declared on the pass. Dynamic rendering
+  // requires attachments be in the right layout at vkCmdBeginRendering time.
   for (const auto& output : pass.outputs_) {
     if (output.access == RGAccess::ColorAttachmentWrite) {
       auto& resource = resources_[output.resource.index];
       TransitionResource(cmd, resource,
                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    } else if (output.access == RGAccess::DepthStencilWrite) {
+      auto& resource = resources_[output.resource.index];
+      TransitionResource(cmd, resource,
+                         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     } else if (output.access == RGAccess::StorageImageWrite) {
       auto& resource = resources_[output.resource.index];
       TransitionResource(cmd, resource, VK_IMAGE_LAYOUT_GENERAL);
     }
   }
+
+}
+
+void RenderGraph::BeginDynamicRendering(VkCommandBuffer cmd,
+                                        const RenderGraphPass& pass) {
+  std::vector<VkRenderingAttachmentInfo> color_infos;
+  VkRenderingAttachmentInfo depth_info{};
+  bool has_depth = false;
+  VkRenderingAttachmentInfo stencil_info{};
+  bool has_stencil = false;
+
+  uint32_t extent_w = static_cast<uint32_t>(pass.viewport_size_.x);
+  uint32_t extent_h = static_cast<uint32_t>(pass.viewport_size_.y);
+
+  for (const auto& out : pass.outputs_) {
+    if (out.skip_dependency) {
+      // Resolve companions are recorded as skip_dependency outputs; the color
+      // they pair with handles them directly. Avoid double-emitting.
+      continue;
+    }
+    auto texture = resources_[out.resource.index].texture;
+    if (!texture || texture->image_views_.empty()) {
+      continue;
+    }
+    if (extent_w == 0 || extent_h == 0) {
+      extent_w = texture->width_;
+      extent_h = texture->height_;
+    }
+    if (out.access == RGAccess::ColorAttachmentWrite) {
+      VkRenderingAttachmentInfo info{};
+      info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+      info.imageView = texture->image_views_[0]->handle_;
+      info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      info.clearValue.color = {{pass.clear_color_.red, pass.clear_color_.green,
+                                pass.clear_color_.blue,
+                                pass.clear_color_.alpha}};
+      if (out.resolve.IsValid()) {
+        auto resolve_tex = resources_[out.resolve.index].texture;
+        if (resolve_tex && !resolve_tex->image_views_.empty()) {
+          info.resolveImageView = resolve_tex->image_views_[0]->handle_;
+          info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+          info.resolveMode =
+              renderer_.IsIntegerColorFormat(texture->format_)
+                  ? VK_RESOLVE_MODE_SAMPLE_ZERO_BIT
+                  : VK_RESOLVE_MODE_AVERAGE_BIT;
+        }
+      }
+      color_infos.push_back(info);
+    } else if (out.access == RGAccess::DepthStencilWrite && !has_depth) {
+      depth_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+      depth_info.imageView = texture->image_views_[0]->handle_;
+      depth_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      depth_info.loadOp = out.load ? VK_ATTACHMENT_LOAD_OP_LOAD
+                                   : VK_ATTACHMENT_LOAD_OP_CLEAR;
+      depth_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      depth_info.clearValue.depthStencil = {1.0f, 0};
+      has_depth = true;
+      if (renderer_.HasStencilComponent(texture->format_)) {
+        stencil_info = depth_info;
+        stencil_info.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        stencil_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        has_stencil = true;
+      }
+    }
+  }
+
+  VkRenderingInfo ri{};
+  ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  ri.renderArea.offset = {0, 0};
+  ri.renderArea.extent.width = extent_w;
+  ri.renderArea.extent.height = extent_h;
+  ri.layerCount = 1;
+  ri.colorAttachmentCount = static_cast<uint32_t>(color_infos.size());
+  ri.pColorAttachments = color_infos.data();
+  ri.pDepthAttachment = has_depth ? &depth_info : nullptr;
+  ri.pStencilAttachment = has_stencil ? &stencil_info : nullptr;
+
+  vkCmdBeginRendering(cmd, &ri);
 }
 
 void RenderGraph::UpdateOutputLayouts(const RenderGraphPass& pass) {
@@ -523,15 +737,16 @@ void RenderGraph::DestroyQueryPool() {
     return;
   }
   VkDevice device = renderer_.GetLogicalDevice();
-  vkDeviceWaitIdle(device);
   for (uint32_t i = 0; i < kTimingFrames; i++) {
     if (query_pools_[i]) {
-      vkDestroyQueryPool(device, query_pools_[i], nullptr);
+      VkQueryPool pool = query_pools_[i];
       query_pools_[i] = VK_NULL_HANDLE;
+      renderer_.GetDeletionQueue().Push(
+          [device, pool]() { vkDestroyQueryPool(device, pool, nullptr); });
     }
   }
   query_pool_created_ = false;
 }
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

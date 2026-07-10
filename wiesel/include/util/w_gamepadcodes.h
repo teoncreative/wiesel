@@ -17,7 +17,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 using GamepadButton = int32_t;
 
@@ -162,4 +162,4 @@ inline const std::vector<GamepadAxis>& GetAllGamepadAxes() {
   return axes;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

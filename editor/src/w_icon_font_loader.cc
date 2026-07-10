@@ -13,7 +13,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 IIconSource* IconFontLoader::source_ = nullptr;
 
@@ -123,4 +123,4 @@ const ImFontLoader* IconFontLoader::GetLoader() {
   return &s_icon_loader;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

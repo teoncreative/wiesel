@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class TransparencyFeature : public RenderFeature {
  public:
@@ -29,9 +29,8 @@ class TransparencyFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Transparency";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<Pipeline> ibl_pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

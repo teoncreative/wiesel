@@ -24,7 +24,7 @@
 #include "scene/w_scene.h"
 #include "util/w_utils.h"
 
-namespace Wiesel {
+namespace wiesel {
 class Application {
  public:
   Application(const WindowProperties&& window_props,
@@ -100,4 +100,4 @@ class Application {
   float_t time_scale_ = 1.0f;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

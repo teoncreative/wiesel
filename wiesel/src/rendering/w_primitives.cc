@@ -13,7 +13,7 @@
 
 #include <glm/gtc/constants.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 namespace Primitives {
 
 static Vertex3D MakeVertex(glm::vec3 pos, glm::vec3 normal, glm::vec2 uv) {
@@ -296,4 +296,4 @@ std::shared_ptr<Model> CreateCapsule(int stacks, int slices) {
 }
 
 }  // namespace Primitives
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -2,20 +2,26 @@ namespace WieselEngine
 {
     public class Prefab
     {
-        private string path = "";
+        private string handle = "";
 
-        public string Path
+        public string Handle
         {
-            get { return path; }
-            set { path = value; }
+            get { return handle; }
+            set { handle = value; }
         }
 
-        public Entity Instantiate(ulong scenePtr)
+        public bool IsValid()
         {
-            if (string.IsNullOrEmpty(path)) return null;
-            ulong id = Internals.Prefab_Instantiate(scenePtr, path);
-            if (id == 0) return null;
-            return new Entity(scenePtr, id);
+            return !string.IsNullOrEmpty(handle);
+        }
+
+        public Entity Instantiate(Scene scene)
+        {
+            if (!IsValid())
+            {
+                return null;
+            }
+            return Internals.Prefab_Instantiate(scene.Ptr, handle);
         }
     }
 }

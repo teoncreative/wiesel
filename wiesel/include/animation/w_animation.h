@@ -12,9 +12,9 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
-#define WIESEL_MAX_BONES 128
+#define WIESEL_MAX_BONES 256
 #define WIESEL_MAX_BONE_INFLUENCE 4
 
 // ---- Skeleton ----
@@ -66,6 +66,18 @@ struct NodeHierarchy {
     }
     return transform;
   }
+
+  // Same as GetWorldTransform but stops before the root node's transform
+  glm::mat4 GetWorldTransformExcludingRoot(int32_t node_index) const {
+    glm::mat4 transform = glm::mat4(1.0f);
+    int32_t idx = node_index;
+    while (idx >= 0 && idx < static_cast<int32_t>(nodes.size()) &&
+           idx != root_index) {
+      transform = nodes[idx].local_transform * transform;
+      idx = nodes[idx].parent_index;
+    }
+    return transform;
+  }
 };
 
 // ---- Animation Clips ----
@@ -96,4 +108,4 @@ struct alignas(16) BoneMatricesUniformData {
   alignas(16) glm::mat4 bone_matrices[WIESEL_MAX_BONES];
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

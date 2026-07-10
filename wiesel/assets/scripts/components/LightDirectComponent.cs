@@ -3,10 +3,7 @@ namespace WieselEngine
     public class LightDirectComponent : Component
     {
 
-        public LightDirectComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public LightDirectComponent(Entity entity) : base(entity) { }
 
         public Vector3f Color
         {

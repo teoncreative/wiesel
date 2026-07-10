@@ -14,7 +14,7 @@
 #include "animation/w_animation_controller.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Generic state machine runtime. Evaluates transitions based on parameters.
 // Doesn't know about sprites or skeletons - just states and transitions.
@@ -51,4 +51,4 @@ struct StateMachineRuntime {
 bool EvaluateCondition(const TransitionCondition& cond,
                        const std::map<std::string, AnimParam>& params);
 
-}  // namespace Wiesel
+}  // namespace wiesel

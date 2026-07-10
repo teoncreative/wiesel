@@ -12,6 +12,8 @@
 #include "rendering/w_acceleration_structure.h"
 
 #include <vk_mem_alloc.h>
+#include "rendering/w_mesh_render_utils.h"
+#include "rendering/w_mesh_renderer.h"
 
 #include "asset/w_asset_manager.h"
 #include "rendering/w_deletion_queue.h"
@@ -19,7 +21,7 @@
 #include "scene/w_scene.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 AccelerationStructureManager::AccelerationStructureManager(
     std::shared_ptr<Renderer> renderer)
@@ -194,53 +196,92 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
   std::vector<VkAccelerationStructureInstanceKHR> instances;
 
   for (const auto& entity :
-       scene.GetAllEntitiesWith<ModelComponent, TransformComponent>()) {
-    auto& model = scene.GetComponent<ModelComponent>(entity);
+       scene.GetAllEntitiesWith<MeshRendererComponent, TransformComponent>()) {
+    auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
     auto& transform = scene.GetComponent<TransformComponent>(entity);
 
-    if (!model.enable_rendering || !model.model_handle) {
+    if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
       continue;
     }
 
     const std::shared_ptr<Model>& model_data =
-        assets.GetOrLoad<Model>(model.model_handle);
-    if (!model_data) {
+        assets.GetOrStartLoad<Model>(mr.model_handle);
+    if (!model_data || mr.mesh_index < 0 ||
+        mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
       continue;
     }
 
-    for (size_t mi = 0; mi < model_data->meshes.size(); mi++) {
-      const auto& mesh = model_data->meshes[mi];
-      if (!mesh->allocated_) {
-        continue;
-      }
-
-      std::shared_ptr<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
-      if (!blas) {
-        continue;
-      }
-
-      // Apply per-mesh node transform for static models
-      glm::mat4 mesh_world = transform.GetTransformMatrix();
-      if (!model_data->has_skeleton &&
-          mi < model_data->mesh_node_transforms.size()) {
-        mesh_world = mesh_world * model_data->mesh_node_transforms[mi];
-      }
-
-      // Convert glm::mat4 to VkTransformMatrixKHR (3x4 row-major)
-      VkTransformMatrixKHR transform_matrix{};
-      glm::mat4 t = glm::transpose(mesh_world);
-      memcpy(&transform_matrix, &t, sizeof(VkTransformMatrixKHR));
-
-      VkAccelerationStructureInstanceKHR instance{};
-      instance.transform = transform_matrix;
-      instance.instanceCustomIndex = 0;
-      instance.mask = 0xFF;
-      instance.instanceShaderBindingTableRecordOffset = 0;
-      instance.flags =
-          VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-      instance.accelerationStructureReference = blas->device_address;
-      instances.push_back(instance);
+    const auto& mesh = model_data->meshes[mr.mesh_index];
+    if (!mesh->allocated_) {
+      continue;
     }
+
+    std::shared_ptr<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
+    if (!blas) {
+      continue;
+    }
+
+    glm::mat4 mesh_world = transform.GetTransformMatrix();
+
+    VkTransformMatrixKHR transform_matrix{};
+    glm::mat4 t = glm::transpose(mesh_world);
+    memcpy(&transform_matrix, &t, sizeof(VkTransformMatrixKHR));
+
+    VkAccelerationStructureInstanceKHR instance{};
+    instance.transform = transform_matrix;
+    instance.instanceCustomIndex = 0;
+    instance.mask = 0xFF;
+    instance.instanceShaderBindingTableRecordOffset = 0;
+    instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+    instance.accelerationStructureReference = blas->device_address;
+    instances.push_back(instance);
+  }
+
+  for (const auto& entity :
+       scene.GetAllEntitiesWith<SkinnedMeshRendererComponent,
+                                TransformComponent>()) {
+    auto& mr = scene.GetComponent<SkinnedMeshRendererComponent>(entity);
+    if (!mr.enable_rendering || !mr.model_handle.IsValid()) {
+      continue;
+    }
+
+    const std::shared_ptr<Model>& model_data =
+        assets.GetOrStartLoad<Model>(mr.model_handle);
+    if (!model_data || mr.mesh_index < 0 ||
+        mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
+      continue;
+    }
+
+    const auto& mesh = model_data->meshes[mr.mesh_index];
+    if (!mesh->allocated_) {
+      continue;
+    }
+
+    std::shared_ptr<AccelerationStructure> blas = GetOrBuildBLAS(mesh);
+    if (!blas) {
+      continue;
+    }
+
+    // Use skeleton root's transform for skinned meshes
+    const TransformComponent* draw_transform =
+        &scene.GetComponent<TransformComponent>(entity);
+    const SkeletalAnimRuntime* skel = nullptr;
+    ResolveSkeletonRoot(scene, mr, draw_transform, skel);
+
+    glm::mat4 mesh_world = draw_transform->GetTransformMatrix();
+
+    VkTransformMatrixKHR transform_matrix{};
+    glm::mat4 t = glm::transpose(mesh_world);
+    memcpy(&transform_matrix, &t, sizeof(VkTransformMatrixKHR));
+
+    VkAccelerationStructureInstanceKHR instance{};
+    instance.transform = transform_matrix;
+    instance.instanceCustomIndex = 0;
+    instance.mask = 0xFF;
+    instance.instanceShaderBindingTableRecordOffset = 0;
+    instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+    instance.accelerationStructureReference = blas->device_address;
+    instances.push_back(instance);
   }
 
   if (instances.empty()) {
@@ -387,14 +428,17 @@ void AccelerationStructureManager::BuildTLAS(VkCommandBuffer cmd,
                                                    &pRangeInfo);
 
   // Barrier: AS build -> RT shader read
-  VkMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-  barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
-  barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-  vkCmdPipelineBarrier(cmd,
-                       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                       VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1,
-                       &barrier, 0, nullptr, 0, nullptr);
+  VkMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+  barrier.srcAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+  barrier.dstStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+  barrier.dstAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.memoryBarrierCount = 1;
+  dep.pMemoryBarriers = &barrier;
+  vkCmdPipelineBarrier2(cmd, &dep);
 
   // Get TLAS device address
   VkAccelerationStructureDeviceAddressInfoKHR addr_info{};
@@ -410,4 +454,4 @@ VkAccelerationStructureKHR AccelerationStructureManager::GetTLAS() const {
   return tlas_ ? tlas_->handle : VK_NULL_HANDLE;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -15,7 +15,7 @@
 #include "scene/w_components.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct AgentMemory : public IComponent {
   void Set(const std::string& key, float value);
@@ -41,4 +41,4 @@ struct AgentMemory : public IComponent {
   std::unordered_map<std::string, Value> values_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

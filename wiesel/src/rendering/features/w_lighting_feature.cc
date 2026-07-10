@@ -12,26 +12,12 @@
 #include "rendering/features/w_lighting_feature.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass (1 color + optional resolve for MSAA)
-  render_pass_ = std::make_shared<RenderPass>(PassType::Lighting,
-                                              "Deferred Lightning RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = renderer_->options().msaa_mode});
-  if (renderer_->options().msaa_mode > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = renderer_->GetSwapChainImageFormat(),
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
-
   auto skybox_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/skybox_shader.vert"});
@@ -41,7 +27,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
   skybox_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{renderer_->options().msaa_mode, CullModeFront, false,
                          false, true, false});
-  skybox_pipeline_->SetRenderPass(render_pass_);
+  skybox_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   skybox_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   skybox_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   skybox_pipeline_->AddShader(skybox_vert);
@@ -57,7 +43,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/lighting_shader.frag"});
   lighting_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       renderer_->options().msaa_mode, CullModeBack, false, true, true, false});
-  lighting_pipeline_->SetRenderPass(render_pass_);
+  lighting_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   lighting_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("GeometryOutput"));
   lighting_pipeline_->AddInputLayout(
@@ -81,7 +67,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
         PipelineProperties{renderer_->options().msaa_mode, CullModeBack, false,
                            true, true, false});
-    ibl_lighting_pipeline_->SetRenderPass(render_pass_);
+    ibl_lighting_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
     ibl_lighting_pipeline_->AddInputLayout(
         renderer_->GetDescriptorLayout("GeometryOutput"));
     ibl_lighting_pipeline_->AddInputLayout(
@@ -113,7 +99,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     rt_lighting_pipeline_ = std::make_shared<Pipeline>(
         PipelineProperties{renderer_->options().msaa_mode, CullModeBack, false,
                            true, true, false});
-    rt_lighting_pipeline_->SetRenderPass(render_pass_);
+    rt_lighting_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
     rt_lighting_pipeline_->AddInputLayout(
         renderer_->GetDescriptorLayout("GeometryOutput"));
     rt_lighting_pipeline_->AddInputLayout(
@@ -137,7 +123,7 @@ LightingFeature::LightingFeature(std::shared_ptr<Renderer> renderer)
     rt_ibl_lighting_pipeline_ = std::make_shared<Pipeline>(
         PipelineProperties{renderer_->options().msaa_mode, CullModeBack, false,
                            true, true, false});
-    rt_ibl_lighting_pipeline_->SetRenderPass(render_pass_);
+    rt_ibl_lighting_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
     rt_ibl_lighting_pipeline_->AddInputLayout(
         renderer_->GetDescriptorLayout("GeometryOutput"));
     rt_ibl_lighting_pipeline_->AddInputLayout(
@@ -175,20 +161,9 @@ void LightingFeature::SetupResources(RenderContext& ctx) {
                         {rw, rh, AttachmentTextureType::Resolve, 1,
                          renderer.GetSwapChainImageFormat(),
                          SamplingMode::DISABLED, true}));
-
-    std::array<AttachmentTexture*, 2> textures{
-        pool.GetTexture("lighting.color").get(),
-        pool.GetTexture("lighting.color_resolve").get()};
-    pool.SetFramebuffer("lighting",
-                        render_pass_->CreateFramebuffer(0, textures, {rw, rh}));
   } else {
     pool.SetTexture("lighting.color_resolve",
                     pool.GetTexture("lighting.color"));
-
-    std::array<AttachmentTexture*, 1> textures{
-        pool.GetTexture("lighting.color").get()};
-    pool.SetFramebuffer("lighting",
-                        render_pass_->CreateFramebuffer(0, textures, {rw, rh}));
   }
 
   // Descriptors
@@ -237,14 +212,17 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("LightingFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   bool use_resolve = ctx.use_msaa_resolve;
 
   // Import lighting output texture from pool
-  std::shared_ptr<AttachmentTexture> lighting_tex =
-      use_resolve ? pool->GetTexture("lighting.color_resolve")
-                  : pool->GetTexture("lighting.color");
-  RGResource lighting_out = graph.ImportTexture("LightingOut", lighting_tex);
+  RGResource lighting_color =
+      graph.ImportTexture("LightingColor", pool->GetTexture("lighting.color"));
+  RGResource lighting_resolve =
+      use_resolve ? graph.ImportTexture(
+                        "LightingOut", pool->GetTexture("lighting.color_resolve"))
+                  : lighting_color;
+  RGResource lighting_out = lighting_resolve;
 
   // Get references to geometry and SSAO outputs from the registry
   RGResource geo_view_pos = registry.Get("GeoViewPos");
@@ -283,17 +261,17 @@ void LightingFeature::AddPasses(RenderGraph& graph,
 
   bool is_ortho = ctx.camera.projection_mode == ProjectionMode::Orthographic;
   uint32_t lighting = graph.AddPass(
-      "Lighting", render_pass_,
-      [pool, renderer, scene, skybox_pipeline, lighting_pipeline,
+      "Lighting",
+      [pool, renderer, &scenes, skybox_pipeline, lighting_pipeline,
        use_rt_shadows, use_ibl, is_ortho](VkCommandBuffer) {
         if (!is_ortho) {
-          skybox_pipeline->Bind(PipelineBindPointGraphics);
-          auto skybox = scene->GetSkybox();
+          skybox_pipeline->Bind();
+          auto skybox = scenes.primary().GetSkybox();
           if (skybox) {
             renderer->DrawSkybox(skybox);
           }
         }
-        lighting_pipeline->Bind(PipelineBindPointGraphics);
+        lighting_pipeline->Bind();
         if (use_rt_shadows && use_ibl) {
           renderer->DrawFullscreen(lighting_pipeline,
                                    {pool->GetDescriptor("geometry.output"),
@@ -335,8 +313,11 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   if (rt_shadow_mask.IsValid()) {
     graph.PassReadsStorageImage(lighting, rt_shadow_mask);
   }
-  graph.PassWritesColor(lighting, lighting_out);
-  graph.SetPassFramebuffer(lighting, pool->GetFramebuffer("lighting"));
+  if (use_resolve) {
+    graph.PassWritesColor(lighting, lighting_color, lighting_resolve);
+  } else {
+    graph.PassWritesColor(lighting, lighting_color);
+  }
   graph.SetPassViewport(lighting, ctx.viewport_size);
   if (is_ortho) {
     auto& bg = ctx.camera.background_color;
@@ -349,4 +330,4 @@ void LightingFeature::AddPasses(RenderGraph& graph,
   registry.Register("LightingOut", lighting_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class AnimParamType { Bool, Int, Float, Trigger };
 
@@ -118,6 +118,8 @@ struct AnimationTransition {
   std::string to_state;
   float blend_duration = 0.25f;  // seconds
   std::vector<TransitionCondition> conditions;
+  // Editor metadata
+  int32_t editor_id = -1;
 };
 
 struct AnimationController {
@@ -137,4 +139,4 @@ struct AnimationController {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

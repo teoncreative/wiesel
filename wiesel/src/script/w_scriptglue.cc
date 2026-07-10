@@ -12,39 +12,39 @@
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-#include <direct.h>
 #include <imgui.h>
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "cursor/w_cursor.h"
 #include "input/w_input.h"
+#include "networking/w_network.h"
+#include "networking/w_network_scene_manager.h"
+#include "networking/w_replication_types.h"
 #include "physics/w_collider.h"
 #include "physics/w_physics_world.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_billboard_renderer.h"
+#include "rendering/w_billboard_text.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_entity.h"
 #include "scene/w_prefab.h"
 #include "scene/w_scene.h"
 #include "scene/w_scene_manager.h"
 #include "script/mono/w_monobehavior.h"
+#include "script/w_script_field_registry.h"
+#include "znet/buffer.h"
 #include "ui/w_canvas.h"
 #include "ui/w_ui_document.h"
 #include "util/w_logger.h"
-#include "util/w_platform.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 #define WIESEL_ADD_INTERNAL_CALL(name)                     \
   mono_add_internal_call("WieselEngine.Internals::" #name, \
                          reinterpret_cast<void*>(Internals_##name))
-
-void Internals_Log_Info(MonoString* str) {
-  char* cstr = mono_string_to_utf8(str);
-  LOG_INFO("{}", cstr);
-  mono_free(cstr);
-}
 
 float Internals_Input_GetAxis(MonoString* str) {
   char* cstr = mono_string_to_utf8(str);
@@ -514,6 +514,35 @@ void Internals_Entity_RemoveTag(uint64_t scene_ptr, uint64_t entity_id,
   mono_free(cstr);
 }
 
+MonoString* Internals_TagComponent_GetName(uint64_t scene_ptr,
+                                           uint64_t entity_id) {
+  if (scene_ptr == 0) {
+    return mono_string_new(Engine::script_manager().app_domain(), "");
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasComponent<TagComponent>(handle)) {
+    return mono_string_new(Engine::script_manager().app_domain(), "");
+  }
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         scene->GetComponent<TagComponent>(handle).name.c_str());
+}
+
+void Internals_TagComponent_SetName(uint64_t scene_ptr, uint64_t entity_id,
+                                    MonoString* v) {
+  if (scene_ptr == 0) {
+    return;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  if (!scene->HasComponent<TagComponent>(handle)) {
+    return;
+  }
+  char* cstr = mono_string_to_utf8(v);
+  scene->GetComponent<TagComponent>(handle).name = cstr;
+  mono_free(cstr);
+}
+
 MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
                                              MonoString* tag) {
   if (scene_ptr == 0) {
@@ -535,6 +564,17 @@ MonoArray* Internals_Scene_FindEntitiesByTag(uint64_t scene_ptr,
   return arr;
 }
 
+// --- Entity validity ---
+
+bool Internals_Entity_IsValid(uint64_t scene_ptr, uint64_t entity_id) {
+  if (scene_ptr == 0) {
+    return false;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  return scene->IsValid(handle);
+}
+
 // --- Child entity access ---
 
 int Internals_Entity_GetChildCount(uint64_t scene_ptr, uint64_t entity_id) {
@@ -547,7 +587,7 @@ int Internals_Entity_GetChildCount(uint64_t scene_ptr, uint64_t entity_id) {
     return 0;
   }
   TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
-  return static_cast<int>(tree.childs.size());
+  return static_cast<int>(tree.children.size());
 }
 
 MonoObject* Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
@@ -561,10 +601,22 @@ MonoObject* Internals_Entity_GetChild(uint64_t scene_ptr, uint64_t entity_id,
     return nullptr;
   }
   TreeComponent& tree = scene->GetComponent<TreeComponent>(handle);
-  if (index < 0 || index >= static_cast<int>(tree.childs.size())) {
+  if (index < 0 || index >= static_cast<int>(tree.children.size())) {
     return nullptr;
   }
-  return Engine::script_manager().CreateCSharpEntity(scene, tree.childs[index]);
+  return Engine::script_manager().CreateCSharpEntity(scene,
+                                                     tree.children[index]);
+}
+
+void Internals_Entity_SetParent(uint64_t scene_ptr, uint64_t entity_id,
+                               uint64_t parent_entity_id) {
+  if (scene_ptr == 0) {
+    return;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  entt::entity child = static_cast<entt::entity>(entity_id);
+  entt::entity parent = static_cast<entt::entity>(parent_entity_id);
+  scene->LinkEntities(parent, child);
 }
 
 // --- CameraComponent bindings ---
@@ -762,105 +814,361 @@ void Internals_SpriteRenderer_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
 
 #undef GET_SPRITE_RENDERER_OR_RETURN
 
-// --- SpriteAnimatorComponent bindings ---
+// --- BillboardRendererComponent bindings ---
 
-#define GET_SPRITE_ANIMATOR_OR_RETURN(scene_ptr, entity_id, retval) \
-  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);           \
-  if (!scene->HasComponent<SpriteAnimatorComponent>(handle))        \
-    return retval;                                                  \
-  auto& spr_a = scene->GetComponent<SpriteAnimatorComponent>(handle)
+#define GET_BILLBOARD_OR_RETURN(sp, eid, retval)                \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);                    \
+  if (!scene->HasComponent<BillboardRendererComponent>(handle)) \
+    return retval;                                              \
+  auto& bb = scene->GetComponent<BillboardRendererComponent>(handle)
+
+float Internals_BillboardRenderer_GetSizeX(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.size.x;
+}
+float Internals_BillboardRenderer_GetSizeY(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.size.y;
+}
+void Internals_BillboardRenderer_SetSizeX(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.size.x = v;
+}
+void Internals_BillboardRenderer_SetSizeY(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.size.y = v;
+}
+float Internals_BillboardRenderer_GetMinSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.min_size;
+}
+void Internals_BillboardRenderer_SetMinSize(uint64_t sp, uint64_t eid,
+                                            float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.min_size = v;
+}
+float Internals_BillboardRenderer_GetMaxSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.max_size;
+}
+void Internals_BillboardRenderer_SetMaxSize(uint64_t sp, uint64_t eid,
+                                            float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.max_size = v;
+}
+float Internals_BillboardRenderer_GetPivotX(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.5f);
+  return bb.pivot.x;
+}
+float Internals_BillboardRenderer_GetPivotY(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.5f);
+  return bb.pivot.y;
+}
+void Internals_BillboardRenderer_SetPivotX(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.pivot.x = v;
+}
+void Internals_BillboardRenderer_SetPivotY(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.pivot.y = v;
+}
+float Internals_BillboardRenderer_GetTintR(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.r;
+}
+float Internals_BillboardRenderer_GetTintG(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.g;
+}
+float Internals_BillboardRenderer_GetTintB(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.b;
+}
+float Internals_BillboardRenderer_GetTintA(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 1.0f);
+  return bb.tint.a;
+}
+void Internals_BillboardRenderer_SetTintR(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.r = v;
+}
+void Internals_BillboardRenderer_SetTintG(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.g = v;
+}
+void Internals_BillboardRenderer_SetTintB(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.b = v;
+}
+void Internals_BillboardRenderer_SetTintA(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.tint.a = v;
+}
+int Internals_BillboardRenderer_GetSortLayer(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0);
+  return bb.sort_layer;
+}
+void Internals_BillboardRenderer_SetSortLayer(uint64_t sp, uint64_t eid,
+                                              int v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.sort_layer = v;
+}
+int Internals_BillboardRenderer_GetOcclusion(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(bb.occlusion);
+}
+void Internals_BillboardRenderer_SetOcclusion(uint64_t sp, uint64_t eid,
+                                              int v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.occlusion = static_cast<BillboardOcclusionMode>(v);
+}
+float Internals_BillboardRenderer_GetOccludedAlpha(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, 0.0f);
+  return bb.occluded_alpha;
+}
+void Internals_BillboardRenderer_SetOccludedAlpha(uint64_t sp, uint64_t eid,
+                                                  float v) {
+  GET_BILLBOARD_OR_RETURN(sp, eid, );
+  bb.occluded_alpha = v;
+}
+
+#undef GET_BILLBOARD_OR_RETURN
+
+// --- BillboardTextComponent bindings ---
+
+#define GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, retval)       \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);                \
+  if (!scene->HasComponent<BillboardTextComponent>(handle)) \
+    return retval;                                          \
+  auto& bt = scene->GetComponent<BillboardTextComponent>(handle)
+
+MonoString* Internals_BillboardText_GetText(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(
+      sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         bt.text.c_str());
+}
+void Internals_BillboardText_SetText(uint64_t sp, uint64_t eid,
+                                     MonoString* v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  char* cstr = mono_string_to_utf8(v);
+  bt.text = cstr;
+  mono_free(cstr);
+}
+MonoString* Internals_BillboardText_GetFontHandle(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(
+      sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
+  return mono_string_new(Engine::script_manager().app_domain(),
+                         bt.font_handle.ToString().c_str());
+}
+void Internals_BillboardText_SetFontHandle(uint64_t sp, uint64_t eid,
+                                           MonoString* v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  char* cstr = mono_string_to_utf8(v);
+  std::string handle_str(cstr);
+  mono_free(cstr);
+  if (handle_str.empty()) {
+    bt.font_handle = AssetHandle{};
+  } else {
+    bt.font_handle = AssetHandle::FromString(handle_str);
+    Engine::asset_manager().LoadSync(bt.font_handle);
+  }
+}
+float Internals_BillboardText_GetFontSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.font_size;
+}
+void Internals_BillboardText_SetFontSize(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.font_size = v;
+}
+float Internals_BillboardText_GetColorR(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.r;
+}
+float Internals_BillboardText_GetColorG(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.g;
+}
+float Internals_BillboardText_GetColorB(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.b;
+}
+float Internals_BillboardText_GetColorA(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 1.0f);
+  return bt.color.a;
+}
+void Internals_BillboardText_SetColorR(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.r = v;
+}
+void Internals_BillboardText_SetColorG(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.g = v;
+}
+void Internals_BillboardText_SetColorB(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.b = v;
+}
+void Internals_BillboardText_SetColorA(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.color.a = v;
+}
+int Internals_BillboardText_GetAlignment(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(bt.alignment);
+}
+void Internals_BillboardText_SetAlignment(uint64_t sp, uint64_t eid, int v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.alignment = static_cast<TextAlignment>(v);
+}
+float Internals_BillboardText_GetMinSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.min_size;
+}
+void Internals_BillboardText_SetMinSize(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.min_size = v;
+}
+float Internals_BillboardText_GetMaxSize(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.max_size;
+}
+void Internals_BillboardText_SetMaxSize(uint64_t sp, uint64_t eid, float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.max_size = v;
+}
+int Internals_BillboardText_GetSortLayer(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0);
+  return bt.sort_layer;
+}
+void Internals_BillboardText_SetSortLayer(uint64_t sp, uint64_t eid, int v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.sort_layer = v;
+}
+int Internals_BillboardText_GetOcclusion(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0);
+  return static_cast<int>(bt.occlusion);
+}
+void Internals_BillboardText_SetOcclusion(uint64_t sp, uint64_t eid, int v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.occlusion = static_cast<BillboardOcclusionMode>(v);
+}
+float Internals_BillboardText_GetOccludedAlpha(uint64_t sp, uint64_t eid) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, 0.0f);
+  return bt.occluded_alpha;
+}
+void Internals_BillboardText_SetOccludedAlpha(uint64_t sp, uint64_t eid,
+                                              float v) {
+  GET_BILLBOARD_TEXT_OR_RETURN(sp, eid, );
+  bt.occluded_alpha = v;
+}
+
+#undef GET_BILLBOARD_TEXT_OR_RETURN
+
+// --- AnimatorComponent bindings ---
+
+#define GET_ANIMATOR_OR_RETURN(scene_ptr, entity_id, retval) \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);    \
+  if (!scene->HasComponent<AnimatorComponent>(handle))       \
+    return retval;                                           \
+  auto& anim = scene->GetComponent<AnimatorComponent>(handle)
 
 void Internals_SpriteAnimator_Play(uint64_t sp, uint64_t eid, MonoString* state,
-                                   bool restart) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+                                   bool /*restart*/) {
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(state);
-  spr_a.Play(cstr, restart);
+  anim.Play(cstr);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_Stop(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
-  spr_a.Stop();
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
+  anim.Stop();
 }
 
 bool Internals_SpriteAnimator_GetIsPlaying(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
-  return spr_a.playing_;
+  GET_ANIMATOR_OR_RETURN(sp, eid, false);
+  return anim.playing;
 }
 
 MonoString* Internals_SpriteAnimator_GetCurrentState(uint64_t sp,
                                                      uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(
+  GET_ANIMATOR_OR_RETURN(
       sp, eid, mono_string_new(Engine::script_manager().app_domain(), ""));
   return mono_string_new(Engine::script_manager().app_domain(),
-                         spr_a.current_state_name_.c_str());
+                         anim.GetCurrentState().c_str());
 }
 
 int Internals_SpriteAnimator_GetCurrentFrame(uint64_t sp, uint64_t eid) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
-  return static_cast<int>(spr_a.current_frame_index_);
+  GET_ANIMATOR_OR_RETURN(sp, eid, 0);
+  if (scene->HasComponent<SpriteAnimRuntime>(handle)) {
+    return static_cast<int>(
+        scene->GetComponent<SpriteAnimRuntime>(handle).current_frame_index);
+  }
+  return 0;
 }
 
 void Internals_SpriteAnimator_SetBool(uint64_t sp, uint64_t eid,
                                       MonoString* name, bool val) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetBool(cstr, val);
+  anim.SetBool(cstr, val);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetInt(uint64_t sp, uint64_t eid,
                                      MonoString* name, int val) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetInt(cstr, val);
+  anim.SetInt(cstr, val);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetFloat(uint64_t sp, uint64_t eid,
                                        MonoString* name, float val) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetFloat(cstr, val);
+  anim.SetFloat(cstr, val);
   mono_free(cstr);
 }
 
 void Internals_SpriteAnimator_SetTrigger(uint64_t sp, uint64_t eid,
                                          MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, );
+  GET_ANIMATOR_OR_RETURN(sp, eid, );
   char* cstr = mono_string_to_utf8(name);
-  spr_a.state_machine_.SetTrigger(cstr);
+  anim.SetTrigger(cstr);
   mono_free(cstr);
 }
 
 bool Internals_SpriteAnimator_GetBool(uint64_t sp, uint64_t eid,
                                       MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, false);
+  GET_ANIMATOR_OR_RETURN(sp, eid, false);
   char* cstr = mono_string_to_utf8(name);
-  bool val = spr_a.state_machine_.GetBool(cstr);
+  bool val = anim.GetBool(cstr);
   mono_free(cstr);
   return val;
 }
 
 int Internals_SpriteAnimator_GetInt(uint64_t sp, uint64_t eid,
                                     MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0);
+  GET_ANIMATOR_OR_RETURN(sp, eid, 0);
   char* cstr = mono_string_to_utf8(name);
-  int val = spr_a.state_machine_.GetInt(cstr);
+  int val = anim.GetInt(cstr);
   mono_free(cstr);
   return val;
 }
 
 float Internals_SpriteAnimator_GetFloat(uint64_t sp, uint64_t eid,
                                         MonoString* name) {
-  GET_SPRITE_ANIMATOR_OR_RETURN(sp, eid, 0.0f);
+  GET_ANIMATOR_OR_RETURN(sp, eid, 0.0f);
   char* cstr = mono_string_to_utf8(name);
-  float val = spr_a.state_machine_.GetFloat(cstr);
+  float val = anim.GetFloat(cstr);
   mono_free(cstr);
   return val;
 }
 
-#undef GET_SPRITE_ANIMATOR_OR_RETURN
+#undef GET_ANIMATOR_OR_RETURN
 
 // --- Audio bindings ---
 
@@ -953,190 +1261,6 @@ void Internals_Audio_SetMusicVolume(float volume) {
 
 float Internals_Audio_GetMusicVolume() {
   return Engine::audio().GetMusicVolume();
-}
-
-// Helper: ensure MaterialInstance exists on a ModelComponent (mesh index 0)
-static std::shared_ptr<MaterialInstance>& EnsureMaterialInstance(
-    ModelComponent& model) {
-  if (model.material_instances.empty()) {
-    model.material_instances.resize(1);
-  }
-  if (!model.material_instances[0]) {
-    model.material_instances[0] = std::make_shared<MaterialInstance>();
-    // Create a transient material if no handle is set
-    std::shared_ptr<Material> fallback = std::make_shared<Material>();
-    AssetHandle h = Engine::asset_manager().RegisterAndStore<Material>(
-        "script_material", AssetType::Material, "", fallback);
-    model.material_instances[0]->base_material_handle = h;
-  }
-  return model.material_instances[0];
-}
-
-// ModelComponent material properties
-float Internals_ModelComponent_GetColorTintR(uint64_t scene_ptr,
-                                             uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetColorTint().r;
-}
-
-float Internals_ModelComponent_GetColorTintG(uint64_t scene_ptr,
-                                             uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetColorTint().g;
-}
-
-float Internals_ModelComponent_GetColorTintB(uint64_t scene_ptr,
-                                             uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetColorTint().b;
-}
-
-float Internals_ModelComponent_GetColorTintA(uint64_t scene_ptr,
-                                             uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetColorTint().a;
-}
-
-void Internals_ModelComponent_SetColorTintR(uint64_t scene_ptr,
-                                            uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  auto& inst = EnsureMaterialInstance(model);
-  auto tint = inst->GetColorTint();
-  tint.r = v;
-  inst->SetColorTint(tint);
-}
-
-void Internals_ModelComponent_SetColorTintG(uint64_t scene_ptr,
-                                            uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  auto& inst = EnsureMaterialInstance(model);
-  auto tint = inst->GetColorTint();
-  tint.g = v;
-  inst->SetColorTint(tint);
-}
-
-void Internals_ModelComponent_SetColorTintB(uint64_t scene_ptr,
-                                            uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  auto& inst = EnsureMaterialInstance(model);
-  auto tint = inst->GetColorTint();
-  tint.b = v;
-  inst->SetColorTint(tint);
-}
-
-void Internals_ModelComponent_SetColorTintA(uint64_t scene_ptr,
-                                            uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  std::shared_ptr<MaterialInstance>& inst = EnsureMaterialInstance(model);
-  glm::vec4 tint = inst->GetColorTint();
-  tint.a = v;
-  inst->SetColorTint(tint);
-}
-
-float Internals_ModelComponent_GetRoughness(uint64_t scene_ptr,
-                                            uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetRoughness();
-}
-
-void Internals_ModelComponent_SetRoughness(uint64_t scene_ptr,
-                                           uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  EnsureMaterialInstance(model)->SetRoughness(v);
-}
-
-float Internals_ModelComponent_GetMetallic(uint64_t scene_ptr,
-                                           uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetMetallic();
-}
-
-void Internals_ModelComponent_SetMetallic(uint64_t scene_ptr,
-                                          uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  EnsureMaterialInstance(model)->SetMetallic(v);
-}
-
-float Internals_ModelComponent_GetSpecular(uint64_t scene_ptr,
-                                           uint64_t entity_id) {
-  if (scene_ptr == 0) {
-    return {};
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  return EnsureMaterialInstance(model)->GetSpecular();
-}
-
-void Internals_ModelComponent_SetSpecular(uint64_t scene_ptr,
-                                          uint64_t entity_id, float v) {
-  if (scene_ptr == 0) {
-    return;
-  }
-  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  auto& model =
-      scene->GetComponent<ModelComponent>(static_cast<entt::entity>(entity_id));
-  EnsureMaterialInstance(model)->SetSpecular(v);
 }
 
 // --- Time ---
@@ -1358,17 +1482,6 @@ void Internals_TransformComponent_SetScaleZ(Scene* scene, entt::entity entity,
   }
   c.ScaleMut().z = value;
   c.MarkChanged();
-}
-
-bool Internals_ModelComponent_GetEnableRendering(Scene* scene,
-                                                 entt::entity entity) {
-  return scene->GetComponent<ModelComponent>(entity).enable_rendering;
-}
-
-void Internals_ModelComponent_SetEnableRendering(Scene* scene,
-                                                 entt::entity entity,
-                                                 bool value) {
-  scene->GetComponent<ModelComponent>(entity).enable_rendering = value;
 }
 
 // --- BoxColliderComponent ---
@@ -1962,168 +2075,6 @@ void Internals_Canvas_SetSortOrder(Scene* s, entt::entity e, int32_t v) {
   s->GetComponent<CanvasComponent>(e).sort_order = v;
 }
 
-// --- CanvasRectComponent ---
-float Internals_CanvasRect_GetColorR(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.r;
-}
-
-float Internals_CanvasRect_GetColorG(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.g;
-}
-
-float Internals_CanvasRect_GetColorB(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.b;
-}
-
-float Internals_CanvasRect_GetColorA(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasRectComponent>(e).color.a;
-}
-
-void Internals_CanvasRect_SetColorR(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.r = v;
-}
-
-void Internals_CanvasRect_SetColorG(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.g = v;
-}
-
-void Internals_CanvasRect_SetColorB(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.b = v;
-}
-
-void Internals_CanvasRect_SetColorA(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasRectComponent>(e).color.a = v;
-}
-
-// --- CanvasImageComponent ---
-float Internals_CanvasImage_GetTintR(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.r;
-}
-
-float Internals_CanvasImage_GetTintG(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.g;
-}
-
-float Internals_CanvasImage_GetTintB(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.b;
-}
-
-float Internals_CanvasImage_GetTintA(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).tint.a;
-}
-
-void Internals_CanvasImage_SetTintR(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.r = v;
-}
-
-void Internals_CanvasImage_SetTintG(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.g = v;
-}
-
-void Internals_CanvasImage_SetTintB(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.b = v;
-}
-
-void Internals_CanvasImage_SetTintA(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).tint.a = v;
-}
-
-float Internals_CanvasImage_GetUVRectX(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.x;
-}
-
-float Internals_CanvasImage_GetUVRectY(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.y;
-}
-
-float Internals_CanvasImage_GetUVRectZ(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.z;
-}
-
-float Internals_CanvasImage_GetUVRectW(Scene* s, entt::entity e) {
-  return s->GetComponent<CanvasImageComponent>(e).uv_rect.w;
-}
-
-void Internals_CanvasImage_SetUVRectX(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.x = v;
-}
-
-void Internals_CanvasImage_SetUVRectY(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.y = v;
-}
-
-void Internals_CanvasImage_SetUVRectZ(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.z = v;
-}
-
-void Internals_CanvasImage_SetUVRectW(Scene* s, entt::entity e, float v) {
-  s->GetComponent<CanvasImageComponent>(e).uv_rect.w = v;
-}
-
-// --- TextComponent ---
-MonoString* Internals_Text_GetText(Scene* s, entt::entity e) {
-  return mono_string_new(Engine::script_manager().app_domain(),
-                         s->GetComponent<TextComponent>(e).text.c_str());
-}
-
-void Internals_Text_SetText(Scene* s, entt::entity e, MonoString* v) {
-  char* str = mono_string_to_utf8(v);
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.text = str;
-  c.gpu_dirty_ = true;
-  mono_free(str);
-}
-
-float Internals_Text_GetFontSize(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).font_size;
-}
-
-void Internals_Text_SetFontSize(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.font_size = v;
-  c.gpu_dirty_ = true;
-}
-
-float Internals_Text_GetColorR(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.r;
-}
-
-float Internals_Text_GetColorG(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.g;
-}
-
-float Internals_Text_GetColorB(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.b;
-}
-
-float Internals_Text_GetColorA(Scene* s, entt::entity e) {
-  return s->GetComponent<TextComponent>(e).color.a;
-}
-
-void Internals_Text_SetColorR(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.r = v;
-  c.gpu_dirty_ = true;
-}
-
-void Internals_Text_SetColorG(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.g = v;
-  c.gpu_dirty_ = true;
-}
-
-void Internals_Text_SetColorB(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.b = v;
-  c.gpu_dirty_ = true;
-}
-
-void Internals_Text_SetColorA(Scene* s, entt::entity e, float v) {
-  auto& c = s->GetComponent<TextComponent>(e);
-  c.color.a = v;
-  c.gpu_dirty_ = true;
-}
-
 // --- AnimatorComponent ---
 void Internals_Animator_SetBool(Scene* s, entt::entity e, MonoString* name,
                                 bool value) {
@@ -2174,16 +2125,16 @@ float Internals_Animator_GetFloat(Scene* s, entt::entity e, MonoString* name) {
 }
 
 void Internals_Animator_Play(Scene* s, entt::entity e, MonoString* stateName,
-                             float blendTime) {
+                             float /*blendTime*/) {
   char* cstr = mono_string_to_utf8(stateName);
-  s->GetComponent<AnimatorComponent>(e).Play(cstr, blendTime);
+  s->GetComponent<AnimatorComponent>(e).Play(cstr);
   mono_free(cstr);
 }
 
 MonoString* Internals_Animator_GetCurrentState(Scene* s, entt::entity e) {
   auto& anim = s->GetComponent<AnimatorComponent>(e);
   return mono_string_new(Engine::script_manager().app_domain(),
-                         anim.current_state_name.c_str());
+                         anim.GetCurrentState().c_str());
 }
 
 bool Internals_Animator_GetIsPlaying(Scene* s, entt::entity e) {
@@ -2194,16 +2145,35 @@ void Internals_Animator_SetIsPlaying(Scene* s, entt::entity e, bool value) {
   s->GetComponent<AnimatorComponent>(e).playing = value;
 }
 
+void Internals_Animator_Stop(Scene* s, entt::entity e) {
+  s->GetComponent<AnimatorComponent>(e).Stop();
+}
+
 // SceneManager internal calls
-void Internals_SceneManager_LoadScene(MonoString* name) {
+void Internals_SceneManager_LoadScene(MonoString* name, int mode) {
   char* cstr = mono_string_to_utf8(name);
-  Engine::scene_manager().LoadScene(cstr);
+  Engine::scene_manager().LoadScene(cstr, static_cast<LoadSceneMode>(mode));
   mono_free(cstr);
 }
 
-void Internals_SceneManager_LoadScenePath(MonoString* path) {
+void Internals_SceneManager_LoadScenePath(MonoString* path, int mode) {
   char* cstr = mono_string_to_utf8(path);
-  Engine::scene_manager().LoadSceneFromPath(cstr);
+  Engine::scene_manager().LoadSceneFromPath(cstr,
+                                            static_cast<LoadSceneMode>(mode));
+  mono_free(cstr);
+}
+
+void Internals_SceneManager_LoadSceneAsync(MonoString* name, int mode) {
+  char* cstr = mono_string_to_utf8(name);
+  Engine::scene_manager().LoadSceneAsync(cstr,
+                                         static_cast<LoadSceneMode>(mode));
+  mono_free(cstr);
+}
+
+void Internals_SceneManager_LoadSceneAsyncPath(MonoString* path, int mode) {
+  char* cstr = mono_string_to_utf8(path);
+  Engine::scene_manager().LoadSceneAsyncFromPath(
+      cstr, static_cast<LoadSceneMode>(mode));
   mono_free(cstr);
 }
 
@@ -2228,31 +2198,87 @@ void Internals_SceneManager_ActivateLoadedScene() {
   Engine::scene_manager().ActivateLoadedScene();
 }
 
-uint64_t Internals_Prefab_Instantiate(uint64_t scene_ptr, MonoString* path) {
+// todo replace pointers with SceneHandle instead
+// so we can know if its valid or not
+MonoObject* Internals_Prefab_Instantiate(uint64_t scene_ptr,
+                                         MonoString* handle_str) {
   if (scene_ptr == 0) {
-    return 0;
+    return nullptr;
   }
   Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
-  char* cstr = mono_string_to_utf8(path);
-
-  std::string vfs_path = cstr;
+  char* cstr = mono_string_to_utf8(handle_str);
+  AssetHandle handle = AssetHandle::FromString(cstr);
   mono_free(cstr);
 
-  std::shared_ptr<Scene> shared_scene =
-      Engine::scene_manager().GetActiveScene();
-  if (!shared_scene) {
-    LOG_ERROR("Prefab_Instantiate: no active scene");
-    return 0;
+  Entity entity = Prefab::Instantiate(*scene, handle);
+  if (!entity) {
+    return nullptr;
   }
-
-  Entity entity = Prefab::InstantiateFromFile(shared_scene, vfs_path);
-  return static_cast<uint32_t>(entity.handle());
+  return Engine::script_manager().CreateCSharpEntity(scene, entity.handle());
 }
 
-// Console
-void Internals_Console_RegisterCommand(MonoString* name,
-                                       MonoString* description,
-                                       MonoObject* callback) {
+void Internals_SceneManager_UnloadScene(MonoString* name) {
+  char* cstr = mono_string_to_utf8(name);
+  Engine::scene_manager().UnloadScene(std::string(cstr));
+  mono_free(cstr);
+}
+
+int Internals_SceneManager_GetLoadedSceneCount() {
+  return static_cast<int>(Engine::scene_manager().GetLoadedScenes().size());
+}
+
+uint64_t Internals_SceneManager_GetLoadedScene(int index) {
+  auto& scenes = Engine::scene_manager().GetLoadedScenes();
+  if (index < 0 || index >= static_cast<int>(scenes.size())) {
+    return 0;
+  }
+  return reinterpret_cast<uint64_t>(scenes[index].get());
+}
+
+uint64_t Internals_SceneManager_FindScene(MonoString* name) {
+  char* cstr = mono_string_to_utf8(name);
+  Scene* scene = Engine::scene_manager().FindScene(cstr);
+  mono_free(cstr);
+  return scene ? reinterpret_cast<uint64_t>(scene) : 0;
+}
+
+MonoString* Internals_Scene_GetName(uint64_t scene_ptr) {
+  if (scene_ptr == 0) {
+    return nullptr;
+  }
+  Scene* scene = reinterpret_cast<Scene*>(scene_ptr);
+  return mono_string_new(mono_domain_get(), scene->GetName().c_str());
+}
+
+MonoObject* Internals_SceneManager_MoveEntityToScene(uint64_t scene_ptr,
+                                                     uint64_t entity_id,
+                                                     uint64_t target_scene_ptr,
+                                                     bool move_children) {
+  if (scene_ptr == 0 || target_scene_ptr == 0) {
+    return nullptr;
+  }
+  Scene* source = reinterpret_cast<Scene*>(scene_ptr);
+  Scene* target = reinterpret_cast<Scene*>(target_scene_ptr);
+  entt::entity handle = static_cast<entt::entity>(entity_id);
+  Entity entity{handle, source};
+  Entity new_entity =
+      Engine::scene_manager().MoveEntityToScene(entity, target, move_children);
+  if (!new_entity) {
+    return nullptr;
+  }
+  return Engine::script_manager().CreateCSharpEntity(target,
+                                                     new_entity.handle());
+}
+
+// Console. C# passes each parameter as parallel arrays:
+// (name, type [ParamType enum as int], optional, default_tokens).
+void Internals_ConsoleManager_RegisterCommand(MonoString* name,
+                                              MonoString* description,
+                                              MonoArray* param_names,
+                                              MonoArray* param_types,
+                                              MonoArray* param_optionals,
+                                              MonoArray* param_defaults,
+                                              MonoObject* callback) {
   char* name_cstr = mono_string_to_utf8(name);
   char* desc_cstr = mono_string_to_utf8(description);
   std::string name_str = name_cstr;
@@ -2260,83 +2286,167 @@ void Internals_Console_RegisterCommand(MonoString* name,
   mono_free(name_cstr);
   mono_free(desc_cstr);
 
+  std::vector<Param> params;
+  const uintptr_t count = param_names ? mono_array_length(param_names) : 0;
+  params.reserve(count);
+  for (uintptr_t i = 0; i < count; i++) {
+    Param p;
+    MonoString* pn = mono_array_get(param_names, MonoString*, i);
+    MonoString* pd = mono_array_get(param_defaults, MonoString*, i);
+    char* pn_c = mono_string_to_utf8(pn);
+    char* pd_c = mono_string_to_utf8(pd);
+    p.name = pn_c;
+    p.default_tokens = pd_c;
+    mono_free(pn_c);
+    mono_free(pd_c);
+    p.type = static_cast<ParamType>(mono_array_get(param_types, int, i));
+    p.optional = mono_array_get(param_optionals, uint8_t, i) != 0;
+    params.push_back(std::move(p));
+  }
+
   uint32_t gc_handle = mono_gchandle_new(callback, true);
 
-  Engine::console().Register(
-      name_str, desc_str, [gc_handle](const std::vector<std::string>& args) {
+  // Todo we need an handle so we can delete this command when the script dies
+  DeveloperConsole::Get().Register(
+      name_str, desc_str, std::move(params),
+      [gc_handle](const CommandContext& ctx) {
         MonoObject* delegate = mono_gchandle_get_target(gc_handle);
         if (!delegate) {
           return;
         }
-
-        MonoDomain* domain = mono_domain_get();
-        MonoArray* mono_args =
-            mono_array_new(domain, mono_get_string_class(), args.size());
-        for (size_t i = 0; i < args.size(); i++) {
-          mono_array_set(mono_args, MonoString*, i,
-                         mono_string_new(domain, args[i].c_str()));
-        }
-
-        void* invoke_args[1] = {mono_args};
-        MonoObject* exception = nullptr;
+        // Opaque context handle; C# calls back into typed getters with it.
+        const CommandContext* ctx_ptr = &ctx;
+        void* invoke_args[1] = {&ctx_ptr};
         MonoMethod* invoke_method =
             mono_get_delegate_invoke(mono_object_get_class(delegate));
-        mono_runtime_invoke(invoke_method, delegate, invoke_args, &exception);
-
-        if (exception) {
-          MonoString* exc_str = mono_object_to_string(exception, nullptr);
-          if (exc_str) {
-            char* exc_cstr = mono_string_to_utf8(exc_str);
-            Engine::console().LogError(exc_cstr);
-            mono_free(exc_cstr);
-          }
-        }
+        InvokeSafe(invoke_method, delegate, invoke_args, nullptr);
       });
 }
 
-void Internals_Console_UnregisterCommand(MonoString* name) {
+// CommandContext bindings. The `ctx` pointer is only valid for the
+// duration of the C# Action it was passed to.
+
+int Internals_CommandContext_Int(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return 0;
+  char* c = mono_string_to_utf8(name);
+  int v = ctx->Int(c);
+  mono_free(c);
+  return v;
+}
+
+float Internals_CommandContext_Float(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return 0.0f;
+  char* c = mono_string_to_utf8(name);
+  float v = ctx->Float(c);
+  mono_free(c);
+  return v;
+}
+
+bool Internals_CommandContext_Bool(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return false;
+  char* c = mono_string_to_utf8(name);
+  bool v = ctx->Bool(c);
+  mono_free(c);
+  return v;
+}
+
+MonoString* Internals_CommandContext_String(CommandContext* ctx,
+                                            MonoString* name) {
+  if (!ctx) return mono_string_new(mono_domain_get(), "");
+  char* c = mono_string_to_utf8(name);
+  const std::string& s = ctx->String(c);
+  mono_free(c);
+  return mono_string_new(mono_domain_get(), s.c_str());
+}
+
+void Internals_CommandContext_Vec2(CommandContext* ctx, MonoString* name,
+                                   float* out_x, float* out_y) {
+  if (!ctx || !out_x || !out_y) return;
+  char* c = mono_string_to_utf8(name);
+  glm::vec2 v = ctx->Vec2(c);
+  *out_x = v.x;
+  *out_y = v.y;
+  mono_free(c);
+}
+
+void Internals_CommandContext_Vec3(CommandContext* ctx, MonoString* name,
+                                   float* out_x, float* out_y, float* out_z) {
+  if (!ctx || !out_x || !out_y || !out_z) return;
+  char* c = mono_string_to_utf8(name);
+  glm::vec3 v = ctx->Vec3(c);
+  *out_x = v.x;
+  *out_y = v.y;
+  *out_z = v.z;
+  mono_free(c);
+}
+
+void Internals_CommandContext_Vec4(CommandContext* ctx, MonoString* name,
+                                   float* out_x, float* out_y, float* out_z,
+                                   float* out_w) {
+  if (!ctx || !out_x || !out_y || !out_z || !out_w) return;
+  char* c = mono_string_to_utf8(name);
+  glm::vec4 v = ctx->Vec4(c);
+  *out_x = v.x;
+  *out_y = v.y;
+  *out_z = v.z;
+  *out_w = v.w;
+  mono_free(c);
+}
+
+bool Internals_CommandContext_Has(CommandContext* ctx, MonoString* name) {
+  if (!ctx) return false;
+  char* c = mono_string_to_utf8(name);
+  bool v = ctx->Has(c);
+  mono_free(c);
+  return v;
+}
+
+void Internals_ConsoleManager_UnregisterCommand(MonoString* name) {
   char* cstr = mono_string_to_utf8(name);
-  Engine::console().Unregister(cstr);
+  DeveloperConsole::Get().Unregister(cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_Execute(MonoString* command_line) {
+void Internals_ConsoleManager_Execute(MonoString* command_line) {
   char* cstr = mono_string_to_utf8(command_line);
-  Engine::console().Execute(cstr);
+  DeveloperConsole::Get().Execute(cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_LogInfo(MonoString* message) {
+void Internals_Debug_Log(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
-  Engine::console().LogInfo(cstr);
+  DCON_LOG_INFO("{}", cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_LogWarning(MonoString* message) {
+void Internals_Debug_LogWarning(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
-  Engine::console().LogWarning(cstr);
+  DCON_LOG_WARN("{}", cstr);
   mono_free(cstr);
 }
 
-void Internals_Console_LogError(MonoString* message) {
+void Internals_Debug_LogError(MonoString* message) {
   char* cstr = mono_string_to_utf8(message);
-  Engine::console().LogError(cstr);
+  DCON_LOG_ERROR("{}", cstr);
   mono_free(cstr);
 }
 
 // --- UIDocumentComponent bindings ---
 
-#define GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, retval) \
-  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);  \
-  if (!scene->HasComponent<UIDocumentComponent>(handle))   \
-    return retval;                                         \
-  auto& ui_doc = scene->GetComponent<UIDocumentComponent>(handle)
+#define GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, retval)         \
+  VALIDATE_SCENE_OR_RETURN(scene_ptr, entity_id, retval);          \
+  if (!scene->HasComponent<UIDocumentComponent>(handle))           \
+    return retval;                                                 \
+  auto& ui_doc = scene->GetComponent<UIDocumentComponent>(handle); \
+  auto* ui_rt = scene->GetRegistry().try_get<UIDocumentRuntime>(handle); \
+  if (!ui_rt)                                                      \
+    return retval
 
 void Internals_UIDocument_SetInt(uint64_t scene_ptr, uint64_t entity_id,
                                  MonoString* name, int value) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
-  ui_doc.data_model.SetInt(cname, value);
+  ui_rt->data_model.SetInt(cname, value);
   mono_free(cname);
 }
 
@@ -2344,7 +2454,7 @@ int Internals_UIDocument_GetInt(uint64_t scene_ptr, uint64_t entity_id,
                                 MonoString* name) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, 0);
   char* cname = mono_string_to_utf8(name);
-  int result = ui_doc.data_model.GetInt(cname);
+  int result = ui_rt->data_model.GetInt(cname);
   mono_free(cname);
   return result;
 }
@@ -2353,7 +2463,7 @@ void Internals_UIDocument_SetFloat(uint64_t scene_ptr, uint64_t entity_id,
                                    MonoString* name, float value) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
-  ui_doc.data_model.SetFloat(cname, value);
+  ui_rt->data_model.SetFloat(cname, value);
   mono_free(cname);
 }
 
@@ -2361,7 +2471,7 @@ float Internals_UIDocument_GetFloat(uint64_t scene_ptr, uint64_t entity_id,
                                     MonoString* name) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, 0.0f);
   char* cname = mono_string_to_utf8(name);
-  float result = ui_doc.data_model.GetFloat(cname);
+  float result = ui_rt->data_model.GetFloat(cname);
   mono_free(cname);
   return result;
 }
@@ -2371,7 +2481,7 @@ void Internals_UIDocument_SetString(uint64_t scene_ptr, uint64_t entity_id,
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
   char* cvalue = mono_string_to_utf8(value);
-  ui_doc.data_model.SetString(cname, cvalue);
+  ui_rt->data_model.SetString(cname, cvalue);
   mono_free(cname);
   mono_free(cvalue);
 }
@@ -2382,7 +2492,7 @@ MonoString* Internals_UIDocument_GetString(uint64_t scene_ptr,
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id,
                        mono_string_new(mono_domain_get(), ""));
   char* cname = mono_string_to_utf8(name);
-  std::string result = ui_doc.data_model.GetString(cname);
+  std::string result = ui_rt->data_model.GetString(cname);
   mono_free(cname);
   return mono_string_new(mono_domain_get(), result.c_str());
 }
@@ -2391,7 +2501,7 @@ void Internals_UIDocument_SetBool(uint64_t scene_ptr, uint64_t entity_id,
                                   MonoString* name, bool value) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, );
   char* cname = mono_string_to_utf8(name);
-  ui_doc.data_model.SetBool(cname, value);
+  ui_rt->data_model.SetBool(cname, value);
   mono_free(cname);
 }
 
@@ -2399,7 +2509,7 @@ bool Internals_UIDocument_GetBool(uint64_t scene_ptr, uint64_t entity_id,
                                   MonoString* name) {
   GET_UI_DOC_OR_RETURN(scene_ptr, entity_id, false);
   char* cname = mono_string_to_utf8(name);
-  bool result = ui_doc.data_model.GetBool(cname);
+  bool result = ui_rt->data_model.GetBool(cname);
   mono_free(cname);
   return result;
 }
@@ -2571,6 +2681,238 @@ void Internals_Settings_SetTextureQuality(int value) {
   }
 }
 
+// --- Network bindings ---
+
+bool Internals_Network_StartServer(MonoString* ip, int port) {
+  char* cip = mono_string_to_utf8(ip);
+  NetworkServerConfig config;
+  config.bind_ip = cip;
+  config.port = static_cast<uint16_t>(port);
+  mono_free(cip);
+  return Engine::network().StartServer(config);
+}
+
+void Internals_Network_StopServer() {
+  Engine::network().StopServer();
+}
+
+bool Internals_Network_ConnectToServer(MonoString* ip, int port) {
+  char* cip = mono_string_to_utf8(ip);
+  NetworkClientConfig config;
+  config.server_ip = cip;
+  config.port = static_cast<uint16_t>(port);
+  mono_free(cip);
+  return Engine::network().ConnectToServer(config);
+}
+
+void Internals_Network_Disconnect() {
+  Engine::network().Disconnect();
+}
+
+bool Internals_Network_IsServer() {
+  return Engine::network().is_server();
+}
+
+bool Internals_Network_IsClient() {
+  return Engine::network().is_client();
+}
+
+bool Internals_Network_IsConnected() {
+  return Engine::network().is_connected();
+}
+
+int Internals_Network_GetRole() {
+  return static_cast<int>(Engine::network().role());
+}
+
+void Internals_Network_SetTickRate(int ticks_per_second) {
+  Engine::network().SetTickRate(ticks_per_second);
+}
+
+int Internals_Network_GetTickRate() {
+  return Engine::network().tick_rate();
+}
+
+uint64_t Internals_Network_GetLocalSessionId() {
+  return Engine::network().local_session_id();
+}
+
+uint32_t Internals_NetworkIdentity_GetNetId(Scene* scene,
+                                            entt::entity entity) {
+  return scene->GetComponent<NetworkIdentityComponent>(entity).net_id;
+}
+
+int Internals_NetworkIdentity_GetAuthority(Scene* scene,
+                                           entt::entity entity) {
+  return static_cast<int>(
+      scene->GetComponent<NetworkIdentityComponent>(entity).authority);
+}
+
+uint64_t Internals_NetworkIdentity_GetOwnerSessionId(Scene* scene,
+                                                     entt::entity entity) {
+  return scene->GetComponent<NetworkIdentityComponent>(entity)
+      .owner_session_id;
+}
+
+void Internals_NetworkIdentity_SetOwnerSessionId(Scene* scene,
+                                                 entt::entity entity,
+                                                 uint64_t session_id) {
+  scene->GetComponent<NetworkIdentityComponent>(entity).owner_session_id =
+      session_id;
+}
+
+void Internals_NetworkIdentity_SetAuthority(Scene* scene, entt::entity entity,
+                                            int authority) {
+  scene->GetComponent<NetworkIdentityComponent>(entity).authority =
+      static_cast<NetworkAuthority>(authority);
+}
+
+void Internals_NetworkSceneManager_LoadScene(MonoString* name, int mode) {
+  char* cname = mono_string_to_utf8(name);
+  LoadSceneMode load_mode = FromInt(mode);
+  Engine::network_scene_manager().LoadScene(cname, load_mode);
+  mono_free(cname);
+}
+
+void Internals_NetworkSceneManager_LoadSceneWithLoading(MonoString* target,
+                                                        MonoString* loading) {
+  char* ctarget = mono_string_to_utf8(target);
+  char* cloading = mono_string_to_utf8(loading);
+  Engine::network_scene_manager().LoadSceneWithLoading(ctarget, cloading);
+  mono_free(ctarget);
+  mono_free(cloading);
+}
+
+
+#define GET_NET_IDENTITY_OR_RETURN(sp, eid, retval) \
+  VALIDATE_SCENE_OR_RETURN(sp, eid, retval);        \
+  if (!scene->HasComponent<NetworkIdentityComponent>(handle)) \
+    return retval;                                  \
+  auto& net_identity = scene->GetComponent<NetworkIdentityComponent>(handle)
+
+// Serializes a MonoArray of object args to a JSON array buffer using the
+// ScriptFieldTypeRegistry. The type of each arg is inferred from its class.
+static std::shared_ptr<znet::Buffer> SerializeRpcArgs(MonoArray* args) {
+  if (!args) return nullptr;
+  uintptr_t len = mono_array_length(args);
+  if (len == 0) return nullptr;
+
+  nlohmann::json arr = nlohmann::json::array();
+  for (uintptr_t i = 0; i < len; i++) {
+    MonoObject* arg = mono_array_get(args, MonoObject*, i);
+    if (!arg) {
+      arr.push_back({{"type", ""}, {"value", nullptr}});
+      continue;
+    }
+    std::string type_name =
+        mono_type_get_name(mono_class_get_type(mono_object_get_class(arg)));
+    nlohmann::json val_json;
+    if (!ScriptFieldTypeRegistry::SerializeValue(type_name, arg, val_json)) {
+      LOG_WARN("Unsupported RPC argument type: {}", type_name);
+      val_json = nullptr;
+    }
+    arr.push_back({{"type", type_name}, {"value", val_json}});
+  }
+
+  std::string json_str = arr.dump();
+  auto buf = std::make_shared<znet::Buffer>();
+  buf->WriteString(json_str);
+  return buf;
+}
+
+void Internals_Network_SendServerRpc(uint64_t scene_ptr, uint64_t entity_id,
+                                     MonoString* rpc_name, MonoArray* args) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
+  char* name = mono_string_to_utf8(rpc_name);
+  Engine::network().SendServerRpc(net_identity.net_id, name,
+                                  SerializeRpcArgs(args));
+  mono_free(name);
+}
+
+void Internals_Network_SendClientRpc(uint64_t scene_ptr, uint64_t entity_id,
+                                     MonoString* rpc_name, MonoArray* args) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
+  char* name = mono_string_to_utf8(rpc_name);
+  Engine::network().SendClientRpc(net_identity.net_id, name,
+                                  SerializeRpcArgs(args));
+  mono_free(name);
+}
+
+void Internals_Network_SetSyncVar(uint64_t scene_ptr, uint64_t entity_id,
+                                  MonoString* name, MonoObject* value) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, );
+  char* cname = mono_string_to_utf8(name);
+  std::string key(cname);
+  mono_free(cname);
+
+  if (!value) {
+    return;
+  }
+
+  MonoType* mono_type = mono_class_get_type(mono_object_get_class(value));
+  int type_id = mono_type_get_type(mono_type);
+
+  nlohmann::json j;
+  switch (type_id) {
+    case MONO_TYPE_I4:
+      j = *(int*)mono_object_unbox(value);
+      break;
+    case MONO_TYPE_R4:
+      j = *(float*)mono_object_unbox(value);
+      break;
+    case MONO_TYPE_BOOLEAN:
+      j = *(bool*)mono_object_unbox(value);
+      break;
+    case MONO_TYPE_STRING: {
+      char* str = mono_string_to_utf8((MonoString*)value);
+      j = std::string(str);
+      mono_free(str);
+      break;
+    }
+    default:
+      LOG_WARN("Unsupported sync var type for '{}'", key);
+      return;
+  }
+  net_identity.sync_vars[key] = j;
+}
+
+MonoObject* Internals_Network_GetSyncVar(uint64_t scene_ptr,
+                                         uint64_t entity_id,
+                                         MonoString* name) {
+  GET_NET_IDENTITY_OR_RETURN(scene_ptr, entity_id, nullptr);
+  char* cname = mono_string_to_utf8(name);
+  std::string key(cname);
+  mono_free(cname);
+
+  auto it = net_identity.sync_vars.find(key);
+  if (it == net_identity.sync_vars.end()) {
+    return nullptr;
+  }
+
+  MonoDomain* domain = mono_domain_get();
+  const auto& val = it->second;
+
+  if (val.is_number_integer()) {
+    int v = val.get<int>();
+    return mono_value_box(domain, mono_get_int32_class(), &v);
+  }
+  if (val.is_number_float()) {
+    float v = val.get<float>();
+    return mono_value_box(domain, mono_get_single_class(), &v);
+  }
+  if (val.is_boolean()) {
+    bool v = val.get<bool>();
+    MonoBoolean mb = v ? 1 : 0;
+    return mono_value_box(domain, mono_get_boolean_class(), &mb);
+  }
+  if (val.is_string()) {
+    return (MonoObject*)mono_string_new(domain,
+                                        val.get<std::string>().c_str());
+  }
+
+  return nullptr;
+}
+
 // --- Cursor bindings ---
 
 void Internals_Cursor_SetState(MonoString* state) {
@@ -2586,7 +2928,6 @@ MonoString* Internals_Cursor_GetState() {
 
 void RegisterScriptGlue() {
   PROFILE_ZONE_SCOPED_N("RegisterScriptGlue");
-  WIESEL_ADD_INTERNAL_CALL(Log_Info);
   WIESEL_ADD_INTERNAL_CALL(Input_GetAxis);
   WIESEL_ADD_INTERNAL_CALL(Input_GetKey);
   WIESEL_ADD_INTERNAL_CALL(Input_GetKeyDown);
@@ -2626,22 +2967,6 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_LocalToWorldPoint);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_WorldToLocalPoint);
   WIESEL_ADD_INTERNAL_CALL(TransformComponent_Translate);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetEnableRendering);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetEnableRendering);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintR);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintG);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintB);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetColorTintA);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintR);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintG);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintB);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetColorTintA);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetRoughness);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetRoughness);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetMetallic);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetMetallic);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_GetSpecular);
-  WIESEL_ADD_INTERNAL_CALL(ModelComponent_SetSpecular);
   // BoxColliderComponent
   WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetX);
   WIESEL_ADD_INTERNAL_CALL(BoxCollider_GetOffsetY);
@@ -2739,46 +3064,6 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Canvas_SetSpacing);
   WIESEL_ADD_INTERNAL_CALL(Canvas_GetSortOrder);
   WIESEL_ADD_INTERNAL_CALL(Canvas_SetSortOrder);
-  // CanvasRectComponent
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_GetColorA);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasRect_SetColorA);
-  // CanvasImageComponent
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetTintA);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintR);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintG);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintB);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetTintA);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectX);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectY);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectZ);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_GetUVRectW);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectX);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectY);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectZ);
-  WIESEL_ADD_INTERNAL_CALL(CanvasImage_SetUVRectW);
-  // TextComponent
-  WIESEL_ADD_INTERNAL_CALL(Text_GetText);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetText);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetFontSize);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetFontSize);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorR);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorG);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorB);
-  WIESEL_ADD_INTERNAL_CALL(Text_GetColorA);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorR);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorG);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorB);
-  WIESEL_ADD_INTERNAL_CALL(Text_SetColorA);
-
   WIESEL_ADD_INTERNAL_CALL(Animator_SetBool);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetInt);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetFloat);
@@ -2787,16 +3072,25 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Animator_GetInt);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetFloat);
   WIESEL_ADD_INTERNAL_CALL(Animator_Play);
+  WIESEL_ADD_INTERNAL_CALL(Animator_Stop);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetCurrentState);
   WIESEL_ADD_INTERNAL_CALL(Animator_GetIsPlaying);
   WIESEL_ADD_INTERNAL_CALL(Animator_SetIsPlaying);
   // SceneManager
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScene);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadScenePath);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadSceneAsync);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadSceneAsyncPath);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_LoadSceneWithLoading);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_GetLoadProgress);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_IsSceneReady);
   WIESEL_ADD_INTERNAL_CALL(SceneManager_ActivateLoadedScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_UnloadScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_GetLoadedSceneCount);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_GetLoadedScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_FindScene);
+  WIESEL_ADD_INTERNAL_CALL(SceneManager_MoveEntityToScene);
+  WIESEL_ADD_INTERNAL_CALL(Scene_GetName);
   WIESEL_ADD_INTERNAL_CALL(Prefab_Instantiate);
   // Scene
   WIESEL_ADD_INTERNAL_CALL(Time_GetDeltaTime);
@@ -2858,9 +3152,13 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Entity_HasTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_AddTag);
   WIESEL_ADD_INTERNAL_CALL(Entity_RemoveTag);
+  WIESEL_ADD_INTERNAL_CALL(TagComponent_GetName);
+  WIESEL_ADD_INTERNAL_CALL(TagComponent_SetName);
   WIESEL_ADD_INTERNAL_CALL(Scene_FindEntitiesByTag);
+  WIESEL_ADD_INTERNAL_CALL(Entity_IsValid);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChildCount);
   WIESEL_ADD_INTERNAL_CALL(Entity_GetChild);
+  WIESEL_ADD_INTERNAL_CALL(Entity_SetParent);
 
   WIESEL_ADD_INTERNAL_CALL(Camera_GetProjectionMode);
   WIESEL_ADD_INTERNAL_CALL(Camera_SetProjectionMode);
@@ -2898,6 +3196,62 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetTintA);
   WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_GetSortLayer);
   WIESEL_ADD_INTERNAL_CALL(SpriteRenderer_SetSortLayer);
+
+  // BillboardRenderer
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetSizeX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetSizeY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetSizeX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetSizeY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetPivotX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetPivotY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetPivotX);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetPivotY);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetTintA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetTintA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_GetOccludedAlpha);
+  WIESEL_ADD_INTERNAL_CALL(BillboardRenderer_SetOccludedAlpha);
+
+  // BillboardText
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetText);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetText);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetFontHandle);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetFontHandle);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetFontSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetFontSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetColorA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorR);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorG);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorB);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetColorA);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetAlignment);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetAlignment);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetMinSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetMaxSize);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetSortLayer);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetOcclusion);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_GetOccludedAlpha);
+  WIESEL_ADD_INTERNAL_CALL(BillboardText_SetOccludedAlpha);
 
   // SpriteAnimator
   WIESEL_ADD_INTERNAL_CALL(SpriteAnimator_Play);
@@ -2942,12 +3296,20 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Audio_SetMusicVolume);
   WIESEL_ADD_INTERNAL_CALL(Audio_GetMusicVolume);
 
-  WIESEL_ADD_INTERNAL_CALL(Console_RegisterCommand);
-  WIESEL_ADD_INTERNAL_CALL(Console_UnregisterCommand);
-  WIESEL_ADD_INTERNAL_CALL(Console_Execute);
-  WIESEL_ADD_INTERNAL_CALL(Console_LogInfo);
-  WIESEL_ADD_INTERNAL_CALL(Console_LogWarning);
-  WIESEL_ADD_INTERNAL_CALL(Console_LogError);
+  WIESEL_ADD_INTERNAL_CALL(ConsoleManager_RegisterCommand);
+  WIESEL_ADD_INTERNAL_CALL(ConsoleManager_UnregisterCommand);
+  WIESEL_ADD_INTERNAL_CALL(ConsoleManager_Execute);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Int);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Float);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Bool);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_String);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Vec2);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Vec3);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Vec4);
+  WIESEL_ADD_INTERNAL_CALL(CommandContext_Has);
+  WIESEL_ADD_INTERNAL_CALL(Debug_Log);
+  WIESEL_ADD_INTERNAL_CALL(Debug_LogWarning);
+  WIESEL_ADD_INTERNAL_CALL(Debug_LogError);
 
   // UIDocument
   WIESEL_ADD_INTERNAL_CALL(UIDocument_SetInt);
@@ -2997,6 +3359,30 @@ void RegisterScriptGlue() {
   WIESEL_ADD_INTERNAL_CALL(Settings_SetAnisotropicFiltering);
   WIESEL_ADD_INTERNAL_CALL(Settings_GetTextureQuality);
   WIESEL_ADD_INTERNAL_CALL(Settings_SetTextureQuality);
+
+  // Networking
+  WIESEL_ADD_INTERNAL_CALL(Network_StartServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_StopServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_ConnectToServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_Disconnect);
+  WIESEL_ADD_INTERNAL_CALL(Network_IsServer);
+  WIESEL_ADD_INTERNAL_CALL(Network_IsClient);
+  WIESEL_ADD_INTERNAL_CALL(Network_IsConnected);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetRole);
+  WIESEL_ADD_INTERNAL_CALL(Network_SetTickRate);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetTickRate);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetLocalSessionId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_GetNetId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_GetAuthority);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_GetOwnerSessionId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_SetOwnerSessionId);
+  WIESEL_ADD_INTERNAL_CALL(NetworkIdentity_SetAuthority);
+  WIESEL_ADD_INTERNAL_CALL(NetworkSceneManager_LoadScene);
+  WIESEL_ADD_INTERNAL_CALL(NetworkSceneManager_LoadSceneWithLoading);
+  WIESEL_ADD_INTERNAL_CALL(Network_SendServerRpc);
+  WIESEL_ADD_INTERNAL_CALL(Network_SendClientRpc);
+  WIESEL_ADD_INTERNAL_CALL(Network_SetSyncVar);
+  WIESEL_ADD_INTERNAL_CALL(Network_GetSyncVar);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

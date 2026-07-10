@@ -12,7 +12,7 @@
 
 #include "rendering/w_mesh.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Binary search: find the index of the last key with time <= target
 template <typename T>
@@ -207,4 +207,4 @@ void Animator::BlendAndSkin(const Model& model,
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

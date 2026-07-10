@@ -58,9 +58,8 @@ namespace WieselEngine
             }
         }
 
-        public TransformComponent(Entity entity)
+        public TransformComponent(Entity entity) : base(entity)
         {
-            this.entity = entity;
             this.position = new HandledVector3f(GetPositionX, SetPositionX, GetPositionY, SetPositionY, GetPositionZ, SetPositionZ);
             this.rotation = new HandledVector3f(GetRotationX, SetRotationX, GetRotationY, SetRotationY, GetRotationZ, SetRotationZ);
             this.scale = new HandledVector3f(GetScaleX, SetScaleX, GetScaleY, SetScaleY, GetScaleZ, SetScaleZ);

@@ -11,12 +11,7 @@
 
 #include "math/w_math.h"
 
-#include <glm/glm.hpp>
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/matrix_decompose.hpp>
-
-namespace Wiesel::Math {
+namespace wiesel::math {
 
 bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation,
                         glm::vec3& rotation, glm::vec3& scale) {
@@ -90,4 +85,4 @@ bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation,
   return true;
 }
 
-}  // namespace Wiesel::Math
+}  // namespace wiesel::math

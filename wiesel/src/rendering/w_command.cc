@@ -15,7 +15,7 @@
 #include "rendering/w_command.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 CommandPool::CommandPool() {
   VkCommandPoolCreateInfo poolInfo{};
@@ -76,4 +76,4 @@ void CommandBuffer::End() {
 void CommandBuffer::Reset() {
   vkResetCommandBuffer(handle_, 0);
 }
-}  // namespace Wiesel
+}  // namespace wiesel

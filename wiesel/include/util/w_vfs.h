@@ -25,6 +25,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -32,7 +33,7 @@
 
 #include <wpak/wpak.h>
 
-namespace Wiesel {
+namespace wiesel {
 
 class VfsFile {
  public:
@@ -104,10 +105,11 @@ struct VfsEntry {
 
 class VirtualFileSystem {
  public:
-  // Auto-detects whether path is a directory or a .pak archive.
-  // For archives, validates the WPAK magic before mounting.
+  // Mount a physical directory to a VFS prefix.
   void Mount(const std::string& mount_point, const std::filesystem::path& path,
              int priority = 0);
+
+  void MountPak(const std::filesystem::path& wpak_path, int priority = 0);
 
   VfsFile Open(const std::string& virtual_path);
   bool FileExists(const std::string& virtual_path);
@@ -138,6 +140,11 @@ class VirtualFileSystem {
   // Only works for physical (non-archive) mounts.
   bool WriteFile(const std::string& vfs_path, const std::string& content);
 
+  // Register a virtual file entry so ListDirectory can show assets that
+  // only exist in memory (e.g. built-in primitives). Creates intermediate
+  // virtual directories automatically.
+  void RegisterVirtualEntry(const std::string& vfs_path);
+
   void Unmount(const std::string& mount_point);
   void Clear();
 
@@ -154,7 +161,7 @@ class VirtualFileSystem {
 
  private:
   struct MountPoint {
-    std::string mount_point;
+    std::string mount_point;  // VFS prefix for dirs, archive path for paks
     std::filesystem::path physical_path;
     int priority;
     bool is_archive;
@@ -166,17 +173,34 @@ class VirtualFileSystem {
 
   std::vector<MountPoint> mount_points_;
   std::map<std::string, Wpak::Archive> archives_;
+  std::set<std::string> virtual_entries_;
 
   std::string NormalizePath(const std::string& path);
 
+  // Archive entry lookup by full VFS path. Returns nullptr if not found.
+  const Wpak::ArchiveEntry* FindArchiveEntry(const MountPoint& mp,
+                                             const std::string& normalized);
+
+  // For directory mounts: check prefix match and return the physical path.
+  // Returns nullopt if the mount doesn't match the VFS path.
+  std::optional<std::filesystem::path> ResolveToPhysical(
+      const MountPoint& mp, const std::string& normalized);
+
+  // Collect VfsEntry items from entries that start with prefix.
+  // Used by ListDirectory for both archives and virtual entries.
+  static void CollectDirectoryEntries(const std::string& prefix,
+                                      const std::string& normalized,
+                                      std::set<std::string>& seen,
+                                      std::vector<VfsEntry>& results,
+                                      auto&& key_range);
+
  public:
-  // Resolve a VFS path to physical even if the file doesn't exist yet.
   std::optional<std::filesystem::path> ResolvePhysicalPath(
       const std::string& vfs_path);
 
  private:
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  //WIESEL_PARENT_W_VFS_HPP

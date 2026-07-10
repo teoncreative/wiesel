@@ -12,11 +12,13 @@
 #pragma once
 
 #include "rendering/w_renderer.h"
-#include "util/w_command.h"
+#include <urkern/thread_pool.h>
 #include "util/w_vfs.h"
 #include "w_application.h"
 
-namespace Wiesel {
+namespace wiesel {
+
+static constexpr const char* kEngineVersion = "2026.4.1";
 
 class Scene;
 class AssetManager;
@@ -26,7 +28,9 @@ class UIManager;
 class CursorManager;
 class NativeBehaviorRegistry;
 class AudioManager;
-class ThreadPool;
+class NetworkManager;
+class NetworkSceneManager;
+class ReplicationManager;
 class UserConfig;
 class InputManager;
 struct GameInfo;
@@ -74,8 +78,6 @@ class Engine {
 
   WIESEL_GETTER_FN static Application& app() { return *application_; }
 
-  WIESEL_GETTER_FN static DeveloperConsole& console() { return *console_; }
-
   WIESEL_GETTER_FN static InputManager& input() { return *input_manager_; }
 
   WIESEL_GETTER_FN static AssetManager& asset_manager() {
@@ -90,9 +92,21 @@ class Engine {
     return *behavior_registry_;
   }
 
-  WIESEL_GETTER_FN static ThreadPool& thread_pool() { return *thread_pool_; }
+  WIESEL_GETTER_FN static urkern::ThreadPool& thread_pool() { return *thread_pool_; }
 
   WIESEL_GETTER_FN static AudioManager& audio() { return *audio_manager_; }
+
+  WIESEL_GETTER_FN static NetworkManager& network() {
+    return *network_manager_;
+  }
+
+  WIESEL_GETTER_FN static NetworkSceneManager& network_scene_manager() {
+    return *network_scene_manager_;
+  }
+
+  WIESEL_GETTER_FN static ReplicationManager& replication_manager() {
+    return *replication_manager_;
+  }
 
   WIESEL_GETTER_FN static SceneManager& scene_manager() {
     return *scene_manager_;
@@ -146,14 +160,16 @@ class Engine {
   static std::shared_ptr<Renderer> renderer_;
   static std::shared_ptr<AppWindow> window_;
   static std::shared_ptr<VirtualFileSystem> vfs_;
-  static std::unique_ptr<DeveloperConsole> console_;
   static std::unique_ptr<InputManager> input_manager_;
   static std::unique_ptr<AssetManager> asset_manager_;
 
   static std::unique_ptr<ScriptManager> script_manager_;
   static std::unique_ptr<NativeBehaviorRegistry> behavior_registry_;
-  static std::unique_ptr<ThreadPool> thread_pool_;
+  static std::unique_ptr<urkern::ThreadPool> thread_pool_;
   static std::unique_ptr<AudioManager> audio_manager_;
+  static std::unique_ptr<NetworkManager> network_manager_;
+  static std::unique_ptr<NetworkSceneManager> network_scene_manager_;
+  static std::unique_ptr<ReplicationManager> replication_manager_;
   static std::unique_ptr<SceneManager> scene_manager_;
   static std::unique_ptr<UIManager> ui_manager_;
   static std::unique_ptr<CursorManager> cursor_manager_;
@@ -166,4 +182,4 @@ class Engine {
 };
 
 Application* CreateApp();
-}  // namespace Wiesel
+}  // namespace wiesel

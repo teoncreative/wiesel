@@ -12,22 +12,13 @@
 #include "rendering/features/w_sprite_feature.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "rendering/w_sprite.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 SpriteFeature::SpriteFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass (single swap-chain-format attachment, no MSAA)
-  render_pass_ =
-      std::make_shared<RenderPass>(PassType::PostProcess, "Sprite RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = SamplingMode::DISABLED});
-  render_pass_->Bake();
-
   auto sprite_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
        "engine://shaders/sprite_shader.vert"});
@@ -38,7 +29,7 @@ SpriteFeature::SpriteFeature(std::shared_ptr<Renderer> renderer)
       SamplingMode::DISABLED, CullModeNone, false, true, false, false});
   pipeline_->SetVertexData(VertexSprite::GetBindingDescriptions(),
                            VertexSprite::GetAttributeDescriptions());
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SpriteDraw"));
   pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   pipeline_->AddShader(sprite_vert);
@@ -58,11 +49,6 @@ void SpriteFeature::SetupResources(RenderContext& ctx) {
                                        1, renderer.GetSwapChainImageFormat(),
                                        SamplingMode::DISABLED, true}));
 
-  std::array<AttachmentTexture*, 1> attachments{
-      pool.GetTexture("sprite.color").get()};
-  pool.SetFramebuffer(
-      "sprite", render_pass_->CreateFramebuffer(0, attachments, {rw, rh}));
-
   // Sprite output descriptor: reads sprite.color, linear sampler
   auto sprite_output_desc = std::make_shared<DescriptorSet>();
   sprite_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
@@ -79,7 +65,7 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("SpriteFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
-  auto* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   auto pipeline = pipeline_;
 
   // Import sprite output texture from pool
@@ -87,22 +73,22 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
       graph.ImportTexture("SpriteOut", pool->GetTexture("sprite.color"));
 
   uint32_t sprite = graph.AddPass(
-      "Sprite", render_pass_, [pipeline, scene, renderer](VkCommandBuffer) {
-        pipeline->Bind(PipelineBindPointGraphics);
+      "Sprite", [pipeline, &scenes, renderer](VkCommandBuffer) {
+        pipeline->Bind();
 
         // Collect and sort sprites by sort_layer
         struct SpriteEntry {
+          Scene* scene;
           entt::entity entity;
           uint8_t layer;
         };
         std::vector<SpriteEntry> sorted;
 
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<SpriteRendererComponent,
-                                       TransformComponent>()) {
-          auto& spr = scene->GetComponent<SpriteRendererComponent>(entity);
-          sorted.push_back({entity, spr.sort_layer_});
-        }
+        scenes.ForEach<SpriteRendererComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              auto& spr = scene.GetComponent<SpriteRendererComponent>(entity);
+              sorted.push_back({&scene, entity, spr.sort_layer_});
+            });
 
         std::sort(sorted.begin(), sorted.end(),
                   [](const SpriteEntry& a, const SpriteEntry& b) {
@@ -111,15 +97,14 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
 
         for (auto& entry : sorted) {
           auto& spr =
-              scene->GetComponent<SpriteRendererComponent>(entry.entity);
+              entry.scene->GetComponent<SpriteRendererComponent>(entry.entity);
           auto& transform =
-              scene->GetComponent<TransformComponent>(entry.entity);
+              entry.scene->GetComponent<TransformComponent>(entry.entity);
           renderer->DrawSprite(spr, transform);
         }
       });
 
   graph.PassWritesColor(sprite, sprite_out);
-  graph.SetPassFramebuffer(sprite, pool->GetFramebuffer("sprite"));
   graph.SetPassViewport(sprite, ctx.viewport_size);
   graph.SetPassClearColor(sprite, {0, 0, 0, 0});
 
@@ -127,4 +112,4 @@ void SpriteFeature::AddPasses(RenderGraph& graph,
   registry.Register("SpriteOut", sprite_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

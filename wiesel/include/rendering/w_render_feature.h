@@ -14,15 +14,15 @@
 #include <entt/entt.hpp>
 #include "util/w_utils.h"
 #include "w_descriptor.h"
-#include "w_framebuffer.h"
 #include "w_pch.h"
 #include "w_rendergraph.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
 class Scene;
+class MultiScene;
 struct CameraComponent;
 class RenderPipeline;
 
@@ -34,10 +34,6 @@ class CameraResourcePool {
                   std::shared_ptr<AttachmentTexture> tex);
   std::shared_ptr<AttachmentTexture> GetTexture(const std::string& name) const;
   bool HasTexture(const std::string& name) const;
-
-  void SetFramebuffer(const std::string& name, std::shared_ptr<Framebuffer> fb);
-  std::shared_ptr<Framebuffer> GetFramebuffer(const std::string& name) const;
-  bool HasFramebuffer(const std::string& name) const;
 
   void SetDescriptor(const std::string& name,
                      std::shared_ptr<DescriptorSet> ds);
@@ -56,7 +52,6 @@ class CameraResourcePool {
 
  private:
   std::unordered_map<std::string, std::shared_ptr<AttachmentTexture>> textures_;
-  std::unordered_map<std::string, std::shared_ptr<Framebuffer>> framebuffers_;
   std::unordered_map<std::string, std::shared_ptr<DescriptorSet>> descriptors_;
   std::unordered_map<std::string, std::shared_ptr<ImageView>> image_views_;
   std::unordered_map<std::string, std::shared_ptr<UniformBuffer>> buffers_;
@@ -65,7 +60,7 @@ class CameraResourcePool {
 // Context passed to features during resource setup and pass building.
 struct RenderContext {
   Renderer& renderer;
-  Scene& scene;
+  MultiScene& scenes;
   CameraComponent& camera;
   CameraResourcePool& resources;
   glm::vec2 viewport_size;
@@ -132,6 +127,23 @@ class RenderPipeline {
   // Build the render graph for a camera (calls each feature's AddPasses).
   void BuildRenderGraph(RenderGraph& graph, RenderContext& ctx);
 
+  // Well-known resource names:
+  //   "PipelineOutput"           - final color attachment for the pipeline
+  //   "PipelineOutputDescriptor" - descriptor set for PipelineOutput
+  //   "GlobalDescriptor"         - per-frame global UBO descriptor
+  //   "ShadowGlobalDescriptor"   - shadow pass global UBO descriptor
+  //   "geometry.albedo"          - G-buffer albedo
+  //   "geometry.normal"          - G-buffer normals
+  //   "geometry.depth_stencil"   - G-buffer depth/stencil
+  //   "geometry.entity_id"       - G-buffer entity ID for picking
+  //   "geometry.output"          - G-buffer output descriptor
+  //   "lighting.output"          - lighting pass output descriptor
+  //   "ssao.output"              - SSAO output descriptor
+  //   "shadow.depth_stencil"     - shadow map depth
+  //
+  // Naming convention: "{feature}.{resource}" (e.g. "bloom.composite").
+  // Custom features should use a unique prefix to avoid collisions.
+
   // Get the final output from the "PipelineOutput" convention.
   std::shared_ptr<DescriptorSet> GetFinalOutputDescriptor(
       CameraResourcePool& pool) const;
@@ -149,4 +161,4 @@ class RenderPipeline {
   std::vector<std::shared_ptr<RenderFeature>> features_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

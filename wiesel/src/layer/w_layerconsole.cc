@@ -14,39 +14,38 @@
 #include <imgui.h>
 
 #include "events/w_keyevents.h"
+#include "util/w_command.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ConsoleLayer::ConsoleLayer() : Layer("ConsoleLayer") {}
 
 ConsoleLayer::~ConsoleLayer() = default;
 
 void ConsoleLayer::OnEvent(Event& event) {
-  auto& console = Engine::console();
-  if (!console.IsVisible()) {
+  if (!visible_) {
     return;
   }
 
   EventDispatcher dispatcher{event};
-  dispatcher.Dispatch<KeyPressedEvent>([this, &console](KeyPressedEvent& e) {
+  dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) {
     // Allow the toggle key to close the console
     if (e.GetKeyCode() == toggle_key_ && !e.IsRepeat()) {
-      console.SetVisible(false);
+      visible_ = false;
       return true;
     }
     return false;
   });
 
   // Consume all keyboard events so the game doesn't react to typing
-  if (event.IsInCategory(EventCategory::kEventCategoryKeyboard)) {
+  if (event.IsInCategory(kEventCategoryKeyboard)) {
     event.handled_ = true;
   }
 }
 
 void ConsoleLayer::OnBeginPresent() {
-  auto& console = Engine::console();
-  if (!console.IsVisible()) {
+  if (!visible_) {
     return;
   }
 
@@ -67,8 +66,8 @@ void ConsoleLayer::OnBeginPresent() {
 
   ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.1f, 0.1f, 0.12f, 0.92f));
 
-  bool visible = console.IsVisible();
-  if (ImGui::Begin("Developer Console", &visible, flags)) {
+  DeveloperConsole& console = DeveloperConsole::Get();
+  if (ImGui::Begin("Developer Console", &visible_, flags)) {
     const auto& log = console.GetLog();
 
     // Toolbar
@@ -173,11 +172,6 @@ void ConsoleLayer::OnBeginPresent() {
   ImGui::End();
 
   ImGui::PopStyleColor();
-
-  // Handle close via X button
-  if (!visible) {
-    console.SetVisible(false);
-  }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

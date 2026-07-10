@@ -14,7 +14,7 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 // Simple JSON-backed config file for user preferences.
 // One file per config name, stored under the user data directory.
@@ -65,4 +65,4 @@ class UserConfig {
   nlohmann::json data_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

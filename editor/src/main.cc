@@ -11,12 +11,14 @@
 #include "w_editor.h"
 #include "w_editor_components.h"
 
+#include <clocale>
 #include "layer/w_layerimgui.h"
-#include "util/w_platform.h"
+#include "util/w_command.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
 
-using namespace Wiesel;
-using namespace Wiesel::Editor;
+using namespace wiesel;
+using namespace wiesel::editor;
 
 class EditorApplication : public Application {
  public:
@@ -26,18 +28,20 @@ class EditorApplication : public Application {
 
   void Init() override {
     InitializeEditorComponents();
+    InitializeScriptFieldRenderers();
     PushLayer(std::make_shared<ImGuiLayer>());
     PushLayer(std::make_shared<EditorLayer>(*this));
   }
 };
 
-Application* Wiesel::CreateApp() {
+Application* wiesel::CreateApp() {
   return new EditorApplication();
 }
 
 int main(int argc, char** argv) {
-  EnableAnsiColors();
-
+  std::setlocale(LC_ALL, "C");
+  urkern::EnableAnsiColors();
+  DeveloperConsole::Init();
   EngineProperties properties = EngineProperties::Parse(argc, argv);
   properties.editor_enabled = true;
   Engine::InitEngine(properties);
@@ -45,6 +49,10 @@ int main(int argc, char** argv) {
   Application& application = Engine::app();
   application.Run();
   Engine::CleanupApplication();
+  Engine::CleanupAssets();
+  Engine::CleanupWindow();
   Engine::CleanupEngine();
+  Engine::CleanupRenderer();
+  DeveloperConsole::Cleanup();
   return 0;
 }

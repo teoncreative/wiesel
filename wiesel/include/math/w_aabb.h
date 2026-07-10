@@ -12,7 +12,7 @@
 
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct AABB {
   glm::vec3 min{std::numeric_limits<float>::max()};
@@ -52,4 +52,4 @@ struct AABB {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

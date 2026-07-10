@@ -19,8 +19,9 @@
 #include "util/w_gamepadcodes.h"
 #include "util/w_keycodes.h"
 #include "util/w_logger.h"
+#include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Project ---
 
@@ -81,14 +82,14 @@ bool Project::Create(const std::filesystem::path& directory,
   return proj.Save();
 }
 
-std::unique_ptr<Project> Project::Load(
+std::pair<ProjectLoadResult, std::unique_ptr<Project>> Project::Load(
     const std::filesystem::path& project_file) {
   namespace fs = std::filesystem;
 
   std::ifstream file(project_file);
   if (!file.is_open()) {
     LOG_ERROR("Failed to open project file: {}", project_file.string());
-    return nullptr;
+    return {ProjectLoadResult::FileNotFound, nullptr};
   }
 
   nlohmann::json j;
@@ -96,7 +97,29 @@ std::unique_ptr<Project> Project::Load(
     file >> j;
   } catch (const nlohmann::json::parse_error& e) {
     LOG_ERROR("Failed to parse project file: {}", e.what());
-    return nullptr;
+    return {ProjectLoadResult::ParseError, nullptr};
+  }
+
+  // Check engine version compatibility
+  static const std::vector<std::string> kCompatibleVersions = {
+      kEngineVersion,
+  };
+  std::string saved_engine_version = j.value("engine_version", "");
+  if (!saved_engine_version.empty()) {
+    bool compatible = false;
+    for (const auto& v : kCompatibleVersions) {
+      if (saved_engine_version == v) {
+        compatible = true;
+        break;
+      }
+    }
+    if (!compatible) {
+      LOG_ERROR(
+          "Project was saved with engine version {} which is not compatible "
+          "with current engine version {}",
+          saved_engine_version, kEngineVersion);
+      return {ProjectLoadResult::IncompatibleVersion, nullptr};
+    }
   }
 
   auto project = std::make_unique<Project>();
@@ -189,7 +212,7 @@ std::unique_ptr<Project> Project::Load(
     LOG_INFO("Migrated project settings to gameinfo.wgame");
   }
 
-  return project;
+  return {ProjectLoadResult::Success, std::move(project)};
 }
 
 bool Project::Save() const {
@@ -198,6 +221,7 @@ bool Project::Save() const {
     nlohmann::json j;
     j["name"] = settings_.name;
     j["version"] = settings_.version;
+    j["engine_version"] = kEngineVersion;
     j["last_scene"] =
         settings_.last_scene.IsValid() ? settings_.last_scene.ToString() : "";
 
@@ -230,4 +254,4 @@ bool Project::Save() const {
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

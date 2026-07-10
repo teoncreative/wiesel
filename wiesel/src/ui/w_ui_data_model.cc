@@ -15,7 +15,7 @@
 #include "util/w_logger.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 UIDataModel::~UIDataModel() {
   Shutdown();
@@ -37,27 +37,31 @@ void UIDataModel::Init(Rml::Context* context,
 
   handle_ = constructor_.GetModelHandle();
 
-  // Pre-register variables declared in asset properties
+  // Pre-register variables declared in asset properties.
+  // Only apply default values for entries that haven't been set already
+  // (scripts may call SetBool/SetInt before the data model is initialized).
   if (properties) {
     for (const auto& decl : properties->variables) {
       auto& entry = EnsureEntry(decl.name);
       entry.mode = decl.mode == UIVariableMode::ReadOnly
                        ? UIBindingMode::ReadOnly
                        : UIBindingMode::TwoWay;
-      switch (decl.type) {
-        case UIVariableType::Int:
-          entry.value = Rml::Variant(std::stoi(decl.default_value));
-          break;
-        case UIVariableType::Float:
-          entry.value = Rml::Variant(std::stof(decl.default_value));
-          break;
-        case UIVariableType::String:
-          entry.value = Rml::Variant(Rml::String(decl.default_value));
-          break;
-        case UIVariableType::Bool:
-          entry.value = Rml::Variant(decl.default_value == "true" ||
-                                     decl.default_value == "1");
-          break;
+      if (!entry.dirty) {
+        switch (decl.type) {
+          case UIVariableType::Int:
+            entry.value = Rml::Variant(std::stoi(decl.default_value));
+            break;
+          case UIVariableType::Float:
+            entry.value = Rml::Variant(std::stof(decl.default_value));
+            break;
+          case UIVariableType::String:
+            entry.value = Rml::Variant(Rml::String(decl.default_value));
+            break;
+          case UIVariableType::Bool:
+            entry.value = Rml::Variant(decl.default_value == "true" ||
+                                       decl.default_value == "1");
+            break;
+        }
       }
       entry.dirty = true;
     }
@@ -246,4 +250,4 @@ void UIDataModel::RegisterPendingVariables() {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

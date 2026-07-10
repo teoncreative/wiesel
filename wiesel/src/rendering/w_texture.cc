@@ -15,7 +15,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Global texture memory tracking (atomic for thread safety)
 std::atomic<uint64_t> g_texture_memory_total{0};
@@ -124,4 +124,4 @@ ImageView::~ImageView() {
   });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

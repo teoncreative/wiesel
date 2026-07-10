@@ -3,10 +3,7 @@ namespace WieselEngine
     public class AudioSourceComponent : Component
     {
 
-        public AudioSourceComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public AudioSourceComponent(Entity entity) : base(entity) { }
 
         // Play the default clip attached to this source
         public void Play()
@@ -18,7 +15,7 @@ namespace WieselEngine
         public void Play(AudioClip clip)
         {
             if (clip == null || !clip.IsValid()) return;
-            Internals.AudioSource_PlayClip(entity.ScenePtr, entity.Id, clip.handle);
+            Internals.AudioSource_PlayClip(entity.ScenePtr, entity.Id, clip.Handle);
         }
 
         // Stop the currently playing sound

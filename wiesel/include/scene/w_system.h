@@ -17,7 +17,7 @@
 
 #include <entt/entt.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 /**
  * @brief Type trait to detect component references
@@ -89,5 +89,5 @@ auto MakeSystemFunction(Func&& f) {
   return TypedSystemFunction<Components...>(std::forward<Func>(f));
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel
 #endif  //WIESEL_PARENT_W_SYSTEM_H

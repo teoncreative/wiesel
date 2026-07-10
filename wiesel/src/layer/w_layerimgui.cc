@@ -16,6 +16,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include <imnodes.h>
 // clang-format on
 
 #include <backends/imgui_impl_sdl3.h>
@@ -24,7 +25,7 @@
 #include "util/imgui/imgui_theme.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 ImGuiLayer::ImGuiLayer() : Layer("ImGui") {}
 
@@ -62,6 +63,7 @@ void ImGuiLayer::OnAttach() {
   //this initializes the core structures of imgui
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+  ImNodes::CreateContext();
   //ImGui::StyleColorsDark(&ImGui::GetStyle());
   ImGui::Moonlight::ApplyTheme();
   ImGui::Moonlight::LoadFont();
@@ -89,8 +91,14 @@ void ImGuiLayer::OnAttach() {
   init_info.ImageCount = 3;
   init_info.PipelineInfoMain.MSAASamples =
       ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.PipelineInfoMain.RenderPass =
-      Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.UseDynamicRendering = true;
+  VkFormat swap_format = Engine::renderer()->GetSwapChainImageFormat();
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .colorAttachmentCount = 1;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .pColorAttachmentFormats = &swap_format;
 
   ImGui_ImplVulkan_Init(&init_info);
 }
@@ -98,7 +106,7 @@ void ImGuiLayer::OnAttach() {
 void ImGuiLayer::OnDetach() {
   LOG_DEBUG("Destroying imgui pool");
   vkDeviceWaitIdle(Engine::renderer()->logical_device_);
-  // Vulkan does this
+  ImNodes::DestroyContext();
   ImGui_ImplVulkan_Shutdown();
   vkDestroyDescriptorPool(Engine::renderer()->logical_device_, m_ImGuiPool,
                           nullptr);
@@ -141,8 +149,14 @@ void ImGuiLayer::ReinitializeImGuiVulkan() {
   init_info.ImageCount = 3;
   init_info.PipelineInfoMain.MSAASamples =
       ToVkSampleCountFlagBits(Engine::renderer()->options().msaa_mode);
-  init_info.PipelineInfoMain.RenderPass =
-      Engine::renderer()->present_render_pass_->GetVulkanHandle();
+  init_info.UseDynamicRendering = true;
+  VkFormat swap_format = Engine::renderer()->GetSwapChainImageFormat();
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .colorAttachmentCount = 1;
+  init_info.PipelineInfoMain.PipelineRenderingCreateInfo
+      .pColorAttachmentFormats = &swap_format;
 
   ImGui_ImplVulkan_Init(&init_info);
 
@@ -176,4 +190,4 @@ void ImGuiLayer::OnPresent() {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

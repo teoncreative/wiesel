@@ -17,7 +17,7 @@
 #include <chrono>
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 DiscordRPC::DiscordRPC() = default;
 
@@ -95,6 +95,6 @@ void DiscordRPC::RunCallbacks() {
   Discord_RunCallbacks();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  // WIESEL_DISCORD_RPC

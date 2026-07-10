@@ -11,10 +11,12 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include "behavior/w_behavior.h"
 #include "script/w_scriptmanager.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class ScriptInstance;
 
@@ -36,6 +38,11 @@ class MonoBehavior : public IBehavior {
 
   ScriptInstance* script_instance() const { return script_instance_.get(); }
 
+  // Store field values to apply when the script instance becomes available.
+  // If the script instance already exists, apply them immediately.
+  void SetPendingFields(nlohmann::json fields);
+  void ApplyPendingFields();
+
   bool OnPointerClick(float x, float y) override;
 
   bool OnPointerDown(float x, float y) override;
@@ -54,14 +61,26 @@ class MonoBehavior : public IBehavior {
 
   bool OnCancel() override;
 
+  void OnSyncVarChanged(const std::string& var_name) override;
+  void OnServerRpc(const std::string& rpc_name,
+                   const std::string& args_json) override;
+  void OnClientRpc(const std::string& rpc_name,
+                   const std::string& args_json) override;
+
  private:
   void InstantiateScript();
   bool OnReloadScripts(ScriptsReloadedEvent& event);
   bool OnKeyPressed(KeyPressedEvent& event);
   bool OnKeyReleased(KeyReleasedEvent& event);
   bool OnMouseMoved(MouseMovedEvent& event);
+  bool OnNetworkClientConnected(class NetworkClientConnectedEvent& event);
+  bool OnNetworkClientDisconnected(class NetworkClientDisconnectedEvent& event);
+  bool OnNetworkConnectedToServer(class NetworkConnectedToServerEvent& event);
+  bool OnNetworkDisconnectedFromServer(
+      class NetworkDisconnectedFromServerEvent& event);
 
   std::unique_ptr<ScriptInstance> script_instance_;
+  nlohmann::json pending_fields_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

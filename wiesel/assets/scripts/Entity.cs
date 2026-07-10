@@ -1,3 +1,5 @@
+using System;
+
 namespace WieselEngine
 {
     public class Entity
@@ -5,8 +7,18 @@ namespace WieselEngine
         private ulong scenePtr;
         private ulong entityId;
 
-        public ulong Id { get { return entityId; } }
-        public ulong ScenePtr { get { return scenePtr; } }
+        internal ulong Id { get { return entityId; } }
+        internal ulong ScenePtr { get { return scenePtr; } }
+
+        public bool IsValid
+        {
+            get { return scenePtr != 0 && Internals.Entity_IsValid(scenePtr, entityId); }
+        }
+
+        public Scene Scene
+        {
+            get { return new Scene(scenePtr); }
+        }
 
         public Entity(ulong scenePtr, ulong entityId)
         {
@@ -66,23 +78,36 @@ namespace WieselEngine
             return child.GetComponent<T>();
         }
 
+        public void SetParent(Entity parent)
+        {
+            Internals.Entity_SetParent(scenePtr, entityId, parent.Id);
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is Entity other)
-                return entityId == other.entityId;
+            {
+                return entityId == other.entityId && scenePtr == other.scenePtr;
+            }
             return false;
         }
 
         public override int GetHashCode()
         {
-            return entityId.GetHashCode();
+            return HashCode.Combine(scenePtr, entityId);
         }
 
         public static bool operator ==(Entity a, Entity b)
         {
-            if (ReferenceEquals(a, b)) return true;
-            if (ReferenceEquals(a, null) || ReferenceEquals(b, null)) return false;
-            return a.entityId == b.entityId;
+            if (ReferenceEquals(a, b))
+            {
+                return true;
+            }
+            if (ReferenceEquals(a, null) || ReferenceEquals(b, null))
+            {
+                return false;
+            }
+            return a.entityId == b.entityId && a.scenePtr == b.scenePtr;
         }
 
         public static bool operator !=(Entity a, Entity b)

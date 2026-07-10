@@ -15,7 +15,7 @@
 #include "scene/w_scene.h"
 #include "ui/w_canvas.h"
 
-namespace Wiesel {
+namespace wiesel {
 class CanvasSystem {
  public:
   void Update(Scene& scene, glm::vec2 screen_size);
@@ -28,4 +28,4 @@ class CanvasSystem {
                       glm::vec2 parent_size, const CanvasComponent* canvas,
                       int32_t& draw_order);
 };
-}  // namespace Wiesel
+}  // namespace wiesel

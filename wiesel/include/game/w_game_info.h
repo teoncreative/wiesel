@@ -17,16 +17,20 @@
 #include "asset/w_asset_handle.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct RenderOptionsSerialized {
   glm::vec3 ambient_color = {1.0f, 1.0f, 1.0f};
   float ambient_intensity = 0.3f;
   bool ssao_enabled = true;
   bool ibl_enabled = true;
-  bool bloom_enabled = false;
-  float bloom_threshold = 0.7f;
-  float bloom_intensity = 0.6f;
+  bool bloom_enabled = true;
+  float bloom_threshold = 0.9f;
+  float bloom_intensity = 0.0f;
+  float bloom_scatter = 0.7f;
+  glm::vec3 bloom_tint = glm::vec3(1.0f);
+  float bloom_clamp = 65472.0f;
+  bool bloom_high_quality = false;
   bool motion_blur_enabled = false;
   float motion_blur_strength = 1.0f;
   int motion_blur_samples = 8;
@@ -81,9 +85,10 @@ struct GameInfo {
   AssetHandle start_scene;
   RenderOptionsSerialized render_options;
   InputSettings input;
+  std::vector<std::string> search_paths;  // ordered pak search directories
 
   static std::unique_ptr<GameInfo> Load(const std::filesystem::path& path);
   bool Save(const std::filesystem::path& path) const;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

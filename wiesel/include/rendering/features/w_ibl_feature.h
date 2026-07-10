@@ -13,7 +13,7 @@
 #include "rendering/w_render_feature.h"
 #include "rendering/w_skybox.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class IBLFeature : public RenderFeature {
  public:
@@ -60,4 +60,4 @@ class IBLFeature : public RenderFeature {
   static constexpr uint32_t kPrefilterMipLevels = 5;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

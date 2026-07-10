@@ -4,6 +4,11 @@ namespace WieselEngine
     {
         protected Entity entity;
 
+        protected Component(Entity entity)
+        {
+            this.entity = entity;
+        }
+
         public Entity Entity
         {
             get { return entity; }

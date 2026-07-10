@@ -22,7 +22,7 @@
 #include <regex>
 #include <string>
 
-namespace Wiesel {
+namespace wiesel {
 
 class FileWatcher : public efsw::FileWatchListener {
  public:
@@ -64,4 +64,4 @@ class FileWatcher : public efsw::FileWatchListener {
   std::unique_ptr<std::regex> regex_filter_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

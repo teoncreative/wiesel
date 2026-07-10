@@ -99,14 +99,13 @@ file(
         "${VENDOR_DIR}/imgui/imgui_demo.cpp" # remove
         "${VENDOR_DIR}/imgui/backends/imgui_impl_metal.cpp" # todo implement our own imgui backend instead
         "${VENDOR_DIR}/imgui/backends/imgui_impl_vulkan.cpp"
+        "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp"
         "${VENDOR_DIR}/imgui/misc/cpp/imgui_stdlib.cpp"
         "${VENDOR_DIR}/imgui/backends/*.h"
         "${VENDOR_DIR}/imgui/misc/cpp/*.h"
         "${VENDOR_DIR}/imgui/*.h"
 )
-list(APPEND IMGUI_FILES
-        "${VENDOR_DIR}/imgui/backends/imgui_impl_sdl3.cpp"
-)
+
 file(
         GLOB IMGUIZMO_FILES
         "${VENDOR_DIR}/imguizmo/GraphEditor.cpp"
@@ -140,9 +139,6 @@ if (MSVC)
         target_compile_options(wiesel PRIVATE /fsanitize=address)
     endif()
 else()
-    # We are using exceptions right now, but I want to replace them with state values to provide more safety
-    # And add -fno-exceptions to release builds.
-    # Additionally we might also add -fno-rtti if I can replace the existing rtti usages with some other stuff
     target_compile_options(wiesel PRIVATE
             $<$<CONFIG:Release>:-O2 -march=native -DNDEBUG -ffast-math>
             $<$<CONFIG:Debug>:-g -O0 -DDEBUG>
@@ -156,6 +152,12 @@ endif()
 if (WIESEL_ENABLE_VULKAN_VALIDATION)
     target_compile_options(wiesel PUBLIC -DVULKAN_VALIDATION=1)
 endif()
+target_compile_definitions(wiesel PUBLIC GLM_ENABLE_EXPERIMENTAL)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_INTRINSICS)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_DEFAULT_ALIGNED_GENTYPES)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_LEFT_HANDED)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
+target_compile_definitions(wiesel PUBLIC GLM_FORCE_RADIANS)
 
 target_precompile_headers(wiesel PUBLIC ${INCLUDE_DIRECTORY}/w_pch.h)
 if (MSVC)
@@ -167,6 +169,12 @@ else()
 endif()
 
 target_include_directories(wiesel PUBLIC ${SOURCES_DIRECTORY} ${INCLUDE_DIRECTORY})
+
+# Generated reflection headers (from wiesel-codegen)
+if (DEFINED WIESEL_GENERATED_DIR)
+    target_include_directories(wiesel PUBLIC ${WIESEL_GENERATED_DIR})
+    add_dependencies(wiesel wiesel-reflect)
+endif ()
 
 if (NOT APPLE AND NOT MSVC)
     target_link_options(wiesel PRIVATE -pthread)
@@ -182,6 +190,7 @@ endif()
 if (WIESEL_ENABLE_GPU_PROFILING)
     target_compile_definitions(wiesel PUBLIC WIESEL_GPU_PROFILING=1)
 endif()
+target_compile_definitions(wiesel PUBLIC IMGUI_ENABLE_FREETYPE)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/glm)
 
@@ -193,6 +202,7 @@ endif (VULKAN_FOUND)
 
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imgui)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imguizmo)
+target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/imnodes)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/stb)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/miniaudio)
 if (WIESEL_ENABLE_DISCORD_RPC)
@@ -206,12 +216,14 @@ target_link_libraries(wiesel PUBLIC nfd)
 target_link_libraries(wiesel PUBLIC glslang)
 target_link_libraries(wiesel PUBLIC monolib)
 target_link_libraries(wiesel PUBLIC wpak)
+target_link_libraries(wiesel PUBLIC urkern)
 target_link_libraries(wiesel PUBLIC cxxopts::cxxopts)
 target_link_libraries(wiesel PUBLIC GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(wiesel PUBLIC Jolt)
 target_link_libraries(wiesel PUBLIC Recast Detour)
 target_link_libraries(wiesel PUBLIC rmlui)
 target_link_libraries(wiesel PUBLIC efsw-static)
+target_link_libraries(wiesel PUBLIC znet)
 target_include_directories(wiesel PUBLIC ${VENDOR_DIR}/efsw/include)
 target_link_libraries(wiesel PUBLIC nlohmann_json::nlohmann_json)
 

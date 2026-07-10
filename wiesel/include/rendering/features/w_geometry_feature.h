@@ -13,7 +13,7 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class GeometryFeature : public RenderFeature {
  public:
@@ -25,15 +25,13 @@ class GeometryFeature : public RenderFeature {
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
 
-  std::shared_ptr<RenderPass> GetRenderPass() const { return render_pass_; }
-
   std::shared_ptr<Pipeline> GetPipeline() const { return pipeline_; }
 
  private:
   static inline std::string name_ = "Geometry";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+  std::shared_ptr<Pipeline> pipeline_double_sided_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

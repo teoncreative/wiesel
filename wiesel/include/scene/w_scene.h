@@ -14,39 +14,47 @@
 #include <entt/entt.hpp>
 
 #include "asset/w_asset_handle.h"
+#include "scene/w_scene_handle.h"
 #include "events/w_appevents.h"
 #include "events/w_engineevents.h"
 #include "events/w_events.h"
 #include "physics/w_physics_world.h"
 #include "rendering/w_camera.h"
-#include "rendering/w_render_feature.h"
-#include "rendering/w_rendergraph.h"
 #include "rendering/w_skybox.h"
-#include "scene/w_components.h"
+#include "systems/w_system.h"
 #include "ui/w_ui_event_system.h"
 #include "w_pch.h"
 
-namespace Wiesel {
-
-enum class SystemType { Update };
+namespace wiesel {
 
 class Entity;
 class CanvasSystem;
+class MultiScene;
 
 class Scene {
  public:
   Scene();
   ~Scene();
 
+  SceneHandle GetHandle() const { return handle_; }
+
+  const std::string& GetName() const { return name_; }
+
+  void SetName(const std::string& name) { name_ = name; }
+
+  const std::string& GetSourcePath() const { return source_path_; }
+
+  void SetSourcePath(const std::string& path) { source_path_ = path; }
+
   Entity CreateEntity(const std::string& name = std::string());
-  Entity CreateEntityWithUUID(UUID uuid,
+  Entity CreateEntityWithUUID(urkern::UUID uuid,
                               const std::string& name = std::string());
-  void RemoveEntity(Entity entity);
+  void RemoveEntity(entt::entity entity);
   entt::entity FindEntityByName(const std::string& name);
-  entt::entity FindEntityByUUID(const UUID& uuid);
+  entt::entity FindEntityByUUID(const urkern::UUID& uuid);
   std::vector<entt::entity> FindEntitiesByTag(const std::string& tag);
 
-  // Asset dependency tracking — called during deserialization
+  // Asset dependency tracking - called during deserialization
   void RequestAsset(AssetHandle handle);
   bool AreAssetsReady() const;
   float GetAssetLoadProgress() const;
@@ -110,18 +118,9 @@ class Scene {
 
   glm::vec2 GetViewportDisplaySize() const { return viewport_display_size_; }
 
-  // Set the default render pipeline for all cameras without a per-camera override.
-  void SetRenderPipeline(std::shared_ptr<RenderPipeline> pipeline);
   // Set a per-camera render pipeline override.
   void SetRenderPipeline(entt::entity camera,
                          std::shared_ptr<RenderPipeline> pipeline);
-  // Create a default pipeline with all built-in features.
-  static std::shared_ptr<RenderPipeline> CreateDefaultPipeline(
-      std::shared_ptr<Renderer> renderer);
-
-  std::shared_ptr<RenderPipeline> GetDefaultPipeline() const {
-    return default_pipeline_;
-  }
 
   template <typename T, typename... Args>
   T& AddComponent(entt::entity handle, Args&&... args) {
@@ -161,9 +160,13 @@ class Scene {
     return registry_.view<Components...>();
   }
 
+  bool IsValid(entt::entity entity) const { return registry_.valid(entity); }
+
   entt::registry& GetRegistry() { return registry_; }
 
   PhysicsWorld& GetPhysicsWorld() { return *physics_world_; }
+
+  UIEventSystem& GetUIEventSystem() { return ui_event_system_; }
 
   /*
    * Returns the scene hierarchy. This is used by the editor.
@@ -174,71 +177,51 @@ class Scene {
                     bool convert_to_local = true);
   void UnlinkEntities(entt::entity parent, entt::entity child);
 
+  // Instantiate a Model asset as an entity hierarchy.
+  // Creates entities for each node, adds MeshRenderer/SkinnedMeshRenderer
+  // on mesh nodes. Returns the root entity.
+  Entity InstantiateModel(AssetHandle model_handle,
+                          const std::string& name = "");
+
   void ProcessDestroyQueue();
-  bool Render();
-  bool RenderFromExternal(CameraComponent& camera,
-                          TransformComponent& transform,
-                          bool show_grid = false);
-  void BuildRenderGraph(entt::entity camera_entity);
-  void InvalidateRenderGraphs();
 
-  // Release all GPU resources (render graphs, camera resource pools, pipelines).
-  // Must be called before vkDestroyDevice.
-  void Cleanup();
-
-  std::shared_ptr<RenderGraph> GetRenderGraph(
-      entt::entity camera_entity) const {
-    auto it = render_graphs_.find(camera_entity);
-    return it != render_graphs_.end() ? it->second : nullptr;
-  }
-
-  std::shared_ptr<RenderGraph> GetExternalRenderGraph() const {
-    return external_render_graph_;
-  }
+  std::shared_ptr<CameraData> GetCurrentCamera() { return current_camera_; }
 
   void ResetPhysicsWorld();
   void ResetScriptStates();
 
   void ResetFirstUpdate() { first_update_ = true; }
 
-  template <typename Entity, typename... Components, typename Func>
-  void BindSystem(SystemType type, Func func) {
-    systems_[type].push_back([this, func](float_t delta_time) {
-      for (auto handle : registry_.view<Components...>()) {
-        Entity entity{handle, this};
-        func(delta_time, entity, registry_.get<Components>(handle)...);
-      }
-    });
+  // Register an ECS system. Systems are executed in priority order each frame.
+  void AddSystem(std::unique_ptr<ISystem> system);
+
+  template <typename T, typename... Args>
+  T& AddSystem(Args&&... args) {
+    auto system = std::make_unique<T>(std::forward<Args>(args)...);
+    T& ref = *system;
+    AddSystem(std::move(system));
+    return ref;
   }
 
-  template <typename Entity, typename... Components, typename Func>
-  void BindSystem(SystemType type, const std::string& tag, Func func) {
-    systems_[type].push_back([this, func, tag](float_t delta_time) {
-      for (auto handle : registry_.view<Components...>()) {
-        Entity entity{handle, this};
-        if (entity.GetName() != tag) {
-          continue;
-        }
-        func(delta_time, entity, registry_.get<Components>(handle)...);
+  template <typename T>
+  T* GetSystem() {
+    for (auto& system : systems_) {
+      if (auto* cast = dynamic_cast<T*>(system.get())) {
+        return cast;
       }
-    });
+    }
+    return nullptr;
   }
 
  private:
   bool OnWindowResizeEvent(WindowResizedEvent& event);
-  bool OnPipelineRecreatedEvent(PipelineRecreatedEvent& event);
-  glm::mat4 MakeLocal(const TransformComponent& transform);
-  glm::mat4 GetWorldMatrix(entt::entity entity);
-  void UpdateTransforms();
-  void UpdateLights();
-  void UpdateCameras();
-  void UpdateMatrices(entt::entity entity);
-  void MarkChildrenDirty(entt::entity entity);
-  void UpdateSpriteAnimators(float_t delta_time);
-  void UpdateSkeletalAnimations(float_t delta_time);
 
  private:
-  std::unordered_map<UUID, entt::entity> entities_;
+  friend class SceneManager;
+  SceneHandle handle_;
+  std::string name_;
+  std::string source_path_;
+  std::unordered_map<urkern::UUID, entt::entity> entities_;
   entt::registry registry_;
   bool is_running_{false};
   bool is_paused_{false};
@@ -257,16 +240,59 @@ class Scene {
       false;  // If true, assets are loaded when the project opens
   UIEventSystem ui_event_system_;
   std::vector<AssetHandle> requested_assets_;
-  std::shared_ptr<RenderPipeline> default_pipeline_;
-  std::unordered_map<entt::entity, std::shared_ptr<RenderGraph>> render_graphs_;
-  std::shared_ptr<RenderGraph> external_render_graph_;
-  std::unordered_map<SystemType, std::vector<std::function<void(float_t)>>>
-      systems_;
+  std::vector<std::unique_ptr<ISystem>> systems_;
   std::unique_ptr<PhysicsWorld> physics_world_;
   glm::vec2 render_resolution_{0.0f, 0.0f};
   glm::vec2 viewport_origin_{0.0f, 0.0f};
   glm::vec2 viewport_display_size_{0.0f, 0.0f};
-
-  void UpdateSceneState(float_t delta_time);
 };
-}  // namespace Wiesel
+
+// Lightweight wrapper over multiple Scene pointers.
+// Provides cross-scene entity iteration via ForEach.
+class MultiScene {
+ public:
+  MultiScene() = delete;
+
+  explicit MultiScene(std::vector<std::unique_ptr<Scene>>& scenes)
+      : scenes_(scenes) {}
+
+  MultiScene(MultiScene&) = delete;
+
+  // Iterate entities with given components across all scenes.
+  // Callback may be either (Scene&, entt::entity) or
+  // (Scene&, uint8_t scene_idx, entt::entity). Also sets the renderer's
+  // scene index per-scene so the pick buffer encodes the right origin.
+  template <typename... Components, typename Func>
+  void ForEach(Func func) {
+    for (size_t i = 0; i < scenes_.size(); ++i) {
+      SetSceneIndex(static_cast<uint8_t>(i));
+      Scene& scene = *scenes_[i];
+      for (entt::entity entity : scene.GetAllEntitiesWith<Components...>()) {
+        if constexpr (std::is_invocable_v<Func&, Scene&, uint8_t,
+                                          entt::entity>) {
+          func(scene, static_cast<uint8_t>(i), entity);
+        } else {
+          static_assert(std::is_invocable_v<Func&, Scene&, entt::entity>,
+                        "Callback must be (Scene&, uint8_t, entt::entity) "
+                        "or (Scene&, entt::entity)");
+          func(scene, entity);
+        }
+      }
+    }
+  }
+
+  // Primary scene (first in list - used for skybox, pipeline, etc.)
+  Scene& primary() { return *scenes_.front(); }
+
+  bool empty() const { return scenes_.empty(); }
+
+  size_t size() const { return scenes_.size(); }
+
+ private:
+  // Defined in .cc to avoid including w_engine.h
+  static void SetSceneIndex(uint8_t index);
+
+  std::vector<std::unique_ptr<Scene>>& scenes_;
+};
+
+}  // namespace wiesel

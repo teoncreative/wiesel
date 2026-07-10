@@ -17,7 +17,7 @@
 #include "scene/w_entity.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::string GetBehaviorNameFromPath(const std::string& path);
 std::string GetFileNameFromPath(const std::string& path);
@@ -90,6 +90,22 @@ class IBehavior {
 
   virtual bool OnCancel() { return false; }
 
+  // Network callbacks (called on ALL behaviors when events fire)
+  virtual void OnClientConnected(uint64_t session_id) {}
+  virtual void OnClientDisconnected(uint64_t session_id) {}
+  virtual void OnConnectedToServer() {}
+  virtual void OnDisconnectedFromServer() {}
+
+  // RPCs (entity-scoped, called on behaviors of the target entity).
+  // args_json is the serialized argument array or empty string if no args.
+  virtual void OnServerRpc(const std::string& rpc_name,
+                           const std::string& args_json) {}
+  virtual void OnClientRpc(const std::string& rpc_name,
+                           const std::string& args_json) {}
+
+  // Synced variables (called when a remote sync var changes)
+  virtual void OnSyncVarChanged(const std::string& var_name) {}
+
   WIESEL_GETTER_FN Entity entity() { return entity_; }
 
   WIESEL_GETTER_FN Scene* scene() { return scene_; }
@@ -126,4 +142,4 @@ class BehaviorsComponent : public IComponent {
   std::unordered_map<std::string, IBehavior*> behaviors_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

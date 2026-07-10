@@ -15,7 +15,7 @@
 
 #include "rendering/w_renderer.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 RTPipeline::RTPipeline(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {}
@@ -293,4 +293,4 @@ void RTPipeline::BindDescriptorSet(VkCommandBuffer cmd, VkDescriptorSet set,
                           index, 1, &set, 0, nullptr);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

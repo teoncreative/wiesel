@@ -16,11 +16,10 @@
 #include "w_pch.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
-class RenderPass;
-class Framebuffer;
+class RenderGraph;
 class Pipeline;
 
 // Opaque handle to a resource in the render graph
@@ -46,7 +45,6 @@ enum class RGAccess {
   ShaderRead,            // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
   StorageImageRead,      // VK_IMAGE_LAYOUT_GENERAL (imageLoad in shader)
   StorageImageWrite,     // VK_IMAGE_LAYOUT_GENERAL
-  Present                // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 };
 
 VkImageLayout RGAccessToLayout(RGAccess access);
@@ -78,26 +76,38 @@ struct RGResourceRef {
   RGResource resource;
   RGAccess access;
   bool skip_dependency = false;  // If true, don't create topological edge
+  // For color outputs: optional paired MSAA resolve target.
+  RGResource resolve;
+  // For depth outputs: load (true) vs clear (false).
+  bool load = false;
 };
 
 // Execute callback - called each frame during graph execution
 using RGExecuteFn = std::function<void(VkCommandBuffer cmd)>;
+
+// Optional post-compile hook per pass. Runs after Compile has allocated
+// transient textures, so the feature can query graph.GetTexture() to build
+// framebuffers, descriptors, or any other binding that depends on the pool's
+// assignment for this frame. Runs before Execute.
+using RGResolveFn = std::function<void(RenderGraph& graph)>;
 
 class RenderGraphPass {
   friend class RenderGraph;
 
   std::string name_;
   uint32_t index_{0};
-  std::shared_ptr<RenderPass> render_pass_;
-  std::shared_ptr<Framebuffer> framebuffer_;
   std::vector<RGResourceRef> inputs_;
   std::vector<RGResourceRef> outputs_;
   RGExecuteFn execute_fn_;
+  RGResolveFn resolve_fn_;
   glm::vec2 viewport_size_{0, 0};
   Colorf clear_color_{0, 0, 0, 1};
   bool enabled_{true};
-  bool manages_render_pass_{
-      true};  // If true, graph calls Begin/End on render pass
+  // If true, the graph opens a dynamic-rendering scope around execute_fn_
+  // using the pass's declared color/depth outputs. Features that issue their
+  // own vkCmdBeginRendering calls (shadow cascades, ray-traced dispatches)
+  // can set this to false.
+  bool auto_begin_rendering_{true};
 
  public:
   const std::string& GetName() const { return name_; }
@@ -130,9 +140,7 @@ class RenderGraph {
   RGResource DeclareTransient(const RGTextureDesc& desc);
 
   // Add a render pass. Returns the pass index for further configuration.
-  uint32_t AddPass(const std::string& name,
-                   std::shared_ptr<RenderPass> render_pass,
-                   RGExecuteFn execute);
+  uint32_t AddPass(const std::string& name, RGExecuteFn execute);
 
   // Configure pass inputs (resources the pass reads)
   void PassReadsTexture(uint32_t pass, RGResource resource);
@@ -146,16 +154,24 @@ class RenderGraph {
 
   // Configure pass outputs (resources the pass writes)
   void PassWritesColor(uint32_t pass, RGResource resource);
+  // Color + MSAA resolve target paired in a single call. Resolve RGResource
+  // must resolve to a 1-sample texture of the same format as `resource`.
+  void PassWritesColor(uint32_t pass, RGResource resource, RGResource resolve);
   void PassWritesDepth(uint32_t pass, RGResource resource);
+  // Depth output that preserves existing contents (loadOp = LOAD). Use for
+  // lighting / forward-transparency that read the geometry pass's depth.
+  void PassWritesDepthLoad(uint32_t pass, RGResource resource);
   void PassWritesStorageImage(uint32_t pass, RGResource resource);
-  void PassPresents(uint32_t pass, RGResource resource);
 
   // Configure pass properties
-  void SetPassFramebuffer(uint32_t pass, std::shared_ptr<Framebuffer> fb);
   void SetPassViewport(uint32_t pass, glm::vec2 size);
   void SetPassClearColor(uint32_t pass, const Colorf& color);
   void SetPassEnabled(uint32_t pass, bool enabled);
-  void SetPassManagesRenderPass(uint32_t pass, bool manages);
+  // Pass true if the graph should issue vkCmdBeginRendering/EndRendering
+  // around the execute callback using the declared outputs. Pass false when
+  // the callback manages its own rendering scope (shadow cascades, RT).
+  void SetPassAutoBeginRendering(uint32_t pass, bool enabled);
+  void SetPassResolveFn(uint32_t pass, RGResolveFn fn);
 
   void Compile();
   void Execute(VkCommandBuffer cmd);
@@ -191,6 +207,7 @@ class RenderGraph {
   void TransitionResource(VkCommandBuffer cmd, RGResourceData& resource,
                           VkImageLayout required);
   void InsertBarriers(VkCommandBuffer cmd, const RenderGraphPass& pass);
+  void BeginDynamicRendering(VkCommandBuffer cmd, const RenderGraphPass& pass);
   void UpdateOutputLayouts(const RenderGraphPass& pass);
   void CreateTransientResources();
   void DestroyTransientResources();
@@ -202,6 +219,10 @@ class RenderGraph {
   std::vector<RenderGraphPass> passes_;
   std::vector<uint32_t> sorted_order_;
   std::vector<PassTimingResult> pass_timings_;
+  // Textures acquired from TransientResourcePool this compile. Multiple
+  // RGResourceData entries may share one pointer when aliased; this list
+  // stores only the unique slot textures so Release is called once each.
+  std::vector<std::shared_ptr<AttachmentTexture>> acquired_transients_;
 
 #ifdef WIESEL_GPU_PROFILING
   // Triple-buffered query pools so we always read from a frame guaranteed
@@ -217,4 +238,4 @@ class RenderGraph {
 #endif
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

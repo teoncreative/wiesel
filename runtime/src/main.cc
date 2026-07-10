@@ -10,14 +10,17 @@
 
 #include "game/w_game_application.h"
 #include "layer/w_layerscene.h"
-#include "util/w_platform.h"
+#include "util/w_command.h"
+#include <urkern/platform.h>
 #include "w_engine.h"
+
+#include <clocale>
 
 #ifdef WIN32
 #include <windows.h>
 #endif
 
-using namespace Wiesel;
+using namespace wiesel;
 
 class RuntimeApplication : public GameApplication {
  public:
@@ -31,7 +34,6 @@ class RuntimeApplication : public GameApplication {
     const EngineProperties& props = Engine::properties();
 
     std::filesystem::path game_info_path = props.game_info_path;
-    std::filesystem::path assets_dir = props.app_assets_path;
 
     if (game_info_path.empty()) {
       LOG_ERROR(
@@ -40,28 +42,18 @@ class RuntimeApplication : public GameApplication {
       return;
     }
 
-    if (assets_dir.empty()) {
-      // Prefer packed assets, fall back to directory
-      std::filesystem::path pak = game_info_path.parent_path() / "assets.pak";
-      std::filesystem::path dir = game_info_path.parent_path() / "assets";
-      if (std::filesystem::exists(pak)) {
-        assets_dir = pak;
-      } else if (std::filesystem::exists(dir)) {
-        assets_dir = dir;
-      }
-    }
-
-    if (!LoadGame(game_info_path, assets_dir)) {
+    if (!LoadGame(game_info_path, props.app_assets_path)) {
       LOG_ERROR("Failed to load game from: {}", game_info_path.string());
     }
   }
 };
 
-Application* Wiesel::CreateApp() {
+Application* wiesel::CreateApp() {
   return new RuntimeApplication();
 }
 
 static int RunEngine(int argc, char** argv) {
+  std::setlocale(LC_ALL, "C");
 #ifdef WIN32
   // Check if --enable-stdio is in args before parsing
   bool wants_stdio = false;
@@ -72,8 +64,8 @@ static int RunEngine(int argc, char** argv) {
     }
   }
   if (wants_stdio) {
-    AllocateConsole();
-    EnableAnsiColors();
+    urkern::AllocateConsole();
+    urkern::EnableAnsiColors();
   } else {
     // Redirect stdout/stderr to NUL immediately so LOG_* calls don't crash
     FILE* f = nullptr;
@@ -81,6 +73,7 @@ static int RunEngine(int argc, char** argv) {
     freopen_s(&f, "NUL", "w", stderr);
   }
 #endif
+  DeveloperConsole::Init();
 
   EngineProperties properties = EngineProperties::Parse(argc, argv);
 
@@ -88,7 +81,11 @@ static int RunEngine(int argc, char** argv) {
   Engine::InitApplication();
   Engine::app().Run();
   Engine::CleanupApplication();
+  Engine::CleanupAssets();
+  Engine::CleanupWindow();
   Engine::CleanupEngine();
+  Engine::CleanupRenderer();
+  DeveloperConsole::Cleanup();
   return 0;
 }
 

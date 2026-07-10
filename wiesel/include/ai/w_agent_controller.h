@@ -15,7 +15,7 @@
 #include "w_agent_goal.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct AgentController : public IComponent {
   AgentController() = default;
@@ -42,4 +42,4 @@ struct AgentController : public IComponent {
   void Update(float dt);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

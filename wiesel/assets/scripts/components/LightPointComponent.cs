@@ -3,10 +3,7 @@ namespace WieselEngine
     public class LightPointComponent : Component
     {
 
-        public LightPointComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public LightPointComponent(Entity entity) : base(entity) { }
 
         public Vector3f Color
         {

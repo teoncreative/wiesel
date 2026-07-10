@@ -11,7 +11,14 @@
 
 #include "scene/w_components.h"
 
-namespace Wiesel {
+#include "animation/w_animation.h"
+#include "animation/w_animator.h"
+#include "asset/w_asset_manager.h"
+#include "rendering/w_mesh.h"
+#include "rendering/w_renderer.h"
+#include "w_engine.h"
+
+namespace wiesel {
 
 glm::vec3 TransformComponent::GetForward() {
   return glm::normalize(transform_matrix_[2]);
@@ -40,87 +47,105 @@ glm::vec3 TransformComponent::GetDown() {
 // --- AnimatorComponent ---
 
 void AnimatorComponent::SetBool(const std::string& name, bool value) {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Bool) {
-    it->second.b = value;
-  }
+  state_machine.SetBool(name, value);
 }
 
 void AnimatorComponent::SetInt(const std::string& name, int value) {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Int) {
-    it->second.i = value;
-  }
+  state_machine.SetInt(name, value);
 }
 
 void AnimatorComponent::SetFloat(const std::string& name, float value) {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Float) {
-    it->second.f = value;
-  }
+  state_machine.SetFloat(name, value);
 }
 
 void AnimatorComponent::SetTrigger(const std::string& name) {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Trigger) {
-    it->second.b = true;
-  }
+  state_machine.SetTrigger(name);
 }
 
 bool AnimatorComponent::GetBool(const std::string& name) const {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Bool) {
-    return it->second.b;
-  }
-  return false;
+  return state_machine.GetBool(name);
 }
 
 int AnimatorComponent::GetInt(const std::string& name) const {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Int) {
-    return it->second.i;
-  }
-  return 0;
+  return state_machine.GetInt(name);
 }
 
 float AnimatorComponent::GetFloat(const std::string& name) const {
-  auto it = parameters.find(name);
-  if (it != parameters.end() && it->second.type == AnimParamType::Float) {
-    return it->second.f;
-  }
-  return 0.0f;
+  return state_machine.GetFloat(name);
 }
 
-void AnimatorComponent::Play(const std::string& state_name, float blend_time) {
-  if (!UseController()) {
-    return;
-  }
-  const auto* state = controller.FindState(state_name);
-  if (!state) {
-    return;
-  }
-  if (current_state_name == state_name && !is_blending) {
+void AnimatorComponent::Play(const std::string& state_name) {
+  state_machine.current_state = state_name;
+  state_machine.state_time = 0.0f;
+}
+
+void AnimatorComponent::Stop() {
+  playing = false;
+}
+
+std::string AnimatorComponent::GetCurrentState() const {
+  return state_machine.current_state;
+}
+
+// --- SkeletalAnimRuntime ---
+
+void SkeletalAnimRuntime::Initialize() {
+  if (initialized || !model_handle.IsValid()) {
     return;
   }
 
-  // Start crossfade from current to new state
-  if (blend_time > 0.0f && !current_state_name.empty()) {
-    // Save current pose as previous
-    const auto* cur_state = controller.FindState(current_state_name);
-    if (cur_state) {
-      prev_clip_name = cur_state->clip_name;
-      prev_clip_time = state_time;
-      prev_bone_matrices = bone_matrices;
-      prev_node_transforms = node_transforms;
-      is_blending = true;
-      blend_duration = blend_time;
-      blend_elapsed = 0.0f;
-      blend_weight = 0.0f;
+  auto renderer = Engine::renderer();
+  if (!renderer) {
+    return;
+  }
+
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(model_handle);
+  if (!model_data) {
+    return;
+  }
+
+  // Create bone UBO
+  bone_ubo = renderer->CreateUniformBuffer("SkeletalAnimRuntime::bone_ubo",
+                                           sizeof(BoneMatricesUniformData));
+
+  // Compute rest pose from node hierarchy default transforms
+  AnimationClip rest_clip;
+  Animator::Evaluate(*model_data, rest_clip, 0.0f, bone_matrices,
+                     node_transforms);
+
+  // Upload rest pose to GPU
+  if (bone_ubo->data_) {
+    BoneMatricesUniformData gpu_data{};
+    size_t count =
+        std::min(bone_matrices.size(), static_cast<size_t>(WIESEL_MAX_BONES));
+    for (size_t b = 0; b < count; b++) {
+      gpu_data.bone_matrices[b] = bone_matrices[b];
+    }
+    memcpy(bone_ubo->data_, &gpu_data, sizeof(BoneMatricesUniformData));
+  }
+
+  // Create bone descriptor
+  bone_descriptor = renderer->CreateBoneDescriptors(bone_ubo);
+
+  // Compute rest pose AABB from skinned vertices
+  rest_pose_bounds = {};
+  for (const auto& mesh : model_data->meshes) {
+    for (const auto& v : mesh->vertices) {
+      glm::vec4 skinned_pos(0.0f);
+      for (int w = 0; w < WIESEL_MAX_BONE_INFLUENCE; w++) {
+        int bone_id = v.bone_indices[w];
+        float weight = v.bone_weights[w];
+        if (bone_id >= 0 && bone_id < static_cast<int>(bone_matrices.size()) &&
+            weight > 0.0f) {
+          skinned_pos +=
+              bone_matrices[bone_id] * glm::vec4(v.ppos, 1.0f) * weight;
+        }
+      }
+      rest_pose_bounds.Expand(glm::vec3(skinned_pos));
     }
   }
 
-  current_state_name = state_name;
-  state_time = 0.0f;
+  initialized = true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

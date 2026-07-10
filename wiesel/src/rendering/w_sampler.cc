@@ -16,7 +16,7 @@
 #include "w_engine.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 Sampler::Sampler(uint32_t mip_levels, const SamplerProps& props) {
   VkSamplerCreateInfo samplerInfo{};
@@ -50,7 +50,14 @@ Sampler::Sampler(uint32_t mip_levels, const SamplerProps& props) {
 }
 
 Sampler::~Sampler() {
-  vkDestroySampler(Engine::renderer()->GetLogicalDevice(), handle_, nullptr);
+  auto renderer = Engine::renderer();
+  if (!renderer) {
+    return;
+  }
+  VkSampler sampler = handle_;
+  VkDevice device = renderer->GetLogicalDevice();
+  renderer->GetDeletionQueue().Push(
+      [device, sampler]() { vkDestroySampler(device, sampler, nullptr); });
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

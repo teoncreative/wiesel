@@ -14,7 +14,7 @@
 
 struct ImFontLoader;
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 // Bridges IIconSource to ImGui's ImFontLoader system.
 // Call SetSource() before registering the font with ImGui.
@@ -30,4 +30,4 @@ class IconFontLoader {
   static IIconSource* source_;
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

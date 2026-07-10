@@ -11,11 +11,12 @@
 
 #pragma once
 
+#include "core/w_reflect.h"
 #include "scene/w_entity.h"
 #include "util/w_color.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct alignas(16) LightBase {
   LightBase()
@@ -80,18 +81,24 @@ void UpdateLight(LightsUniformData& lights, const LightDirect& light,
 void UpdateLight(LightsUniformData& lights, const LightPoint& light,
                  const TransformComponent& transform);
 
+WCLASS()
+
 struct LightDirectComponent {
   LightDirectComponent() = default;
   LightDirectComponent(const LightDirectComponent&) = default;
 
+  WPROPERTY(Serializable)
   LightDirect light_data;
 };
+
+WCLASS()
 
 struct LightPointComponent {
   LightPointComponent() = default;
   LightPointComponent(const LightPointComponent&) = default;
 
+  WPROPERTY(Serializable)
   LightPoint light_data;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -13,14 +13,14 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct GridUniformData {
   alignas(16) glm::mat4 inv_view_projection;
   alignas(16) glm::mat4 view_projection;
   alignas(16) glm::vec4 camera_pos;  // w unused
   float grid_scale = 1.0f;
-  float fade_distance = 400.0f;
+  float fade_distance = 600.0f;
 };
 
 class GridFeature : public RenderFeature {
@@ -37,8 +37,7 @@ class GridFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Grid";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

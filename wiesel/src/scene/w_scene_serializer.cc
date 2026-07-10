@@ -8,123 +8,110 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-//
-// Created by Metehan Gezer on 05.03.2026.
-//
-
 #include "scene/w_scene_serializer.h"
 
-#include "asset/w_asset_manager.h"
 #include "scene/w_component_serializer.h"
+#include "scene/w_entity.h"
+#include "scene/w_entity_serializer.h"
 #include "util/w_logger.h"
-#include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel::scene_serializer {
 
-SceneSerializer::SceneSerializer(std::shared_ptr<Scene> scene)
-    : scene_(std::move(scene)) {}
+static constexpr int kCurrentSceneVersion = 3;
 
-// --- Entity serialization ---
+// --- Serialize (V2: nested format via EntitySerializer) ---
 
-nlohmann::json SceneSerializer::SerializeEntity(Entity entity) const {
-  nlohmann::json j;
-
-  j["uuid"] = entity.GetUUID().ToString();
-  j["name"] = entity.GetName();
-
-  // Game tags
-  auto& tag_comp = entity.GetComponent<TagComponent>();
-  if (!tag_comp.tags.empty()) {
-    j["tags"] = tag_comp.tags;
-  }
-
-  // Parent reference
-  auto parent = entity.GetParent();
-  if (parent) {
-    j["parent"] = parent.GetUUID().ToString();
-  }
-
-  // All components via registry
-  ComponentSerializerRegistry::SerializeAll(entity, j);
-
-  return j;
-}
-
-void SceneSerializer::DeserializeEntity(const nlohmann::json& entity_json) {
-  std::string uuid_str = entity_json.value("uuid", "");
-  std::string name = entity_json.value("name", "Entity");
-
-  UUID uuid = UUID::FromString(uuid_str);
-  Entity entity = scene_->CreateEntityWithUUID(uuid, name);
-
-  // Game tags
-  if (entity_json.contains("tags") && entity_json["tags"].is_array()) {
-    auto& tag_comp = entity.GetComponent<TagComponent>();
-    for (auto& t : entity_json["tags"]) {
-      tag_comp.AddTag(t.get<std::string>());
-    }
-  }
-
-  // All components via registry
-  ComponentSerializerRegistry::DeserializeAll(entity, entity_json,
-                                              scene_.get());
-}
-
-// --- Full scene serialization ---
-
-std::string SceneSerializer::SerializeToString() const {
+std::string SerializeToString(Scene& scene) {
   nlohmann::json root;
+  root["version"] = kCurrentSceneVersion;
 
-  // Serialize entities in hierarchy order
   nlohmann::json entities = nlohmann::json::array();
-  for (auto entity_id : scene_->GetSceneHierarchy()) {
-    Entity entity{entity_id, scene_.get()};
+  for (auto entity_id : scene.GetSceneHierarchy()) {
+    Entity entity{entity_id, &scene};
 
-    // Skip children - they're serialized recursively from their parent
+    // Only serialize root entities - children are nested inside
     if (entity.GetParent()) {
       continue;
     }
 
-    entities.push_back(SerializeEntity(entity));
-
-    // Also serialize children recursively
-    if (entity.child_handles()) {
-      std::function<void(const std::vector<entt::entity>&)> serialize_children;
-      serialize_children = [&](const std::vector<entt::entity>& children) {
-        for (auto child_id : children) {
-          Entity child{child_id, scene_.get()};
-          entities.push_back(SerializeEntity(child));
-          if (child.child_handles() && !child.child_handles()->empty()) {
-            serialize_children(*child.child_handles());
-          }
-        }
-      };
-      if (!entity.child_handles()->empty()) {
-        serialize_children(*entity.child_handles());
-      }
-    }
+    entities.push_back(entity_serializer::Serialize(entity));
   }
-
   root["entities"] = entities;
 
   // Scene-level properties
-  if (scene_->GetSkyboxAsset().IsValid()) {
-    root["skybox"] = scene_->GetSkyboxAsset().ToString();
+  if (scene.GetSkyboxAsset().IsValid()) {
+    root["skybox"] = scene.GetSkyboxAsset().ToString();
   }
-  if (scene_->GetCursorSetAsset().IsValid()) {
-    root["cursor_set"] = scene_->GetCursorSetAsset().ToString();
+  if (scene.GetCursorSetAsset().IsValid()) {
+    root["cursor_set"] = scene.GetCursorSetAsset().ToString();
   }
-  if (scene_->GetKeepAssetsLoaded()) {
+  if (scene.GetKeepAssetsLoaded()) {
     root["keep_assets_loaded"] = true;
   }
-  if (scene_->GetPreloadAssets()) {
+  if (scene.GetPreloadAssets()) {
     root["preload_assets"] = true;
   }
 
   return root.dump(2);
 }
 
-bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
+// --- V1 deserialization (flat format with parent references) ---
+
+static bool DeserializeV1(Scene& scene, const nlohmann::json& root) {
+  // First pass: create all entities
+  std::unordered_map<urkern::UUID, entt::entity> uuid_map;
+  for (const nlohmann::json& ej : root["entities"]) {
+    std::string uuid_str = ej.value("uuid", "");
+    std::string name = ej.value("name", "Entity");
+    urkern::UUID uuid = urkern::UUID::FromString(uuid_str);
+    Entity entity = scene.CreateEntityWithUUID(uuid, name);
+    uuid_map[uuid] = entity.handle();
+  }
+
+  // Second pass: deserialize components
+  for (const nlohmann::json& ej : root["entities"]) {
+    urkern::UUID uuid = urkern::UUID::FromString(ej.value("uuid", ""));
+    auto it = uuid_map.find(uuid);
+    if (it == uuid_map.end()) {
+      continue;
+    }
+    Entity entity{it->second, &scene};
+    if (ej.contains("tags") && ej["tags"].is_array()) {
+      auto& tc = entity.GetComponent<TagComponent>();
+      for (const auto& t : ej["tags"]) {
+        tc.AddTag(t.get<std::string>());
+      }
+    }
+    ComponentSerializerRegistry::DeserializeAll(entity, ej, &scene);
+  }
+
+  // Third pass: link hierarchy
+  for (const nlohmann::json& ej : root["entities"]) {
+    if (ej.contains("parent") && ej["parent"].is_string()) {
+      urkern::UUID parent_uuid = urkern::UUID::FromString(ej["parent"].get<std::string>());
+      urkern::UUID child_uuid = urkern::UUID::FromString(ej["uuid"].get<std::string>());
+      auto pi = uuid_map.find(parent_uuid);
+      auto ci = uuid_map.find(child_uuid);
+      if (pi != uuid_map.end() && ci != uuid_map.end()) {
+        scene.LinkEntities(pi->second, ci->second, false);
+      }
+    }
+  }
+  return true;
+}
+
+// --- V2 deserialization (nested format via EntitySerializer) ---
+
+static bool DeserializeV2(Scene& scene, const nlohmann::json& root) {
+  for (const nlohmann::json& entity_tree : root["entities"]) {
+    entity_serializer::Deserialize(scene, entity_tree);
+  }
+  return true;
+}
+
+// --- Entry point ---
+
+bool DeserializeFromString(Scene& scene, const std::string& json_str) {
   nlohmann::json root;
   try {
     root = nlohmann::json::parse(json_str);
@@ -140,79 +127,40 @@ bool SceneSerializer::DeserializeFromString(const std::string& json_str) {
 
   // Scene-level properties
   if (root.contains("skybox") && root["skybox"].is_string()) {
-    std::string skybox_str = root["skybox"].get<std::string>();
-    if (!skybox_str.empty()) {
-      auto skybox_handle = AssetHandle::FromString(skybox_str);
-      scene_->RequestAsset(skybox_handle);
-      scene_->SetSkyboxAsset(skybox_handle);
+    std::string s = root["skybox"].get<std::string>();
+    if (!s.empty()) {
+      auto h = AssetHandle::FromString(s);
+      scene.RequestAsset(h);
+      scene.SetSkyboxAsset(h);
     }
   }
   if (root.contains("cursor_set") && root["cursor_set"].is_string()) {
-    std::string cursor_str = root["cursor_set"].get<std::string>();
-    if (!cursor_str.empty()) {
-      auto cursor_handle = AssetHandle::FromString(cursor_str);
-      scene_->RequestAsset(cursor_handle);
-      scene_->SetCursorSetAsset(cursor_handle);
+    std::string s = root["cursor_set"].get<std::string>();
+    if (!s.empty()) {
+      auto h = AssetHandle::FromString(s);
+      scene.RequestAsset(h);
+      scene.SetCursorSetAsset(h);
     }
   }
-  scene_->SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));
-  scene_->SetPreloadAssets(root.value("preload_assets", false));
+  scene.SetKeepAssetsLoaded(root.value("keep_assets_loaded", false));
+  scene.SetPreloadAssets(root.value("preload_assets", false));
 
-  // First pass: create all entities (UUID + name only, no components)
-  // Build UUID -> entity lookup map for fast resolution
-  std::unordered_map<UUID, entt::entity> uuid_map;
-  for (const nlohmann::json& entity_json : root["entities"]) {
-    std::string uuid_str = entity_json.value("uuid", "");
-    std::string name = entity_json.value("name", "Entity");
-    UUID uuid = UUID::FromString(uuid_str);
-    Entity entity = scene_->CreateEntityWithUUID(uuid, name);
-    uuid_map[uuid] = entity.handle();
+  int version = root.value("version", 1);
+  if (version < 2) {
+    LOG_WARN("Scene uses legacy V1 format - resave to upgrade to V{}",
+             kCurrentSceneVersion);
+  } else if (version < kCurrentSceneVersion) {
+    LOG_WARN("Scene uses V{} format - resave to upgrade to V{}", version,
+             kCurrentSceneVersion);
   }
+  bool ok = (version >= 2) ? DeserializeV2(scene, root)
+                           : DeserializeV1(scene, root);
 
-  // Second pass: deserialize all components (all entities exist now,
-  // so cross-entity references can resolve)
-  for (const nlohmann::json& entity_json : root["entities"]) {
-    std::string uuid_str = entity_json.value("uuid", "");
-    UUID uuid = UUID::FromString(uuid_str);
-
-    auto it = uuid_map.find(uuid);
-    if (it == uuid_map.end()) {
-      continue;
-    }
-
-    Entity entity{it->second, scene_.get()};
-
-    if (entity_json.contains("tags") && entity_json["tags"].is_array()) {
-      TagComponent& tag_comp = entity.GetComponent<TagComponent>();
-      for (const nlohmann::json& t : entity_json["tags"]) {
-        tag_comp.AddTag(t.get<std::string>());
-      }
-    }
-
-    ComponentSerializerRegistry::DeserializeAll(entity, entity_json,
-                                                scene_.get());
+  if (ok) {
+    LOG_INFO("Scene deserialized (v{}): {} entities", version,
+             root["entities"].size());
   }
-
-  // Third pass: restore parent-child relationships
-  for (const nlohmann::json& entity_json : root["entities"]) {
-    if (entity_json.contains("parent") && entity_json["parent"].is_string()) {
-      UUID parent_uuid =
-          UUID::FromString(entity_json["parent"].get<std::string>());
-      UUID child_uuid =
-          UUID::FromString(entity_json["uuid"].get<std::string>());
-
-      auto parent_it = uuid_map.find(parent_uuid);
-      auto child_it = uuid_map.find(child_uuid);
-
-      if (parent_it != uuid_map.end() && child_it != uuid_map.end()) {
-        // Positions are already in local space from serialization
-        scene_->LinkEntities(parent_it->second, child_it->second, false);
-      }
-    }
-  }
-
-  LOG_INFO("Scene deserialized: {} entities", root["entities"].size());
-  return true;
+  return ok;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

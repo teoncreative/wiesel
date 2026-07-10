@@ -16,24 +16,25 @@
 #include "asset/w_asset_handle.h"
 #include "w_vfs_browser.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
-// Callbacks from the asset browser panel back to the editor.
+// Callbacks from the asset browser panel back to the editor. Asset-creation
+// entries live in AssetFactoryRegistry instead - they're registered by the
+// editor at startup and the panel just iterates the registry for its
+// "Create" submenu.
 struct AssetBrowserCallbacks {
   std::function<void()> on_scan_assets;
   std::function<void()> on_update_title;
-  std::function<void()> on_new_scene;
   std::function<void(const std::string& vfs_path)> on_open_scene;
   std::function<void(const std::string& vfs_path)> on_open_prefab;
   std::function<void(const std::filesystem::path&)> on_open_code_editor;
+  std::function<void(AssetHandle)> on_open_anim_controller;
+  std::function<void(AssetHandle)> on_open_anim_clip;
   std::function<void(AssetHandle)> on_select_asset;
-  std::function<void(AssetHandle)> on_slice_texture;
-  std::function<void()> on_show_create_skybox;
-  std::function<void()> on_show_create_sprite;
-  std::function<void()> on_show_create_spriteanim;
-  std::function<void()> on_show_create_spritecontroller;
-  std::function<void()> on_show_create_cursorset;
-  std::function<void()> on_show_create_meshcollider;
+  // Triggered by the panel's top-bar "Folder" button. Editor opens the
+  // shared name prompt and creates the directory under the panel's current
+  // VFS dir on confirm.
+  std::function<void()> on_request_folder;
 };
 
 class AssetBrowserPanel {
@@ -47,8 +48,21 @@ class AssetBrowserPanel {
 
   const VfsBrowser& browser() const { return browser_; }
 
+  // Only the app's assets can be modified
+  bool IsReadOnly() const {
+    return browser_.root() != "app://" || browser_.IsAtTopLevel();
+  }
+
   // Current scene path tracking (for rename/move awareness)
   std::string current_scene_path;
+
+  // Navigate the browser to the folder containing `vfs_path` and select
+  // the file. Useful for the command palette's "jump to asset" action.
+  void RevealAsset(const std::string& vfs_path);
+
+  // Drop any project-specific local state (selection, rename, search, cached
+  // directory listing) and reset the browser to the app:// root.
+  void Reset();
 
  private:
   VfsBrowser browser_;
@@ -58,10 +72,7 @@ class AssetBrowserPanel {
   std::string selected_file_;
   std::string renaming_file_;
   char rename_buf_[256] = {};
-  char new_folder_name_[128] = {};
-  char new_script_name_[128] = {};
-  bool open_script_popup_ = false;
-  bool open_folder_popup_ = false;
+  char search_[128] = {};
 };
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

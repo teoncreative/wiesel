@@ -20,7 +20,7 @@
 #include "util/w_keycodes.h"
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Input serialization helpers ---
 
@@ -158,6 +158,10 @@ static void SerializeRenderOptions(nlohmann::json& j,
       {"bloom_enabled", opts.bloom_enabled},
       {"bloom_threshold", opts.bloom_threshold},
       {"bloom_intensity", opts.bloom_intensity},
+      {"bloom_scatter", opts.bloom_scatter},
+      {"bloom_tint", {opts.bloom_tint.x, opts.bloom_tint.y, opts.bloom_tint.z}},
+      {"bloom_clamp", opts.bloom_clamp},
+      {"bloom_high_quality", opts.bloom_high_quality},
       {"motion_blur_enabled", opts.motion_blur_enabled},
       {"motion_blur_strength", opts.motion_blur_strength},
       {"motion_blur_samples", opts.motion_blur_samples},
@@ -187,6 +191,13 @@ static void DeserializeRenderOptions(const nlohmann::json& j,
   opts.bloom_enabled = ro.value("bloom_enabled", false);
   opts.bloom_threshold = ro.value("bloom_threshold", 0.7f);
   opts.bloom_intensity = ro.value("bloom_intensity", 0.6f);
+  opts.bloom_scatter = ro.value("bloom_scatter", 0.65f);
+  if (ro.contains("bloom_tint") && ro["bloom_tint"].is_array()) {
+    opts.bloom_tint = {ro["bloom_tint"][0], ro["bloom_tint"][1],
+                       ro["bloom_tint"][2]};
+  }
+  opts.bloom_clamp = ro.value("bloom_clamp", 65535.0f);
+  opts.bloom_high_quality = ro.value("bloom_high_quality", false);
   opts.motion_blur_enabled = ro.value("motion_blur_enabled", false);
   opts.motion_blur_strength = ro.value("motion_blur_strength", 1.0f);
   opts.motion_blur_samples = ro.value("motion_blur_samples", 8);
@@ -312,6 +323,11 @@ std::unique_ptr<GameInfo> GameInfo::Load(const std::filesystem::path& path) {
   info->start_scene = AssetHandle::FromString(j.value("start_scene", ""));
   DeserializeRenderOptions(j, info->render_options);
   DeserializeInputSettings(j, info->input);
+  if (j.contains("search_paths") && j["search_paths"].is_array()) {
+    for (const auto& sp : j["search_paths"]) {
+      info->search_paths.push_back(sp.get<std::string>());
+    }
+  }
   return info;
 }
 
@@ -323,6 +339,12 @@ bool GameInfo::Save(const std::filesystem::path& path) const {
   j["start_scene"] = start_scene.IsValid() ? start_scene.ToString() : "";
   SerializeRenderOptions(j, render_options);
   SerializeInputSettings(j, input);
+  if (!search_paths.empty()) {
+    j["search_paths"] = nlohmann::json::array();
+    for (const auto& sp : search_paths) {
+      j["search_paths"].push_back(sp);
+    }
+  }
 
   std::ofstream file(path);
   if (!file.is_open()) {
@@ -333,4 +355,4 @@ bool GameInfo::Save(const std::filesystem::path& path) const {
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

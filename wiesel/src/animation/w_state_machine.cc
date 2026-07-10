@@ -11,7 +11,7 @@
 
 #include "animation/w_state_machine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 bool EvaluateCondition(const TransitionCondition& cond,
                        const std::map<std::string, AnimParam>& params) {
@@ -158,4 +158,4 @@ std::string StateMachineRuntime::EvaluateTransitions() {
   return "";
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -13,7 +13,10 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
+
+class AttachmentTexture;
+class DescriptorSet;
 
 class CompositeFeature : public RenderFeature {
  public:
@@ -28,8 +31,10 @@ class CompositeFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Composite";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
+
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* resolve_key_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

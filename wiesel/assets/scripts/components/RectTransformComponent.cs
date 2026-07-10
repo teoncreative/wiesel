@@ -87,9 +87,8 @@ namespace WieselEngine
                 Internals.RectTransform_GetComputedSizeY(entity.ScenePtr, entity.Id)); }
         }
 
-        public RectTransformComponent(Entity entity)
+        public RectTransformComponent(Entity entity) : base(entity)
         {
-            this.entity = entity;
             this.position = new HandledVector2f(
                 () => Internals.RectTransform_GetPositionX(entity.ScenePtr, entity.Id),
                 (v) => Internals.RectTransform_SetPositionX(entity.ScenePtr, entity.Id, v),

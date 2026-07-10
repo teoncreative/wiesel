@@ -19,7 +19,7 @@
 
 #include "asset/w_asset_manager.h"
 #include "asset/w_asset_properties.h"
-#include "asset/w_asset_property_registry.h"
+#include "asset/w_asset_registry.h"
 #include "asset/w_asset_utils.h"
 #include "input/w_input.h"
 #include "rendering/w_renderer.h"
@@ -28,51 +28,7 @@
 #include "script/w_scriptmanager.h"
 #include "w_engine.h"
 
-namespace Wiesel {
-
-GameLoader::MetaFileData GameLoader::ReadMetaFile(const nlohmann::json& j) {
-  MetaFileData result;
-  result.handle = AssetHandle::FromString(j.value("handle", ""));
-  if (j.contains("properties") && j["properties"].is_object()) {
-    result.properties = j["properties"];
-  }
-  return result;
-}
-
-GameLoader::MetaFileData GameLoader::ReadMetaFile(
-    const std::filesystem::path& meta_path) {
-  if (!std::filesystem::exists(meta_path)) {
-    return {};
-  }
-  std::ifstream file(meta_path);
-  if (!file.is_open()) {
-    return {};
-  }
-  try {
-    nlohmann::json j;
-    file >> j;
-    return ReadMetaFile(j);
-  } catch (...) {
-    return {};
-  }
-}
-
-void GameLoader::WriteMetaFile(const std::filesystem::path& meta_path,
-                               const AssetHandle& handle, AssetType type,
-                               const void* properties) {
-  nlohmann::json j;
-  j["handle"] = handle.ToString();
-  if (properties) {
-    const auto* desc = AssetPropertyRegistry::Get(type);
-    if (desc) {
-      j["properties"] = desc->Serialize(properties);
-    }
-  }
-  std::ofstream file(meta_path);
-  if (file.is_open()) {
-    file << j.dump(2);
-  }
-}
+namespace wiesel {
 
 AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
                                     const std::string& vfs_path) {
@@ -81,7 +37,33 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
 
   auto physical = Engine::vfs()->GetPhysicalPath(vfs_path);
 
-  if (IsJsonAssetType(type)) {
+  // All asset types use .meta files for lightweight registration.
+  // Legacy JSON assets that embed asset_handle are migrated on first scan.
+  // Try VFS first (works for both physical and archive-based assets),
+  // then fall back to physical path for writing.
+  AssetRegistry::MetaFileData meta_data;
+  std::filesystem::path meta_path;
+  std::string meta_vfs_path = vfs_path + ".meta";
+  VfsFile meta_file = Engine::vfs()->Open(meta_vfs_path);
+  if (meta_file) {
+    try {
+      std::string content((std::istreambuf_iterator<char>(meta_file.Stream())),
+                          std::istreambuf_iterator<char>());
+      auto j = nlohmann::json::parse(content);
+      meta_data = AssetRegistry::ReadMetaFile(j);
+    } catch (...) {}
+  }
+  if (physical.has_value()) {
+    meta_path = physical->string() + ".meta";
+  }
+
+  if (meta_data.handle.IsValid()) {
+    handle = meta_data.handle;
+    if (!mgr.HasAsset(handle)) {
+      mgr.Register(handle, name, type, vfs_path);
+    }
+  } else if (AssetRegistry::HasSerializer(type)) {
+    // Migration: read handle from legacy JSON asset and create .meta
     try {
       VfsFile file = Engine::vfs()->Open(vfs_path);
       if (!file) {
@@ -90,75 +72,55 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
       std::string content((std::istreambuf_iterator<char>(file.Stream())),
                           std::istreambuf_iterator<char>());
       auto j = nlohmann::json::parse(content);
-
       std::string handle_str = j.value("asset_handle", "");
       if (!handle_str.empty()) {
         handle = AssetHandle::FromString(handle_str);
-      }
-
-      if (!handle.IsValid()) {
-        if (!physical.has_value()) {
-          return {};
-        }
-        handle = AssetHandle::Generate();
-        j["asset_handle"] = handle.ToString();
-        std::ofstream out(*physical);
-        if (out.is_open()) {
-          out << j.dump(2);
-        }
       }
     } catch (const std::exception& e) {
       LOG_ERROR("Failed to import '{}': {}", vfs_path, e.what());
       return {};
     }
 
+    if (!handle.IsValid()) {
+      handle = AssetHandle::Generate();
+    }
+
     if (!mgr.HasAsset(handle)) {
       mgr.Register(handle, name, type, vfs_path);
     }
-  } else {
-    MetaFileData meta_data;
-    std::filesystem::path meta_path;
+
     if (physical.has_value()) {
-      meta_path = physical->string() + ".meta";
-      meta_data = ReadMetaFile(meta_path);
+      AssetRegistry::WriteMetaFile(meta_path, handle, type);
     }
-
-    if (meta_data.handle.IsValid()) {
-      handle = meta_data.handle;
-      if (!mgr.HasAsset(handle)) {
-        mgr.Register(handle, name, type, vfs_path);
-      }
-    } else if (!physical.has_value()) {
-      return {};
-    } else {
-      handle = mgr.Register(name, type, vfs_path);
-      if (handle.IsValid()) {
-        WriteMetaFile(meta_path, handle, type);
-      }
+  } else {
+    handle = mgr.Register(name, type, vfs_path);
+    if (handle.IsValid() && !meta_path.empty()) {
+      AssetRegistry::WriteMetaFile(meta_path, handle, type);
     }
+  }
 
-    if (handle.IsValid()) {
-      auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
-      if (metadata) {
-        const auto* desc = AssetPropertyRegistry::Get(type);
-        if (desc) {
-          if (!meta_data.properties.empty()) {
-            metadata->properties = desc->Deserialize(meta_data.properties);
-          } else {
-            metadata->properties = desc->Create();
-            if (type == AssetType::Texture) {
-              auto* tp = static_cast<TextureAssetProperties*>(
-                  metadata->properties.get());
-              std::string nl = name;
-              std::ranges::transform(nl, nl.begin(), ::tolower);
-              if (nl.find("normal") != std::string::npos ||
-                  nl.find("roughness") != std::string::npos ||
-                  nl.find("metallic") != std::string::npos ||
-                  nl.find("metalness") != std::string::npos ||
-                  nl.find("height") != std::string::npos ||
-                  nl.find("ao") != std::string::npos) {
-                tp->asset_type = TextureAssetType::NormalMap;
-              }
+  if (handle.IsValid()) {
+    auto* metadata = const_cast<AssetMetadata*>(mgr.GetMetadata(handle));
+    if (metadata) {
+      const auto* desc = AssetRegistry::Get(type);
+      if (desc && desc->HasProperties()) {
+        if (!meta_data.properties.empty()) {
+          metadata->properties =
+              desc->DeserializeProperties(meta_data.properties);
+        } else {
+          metadata->properties = desc->CreateProperties();
+          if (type == AssetType::Texture) {
+            auto* tp = static_cast<TextureAssetProperties*>(
+                metadata->properties.get());
+            std::string nl = name;
+            std::ranges::transform(nl, nl.begin(), ::tolower);
+            if (nl.find("normal") != std::string::npos ||
+                nl.find("roughness") != std::string::npos ||
+                nl.find("metallic") != std::string::npos ||
+                nl.find("metalness") != std::string::npos ||
+                nl.find("height") != std::string::npos ||
+                nl.find("ao") != std::string::npos) {
+              tp->asset_type = TextureAssetType::NormalMap;
             }
           }
         }
@@ -172,12 +134,51 @@ AssetHandle GameLoader::ImportAsset(const std::string& name, AssetType type,
 bool GameLoader::MountAssets(const std::filesystem::path& assets_dir) {
   namespace fs = std::filesystem;
   auto* vfs = Engine::vfs().get();
-  if (fs::exists(assets_dir)) {
+  if (fs::exists(assets_dir) && fs::is_directory(assets_dir)) {
     vfs->Unmount("app://");
     vfs->Mount("app://", fs::absolute(assets_dir).string());
     return true;
   }
   return false;
+}
+
+void GameLoader::MountSearchPaths(const std::vector<std::string>& search_paths,
+                                  const std::filesystem::path& base_dir) {
+  namespace fs = std::filesystem;
+  auto* vfs = Engine::vfs().get();
+
+  int base_priority = 50;
+
+  for (size_t sp_idx = 0; sp_idx < search_paths.size(); sp_idx++) {
+    fs::path dir = base_dir / search_paths[sp_idx];
+    if (!fs::exists(dir) || !fs::is_directory(dir)) {
+      LOG_WARN("Search path does not exist: {}", dir.string());
+      continue;
+    }
+
+    std::vector<fs::path> wpak_files;
+    for (const auto& entry : fs::directory_iterator(dir)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".wpak") {
+        if (Wpak::IsWpakFile(entry.path())) {
+          wpak_files.push_back(entry.path());
+        }
+      }
+    }
+    std::ranges::sort(wpak_files);
+
+    for (size_t pak_idx = 0; pak_idx < wpak_files.size(); pak_idx++) {
+      int priority = base_priority - static_cast<int>(sp_idx) * 10 -
+                     static_cast<int>(pak_idx);
+      try {
+        vfs->MountPak(wpak_files[pak_idx], priority);
+        LOG_INFO("Mounted wpak: {} (priority {})",
+                 wpak_files[pak_idx].filename().string(), priority);
+      } catch (const std::exception& e) {
+        LOG_ERROR("Failed to mount wpak {}: {}",
+                  wpak_files[pak_idx].filename().string(), e.what());
+      }
+    }
+  }
 }
 
 void GameLoader::ScanVfsPrefix(const std::string& prefix,
@@ -259,9 +260,8 @@ void GameLoader::ScanAssets() {
     }
     std::string content((std::istreambuf_iterator<char>(file.Stream())),
                         std::istreambuf_iterator<char>());
-    auto temp_scene = std::make_shared<Scene>();
-    SceneSerializer serializer(temp_scene);
-    if (serializer.DeserializeFromString(content)) {
+    Scene temp_scene;
+    if (scene_serializer::DeserializeFromString(temp_scene, content)) {
       LOG_INFO("Preloading assets for scene: {}", preload_vfs);
     }
   }
@@ -277,6 +277,10 @@ void GameLoader::ApplyRenderOptions(const GameInfo& info) {
   settings.bloom_enabled = opts.bloom_enabled;
   settings.bloom_threshold = opts.bloom_threshold;
   settings.bloom_intensity = opts.bloom_intensity;
+  settings.bloom_scatter = opts.bloom_scatter;
+  settings.bloom_tint = opts.bloom_tint;
+  settings.bloom_clamp = opts.bloom_clamp;
+  settings.bloom_high_quality = opts.bloom_high_quality;
   settings.motion_blur_enabled = opts.motion_blur_enabled;
   settings.motion_blur_strength = opts.motion_blur_strength;
   settings.motion_blur_samples = opts.motion_blur_samples;
@@ -298,6 +302,10 @@ void GameLoader::CaptureRenderOptions(RenderOptionsSerialized& out_opts) {
   out_opts.bloom_enabled = settings.bloom_enabled;
   out_opts.bloom_threshold = settings.bloom_threshold;
   out_opts.bloom_intensity = settings.bloom_intensity;
+  out_opts.bloom_scatter = settings.bloom_scatter;
+  out_opts.bloom_tint = settings.bloom_tint;
+  out_opts.bloom_clamp = settings.bloom_clamp;
+  out_opts.bloom_high_quality = settings.bloom_high_quality;
   out_opts.motion_blur_enabled = settings.motion_blur_enabled;
   out_opts.motion_blur_strength = settings.motion_blur_strength;
   out_opts.motion_blur_samples = settings.motion_blur_samples;
@@ -340,8 +348,7 @@ bool GameLoader::LoadStartScene(const GameInfo& info) {
 
   std::string content((std::istreambuf_iterator<char>(file.Stream())),
                       std::istreambuf_iterator<char>());
-  SceneSerializer serializer(scene);
-  if (!serializer.DeserializeFromString(content)) {
+  if (scene_serializer::DeserializeFromString(*scene, content)) {
     return false;
   }
 
@@ -356,8 +363,20 @@ bool GameLoader::LoadStartScene(const GameInfo& info) {
 
 bool GameLoader::LoadAll(const GameInfo& info,
                          const std::filesystem::path& assets_dir) {
-  if (!MountAssets(assets_dir)) {
-    return false;
+  // Mount search path wpaks if specified
+  if (!info.search_paths.empty()) {
+    std::filesystem::path base_dir;
+    if (!Engine::properties().game_info_path.empty()) {
+      base_dir = Engine::properties().game_info_path.parent_path();
+    } else {
+      base_dir = std::filesystem::current_path();
+    }
+    MountSearchPaths(info.search_paths, base_dir);
+  }
+
+  // Physical directory mount (dev mode)
+  if (!assets_dir.empty()) {
+    MountAssets(assets_dir);
   }
 
   ScanAssets();
@@ -394,4 +413,4 @@ bool GameLoader::LoadAll(const GameInfo& info,
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

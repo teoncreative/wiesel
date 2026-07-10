@@ -13,13 +13,16 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct ToonPushConstants {
   int bands = 4;
   float edge_threshold = 0.1f;
   float edge_strength = 0.8f;
 };
+
+class AttachmentTexture;
+class DescriptorSet;
 
 class ToonFeature : public RenderFeature {
  public:
@@ -37,10 +40,16 @@ class ToonFeature : public RenderFeature {
  private:
   static inline std::string name_ = "Toon";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<DescriptorSetLayout> toon_input_layout_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<ToonPushConstants> push_constants_;
+
+  std::shared_ptr<DescriptorSet> input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* output_key_ = nullptr;
+  AttachmentTexture* input_key_ = nullptr;
+  AttachmentTexture* normal_key_ = nullptr;
+  AttachmentTexture* depth_key_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

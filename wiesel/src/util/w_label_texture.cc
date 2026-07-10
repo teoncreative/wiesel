@@ -18,7 +18,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 static std::unordered_map<std::string, std::shared_ptr<Texture>> s_label_cache;
 
@@ -175,4 +175,4 @@ std::shared_ptr<Texture> GetOrCreateLabelTexture(const std::string& key,
   return texture;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

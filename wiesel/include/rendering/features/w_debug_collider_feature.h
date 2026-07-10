@@ -16,8 +16,9 @@
 #include "rendering/w_descriptorlayout.h"
 #include "rendering/w_render_feature.h"
 #include "rendering/w_texture.h"
-
-namespace Wiesel {
+#include "rendering/w_vma.h"
+#include "util/w_logger.h"
+namespace wiesel {
 
 struct DebugColliderPushConstant {
   glm::mat4 mvp;
@@ -34,12 +35,14 @@ struct OverlayVertex {
 class DebugColliderFeature : public RenderFeature {
  public:
   explicit DebugColliderFeature(std::shared_ptr<Renderer> renderer);
+  ~DebugColliderFeature() override;
 
   const std::string& GetName() const override { return name_; }
 
   void SetupResources(RenderContext& ctx) override;
   void AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
                  RenderContext& ctx) override;
+  bool IsEnabled(const RenderContext& ctx) const override;
 
  private:
   void GenerateBoxGeometry();
@@ -51,7 +54,6 @@ class DebugColliderFeature : public RenderFeature {
   std::shared_ptr<Renderer> renderer_;
 
   // Wireframe rendering
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<Pipeline>
       no_depth_pipeline_;  // camera frustums (always visible)
@@ -59,7 +61,6 @@ class DebugColliderFeature : public RenderFeature {
   std::shared_ptr<DebugColliderPushConstant> push_constant_;
 
   // Compositing onto PipelineOutput
-  std::shared_ptr<RenderPass> comp_render_pass_;
   std::shared_ptr<Pipeline> comp_pipeline_;
 
   // Box wireframe geometry
@@ -100,6 +101,24 @@ class DebugColliderFeature : public RenderFeature {
 
   std::vector<CachedDebugData> mesh_collider_cache_;
   bool mesh_collider_cache_valid_ = false;
+
+  // Persistent host-visible vertex buffer for per-frame camera frustum draws.
+  static constexpr uint32_t kMaxFrustumCameras = 64;
+  static constexpr uint32_t kFrustumVerticesPerCamera = 8;
+  VkBuffer frustum_vb_ = VK_NULL_HANDLE;
+  VmaAllocation frustum_vb_alloc_ = nullptr;
+  void* frustum_vb_mapped_ = nullptr;
+
+  // Draw-pass bindings: descriptor sampling the resolved draw output.
+  std::shared_ptr<DescriptorSet> draw_output_desc_;
+  AttachmentTexture* draw_resolve_key_ = nullptr;
+
+  // Composite-pass bindings (reads upstream pipeline + overlay, writes
+  // PipelineOutput).
+  std::shared_ptr<DescriptorSet> comp_input_desc_;
+  std::shared_ptr<DescriptorSet> comp_output_desc_;
+  AttachmentTexture* comp_output_key_ = nullptr;
+  AttachmentTexture* comp_input_key_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

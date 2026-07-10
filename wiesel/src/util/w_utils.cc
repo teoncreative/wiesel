@@ -12,7 +12,7 @@
 #include "util/w_utils.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::string GetNameFromVulkanResult(VkResult error_code) {
   switch (error_code) {
@@ -83,4 +83,4 @@ std::string FormatVariableName(const std::string& name) {
   return result;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

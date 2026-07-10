@@ -13,7 +13,7 @@
 #include "game/w_game_info.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Helpers ---
 
@@ -137,7 +137,7 @@ bool InputManager::OnJoystickConnect(JoystickConnectedEvent& event) {
 bool InputManager::OnJoystickDisconnect(JoystickDisconnectedEvent& event) {
   int jid = event.GetJoystickId();
   if (jid >= 0 && jid < kMaxGamepads) {
-    gamepads_[jid] = {};
+    gamepads_[jid] = GamepadState{};
     LOG_INFO("Gamepad disconnected: slot {}", jid);
   }
   return false;
@@ -554,4 +554,4 @@ bool InputManager::IsEnabled() {
   return input_enabled_;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -16,7 +16,7 @@
 #include <deque>
 #include <string>
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class NotificationType { Info, Warning, Error };
 
@@ -55,6 +55,9 @@ class NotificationManager {
   // Render the history panel content.
   void RenderHistoryPanel();
 
+  // Toggle the history panel open/closed; marks all entries as read on open.
+  void ToggleHistoryPanel();
+
   // Clear all history
   void ClearHistory();
 
@@ -73,4 +76,4 @@ class NotificationManager {
   static const char* GetTypeIcon(NotificationType type);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

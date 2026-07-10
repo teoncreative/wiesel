@@ -13,37 +13,12 @@
 #include "rendering/w_buffer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // SSAO Gen render pass (single R8_UNORM attachment)
-  gen_render_pass_ = std::make_shared<RenderPass>(PassType::PostProcess,
-                                                  "SSAO Generate RenderPass");
-  gen_render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                                  .format = VK_FORMAT_R8_UNORM,
-                                  .msaa_mode = SamplingMode::DISABLED});
-  gen_render_pass_->Bake();
-
-  blur_horz_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "SSAO Horizontal Blur RenderPass");
-  blur_horz_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R8_UNORM,
-       .msaa_mode = SamplingMode::DISABLED});
-  blur_horz_render_pass_->Bake();
-
-  blur_vert_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "SSAO Vertical Blur RenderPass");
-  blur_vert_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = VK_FORMAT_R8_UNORM,
-       .msaa_mode = SamplingMode::DISABLED});
-  blur_vert_render_pass_->Bake();
-
   // Pipelines (all fullscreen quad)
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -55,7 +30,7 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/ssao_gen_shader.frag"});
   gen_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  gen_pipeline_->SetRenderPass(gen_render_pass_);
+  gen_pipeline_->AddColorAttachment(VK_FORMAT_R8_UNORM);
   gen_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("SSAOGen"));
   gen_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Global"));
   gen_pipeline_->AddShader(fullscreen_vert);
@@ -68,7 +43,7 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
        "engine://shaders/ssao_blur_shader.frag"});
   blur_horz_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  blur_horz_pipeline_->SetRenderPass(blur_horz_render_pass_);
+  blur_horz_pipeline_->AddColorAttachment(VK_FORMAT_R8_UNORM);
   blur_horz_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("SSAOBlur"));
   blur_horz_pipeline_->AddShader(fullscreen_vert);
@@ -85,7 +60,7 @@ SSAOFeature::SSAOFeature(std::shared_ptr<Renderer> renderer)
                                {"BLUR_VERTICAL"}});
   blur_vert_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, false, false, false});
-  blur_vert_pipeline_->SetRenderPass(blur_vert_render_pass_);
+  blur_vert_pipeline_->AddColorAttachment(VK_FORMAT_R8_UNORM);
   blur_vert_pipeline_->AddInputLayout(
       renderer_->GetDescriptorLayout("SSAOBlur"));
   blur_vert_pipeline_->AddShader(fullscreen_vert);
@@ -97,93 +72,7 @@ bool SSAOFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.renderer.options().ssao_enabled;
 }
 
-void SSAOFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("SSAOFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-
-  // SSAO gen output: half-resolution R8_UNORM
-  pool.SetTexture("ssao.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw / 2, rh / 2, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R8_UNORM, SamplingMode::DISABLED, true}));
-  // SSAO blur H output: full-resolution R8_UNORM
-  pool.SetTexture("ssao.blur_h",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R8_UNORM, SamplingMode::DISABLED, true}));
-  // SSAO blur V output: full-resolution R8_UNORM
-  pool.SetTexture("ssao.blur_v",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       VK_FORMAT_R8_UNORM, SamplingMode::DISABLED, true}));
-
-  pool.SetFramebuffer("ssao.gen", gen_render_pass_->CreateFramebuffer(
-                                      0, {pool.GetTexture("ssao.color").get()},
-                                      {rw / 2, rh / 2}));
-  pool.SetFramebuffer("ssao.blur_h",
-                      blur_horz_render_pass_->CreateFramebuffer(
-                          0, {pool.GetTexture("ssao.blur_h").get()}, {rw, rh}));
-  pool.SetFramebuffer("ssao.blur_v",
-                      blur_vert_render_pass_->CreateFramebuffer(
-                          0, {pool.GetTexture("ssao.blur_v").get()}, {rw, rh}));
-
-  // SSAO gen descriptor: reads geometry resolve textures + noise + kernel UBO
-  auto ssao_gen_desc = std::make_shared<DescriptorSet>();
-  ssao_gen_desc->SetLayout(renderer.GetDescriptorLayout("SSAOGen"));
-  ssao_gen_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("geometry.view_pos_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  ssao_gen_desc->AddCombinedImageSampler(
-      1, pool.GetTexture("geometry.normal_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  ssao_gen_desc->AddCombinedImageSampler(
-      2, pool.GetTexture("geometry.depth_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  ssao_gen_desc->AddCombinedImageSampler(
-      3, renderer.GetSSAONoise()->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  ssao_gen_desc->AddUniformBuffer(4, renderer.GetSSAOKernelUniformBuffer());
-  ssao_gen_desc->Bake();
-  pool.SetDescriptor("ssao.gen", ssao_gen_desc);
-
-  // SSAO output descriptor: reads ssao.color + geometry depth (nearest sampler)
-  auto ssao_output_desc = std::make_shared<DescriptorSet>();
-  ssao_output_desc->SetLayout(renderer.GetDescriptorLayout("SSAOOutput"));
-  ssao_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("ssao.color")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  ssao_output_desc->AddCombinedImageSampler(
-      1, pool.GetTexture("geometry.depth_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  ssao_output_desc->Bake();
-  pool.SetDescriptor("ssao.output", ssao_output_desc);
-
-  // SSAO blur H output descriptor: reads ssao.blur_h (linear) + depth (nearest)
-  auto blur_h_output_desc = std::make_shared<DescriptorSet>();
-  blur_h_output_desc->SetLayout(renderer.GetDescriptorLayout("SSAOBlur"));
-  blur_h_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("ssao.blur_h")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  blur_h_output_desc->AddCombinedImageSampler(
-      1, pool.GetTexture("geometry.depth_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  blur_h_output_desc->Bake();
-  pool.SetDescriptor("ssao.blur_h.output", blur_h_output_desc);
-
-  // SSAO blur V output descriptor: reads ssao.blur_v (linear) + depth (nearest)
-  auto blur_v_output_desc = std::make_shared<DescriptorSet>();
-  blur_v_output_desc->SetLayout(renderer.GetDescriptorLayout("SSAOBlur"));
-  blur_v_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("ssao.blur_v")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  blur_v_output_desc->AddCombinedImageSampler(
-      1, pool.GetTexture("geometry.depth_resolve")->image_views_[0],
-      renderer.GetDefaultNearestSampler());
-  blur_v_output_desc->Bake();
-  pool.SetDescriptor("ssao.blur_v.output", blur_v_output_desc);
+void SSAOFeature::SetupResources(RenderContext& /*ctx*/) {
 }
 
 void SSAOFeature::AddPasses(RenderGraph& graph,
@@ -192,29 +81,54 @@ void SSAOFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("SSAOFeature::AddPasses");
   auto* pool = &ctx.resources;
   auto renderer = renderer_;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
 
-  // Import textures from pool
+  // Declare the three SSAO work textures as transient. The pool aliases
+  // non-overlapping transients with matching descriptors and reuses them
+  // across frames.
+  RGResource ssao_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "ssao.color",
+      .width = rw / 2,
+      .height = rh / 2,
+      .format = VK_FORMAT_R8_UNORM,
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
+  RGResource ssao_blur_h = graph.DeclareTransient(RGTextureDesc{
+      .name = "ssao.blur_h",
+      .width = rw,
+      .height = rh,
+      .format = VK_FORMAT_R8_UNORM,
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
+  RGResource ssao_blur_v = graph.DeclareTransient(RGTextureDesc{
+      .name = "ssao.blur_v",
+      .width = rw,
+      .height = rh,
+      .format = VK_FORMAT_R8_UNORM,
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
+
   RGResource ssao_noise =
       graph.ImportTexture("SSAONoise", renderer->GetSSAONoise());
-  RGResource ssao_out =
-      graph.ImportTexture("SSAOOut", pool->GetTexture("ssao.color"));
-  RGResource ssao_blur_h =
-      graph.ImportTexture("SSAOBlurH", pool->GetTexture("ssao.blur_h"));
-  RGResource ssao_blur_v =
-      graph.ImportTexture("SSAOBlurV", pool->GetTexture("ssao.blur_v"));
 
-  // Get references to geometry outputs from the registry
-  auto geo_view_pos = registry.Get("GeoViewPos");
-  auto geo_normal = registry.Get("GeoNormal");
-  auto geo_depth = registry.Get("GeoDepth");
+  RGResource geo_view_pos = registry.Get("GeoViewPos");
+  RGResource geo_normal = registry.Get("GeoNormal");
+  RGResource geo_depth = registry.Get("GeoDepth");
 
-  auto gen_pipeline = gen_pipeline_;
+  // --- Gen pass ---
   uint32_t ssao_gen = graph.AddPass(
-      "SSAO Gen", gen_render_pass_,
-      [pool, renderer, gen_pipeline](VkCommandBuffer) {
-        gen_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(gen_pipeline,
-                                 {pool->GetDescriptor("ssao.gen"),
+      "SSAO Gen",
+      [this, renderer, pool](VkCommandBuffer) {
+        gen_pipeline_->Bind();
+        renderer->DrawFullscreen(gen_pipeline_,
+                                 {gen_bindings_.gen_desc,
                                   pool->GetDescriptor("GlobalDescriptor")});
       });
   graph.PassReadsTexture(ssao_gen, geo_view_pos);
@@ -222,43 +136,143 @@ void SSAOFeature::AddPasses(RenderGraph& graph,
   graph.PassReadsTexture(ssao_gen, geo_depth);
   graph.PassReadsTexture(ssao_gen, ssao_noise);
   graph.PassWritesColor(ssao_gen, ssao_out);
-  graph.SetPassFramebuffer(ssao_gen, pool->GetFramebuffer("ssao.gen"));
   graph.SetPassViewport(ssao_gen,
                         {ctx.viewport_size.x / 2, ctx.viewport_size.y / 2});
   graph.SetPassClearColor(ssao_gen, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      ssao_gen,
+      [this, renderer, ssao_out, geo_view_pos, geo_normal,
+       geo_depth](RenderGraph& g) {
+        auto color = g.GetTexture(ssao_out);
+        auto view_pos = g.GetTexture(geo_view_pos);
+        auto normal = g.GetTexture(geo_normal);
+        auto depth = g.GetTexture(geo_depth);
 
-  auto blur_h_pipeline = blur_horz_pipeline_;
+        if (gen_bindings_.color_key != color.get()) {
+          gen_bindings_.color_key = color.get();
+        }
+
+        if (gen_bindings_.view_pos_key != view_pos.get() ||
+            gen_bindings_.normal_key != normal.get() ||
+            gen_bindings_.depth_key != depth.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer->GetDescriptorLayout("SSAOGen"));
+          desc->AddCombinedImageSampler(0, view_pos->image_views_[0],
+                                        renderer->GetDefaultNearestSampler());
+          desc->AddCombinedImageSampler(1, normal->image_views_[0],
+                                        renderer->GetDefaultNearestSampler());
+          desc->AddCombinedImageSampler(2, depth->image_views_[0],
+                                        renderer->GetDefaultNearestSampler());
+          desc->AddCombinedImageSampler(
+              3, renderer->GetSSAONoise()->image_views_[0],
+              renderer->GetDefaultLinearSampler());
+          desc->AddUniformBuffer(4, renderer->GetSSAOKernelUniformBuffer());
+          desc->Bake();
+          gen_bindings_.gen_desc = desc;
+          gen_bindings_.view_pos_key = view_pos.get();
+          gen_bindings_.normal_key = normal.get();
+          gen_bindings_.depth_key = depth.get();
+        }
+      });
+
+  // --- Blur H pass ---
   uint32_t ssao_blur_horz = graph.AddPass(
-      "SSAO Blur H", blur_horz_render_pass_,
-      [pool, renderer, blur_h_pipeline](VkCommandBuffer) {
-        blur_h_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(blur_h_pipeline,
-                                 {pool->GetDescriptor("ssao.output")});
+      "SSAO Blur H",
+      [this, renderer](VkCommandBuffer) {
+        blur_horz_pipeline_->Bind();
+        renderer->DrawFullscreen(blur_horz_pipeline_,
+                                 {blur_h_bindings_.input_desc});
       });
   graph.PassReadsTexture(ssao_blur_horz, ssao_out);
   graph.PassReadsTexture(ssao_blur_horz, geo_depth);
   graph.PassWritesColor(ssao_blur_horz, ssao_blur_h);
-  graph.SetPassFramebuffer(ssao_blur_horz, pool->GetFramebuffer("ssao.blur_h"));
   graph.SetPassViewport(ssao_blur_horz, ctx.viewport_size);
   graph.SetPassClearColor(ssao_blur_horz, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      ssao_blur_horz,
+      [this, renderer, ssao_blur_h, ssao_out, geo_depth](RenderGraph& g) {
+        auto output = g.GetTexture(ssao_blur_h);
+        auto input = g.GetTexture(ssao_out);
+        auto depth = g.GetTexture(geo_depth);
 
-  auto blur_v_pipeline = blur_vert_pipeline_;
+        if (blur_h_bindings_.output_key != output.get()) {
+          blur_h_bindings_.output_key = output.get();
+        }
+
+        if (blur_h_bindings_.input_key != input.get() ||
+            blur_h_bindings_.depth_key != depth.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer->GetDescriptorLayout("SSAOBlur"));
+          desc->AddCombinedImageSampler(0, input->image_views_[0],
+                                        renderer->GetDefaultLinearSampler());
+          desc->AddCombinedImageSampler(1, depth->image_views_[0],
+                                        renderer->GetDefaultNearestSampler());
+          desc->Bake();
+          blur_h_bindings_.input_desc = desc;
+          blur_h_bindings_.input_key = input.get();
+          blur_h_bindings_.depth_key = depth.get();
+        }
+      });
+
+  // --- Blur V pass (writes the final output) ---
   uint32_t ssao_blur_vert = graph.AddPass(
-      "SSAO Blur V", blur_vert_render_pass_,
-      [pool, renderer, blur_v_pipeline](VkCommandBuffer) {
-        blur_v_pipeline->Bind(PipelineBindPointGraphics);
-        renderer->DrawFullscreen(blur_v_pipeline,
-                                 {pool->GetDescriptor("ssao.blur_h.output")});
+      "SSAO Blur V",
+      [this, renderer](VkCommandBuffer) {
+        blur_vert_pipeline_->Bind();
+        renderer->DrawFullscreen(blur_vert_pipeline_,
+                                 {blur_v_bindings_.input_desc});
       });
   graph.PassReadsTexture(ssao_blur_vert, ssao_blur_h);
   graph.PassReadsTexture(ssao_blur_vert, geo_depth);
   graph.PassWritesColor(ssao_blur_vert, ssao_blur_v);
-  graph.SetPassFramebuffer(ssao_blur_vert, pool->GetFramebuffer("ssao.blur_v"));
   graph.SetPassViewport(ssao_blur_vert, ctx.viewport_size);
   graph.SetPassClearColor(ssao_blur_vert, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      ssao_blur_vert,
+      [this, renderer, pool, ssao_blur_v, ssao_blur_h,
+       geo_depth](RenderGraph& g) {
+        auto output = g.GetTexture(ssao_blur_v);
+        auto input = g.GetTexture(ssao_blur_h);
+        auto depth = g.GetTexture(geo_depth);
+
+        if (blur_v_bindings_.output_key != output.get()) {
+          blur_v_bindings_.output_key = output.get();
+        }
+
+        if (blur_v_bindings_.input_key != input.get() ||
+            blur_v_bindings_.depth_key != depth.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer->GetDescriptorLayout("SSAOBlur"));
+          desc->AddCombinedImageSampler(0, input->image_views_[0],
+                                        renderer->GetDefaultLinearSampler());
+          desc->AddCombinedImageSampler(1, depth->image_views_[0],
+                                        renderer->GetDefaultNearestSampler());
+          desc->Bake();
+          blur_v_bindings_.input_desc = desc;
+          blur_v_bindings_.input_key = input.get();
+          blur_v_bindings_.depth_key = depth.get();
+        }
+
+        // Publish the final SSAO output to the camera resource pool so
+        // downstream features (Lighting, Composite) keep reading it by name.
+        if (final_output_key_ != output.get() ||
+            final_output_depth_key_ != depth.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer->GetDescriptorLayout("SSAOBlur"));
+          desc->AddCombinedImageSampler(0, output->image_views_[0],
+                                        renderer->GetDefaultLinearSampler());
+          desc->AddCombinedImageSampler(1, depth->image_views_[0],
+                                        renderer->GetDefaultNearestSampler());
+          desc->Bake();
+          final_output_desc_ = desc;
+          final_output_key_ = output.get();
+          final_output_depth_key_ = depth.get();
+        }
+        pool->SetDescriptor("ssao.blur_v.output", final_output_desc_);
+      });
 
   // Register final SSAO output for downstream features (e.g. Lighting)
   registry.Register("SSAOBlurV", ssao_blur_v);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

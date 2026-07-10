@@ -10,7 +10,7 @@
 
 #include "scene/w_lights.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 glm::vec3 EulerToDirection(glm::vec3 euler) {
   float pitch = glm::radians(euler.x);
@@ -53,4 +53,4 @@ void UpdateLight(LightsUniformData& lights, const LightPoint& light,
   dst.exp = light.exp;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

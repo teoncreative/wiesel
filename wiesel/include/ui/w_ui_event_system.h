@@ -15,7 +15,7 @@
 #include <glm/glm.hpp>
 #include <map>
 
-namespace Wiesel {
+namespace wiesel {
 
 class Scene;
 class IBehavior;
@@ -79,7 +79,6 @@ class UIEventSystem {
   entt::entity FindNeighbor(Scene& scene, entt::entity from,
                             glm::vec2 direction, entt::entity canvas_root);
   entt::entity FindFirstNavigable(Scene& scene, entt::entity canvas_root);
-  void UpdateButtonStates(entt::registry& registry);
   void FocusEntity(entt::registry& registry, entt::entity entity);
   void UnfocusEntity(entt::registry& registry);
 
@@ -88,4 +87,4 @@ class UIEventSystem {
                                   Fn&& fn);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -15,11 +15,10 @@
 
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "util/w_logger.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // 6 cubemap face view matrices (lookAt from origin).
 // Vulkan cubemap layout follows a fixed RH convention regardless of the
@@ -73,6 +72,37 @@ bool IBLFeature::IsEnabled(const RenderContext& ctx) const {
   return ctx.renderer.options().ibl_enabled;
 }
 
+namespace {
+
+// Helper: fill a VkRenderingAttachmentInfo for a single color target.
+VkRenderingAttachmentInfo MakeColorInfo(VkImageView view) {
+  VkRenderingAttachmentInfo info{};
+  info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+  info.imageView = view;
+  info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  info.clearValue.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+  return info;
+}
+
+void BeginRendering(VkCommandBuffer cmd, VkImageView view, uint32_t w,
+                    uint32_t h) {
+  VkRenderingAttachmentInfo color_info = MakeColorInfo(view);
+
+  VkRenderingInfo ri{};
+  ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  ri.renderArea.offset = {0, 0};
+  ri.renderArea.extent = {w, h};
+  ri.layerCount = 1;
+  ri.colorAttachmentCount = 1;
+  ri.pColorAttachments = &color_info;
+
+  vkCmdBeginRendering(cmd, &ri);
+}
+
+}  // namespace
+
 void IBLFeature::GenerateBRDFLUT() {
   if (brdf_generated_) {
     return;
@@ -85,18 +115,6 @@ void IBLFeature::GenerateBRDFLUT() {
       {kBRDFLUTSize, kBRDFLUTSize, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R16G16_SFLOAT, SamplingMode::DISABLED, true});
 
-  // Create render pass
-  auto render_pass =
-      std::make_shared<RenderPass>(PassType::PostProcess, "BRDF_LUT");
-  render_pass->AttachOutput(
-      AttachmentTextureInfo{AttachmentTextureType::Offscreen,
-                            VK_FORMAT_R16G16_SFLOAT, SamplingMode::DISABLED});
-  render_pass->Bake();
-
-  // Create framebuffer
-  auto fb = render_pass->CreateFramebuffer({brdf_lut_->image_views_[0]},
-                                           {kBRDFLUTSize, kBRDFLUTSize});
-
   // Create pipeline
   auto vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -106,7 +124,7 @@ void IBLFeature::GenerateBRDFLUT() {
                                        "engine://shaders/brdf_lut.frag"});
 
   auto pipeline = std::make_shared<Pipeline>(PipelineProperties{});
-  pipeline->SetRenderPass(render_pass);
+  pipeline->AddColorAttachment(VK_FORMAT_R16G16_SFLOAT);
   pipeline->AddShader(vert);
   pipeline->AddShader(frag);
   pipeline->Bake();
@@ -114,11 +132,17 @@ void IBLFeature::GenerateBRDFLUT() {
   // Render
   VkCommandBuffer cmd = renderer_->BeginSingleTimeCommands();
 
-  render_pass->Begin(fb, {0.0f, 0.0f, 0.0f, 1.0f}, cmd);
+  renderer_->TransitionImageLayout(
+      cmd, brdf_lut_->images_[0], VK_FORMAT_R16G16_SFLOAT,
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0,
+      1);
+
+  BeginRendering(cmd, brdf_lut_->image_views_[0]->handle_, kBRDFLUTSize,
+                 kBRDFLUTSize);
   renderer_->SetViewport(glm::vec2{kBRDFLUTSize, kBRDFLUTSize}, cmd);
-  pipeline->Bind(PipelineBindPointGraphics, cmd);
+  pipeline->Bind(cmd);
   vkCmdDraw(cmd, 3, 1, 0, 0);
-  render_pass->End(cmd);
+  vkCmdEndRendering(cmd);
 
   // Transition to shader read
   renderer_->TransitionImageLayout(
@@ -146,14 +170,6 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
       {kPrefilterSize, kPrefilterSize, AttachmentTextureType::Offscreen, 1,
        VK_FORMAT_R16G16B16A16_SFLOAT, SamplingMode::DISABLED, true, 1,
        kPrefilterMipLevels, true});
-
-  // Create render passes
-  auto filter_pass =
-      std::make_shared<RenderPass>(PassType::PostProcess, "IBL_Filter");
-  filter_pass->AttachOutput(AttachmentTextureInfo{
-      AttachmentTextureType::Offscreen, VK_FORMAT_R16G16B16A16_SFLOAT,
-      SamplingMode::DISABLED});
-  filter_pass->Bake();
 
   // Environment map descriptor for sampling
   auto env_desc_layout = renderer_->GetDescriptorLayout("CubemapSampler");
@@ -193,7 +209,7 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
 
   // Irradiance pipeline
   auto irr_pipeline = std::make_shared<Pipeline>(PipelineProperties{});
-  irr_pipeline->SetRenderPass(filter_pass);
+  irr_pipeline->AddColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT);
   irr_pipeline->AddInputLayout(env_desc_layout);
   irr_pipeline->AddShader(cube_vert);
   irr_pipeline->AddShader(irr_frag);
@@ -211,7 +227,7 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
   auto pref_pc = std::make_shared<PrefPushConstants>();
 
   auto pref_pipeline = std::make_shared<Pipeline>(PipelineProperties{});
-  pref_pipeline->SetRenderPass(filter_pass);
+  pref_pipeline->AddColorAttachment(VK_FORMAT_R16G16B16A16_SFLOAT);
   pref_pipeline->AddInputLayout(env_desc_layout);
   pref_pipeline->AddShader(cube_vert);
   pref_pipeline->AddShader(pref_frag);
@@ -225,28 +241,36 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
 
   VkCommandBuffer cmd = renderer_->BeginSingleTimeCommands();
 
-  // Keep all framebuffers alive until after EndSingleTimeCommands --
-  // the command buffer references them, so they must not be destroyed early.
-  std::vector<std::shared_ptr<Framebuffer>> kept_framebuffers;
+  // Keep views alive for the duration of the command buffer.
+  std::vector<std::shared_ptr<ImageView>> kept_views;
+
+  // Transition irradiance/prefilter to COLOR_ATTACHMENT_OPTIMAL before
+  // drawing so that vkCmdBeginRendering's load op sees the correct layout.
+  renderer_->TransitionImageLayout(
+      cmd, irradiance_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
+      VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0,
+      6);
+  renderer_->TransitionImageLayout(cmd, prefilter_map_->images_[0],
+                                   VK_FORMAT_R16G16B16A16_SFLOAT,
+                                   VK_IMAGE_LAYOUT_UNDEFINED,
+                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                   kPrefilterMipLevels, 0, 6);
 
   // --- Generate irradiance map ---
   for (uint32_t face = 0; face < 6; face++) {
     auto face_view = renderer_->CreateImageViewMip(
         irradiance_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
         VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, VK_IMAGE_VIEW_TYPE_2D, face, 1);
+    kept_views.push_back(face_view);
 
-    auto fb = filter_pass->CreateFramebuffer(
-        {face_view}, {kIrradianceSize, kIrradianceSize});
-    kept_framebuffers.push_back(fb);
-
-    filter_pass->Begin(fb, {0, 0, 0, 1}, cmd);
+    BeginRendering(cmd, face_view->handle_, kIrradianceSize, kIrradianceSize);
     renderer_->SetViewport(glm::vec2(kIrradianceSize, kIrradianceSize), cmd);
 
     irr_pc->view_projection = projection * CubeFaceView(face);
-    irr_pipeline->Bind(PipelineBindPointGraphics, cmd);
+    irr_pipeline->Bind(cmd);
     renderer_->DrawFullscreen(irr_pipeline, {env_desc}, cmd);
 
-    filter_pass->End(cmd);
+    vkCmdEndRendering(cmd);
   }
 
   // Transition irradiance to shader read (must use same command buffer)
@@ -265,20 +289,17 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
       auto face_view = renderer_->CreateImageViewMip(
           prefilter_map_->images_[0], VK_FORMAT_R16G16B16A16_SFLOAT,
           VK_IMAGE_ASPECT_COLOR_BIT, mip, 1, VK_IMAGE_VIEW_TYPE_2D, face, 1);
+      kept_views.push_back(face_view);
 
-      auto fb =
-          filter_pass->CreateFramebuffer({face_view}, {mip_size, mip_size});
-      kept_framebuffers.push_back(fb);
-
-      filter_pass->Begin(fb, {0, 0, 0, 1}, cmd);
+      BeginRendering(cmd, face_view->handle_, mip_size, mip_size);
       renderer_->SetViewport(glm::vec2(mip_size, mip_size), cmd);
 
       pref_pc->view_projection = projection * CubeFaceView(face);
       pref_pc->roughness = roughness;
-      pref_pipeline->Bind(PipelineBindPointGraphics, cmd);
+      pref_pipeline->Bind(cmd);
       renderer_->DrawFullscreen(pref_pipeline, {env_desc}, cmd);
 
-      filter_pass->End(cmd);
+      vkCmdEndRendering(cmd);
     }
   }
 
@@ -289,7 +310,7 @@ void IBLFeature::GenerateIBLMaps(std::shared_ptr<Texture> env_cubemap) {
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, kPrefilterMipLevels, 0, 6);
 
   renderer_->EndSingleTimeCommands(cmd);
-  kept_framebuffers.clear();
+  kept_views.clear();
 
   maps_generated_ = true;
   last_env_texture_ = env_cubemap.get();
@@ -307,7 +328,7 @@ void IBLFeature::SetupResources(RenderContext& ctx) {
   GenerateBRDFLUT();
 
   // Check if skybox changed
-  auto skybox = ctx.scene.GetSkybox();
+  auto skybox = ctx.scenes.primary().GetSkybox();
   if (!skybox || !skybox->texture_) {
     LOG_DEBUG("IBL: no skybox or texture available");
     maps_generated_ = false;
@@ -361,4 +382,4 @@ void IBLFeature::AddPasses(RenderGraph& graph, RenderResourceRegistry& registry,
   // The descriptor is available via "ibl.descriptor" in the resource pool.
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

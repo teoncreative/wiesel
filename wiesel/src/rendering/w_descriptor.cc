@@ -16,7 +16,7 @@
 
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 DescriptorSet::DescriptorSet() {
   allocated_ = false;
@@ -214,4 +214,4 @@ void DescriptorSet::Bake() {
   allocated_ = true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -15,7 +15,7 @@
 #include "glslang/Public/ShaderLang.h"
 #include "rendering/w_shader.h"
 
-namespace Wiesel::Spirv {
+namespace wiesel::spirv {
 void Init();
 void Cleanup();
 void InitResources(TBuiltInResource& resources);
@@ -23,4 +23,4 @@ EShLanguage FindLanguage(ShaderType type);
 bool ShaderToSPV(ShaderType type, bool debug, const std::vector<char>& input,
                  const std::vector<std::string>& defines,
                  std::vector<uint32_t>& output);
-}  // namespace Wiesel::Spirv
+}  // namespace wiesel::spirv

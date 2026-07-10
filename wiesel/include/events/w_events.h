@@ -15,7 +15,7 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 // https://github.com/TheCherno/Hazel/tree/e4b0493999206bd2c3ff9d30fa333bcf81f313c8/Hazel/src/Hazel/Events
 // Event system on Hazel is a great fit for what we want to do, i'll be improving it to fit our needs over time
 
@@ -42,7 +42,13 @@ enum class EventType {
   PipelineRecreated,
   WindowFocusGained,
   WindowFocusLost,
-  AssetUnloaded
+  AssetUnloaded,
+  NetworkClientConnected,
+  NetworkClientDisconnected,
+  NetworkConnectedToServer,
+  NetworkDisconnectedFromServer,
+  NetworkServerStarted,
+  NetworkServerStopped
 };
 
 enum EventCategory {
@@ -51,7 +57,8 @@ enum EventCategory {
   kEventCategoryInput = BIT(1),
   kEventCategoryKeyboard = BIT(2),
   kEventCategoryMouse = BIT(3),
-  kEventCategoryMouseButton = BIT(4)
+  kEventCategoryMouseButton = BIT(4),
+  kEventCategoryNetwork = BIT(5)
 };
 
 class Event {
@@ -103,4 +110,4 @@ class EventDispatcher {
     return category;                              \
   }
 
-}  // namespace Wiesel
+}  // namespace wiesel

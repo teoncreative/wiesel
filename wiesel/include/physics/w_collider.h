@@ -14,7 +14,7 @@
 #include <vector>
 #include "scene/w_components.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum CollisionGroup : uint16_t {
   CollisionGroupDefault = 1 << 0,
@@ -72,9 +72,11 @@ struct MeshColliderComponent : public IComponent {
 
   // Optional baked mesh collider asset. When valid, physics uses the
   // pre-extracted geometry. When invalid, falls back to extracting from
-  // the entity's ModelComponent at body creation time.
+  // the entity's MeshRendererComponent at body creation time.
   AssetHandle collider_handle;
 
+  glm::vec3 offset = {0.0f, 0.0f, 0.0f};
+  bool is_trigger = false;
   bool is_one_way = false;
   uint16_t collision_group = CollisionGroupDefault;
 };
@@ -92,4 +94,4 @@ struct HeightfieldColliderComponent : public IComponent {
   uint16_t collision_group = CollisionGroupTerrain;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

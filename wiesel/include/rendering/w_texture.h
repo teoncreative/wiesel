@@ -16,7 +16,7 @@
 #include "w_pch.h"
 #include "w_sampler.h"
 
-namespace Wiesel {
+namespace wiesel {
 class ImageView;
 
 // taken from assimp
@@ -88,7 +88,7 @@ enum TextureType {
 		 *  Usually 'white' means opaque and 'black' means
 		 *  'transparency'. Or quite the opposite. Have fun.
 		*/
-  TextureTypeOpacty = 8,
+  TextureTypeOpacity = 8,
 
   /** Displacement texture
 		 *
@@ -218,19 +218,44 @@ struct AttachmentTextureProps {
   bool is_cubemap = false;
   bool transfer_dest = false;
   bool storage = false;
+
+  // 64-bit FNV-1a over the fields. Two props that hash equal must also
+  // compare equal; keep operator== as the safety net inside hash buckets.
+  uint64_t Hash() const {
+    uint64_t h = 0xcbf29ce484222325ULL;
+    auto mix = [&h](const void* data, size_t size) {
+      const auto* bytes = static_cast<const uint8_t*>(data);
+      for (size_t i = 0; i < size; i++) {
+        h ^= bytes[i];
+        h *= 0x100000001b3ULL;
+      }
+    };
+    mix(&width, sizeof(width));
+    mix(&height, sizeof(height));
+    mix(&type, sizeof(type));
+    mix(&image_count, sizeof(image_count));
+    mix(&image_format, sizeof(image_format));
+    mix(&sampling_mode, sizeof(sampling_mode));
+    mix(&sampled, sizeof(sampled));
+    mix(&layer_count, sizeof(layer_count));
+    mix(&mip_levels, sizeof(mip_levels));
+    mix(&is_cubemap, sizeof(is_cubemap));
+    mix(&transfer_dest, sizeof(transfer_dest));
+    mix(&storage, sizeof(storage));
+    return h;
+  }
+
+  bool operator==(const AttachmentTextureProps& o) const {
+    return width == o.width && height == o.height && type == o.type &&
+           image_count == o.image_count && image_format == o.image_format &&
+           sampling_mode == o.sampling_mode && sampled == o.sampled &&
+           layer_count == o.layer_count && mip_levels == o.mip_levels &&
+           is_cubemap == o.is_cubemap && transfer_dest == o.transfer_dest &&
+           storage == o.storage;
+  }
 };
 
 class DescriptorSet;
-
-struct AttachmentTextureInfo {
-  AttachmentTextureType type;
-  VkFormat format;
-  SamplingMode msaa_mode;
-  /*VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-  VkAttachmentLoadOp StencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  VkAttachmentStoreOp StencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;*/
-};
 
 class AttachmentTexture {
  public:
@@ -265,4 +290,4 @@ class ImageView {
   uint32_t layer_count_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -19,7 +19,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 // Runtime game loader - read-only asset scanning and configuration.
 // Used by standalone games. Never generates handles or writes files.
@@ -27,6 +27,11 @@ class GameLoader {
  public:
   // Mount an assets directory to VFS /app.
   static bool MountAssets(const std::filesystem::path& assets_dir);
+
+  // Mount all .wpak files found in search_paths relative to base_dir.
+  // Search paths are traversed in order; earlier paths have higher priority.
+  static void MountSearchPaths(const std::vector<std::string>& search_paths,
+                               const std::filesystem::path& base_dir);
 
   // Scan the mounted /app directory for assets (read-only).
   // Reads handles from .meta files and JSON asset files.
@@ -60,19 +65,6 @@ class GameLoader {
   // Creates .meta files when the VFS path has physical storage.
   static AssetHandle ImportAsset(const std::string& name, AssetType type,
                                  const std::string& vfs_path);
-
-  // Write a .meta sidecar file for a binary asset.
-  static void WriteMetaFile(const std::filesystem::path& meta_path,
-                            const AssetHandle& handle, AssetType type,
-                            const void* properties = nullptr);
-
-  struct MetaFileData {
-    AssetHandle handle;
-    nlohmann::json properties;  // empty if none
-  };
-
-  static MetaFileData ReadMetaFile(const std::filesystem::path& meta_path);
-  static MetaFileData ReadMetaFile(const nlohmann::json& j);
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

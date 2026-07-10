@@ -12,52 +12,49 @@
 
 #include <imgui.h>
 
+#include "util/imgui/imgui_lucide.h"
+#include "util/imgui/imgui_theme.h"
 #include "util/w_vfs.h"
 #include "w_engine.h"
 #include "w_icon_font_loader.h"
 #include "w_icon_source.h"
 
-namespace Wiesel::Editor {
-
-static PngIconSource s_png_source;
+namespace wiesel::editor {
 
 void InitEditorIcons() {
-  // Load all PNG icons
-  for (const auto& def : kEditorIcons) {
-    s_png_source.AddIcon(def.codepoint, def.vfs_path);
-  }
-
-  // Set up the font loader
-  IconFontLoader::SetSource(&s_png_source);
-
   ImGuiIO& io = ImGui::GetIO();
 
-  // We need valid TTF data for AddFont. Load SourceSans3 as the carrier
-  // (the custom loader intercepts our PUA codepoints).
-  auto font_file = Engine::vfs()->Open("engine://fonts/SourceSans3.ttf");
-  if (!font_file) {
-    LOG_ERROR("Failed to load SourceSans3.ttf for icon font");
-    return;
+  auto lucide_file = Engine::vfs()->Open("engine://fonts/lucide.ttf");
+  if (lucide_file) {
+    void* lucide_data = IM_ALLOC(lucide_file.Size());
+    memcpy(lucide_data, lucide_file.Data(), lucide_file.Size());
+
+    ImFontConfig lucide_config;
+    lucide_config.MergeMode = true;
+    lucide_config.DstFont = io.FontDefault;
+    lucide_config.FontDataOwnedByAtlas = true;
+    lucide_config.SizePixels = ImGui::Moonlight::kDefaultIconFontSize;
+    lucide_config.FontData = lucide_data;
+    lucide_config.FontDataSize = static_cast<int>(lucide_file.Size());
+    lucide_config.GlyphMinAdvanceX = 16.0f;
+    lucide_config.PixelSnapH = true;
+    lucide_config.GlyphOffset = ImVec2(0, 3);
+
+    static constexpr ImWchar lucide_ranges[] = {0xE000, 0xF8FF, 0};
+    lucide_config.GlyphRanges = lucide_ranges;
+
+    io.Fonts->AddFont(&lucide_config);
+    LOG_INFO("Lucide glyphs merged");
   }
 
-  void* font_data = IM_ALLOC(font_file.Size());
-  memcpy(font_data, font_file.Data(), font_file.Size());
-
-  ImFontConfig config;
-  config.MergeMode = true;
-  config.DstFont = io.FontDefault;
-  config.FontDataOwnedByAtlas = true;
-  config.FontLoader = IconFontLoader::GetLoader();
-  // Match the default font's raw size (LoadFont uses size*2 with Scale=0.5)
-  config.SizePixels = 38.0f;
-  config.FontData = font_data;
-  config.FontDataSize = static_cast<int>(font_file.Size());
-
-  static const ImWchar ranges[] = {0xE000, 0xE0FF, 0};
-  config.GlyphRanges = ranges;
-
-  io.Fonts->AddFont(&config);
-  LOG_INFO("Editor icon font registered ({} icons)", std::size(kEditorIcons));
+  // Substitute ImGui's built-in arrow primitives with Lucide chevrons.
+  // Lucide is merged into the default font, so we reuse it as IconFont.
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.IconFont = io.FontDefault;
+  style.IconGlyphs[ImGuiIconId_ArrowUp]    = 0xE070;  // chevron-up
+  style.IconGlyphs[ImGuiIconId_ArrowDown]  = 0xE06D;  // chevron-down
+  style.IconGlyphs[ImGuiIconId_ArrowLeft]  = 0xE06E;  // chevron-left
+  style.IconGlyphs[ImGuiIconId_ArrowRight] = 0xE06F;  // chevron-right
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

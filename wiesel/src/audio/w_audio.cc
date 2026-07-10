@@ -18,7 +18,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // -- Custom VFS adapter: routes miniaudio file IO through Wiesel VFS --
 
@@ -534,4 +534,4 @@ void AudioManager::Update() {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

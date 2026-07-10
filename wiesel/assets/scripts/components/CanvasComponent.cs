@@ -32,9 +32,6 @@ namespace WieselEngine
             set { Internals.Canvas_SetSortOrder(entity.ScenePtr, entity.Id, value); }
         }
 
-        public CanvasComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public CanvasComponent(Entity entity) : base(entity) { }
     }
 }

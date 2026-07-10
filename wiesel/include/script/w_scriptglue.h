@@ -10,8 +10,8 @@
 
 #pragma once
 
-namespace Wiesel {
+namespace wiesel {
 
 void RegisterScriptGlue();
 
-}  // namespace Wiesel
+}  // namespace wiesel

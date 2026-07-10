@@ -13,7 +13,7 @@
 #include "rendering/w_renderer.h"
 #include "scene/w_scene.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 RTShadowFeature::RTShadowFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
@@ -88,7 +88,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   PROFILE_ZONE_SCOPED_N("RTShadowFeature::AddPasses");
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   std::shared_ptr<RTPipeline> rt_pipeline = rt_pipeline_;
   std::shared_ptr<DescriptorSetLayout> rt_layout = rt_descriptor_layout_;
   std::shared_ptr<UniformBuffer> lights_ubo = shadow_lights_ubo_;
@@ -105,8 +105,8 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   RGResource geo_normal = registry.Get("GeoNormal");
 
   uint32_t pass_idx = graph.AddPass(
-      "RTShadow", nullptr,
-      [pool, renderer, scene, rt_pipeline, rt_layout, lights_ubo, trace_width,
+      "RTShadow",
+      [pool, renderer, &scenes, rt_pipeline, rt_layout, lights_ubo, trace_width,
        trace_height](VkCommandBuffer cmd) {
         auto as_manager = renderer->GetASManager();
         if (!as_manager) {
@@ -114,7 +114,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
         }
 
         // Build TLAS for the current frame
-        as_manager->BuildTLAS(cmd, *scene);
+        as_manager->BuildTLAS(cmd, scenes.primary());
         if (!as_manager->HasTLAS()) {
           return;
         }
@@ -123,44 +123,46 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
         RTShadowLightUBO ubo_data{};
         ubo_data.count = 0;
 
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<LightDirectComponent,
-                                       TransformComponent>()) {
-          if (ubo_data.count >= kMaxRTShadowLights) {
-            break;
-          }
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldDir = -glm::normalize(glm::vec3(
-              transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
-          ubo_data.lights[ubo_data.count].pos_or_dir =
-              glm::vec4(worldDir, 0.0f);
-          ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
-          ubo_data.count++;
-        }
+        scenes.ForEach<LightDirectComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              if (ubo_data.count >= kMaxRTShadowLights) {
+                return;
+              }
+              auto& transform = scene.GetComponent<TransformComponent>(entity);
+              glm::vec3 worldDir = -glm::normalize(glm::vec3(
+                  transform.GetTransformMatrix() * glm::vec4(0, 0, -1, 0)));
+              ubo_data.lights[ubo_data.count].pos_or_dir =
+                  glm::vec4(worldDir, 0.0f);
+              ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
+              ubo_data.count++;
+            });
 
-        for (const auto& entity :
-             scene->GetAllEntitiesWith<LightPointComponent,
-                                       TransformComponent>()) {
-          if (ubo_data.count >= kMaxRTShadowLights) {
-            break;
-          }
-          auto& transform = scene->GetComponent<TransformComponent>(entity);
-          glm::vec3 worldPos = transform.GetWorldPosition();
-          ubo_data.lights[ubo_data.count].pos_or_dir =
-              glm::vec4(worldPos, 1.0f);
-          ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
-          ubo_data.count++;
-        }
+        scenes.ForEach<LightPointComponent, TransformComponent>(
+            [&](Scene& scene, entt::entity entity) {
+              if (ubo_data.count >= kMaxRTShadowLights) {
+                return;
+              }
+              auto& transform = scene.GetComponent<TransformComponent>(entity);
+              glm::vec3 worldPos = transform.GetWorldPosition();
+              ubo_data.lights[ubo_data.count].pos_or_dir =
+                  glm::vec4(worldPos, 1.0f);
+              ubo_data.lights[ubo_data.count].params = glm::vec4(0.0f);
+              ubo_data.count++;
+            });
 
         vkCmdUpdateBuffer(cmd, lights_ubo->buffer_handle_, 0,
                           sizeof(RTShadowLightUBO), &ubo_data);
-        VkMemoryBarrier ubo_barrier{};
-        ubo_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-        ubo_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        ubo_barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1,
-                             &ubo_barrier, 0, nullptr, 0, nullptr);
+        VkMemoryBarrier2 ubo_barrier{};
+        ubo_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+        ubo_barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+        ubo_barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        ubo_barrier.dstStageMask = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+        ubo_barrier.dstAccessMask = VK_ACCESS_2_UNIFORM_READ_BIT;
+        VkDependencyInfo ubo_dep{};
+        ubo_dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        ubo_dep.memoryBarrierCount = 1;
+        ubo_dep.pMemoryBarriers = &ubo_barrier;
+        vkCmdPipelineBarrier2(cmd, &ubo_dep);
 
         // New descriptor each frame (TLAS handle changes); old one is deferred
         // by SetDescriptor via the DeletionQueue for safe multi-frame-in-flight.
@@ -189,7 +191,7 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
             trace_width, trace_height, 1);
       });
 
-  graph.SetPassManagesRenderPass(pass_idx, false);
+  graph.SetPassAutoBeginRendering(pass_idx, false);
   graph.PassReadsTexture(pass_idx, geo_world_pos);
   graph.PassReadsTexture(pass_idx, geo_normal);
   graph.PassWritesStorageImage(pass_idx, shadow_mask_res);
@@ -198,4 +200,4 @@ void RTShadowFeature::AddPasses(RenderGraph& graph,
   registry.Register("RTShadowMask", shadow_mask_res);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

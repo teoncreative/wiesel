@@ -12,9 +12,9 @@
 
 #include "TextEditor.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 TextEditor::LanguageDefinition CreateRmlLanguageDefinition();
 TextEditor::LanguageDefinition CreateRcssLanguageDefinition();
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

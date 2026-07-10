@@ -10,36 +10,12 @@
 
 #pragma once
 
-// Editor icons mapped to Private Use Area codepoints (U+E000+).
-// These are merged into the default ImGui font via a custom ImFontLoader,
-// so they can be used directly in any ImGui string (titles, menus, etc.).
-//
-// Usage: ImGui::Begin(ICON_HIERARCHY " Scene Hierarchy");
+#include "util/imgui/imgui_lucide.h"
 
-#define ICON_FOLDER "\xee\x80\x80"     // U+E000
-#define ICON_CAMERA "\xee\x80\x81"     // U+E001
-#define ICON_CONSOLE "\xee\x80\x82"    // U+E002
-#define ICON_HIERARCHY "\xee\x80\x83"  // U+E003
-#define ICON_BROWSER "\xee\x80\x84"    // U+E004
-
-namespace Wiesel::Editor {
-
-struct EditorIconDef {
-  const char* name;
-  const char* vfs_path;
-  unsigned int codepoint;
-};
-
-inline constexpr EditorIconDef kEditorIcons[] = {
-    {"folder", "editor://textures/ui/folder.png", 0xE000},
-    {"camera", "editor://textures/ui/camera.png", 0xE001},
-    {"console", "editor://textures/ui/console.png", 0xE002},
-    {"hierarchy", "editor://textures/ui/scene_hierarchy.png", 0xE003},
-    {"browser", "editor://textures/ui/browser.png", 0xE004},
-};
+namespace wiesel::editor {
 
 // Initialize the editor icon font system. Call once in EditorLayer::OnAttach
 // after all other fonts have been added.
 void InitEditorIcons();
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

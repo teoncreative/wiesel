@@ -45,9 +45,6 @@ namespace WieselEngine
             set { Internals.BoxCollider_SetIsTrigger(entity.ScenePtr, entity.Id, value); }
         }
 
-        public BoxColliderComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public BoxColliderComponent(Entity entity) : base(entity) { }
     }
 }

@@ -142,6 +142,59 @@ namespace WieselEngine
         {
         }
 
+        // -- Network Callbacks --
+
+        /// <summary>Called on all scripts when a client connects to the server (server-side).</summary>
+        public virtual void OnClientConnected(ulong sessionId)
+        {
+        }
+
+        /// <summary>Called on all scripts when a client disconnects from the server (server-side).</summary>
+        public virtual void OnClientDisconnected(ulong sessionId)
+        {
+        }
+
+        /// <summary>Called on all scripts when this client connects to a server (client-side).</summary>
+        public virtual void OnConnectedToServer()
+        {
+        }
+
+        /// <summary>Called on all scripts when this client disconnects from a server (client-side).</summary>
+        public virtual void OnDisconnectedFromServer()
+        {
+        }
+
+        // -- Network RPCs --
+
+        /// <summary>Called on the server when a client invokes SendServerRpc on this entity.</summary>
+        public virtual void OnServerRpc(string rpcName)
+        {
+        }
+
+        /// <summary>Called on clients when the server invokes SendClientRpc on this entity.</summary>
+        public virtual void OnClientRpc(string rpcName)
+        {
+        }
+
+        // -- Synced Variables --
+
+        /// <summary>Called when a NetworkVariable changes on this entity (receiving side).</summary>
+        public virtual void OnSyncVarChanged(string varName)
+        {
+        }
+
+        /// <summary>Call an RPC on the server. The server's OnServerRpc will be invoked.</summary>
+        public void SendServerRpc(string rpcName, params object[] args)
+        {
+            Internals.Network_SendServerRpc(Entity.ScenePtr, Entity.Id, rpcName, args);
+        }
+
+        /// <summary>Call an RPC on all clients. Each client's OnClientRpc will be invoked.</summary>
+        public void SendClientRpc(string rpcName, params object[] args)
+        {
+            Internals.Network_SendClientRpc(Entity.ScenePtr, Entity.Id, rpcName, args);
+        }
+
         // -- Component access --
 
         /// <summary>Get a component of type T from this entity.</summary>
@@ -200,6 +253,15 @@ namespace WieselEngine
             Entity[] result = Internals.Scene_FindEntitiesByTag(Entity.ScenePtr, tag);
             if (result == null) return new Entity[0];
             return result;
+        }
+
+        /// <summary>
+        /// Move this entity (and optionally its children) to another scene.
+        /// This entity handle becomes invalid after the move. Returns the new Entity in the target scene.
+        /// </summary>
+        public Entity MoveToScene(Scene targetScene, bool moveChildren = true)
+        {
+            return SceneManager.MoveEntityToScene(Entity, targetScene, moveChildren);
         }
 
     }

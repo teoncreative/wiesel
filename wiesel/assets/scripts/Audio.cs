@@ -19,7 +19,7 @@ namespace WieselEngine
         public static void Play(AudioClip clip, AudioBus bus = AudioBus.SFX, float volume = 1.0f)
         {
             if (clip == null || !clip.IsValid()) return;
-            Internals.Audio_PlayClip(clip.handle, (int)bus, volume, 1.0f, false);
+            Internals.Audio_PlayClip(clip.Handle, (int)bus, volume, 1.0f, false);
         }
 
         // Fire-and-forget 3D by VFS path
@@ -37,7 +37,7 @@ namespace WieselEngine
                                     float minDistance = 1.0f, float maxDistance = 100.0f)
         {
             if (clip == null || !clip.IsValid()) return;
-            Internals.Audio_PlayAtClip(clip.handle, position.X, position.Y, position.Z,
+            Internals.Audio_PlayAtClip(clip.Handle, position.X, position.Y, position.Z,
                                         (int)bus, volume, minDistance, maxDistance);
         }
 
@@ -50,7 +50,7 @@ namespace WieselEngine
         public static void PlayMusic(AudioClip clip, float volume = 1.0f)
         {
             if (clip == null || !clip.IsValid()) return;
-            Internals.Audio_PlayMusicClip(clip.handle, volume);
+            Internals.Audio_PlayMusicClip(clip.Handle, volume);
         }
 
         public static void StopMusic()

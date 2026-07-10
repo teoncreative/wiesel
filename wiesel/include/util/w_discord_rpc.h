@@ -15,7 +15,7 @@
 
 #ifdef WIESEL_DISCORD_RPC
 
-namespace Wiesel {
+namespace wiesel {
 
 class DiscordRPC {
  public:
@@ -40,6 +40,6 @@ class DiscordRPC {
   int64_t session_start_time_ = 0;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel
 
 #endif  // WIESEL_DISCORD_RPC

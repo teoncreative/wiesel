@@ -1,3 +1,9 @@
 {
-  "handle": "6e524692-9de1-449c-94ce-945e1f874c2e"
+  "handle": "6e524692-9de1-449c-94ce-945e1f874c2e",
+  "properties": {
+    "asset_type": 2,
+    "filter_mode": 1,
+    "generate_mipmaps": true,
+    "wrap_mode": 0
+  }
 }

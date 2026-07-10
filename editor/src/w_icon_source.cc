@@ -15,7 +15,7 @@
 #include "util/w_vfs.h"
 #include "w_engine.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 void PngIconSource::AddIcon(uint32_t codepoint, const std::string& vfs_path) {
   auto file = Engine::vfs()->Open(vfs_path);
@@ -110,4 +110,4 @@ IconBitmap PngIconSource::RasterizeGlyph(uint32_t codepoint, int size) const {
   return {dst, size, size};
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

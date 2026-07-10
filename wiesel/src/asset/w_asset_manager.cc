@@ -13,12 +13,12 @@
 //
 
 #include "asset/w_asset_manager.h"
-
+#include "asset/w_asset_registry.h"
 #include "events/w_appevents.h"
-#include "util/w_thread_pool.h"
+#include <urkern/thread_pool.h>
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 const char* AssetTypeToString(AssetType type) {
   switch (type) {
@@ -46,10 +46,10 @@ const char* AssetTypeToString(AssetType type) {
       return "Prefab";
     case AssetType::Audio:
       return "Audio";
-    case AssetType::SpriteAnim:
-      return "SpriteAnim";
-    case AssetType::SpriteController:
-      return "SpriteController";
+    case AssetType::AnimClip:
+      return "AnimClip";
+    case AssetType::AnimController:
+      return "AnimController";
     case AssetType::UIDocument:
       return "UIDocument";
     case AssetType::UIStylesheet:
@@ -97,11 +97,11 @@ AssetType AssetTypeFromString(std::string_view s) {
   if (s == "Audio") {
     return AssetType::Audio;
   }
-  if (s == "SpriteAnim") {
-    return AssetType::SpriteAnim;
+  if (s == "AnimClip") {
+    return AssetType::AnimClip;
   }
-  if (s == "SpriteController") {
-    return AssetType::SpriteController;
+  if (s == "AnimController") {
+    return AssetType::AnimController;
   }
   if (s == "UIDocument") {
     return AssetType::UIDocument;
@@ -167,11 +167,12 @@ bool AssetManager::Register(AssetHandle handle, const std::string& name,
   {
     std::unique_lock lock(registry_mutex_);
     if (!handle.IsValid()) {
-      LOG_ERROR("Cannot register asset with nil handle");
+      DCON_LOG_ERROR("Cannot register asset with nil handle.");
       return false;
     }
     if (registry_.contains(handle)) {
-      LOG_WARN("Handle {} already registered", handle.ToString());
+      DCON_LOG_ERROR("Asset with handle {} was already registered.",
+                     handle.ToString());
       return false;
     }
 
@@ -347,7 +348,7 @@ AssetLoadState AssetManager::GetLoadState(AssetHandle handle) const {
 bool AssetManager::IsLoaded(AssetHandle handle) const {
   std::shared_lock lock(registry_mutex_);
   auto it = registry_.find(handle);
-  return it != registry_.end() && it->second->resource != nullptr;
+  return it != registry_.end() && it->second->HasAnyResource();
 }
 
 void AssetManager::Unload(AssetHandle handle) {
@@ -356,8 +357,8 @@ void AssetManager::Unload(AssetHandle handle) {
   {
     std::unique_lock lock(registry_mutex_);
     auto it = registry_.find(handle);
-    if (it != registry_.end() && it->second->resource) {
-      it->second->resource.reset();
+    if (it != registry_.end() && it->second->HasAnyResource()) {
+      it->second->resources.clear();
       it->second->metadata.load_state.store(AssetLoadState::Unloaded);
       it->second->metadata.load_progress.store(0.0f);
       had_resource = true;
@@ -381,7 +382,7 @@ void AssetManager::Unload(AssetHandle handle) {
 void AssetManager::UnloadAll() {
   std::unique_lock lock(registry_mutex_);
   for (auto& [handle, entry] : registry_) {
-    entry->resource.reset();
+    entry->resources.clear();
   }
 }
 
@@ -399,11 +400,11 @@ void AssetManager::ReloadAllOfType(AssetType type) {
   {
     std::shared_lock lock(registry_mutex_);
     for (auto& [handle, entry] : registry_) {
-      if (entry->metadata.type == type && entry->resource) {
+      if (entry->metadata.type == type && entry->HasAnyResource()) {
         to_reload.push_back(handle);
       }
     }
-    if (loaders_.find(type) == loaders_.end()) {
+    if (!AssetRegistry::HasLoader(type)) {
       return;
     }
   }
@@ -470,23 +471,32 @@ void AssetManager::Clear() {
   dependent_to_parents_.clear();
 }
 
-void AssetManager::RegisterLoader(AssetType type,
-                                  std::shared_ptr<IAssetLoader> loader) {
-  std::unique_lock lock(registry_mutex_);
-  loaders_[type] = std::move(loader);
-}
-
-IAssetLoader* AssetManager::GetLoader(AssetType type) const {
-  std::shared_lock lock(registry_mutex_);
-  auto it = loaders_.find(type);
-  if (it != loaders_.end()) {
-    return it->second.get();
+void AssetManager::ClearByPathPrefix(const std::string& prefix) {
+  if (prefix.empty()) {
+    return;
   }
-  return nullptr;
+
+  std::vector<AssetHandle> to_remove;
+  {
+    std::shared_lock lock(registry_mutex_);
+    to_remove.reserve(registry_.size());
+    for (const auto& [handle, entry] : registry_) {
+      const std::string& path = entry->metadata.virtual_source_path;
+      if (path.size() >= prefix.size() &&
+          path.compare(0, prefix.size(), prefix) == 0) {
+        to_remove.push_back(handle);
+      }
+    }
+  }
+
+  for (AssetHandle handle : to_remove) {
+    Unload(handle);
+    Unregister(handle);
+  }
 }
 
 bool AssetManager::LoadSync(AssetHandle handle) {
-  IAssetLoader* loader = nullptr;
+  AssetType type;
   {
     std::shared_lock lock(registry_mutex_);
     auto it = registry_.find(handle);
@@ -497,23 +507,22 @@ bool AssetManager::LoadSync(AssetHandle handle) {
     if (meta.load_state == AssetLoadState::Loaded) {
       return true;
     }
-    auto loader_it = loaders_.find(meta.type);
-    if (loader_it == loaders_.end() || !loader_it->second) {
-      LOG_WARN("No loader registered for asset type: {}",
-               AssetTypeToString(meta.type));
-      return false;
-    }
-    loader = loader_it->second.get();
+    type = meta.type;
   }
 
-  // CAS on atomic load_state - SetLoadState acquires its own lock
+  const auto* desc = AssetRegistry::Get(type);
+  if (!desc || !desc->Load) {
+    LOG_WARN("No loader registered for asset type: {}",
+             AssetTypeToString(type));
+    return false;
+  }
+
   if (!SetLoadState(handle, AssetLoadState::Unloaded,
                     AssetLoadState::Loading)) {
     return false;
   }
 
-  // Call loader outside lock - it calls Store<T> which acquires write lock
-  bool success = loader->Load(handle);
+  bool success = desc->Load(handle);
   if (success) {
     SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
   } else {
@@ -523,7 +532,11 @@ bool AssetManager::LoadSync(AssetHandle handle) {
 }
 
 void AssetManager::LoadAsync(AssetHandle handle) {
-  std::shared_ptr<IAssetLoader> loader_ptr;
+  if (shutting_down_.load(std::memory_order_acquire)) {
+    return;
+  }
+
+  AssetType type;
   {
     std::shared_lock lock(registry_mutex_);
     auto it = registry_.find(handle);
@@ -535,13 +548,14 @@ void AssetManager::LoadAsync(AssetHandle handle) {
         meta.load_state == AssetLoadState::Loading) {
       return;
     }
-    auto loader_it = loaders_.find(meta.type);
-    if (loader_it == loaders_.end() || !loader_it->second) {
-      LOG_WARN("No loader registered for asset type: {}",
-               AssetTypeToString(meta.type));
-      return;
-    }
-    loader_ptr = loader_it->second;
+    type = meta.type;
+  }
+
+  const auto* desc = AssetRegistry::Get(type);
+  if (!desc || !desc->Load) {
+    LOG_WARN("No loader registered for asset type: {}",
+             AssetTypeToString(type));
+    return;
   }
 
   if (!SetLoadState(handle, AssetLoadState::Unloaded,
@@ -549,13 +563,36 @@ void AssetManager::LoadAsync(AssetHandle handle) {
     return;
   }
 
-  Engine::thread_pool().Submit([this, handle, loader_ptr]() {
-    bool success = loader_ptr->Load(handle);
-    if (success) {
-      SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
-    } else {
+  in_flight_async_loads_.fetch_add(1, std::memory_order_relaxed);
+  // Capture the Load function by value for thread safety
+  auto load_fn = desc->Load;
+  Engine::thread_pool().Submit([this, handle, load_fn]() {
+    // If shutdown began after this task was queued but before a worker
+    // picked it up, bail without touching any loader code - the loader
+    // dereferences Engine::renderer()/vfs() which may already be gone.
+    if (shutting_down_.load(std::memory_order_acquire)) {
       SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+    } else {
+      bool success = load_fn(handle);
+      if (success) {
+        SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Loaded);
+      } else {
+        SetLoadState(handle, AssetLoadState::Loading, AssetLoadState::Failed);
+      }
     }
+
+    std::lock_guard<std::mutex> lock(in_flight_mutex_);
+    if (in_flight_async_loads_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      in_flight_cv_.notify_all();
+    }
+  });
+}
+
+void AssetManager::WaitForAsyncLoads() {
+  shutting_down_.store(true, std::memory_order_release);
+  std::unique_lock<std::mutex> lock(in_flight_mutex_);
+  in_flight_cv_.wait(lock, [this]() {
+    return in_flight_async_loads_.load(std::memory_order_acquire) == 0;
   });
 }
 
@@ -579,4 +616,4 @@ void AssetManager::LoadAllOfType(AssetType type, bool async) {
   }
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

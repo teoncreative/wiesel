@@ -1,0 +1,61 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "WIESEL_ENABLE_TRACY": "ON",
+        "WIESEL_ENABLE_VULKAN_VALIDATION": "ON",
+        "WIESEL_ENABLE_GPU_PROFILING": "ON",
+        "WIESEL_ENABLE_DISCORD_RPC": "OFF"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "release-tracy",
+      "displayName": "Release with Tracy",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release-tracy",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "WIESEL_ENABLE_TRACY": "ON",
+        "WIESEL_ENABLE_VULKAN_VALIDATION": "ON",
+        "WIESEL_ENABLE_GPU_PROFILING": "ON",
+        "WIESEL_ENABLE_DISCORD_RPC": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "configurePreset": "debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "configurePreset": "release",
+      "configuration": "Release"
+    },
+    {
+      "name": "release-tracy",
+      "displayName": "Release with Tracy",
+      "configurePreset": "release-tracy",
+      "configuration": "Release"
+    }
+  ]
+}

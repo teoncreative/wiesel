@@ -13,7 +13,7 @@
 #include "scene/w_entity.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class AgentGoal {
  public:
@@ -55,4 +55,4 @@ class AgentGoal {
   mutable Entity entity_{entt::null, nullptr};
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

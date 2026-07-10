@@ -22,7 +22,7 @@ class Context;
 class Event;
 }  // namespace Rml
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class UIBindingMode {
   TwoWay,    // Code and UI can both read/write (default)
@@ -97,4 +97,4 @@ class UIDataModel {
   Rml::Context* context_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

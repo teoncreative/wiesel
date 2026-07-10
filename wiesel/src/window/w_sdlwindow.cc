@@ -19,7 +19,7 @@
 #include "events/w_mouseevents.h"
 #include "util/w_keycodes.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Map SDL3 scancodes to engine KeyCode
 KeyCode SdlAppWindow::TranslateKeyCode(SDL_Scancode scancode) {
@@ -528,4 +528,4 @@ float_t Time::GetTime() {
   return static_cast<float_t>(SDL_GetTicks()) / 1000.0;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

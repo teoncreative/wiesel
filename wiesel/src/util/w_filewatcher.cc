@@ -15,7 +15,7 @@
 #include "util/w_filewatcher.h"
 #include "util/w_logger.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 FileWatcher::FileWatcher() = default;
 
@@ -78,4 +78,4 @@ void FileWatcher::handleFileAction(efsw::WatchID watch_id,
   changed_.store(true);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

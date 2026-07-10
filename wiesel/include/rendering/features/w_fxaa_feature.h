@@ -13,11 +13,14 @@
 
 #include "rendering/w_render_feature.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct FxaaPushConstants {
   glm::vec2 inverse_screen_size;
 };
+
+class AttachmentTexture;
+class DescriptorSet;
 
 class FXAAFeature : public RenderFeature {
  public:
@@ -33,9 +36,13 @@ class FXAAFeature : public RenderFeature {
  private:
   static inline std::string name_ = "FXAA";
   std::shared_ptr<Renderer> renderer_;
-  std::shared_ptr<RenderPass> render_pass_;
   std::shared_ptr<Pipeline> pipeline_;
   std::shared_ptr<FxaaPushConstants> push_constants_;
+
+  std::shared_ptr<DescriptorSet> input_desc_;
+  std::shared_ptr<DescriptorSet> output_desc_;
+  AttachmentTexture* output_key_ = nullptr;
+  AttachmentTexture* input_key_ = nullptr;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

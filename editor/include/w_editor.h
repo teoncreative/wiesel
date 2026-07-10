@@ -16,35 +16,56 @@
 #define WIESEL_PARENT_W_EDITOR_H
 
 #include "TextEditor.h"
+#include "w_anim_clip_editor.h"
+#include "w_anim_controller_editor.h"
+
+// clang-format off
+// Import order important
+#include <backends/imgui_impl_vulkan.h>
+#include <imgui.h>
+#include <ImGuizmo.h>
+// clang-format on
+
 #include "behavior/w_behavior.h"
 #include "events/w_appevents.h"
 #include "events/w_mouseevents.h"
 #include "rendering/w_camera.h"
+#include "scene/w_entity.h"
 #include "scene/w_scene.h"
+#include "util/w_filewatcher.h"
 #include "util/w_user_config.h"
 #include "w_application.h"
 #include "w_asset_browser_panel.h"
 #include "w_lsp_autocomplete.h"
 #include "w_lsp_client.h"
+#include "w_command_palette.h"
+#include "w_editor_name_prompt.h"
 #include "w_notifications.h"
 #include "w_project.h"
+#include "w_undo.h"
 #include "w_vfs_browser.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 class RecentProjects {
  public:
   static constexpr int kMaxRecent = 10;
 
-  static std::vector<std::string> Load();
+  static const std::vector<std::string>& Load();
   static void Save(const std::vector<std::string>& paths);
   static void Add(const std::string& path);
 
  private:
   static std::filesystem::path GetConfigPath();
+  static std::vector<std::string> cached_;
+  static bool cache_valid_;
 };
 
-enum class EditorState { Edit, Playing };
+enum class EditorState { Edit, Playing, Paused };
+
+struct HierarchyDragPayload {
+  EntityRef entity_ref;
+};
 
 class EditorLayer : public Layer {
  public:
@@ -60,7 +81,7 @@ class EditorLayer : public Layer {
   bool OnWindowFocusLost(WindowFocusLostEvent& event);
   bool OnAssetUnloaded(AssetUnloadedEvent& event);
 
-  void RenderEntity(Entity& entity, entt::entity entity_id, int depth,
+  void RenderEntity(Entity& entity, int depth,
                     bool& ignore_menu);
   void UpdateHierarchyOrder();
 
@@ -72,26 +93,39 @@ class EditorLayer : public Layer {
   void TakeSnapshot();
   void RestoreSnapshot();
 
+  // Sync EditorSelectedComponent marker with current selection
+  void SyncEditorSelectedComponent();
+
+  // Entity picking helpers
+  EntityRef FindSpriteAtNDC(glm::vec2 ndc);
+  bool FindSpritesInScene(Scene* scene,
+                          const glm::mat4& vp, glm::vec2 pick_ndc,
+                          entt::entity& best, float& best_depth);
+
   // Toolbar / Menu
   void RenderMainMenuBar();
   void RenderProjectSettingsPopup();
-  void RenderCreateSkyboxPopup();
-  void RenderCreateSpritePopup();
   void RenderSliceSpritesPopup();
-  void RenderCreateSpriteAnimPopup();
-  void RenderCreateSpriteControllerPopup();
-  void RenderCreateCursorSetPopup();
-  void RenderCreateMeshColliderPopup();
-  void RenderEntityInspector(entt::entity handle);
+  void RenderEntityInspector(Entity selected_entity);
+  void RenderAssetPropertiesPanel();
   void NewProject();
   void OpenProject();
   void SaveProject();
   void NewScene();
   void SaveScene();
   void SaveSceneAs();
+
+  // Instantiate a model asset into the current scene with undo support.
+  void InstantiateModelAsset(AssetHandle handle);
   void ClearScene();
   void OpenScene(const std::string& vfs_path);
   void LoadProjectFromPath(const std::filesystem::path& path);
+
+  // Tear down state tied to the previously-loaded project (asset registry
+  // entries under app://, inspector target, browser selection/cache, thumbnail
+  // cache) so the incoming project starts from a clean slate. Safe to call
+  // when no project is loaded.
+  void ResetForProjectSwitch();
   void RenderStartupDialog();
   void UpdateWindowTitle();
   void AutoSave();
@@ -102,15 +136,84 @@ class EditorLayer : public Layer {
   // OnBeginPresent sub-panels
   void InitializeDockspaceLayout(ImGuiID dockspace_id);
   void RenderSceneHierarchyPanel();
-  void RenderEntityInspectorPanel();
+  void RenderInspectorPanel();
   void RenderAssetBrowserPanel();
   void RenderDeveloperConsolePanel();
   void RenderRenderStatsPanel();
+  void RenderUndoHistoryPanel();
   void RenderSceneViewportPanel();
   void RenderGameViewportPanel();
+  void RenderInfoBar();
+  void RefreshGitBranch();
+  void RegisterPaletteCommands();
   bool DrawPlayStopButtons();
 
   Application& app_;
+  std::shared_ptr<Project> active_project_;
+
+  // Undo/redo
+  CommandStack command_stack_;
+  std::string status_toast_text_;
+  float status_toast_timer_ = 0.0f;
+
+  // Cached git branch for the active project (empty if git is unavailable
+  // or the project root is not a git repo). Refreshed on project load.
+  std::string git_branch_;
+
+  // Command palette (Ctrl+Shift+K).
+  CommandPalette command_palette_;
+  // Common name input popup, shared by every "create asset/folder/script"
+  // flow (cursor set, anim controller, scene, folder, script, ...).
+  NamePromptPopup name_prompt_;
+  static constexpr float kStatusToastDuration = 1.5f;
+  void ShowStatusToast(const std::string& text);
+  void PerformUndo();
+  void PerformRedo();
+
+  // Selection state
+  EntityRef selected_entity_{};
+  bool scroll_to_selected_ = false;
+
+  // Hierarchy state
+  char hierarchy_search_[256] = {};
+  EntityRef renaming_entity_{};
+  char rename_entity_buf_[256] = {};
+  std::unordered_set<EntityRef> open_ancestors_;
+  std::string entity_clipboard_;
+
+  struct SceneHierarchyData {
+    EntityRef move_from{};
+    EntityRef move_to{};
+    bool bottom_part = false;
+  };
+
+  SceneHierarchyData hierarchy_data_;
+
+  // Gizmo state
+  ImGuizmo::OPERATION current_op_ = ImGuizmo::TRANSLATE;
+  ImGuizmo::MODE current_mode_ = ImGuizmo::LOCAL;
+
+  // Panel visibility
+  bool panel_scene_hierarchy_ = true;
+  bool panel_components_ = true;
+  bool panel_asset_browser_ = true;
+  bool panel_console_ = true;
+  bool panel_stats_ = true;
+  bool panel_scene_view_ = true;
+  bool panel_game_view_ = true;
+  bool panel_lsp_debug_ = false;
+  bool panel_editor_settings_ = false;
+  bool panel_undo_history_ = false;
+  bool panel_font_debug_ = false;
+  bool panel_network_ = false;
+  bool layout_initialized_ = false;
+
+  // File watchers
+  FileWatcher script_watcher_;
+  FileWatcher ui_file_watcher_;
+  FileWatcher asset_dir_watcher_;
+  bool script_reload_pending_ = false;
+  bool window_focused_ = true;
 
   // Project
   std::string current_scene_path_;
@@ -142,6 +245,7 @@ class EditorLayer : public Layer {
   glm::vec2 pending_pick_ndc_ = {-1,
                                  -1};  // NDC coords for fallback sprite picking
   bool game_panel_focused_ = false;
+  bool game_panel_hovered_ = false;
   bool scene_panel_visible_ = true;
   bool game_panel_visible_ = true;
   int resolution_preset_index_ = 0;  // index into kResolutionPresets
@@ -149,25 +253,18 @@ class EditorLayer : public Layer {
   bool show_project_settings_ = false;
   int project_settings_category_ = 0;
   std::string selected_input_context_;
-  int selected_input_item_ =
-      -1;  // index into actions or axes of selected context
   bool show_grid_ = true;
-  bool show_create_skybox_ = false;
-  bool show_create_spriteanim_ = false;
-  bool show_create_sprite_ = false;
-  bool show_create_spritecontroller_ = false;
-  bool show_create_cursorset_ = false;
-  bool show_create_meshcollider_ = false;
   bool show_slice_sprites_ = false;
   AssetHandle slice_texture_handle_;  // texture being sliced
   AssetBrowserPanel asset_browser_panel_;
   VfsFilePicker file_picker_;
   NotificationManager notifications_;
 
-  // Asset properties panel
-  bool show_asset_properties_ = false;
-  AssetHandle properties_asset_handle_;
-  void RenderAssetPropertiesPanel();
+  // Inspector mode: entity or asset
+  enum class InspectorMode { Entity, Asset };
+  InspectorMode inspector_mode_ = InspectorMode::Entity;
+  AssetHandle inspector_asset_handle_;
+  bool inspector_asset_read_only_ = false;
 
   // Prefab editing
   bool editing_prefab_ = false;
@@ -184,11 +281,18 @@ class EditorLayer : public Layer {
     OpenPrefab,
     ClosePrefab,
     OpenProject,
+    CloseProject,
     StopPlaying
   };
   DeferredAction deferred_action_ = DeferredAction::None;
   std::string deferred_path_;
   void ProcessDeferredActions();
+
+  // Animation controller editor
+  AnimControllerEditor anim_controller_editor_;
+
+  // Animation clip editor
+  AnimClipEditor anim_clip_editor_;
 
   // Code editor
   bool code_editor_open_ = false;
@@ -220,7 +324,9 @@ class EditorLayer : public Layer {
   void OpenCodeEditor(const std::filesystem::path& path);
   void RenderCodeEditor();
   void RenderLspDebugPanel();
+  void RenderFontDebugPanel();
   void RenderEditorSettingsPanel();
+  void RenderNetworkPanel();
   void SaveCodeEditorFile();
   void StartLsp();
   void StopLsp();
@@ -231,6 +337,6 @@ class EditorLayer : public Layer {
   // Editor preferences (theme, layout, etc.)
   std::unique_ptr<UserConfig> editor_config_;
 };
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor
 
 #endif  //WIESEL_PARENT_W_EDITOR_H

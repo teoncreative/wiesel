@@ -15,15 +15,21 @@ namespace Moonlight {
 
 enum class Theme {
   DarkGray,
-  OLED,
   Count,
 };
 
+static constexpr const char* kDefaultFontPath = "engine://fonts/Inter.ttf";
+// Named instance index for FreeType variable font selection.
+// Inter: 0=default, 1=Thin, 2=ExtraLight, 3=Light, 4=Regular, 5=Medium, ...
+static constexpr int kDefaultFontInstance = 4;
+static constexpr float kDefaultRegularFontSize = 13.0f;
+static constexpr float kDefaultMonospacedFontSize = 13.0f;
+static constexpr float kDefaultIconFontSize = 13.0f;
+static constexpr float kDefaultFontOffsetY = 1.0f;
+
 const char* GetThemeName(Theme theme);
 
-// Load SourceSansProRegular and sets it as a default font.
-// You may want to call ImGui::GetIO().Fonts->Clear() before this
-void LoadFont(float size = 19.0f);
+void LoadFont();
 
 // Apply a theme by enum
 void ApplyTheme(Theme theme = Theme::DarkGray);

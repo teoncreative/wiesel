@@ -8,10 +8,7 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-//
-// Created by Metehan Gezer on 12.02.2026.
-//
-
+#include <cxxopts.hpp>
 #include <filesystem>
 #include <iostream>
 #include "mono_compiler.h"
@@ -19,29 +16,35 @@
 
 namespace fs = std::filesystem;
 
-bool PackAssets(const fs::path& input_dir, const fs::path& output_pak) {
+// Returns the number of pak files written, or -1 on error.
+int PackAssets(const fs::path& input_dir, const fs::path& output_dir,
+               const std::string& prefix, int start_index = 1) {
   auto files_result = Wpak::CollectFiles(input_dir);
   if (!files_result) {
-    std::cerr << "Error: " << files_result.error.message << "\n";
-    return false;
+    std::cerr << "Error: " << Wpak::ErrorToString(files_result.error())
+              << "\n";
+    return -1;
   }
 
-  std::cout << "Packing " << files_result.value.size() << " files...\n";
+  std::cout << "Packing " << files_result->size() << " files with prefix '"
+            << prefix << "'...\n";
 
-  auto status = Wpak::WriteArchive(
-      output_pak, files_result.value,
+  auto result = Wpak::WriteArchive(
+      output_dir, *files_result, prefix, start_index,
       [](size_t i, size_t total, const std::string& name) {
         std::cout << "  [" << (i + 1) << "/" << total << "] " << name << "\n";
       });
 
-  if (!status) {
-    std::cerr << "Error: " << status.error.message << "\n";
-    return false;
+  if (!result) {
+    std::cerr << "Error: " << Wpak::ErrorToString(result.error()) << "\n";
+    return -1;
   }
 
-  std::cout << "Archive created: " << output_pak << "\n";
-  std::cout << "Total size: " << fs::file_size(output_pak) << " bytes\n";
-  return true;
+  for (const auto& path : *result) {
+    std::cout << "Archive created: " << path << " (" << fs::file_size(path)
+              << " bytes)\n";
+  }
+  return static_cast<int>(result->size());
 }
 
 bool CompileScripts(const fs::path& scripts_dir, const fs::path& output_dll) {
@@ -76,72 +79,97 @@ bool CompileScripts(const fs::path& scripts_dir, const fs::path& output_dll) {
   return result.success;
 }
 
-void PrintUsage() {
-  std::cerr << "Usage:\n"
-            << "  assetpacker pack <input_dir> <output.pak>\n"
-            << "  assetpacker compile <scripts_dir> <output.dll>\n"
-            << "  assetpacker bundle <engine_assets_dir> <editor_assets_dir>"
-            << " <output_dir>\n";
-}
-
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    PrintUsage();
-    return 1;
-  }
+  cxxopts::Options options("assetpacker", "Wiesel Engine Asset Packer");
 
-  std::string command = argv[1];
+  options.add_options()("command", "Command to run (pack, compile, bundle)",
+                        cxxopts::value<std::string>())(
+      "args", "Positional arguments",
+      cxxopts::value<std::vector<std::string>>())(
+      "prefix", "VFS prefix for pack entries (e.g. engine://)",
+      cxxopts::value<std::string>())("h,help", "Print usage");
 
-  if (command == "pack") {
-    if (argc != 4) {
-      PrintUsage();
-      return 1;
-    }
-    if (!PackAssets(argv[2], argv[3])) {
-      return 1;
-    }
-  } else if (command == "compile") {
-    if (argc != 4) {
-      PrintUsage();
-      return 1;
-    }
-    if (!CompileScripts(argv[2], argv[3])) {
-      return 1;
-    }
-  } else if (command == "bundle") {
-    if (argc != 5) {
-      PrintUsage();
-      return 1;
-    }
-    fs::path engine_assets = argv[2];
-    fs::path editor_assets = argv[3];
-    fs::path output_dir = argv[4];
+  options.parse_positional({"command", "args"});
+  options.positional_help("<command> [arguments...]");
 
-    fs::create_directories(output_dir);
+  try {
+    auto result = options.parse(argc, argv);
 
-    if (!PackAssets(engine_assets, output_dir / "engine.pak")) {
-      return 1;
-    }
-    if (!PackAssets(editor_assets, output_dir / "editor.pak")) {
-      return 1;
+    if (result.count("help") || !result.count("command")) {
+      std::cout << options.help() << "\n"
+                << "Commands:\n"
+                << "  pack <input_dir> <output_dir> --prefix <scheme>\n"
+                << "  compile <scripts_dir> <output.dll>\n"
+                << "  bundle <engine_assets> <editor_assets> <output_dir>\n";
+      return result.count("help") ? 0 : 1;
     }
 
-    fs::path scripts_dir = engine_assets / "scripts";
-    if (fs::exists(scripts_dir)) {
-      if (!CompileScripts(scripts_dir, output_dir / "Core.dll")) {
+    std::string command = result["command"].as<std::string>();
+    std::vector<std::string> args;
+    if (result.count("args")) {
+      args = result["args"].as<std::vector<std::string>>();
+    }
+
+    if (command == "pack") {
+      if (args.size() < 2) {
+        std::cerr << "Usage: assetpacker pack <input_dir> <output_dir>"
+                  << " --prefix <scheme>\n";
         return 1;
       }
-    }
-  } else {
-    // Legacy mode: assetpacker <input_dir> <output.pak>
-    if (argc == 3) {
-      if (!PackAssets(argv[1], argv[2])) {
+      std::string prefix;
+      if (result.count("prefix")) {
+        prefix = result["prefix"].as<std::string>();
+      }
+      if (prefix.empty()) {
+        std::cerr << "Error: --prefix is required (e.g. --prefix engine://)\n";
         return 1;
+      }
+      if (PackAssets(args[0], args[1], prefix) < 0) {
+        return 1;
+      }
+    } else if (command == "compile") {
+      if (args.size() < 2) {
+        std::cerr << "Usage: assetpacker compile <scripts_dir> <output.dll>\n";
+        return 1;
+      }
+      if (!CompileScripts(args[0], args[1])) {
+        return 1;
+      }
+    } else if (command == "bundle") {
+      if (args.size() < 3) {
+        std::cerr << "Usage: assetpacker bundle <engine_assets>"
+                  << " <editor_assets> <output_dir>\n";
+        return 1;
+      }
+      fs::path engine_assets = args[0];
+      fs::path editor_assets = args[1];
+      fs::path output_dir = args[2];
+
+      fs::create_directories(output_dir);
+
+      int engine_count = PackAssets(engine_assets, output_dir, "engine://");
+      if (engine_count < 0) {
+        return 1;
+      }
+      if (PackAssets(editor_assets, output_dir, "editor://", 1 + engine_count) <
+          0) {
+        return 1;
+      }
+
+      fs::path scripts_dir = engine_assets / "scripts";
+      if (fs::exists(scripts_dir)) {
+        if (!CompileScripts(scripts_dir, output_dir / "Core.dll")) {
+          return 1;
+        }
       }
     } else {
-      PrintUsage();
+      std::cerr << "Unknown command: " << command << "\n";
+      std::cout << options.help() << "\n";
       return 1;
     }
+  } catch (const cxxopts::exceptions::exception& e) {
+    std::cerr << "Error: " << e.what() << "\n";
+    return 1;
   }
 
   return 0;

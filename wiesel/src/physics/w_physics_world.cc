@@ -40,6 +40,7 @@
 #include "physics/w_mesh_collider_asset.h"
 #include "physics/w_rigidbody.h"
 #include "rendering/w_mesh.h"
+#include "networking/w_replication_types.h"
 #include "scene/w_components.h"
 #include "scene/w_scene.h"
 #include "script/mono/w_monobehavior.h"
@@ -51,7 +52,7 @@ JPH_SUPPRESS_WARNINGS
 using namespace JPH;
 using namespace JPH::literals;
 
-namespace Wiesel {
+namespace wiesel {
 
 // Jolt global init guard
 static bool s_jolt_initialized = false;
@@ -81,6 +82,12 @@ static JPH::Quat ToJoltQuat(const glm::quat& q) {
 
 static glm::quat ToGlmQuat(JPH::Quat q) {
   return glm::quat(q.GetW(), q.GetX(), q.GetY(), q.GetZ());
+}
+
+static bool IsRemoteNetworkEntity(entt::registry& registry,
+                                  entt::entity entity) {
+  auto* net_id = registry.try_get<NetworkIdentityComponent>(entity);
+  return net_id && net_id->is_remote;
 }
 
 // Contact event types
@@ -229,6 +236,9 @@ glm::vec3 PhysicsWorld::GetColliderOffset(entt::entity entity) const {
   if (registry.any_of<CapsuleColliderComponent>(entity)) {
     return registry.get<CapsuleColliderComponent>(entity).offset;
   }
+  if (registry.any_of<MeshColliderComponent>(entity)) {
+    return registry.get<MeshColliderComponent>(entity).offset;
+  }
   if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
     return glm::vec3(0.0f, (hf.min_height + hf.max_height) * 0.5f, 0.0f);
@@ -311,21 +321,31 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
 
   if (registry.any_of<MeshColliderComponent>(entity)) {
     auto& mesh_comp = registry.get<MeshColliderComponent>(entity);
-
-    if (!mesh_comp.collider_handle.IsValid()) {
-      LOG_WARN("MeshCollider on entity {} has no collider asset assigned",
-               static_cast<uint32_t>(entity));
-      return nullptr;
-    }
-
     auto& mgr = Engine::asset_manager();
-    if (!mgr.IsLoaded(mesh_comp.collider_handle)) {
-      mgr.LoadSync(mesh_comp.collider_handle);
+
+    std::shared_ptr<MeshColliderAssetData> baked;
+
+    if (mesh_comp.collider_handle.IsValid()) {
+      if (!mgr.IsLoaded(mesh_comp.collider_handle)) {
+        mgr.LoadSync(mesh_comp.collider_handle);
+      }
+      baked = mgr.Get<MeshColliderAssetData>(mesh_comp.collider_handle);
     }
-    auto baked = mgr.Get<MeshColliderAssetData>(mesh_comp.collider_handle);
+
+    // Fallback: extract geometry from MeshRendererComponent
+    if ((!baked || !baked->cached_shape) &&
+        registry.any_of<MeshRendererComponent>(entity)) {
+      auto& mr = registry.get<MeshRendererComponent>(entity);
+      if (mr.model_handle.IsValid()) {
+        baked = BakeMeshColliderFromModel(mr.model_handle);
+      }
+    }
+
     if (!baked || !baked->cached_shape) {
-      LOG_WARN("MeshCollider on entity {}: asset not loaded or shape invalid",
-               static_cast<uint32_t>(entity));
+      LOG_WARN(
+          "MeshCollider on entity {}: no collider asset and no model to "
+          "fall back on",
+          static_cast<uint32_t>(entity));
       return nullptr;
     }
 
@@ -374,11 +394,15 @@ JPH::Shape* PhysicsWorld::CreateShapeForEntity(entt::entity entity) const {
 }
 
 void PhysicsWorld::CreateBody(entt::entity entity) {
-  if (bodies_.count(entity)) {
+  if (bodies_.contains(entity)) {
     return;
   }
 
   auto& registry = scene_->GetRegistry();
+
+  if (IsRemoteNetworkEntity(registry, entity)) {
+    return;
+  }
 
   // Create the collision shape
   Shape* raw_shape = CreateShapeForEntity(entity);
@@ -417,6 +441,7 @@ void PhysicsWorld::CreateBody(entt::entity entity) {
     collision_group = cap.collision_group;
   } else if (registry.any_of<MeshColliderComponent>(entity)) {
     auto& mc = registry.get<MeshColliderComponent>(entity);
+    is_trigger = mc.is_trigger;
     collision_group = mc.collision_group;
   } else if (registry.any_of<HeightfieldColliderComponent>(entity)) {
     auto& hf = registry.get<HeightfieldColliderComponent>(entity);
@@ -601,42 +626,32 @@ void PhysicsWorld::EnsureBodiesExist() {
   auto& registry = scene_->GetRegistry();
 
   // Check for bodies that need recreation
-  for (auto& [entity, data] : bodies_) {
+  for (entt::entity entity : bodies_ | std::views::keys) {
     if (registry.valid(entity)) {
       RecreateBodyIfNeeded(entity);
     }
   }
 
   // Create bodies for new entities with colliders
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, BoxColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, SphereColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, CapsuleColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, MeshColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
-  for (auto handle :
+  for (entt::entity handle :
        registry.view<TransformComponent, HeightfieldColliderComponent>()) {
-    if (!bodies_.count(handle)) {
-      CreateBody(handle);
-    }
+    CreateBody(handle);
   }
 }
 
@@ -982,4 +997,4 @@ glm::vec3 PhysicsWorld::GetGravity() const {
   return ToGlm(physics_system_->GetGravity());
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

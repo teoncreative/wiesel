@@ -12,10 +12,9 @@
 #include "systems/w_canvas_system.h"
 #include <algorithm>
 #include "scene/w_entity.h"
-#include "ui/w_font.h"
 #include "ui/w_ui_document.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 void CanvasSystem::Update(Scene& scene, glm::vec2 screen_size) {
   PROFILE_ZONE_SCOPED_N("CanvasSystem::Update");
@@ -148,7 +147,7 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
   // Initialize cursor with start spacing
   float cursor = (canvas ? canvas->start_spacing : 0.0f);
 
-  for (entt::entity child : tree.childs) {
+  for (entt::entity child : tree.children) {
     if (!scene.HasComponent<RectangleTransformComponent>(child)) {
       continue;
     }
@@ -163,17 +162,6 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
                           ? rt.size.y * content_size.y
                           : rt.size.y;
 
-    if (scene.HasComponent<TextComponent>(child) && resolved_size.x == 0 &&
-        resolved_size.y == 0) {
-      auto& text = scene.GetComponent<TextComponent>(child);
-      if (!text.text.empty()) {
-        std::shared_ptr<Font> font =
-            FontCache::Get(text.font_handle, text.font_size);
-        if (font && font->IsLoaded()) {
-          resolved_size = font->MeasureText(text.text, text.font_size);
-        }
-      }
-    }
     // UIDocument with zero size fills parent
     if (scene.HasComponent<UIDocumentComponent>(child) &&
         resolved_size.x <= 0.0f && resolved_size.y <= 0.0f) {
@@ -225,18 +213,7 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
 
     rt.draw_order = draw_order++;
 
-    // Apply button state offset to children's parent position
     glm::vec2 child_origin = rt.computed_position;
-    if (scene.HasComponent<ButtonComponent>(child)) {
-      auto& btn = scene.GetComponent<ButtonComponent>(child);
-      if (btn.state_ == ButtonState::Pressed) {
-        child_origin += btn.pressed_offset;
-      } else if (btn.state_ == ButtonState::Selected) {
-        child_origin += btn.selected_offset;
-      } else if (btn.state_ == ButtonState::Hovered) {
-        child_origin += btn.hovered_offset;
-      }
-    }
 
     // Recurse into children. If child has its own CanvasComponent,
     // use its layout settings; otherwise inherit parent's.
@@ -249,5 +226,5 @@ void CanvasSystem::LayoutChildren(Scene& scene, entt::entity parent,
   }
 }
 
-void CanvasSystem::OnEvent(Wiesel::Event& event) {}
-}  // namespace Wiesel
+void CanvasSystem::OnEvent(wiesel::Event& event) {}
+}  // namespace wiesel

@@ -10,7 +10,7 @@
 
 #include "TextEditor.h"
 
-namespace Wiesel::Editor {
+namespace wiesel::editor {
 
 TextEditor::LanguageDefinition CreateCSharpLanguageDefinition() {
   TextEditor::LanguageDefinition langDef;
@@ -171,4 +171,4 @@ TextEditor::LanguageDefinition CreateCSharpLanguageDefinition() {
   return langDef;
 }
 
-}  // namespace Wiesel::Editor
+}  // namespace wiesel::editor

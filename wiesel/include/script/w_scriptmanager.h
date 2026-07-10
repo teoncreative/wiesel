@@ -18,71 +18,28 @@
 #include "scene/w_scene.h"
 #include "script/mono/w_mono_util.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class MonoBehavior;
-
-enum class FieldType {
-  Boolean,
-  Float,
-  Double,
-  Integer,
-  Long,
-  UnsignedInteger,
-  UnsignedLong,
-  String,
-  Entity,
-  Prefab,
-  AudioClip,
-  Object
-};
 
 class FieldData {
  public:
   FieldData(MonoClassField* field, const std::string& fieldName,
             uint32_t fieldFlags)
       : field_(field), field_name_(fieldName), field_flags_(fieldFlags) {
-    std::string typeName = mono_type_get_name(mono_field_get_type(field_));
-    if (typeName == "System.Boolean") {
-      field_type_ = FieldType::Boolean;
-    } else if (typeName == "System.Single") {
-      field_type_ = FieldType::Float;
-    } else if (typeName == "System.Double") {
-      field_type_ = FieldType::Double;
-    } else if (typeName == "System.Int32") {
-      field_type_ = FieldType::Integer;
-    } else if (typeName == "System.Int64") {
-      field_type_ = FieldType::Long;
-    } else if (typeName == "System.UInt32") {
-      field_type_ = FieldType::UnsignedInteger;
-    } else if (typeName == "System.UInt64") {
-      field_type_ = FieldType::UnsignedLong;
-    } else if (typeName == "System.String") {
-      field_type_ = FieldType::String;
-    } else if (typeName == "WieselEngine.Entity") {
-      field_type_ = FieldType::Entity;
-    } else if (typeName == "WieselEngine.Prefab") {
-      field_type_ = FieldType::Prefab;
-    } else if (typeName == "WieselEngine.AudioClip") {
-      field_type_ = FieldType::AudioClip;
-    } else {
-      field_type_ = FieldType::Object;
-      LOG_WARN("Unknown script field type '{}' for field '{}'", typeName,
-               fieldName);
+    type_name_ = mono_type_get_name(mono_field_get_type(field_));
+
+    // For NetworkVariable<T>, extract inner type and mark as network var
+    if (type_name_.starts_with("WieselEngine.NetworkVariable<")) {
+      is_network_var_ = true;
+      size_t start = type_name_.find('<') + 1;
+      size_t end = type_name_.rfind('>');
+      if (start != std::string::npos && end != std::string::npos) {
+        inner_type_name_ = type_name_.substr(start, end - start);
+      }
     }
+
     formatted_name_ = FormatVariableName(field_name_);
-  }
-
-  template <typename T>
-  void Set(MonoObject* instance, T value) {
-    mono_field_set_value(instance, field_, value);
-  }
-
-  template <typename T>
-  T Get(MonoObject* instance) const {
-    T value;
-    mono_field_get_value(instance, field_, &value);
-    return value;
   }
 
   MonoClassField* field() const { return field_; }
@@ -91,16 +48,23 @@ class FieldData {
 
   uint32_t field_flags() const { return field_flags_; }
 
-  FieldType field_type() const { return field_type_; }
+  // The full Mono type name (e.g., "System.Int32", "WieselEngine.Prefab")
+  const std::string& type_name() const { return type_name_; }
 
   const std::string& formatted_name() const { return formatted_name_; }
+
+  // For NetworkVariable<T> fields
+  bool is_network_var() const { return is_network_var_; }
+  const std::string& inner_type_name() const { return inner_type_name_; }
 
  private:
   MonoClassField* field_;
   std::string field_name_;
   std::string formatted_name_;
+  std::string type_name_;
+  std::string inner_type_name_;
   uint32_t field_flags_;
-  FieldType field_type_;
+  bool is_network_var_ = false;
 };
 
 class ScriptData {
@@ -216,7 +180,39 @@ class ScriptData {
 
   std::unordered_map<std::string, FieldData>& fields() { return fields_; }
 
+  // Network RPC methods discovered via reflection
+  struct RpcMethodInfo {
+    MonoMethod* method = nullptr;
+    std::string rpc_name;
+    bool is_server_rpc = false;
+    // Parameter types for auto-serialization (MONO_TYPE_I4, etc.)
+    std::vector<int> param_mono_types;
+  };
+
+  std::unordered_map<std::string, RpcMethodInfo>& rpc_methods() {
+    return rpc_methods_;
+  }
+
+  // Network callback methods
+  MonoMethod* on_client_connected_method() const {
+    return on_client_connected_method_;
+  }
+  MonoMethod* on_client_disconnected_method() const {
+    return on_client_disconnected_method_;
+  }
+  MonoMethod* on_connected_to_server_method() const {
+    return on_connected_to_server_method_;
+  }
+  MonoMethod* on_disconnected_from_server_method() const {
+    return on_disconnected_from_server_method_;
+  }
+  MonoMethod* on_sync_var_changed_method() const {
+    return on_sync_var_changed_method_;
+  }
+
  private:
+  friend class ScriptManager;
+  friend class ScriptInstance;
   MonoClass* mono_class_;
   MonoMethod* on_update_method_;
   MonoMethod* on_start_method_;
@@ -245,6 +241,15 @@ class ScriptData {
   MonoMethod* on_ui_event_method_;
 
   std::unordered_map<std::string, FieldData> fields_;
+
+  // Network (populated after construction by ScriptManager)
+  std::vector<std::string> network_var_fields_;  // field names of NetworkVariable<T> type
+  std::unordered_map<std::string, RpcMethodInfo> rpc_methods_;
+  MonoMethod* on_client_connected_method_ = nullptr;
+  MonoMethod* on_client_disconnected_method_ = nullptr;
+  MonoMethod* on_connected_to_server_method_ = nullptr;
+  MonoMethod* on_disconnected_from_server_method_ = nullptr;
+  MonoMethod* on_sync_var_changed_method_ = nullptr;
 };
 
 class ScriptInstance {
@@ -300,6 +305,12 @@ class ScriptInstance {
   void OnUIDataChanged(const std::string& variable_name);
   void OnUIEvent(const std::string& event_name);
 
+  void OnClientConnected(uint64_t session_id);
+  void OnClientDisconnected(uint64_t session_id);
+  void OnConnectedToServer();
+  void OnDisconnectedFromServer();
+  void OnSyncVarChanged(const std::string& var_name);
+
   template <class T>
   void AttachExternComponent(std::string variable, entt::entity entity);
 
@@ -319,7 +330,7 @@ class ScriptInstance {
 };
 
 struct ScriptManagerProperties {
-  bool EnableDebugger;
+  bool enable_debugger;
 };
 
 class ScriptManager {
@@ -347,6 +358,8 @@ class ScriptManager {
     return last_compile_result_;
   }
 
+  bool loaded() const { return loaded_; }
+
  private:
   // Domain swap: unload old domain, load DLLs, register classes.
   // Must only be called on the main thread after compilation finishes.
@@ -367,6 +380,8 @@ class ScriptManager {
   MonoClass* prefab_class() { return prefab_class_; }
 
   MonoClass* audio_clip_class() { return audio_clip_class_; }
+
+  MonoClass* font_class() { return font_class_; }
 
   MonoClass* behavior_class() { return behavior_class_; }
 
@@ -402,28 +417,29 @@ class ScriptManager {
   MonoImage* app_assembly_image_ = nullptr;
 
   MonoClass* behavior_class_ = nullptr;
+  MonoClass* tag_component_class_ = nullptr;
   MonoClass* transform_component_class_ = nullptr;
-  MonoClass* model_component_class_ = nullptr;
   MonoClass* box_collider_class_ = nullptr;
   MonoClass* sphere_collider_class_ = nullptr;
   MonoClass* rigidbody_class_ = nullptr;
   MonoClass* rect_transform_class_ = nullptr;
   MonoClass* canvas_component_class_ = nullptr;
-  MonoClass* canvas_rect_class_ = nullptr;
-  MonoClass* canvas_image_class_ = nullptr;
-  MonoClass* text_component_class_ = nullptr;
   MonoClass* animator_component_class_ = nullptr;
   MonoClass* audio_source_class_ = nullptr;
   MonoClass* sprite_renderer_class_ = nullptr;
   MonoClass* sprite_animator_class_ = nullptr;
+  MonoClass* billboard_renderer_class_ = nullptr;
+  MonoClass* billboard_text_class_ = nullptr;
   MonoClass* camera_class_ = nullptr;
   MonoClass* light_direct_class_ = nullptr;
   MonoClass* light_point_class_ = nullptr;
   MonoClass* ui_document_class_ = nullptr;
+  MonoClass* network_identity_class_ = nullptr;
   MonoClass* vector3f_class_ = nullptr;
   MonoClass* entity_class_ = nullptr;
   MonoClass* prefab_class_ = nullptr;
   MonoClass* audio_clip_class_ = nullptr;
+  MonoClass* font_class_ = nullptr;
   MonoMethod* set_handle_method_ = nullptr;
   std::map<std::string, ComponentGetter> component_getters_;
   std::map<std::type_index, ComponentGetter> component_getters_by_type_;
@@ -437,6 +453,7 @@ class ScriptManager {
   // Async compilation
   std::atomic<bool> compiling_{false};
   CompileResult last_compile_result_;
+  bool loaded_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -17,7 +17,7 @@
 #include "w_pch.h"
 #include "w_shader.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 class Renderer;
 
@@ -103,4 +103,4 @@ class RTPipeline {
   bool is_allocated_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

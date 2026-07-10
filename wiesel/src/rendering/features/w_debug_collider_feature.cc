@@ -10,6 +10,9 @@
 //
 
 #include "rendering/features/w_debug_collider_feature.h"
+
+#include <vk_mem_alloc.h>
+
 #include "asset/w_asset_manager.h"
 #include "audio/w_audio.h"
 #include "physics/w_collider.h"
@@ -18,35 +21,19 @@
 #include "rendering/w_descriptor.h"
 #include "rendering/w_descriptorlayout.h"
 #include "rendering/w_mesh.h"
+#include "rendering/w_mesh_renderer.h"
 #include "rendering/w_pipeline.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "scene/w_components.h"
 #include "scene/w_scene.h"
 #include "util/w_label_texture.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     : renderer_(std::move(renderer)) {
-  // Render pass: 1 color + depth (load existing depth for occlusion)
   SamplingMode msaa = renderer_->options().msaa_mode;
-
-  render_pass_ = std::make_shared<RenderPass>(PassType::ForwardTransparency,
-                                              "DebugCollider RenderPass");
-  render_pass_->AttachOutput({.type = AttachmentTextureType::Offscreen,
-                              .format = renderer_->GetSwapChainImageFormat(),
-                              .msaa_mode = msaa});
-  render_pass_->AttachOutput({.type = AttachmentTextureType::DepthStencil,
-                              .format = renderer_->FindDepthFormat(),
-                              .msaa_mode = msaa});
-  if (msaa > SamplingMode::DISABLED) {
-    render_pass_->AttachOutput({.type = AttachmentTextureType::Resolve,
-                                .format = renderer_->GetSwapChainImageFormat(),
-                                .msaa_mode = SamplingMode::DISABLED});
-  }
-  render_pass_->Bake();
 
   // Shaders
   auto vert = renderer_->CreateShader({ShaderTypeVertex, ShaderLangGLSL, "main",
@@ -86,7 +73,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   push_constant_ = std::make_shared<DebugColliderPushConstant>();
 
   pipeline_->SetVertexData(binding, attrs);
-  pipeline_->SetRenderPass(render_pass_);
+  pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   pipeline_->AddPushConstant(push_constant_, VK_SHADER_STAGE_VERTEX_BIT |
                                                  VK_SHADER_STAGE_FRAGMENT_BIT);
   pipeline_->AddShader(vert);
@@ -105,7 +93,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     no_depth_pipeline_ = std::make_shared<Pipeline>(no_depth_props);
   }
   no_depth_pipeline_->SetVertexData(binding, attrs);
-  no_depth_pipeline_->SetRenderPass(render_pass_);
+  no_depth_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  no_depth_pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   no_depth_pipeline_->AddPushConstant(
       push_constant_,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -154,7 +143,8 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
     filled_pipeline_ = std::make_shared<Pipeline>(filled_props);
   }
   filled_pipeline_->SetVertexData(overlay_binding, overlay_attrs);
-  filled_pipeline_->SetRenderPass(render_pass_);
+  filled_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
+  filled_pipeline_->SetDepthAttachment(renderer_->FindDepthFormat());
   filled_pipeline_->AddPushConstant(
       push_constant_,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -162,15 +152,6 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   filled_pipeline_->AddShader(overlay_vert);
   filled_pipeline_->AddShader(overlay_frag);
   filled_pipeline_->Bake();
-
-  // Composite render pass: blend debug overlay onto PipelineOutput
-  comp_render_pass_ = std::make_shared<RenderPass>(
-      PassType::PostProcess, "DebugColliderComposite RenderPass");
-  comp_render_pass_->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = renderer_->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  comp_render_pass_->Bake();
 
   auto fullscreen_vert = renderer_->CreateShader(
       {ShaderTypeVertex, ShaderLangGLSL, "main", ShaderSourceSource,
@@ -181,7 +162,7 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
 
   comp_pipeline_ = std::make_shared<Pipeline>(PipelineProperties{
       SamplingMode::DISABLED, CullModeBack, false, true, false, false});
-  comp_pipeline_->SetRenderPass(comp_render_pass_);
+  comp_pipeline_->AddColorAttachment(renderer_->GetSwapChainImageFormat());
   comp_pipeline_->AddInputLayout(renderer_->GetDescriptorLayout("Skybox"));
   comp_pipeline_->AddShader(fullscreen_vert);
   comp_pipeline_->AddShader(quad_frag);
@@ -192,6 +173,46 @@ DebugColliderFeature::DebugColliderFeature(std::shared_ptr<Renderer> renderer)
   GenerateSphereGeometry();
   GenerateFilledBoxGeometry();
   GenerateFilledSphereGeometry();
+
+  // Allocate one persistent mapped vertex buffer for camera frustum draws.
+  // Rewritten each frame via memcpy instead of going through the staging
+  // path, which would stall on a fence wait per camera.
+  VkDeviceSize frustum_capacity =
+      kMaxFrustumCameras * kFrustumVerticesPerCamera * sizeof(glm::vec3);
+  renderer_->CreateBuffer(frustum_capacity, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                              VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          frustum_vb_, frustum_vb_alloc_);
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(renderer_->GetAllocator(),
+                                     frustum_vb_alloc_, &frustum_vb_mapped_));
+}
+
+DebugColliderFeature::~DebugColliderFeature() {
+  if (frustum_vb_ == VK_NULL_HANDLE) {
+    return;
+  }
+  // Defer through the renderer's deletion queue so any in-flight command
+  // buffers that still reference the buffer finish before it's freed.
+  VmaAllocator allocator = renderer_->GetAllocator();
+  VkBuffer buffer = frustum_vb_;
+  VmaAllocation alloc = frustum_vb_alloc_;
+  void* mapped = frustum_vb_mapped_;
+  renderer_->GetDeletionQueue().Push([allocator, buffer, alloc, mapped]() {
+    if (mapped) {
+      vmaUnmapMemory(allocator, alloc);
+    }
+    vmaDestroyBuffer(allocator, buffer, alloc);
+  });
+  frustum_vb_ = VK_NULL_HANDLE;
+  frustum_vb_alloc_ = nullptr;
+  frustum_vb_mapped_ = nullptr;
+}
+
+bool DebugColliderFeature::IsEnabled(const RenderContext& ctx) const {
+  const auto& opts = ctx.renderer.options();
+  bool show_cameras = opts.show_cameras && ctx.is_external;
+  return opts.show_colliders || opts.show_triggers || opts.show_reverb_zones ||
+         show_cameras || opts.show_bounds;
 }
 
 void DebugColliderFeature::GenerateBoxGeometry() {
@@ -374,86 +395,7 @@ std::shared_ptr<DescriptorSet> DebugColliderFeature::GetOrCreateLabelDescriptor(
   return desc;
 }
 
-void DebugColliderFeature::SetupResources(RenderContext& ctx) {
-  PROFILE_ZONE_SCOPED_N("DebugColliderFeature::SetupResources");
-  auto& pool = ctx.resources;
-  auto& renderer = *renderer_;
-  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
-  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
-
-  // Wireframe offscreen texture
-  SamplingMode msaa = renderer.options().msaa_mode;
-  bool use_msaa = msaa > SamplingMode::DISABLED;
-
-  pool.SetTexture("debug_collider.color",
-                  renderer.CreateAttachmentTexture(
-                      {rw, rh, AttachmentTextureType::Offscreen, 1,
-                       renderer.GetSwapChainImageFormat(), msaa, true}));
-
-  if (use_msaa) {
-    pool.SetTexture("debug_collider.color_resolve",
-                    renderer.CreateAttachmentTexture(
-                        {rw, rh, AttachmentTextureType::Resolve, 1,
-                         renderer.GetSwapChainImageFormat(),
-                         SamplingMode::DISABLED, true}));
-    std::array<AttachmentTexture*, 3> attachments{
-        pool.GetTexture("debug_collider.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get(),
-        pool.GetTexture("debug_collider.color_resolve").get()};
-    pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
-                                              0, attachments, {rw, rh}));
-  } else {
-    pool.SetTexture("debug_collider.color_resolve",
-                    pool.GetTexture("debug_collider.color"));
-    std::array<AttachmentTexture*, 2> attachments{
-        pool.GetTexture("debug_collider.color").get(),
-        pool.GetTexture("geometry.depth_stencil").get()};
-    pool.SetFramebuffer("debug_collider", render_pass_->CreateFramebuffer(
-                                              0, attachments, {rw, rh}));
-  }
-
-  // Descriptor to read wireframe output (use resolved texture)
-  auto debug_output_desc = std::make_shared<DescriptorSet>();
-  debug_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  debug_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("debug_collider.color_resolve")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  debug_output_desc->Bake();
-  pool.SetDescriptor("debug_collider.output", debug_output_desc);
-
-  // Composite output texture
-  pool.SetTexture(
-      "debug_collider_comp.color",
-      renderer.CreateAttachmentTexture(
-          {rw, rh, AttachmentTextureType::Offscreen, 1,
-           renderer.GetSwapChainImageFormat(), SamplingMode::DISABLED, true}));
-
-  std::array<AttachmentTexture*, 1> comp_attachments{
-      pool.GetTexture("debug_collider_comp.color").get()};
-  pool.SetFramebuffer(
-      "debug_collider_comp",
-      comp_render_pass_->CreateFramebuffer(0, comp_attachments, {rw, rh}));
-
-  // Descriptor to read previous PipelineOutput
-  auto comp_input_desc = std::make_shared<DescriptorSet>();
-  comp_input_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_input_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("PipelineOutput")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_input_desc->Bake();
-  pool.SetDescriptor("debug_collider_comp.input", comp_input_desc);
-
-  // Update PipelineOutput for downstream features
-  auto comp_output_desc = std::make_shared<DescriptorSet>();
-  comp_output_desc->SetLayout(renderer.GetDescriptorLayout("Present"));
-  comp_output_desc->AddCombinedImageSampler(
-      0, pool.GetTexture("debug_collider_comp.color")->image_views_[0],
-      renderer.GetDefaultLinearSampler());
-  comp_output_desc->Bake();
-  pool.SetTexture("PipelineOutput",
-                  pool.GetTexture("debug_collider_comp.color"));
-  pool.SetDescriptor("PipelineOutputDescriptor", comp_output_desc);
-}
+void DebugColliderFeature::SetupResources(RenderContext& /*ctx*/) {}
 
 void DebugColliderFeature::AddPasses(RenderGraph& graph,
                                      RenderResourceRegistry& registry,
@@ -462,7 +404,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
   CameraResourcePool* pool = &ctx.resources;
   std::shared_ptr<Renderer> renderer = renderer_;
-  Scene* scene = &ctx.scene;
+  MultiScene& scenes = ctx.scenes;
   auto pipeline = pipeline_;
   auto filled_pipe = filled_pipeline_;
   auto push_constant = push_constant_;
@@ -482,6 +424,9 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   bool show_triggers = renderer_->options().show_triggers;
   bool show_reverb = renderer_->options().show_reverb_zones;
   bool show_cameras = renderer_->options().show_cameras && ctx.is_external;
+  bool show_bounds = renderer_->options().show_bounds;
+  VkBuffer frustum_vb = frustum_vb_;
+  void* frustum_vb_mapped = frustum_vb_mapped_;
 
   // Pre-create label descriptors
   auto trigger_desc = show_triggers
@@ -499,50 +444,51 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Build heightfield debug geometry once (cached)
   if (show_colliders && !hf_cache_valid_) {
     hf_cache_.clear();
-    for (const auto& entity :
-         scene->GetAllEntitiesWith<HeightfieldColliderComponent,
-                                   TransformComponent>()) {
-      auto& hf = scene->GetComponent<HeightfieldColliderComponent>(entity);
-      auto& tc = scene->GetComponent<TransformComponent>(entity);
-      if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
-        continue;
-      }
+    scenes.ForEach<HeightfieldColliderComponent, TransformComponent>(
+        [&](Scene& scene, entt::entity entity) {
+          auto& hf = scene.GetComponent<HeightfieldColliderComponent>(entity);
+          auto& tc = scene.GetComponent<TransformComponent>(entity);
+          if (hf.width < 2 || hf.length < 2 || hf.height_data.empty()) {
+            return;
+          }
 
-      std::vector<glm::vec3> vertices;
-      std::vector<Index> indices;
-      vertices.reserve(hf.width * hf.length);
+          std::vector<glm::vec3> vertices;
+          std::vector<Index> indices;
+          vertices.reserve(hf.width * hf.length);
 
-      float half_w = (hf.width - 1) * 0.5f;
-      float half_l = (hf.length - 1) * 0.5f;
-      for (int row = 0; row < hf.length; row++) {
-        for (int col = 0; col < hf.width; col++) {
-          float x = (col - half_w) * hf.scale.x;
-          float y = hf.height_data[row * hf.width + col] * hf.scale.y;
-          float z = (row - half_l) * hf.scale.z;
-          vertices.push_back({x, y, z});
-        }
-      }
+          float half_w = (hf.width - 1) * 0.5f;
+          float half_l = (hf.length - 1) * 0.5f;
+          for (int row = 0; row < hf.length; row++) {
+            for (int col = 0; col < hf.width; col++) {
+              float x = (col - half_w) * hf.scale.x;
+              float y = hf.height_data[row * hf.width + col] * hf.scale.y;
+              float z = (row - half_l) * hf.scale.z;
+              vertices.push_back({x, y, z});
+            }
+          }
 
-      for (int row = 0; row < hf.length; row++) {
-        for (int col = 0; col < hf.width - 1; col++) {
-          indices.push_back(row * hf.width + col);
-          indices.push_back(row * hf.width + col + 1);
-        }
-      }
-      for (int row = 0; row < hf.length - 1; row++) {
-        for (int col = 0; col < hf.width; col++) {
-          indices.push_back(row * hf.width + col);
-          indices.push_back((row + 1) * hf.width + col);
-        }
-      }
+          for (int row = 0; row < hf.length; row++) {
+            for (int col = 0; col < hf.width - 1; col++) {
+              indices.push_back(row * hf.width + col);
+              indices.push_back(row * hf.width + col + 1);
+            }
+          }
+          for (int row = 0; row < hf.length - 1; row++) {
+            for (int col = 0; col < hf.width; col++) {
+              indices.push_back(row * hf.width + col);
+              indices.push_back((row + 1) * hf.width + col);
+            }
+          }
 
-      CachedDebugData data;
-      data.vb = renderer_->CreateVertexBuffer("CachedDebugData::vb", vertices);
-      data.ib = renderer_->CreateIndexBuffer("CachedDebugData::ib", indices);
-      data.index_count = static_cast<uint32_t>(indices.size());
-      data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
-      hf_cache_.push_back(std::move(data));
-    }
+          CachedDebugData data;
+          data.vb =
+              renderer_->CreateVertexBuffer("CachedDebugData::vb", vertices);
+          data.ib =
+              renderer_->CreateIndexBuffer("CachedDebugData::ib", indices);
+          data.index_count = static_cast<uint32_t>(indices.size());
+          data.model = glm::translate(glm::mat4(1.0f), tc.GetPosition());
+          hf_cache_.push_back(std::move(data));
+        });
     hf_cache_valid_ = true;
   }
   if (!show_colliders) {
@@ -554,17 +500,16 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   // Build mesh collider debug geometry once (cached)
   if (show_colliders && !mesh_collider_cache_valid_) {
     mesh_collider_cache_.clear();
-    for (const auto& entity :
-         scene->GetAllEntitiesWith<MeshColliderComponent, ModelComponent,
-                                   TransformComponent>()) {
-      auto& model_comp = scene->GetComponent<ModelComponent>(entity);
-      if (!model_comp.model_handle.IsValid()) {
-        continue;
+    scenes.ForEach<MeshColliderComponent, MeshRendererComponent,
+                   TransformComponent>([&](Scene& scene, entt::entity entity) {
+      auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+      if (!mr.model_handle.IsValid()) {
+        return;
       }
       const std::shared_ptr<Model>& model_data =
-          Engine::asset_manager().GetOrLoad<Model>(model_comp.model_handle);
+          Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
       if (!model_data) {
-        continue;
+        return;
       }
 
       std::vector<glm::vec3> vertices;
@@ -572,7 +517,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       model_data->GetCollisionGeometry(vertices, tri_indices);
 
       if (tri_indices.empty()) {
-        continue;
+        return;
       }
 
       // Convert triangle indices to line-list edges for wireframe
@@ -590,7 +535,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         line_indices.push_back(a);
       }
 
-      auto& tc = scene->GetComponent<TransformComponent>(entity);
+      auto& tc = scene.GetComponent<TransformComponent>(entity);
       glm::mat4 model = glm::translate(glm::mat4(1.0f), tc.GetWorldPosition()) *
                         glm::scale(glm::mat4(1.0f), tc.GetScale());
 
@@ -601,7 +546,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
       data.index_count = static_cast<uint32_t>(line_indices.size());
       data.model = model;
       mesh_collider_cache_.push_back(std::move(data));
-    }
+    });
     mesh_collider_cache_valid_ = true;
   }
   if (!show_colliders) {
@@ -610,25 +555,47 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
   }
   std::vector<CachedDebugData>& mesh_data = mesh_collider_cache_;
 
-  // Import resources
-  RGResource debug_out = graph.ImportTexture(
-      "DebugCollidersOut", pool->GetTexture("debug_collider.color_resolve"));
+  // Transient wireframe output (color + optional MSAA resolve).
+  SamplingMode msaa = renderer_->options().msaa_mode;
+  bool use_msaa = msaa > SamplingMode::DISABLED;
+  uint32_t rw = static_cast<uint32_t>(ctx.viewport_size.x);
+  uint32_t rh = static_cast<uint32_t>(ctx.viewport_size.y);
+
+  RGResource debug_color = graph.DeclareTransient(RGTextureDesc{
+      .name = "debug_collider.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = msaa,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = !use_msaa});
+  RGResource debug_out =
+      use_msaa ? graph.DeclareTransient(RGTextureDesc{
+                     .name = "debug_collider.color_resolve",
+                     .width = rw,
+                     .height = rh,
+                     .format = renderer_->GetSwapChainImageFormat(),
+                     .samples = SamplingMode::DISABLED,
+                     .type = AttachmentTextureType::Resolve,
+                     .layer_count = 1,
+                     .sampled = true})
+               : debug_color;
 
   // Wireframe draw pass
   auto no_depth_pipe = no_depth_pipeline_;
 
-  uint32_t draw_pass = graph.AddPass(
-      "DebugColliders", render_pass_,
-      [pipeline, filled_pipe, no_depth_pipe, push_constant, scene, renderer, vp,
-       show_colliders, show_triggers, show_reverb, show_cameras, box_vb, box_ib,
-       box_ic, sphere_vb, sphere_ib, sphere_ic, fbox_vb, fbox_ib, fbox_ic,
-       fsphere_vb, fsphere_ib, fsphere_ic, trigger_desc, reverb_desc, &hf_data,
-       &mesh_data](VkCommandBuffer cmd) {
-        if (!show_colliders && !show_triggers && !show_reverb &&
-            !show_cameras) {
-          return;
-        }
+  RGResource debug_depth = graph.ImportTexture(
+      "DebugDepth", pool->GetTexture("geometry.depth_stencil"));
 
+  uint32_t draw_pass = graph.AddPass(
+      "DebugColliders",
+      [pipeline, filled_pipe, no_depth_pipe, push_constant, &scenes, renderer,
+       vp, show_colliders, show_triggers, show_reverb, show_cameras,
+       show_bounds, box_vb, box_ib, box_ic, sphere_vb, sphere_ib, sphere_ic,
+       fbox_vb, fbox_ib, fbox_ic, fsphere_vb, fsphere_ib, fsphere_ic,
+       trigger_desc, reverb_desc, frustum_vb, frustum_vb_mapped, &hf_data,
+       &mesh_data](VkCommandBuffer cmd) {
         auto draw_wireframe = [&](std::shared_ptr<MemoryBuffer> vb,
                                   std::shared_ptr<IndexBuffer> ib,
                                   uint32_t index_count, const glm::mat4& model,
@@ -650,7 +617,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
                                uint32_t index_count, const glm::mat4& model,
                                const glm::vec4& color,
                                std::shared_ptr<DescriptorSet> label_desc) {
-          filled_pipe->Bind(PipelineBindPointGraphics);
+          filled_pipe->Bind();
           push_constant->mvp = vp * model;
           push_constant->model = model;
           push_constant->color = color;
@@ -670,22 +637,23 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
         // Colliders and triggers share the same component types,
         // differentiated by is_trigger flag.
         if (show_colliders || show_triggers) {
-          constexpr glm::vec4 static_wire(0.0f, 1.0f, 0.0f,
+          const glm::vec4 static_wire(0.0f, 1.0f, 0.0f,
                                           1.0f);  // green: static collider
-          constexpr glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f,
+          const glm::vec4 dynamic_wire(0.2f, 0.6f, 1.0f,
                                            1.0f);  // blue: has rigidbody
-          constexpr glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f,
+          const glm::vec4 kinematic_wire(0.9f, 0.9f, 0.2f,
                                              1.0f);  // yellow: kinematic
-          constexpr glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
-          constexpr glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
-          constexpr glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
+          const glm::vec4 trigger_fill(1.0f, 0.6f, 0.0f, 0.15f);
+          const glm::vec4 trigger_wire(1.0f, 0.6f, 0.0f, 1.0f);
+          const glm::vec4 terrain_wire(0.0f, 1.0f, 1.0f, 1.0f);
 
           // Helper: pick wireframe color based on rigidbody state
-          auto get_collider_color = [&](entt::entity entity) -> glm::vec4 {
-            if (!scene->HasComponent<RigidBodyComponent>(entity)) {
+          auto get_collider_color = [&](Scene& scene,
+                                        entt::entity entity) -> glm::vec4 {
+            if (!scene.HasComponent<RigidBodyComponent>(entity)) {
               return static_wire;
             }
-            auto& rb = scene->GetComponent<RigidBodyComponent>(entity);
+            auto& rb = scene.GetComponent<RigidBodyComponent>(entity);
             if (rb.type == RigidBodyType::Kinematic) {
               return kinematic_wire;
             }
@@ -693,8 +661,8 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           };
 
           // Helper: draw a collider or trigger with the appropriate style
-          auto draw_collider = [&](entt::entity entity, bool is_trigger,
-                                   const glm::mat4& model,
+          auto draw_collider = [&](Scene& scene, entt::entity entity,
+                                   bool is_trigger, const glm::mat4& model,
                                    std::shared_ptr<MemoryBuffer> wire_vb,
                                    std::shared_ptr<IndexBuffer> wire_ib,
                                    uint32_t wire_ic,
@@ -711,74 +679,75 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
             if (is_trigger) {
               draw_filled(fill_vb, fill_ib, fill_ic, model, trigger_fill,
                           trigger_desc);
-              pipeline->Bind(PipelineBindPointGraphics);
+              pipeline->Bind();
               draw_wireframe(wire_vb, wire_ib, wire_ic, model, trigger_wire);
             } else {
-              pipeline->Bind(PipelineBindPointGraphics);
+              pipeline->Bind();
               draw_wireframe(wire_vb, wire_ib, wire_ic, model,
-                             get_collider_color(entity));
+                             get_collider_color(scene, entity));
             }
           };
 
           // Box colliders/triggers
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<BoxColliderComponent,
-                                         TransformComponent>()) {
-            auto& box = scene->GetComponent<BoxColliderComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                               tc.GetWorldPosition() + box.offset) *
-                glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
-            draw_collider(entity, box.is_trigger, model, box_vb, box_ib, box_ic,
-                          fbox_vb, fbox_ib, fbox_ic);
-          }
+          scenes.ForEach<BoxColliderComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& box = scene.GetComponent<BoxColliderComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f),
+                                   tc.GetWorldPosition() + box.offset) *
+                    glm::scale(glm::mat4(1.0f), box.half_extents * 2.0f);
+                draw_collider(scene, entity, box.is_trigger, model, box_vb,
+                              box_ib, box_ic, fbox_vb, fbox_ib, fbox_ic);
+              });
 
           // Sphere colliders/triggers
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<SphereColliderComponent,
-                                         TransformComponent>()) {
-            auto& sphere = scene->GetComponent<SphereColliderComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                               tc.GetWorldPosition() + sphere.offset) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(sphere.radius * 2.0f));
-            draw_collider(entity, sphere.is_trigger, model, sphere_vb,
-                          sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
-                          fsphere_ic);
-          }
+          scenes.ForEach<SphereColliderComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& sphere =
+                    scene.GetComponent<SphereColliderComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f),
+                                   tc.GetWorldPosition() + sphere.offset) *
+                    glm::scale(glm::mat4(1.0f),
+                               glm::vec3(sphere.radius * 2.0f));
+                draw_collider(scene, entity, sphere.is_trigger, model,
+                              sphere_vb, sphere_ib, sphere_ic, fsphere_vb,
+                              fsphere_ib, fsphere_ic);
+              });
 
           // Capsule colliders/triggers
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<CapsuleColliderComponent,
-                                         TransformComponent>()) {
-            auto& cap = scene->GetComponent<CapsuleColliderComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
-            float total_h = cap.height + cap.radius * 2.0f;
-            glm::vec3 scale_vec;
-            switch (cap.axis) {
-              case CapsuleAxis::X:
-                scale_vec = {total_h, cap.radius * 2.0f, cap.radius * 2.0f};
-                break;
-              case CapsuleAxis::Y:
-                scale_vec = {cap.radius * 2.0f, total_h, cap.radius * 2.0f};
-                break;
-              case CapsuleAxis::Z:
-                scale_vec = {cap.radius * 2.0f, cap.radius * 2.0f, total_h};
-                break;
-            }
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f),
-                               tc.GetWorldPosition() + cap.offset) *
-                glm::scale(glm::mat4(1.0f), scale_vec);
-            draw_collider(entity, cap.is_trigger, model, sphere_vb, sphere_ib,
-                          sphere_ic, fsphere_vb, fsphere_ib, fsphere_ic);
-          }
+          scenes.ForEach<CapsuleColliderComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& cap =
+                    scene.GetComponent<CapsuleColliderComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
+                float total_h = cap.height + cap.radius * 2.0f;
+                glm::vec3 scale_vec;
+                switch (cap.axis) {
+                  case CapsuleAxis::X:
+                    scale_vec = {total_h, cap.radius * 2.0f, cap.radius * 2.0f};
+                    break;
+                  case CapsuleAxis::Y:
+                    scale_vec = {cap.radius * 2.0f, total_h, cap.radius * 2.0f};
+                    break;
+                  case CapsuleAxis::Z:
+                    scale_vec = {cap.radius * 2.0f, cap.radius * 2.0f, total_h};
+                    break;
+                }
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f),
+                                   tc.GetWorldPosition() + cap.offset) *
+                    glm::scale(glm::mat4(1.0f), scale_vec);
+                draw_collider(scene, entity, cap.is_trigger, model, sphere_vb,
+                              sphere_ib, sphere_ic, fsphere_vb, fsphere_ib,
+                              fsphere_ic);
+              });
 
           // Heightfield colliders: wireframe only
           if (show_colliders) {
-            pipeline->Bind(PipelineBindPointGraphics);
+            pipeline->Bind();
             for (const CachedDebugData& hf : hf_data) {
               draw_wireframe(hf.vb, hf.ib, hf.index_count, hf.model,
                              terrain_wire);
@@ -787,7 +756,7 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
 
           // Mesh colliders: wireframe only
           if (show_colliders) {
-            pipeline->Bind(PipelineBindPointGraphics);
+            pipeline->Bind();
             for (const CachedDebugData& mc : mesh_data) {
               draw_wireframe(mc.vb, mc.ib, mc.index_count, mc.model,
                              static_wire);
@@ -802,142 +771,249 @@ void DebugColliderFeature::AddPasses(RenderGraph& graph,
           const glm::vec4 reverb_active_fill(0.7f, 0.3f, 1.0f, 0.2f);
           const glm::vec4 reverb_active_wire(0.9f, 0.5f, 1.0f, 1.0f);
 
-          for (const auto& entity :
-               scene->GetAllEntitiesWith<ReverbZoneComponent,
-                                         TransformComponent>()) {
-            auto& zone = scene->GetComponent<ReverbZoneComponent>(entity);
-            auto& tc = scene->GetComponent<TransformComponent>(entity);
+          scenes.ForEach<ReverbZoneComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& zone = scene.GetComponent<ReverbZoneComponent>(entity);
+                auto& tc = scene.GetComponent<TransformComponent>(entity);
 
-            glm::mat4 model =
-                glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
-                glm::scale(glm::mat4(1.0f), glm::vec3(zone.radius * 2.0f));
+                glm::mat4 model =
+                    glm::translate(glm::mat4(1.0f), tc.GetPosition()) *
+                    glm::scale(glm::mat4(1.0f), glm::vec3(zone.radius * 2.0f));
 
-            draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
-                        zone.active_ ? reverb_active_fill : reverb_fill,
-                        reverb_desc);
-            pipeline->Bind(PipelineBindPointGraphics);
-            draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
-                           zone.active_ ? reverb_active_wire : reverb_wire);
-          }
+                draw_filled(fsphere_vb, fsphere_ib, fsphere_ic, model,
+                            zone.active_ ? reverb_active_fill : reverb_fill,
+                            reverb_desc);
+                pipeline->Bind();
+                draw_wireframe(sphere_vb, sphere_ib, sphere_ic, model,
+                               zone.active_ ? reverb_active_wire : reverb_wire);
+              });
         }
 
         // Camera frustum wireframes (editor scene view only)
         if (show_cameras) {
-          no_depth_pipe->Bind(PipelineBindPointGraphics);
+          no_depth_pipe->Bind();
           glm::vec4 cam_color = {0.7f, 0.7f, 0.7f, 0.6f};
           glm::vec4 cam_disabled_color = {0.5f, 0.5f, 0.5f, 0.3f};
 
-          for (auto cam_entity :
-               scene->GetAllEntitiesWith<CameraComponent,
-                                         TransformComponent>()) {
-            auto& cam = scene->GetComponent<CameraComponent>(cam_entity);
-            auto& cam_transform =
-                scene->GetComponent<TransformComponent>(cam_entity);
+          uint8_t* mapped_base = static_cast<uint8_t*>(frustum_vb_mapped);
+          uint32_t camera_slot = 0;
+          const uint32_t stride_bytes =
+              kFrustumVerticesPerCamera * sizeof(glm::vec3);
 
-            float vis_far = std::min(cam.far_plane, 50.0f);
-            float aspect =
-                cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
+          scenes.ForEach<CameraComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity cam_entity) {
+                if (camera_slot >= kMaxFrustumCameras) {
+                  return;
+                }
+                auto& cam = scene.GetComponent<CameraComponent>(cam_entity);
 
-            // Compute frustum corners directly in view space (no matrix inversion)
-            float nw, nh, fw, fh;
-            if (cam.projection_mode == ProjectionMode::Perspective) {
-              float tan_half_fov = tanf(glm::radians(cam.field_of_view * 0.5f));
-              nh = cam.near_plane * tan_half_fov;
-              nw = nh * aspect;
-              fh = vis_far * tan_half_fov;
-              fw = fh * aspect;
-            } else {
-              float size = cam.ortho_size;
-              nw = fw = size * aspect;
-              nh = fh = size;
-            }
+                float vis_far = std::min(cam.far_plane, 50.0f);
+                float aspect =
+                    cam.viewport_size.x / std::max(1.0f, cam.viewport_size.y);
 
-            // 8 corners in view space (camera looks down +Z)
-            float n = cam.near_plane;
-            float f = vis_far;
-            glm::vec3 view_corners[8] = {
-                {-nw, -nh, n}, {nw, -nh, n}, {nw, nh, n}, {-nw, nh, n},
-                {-fw, -fh, f}, {fw, -fh, f}, {fw, fh, f}, {-fw, fh, f},
-            };
+                // Compute frustum corners directly in view space (no matrix inversion)
+                float nw, nh, fw, fh;
+                if (cam.projection_mode == ProjectionMode::Perspective) {
+                  float tan_half_fov =
+                      tanf(glm::radians(cam.field_of_view * 0.5f));
+                  nh = cam.near_plane * tan_half_fov;
+                  nw = nh * aspect;
+                  fh = vis_far * tan_half_fov;
+                  fw = fh * aspect;
+                } else {
+                  float size = cam.ortho_size;
+                  nw = fw = size * aspect;
+                  nh = fh = size;
+                }
 
-            // Transform to clip space directly: vp * cam_world * corner
-            glm::mat4 cam_world = cam_transform.GetTransformMatrix();
-            glm::mat4 mvp_base = vp * cam_world;
+                // 8 corners in view space (camera looks down +Z). Index order
+                // matches the unit-box index buffer so we can reuse box_ib.
+                float n = cam.near_plane;
+                float f = vis_far;
+                glm::vec3 view_corners[8] = {
+                    {-nw, -nh, n}, {nw, -nh, n}, {nw, nh, n}, {-nw, nh, n},
+                    {-fw, -fh, f}, {fw, -fh, f}, {fw, fh, f}, {-fw, fh, f},
+                };
 
-            // Build a model matrix that maps unit box corners to the frustum
-            // corners. Since the frustum is a truncated pyramid, we can't do
-            // this with one affine matrix. Instead, compute clip-space corners
-            // and draw line segments directly.
-            //
-            // Map box corner index to frustum corner:
-            // box[-0.5,-0.5,-0.5] = near-bottom-left  = view_corners[0]
-            // box[ 0.5,-0.5,-0.5] = near-bottom-right = view_corners[1]
-            // box[ 0.5, 0.5,-0.5] = near-top-right    = view_corners[2]
-            // box[-0.5, 0.5,-0.5] = near-top-left     = view_corners[3]
-            // box[-0.5,-0.5, 0.5] = far-bottom-left   = view_corners[4]
-            // box[ 0.5,-0.5, 0.5] = far-bottom-right  = view_corners[5]
-            // box[ 0.5, 0.5, 0.5] = far-top-right     = view_corners[6]
-            // box[-0.5, 0.5, 0.5] = far-top-left      = view_corners[7]
+                glm::mat4 cam_world = cam.inv_view_matrix;
+                glm::vec3 world_corners[8];
+                for (int i = 0; i < 8; i++) {
+                  world_corners[i] =
+                      glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
+                }
 
-            // We need to draw 12 edges. Since we can't use the unit box
-            // approach (non-affine mapping), create a temporary vertex buffer.
-            std::vector<glm::vec3> frustum_verts(8);
-            for (int i = 0; i < 8; i++) {
-              frustum_verts[i] =
-                  glm::vec3(cam_world * glm::vec4(view_corners[i], 1.0f));
-            }
+                VkDeviceSize slot_offset = camera_slot * stride_bytes;
+                std::memcpy(mapped_base + slot_offset, world_corners,
+                            sizeof(world_corners));
 
-            auto frust_vb = renderer->CreateVertexBuffer(
-                "DebugColliderFeature::frustum_vb", frustum_verts);
+                push_constant->mvp = vp;
+                push_constant->model = glm::mat4(1.0f);
+                push_constant->color =
+                    cam.enabled ? cam_color : cam_disabled_color;
+                no_depth_pipe->PushConstants(cmd);
 
-            push_constant->mvp = vp;
-            push_constant->model = glm::mat4(1.0f);
-            push_constant->color = cam.enabled ? cam_color : cam_disabled_color;
-            no_depth_pipe->PushConstants(cmd);
+                VkBuffer buffers[] = {frustum_vb};
+                VkDeviceSize offsets[] = {slot_offset};
+                vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
+                vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
+                                     box_ib->index_type_);
+                vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
 
-            VkBuffer buffers[] = {frust_vb->buffer_handle_};
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(cmd, 0, 1, buffers, offsets);
-            vkCmdBindIndexBuffer(cmd, box_ib->buffer_handle_, 0,
-                                 box_ib->index_type_);
-            vkCmdDrawIndexed(cmd, box_ic, 1, 0, 0, 0);
-          }
+                camera_slot++;
+              });
+        }
+
+        // --- Culling bounds ---
+        if (show_bounds) {
+          pipeline->Bind();
+          auto& assets = Engine::asset_manager();
+          glm::vec4 bounds_color(0.2f, 0.8f, 0.2f, 0.7f);
+          glm::vec4 skel_bounds_color(0.8f, 0.6f, 0.2f, 0.7f);
+
+          // MeshRendererComponent bounds
+          scenes.ForEach<MeshRendererComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& mr = scene.GetComponent<MeshRendererComponent>(entity);
+                if (!mr.model_handle.IsValid() || mr.mesh_index < 0) {
+                  return;
+                }
+                auto& transform =
+                    scene.GetComponent<TransformComponent>(entity);
+                const auto& md = assets.GetOrStartLoad<Model>(mr.model_handle);
+                if (!md ||
+                    mr.mesh_index >= static_cast<int32_t>(md->meshes.size())) {
+                  return;
+                }
+                AABB wb = md->meshes[mr.mesh_index]->bounds.Transformed(
+                    transform.GetTransformMatrix());
+                glm::vec3 center = wb.Center();
+                glm::vec3 extents = wb.Extents();
+                glm::mat4 m = glm::translate(glm::mat4(1.0f), center) *
+                              glm::scale(glm::mat4(1.0f), extents * 2.0f);
+                draw_wireframe(box_vb, box_ib, box_ic, m, bounds_color);
+              });
+
+          // SkinnedMeshRendererComponent bounds
+          scenes.ForEach<SkinnedMeshRendererComponent, TransformComponent>(
+              [&](Scene& scene, entt::entity entity) {
+                auto& mr =
+                    scene.GetComponent<SkinnedMeshRendererComponent>(entity);
+                if (!mr.model_handle.IsValid() || mr.mesh_index < 0) {
+                  return;
+                }
+                const TransformComponent* dt =
+                    &scene.GetComponent<TransformComponent>(entity);
+                const SkeletalAnimRuntime* skel = nullptr;
+                if (mr.skeleton_root != entt::null &&
+                    scene.GetRegistry().valid(mr.skeleton_root)) {
+                  if (scene.GetRegistry().all_of<TransformComponent>(
+                          mr.skeleton_root)) {
+                    dt = &scene.GetRegistry().get<TransformComponent>(
+                        mr.skeleton_root);
+                  }
+                  if (scene.GetRegistry().all_of<SkeletalAnimRuntime>(
+                          mr.skeleton_root)) {
+                    skel = &scene.GetRegistry().get<SkeletalAnimRuntime>(
+                        mr.skeleton_root);
+                  }
+                }
+                if (skel && skel->rest_pose_bounds.Valid()) {
+                  AABB wb = skel->rest_pose_bounds.Transformed(
+                      dt->GetTransformMatrix());
+                  if (skel->max_bone_reach > 0.0f) {
+                    glm::vec3 expand(skel->max_bone_reach);
+                    wb.min -= expand;
+                    wb.max += expand;
+                  }
+                  glm::vec3 center = wb.Center();
+                  glm::vec3 extents = wb.Extents();
+                  glm::mat4 m = glm::translate(glm::mat4(1.0f), center) *
+                                glm::scale(glm::mat4(1.0f), extents * 2.0f);
+                  draw_wireframe(box_vb, box_ib, box_ic, m, skel_bounds_color);
+                }
+              });
         }
       });
 
-  graph.PassWritesColor(draw_pass, debug_out);
-  graph.SetPassFramebuffer(draw_pass, pool->GetFramebuffer("debug_collider"));
+  if (use_msaa) {
+    graph.PassWritesColor(draw_pass, debug_color, debug_out);
+  } else {
+    graph.PassWritesColor(draw_pass, debug_color);
+  }
+  graph.PassWritesDepthLoad(draw_pass, debug_depth);
   graph.SetPassViewport(draw_pass, ctx.viewport_size);
   graph.SetPassClearColor(draw_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      draw_pass,
+      [this, renderer, debug_out](RenderGraph& g) {
+        auto resolve = g.GetTexture(debug_out);
+        if (draw_resolve_key_ != resolve.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(renderer->GetDescriptorLayout("Present"));
+          desc->AddCombinedImageSampler(0, resolve->image_views_[0],
+                                        renderer->GetDefaultLinearSampler());
+          desc->Bake();
+          draw_output_desc_ = desc;
+          draw_resolve_key_ = resolve.get();
+        }
+      });
 
   // Composite pass: blend debug overlay onto PipelineOutput
   RGResource pipeline_out = registry.Get("PipelineOutput");
-  RGResource comp_out = graph.ImportTexture(
-      "DebugCollidersCompOut", pool->GetTexture("debug_collider_comp.color"));
+  RGResource comp_out = graph.DeclareTransient(RGTextureDesc{
+      .name = "debug_collider_comp.color",
+      .width = rw,
+      .height = rh,
+      .format = renderer_->GetSwapChainImageFormat(),
+      .samples = SamplingMode::DISABLED,
+      .type = AttachmentTextureType::Offscreen,
+      .layer_count = 1,
+      .sampled = true});
 
   std::shared_ptr<Pipeline> comp_pipeline = comp_pipeline_;
   uint32_t comp_pass = graph.AddPass(
-      "DebugCollidersComposite", comp_render_pass_,
-      [pool, renderer, comp_pipeline](VkCommandBuffer) {
-        comp_pipeline->Bind(PipelineBindPointGraphics);
-        // Draw previous PipelineOutput (background)
-        renderer->DrawFullscreen(
-            comp_pipeline, {pool->GetDescriptor("debug_collider_comp.input")});
-        // Draw debug collider overlay
-        renderer->DrawFullscreen(
-            comp_pipeline, {pool->GetDescriptor("debug_collider.output")});
+      "DebugCollidersComposite",
+      [this, renderer, comp_pipeline](VkCommandBuffer) {
+        comp_pipeline->Bind();
+        renderer->DrawFullscreen(comp_pipeline, {comp_input_desc_});
+        renderer->DrawFullscreen(comp_pipeline, {draw_output_desc_});
       });
-
   graph.PassReadsTexture(comp_pass, pipeline_out);
   graph.PassReadsTexture(comp_pass, debug_out);
   graph.PassWritesColor(comp_pass, comp_out);
-  graph.SetPassFramebuffer(comp_pass,
-                           pool->GetFramebuffer("debug_collider_comp"));
   graph.SetPassViewport(comp_pass, ctx.viewport_size);
   graph.SetPassClearColor(comp_pass, {0, 0, 0, 0});
+  graph.SetPassResolveFn(
+      comp_pass,
+      [this, pool, comp_out, pipeline_out](RenderGraph& g) {
+        auto output = g.GetTexture(comp_out);
+        auto input = g.GetTexture(pipeline_out);
+        auto linear = renderer_->GetDefaultLinearSampler();
+        auto present_layout = renderer_->GetDescriptorLayout("Present");
 
-  // Update PipelineOutput for downstream features
+        if (comp_output_key_ != output.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, output->image_views_[0], linear);
+          desc->Bake();
+          comp_output_desc_ = desc;
+          comp_output_key_ = output.get();
+        }
+
+        if (comp_input_key_ != input.get()) {
+          auto desc = std::make_shared<DescriptorSet>();
+          desc->SetLayout(present_layout);
+          desc->AddCombinedImageSampler(0, input->image_views_[0], linear);
+          desc->Bake();
+          comp_input_desc_ = desc;
+          comp_input_key_ = input.get();
+        }
+
+        pool->SetTexture("PipelineOutput", output);
+        pool->SetDescriptor("PipelineOutputDescriptor", comp_output_desc_);
+      });
+
   registry.Register("PipelineOutput", comp_out);
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

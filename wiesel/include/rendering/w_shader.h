@@ -11,7 +11,7 @@
 
 #pragma once
 
-namespace Wiesel {
+namespace wiesel {
 enum ShaderType {
   ShaderTypeVertex,
   ShaderTypeFragment,
@@ -46,4 +46,4 @@ struct Shader {
   ShaderProperties properties_;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

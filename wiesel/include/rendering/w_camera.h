@@ -14,12 +14,13 @@
 #include <scene/w_components.h>
 #include "events/w_appevents.h"
 #include "rendering/w_render_feature.h"
-#include "util/w_uuid.h"
-#include "w_framebuffer.h"
+#include <urkern/uuid.h>
 #include "w_pch.h"
 #include "w_texture.h"
 
-namespace Wiesel {
+namespace wiesel {
+
+class RenderGraph;
 
 struct FrustumPlanes {
   glm::vec4 Left, Right, Bottom, Top, Near, Far;
@@ -54,26 +55,39 @@ enum class ProjectionMode : int {
   Orthographic = 1,
 };
 
+WCLASS()
+
 struct CameraComponent {
   CameraComponent() = default;
   CameraComponent(const CameraComponent&) = default;
   ~CameraComponent() = default;
 
   // Camera parameters
+  WPROPERTY(Serializable)
   ProjectionMode projection_mode = ProjectionMode::Perspective;
+  WPROPERTY(Serializable, Animatable)
   float field_of_view = 60;  // perspective only
-  float ortho_size = 5.0f;   // orthographic only: half-height in world units
+  WPROPERTY(Serializable, Animatable)
+  float ortho_size = 5.0f;  // orthographic only: half-height in world units
+  WPROPERTY(Serializable)
   float near_plane = 0.3f;
+  WPROPERTY(Serializable)
   float far_plane = 1000.0f;
   float aspect_ratio = 0.0;
+  WPROPERTY(Serializable)
   glm::vec4 background_color = {0.0f, 0.0f, 0.0f,
                                 1.0f};  // used in ortho mode instead of skybox
 
   glm::mat4 view_matrix;
   glm::mat4 projection;
   glm::mat4 inv_projection;
-  glm::vec2 viewport_size{0.0f, 0.0f};
-  bool resources_dirty = false;
+  glm::vec2 viewport_size{1280.0f, 720.0f};
+
+  // Resource versioning: tracks which pipeline version and viewport size
+  // this camera's resources were built for. Automatically triggers rebuild
+  // when the pipeline is recreated or viewport changes.
+  uint32_t resource_pipeline_version = 0;
+  glm::vec2 resource_viewport_size = {0.0f, 0.0f};
   glm::mat4 inv_view_matrix;
   bool enabled = true;
 
@@ -81,6 +95,9 @@ struct CameraComponent {
 
   // Dynamic resource storage
   CameraResourcePool resource_pool;
+
+  // Per-camera render graph (rebuilt each frame)
+  std::shared_ptr<RenderGraph> render_graph;
 
   // Per-camera pipeline override (nullptr = use scene default)
   std::shared_ptr<RenderPipeline> render_pipeline;
@@ -152,4 +169,4 @@ struct CameraData {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

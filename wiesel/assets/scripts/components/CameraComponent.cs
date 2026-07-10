@@ -9,10 +9,7 @@ namespace WieselEngine
     public class CameraComponent : Component
     {
 
-        public CameraComponent(Entity entity)
-        {
-            this.entity = entity;
-        }
+        public CameraComponent(Entity entity) : base(entity) { }
 
         public ProjectionMode Projection
         {

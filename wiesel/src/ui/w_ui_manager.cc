@@ -15,10 +15,9 @@
 
 #include "asset/w_asset_manager.h"
 #include "rendering/w_renderer.h"
-#include "rendering/w_renderpass.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 UIManager::UIManager() : render_interface_(Engine::renderer()) {}
 
@@ -65,20 +64,8 @@ void UIManager::Init() {
     }
   });
 
-  // Create render pass with color + depth/stencil for clip masking
-  auto render_pass =
-      std::make_shared<RenderPass>(PassType::PostProcess, "RmlUi Offscreen");
-  render_pass->AttachOutput(
-      {.type = AttachmentTextureType::Offscreen,
-       .format = Engine::renderer()->GetSwapChainImageFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass->AttachOutput(
-      {.type = AttachmentTextureType::DepthStencil,
-       .format = Engine::renderer()->FindDepthStencilFormat(),
-       .msaa_mode = SamplingMode::DISABLED});
-  render_pass->Bake();
-
-  render_interface_.Init(render_pass);
+  render_interface_.Init(Engine::renderer()->GetSwapChainImageFormat(),
+                         Engine::renderer()->FindDepthStencilFormat());
   Rml::SetRenderInterface(&render_interface_);
 
   initialized_ = true;
@@ -102,9 +89,14 @@ void UIManager::ToggleDebugger(Rml::Context* context) {
   if (!context) {
     return;
   }
+  if (context != previous_context_) {
+    Rml::Debugger::Shutdown();
+    debugger_initialized_ = false;
+  }
   if (!debugger_initialized_) {
     Rml::Debugger::Initialise(context);
     debugger_initialized_ = true;
+    previous_context_ = context;
     Rml::Debugger::SetVisible(true);
   } else {
     Rml::Debugger::SetContext(context);
@@ -116,4 +108,4 @@ bool UIManager::IsDebuggerVisible() const {
   return debugger_initialized_ && Rml::Debugger::IsVisible();
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

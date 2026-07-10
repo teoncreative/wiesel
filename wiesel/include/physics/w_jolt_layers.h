@@ -14,7 +14,7 @@
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ObjectLayer.h>
 
-namespace Wiesel {
+namespace wiesel {
 
 namespace ObjectLayers {
 static constexpr JPH::ObjectLayer kDefault = 0;
@@ -120,4 +120,4 @@ class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter {
   }
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

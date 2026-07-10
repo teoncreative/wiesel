@@ -15,16 +15,16 @@
 #pragma once
 
 #include <shared_mutex>
+#include <typeindex>
 #include <unordered_set>
 #include "asset/w_asset_handle.h"
-#include "asset/w_asset_loader.h"
 #include "util/w_command.h"
 #include "util/w_logger.h"
 #include "util/w_utils.h"
 #include "w_engine.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 struct AssetMetadata {
   AssetHandle handle;
@@ -104,8 +104,20 @@ class AssetManager {
   template <typename T>
   std::shared_ptr<T> Get(AssetHandle handle) const;
 
+  // Returns the resource if already loaded, otherwise kicks off an
+  // async load on the thread pool and returns nullptr immediately.
+  // The caller MUST handle null. Suitable for per-frame render code that
+  // can't block on disk I/O.
   template <typename T>
-  std::shared_ptr<T> GetOrLoad(AssetHandle handle) const;
+  std::shared_ptr<T> GetOrStartLoad(AssetHandle handle) const;
+
+  // Synchronously loads the asset (if not already loaded) and returns it.
+  // Blocks the calling thread on disk + parsing. Suitable for one-shot
+  // setup paths (scene load, asset inspector, cursor activation) where a
+  // missed asset is worse than a stalled frame. Returns nullptr only when
+  // the handle is invalid or its loader fails.
+  template <typename T>
+  std::shared_ptr<T> LoadAndGet(AssetHandle handle);
 
   // Per-asset version, bumped when the resource is replaced (e.g. on reload).
   // Used by TextureSlot to detect stale cached pointers.
@@ -135,9 +147,6 @@ class AssetManager {
                         AssetType type, const std::string& virtual_source_path,
                         std::shared_ptr<T> resource);
 
-  // Asset loaders -/ register per-type loaders for sync/async loading
-  void RegisterLoader(AssetType type, std::shared_ptr<IAssetLoader> loader);
-  IAssetLoader* GetLoader(AssetType type) const;
 
   // Unified loading API
   // Sync: blocks until loaded. Async: returns immediately, loads in background.
@@ -156,17 +165,31 @@ class AssetManager {
 
   void Clear();
 
+  // Unregister every asset whose virtual_source_path starts with `prefix`
+  // (e.g. "app://"). Fires OnAssetUnregistered callbacks for each removed
+  // asset. Also broadcasts AssetUnloadedEvent for loaded assets so observers
+  // can release GPU resources (thumbnails, etc.).
+  void ClearByPathPrefix(const std::string& prefix);
+
+  // Block until every async load submitted via LoadAsync has finished.
+  void WaitForAsyncLoads();
+
  private:
   struct AssetEntry {
     AssetMetadata metadata;
-    std::shared_ptr<void> resource;
+    // One resource per type. Lets a single asset hold both its parsed source
+    // form and any derived state (e.g. a Sprite holds both SpriteAssetData
+    // and SpriteGpuData) without one Store overwriting the other and turning
+    // a later Get<X> into a reinterpret-cast of an unrelated Y.
+    std::unordered_map<std::type_index, std::shared_ptr<void>> resources;
     uint32_t version = 0;
+
+    bool HasAnyResource() const { return !resources.empty(); }
   };
 
   std::unordered_map<AssetHandle, std::unique_ptr<AssetEntry>> registry_;
   std::unordered_map<std::string, AssetHandle> path_index_;
   std::unordered_map<std::string, AssetHandle> name_index_;
-  std::unordered_map<AssetType, std::shared_ptr<IAssetLoader>> loaders_;
 
   // Dependency graph: parent -> set of dependents
   std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>>
@@ -183,6 +206,18 @@ class AssetManager {
   // maps, and entry fields (resource, version). Loaders and callbacks are
   // accessed outside the lock to avoid deadlocks.
   mutable std::shared_mutex registry_mutex_;
+
+  // Counts async loads that have been submitted to the thread pool but have
+  // not returned yet. WaitForAsyncLoads() blocks on in_flight_cv_ until this
+  // drains to zero.
+  std::atomic<uint32_t> in_flight_async_loads_{0};
+  std::mutex in_flight_mutex_;
+  std::condition_variable in_flight_cv_;
+
+  // Flipped by WaitForAsyncLoads() before it blocks. LoadAsync() refuses new
+  // submissions while set, and already-queued lambdas bail out early instead
+  // of running their loader.
+  std::atomic<bool> shutting_down_{false};
 };
 
 // Template implementations
@@ -200,7 +235,8 @@ void AssetManager::Store(AssetHandle handle, std::shared_ptr<T> resource) {
                    handle.ToString());
     return;
   }
-  it->second->resource = std::static_pointer_cast<void>(resource);
+  it->second->resources[std::type_index(typeid(T))] =
+      std::static_pointer_cast<void>(resource);
   it->second->version++;
 }
 
@@ -211,14 +247,18 @@ std::shared_ptr<T> AssetManager::Get(AssetHandle handle) const {
     return nullptr;
   }
   auto it = registry_.find(handle);
-  if (it == registry_.end() || !it->second->resource) {
+  if (it == registry_.end()) {
     return nullptr;
   }
-  return std::static_pointer_cast<T>(it->second->resource);
+  auto rit = it->second->resources.find(std::type_index(typeid(T)));
+  if (rit == it->second->resources.end()) {
+    return nullptr;
+  }
+  return std::static_pointer_cast<T>(rit->second);
 }
 
 template <typename T>
-std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
+std::shared_ptr<T> AssetManager::GetOrStartLoad(AssetHandle handle) const {
   {
     std::shared_lock lock(registry_mutex_);
     if (!handle.IsValid()) {
@@ -228,13 +268,23 @@ std::shared_ptr<T> AssetManager::GetOrLoad(AssetHandle handle) const {
     if (it == registry_.end()) {
       return nullptr;
     }
-    if (it->second->resource) {
-      return std::static_pointer_cast<T>(it->second->resource);
+    auto rit = it->second->resources.find(std::type_index(typeid(T)));
+    if (rit != it->second->resources.end()) {
+      return std::static_pointer_cast<T>(rit->second);
     }
   }
   // Trigger async load via the registered loader (outside lock)
   const_cast<AssetManager*>(this)->LoadAsync(handle);
   return nullptr;
+}
+
+template <typename T>
+std::shared_ptr<T> AssetManager::LoadAndGet(AssetHandle handle) {
+  if (!handle.IsValid()) {
+    return nullptr;
+  }
+  LoadSync(handle);
+  return Get<T>(handle);
 }
 
 template <typename T>
@@ -245,6 +295,7 @@ AssetHandle AssetManager::RegisterAndStore(
   if (handle.IsValid()) {
     Store<T>(handle, std::move(resource));
     SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+    Engine::vfs()->RegisterVirtualEntry(virtual_source_path);
   }
   return handle;
 }
@@ -259,7 +310,8 @@ bool AssetManager::RegisterAndStore(AssetHandle handle, const std::string& name,
   }
   Store<T>(handle, std::move(resource));
   SetLoadState(handle, AssetLoadState::Unloaded, AssetLoadState::Loaded);
+  Engine::vfs()->RegisterVirtualEntry(virtual_source_path);
   return true;
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

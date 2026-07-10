@@ -19,20 +19,9 @@
 #include "scene/w_scene.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel::scene_serializer {
 
-class SceneSerializer {
- public:
-  explicit SceneSerializer(std::shared_ptr<Scene> scene);
+std::string SerializeToString(Scene& scene);
+bool DeserializeFromString(Scene& scene, const std::string& json_str);
 
-  std::string SerializeToString() const;
-  bool DeserializeFromString(const std::string& json_str);
-
- private:
-  nlohmann::json SerializeEntity(Entity entity) const;
-  void DeserializeEntity(const nlohmann::json& entity_json);
-
-  std::shared_ptr<Scene> scene_;
-};
-
-}  // namespace Wiesel
+}  // namespace wiesel

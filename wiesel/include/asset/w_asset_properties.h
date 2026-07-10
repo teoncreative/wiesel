@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
-namespace Wiesel {
+namespace wiesel {
 
 // --- Texture asset properties ---
 
@@ -71,4 +71,4 @@ struct UIDocumentAssetProperties {
   std::vector<std::string> events;  // Event names (data-event-click="name")
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

@@ -2,16 +2,19 @@
 
 // todo: pass via specialization constant
 #define SHADOW_MAP_CASCADE_COUNT 4
-#define MAX_BONES 128
+#define MAX_BONES 256
 
-layout(set = 0, binding = 0, std140) uniform Matrices {
+struct InstanceData {
     mat4 modelMatrix;
     mat3 normalMatrix;
-    float entityId;
-    // implicit 12 bytes padding to vec4 boundary
+    uint entityId;
     vec4 colorTint;
     vec4 materialParams;
-} obj;
+};
+
+layout(set = 0, binding = 0, std140) readonly buffer Instances {
+    InstanceData instances[];
+};
 
 layout(set = 1, binding = 0, std140) uniform ShadowMapMatrices {
     mat4 viewProjectionMatrix[SHADOW_MAP_CASCADE_COUNT];
@@ -36,7 +39,6 @@ layout(location = 6) in uint inFlags;
 layout(location = 7) in ivec4 inBoneIndices;
 layout(location = 8) in vec4 inBoneWeights;
 
-//layout(location = 0) out float outDepth;
 layout(location = 0) out vec2 outUV;
 layout(location = 1) out uint outFlags;
 
@@ -44,6 +46,7 @@ void main() {
 	outUV = inUV;
 	outFlags = inFlags;
 
+    mat4 modelMatrix = instances[gl_InstanceIndex].modelMatrix;
     vec4 localPos = vec4(inVertexPosition, 1.0);
 
     // Skeletal animation skinning
@@ -57,7 +60,6 @@ void main() {
         localPos = skin * localPos;
     }
 
-    vec4 worldPos4 = obj.modelMatrix * localPos;
-    // lightViewProj is projection * viewMatrix of the light
+    vec4 worldPos4 = modelMatrix * localPos;
     gl_Position = shadowMatrices.viewProjectionMatrix[cascadeIndex] * worldPos4;
 }

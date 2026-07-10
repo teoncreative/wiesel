@@ -21,10 +21,19 @@
 #include "util/w_utils.h"
 #include "w_pch.h"
 
-namespace Wiesel {
-static constexpr int kMaterialTextureCount = 7;
+namespace wiesel {
+static constexpr int kMaterialTextureCount = 8;
 
 // --- Material Property System ---
+// Core property names (serialized to .wmat files):
+//   "color_tint"  (vec4)  - base color multiplier
+//   "roughness"   (float) - surface roughness 0-1
+//   "metallic"    (float) - metallic factor 0-1
+//   "specular"    (float) - specular intensity 0-1
+// Feature property names:
+//   "emission_color"    (vec4)  - emission color (Emission feature)
+//   "emission_strength" (float) - emission intensity (Emission feature)
+//   "alpha_cutoff"      (float) - alpha clip threshold (AlphaClip feature)
 
 enum class MaterialPropertyType { Float, Vec2, Vec3, Vec4, Texture, Bool, Int };
 
@@ -143,9 +152,12 @@ struct Material {
   TextureSlot albedo_map;
   TextureSlot roughness_map;
   TextureSlot metallic_map;
+  TextureSlot opacity_map;
 
   // Material properties (scalar/vector values)
   std::unordered_map<std::string, MaterialPropertyValue> properties;
+
+  bool double_sided = false;  // disable backface culling for this material
 
   // Active features
   std::set<std::string> enabled_features;
@@ -183,7 +195,6 @@ struct Material {
 
   static void Set(std::shared_ptr<Material> material,
                   AssetHandle texture_handle, TextureType type);
-
 };
 
 // --- Material Instance ---
@@ -193,18 +204,34 @@ struct MaterialInstance {
   AssetHandle base_material_handle;  // references a Material asset
   std::unordered_map<std::string, MaterialPropertyValue> overrides;
 
-  // Resolve the base material from AssetManager
+  // Cached resolved values for the hot render path. Populated on first
+  // access; invalidated by every mutation through the public setters.
+  // Code paths that bypass the setters (direct `overrides[...] = ...` or
+  // base-material edits) must call InvalidateResolvedProps() manually.
+  struct ResolvedProps {
+    glm::vec4 color_tint{1.0f};
+    float roughness = 0.5f;
+    float metallic = 0.0f;
+    float specular = 0.5f;
+    float alpha_cutoff = 0.5f;
+  };
+
   std::shared_ptr<Material> GetBaseMaterial() const;
 
   MaterialPropertyValue GetEffectiveProperty(const std::string& name) const;
   float GetEffectiveFloat(const std::string& name) const;
   glm::vec4 GetEffectiveVec4(const std::string& name) const;
 
+  // One map-lookup-free pass over color_tint / roughness / metallic /
+  // specular / alpha_cutoff. Use this instead of four separate
+  // GetEffective* calls in per-entity hot paths.
+  const ResolvedProps& GetResolvedProps() const;
+  void InvalidateResolvedProps() { resolved_dirty_ = true; }
+
   void SetOverride(const std::string& name, MaterialPropertyValue value);
   void ClearOverride(const std::string& name);
   bool HasOverride(const std::string& name) const;
 
-  // Convenience accessors (read effective, write to override)
   glm::vec4 GetColorTint() const;
   float GetRoughness() const;
   float GetMetallic() const;
@@ -214,6 +241,10 @@ struct MaterialInstance {
   void SetRoughness(float value);
   void SetMetallic(float value);
   void SetSpecular(float value);
+
+ private:
+  mutable ResolvedProps resolved_{};
+  mutable bool resolved_dirty_ = true;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

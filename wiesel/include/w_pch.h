@@ -8,16 +8,15 @@
 //        http://www.apache.org/licenses/LICENSE-2.0
 //
 
-#pragma once
+#ifndef WIESEL_PCH_H
+#define WIESEL_PCH_H
 
 #define NOMINMAX
+
 #ifdef __cplusplus
+
 #include <vulkan/vulkan.h>
-#define GLM_ENABLE_EXPERIMENTAL
-#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
-#define GLM_FORCE_LEFT_HANDED
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_FORCE_RADIANS
+
 #include <algorithm>  // Necessary for std::clamp
 #include <any>
 #include <array>
@@ -27,12 +26,13 @@
 #include <format>
 #include <fstream>
 #include <functional>
-#include <glm/ext.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/quaternion.hpp>
+
 #include <initializer_list>
 #include <iostream>
 #include <limits>  // Necessary for std::numeric_limits
@@ -49,8 +49,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include <urkern/platform_detection.h>
+
 #include "util/w_attributes.h"
-#include "util/w_platformdetection.h"
 #include "util/w_tracy.h"
 
-#endif
+#endif  // __cplusplus
+
+#endif  // WIESEL_PCH_H

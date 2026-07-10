@@ -50,14 +50,18 @@ add_compile_definitions(
 )
 
 include(${VENDOR_DIR}/CMakeLists.txt)
+add_subdirectory(vendor/urkern)
 add_subdirectory(libs/wpak)
 add_subdirectory(libs/monolib)
+
+# tools
+add_subdirectory(tools/codegen)
+add_subdirectory(tools/asset_packer)
+
 add_subdirectory(wiesel)
 add_subdirectory(editor)
 add_subdirectory(runtime)
 
-# tools
-add_subdirectory(tools/asset_packer)
 
 ##### EDITOR BUNDLE #####
 set(BUNDLE_DIR ${CMAKE_BINARY_DIR}/bundle)

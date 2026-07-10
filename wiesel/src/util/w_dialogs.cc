@@ -16,7 +16,7 @@
 
 #include <thread>
 
-namespace Wiesel::Dialogs {
+namespace wiesel::dialogs {
 
 // todo workaround for this main-thread requirement on Apple platform
 // maybe move render things to another thread?
@@ -82,4 +82,4 @@ void Destroy() {
   NFD_Quit();
 }
 
-}  // namespace Wiesel::Dialogs
+}  // namespace wiesel::dialogs

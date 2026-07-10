@@ -13,7 +13,7 @@
 #include <entt/entt.hpp>
 #include "scene/w_components.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Marks a UI element as navigable by gamepad/keyboard.
 // Requires InteractableComponent for event handling.
@@ -25,4 +25,4 @@ struct NavigableComponent : public IComponent {
   entt::entity nav_right = entt::null;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

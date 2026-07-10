@@ -17,8 +17,7 @@
 #include "rendering/w_acceleration_structure.h"
 #include "rendering/w_perf_marker.h"
 #include "rendering/w_sampler.h"
-#include "ui/w_font.h"
-
+#include "rendering/w_transient_resource_pool.h"
 #include "util/w_spirv.h"
 #include "w_engine.h"
 
@@ -43,7 +42,7 @@
 
 #include "ui/w_rmlui_renderer.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 std::vector<SamplingMode> ConvertToSamplingModes(VkSampleCountFlags flags) {
   std::vector<SamplingMode> modes;
@@ -81,7 +80,7 @@ SamplingMode FindHighestSamplingMode(const std::vector<SamplingMode>& modes) {
 }
 
 Renderer::Renderer(std::shared_ptr<AppWindow> window) : window_(window) {
-  Spirv::Init();
+  spirv::Init();
 #ifdef VULKAN_VALIDATION
   validation_layers_.push_back("VK_LAYER_KHRONOS_validation");
 #endif
@@ -100,6 +99,11 @@ Renderer::Renderer(std::shared_ptr<AppWindow> window) : window_(window) {
   swap_chain_created_ = false;
   image_index_ = 0;
   clear_color_ = {0.1f, 0.1f, 0.2f, 1.0f};
+  transient_resource_pool_ = std::make_unique<TransientResourcePool>(*this);
+}
+
+TransientResourcePool& Renderer::GetTransientResourcePool() {
+  return *transient_resource_pool_;
 }
 
 Renderer::~Renderer() {
@@ -187,6 +191,7 @@ VkDevice Renderer::GetLogicalDevice() {
 template <typename T>
 std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer(
     const std::string& debug_name, std::vector<T> vertices) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<MemoryBuffer> memory_buffer =
       std::make_shared<MemoryBuffer>(MemoryTypeVertexBuffer);
 
@@ -257,13 +262,15 @@ Renderer::CreateVertexBuffer<OverlayVertex>(const std::string& debug_name,
                                             std::vector<OverlayVertex>);
 
 template std::shared_ptr<MemoryBuffer>
-Renderer::CreateVertexBuffer<BillboardVertex>(const std::string& debug_name, std::vector<BillboardVertex>);
+Renderer::CreateVertexBuffer<BillboardVertex>(const std::string& debug_name,
+                                              std::vector<BillboardVertex>);
 
 template std::shared_ptr<MemoryBuffer> Renderer::CreateVertexBuffer<RmlVertex>(
     const std::string& debug_name, std::vector<RmlVertex>);
 
 std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
     const std::string& debug_name, std::vector<Index> indices) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<IndexBuffer> index_buffer = std::make_shared<IndexBuffer>();
 
   static_assert(sizeof(Index) == sizeof(uint32_t));
@@ -319,6 +326,7 @@ std::shared_ptr<IndexBuffer> Renderer::CreateIndexBuffer(
 
 std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
     const std::string& debug_name, VkDeviceSize size) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<UniformBuffer> uniform_buffer =
       std::make_shared<UniformBuffer>();
 
@@ -345,6 +353,7 @@ std::shared_ptr<UniformBuffer> Renderer::CreateUniformBuffer(
 
 std::shared_ptr<UniformBuffer> Renderer::CreateStorageBuffer(
     const std::string& debug_name, VkDeviceSize size) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<UniformBuffer> buffer = std::make_shared<UniformBuffer>();
   buffer->size_ = size;
   VkBuffer buf;
@@ -373,12 +382,14 @@ void Renderer::SetupCameraComponent(CameraComponent& component) {
     component.aspect_ratio =
         component.viewport_size.x / component.viewport_size.y;
   }
-  component.resources_dirty = true;
+  component.resource_pipeline_version = 0;  // force rebuild on next render
   component.view_changed = true;
   component.pos_changed = true;
 }
 
-std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_name) {
+std::shared_ptr<Texture> Renderer::CreateBlankTexture(
+    const std::string& debug_name) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -412,7 +423,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_n
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
-  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, debug_name);
+  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image,
+                                                   image_alloc, debug_name);
 
   TransitionImageLayout(texture->image_, format, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -438,7 +450,9 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(const std::string& debug_n
 }
 
 std::shared_ptr<Texture> Renderer::CreateBlankTexture(
-    const std::string& debug_name, const TextureProps& texture_props, const SamplerProps& sampler_props) {
+    const std::string& debug_name, const TextureProps& texture_props,
+    const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(TextureTypeDiffuse, "");
 
@@ -473,7 +487,8 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, image_alloc);
   texture->image_ = image;
-  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image, image_alloc, debug_name);
+  texture->vma_image_ = std::make_unique<VmaImage>(vma_allocator_, image,
+                                                   image_alloc, debug_name);
 
   {
     VkCommandBuffer cmd = BeginSingleTimeCommands();
@@ -505,6 +520,7 @@ std::shared_ptr<Texture> Renderer::CreateBlankTexture(
 std::shared_ptr<Texture> Renderer::CreateTexture(
     const std::string& path, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, path);
 
@@ -613,6 +629,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
 std::shared_ptr<Texture> Renderer::CreateTexture(
     void* buffer, size_t size_per_pixel, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
 
@@ -709,6 +726,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(
 std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
     const std::array<std::string, 6>& paths, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
   VkDeviceSize total_size = 0;
@@ -814,6 +832,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTexture(
 std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
     const std::string& virtual_path, const TextureProps& texture_props,
     const SamplerProps& sampler_props) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<Texture> texture =
       std::make_shared<Texture>(texture_props.type, "");
 
@@ -985,8 +1004,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
                staging_buffer, staging_alloc);
 
   void* data;
-  WIESEL_CHECK_VKRESULT(
-      vmaMapMemory(vma_allocator_, staging_alloc, &data));
+  WIESEL_CHECK_VKRESULT(vmaMapMemory(vma_allocator_, staging_alloc, &data));
   memcpy(data, cube_pixels.data(), total_size);
   vmaUnmapMemory(vma_allocator_, staging_alloc);
 
@@ -1031,6 +1049,7 @@ std::shared_ptr<Texture> Renderer::CreateCubemapTextureFromSingle(
 
 std::shared_ptr<AttachmentTexture> Renderer::CreateAttachmentTexture(
     const AttachmentTextureProps& props) {
+  PROFILE_ZONE_SCOPED();
   if (props.type == AttachmentTextureType::SwapChain) {
     throw new std::runtime_error(
         "AttachmentTextureType::SwapChain cannot be created!");
@@ -1161,6 +1180,7 @@ void Renderer::SetAttachmentTextureBuffer(
 
 VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
                                          const SamplerProps& props) {
+  PROFILE_ZONE_SCOPED();
   VkSamplerCreateInfo sampler_info{};
   sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
   sampler_info.magFilter = props.mag_filter;
@@ -1192,12 +1212,12 @@ VkSampler Renderer::CreateTextureSampler(uint32_t mip_levels,
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
-    std::shared_ptr<UniformBuffer> uniform_buffer,
     std::shared_ptr<Material> material) {
+  PROFILE_ZONE_SCOPED();
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
-      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaterialTextureCount}};
 
   VkDescriptorPoolCreateInfo pool_info{};
@@ -1220,24 +1240,24 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
                                                  &object->descriptor_set_));
 
   std::vector<VkWriteDescriptorSet> writes;
-  writes.reserve(8);
+  writes.reserve(1 + kMaterialTextureCount);
   std::vector<VkDescriptorBufferInfo> buffer_infos;
   buffer_infos.reserve(1);
   std::vector<VkDescriptorImageInfo> image_infos;
-  image_infos.reserve(7);
+  image_infos.reserve(kMaterialTextureCount);
 
   {
     buffer_infos.push_back({
-        .buffer = uniform_buffer->buffer_handle_,
+        .buffer = instance_storage_buffer_->buffer_handle_,
         .offset = 0,
-        .range = sizeof(MatricesUniformData),
+        .range = instance_storage_buffer_->size_,
     });
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
     set.dstBinding = 0;
     set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     set.descriptorCount = 1;
     set.pBufferInfo = &buffer_infos.back();
     set.pNext = nullptr;
@@ -1246,9 +1266,9 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 
   // Texture slots: binding 1-7
   TextureSlot* texture_slots[] = {
-      &material->base_texture, &material->normal_map, &material->specular_map,
-      &material->height_map,   &material->albedo_map, &material->roughness_map,
-      &material->metallic_map,
+      &material->base_texture, &material->normal_map,  &material->specular_map,
+      &material->height_map,   &material->albedo_map,  &material->roughness_map,
+      &material->metallic_map, &material->opacity_map,
   };
 
   for (int i = 0; i < kMaterialTextureCount; i++) {
@@ -1286,13 +1306,12 @@ std::shared_ptr<DescriptorSet> Renderer::CreateMeshDescriptors(
 }
 
 std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
-    std::shared_ptr<UniformBuffer> uniform_buffer,
     std::shared_ptr<Material> material) {
   std::shared_ptr<DescriptorSet> object = std::make_shared<DescriptorSet>();
 
   VkDescriptorPoolSize pool_sizes[] = {
-      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, kMaterialTextureCount},
   };
 
   VkDescriptorPoolCreateInfo pool_info{};
@@ -1315,33 +1334,41 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
                                                  &object->descriptor_set_));
 
   std::vector<VkWriteDescriptorSet> writes;
-  writes.reserve(2);
+  writes.reserve(1 + kMaterialTextureCount);
   std::vector<VkDescriptorBufferInfo> buffer_infos;
   buffer_infos.reserve(1);
   std::vector<VkDescriptorImageInfo> image_infos;
-  image_infos.reserve(1);
+  image_infos.reserve(kMaterialTextureCount);
 
   {
     buffer_infos.push_back({
-        .buffer = uniform_buffer->buffer_handle_,
+        .buffer = instance_storage_buffer_->buffer_handle_,
         .offset = 0,
-        .range = sizeof(MatricesUniformData),
+        .range = instance_storage_buffer_->size_,
     });
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
     set.dstBinding = 0;
     set.dstArrayElement = 0;
-    set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    set.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     set.descriptorCount = 1;
     set.pBufferInfo = &buffer_infos.back();
     set.pNext = nullptr;
     writes.emplace_back(set);
   }
 
-  {  // base texture for shadow alpha test
+  // Bind all material textures (same as geometry descriptor)
+  TextureSlot* texture_slots[] = {
+      &material->base_texture, &material->normal_map,  &material->specular_map,
+      &material->height_map,   &material->albedo_map,  &material->roughness_map,
+      &material->metallic_map, &material->opacity_map,
+  };
+
+  for (int i = 0; i < kMaterialTextureCount; i++) {
     std::shared_ptr<Texture> tex;
-    material->base_texture.Resolve(tex);
+    texture_slots[i]->Resolve(tex);
+
     VkDescriptorImageInfo image_info;
     image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     if (!tex) {
@@ -1356,7 +1383,7 @@ std::shared_ptr<DescriptorSet> Renderer::CreateShadowMeshDescriptors(
     VkWriteDescriptorSet set{};
     set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     set.dstSet = object->descriptor_set_;
-    set.dstBinding = 1;
+    set.dstBinding = static_cast<uint32_t>(i + 1);
     set.dstArrayElement = 0;
     set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     set.descriptorCount = 1;
@@ -1709,8 +1736,9 @@ void Renderer::Cleanup() {
     return;
   }
   LOG_DEBUG("Cleaning up the renderer");
-
   WaitForGPU();
+
+  transient_resource_pool_ = nullptr;
 
   camera_ = nullptr;
   quad_index_buffer_ = nullptr;
@@ -1802,7 +1830,7 @@ void Renderer::Cleanup() {
   vkDestroyInstance(instance_, nullptr);
 
   LOG_DEBUG("Renderer destroyed");
-  Spirv::Cleanup();
+  spirv::Cleanup();
   initialized_ = false;
 }
 
@@ -1817,9 +1845,9 @@ void Renderer::CreateVulkanInstance() {
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   app_info.pApplicationName = "Wiesel";
   app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  app_info.pEngineName = "No Engine";
+  app_info.pEngineName = "Wiesel Engine";
   app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  app_info.apiVersion = VK_API_VERSION_1_2;
+  app_info.apiVersion = VK_API_VERSION_1_4;
 
   VkInstanceCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -1929,17 +1957,35 @@ void Renderer::CreateLogicalDevice() {
   device_features2.features.fillModeNonSolid = true;
   device_features2.features.samplerAnisotropy = VK_TRUE;
   device_features2.features.wideLines = VK_TRUE;
+  device_features2.features.independentBlend = VK_TRUE;
+
+  VkPhysicalDeviceVulkan11Features vulkan11_features{};
+  vulkan11_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+  device_features2.pNext = &vulkan11_features;
 
   VkPhysicalDeviceVulkan12Features vulkan12_features{};
   vulkan12_features.sType =
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
   vulkan12_features.bufferDeviceAddress = VK_TRUE;
-  device_features2.pNext = &vulkan12_features;
+  vulkan11_features.pNext = &vulkan12_features;
 
-  VkPhysicalDeviceVulkan11Features vulkan11_features{};
-  vulkan11_features.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-  vulkan12_features.pNext = &vulkan11_features;
+  // 1.3 brings dynamic rendering + synchronization2 in core. We use dynamic
+  // rendering across every pass in the graph.
+  VkPhysicalDeviceVulkan13Features vulkan13_features{};
+  vulkan13_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+  vulkan13_features.dynamicRendering = VK_TRUE;
+  vulkan13_features.synchronization2 = VK_TRUE;
+  vulkan12_features.pNext = &vulkan13_features;
+
+  // 1.4 promotes dynamic-rendering-local-read to core (lets passes sample
+  // attachments still bound as color/depth, without explicit barriers).
+  VkPhysicalDeviceVulkan14Features vulkan14_features{};
+  vulkan14_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES;
+  vulkan14_features.dynamicRenderingLocalRead = VK_TRUE;
+  vulkan13_features.pNext = &vulkan14_features;
 
   // RT feature structs (chained only when RT is supported)
   VkPhysicalDeviceAccelerationStructureFeaturesKHR as_features{};
@@ -1953,7 +1999,7 @@ void Renderer::CreateLogicalDevice() {
   rt_pipeline_features.rayTracingPipeline = VK_TRUE;
 
   if (rt_supported_) {
-    vulkan11_features.pNext = &as_features;
+    vulkan14_features.pNext = &as_features;
     as_features.pNext = &rt_pipeline_features;
 
     // Query RT properties for SBT alignment
@@ -1997,7 +2043,7 @@ void Renderer::InitMemoryAllocator() {
   vma_info.physicalDevice = physical_device_;
   vma_info.device = logical_device_;
   vma_info.instance = instance_;
-  vma_info.vulkanApiVersion = VK_API_VERSION_1_2;
+  vma_info.vulkanApiVersion = VK_API_VERSION_1_4;
   if (rt_supported_) {
     vma_info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   }
@@ -2080,8 +2126,9 @@ void Renderer::RegisterDescriptorLayout(
 void Renderer::CreateDescriptorLayouts() {
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
+    // Per-instance data SSBO: shaders index instances[gl_InstanceIndex].
     layout->AddBinding(
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
     for (int i = 0; i < kMaterialTextureCount; i++) {
       layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -2093,10 +2140,13 @@ void Renderer::CreateDescriptorLayouts() {
 
   {
     auto layout = std::make_shared<DescriptorSetLayout>();
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                       VK_SHADER_STAGE_VERTEX_BIT);
-    layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                       VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout->AddBinding(
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+    for (int i = 0; i < kMaterialTextureCount; i++) {
+      layout->AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                         VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
     layout->Bake();
     RegisterDescriptorLayout("ShadowMesh", std::move(layout));
   }
@@ -2322,6 +2372,9 @@ void Renderer::CreateSwapChain() {
   vkGetSwapchainImagesKHR(logical_device_, swap_chain_, &image_count,
                           swap_chain_images.data());
   swap_chain_image_format_ = surface_format.format;
+  LOG_INFO("Swap chain surface: format={} colorSpace={}",
+           static_cast<int>(surface_format.format),
+           static_cast<int>(surface_format.colorSpace));
 
   aspect_ratio_ = extent_.width / (float)extent_.height;
   window_size_.width = extent_.width;
@@ -2358,41 +2411,15 @@ void Renderer::CreateSwapChain() {
        static_cast<uint32_t>(swap_chain_images.size()), FindDepthFormat(),
        options_.msaa_mode});
 
-  present_render_pass_ =
-      std::make_shared<RenderPass>(PassType::Present, "Present RenderPass");
-  present_framebuffers_.resize(swap_chain_images.size());
-
   if (options_.msaa_mode > SamplingMode::DISABLED) {
     // With MSAA, render to MSAA color attachment and resolve to swapchain
     present_color_image_ = CreateAttachmentTexture(
         {extent_.width, extent_.height, AttachmentTextureType::Color,
          static_cast<uint32_t>(swap_chain_images.size()),
          swap_chain_image_format_, options_.msaa_mode});
-    present_render_pass_->AttachOutput(present_color_image_);
-    present_render_pass_->AttachOutput(present_depth_stencil_);
-    present_render_pass_->AttachOutput(swap_chain_texture_);
-    present_render_pass_->Bake();
-
-    std::array<AttachmentTexture*, 3> textures{present_color_image_.get(),
-                                               present_depth_stencil_.get(),
-                                               swap_chain_texture_.get()};
-    for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
-      present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
-          i, textures, {extent_.width, extent_.height});
-    }
   } else {
     // Without MSAA, render directly to swapchain
     present_color_image_ = swap_chain_texture_;
-    present_render_pass_->AttachOutput(swap_chain_texture_);
-    present_render_pass_->AttachOutput(present_depth_stencil_);
-    present_render_pass_->Bake();
-
-    std::array<AttachmentTexture*, 2> textures{swap_chain_texture_.get(),
-                                               present_depth_stencil_.get()};
-    for (uint32_t i = 0; i < swap_chain_images.size(); i++) {
-      present_framebuffers_[i] = present_render_pass_->CreateFramebuffer(
-          i, textures, {extent_.width, extent_.height});
-    }
   }
 }
 
@@ -2405,7 +2432,7 @@ void Renderer::CreatePresentGraphicsPipelines() {
                     ShaderSourceSource, "engine://shaders/quad_shader.frag"});
   present_pipeline_ = std::make_shared<Pipeline>(
       PipelineProperties{options_.msaa_mode, CullModeNone, false, true});
-  present_pipeline_->SetRenderPass(present_render_pass_);
+  present_pipeline_->AddColorAttachment(swap_chain_image_format_);
   present_pipeline_->AddInputLayout(GetDescriptorLayout("Present"));
   present_pipeline_->AddShader(present_vertex_shader);
   present_pipeline_->AddShader(present_fragment_shader);
@@ -2515,18 +2542,18 @@ void Renderer::TransitionImageLayout(VkCommandBuffer command_buffer,
                                      uint32_t mip_levels, uint32_t base_layer,
                                      uint32_t layer_count) {
   PROFILE_ZONE_SCOPED();
-  // I hate this
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  VkImageMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   barrier.oldLayout = old_layout;
   barrier.newLayout = new_layout;
   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.image = image;
   if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
-      old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+      old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+      new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL ||
+      old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
     if (HasStencilComponent(format)) {
       barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
     }
@@ -2538,79 +2565,108 @@ void Renderer::TransitionImageLayout(VkCommandBuffer command_buffer,
   barrier.subresourceRange.baseArrayLayer = base_layer;
   barrier.subresourceRange.layerCount = layer_count;
 
-  // Derive src access mask and pipeline stage from old layout
-  VkPipelineStageFlags source_stage;
   switch (old_layout) {
     case VK_IMAGE_LAYOUT_UNDEFINED:
-      barrier.srcAccessMask = 0;
-      source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+      barrier.srcAccessMask = VK_ACCESS_2_NONE;
       break;
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
       break;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      source_stage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+      barrier.srcStageMask =
+          VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+          VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+      barrier.srcStageMask =
+          VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+          VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
+          VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      source_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-      source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_GENERAL:
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT |
+                              VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-      barrier.srcAccessMask = 0;
-      source_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+      barrier.srcAccessMask = VK_ACCESS_2_NONE;
       break;
     default:
-      barrier.srcAccessMask = 0;
-      source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.srcAccessMask = VK_ACCESS_2_NONE;
       break;
   }
 
-  // Derive dst access mask and pipeline stage from new layout
-  VkPipelineStageFlags destination_stage;
   switch (new_layout) {
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
       break;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+                             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+                             VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
+                             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                              VK_ACCESS_2_SHADER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-      destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+      break;
+    case VK_IMAGE_LAYOUT_GENERAL:
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT |
+                              VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
       break;
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-      barrier.dstAccessMask = 0;
-      destination_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_NONE;
+      barrier.dstAccessMask = VK_ACCESS_2_NONE;
       break;
     default:
-      barrier.dstAccessMask = 0;
-      destination_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+      barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+      barrier.dstAccessMask = VK_ACCESS_2_NONE;
       break;
   }
 
-  vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0,
-                       nullptr, 0, nullptr, 1, &barrier);
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.imageMemoryBarrierCount = 1;
+  dep.pImageMemoryBarriers = &barrier;
+  vkCmdPipelineBarrier2(command_buffer, &dep);
 }
 
 void Renderer::CreateCommandPools() {
@@ -2693,7 +2749,8 @@ void Renderer::CreatePermanentResources() {
                pick_staging_buffer_, pick_staging_alloc_);
 
   // Identity bone UBO (shared by all static / non-animated models)
-  identity_bone_ubo_ = CreateUniformBuffer("Renderer::identity_bone_ubo_", sizeof(BoneMatricesUniformData));
+  identity_bone_ubo_ = CreateUniformBuffer("Renderer::identity_bone_ubo_",
+                                           sizeof(BoneMatricesUniformData));
   {
     BoneMatricesUniformData identity{};
     for (auto& m : identity.bone_matrices) {
@@ -2709,7 +2766,8 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
                            SamplingMode sampling_mode, VkFormat format,
                            VkImageTiling tiling, VkImageUsageFlags usage,
                            VkMemoryPropertyFlags properties, VkImage& image,
-                           VmaAllocation& allocation, VkImageCreateFlags flags, uint32_t array_layers) {
+                           VmaAllocation& allocation, VkImageCreateFlags flags,
+                           uint32_t array_layers) {
   PROFILE_ZONE_SCOPED();
   VkImageCreateInfo image_info{};
   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -2738,8 +2796,7 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mip_levels,
   VmaAllocationCreateInfo alloc_info{};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
 
-  WIESEL_CHECK_VKRESULT(
-      vmaCreateImage(vma_allocator_, &image_info, &alloc_info,
+  WIESEL_CHECK_VKRESULT(vmaCreateImage(vma_allocator_, &image_info, &alloc_info,
                                        &image, &allocation, nullptr));
 }
 
@@ -2849,7 +2906,29 @@ VkFormat Renderer::FindDepthStencilFormat() {
 
 bool Renderer::HasStencilComponent(VkFormat format) {
   return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
-         format == VK_FORMAT_D24_UNORM_S8_UINT;
+         format == VK_FORMAT_D24_UNORM_S8_UINT ||
+         format == VK_FORMAT_D16_UNORM_S8_UINT ||
+         format == VK_FORMAT_S8_UINT;
+}
+
+bool Renderer::IsIntegerColorFormat(VkFormat format) {
+  switch (format) {
+    case VK_FORMAT_R32_UINT:
+    case VK_FORMAT_R32_SINT:
+    case VK_FORMAT_R32G32_UINT:
+    case VK_FORMAT_R32G32_SINT:
+    case VK_FORMAT_R32G32B32_UINT:
+    case VK_FORMAT_R32G32B32_SINT:
+    case VK_FORMAT_R32G32B32A32_UINT:
+    case VK_FORMAT_R32G32B32A32_SINT:
+    case VK_FORMAT_R16_UINT:
+    case VK_FORMAT_R16_SINT:
+    case VK_FORMAT_R8_UINT:
+    case VK_FORMAT_R8_SINT:
+      return true;
+    default:
+      return false;
+  }
 }
 
 void Renderer::GenerateMipmaps(VkImage image, VkFormat image_format,
@@ -2873,8 +2952,8 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
         "texture image format does not support linear blitting!");
   }
 
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  VkImageMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   barrier.image = image;
   barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -2883,6 +2962,11 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
   barrier.subresourceRange.layerCount = 1;
   barrier.subresourceRange.levelCount = 1;
 
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.imageMemoryBarrierCount = 1;
+  dep.pImageMemoryBarriers = &barrier;
+
   int32_t mip_width = tex_width;
   int32_t mip_height = tex_height;
 
@@ -2890,12 +2974,11 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
     barrier.subresourceRange.baseMipLevel = i - 1;
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                         nullptr, 1, &barrier);
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier2(cmd, &dep);
 
     VkImageBlit blit{};
     blit.srcOffsets[0] = {0, 0, 0};
@@ -2918,12 +3001,12 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
 
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
-                         0, nullptr, 1, &barrier);
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                           VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    vkCmdPipelineBarrier2(cmd, &dep);
 
     if (mip_width > 1) {
       mip_width /= 2;
@@ -2936,12 +3019,12 @@ void Renderer::GenerateMipmaps(VkCommandBuffer cmd, VkImage image,
   barrier.subresourceRange.baseMipLevel = mip_levels - 1;
   barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
   barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
+                         VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+  barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+  vkCmdPipelineBarrier2(cmd, &dep);
 }
 
 void Renderer::CreateTracy() {
@@ -3006,19 +3089,29 @@ void Renderer::CleanupPresentGraphics() {
   present_color_image_ = nullptr;
   present_depth_stencil_ = nullptr;
   swap_chain_texture_ = nullptr;
-  present_render_pass_ = nullptr;
-  present_framebuffers_.clear();
-  present_framebuffers_.clear();
   vkDestroySwapchainKHR(logical_device_, swap_chain_, nullptr);
 }
 
 void Renderer::CreateGlobalUniformBuffers() {
+  PROFILE_ZONE_SCOPED();
   lights_uniform_buffer_ = CreateUniformBuffer(
       "Renderer::lights_uniform_buffer_", sizeof(LightsUniformData));
   camera_uniform_buffer_ = CreateUniformBuffer(
       "Renderer::camera_uniform_buffer_", sizeof(CameraUniformData));
   shadow_camera_uniform_buffer_ =
-      CreateUniformBuffer("Renderer::shadow_camera_uniform_buffer_", sizeof(ShadowMapMatricesUniformData));
+      CreateUniformBuffer("Renderer::shadow_camera_uniform_buffer_",
+                          sizeof(ShadowMapMatricesUniformData));
+
+  // Two slices (one per frame-in-flight) × starting capacity. Sized to absorb
+  // a scene-worth of entities across shadow cascades + geometry + transparency
+  // without needing to grow (growing invalidates live descriptors).
+  instance_slice_capacity_ = 65536;
+  VkDeviceSize instance_size = static_cast<VkDeviceSize>(kMaxFramesInFlight) *
+                               instance_slice_capacity_ *
+                               sizeof(MatricesUniformData);
+  instance_storage_buffer_ =
+      CreateStorageBuffer("Renderer::instance_storage_buffer_", instance_size);
+  instance_next_index_ = 0;
 }
 
 void Renderer::CleanupGlobalUniformBuffers() {
@@ -3026,11 +3119,45 @@ void Renderer::CleanupGlobalUniformBuffers() {
   camera_uniform_buffer_ = nullptr;
   shadow_camera_uniform_buffer_ = nullptr;
   ssao_kernel_uniform_buffer_ = nullptr;
+  instance_storage_buffer_ = nullptr;
   identity_bone_ubo_ = nullptr;
   identity_bone_descriptor_ = nullptr;
   default_linear_sampler_ = nullptr;
   default_nearest_sampler_ = nullptr;
   shadow_sampler_ = nullptr;
+}
+
+uint32_t Renderer::ReserveInstanceRange(uint32_t count,
+                                        MatricesUniformData*& out_ptr) {
+  // Grow the buffer if the slice is about to overflow. All draws submitted so
+  // far this frame reference the old buffer by handle; since we allocate a new
+  // one and update descriptors lazily, callers must reserve before they start
+  // batching. This grow path is rare.
+  if (instance_next_index_ + count > instance_slice_capacity_) {
+    uint32_t new_cap = instance_slice_capacity_;
+    while (instance_next_index_ + count > new_cap) {
+      new_cap *= 2;
+    }
+    LOG_WARN(
+        "Instance SSBO exhausted ({}/{}), growing to {}. Update descriptors.",
+        instance_next_index_ + count, instance_slice_capacity_, new_cap);
+    VkDeviceSize instance_size = static_cast<VkDeviceSize>(kMaxFramesInFlight) *
+                                 new_cap * sizeof(MatricesUniformData);
+    // Queue the old buffer for deletion after frames-in-flight drain.
+    auto old = instance_storage_buffer_;
+    GetDeletionQueue().Push([old]() { (void)old; });
+    instance_storage_buffer_ = CreateStorageBuffer(
+        "Renderer::instance_storage_buffer_", instance_size);
+    instance_slice_capacity_ = new_cap;
+    invalidate_model_descriptors_ = true;
+  }
+
+  uint32_t slice_base = current_frame_ * instance_slice_capacity_;
+  uint32_t first_instance = slice_base + instance_next_index_;
+  auto* base = static_cast<MatricesUniformData*>(instance_storage_buffer_->data_);
+  out_ptr = base + first_instance;
+  instance_next_index_ += count;
+  return first_instance;
 }
 
 void Renderer::RecreateSwapChain() {
@@ -3131,6 +3258,8 @@ void Renderer::BeginRender() {
   PROFILE_ZONE_SCOPED();
   stats_.Reset();
   slice_pool_used_[current_frame_] = 0;
+  instance_next_index_ = 0;
+  transient_resource_pool_->BeginFrame();
 
   // Wait for this frame slot's previous work to complete
   WIESEL_CHECK_VKRESULT(vkWaitForFences(
@@ -3175,17 +3304,23 @@ bool Renderer::BeginPresent() {
     // presentation engine may still reference it from a prior present, and
     // signaling it again would violate the Vulkan spec.
     command_buffers_[current_frame_]->End();
-    VkSubmitInfo empty_submit{};
-    empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    empty_submit.commandBufferCount = 1;
-    empty_submit.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
-    VkSemaphore empty_signal[] = {render_order_semaphores_[current_frame_]};
-    empty_submit.signalSemaphoreCount = 1;
-    empty_submit.pSignalSemaphores = empty_signal;
+    VkCommandBufferSubmitInfo cmd_info{};
+    cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmd_info.commandBuffer = command_buffers_[current_frame_]->handle_;
+    VkSemaphoreSubmitInfo signal_info{};
+    signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    signal_info.semaphore = render_order_semaphores_[current_frame_];
+    signal_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    VkSubmitInfo2 empty_submit{};
+    empty_submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+    empty_submit.commandBufferInfoCount = 1;
+    empty_submit.pCommandBufferInfos = &cmd_info;
+    empty_submit.signalSemaphoreInfoCount = 1;
+    empty_submit.pSignalSemaphoreInfos = &signal_info;
     {
       std::lock_guard<std::mutex> lock(queue_submit_mutex_);
-      WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &empty_submit,
-                                          fences_[current_frame_]));
+      WIESEL_CHECK_VKRESULT(vkQueueSubmit2(graphics_queue_, 1, &empty_submit,
+                                           fences_[current_frame_]));
     }
     frame_counter_++;
     current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
@@ -3206,89 +3341,138 @@ bool Renderer::BeginPresent() {
                           m_CommandBuffer->m_Handle);
   }*/
 
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+
   if (camera_) {
     auto final_image = GetFinalOutputImage();
-    if (final_image) {
-      TransitionImageLayout(command_buffers_[current_frame_]->handle_,
-                            final_image->images_[0], final_image->format_,
-                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    if (final_image &&
+        final_image->current_layout_ !=
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+      TransitionImageLayout(cmd, final_image->images_[0], final_image->format_,
+                            final_image->current_layout_,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, 0, 1);
+      final_image->current_layout_ = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
   }
 
-  present_pipeline_->Bind(PipelineBindPointGraphics);
-  present_render_pass_->Begin(present_framebuffers_[image_index_],
-                              clear_color_);
+  const bool msaa = options_.msaa_mode > SamplingMode::DISABLED;
+
+  // Transition the swap-chain image from PRESENT_SRC_KHR to
+  // COLOR_ATTACHMENT_OPTIMAL. When MSAA is on the swapchain is a resolve
+  // target; without MSAA it's the direct color target. Either way it
+  // starts in PRESENT_SRC_KHR after acquire (or UNDEFINED on first frame,
+  // which TransitionImageLayout handles).
+  TransitionImageLayout(cmd, swap_chain_texture_->images_[image_index_],
+                        swap_chain_image_format_,
+                        swap_chain_texture_->current_layout_,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
+  swap_chain_texture_->current_layout_ =
+      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkRenderingAttachmentInfo color_info{};
+  color_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+  color_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  color_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  color_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  color_info.clearValue.color = {
+      {clear_color_.red, clear_color_.green, clear_color_.blue,
+       clear_color_.alpha}};
+
+  if (msaa) {
+    color_info.imageView =
+        present_color_image_->image_views_[image_index_]->handle_;
+    color_info.resolveImageView =
+        swap_chain_texture_->image_views_[image_index_]->handle_;
+    color_info.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    color_info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+  } else {
+    color_info.imageView =
+        swap_chain_texture_->image_views_[image_index_]->handle_;
+  }
+
+  VkRenderingInfo ri{};
+  ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  ri.renderArea.offset = {0, 0};
+  ri.renderArea.extent = extent_;
+  ri.layerCount = 1;
+  ri.colorAttachmentCount = 1;
+  ri.pColorAttachments = &color_info;
+
+  vkCmdBeginRendering(cmd, &ri);
+  present_pipeline_->Bind();
   SetViewport(extent_);
   return true;
 }
 
 void Renderer::EndPresent() {
   PROFILE_ZONE_SCOPED();
-  present_render_pass_->End();
-  if (camera_) {
-    auto final_image = GetFinalOutputImage();
-    if (final_image) {
-      TransitionImageLayout(command_buffers_[current_frame_]->handle_,
-                            final_image->images_[0], final_image->format_,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1, 0, 1);
-    }
-  }
-  /*
-  for (const auto& item : textures) {
-    TransitionImageLayout(item->m_Images[0], item->m_Format,
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
-                          m_CommandBuffer->m_Handle);
-  }*/
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  vkCmdEndRendering(cmd);
+
+  // Transition the swapchain image back to PRESENT_SRC_KHR for vkQueuePresent.
+  TransitionImageLayout(cmd, swap_chain_texture_->images_[image_index_],
+                        swap_chain_image_format_,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 1, 0, 1);
+  swap_chain_texture_->current_layout_ = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
   PROFILE_GPU_COLLECT(tracy_ctx_, command_buffers_[current_frame_]->handle_);
   command_buffers_[current_frame_]->End();
 
   // Presentation
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &command_buffers_[current_frame_]->handle_;
+  VkCommandBufferSubmitInfo cmd_info{};
+  cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  cmd_info.commandBuffer = command_buffers_[current_frame_]->handle_;
 
   // Wait on image availability AND the previous frame's render order semaphore.
   // The latter serializes GPU execution across frames so shared intermediate
   // render targets don't have layout conflicts.
   uint32_t prev_frame =
       (current_frame_ + kMaxFramesInFlight - 1) % kMaxFramesInFlight;
-  VkSemaphore waitSemaphores[] = {image_available_semaphores_[current_frame_],
-                                  render_order_semaphores_[prev_frame]};
-  VkPipelineStageFlags waitStages[] = {
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+  VkSemaphoreSubmitInfo wait_infos[2] = {};
+  wait_infos[0].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  wait_infos[0].semaphore = image_available_semaphores_[current_frame_];
+  wait_infos[0].stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+  wait_infos[1].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  wait_infos[1].semaphore = render_order_semaphores_[prev_frame];
+  wait_infos[1].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
   // On the very first frame, no previous frame has signaled the order
   // semaphore yet. Skip the cross-frame wait in that case.
   uint32_t wait_count = frame_counter_ > 0 ? 2 : 1;
-  submitInfo.waitSemaphoreCount = wait_count;
-  submitInfo.pWaitSemaphores = waitSemaphores;
-  submitInfo.pWaitDstStageMask = waitStages;
 
   // Signal both render_finished (for present) and render_order (for next frame).
   // render_finished is indexed by swapchain image so the presentation engine
   // never sees the same semaphore reused before the image is re-acquired.
-  VkSemaphore signalSemaphores[] = {render_finished_semaphores_[image_index_],
-                                    render_order_semaphores_[current_frame_]};
-  submitInfo.signalSemaphoreCount = 2;
-  submitInfo.pSignalSemaphores = signalSemaphores;
+  VkSemaphoreSubmitInfo signal_infos[2] = {};
+  signal_infos[0].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  signal_infos[0].semaphore = render_finished_semaphores_[image_index_];
+  signal_infos[0].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+  signal_infos[1].sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  signal_infos[1].semaphore = render_order_semaphores_[current_frame_];
+  signal_infos[1].stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+  VkSubmitInfo2 submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submitInfo.waitSemaphoreInfoCount = wait_count;
+  submitInfo.pWaitSemaphoreInfos = wait_infos;
+  submitInfo.commandBufferInfoCount = 1;
+  submitInfo.pCommandBufferInfos = &cmd_info;
+  submitInfo.signalSemaphoreInfoCount = 2;
+  submitInfo.pSignalSemaphoreInfos = signal_infos;
 
   VkResult result;
   {
     std::lock_guard<std::mutex> lock(queue_submit_mutex_);
-    WIESEL_CHECK_VKRESULT(vkQueueSubmit(graphics_queue_, 1, &submitInfo,
-                                        fences_[current_frame_]));
+    WIESEL_CHECK_VKRESULT(vkQueueSubmit2(graphics_queue_, 1, &submitInfo,
+                                         fences_[current_frame_]));
   }
 
+  VkSemaphore present_wait[1] = {render_finished_semaphores_[image_index_]};
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
   presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = signalSemaphores;
+  presentInfo.pWaitSemaphores = present_wait;
 
   VkSwapchainKHR swapChains[] = {swap_chain_};
   presentInfo.swapchainCount = 1;
@@ -3349,6 +3533,10 @@ void Renderer::EndPresent() {
   invalidate_model_descriptors_ = false;
   frame_counter_++;
   current_frame_ = (current_frame_ + 1) % kMaxFramesInFlight;
+  // After this point the pipeline will be unavailable and that is intentional.
+  // Since CameraData references to the component, if Scene gets deleted after EndPresent
+  // it causes a crash next frame
+  camera_ = nullptr;
 }
 
 void Renderer::UpdateUniformData() {
@@ -3365,311 +3553,304 @@ void Renderer::UpdateUniformData() {
                     &shadow_camera_uniform_data_);
 
   // Barrier: transfer writes must be visible before shaders read the UBOs.
-  VkMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
-                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                       0, 1, &barrier, 0, nullptr, 0, nullptr);
+  VkMemoryBarrier2 barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+  barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+  barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+                         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+  barrier.dstAccessMask = VK_ACCESS_2_UNIFORM_READ_BIT;
+  VkDependencyInfo dep{};
+  dep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dep.memoryBarrierCount = 1;
+  dep.pMemoryBarriers = &barrier;
+  vkCmdPipelineBarrier2(cmd, &dep);
 }
 
-void Renderer::AllocateModelRenderData(ModelComponent& model,
-                                       const Model& model_data) {
-  // Lazily create per-mesh material instances
-  if (model.material_instances.size() != model_data.meshes.size()) {
-    model.material_instances.resize(model_data.meshes.size());
-    model.material_slot_handles.resize(model_data.meshes.size());
-    model.material_versions.resize(model_data.meshes.size(), 0);
-  }
-  for (size_t i = 0; i < model_data.meshes.size(); i++) {
-    if (!model.material_instances[i]) {
-      auto inst = std::make_shared<MaterialInstance>();
-      // Set material handle: use slot override if set, otherwise mesh default
-      AssetHandle mat_handle = model.material_slot_handles[i].IsValid()
-                                   ? model.material_slot_handles[i]
-                                   : model_data.meshes[i]->material_handle;
-      if (mat_handle.IsValid()) {
-        inst->base_material_handle = mat_handle;
-      } else if (model_data.meshes[i]->mat) {
-        // Fallback: register an anonymous material if somehow no handle was set
-        auto fallback = model_data.meshes[i]->mat;
-        AssetHandle h = Engine::asset_manager().RegisterAndStore<Material>(
-            "Material_" + std::to_string(i), AssetType::Material, "", fallback);
-        inst->base_material_handle = h;
-      }
-      model.material_instances[i] = inst;
-    }
-  }
+// Templated helpers for MeshRendererComponent and SkinnedMeshRendererComponent
+// which share the same field layout but are separate types (entt requirement).
 
-  // Create per-mesh UBOs (each mesh needs its own for per-mesh material data)
-  model.mesh_uniform_buffers_.clear();
-  model.mesh_uniform_buffers_.resize(model_data.meshes.size());
-  for (size_t i = 0; i < model_data.meshes.size(); i++) {
-    model.mesh_uniform_buffers_[i] =
-        CreateUniformBuffer("Model Mesh UBO", sizeof(MatricesUniformData));
-  }
-
-  // Keep a shared UBO for backward compat (single-mesh models, etc.)
-  if (!model.mesh_uniform_buffers_.empty()) {
-    model.uniform_buffer = model.mesh_uniform_buffers_[0];
-  } else {
-    model.uniform_buffer =
-        CreateUniformBuffer("Model UBO", sizeof(MatricesUniformData));
-  }
-
-  // Create per-mesh descriptor sets, each bound to its own UBO
-  model.geometry_descriptors.clear();
-  model.shadow_descriptors.clear();
-  model.geometry_descriptors.reserve(model_data.meshes.size());
-  model.shadow_descriptors.reserve(model_data.meshes.size());
-
-  for (size_t i = 0; i < model_data.meshes.size(); i++) {
-    const auto& mesh = model_data.meshes[i];
-    // Resolve the effective material for this slot
-    std::shared_ptr<Material> effective_mat = nullptr;
-    if (i < model.material_slot_handles.size() &&
-        model.material_slot_handles[i].IsValid()) {
-      effective_mat =
-          Engine::asset_manager().Get<Material>(model.material_slot_handles[i]);
-    }
-    if (!effective_mat) {
-      effective_mat = mesh->mat;
-    }
-
-    model.geometry_descriptors.push_back(
-        CreateMeshDescriptors(model.mesh_uniform_buffers_[i], effective_mat));
-    model.shadow_descriptors.push_back(CreateShadowMeshDescriptors(
-        model.mesh_uniform_buffers_[i], effective_mat));
-    // Track material version for descriptor invalidation
-    if (effective_mat && i < model.material_versions.size()) {
-      model.material_versions[i] = effective_mat->version;
-    }
-  }
-
-  // Bone animation GPU resources
-  if (model_data.has_skeleton) {
-    // Animated model: per-entity bone UBO, initialized to identity
-    model.bone_ubo_ =
-        CreateUniformBuffer("Model Bone UBO", sizeof(BoneMatricesUniformData));
-    {
-      BoneMatricesUniformData identity{};
-      for (auto& m : identity.bone_matrices) {
-        m = glm::mat4(1.0f);
-      }
-      memcpy(model.bone_ubo_->data_, &identity,
-             sizeof(BoneMatricesUniformData));
-    }
-    model.bone_descriptor_ = CreateBoneDescriptors(model.bone_ubo_);
-  } else {
-    // Static model: share the identity bone descriptor
-    model.bone_ubo_ = nullptr;
-    model.bone_descriptor_ = identity_bone_descriptor_;
-  }
-
-  model.render_model = model.model_handle;
-}
-
-void Renderer::DrawModel(ModelComponent& model,
-                         const TransformComponent& transform, bool shadow_pass,
-                         entt::entity entity_handle) {
+template <typename T>
+static void AllocateMeshRendererGpu(Renderer* renderer, T& mr,
+                                    const std::shared_ptr<Material>& material) {
   PROFILE_ZONE_SCOPED();
-  AssetManager& assets = Engine::asset_manager();
-  const std::shared_ptr<Model>& ptr =
-      assets.GetOrLoad<Model>(model.model_handle);
-  if (!ptr) {
+  if (!mr.material_instance) {
+    mr.material_instance = std::make_shared<MaterialInstance>();
+    if (mr.material_handle.IsValid()) {
+      mr.material_instance->base_material_handle = mr.material_handle;
+    }
+  }
+  if (!mr.geometry_descriptor && material) {
+    mr.geometry_descriptor = renderer->CreateMeshDescriptors(material);
+  }
+  if (!mr.shadow_descriptor && material) {
+    mr.shadow_descriptor = renderer->CreateShadowMeshDescriptors(material);
+  }
+  mr.gpu_allocated = true;
+}
+
+template <typename T>
+static std::shared_ptr<Material> ResolveMeshMaterial(
+    T& mr, const std::shared_ptr<Mesh>& mesh) {
+  PROFILE_ZONE_SCOPED();
+  if (mr.material_handle.IsValid()) {
+    auto mat = Engine::asset_manager().Get<Material>(mr.material_handle);
+    if (mat) {
+      return mat;
+    }
+  }
+  return mesh->mat;
+}
+
+template <typename T>
+static void CheckMeshRendererTextureChanges(
+    Renderer* renderer, T& mr, const std::shared_ptr<Material>& material,
+    uint64_t frame_counter) {
+  PROFILE_ZONE_SCOPED();
+  if (!material) {
+    return;
+  }
+  // Material texture contents are frame-stable; skip the 8-slot resolve check
+  // on repeat visits within the same frame (shadow cascades × phases).
+  if (mr.last_texture_check_frame == frame_counter) {
+    return;
+  }
+  mr.last_texture_check_frame = frame_counter;
+  bool any_changed = false;
+  TextureSlot* slots[] = {
+      &material->base_texture, &material->normal_map,  &material->specular_map,
+      &material->height_map,   &material->albedo_map,  &material->roughness_map,
+      &material->metallic_map, &material->opacity_map,
+  };
+  for (auto* slot : slots) {
+    std::shared_ptr<Texture> tex;
+    if (slot->Resolve(tex)) {
+      any_changed = true;
+    }
+  }
+  if (any_changed) {
+    if (mr.geometry_descriptor) {
+      auto old = mr.geometry_descriptor;
+      renderer->GetDeletionQueue().Push([old]() { (void)old; });
+    }
+    if (mr.shadow_descriptor) {
+      auto old = mr.shadow_descriptor;
+      renderer->GetDeletionQueue().Push([old]() { (void)old; });
+    }
+    mr.geometry_descriptor = renderer->CreateMeshDescriptors(material);
+    mr.shadow_descriptor = renderer->CreateShadowMeshDescriptors(material);
+  }
+}
+
+template <typename T>
+static MatricesUniformData BuildMatricesData(
+    T& mr, const TransformComponent& transform, entt::entity entity_handle,
+    uint32_t scene_index) {
+  PROFILE_ZONE_SCOPED();
+  MatricesUniformData m{};
+  m.model_matrix = transform.GetTransformMatrix();
+  m.normal_matrix = transform.GetNormalMatrix();
+  if (entity_handle != entt::null) {
+    m.entity_id = (static_cast<uint32_t>(scene_index) << 24) |
+                  (static_cast<uint32_t>(entity_handle) + 1);
+  }
+  if (mr.material_instance) {
+    m.color_tint = mr.material_instance->GetColorTint();
+    float alpha_cutoff =
+        mr.material_instance->GetEffectiveFloat("alpha_cutoff");
+    if (alpha_cutoff <= 0.0f) {
+      alpha_cutoff = 0.5f;
+    }
+    m.material_params =
+        glm::vec4(mr.material_instance->GetRoughness(),
+                  mr.material_instance->GetMetallic(),
+                  mr.material_instance->GetSpecular(), alpha_cutoff);
+  }
+  return m;
+}
+
+void Renderer::DrawMeshRenderer(MeshRendererComponent& mr,
+                                const TransformComponent& transform,
+                                bool shadow_pass, bool transparent_pass,
+                                entt::entity entity_handle,
+                                std::shared_ptr<DescriptorSet> ibl_descriptor) {
+  PROFILE_ZONE_SCOPED();
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return;
   }
 
-  // Lazily allocate per-entity render data (or re-allocate if model/textures changed)
-  if (model.render_model != model.model_handle || !model.uniform_buffer ||
-      invalidate_model_descriptors_) {
-    AllocateModelRenderData(model, *ptr);
+  auto& mesh = model_data->meshes[mr.mesh_index];
+  // In geometry pass, skip transparent meshes. In transparent pass, skip opaque.
+  if (!shadow_pass) {
+    if (transparent_pass && !mesh->has_transparency) {
+      return;
+    }
+    if (!transparent_pass && mesh->has_transparency) {
+      return;
+    }
   }
 
-  // Upload bone matrices if this entity has a bone UBO
-  if (model.bone_ubo_ && model.bone_ubo_->data_) {
-    // bone_matrices are written by the animation system each frame
-    // (AnimatorComponent → bone_matrices → bone_ubo_)
-    // Nothing to do here; the scene's animation update already uploaded them.
+  auto material = ResolveMeshMaterial(mr, mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, material);
   }
 
-  // Determine the bone descriptor to bind
-  std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
-                                                 ? model.bone_descriptor_
-                                                 : identity_bone_descriptor_;
+  CheckMeshRendererTextureChanges(this, mr, material, frame_counter_);
 
-  // Cache global descriptor and command buffer outside mesh loop
-  std::shared_ptr<DescriptorSet> global_desc =
+  MatricesUniformData* dst = nullptr;
+  uint32_t first_instance = ReserveInstanceRange(1, dst);
+  *dst = BuildMatricesData(mr, transform, entity_handle, current_scene_index_);
+
+  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  auto global_desc =
       shadow_pass
           ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
           : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
-  VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  auto descriptors =
+      shadow_pass ? mr.shadow_descriptor : mr.geometry_descriptor;
 
+  DrawMeshCmd(cmd, mesh, descriptors, identity_bone_descriptor_, global_desc,
+              ibl_descriptor, first_instance);
   stats_.models++;
-  for (size_t i = 0; i < ptr->meshes.size(); i++) {
-    // Skip transparent meshes in geometry pass (they use the forward transparency pass)
-    if (!shadow_pass && ptr->meshes[i]->has_transparency) {
-      continue;
-    }
-    if (shadow_pass) {
-      // Shadow pass: only model_matrix is needed by the shadow vertex shader.
-      // Skip normal_matrix inverse, material lookups, and entity_id.
-      glm::mat4 model_matrix;
-      if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        model_matrix =
-            transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
-      } else {
-        model_matrix = transform.GetTransformMatrix();
-      }
-      memcpy(model.mesh_uniform_buffers_[i]->data_, &model_matrix,
-             sizeof(glm::mat4));
-    } else {
-      MatricesUniformData matrices{};
-      if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-        glm::mat4 mesh_model =
-            transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
-        matrices.model_matrix = mesh_model;
-        matrices.normal_matrix =
-            glm::mat3(glm::transpose(glm::inverse(mesh_model)));
-      } else {
-        matrices.model_matrix = transform.GetTransformMatrix();
-        matrices.normal_matrix = transform.GetNormalMatrix();
-      }
-      if (entity_handle != entt::null) {
-        matrices.entity_id =
-            static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
-      }
-
-      // Set per-mesh material properties
-      if (i < model.material_instances.size() && model.material_instances[i]) {
-        auto& inst = model.material_instances[i];
-        matrices.color_tint = inst->GetColorTint();
-        matrices.material_params =
-            glm::vec4(inst->GetRoughness(), inst->GetMetallic(),
-                      inst->GetSpecular(), 0.0f);
-      }
-
-      memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices,
-             sizeof(MatricesUniformData));
-    }
-
-    // Check if any texture in this mesh's material has changed
-    std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
-    {
-      std::shared_ptr<Material> eff_mat = nullptr;
-      if (i < model.material_slot_handles.size() &&
-          model.material_slot_handles[i].IsValid()) {
-        eff_mat = Engine::asset_manager().Get<Material>(
-            model.material_slot_handles[i]);
-      }
-      if (!eff_mat) {
-        eff_mat = ptr->meshes[i]->mat;
-      }
-      if (eff_mat) {
-        // Resolve all texture slots - if any changed, rebuild descriptors
-        bool any_changed = false;
-        TextureSlot* slots[] = {
-            &eff_mat->base_texture, &eff_mat->normal_map,
-            &eff_mat->specular_map, &eff_mat->height_map,
-            &eff_mat->albedo_map,   &eff_mat->roughness_map,
-            &eff_mat->metallic_map,
-        };
-        for (auto* slot : slots) {
-          std::shared_ptr<Texture> tex;
-          if (slot->Resolve(tex)) {
-            any_changed = true;
-          }
-        }
-        if (any_changed) {
-          // Defer old descriptors so in-flight frames can finish using them
-          if (model.geometry_descriptors[i]) {
-            auto old_geom = model.geometry_descriptors[i];
-            deletion_queue_.Push([old_geom]() { (void)old_geom; });
-          }
-          if (model.shadow_descriptors[i]) {
-            auto old_shadow = model.shadow_descriptors[i];
-            deletion_queue_.Push([old_shadow]() { (void)old_shadow; });
-          }
-          model.geometry_descriptors[i] =
-              CreateMeshDescriptors(model.mesh_uniform_buffers_[i], eff_mat);
-          model.shadow_descriptors[i] = CreateShadowMeshDescriptors(
-              model.mesh_uniform_buffers_[i], eff_mat);
-          descriptors = model.geometry_descriptors[i];
-        }
-      }
-    }
-    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc);
-  }
 }
 
-void Renderer::DrawModelTransparent(
-    ModelComponent& model, const TransformComponent& transform,
+void Renderer::DrawSkinnedMeshRenderer(
+    SkinnedMeshRendererComponent& mr, const TransformComponent& transform,
+    const SkeletalAnimRuntime* skel, bool shadow_pass, bool transparent_pass,
     entt::entity entity_handle, std::shared_ptr<DescriptorSet> ibl_descriptor) {
   PROFILE_ZONE_SCOPED();
-  AssetManager& assets = Engine::asset_manager();
-  const std::shared_ptr<Model>& ptr =
-      assets.GetOrLoad<Model>(model.model_handle);
-  if (!ptr || !ptr->has_transparent_meshes) {
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
     return;
   }
 
-  if (model.render_model != model.model_handle || !model.uniform_buffer ||
-      invalidate_model_descriptors_) {
-    AllocateModelRenderData(model, *ptr);
+  auto& mesh = model_data->meshes[mr.mesh_index];
+  if (!shadow_pass) {
+    if (transparent_pass && !mesh->has_transparency) {
+      return;
+    }
+    if (!transparent_pass && mesh->has_transparency) {
+      return;
+    }
   }
 
-  std::shared_ptr<DescriptorSet> bone_desc = model.bone_descriptor_
-                                                 ? model.bone_descriptor_
-                                                 : identity_bone_descriptor_;
+  auto material = ResolveMeshMaterial(mr, mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, material);
+  }
 
-  std::shared_ptr<DescriptorSet> global_desc =
-      camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  CheckMeshRendererTextureChanges(this, mr, material, frame_counter_);
+
+  MatricesUniformData* dst = nullptr;
+  uint32_t first_instance = ReserveInstanceRange(1, dst);
+  *dst = BuildMatricesData(mr, transform, entity_handle, current_scene_index_);
+
+  std::shared_ptr<DescriptorSet> bone_desc = identity_bone_descriptor_;
+  if (skel && skel->bone_descriptor) {
+    bone_desc = skel->bone_descriptor;
+  }
+
   VkCommandBuffer cmd = command_buffers_[current_frame_]->handle_;
+  auto global_desc =
+      shadow_pass
+          ? camera_->resource_pool->GetDescriptor("ShadowGlobalDescriptor")
+          : camera_->resource_pool->GetDescriptor("GlobalDescriptor");
+  auto descriptors =
+      shadow_pass ? mr.shadow_descriptor : mr.geometry_descriptor;
 
-  for (size_t i = 0; i < ptr->meshes.size(); i++) {
-    if (!ptr->meshes[i]->has_transparency) {
-      continue;
-    }
+  DrawMeshCmd(cmd, mesh, descriptors, bone_desc, global_desc, ibl_descriptor,
+              first_instance);
+  stats_.models++;
+}
 
-    MatricesUniformData matrices{};
-    if (!ptr->has_skeleton && i < ptr->mesh_node_transforms.size()) {
-      glm::mat4 mesh_model =
-          transform.GetTransformMatrix() * ptr->mesh_node_transforms[i];
-      matrices.model_matrix = mesh_model;
-      matrices.normal_matrix =
-          glm::mat3(glm::transpose(glm::inverse(mesh_model)));
-    } else {
-      matrices.model_matrix = transform.GetTransformMatrix();
-      matrices.normal_matrix = transform.GetNormalMatrix();
-    }
-    if (entity_handle != entt::null) {
-      matrices.entity_id =
-          static_cast<float>(static_cast<uint32_t>(entity_handle) + 1);
-    }
-
-    if (i < model.material_instances.size() && model.material_instances[i]) {
-      auto& inst = model.material_instances[i];
-      matrices.color_tint = inst->GetColorTint();
-      matrices.material_params = glm::vec4(
-          inst->GetRoughness(), inst->GetMetallic(), inst->GetSpecular(), 0.0f);
-    }
-
-    memcpy(model.mesh_uniform_buffers_[i]->data_, &matrices,
-           sizeof(MatricesUniformData));
-
-    std::shared_ptr<DescriptorSet> descriptors = model.geometry_descriptors[i];
-    DrawMeshCmd(cmd, ptr->meshes[i], descriptors, bone_desc, global_desc,
-                ibl_descriptor);
+bool Renderer::PrepareMesh(MeshRendererComponent& mr, MeshDrawPrep& out) {
+  PROFILE_ZONE_SCOPED();
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
+    return false;
   }
+  out.mesh = model_data->meshes[mr.mesh_index];
+  out.material = ResolveMeshMaterial(mr, out.mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, out.material);
+  }
+  CheckMeshRendererTextureChanges(this, mr, out.material, frame_counter_);
+  out.geometry_descriptor = mr.geometry_descriptor;
+  out.shadow_descriptor = mr.shadow_descriptor;
+  return true;
+}
+
+bool Renderer::PrepareMesh(SkinnedMeshRendererComponent& mr,
+                           MeshDrawPrep& out) {
+  PROFILE_ZONE_SCOPED();
+  auto model_data = Engine::asset_manager().GetOrStartLoad<Model>(mr.model_handle);
+  if (!model_data || mr.mesh_index < 0 ||
+      mr.mesh_index >= static_cast<int32_t>(model_data->meshes.size())) {
+    return false;
+  }
+  out.mesh = model_data->meshes[mr.mesh_index];
+  out.material = ResolveMeshMaterial(mr, out.mesh);
+  if (!mr.gpu_allocated || invalidate_model_descriptors_) {
+    AllocateMeshRendererGpu(this, mr, out.material);
+  }
+  CheckMeshRendererTextureChanges(this, mr, out.material, frame_counter_);
+  out.geometry_descriptor = mr.geometry_descriptor;
+  out.shadow_descriptor = mr.shadow_descriptor;
+  return true;
+}
+
+void Renderer::UpdateDrawStats(const std::shared_ptr<Mesh>& mesh,
+                               uint32_t instance_count) {
+  PROFILE_ZONE_SCOPED();
+  stats_.draw_calls++;
+  if (instance_count > 1) {
+    stats_.instanced_draw_calls++;
+    // Each instance past the first is a draw call the CPU did not have to
+    // record or submit - that is exactly what batching buys us.
+    stats_.saved_by_batching += instance_count - 1;
+  } else {
+    stats_.single_draw_calls++;
+  }
+  stats_.total_instances += instance_count;
+  stats_.meshes += instance_count;
+  stats_.vertices +=
+      static_cast<uint32_t>(mesh->vertices.size()) * instance_count;
+  stats_.triangles +=
+      (static_cast<uint32_t>(mesh->indices.size()) / 3) * instance_count;
+}
+
+void Renderer::DrawMeshSimple(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
+                              std::shared_ptr<DescriptorSet> bone_descriptor) {
+  PROFILE_ZONE_SCOPED();
+  if (!mesh->allocated_) {
+    return;
+  }
+  VkBuffer vb[] = {mesh->vertex_buffer->buffer_handle_};
+  VkDeviceSize offsets[] = {0};
+  vkCmdBindVertexBuffers(cmd, 0, 1, vb, offsets);
+  vkCmdBindIndexBuffer(cmd, mesh->index_buffer->buffer_handle_, 0,
+                       mesh->index_buffer->index_type_);
+  // The bound pipeline always declares a Bone descriptor set (selection
+  // outline and similar). Fall back to the identity bone descriptor for
+  // non-skinned meshes so the set-0 binding is always valid against the
+  // current pipeline layout.
+  auto bone = bone_descriptor ? bone_descriptor : identity_bone_descriptor_;
+  bound_pipeline_->BindDescriptorSets(cmd, {bone});
+  uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
+  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
 }
 
 void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
                            std::shared_ptr<DescriptorSet> mesh_descriptors,
                            std::shared_ptr<DescriptorSet> bone_descriptors,
                            std::shared_ptr<DescriptorSet> global_descriptors,
-                           std::shared_ptr<DescriptorSet> ibl_descriptors) {
+                           std::shared_ptr<DescriptorSet> ibl_descriptors,
+                           uint32_t first_instance) {
+  PROFILE_ZONE_SCOPED();
   if (!mesh->allocated_) {
     return;
   }
@@ -3695,17 +3876,15 @@ void Renderer::DrawMeshCmd(VkCommandBuffer cmd, std::shared_ptr<Mesh> mesh,
   }
 
   uint32_t index_count = static_cast<uint32_t>(mesh->indices.size());
-  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
-  stats_.draw_calls++;
-  stats_.meshes++;
-  stats_.vertices += static_cast<uint32_t>(mesh->vertices.size());
-  stats_.triangles += index_count / 3;
+  vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, first_instance);
+  UpdateDrawStats(mesh, 1);
 }
 
 void Renderer::RequestEntityPick(
     uint32_t x, uint32_t y,
     std::shared_ptr<AttachmentTexture> entity_id_texture,
     std::shared_ptr<AttachmentTexture> fallback_entity_id_texture) {
+  PROFILE_ZONE_SCOPED();
   pick_x_ = x;
   pick_y_ = y;
   pick_entity_id_image_ = entity_id_texture;
@@ -3713,8 +3892,11 @@ void Renderer::RequestEntityPick(
   pick_pending_ = true;
 }
 
-bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
+bool Renderer::ExecuteEntityPick(entt::entity& out_entity,
+                                 uint8_t& out_scene_index) {
+  PROFILE_ZONE_SCOPED();
   out_entity = entt::null;
+  out_scene_index = 0;
   if (!pick_pending_ || !pick_entity_id_image_) {
     return false;
   }
@@ -3729,29 +3911,22 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
   }
 
   VkImage src_image = pick_entity_id_image_->images_[0];
+  // Use the texture's actual tracked layout for the barrier.
+  // Entity ID textures are typically in COLOR_ATTACHMENT_OPTIMAL after
+  // render passes, not SHADER_READ_ONLY_OPTIMAL.  Using the wrong
+  // oldLayout is undefined behavior and breaks on strict drivers (RADV).
+  VkImageLayout src_layout = pick_entity_id_image_->current_layout_;
+  if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
+    // Fallback: texture not tracked by render graph, assume post-renderpass state
+    src_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  }
 
   VkCommandBuffer cmd = BeginSingleTimeCommands();
 
-  // Transition to transfer src
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image = src_image;
-  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = 1;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
-  barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-  barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                       VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+  TransitionImageLayout(cmd, src_image, pick_entity_id_image_->format_,
+                        src_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, 0,
+                        1);
 
-  // Copy 1 pixel
   VkBufferImageCopy region{};
   region.bufferOffset = 0;
   region.bufferRowLength = 0;
@@ -3766,14 +3941,9 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
   vkCmdCopyImageToBuffer(cmd, src_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                          pick_staging_buffer_, 1, &region);
 
-  // Transition back
-  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+  TransitionImageLayout(cmd, src_image, pick_entity_id_image_->format_,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, src_layout, 1, 0,
+                        1);
 
   EndSingleTimeCommands(cmd);
 
@@ -3781,32 +3951,26 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
   void* data;
   WIESEL_CHECK_VKRESULT(
       vmaMapMemory(vma_allocator_, pick_staging_alloc_, &data));
-  float value = *static_cast<float*>(data);
+  uint32_t value = *static_cast<uint32_t*>(data);
   vmaUnmapMemory(vma_allocator_, pick_staging_alloc_);
 
   pick_entity_id_image_ = nullptr;
 
   // If primary texture had no hit, try fallback (canvas entity IDs)
-  if (value < 0.5f && pick_fallback_image_) {
+  if (value == 0 && pick_fallback_image_) {
     auto fallback = pick_fallback_image_;
     pick_fallback_image_ = nullptr;
 
     VkImage fb_image = fallback->images_[0];
+    VkImageLayout fb_layout = fallback->current_layout_;
+    if (fb_layout == VK_IMAGE_LAYOUT_UNDEFINED) {
+      fb_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+
     VkCommandBuffer cmd2 = BeginSingleTimeCommands();
 
-    VkImageMemoryBarrier fb_barrier{};
-    fb_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    fb_barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    fb_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    fb_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    fb_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    fb_barrier.image = fb_image;
-    fb_barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    fb_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    fb_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0,
-                         nullptr, 1, &fb_barrier);
+    TransitionImageLayout(cmd2, fb_image, fallback->format_, fb_layout,
+                          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, 0, 1);
 
     VkBufferImageCopy fb_region{};
     fb_region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
@@ -3816,26 +3980,23 @@ bool Renderer::ExecuteEntityPick(entt::entity& out_entity) {
     vkCmdCopyImageToBuffer(cmd2, fb_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                            pick_staging_buffer_, 1, &fb_region);
 
-    fb_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    fb_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    fb_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    fb_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    vkCmdPipelineBarrier(cmd2, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr,
-                         0, nullptr, 1, &fb_barrier);
+    TransitionImageLayout(cmd2, fb_image, fallback->format_,
+                          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, fb_layout, 1, 0,
+                          1);
 
     EndSingleTimeCommands(cmd2);
 
     WIESEL_CHECK_VKRESULT(
         vmaMapMemory(vma_allocator_, pick_staging_alloc_, &data));
-    value = *static_cast<float*>(data);
+    value = *static_cast<uint32_t*>(data);
     vmaUnmapMemory(vma_allocator_, pick_staging_alloc_);
   } else {
     pick_fallback_image_ = nullptr;
   }
 
-  if (value > 0.5f) {
-    uint32_t id = static_cast<uint32_t>(value) - 1;
+  if (value != 0) {
+    out_scene_index = static_cast<uint8_t>(value >> 24);
+    uint32_t id = (value & 0x00FFFFFFu) - 1;
     out_entity = static_cast<entt::entity>(id);
   }
   return true;
@@ -3905,37 +4066,6 @@ void Renderer::DrawSprite(SpriteRendererComponent& sprite,
   stats_.draw_calls++;
 }
 
-void Renderer::DrawCanvasRect(const RectangleTransformComponent& rt,
-                              CanvasRectComponent& rect,
-                              std::shared_ptr<DescriptorSetLayout> layout,
-                              float entity_id) {
-  // Lazily allocate GPU resources
-  if (!rect.ubo_) {
-    rect.ubo_ = CreateUniformBuffer("Rectangle Transform UBO", sizeof(CanvasElementUniformData));
-    rect.descriptor_ = std::make_shared<DescriptorSet>();
-    rect.descriptor_->SetLayout(layout);
-    rect.descriptor_->AddUniformBuffer(0, rect.ubo_);
-    rect.descriptor_->Bake();
-    rect.gpu_dirty_ = true;
-  }
-
-  // Update UBO
-  CanvasElementUniformData data{};
-  data.position = rt.computed_position;
-  data.size = rt.computed_size;
-  data.color = rect.color;
-  data.uv_rect = {0, 0, 1, 1};
-  data.entity_id = entity_id;
-  memcpy(rect.ubo_->data_, &data, sizeof(CanvasElementUniformData));
-
-  VkDescriptorSet sets[] = {rect.descriptor_->descriptor_set_};
-  vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                          VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-  vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
-  stats_.draw_calls++;
-}
-
 Renderer::SliceDrawResource& Renderer::AcquireSliceResource(
     std::shared_ptr<Texture> texture,
     std::shared_ptr<DescriptorSetLayout> layout) {
@@ -3970,7 +4100,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
                                 std::shared_ptr<Texture> texture,
                                 glm::vec4 tint, glm::vec4 uv_rect,
                                 std::shared_ptr<DescriptorSetLayout> layout,
-                                float entity_id) {
+                                uint32_t entity_id) {
   if (!texture || !texture->is_allocated_) {
     return;
   }
@@ -4086,7 +4216,7 @@ void Renderer::DrawTexturedRect(glm::vec2 position, glm::vec2 size,
 void Renderer::DrawCanvasDescriptor(
     glm::vec2 position, glm::vec2 size,
     std::shared_ptr<DescriptorSet> descriptor,
-    std::shared_ptr<DescriptorSetLayout> /*layout*/, float entity_id) {
+    std::shared_ptr<DescriptorSetLayout> /*layout*/, uint32_t entity_id) {
   if (!descriptor) {
     return;
   }
@@ -4097,123 +4227,6 @@ void Renderer::DrawCanvasDescriptor(
                           bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
   vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
   stats_.draw_calls++;
-}
-
-void Renderer::DrawCanvasText(const RectangleTransformComponent& rt,
-                              TextComponent& text,
-                              std::shared_ptr<DescriptorSetLayout> layout,
-                              float entity_id) {
-  if (text.text.empty()) {
-    return;
-  }
-
-  std::shared_ptr<Font> font = FontCache::Get(text.font_handle, text.font_size);
-  if (!font || !font->IsLoaded()) {
-    return;
-  }
-
-  float scale = text.font_size / font->GetNativeSize();
-
-  // Detect font change (size or path) - requires full descriptor rebuild
-  // since the atlas texture is different
-  if (text.prev_font_handle_ != text.font_handle ||
-      text.prev_font_size_ != text.font_size) {
-    text.glyph_gpu_.clear();
-    text.gpu_dirty_ = true;
-    text.prev_font_handle_ = text.font_handle;
-    text.prev_font_size_ = text.font_size;
-  }
-
-  // Rebuild per-glyph GPU resources if text or font changed
-  if (text.gpu_dirty_ || text.prev_text_ != text.text) {
-    // Count visible glyphs via UTF-8 decoding
-    size_t visible = 0;
-    for (size_t i = 0; i < text.text.size();) {
-      uint32_t cp = Font::DecodeUTF8(text.text, i);
-      const GlyphInfo* g = font->GetGlyph(cp);
-      if (g && g->size.x > 0 && g->size.y > 0) {
-        visible++;
-      }
-    }
-
-    // Shadow needs a second set of glyph resources
-    size_t total_needed = text.shadow ? visible * 2 : visible;
-
-    // Grow pool if needed, reuse existing allocations
-    while (text.glyph_gpu_.size() < total_needed) {
-      TextGlyphGPU gpu;
-      gpu.ubo =
-          CreateUniformBuffer("Text UBO", sizeof(CanvasElementUniformData));
-      gpu.descriptor = std::make_shared<DescriptorSet>();
-      gpu.descriptor->SetLayout(layout);
-      gpu.descriptor->AddUniformBuffer(0, gpu.ubo);
-      gpu.descriptor->AddCombinedImageSampler(1, font->GetAtlasImageView(),
-                                              GetDefaultLinearSampler());
-      gpu.descriptor->Bake();
-      text.glyph_gpu_.push_back(std::move(gpu));
-    }
-    text.prev_text_ = text.text;
-    text.gpu_dirty_ = false;
-  }
-
-  // Helper: render one pass of all glyphs at given origin with given color
-  size_t glyph_idx = 0;
-  auto render_pass = [&](float origin_x, float origin_y,
-                         const glm::vec4& color) {
-    float cursor_x = origin_x;
-    float cursor_y = origin_y + font->GetAscent() * scale;
-
-    for (size_t i = 0; i < text.text.size();) {
-      uint32_t cp = Font::DecodeUTF8(text.text, i);
-      const GlyphInfo* glyph = font->GetGlyph(cp);
-      if (!glyph || glyph->size.x == 0 || glyph->size.y == 0) {
-        if (glyph) {
-          cursor_x += std::round((glyph->advance >> 6) * scale);
-        }
-        continue;
-      }
-
-      if (glyph_idx >= text.glyph_gpu_.size()) {
-        break;
-      }
-
-      float x = std::round(cursor_x + glyph->bearing.x * scale);
-      float y = std::round(cursor_y - glyph->bearing.y * scale);
-      float w = std::round(glyph->size.x * scale);
-      float h = std::round(glyph->size.y * scale);
-
-      auto& gpu = text.glyph_gpu_[glyph_idx];
-
-      CanvasElementUniformData data{};
-      data.position = {x, y};
-      data.size = {w, h};
-      data.color = color;
-      data.uv_rect = {glyph->uv_min.x, glyph->uv_min.y, glyph->uv_max.x,
-                      glyph->uv_max.y};
-      data.entity_id = entity_id;
-      memcpy(gpu.ubo->data_, &data, sizeof(CanvasElementUniformData));
-
-      VkDescriptorSet sets[] = {gpu.descriptor->descriptor_set_};
-      vkCmdBindDescriptorSets(command_buffers_[current_frame_]->handle_,
-                              VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              bound_pipeline_->layout_, 0, 1, sets, 0, nullptr);
-      vkCmdDraw(command_buffers_[current_frame_]->handle_, 6, 1, 0, 0);
-      stats_.draw_calls++;
-
-      glyph_idx++;
-      cursor_x += std::round((glyph->advance >> 6) * scale);
-    }
-  };
-
-  // Shadow pass (rendered first, behind text)
-  if (text.shadow) {
-    render_pass(rt.computed_position.x + text.shadow_offset.x,
-                rt.computed_position.y + text.shadow_offset.y,
-                text.shadow_color);
-  }
-
-  // Normal text pass
-  render_pass(rt.computed_position.x, rt.computed_position.y, text.color);
 }
 
 void Renderer::DrawSkybox(std::shared_ptr<Skybox> skybox) {
@@ -4244,9 +4257,10 @@ void Renderer::DrawFullscreen(
     sets.push_back(item->descriptor_set_);
   }
   if (sets.empty()) {
-    LOG_WARN("DrawFullscreen called with no valid descriptors, skipping");
+    LOG_DEBUG("DrawFullscreen called with no valid descriptors, skipping");
     return;
   }
+
   vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           pipeline->layout_, 0, sets.size(), sets.data(), 0,
                           nullptr);
@@ -4355,6 +4369,7 @@ int32_t Renderer::RateDeviceSuitability(VkPhysicalDevice device) {
 }
 
 VkCommandPool Renderer::CreateTransientCommandPool() {
+  PROFILE_ZONE_SCOPED();
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
@@ -4454,10 +4469,14 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
                                      VkCommandPool pool) {
   WIESEL_CHECK_VKRESULT(vkEndCommandBuffer(commandBuffer));
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
+  VkCommandBufferSubmitInfo cmd_info{};
+  cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  cmd_info.commandBuffer = commandBuffer;
+
+  VkSubmitInfo2 submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submitInfo.commandBufferInfoCount = 1;
+  submitInfo.pCommandBufferInfos = &cmd_info;
 
   VkFenceCreateInfo fenceInfo{};
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -4468,7 +4487,7 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
   {
     std::lock_guard<std::mutex> lock(queue_submit_mutex_);
     WIESEL_CHECK_VKRESULT(
-        vkQueueSubmit(graphics_queue_, 1, &submitInfo, fence));
+        vkQueueSubmit2(graphics_queue_, 1, &submitInfo, fence));
   }
 
   WIESEL_CHECK_VKRESULT(
@@ -4479,6 +4498,12 @@ void Renderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer,
 }
 
 bool Renderer::IsDeviceSuitable(VkPhysicalDevice device) {
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(device, &props);
+  if (props.apiVersion < VK_API_VERSION_1_4) {
+    return false;
+  }
+
   QueueFamilyIndices indices = FindQueueFamilies(device);
 
   bool extensionsSupported = CheckDeviceExtensionSupport(device);
@@ -4769,4 +4794,4 @@ DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
 
 #endif
 
-}  // namespace Wiesel
+}  // namespace wiesel

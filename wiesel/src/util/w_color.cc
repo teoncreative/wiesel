@@ -11,4 +11,4 @@
 
 #include "util/w_color.h"
 
-namespace Wiesel {}
+namespace wiesel {}

@@ -14,7 +14,7 @@
 #include "layer/w_layer.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 class ImGuiLayer : public Layer {
  public:
   ImGuiLayer();
@@ -34,4 +34,4 @@ class ImGuiLayer : public Layer {
   VkDescriptorPool m_ImGuiPool;
   bool needs_reinitialization_ = false;
 };
-}  // namespace Wiesel
+}  // namespace wiesel

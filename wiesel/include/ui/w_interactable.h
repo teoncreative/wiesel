@@ -13,7 +13,7 @@
 
 #include "scene/w_components.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 // Marker component that enables pointer event detection on a canvas entity.
 // The entity must also have a RectangleTransformComponent for hit testing.
@@ -28,4 +28,4 @@ struct InteractableComponent : public IComponent {
   bool selected_ = false;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

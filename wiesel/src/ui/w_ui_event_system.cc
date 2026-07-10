@@ -24,11 +24,9 @@
 #include "ui/w_ui_document.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 
 static bool PointInRect(const glm::vec2& point, const glm::vec2& pos,
                         const glm::vec2& size) {
@@ -52,12 +50,10 @@ static entt::entity FindCanvasRoot(entt::registry& registry,
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Phase 1+2: Transform viewport mouse to canvas-space coordinates.
 // Works for all render modes: ScreenSpace uses display/render scaling +
 // canvas scaler inverse. WorldSpace uses ray-plane intersection.
 // Returns {coords, valid}. Invalid means mouse doesn't map to this canvas.
-// ---------------------------------------------------------------------------
 
 struct CanvasMouseResult {
   glm::vec2 coords;
@@ -137,6 +133,20 @@ static CanvasMouseResult TransformToCanvasSpace(float mouse_x, float mouse_y,
   // ScreenSpace: apply display->render scale + canvas scaler inverse
   glm::vec2 display_size = scene.GetViewportDisplaySize();
   glm::vec2 render_res = scene.GetRenderResolution();
+
+  // When viewport display size is not explicitly set (standalone runtime),
+  // fall back to the first enabled camera's viewport size so the canvas
+  // scaler inverse is applied correctly.
+  if (display_size.x <= 0 || display_size.y <= 0) {
+    for (auto e : registry.view<CameraComponent>()) {
+      auto& cam = registry.get<CameraComponent>(e);
+      if (cam.enabled) {
+        display_size = cam.viewport_size;
+        break;
+      }
+    }
+  }
+
   if (render_res.x <= 0 || render_res.y <= 0) {
     render_res = display_size;
   }
@@ -166,10 +176,8 @@ static CanvasMouseResult TransformToCanvasSpace(float mouse_x, float mouse_y,
   return {{cx, cy}, true};
 }
 
-// ---------------------------------------------------------------------------
 // Phase 3a: Hit test interactable elements under a specific canvas.
 // Uses pre-transformed canvas-space coords. Returns highest draw_order hit.
-// ---------------------------------------------------------------------------
 
 struct HitCandidate {
   entt::entity entity;
@@ -210,10 +218,8 @@ static entt::entity HitTestCanvas(entt::entity canvas_entity,
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Phase 3b: Forward mouse events to UIDocument contexts under a canvas.
 // Uses pre-transformed canvas-space coords.
-// ---------------------------------------------------------------------------
 
 // Returns the entity that was clicked (mouse_down inside), or entt::null.
 static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
@@ -229,7 +235,8 @@ static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
     }
 
     auto& doc = registry.get<UIDocumentComponent>(entity);
-    if (!doc.rml_context_ || !doc.visible) {
+    auto* rt_ui = registry.try_get<UIDocumentRuntime>(entity);
+    if (!rt_ui || !rt_ui->rml_context || !doc.visible) {
       continue;
     }
     auto& rt = registry.get<RectangleTransformComponent>(entity);
@@ -243,32 +250,30 @@ static entt::entity ForwardToUIDocuments(entt::entity canvas_entity,
     // Scale from canvas-space to offscreen render resolution
     float scale_x = 1.0f;
     float scale_y = 1.0f;
-    if (doc.offscreen_size_.x > 0 && rt.computed_size.x > 0) {
-      scale_x = doc.offscreen_size_.x / rt.computed_size.x;
-      scale_y = doc.offscreen_size_.y / rt.computed_size.y;
+    if (rt_ui->offscreen_size.x > 0 && rt.computed_size.x > 0) {
+      scale_x = rt_ui->offscreen_size.x / rt.computed_size.x;
+      scale_y = rt_ui->offscreen_size.y / rt.computed_size.y;
     }
 
     int rml_x = static_cast<int>(local.x * scale_x);
     int rml_y = static_cast<int>(local.y * scale_y);
 
-    doc.rml_context_->ProcessMouseMove(rml_x, rml_y, 0);
+    rt_ui->rml_context->ProcessMouseMove(rml_x, rml_y, 0);
 
     if (inside) {
       if (mouse_down) {
-        doc.rml_context_->ProcessMouseButtonDown(0, 0);
+        rt_ui->rml_context->ProcessMouseButtonDown(0, 0);
         clicked_entity = entity;
       }
       if (mouse_up) {
-        doc.rml_context_->ProcessMouseButtonUp(0, 0);
+        rt_ui->rml_context->ProcessMouseButtonUp(0, 0);
       }
     }
   }
   return clicked_entity;
 }
 
-// ---------------------------------------------------------------------------
 // DispatchWithBubble
-// ---------------------------------------------------------------------------
 template <typename Fn>
 entt::entity UIEventSystem::DispatchWithBubble(entt::registry& registry,
                                                entt::entity start, Fn&& fn) {
@@ -295,35 +300,20 @@ entt::entity UIEventSystem::DispatchWithBubble(entt::registry& registry,
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Focus helpers
-// ---------------------------------------------------------------------------
 void UIEventSystem::FocusEntity(entt::registry& registry, entt::entity entity) {
   if (entity == focused_entity_) {
     return;
   }
   UnfocusEntity(registry);
-  if (entity != entt::null && registry.any_of<TextInputComponent>(entity)) {
-    auto& input = registry.get<TextInputComponent>(entity);
-    input.focused_ = true;
-    input.cursor_pos_ = static_cast<int>(input.text.size());
-    input.cursor_visible_ = true;
-    input.cursor_timer_ = 0.0f;
-    focused_entity_ = entity;
-  }
+  focused_entity_ = entity;
 }
 
 void UIEventSystem::UnfocusEntity(entt::registry& registry) {
-  if (focused_entity_ != entt::null && registry.valid(focused_entity_) &&
-      registry.any_of<TextInputComponent>(focused_entity_)) {
-    registry.get<TextInputComponent>(focused_entity_).focused_ = false;
-  }
   focused_entity_ = entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Public accessors
-// ---------------------------------------------------------------------------
 entt::entity UIEventSystem::GetSelectedEntity(int player_index) const {
   auto it = player_nav_.find(player_index);
   if (it != player_nav_.end()) {
@@ -332,9 +322,7 @@ entt::entity UIEventSystem::GetSelectedEntity(int player_index) const {
   return entt::null;
 }
 
-// ---------------------------------------------------------------------------
 // Update
-// ---------------------------------------------------------------------------
 void UIEventSystem::Update(Scene& scene, float delta_time) {
   PROFILE_ZONE_SCOPED_N("UIEventSystem::Update");
   auto& registry = scene.GetRegistry();
@@ -377,13 +365,9 @@ void UIEventSystem::Update(Scene& scene, float delta_time) {
       }
     }
   }
-
-  UpdateButtonStates(registry);
 }
 
-// ---------------------------------------------------------------------------
 // Mouse input processing (per-canvas, phase-based)
-// ---------------------------------------------------------------------------
 void UIEventSystem::ProcessMouseInput(Scene& scene) {
   PROFILE_ZONE_SCOPED_N("UIEventSystem::ProcessMouseInput");
   auto& registry = scene.GetRegistry();
@@ -458,19 +442,6 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
 
   // Pointer down
   if (mouse_down) {
-    entt::entity new_focus = entt::null;
-    if (hit_entity != entt::null &&
-        registry.any_of<TextInputComponent>(hit_entity)) {
-      new_focus = hit_entity;
-    }
-    if (new_focus != focused_entity_) {
-      if (new_focus != entt::null) {
-        FocusEntity(registry, new_focus);
-      } else {
-        UnfocusEntity(registry);
-      }
-    }
-
     if (hit_entity != entt::null) {
       registry.get<InteractableComponent>(hit_entity).pressed_ = true;
       pressed_entity_ = hit_entity;
@@ -505,9 +476,7 @@ void UIEventSystem::ProcessMouseInput(Scene& scene) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Gamepad input processing (per-player, scoped to a canvas)
-// ---------------------------------------------------------------------------
 void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
                                         int player_index,
                                         entt::entity canvas_entity) {
@@ -633,9 +602,7 @@ void UIEventSystem::ProcessGamepadInput(Scene& scene, float delta_time,
   }
 }
 
-// ---------------------------------------------------------------------------
 // Navigation
-// ---------------------------------------------------------------------------
 void UIEventSystem::ClearSelection(Scene& scene, int player_index) {
   auto& registry = scene.GetRegistry();
   auto it = player_nav_.find(player_index);
@@ -686,10 +653,6 @@ void UIEventSystem::NavigateTo(Scene& scene, int player_index,
       b->OnSelect();
       return false;
     });
-
-    if (registry.any_of<TextInputComponent>(target)) {
-      FocusEntity(registry, target);
-    }
   }
 }
 
@@ -836,31 +799,7 @@ entt::entity UIEventSystem::FindFirstNavigable(Scene& scene,
   return best;
 }
 
-// ---------------------------------------------------------------------------
-// Button state update
-// ---------------------------------------------------------------------------
-void UIEventSystem::UpdateButtonStates(entt::registry& registry) {
-  for (auto entity : registry.view<ButtonComponent, InteractableComponent>()) {
-    auto& btn = registry.get<ButtonComponent>(entity);
-    auto& interactable = registry.get<InteractableComponent>(entity);
-
-    if (!interactable.enabled) {
-      btn.state_ = ButtonState::Disabled;
-    } else if (interactable.pressed_) {
-      btn.state_ = ButtonState::Pressed;
-    } else if (interactable.hovered_) {
-      btn.state_ = ButtonState::Hovered;
-    } else if (interactable.selected_) {
-      btn.state_ = ButtonState::Selected;
-    } else {
-      btn.state_ = ButtonState::Normal;
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Keyboard/text forwarding to focused RmlUi document
-// ---------------------------------------------------------------------------
 
 // Map engine keycodes (defined in w_keycodes.h) to RmlUi
 static Rml::Input::KeyIdentifier EngineKeyToRml(int key_code) {
@@ -985,12 +924,12 @@ bool UIEventSystem::ProcessKeyDown(Scene& scene, int key_code, int modifiers) {
     focused_rml_entity_ = entt::null;
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  return doc.rml_context_->ProcessKeyDown(EngineKeyToRml(key_code),
-                                          GetRmlKeyModifiers());
+  return rt_ui->rml_context->ProcessKeyDown(EngineKeyToRml(key_code),
+                                            GetRmlKeyModifiers());
 }
 
 bool UIEventSystem::ProcessKeyUp(Scene& scene, int key_code, int modifiers) {
@@ -1003,12 +942,12 @@ bool UIEventSystem::ProcessKeyUp(Scene& scene, int key_code, int modifiers) {
     focused_rml_entity_ = entt::null;
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  return doc.rml_context_->ProcessKeyUp(EngineKeyToRml(key_code),
-                                        GetRmlKeyModifiers());
+  return rt_ui->rml_context->ProcessKeyUp(EngineKeyToRml(key_code),
+                                          GetRmlKeyModifiers());
 }
 
 bool UIEventSystem::ProcessTextInput(Scene& scene, const std::string& text) {
@@ -1021,11 +960,11 @@ bool UIEventSystem::ProcessTextInput(Scene& scene, const std::string& text) {
     focused_rml_entity_ = entt::null;
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  return doc.rml_context_->ProcessTextInput(text);
+  return rt_ui->rml_context->ProcessTextInput(text);
 }
 
 bool UIEventSystem::ProcessMouseScroll(Scene& scene, float delta) {
@@ -1036,10 +975,11 @@ bool UIEventSystem::ProcessMouseScroll(Scene& scene, float delta) {
   for (auto entity :
        registry.view<UIDocumentComponent, RectangleTransformComponent>()) {
     auto& doc = registry.get<UIDocumentComponent>(entity);
-    if (!doc.rml_context_ || !doc.visible) {
+    auto* rt_ui = registry.try_get<UIDocumentRuntime>(entity);
+    if (!rt_ui || !rt_ui->rml_context || !doc.visible) {
       continue;
     }
-    if (doc.rml_context_->ProcessMouseWheel(-delta, 0)) {
+    if (rt_ui->rml_context->ProcessMouseWheel(-delta, 0)) {
       consumed = true;
     }
   }
@@ -1055,11 +995,11 @@ bool UIEventSystem::HasRmlTextInputFocus(Scene& scene) const {
       !registry.any_of<UIDocumentComponent>(focused_rml_entity_)) {
     return false;
   }
-  auto& doc = registry.get<UIDocumentComponent>(focused_rml_entity_);
-  if (!doc.rml_context_) {
+  auto* rt_ui = registry.try_get<UIDocumentRuntime>(focused_rml_entity_);
+  if (!rt_ui || !rt_ui->rml_context) {
     return false;
   }
-  Rml::Element* focused = doc.rml_context_->GetFocusElement();
+  Rml::Element* focused = rt_ui->rml_context->GetFocusElement();
   if (!focused) {
     return false;
   }
@@ -1068,4 +1008,4 @@ bool UIEventSystem::HasRmlTextInputFocus(Scene& scene) const {
   return tag == "input" || tag == "textarea" || tag == "select";
 }
 
-}  // namespace Wiesel
+}  // namespace wiesel

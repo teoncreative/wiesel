@@ -13,7 +13,7 @@
 #include "asset/w_asset_handle.h"
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 enum class CursorSetMode : uint8_t {
   Auto = 0,           // Use OS hardware cursor (SDL)
@@ -33,6 +33,11 @@ struct CursorStateEntry {
   glm::ivec2 hotspot{0, 0};
   glm::ivec2 size{32, 32};
   float frame_duration = 0.1f;  // Seconds per frame (for animated cursors)
+  // Integer nearest-neighbor upscale applied when the cursor is shown. Useful
+  // when the source art is small (e.g. 16x16 pixel-art sprite displayed at
+  // 2x or 3x). Hotspot coordinates are stored in source-pixel space and
+  // multiplied by this scale at apply time.
+  int scale = 1;
   std::vector<CursorFrame> frames;
 };
 
@@ -61,14 +66,34 @@ class CursorManager {
   // Clear the cursor set and reset to OS default.
   void Clear();
 
+  // Re-load the given cursor set from its asset data if it is currently active.
+  // Used by the editor after the user edits a cursor set so the new frames /
+  // hotspots take effect without needing to reassign the set on the scene.
+  void RefreshCursorSet(AssetHandle handle);
+
+  // When active, the cursor set's current frame is applied to the OS cursor.
+  // When inactive, the OS cursor is reset to default and subsequent state or
+  // frame changes are tracked but not applied. The editor uses this to limit
+  // the custom cursor to play mode while hovering the game viewport; the
+  // runtime leaves it active. Defaults to true.
+  void SetActive(bool active);
+
+  bool IsActive() const { return active_; }
+
  private:
-  void ApplyHardwareCursor(const CursorFrame& frame, const glm::ivec2& hotspot);
+  void ApplyHardwareCursor(const CursorFrame& frame, const glm::ivec2& hotspot,
+                           int scale);
+
+  // Push the current state's current frame to the OS cursor. No-op when
+  // inactive or the cursor set has nothing to show.
+  void ApplyCurrentFrame();
 
   AssetHandle cursor_set_handle_;
   std::shared_ptr<CursorSetData> cursor_set_;
   std::string current_state_ = "default";
   int current_frame_ = 0;
   float frame_timer_ = 0.0f;
+  bool active_ = true;
 };
 
-}  // namespace Wiesel
+}  // namespace wiesel

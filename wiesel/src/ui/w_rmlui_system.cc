@@ -10,9 +10,10 @@
 
 #include "ui/w_rmlui_system.h"
 
+#include "cursor/w_cursor.h"
 #include "w_engine.h"
 
-namespace Wiesel {
+namespace wiesel {
 
 double RmlSystemInterface::GetElapsedTime() {
   static auto start = std::chrono::steady_clock::now();
@@ -48,4 +49,8 @@ void RmlSystemInterface::GetClipboardText(Rml::String& text) {
   text = Engine::window()->GetClipboardText();
 }
 
-}  // namespace Wiesel
+void RmlSystemInterface::SetMouseCursor(const Rml::String& cursor_name) {
+  Engine::cursor_manager().SetCursorState(cursor_name);
+}
+
+}  // namespace wiesel

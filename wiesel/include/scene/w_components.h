@@ -12,17 +12,21 @@
 #pragma once
 
 #include <entt/entt.hpp>
+#include "animation/w_animation_clip_asset.h"
 #include "animation/w_animation_controller.h"
+#include "animation/w_state_machine.h"
+#include "core/w_reflect.h"
 #include "events/w_events.h"
+#include "math/w_aabb.h"
 #include "rendering/w_buffer.h"
 #include "rendering/w_descriptor.h"
 #include "rendering/w_texture.h"
 #include "ui/w_canvas.h"
 #include "util/w_utils.h"
-#include "util/w_uuid.h"
+#include <urkern/uuid.h>
 #include "w_pch.h"
 
-namespace Wiesel {
+namespace wiesel {
 struct EventHandlerComponent {
   virtual void OnEvent(Event&);
 };
@@ -31,13 +35,20 @@ struct IComponent {
   virtual ~IComponent() = default;
 };
 
+// Marker component for editor selection outline rendering.
+// Added/removed by the editor when entity selection changes.
+struct EditorSelectedComponent {
+  glm::vec4 color = {0.369f, 0.467f, 0.608f, 1.0f};
+  float thickness = 10.0f;
+};
+
 struct IdComponent : public IComponent {
-  IdComponent(UUID id) : Id(id) {}
+  IdComponent(urkern::UUID id) : Id(id) {}
 
   IdComponent() = default;
   IdComponent(const IdComponent&) = default;
 
-  UUID Id;
+  urkern::UUID Id;
 };
 
 struct TreeComponent : public IComponent {
@@ -45,8 +56,10 @@ struct TreeComponent : public IComponent {
   TreeComponent(const TreeComponent&) = default;
 
   entt::entity parent = entt::null;
-  std::vector<entt::entity> childs;
+  std::vector<entt::entity> children;
 };
+
+WCLASS()
 
 struct TagComponent : public IComponent {
   TagComponent(const std::string& name) : name(name) {}
@@ -54,7 +67,9 @@ struct TagComponent : public IComponent {
   TagComponent() = default;
   TagComponent(const TagComponent&) = default;
 
-  std::string name;               // entity name
+  WPROPERTY(Serializable)
+  std::string name;  // entity name
+  WPROPERTY(Serializable)
   std::vector<std::string> tags;  // game tags ("Enemy", "Player", etc.)
 
   bool HasTag(const std::string& tag) const {
@@ -226,8 +241,8 @@ struct TransformComponent : public IComponent {
   glm::vec3 scale_ = {1.0f, 1.0f, 1.0f};
   glm::vec3 pivot_ = {0.0f, 0.0f, 0.0f};
   bool is_changed_ = true;
-  glm::mat4 transform_matrix_ = {};
-  glm::mat3 normal_matrix_ = {};
+  glm::mat4 transform_matrix_ = glm::mat4(1.0f);
+  glm::mat3 normal_matrix_ = glm::mat3(1.0f);
 };
 
 struct RectangleTransformComponent : public IComponent {
@@ -252,48 +267,60 @@ struct RectangleTransformComponent : public IComponent {
   void MarkChanged() { /* no op for now */ }
 };
 
-// Animation playback state (per-entity)
+// Unified animation component - drives both skeletal and sprite animation
+// via a shared controller asset (.wanimcontroller). The animation system
+// auto-emplaces SkeletalAnimRuntime or SpriteAnimRuntime based on what
+// other components the entity has.
+WCLASS()
+
 struct AnimatorComponent : public IComponent {
   AnimatorComponent() = default;
 
-  AnimatorComponent(const AnimatorComponent& other)
-      : current_clip_name(other.current_clip_name),
-        playback_time(other.playback_time),
-        playback_speed(other.playback_speed),
-        looping(other.looping),
-        playing(other.playing),
-        controller(other.controller),
-        parameters(other.parameters),
-        current_state_name(other.current_state_name) {}
+  WPROPERTY(Serializable)
+  AssetHandle controller_handle;  // -> .wanimcontroller
 
-  // --- Legacy single-clip mode ---
-  std::string current_clip_name;
-  float playback_time = 0.0f;
+  StateMachineRuntime state_machine;  // runtime state (not serialized)
+
+  WPROPERTY(Serializable)
   float playback_speed = 1.0f;
-  bool looping = true;
-  bool playing = false;
+  WPROPERTY(Serializable)
+  bool playing = true;
 
-  // --- Controller mode (optional, empty = legacy mode) ---
-  AnimationController controller;
-  std::unordered_map<std::string, AnimParam> parameters;
+  // Parameter API (delegates to state_machine)
+  void SetBool(const std::string& name, bool value);
+  void SetInt(const std::string& name, int value);
+  void SetFloat(const std::string& name, float value);
+  void SetTrigger(const std::string& name);
+  bool GetBool(const std::string& name) const;
+  int GetInt(const std::string& name) const;
+  float GetFloat(const std::string& name) const;
 
-  // State machine runtime
-  std::string current_state_name;
-  float state_time = 0.0f;  // time in current state (ticks)
+  // Direct state change
+  void Play(const std::string& state_name);
+  void Stop();
+  std::string GetCurrentState() const;
+};
 
-  // Crossfade
+// Transient runtime data for skeletal animation. Emplaced automatically
+// by AnimationSystem when the entity has AnimatorComponent.
+struct SkeletalAnimRuntime {
+  // Crossfade blending
   bool is_blending = false;
   std::string prev_clip_name;
   float prev_clip_time = 0.0f;
-  float blend_weight = 0.0f;     // 0.0 = fully prev, 1.0 = fully current
-  float blend_duration = 0.25f;  // seconds
+  float blend_weight = 0.0f;
+  float blend_duration = 0.25f;
   float blend_elapsed = 0.0f;
   std::vector<glm::mat4> prev_bone_matrices;
   std::vector<glm::mat4> prev_node_transforms;
 
-  // Computed each frame (CPU side)
+  // Computed each frame
   std::vector<glm::mat4> bone_matrices;
   std::vector<glm::mat4> node_transforms;
+
+  // Max distance any bone reaches from origin in the current clip.
+  // Used to expand frustum culling bounds.
+  float max_bone_reach = 0.0f;
 
   // Bone overrides, applied after animation eval, before GPU upload
   struct BoneOverride {
@@ -306,22 +333,32 @@ struct AnimatorComponent : public IComponent {
 
   std::vector<BoneOverride> bone_overrides;
 
-  // GPU resources (per-entity, allocated lazily)
+  // GPU resources for bone matrices (shared by all skinned meshes referencing
+  // this entity as skeleton_root). Allocated lazily by the renderer.
   std::shared_ptr<UniformBuffer> bone_ubo;
+  std::shared_ptr<DescriptorSet> bone_descriptor;
 
-  // --- Parameter API ---
-  void SetBool(const std::string& name, bool value);
-  void SetInt(const std::string& name, int value);
-  void SetFloat(const std::string& name, float value);
-  void SetTrigger(const std::string& name);
-  bool GetBool(const std::string& name) const;
-  int GetInt(const std::string& name) const;
-  float GetFloat(const std::string& name) const;
+  // Rest pose AABB computed from skinned vertices with bone matrices applied.
+  // Used for frustum culling and debug bounds visualization.
+  AABB rest_pose_bounds;
 
-  // Direct state change with optional crossfade (bypasses transition conditions)
-  void Play(const std::string& state_name, float blend_time = 0.25f);
+  // The model asset handle (needed for skeleton data access).
+  AssetHandle model_handle;
 
-  bool UseController() const { return !controller.IsEmpty(); }
+  // Whether Initialize() has been called.
+  bool initialized = false;
+
+  // One-time setup: compute rest pose bone matrices, create bone UBO,
+  // compute rest pose AABB. Call once after model_handle is set.
+  void Initialize();
 };
 
-}  // namespace Wiesel
+// Transient runtime data for sprite animation. Emplaced automatically
+// by AnimationSystem when the entity has AnimatorComponent + SpriteRendererComponent.
+struct SpriteAnimRuntime {
+  uint32_t current_frame_index = 0;
+  float frame_timer = 0.0f;
+  std::shared_ptr<AnimClipAssetData> current_clip;
+};
+
+}  // namespace wiesel
