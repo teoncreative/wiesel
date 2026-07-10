@@ -1,11 +1,11 @@
 var w__gamepadcodes_8h =
 [
-    [ "GamepadAxis", "w__gamepadcodes_8h.html#a488fdd1a0ad17c07f357588591aba857", null ],
-    [ "GamepadButton", "w__gamepadcodes_8h.html#ac055cf12f229c1126968aca93ca1079a", null ],
-    [ "GamepadAxisToString", "w__gamepadcodes_8h.html#a338818aebde6789bef26f3a7a653feaa", null ],
-    [ "GamepadButtonToString", "w__gamepadcodes_8h.html#a27c209e108b1cdf050c570aa2152be96", null ],
-    [ "GetAllGamepadAxes", "w__gamepadcodes_8h.html#a39778015b559c408f9ba0fb77da6d88c", null ],
-    [ "GetAllGamepadButtons", "w__gamepadcodes_8h.html#ada4611f0f5893b378de67bee96823386", null ],
-    [ "StringToGamepadAxis", "w__gamepadcodes_8h.html#add21a8c3db5a73ed44bf9e8b0584b235", null ],
-    [ "StringToGamepadButton", "w__gamepadcodes_8h.html#afa63760c14741cb906060a4501c33d94", null ]
+    [ "GamepadAxis", "w__gamepadcodes_8h.html#a423f4d88cfaaff38ca7a1df6bcd39605", null ],
+    [ "GamepadButton", "w__gamepadcodes_8h.html#ae26d8b30edfd0c244909aed3916483cf", null ],
+    [ "GamepadAxisToString", "w__gamepadcodes_8h.html#a0e5a6a6bc7d110b371f32b666a104e2c", null ],
+    [ "GamepadButtonToString", "w__gamepadcodes_8h.html#a9caf2964cc884395b1c53fba55ffe32e", null ],
+    [ "GetAllGamepadAxes", "w__gamepadcodes_8h.html#ac25b8fbce3027c7377658986e9414587", null ],
+    [ "GetAllGamepadButtons", "w__gamepadcodes_8h.html#aed6b86b8fcc1445eac58bd73cabe9c15", null ],
+    [ "StringToGamepadAxis", "w__gamepadcodes_8h.html#a3da2847870cba04663ebfbe2deb5ad2b", null ],
+    [ "StringToGamepadButton", "w__gamepadcodes_8h.html#a1ae13153ea417096b998829286ff12c3", null ]
 ];

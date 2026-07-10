@@ -10,5 +10,5 @@ var classWieselEngine_1_1RigidBodyComponent =
     [ "LinearVelocity", "classWieselEngine_1_1RigidBodyComponent.html#a00b685a1d2b5f118d20efab8ede46b7c", null ],
     [ "Mass", "classWieselEngine_1_1RigidBodyComponent.html#ada8b765b7057d3cb3b78e6424a9ddae6", null ],
     [ "Restitution", "classWieselEngine_1_1RigidBodyComponent.html#a9960fab91c56c910dec55fbeb652e9dc", null ],
-    [ "Type", "classWieselEngine_1_1RigidBodyComponent.html#ac1c819c5468329389be6dd9ea846f72d", null ]
+    [ "Type", "classWieselEngine_1_1RigidBodyComponent.html#a981430cd984026dac9585b3cc8b3222f", null ]
 ];

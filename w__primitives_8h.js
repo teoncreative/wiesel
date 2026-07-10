@@ -1,8 +1,8 @@
 var w__primitives_8h =
 [
-    [ "CreateCapsule", "w__primitives_8h.html#a75c564cdaafb2bd1e2ccd37d1e05fd9d", null ],
-    [ "CreateCube", "w__primitives_8h.html#ae771e150fc0adff77ee8e93248c57590", null ],
-    [ "CreateCylinder", "w__primitives_8h.html#aae63bc4dccf1f6e327ac06ae8ee92472", null ],
-    [ "CreatePlane", "w__primitives_8h.html#a54a6c21f790b6b90f3bf38eede5e59e1", null ],
-    [ "CreateSphere", "w__primitives_8h.html#abea900ce1b58abc6ac84e8886afb53ec", null ]
+    [ "CreateCapsule", "w__primitives_8h.html#a416b2c3c4b660e1b754c36cf8ef365b4", null ],
+    [ "CreateCube", "w__primitives_8h.html#a3ef64b435bb945dd62e7b14f58be86bf", null ],
+    [ "CreateCylinder", "w__primitives_8h.html#a467bcb3b3a38e84f1fecd38dda4747ff", null ],
+    [ "CreatePlane", "w__primitives_8h.html#afd828a5e0a30bb86530c0fc8ad1be249", null ],
+    [ "CreateSphere", "w__primitives_8h.html#abca5faeb5eca64d6b53f44918afc6774", null ]
 ];

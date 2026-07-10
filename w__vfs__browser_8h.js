@@ -1,6 +1,6 @@
 var w__vfs__browser_8h =
 [
-    [ "Wiesel::Editor::BrowserEntry", "structWiesel_1_1Editor_1_1BrowserEntry.html", "structWiesel_1_1Editor_1_1BrowserEntry" ],
-    [ "Wiesel::Editor::VfsBrowser", "classWiesel_1_1Editor_1_1VfsBrowser.html", "classWiesel_1_1Editor_1_1VfsBrowser" ],
-    [ "Wiesel::Editor::VfsFilePicker", "classWiesel_1_1Editor_1_1VfsFilePicker.html", "classWiesel_1_1Editor_1_1VfsFilePicker" ]
+    [ "wiesel::editor::BrowserEntry", "structwiesel_1_1editor_1_1BrowserEntry.html", "structwiesel_1_1editor_1_1BrowserEntry" ],
+    [ "wiesel::editor::VfsBrowser", "classwiesel_1_1editor_1_1VfsBrowser.html", "classwiesel_1_1editor_1_1VfsBrowser" ],
+    [ "wiesel::editor::VfsFilePicker", "classwiesel_1_1editor_1_1VfsFilePicker.html", "classwiesel_1_1editor_1_1VfsFilePicker" ]
 ];

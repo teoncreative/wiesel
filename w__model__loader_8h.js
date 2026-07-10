@@ -1,6 +1,6 @@
 var w__model__loader_8h =
 [
-    [ "LoadAssimpScene", "w__model__loader_8h.html#ac574e1dfa16822a07191e18a65be0149", null ],
-    [ "LoadModelAsset", "w__model__loader_8h.html#ad8472be259537ab1413e681739d69e9a", null ],
-    [ "LoadTextureAsset", "w__model__loader_8h.html#a359458a8e50ade3d8a2abf33d47457a8", null ]
+    [ "LoadAssimpScene", "w__model__loader_8h.html#a84bccbd7149e059c157d0f3d60580a57", null ],
+    [ "LoadModelAsset", "w__model__loader_8h.html#a79b66db7e6cb0a6aca6d3fdd84ec78c6", null ],
+    [ "LoadTextureAsset", "w__model__loader_8h.html#aaa37470c4506cb8322b46eb97940e947", null ]
 ];

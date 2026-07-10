@@ -1,5 +1,5 @@
 var w__asset__browser__panel_8h =
 [
-    [ "Wiesel::Editor::AssetBrowserCallbacks", "structWiesel_1_1Editor_1_1AssetBrowserCallbacks.html", "structWiesel_1_1Editor_1_1AssetBrowserCallbacks" ],
-    [ "Wiesel::Editor::AssetBrowserPanel", "classWiesel_1_1Editor_1_1AssetBrowserPanel.html", "classWiesel_1_1Editor_1_1AssetBrowserPanel" ]
+    [ "wiesel::editor::AssetBrowserCallbacks", "structwiesel_1_1editor_1_1AssetBrowserCallbacks.html", "structwiesel_1_1editor_1_1AssetBrowserCallbacks" ],
+    [ "wiesel::editor::AssetBrowserPanel", "classwiesel_1_1editor_1_1AssetBrowserPanel.html", "classwiesel_1_1editor_1_1AssetBrowserPanel" ]
 ];

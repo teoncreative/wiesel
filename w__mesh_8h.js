@@ -1,7 +1,8 @@
 var w__mesh_8h =
 [
-    [ "Wiesel::Mesh", "structWiesel_1_1Mesh.html", "structWiesel_1_1Mesh" ],
-    [ "Wiesel::DecodedTextureData", "structWiesel_1_1DecodedTextureData.html", "structWiesel_1_1DecodedTextureData" ],
-    [ "Wiesel::Model", "structWiesel_1_1Model.html", "structWiesel_1_1Model" ],
-    [ "Wiesel::ModelComponent", "structWiesel_1_1ModelComponent.html", "structWiesel_1_1ModelComponent" ]
+    [ "wiesel::Mesh", "structwiesel_1_1Mesh.html", "structwiesel_1_1Mesh" ],
+    [ "wiesel::DecodedTextureData", "structwiesel_1_1DecodedTextureData.html", "structwiesel_1_1DecodedTextureData" ],
+    [ "wiesel::Model", "structwiesel_1_1Model.html", "structwiesel_1_1Model" ],
+    [ "wiesel::Model::ImportedCamera", "structwiesel_1_1Model_1_1ImportedCamera.html", "structwiesel_1_1Model_1_1ImportedCamera" ],
+    [ "wiesel::Model::ImportedLight", "structwiesel_1_1Model_1_1ImportedLight.html", "structwiesel_1_1Model_1_1ImportedLight" ]
 ];

@@ -1,5 +1,5 @@
 var w__toon__feature_8h =
 [
-    [ "Wiesel::ToonPushConstants", "structWiesel_1_1ToonPushConstants.html", "structWiesel_1_1ToonPushConstants" ],
-    [ "Wiesel::ToonFeature", "classWiesel_1_1ToonFeature.html", "classWiesel_1_1ToonFeature" ]
+    [ "wiesel::ToonPushConstants", "structwiesel_1_1ToonPushConstants.html", "structwiesel_1_1ToonPushConstants" ],
+    [ "wiesel::ToonFeature", "classwiesel_1_1ToonFeature.html", "classwiesel_1_1ToonFeature" ]
 ];

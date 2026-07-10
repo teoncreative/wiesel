@@ -1,4 +1,4 @@
 var w__monobehavior_8h =
 [
-    [ "Wiesel::MonoBehavior", "classWiesel_1_1MonoBehavior.html", "classWiesel_1_1MonoBehavior" ]
+    [ "wiesel::MonoBehavior", "classwiesel_1_1MonoBehavior.html", "classwiesel_1_1MonoBehavior" ]
 ];

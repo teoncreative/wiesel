@@ -1,8 +1,8 @@
 var w__mouseevents_8h =
 [
-    [ "Wiesel::MouseMovedEvent", "classWiesel_1_1MouseMovedEvent.html", "classWiesel_1_1MouseMovedEvent" ],
-    [ "Wiesel::MouseScrolledEvent", "classWiesel_1_1MouseScrolledEvent.html", "classWiesel_1_1MouseScrolledEvent" ],
-    [ "Wiesel::MouseButtonEvent", "classWiesel_1_1MouseButtonEvent.html", "classWiesel_1_1MouseButtonEvent" ],
-    [ "Wiesel::MouseButtonPressedEvent", "classWiesel_1_1MouseButtonPressedEvent.html", "classWiesel_1_1MouseButtonPressedEvent" ],
-    [ "Wiesel::MouseButtonReleasedEvent", "classWiesel_1_1MouseButtonReleasedEvent.html", "classWiesel_1_1MouseButtonReleasedEvent" ]
+    [ "wiesel::MouseMovedEvent", "classwiesel_1_1MouseMovedEvent.html", "classwiesel_1_1MouseMovedEvent" ],
+    [ "wiesel::MouseScrolledEvent", "classwiesel_1_1MouseScrolledEvent.html", "classwiesel_1_1MouseScrolledEvent" ],
+    [ "wiesel::MouseButtonEvent", "classwiesel_1_1MouseButtonEvent.html", "classwiesel_1_1MouseButtonEvent" ],
+    [ "wiesel::MouseButtonPressedEvent", "classwiesel_1_1MouseButtonPressedEvent.html", "classwiesel_1_1MouseButtonPressedEvent" ],
+    [ "wiesel::MouseButtonReleasedEvent", "classwiesel_1_1MouseButtonReleasedEvent.html", "classwiesel_1_1MouseButtonReleasedEvent" ]
 ];

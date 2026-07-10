@@ -12,6 +12,7 @@ var dir_cfe3c5e2ca8c482914e8f9f148e2e681 =
     [ "w_lighting_feature.h", "w__lighting__feature_8h.html", "w__lighting__feature_8h" ],
     [ "w_motion_blur_feature.h", "w__motion__blur__feature_8h.html", "w__motion__blur__feature_8h" ],
     [ "w_rt_shadow_feature.h", "w__rt__shadow__feature_8h.html", "w__rt__shadow__feature_8h" ],
+    [ "w_selection_outline_feature.h", "w__selection__outline__feature_8h.html", "w__selection__outline__feature_8h" ],
     [ "w_shadow_feature.h", "w__shadow__feature_8h.html", "w__shadow__feature_8h" ],
     [ "w_sprite_feature.h", "w__sprite__feature_8h.html", "w__sprite__feature_8h" ],
     [ "w_ssao_feature.h", "w__ssao__feature_8h.html", "w__ssao__feature_8h" ],

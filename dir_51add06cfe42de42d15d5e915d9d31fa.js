@@ -4,6 +4,7 @@ var dir_51add06cfe42de42d15d5e915d9d31fa =
     [ "w_attributes.h", "w__attributes_8h.html", "w__attributes_8h" ],
     [ "w_color.h", "w__color_8h.html", "w__color_8h" ],
     [ "w_command.h", "util_2w__command_8h.html", "util_2w__command_8h" ],
+    [ "w_command_parser.h", "w__command__parser_8h.html", "w__command__parser_8h" ],
     [ "w_dialogs.h", "w__dialogs_8h.html", "w__dialogs_8h" ],
     [ "w_discord_rpc.h", "w__discord__rpc_8h.html", null ],
     [ "w_filewatcher.h", "w__filewatcher_8h.html", "w__filewatcher_8h" ],
@@ -12,14 +13,9 @@ var dir_51add06cfe42de42d15d5e915d9d31fa =
     [ "w_label_texture.h", "w__label__texture_8h.html", "w__label__texture_8h" ],
     [ "w_logger.h", "w__logger_8h.html", "w__logger_8h" ],
     [ "w_mousecodes.h", "w__mousecodes_8h.html", "w__mousecodes_8h" ],
-    [ "w_natural_sort.h", "w__natural__sort_8h.html", "w__natural__sort_8h" ],
-    [ "w_platform.h", "w__platform_8h.html", "w__platform_8h" ],
-    [ "w_platformdetection.h", "w__platformdetection_8h.html", null ],
     [ "w_spirv.h", "w__spirv_8h.html", "w__spirv_8h" ],
-    [ "w_thread_pool.h", "w__thread__pool_8h.html", "w__thread__pool_8h" ],
     [ "w_tracy.h", "w__tracy_8h.html", "w__tracy_8h" ],
     [ "w_user_config.h", "w__user__config_8h.html", "w__user__config_8h" ],
     [ "w_utils.h", "w__utils_8h.html", "w__utils_8h" ],
-    [ "w_uuid.h", "w__uuid_8h.html", "w__uuid_8h" ],
     [ "w_vfs.h", "w__vfs_8h.html", "w__vfs_8h" ]
 ];

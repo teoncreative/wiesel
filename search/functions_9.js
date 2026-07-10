@@ -1,9 +1,9 @@
 var searchData=
 [
-  ['joystickaxismovedevent_0',['JoystickAxisMovedEvent',['../classWiesel_1_1JoystickAxisMovedEvent.html#a23c08304d2e19f46c3dd9cf00e61adc9',1,'Wiesel::JoystickAxisMovedEvent']]],
-  ['joystickbuttonpressedevent_1',['JoystickButtonPressedEvent',['../classWiesel_1_1JoystickButtonPressedEvent.html#a36c287653547b45d86c5796605cd216a',1,'Wiesel::JoystickButtonPressedEvent']]],
-  ['joystickbuttonreleasedevent_2',['JoystickButtonReleasedEvent',['../classWiesel_1_1JoystickButtonReleasedEvent.html#a09800e25fab835402db1f8964207b2c1',1,'Wiesel::JoystickButtonReleasedEvent']]],
-  ['joystickconnectedevent_3',['JoystickConnectedEvent',['../classWiesel_1_1JoystickConnectedEvent.html#a01b415f5cf408378c5d9c217c6cbae18',1,'Wiesel::JoystickConnectedEvent']]],
-  ['joystickdisconnectedevent_4',['JoystickDisconnectedEvent',['../classWiesel_1_1JoystickDisconnectedEvent.html#a320ae94be8bec263938dc6ffa8dde7a5',1,'Wiesel::JoystickDisconnectedEvent']]],
-  ['joystickhatchangedevent_5',['JoystickHatChangedEvent',['../classWiesel_1_1JoystickHatChangedEvent.html#a3a2f3059d88e45714b52c352b2571ba6',1,'Wiesel::JoystickHatChangedEvent']]]
+  ['joystickaxismovedevent_0',['JoystickAxisMovedEvent',['../classwiesel_1_1JoystickAxisMovedEvent.html#a41d247833d485feb5daf51aa667d70b6',1,'wiesel::JoystickAxisMovedEvent']]],
+  ['joystickbuttonpressedevent_1',['JoystickButtonPressedEvent',['../classwiesel_1_1JoystickButtonPressedEvent.html#a08ff483e11c2dd8d8d81d79d7ba3a821',1,'wiesel::JoystickButtonPressedEvent']]],
+  ['joystickbuttonreleasedevent_2',['JoystickButtonReleasedEvent',['../classwiesel_1_1JoystickButtonReleasedEvent.html#a7cc0a66b204a708af36c79145c2e082d',1,'wiesel::JoystickButtonReleasedEvent']]],
+  ['joystickconnectedevent_3',['JoystickConnectedEvent',['../classwiesel_1_1JoystickConnectedEvent.html#aadd3c8174adbf80f24ab28c4ff35198b',1,'wiesel::JoystickConnectedEvent']]],
+  ['joystickdisconnectedevent_4',['JoystickDisconnectedEvent',['../classwiesel_1_1JoystickDisconnectedEvent.html#a91522c95aa065eb3c94df982e6fb800d',1,'wiesel::JoystickDisconnectedEvent']]],
+  ['joystickhatchangedevent_5',['JoystickHatChangedEvent',['../classwiesel_1_1JoystickHatChangedEvent.html#a057e7e316eb1d8c1c34967bfa88cb1dc',1,'wiesel::JoystickHatChangedEvent']]]
 ];

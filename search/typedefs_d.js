@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['unloadfn_0',['UnloadFn',['../classWiesel_1_1FunctionAssetLoader.html#a47ccf37b864c873dff36e635278b622e',1,'Wiesel::FunctionAssetLoader']]]
+  ['windoweventfn_0',['WindowEventFn',['../namespacewiesel.html#a8f9f04f473551e0f8f350cb283989bdb',1,'wiesel']]]
 ];

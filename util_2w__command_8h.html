@@ -100,43 +100,45 @@ $(document).ready(function(){initNavTree('util_2w__command_8h.html',''); initRes
   <div class="headertitle"><div class="title">w_command.h File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &quot;<a class="el" href="w__pch_8h.html">w_pch.h</a>&quot;</code><br />
+<div class="textblock"><code>#include &quot;<a class="el" href="w__command__parser_8h.html">util/w_command_parser.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__pch_8h.html">w_pch.h</a>&quot;</code><br />
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1ConsoleLine.html">Wiesel::ConsoleLine</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structwiesel_1_1ConsoleLine.html">wiesel::ConsoleLine</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structWiesel_1_1CommandEntry.html">Wiesel::CommandEntry</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structwiesel_1_1CommandEntry.html">wiesel::CommandEntry</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1DeveloperConsole.html">Wiesel::DeveloperConsole</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classwiesel_1_1DeveloperConsole.html">wiesel::DeveloperConsole</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
-<tr class="memitem:namespaceWiesel" id="r_namespaceWiesel"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html">Wiesel</a></td></tr>
+<tr class="memitem:namespacewiesel" id="r_namespacewiesel"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacewiesel.html">wiesel</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="define-members" name="define-members"></a>
 Macros</h2></td></tr>
-<tr class="memitem:adc90cc383b5d161a44381ea701fdf18c" id="r_adc90cc383b5d161a44381ea701fdf18c"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="util_2w__command_8h.html#adc90cc383b5d161a44381ea701fdf18c">DCON_LOG_INFO</a>(msg,  args...)&#160;&#160;&#160;  <a class="el" href="classWiesel_1_1Engine.html#ad12a05766e71c66aac89f332b3ee7d06">::Wiesel::Engine::console</a>().LogInfo(std::format(msg, ##args))</td></tr>
+<tr class="memitem:adc90cc383b5d161a44381ea701fdf18c" id="r_adc90cc383b5d161a44381ea701fdf18c"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="util_2w__command_8h.html#adc90cc383b5d161a44381ea701fdf18c">DCON_LOG_INFO</a>(msg,  args...)&#160;&#160;&#160;  <a class="el" href="classwiesel_1_1DeveloperConsole.html#a3b0cbbe209fd34c151033cd238f17825">::wiesel::DeveloperConsole::Get</a>().LogInfo(std::format(msg, ##args))</td></tr>
 <tr class="separator:adc90cc383b5d161a44381ea701fdf18c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad7fe4a650f8f141ce1e523ba224ab0a4" id="r_ad7fe4a650f8f141ce1e523ba224ab0a4"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="util_2w__command_8h.html#ad7fe4a650f8f141ce1e523ba224ab0a4">DCON_LOG_WARN</a>(msg,  args...)&#160;&#160;&#160;  <a class="el" href="classWiesel_1_1Engine.html#ad12a05766e71c66aac89f332b3ee7d06">::Wiesel::Engine::console</a>().LogWarning(std::format(msg, ##args))</td></tr>
+<tr class="memitem:ad7fe4a650f8f141ce1e523ba224ab0a4" id="r_ad7fe4a650f8f141ce1e523ba224ab0a4"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="util_2w__command_8h.html#ad7fe4a650f8f141ce1e523ba224ab0a4">DCON_LOG_WARN</a>(msg,  args...)&#160;&#160;&#160;  <a class="el" href="classwiesel_1_1DeveloperConsole.html#a3b0cbbe209fd34c151033cd238f17825">::wiesel::DeveloperConsole::Get</a>().LogWarning(std::format(msg, ##args))</td></tr>
 <tr class="separator:ad7fe4a650f8f141ce1e523ba224ab0a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a503040be115c5cbf5d64ac0c4a9e347f" id="r_a503040be115c5cbf5d64ac0c4a9e347f"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="util_2w__command_8h.html#a503040be115c5cbf5d64ac0c4a9e347f">DCON_LOG_ERROR</a>(msg,  args...)&#160;&#160;&#160;  <a class="el" href="classWiesel_1_1Engine.html#ad12a05766e71c66aac89f332b3ee7d06">::Wiesel::Engine::console</a>().LogError(std::format(msg, ##args))</td></tr>
+<tr class="memitem:a503040be115c5cbf5d64ac0c4a9e347f" id="r_a503040be115c5cbf5d64ac0c4a9e347f"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="util_2w__command_8h.html#a503040be115c5cbf5d64ac0c4a9e347f">DCON_LOG_ERROR</a>(msg,  args...)&#160;&#160;&#160;  <a class="el" href="classwiesel_1_1DeveloperConsole.html#a3b0cbbe209fd34c151033cd238f17825">::wiesel::DeveloperConsole::Get</a>().LogError(std::format(msg, ##args))</td></tr>
 <tr class="separator:a503040be115c5cbf5d64ac0c4a9e347f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>
-<tr class="memitem:adb60bbffdeda07cbeecfdb5dccb208c6" id="r_adb60bbffdeda07cbeecfdb5dccb208c6"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html#adb60bbffdeda07cbeecfdb5dccb208c6">Wiesel::CommandCallback</a> = std::function&lt; void(const std::vector&lt; std::string &gt; &amp;args)&gt;</td></tr>
-<tr class="separator:adb60bbffdeda07cbeecfdb5dccb208c6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2798ba0f139e57da7051b1691b9a53bc" id="r_a2798ba0f139e57da7051b1691b9a53bc"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacewiesel.html#a2798ba0f139e57da7051b1691b9a53bc">wiesel::CommandCallback</a> = std::function&lt; void(const <a class="el" href="classwiesel_1_1CommandContext.html">CommandContext</a> &amp;)&gt;</td></tr>
+<tr class="separator:a2798ba0f139e57da7051b1691b9a53bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
-<tr class="memitem:a2c3ad462c639b419e5b3a00c8f332a03" id="r_a2c3ad462c639b419e5b3a00c8f332a03"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html#a2c3ad462c639b419e5b3a00c8f332a03">Wiesel::ConsoleLogLevel</a> { <a class="el" href="namespaceWiesel.html#a2c3ad462c639b419e5b3a00c8f332a03a4059b0251f66a18cb56f544728796875">Wiesel::Info</a>
-, <a class="el" href="namespaceWiesel.html#a2c3ad462c639b419e5b3a00c8f332a03a0eaadb4fcb48a0a0ed7bc9868be9fbaa">Wiesel::Warning</a>
-, <a class="el" href="namespaceWiesel.html#a2c3ad462c639b419e5b3a00c8f332a03a902b0d55fddef6f8d651fe1035b7d4bd">Wiesel::Error</a>
+<tr class="memitem:aed2161b00e444d97da9533ce2cc883bc" id="r_aed2161b00e444d97da9533ce2cc883bc"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacewiesel.html#aed2161b00e444d97da9533ce2cc883bc">wiesel::ConsoleLogLevel</a> { <a class="el" href="namespacewiesel.html#aed2161b00e444d97da9533ce2cc883bcabcee2009d5808b92788b2adf74896ef3">wiesel::UserInput</a>
+, <a class="el" href="namespacewiesel.html#aed2161b00e444d97da9533ce2cc883bca4059b0251f66a18cb56f544728796875">wiesel::Info</a>
+, <a class="el" href="namespacewiesel.html#aed2161b00e444d97da9533ce2cc883bca0eaadb4fcb48a0a0ed7bc9868be9fbaa">wiesel::Warning</a>
+, <a class="el" href="namespacewiesel.html#aed2161b00e444d97da9533ce2cc883bca902b0d55fddef6f8d651fe1035b7d4bd">wiesel::Error</a>
  }</td></tr>
-<tr class="separator:a2c3ad462c639b419e5b3a00c8f332a03"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="separator:aed2161b00e444d97da9533ce2cc883bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="a503040be115c5cbf5d64ac0c4a9e347f" name="a503040be115c5cbf5d64ac0c4a9e347f"></a>
@@ -160,7 +162,7 @@ Enumerations</h2></td></tr>
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td>&#160;&#160;&#160;  <a class="el" href="classWiesel_1_1Engine.html#ad12a05766e71c66aac89f332b3ee7d06">::Wiesel::Engine::console</a>().LogError(std::format(msg, ##args))</td>
+          <td></td><td>&#160;&#160;&#160;  <a class="el" href="classwiesel_1_1DeveloperConsole.html#a3b0cbbe209fd34c151033cd238f17825">::wiesel::DeveloperConsole::Get</a>().LogError(std::format(msg, ##args))</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -188,7 +190,7 @@ Enumerations</h2></td></tr>
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td>&#160;&#160;&#160;  <a class="el" href="classWiesel_1_1Engine.html#ad12a05766e71c66aac89f332b3ee7d06">::Wiesel::Engine::console</a>().LogInfo(std::format(msg, ##args))</td>
+          <td></td><td>&#160;&#160;&#160;  <a class="el" href="classwiesel_1_1DeveloperConsole.html#a3b0cbbe209fd34c151033cd238f17825">::wiesel::DeveloperConsole::Get</a>().LogInfo(std::format(msg, ##args))</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -216,7 +218,7 @@ Enumerations</h2></td></tr>
         <tr>
           <td></td>
           <td>)</td>
-          <td></td><td>&#160;&#160;&#160;  <a class="el" href="classWiesel_1_1Engine.html#ad12a05766e71c66aac89f332b3ee7d06">::Wiesel::Engine::console</a>().LogWarning(std::format(msg, ##args))</td>
+          <td></td><td>&#160;&#160;&#160;  <a class="el" href="classwiesel_1_1DeveloperConsole.html#a3b0cbbe209fd34c151033cd238f17825">::wiesel::DeveloperConsole::Get</a>().LogWarning(std::format(msg, ##args))</td>
         </tr>
       </table>
 </div><div class="memdoc">

@@ -1,5 +1,5 @@
 var w__acceleration__structure_8h =
 [
-    [ "Wiesel::AccelerationStructure", "structWiesel_1_1AccelerationStructure.html", "structWiesel_1_1AccelerationStructure" ],
-    [ "Wiesel::AccelerationStructureManager", "classWiesel_1_1AccelerationStructureManager.html", "classWiesel_1_1AccelerationStructureManager" ]
+    [ "wiesel::AccelerationStructure", "structwiesel_1_1AccelerationStructure.html", "structwiesel_1_1AccelerationStructure" ],
+    [ "wiesel::AccelerationStructureManager", "classwiesel_1_1AccelerationStructureManager.html", "classwiesel_1_1AccelerationStructureManager" ]
 ];

@@ -4,32 +4,36 @@ var namespaceWieselEngine =
     [ "Audio", "classWieselEngine_1_1Audio.html", null ],
     [ "AudioClip", "classWieselEngine_1_1AudioClip.html", "classWieselEngine_1_1AudioClip" ],
     [ "AudioSourceComponent", "classWieselEngine_1_1AudioSourceComponent.html", "classWieselEngine_1_1AudioSourceComponent" ],
+    [ "BillboardRendererComponent", "classWieselEngine_1_1BillboardRendererComponent.html", "classWieselEngine_1_1BillboardRendererComponent" ],
+    [ "BillboardTextComponent", "classWieselEngine_1_1BillboardTextComponent.html", "classWieselEngine_1_1BillboardTextComponent" ],
     [ "BoxColliderComponent", "classWieselEngine_1_1BoxColliderComponent.html", "classWieselEngine_1_1BoxColliderComponent" ],
     [ "CameraComponent", "classWieselEngine_1_1CameraComponent.html", "classWieselEngine_1_1CameraComponent" ],
     [ "CanvasComponent", "classWieselEngine_1_1CanvasComponent.html", "classWieselEngine_1_1CanvasComponent" ],
-    [ "CanvasImageComponent", "classWieselEngine_1_1CanvasImageComponent.html", "classWieselEngine_1_1CanvasImageComponent" ],
-    [ "CanvasRectComponent", "classWieselEngine_1_1CanvasRectComponent.html", "classWieselEngine_1_1CanvasRectComponent" ],
+    [ "ClientRpcAttribute", "classWieselEngine_1_1ClientRpcAttribute.html", null ],
+    [ "CommandContext", "classWieselEngine_1_1CommandContext.html", "classWieselEngine_1_1CommandContext" ],
     [ "Component", "classWieselEngine_1_1Component.html", "classWieselEngine_1_1Component" ],
-    [ "Debug", "classWieselEngine_1_1Debug.html", null ],
     [ "Entity", "classWieselEngine_1_1Entity.html", "classWieselEngine_1_1Entity" ],
+    [ "Font", "classWieselEngine_1_1Font.html", "classWieselEngine_1_1Font" ],
     [ "HandledVector2f", "classWieselEngine_1_1HandledVector2f.html", "classWieselEngine_1_1HandledVector2f" ],
     [ "HandledVector3f", "classWieselEngine_1_1HandledVector3f.html", "classWieselEngine_1_1HandledVector3f" ],
     [ "HandledVector4f", "classWieselEngine_1_1HandledVector4f.html", "classWieselEngine_1_1HandledVector4f" ],
     [ "Input", "classWieselEngine_1_1Input.html", null ],
-    [ "Internals", "classWieselEngine_1_1Internals.html", "classWieselEngine_1_1Internals" ],
     [ "LightDirectComponent", "classWieselEngine_1_1LightDirectComponent.html", "classWieselEngine_1_1LightDirectComponent" ],
     [ "LightPointComponent", "classWieselEngine_1_1LightPointComponent.html", "classWieselEngine_1_1LightPointComponent" ],
     [ "Mathf", "classWieselEngine_1_1Mathf.html", null ],
-    [ "ModelComponent", "classWieselEngine_1_1ModelComponent.html", "classWieselEngine_1_1ModelComponent" ],
     [ "MonoBehavior", "classWieselEngine_1_1MonoBehavior.html", "classWieselEngine_1_1MonoBehavior" ],
+    [ "NetworkIdentityComponent", "classWieselEngine_1_1NetworkIdentityComponent.html", "classWieselEngine_1_1NetworkIdentityComponent" ],
+    [ "NetworkVariable", "classWieselEngine_1_1NetworkVariable.html", "classWieselEngine_1_1NetworkVariable" ],
+    [ "Param", "structWieselEngine_1_1Param.html", "structWieselEngine_1_1Param" ],
     [ "Prefab", "classWieselEngine_1_1Prefab.html", "classWieselEngine_1_1Prefab" ],
     [ "RaycastHit", "structWieselEngine_1_1RaycastHit.html", "structWieselEngine_1_1RaycastHit" ],
     [ "RectTransformComponent", "classWieselEngine_1_1RectTransformComponent.html", "classWieselEngine_1_1RectTransformComponent" ],
     [ "RigidBodyComponent", "classWieselEngine_1_1RigidBodyComponent.html", "classWieselEngine_1_1RigidBodyComponent" ],
+    [ "Scene", "classWieselEngine_1_1Scene.html", "classWieselEngine_1_1Scene" ],
+    [ "ServerRpcAttribute", "classWieselEngine_1_1ServerRpcAttribute.html", null ],
     [ "SphereColliderComponent", "classWieselEngine_1_1SphereColliderComponent.html", "classWieselEngine_1_1SphereColliderComponent" ],
-    [ "SpriteAnimatorComponent", "classWieselEngine_1_1SpriteAnimatorComponent.html", "classWieselEngine_1_1SpriteAnimatorComponent" ],
     [ "SpriteRendererComponent", "classWieselEngine_1_1SpriteRendererComponent.html", "classWieselEngine_1_1SpriteRendererComponent" ],
-    [ "TextComponent", "classWieselEngine_1_1TextComponent.html", "classWieselEngine_1_1TextComponent" ],
+    [ "TagComponent", "classWieselEngine_1_1TagComponent.html", "classWieselEngine_1_1TagComponent" ],
     [ "TransformComponent", "classWieselEngine_1_1TransformComponent.html", "classWieselEngine_1_1TransformComponent" ],
     [ "UIDocumentComponent", "classWieselEngine_1_1UIDocumentComponent.html", "classWieselEngine_1_1UIDocumentComponent" ],
     [ "Vector2f", "classWieselEngine_1_1Vector2f.html", "classWieselEngine_1_1Vector2f" ],
@@ -56,6 +60,11 @@ var namespaceWieselEngine =
       [ "Master", "namespaceWieselEngine.html#aef625f95179f5e34739683daec513f43af03bde11d261f185cbacfa32c1c6538c", null ],
       [ "SFX", "namespaceWieselEngine.html#aef625f95179f5e34739683daec513f43ada101052f6ba998ab41d571a6fff1708", null ],
       [ "Music", "namespaceWieselEngine.html#aef625f95179f5e34739683daec513f43a47dcbd834e669233d7eb8a51456ed217", null ]
+    ] ],
+    [ "BillboardOcclusion", "namespaceWieselEngine.html#afcf529606443c755126c4ff43a13d4d7", [
+      [ "Disabled", "namespaceWieselEngine.html#afcf529606443c755126c4ff43a13d4d7ab9f5c797ebbf55adccdd8539a65a0241", null ],
+      [ "Faded", "namespaceWieselEngine.html#afcf529606443c755126c4ff43a13d4d7a2716c1e477a70de6b2508c5ccd8c2588", null ],
+      [ "AlwaysVisible", "namespaceWieselEngine.html#afcf529606443c755126c4ff43a13d4d7acd1810dcd59004d43111b80b7bad31cb", null ]
     ] ],
     [ "ChildAlignment", "namespaceWieselEngine.html#a9316eedef9c9a99ae7ff37f2bf9c56f0", [
       [ "Start", "namespaceWieselEngine.html#a9316eedef9c9a99ae7ff37f2bf9c56f0aa6122a65eaa676f700ae68d393054a37", null ],
@@ -221,9 +230,38 @@ var namespaceWieselEngine =
       [ "Row", "namespaceWieselEngine.html#a4f91272fd90b4d88643c84f1285418efaa70367aa7cb74e510f4f9413ccf059d3", null ],
       [ "Column", "namespaceWieselEngine.html#a4f91272fd90b4d88643c84f1285418efa1976d7f704de389d9fe064e08ea35b2d", null ]
     ] ],
+    [ "LoadSceneMode", "namespaceWieselEngine.html#ab242f143e6e1cc8c9e1ac70528f37ed1", [
+      [ "Single", "namespaceWieselEngine.html#ab242f143e6e1cc8c9e1ac70528f37ed1a66ba162102bbf6ae31b522aec561735e", null ],
+      [ "Additive", "namespaceWieselEngine.html#ab242f143e6e1cc8c9e1ac70528f37ed1a3f7b3d8ee7bf0d542bd50821c083888f", null ]
+    ] ],
+    [ "NetworkAuthority", "namespaceWieselEngine.html#af8b409c6cf06a88d30dfa2f9c2193a92", [
+      [ "None", "namespaceWieselEngine.html#af8b409c6cf06a88d30dfa2f9c2193a92a6adf97f83acf6453d4a6a4b1070f3754", null ],
+      [ "Server", "namespaceWieselEngine.html#af8b409c6cf06a88d30dfa2f9c2193a92a9aa1b03934893d7134a660af4204f2a9", null ],
+      [ "Client", "namespaceWieselEngine.html#af8b409c6cf06a88d30dfa2f9c2193a92a577d7068826de925ea2aec01dbadf5e4", null ]
+    ] ],
+    [ "NetworkRole", "namespaceWieselEngine.html#ad1698cf166656f64e82b6e1389333727", [
+      [ "None", "namespaceWieselEngine.html#ad1698cf166656f64e82b6e1389333727a6adf97f83acf6453d4a6a4b1070f3754", null ],
+      [ "Server", "namespaceWieselEngine.html#ad1698cf166656f64e82b6e1389333727a9aa1b03934893d7134a660af4204f2a9", null ],
+      [ "Client", "namespaceWieselEngine.html#ad1698cf166656f64e82b6e1389333727a577d7068826de925ea2aec01dbadf5e4", null ],
+      [ "ListenServer", "namespaceWieselEngine.html#ad1698cf166656f64e82b6e1389333727a6fda9fb5bd49b0ae883672f609b5032c", null ]
+    ] ],
+    [ "ParamType", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dc", [
+      [ "Int", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dca1686a6c336b71b36d77354cea19a8b52", null ],
+      [ "Float", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dca22ae0e2b89e5e3d477f988cc36d3272b", null ],
+      [ "Bool", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dcac26f15e86e3de4c398a8273272aba034", null ],
+      [ "String", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dca27118326006d3829667a400ad23d5d98", null ],
+      [ "Vec2", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dcafe98032d4f1c52a2f0b617f9205d5f80", null ],
+      [ "Vec3", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dca01b2dc1a2922d9be9e12ef0709600977", null ],
+      [ "Vec4", "namespaceWieselEngine.html#a8a10d1b175b68393049ace91a52b03dcaf67402842935c0240e8109e7312def66", null ]
+    ] ],
     [ "ProjectionMode", "namespaceWieselEngine.html#ab3ab8c15a6025f036215693065b27edd", [
       [ "Perspective", "namespaceWieselEngine.html#ab3ab8c15a6025f036215693065b27eddaa80420eef88d11f77532f1b9cb467fa3", null ],
       [ "Orthographic", "namespaceWieselEngine.html#ab3ab8c15a6025f036215693065b27edda03424250432f2aa71de95579d2c0eaeb", null ]
+    ] ],
+    [ "RigidBodyType", "namespaceWieselEngine.html#a398156c62d105541e492fad49f24e0cf", [
+      [ "Static", "namespaceWieselEngine.html#a398156c62d105541e492fad49f24e0cfa84a8921b25f505d0d2077aeb5db4bc16", null ],
+      [ "Kinematic", "namespaceWieselEngine.html#a398156c62d105541e492fad49f24e0cfa40c78b58b86002ee38fad2d3c9dd787e", null ],
+      [ "Dynamic", "namespaceWieselEngine.html#a398156c62d105541e492fad49f24e0cfa971fd8cc345d8bd9f92e9f7d88fdf20c", null ]
     ] ],
     [ "SizeMode", "namespaceWieselEngine.html#a031da637db84091fcd7e1c202b270417", [
       [ "Fixed", "namespaceWieselEngine.html#a031da637db84091fcd7e1c202b270417a4457d440870ad6d42bab9082d9bf9b61", null ],
@@ -232,5 +270,10 @@ var namespaceWieselEngine =
     [ "Space", "namespaceWieselEngine.html#a4167aab96ea441c9b2f80eae94a0dfdf", [
       [ "Local", "namespaceWieselEngine.html#a4167aab96ea441c9b2f80eae94a0dfdfa509820290d57f333403f490dde7316f4", null ],
       [ "World", "namespaceWieselEngine.html#a4167aab96ea441c9b2f80eae94a0dfdfaf5a7924e621e84c9280a9a27e1bcb7f6", null ]
+    ] ],
+    [ "TextAlignment", "namespaceWieselEngine.html#a054936c63abd0eceac689b01847e9de8", [
+      [ "Left", "namespaceWieselEngine.html#a054936c63abd0eceac689b01847e9de8a945d5e233cf7d6240f6b783b36a374ff", null ],
+      [ "Center", "namespaceWieselEngine.html#a054936c63abd0eceac689b01847e9de8a4f1f6016fc9f3f2353c0cc7c67b292bd", null ],
+      [ "Right", "namespaceWieselEngine.html#a054936c63abd0eceac689b01847e9de8a92b09c7c48c520c3c55e497875da437c", null ]
     ] ]
 ];

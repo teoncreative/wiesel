@@ -1,4 +1,4 @@
 var w__layerconsole_8h =
 [
-    [ "Wiesel::ConsoleLayer", "classWiesel_1_1ConsoleLayer.html", "classWiesel_1_1ConsoleLayer" ]
+    [ "wiesel::ConsoleLayer", "classwiesel_1_1ConsoleLayer.html", "classwiesel_1_1ConsoleLayer" ]
 ];

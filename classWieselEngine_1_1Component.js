@@ -1,5 +1,6 @@
 var classWieselEngine_1_1Component =
 [
+    [ "Component", "classWieselEngine_1_1Component.html#a17b189d3c6beea7c6919aebd8d25c62d", null ],
     [ "GetChild", "classWieselEngine_1_1Component.html#a77e13a790e52f0542df82a5ae3872dfb", null ],
     [ "GetChildComponent< T >", "classWieselEngine_1_1Component.html#a32463ae2c55131cb124f7d40741fad1f", null ],
     [ "GetComponent< T >", "classWieselEngine_1_1Component.html#a575f991da63e67c226aa0486a2f95a5c", null ],

@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['editorstate_0',['EditorState',['../namespaceWiesel_1_1Editor.html#a8782947c92fe566e143ef827c14a255c',1,'Wiesel::Editor']]],
-  ['eventcategory_1',['EventCategory',['../namespaceWiesel.html#a625aae2dac4b4f17becee01730823759',1,'Wiesel']]],
-  ['eventtype_2',['EventType',['../namespaceWiesel.html#adc25558cdf36ff75b7903b843b394fcf',1,'Wiesel']]]
+  ['editorstate_0',['EditorState',['../namespacewiesel_1_1editor.html#aa2e6a86a900c349a58d7391f52def994',1,'wiesel::editor']]],
+  ['eventcategory_1',['EventCategory',['../namespacewiesel.html#a2e79d3b34062cdb76cd820f148688d4c',1,'wiesel']]],
+  ['eventtype_2',['EventType',['../namespacewiesel.html#a3872c2bc58d0b4590cca93b9a73f7a4c',1,'wiesel']]]
 ];

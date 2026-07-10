@@ -122,6 +122,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a3a0005f8929692fe08e9605b1d597cf4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa33e255430e6af13ffe07f3c350ce4fc" id="r_aa33e255430e6af13ffe07f3c350ce4fc"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ab9ece18c950afbfa6b0fdbfa4ff731d3">T</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#aa33e255430e6af13ffe07f3c350ce4fc">GetChildComponent&lt; T &gt;</a> (int index)</td></tr>
 <tr class="separator:aa33e255430e6af13ffe07f3c350ce4fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68580aaeab29511ac115116906676471" id="r_a68580aaeab29511ac115116906676471"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#a68580aaeab29511ac115116906676471">SetParent</a> (<a class="el" href="classWieselEngine_1_1Entity.html">Entity</a> parent)</td></tr>
+<tr class="separator:a68580aaeab29511ac115116906676471"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acf14451b647c7848ec9204a737816453" id="r_acf14451b647c7848ec9204a737816453"><td class="memItemLeft" align="right" valign="top">override bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#acf14451b647c7848ec9204a737816453">Equals</a> (object obj)</td></tr>
 <tr class="separator:acf14451b647c7848ec9204a737816453"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae656a75f42da26ca13380924570b12fa" id="r_ae656a75f42da26ca13380924570b12fa"><td class="memItemLeft" align="right" valign="top">override int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#ae656a75f42da26ca13380924570b12fa">GetHashCode</a> ()</td></tr>
@@ -136,10 +138,10 @@ Static Public Member Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="properties" name="properties"></a>
 Properties</h2></td></tr>
-<tr class="memitem:a6af1ca5114c8be0fbe8921c8da3996a5" id="r_a6af1ca5114c8be0fbe8921c8da3996a5"><td class="memItemLeft" align="right" valign="top">ulong&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#a6af1ca5114c8be0fbe8921c8da3996a5">Id</a><code> [get]</code></td></tr>
-<tr class="separator:a6af1ca5114c8be0fbe8921c8da3996a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7b8fa3abab9b1ff1f0fafa59ee51ff24" id="r_a7b8fa3abab9b1ff1f0fafa59ee51ff24"><td class="memItemLeft" align="right" valign="top">ulong&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#a7b8fa3abab9b1ff1f0fafa59ee51ff24">ScenePtr</a><code> [get]</code></td></tr>
-<tr class="separator:a7b8fa3abab9b1ff1f0fafa59ee51ff24"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac601d288ba6c9d5911225ac1cc6b5e77" id="r_ac601d288ba6c9d5911225ac1cc6b5e77"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#ac601d288ba6c9d5911225ac1cc6b5e77">IsValid</a><code> [get]</code></td></tr>
+<tr class="separator:ac601d288ba6c9d5911225ac1cc6b5e77"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aeaa6b7644b0aab8ab48e9f45a41e76c0" id="r_aeaa6b7644b0aab8ab48e9f45a41e76c0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWieselEngine_1_1Scene.html">Scene</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#aeaa6b7644b0aab8ab48e9f45a41e76c0">Scene</a><code> [get]</code></td></tr>
+<tr class="separator:aeaa6b7644b0aab8ab48e9f45a41e76c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1196a10a329a979fc347f916222fd62f" id="r_a1196a10a329a979fc347f916222fd62f"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1Entity.html#a1196a10a329a979fc347f916222fd62f">ChildCount</a><code> [get]</code></td></tr>
 <tr class="separator:a1196a10a329a979fc347f916222fd62f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
@@ -438,6 +440,24 @@ Properties</h2></td></tr>
 
 </div>
 </div>
+<a id="a68580aaeab29511ac115116906676471" name="a68580aaeab29511ac115116906676471"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a68580aaeab29511ac115116906676471">&#9670;&#160;</a></span>SetParent()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void WieselEngine.Entity.SetParent </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWieselEngine_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>parent</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <h2 class="groupheader">Property Documentation</h2>
 <a id="a1196a10a329a979fc347f916222fd62f" name="a1196a10a329a979fc347f916222fd62f"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1196a10a329a979fc347f916222fd62f">&#9670;&#160;</a></span>ChildCount</h2>
@@ -461,8 +481,8 @@ Properties</h2></td></tr>
 
 </div>
 </div>
-<a id="a6af1ca5114c8be0fbe8921c8da3996a5" name="a6af1ca5114c8be0fbe8921c8da3996a5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6af1ca5114c8be0fbe8921c8da3996a5">&#9670;&#160;</a></span>Id</h2>
+<a id="ac601d288ba6c9d5911225ac1cc6b5e77" name="ac601d288ba6c9d5911225ac1cc6b5e77"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac601d288ba6c9d5911225ac1cc6b5e77">&#9670;&#160;</a></span>IsValid</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -471,7 +491,7 @@ Properties</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">ulong WieselEngine.Entity.Id</td>
+          <td class="memname">bool WieselEngine.Entity.IsValid</td>
         </tr>
       </table>
   </td>
@@ -483,8 +503,8 @@ Properties</h2></td></tr>
 
 </div>
 </div>
-<a id="a7b8fa3abab9b1ff1f0fafa59ee51ff24" name="a7b8fa3abab9b1ff1f0fafa59ee51ff24"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7b8fa3abab9b1ff1f0fafa59ee51ff24">&#9670;&#160;</a></span>ScenePtr</h2>
+<a id="aeaa6b7644b0aab8ab48e9f45a41e76c0" name="aeaa6b7644b0aab8ab48e9f45a41e76c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aeaa6b7644b0aab8ab48e9f45a41e76c0">&#9670;&#160;</a></span>Scene</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -493,7 +513,7 @@ Properties</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">ulong WieselEngine.Entity.ScenePtr</td>
+          <td class="memname"><a class="el" href="classWieselEngine_1_1Scene.html">Scene</a> WieselEngine.Entity.Scene</td>
         </tr>
       </table>
   </td>

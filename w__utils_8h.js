@@ -1,17 +1,17 @@
 var w__utils_8h =
 [
-    [ "Wiesel::QueueFamilyIndices", "structWiesel_1_1QueueFamilyIndices.html", "structWiesel_1_1QueueFamilyIndices" ],
-    [ "Wiesel::SwapChainSupportDetails", "structWiesel_1_1SwapChainSupportDetails.html", "structWiesel_1_1SwapChainSupportDetails" ],
-    [ "Wiesel::Vertex3D", "structWiesel_1_1Vertex3D.html", "structWiesel_1_1Vertex3D" ],
-    [ "Wiesel::Vertex2DNoColor", "structWiesel_1_1Vertex2DNoColor.html", "structWiesel_1_1Vertex2DNoColor" ],
-    [ "Wiesel::VertexSprite", "structWiesel_1_1VertexSprite.html", "structWiesel_1_1VertexSprite" ],
-    [ "Wiesel::MatricesUniformData", "structWiesel_1_1MatricesUniformData.html", "structWiesel_1_1MatricesUniformData" ],
-    [ "Wiesel::SpriteUniformData", "structWiesel_1_1SpriteUniformData.html", "structWiesel_1_1SpriteUniformData" ],
-    [ "Wiesel::CameraUniformData", "structWiesel_1_1CameraUniformData.html", "structWiesel_1_1CameraUniformData" ],
-    [ "Wiesel::ShadowMapMatricesUniformData", "structWiesel_1_1ShadowMapMatricesUniformData.html", "structWiesel_1_1ShadowMapMatricesUniformData" ],
-    [ "Wiesel::SSAOKernelUniformData", "structWiesel_1_1SSAOKernelUniformData.html", "structWiesel_1_1SSAOKernelUniformData" ],
-    [ "Wiesel::SSAOSpecializationData", "structWiesel_1_1SSAOSpecializationData.html", "structWiesel_1_1SSAOSpecializationData" ],
-    [ "Wiesel::Time", "classWiesel_1_1Time.html", null ],
+    [ "wiesel::QueueFamilyIndices", "structwiesel_1_1QueueFamilyIndices.html", "structwiesel_1_1QueueFamilyIndices" ],
+    [ "wiesel::SwapChainSupportDetails", "structwiesel_1_1SwapChainSupportDetails.html", "structwiesel_1_1SwapChainSupportDetails" ],
+    [ "wiesel::Vertex3D", "structwiesel_1_1Vertex3D.html", "structwiesel_1_1Vertex3D" ],
+    [ "wiesel::Vertex2DNoColor", "structwiesel_1_1Vertex2DNoColor.html", "structwiesel_1_1Vertex2DNoColor" ],
+    [ "wiesel::VertexSprite", "structwiesel_1_1VertexSprite.html", "structwiesel_1_1VertexSprite" ],
+    [ "wiesel::MatricesUniformData", "structwiesel_1_1MatricesUniformData.html", "structwiesel_1_1MatricesUniformData" ],
+    [ "wiesel::SpriteUniformData", "structwiesel_1_1SpriteUniformData.html", "structwiesel_1_1SpriteUniformData" ],
+    [ "wiesel::CameraUniformData", "structwiesel_1_1CameraUniformData.html", "structwiesel_1_1CameraUniformData" ],
+    [ "wiesel::ShadowMapMatricesUniformData", "structwiesel_1_1ShadowMapMatricesUniformData.html", "structwiesel_1_1ShadowMapMatricesUniformData" ],
+    [ "wiesel::SSAOKernelUniformData", "structwiesel_1_1SSAOKernelUniformData.html", "structwiesel_1_1SSAOKernelUniformData" ],
+    [ "wiesel::SSAOSpecializationData", "structwiesel_1_1SSAOSpecializationData.html", "structwiesel_1_1SSAOSpecializationData" ],
+    [ "wiesel::Time", "classwiesel_1_1Time.html", null ],
     [ "BIT", "w__utils_8h.html#ad27cc17b25bb93134368d5eb21126eae", null ],
     [ "PI", "w__utils_8h.html#a598a3330b3c21701223ee0ca14316eca", null ],
     [ "WIESEL_BIND_FN", "w__utils_8h.html#aedf3f1ff6ade3cf5cf3ae3c53180e123", null ],
@@ -27,39 +27,40 @@ var w__utils_8h =
     [ "WIESEL_SSAO_NOISE_DIM", "w__utils_8h.html#ac1853b55f370ebb1d1ca65cfe6ddad36", null ],
     [ "WIESEL_SSAO_RADIUS", "w__utils_8h.html#aaf252a41811d4e1247031ffff13b7e46", null ],
     [ "WIESEL_UNIQUE_NAME", "w__utils_8h.html#ac964bd3c4c3938e6339b968be7966248", null ],
-    [ "Index", "w__utils_8h.html#ad29bec122d477febf047e8b178a0f213", null ],
-    [ "Pair", "w__utils_8h.html#acc234c8a575ffd4d5311189784d9eee3", null ],
-    [ "AntiAliasingMode", "w__utils_8h.html#a9b7ef1c67f49942f9526eaa989c71a24", [
-      [ "None", "w__utils_8h.html#a9b7ef1c67f49942f9526eaa989c71a24a6adf97f83acf6453d4a6a4b1070f3754", null ],
-      [ "FXAA", "w__utils_8h.html#a9b7ef1c67f49942f9526eaa989c71a24aaa9ebfd80da9bf23f763a63c052a452a", null ],
-      [ "TAA", "w__utils_8h.html#a9b7ef1c67f49942f9526eaa989c71a24a88a337f4479ce258e968e00de1de7483", null ]
+    [ "Index", "w__utils_8h.html#a90f5bfae4863b098639c06b10419665e", null ],
+    [ "Pair", "w__utils_8h.html#af130a429fbb75c3e068672018d153a1a", null ],
+    [ "AntiAliasingMode", "w__utils_8h.html#a62b1de44538545b40ba6c188d66c830b", [
+      [ "None", "w__utils_8h.html#a62b1de44538545b40ba6c188d66c830ba6adf97f83acf6453d4a6a4b1070f3754", null ],
+      [ "FXAA", "w__utils_8h.html#a62b1de44538545b40ba6c188d66c830baaa9ebfd80da9bf23f763a63c052a452a", null ],
+      [ "TAA", "w__utils_8h.html#a62b1de44538545b40ba6c188d66c830ba88a337f4479ce258e968e00de1de7483", null ]
     ] ],
-    [ "BakeResult", "w__utils_8h.html#a1269e98138085e8c52861afee5815d03", [
-      [ "SUCCESS", "w__utils_8h.html#a1269e98138085e8c52861afee5815d03a1b669465913a55f5f1339ec5e123359d", null ]
+    [ "BakeResult", "w__utils_8h.html#a576e55792903c3f201f54354e710c282", [
+      [ "SUCCESS", "w__utils_8h.html#a576e55792903c3f201f54354e710c282a82958672f1a11d44e69f4557db1548d5", null ]
     ] ],
-    [ "SamplingMode", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6", [
-      [ "DISABLED", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6a055c1a591abb0e8cd86dc969727bcc0b", null ],
-      [ "X2", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6a54105bddbfe3f639d49cbe8f5182c958", null ],
-      [ "X4", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6a7d71ed2af4cc5c6a8380324d9bc4a45f", null ],
-      [ "X8", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6ab8295fda5d2245c683e47e1137656c78", null ],
-      [ "X16", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6a8566d518618cc93194d9e7688e2dafa2", null ],
-      [ "X32", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6aaebf1ebe049feaa907e785eeb955ae32", null ],
-      [ "X64", "w__utils_8h.html#aa1c45abe55496d4d69b39aba218a03d6af0851da0e02bf22830828822f578dc8f", null ]
+    [ "SamplingMode", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040c", [
+      [ "DISABLED", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040ca055c1a591abb0e8cd86dc969727bcc0b", null ],
+      [ "X2", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040ca54105bddbfe3f639d49cbe8f5182c958", null ],
+      [ "X4", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040ca7d71ed2af4cc5c6a8380324d9bc4a45f", null ],
+      [ "X8", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040cab8295fda5d2245c683e47e1137656c78", null ],
+      [ "X16", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040ca8566d518618cc93194d9e7688e2dafa2", null ],
+      [ "X32", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040caaebf1ebe049feaa907e785eeb955ae32", null ],
+      [ "X64", "w__utils_8h.html#a509fecda3e3300c74f9d398e1695040caf0851da0e02bf22830828822f578dc8f", null ]
     ] ],
-    [ "Vertex3DFlag", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2", [
-      [ "VertexFlagHasTexture", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2a47636f98f73c9fcb5acde69c3e2d8a05", null ],
-      [ "VertexFlagHasNormalMap", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2a15b2b94bc8207004a81fa2565c61dc34", null ],
-      [ "VertexFlagHasSpecularMap", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2ae28bec1cd637f1c424fc6423797ab98c", null ],
-      [ "VertexFlagHasHeightMap", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2a6bc7b273074c341fa8932aea209b69d1", null ],
-      [ "VertexFlagHasAlbedoMap", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2a9835f27fcc2e76e4f3550cee0f9d4c72", null ],
-      [ "VertexFlagHasRoughnessMap", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2a63799a371407035a97b5e059f20d9299", null ],
-      [ "VertexFlagHasMetallicMap", "w__utils_8h.html#a74bcb5e873d456ca267408c368a348c2a605213bc964d24e992a44e99f3ec104d", null ]
+    [ "Vertex3DFlag", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8", [
+      [ "VertexFlagHasTexture", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8af807edcf2fcbe08ffba2dccfb714d4da", null ],
+      [ "VertexFlagHasNormalMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8a0c17e7245277807ae9fda5cb7e84c924", null ],
+      [ "VertexFlagHasSpecularMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8a0dacd9c73b70633e85b381d3d404bd73", null ],
+      [ "VertexFlagHasHeightMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8aa8d8c5ee3c01f02b2561aa3e842b5ea4", null ],
+      [ "VertexFlagHasAlbedoMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8a3b591c5dbb41b4e1d83f0d3fc132271b", null ],
+      [ "VertexFlagHasRoughnessMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8ad90f19ed9f92522440122924474c2f4c", null ],
+      [ "VertexFlagHasMetallicMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8a03f97235371190d84bb6fea6c39a39be", null ],
+      [ "VertexFlagHasOpacityMap", "w__utils_8h.html#a37ed4bdf662a5db345bf35463c7ae8a8a9ee084d51c91b2261a99f8c75f49c46e", null ]
     ] ],
-    [ "FormatVariableName", "w__utils_8h.html#a7eeeed252d2944f5a68e764e2e6cff33", null ],
-    [ "GetNameFromVulkanResult", "w__utils_8h.html#aa00f646b53f2e7685527982ee424e1e3", null ],
-    [ "ReadVirtualFile", "w__utils_8h.html#a7f1f564a526029fee12cae8fc33c4cbb", null ],
-    [ "ReadVirtualFileUint32", "w__utils_8h.html#ad3bc018b25e60fb94a02dcf797ea8e3b", null ],
-    [ "ToString", "w__utils_8h.html#a9463206f0afa4ad5eafee7c604571088", null ],
-    [ "ToVkSampleCountFlagBits", "w__utils_8h.html#a705228e498ca4016e2caa34c3076748c", null ],
-    [ "TrimLeft", "w__utils_8h.html#a3c59bbc69adffe21c19da9479123a87a", null ]
+    [ "FormatVariableName", "w__utils_8h.html#a35b36a82e7b3da72041e36b1ac3862fc", null ],
+    [ "GetNameFromVulkanResult", "w__utils_8h.html#a8f3f3b394c04507b24418456b137cee4", null ],
+    [ "ReadVirtualFile", "w__utils_8h.html#a2667821a767c67767c2ba531b26aff8e", null ],
+    [ "ReadVirtualFileUint32", "w__utils_8h.html#aef736019bce33944b62a1439f0a04f03", null ],
+    [ "ToString", "w__utils_8h.html#a42605df43c3fa4b49e6e60e1c850762f", null ],
+    [ "ToVkSampleCountFlagBits", "w__utils_8h.html#a128038bd90ed4f520a212256f7b18205", null ],
+    [ "TrimLeft", "w__utils_8h.html#a2c376e71039297e799177cfaacf8c7b9", null ]
 ];

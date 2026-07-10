@@ -1,4 +1,4 @@
 var w__layer_8h =
 [
-    [ "Wiesel::Layer", "classWiesel_1_1Layer.html", "classWiesel_1_1Layer" ]
+    [ "wiesel::Layer", "classwiesel_1_1Layer.html", "classwiesel_1_1Layer" ]
 ];

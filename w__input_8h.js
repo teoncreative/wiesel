@@ -1,14 +1,14 @@
 var w__input_8h =
 [
-    [ "Wiesel::KeyData", "structWiesel_1_1KeyData.html", "structWiesel_1_1KeyData" ],
-    [ "Wiesel::GamepadState", "structWiesel_1_1GamepadState.html", "structWiesel_1_1GamepadState" ],
-    [ "Wiesel::PlayerSlot", "structWiesel_1_1PlayerSlot.html", "structWiesel_1_1PlayerSlot" ],
-    [ "Wiesel::InputManager", "classWiesel_1_1InputManager.html", "classWiesel_1_1InputManager" ],
-    [ "InputMode", "w__input_8h.html#ae4239fba4848edbaac0ecb0cd02398d7", [
-      [ "kInputModeKeyboardAndMouse", "w__input_8h.html#ae4239fba4848edbaac0ecb0cd02398d7aac7c663830893e2d810e0c0b931f4583", null ],
-      [ "kInputModeGamepad", "w__input_8h.html#ae4239fba4848edbaac0ecb0cd02398d7aa48ac3c6d5643905434ea803e3a74a4a", null ]
+    [ "wiesel::KeyData", "structwiesel_1_1KeyData.html", "structwiesel_1_1KeyData" ],
+    [ "wiesel::GamepadState", "structwiesel_1_1GamepadState.html", "structwiesel_1_1GamepadState" ],
+    [ "wiesel::PlayerSlot", "structwiesel_1_1PlayerSlot.html", "structwiesel_1_1PlayerSlot" ],
+    [ "wiesel::InputManager", "classwiesel_1_1InputManager.html", "classwiesel_1_1InputManager" ],
+    [ "InputMode", "w__input_8h.html#a49417bdd57f3c4fcc032e1dae67462a4", [
+      [ "kInputModeKeyboardAndMouse", "w__input_8h.html#a49417bdd57f3c4fcc032e1dae67462a4a35e53c3f5876cc489a06dc26fa461ae3", null ],
+      [ "kInputModeGamepad", "w__input_8h.html#a49417bdd57f3c4fcc032e1dae67462a4a64542eceba7f080961aa3f7e03eb19f7", null ]
     ] ],
-    [ "kMaxGamepads", "w__input_8h.html#a62b6d2f261d0e43a7539e715739ebf17", null ],
-    [ "kMaxMouseButtons", "w__input_8h.html#a938b34e6ae8c494e76f1e84075ef3604", null ],
-    [ "kMaxPlayers", "w__input_8h.html#ad78b814c6dc26e3d5cecd6e72c344ffe", null ]
+    [ "kMaxGamepads", "w__input_8h.html#ae95c6611b42e9fdc151261dcbc447e70", null ],
+    [ "kMaxMouseButtons", "w__input_8h.html#aa11679718190efe120fb23c7ed52e082", null ],
+    [ "kMaxPlayers", "w__input_8h.html#a0f8f633fd3f2f8adc77ac389b659aea8", null ]
 ];

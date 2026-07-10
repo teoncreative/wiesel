@@ -1,10 +1,11 @@
 var w__renderer_8h =
 [
-    [ "Wiesel::ShadowPipelinePushConstant", "structWiesel_1_1ShadowPipelinePushConstant.html", "structWiesel_1_1ShadowPipelinePushConstant" ],
-    [ "Wiesel::Setting< T >", "classWiesel_1_1Setting.html", "classWiesel_1_1Setting" ],
-    [ "Wiesel::Setting< T >::Proxy", "structWiesel_1_1Setting_1_1Proxy.html", "structWiesel_1_1Setting_1_1Proxy" ],
-    [ "Wiesel::RendererOptions", "structWiesel_1_1RendererOptions.html", "structWiesel_1_1RendererOptions" ],
-    [ "Wiesel::RendererProperties", "structWiesel_1_1RendererProperties.html", null ],
-    [ "Wiesel::RenderStats", "structWiesel_1_1RenderStats.html", "structWiesel_1_1RenderStats" ],
-    [ "Wiesel::Renderer", "classWiesel_1_1Renderer.html", "classWiesel_1_1Renderer" ]
+    [ "wiesel::ShadowPipelinePushConstant", "structwiesel_1_1ShadowPipelinePushConstant.html", "structwiesel_1_1ShadowPipelinePushConstant" ],
+    [ "wiesel::Setting< T >", "classwiesel_1_1Setting.html", "classwiesel_1_1Setting" ],
+    [ "wiesel::Setting< T >::Proxy", "structwiesel_1_1Setting_1_1Proxy.html", "structwiesel_1_1Setting_1_1Proxy" ],
+    [ "wiesel::RendererOptions", "structwiesel_1_1RendererOptions.html", "structwiesel_1_1RendererOptions" ],
+    [ "wiesel::RendererProperties", "structwiesel_1_1RendererProperties.html", null ],
+    [ "wiesel::RenderStats", "structwiesel_1_1RenderStats.html", "structwiesel_1_1RenderStats" ],
+    [ "wiesel::Renderer", "classwiesel_1_1Renderer.html", "classwiesel_1_1Renderer" ],
+    [ "wiesel::Renderer::MeshDrawPrep", "structwiesel_1_1Renderer_1_1MeshDrawPrep.html", "structwiesel_1_1Renderer_1_1MeshDrawPrep" ]
 ];

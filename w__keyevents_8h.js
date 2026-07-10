@@ -1,7 +1,7 @@
 var w__keyevents_8h =
 [
-    [ "Wiesel::KeyEvent", "classWiesel_1_1KeyEvent.html", "classWiesel_1_1KeyEvent" ],
-    [ "Wiesel::KeyPressedEvent", "classWiesel_1_1KeyPressedEvent.html", "classWiesel_1_1KeyPressedEvent" ],
-    [ "Wiesel::KeyReleasedEvent", "classWiesel_1_1KeyReleasedEvent.html", "classWiesel_1_1KeyReleasedEvent" ],
-    [ "Wiesel::KeyTypedEvent", "classWiesel_1_1KeyTypedEvent.html", "classWiesel_1_1KeyTypedEvent" ]
+    [ "wiesel::KeyEvent", "classwiesel_1_1KeyEvent.html", "classwiesel_1_1KeyEvent" ],
+    [ "wiesel::KeyPressedEvent", "classwiesel_1_1KeyPressedEvent.html", "classwiesel_1_1KeyPressedEvent" ],
+    [ "wiesel::KeyReleasedEvent", "classwiesel_1_1KeyReleasedEvent.html", "classwiesel_1_1KeyReleasedEvent" ],
+    [ "wiesel::KeyTypedEvent", "classwiesel_1_1KeyTypedEvent.html", "classwiesel_1_1KeyTypedEvent" ]
 ];

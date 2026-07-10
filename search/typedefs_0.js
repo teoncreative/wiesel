@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['assetcallback_0',['AssetCallback',['../classWiesel_1_1AssetManager.html#a8dbc60f4183becbfda5c5e13b3fe9c3d',1,'Wiesel::AssetManager']]]
+  ['assetcallback_0',['AssetCallback',['../classwiesel_1_1AssetManager.html#ae5b947b27f00e0f475edb2b3ffd046a9',1,'wiesel::AssetManager']]]
 ];

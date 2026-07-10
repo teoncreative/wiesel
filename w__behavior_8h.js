@@ -1,7 +1,7 @@
 var w__behavior_8h =
 [
-    [ "Wiesel::IBehavior", "classWiesel_1_1IBehavior.html", "classWiesel_1_1IBehavior" ],
-    [ "Wiesel::BehaviorsComponent", "classWiesel_1_1BehaviorsComponent.html", "classWiesel_1_1BehaviorsComponent" ],
-    [ "GetBehaviorNameFromPath", "w__behavior_8h.html#ae5a6e86f14345c6f06a65d60817e7ff6", null ],
-    [ "GetFileNameFromPath", "w__behavior_8h.html#a3a6455c139b311798c96bf015b86ebbb", null ]
+    [ "wiesel::IBehavior", "classwiesel_1_1IBehavior.html", "classwiesel_1_1IBehavior" ],
+    [ "wiesel::BehaviorsComponent", "classwiesel_1_1BehaviorsComponent.html", "classwiesel_1_1BehaviorsComponent" ],
+    [ "GetBehaviorNameFromPath", "w__behavior_8h.html#a33fd688cc87f4368ed2538559d9a81b8", null ],
+    [ "GetFileNameFromPath", "w__behavior_8h.html#a7e24d65138ddfdf5aad90a4c21a5f44e", null ]
 ];

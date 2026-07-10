@@ -165,6 +165,33 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:adee40e34265acb1b21c577180f61c8d4" id="r_adee40e34265acb1b21c577180f61c8d4"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#adee40e34265acb1b21c577180f61c8d4">OnUIEvent</a> (string eventName)</td></tr>
 <tr class="memdesc:adee40e34265acb1b21c577180f61c8d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called when a UI event fires (e.g. data-event-click="eventName" in RML). Event names must be declared in the .rml asset properties.  <br /></td></tr>
 <tr class="separator:adee40e34265acb1b21c577180f61c8d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6301d7c4a3f5205a3443d2d3e0efdf0d" id="r_a6301d7c4a3f5205a3443d2d3e0efdf0d"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a6301d7c4a3f5205a3443d2d3e0efdf0d">OnClientConnected</a> (ulong sessionId)</td></tr>
+<tr class="memdesc:a6301d7c4a3f5205a3443d2d3e0efdf0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called on all scripts when a client connects to the server (server-side).  <br /></td></tr>
+<tr class="separator:a6301d7c4a3f5205a3443d2d3e0efdf0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a243995f6a5be0c8decc3277ab182daf1" id="r_a243995f6a5be0c8decc3277ab182daf1"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a243995f6a5be0c8decc3277ab182daf1">OnClientDisconnected</a> (ulong sessionId)</td></tr>
+<tr class="memdesc:a243995f6a5be0c8decc3277ab182daf1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called on all scripts when a client disconnects from the server (server-side).  <br /></td></tr>
+<tr class="separator:a243995f6a5be0c8decc3277ab182daf1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a70abcc4e22b780a72ed92f601650ee4c" id="r_a70abcc4e22b780a72ed92f601650ee4c"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a70abcc4e22b780a72ed92f601650ee4c">OnConnectedToServer</a> ()</td></tr>
+<tr class="memdesc:a70abcc4e22b780a72ed92f601650ee4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called on all scripts when this client connects to a server (client-side).  <br /></td></tr>
+<tr class="separator:a70abcc4e22b780a72ed92f601650ee4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a480a4a4021f3fcea12181c9cda61e4b5" id="r_a480a4a4021f3fcea12181c9cda61e4b5"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a480a4a4021f3fcea12181c9cda61e4b5">OnDisconnectedFromServer</a> ()</td></tr>
+<tr class="memdesc:a480a4a4021f3fcea12181c9cda61e4b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called on all scripts when this client disconnects from a server (client-side).  <br /></td></tr>
+<tr class="separator:a480a4a4021f3fcea12181c9cda61e4b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae9fe4bdd414d7b170c904bc3756aaf3f" id="r_ae9fe4bdd414d7b170c904bc3756aaf3f"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#ae9fe4bdd414d7b170c904bc3756aaf3f">OnServerRpc</a> (string rpcName)</td></tr>
+<tr class="memdesc:ae9fe4bdd414d7b170c904bc3756aaf3f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called on the server when a client invokes SendServerRpc on this entity.  <br /></td></tr>
+<tr class="separator:ae9fe4bdd414d7b170c904bc3756aaf3f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a284027d4a22ebdb5eca47ded90fdc36c" id="r_a284027d4a22ebdb5eca47ded90fdc36c"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a284027d4a22ebdb5eca47ded90fdc36c">OnClientRpc</a> (string rpcName)</td></tr>
+<tr class="memdesc:a284027d4a22ebdb5eca47ded90fdc36c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called on clients when the server invokes SendClientRpc on this entity.  <br /></td></tr>
+<tr class="separator:a284027d4a22ebdb5eca47ded90fdc36c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abbec84ae9b0935a81c84f97d89097886" id="r_abbec84ae9b0935a81c84f97d89097886"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#abbec84ae9b0935a81c84f97d89097886">OnSyncVarChanged</a> (string varName)</td></tr>
+<tr class="memdesc:abbec84ae9b0935a81c84f97d89097886"><td class="mdescLeft">&#160;</td><td class="mdescRight">Called when a NetworkVariable changes on this entity (receiving side).  <br /></td></tr>
+<tr class="separator:abbec84ae9b0935a81c84f97d89097886"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0e9d5a029118c16ea5c97f92850acc01" id="r_a0e9d5a029118c16ea5c97f92850acc01"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a0e9d5a029118c16ea5c97f92850acc01">SendServerRpc</a> (string rpcName, params object[] args)</td></tr>
+<tr class="memdesc:a0e9d5a029118c16ea5c97f92850acc01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Call an RPC on the server. The server's OnServerRpc will be invoked.  <br /></td></tr>
+<tr class="separator:a0e9d5a029118c16ea5c97f92850acc01"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af7056811d6860ea7721249720bc62cf2" id="r_af7056811d6860ea7721249720bc62cf2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#af7056811d6860ea7721249720bc62cf2">SendClientRpc</a> (string rpcName, params object[] args)</td></tr>
+<tr class="memdesc:af7056811d6860ea7721249720bc62cf2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Call an RPC on all clients. Each client's OnClientRpc will be invoked.  <br /></td></tr>
+<tr class="separator:af7056811d6860ea7721249720bc62cf2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad98c755699438048ffcc56a6566cc67e" id="r_ad98c755699438048ffcc56a6566cc67e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespaceWieselEngine.html#aac2ddf61a0d5afd3136cab5ce84ba887ab9ece18c950afbfa6b0fdbfa4ff731d3">T</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#ad98c755699438048ffcc56a6566cc67e">GetComponent&lt; T &gt;</a> ()</td></tr>
 <tr class="memdesc:ad98c755699438048ffcc56a6566cc67e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get a component of type T from this entity.  <br /></td></tr>
 <tr class="separator:ad98c755699438048ffcc56a6566cc67e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -192,6 +219,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a6224512ab6aef0c297191e72c73ef830" id="r_a6224512ab6aef0c297191e72c73ef830"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWieselEngine_1_1Entity.html">Entity</a>[]&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a6224512ab6aef0c297191e72c73ef830">FindEntitiesByTag</a> (string tag)</td></tr>
 <tr class="memdesc:a6224512ab6aef0c297191e72c73ef830"><td class="mdescLeft">&#160;</td><td class="mdescRight">Find all entities with the given tag. Returns empty array if none found.  <br /></td></tr>
 <tr class="separator:a6224512ab6aef0c297191e72c73ef830"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0e41a03dc88fe3c52c600b0293ce65dc" id="r_a0e41a03dc88fe3c52c600b0293ce65dc"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classWieselEngine_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWieselEngine_1_1MonoBehavior.html#a0e41a03dc88fe3c52c600b0293ce65dc">MoveToScene</a> (<a class="el" href="classWieselEngine_1_1Scene.html">Scene</a> targetScene, bool moveChildren=true)</td></tr>
+<tr class="memdesc:a0e41a03dc88fe3c52c600b0293ce65dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move this entity (and optionally its children) to another scene. This entity handle becomes invalid after the move. Returns the new Entity in the target scene.  <br /></td></tr>
+<tr class="separator:a0e41a03dc88fe3c52c600b0293ce65dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -363,6 +393,120 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a0e41a03dc88fe3c52c600b0293ce65dc" name="a0e41a03dc88fe3c52c600b0293ce65dc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e41a03dc88fe3c52c600b0293ce65dc">&#9670;&#160;</a></span>MoveToScene()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classWieselEngine_1_1Entity.html">Entity</a> WieselEngine.MonoBehavior.MoveToScene </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classWieselEngine_1_1Scene.html">Scene</a>&#160;</td>
+          <td class="paramname"><em>targetScene</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>moveChildren</em> = <code>true</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Move this entity (and optionally its children) to another scene. This entity handle becomes invalid after the move. Returns the new Entity in the target scene. </p>
+
+</div>
+</div>
+<a id="a6301d7c4a3f5205a3443d2d3e0efdf0d" name="a6301d7c4a3f5205a3443d2d3e0efdf0d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6301d7c4a3f5205a3443d2d3e0efdf0d">&#9670;&#160;</a></span>OnClientConnected()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnClientConnected </td>
+          <td>(</td>
+          <td class="paramtype">ulong&#160;</td>
+          <td class="paramname"><em>sessionId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called on all scripts when a client connects to the server (server-side). </p>
+
+</div>
+</div>
+<a id="a243995f6a5be0c8decc3277ab182daf1" name="a243995f6a5be0c8decc3277ab182daf1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a243995f6a5be0c8decc3277ab182daf1">&#9670;&#160;</a></span>OnClientDisconnected()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnClientDisconnected </td>
+          <td>(</td>
+          <td class="paramtype">ulong&#160;</td>
+          <td class="paramname"><em>sessionId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called on all scripts when a client disconnects from the server (server-side). </p>
+
+</div>
+</div>
+<a id="a284027d4a22ebdb5eca47ded90fdc36c" name="a284027d4a22ebdb5eca47ded90fdc36c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a284027d4a22ebdb5eca47ded90fdc36c">&#9670;&#160;</a></span>OnClientRpc()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnClientRpc </td>
+          <td>(</td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>rpcName</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called on clients when the server invokes SendClientRpc on this entity. </p>
+
+</div>
+</div>
 <a id="a37fd6c404573ac7e3e1bb46d865aa7a5" name="a37fd6c404573ac7e3e1bb46d865aa7a5"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a37fd6c404573ac7e3e1bb46d865aa7a5">&#9670;&#160;</a></span>OnCollisionEnter()</h2>
 
@@ -447,6 +591,33 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a70abcc4e22b780a72ed92f601650ee4c" name="a70abcc4e22b780a72ed92f601650ee4c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a70abcc4e22b780a72ed92f601650ee4c">&#9670;&#160;</a></span>OnConnectedToServer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnConnectedToServer </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called on all scripts when this client connects to a server (client-side). </p>
+
+</div>
+</div>
 <a id="a06592c77300243a62bd1760184fb3ff6" name="a06592c77300243a62bd1760184fb3ff6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a06592c77300243a62bd1760184fb3ff6">&#9670;&#160;</a></span>OnDestroy()</h2>
 
@@ -498,6 +669,33 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Called when the script is disabled or the entity is about to be removed. </p>
+
+</div>
+</div>
+<a id="a480a4a4021f3fcea12181c9cda61e4b5" name="a480a4a4021f3fcea12181c9cda61e4b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a480a4a4021f3fcea12181c9cda61e4b5">&#9670;&#160;</a></span>OnDisconnectedFromServer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnDisconnectedFromServer </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called on all scripts when this client disconnects from a server (client-side). </p>
 
 </div>
 </div>
@@ -779,6 +977,34 @@ Public Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="ae9fe4bdd414d7b170c904bc3756aaf3f" name="ae9fe4bdd414d7b170c904bc3756aaf3f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae9fe4bdd414d7b170c904bc3756aaf3f">&#9670;&#160;</a></span>OnServerRpc()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnServerRpc </td>
+          <td>(</td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>rpcName</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called on the server when a client invokes SendServerRpc on this entity. </p>
+
+</div>
+</div>
 <a id="a33caee1729c8a0501ddfd3d48b71ab44" name="a33caee1729c8a0501ddfd3d48b71ab44"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a33caee1729c8a0501ddfd3d48b71ab44">&#9670;&#160;</a></span>OnStart()</h2>
 
@@ -803,6 +1029,34 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Called once when the script is first activated, before the first OnUpdate. </p>
+
+</div>
+</div>
+<a id="abbec84ae9b0935a81c84f97d89097886" name="abbec84ae9b0935a81c84f97d89097886"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abbec84ae9b0935a81c84f97d89097886">&#9670;&#160;</a></span>OnSyncVarChanged()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void WieselEngine.MonoBehavior.OnSyncVarChanged </td>
+          <td>(</td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>varName</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Called when a NetworkVariable changes on this entity (receiving side). </p>
 
 </div>
 </div>
@@ -1016,6 +1270,66 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Remove a component of type T from this entity. </p>
+
+</div>
+</div>
+<a id="af7056811d6860ea7721249720bc62cf2" name="af7056811d6860ea7721249720bc62cf2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af7056811d6860ea7721249720bc62cf2">&#9670;&#160;</a></span>SendClientRpc()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void WieselEngine.MonoBehavior.SendClientRpc </td>
+          <td>(</td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>rpcName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">params object[]&#160;</td>
+          <td class="paramname"><em>args</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Call an RPC on all clients. Each client's OnClientRpc will be invoked. </p>
+
+</div>
+</div>
+<a id="a0e9d5a029118c16ea5c97f92850acc01" name="a0e9d5a029118c16ea5c97f92850acc01"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e9d5a029118c16ea5c97f92850acc01">&#9670;&#160;</a></span>SendServerRpc()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void WieselEngine.MonoBehavior.SendServerRpc </td>
+          <td>(</td>
+          <td class="paramtype">string&#160;</td>
+          <td class="paramname"><em>rpcName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">params object[]&#160;</td>
+          <td class="paramname"><em>args</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Call an RPC on the server. The server's OnServerRpc will be invoked. </p>
 
 </div>
 </div>

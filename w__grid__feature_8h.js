@@ -1,5 +1,5 @@
 var w__grid__feature_8h =
 [
-    [ "Wiesel::GridUniformData", "structWiesel_1_1GridUniformData.html", "structWiesel_1_1GridUniformData" ],
-    [ "Wiesel::GridFeature", "classWiesel_1_1GridFeature.html", "classWiesel_1_1GridFeature" ]
+    [ "wiesel::GridUniformData", "structwiesel_1_1GridUniformData.html", "structwiesel_1_1GridUniformData" ],
+    [ "wiesel::GridFeature", "classwiesel_1_1GridFeature.html", "classwiesel_1_1GridFeature" ]
 ];

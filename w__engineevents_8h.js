@@ -1,4 +1,4 @@
 var w__engineevents_8h =
 [
-    [ "Wiesel::PipelineRecreatedEvent", "classWiesel_1_1PipelineRecreatedEvent.html", "classWiesel_1_1PipelineRecreatedEvent" ]
+    [ "wiesel::PipelineRecreatedEvent", "classwiesel_1_1PipelineRecreatedEvent.html", "classwiesel_1_1PipelineRecreatedEvent" ]
 ];

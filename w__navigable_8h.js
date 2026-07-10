@@ -1,4 +1,4 @@
 var w__navigable_8h =
 [
-    [ "Wiesel::NavigableComponent", "structWiesel_1_1NavigableComponent.html", "structWiesel_1_1NavigableComponent" ]
+    [ "wiesel::NavigableComponent", "structwiesel_1_1NavigableComponent.html", "structwiesel_1_1NavigableComponent" ]
 ];

@@ -1,16 +1,16 @@
 var w__mousecodes_8h =
 [
-    [ "MouseCode", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3", [
-      [ "kMouseButton0", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a6d7ad680f1324799934af92845f79dad", null ],
-      [ "kMouseButton1", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a3271f2b47948a9f4de6a7f5382855d91", null ],
-      [ "kMouseButton2", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a84f35a899791df74be1fc720d022de91", null ],
-      [ "kMouseButton3", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a52c3c1a96ccaec428c6b7a4351bdf774", null ],
-      [ "kMouseButton4", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a38e5eb2b672a26c673a982acbfd007fc", null ],
-      [ "kMouseButton5", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3aa2bfeb85f1409e9ffbc82c7de183fd31", null ],
-      [ "kMouseButton6", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a4b26d3496b1b28f3d3c098c9f8d8044b", null ],
-      [ "kMouseButton7", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a53bd197bb3cb15eb6dd4475dd0a0f122", null ],
-      [ "kMouseButtonLeft", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a8fe39f4bad85baf1be98c500671bd3ba", null ],
-      [ "kMouseButtonRight", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a415f9a0105e2b90fc14cc4f8a181c4c5", null ],
-      [ "kMouseButtonMiddle", "w__mousecodes_8h.html#abd4d001fc1b43faadadf66b19f968eb3a2b5450d9f6ca13397e343102305435b3", null ]
+    [ "MouseCode", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30", [
+      [ "kMouseButton0", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30a77706fbd1308a0ac50b00507ca739224", null ],
+      [ "kMouseButton1", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30aebea6421319a2e0076c51900ea18dd76", null ],
+      [ "kMouseButton2", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30aff22c4cbe19411f6068baacf599eef81", null ],
+      [ "kMouseButton3", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30a2bef6b50f7044092c7ae7cddc3d57b5a", null ],
+      [ "kMouseButton4", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30a48c1813b5acbb62d7d5f921afacb4365", null ],
+      [ "kMouseButton5", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30a5dd08be85e386492197df8da1738a466", null ],
+      [ "kMouseButton6", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30acdd8e8af78478f01c87502d651932b0a", null ],
+      [ "kMouseButton7", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30ae462276d17dab2c09683919a5db32407", null ],
+      [ "kMouseButtonLeft", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30acd292b42723b82c14537dd59f51935ad", null ],
+      [ "kMouseButtonRight", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30a30fe33031a60a7750038a8aeb0d4ba01", null ],
+      [ "kMouseButtonMiddle", "w__mousecodes_8h.html#a8e3744d07324af5035f53b3f951e0a30ad1b9dc120d68130a9f85913e11e968b7", null ]
     ] ]
 ];

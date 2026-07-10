@@ -1,18 +1,18 @@
 var w__appevents_8h =
 [
-    [ "Wiesel::AssetUnloadedEvent", "classWiesel_1_1AssetUnloadedEvent.html", "classWiesel_1_1AssetUnloadedEvent" ],
-    [ "Wiesel::WindowClosedEvent", "classWiesel_1_1WindowClosedEvent.html", "classWiesel_1_1WindowClosedEvent" ],
-    [ "Wiesel::WindowResizedEvent", "classWiesel_1_1WindowResizedEvent.html", "classWiesel_1_1WindowResizedEvent" ],
-    [ "Wiesel::WindowMinimizedEvent", "classWiesel_1_1WindowMinimizedEvent.html", "classWiesel_1_1WindowMinimizedEvent" ],
-    [ "Wiesel::WindowRestoredEvent", "classWiesel_1_1WindowRestoredEvent.html", "classWiesel_1_1WindowRestoredEvent" ],
-    [ "Wiesel::WindowFocusGainedEvent", "classWiesel_1_1WindowFocusGainedEvent.html", "classWiesel_1_1WindowFocusGainedEvent" ],
-    [ "Wiesel::WindowFocusLostEvent", "classWiesel_1_1WindowFocusLostEvent.html", "classWiesel_1_1WindowFocusLostEvent" ],
-    [ "Wiesel::AppRecreateSwapChainsEvent", "classWiesel_1_1AppRecreateSwapChainsEvent.html", "classWiesel_1_1AppRecreateSwapChainsEvent" ],
-    [ "Wiesel::ScriptsReloadedEvent", "classWiesel_1_1ScriptsReloadedEvent.html", "classWiesel_1_1ScriptsReloadedEvent" ],
-    [ "Wiesel::JoystickConnectedEvent", "classWiesel_1_1JoystickConnectedEvent.html", "classWiesel_1_1JoystickConnectedEvent" ],
-    [ "Wiesel::JoystickDisconnectedEvent", "classWiesel_1_1JoystickDisconnectedEvent.html", "classWiesel_1_1JoystickDisconnectedEvent" ],
-    [ "Wiesel::JoystickButtonPressedEvent", "classWiesel_1_1JoystickButtonPressedEvent.html", "classWiesel_1_1JoystickButtonPressedEvent" ],
-    [ "Wiesel::JoystickButtonReleasedEvent", "classWiesel_1_1JoystickButtonReleasedEvent.html", "classWiesel_1_1JoystickButtonReleasedEvent" ],
-    [ "Wiesel::JoystickAxisMovedEvent", "classWiesel_1_1JoystickAxisMovedEvent.html", "classWiesel_1_1JoystickAxisMovedEvent" ],
-    [ "Wiesel::JoystickHatChangedEvent", "classWiesel_1_1JoystickHatChangedEvent.html", "classWiesel_1_1JoystickHatChangedEvent" ]
+    [ "wiesel::AssetUnloadedEvent", "classwiesel_1_1AssetUnloadedEvent.html", "classwiesel_1_1AssetUnloadedEvent" ],
+    [ "wiesel::WindowClosedEvent", "classwiesel_1_1WindowClosedEvent.html", "classwiesel_1_1WindowClosedEvent" ],
+    [ "wiesel::WindowResizedEvent", "classwiesel_1_1WindowResizedEvent.html", "classwiesel_1_1WindowResizedEvent" ],
+    [ "wiesel::WindowMinimizedEvent", "classwiesel_1_1WindowMinimizedEvent.html", "classwiesel_1_1WindowMinimizedEvent" ],
+    [ "wiesel::WindowRestoredEvent", "classwiesel_1_1WindowRestoredEvent.html", "classwiesel_1_1WindowRestoredEvent" ],
+    [ "wiesel::WindowFocusGainedEvent", "classwiesel_1_1WindowFocusGainedEvent.html", "classwiesel_1_1WindowFocusGainedEvent" ],
+    [ "wiesel::WindowFocusLostEvent", "classwiesel_1_1WindowFocusLostEvent.html", "classwiesel_1_1WindowFocusLostEvent" ],
+    [ "wiesel::AppRecreateSwapChainsEvent", "classwiesel_1_1AppRecreateSwapChainsEvent.html", "classwiesel_1_1AppRecreateSwapChainsEvent" ],
+    [ "wiesel::ScriptsReloadedEvent", "classwiesel_1_1ScriptsReloadedEvent.html", "classwiesel_1_1ScriptsReloadedEvent" ],
+    [ "wiesel::JoystickConnectedEvent", "classwiesel_1_1JoystickConnectedEvent.html", "classwiesel_1_1JoystickConnectedEvent" ],
+    [ "wiesel::JoystickDisconnectedEvent", "classwiesel_1_1JoystickDisconnectedEvent.html", "classwiesel_1_1JoystickDisconnectedEvent" ],
+    [ "wiesel::JoystickButtonPressedEvent", "classwiesel_1_1JoystickButtonPressedEvent.html", "classwiesel_1_1JoystickButtonPressedEvent" ],
+    [ "wiesel::JoystickButtonReleasedEvent", "classwiesel_1_1JoystickButtonReleasedEvent.html", "classwiesel_1_1JoystickButtonReleasedEvent" ],
+    [ "wiesel::JoystickAxisMovedEvent", "classwiesel_1_1JoystickAxisMovedEvent.html", "classwiesel_1_1JoystickAxisMovedEvent" ],
+    [ "wiesel::JoystickHatChangedEvent", "classwiesel_1_1JoystickHatChangedEvent.html", "classwiesel_1_1JoystickHatChangedEvent" ]
 ];

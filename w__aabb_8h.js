@@ -1,4 +1,4 @@
 var w__aabb_8h =
 [
-    [ "Wiesel::AABB", "structWiesel_1_1AABB.html", "structWiesel_1_1AABB" ]
+    [ "wiesel::AABB", "structwiesel_1_1AABB.html", "structwiesel_1_1AABB" ]
 ];

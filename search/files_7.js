@@ -1,7 +1,5 @@
 var searchData=
 [
-  ['mainpage_2edox_0',['mainpage.dox',['../mainpage_8dox.html',1,'']]],
-  ['mathf_2ecs_1',['Mathf.cs',['../Mathf_8cs.html',1,'']]],
-  ['modelcomponent_2ecs_2',['ModelComponent.cs',['../ModelComponent_8cs.html',1,'']]],
-  ['monobehavior_2ecs_3',['MonoBehavior.cs',['../MonoBehavior_8cs.html',1,'']]]
+  ['lightdirectcomponent_2ecs_0',['LightDirectComponent.cs',['../LightDirectComponent_8cs.html',1,'']]],
+  ['lightpointcomponent_2ecs_1',['LightPointComponent.cs',['../LightPointComponent_8cs.html',1,'']]]
 ];

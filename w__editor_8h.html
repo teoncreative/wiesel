@@ -99,40 +99,53 @@ $(document).ready(function(){initNavTree('w__editor_8h.html',''); initResizable(
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><code>#include &quot;TextEditor.h&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__anim__clip__editor_8h.html">w_anim_clip_editor.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__anim__controller__editor_8h.html">w_anim_controller_editor.h</a>&quot;</code><br />
+<code>#include &lt;backends/imgui_impl_vulkan.h&gt;</code><br />
+<code>#include &lt;imgui.h&gt;</code><br />
+<code>#include &lt;ImGuizmo.h&gt;</code><br />
 <code>#include &quot;<a class="el" href="w__behavior_8h.html">behavior/w_behavior.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__appevents_8h.html">events/w_appevents.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__mouseevents_8h.html">events/w_mouseevents.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__camera_8h.html">rendering/w_camera.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__entity_8h.html">scene/w_entity.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__scene_8h.html">scene/w_scene.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__filewatcher_8h.html">util/w_filewatcher.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__user__config_8h.html">util/w_user_config.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__application_8h.html">w_application.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__asset__browser__panel_8h.html">w_asset_browser_panel.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__lsp__autocomplete_8h.html">w_lsp_autocomplete.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__lsp__client_8h.html">w_lsp_client.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__command__palette_8h.html">w_command_palette.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__editor__name__prompt_8h.html">w_editor_name_prompt.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__notifications_8h.html">w_notifications.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__project_8h.html">w_project.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="w__undo_8h.html">w_undo.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="w__vfs__browser_8h.html">w_vfs_browser.h</a>&quot;</code><br />
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Editor_1_1RecentProjects.html">Wiesel::Editor::RecentProjects</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classwiesel_1_1editor_1_1RecentProjects.html">wiesel::editor::RecentProjects</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classWiesel_1_1Editor_1_1EditorLayer.html">Wiesel::Editor::EditorLayer</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structwiesel_1_1editor_1_1HierarchyDragPayload.html">wiesel::editor::HierarchyDragPayload</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classwiesel_1_1editor_1_1EditorLayer.html">wiesel::editor::EditorLayer</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
-<tr class="memitem:namespaceWiesel" id="r_namespaceWiesel"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel.html">Wiesel</a></td></tr>
+<tr class="memitem:namespacewiesel" id="r_namespacewiesel"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacewiesel.html">wiesel</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:namespaceWiesel_1_1Editor" id="r_namespaceWiesel_1_1Editor"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel_1_1Editor.html">Wiesel::Editor</a></td></tr>
+<tr class="memitem:namespacewiesel_1_1editor" id="r_namespacewiesel_1_1editor"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacewiesel_1_1editor.html">wiesel::editor</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
-<tr class="memitem:a8782947c92fe566e143ef827c14a255c" id="r_a8782947c92fe566e143ef827c14a255c"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceWiesel_1_1Editor.html#a8782947c92fe566e143ef827c14a255c">Wiesel::Editor::EditorState</a> { <a class="el" href="namespaceWiesel_1_1Editor.html#a8782947c92fe566e143ef827c14a255ca7dce122004969d56ae2e0245cb754d35">Wiesel::Editor::Edit</a>
-, <a class="el" href="namespaceWiesel_1_1Editor.html#a8782947c92fe566e143ef827c14a255cac9dbb2b7c84159b632d71e512eba8428">Wiesel::Editor::Playing</a>
+<tr class="memitem:aa2e6a86a900c349a58d7391f52def994" id="r_aa2e6a86a900c349a58d7391f52def994"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacewiesel_1_1editor.html#aa2e6a86a900c349a58d7391f52def994">wiesel::editor::EditorState</a> { <a class="el" href="namespacewiesel_1_1editor.html#aa2e6a86a900c349a58d7391f52def994a7dce122004969d56ae2e0245cb754d35">wiesel::editor::Edit</a>
+, <a class="el" href="namespacewiesel_1_1editor.html#aa2e6a86a900c349a58d7391f52def994ac9dbb2b7c84159b632d71e512eba8428">wiesel::editor::Playing</a>
+, <a class="el" href="namespacewiesel_1_1editor.html#aa2e6a86a900c349a58d7391f52def994ae99180abf47a8b3a856e0bcb2656990a">wiesel::editor::Paused</a>
  }</td></tr>
-<tr class="separator:a8782947c92fe566e143ef827c14a255c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="separator:aa2e6a86a900c349a58d7391f52def994"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 </div><!-- doc-content -->

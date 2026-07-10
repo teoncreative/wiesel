@@ -1,4 +1,4 @@
 var w__canvas__system_8h =
 [
-    [ "Wiesel::CanvasSystem", "classWiesel_1_1CanvasSystem.html", "classWiesel_1_1CanvasSystem" ]
+    [ "wiesel::CanvasSystem", "classwiesel_1_1CanvasSystem.html", "classwiesel_1_1CanvasSystem" ]
 ];

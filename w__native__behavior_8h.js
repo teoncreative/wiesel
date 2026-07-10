@@ -1,6 +1,6 @@
 var w__native__behavior_8h =
 [
-    [ "Wiesel::NativeBehavior", "classWiesel_1_1NativeBehavior.html", "classWiesel_1_1NativeBehavior" ],
-    [ "Wiesel::NativeBehaviorRegistry", "classWiesel_1_1NativeBehaviorRegistry.html", "classWiesel_1_1NativeBehaviorRegistry" ],
-    [ "NativeBehaviorFactory", "w__native__behavior_8h.html#a0a27ada6f4f17d8bbbbb32147b894b80", null ]
+    [ "wiesel::NativeBehavior", "classwiesel_1_1NativeBehavior.html", "classwiesel_1_1NativeBehavior" ],
+    [ "wiesel::NativeBehaviorRegistry", "classwiesel_1_1NativeBehaviorRegistry.html", "classwiesel_1_1NativeBehaviorRegistry" ],
+    [ "NativeBehaviorFactory", "w__native__behavior_8h.html#a88ccc3a20c67aee4e30414886853e443", null ]
 ];

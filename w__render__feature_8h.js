@@ -1,8 +1,8 @@
 var w__render__feature_8h =
 [
-    [ "Wiesel::CameraResourcePool", "classWiesel_1_1CameraResourcePool.html", "classWiesel_1_1CameraResourcePool" ],
-    [ "Wiesel::RenderContext", "structWiesel_1_1RenderContext.html", "structWiesel_1_1RenderContext" ],
-    [ "Wiesel::RenderResourceRegistry", "classWiesel_1_1RenderResourceRegistry.html", "classWiesel_1_1RenderResourceRegistry" ],
-    [ "Wiesel::RenderFeature", "classWiesel_1_1RenderFeature.html", "classWiesel_1_1RenderFeature" ],
-    [ "Wiesel::RenderPipeline", "classWiesel_1_1RenderPipeline.html", "classWiesel_1_1RenderPipeline" ]
+    [ "wiesel::CameraResourcePool", "classwiesel_1_1CameraResourcePool.html", "classwiesel_1_1CameraResourcePool" ],
+    [ "wiesel::RenderContext", "structwiesel_1_1RenderContext.html", "structwiesel_1_1RenderContext" ],
+    [ "wiesel::RenderResourceRegistry", "classwiesel_1_1RenderResourceRegistry.html", "classwiesel_1_1RenderResourceRegistry" ],
+    [ "wiesel::RenderFeature", "classwiesel_1_1RenderFeature.html", "classwiesel_1_1RenderFeature" ],
+    [ "wiesel::RenderPipeline", "classwiesel_1_1RenderPipeline.html", "classwiesel_1_1RenderPipeline" ]
 ];
