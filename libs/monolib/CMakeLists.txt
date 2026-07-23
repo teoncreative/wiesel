@@ -19,6 +19,14 @@ if(WIN32)
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(MONO REQUIRED mono-2)
+    # MONO_ROOT is only needed for the etc/lib symlinks below. Fall back to the
+    # prefix pkg-config reports so it resolves without an explicit env var.
+    if(DEFINED ENV{MONO_ROOT})
+        set(MONO_ROOT $ENV{MONO_ROOT})
+    else()
+        pkg_get_variable(MONO_ROOT mono-2 prefix)
+    endif()
+    message("Mono Root: ${MONO_ROOT}")
 endif()
 
 message("Include dirs: ${MONO_INCLUDE_DIRS}")

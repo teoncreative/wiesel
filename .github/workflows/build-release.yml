@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 env:
-  VULKAN_SDK_VERSION: 1.3.290.0
+  VULKAN_SDK_VERSION: 1.4.321.0
 
 jobs:
   build-windows:
@@ -32,7 +32,7 @@ jobs:
         if: steps.cache-vulkan.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $installer = "VulkanSDK-${{ env.VULKAN_SDK_VERSION }}-Installer.exe"
+          $installer = "vulkan-sdk.exe"
           Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/${{ env.VULKAN_SDK_VERSION }}/windows/$installer" -OutFile $installer
           Start-Process -FilePath ".\$installer" -ArgumentList "--root C:\VulkanSDK\${{ env.VULKAN_SDK_VERSION }} --accept-licenses --default-answer --confirm-command install" -Wait
 
@@ -140,9 +140,10 @@ jobs:
       - name: Install Vulkan SDK
         if: steps.cache-vulkan.outputs.cache-hit != 'true'
         run: |
-          wget -qO- "https://sdk.lunarg.com/sdk/download/${{ env.VULKAN_SDK_VERSION }}/linux/vulkansdk-linux-x86_64-${{ env.VULKAN_SDK_VERSION }}.tar.xz" | tar xJf - -C /tmp
-          mkdir -p ~/vulkan-sdk
-          cp -r /tmp/${{ env.VULKAN_SDK_VERSION }}/* ~/vulkan-sdk/
+          mkdir -p /tmp/vulkan-sdk-extract ~/vulkan-sdk
+          wget -qO- "https://sdk.lunarg.com/sdk/download/${{ env.VULKAN_SDK_VERSION }}/linux/vulkan-sdk.tar.xz" | tar xJf - -C /tmp/vulkan-sdk-extract
+          sdk_root=$(dirname "$(find /tmp/vulkan-sdk-extract -maxdepth 3 -type d -name x86_64 | head -1)")
+          cp -r "$sdk_root"/* ~/vulkan-sdk/
 
       - name: Set Vulkan SDK env
         run: |
@@ -175,6 +176,85 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wiesel-editor-linux
+          path: ${{ env.ARTIFACT_NAME }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ARTIFACT_NAME }}
+          generate_release_notes: true
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: brew install mono pkg-config
+
+      - name: Set Mono env
+        run: echo "MONO_ROOT=$(brew --prefix mono)" >> $GITHUB_ENV
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache Vulkan SDK
+        id: cache-vulkan
+        uses: actions/cache@v4
+        with:
+          path: ~/VulkanSDK
+          key: vulkan-sdk-${{ env.VULKAN_SDK_VERSION }}-macos
+
+      - name: Install Vulkan SDK
+        if: steps.cache-vulkan.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/vulkan-sdk-extract
+          curl -sSL -o /tmp/vulkan-sdk.zip "https://sdk.lunarg.com/sdk/download/${{ env.VULKAN_SDK_VERSION }}/mac/vulkan-sdk.zip"
+          unzip -q /tmp/vulkan-sdk.zip -d /tmp/vulkan-sdk-extract
+          installer_app=$(find /tmp/vulkan-sdk-extract -maxdepth 2 -type d -name "*.app" | head -1)
+          sudo "$installer_app/Contents/MacOS/$(basename "$installer_app" .app)" \
+            --root "$HOME/VulkanSDK" --accept-licenses --default-answer --confirm-command install
+          sudo chown -R "$(id -un)" "$HOME/VulkanSDK"
+
+      - name: Set Vulkan SDK env
+        run: |
+          echo "VULKAN_SDK=$HOME/VulkanSDK/macOS" >> $GITHUB_ENV
+          echo "$HOME/VulkanSDK/macOS/bin" >> $GITHUB_PATH
+          echo "DYLD_LIBRARY_PATH=$HOME/VulkanSDK/macOS/lib" >> $GITHUB_ENV
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-build-macos-${{ hashFiles('wiesel/CMakeLists.txt', 'vendor/CMakeLists.txt', 'CMakeLists.txt') }}
+          restore-keys: cmake-build-macos-
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_OPT=0
+
+      - name: Build bundle-editor
+        run: cmake --build build --config Release --target bundle-editor -j$(sysctl -n hw.ncpu)
+
+      - name: Package bundle
+        run: |
+          VERSION=$(echo "$GITHUB_REF" | sed -n 's|^refs/tags/||p')
+          if [ -z "$VERSION" ]; then
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          tar -czf "wiesel-editor-macos-$VERSION.tar.gz" -C build/bundle .
+          echo "ARTIFACT_NAME=wiesel-editor-macos-$VERSION.tar.gz" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiesel-editor-macos
           path: ${{ env.ARTIFACT_NAME }}
 
       - name: Create Release
