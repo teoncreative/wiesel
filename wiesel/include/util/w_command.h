@@ -89,24 +89,11 @@ class DeveloperConsole {
   bool visible_ = false;
 };
 
-#ifdef _MSC_VER
-
-#define DCON_LOG_INFO(msg, ...) \
-  ::wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, __VA_ARGS__))
-#define DCON_LOG_WARN(msg, ...) \
-  ::wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, __VA_ARGS__))
-#define DCON_LOG_ERROR(msg, ...) \
-  ::wiesel::DeveloperConsole::Get().LogError(std::format(msg, __VA_ARGS__))
-
-#else
-
-#define DCON_LOG_INFO(msg, args...) \
-  ::wiesel::DeveloperConsole::Get().LogInfo(std::format(msg, ##args))
-#define DCON_LOG_WARN(msg, args...) \
-  ::wiesel::DeveloperConsole::Get().LogWarning(std::format(msg, ##args))
-#define DCON_LOG_ERROR(msg, args...) \
-  ::wiesel::DeveloperConsole::Get().LogError(std::format(msg, ##args))
-
-#endif
+#define DCON_LOG_INFO(...) \
+  ::wiesel::DeveloperConsole::Get().LogInfo(std::format(__VA_ARGS__))
+#define DCON_LOG_WARN(...) \
+  ::wiesel::DeveloperConsole::Get().LogWarning(std::format(__VA_ARGS__))
+#define DCON_LOG_ERROR(...) \
+  ::wiesel::DeveloperConsole::Get().LogError(std::format(__VA_ARGS__))
 
 }  // namespace wiesel
