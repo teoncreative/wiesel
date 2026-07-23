@@ -22,6 +22,10 @@ if(WIN32)
     add_compile_definitions(WIN32=1)
 endif()
 
+if(MSVC)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>)
+endif()
+
 ##### BUILD INFO #####
 execute_process(
         COMMAND git rev-parse --short HEAD
