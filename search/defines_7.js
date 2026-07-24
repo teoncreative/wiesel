@@ -1,7 +1,7 @@
 var searchData=
 [
   ['pi_0',['PI',['../w__utils_8h.html#a598a3330b3c21701223ee0ca14316eca',1,'w_utils.h']]],
-  ['printfn_1',['PRINTFN',['../w__logger_8h.html#a68d4eb9c34dbbf773d490a9a85b4110d',1,'w_logger.h']]],
+  ['printfn_1',['PRINTFN',['../w__logger_8h.html#a31caa78b682dedbc2b08d39c91ff4863',1,'w_logger.h']]],
   ['profile_5falloc_2',['profile_alloc',['../w__tracy_8h.html#a7efb7368d8f9ca0cc3fff52da8ea3b89',1,'PROFILE_ALLOC:&#160;w_tracy.h'],['../w__tracy_8h.html#a7efb7368d8f9ca0cc3fff52da8ea3b89',1,'PROFILE_ALLOC:&#160;w_tracy.h']]],
   ['profile_5falloc_5fnamed_3',['PROFILE_ALLOC_NAMED',['../w__tracy_8h.html#a07432e450ad8a1ab8cfc7925e17e9d32',1,'w_tracy.h']]],
   ['profile_5fframe_5fmark_4',['PROFILE_FRAME_MARK',['../w__tracy_8h.html#add633b181c87eb83b881ae6e22a86ec5',1,'w_tracy.h']]],
